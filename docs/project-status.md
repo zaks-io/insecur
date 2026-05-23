@@ -44,20 +44,25 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 - Current schema is not tenant-first
 - Current routes are not organization-qualified
 - Current authorization is project-scoped, not membership/role based
+- Current human authentication is GitHub OAuth scaffold, not WorkOS AuthKit
 - Current machine tokens are long-lived instead of machine identity issued short-lived access tokens
 - Current encryption model does not yet have organization data keys and project data keys
 - Current encryption does not bind ciphertext to tenant/resource identity with authenticated data
 - No key version model or key rotation workflow exists yet
 - Secret version writes and rollback need stronger concurrency guarantees before multi-user use
 - Audit rows are not yet tenant-qualified with typed actor/resource fields and denied-auth coverage
+- No tamper-evident audit export, hash chain, or HMACed manifest exists yet
 - No app connection model exists for provider OAuth app installations
 - No secret sync model exists yet for provider destinations
+- No Cloudflare Queue-backed sync execution, retry, or dead-letter workflow exists yet
+- No Durable Object provider-target serialization exists yet
 - CLI/sync shape is documented but not implemented
 - No cross-tenant authorization regression tests exist
 - No security runbooks exist yet
 - No ASVS/API Top 10/security release gate exists yet
 - No dependency, supply-chain, or secret scanning workflow exists yet
 - No UI exists
+- No WorkOS AuthKit, WorkOS MFA, or high-risk action challenge implementation exists yet
 - No GitHub Actions OIDC federation endpoint exists
 - No key rotation, machine identity credential rotation, app connection credential rotation, or provider reauthorization workflow exists
 - No R2 backup or restore test exists
@@ -68,6 +73,28 @@ The current implementation is a scaffold. The product direction is multi-tenant 
 
 Before public multi-tenant use, add organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, and tenant-bounded audit/export behavior.
 
+## Planned Phases
+
+**Phase 1**
+
+CRUD, immutable versions, audit log, GitHub OAuth scaffold, envelope encryption, scoped machine tokens, and CLI `.env` pull/run.
+
+**Phase 2**
+
+Tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit migration, organization and project data keys, and tenant-qualified routes.
+
+**Phase 3**
+
+Machine identities and GitHub Actions OIDC federation for short-lived, scoped CI access without storing long-lived tokens in GitHub.
+
+**Phase 4**
+
+OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, and Cloudflare Worker secrets.
+
+**Phase 5**
+
+Focused UI, rotation framework, Cron Triggers, Durable Object serialization, encrypted R2 backups, restore testing, key rotation procedure, and better token revocation workflows.
+
 ## Recommended Next Steps
 
 1. Implement the tenant-first schema: organizations, memberships, roles, tenant-qualified audit log, and project ownership by organization.
@@ -77,10 +104,14 @@ Before public multi-tenant use, add organization, membership, role, machine iden
 5. Bind secret ciphertext to organization/project/environment/secret/version identity with AES-GCM authenticated data.
 6. Strengthen secret version write and rollback concurrency guarantees.
 7. Replace long-lived machine token flows with machine identities and short-lived access tokens.
-8. Implement GitHub Actions OIDC federation for short-lived CI access.
-9. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs.
-10. Add developer-first CLI support for profiles, dry-runs, operation IDs, and JSON output.
-11. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, run, verify, retry/reauth.
-12. Write the security runbooks listed in `docs/security-plan.md`.
-13. Add security release gates for ASVS/API Top 10 checks, dependency scanning, and secret scanning.
-14. Add the focused UI after API, CLI, and sync flows are verified.
+8. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
+9. Implement GitHub Actions OIDC federation for short-lived CI access.
+10. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs.
+11. Add developer-first CLI support for profiles, dry-runs, operation IDs, and JSON output.
+12. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, queue-backed run, verify, retry/reauth.
+13. Add Cloudflare Queues, retry, dead-letter handling, and Durable Object provider-target serialization for sync operations.
+14. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
+15. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
+16. Write the security runbooks listed in `docs/security-plan.md`.
+17. Add security release gates for ASVS/API Top 10 checks, dependency scanning, and secret scanning.
+18. Add the focused UI after API, CLI, and sync flows are verified.

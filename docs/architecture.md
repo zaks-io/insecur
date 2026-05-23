@@ -11,7 +11,7 @@ In scope:
 - Cloudflare Workers API with D1 metadata storage
 - Organization-first multi-tenancy with memberships and roles
 - WebCrypto envelope encryption for secret versions and sensitive organization data
-- GitHub OAuth for humans
+- WorkOS AuthKit for human authentication, MFA, and passkeys/TOTP
 - Machine identities, short-lived access tokens, and GitHub Actions OIDC federation
 - CLI pull and run flows
 - OAuth app connections for Vercel, GitHub, and Cloudflare where providers support them
@@ -58,7 +58,7 @@ Secrets are stored as immutable versions. The target encryption model uses proje
 
 Secret encryption should use AES-256-GCM authenticated data that binds ciphertext to organization, project, environment, secret, and version identity. This does not hide metadata, but it prevents ciphertext from being replayed or mis-bound across tenants or resources without detection.
 
-Human users authenticate through GitHub OAuth. In the current scaffold, humans are allowlisted by login. In the multi-tenant target, login establishes user identity only; authorization comes from organization and project memberships.
+Human users authenticate through WorkOS AuthKit in the multi-tenant target. The current GitHub OAuth allowlist is scaffold-only. Human login establishes identity and authentication assurance only; authorization comes from organization and project memberships.
 
 Machine access should move from long-lived bearer tokens to machine identities that exchange an auth method credential for a short-lived access token. GitHub Actions OIDC should be the preferred CI path so GitHub stores no insecur token.
 
@@ -71,7 +71,7 @@ Authentication and authorization should follow boring, current best practice:
 - OAuth flows use authorization code flow, exact redirect URI matching, state, PKCE where supported, and mix-up defenses when more than one provider/issuer is involved.
 - Access tokens are short-lived and scoped. Bearer tokens are accepted only in the `Authorization` header, never query strings.
 - Refresh credentials are rotated or sender-constrained where practical. Reuse of an invalidated refresh credential should revoke the credential family and create an audit event.
-- MFA should be supported for human users before public multi-tenant use, either through a trusted identity provider or an explicit WebAuthn/TOTP feature.
+- MFA is required for human users before public multi-tenant use. WorkOS AuthKit owns the human authentication path, with no SMS factor; use passkeys or TOTP-backed high-assurance sessions.
 - Break-glass access must be explicit, audited, and limited to organization owners.
 - Denied authorization should not reveal whether a cross-tenant resource exists.
 
@@ -84,15 +84,15 @@ Authorization checks are object-level and tenant-qualified:
 - Audit log writes include organization context, project context when applicable, typed actor/resource fields, request IDs, denied authorization events, and enough source metadata to support incident review.
 - Secret-bearing responses use `Cache-Control: no-store`.
 
-For OAuth integrations, use authorization-code based provider flows with exact redirect URIs, state, PKCE where supported, least-privilege scopes, encrypted refresh credentials, and provider-side disconnect/revoke behavior. The product should not ask users to paste raw API keys when a provider supports an OAuth app or provider app installation model.
+For OAuth integrations, use authorization-code based provider flows with exact redirect URIs, state, PKCE where supported, least-privilege scopes, encrypted refresh credentials, and provider-side disconnect/revoke behavior. The product should not ask users to paste scoped provider tokens when a provider supports an OAuth app or provider app installation model.
 
 ## Provider Connection Methods
 
-App connections should have an explicit `method` field so provider differences are isolated behind a narrow interface.
+App connections should have an explicit `method` field so provider differences are isolated behind a narrow interface. The default stance is OAuth/app-install first, manually created tokens only where a provider does not expose a suitable app installation flow for the required API.
 
-- GitHub: prefer GitHub App installation over a broad OAuth app because installations have finer repository permissions and short-lived installation tokens.
-- Vercel: use Vercel integration OAuth for team/project access and store encrypted refresh credentials as organization data.
-- Cloudflare: prefer OAuth/provider app flows where the relevant Cloudflare API supports them. If Worker secret management requires API tokens, use scoped API tokens only, make that method explicit, avoid global API keys, encrypt the token as organization data, and surface disconnect/revoke instructions.
+- GitHub: use GitHub App installation for GitHub Actions secrets because installations have finer repository permissions and short-lived installation tokens.
+- Vercel: use Vercel Integration OAuth for team/project access and environment-variable permissions. Store the resulting provider credential as encrypted organization data.
+- Cloudflare: use a manually configured scoped Cloudflare API token for Worker secret sync unless Cloudflare exposes a suitable app/OAuth install flow for Worker secret management. Reject global API keys, encrypt the token as organization data, and surface setup, rotation, disconnect, and revoke instructions. Cloudflare app connections may cover an account when provider permissions require it, but the app connection must declare its connection boundary, secret syncs must pin explicit Workers and environments, and sensitive projects should support stricter per-Worker connections.
 
 This preserves the product goal: users connect and disconnect providers through app-connection lifecycle, not by scattering copied credentials through projects.
 
@@ -131,9 +131,15 @@ The preferred route shape is organization-qualified:
 /v1/orgs/:org/projects/:project/secret-syncs
 ```
 
-The CLI may hide repeated organization/project flags through a committed local project config, but the API should never infer tenant context from an untrusted header or user-provided project slug alone.
+The CLI may hide repeated organization/project flags through a committed local project config that stores slugs only. Resolved stable IDs may be cached outside the repository for ergonomics, but the API should never infer tenant context from an untrusted header, local cache, or user-provided project slug alone.
 
 Before treating `insecur.cloud` as a true multi-tenant service, add organization, membership, role, machine identity, app connection, secret sync, and tenant-qualified audit tables. Add regression tests that attempt cross-tenant reads and writes by ID and slug.
+
+## Audit Export Integrity
+
+Audit exports are tenant-bounded JSONL artifacts with a simple tamper-evident proof. Each export should hash-chain canonicalized audit entries and include an HMACed manifest with organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, and HMAC.
+
+This is intentionally not a full compliance ledger. The HMAC verifies integrity and authenticity for systems that can access the verification key. If public third-party verification becomes a requirement, asymmetric signing should be added as a separate decision.
 
 ## CLI And Agent Ergonomics
 
@@ -151,6 +157,16 @@ The CLI should remain easy for agents:
 - Local config should be safe to commit; user credentials live in user config, environment variables, or provider/OIDC exchanges.
 - The CLI should support profile selection for developers working across organizations.
 
+## Sync Execution Runtime
+
+Secret sync runs are queue-backed operations. A request Worker creates an operation record, enqueues the sync work through Cloudflare Queues, and returns an operation ID instead of attempting all provider writes during the request.
+
+D1 is the source of truth for operation state, idempotency, audit events, and final results. Queue consumers perform provider writes, use delayed retries for retryable provider failures, and send exhausted failures to a dead-letter path for operator review.
+
+Provider writes are serialized through a Durable Object execution gate keyed by organization, provider, and target identity. The Durable Object prevents concurrent sync runs from racing the same Vercel project, GitHub repository/environment, or Cloudflare Worker. It is coordination only; D1 remains the audit and operation store.
+
+The audit trail for a sync operation should include enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release events.
+
 ## Implementation Order
 
 1. Add organization, membership, role, and tenant-qualified audit model.
@@ -163,7 +179,8 @@ The CLI should remain easy for agents:
 8. Add GitHub Actions OIDC exchange.
 9. Add organization-owned app connections for Vercel, GitHub, and Cloudflare.
 10. Add project-owned secret syncs that use app connections.
-11. Add UI after API, CLI, and sync behavior are verified.
+11. Add queue-backed sync execution with operation IDs, retries, dead-letter handling, and serialization for each provider target.
+12. Add UI after API, CLI, and sync behavior are verified.
 
 ## Security References
 

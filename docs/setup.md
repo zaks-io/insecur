@@ -1,6 +1,6 @@
 # Setup
 
-Phase 1 (this commit) gets you a working secrets API + CLI. No UI yet; you'll create projects/envs/tokens via curl.
+Phase 1 gets you a working secrets API + CLI. No UI yet; you'll create projects/envs/tokens via curl. Human authentication in this setup guide is the current GitHub OAuth scaffold; the target multi-tenant architecture replaces it with WorkOS AuthKit.
 
 ## 0. Install
 

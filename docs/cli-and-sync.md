@@ -35,6 +35,7 @@ The CLI should be the primary interface for developers, agents, and CI.
 Rules:
 
 - No tokens, provider credentials, secret values, key material, or refresh credentials.
+- Store slugs only in committed project config. Do not write resolved organization, project, environment, connection, sync, or user IDs to `.insecur.json`.
 - `--org`, `--project`, and `--env` flags override config.
 - `gitBranchToEnvironment` overrides `defaultEnv` unless `--env` is passed.
 - Monorepos can pass `--config-dir <path>`.
@@ -50,12 +51,19 @@ It may contain:
 - Human session metadata.
 - Machine identity bootstrap credential references.
 - Last selected organization/project/env.
+- Resolved stable IDs for organizations, projects, environments, app connections, and secret syncs.
 
 It must not contain:
 
 - Project secret values.
 - Provider app connection credentials.
 - Root keys, organization data keys, project data keys, or DEKs.
+
+Resolved ID cache rules:
+
+- The CLI may cache resolved IDs in user config or a local cache outside the repository.
+- Cached IDs are hints only; authorization and tenant resolution still happen on the API.
+- If a slug resolves to a different ID than the cache expected, the CLI must refresh the cache and report a stable warning or error code.
 
 ### Environment Variables
 
@@ -228,8 +236,8 @@ Rules:
 ```bash
 insecur connections list --json
 insecur connections create github --method github-app --name github-main
-insecur connections create vercel --method oauth --name vercel-main
-insecur connections create cloudflare --method scoped-api-token --name cf-main
+insecur connections create vercel --method vercel-integration-oauth --name vercel-main
+insecur connections create cloudflare --method scoped-api-token --name cf-main --allow-worker api-worker
 insecur connections status github-main --json
 insecur connections rotate github-main --dry-run --json
 insecur connections reauth vercel-main
@@ -239,7 +247,8 @@ insecur connections disconnect cf-main
 Rules:
 
 - `list`, `status`, and `show` never return provider credentials.
-- `create` starts a provider authorization flow or records a scoped credential through a safe input path.
+- `create` starts a provider authorization flow or records a scoped provider token through a safe input path.
+- Cloudflare `create` requires an explicit connection boundary, such as allowed account, Worker, and environment selectors.
 - `rotate` and `reauth` create audited operations.
 
 ### Secret Syncs
@@ -294,7 +303,16 @@ Long-running sync, rotation, backup, restore, and provider reauthorization workf
 ```bash
 insecur audit tail --json
 insecur audit export --from 2026-05-01 --to 2026-05-23 --json
+insecur audit verify ./audit-export.jsonl --manifest ./audit-export.manifest.json --json
 ```
+
+Audit export rules:
+
+- Exports are tenant-bounded.
+- Entry files are JSONL.
+- Each export includes a manifest with organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, and HMAC.
+- `audit verify` checks the entry hash chain and HMACed manifest.
+- HMAC verification proves integrity and authenticity to systems with the verification key; it is not public-key non-repudiation.
 
 ## Secret Sync Model
 
@@ -332,8 +350,8 @@ Provider credentials live only on the app connection. A secret sync references t
 An organization admin creates an app connection.
 
 - GitHub uses GitHub App installation where possible.
-- Vercel uses Vercel integration OAuth.
-- Cloudflare uses OAuth/provider app where supported, otherwise scoped API token.
+- Vercel uses Vercel Integration OAuth.
+- Cloudflare uses a manually configured scoped API token unless a suitable Cloudflare app/OAuth install flow becomes available for Worker secret management.
 
 The app connection stores encrypted provider credentials as organization data.
 
@@ -364,7 +382,9 @@ Plan output must not include secret values.
 
 ### 4. Run
 
-Running the sync:
+Running the sync creates an operation, enqueues work, and returns the operation ID. Provider writes happen in queue consumers, not in the initial request.
+
+The queued worker:
 
 - Loads current source secret versions.
 - Decrypts values only inside request/job execution.
@@ -372,6 +392,9 @@ Running the sync:
 - Records managed provider keys where the provider supports metadata or where insecur can track them internally.
 - Writes audit events for start, per-target result summary, and completion.
 - Stores provider errors in normalized form.
+- Updates operation status in D1 after every meaningful state transition.
+- Retries retryable provider failures with delay metadata.
+- Sends exhausted failures to a dead-letter path for operator review.
 
 ### 5. Verify
 
@@ -388,6 +411,29 @@ Agents should be able to:
 - Poll operation status.
 - Retry with the same operation ID or idempotency key.
 - Stop and report when human provider reauthorization is required.
+
+## Sync Execution Runtime
+
+Sync execution is queue-backed:
+
+1. `syncs run` validates authorization and idempotency.
+2. The API writes an operation record in D1.
+3. The API enqueues a sync job.
+4. The API returns an operation ID.
+5. A queue consumer performs provider writes and records progress.
+6. A Durable Object serializes provider writes for the same organization/provider/target.
+7. `operations get` and `operations wait` report machine-readable state.
+
+Runtime rules:
+
+- D1 is the operation and audit source of truth.
+- Queue messages contain operation IDs and target identifiers, not plaintext secret values.
+- Plaintext secrets are decrypted only inside the active queue consumer execution.
+- Retryable provider failures use delayed retries.
+- Exhausted failures go to a dead-letter path.
+- Concurrent runs for the same provider destination are serialized through a Durable Object execution gate.
+- The Durable Object is coordination only; D1 remains the operation and audit source of truth.
+- Operation audit events include enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
 
 ## Sync Behavior
 
@@ -454,7 +500,7 @@ Target config:
 
 Notes:
 
-- Prefer Vercel integration OAuth.
+- Use Vercel Integration OAuth instead of a manually pasted Vercel API token.
 - Track provider variable IDs when available.
 - Support environment-specific syncs.
 
@@ -470,8 +516,12 @@ Target config:
 
 Notes:
 
-- Prefer OAuth/provider app flows where supported.
-- If Worker secret APIs require API tokens, use scoped account/worker tokens only.
+- Start with scoped Cloudflare API tokens for hosted sync.
+- Use the minimum permissions needed to list and update the selected Worker secrets.
+- Require a connection boundary and show it in `connections status`.
+- Require each secret sync to pin explicit target Workers and environments inside the connection boundary.
+- Support per-Worker Cloudflare app connections for sensitive projects.
+- If Cloudflare exposes a suitable OAuth/provider app flow for Worker secret management later, add it as a new connection method.
 - Never accept global API keys.
 
 ## API Shape

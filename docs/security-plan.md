@@ -47,25 +47,31 @@ Explicit non-goals for the near term:
 
 ### 1. Authentication And Session Plan
 
-Use GitHub OAuth for human login, but treat login as identity only. Authorization must come from organization and project memberships.
+Use WorkOS AuthKit for human authentication, but treat login as identity and authentication assurance only. Authorization must come from organization and project memberships.
 
 Plan for:
 
-- OAuth authorization code flow with exact redirect URI matching.
+- WorkOS AuthKit hosted login or callback flow with exact redirect URI matching.
 - `state` and PKCE where supported.
 - Issuer/provider mix-up defenses if multiple OAuth providers are added.
 - Secure, HttpOnly, SameSite cookies for browser sessions.
 - CSRF protection on browser-originating mutations.
 - Idle and absolute session lifetime limits.
 - Session rotation after login, privilege changes, MFA changes, and recovery events.
-- MFA before public multi-tenant use, preferably via GitHub or another trusted identity provider first.
+- WorkOS-backed MFA is required before public multi-tenant use.
+- High-risk human actions should require a fresh MFA challenge or equivalent high-assurance session.
+- SMS is not allowed as a primary or recovery MFA factor.
+- Initial MFA should use WorkOS AuthKit passkeys or TOTP-backed high-assurance sessions.
+- Insecur user records should map to stable WorkOS user identifiers, not mutable emails.
+- Recovery should use recovery codes, organization-owner recovery, or audited break-glass access instead of SMS fallback.
 - Explicit, audited break-glass access limited to organization owners.
 
 Agent/DX requirements:
 
 - CLI auth must work in non-interactive environments.
 - Browser login may exist for humans, but CI and agents should use OIDC or a narrow bootstrap auth method.
-- Auth errors need stable machine-readable codes such as `auth.expired`, `auth.insufficient_scope`, and `auth.reauth_required`.
+- Auth errors need stable machine-readable codes such as `auth.expired`, `auth.insufficient_scope`, `auth.mfa_required`, and `auth.reauth_required`.
+- Non-interactive CLI and CI flows must never depend on human SMS verification.
 
 ### 2. Authorization And Tenancy Plan
 
@@ -85,7 +91,8 @@ Plan for:
 
 Agent/DX requirements:
 
-- `.insecur.json` stores non-secret defaults: host, organization, project, environment, and optional profile.
+- `.insecur.json` stores non-secret defaults using slugs only: host, organization, project, environment, and optional profile.
+- Resolved stable IDs may be cached outside the repository, but API authorization must never trust them without tenant-qualified lookup.
 - CLI commands should not require repeating organization/project/env flags after `insecur init`.
 - CLI errors should explain the missing permission without revealing cross-tenant resource existence.
 
@@ -142,21 +149,27 @@ Plan for:
 
 - Organization-owned app connections.
 - Provider-specific connection methods.
-- GitHub App installation preferred for GitHub.
-- Vercel integration OAuth preferred for Vercel.
-- Cloudflare OAuth/provider app where supported; otherwise scoped API tokens only.
+- GitHub App installation for GitHub Actions secrets.
+- Vercel Integration OAuth for Vercel environment variables.
+- Scoped Cloudflare API tokens for Cloudflare Worker secrets until a suitable Cloudflare app/OAuth install flow exists for that API.
 - No global provider API keys.
 - Encrypted provider credentials with key version metadata.
 - Provider disconnect, credential rotation, and reauthorization workflows.
+- Manual scoped provider tokens require least-privilege setup guidance, provider-side revocation instructions, expiration/rotation tracking where possible, and audit events for creation, test, use, rotation, and deletion.
+- Cloudflare app connections require an explicit connection boundary. Account-level Cloudflare tokens are allowed only when narrower provider permissions are unavailable, and secret syncs must pin allowed Workers and environments.
 - Project-owned secret syncs that reference app connections.
-- Sync dry-run, diff, execution, retry, and audit events.
+- Sync dry-run, diff, queue-backed execution, retry, dead-letter handling, and audit events.
 - Sync job idempotency to avoid partial duplicate writes.
+- Durable Object serialization per organization/provider/target to prevent concurrent provider writes from racing.
+- Sync audit trails that include enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release events.
 
 Agent/DX requirements:
 
 - `insecur connections list --json` never returns credentials.
 - `insecur sync plan --json` shows target changes without exposing values.
 - `insecur sync run --operation <id>` is resumable.
+- Queue messages store operation IDs and target metadata, never plaintext secret values or provider credentials.
+- Operation status should expose enough state for agents to distinguish queued, locked, running, retrying, waiting for reauthorization, dead-lettered, failed, and completed states.
 - Provider errors are normalized enough for agents to decide whether to retry, reauth, or stop.
 
 ### 6. Audit, Monitoring, And Detection Plan
@@ -172,13 +185,16 @@ Plan for:
 - Secret read/write/rollback/export/pull/run/sync events.
 - App connection create/update/delete/use/reauth events.
 - Key rotation and restore events.
-- Tamper-evident export format for audit records.
+- Tamper-evident audit exports using tenant-bounded JSONL entries, a per-export hash chain, and an HMACed manifest.
+- Audit export manifests that include organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, and HMAC.
+- HMAC verification for export integrity and authenticity, with asymmetric signing deferred unless third-party verification becomes a product requirement.
 - Basic anomaly detection later: unusual source IP, high-volume reads, repeated denied access, sync failures.
 
 Agent/DX requirements:
 
 - `insecur audit tail --json` for local diagnosis.
 - `insecur audit export --org <org> --from <time> --to <time>` with tenant-bounded scope.
+- `insecur audit verify <export>` for checking the hash chain and HMACed manifest.
 - Stable event names that tests and agents can assert against.
 
 ### 7. Abuse Resistance And Runtime Hardening Plan
@@ -263,6 +279,7 @@ Write these before relying on insecur for valuable production secrets:
 - Failed or interrupted rotation job.
 - D1 restore from encrypted backup.
 - Tenant export and deletion.
+- Tamper-evident audit export and verification.
 - Suspicious audit activity investigation.
 - Emergency break-glass access.
 
@@ -283,11 +300,12 @@ Before public multi-tenant use, require:
 - Threat model reviewed against this document.
 - Cross-tenant authorization tests for all tenant-owned resources.
 - Auth/session behavior reviewed against RFC 9700 and OWASP auth/session guidance.
+- MFA and high-risk action challenge behavior tested for organization owners and administrators.
 - Security checks mapped to OWASP ASVS Level 2 where applicable.
 - API checks mapped to OWASP API Security Top 10.
 - Key rotation plan and at least one successful restore drill.
 - App connection revocation/reauthorization tested for every supported provider.
-- Audit export verified for tenant boundaries.
+- Audit export verified for tenant boundaries, hash-chain integrity, and HMAC manifest validation.
 - CLI agent flows tested in non-interactive mode.
 - Dependency and secret scanning enabled in CI.
 

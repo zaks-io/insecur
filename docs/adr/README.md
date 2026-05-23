@@ -12,11 +12,13 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0006: App Connections And Secret Syncs](0006-app-connections-and-secret-syncs.md)
 - [ADR-0007: Developer-First CLI Contract](0007-developer-first-cli-contract.md)
 - [ADR-0008: Security Gates And Runbooks](0008-security-gates-and-runbooks.md)
+- [ADR-0009: WorkOS MFA Without SMS](0009-workos-mfa-without-sms.md)
+- [ADR-0010: WorkOS AuthKit For Human Authentication](0010-workos-authkit-for-human-authentication.md)
+- [ADR-0011: Provider Connection Method Matrix](0011-provider-connection-method-matrix.md)
+- [ADR-0012: Queue-Backed Sync Execution](0012-queue-backed-sync-execution.md)
+- [ADR-0013: Durable Object Sync Target Serialization](0013-durable-object-sync-target-serialization.md)
+- [ADR-0014: Tamper-Evident Audit Exports](0014-tamper-evident-audit-exports.md)
 
 ## Open Questions To Grill
 
-- Whether human MFA should be delegated entirely to GitHub/identity provider policy or implemented directly with WebAuthn/TOTP.
-- Whether Cloudflare Worker secret sync can use an OAuth/provider app flow for all required API calls or must start with scoped API tokens.
-- Whether sync execution should run entirely in Workers or use Durable Objects/Queues for locking and retries.
-- Whether audit export needs tamper-evident chaining in Phase 2 or can wait until after tenant and sync implementation.
-- Whether `.insecur.json` should use slugs only or include stable IDs after first resolution.
+No open questions captured yet.

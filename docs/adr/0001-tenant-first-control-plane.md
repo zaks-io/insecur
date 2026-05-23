@@ -25,9 +25,9 @@ insecur will adopt an organization-first control plane before public multi-tenan
 - `Machine Identity` is owned by an organization and receives short-lived access tokens through an auth method.
 - GitHub Actions OIDC is the preferred CI auth method because it avoids long-lived tokens in GitHub.
 - `App Connection` is organization-owned and stores encrypted provider credentials for Vercel, GitHub, and Cloudflare.
-- Each app connection records a provider-specific connection method. OAuth app, provider app installation, and integration OAuth are preferred; scoped provider API tokens are allowed only where the provider API lacks a suitable OAuth/app flow.
+- Each app connection records a provider-specific connection method. OAuth app, provider app installation, and integration OAuth are preferred; scoped provider tokens are allowed only where the provider API lacks a suitable OAuth/app flow.
 - `Secret Sync` is project-owned and uses an app connection to push secrets to an external sync target.
-- Provider integrations should use OAuth app or provider app installation flows where available instead of asking users to copy and paste API keys.
+- Provider integrations should use OAuth app or provider app installation flows where available instead of asking users to copy and paste scoped provider tokens.
 - Audit log entries include organization context and project context when applicable.
 - Organization-level sensitive data is protected by organization data keys; project secrets are protected by project data keys.
 - Encrypted records store the key version needed to decrypt or rewrap them.
@@ -44,7 +44,7 @@ Every data access path needs an object-level authorization check that starts fro
 
 The CLI needs a committed, non-secret project config so agents can run commands without repeating host, organization, project, and environment flags. Secret-bearing credentials remain in the OS/user config, environment variables, or short-lived OIDC exchanges, not in project config.
 
-OAuth integrations add setup work per provider, but they improve user control: users can revoke a Vercel, GitHub, or Cloudflare connection from the provider side without rotating copied API keys in insecur.
+Provider app connections add setup work per provider, but they improve user control: users can revoke Vercel and GitHub through their app installation flows, and revoke Cloudflare by deleting the scoped Cloudflare API token at the provider.
 
 Some provider APIs may not expose a suitable OAuth/app installation path for the exact resource operation insecur needs. In those cases, the app connection still owns and encrypts the credential, the method is visible, the credential must be least-privileged and provider-revocable, and global API keys are not accepted.
 
