@@ -1,0 +1,23 @@
+{
+  "name": "@insecur/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --dry-run --outdir dist",
+    "dev": "WRANGLER_LOG_PATH=.wrangler/logs wrangler dev",
+    "deploy": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy",
+    "migrate:local": "WRANGLER_LOG_PATH=.wrangler/logs wrangler d1 migrations apply insecur --local",
+    "migrate:remote": "WRANGLER_LOG_PATH=.wrangler/logs wrangler d1 migrations apply insecur --remote",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .wrangler"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^3.95.0"
+  }
+}

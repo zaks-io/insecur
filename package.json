@@ -1,0 +1,24 @@
+{
+  "name": "insecur",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Self-hosted secrets manager on Cloudflare Workers",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "dev": "turbo run dev",
+    "dev:worker": "turbo run dev --filter @insecur/worker",
+    "deploy:worker": "turbo run deploy --filter @insecur/worker",
+    "migrate:local": "turbo run migrate:local --filter @insecur/worker",
+    "migrate:remote": "turbo run migrate:remote --filter @insecur/worker",
+    "cli": "pnpm --filter @insecur/cli start",
+    "clean": "turbo run clean"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "turbo": "^2.8.0"
+  }
+}
