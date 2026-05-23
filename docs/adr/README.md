@@ -18,6 +18,9 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0012: Queue-Backed Sync Execution](0012-queue-backed-sync-execution.md)
 - [ADR-0013: Durable Object Sync Target Serialization](0013-durable-object-sync-target-serialization.md)
 - [ADR-0014: Tamper-Evident Audit Exports](0014-tamper-evident-audit-exports.md)
+- [ADR-0015: Production V1 Security Baseline](0015-production-v1-security-baseline.md)
+- [ADR-0016: Delivery-First Secret Egress](0016-delivery-first-secret-egress.md)
+- [ADR-0017: Protected Environment Promotion And Rollback](0017-protected-environment-promotion-and-rollback.md)
 
 ## Open Questions To Grill
 

@@ -2,6 +2,8 @@
 
 Cloudflare Worker API for insecur. Hono + D1 + WebCrypto envelope encryption.
 
+This package currently contains the pre-v1 scaffold API. It is useful for validating shape, but it is not production-ready for valuable secrets until the v1 security baseline in `../../docs/security-plan.md` is implemented.
+
 See [`../../docs/setup.md`](../../docs/setup.md) for end-to-end setup.
 
 ## Layout

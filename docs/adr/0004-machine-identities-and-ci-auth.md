@@ -6,6 +6,16 @@ Status: Accepted
 
 Machine access will use organization-owned machine identities that exchange an auth method for short-lived access tokens. GitHub Actions OIDC is the preferred CI auth method because it avoids storing long-lived insecur tokens in GitHub; bootstrap client credentials are allowed only as a narrow fallback.
 
+Deploy automation may use environment-scoped deploy keys for Runtime Injection when OIDC is unavailable. A deploy key belongs to one organization, project, and environment and is attached to an explicit allowlist of Runtime Policy Key IDs.
+
+Deploy key expiration and rotation are configurable through a Deploy Key Rotation Policy. Policies may set a hard expiration, rotation interval, reminder interval, or explicit non-expiring mode.
+
 ## Consequences
 
-The existing long-lived machine token model remains a Phase 1 scaffold. The target model needs machine identity tables, auth method tables, scoped access tokens, credential rotation, trusted source constraints where practical, audit events for token exchange and reuse failures, and CLI support for non-interactive auth.
+The existing long-lived machine token model remains a pre-v1 scaffold. The target model needs machine identity tables, auth method tables, scoped access tokens, credential rotation, trusted source constraints where practical, audit events for token exchange and reuse failures, and CLI support for non-interactive auth.
+
+Deploy keys must not grant Secret Sync, arbitrary secret selection, arbitrary command execution, secret reveal, secret writes, promotion, rollback, app connection management, membership access, or cross-environment access. Secret Sync is server-side and uses App Connections for provider authorization. Deploy keys and bootstrap secrets must enter through safe sensitive input paths and must never be stored by the CLI.
+
+The attached Runtime Injection Policy owns the exact secret bindings, command shape, Command Fingerprint requirement, TTL, and delivery behavior. A deploy key cannot override those constraints at exchange time.
+
+Non-expiring deploy keys are allowed only when explicitly configured and must be visible as higher-risk in status, plan, and audit output. Deploy key create, exchange, denial, rotation, expiration, and disable events must be audited.

@@ -4,7 +4,7 @@ Date: 2026-05-23
 
 Status: Accepted
 
-insecur will treat security runbooks and release gates as product requirements, not post-launch chores. Before public multi-tenant use, the project needs threat model review, cross-tenant authorization tests, auth/session review, key rotation and restore drills, app connection revocation tests, audit export tests, CLI non-interactive flow tests, dependency scanning, and secret scanning.
+insecur will treat security runbooks and release gates as product requirements, not post-launch chores. Before v1 production use, the project needs threat model review, cross-tenant authorization tests, auth/session review, key rotation and restore drills, app connection revocation tests, audit export tests, CLI non-interactive flow tests, dependency scanning, and secret scanning.
 
 ## Consequences
 

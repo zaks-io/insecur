@@ -1,6 +1,6 @@
 # Setup
 
-Phase 1 gets you a working secrets API + CLI. No UI yet; you'll create projects/envs/tokens via curl. Human authentication in this setup guide is the current GitHub OAuth scaffold; the target multi-tenant architecture replaces it with WorkOS AuthKit.
+This pre-v1 scaffold setup gets you a working secrets API + CLI for local validation. It is not the production v1 path and must not be used for valuable production secrets. Human authentication in this setup guide is the current GitHub OAuth scaffold; production v1 replaces it with WorkOS AuthKit, tenant-first authorization, short-lived machine access, and tenant-bound key management.
 
 ## 0. Install
 
@@ -75,6 +75,8 @@ Visit `https://<your-worker>/v1/auth/github/login`. You'll be sent through GitHu
 
 ## 8. Create a project + environment
 
+These commands exercise the current pre-v1 scaffold API. The production v1 model replaces slug selectors with opaque IDs and encrypted Sensitive Display Names.
+
 ```bash
 curl -X POST https://<worker>/v1/projects \
   -b cookies.txt \
@@ -84,7 +86,7 @@ curl -X POST https://<worker>/v1/projects \
 curl -X POST https://<worker>/v1/projects/site/envs \
   -b cookies.txt \
   -H 'content-type: application/json' \
-  -d '{"slug":"prod","name":"Production"}'
+  -d '{"slug":"dev","name":"Development"}'
 ```
 
 (Use your browser's session cookie via `--cookie "insecur_session=…"`.)
@@ -108,23 +110,26 @@ pnpm build
 pnpm link --global   # or use ./dist/index.js directly
 
 insecur login --host https://<worker> --token ins_live_...
-insecur pull -p site -e prod              # prints .env to stdout
-insecur pull -p site -e prod -o .env      # writes to file
-insecur run  -p site -e prod -- npm start # spawns child with env injected
+insecur run  -p site -e dev -- npm start  # spawns child with env injected
 ```
+
+The current scaffold still has file pull support for local validation, but v1 should prefer profile-ID-based `insecur run <profile-id> -- <command>` over writing `.env` files.
 
 ## 11. Write secrets
 
+For local scaffold validation, prefer the CLI stdin path so values do not land in shell history or argv:
+
 ```bash
-curl -X PUT https://<worker>/v1/projects/site/envs/prod/secrets/STRIPE_KEY \
-  -H "authorization: Bearer ins_live_..." \
-  -H 'content-type: application/json' \
-  -d '{"value":"sk_live_abc123"}'
+insecur secrets set STRIPE_KEY --value-stdin
 ```
 
-## What's not in Phase 1
+The production v1 API should accept secret values in request bodies over TLS, not URLs, query strings, route params, or command arguments.
 
-- UI (Phase 3)
-- GitHub Actions OIDC federation (Phase 2)
-- Sync engines to Vercel/GitHub/Cloudflare (Phase 3)
-- Rotation framework + R2 backups (Phase 4)
+## What's not in the pre-v1 scaffold
+
+- Production v1 security gates
+- Tenant-first organization, membership, and role enforcement
+- WorkOS AuthKit and MFA
+- GitHub Actions OIDC federation
+- Sync engines to Vercel/GitHub/Cloudflare
+- Rotation framework and R2 backups

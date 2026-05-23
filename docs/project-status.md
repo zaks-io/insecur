@@ -4,7 +4,7 @@ Last updated: 2026-05-23
 
 ## Current State
 
-insecur is an early Cloudflare-native secrets manager scaffold. The target product direction is now multi-tenant and multi-user, while staying focused on the Cloudflare, Vercel, and GitHub Actions stack. The repo has a working Turborepo layout, a Cloudflare Worker API package, a Node CLI package, setup docs, architecture notes, and agent configuration.
+insecur is an early Cloudflare-native secrets manager scaffold. The target product direction is public-production from v1: multi-tenant-capable, multi-user, and suitable for valuable secrets from the first production release, while staying focused on secure storage, provider sync for Cloudflare/Vercel/GitHub, and CLI runtime injection for deploys and local commands. The first real organization may be Isaac's own organization managing Isaac's own projects, but v1 must not rely on trusted-single-tenant shortcuts.
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
 
@@ -23,7 +23,7 @@ The GitHub repository exists at `zaks-io/insecur` and is configured as the local
 - Audit logging for authenticated actions and denied authorization attempts
 - CLI `login`, `pull`, and `run`
 - Basic API hardening headers and `Cache-Control: no-store` for `/v1/*`
-- Input validation for project slugs, environment slugs, and secret names
+- Input validation for opaque IDs and secret names
 - ADRs documenting tenant-first architecture, Cloudflare-native scope, auth, machine identities, key rotation, app connections/syncs, CLI contract, and security gates
 - `docs/cli-and-sync.md` documenting target CLI shape and secret sync workflow
 - `docs/security-plan.md` documenting security plans, runbooks, and release gates
@@ -46,8 +46,11 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 - Current authorization is project-scoped, not membership/role based
 - Current human authentication is GitHub OAuth scaffold, not WorkOS AuthKit
 - Current machine tokens are long-lived instead of machine identity issued short-lived access tokens
+- Current CLI authentication is not yet memory/session-only
+- Environment-scoped deploy keys and deploy key rotation policies do not exist yet
 - Current encryption model does not yet have organization data keys and project data keys
 - Current encryption does not bind ciphertext to tenant/resource identity with authenticated data
+- Sensitive Metadata encryption is not implemented yet
 - No key version model or key rotation workflow exists yet
 - Secret version writes and rollback need stronger concurrency guarantees before multi-user use
 - Audit rows are not yet tenant-qualified with typed actor/resource fields and denied-auth coverage
@@ -69,29 +72,33 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 
 ## Important Product Boundary
 
-The current implementation is a scaffold. The product direction is multi-tenant and multi-user, but the code is not yet safe for unrelated external tenants on `insecur.cloud`.
+The current implementation is a pre-v1 scaffold. It is not a dev-only product direction and it is not safe for valuable production secrets or unrelated external tenants on `insecur.cloud`.
 
-Before public multi-tenant use, add organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, and tenant-bounded audit/export behavior.
+The first production release must meet the public multi-tenant-capable security baseline before storing valuable secrets: organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, and tenant-bounded audit/export behavior.
 
-## Planned Phases
+## Build Order
 
-**Phase 1**
+**Pre-v1 scaffold**
 
-CRUD, immutable versions, audit log, GitHub OAuth scaffold, envelope encryption, scoped machine tokens, and CLI `.env` pull/run.
+Current CRUD, immutable versions, audit log, GitHub OAuth scaffold, envelope encryption, scoped machine tokens, and CLI `.env` pull/run. This validates product shape only and is not the production release.
 
-**Phase 2**
+**V1 foundation**
 
-Tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit migration, organization and project data keys, and tenant-qualified routes.
+Tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit migration, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, AES-GCM authenticated data binding, Protected Environment promotion/rollback, the Storage Security Gate, and tenant-qualified routes.
 
-**Phase 3**
+**V1 machine access**
 
-Machine identities and GitHub Actions OIDC federation for short-lived, scoped CI access without storing long-lived tokens in GitHub.
+Machine identities, GitHub Actions OIDC federation, and environment-scoped deploy keys with configurable rotation policies for scoped Runtime Injection automation without storing broad long-lived tokens.
 
-**Phase 4**
+**V1 sync**
 
-OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, and Cloudflare Worker secrets.
+OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, and Cloudflare Worker secrets. Production sync remains blocked until the Storage Security Gate passes.
 
-**Phase 5**
+**V1 runtime injection**
+
+Profile-ID-based `insecur run <profile-id> -- <command>` for deploys and local commands so developers and agents can use secrets without local secret files or secret reveal. Production runtime injection remains blocked until the Storage Security Gate passes.
+
+**Post-v1 hardening**
 
 Focused UI, rotation framework, Cron Triggers, Durable Object serialization, encrypted R2 backups, restore testing, key rotation procedure, and better token revocation workflows.
 
@@ -102,16 +109,18 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 3. Add organization and project data keys before storing provider credentials or production secrets in multi-tenant mode.
 4. Add key versions and root/organization/project data key rotation workflows.
 5. Bind secret ciphertext to organization/project/environment/secret/version identity with AES-GCM authenticated data.
-6. Strengthen secret version write and rollback concurrency guarantees.
-7. Replace long-lived machine token flows with machine identities and short-lived access tokens.
-8. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
-9. Implement GitHub Actions OIDC federation for short-lived CI access.
-10. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs.
-11. Add developer-first CLI support for profiles, dry-runs, operation IDs, and JSON output.
-12. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, queue-backed run, verify, retry/reauth.
-13. Add Cloudflare Queues, retry, dead-letter handling, and Durable Object provider-target serialization for sync operations.
-14. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
-15. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
-16. Write the security runbooks listed in `docs/security-plan.md`.
-17. Add security release gates for ASVS/API Top 10 checks, dependency scanning, and secret scanning.
-18. Add the focused UI after API, CLI, and sync flows are verified.
+6. Add the Storage Security Gate so production Secret Sync and Runtime Injection fail closed until tenant-bound encryption for Secrets, Provider Credentials, and Sensitive Metadata is verified.
+7. Add Protected Environment Draft Version, Promotion, Published Version, rollback, and Rollback Retention Window behavior.
+8. Strengthen secret version write, promotion, and rollback concurrency guarantees.
+9. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
+10. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
+11. Implement GitHub Actions OIDC federation for short-lived CI access.
+12. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
+13. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs behind the Storage Security Gate.
+14. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, queue-backed run, verify, retry/reauth.
+15. Add Cloudflare Queues, retry, dead-letter handling, and Durable Object provider-target serialization for sync operations.
+16. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
+17. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
+18. Write the security runbooks listed in `docs/security-plan.md`.
+19. Add security release gates for ASVS/API Top 10 checks, dependency scanning, and secret scanning.
+20. Add the focused UI after API, CLI, and sync flows are verified.
