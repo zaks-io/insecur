@@ -38,7 +38,7 @@ insecur will adopt an organization-first control plane before v1 production use.
 
 ## Consequences
 
-The current pre-v1 schema should be treated as a scaffold, not a production migration target. The next implementation slice should introduce the tenant model before adding sync engines or a UI.
+The current pre-v1 schema should be treated as disposable learning code, not a production migration target or supported compatibility surface. The next implementation slice should introduce the tenant model before adding sync engines or a UI.
 
 Every data access path needs an object-level authorization check that starts from the authenticated actor and resolves through organization/project membership. A route that can load a row by ID without organization context is a bug.
 
@@ -48,7 +48,7 @@ Provider app connections add setup work per provider, but they improve user cont
 
 Some provider APIs may not expose a suitable OAuth/app installation path for the exact resource operation insecur needs. In those cases, the app connection still owns and encrypts the credential, the method is visible, the credential must be least-privileged and provider-revocable, and global API keys are not accepted.
 
-Key rotation adds schema and job complexity, but it is necessary operational hygiene for a secrets manager. The implementation should prefer rewrapping key material over decrypting plaintext secrets, and every rotation path must be scriptable by the CLI.
+Key rotation adds schema and job complexity, but it is necessary operational hygiene for a secrets manager. The implementation should prefer rewrapping key material over decrypting Sensitive Values, and every rotation path must be scriptable by the CLI.
 
 ## References
 

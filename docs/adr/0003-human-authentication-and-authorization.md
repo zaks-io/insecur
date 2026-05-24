@@ -8,6 +8,6 @@ Human users authenticate through a managed human-auth provider, but login only e
 
 ## Consequences
 
-The current global GitHub allowlist is a scaffold only. V1 production use requires membership checks on every object access, organization-qualified routes, denial behavior that does not reveal cross-tenant resource existence, secure session cookies, CSRF protection for browser mutations, session rotation after privilege changes, and MFA before v1 production use.
+The current global GitHub allowlist is disposable learning code and must not remain as a supported auth mode. V1 production use requires membership checks on every object access, organization-qualified routes, denial behavior that does not reveal cross-tenant resource existence, secure session cookies, CSRF protection for browser mutations, session rotation after privilege changes, and MFA before v1 production use.
 
-MFA is a product requirement, not a best-effort identity-provider assumption. ADR-0009 selects WorkOS-backed MFA without SMS, and ADR-0010 selects WorkOS AuthKit as the full human authentication broker.
+MFA is a product requirement, not a best-effort identity-provider assumption. ADR-0009 selects WorkOS-backed MFA without SMS and defines High-Assurance Challenges for high-risk human actions; ADR-0010 selects WorkOS AuthKit as the full human authentication broker.

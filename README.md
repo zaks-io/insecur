@@ -23,9 +23,9 @@ The design notes live in [docs/architecture.md](docs/architecture.md), the CLI/s
 
 ## Production V1 Boundary
 
-The first production release is not a dev-only secrets store. V1 must be safe to run as a public, multi-tenant-capable service even if the first real organization is Isaac's own organization managing Isaac's own projects.
+The first production release is not a dev-only secrets store, a single-organization stepping stone, or a closed bootstrap deployment. V1 is public multi-tenant production from day one and must be safe for unrelated hostile tenants and valuable production secrets.
 
-The current code is a pre-v1 scaffold used to validate shape. It must not be treated as production-ready until the tenant-first authorization model, WorkOS AuthKit, short-lived machine access, tenant-bound key hierarchy, audit/export integrity, and security release gates are implemented.
+The current unsafe scaffold is disposable learning code, not a supported product mode or evidence of intended product behavior. V1 work should replace or delete scaffold surfaces rather than preserve them behind warnings, compatibility shims, or unsafe deployment flags.
 
 Provider secrets are derived delivery targets, not the source of truth. Rotation and changes start in insecur, then flow through audited sync or runtime injection paths.
 
@@ -33,7 +33,6 @@ Production sync and runtime injection are blocked until the Storage Security Gat
 
 ## Build Order
 
-- **Pre-v1 scaffold** — current CRUD/versioning/audit/CLI learning implementation
 - **V1 foundation** — tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key versions, protected promotion/rollback, and security gates
 - **V1 machine access** — machine identities and GitHub Actions OIDC federation for short-lived CI access
 - **V1 delivery** — OAuth app connections and sync engines for Vercel, GitHub, and Cloudflare Worker secrets, plus profile-based `insecur run` for deploy and local command injection

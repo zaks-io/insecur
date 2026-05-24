@@ -4,11 +4,13 @@ Last updated: 2026-05-23
 
 ## Current State
 
-insecur is an early Cloudflare-native secrets manager scaffold. The target product direction is public-production from v1: multi-tenant-capable, multi-user, and suitable for valuable secrets from the first production release, while staying focused on secure storage, provider sync for Cloudflare/Vercel/GitHub, and CLI runtime injection for deploys and local commands. The first real organization may be Isaac's own organization managing Isaac's own projects, but v1 must not rely on trusted-single-tenant shortcuts.
+insecur currently contains disposable Cloudflare-native secrets manager learning code that was added before the product decisions in these docs were settled. The target product direction is public multi-tenant production from v1: multi-tenant, multi-user, and suitable for valuable secrets from the first production release, while staying focused on secure storage, provider sync for Cloudflare/Vercel/GitHub, and CLI runtime injection for deploys and local commands. V1 must not rely on single-organization, closed bootstrap, self-hosted, or trusted-tenant shortcuts.
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
 
-## Implemented
+## Disposable Existing Code
+
+These surfaces exist in the repository but are not accepted V1 product decisions. They may be deleted freely, and any code reused for V1 must pass a targeted design and security review against the current docs.
 
 - pnpm + Turborepo monorepo
 - `apps/worker` Cloudflare Worker API using Hono and D1
@@ -23,7 +25,7 @@ The GitHub repository exists at `zaks-io/insecur` and is configured as the local
 - Audit logging for authenticated actions and denied authorization attempts
 - CLI `login`, `pull`, and `run`
 - Basic API hardening headers and `Cache-Control: no-store` for `/v1/*`
-- Input validation for opaque IDs and secret names
+- Input validation for opaque IDs and Display Names
 - ADRs documenting tenant-first architecture, Cloudflare-native scope, auth, machine identities, key rotation, app connections/syncs, CLI contract, and security gates
 - `docs/cli-and-sync.md` documenting target CLI shape and secret sync workflow
 - `docs/security-plan.md` documenting security plans, runbooks, and release gates
@@ -62,6 +64,7 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 - CLI/sync shape is documented but not implemented
 - No cross-tenant authorization regression tests exist
 - No security runbooks exist yet
+- No public onboarding abuse controls, signup lockdown, or tenant suspension workflow exists yet
 - No ASVS/API Top 10/security release gate exists yet
 - No dependency, supply-chain, or secret scanning workflow exists yet
 - No UI exists
@@ -72,15 +75,11 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 
 ## Important Product Boundary
 
-The current implementation is a pre-v1 scaffold. It is not a dev-only product direction and it is not safe for valuable production secrets or unrelated external tenants on `insecur.cloud`.
+The current implementation is disposable learning code. It is not a dev-only product direction, not a supported product mode, not evidence of intended product behavior, and not safe for valuable production secrets or unrelated external tenants on `insecur.cloud`.
 
-The first production release must meet the public multi-tenant-capable security baseline before storing valuable secrets: organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, and tenant-bounded audit/export behavior.
+The first production release must meet the public multi-tenant production security baseline before storing valuable secrets: organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, tenant-bounded audit/export behavior, public onboarding controls, quotas, abuse handling, tenant enumeration defenses, and Service Access boundaries.
 
 ## Build Order
-
-**Pre-v1 scaffold**
-
-Current CRUD, immutable versions, audit log, GitHub OAuth scaffold, envelope encryption, scoped machine tokens, and CLI `.env` pull/run. This validates product shape only and is not the production release.
 
 **V1 foundation**
 
@@ -122,5 +121,6 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 16. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
 17. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
 18. Write the security runbooks listed in `docs/security-plan.md`.
-19. Add security release gates for ASVS/API Top 10 checks, dependency scanning, and secret scanning.
-20. Add the focused UI after API, CLI, and sync flows are verified.
+19. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests.
+20. Add security release gates for ASVS/API Top 10 checks, dependency scanning, and secret scanning.
+21. Add the focused UI after API, CLI, and sync flows are verified.

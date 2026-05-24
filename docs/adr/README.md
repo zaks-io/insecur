@@ -21,6 +21,8 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0015: Production V1 Security Baseline](0015-production-v1-security-baseline.md)
 - [ADR-0016: Delivery-First Secret Egress](0016-delivery-first-secret-egress.md)
 - [ADR-0017: Protected Environment Promotion And Rollback](0017-protected-environment-promotion-and-rollback.md)
+- [ADR-0018: Retire Unsafe Pre-V1 Scaffold](0018-retire-unsafe-pre-v1-scaffold.md)
+- [ADR-0019: Service Access Without Secret Reveal](0019-service-access-without-secret-reveal.md)
 
 ## Open Questions To Grill
 

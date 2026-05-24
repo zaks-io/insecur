@@ -1,22 +1,27 @@
 # Security Plan
 
-This document tracks the security plans insecur must account for while staying developer-first and agent-friendly. It is planning material, not a claim that the current scaffold already implements these controls.
+This document tracks the security plans insecur must account for while staying developer-first and agent-friendly. It is planning material, not a claim that the current disposable scaffold already implements these controls.
 
 ## Security Posture
 
-insecur stores valuable secrets, provider credentials, machine identity credentials, and audit records. The default posture should be conservative:
+insecur stores Sensitive Values, Sensitive Metadata, and audit records. The default posture should be conservative:
 
 - Authenticate every actor.
 - Authorize every object access through organization/project membership.
-- Encrypt every sensitive value and Sensitive Metadata before D1 persistence.
-- Never persist plaintext secret values or provider credentials on insecur-controlled systems.
-- Never log plaintext secret values or provider credentials.
-- Accept secret values, provider credentials, deploy keys, bootstrap secrets, and OIDC tokens only through safe sensitive input paths.
+- Encrypt every Sensitive Value and Sensitive Metadata before D1 persistence.
+- Treat user-authored product names as Display Names: ordinary metadata visible after authentication and authorization.
+- Never persist Sensitive Values on insecur-controlled systems.
+- Never log Sensitive Values.
+- Accept Sensitive Values only through safe sensitive input paths.
 - Prefer short-lived credentials and provider app connections over copied static keys.
 - Make every high-risk operation auditable, scriptable, resumable, and reversible where possible.
 - Make secure behavior the easiest behavior for humans, agents, and CI.
+- Avoid provider inventory discovery; provider-side checks use audited exact lookups for explicit configured or user-supplied targets only.
+- Apply Misuse-Resistant Defaults: dangerous reveal or readback paths should be absent where possible, denied before decrypt where they must exist, and never reachable by accidental command shape.
 
-V1 production use starts only after the public multi-tenant-capable security baseline is implemented. The first real organization may be Isaac's own organization, but that does not lower the authorization, cryptography, audit, machine access, or release-gate requirements.
+V1 production use starts only after the public multi-tenant production security baseline is implemented. A single-organization, self-hosted, closed bootstrap, or trusted-tenant stepping stone is not an acceptable V1 scope.
+
+There is no supported unsafe pre-v1 product mode. Existing scaffold surfaces are deletion or replacement candidates, not compatibility constraints or product decisions.
 
 The v1 security focus is secure storage plus controlled delivery: insecur is the Secret Source of Truth, provider syncs are derived delivery targets for Cloudflare, Vercel, and GitHub, and runtime injection delivers values just in time for deploys and local commands without writing local secret files.
 
@@ -26,7 +31,7 @@ Production Secret Sync and Runtime Injection are blocked until the Storage Secur
 
 Primary assets:
 
-- Secret values and secret versions.
+- Secret values, secret versions, and other Sensitive Values.
 - Organization data keys, project data keys, and per-record data encryption keys.
 - App connection credentials for Vercel, GitHub, and Cloudflare.
 - Machine identity auth method credentials and access tokens.
@@ -39,12 +44,14 @@ Important attacker goals:
 - Write or rollback secrets without permission.
 - Use a stolen token after it should have expired or rotated.
 - Abuse a provider connection to push or exfiltrate secrets.
+- Abuse a provider connection as a metadata oracle to enumerate provider-side secrets, variables, repositories, environments, or project structure outside explicit insecur records.
 - Replay ciphertext or move encrypted records across tenants.
 - Suppress, forge, or evade audit records.
 - Trick agents or CLI scripts into leaking secrets to stdout, JSON output, logs, shell history, model context, or committed files.
 - Cause insecur to persist or log plaintext secrets through errors, audit metadata, provider responses, queues, caches, traces, or analytics.
-- Smuggle sensitive values through URLs, query strings, route params, command arguments, shell history, browser history, process listings, or telemetry.
+- Smuggle Sensitive Values through URLs, query strings, route params, command arguments, shell history, browser history, process listings, or telemetry.
 - Abuse expensive endpoints or sync jobs for denial of service.
+- Register or control hostile tenants to probe tenant boundaries, quota behavior, onboarding flows, and public abuse defenses.
 - Compromise the build/dependency supply chain.
 
 Explicit non-goals for the near term:
@@ -65,17 +72,39 @@ Plan for:
 - WorkOS AuthKit hosted login or callback flow with exact redirect URI matching.
 - `state` and PKCE where supported.
 - Issuer/provider mix-up defenses if multiple OAuth providers are added.
+- Provider authorization callbacks for App Connections are account-linking attack surfaces, not just OAuth plumbing.
 - Secure, HttpOnly, SameSite cookies for browser sessions.
 - CSRF protection on browser-originating mutations.
 - Idle and absolute session lifetime limits.
 - Session rotation after login, privilege changes, MFA changes, and recovery events.
 - WorkOS-backed MFA is required before v1 production use.
-- High-risk human actions should require a fresh MFA challenge or equivalent high-assurance session.
+- High-risk human actions require a High-Assurance Challenge: a fresh WorkOS passkey/TOTP challenge or equivalent high-assurance session.
+- High-Assurance Challenge is required for Sensitive Detail Gate, Protected Environment Approval Request approval, Promotion, protected rollback, Secret Import into a Protected Environment, Runtime Injection Policy create/update/publish/disable for a Protected Environment, App Connection create/reauthorization/credential replacement/scope or Connection Boundary change, Protected Environment Secret Sync create/enable/manual run, protected Secret Sync Binding changes, repository-scoped GitHub Actions override from a Protected Environment, Shared Secret Source attachment to a Protected Environment, Push Device Registration creation/replacement, Protected Approval Policy changes, and mutating Service Access controls such as signup lockdown, tenant suspension, allowlists, reinstatement, or deletion escalation.
+- Machine Identities cannot satisfy High-Assurance Challenges. They may create Blind Secret Writes and request Promotion if Organization Access allows it, and otherwise may use only exact policies or operations already authorized by a User through a High-Assurance Challenge.
+- A High-Assurance Challenge may authorize a bounded Operation ID for asynchronous execution, but it must not create reusable authority for future unrelated operations.
+- Sensitive Detail Gate requires a fresh High-Assurance Challenge before any User-facing surface or full-fidelity export displays decrypted Sensitive Metadata. Normal authenticated sessions may see Display Names, opaque IDs, counts, status, hashes, lengths, presence flags, and generic pending states until the gate passes.
+- Push Device Registrations are user-owned browser/mobile push registrations for Approval Notifications. They are Sensitive Metadata, scoped to one User and one device/browser/app installation, and never become authentication factors by themselves.
+- Creating a new Push Device Registration, or replacing its device/browser/app installation or delivery endpoint, requires a High-Assurance Challenge. Push Device Registration create/update/delete events are audited. Users can revoke registrations from account security controls, and registrations are invalidated on logout-all, MFA reset, suspicious activity response, lost-device response, user offboarding, and membership removal where appropriate.
+- Protected Approval Policy defaults to one approving User with a High-Assurance Challenge, so a solo owner can operate V1.
+- Protected Approval Policy may require a second approving User for protected changes; when more than one approval is required, the requester cannot approve their own request.
+- Machine Identities and Service Access cannot approve customer Approval Requests.
 - SMS is not allowed as a primary or recovery MFA factor.
 - Initial MFA should use WorkOS AuthKit passkeys or TOTP-backed high-assurance sessions.
 - Insecur user records should map to stable WorkOS user identifiers, not mutable emails.
-- Recovery should use recovery codes, organization-owner recovery, or audited break-glass access instead of SMS fallback.
-- Explicit, audited break-glass access limited to organization owners.
+- Recovery should use recovery codes, organization-owner recovery, or audited break-glass recovery instead of SMS fallback.
+- Explicit, audited break-glass recovery is limited to organization owners and does not permit Secret Reveal for Protected Environment secrets.
+- Public onboarding must include rate limits, abuse monitoring, and a Service Access controlled signup lockdown mode.
+- Signup lockdown must be able to restrict new public onboarding without weakening authentication, authorization, audit, or tenant isolation for existing organizations.
+- Signup lockdown blocks new User creation, new Organization creation, and unauthenticated Invitation acceptance by default.
+- During signup lockdown, existing Users can still log in with MFA and use existing Memberships.
+- During signup lockdown, organization owners can create Invitations only for existing Users by default; other Invitations stay pending until lockdown is lifted.
+- Service Access may permit specific domains or Invitation IDs during signup lockdown, and every allowlist decision is audited.
+- Tenant Suspension is the organization-scoped containment path for abuse, suspected leak response, or provider misuse.
+- Tenant Suspension must preserve evidence and limited owner remediation access instead of deleting tenant data.
+- Service Access must support investigation and audit without Secret Reveal, Secret Delivery, Sensitive Values, raw request bodies, or raw provider bodies.
+- Service Access may inspect platform health, safe audit metadata, decrypted Sensitive Metadata after Sensitive Detail Gate, operation state, rate-limit events, signup lockdown state, tenant suspension state, abuse signals, and provider error summaries.
+- Service Access must not issue Injection Grants, run Secret Syncs, create Memberships, manage App Connections, decrypt Sensitive Values, or reveal Protected Environment secrets.
+- Service Access to decrypted Sensitive Metadata must pass Sensitive Detail Gate, be reason-coded, and be audited.
 
 Agent/DX requirements:
 
@@ -102,7 +131,8 @@ Plan for:
 
 - Organization-qualified routes.
 - Opaque resource IDs for durable server-side selectors.
-- Sensitive Display Names encrypted as Sensitive Metadata and decrypted only after authorization.
+- Display Names are ordinary metadata, not Sensitive Values or Sensitive Metadata.
+- Scoped list/detail endpoints may show Display Names after authorization without Sensitive Detail Gate.
 - Membership checks for every list, read, write, rollback, token, audit, app connection, and sync operation.
 - Role checks at organization and project scope.
 - Deny-by-default permission evaluation.
@@ -133,11 +163,11 @@ Plan for:
 - AES-256-GCM authenticated data binding ciphertext to organization, project, environment, secret, and version identity.
 - AES-256-GCM authenticated data binding provider credential ciphertext to organization, app connection, provider, credential, and key version identity.
 - AES-256-GCM authenticated data binding Sensitive Metadata ciphertext to organization, project/resource when applicable, metadata type, record, field, and key version identity.
-- Plaintext lookup/index fields are limited to opaque resource IDs. Secret names, provider target names, policy binding names, and security-relevant relationships are encrypted Sensitive Metadata.
-- V1 does not include general search over Sensitive Metadata. Identification uses Scoped Lists, Configured Selectors, opaque IDs, and authorized detail views.
-- Sensitive Display Names can be decrypted for authorized list/detail responses, but must not be copied into plaintext search indexes.
-- Rotation that rewraps data keys or per-record DEKs instead of exposing plaintext secret values.
-- Emergency restore path that can decrypt retired keys under explicit operator control.
+- Plaintext lookup/index fields are limited to opaque resource IDs and Display Names. Approval Context Notes, Push Device Registrations, provider target names, provider-side secret or variable names used by Explicit Provider Lookup or Secret Sync Bindings, policy binding names, and security-relevant relationships are encrypted Sensitive Metadata.
+- V1 does not include general search over Sensitive Metadata. Identification uses Scoped Lists, Configured Selectors, opaque IDs, Display Names, and authorized detail views.
+- Display Names may be used for scoped lookup and list filtering after authorization. Sensitive Metadata must not be copied into plaintext search indexes.
+- Rotation that rewraps data keys or per-record DEKs instead of exposing Sensitive Values.
+- Emergency restore path that can decrypt retired keys under explicit Service Access control.
 - Key rotation audit events and verification reports.
 - Storage Security Gate verification before production Secret Sync or Runtime Injection can be enabled.
 - Production app connection credential storage and use require organization data keys, key versions, and authenticated-data binding.
@@ -147,8 +177,8 @@ Agent/DX requirements:
 - `insecur keys plan-rotation --json` shows scope, affected records, and expected steps.
 - `insecur keys rotate --operation <id>` is resumable and idempotent.
 - `insecur keys verify --operation <id> --json` returns machine-readable status.
-- No key bytes, DEKs, plaintext secrets, or provider tokens ever appear in CLI output.
-- Delivery features may be implemented behind development flags before this gate, but production Secret Sync and Runtime Injection must fail closed until tenant-bound encryption for Secrets, Provider Credentials, and Sensitive Metadata is verified.
+- No Sensitive Values ever appear in CLI output.
+- Delivery features must fail closed until tenant-bound encryption for Secrets, Provider Credentials, and Sensitive Metadata is verified. Development-only prototypes must not become supported unsafe product paths.
 
 ### 4. Secret Lifecycle Plan
 
@@ -159,26 +189,96 @@ Plan for:
 - Immutable secret versions.
 - Serialized writes and rollback.
 - Rollback implemented as a new version created from an older encrypted payload.
+- Blind Secret Writes that create Secret Versions without returning Sensitive Values to the caller.
+- Service-side generation for random credentials so an Agent can request a value without seeing it.
+- Blind Secret Write is the normal write flow with metadata-only output; service-side generation is an option on that flow, not a separate Secret type.
 - Protected Environment writes create Draft Versions until explicitly promoted.
+- Protected Environment Blind Secret Writes create Draft Versions; they do not create a separate approval surface and do not affect Runtime Injection or Secret Sync until Promotion is approved.
+- Each Protected Environment has a Draft Area that can contain unpromoted Draft Versions while an Agent prepares changes for review.
+- Non-protected Environment Blind Secret Writes may update the Current Version immediately according to that Environment policy.
+- Promotion requests for Protected Environments create immutable Promotion Change Sets and Approval Requests.
+- A Promotion Change Set contains exact Draft Version IDs in one Protected Environment. It must not support wildcard, query, tag, pattern, or "all staged changes" selection.
+- Draft Versions created after an Approval Request are not added to that request; they remain in the Draft Area until included in a later Promotion Change Set.
+- Approval Requests notify authorized approvers and contain metadata only: actor, Promotion Change Set ID, secret IDs, Draft Version IDs, generation methods, target Environment, optional Approval Context Note, and safe diff/status data.
+- Approval Notifications are out-of-band alerts, not approval review surfaces. They include only low-privilege server-generated metadata such as Approval Request ID, generic purpose, created time, and a non-authorizing link to the authenticated approval view.
+- Approval Notifications must not include Approval Context Note plaintext, Sensitive Values, Display Names such as organization/project/environment/secret names, decrypted Sensitive Metadata such as provider target names, provider-side names, policy binding names, security-relevant relationships, raw bodies, or approval impact details.
+- Notification links must not be bearer approval tokens. They route to the authenticated approval view, which performs normal authorization and Sensitive Detail Gate before decrypting any Sensitive Metadata.
+- Approval Notification channels may include in-app notifications, browser push, mobile push through a Capacitor-wrapped web app, email, or future channels.
+- Browser push and mobile push through Push Device Registrations are the Primary Approval Notification Channel when available. In-app notifications and email are fallback channels.
+- Browser/mobile push payloads must be safe for lock screens, notification centers, browser push services, APNs/FCM, and other third-party notification infrastructure. They may contain only generic approval-pending text, opaque request references, created time, and non-authorizing deep links.
+- Browser push and mobile push may deep-link into the authenticated web app approval view, but they must not approve, deny, or satisfy High-Assurance Challenge by themselves.
+- If push delivery fails or no valid Push Device Registration exists, the Approval Request remains pending and visible in the authenticated app; fallback notifications may be sent without relaxing approval requirements.
+- Email Approval Notifications are supported only as alerts. They must not include approve, deny, or other approval action links because email is a phishing-prone approval surface.
+- Approval Context Notes may be supplied by a User or Agent to explain intent, but are untrusted text: length-limited, escaped for display, visually separated from server-generated facts, and never rendered as HTML or active-link markdown.
+- Approval Context Notes are Sensitive Metadata. They are encrypted at rest, decrypted only after authorization and Sensitive Detail Gate for approval views or full-fidelity security review, and excluded from plaintext search indexes, logs, analytics events, durable queue payloads, unscoped caches, and error messages.
+- Low-privilege audit exports and low-privilege operation output represent Approval Context Notes with immutable IDs, hashes, lengths, or presence flags rather than plaintext.
+- Approval Context Notes must not be used to choose Draft Versions, choose delivery targets, suppress warnings, satisfy approval requirements, or drive policy decisions.
+- Approval screens must render server-generated Promotion Change Set and Approval Impact Review facts as the approval source of truth. The Approval Context Note can help a human understand intent, but it is not authoritative.
+- Approval Requests do not expire by age in V1. They remain pending until approved, explicitly canceled, or superseded.
+- A Protected Environment may have only one pending promotion Approval Request.
+- If Promotion is requested again for the same Protected Environment, the service creates a new immutable Promotion Change Set and Approval Request, marks the prior pending promotion Approval Request as superseded regardless of requester, and leaves the superseded request in the audit trail.
+- Approval Request Supersession must coalesce Approval Notifications so approvers are pointed to the latest pending request rather than spammed for every intermediate request.
+- Promotion request and Approval Notification creation are rate-limited by actor, organization, and Protected Environment, with audit events for throttling and supersession.
+- Environment-based delivery is Startup Configuration: values are expected to be read when an app process, job, deploy, or provider runtime starts. Rapidly changing values should use a future dynamic secret/configuration mechanism, not repeated Promotion requests.
+- Superseded Approval Requests cannot be approved, and any open approval view for a superseded request must show a stale/superseded state rather than performing Promotion.
+- Approval confirmation warns, but does not block, when newer Draft Versions exist in the Draft Area outside the request's Promotion Change Set.
+- The newer-draft warning should encourage the requester to request Promotion again when those Draft Versions should be included.
+- A Promotion Change Set freezes Draft Version identity only; it does not freeze Secret Sync, Runtime Injection Policy, App Connection, or other delivery target configuration.
+- Approval must use a metadata-only Approval Impact Review of current affected Secret Delivery and Secret Sync targets, recomputed immediately before approval.
+- Approval Impact Review must exclude Sensitive Values and raw provider/request bodies.
+- If delivery or sync impact changed after the approver loaded the approval screen, the approval attempt must return stable code `approval.review_stale`, avoid Promotion, and require a fresh Approval Impact Review before High-Assurance Challenge.
+- Stale Approval Impact Review does not cancel or supersede the Approval Request.
+- Approval Requests have exactly one approval purpose in V1.
+- A promotion Approval Request contains one Promotion Change Set and must not include Protected Delivery Configuration Changes.
+- Protected Delivery Configuration Changes require separate approval or a separate High-Assurance Challenge from secret Promotion.
+- Protected Delivery Configuration Changes include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
+- Approving Promotion must not create, enable, or change Secret Sync destinations, Runtime Injection Policies, App Connections, Connection Boundaries, or other delivery targets.
 - Protected Environment Secret Delivery uses only Published Versions.
-- Promotion is an audited lifecycle event that makes a version eligible for Runtime Injection and Secret Sync.
+- Promotion is an audited lifecycle event that makes every Draft Version in the Promotion Change Set eligible for Runtime Injection and Secret Sync after the Protected Approval Policy is satisfied.
 - Emergency rollback creates and promotes a new version from a retained encrypted prior Published Version without revealing plaintext to the caller.
 - Rollback eligibility is controlled by a configurable Rollback Retention Window; expired versions are no longer delivery- or rollback-eligible.
 - Optional expiration metadata for secrets that should not live forever.
 - Secret rotation reminders and, later, provider-assisted rotation workflows.
-- Secret import paths and secret delivery paths that are tenant-bounded and audited.
-- Secret values must enter through safe sensitive input paths such as request bodies over TLS, CLI stdin, masked prompts, or provider authorization flows.
-- Secret values must never be accepted in URLs, query strings, route params, CLI arguments, shell-visible flags, or GET requests.
-- No plaintext in D1, logs, error messages, cache, analytics, or durable job payloads.
-- No plaintext in R2 backups, Queue messages, Durable Object state, KV, analytics events, traces, audit metadata, request logs, response logs, local config, or generated operation records.
-- No raw request bodies, provider response bodies, command environments, or decrypted secret maps in logs.
+- Secret Import paths and Secret Delivery paths that are tenant-bounded and audited.
+- Sensitive Values must enter through safe sensitive input paths such as request bodies over TLS, CLI stdin, masked prompts, or provider authorization flows.
+- Sensitive Values must never be accepted in URLs, query strings, route params, CLI arguments, shell-visible flags, or GET requests.
+- No Sensitive Values in D1, logs, error messages, cache, analytics, or durable job payloads.
+- No Sensitive Values in R2 backups, Queue messages, Durable Object state, KV, analytics events, traces, audit metadata, request logs, response logs, local config, or generated operation records.
+- No raw request bodies, provider response bodies, command environments, decrypted secret maps, or other Sensitive Value containers in logs.
 - No runtime-injected command stdout/stderr capture or storage.
-- Plaintext secret values may exist only inside approved delivery execution paths, such as encryption/decryption, runtime injection, provider sync, and rotation.
-- Plaintext secret values in approved execution paths are transient process memory only and must be excluded from structured output, errors, audit metadata, and durable retry payloads.
+- Sensitive Values may exist only inside approved delivery execution paths, such as encryption/decryption, runtime injection, provider sync, and rotation.
+- Sensitive Values in approved execution paths are transient process memory only and must be excluded from structured output, errors, audit metadata, and durable retry payloads.
 - Provider secret stores and child process environments are delivery destinations, not the Secret Source of Truth.
-- Secret reveal to a caller is not supported for Protected Environment secrets, including for organization owners and operators.
+- Provider Readback is not supported in V1. Secret Sync verification checks provider metadata, key presence, update status, protection status, and API responses only, even if a provider API can return stored values.
+- Secret Import is separate from Secret Sync reconciliation and must use Safe Sensitive Input Paths, high-risk controls where appropriate, and audit events.
+- Secret Import must not read Sensitive Values from provider secret stores in V1.
+- Explicit Provider Lookup is not exposed as a standalone UI, API, or CLI probe in V1.
+- The primary V1 use for Explicit Provider Lookup is Secret Sync setup, planning, and approval: checking whether one exact Secret Sync Binding destination already exists so the user sees a Provider Overwrite Warning before approving or running sync.
+- Each Explicit Provider Lookup checks one exact configured provider-side name, target, or binding inside one App Connection and Connection Boundary.
+- Explicit Provider Lookup must not list provider inventory, enumerate provider-side secret or variable names, return unrelated provider objects, or expose raw provider response bodies.
+- Explicit Provider Lookup returns only minimal existence/status metadata, normalized Provider Lookup Status, provider object IDs where needed, safe hashes where needed, and no Sensitive Values.
+- Explicit Provider Lookup failures use stable safe codes such as `provider.lookup_not_found`, `provider.permission_denied`, `provider.boundary_mismatch`, and `provider.unavailable`.
+- Explicit Provider Lookup must not return, log, audit, persist, or place in operation records provider-native error text, raw provider bodies, raw provider headers, stack traces, unrelated provider object names, or Sensitive Values.
+- Explicit Provider Lookup is audited with actor, organization, project/environment when applicable, app connection, exact target/name/binding, provider response class, request ID, and operation ID.
+- Explicit Provider Lookup treats provider-side secret and variable names, provider target names, and provider existence status as Sensitive Metadata.
+- Explicit Provider Lookup output may decrypt provider-side names only after authorization and Sensitive Detail Gate for a scope-bounded setup, plan, approval, or detail response. Low-privilege output uses opaque IDs, hashes, and safe status codes.
+- Explicit Provider Lookup must not copy provider-side names into plaintext search indexes, logs, analytics events, durable queue payloads, unscoped caches, or error messages.
+- Explicit Provider Lookup does not create Secret Shapes, Secret Versions, Secret Syncs, Secret Sync Bindings, or placeholder records.
+- Explicit Provider Lookup does not perform Provider Sync Overwrite.
+- Protected Environment Secret Sync setup, approval, enablement, and manual run require completed Explicit Provider Lookup status for every exact Secret Sync Binding destination.
+- If Explicit Provider Lookup cannot determine the safe status for any exact Protected Environment binding, setup, approval, enablement, and manual run fail closed with stable code `provider.unavailable`.
+- Enabling or running a Secret Sync requires every binding to have an insecur-managed value: Current Version for non-protected Environments and Published Version for Protected Environments.
+- Enabling or running a Secret Sync fails with stable code `sync.source_value_missing` when a binding has no eligible version.
+- Orphaned Managed Provider Copy records are cleanup metadata, not import sources.
+- Secret Reveal to a caller is not supported for Protected Environment secrets, including for organization owners or actors with Service Access.
+- Protected Environment Secret Reveal must not exist as a UI action, API route, CLI command, export job, debug endpoint, feature flag, or Service Access action.
+- Protected Environment Secret Reveal denial must happen before value decrypt.
 - Production environments are Protected Environments by default.
 - Setting a Protected Environment secret does not immediately affect provider sync or runtime injection; explicit Promotion is required.
+- After approval, Promotion selects the Published Versions for the Promotion Change Set; configured Runtime Injection uses them on the next grant, and every enabled Secret Sync affected by any promoted version enqueues immediately.
+- Approval confirmation may show Display Names after authorization. It may show decrypted Sensitive Metadata such as provider-side target names, Approval Context Notes, and security-relevant relationships only after Sensitive Detail Gate and before approval submission; the confirmation and resulting operation output contain metadata only and no Sensitive Values.
+- Approval submission must revalidate the Approval Impact Review against current delivery and sync configuration before performing Promotion.
+- Scheduled promotion or scheduled sync is deferred; v1 approval uses Immediate Sync After Promotion for enabled syncs.
 - Old values kept for rollback are retained as encrypted Secret Versions only, never as plaintext backup copies.
 - Agents may receive Secret Use through Runtime Injection or Secret Sync, but must not receive Secret Reveal for Protected Environment secrets.
 - Non-protected environments may copy Secret Shapes from Protected Environments, but must never copy protected secret values.
@@ -193,7 +293,7 @@ Plan for:
 - A Runtime Policy Key resolves to one Runtime Injection Policy and that policy resolves to a specific secret set.
 - Runtime Injection Policy changes create immutable Runtime Injection Policy Versions. Used versions cannot be mutated because historical grants must remain reconstructable.
 - Runtime Injection Policy Versions are retained indefinitely as non-plaintext audit metadata. This retention is separate from encrypted secret value rollback retention.
-- Runtime Injection Policy Versions store immutable secret IDs and historical secret/display names for exact bindings. Those names are Sensitive Metadata and require access-controlled reads and exports.
+- Runtime Injection Policy Versions store immutable secret IDs and historical Display Names for exact bindings as ordinary metadata. Additional provider-side names, policy binding names, and security-relevant relationships remain Sensitive Metadata and require authorization plus Sensitive Detail Gate before User-facing reads or full-fidelity exports.
 - Runtime Injection Policy Version Sensitive Metadata is encrypted at rest under tenant-bound data keys. Opaque IDs remain available for lookup and audit joins.
 - Every Injection Grant references the exact Runtime Injection Policy Version used to authorize it.
 - Exact bindings are required for forensic traceability during incident review.
@@ -202,34 +302,77 @@ Plan for:
 - V1 supports two production delivery paths: Secret Sync to provider secret stores and dynamic Runtime Injection into approved commands.
 - Dynamic Runtime Injection is the higher-security path for high-sensitivity secrets when the workflow can support it because it avoids a persistent provider-side copy and keeps authorization, revocation, and audit in insecur.
 - Secret Sync is the compatibility and native-platform path; it intentionally creates a persistent copy in the provider's secret store until rotation, overwrite, or deletion.
+- Secret Sync uses explicit Secret Sync Bindings: each binding maps one Secret in the source Environment to one provider-side secret or variable name.
+- Secret Sync must not support all-secrets, tag, prefix, suffix, regex, folder, or pattern-based selection.
+- Adding a Secret to an Environment does not add it to an existing Secret Sync.
+- Changing Secret Sync Bindings for a Protected Environment is a Protected Delivery Configuration Change.
+- Sync planning may use cached provider metadata, but plan-time metadata never authorizes Sensitive Value decrypt or provider writes.
+- Every Secret Sync run must perform Sync Execution Revalidation immediately before decrypting Sensitive Values or writing provider-side values.
+- Sync Execution Revalidation checks Provider Account Linkage, provider credential scope, Connection Boundary, Sync Target identity, provider-side resource identity, exact Secret Sync Bindings, required provider protection state, and eligible source version.
+- Sync Execution Revalidation fails closed on Provider Drift with stable code `sync.provider_drift`.
+- `sync.provider_drift` must block Sensitive Value decrypt, provider writes, queue retry loops that would keep decrypting, and partial writes for that sync run.
+- Resolving Provider Drift requires provider reauthorization or a configuration change. For Protected Environments, any target or boundary change is a Protected Delivery Configuration Change.
+- Sync Execution Revalidation audit events record safe provider metadata, expected/current identity hashes or IDs where allowed, result, and denial reason, but never Sensitive Values or raw provider bodies.
+- A Secret Sync Binding is authoritative for its provider-side destination.
+- Secret Sync writes use Provider Sync Overwrite: they replace the provider-side value for each bound destination without reading, comparing, preserving, or displaying the previous provider-side Sensitive Value.
+- Existing provider-side values for bound destinations are overwritten when the user explicitly approves or runs the sync path for those exact bindings.
+- Secret Sync setup, plan, and approval output uses Explicit Provider Lookup to produce Provider Overwrite Warnings for exact bound destinations that already exist in the provider.
+- Provider Overwrite Warnings never include existing provider-side Sensitive Values, provider-native error text, raw provider bodies, unrelated provider object names, or provider inventory.
+- Removing a Secret Sync Binding creates a Managed Provider Delete for the provider-side secret or variable previously managed by that binding.
+- Managed Provider Delete uses tracked provider metadata or managed-key identity, not Sensitive Values.
+- Secret Sync Disable is the non-destructive pause action: it stops future sync writes, does not delete provider-side managed copies, and status/plan output must warn when provider-side copies still exist.
+- Secret Sync Deletion is destructive: it removes all Secret Sync Bindings, creates Managed Provider Deletes for every provider-side managed copy, and tombstones the Secret Sync for audit instead of erasing its history.
+- Secret Sync Deletion must show every planned Managed Provider Delete and require explicit destructive confirmation before execution.
+- Secret Sync Deletion may tombstone the Secret Sync even when some Managed Provider Deletes fail, because deletion is the user's explicit cleanup/start-over action.
+- Failed Managed Provider Deletes create Orphaned Managed Provider Copy records with provider target metadata, failure reason, retry state, and audit links, but no Sensitive Values.
+- Orphaned Managed Provider Copy means the provider cleanup state is unknown; the provider-side copy may or may not still exist.
+- Orphaned Managed Provider Copy records must trigger user-visible warnings or notifications and remain visible in tombstone/status/audit output until cleaned up or explicitly acknowledged.
+- Orphaned Managed Provider Copy warnings use stable warning code `sync.provider_delete_incomplete`.
+- Orphaned Managed Provider Copy warnings are not critical platform failures; they represent provider-side cleanup work still needed.
+- Orphaned Managed Provider Copy cleanup must be retryable after provider permission, connectivity, or reauthorization problems are fixed.
+- Secret Sync Deletion for a Protected Environment is a Protected Delivery Configuration Change.
+- Secret Sync is one-way delivery from insecur to the provider. Sync plan, run, status, and verification commands must not read Sensitive Values back from providers.
 
 Agent/DX requirements:
 
 - `insecur secrets set` and `insecur secrets rollback` support `--comment`, `--json`, and stable exit codes.
+- `insecur secrets set --generate` requests service-side generation and returns metadata only.
+- `insecur secrets set --value-stdin` supports caller-supplied Blind Secret Writes but still returns metadata only.
+- In Protected Environments, secret set/import commands return Draft Version IDs, not delivery.
+- In non-protected Environments, secret set/import commands can make the new version current immediately by default.
+- Promotion requests accept explicit Draft Version IDs, return Promotion Change Set and Approval Request IDs, and should notify authorized approvers through in-app notification, browser push, mobile push, email, or another configured channel.
+- Approval output includes immediate sync operation IDs for enabled Secret Syncs affected by any promoted version in the Promotion Change Set.
 - `insecur secrets promote` explicitly publishes a Protected Environment version for delivery.
 - `insecur secrets rollback --promote` performs emergency rollback from a retained encrypted prior Published Version.
-- CLI secret values and provider credentials are accepted by stdin, masked prompt, or provider flow only; no `--value <secret>`, `--token <secret>`, or `--client-secret <secret>` flags.
+- Protected Environment Promotion, protected rollback, and Secret Import into a Protected Environment require a High-Assurance Challenge.
+- Sensitive Values are accepted by stdin, masked prompt, request body, or provider flow only; no `--value <secret>`, `--token <secret>`, or `--client-secret <secret>` flags.
 - `insecur run` delivers secrets only through runtime injection to a child process environment.
 - `insecur run` for Protected Environment secrets requires a Runtime Injection Policy and one-use Injection Grant.
-- CLI Profiles may select organization, project, environment, and default runtime policy, but must not contain secret values.
+- CLI Profiles may select organization, project, environment, and default runtime policy, but must not contain Sensitive Values.
 - `insecur run <profile-id> -- <command>` supports deploy and local command injection without local secret files.
-- The v1 runtime wrapper may be the CLI process itself: fetch an Injection Grant, load approved secret values into process memory, fork/exec the approved child with environment variables, and avoid stdout, JSON, logs, and disk.
+- The v1 runtime wrapper may be the CLI process itself: fetch an Injection Grant, load approved Sensitive Values into process memory, fork/exec the approved child with environment variables, and avoid stdout, JSON, logs, and disk.
 - A separate resident local helper is not required for v1 unless it provides a concrete boundary beyond direct in-memory CLI injection.
 - GitHub Actions and other provider destinations may receive production secrets through audited Secret Syncs when native platform storage is the desired delivery boundary.
+- Protected Environment Secret Sync create, enable, and manual run require a High-Assurance Challenge.
+- Protected Environment Secret Sync creation and binding changes may show Display Names after authorization, but may show decrypted Sensitive Metadata for exact Secret Sync Bindings only after Sensitive Detail Gate and before approval submission.
+- Protected Environment Secret Sync creation, enablement, and binding changes must show that existing provider-side values for those exact bindings will be overwritten without Provider Readback.
+- Protected Environment Secret Sync binding removal may show the resulting Managed Provider Deletes only after Sensitive Detail Gate and before approval submission.
+- Protected Environment Secret Sync Deletion must show all resulting Managed Provider Deletes before the protected delivery configuration approval path.
 - Protected Environment Secret Syncs to GitHub Actions must target GitHub Environment secrets by default.
 - Protected Environment GitHub Actions syncs require the GitHub Environment to already exist; insecur must not auto-create it during sync setup or execution.
 - Protected Environment GitHub Actions syncs block unless the target GitHub Environment has visible protection rules.
 - The exact GitHub Environment Protection rule matrix is deferred until the GitHub sync implementation pass.
 - Repository-scoped GitHub Actions secrets are allowed only as an explicit high-risk override because they are broader inside the target repository.
-- File delivery is denied for Protected Environment secrets by default and, if supported for local development or legacy tooling, must require explicit opt-in, mode `0600`, overwrite protection, and repository safety checks.
-- Agent-facing output reports delivery metadata only and must not contain secret values.
-- Break-glass workflows for Protected Environment secrets may permit additional Secret Delivery, rotation, replacement, or provider reauthorization, but must not reveal plaintext values to a caller.
-- Shared Secret Source create/update/attach/detach operations are audited and require high-risk action controls when any attached environment is protected.
+- File delivery is denied for Protected Environment secrets. Non-protected file delivery, if supported for local development or legacy tooling, must require explicit opt-in, mode `0600`, overwrite protection, and repository safety checks.
+- Agent-facing output reports delivery metadata only and must not contain Sensitive Values.
+- Break-glass workflows for Protected Environment secrets may permit additional Secret Delivery, rotation, replacement, provider reauthorization, or rollback, but must not reveal Sensitive Values to a caller.
+- Shared Secret Source create/update/attach/detach operations are audited and require a High-Assurance Challenge when any attached Environment is protected.
+- Machine Identities may create Protected Environment Blind Secret Writes that produce Draft Versions and may request Promotion, but must not approve, complete Promotion, rollback, change retention, change Runtime Injection Policy, change Secret Sync, change App Connection, attach Shared Secret Sources, mutate Service Access, manage Signup Lockdown, or manage Tenant Suspension unless the exact bounded operation was pre-authorized by a User through a High-Assurance Challenge.
 - Runtime Injection Policy create/update/disable, Runtime Injection Policy Version publish/disable, and Injection Grant issue/use/deny events are audited.
 - Injection Grant issue/use/deny/reuse-deny audit events record actor, auth method, Runtime Policy Key, Runtime Injection Policy ID, Runtime Injection Policy Version ID/hash, exact secret binding IDs, delivered secret version IDs, Command Fingerprint, whether the fingerprint matched policy, request ID, result, and denial reason where applicable.
 - Deploy key exchange audit events record the requested Runtime Policy Key, Runtime Injection Policy ID, Runtime Injection Policy Version ID/hash, deploy key ID, and whether that policy was attached to that deploy key.
 - Runtime Injection completion audit events may record exit code, signal, start/end timestamps, and duration, but never stdout/stderr.
-- Audit events never record plaintext secret values.
+- Audit events never record Sensitive Values.
 
 ### 5. App Connection And Sync Plan
 
@@ -243,7 +386,7 @@ Plan for:
 - Provider-specific connection methods.
 - GitHub App installation for GitHub Actions secrets.
 - GitHub Actions sync targets include one repository plus, for protected production delivery, one GitHub Environment.
-- GitHub Environment existence and visible protection status are checked during create/enable and planning, then rechecked before each protected sync decrypts or writes values.
+- Provider identity, Connection Boundary, target resource identity, and required target protection state are checked during create/enable and planning, then rechecked through Sync Execution Revalidation before each sync decrypts or writes values. GitHub Environment existence and visible protection status are part of this gate for protected GitHub Actions sync.
 - Vercel Integration OAuth for Vercel environment variables.
 - Scoped Cloudflare API tokens for Cloudflare Worker secrets until a suitable Cloudflare app/OAuth install flow exists for that API.
 - No global provider API keys.
@@ -252,7 +395,14 @@ Plan for:
 - Production app connections and Secret Sync must fail closed when provider credential storage has not passed the Storage Security Gate.
 - Provider credentials must enter through provider authorization flows, request bodies over TLS, CLI stdin, or masked prompts.
 - Provider credentials must never be accepted in URLs, query strings, route params, CLI arguments, shell-visible flags, or GET requests.
+- Provider OAuth or app-install callbacks must use one-time tenant-bound state, exact redirect URI matching, PKCE and nonce where supported, provider/issuer mix-up defenses, and replay protection.
+- Callback state must bind the intended Organization, initiating User, pending App Connection or reauthorization operation, Connection Method, and intended Connection Boundary.
+- The callback handler must re-check the initiating User's current Organization Access and required permission after the provider returns and before persisting credentials or changing Provider Account Linkage.
+- The callback handler must verify provider account, installation, team, repository, project, worker, and resource ownership against the intended Connection Boundary before creating or updating an App Connection.
+- A provider callback must fail closed if the returned provider identity does not match the pending operation, the initiating User lost access, the Organization is suspended, the app connection was canceled/superseded, or the state was already consumed.
+- Callback audit events must record tenant, actor, operation, provider, safe provider account/installation identifiers, result, and denial reason without raw provider bodies, tokens, or Sensitive Values.
 - Provider disconnect, credential rotation, and reauthorization workflows.
+- App Connection create, reauthorization, credential replacement, and Connection Boundary changes require a High-Assurance Challenge.
 - Manual scoped provider tokens require least-privilege setup guidance, provider-side revocation instructions, expiration/rotation tracking where possible, and audit events for creation, test, use, rotation, and deletion.
 - Cloudflare app connections require an explicit connection boundary. Account-level Cloudflare tokens are allowed only when narrower provider permissions are unavailable, and secret syncs must pin allowed Workers and environments.
 - Project-owned secret syncs that reference app connections.
@@ -266,8 +416,8 @@ Agent/DX requirements:
 - `insecur connections list --json` never returns credentials.
 - `insecur sync plan --json` shows target changes without exposing values.
 - `insecur sync run --operation <id>` is resumable.
-- Queue messages store operation IDs and target metadata, never plaintext secret values or provider credentials.
-- Operation status should expose enough state for agents to distinguish queued, locked, running, retrying, waiting for reauthorization, dead-lettered, failed, and completed states.
+- Queue messages store operation IDs and target metadata, never Sensitive Values.
+- Operation status should expose enough state for agents to distinguish queued, locked, running, retrying, waiting for reauthorization, dead-lettered, failed, completed_with_warnings, and completed states.
 - Provider errors are normalized enough for agents to decide whether to retry, reauth, or stop.
 
 ### 6. Audit, Monitoring, And Detection Plan
@@ -278,16 +428,16 @@ Plan for:
 
 - Tenant-qualified audit rows with organization ID and optional project ID.
 - Typed actor, auth method, event type, resource, IP, user agent, request ID, result, and metadata.
-- Allowlisted audit metadata fields; never store plaintext secret values, provider credentials, key material, decrypted request bodies, decrypted provider bodies, or child process environments.
+- Allowlisted audit metadata fields; never store Sensitive Values, decrypted request bodies, decrypted provider bodies, or child process environments.
 - Denied authorization events, including denied cross-tenant attempts.
 - Auth failure and refresh-token reuse events.
-- Secret metadata read, write, promotion, rollback, retention policy, import, egress, runtime injection, and sync events.
+- Secret metadata read, write, promotion, rollback, retention policy, Secret Import, egress, runtime injection, and sync events.
 - App connection create/update/delete/use/reauth events.
 - Key rotation and restore events.
 - Tamper-evident audit exports using tenant-bounded JSONL entries, a per-export hash chain, and an HMACed manifest.
 - Audit export manifests that include organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, and HMAC.
-- Full-fidelity audit exports may include Sensitive Metadata such as historical secret/display names, provider target names, and policy binding names only for authorized security review.
-- Low-privilege audit exports use immutable IDs and hashes and exclude Sensitive Metadata that reveals security-relevant structure.
+- Full-fidelity audit exports may include Sensitive Metadata such as Approval Context Notes, provider target names, and policy binding names only after authorization and Sensitive Detail Gate for security review. Historical Display Names may appear as ordinary audit metadata.
+- Low-privilege audit exports use immutable IDs, hashes, lengths, and presence flags and exclude Sensitive Metadata plaintext that reveals security-relevant structure.
 - HMAC verification for export integrity and authenticity, with asymmetric signing deferred unless third-party verification becomes a product requirement.
 - Basic anomaly detection later: unusual source IP, high-volume reads, repeated denied access, sync failures.
 
@@ -307,10 +457,21 @@ Plan for:
 
 - Rate limits by actor, organization, endpoint class, and IP.
 - Separate limits for auth, secret reads, secret writes, syncs, and rotation jobs.
+- Separate limits for promotion requests and Approval Notifications by actor, organization, and Protected Environment to prevent approval fatigue.
+- Separate public onboarding limits for login, MFA enrollment, user creation, organization creation, invitations, and provider connection attempts.
+- Service Access controls for signup lockdown, tenant suspension, and abusive organization containment.
+- Tenant enumeration defenses across signup, invitation, login, organization creation, and membership flows.
+- Signup lockdown checks are deny-by-default for public onboarding and fail closed when configuration cannot be loaded.
+- Tenant Suspension blocks high-risk and cost-generating operations for the suspended Organization, including secret writes, Injection Grant issue, Secret Sync run, App Connection create/use, Invitation create/accept, Machine Identity create/token exchange, and non-remediation exports.
+- Tenant Suspension revokes active Injection Grants and disables queued or retrying Secret Sync operations for the suspended Organization.
+- Suspended organization owners can log in with MFA to see suspension status, remediation instructions, and limited audit/security history.
+- Tenant Suspension, reinstatement, and escalation to deletion require Service Access audit events and runbook verification.
+- Service Access actions are deny-by-default and scoped to explicit service operations such as suspend, reinstate, inspect safe audit metadata, inspect operation state, manage signup lockdown, and view abuse/rate-limit signals.
+- Mutating Service Access controls require a High-Assurance Challenge, reason codes, request IDs, audit events, and owner-visible audit entries where safe.
 - Request size limits and strict JSON parsing.
-- Input validation for opaque IDs, Sensitive Display Names, provider IDs, and redirect targets.
-- No broad plaintext search indexes over Sensitive Metadata in v1. List endpoints must be scope-bounded and authorization-checked before Sensitive Display Names are decrypted.
-- Reject sensitive values in URLs, query strings, route params, GET requests, CLI argv, and other unsafe input paths.
+- Input validation for opaque IDs, Display Names, provider IDs, and redirect targets.
+- No broad plaintext search indexes over Sensitive Metadata in v1. List endpoints must be scope-bounded and authorization-checked before Display Names are returned, and must pass Sensitive Detail Gate before decrypted Sensitive Metadata is returned.
+- Reject Sensitive Values in URLs, query strings, route params, GET requests, CLI argv, and other unsafe input paths.
 - Security headers including CSP once a UI exists.
 - No caching for `/v1/*` secret-bearing responses.
 - Structured, non-sensitive error responses.
@@ -322,9 +483,10 @@ Plan for:
 Agent/DX requirements:
 
 - Rate-limit responses include machine-readable retry metadata.
+- Signup lockdown returns stable machine-readable errors without revealing whether a target organization or user exists.
 - Idempotency lets agents safely retry after network failures.
-- Validation errors identify the bad field without echoing secret values.
-- Provider error normalization stores provider codes and safe summaries only, never raw provider payloads that may contain submitted secret values.
+- Validation errors identify the bad field without echoing Sensitive Values.
+- Provider error normalization stores provider codes and safe summaries only, never raw provider payloads that may contain submitted Sensitive Values.
 - Automated tests cover safe sensitive input path enforcement for API routes and CLI commands.
 
 ### 8. Backup, Restore, And Deletion Plan
@@ -375,6 +537,10 @@ Agent/DX requirements:
 Write these before relying on insecur for valuable production secrets:
 
 - First tenant bootstrap.
+- Public onboarding abuse response.
+- Signup lockdown enable, verify, and disable.
+- Tenant suspension and reinstatement.
+- Service Access review.
 - User invitation and offboarding.
 - Lost or compromised human session.
 - Machine identity credential compromise.
@@ -388,7 +554,7 @@ Write these before relying on insecur for valuable production secrets:
 - Tenant export and deletion.
 - Tamper-evident audit export and verification.
 - Suspicious audit activity investigation.
-- Emergency break-glass access.
+- Emergency break-glass recovery without Protected Environment Secret Reveal.
 - Protected Environment secret replacement without reveal.
 - Protected Environment emergency rollback from retained encrypted version.
 
@@ -407,19 +573,52 @@ Each runbook should include:
 Before v1 production use, require:
 
 - Threat model reviewed against this document.
+- Public multi-tenant production readiness reviewed, including hostile tenant signup, organization creation, quotas, abuse handling, tenant enumeration, and Service Access.
+- No supported unsafe scaffold mode remains in API, CLI, setup docs, or deployment guidance.
+- Service Access verified to support incident investigation with decrypted Sensitive Metadata after Sensitive Detail Gate but without Secret Reveal or Sensitive Values.
 - Cross-tenant authorization tests for all tenant-owned resources.
 - Storage Security Gate passed: root key material outside D1, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, and AES-GCM authenticated data binding ciphertext to organization/project/environment/secret/version, organization/app-connection/provider-credential, and sensitive metadata identity.
 - Production Secret Sync and Runtime Injection fail closed when the Storage Security Gate has not passed.
-- Protected Environment Promotion, Draft Version non-delivery, rollback, and Rollback Retention Window behavior tested.
-- No Plaintext Persistence and Secret-Free Logging tests pass with canary secret values across API, CLI, sync, runtime injection, errors, audit events, operation records, and worker logs.
-- Sensitive Metadata Encryption tests prove Sensitive Display Names are encrypted at rest, absent from plaintext indexes, and only decrypted for authorized Scoped Lists or detail responses.
-- Safe Sensitive Input Path tests prove secret values, provider credentials, deploy keys, bootstrap secrets, and OIDC tokens are rejected from URLs, query strings, route params, CLI arguments, and GET requests.
+- Misuse-Resistant Defaults reviewed across CLI, API, and UI surfaces so ordinary management paths cannot accidentally reveal Sensitive Values.
+- Protected Environment Blind Secret Write, Promotion request, Approval Request, Draft Version non-delivery, rollback, and Rollback Retention Window behavior tested.
+- Promotion Change Set tests prove exact Draft Version IDs, one Protected Environment, immutable approval payload, no wildcard/all-staged selection, and all-or-nothing Promotion.
+- Pending Approval Request tests prove no age-based expiration and no automatic inclusion of Draft Versions created after the request.
+- Approval Request Supersession tests prove a repeat Promotion request for the same Protected Environment supersedes the prior pending request regardless of requester, creates new immutable IDs, blocks approval of stale views, coalesces notifications around the latest request, and leaves an audit trail.
+- Newer-draft warning tests prove approval warns but does not block when the Draft Area contains Draft Versions outside the Promotion Change Set.
+- Approval Impact Review tests prove delivery/sync targets are recomputed before approval, Sensitive Values are excluded, decrypted Sensitive Metadata is hidden until Sensitive Detail Gate, stale approval screens cannot promote, and the underlying Approval Request remains pending.
+- Approval Notification tests prove out-of-band notifications contain no Approval Context Note plaintext, Sensitive Values, Display Names such as organization/project/environment/secret names, decrypted Sensitive Metadata such as provider target names, raw bodies, approval impact details, bearer approval tokens, or approval/deny actions; browser/mobile push payloads are lock-screen safe and browser/mobile push deep-links require authenticated approval view authorization plus Sensitive Detail Gate before sensitive details; email remains alert-only.
+- Push Device Registration tests prove new registrations and replacements require a High-Assurance Challenge, registrations are user/device scoped Sensitive Metadata, encrypted or otherwise protected at rest, audited on create/update/delete, revocable by the user, invalidated on logout-all/MFA reset/suspicious activity/lost-device/offboarding, and never accepted as approval authority or a High-Assurance Challenge.
+- Approval fatigue tests prove promotion request and notification rate limits by actor, organization, and Protected Environment, plus supersession notification coalescing for repeated requests.
+- Approval Context Note tests prove agent/user notes are Sensitive Metadata, encrypted at rest, hidden until Sensitive Detail Gate, length-limited, escaped, visually separated from server-generated facts, excluded from plaintext indexes/logs/analytics/low-privilege exports, unable to suppress warnings or alter the approved change set, and never treated as approval source of truth.
+- Approval purpose separation tests prove Promotion approval cannot create, enable, or change protected delivery configuration and protected delivery configuration approval cannot promote Draft Versions.
+- Immediate Sync After Promotion tests prove approval enqueues every enabled Secret Sync affected by any promoted version in the Promotion Change Set and never enqueues disabled syncs.
+- Secret Sync Binding tests prove syncs use exact Secret IDs, reject all-secrets/tag/prefix/pattern selection, and do not include newly created environment Secrets until explicitly bound.
+- Sync Execution Revalidation tests prove every sync run rechecks Provider Account Linkage, credential scope, Connection Boundary, target identity, provider protection state, exact bindings, and source version eligibility immediately before decrypt/write; Provider Drift returns `sync.provider_drift` before Sensitive Value decrypt and requires reauthorization or approved configuration change.
+- Provider Sync Overwrite tests prove bound provider-side values are overwritten only after setup/plan/approval has produced Provider Overwrite Warnings for exact existing destinations, and without Provider Readback, value comparison, value preservation, or Sensitive Values in output.
+- Managed Provider Delete tests prove removing a Secret Sync Binding deletes the provider-side copy previously managed by that binding without decrypting Sensitive Values, while disabling a Secret Sync leaves provider-side copies in place with warnings.
+- Secret Sync Deletion tests prove deleting a sync removes all bindings, creates Managed Provider Deletes for all managed provider-side copies, requires destructive confirmation, tombstones audit history, and enforces protected delivery configuration approval for Protected Environments.
+- Secret Sync Deletion partial-cleanup tests prove failed Managed Provider Deletes create Orphaned Managed Provider Copy warnings, tombstone the sync, notify the User, preserve retry cleanup metadata, and complete with warnings rather than critical failure.
+- Explicit Provider Lookup tests prove each lookup is exact, scoped to one App Connection and Connection Boundary, rate-limited, audited with exact target/name/binding and response class, normalized into safe Provider Lookup Status codes, unavailable as a standalone UI/API/CLI probe, unable to enumerate provider-side names through wildcard, prefix, empty, pattern, or list requests, and unable to create Secret Shapes, Secret Versions, Secret Syncs, Secret Sync Bindings, or placeholder records.
+- Provider Overwrite Warning tests prove Secret Sync setup, plan, and approval output warn when an exact bound provider destination already exists, without reading/comparing/preserving/displaying the existing provider-side Sensitive Value or exposing provider inventory, unrelated names, provider-native error text, or raw provider bodies.
+- Provider Lookup Status tests prove failures return only stable safe codes such as `provider.lookup_not_found`, `provider.permission_denied`, `provider.boundary_mismatch`, and `provider.unavailable`, with provider-native error text, raw provider bodies, raw provider headers, stack traces, unrelated provider object names, and Sensitive Values excluded from UI, CLI, API responses, logs, audit events, analytics, queue payloads, and operation records.
+- Protected Explicit Provider Lookup tests prove Protected Environment Secret Sync setup, approval, enablement, and manual run fail closed with `provider.unavailable` when any exact binding destination lacks a completed lookup status.
+- Secret Sync source value tests prove enable/run fails with `sync.source_value_missing` unless every binding has a Current Version for non-protected Environments or Published Version for Protected Environments.
+- Secret Import tests prove provider-side Sensitive Values are never read back in V1 and imported values enter only through Safe Sensitive Input Paths.
+- Secret Sync Disable tests prove disabling stops future writes without deleting provider-side copies and shows warnings for remaining managed copies.
+- Protected Approval Policy tests cover one-approver solo-owner mode, optional two-person approval, requester self-approval denial when required, Machine Identity denial, and Service Access denial.
+- Protected Environment Secret Reveal prohibition tests prove UI, API, CLI, export, debug, and Service Access paths deny before value decrypt.
+- Provider Readback prohibition tests prove Secret Sync verification does not request, receive, log, persist, or return provider-side Sensitive Values.
+- No Plaintext Persistence and Secret-Free Logging tests pass with canary Sensitive Values across API, CLI, sync, runtime injection, errors, audit events, operation records, and worker logs.
+- Display Name tests prove user-authored product names are ordinary metadata, visible after authorization without Sensitive Detail Gate, and excluded from out-of-band Approval Notifications.
+- Sensitive Metadata Encryption tests prove Approval Context Notes, Push Device Registrations, provider-side binding/lookup names, provider target names, policy binding names, and security-relevant relationships are encrypted at rest, absent from plaintext indexes, and only decrypted for authorized Scoped Lists, detail responses, or full-fidelity exports after Sensitive Detail Gate.
+- Safe Sensitive Input Path tests prove Sensitive Values are rejected from URLs, query strings, route params, CLI arguments, and GET requests.
 - Auth/session behavior reviewed against RFC 9700 and OWASP auth/session guidance.
-- MFA and high-risk action challenge behavior tested for organization owners and administrators.
+- MFA, High-Assurance Challenge, and Sensitive Detail Gate behavior tested for organization owners, administrators, Service Access users, normal-session hijack resistance, and machine-identity denial paths.
 - Security checks mapped to OWASP ASVS Level 2 where applicable.
 - API checks mapped to OWASP API Security Top 10.
 - Key rotation plan and at least one successful restore drill.
 - App connection revocation/reauthorization tested for every supported provider.
+- Provider authorization callback tests prove one-time tenant-bound state, replay denial, provider/issuer mix-up denial, post-callback membership re-checks, provider account/installation ownership verification, canceled/superseded operation denial, Tenant Suspension denial, and no cross-tenant App Connection linkage.
 - Audit export verified for tenant boundaries, hash-chain integrity, HMAC manifest validation, and low-privilege Sensitive Metadata exclusion.
 - CLI agent flows tested in non-interactive mode.
 - Dependency and secret scanning enabled in CI.
