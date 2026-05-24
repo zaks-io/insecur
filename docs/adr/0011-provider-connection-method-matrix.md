@@ -4,6 +4,8 @@ Date: 2026-05-23
 
 Status: Accepted
 
+> Superseded in part: the Cloudflare **Connection Method** (scoped API token) still holds, but the Cloudflare sync target is now an account-level Cloudflare Secrets Store (ADR-0023), not "Worker secrets" or pinned target Workers. The per-Instance app-registration mechanism behind GitHub App installations and Vercel Integration OAuth is recorded in ADR-0022.
+
 Provider sync connections will use the strongest revocable provider mechanism available for the target API: GitHub App installations for GitHub Actions secrets, Vercel Integration OAuth for Vercel environment variables, and scoped Cloudflare API tokens for Cloudflare Worker secrets until a suitable Cloudflare app/OAuth install flow exists for that API.
 
 GitHub Actions syncs are project-specific in insecur and normally target one GitHub repository. Protected Environment syncs target existing GitHub Environment secrets inside that repository by default. insecur must not auto-create GitHub Environments for protected syncs, and protected syncs block when the target GitHub Environment has no visible protection rules. Repository-wide GitHub Actions secrets are allowed only when the workflow genuinely needs repository-wide availability or does not use GitHub Environments.

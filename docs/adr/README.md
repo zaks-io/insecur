@@ -23,6 +23,11 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0017: Protected Environment Promotion And Rollback](0017-protected-environment-promotion-and-rollback.md)
 - [ADR-0018: Retire Unsafe Pre-V1 Scaffold](0018-retire-unsafe-pre-v1-scaffold.md)
 - [ADR-0019: Service Access Without Secret Reveal](0019-service-access-without-secret-reveal.md)
+- [ADR-0020: Instance And Deployment Posture](0020-instance-and-deployment-posture.md)
+- [ADR-0021: Small-Group Production First](0021-small-group-production-first.md)
+- [ADR-0022: Per-Instance Provider App Registration](0022-per-instance-provider-app-registration.md)
+- [ADR-0023: Cloudflare Secrets Store Sync Target](0023-cloudflare-secrets-store-sync-target.md)
+- [ADR-0024: libsodium WASM For GitHub Sealed-Box Encryption](0024-libsodium-wasm-for-github-sealed-box.md)
 
 ## Open Questions To Grill
 

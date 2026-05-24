@@ -4,9 +4,11 @@ Date: 2026-05-23
 
 Status: Accepted
 
-Machine access will use organization-owned machine identities that exchange an auth method for short-lived access tokens. GitHub Actions OIDC is the preferred CI auth method because it avoids storing long-lived insecur tokens in GitHub; bootstrap client credentials are allowed only as a narrow fallback.
+Machine access will use organization-owned machine identities that exchange an auth method for short-lived access tokens. V1 Machine Identity memberships are project-scoped only; organization-scoped machine memberships are deferred until organization-wide automation is needed. GitHub Actions OIDC is the preferred CI auth method because it avoids storing long-lived insecur tokens in GitHub; bootstrap client credentials are allowed only as a narrow fallback.
 
 Deploy automation may use environment-scoped deploy keys for Runtime Injection when OIDC is unavailable. A deploy key belongs to one organization, project, and environment and is attached to an explicit allowlist of Runtime Policy Key IDs.
+
+The Machine Identity is the actor for authorization. An Environment Deploy Key is an auth method for that Machine Identity, and the short-lived access token issued from it carries project/environment-bounded Credential Scopes. Machine credential effective access is the intersection of the Machine Identity's memberships, the credential's token scope, and the credential's Credential Scopes. This keeps the Authorization Scope vocabulary consistent with human access while avoiding broad role grants on deploy credentials.
 
 Deploy key expiration and rotation are configurable through a Deploy Key Rotation Policy. Policies may set a hard expiration, rotation interval, reminder interval, or explicit non-expiring mode.
 

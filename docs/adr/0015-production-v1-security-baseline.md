@@ -2,9 +2,9 @@
 
 Date: 2026-05-23
 
-Status: Accepted
+Status: Accepted, amended by [ADR-0021](0021-small-group-production-first.md)
 
-V1 is the first production release of insecur, not a dev-only milestone, single-organization stepping stone, self-hosted shortcut, or closed bootstrap deployment. V1 is public multi-tenant production from day one because the product stores valuable secrets and must assume unrelated hostile tenants, hostile automation, compromised credentials, confused-deputy attempts, prompt-injected agents, quota abuse, tenant enumeration, and hostile onboarding attempts. The current scaffold is disposable learning infrastructure; production use requires the tenant-first authorization model, short-lived machine access, tenant-bound encryption and key versioning, audit/export integrity, public abuse controls, and security release gates before valuable secrets are stored.
+V1 is the first production release of insecur, not a dev-only milestone or single-owner secret store. V1 targets Small-Group Production because the primary near-term use case is personal projects and relatively small trusted groups; production use still requires the tenant-first authorization model, short-lived machine access, tenant-bound encryption and key versioning, audit/export integrity, and security release gates before valuable secrets are stored. Public abuse controls are required before broad public signup is enabled.
 
 Production Secret Sync and Runtime Injection are additionally blocked by the Storage Security Gate. They must fail closed until root key material lives outside D1, organization and project data keys exist, provider credentials and Sensitive Metadata are encrypted under tenant-bound data keys, key versions are tracked, and AES-GCM authenticated data binds ciphertext to organization, project, environment, secret, version, app connection, provider credential, and sensitive metadata identity. Only opaque resource IDs and Display Names may remain plaintext for lookup.
 

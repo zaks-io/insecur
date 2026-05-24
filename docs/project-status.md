@@ -4,7 +4,7 @@ Last updated: 2026-05-23
 
 ## Current State
 
-insecur currently contains disposable Cloudflare-native secrets manager learning code that was added before the product decisions in these docs were settled. The target product direction is public multi-tenant production from v1: multi-tenant, multi-user, and suitable for valuable secrets from the first production release, while staying focused on secure storage, provider sync for Cloudflare/Vercel/GitHub, and CLI runtime injection for deploys and local commands. V1 must not rely on single-organization, closed bootstrap, self-hosted, or trusted-tenant shortcuts.
+insecur currently contains disposable Cloudflare-native secrets manager learning code that was added before the product decisions in these docs were settled. The target product direction is Small-Group Production first: personal projects and relatively small trusted groups using production-quality secret protection, while the underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys. V1 stays focused on secure storage, provider sync for Cloudflare/Vercel/GitHub, and CLI runtime injection for deploys and local commands.
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
 
@@ -77,13 +77,13 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 
 The current implementation is disposable learning code. It is not a dev-only product direction, not a supported product mode, not evidence of intended product behavior, and not safe for valuable production secrets or unrelated external tenants on `insecur.cloud`.
 
-The first production release must meet the public multi-tenant production security baseline before storing valuable secrets: organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, tenant-bounded audit/export behavior, public onboarding controls, quotas, abuse handling, tenant enumeration defenses, and Service Access boundaries.
+The first production release must meet the Small-Group Production security baseline before storing valuable secrets: organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, tenant-bounded audit/export behavior, Instance Operator-controlled Organization creation, and Invitation-based Organization Access. Public onboarding controls, quotas, abuse handling, tenant enumeration defenses, and Service Access boundaries are required before enabling broad public signup or operating a Hosted Instance for unrelated tenants.
 
 ## Build Order
 
 **V1 foundation**
 
-Tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit migration, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, AES-GCM authenticated data binding, Protected Environment promotion/rollback, the Storage Security Gate, and tenant-qualified routes.
+Tenant-first schema, Instance Bootstrap, WorkOS-backed Instance Identity Configuration, Bootstrap Operator Claim completion, first-Organization owner Membership, Default Team creation, Instance Operator-controlled Organization creation, organization/project memberships, scope-first authorization with built-in role presets, WorkOS AuthKit migration, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, AES-GCM authenticated data binding, Protected Environment promotion/rollback, the Storage Security Gate, and tenant-qualified routes.
 
 **V1 machine access**
 
@@ -91,7 +91,7 @@ Machine identities, GitHub Actions OIDC federation, and environment-scoped deplo
 
 **V1 sync**
 
-OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, and Cloudflare Worker secrets. Production sync remains blocked until the Storage Security Gate passes.
+OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, and an account-level Cloudflare Secrets Store. Production sync remains blocked until the Storage Security Gate passes.
 
 **V1 runtime injection**
 
@@ -99,11 +99,11 @@ Profile-ID-based `insecur run <profile-id> -- <command>` for deploys and local c
 
 **Post-v1 hardening**
 
-Focused UI, rotation framework, Cron Triggers, Durable Object serialization, encrypted R2 backups, restore testing, key rotation procedure, and better token revocation workflows.
+Focused UI, rotation framework, Cron Triggers, Durable Object serialization, encrypted R2 backups, restore testing, key rotation procedure, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
 
 ## Recommended Next Steps
 
-1. Implement the tenant-first schema: organizations, memberships, roles, tenant-qualified audit log, and project ownership by organization.
+1. Implement the tenant-first schema: organizations, default teams, memberships, roles, tenant-qualified audit log, project ownership by organization, Instance Bootstrap, Bootstrap Operator Claim completion, first-Organization owner Membership creation, and Instance Operator-controlled Organization creation.
 2. Move route shape and authorization to organization-qualified object-level checks.
 3. Add organization and project data keys before storing provider credentials or production secrets in multi-tenant mode.
 4. Add key versions and root/organization/project data key rotation workflows.
@@ -121,6 +121,6 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 16. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
 17. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
 18. Write the security runbooks listed in `docs/security-plan.md`.
-19. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests.
+19. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests before broad public signup.
 20. Add security release gates for ASVS/API Top 10 checks, dependency scanning, and secret scanning.
 21. Add the focused UI after API, CLI, and sync flows are verified.

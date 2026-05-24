@@ -21,8 +21,22 @@ insecur will adopt an organization-first control plane before v1 production use.
 - `Organization` is the top-level tenant.
 - `Project` belongs to exactly one organization, and durable selectors use opaque resource IDs.
 - `User` access is granted by organization and project memberships, not by global allowlist.
-- `Role` remains deliberately small at first: owner, admin, developer, and read-only.
+- Authorization is scope-first: Effective Access authorization scopes are evaluated for decisions, and Roles are assignment bundles that contribute scopes.
+- V1 exposes built-in `Role` presets only for User and Team assignment: owner, admin, developer, approval, and read-only. Arbitrary human/team scope editing is deferred.
+- Built-in Role presets are backed by granular authorization scopes so custom role management or explicit human/team scope assignment can be added later without changing authorization checks.
+- The owner preset includes approval scopes for solo-owner operation. Admin and developer presets do not include approval scopes.
+- The Approval Role is the additive preset for granting approval scopes to non-owners without granting project configuration, App Connection, Secret Sync configuration, Runtime Injection Policy, or membership management scopes.
+- Approval scopes may be organization-scoped or project-scoped. Organization-scoped approval applies across projects in the organization; project-scoped approval applies only to Approval Requests for Protected Environments in that project.
+- Membership is the normalized grant concept for Users, Teams, and Machine Identities, with subject-type constraints.
+- V1 creates one non-authorizing default Team per Organization and defers rich team management, nested teams, directory sync, and SCIM workflows.
+- V1 Invitation acceptance adds the User to the default Team unless a future Invitation workflow explicitly targets another Team.
+- Default Team association does not grant access by itself; an explicit Membership is still required.
+- A V1 Invitation targets exactly one Membership grant: either one organization-scoped role or one project-scoped role.
+- Organization-scope User and Team memberships contribute authorization scopes that apply across projects in the organization; project-scope memberships are used for narrower collaborator access.
+- User and Team memberships use built-in Role presets in V1 and remain compatible with future explicit human/team authorization scope grants; Machine Identity memberships carry explicit authorization scopes now.
 - `Machine Identity` is owned by an organization and receives short-lived access tokens through an auth method.
+- V1 Machine Identity memberships are project-scoped only; organization-scoped machine memberships are deferred until organization-wide automation is needed.
+- Deploy automation should use project/environment-bounded credential scopes issued through auth methods such as Environment Deploy Keys; the deploy key is not itself the membership actor.
 - GitHub Actions OIDC is the preferred CI auth method because it avoids long-lived tokens in GitHub.
 - `App Connection` is organization-owned and stores encrypted provider credentials for Vercel, GitHub, and Cloudflare.
 - Each app connection records a provider-specific connection method. OAuth app, provider app installation, and integration OAuth are preferred; scoped provider tokens are allowed only where the provider API lacks a suitable OAuth/app flow.

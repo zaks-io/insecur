@@ -23,7 +23,7 @@ The design notes live in [docs/architecture.md](docs/architecture.md), the CLI/s
 
 ## Production V1 Boundary
 
-The first production release is not a dev-only secrets store, a single-organization stepping stone, or a closed bootstrap deployment. V1 is public multi-tenant production from day one and must be safe for unrelated hostile tenants and valuable production secrets.
+The first production release is not a dev-only secrets store or a single-owner shortcut. V1 targets Small-Group Production: personal projects and relatively small trusted groups using production-quality secret protection, with an Enterprise-Ready Model underneath so later enterprise support does not require a tenant, authorization, audit, or key-boundary refactor.
 
 The current unsafe scaffold is disposable learning code, not a supported product mode or evidence of intended product behavior. V1 work should replace or delete scaffold surfaces rather than preserve them behind warnings, compatibility shims, or unsafe deployment flags.
 

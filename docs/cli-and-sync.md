@@ -23,7 +23,7 @@ The CLI should be the primary interface for developers, agents, and CI.
 The v1 flow should make secrets easier to use without increasing where agents can read them:
 
 1. Store and rotate the secret in insecur as the Secret Source of Truth.
-2. Sync derived copies to Cloudflare Worker secrets, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary.
+2. Sync derived copies to a Cloudflare Secrets Store, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary.
 3. Use `insecur run <profile-id> -- <command>` for deploys and local commands that should receive secrets just in time without writing local secret files.
 4. Keep human, agent, and JSON output metadata-only so command runners can use secrets without putting values into model context, logs, or terminal scrollback.
 
@@ -172,6 +172,8 @@ Mutating or long-running commands should also support:
 - `--yes`
 - `--idempotency-key <key>`
 - `--operation <id>`
+
+`--yes` answers ordinary prompts only. It must not satisfy scoped high-risk confirmations such as destructive managed-copy deletion or unknown provider overwrite confirmation.
 
 ## Output Shape
 
@@ -500,7 +502,7 @@ Rules:
 insecur connections list --json
 insecur connections create github --connection-id conn_01JZ8EFH2R7M4T0V9X3C5D8F1G --method github-app --display-name-stdin
 insecur connections create vercel --connection-id conn_01JZ8EGK5Q2R7V0X3Z6C9D1F4H --method vercel-integration-oauth --display-name-stdin
-insecur connections create cloudflare --connection-id conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K --method scoped-api-token --display-name-stdin --allow-worker-id cfworker_01JZ8EJQ1N4M7T0V3X9Z2C8D5F
+insecur connections create cloudflare --connection-id conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K --method scoped-api-token --display-name-stdin --allow-account-id cfacct_01JZ8ESV1N4M7T0V3X9Z2C8D5F --allow-store-id cfstore_01JZ8EJQ1N4M7T0V3X9Z2C8D5F
 insecur connections status conn_01JZ8EFH2R7M4T0V9X3C5D8F1G --json
 insecur connections rotate conn_01JZ8EFH2R7M4T0V9X3C5D8F1G --dry-run --json
 insecur connections reauth conn_01JZ8EGK5Q2R7V0X3Z6C9D1F4H
@@ -515,7 +517,7 @@ Rules:
 - Production app connection credentials require the Storage Security Gate before they can be used for Secret Sync.
 - Provider credentials are encrypted organization data with key version metadata and authenticated-data binding to the organization, app connection, provider, credential, and key version identity.
 - App Connection selectors are opaque IDs. Display names and provider target names are encrypted Sensitive Metadata.
-- Cloudflare `create` requires an explicit connection boundary, such as allowed account, Worker, and environment IDs.
+- Cloudflare `create` requires an explicit connection boundary pinning the allowed account and Cloudflare Secrets Store.
 - Provider authorization callbacks for OAuth or app-install methods use one-time tenant-bound state tied to the intended Organization, initiating User, pending App Connection operation, Connection Method, and Connection Boundary.
 - Callback completion re-checks the initiating User's current Organization Access and verifies provider account, installation, team, repository, project, worker, or resource identity before credentials are stored.
 - Callback completion fails closed for replayed state, provider/issuer mix-up, canceled or superseded operations, Tenant Suspension, lost Organization Access, or provider identity mismatch.
@@ -544,13 +546,12 @@ insecur syncs create vercel-env \
   --target-project-id vercel_prj_123 \
   --target-env-id vercel_env_01JZ8EQR5Q2R7V0X3Z6C9D1F4H
 
-insecur syncs create cloudflare-worker \
+insecur syncs create cloudflare-secrets-store \
   --sync-id sync_01JZ8ERS8S3V6X0Z2C5D8F1G4K \
   --connection-id conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K \
   --source-env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A \
   --bind-secret sec_01JZ8ETB7P2M9N3K5T8V1X6Z0A=DATABASE_URL \
-  --target-account-id cfacct_01JZ8ESV1N4M7T0V3X9Z2C8D5F \
-  --target-worker-id cfworker_01JZ8EJQ1N4M7T0V3X9Z2C8D5F
+  --target-store-id cfstore_01JZ8EJQ1N4M7T0V3X9Z2C8D5F
 
 insecur syncs plan sync_01JZ8EKR4P7M9N3K5T8V1X6Z0A --json
 insecur syncs run sync_01JZ8EKR4P7M9N3K5T8V1X6Z0A --operation op_123
@@ -591,6 +592,8 @@ Security posture:
 - Protected Environment Secret Sync create, enable, and manual run require a High-Assurance Challenge.
 - Protected Environment setup and planning may perform exact, audited Explicit Provider Lookup with normal authorized scoped access to produce Provider Overwrite Warnings, but creating disabled Secret Syncs or disabled Secret Sync Bindings requires a High-Assurance Challenge or protected delivery configuration approval.
 - Protected Environment setup, approval, enablement, and manual run fail closed with `provider.unavailable` when Explicit Provider Lookup cannot determine the safe status for every exact Secret Sync Binding destination.
+- Non-protected setup, enablement, and manual run may proceed when Explicit Provider Lookup cannot determine overwrite status only with `sync.overwrite_status_unknown`, user-visible unknown-overwrite warning output, operation-scoped confirmation, and an audit event.
+- CLI and automation must use a scoped flag such as `--allow-unknown-provider-overwrite` for unknown provider overwrite confirmation; generic `--yes` is not sufficient.
 - After Promotion, every enabled Secret Sync affected by any promoted version enqueues immediately.
 - Disabled syncs remain disabled and are not enqueued by Promotion.
 - Disabling a Secret Sync leaves provider-side managed copies in place, and status/plan output must warn that those copies still exist.
@@ -638,7 +641,7 @@ Core fields:
 - `org_id`
 - `project_id`
 - `display_name_ciphertext`
-- `kind`: `github-actions`, `vercel-env`, or `cloudflare-worker`
+- `kind`: `github-actions`, `vercel-env`, or `cloudflare-secrets-store`
 - `connection_id`
 - `source_env_id`
 - exact Secret Sync Bindings: source Secret ID plus provider-side secret or variable name
@@ -664,7 +667,7 @@ An organization admin creates an app connection.
 
 - GitHub uses GitHub App installation where possible.
 - Vercel uses Vercel Integration OAuth.
-- Cloudflare uses a manually configured scoped API token unless a suitable Cloudflare app/OAuth install flow becomes available for Worker secret management.
+- Cloudflare uses a manually configured scoped API token with Secrets Store write permission unless a suitable Cloudflare app/OAuth install flow becomes available for that API.
 - OAuth and app-install callback state is tenant-bound and one-time use. A callback can complete only the pending connection or reauthorization operation that created it.
 
 The app connection stores encrypted provider credentials as organization data.
@@ -691,6 +694,7 @@ The API validates:
 - Protected Environment Secret Sync Deletion shows all resulting Managed Provider Deletes before the protected delivery configuration approval path.
 - Protected Environment GitHub Actions syncs target an existing GitHub Environment; the API must not create the GitHub Environment as part of sync setup.
 - Creating or enabling a Protected Environment GitHub Actions sync blocks unless the target GitHub Environment has visible protection rules.
+- Non-protected Secret Sync creation, enablement, and manual run may proceed when Explicit Provider Lookup cannot determine overwrite status only if output surfaces `sync.overwrite_status_unknown`, receives operation-scoped confirmation, records an audit event, and makes clear that a provider-side value may be replaced without Provider Readback. CLI and automation use `--allow-unknown-provider-overwrite`; generic `--yes` is rejected for this condition.
 
 ### 3. Plan
 
@@ -703,6 +707,7 @@ Plan output includes:
 - Secret Sync Binding IDs, Secret IDs, Display Names, provider-side destination names after Sensitive Detail Gate, and planned Managed Provider Deletes.
 - For bound destinations that already exist in the provider, plan output reports a Provider Overwrite Warning and Provider Sync Overwrite intent without reading or comparing the provider-side Sensitive Value.
 - For Protected Environments, plan output returns `provider.unavailable` and cannot produce an approval-ready result when any exact binding destination lacks completed Explicit Provider Lookup status.
+- For non-protected Environments, plan output may continue when lookup status is unavailable with warning code `sync.overwrite_status_unknown`; later create, enable, or run requires operation-scoped confirmation before provider writes.
 - Plan output reports `sync.source_value_missing` for any binding whose source lacks an eligible Current Version/Published Version.
 - Secret Sync Deletion plans list every Secret Sync Binding that will be removed, every resulting Managed Provider Delete, and the sync tombstone/audit status.
 - Provider capability warnings.
@@ -742,7 +747,7 @@ Verification never reads provider-side Sensitive Values back, even if a provider
 
 Secret Import is a separate workflow, not sync verification or reconciliation. Import must use Safe Sensitive Input Paths and produce audit events. V1 Secret Import must not read Sensitive Values from provider secret stores.
 
-Explicit Provider Lookup is metadata-only and exists only for Secret Sync setup, planning, and approval in V1. It is not a standalone CLI/API/UI probe. Its purpose is to check whether one exact Secret Sync Binding destination already exists and produce a Provider Overwrite Warning before sync approval or execution. Explicit Provider Lookup checks one exact configured provider-side name, target, or binding inside one App Connection and Connection Boundary. It must not list provider inventory, enumerate provider-side names, return unrelated provider objects, expose raw provider response bodies, or accept wildcard, prefix, empty, pattern, or list requests. It returns only minimal existence/status metadata, normalized Provider Lookup Status, provider object IDs where needed, safe hashes where needed, and no Sensitive Values. Failed lookups return stable safe codes such as `provider.lookup_not_found`, `provider.permission_denied`, `provider.boundary_mismatch`, and `provider.unavailable`; they must not return, log, audit, persist, or place in operation records provider-native error text, raw provider bodies, raw provider headers, stack traces, unrelated provider object names, or Sensitive Values. Every lookup is audited with actor, organization, project/environment when applicable, app connection, exact target/name/binding, provider response class, request ID, and operation ID. Provider-side secret and variable names, provider existence status, and provider target names are Sensitive Metadata. Explicit Provider Lookup does not create Secret Shapes, Secret Versions, Secret Syncs, Secret Sync Bindings, or placeholder records. It does not perform Provider Sync Overwrite. Sync only writes later through the normal confirmation or approval flow for exact bindings with eligible source versions. Orphaned Managed Provider Copies are cleanup metadata, not import sources.
+Explicit Provider Lookup is metadata-only and exists only for Secret Sync setup, planning, and approval in V1. It is not a standalone CLI/API/UI probe. Its purpose is to check whether one exact Secret Sync Binding destination already exists and produce a Provider Overwrite Warning before sync approval or execution. Explicit Provider Lookup checks one exact configured provider-side name, target, or binding inside one App Connection and Connection Boundary. It must not list provider inventory, enumerate provider-side names, return unrelated provider objects, expose raw provider response bodies, or accept wildcard, prefix, empty, pattern, or list requests. It returns only minimal existence/status metadata, normalized Provider Lookup Status, provider object IDs where needed, safe hashes where needed, and no Sensitive Values. Failed lookups return stable safe codes such as `provider.lookup_not_found`, `provider.permission_denied`, `provider.boundary_mismatch`, and `provider.unavailable`; they must not return, log, audit, persist, or place in operation records provider-native error text, raw provider bodies, raw provider headers, stack traces, unrelated provider object names, or Sensitive Values. Every lookup is audited with actor, organization, project/environment when applicable, app connection, exact target/name/binding, provider response class, request ID, and operation ID. Protected Environment setup, approval, enablement, and manual run fail closed with `provider.unavailable` if lookup cannot determine every exact binding destination status. Non-protected setup, enablement, and manual run may continue after unavailable lookup status only with warning code `sync.overwrite_status_unknown`, operation-scoped confirmation, and an audit event. Generic `--yes`, stored defaults, and previous confirmations do not satisfy this condition. Provider-side secret and variable names, provider existence status, and provider target names are Sensitive Metadata. Explicit Provider Lookup does not create Secret Shapes, Secret Versions, Secret Syncs, Secret Sync Bindings, or placeholder records. It does not perform Provider Sync Overwrite. Sync only writes later through the normal confirmation or approval flow for exact bindings with eligible source versions. Orphaned Managed Provider Copies are cleanup metadata, not import sources.
 
 Explicit Provider Lookup output is scope-bounded. Authorized full-fidelity setup, plan, approval, or detail output may decrypt provider-side names only after Sensitive Detail Gate, but default low-privilege or automation output uses opaque IDs, hashes, and safe status codes. Lookup operations must not place provider-side names in plaintext search indexes, logs, analytics events, durable queue payloads, unscoped caches, or error messages.
 
@@ -871,24 +876,24 @@ Notes:
 - Track provider variable IDs when available.
 - Support environment-specific syncs.
 
-### Cloudflare Worker Secrets
+### Cloudflare Secrets Store
 
-Kind: `cloudflare-worker`
+Kind: `cloudflare-secrets-store`
 
 Target config:
 
 - Account ID.
-- Worker script/service ID where available; any required provider worker name is Sensitive Metadata.
-- Environment ID where available; any required provider environment name is Sensitive Metadata.
+- Cloudflare Secrets Store ID; any required provider store name is Sensitive Metadata.
 
 Notes:
 
 - Start with scoped Cloudflare API tokens for hosted sync.
-- Use the minimum permissions needed to list and update the selected Worker secrets.
+- Use the minimum permissions needed to write secrets into the selected Cloudflare Secrets Store.
 - Require a connection boundary and show it in `connections status`.
-- Require each secret sync to pin explicit target Workers and environments inside the connection boundary.
-- Support per-Worker Cloudflare app connections for sensitive projects.
-- If Cloudflare exposes a suitable OAuth/provider app flow for Worker secret management later, add it as a new connection method.
+- Pin the target account and Cloudflare Secrets Store inside the connection boundary.
+- Binding stored secrets into Worker scripts through a `secrets_store_secrets` binding is the customer's responsibility and lies outside insecur's connection boundary.
+- Deleting a managed secret from the store can break Workers still bound to it, so store-level deletes surface warnings.
+- If Cloudflare exposes a suitable OAuth/provider app flow for the Secrets Store API later, add it as a new connection method.
 - Never accept global API keys.
 
 ## API Shape
@@ -963,6 +968,7 @@ CLI:
 - Explicit Provider Lookup tests cover exact configured binding destinations only, one App Connection and Connection Boundary per lookup, no standalone probe command/API/UI, wildcard/prefix/empty/pattern/list request rejection, rate limits, audit events with exact target/name/binding and response class, safe Provider Lookup Status normalization, no provider-native error text, no provider-side Sensitive Value readback, and no Secret Shape, Secret Version, Secret Sync, Secret Sync Binding, or placeholder-record creation.
 - Provider Overwrite Warning tests cover Secret Sync setup, plan, and approval warnings for exact provider destinations that already exist without exposing the provider-side Sensitive Value, provider inventory, unrelated names, provider-native error text, or raw provider bodies.
 - Protected Explicit Provider Lookup tests cover `provider.unavailable` fail-closed behavior when Protected Environment setup, approval, enablement, or manual run cannot determine lookup status for every exact binding destination.
+- Non-protected unknown-overwrite tests cover `sync.overwrite_status_unknown` behavior when setup, plan, enablement, or manual run proceeds despite unavailable lookup status, including operation-scoped confirmation, rejection of generic `--yes` alone, audit events, and no provider-native error text, raw provider bodies, provider inventory, unrelated provider object names, or Sensitive Values in output.
 - Secret Sync source value tests cover `sync.source_value_missing` for missing Current Versions in non-protected Environments and missing Published Versions in Protected Environments.
 - Secret Import tests cover Safe Sensitive Input Paths and prove provider-side Sensitive Values are not read back in V1.
 - Protected Approval Policy covers one-approver and optional two-approver flows, requester self-approval denial, Machine Identity approval denial, and Service Access approval denial.
