@@ -1,0 +1,23 @@
+# ADR-0031: Keyring Below The Encryption Engine
+
+Date: 2026-05-24
+
+Status: Accepted
+
+The key hierarchy lives in a keyring module below the encryption engine, not inside it. The engine asks the keyring for the key it needs to lock or unlock a value; the keyring resolves the chain from the root key through an Organization Data Key, a Project Data Key, and the per-record key. Two consumers walk this chain: the engine reads keys to lock and unlock values, and the rotation workflow rewraps keys to retire old material. One only reads, the other mutates. Folding the chain into the engine would force rotation either to reach inside the engine or to duplicate the walk, so the keyring is its own module that both call. Its foundation is already fixed: the root key is in Cloudflare Secrets Store (ADR-0028), the wrapped Organization and Project Data Keys are in D1, and the per-record key is in the envelope (ADR-0026). During a root rotation window, each record carries the key version the keyring uses to select the right root.
+
+Because a V1 Instance is one Worker and one D1 with logical tenant isolation (ADR-0027), the keyring's locks are the only tenant-isolation boundary. Two invariants are therefore load-bearing rather than nice-to-have: the keyring never returns one organization's unlocked key to another organization's request, and its in-memory cache of unlocked keys is scoped per tenant so nothing leaks across tenants in the shared isolate. The wall it provides is between tenants and against a D1-only compromise, not against deploy or account access, which ADR-0028 already accepted can extract the root key.
+
+Rotating any key in the chain is one operation: re-lock the item beneath it under the new parent, never opening it. The keyring exposes a single rewrap primitive, and rotation at any level is that primitive applied across the right set. Rotating a Project Data Key re-locks every per-record key under it, an Organization Data Key re-locks the project keys under it, and the root re-locks the organization keys, which is the ADR-0028 master case. ADR-0028's root rotation is therefore the top instance of one machinery, not a special path. Rewrap touches only the key envelope, the wrap layer of ADR-0026: it transiently unwraps the one-time key to move it under the new parent but never decrypts the Sensitive Value, whose ciphertext stays sealed under its per-record key throughout.
+
+The keyring owns the per-item primitive and the resolution; ADR-0005's rotation workflow owns the orchestration around it, planning which set to rewrap, executing, resuming after interruption, verifying, and auditing. Verify reduces to confirming no record still references the retired key version, a plain query over the key version each envelope already stores (ADR-0026). The Storage Security Gate (ADR-0005, ADR-0016) consumes a readiness check the keyring exposes, root reachable and data keys and versions present, rather than re-deriving crypto state itself.
+
+## Consequences
+
+The keyring's depth is that it concentrates key-chain resolution, the tenant-scoped cache of unlocked keys, root-version selection during a rotation window, and the single rewrap primitive behind one boundary, so the engine holds no hierarchy knowledge and no wrapper ever holds a key. No cross-tenant key handoff, rewrap never decrypting the value, and gate readiness are each a unit test against fakes for Secrets Store and D1.
+
+Because logical isolation makes the keyring the only tenant boundary (ADR-0027), a cross-tenant key-handoff bug is a tenant-isolation breach, not a narrow crypto defect, so the cross-tenant authorization regression tests extend to the keyring.
+
+One uniform primitive means rotation correctness is established once. Re-introducing per-level rotation paths would re-open "never open the value" separately at each level.
+
+The remaining root-rotation detail, whether the root layer uses a versioned named secret or a dual-named window, stays the open infra question recorded for ADR-0028. The keyring consumes whichever the root layer presents, through the per-record key version.

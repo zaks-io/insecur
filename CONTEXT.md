@@ -636,6 +636,10 @@ _Avoid_: key revision
 A planned key lifecycle event that replaces key material or provider authorization material.
 _Avoid_: rekey when discussing the broader workflow
 
+**Keyring**:
+The component that resolves the key hierarchy (the root key in Cloudflare Secrets Store, then an Organization Data Key, then a Project Data Key, then a per-record key), holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared single-database Instance it is the only tenant-isolation boundary.
+_Avoid_: key store when the resolving and rewrapping component is meant
+
 **Ciphertext Identity Binding**:
 The rule that an encrypted Secret, Provider Credential, or Sensitive Metadata record is cryptographically bound to the Opaque Resource IDs of the record it belongs to, recomputed from the record's own identity at decrypt rather than stored with the ciphertext, so a relocated or swapped record fails to decrypt.
 _Avoid_: stored identity tag, since the binding is recomputed from the record and never persisted with it
