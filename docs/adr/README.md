@@ -29,7 +29,12 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0023: Cloudflare Secrets Store Sync Target](0023-cloudflare-secrets-store-sync-target.md)
 - [ADR-0024: libsodium WASM For GitHub Sealed-Box Encryption](0024-libsodium-wasm-for-github-sealed-box.md)
 - [ADR-0025: Secret Version Store Below Promotion](0025-secret-version-store.md)
+- [ADR-0026: Encryption Envelope Below Per-Domain Wrappers](0026-encryption-envelope-below-per-domain-wrappers.md)
 
 ## Open Questions To Grill
 
-No open questions captured yet.
+These surfaced while grilling the encryption seam (ADR-0026) and were deferred, not decided.
+
+- **Key resolution.** Does the encryption engine own resolution of the root key, then an Organization Data Key, then a Project Data Key, then a per-record DEK, or is resolution a distinct seam shared by the engine and the rotation workflow? Goal: no wrapper ever holds a key.
+- **Rotation mechanics.** ADR-0005 owns the first-class plan/execute/resume/verify/audit rotation workflow. Open is the rewrap primitive it drives, rewrapping DEKs and keys with no plaintext as the two-layer split allows, and the granularity: rotating a Project Data Key rewraps the DEKs under it, an Organization Data Key rewraps the project keys under it, the root rewraps the organization keys.
+- **Storage Security Gate readiness.** Does the gate (ADR-0005, ADR-0016) consume a readiness self-test exposed by the resolver or engine (root key placed, data keys and versions present, identity binding active), rather than re-deriving crypto state itself?

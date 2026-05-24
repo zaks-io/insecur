@@ -636,6 +636,10 @@ _Avoid_: key revision
 A planned key lifecycle event that replaces key material or provider authorization material.
 _Avoid_: rekey when discussing the broader workflow
 
+**Ciphertext Identity Binding**:
+The rule that an encrypted Secret, Provider Credential, or Sensitive Metadata record is cryptographically bound to the Opaque Resource IDs of the record it belongs to, recomputed from the record's own identity at decrypt rather than stored with the ciphertext, so a relocated or swapped record fails to decrypt.
+_Avoid_: stored identity tag, since the binding is recomputed from the record and never persisted with it
+
 **Storage Security Gate**:
 The required tenant-bound encryption baseline before production secret delivery or provider credential use can run.
 _Avoid_: encryption done when the full storage baseline is meant
