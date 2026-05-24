@@ -1,0 +1,19 @@
+# ADR-0025: Secret Version Store Below Promotion
+
+Date: 2026-05-24
+
+Status: Accepted
+
+The Secret Version lifecycle is split into a deep version store that owns the per-Secret version chain and a separate promotion and approval module that drives it. The store sits below; promotion, approval, and notification sit above and call into it. The store is regime-ignorant: it has no knowledge of Protected Environments, Promotion, Approval Requests, or Protected Approval Policy, and its entire interface can be described without the words "protected" or "approval." It exposes appending a Draft Version, appending and making a version live in one step, an atomic batch publish that makes a set of versions live together, Rollback, Draft Version Discard, and metadata reads plus fetch of wrapped material. The write path above the store chooses append-as-Draft versus append-and-make-live from the Environment regime, so the non-protected path makes a version the Current Version immediately while the protected path leaves a Draft Version in the Draft Area for later Promotion. A Promotion Change Set that publishes many Secrets at once maps to the store's single atomic batch publish.
+
+The store is plaintext-free. It only ever receives and returns wrapped material, never a Sensitive Value. A thin secret-write composition above the store receives the Sensitive Value over a Safe Sensitive Input Path, calls the encryption seam to wrap it under the Secret's identity, then calls the store. This makes No Plaintext Persistence (ADR-0016) a structural property of the store boundary rather than a discipline, and lets the store be tested with no encryption, no Environment, and no approval in the test.
+
+Concurrency is handled on D1 alone. Each operation is one atomic batch; the per-Secret version number is gap-free and monotonic via a unique constraint with bounded optimistic retry; and the live pointer carries a per-Secret monotonic guard so publish only advances and an out-of-order batch commit is rejected rather than torn. Any Durable Object serialization, such as the single pending Approval Request per Protected Environment invariant, lives in the promotion module and calls the store's already-atomic publish; the store itself takes no Durable Object dependency.
+
+Rollback is a ciphertext-level copy: it writes a Retained Published Version's wrapped bytes as a new version and makes that new version live, without decrypting. This depends on the encryption envelope binding organization, project, environment, and secret through Opaque Resource IDs but not the version number, so ciphertext is portable across versions of one Secret. The full envelope and additional-authenticated-data design is owned by the key hierarchy work (ADR-0005) and the encryption seam; this ADR records only the version store's dependency on it.
+
+## Consequences
+
+The store's depth comes from the version invariants it concentrates, not from encryption: gap-free monotonic version numbers, at most one live version per Secret, only the live version delivering, all-or-nothing batch publish with a monotonic guard, Rollback as a no-decrypt copy, Draft Version Discard crypto-erasure, and rollback eligibility as a Retained Published Version within the Rollback Retention Window with key material present. Each is a unit test against a D1 fake, none of them writable against the pre-V1 scaffold because it has no such seam (ADR-0018).
+
+The AAD-excludes-version dependency is load-bearing. Re-introducing the version number into the encryption envelope would force Rollback to decrypt and re-encrypt, putting plaintext back into the Rollback path and breaking the store's plaintext-free contract. A future change to the envelope must preserve cross-version ciphertext portability for one Secret or accept that cost.

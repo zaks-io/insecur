@@ -28,6 +28,7 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0022: Per-Instance Provider App Registration](0022-per-instance-provider-app-registration.md)
 - [ADR-0023: Cloudflare Secrets Store Sync Target](0023-cloudflare-secrets-store-sync-target.md)
 - [ADR-0024: libsodium WASM For GitHub Sealed-Box Encryption](0024-libsodium-wasm-for-github-sealed-box.md)
+- [ADR-0025: Secret Version Store Below Promotion](0025-secret-version-store.md)
 
 ## Open Questions To Grill
 

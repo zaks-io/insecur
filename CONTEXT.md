@@ -224,6 +224,10 @@ _Avoid_: approval reuse, carry over approval
 The secret version selected for delivery from a protected environment.
 _Avoid_: current when protected delivery status is meant
 
+**Retained Published Version**:
+A prior **Published Version** kept encrypted and **Rollback**-eligible within the **Rollback Retention Window**.
+_Avoid_: backup when no plaintext copy is kept, current version or published version when it is no longer the live version
+
 **Current Version**:
 The selected secret version for a secret.
 _Avoid_: latest when the selected version is meant
