@@ -1,0 +1,16 @@
+# ADR-0029: Single-Account Environments And CD Trust Model
+
+Date: 2026-05-24
+
+Status: Accepted
+
+The project runs staging and production as two `wrangler` environments inside one Cloudflare account, not as separate accounts. Deployment is full CD: pull requests run typecheck, build, tests, and the security gates (ADR-0008); merges auto-deploy to the staging environment; and production deploys sit behind a GitHub Environment required-reviewer approval gate so a human approves each release. Cloudflare offers no GitHub OIDC federation for Wrangler deploys, so CI authenticates with a stored Cloudflare API token scoped to Workers Scripts and D1 edit on the account (Workers Builds with a build token is the equivalent native option). D1 migrations apply as an approval-gated step in the production release, expand-contract and backward-compatible only, with a fresh R2 backup taken immediately before apply so a live multi-tenant secrets database stays recoverable if a migration misbehaves.
+
+## Considered Options
+
+- **Separate Cloudflare accounts** for staging and prod, giving each its own account-level Secrets Store and a CF-enforced blast-radius boundary. Rejected for now in favor of operational simplicity and a single bill.
+- **Out-of-CI manual production deploy** so no automated identity holds root-key-equivalent power. Rejected: it loses the value of automated release flow that the operator wanted.
+
+## Consequences
+
+Because Secrets Store is account-level and has no per-Worker binding ACL (ADR-0028), one account means the staging/production root-key boundary is enforced by configuration review, deploy-token scope, the production approval gate, and restricting Secrets Store account roles to the operator alone, **not** by Cloudflare. Two constraints follow and are non-negotiable while single-account holds: the staging environment must never hold real customer secrets, and account membership with Secrets Store roles stays limited to the operator. The accepted residual risk is that an approved production deploy, or a single-account configuration change, can ship code that reads the production root key; this is the cost of combining a Secrets-Store root key (ADR-0028) with full CD. The trigger to split into separate accounts is a second operator or a real staging dataset.

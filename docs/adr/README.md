@@ -30,11 +30,17 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0024: libsodium WASM For GitHub Sealed-Box Encryption](0024-libsodium-wasm-for-github-sealed-box.md)
 - [ADR-0025: Secret Version Store Below Promotion](0025-secret-version-store.md)
 - [ADR-0026: Encryption Envelope Below Per-Domain Wrappers](0026-encryption-envelope-below-per-domain-wrappers.md)
+- [ADR-0027: Shared-Instance Topology And Binding Map](0027-shared-instance-topology-and-binding-map.md)
+- [ADR-0028: Instance Secrets In Cloudflare Secrets Store With Offline Escrow](0028-instance-secrets-in-secrets-store-with-escrow.md)
+- [ADR-0029: Single-Account Environments And CD Trust Model](0029-environments-and-cd-trust-model.md)
+- [ADR-0030: Hybrid Allowlisted Operational Telemetry](0030-hybrid-allowlisted-telemetry.md)
+- [ADR-0031: Keyring Below The Encryption Engine](0031-keyring-below-the-encryption-engine.md)
 
 ## Open Questions To Grill
 
-These surfaced while grilling the encryption seam (ADR-0026) and were deferred, not decided.
+These surfaced while grilling infrastructure (ADR-0027 through ADR-0030) and were deferred, not decided.
 
-- **Key resolution.** Does the encryption engine own resolution of the root key, then an Organization Data Key, then a Project Data Key, then a per-record DEK, or is resolution a distinct seam shared by the engine and the rotation workflow? Goal: no wrapper ever holds a key.
-- **Rotation mechanics.** ADR-0005 owns the first-class plan/execute/resume/verify/audit rotation workflow. Open is the rewrap primitive it drives, rewrapping DEKs and keys with no plaintext as the two-layer split allows, and the granularity: rotating a Project Data Key rewraps the DEKs under it, an Organization Data Key rewraps the project keys under it, the root rewraps the organization keys.
-- **Storage Security Gate readiness.** Does the gate (ADR-0005, ADR-0016) consume a readiness self-test exposed by the resolver or engine (root key placed, data keys and versions present, identity binding active), rather than re-deriving crypto state itself?
+- **Root-key rotation window mechanics.** ADR-0028 rotates by creating a new versioned, named root secret and rewrapping data keys from old to new, with encrypted records carrying the key version to select the right root during the window. Open is whether the implementation leans on Secrets Store's own secret versioning or a dual-named-secret window, and how the old version is retired once rewrap completes. Confirm at implementation against ADR-0005's rotation workflow.
+- **Rate-limit primitive.** Deferred with public onboarding. D1 counter rows (the binding map in ADR-0027 already homes them in D1) suffice for V1's few unauthenticated endpoints; a dedicated primitive (Durable Object or external) is only forced when broad public signup and its abuse controls land.
+- **External telemetry sink specifics.** ADR-0030 fixes the hybrid shape and the allowlist contract but not the vendor. Axiom is the lean choice for the metadata-only stream; Sentry is permitted only with default PII, request-data, breadcrumb, and local-variable capture disabled. Final sink selection and its subprocessor review are open.
+- **Data residency.** V1 lets D1 auto-place its primary location, which is US-biased and fixed at database creation. Revisit before onboarding any EU or residency-constrained Organization, since changing a D1 primary location after creation is not a live operation and would force a migration.
