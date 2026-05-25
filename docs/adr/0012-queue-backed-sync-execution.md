@@ -10,4 +10,4 @@ Queue consumers must perform Sync Execution Revalidation immediately before decr
 
 ## Consequences
 
-D1 remains the source of truth for operation state and audit history. Queue consumers execute provider writes only after Sync Execution Revalidation passes, handle retryable provider failures with delayed retries, and route exhausted failures to a dead-letter path for Service Access review. Sync commands must be idempotent and resumable so agents can safely retry after network failures or Worker interruptions.
+Neon Postgres, reached only through the Tenant-Scoped Store, remains the source of truth for operation state and audit history. Queue consumers execute provider writes only after Sync Execution Revalidation passes, handle retryable provider failures with delayed retries, and route exhausted failures to a dead-letter path for Service Access review. Sync commands must be idempotent and resumable so agents can safely retry after network failures or Worker interruptions.

@@ -2,7 +2,9 @@
 
 Date: 2026-05-24
 
-Status: Accepted
+Status: Superseded by ADR-0039
+
+Historical record only. ADR-0039 reversed this decision; do not implement account-level Cloudflare Secrets Store as the V1 customer Cloudflare Secret Sync target.
 
 The **Sync Target** for a `cloudflare` **Secret Sync** is an account-level **Cloudflare Secrets Store** in the account **Connection Boundary**, not an individual Worker script. insecur writes and overwrites secrets in the store; binding stored secrets into Worker scripts through a `secrets_store_secrets` binding is the customer's responsibility and lies outside insecur's **Connection Boundary**. The Cloudflare **Connection Method** is unchanged from ADR-0011: a manually configured scoped Cloudflare API token, now requiring Secrets Store write permission on the account.
 

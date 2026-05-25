@@ -2,9 +2,9 @@
 
 Date: 2026-05-23
 
-Status: Accepted
+Status: Accepted, amended by [ADR-0036](0036-neon-postgres-over-hyperdrive-with-rls.md)
 
-insecur will be a Cloudflare-native secrets control plane: Cloudflare Workers for the API, Cloudflare D1 for metadata, WebCrypto for encryption, and R2 for encrypted backups. This keeps the operational footprint small and aligned with Isaac's stack instead of introducing long-lived Docker services, Postgres, Redis, queues, or a broad enterprise deployment model.
+insecur will be a Cloudflare-native secrets control plane: Cloudflare Workers for the API, Hyperdrive-backed Neon Postgres for metadata, WebCrypto for encryption, and R2 for encrypted backups. ADR-0036 revises the original D1 datastore choice to add Postgres Row-Level Security as an engine backstop for tenant metadata isolation. The stack still avoids long-lived Docker services, self-managed databases, Redis, or a broad enterprise deployment model.
 
 ## Consequences
 

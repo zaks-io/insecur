@@ -19,3 +19,5 @@ We considered a per-change High-Assurance Challenge, rejected because it produce
 ## Consequences
 
 The Approval Impact Review is extended to cover configuration items so `publish --dry-run` can present metadata-only impact over the whole batch, including which gates the acting User can clear versus which require a Distinct Approver. Publish is metadata-only in human, agent, and JSON output and never reveals Sensitive Values. Promotion Change Set remains a component of a Staged Change Set, and ADR-0017's invariant of one pending promotion Approval Request per Protected Environment is unchanged.
+
+The canonical implementation-facing state machine for Publish lives in [protected-change-orchestration.md](../protected-change-orchestration.md).

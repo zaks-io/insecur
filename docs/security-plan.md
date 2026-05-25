@@ -8,7 +8,7 @@ insecur stores Sensitive Values, Sensitive Metadata, and audit records. The defa
 
 - Authenticate every actor.
 - Authorize every object access through organization/project membership.
-- Encrypt every Sensitive Value and Sensitive Metadata before D1 persistence.
+- Encrypt every Sensitive Value and Sensitive Metadata before Postgres persistence.
 - Treat user-authored product names as Display Names: ordinary metadata visible after authentication and authorization.
 - Never persist Sensitive Values on insecur-controlled systems.
 - Never log Sensitive Values.
@@ -19,13 +19,13 @@ insecur stores Sensitive Values, Sensitive Metadata, and audit records. The defa
 - Avoid provider inventory discovery; provider-side checks use audited exact lookups for explicit configured or user-supplied targets only.
 - Apply Misuse-Resistant Defaults: dangerous reveal or readback paths should be absent where possible, denied before decrypt where they must exist, and never reachable by accidental command shape.
 
-V1 production use starts only after the Small-Group Production security baseline is implemented. V1 uses Bounded Onboarding for personal projects and relatively small trusted groups: Instance Operators create Organizations, and normal Users join through Invitations and Memberships. It must still use the Enterprise-Ready Model: organization/project membership authorization, tenant-qualified audit, tenant-bound encryption, and object-level checks. Public hostile-tenant onboarding controls are required before broad public signup is enabled.
+V1 is split into First Value and Production Delivery milestones. First Value is limited to non-protected development values and provider-free Secret Use. V1 production use starts only after the Small-Group Production security baseline is implemented. V1 uses Bounded Onboarding for personal projects and relatively small trusted groups: Organizations are created by Instance Operators or controlled Guided Organization Provisioning, Personal Organizations start with an owner Membership, first Project, and non-protected development Environment for the admitted User, and normal Users join existing Organizations through Invitations and Memberships. It must still use the Enterprise-Ready Model: organization/project membership authorization, tenant-qualified audit, tenant-bound encryption, and object-level checks. Public hostile-tenant onboarding controls are required before broad public signup is enabled.
 
 There is no supported unsafe pre-v1 product mode. Existing scaffold surfaces are deletion or replacement candidates, not compatibility constraints or product decisions.
 
 The v1 security focus is secure storage plus controlled delivery: insecur is the Secret Source of Truth, provider syncs are derived delivery targets for Cloudflare, Vercel, and GitHub, and runtime injection delivers values just in time for deploys and local commands without writing local secret files.
 
-Production Secret Sync and Runtime Injection are blocked until the Storage Security Gate is complete: root key material outside D1, organization and project data keys, key version tracking, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, and AES-GCM authenticated data binding ciphertext to organization, project, environment, secret, version, app connection, provider credential, and sensitive metadata identity.
+Production Secret Delivery and Secret Sync are blocked until the [Storage Security Gate](storage-security-gate.md) passes. The gate is the metadata-only readiness contract for root key placement, tenant data keys, key versions, Tenant-Scoped Store/RLS, encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, and no-plaintext persistence.
 
 ## Threat Model
 
@@ -54,12 +54,36 @@ Important attacker goals:
 - Register or control hostile tenants to probe tenant boundaries, quota behavior, onboarding flows, and public abuse defenses when broad public signup is enabled.
 - Compromise the build/dependency supply chain.
 
+Operating assumption about agents: assume any coding agent or automated caller running in an authorized session will read every Sensitive Value it can reach, including values delivered into a child process by Runtime Injection. Agent exposure to plaintext is controlled structurally rather than by agent restraint, and is tiered by environment: acceptable for non-protected development values, tightly controlled for Protected Environment values (typically staging and production).
+
 Explicit non-goals for the near term:
 
 - Enterprise identity surfaces such as SCIM, SAML, and LDAP.
 - HSM/KMIP/FIPS modes.
 - Broad dynamic secret engines.
 - Large custom policy languages.
+
+## Agent Access Model
+
+A local coding agent has no identity of its own (ADR-0032). It runs inside a human-initiated session, inherits the short-lived `INSECUR_SESSION_TOKEN` from the process environment, and acts with the human's Effective Access. This model assumes the agent will read every Sensitive Value it can reach and will call the API directly with the inherited token rather than only through the CLI. Controls are therefore server-side on the token's risk tier, not CLI-side and not dependent on agent restraint.
+
+What it holds: the session token, in its process environment. The token, not the CLI, is the capability. Anything the CLI can do with it, the agent can do by calling the API directly. The token is short-lived and cannot satisfy a High-Assurance Challenge, so the agent inherits exactly the human's autonomous Effective Access and nothing gated behind a fresh challenge.
+
+What it can read as values: Runtime Injection is a read path. It delivers plaintext into a child process the agent controls, and the child can read its delivered environment once it crosses the Runtime Trust Boundary. Any Environment the agent can inject from, it can read in full, regardless of Secret Reveal being unavailable. A Protected Environment never offers Secret Reveal, but that is moot if the agent can trigger injection and print the delivered environment. On disk it can read only plaintext another tool left lying around, because insecur persists no plaintext secret to disk.
+
+What it can read as metadata: freely, with normal authorized access, it reads Scoped Lists, Secret Shapes, Display Names, opaque IDs, counts, status, presence flags, lengths, and hashes. Decrypted Sensitive Metadata, such as provider-side names and security-relevant relationships, stays behind the Sensitive Detail Gate, which needs a fresh High-Assurance Challenge the agent cannot clear.
+
+What it can do autonomously, within the human's Effective Access and with no fresh challenge: generate and set non-protected secrets, including server-side `--generate` where it never sees the value; assemble and read configuration; resolve Display Names through Scoped Lists; stage Draft Versions in a Protected Environment; and run non-protected development Runtime Injection.
+
+What requires a human, failing closed with `auth.high_assurance_required` and exit code `10`: Promotion, protected rollback, Secret Import into a Protected Environment, Runtime Injection Policy create/update/publish/disable, Secret Sync enable or manual run, App Connection or Connection Boundary changes, protected Shared Secret Source attachment, and Push Device Registration.
+
+The guided first-run proof must be worded narrowly. It may prove that insecur generated a development secret through a normal Blind Secret Write, stored it, delivered it to a verifier through normal Runtime Injection, and returned metadata-only success without exposing the Sensitive Value in CLI output, local files, or agent transcript. It must not claim that an arbitrary local agent cannot read non-protected development values after Runtime Injection gives them to a child process.
+
+Seams this exposes:
+
+- Runtime Injection, not Secret Reveal, is the real read boundary, because the child process the caller controls can read its delivered environment. Resolved by ADR-0038: issuing an Injection Grant for a Protected Environment requires a Machine Identity credential, a deploy key or OIDC identity, that lives in CI/CD and that the agent does not hold. A human session token, including the one an agent inherits, cannot obtain a Protected Environment Injection Grant, so the agent has no path to Protected Environment values. Creating or rotating that credential stays a High-Assurance Challenge action so the agent cannot mint its own.
+- The token is the capability, not the CLI. Every boundary above must hold server-side against the raw token, because the agent can bypass the CLI. CLI-side nudges, such as preferring `--generate` or preferring injection over `.env`, are ergonomics, not controls.
+- Non-protected development values are forfeit by design. The model accepts that the agent reads them, so a non-protected Environment must hold only development-grade values and never a production-grade Sensitive Value.
 
 ## Security Plans
 
@@ -105,7 +129,8 @@ Plan for:
 - Insecur user records should map to stable WorkOS user identifiers, not mutable emails.
 - Recovery should use recovery codes, organization-owner recovery, or audited break-glass recovery instead of SMS fallback.
 - Explicit, audited break-glass recovery is limited to organization owners and does not permit Secret Reveal for Protected Environment secrets.
-- V1 Bounded Onboarding requires Instance Operator-controlled Organization creation and Invitation-based Organization Access for normal Users.
+- V1 Bounded Onboarding requires controlled Organization creation through Instance Operators or Guided Organization Provisioning, plus Invitation-based Organization Access for existing Organizations.
+- Guided Organization Provisioning creates a Personal Organization, owner Membership, first Project, and non-protected development Environment without requiring the admitted User to name or configure each object before first value.
 - Instance Bootstrap creates the first Instance, Instance Configuration, Organization, and Bootstrap Operator Claim before normal authentication-dependent administration is available.
 - Instance Bootstrap must configure enough Instance Identity Configuration for WorkOS AuthKit before Bootstrap Operator Claim completion is possible.
 - Bootstrap Operator Claim completion requires both a Human Identity Provider-authenticated User and the Bootstrap Secret through a safe sensitive input path.
@@ -114,7 +139,7 @@ Plan for:
 - Temporary local-admin username/password authentication is not a supported bootstrap path.
 - Public onboarding must include rate limits, abuse monitoring, and a Service Access controlled signup lockdown mode before broad public signup is enabled.
 - Signup lockdown must be able to restrict new public onboarding without weakening authentication, authorization, audit, or tenant isolation for existing organizations.
-- Signup lockdown blocks new User creation, public Organization creation, and unauthenticated Invitation acceptance by default.
+- Signup lockdown blocks new User creation, Guided Organization Provisioning, public Organization creation, and unauthenticated Invitation acceptance by default.
 - During signup lockdown, existing Users can still log in with MFA and use existing Memberships.
 - During signup lockdown, organization owners can create Invitations only for existing Users by default; other Invitations stay pending until lockdown is lifted.
 - Service Access may permit specific domains or Invitation IDs during signup lockdown, and every allowlist decision is audited.
@@ -190,13 +215,13 @@ Encryption should provide tenant isolation and support routine rotation.
 
 Plan for:
 
-- Instance root key material stored outside D1.
+- Instance root key material stored outside the Postgres metadata store.
 - Organization data keys for organization-level encrypted data.
 - Project data keys for project secret data.
 - Organization data keys are the baseline boundary for Sensitive Metadata. Project data keys may protect project-scoped Sensitive Metadata where that tighter boundary is available.
 - Per-record or per-version data encryption keys where useful.
 - Key version records with `active`, `retired`, and `revoked` states.
-- AES-256-GCM authenticated data binding ciphertext to organization, project, environment, secret, and version identity.
+- AES-256-GCM authenticated data binding the Secret ciphertext layer to organization, project, environment, and secret identity, with the DEK-wrap layer binding the data-key version.
 - AES-256-GCM authenticated data binding provider credential ciphertext to organization, app connection, provider, credential, and key version identity.
 - AES-256-GCM authenticated data binding Sensitive Metadata ciphertext to organization, project/resource when applicable, metadata type, record, field, and key version identity.
 - Plaintext lookup/index fields are limited to opaque resource IDs and Display Names. Approval Context Notes, Approval Rejection Notes, Push Device Registrations, provider target names, provider-side secret or variable names used by Explicit Provider Lookup or Secret Sync Bindings, policy binding names, and security-relevant relationships are encrypted Sensitive Metadata.
@@ -206,7 +231,7 @@ Plan for:
 - Draft Version Discard must crypto-erase discarded draft value material immediately by deleting ciphertext and/or destroying version-specific decryptability while retaining tombstone/audit metadata only.
 - Emergency restore path that can decrypt retired keys under explicit Service Access control.
 - Key rotation audit events and verification reports.
-- Storage Security Gate verification before production Secret Sync or Runtime Injection can be enabled.
+- [Storage Security Gate](storage-security-gate.md) verification before production Secret Delivery or Secret Sync can be enabled.
 - Production app connection credential storage and use require organization data keys, key versions, and authenticated-data binding.
 
 Agent/DX requirements:
@@ -220,6 +245,8 @@ Agent/DX requirements:
 ### 4. Secret Lifecycle Plan
 
 Secrets need lifecycle operations beyond CRUD.
+
+The canonical protected-change state machine lives in [protected-change-orchestration.md](protected-change-orchestration.md). This section lists the security requirements that state machine must satisfy.
 
 Plan for:
 
@@ -353,7 +380,7 @@ Plan for:
 - Secret Import paths and Secret Delivery paths that are tenant-bounded and audited.
 - Sensitive Values must enter through safe sensitive input paths such as request bodies over TLS, CLI stdin, masked prompts, or provider authorization flows.
 - Sensitive Values must never be accepted in URLs, query strings, route params, CLI arguments, shell-visible flags, or GET requests.
-- No Sensitive Values in D1, logs, error messages, cache, analytics, or durable job payloads.
+- No Sensitive Values in Neon Postgres, logs, error messages, cache, analytics, or durable job payloads.
 - No Sensitive Values in R2 backups, Queue messages, Durable Object state, KV, analytics events, traces, audit metadata, request logs, response logs, local config, or generated operation records.
 - No raw request bodies, provider response bodies, command environments, decrypted secret maps, or other Sensitive Value containers in logs.
 - No runtime-injected command stdout/stderr capture or storage.
@@ -452,6 +479,8 @@ Agent/DX requirements:
 - `insecur secrets set` and `insecur secrets rollback` support `--comment`, `--json`, and stable exit codes.
 - `insecur secrets set --generate` requests service-side generation and returns metadata only.
 - `insecur secrets set --value-stdin` supports caller-supplied Blind Secret Writes but still returns metadata only.
+- Non-protected `insecur secrets set --secret-name` may create a missing Secret Shape with a client-minted opaque Secret ID, but metadata output and audit records still use the opaque ID; ambiguity fails closed.
+- Non-protected `insecur run --secret-name` and `insecur run --secret-id` may select exact Current Versions for one command. Protected Environments reject direct secret selection and require a Runtime Injection Policy.
 - In Protected Environments, secret set/import commands return Draft Version IDs, not delivery.
 - In non-protected Environments, secret set/import commands can make the new version current immediately by default.
 - Promotion requests accept explicit Draft Version IDs, return Promotion Change Set and Approval Request IDs, and should notify authorized approvers through in-app notification, browser push, mobile push, email, or another configured channel.
@@ -502,7 +531,7 @@ Plan for:
 - GitHub Actions sync targets include one repository plus, for protected production delivery, one GitHub Environment.
 - Provider identity, Connection Boundary, target resource identity, and required target protection state are checked during create/enable and planning, then rechecked through Sync Execution Revalidation before each sync decrypts or writes values. GitHub Environment existence and visible protection status are part of this gate for protected GitHub Actions sync.
 - Vercel Integration OAuth for Vercel environment variables.
-- Scoped Cloudflare API tokens with Secrets Store write permission for syncing into an account-level Cloudflare Secrets Store until a suitable Cloudflare app/OAuth install flow exists for that API.
+- Scoped Cloudflare API tokens with the minimum permission needed to update direct Worker secrets for explicit Worker script targets until a suitable Cloudflare app/OAuth install flow exists for that API.
 - No global provider API keys.
 - Encrypted provider credentials with key version metadata.
 - Provider credentials are organization-owned sensitive data and must be encrypted under organization data keys before production use.
@@ -611,7 +640,7 @@ Backup and restore are security features for availability and recovery.
 
 Plan for:
 
-- Encrypted R2 backups for D1 exports.
+- Encrypted R2 backups for Postgres snapshots or exports.
 - Separate backup key material from runtime key material where practical.
 - Restore tests before v1 production use.
 - Tenant-scoped export and deletion workflows.
@@ -638,7 +667,7 @@ Plan for:
 - Least-privilege GitHub Actions permissions.
 - Branch protection and required checks before production deploy.
 - Dependency update cadence.
-- Minimal Worker secrets and documented secret inventory.
+- Minimal Cloudflare Secrets Store entries, Hyperdrive bindings, and documented secret inventory.
 - Reproducible build/deploy notes for Cloudflare Workers.
 - Security review for new auth methods, app connections, sync destinations, and encryption changes.
 
@@ -649,6 +678,8 @@ Agent/DX requirements:
 - Docs should include copy-pasteable commands that are safe by default.
 
 ## Security Runbooks To Write
+
+The canonical runbook template and grouped catalog live in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md). This list remains the required V1 runbook inventory.
 
 Write these before relying on insecur for valuable production secrets:
 
@@ -666,7 +697,7 @@ Write these before relying on insecur for valuable production secrets:
 - Organization data key rotation.
 - Project data key rotation.
 - Failed or interrupted rotation job.
-- D1 restore from encrypted backup.
+- Neon Postgres restore from encrypted backup.
 - Tenant export and deletion.
 - Tamper-evident audit export and verification.
 - Suspicious audit activity investigation.
@@ -686,18 +717,23 @@ Each runbook should include:
 
 ## Security Release Gates
 
+The canonical release gate Interface, evidence bundle, gate profiles, and automation contract live in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md). This checklist remains the detailed V1 gate evidence.
+
 Before v1 production use, require:
 
 - Threat model reviewed against this document.
-- Small-Group Production readiness reviewed, including Instance Operator-controlled Organization creation, Invitation-based Organization Access, membership boundaries, tenant-qualified authorization, and tenant-bounded audit.
+- First Value Milestone reviewed as non-protected only, provider-free, and not safe for production-grade Sensitive Values.
+- Small-Group Production readiness reviewed, including controlled Organization creation, Guided Organization Provisioning controls, Invitation-based Organization Access, membership boundaries, tenant-qualified authorization, and tenant-bounded audit.
 - Public multi-tenant readiness reviewed before broad public signup is enabled, including hostile tenant signup, quotas, abuse handling, tenant enumeration, and Service Access.
 - No supported unsafe scaffold mode remains in API, CLI, setup docs, or deployment guidance.
 - Service Access verified to support incident investigation with decrypted Sensitive Metadata after Sensitive Detail Gate but without Secret Reveal or Sensitive Values.
 - Cross-tenant authorization tests for all tenant-owned resources.
-- Storage Security Gate passed: root key material outside D1, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, and AES-GCM authenticated data binding ciphertext to organization/project/environment/secret/version, organization/app-connection/provider-credential, and sensitive metadata identity.
-- Production Secret Sync and Runtime Injection fail closed when the Storage Security Gate has not passed.
+- [Storage Security Gate](storage-security-gate.md) passed: root key material outside the Postgres metadata store, tenant data keys, key versions, Tenant-Scoped Store/RLS, encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, and no-plaintext persistence are verified together.
+- Production Secret Delivery and Secret Sync fail closed when the Storage Security Gate has not passed.
 - Misuse-Resistant Defaults reviewed across CLI, API, and UI surfaces so ordinary management paths cannot accidentally reveal Sensitive Values.
+- First Value Proof tests verify provider-free setup, non-protected development Environment only, normal `secrets set --generate` and `run --secret-name` commands, service-generated Blind Secret Write, Runtime Injection into the copyable verifier in `examples/first-value-proof/verify.mjs`, metadata-only output, no Sensitive Values, no raw digests, no child-process environment capture, no local plaintext files, no onboarding-only proof command, and no claim that arbitrary child processes cannot read injected development values.
 - Protected Environment Blind Secret Write, Promotion request, Approval Request, Draft Version non-delivery, rollback, and Rollback Retention Window behavior tested.
+- Protected Change Orchestration tests from [protected-change-orchestration.md](protected-change-orchestration.md) pass for Staged Change Set, Publish, Approval Request lifecycle, stale closures, Partial Approval, final apply, and metadata-only output.
 - Promotion Change Set tests prove exact Draft Version IDs, one Protected Environment, immutable approval payload, no wildcard/all-staged selection, and all-or-nothing Promotion.
 - Draft Version Reuse tests prove closed Approval Requests may contribute only still-existing, non-discarded Draft Versions to a fresh Promotion Change Set while the target still accepts protected Promotion, and cannot reuse the prior Approval Request, Partial Approvals, Approval Impact Review, Approval Impact Review Fingerprint, Approval Impact Snapshot, or approval screen state.
 - Draft Version Discard tests prove requester-own-draft discard, scoped owner/admin cleanup discard, cross-project denial, no Sensitive Value reveal, human UI/CLI destructive confirmation requirement, confirmation metadata-only impact with exact Draft Version IDs, affected Approval Request IDs, Partial Approval audit-only warning, and crypto-erasure warning, confirmation exclusion of Sensitive Values/decrypted Sensitive Metadata/Approval Context Notes/Approval Rejection Notes, confirmation binding to exact computed impact, execution-time revalidation of impact and actor Effective Access, stale confirmation denial when a draft was promoted/already discarded/removed from scope or affected Approval Request set changed, no Approval Request or High-Assurance Challenge requirement, API/Machine Identity exact Draft Version ID requirement, wildcard/all-drafts denial, idempotent repeated discard for exact IDs, immediate encrypted value material crypto-erasure, tombstone/audit metadata retention, no product/admin/support/restore recovery path for the discarded Sensitive Value, audit records, affected pending Approval Request closure without Promotion, Partial Approvals becoming audit-only, terminal non-restore behavior, discarded Draft Version exclusion from later Draft Version Reuse, and requiring a new Blind Secret Write/new Draft Version if the same value is still wanted.

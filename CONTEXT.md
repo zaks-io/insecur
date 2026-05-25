@@ -2,7 +2,33 @@
 
 insecur is a secrets-management product for organizing, protecting, versioning, and syncing secrets across many projects and teams.
 
+## Navigation
+
+Use this file as the source of truth for domain language. To find a term definition, search for the exact term heading, such as `**Protected Change Orchestrator**:`.
+
+Glossary paths:
+
+- Instance and onboarding: **Actor** through **Invitation**.
+- Access and authorization: **Agent** through **Default Team**.
+- Project and secret lifecycle: **Project** through **Secret Source of Truth**.
+- Protected change orchestration: **Promotion** through **Rollback Retention Window**.
+- Sensitive data and safety gates: **Secret Egress** through **Destructive Confirmation**.
+- Runtime injection and delivery: **Runtime Injection** through **Secret Use**.
+- Machine access and provider connections: **Protected Environment** through **Provider Drift**.
+- Secret sync and provider targets: **Secret Sync** through **Vercel Deployment Target**.
+- Cryptography, storage, and audit: **Organization Data Key** through **Audit Export**.
+- Operations and release gates: **Security Runbook** through **Security Evidence Bundle**.
+
+Architecture docs that deepen the glossary:
+
+- `docs/protected-change-orchestration.md` owns the **Protected Change Orchestrator** Interface.
+- `docs/storage-security-gate.md` owns the **Storage Security Gate** Interface.
+- `docs/security-runbooks-and-release-gates.md` owns the **Security Runbook**, **Security Release Gate**, and **Security Evidence Bundle** Interfaces.
+- `docs/adr/README.md` indexes accepted decisions behind the terms.
+
 ## Language
+
+### Instance And Onboarding
 
 **Actor**:
 A user or machine identity that can authenticate and attempt actions.
@@ -24,13 +50,25 @@ _Avoid_: on-prem, separate product, rewrite when the deployment boundary is mean
 The near-term product posture for personal projects and relatively small trusted groups using insecur with production-quality secret protection.
 _Avoid_: public multi-tenant production when broad public onboarding is not meant, dev-only mode
 
+**First Value Milestone**:
+The first V1 milestone where an admitted User reaches provider-free **Secret Use** in a non-protected development **Environment** through **Guided Organization Provisioning** and **First Value Proof**.
+_Avoid_: production-ready, unsafe mode, demo-only product
+
+**Production Delivery Milestone**:
+The V1 milestone where **Protected Environments**, production **Secret Delivery**, provider **Secret Sync**, machine access, approval, audit, runbook, and storage gates are ready for **Small-Group Production**.
+_Avoid_: first-run, onboarding proof, dev loop
+
 **Enterprise-Ready Model**:
 A product model that preserves organization, membership, role, authorization, audit, and key boundaries so later enterprise support does not require a domain refactor.
 _Avoid_: enterprise edition, custom policy engine when the model boundary is meant
 
 **Bounded Onboarding**:
-An onboarding posture where Instance Operators create Organizations and Users receive Organization Access through Invitations instead of public self-service organization creation.
-_Avoid_: public onboarding when self-service organization creation is not meant
+An onboarding posture where Organization creation is limited to Instance Operator action or controlled Guided Organization Provisioning, instead of unrestricted public tenant creation.
+_Avoid_: open signup, unrestricted public onboarding
+
+**Guided Organization Provisioning**:
+A controlled Public Onboarding flow that automatically creates a Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment for a newly admitted User.
+_Avoid_: first user wins, unrestricted organization creation
 
 **Instance Configuration**:
 The non-secret settings that control an Instance, such as onboarding posture, identity settings, rate limits, feature availability, and instance-scoped webhook subscriptions.
@@ -67,6 +105,10 @@ _Avoid_: first login, setup wizard when the one-time initialization flow is mean
 **Organization**:
 The tenant boundary that owns projects, memberships, machine identities, app connections, and audit log entries inside one Instance.
 _Avoid_: account, workspace, tenant when "organization" is meant, instance when the deployment boundary is meant
+
+**Personal Organization**:
+An Organization automatically created for one User during Guided Organization Provisioning, initially owned by that User and able to grow through Invitations and Memberships.
+_Avoid_: personal account, single-user mode, workspace
 
 **Organization Configuration**:
 The non-secret settings that control one Organization within an Instance, such as approval policy, quotas, invitation restrictions, and organization-scoped webhook subscriptions.
@@ -120,6 +162,8 @@ _Avoid_: deletion, ban when the organization still exists
 A pending request for a user to receive exactly one organization- or project-scoped membership.
 _Avoid_: signup link when membership is the target
 
+### Access And Authorization
+
 **Agent**:
 An automated tool that acts through a user or machine identity.
 _Avoid_: bot user, script when the authentication boundary is meant
@@ -171,6 +215,8 @@ _Avoid_: group, account when the Team object is meant
 **Default Team**:
 The automatically created non-authorizing **Team** for one **Organization** used as the initial team assignment target in V1.
 _Avoid_: everyone group, implicit permission, implicit membership when the Team object is meant
+
+### Project And Secret Lifecycle
 
 **Project**:
 A logical application or service whose secrets are managed together inside an organization.
@@ -240,6 +286,8 @@ _Avoid_: latest when the selected version is meant
 The selected secret value stored in insecur for a project environment.
 _Avoid_: provider secret when the canonical value is meant
 
+### Protected Change Orchestration
+
 **Promotion**:
 A secret lifecycle event that makes a secret version eligible for protected delivery.
 _Avoid_: save, set when protected delivery is meant
@@ -255,6 +303,10 @@ _Avoid_: Promotion Change Set when configuration changes are included, deploy
 **Publish**:
 The single reviewed action that makes a Staged Change Set live by promoting its Draft Versions and activating its configuration changes, clearing every gate the acting User is individually authorized to clear and fanning out to a Distinct Approver only where the Protected Approval Policy requires one.
 _Avoid_: Promotion when the whole batch is meant, deploy, Published Version when the secret-version noun is meant
+
+**Protected Change Orchestrator**:
+The Module that coordinates **Staged Change Sets**, **Promotion Change Sets**, **Approval Requests**, **Publish**, stale closures, and final apply for one **Protected Environment** while returning metadata-only state and impact. Its canonical Interface lives in `docs/protected-change-orchestration.md`.
+_Avoid_: approval service, deployer, promotion handler when the whole protected-change state machine is meant
 
 **Approval Request**:
 A pending protected promotion or configuration change waiting for required human approval before it can affect delivery.
@@ -277,7 +329,7 @@ An optional untrusted, length-limited approver note recorded with an **Approval 
 _Avoid_: required rejection reason, denial reason when authorization failure is meant
 
 **Approval Impact Review**:
-A metadata-only view of the current Secret Delivery and Secret Sync impact of an Approval Request.
+A metadata-only view of the current Secret Delivery and Secret Sync impact of an Approval Request, including enabled syncs that Promotion will enqueue.
 _Avoid_: diff when implying Sensitive Values are compared
 
 **Approval Impact Review Fingerprint**:
@@ -356,6 +408,8 @@ _Avoid_: revert, restore when referring to secret version promotion
 The configured period that keeps encrypted prior published versions eligible for emergency rollback.
 _Avoid_: backup when no separate plaintext copy is meant
 
+### Sensitive Data And Safety Gates
+
 **Secret Egress**:
 A controlled event where a plaintext secret value leaves encrypted storage for an approved destination.
 _Avoid_: export when the broader movement of plaintext is meant
@@ -420,8 +474,10 @@ _Avoid_: MFA when the action boundary is meant
 An operation-scoped explicit confirmation that an actor intends a terminal cleanup or destructive action, without becoming approval evidence or a High-Assurance Challenge.
 _Avoid_: approval, MFA when no high-assurance identity proof is required
 
+### Runtime Injection And Delivery
+
 **Runtime Injection**:
-Secret delivery that supplies plaintext secret values to a child process at execution time.
+Secret delivery that supplies plaintext secret values to a child process at execution time through the process environment, never by writing a dotenv or other plaintext file, even on a developer's own machine.
 _Avoid_: pull, export when the value is meant to be consumed only by the process
 
 **Runtime Injection Policy**:
@@ -471,6 +527,12 @@ _Avoid_: read, get when the exposure of plaintext is meant
 **Secret Use**:
 Permission to cause secret delivery without receiving the plaintext secret value.
 _Avoid_: access when it could be confused with secret reveal
+
+**First Value Proof**:
+A provider-free first-run demonstration that uses ordinary CLI commands for a service-generated **Blind Secret Write** and local **Runtime Injection** to show **Secret Use** without **Secret Reveal**.
+_Avoid_: agent-proof secret, provider setup test
+
+### Machine Access And Provider Connections
 
 **Protected Environment**:
 An environment whose secrets do not support secret reveal.
@@ -552,6 +614,8 @@ _Avoid_: hard block, rejection when insecur only warns on a broad Connection Bou
 A mismatch between an approved app connection or secret sync configuration and the current provider account, installation, scope, target resource, or protection state.
 _Avoid_: transient provider error when provider security state changed
 
+### Secret Sync And Provider Targets
+
 **Secret Sync**:
 A project-level rule that pushes explicitly bound environment secrets to a sync target through an app connection.
 _Avoid_: integration, deploy, replication
@@ -628,13 +692,27 @@ _Avoid_: environment exists when protection is meant, wait timer alone as suffic
 A repository-wide GitHub Actions secret scope that is an allowed Sync Target only for a non-protected insecur Environment; values written here are visible to every workflow in the repository.
 _Avoid_: repo secret, organization secret, environment secret when the repository-wide scope is meant
 
+**Cloudflare Worker Script**:
+A Cloudflare provider deployment target, including a Wrangler environment script, that can hold direct per-script secret bindings.
+_Avoid_: Environment when the insecur **Environment** is meant, project when the Cloudflare script is meant
+
+**Cloudflare Worker Secret**:
+A direct per-script Cloudflare secret binding that is the V1 **Sync Target** for a `cloudflare` **Secret Sync**.
+_Avoid_: Cloudflare Secrets Store, account-level secret, `secrets_store_secrets` when the per-script secret binding is meant
+
+**Cloudflare Worker Secret Deploy**:
+The provider-side deploy effect caused by adding, updating, or deleting a **Cloudflare Worker Secret** on a **Cloudflare Worker Script**.
+_Avoid_: metadata sync, binding recipe when the provider makes the secret change live
+
 **Cloudflare Secrets Store**:
-An account-level Cloudflare secret vault that is the Sync Target for a cloudflare Secret Sync; insecur writes secrets into the store, and the customer binds stored secrets to Worker scripts outside insecur's Connection Boundary.
-_Avoid_: Worker secret, per-script secret, Workers Secrets API when the account-level store is meant
+An account-level Cloudflare secret vault used for insecur **Instance** key material in the current architecture, not the V1 customer `cloudflare` **Secret Sync** target.
+_Avoid_: Cloudflare Worker Secret, per-script secret, customer sync target when the account-level vault is meant
 
 **Vercel Deployment Target**:
 The Vercel-side scope a vercel Secret Sync writes to, limited to production and preview because insecur writes only write-only sensitive variables, optionally narrowed to a git branch for preview; it is configured explicitly on the Sync Target, not inferred from the insecur source Environment.
 _Avoid_: Environment when the insecur project environment is meant, target when the Sync Target as a whole is meant, development or custom environment as a supported insecur sync scope
+
+### Cryptography, Storage, And Audit
 
 **Organization Data Key**:
 Encryption material scoped to organization-owned sensitive data.
@@ -653,16 +731,20 @@ A planned key lifecycle event that replaces key material or provider authorizati
 _Avoid_: rekey when discussing the broader workflow
 
 **Keyring**:
-The component that resolves the key hierarchy (the root key in Cloudflare Secrets Store, then an Organization Data Key, then a Project Data Key, then a per-record key), holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared single-database Instance it is the only tenant-isolation boundary.
+The component that resolves the key hierarchy (the root key in Cloudflare Secrets Store, then an Organization Data Key, then a Project Data Key, then a per-record key), holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared-database Instance it bounds the Sensitive Values, while Row-Level Security under the **Tenant-Scoped Store** bounds the metadata rows; together they form the tenant-isolation boundary.
 _Avoid_: key store when the resolving and rewrapping component is meant
+
+**Tenant-Scoped Store**:
+The single persistence seam through which all metadata reads and writes pass. A caller provides a structural scope derived from the resolved actor and a callback; the store opens one short transaction, sets the tenant scope transaction-local so Row-Level Security enforces it, and runs the callback against a scoped handle, never exposing a raw executor. **Organization Access** scopes it to one **Organization**'s rows and **Service Access** opens the audited cross-Organization path. With the **Keyring** it forms the tenant-isolation boundary in the shared-database Instance: it bounds the metadata rows, the keyring bounds the values.
+_Avoid_: repository, DAO, raw query when the scoped transactional seam is meant
 
 **Ciphertext Identity Binding**:
 The rule that an encrypted Secret, Provider Credential, or Sensitive Metadata record is cryptographically bound to the Opaque Resource IDs of the record it belongs to, recomputed from the record's own identity at decrypt rather than stored with the ciphertext, so a relocated or swapped record fails to decrypt.
 _Avoid_: stored identity tag, since the binding is recomputed from the record and never persisted with it
 
 **Storage Security Gate**:
-The required tenant-bound encryption baseline before production secret delivery or provider credential use can run.
-_Avoid_: encryption done when the full storage baseline is meant
+The required tenant-bound storage readiness baseline that must be implemented and verified before production Secret Delivery or Secret Sync can run. Its canonical readiness contract lives in `docs/storage-security-gate.md`.
+_Avoid_: encryption done when the full storage baseline is meant; "production Runtime Injection" as if it gated the local development Runtime Injection loop
 
 **Audit Log**:
 An append-only history of meaningful authenticated actions and authorization denials.
@@ -671,6 +753,20 @@ _Avoid_: event log when the security record is meant
 **Audit Export**:
 A tenant-bounded artifact containing audit log entries for a time range.
 _Avoid_: report when the exported evidence artifact is meant
+
+### Operations And Release Gates
+
+**Security Runbook**:
+A documented operational procedure for a security-sensitive setup, response, recovery, or verification workflow, with dry-run, execution, verification, expected audit events, and recovery notes.
+_Avoid_: checklist when the procedure has authority and audit requirements
+
+**Security Release Gate**:
+A required readiness decision that blocks production use, broad public signup, production deploy, migration, or sensitive-surface change until the needed security evidence is present.
+_Avoid_: reminder, checklist item when the gate can block release
+
+**Security Evidence Bundle**:
+A metadata-only set of test runs, review IDs, runbook drill IDs, ADR links, audit export IDs, migration IDs, scan reports, and CI job IDs used by a Security Release Gate.
+_Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are included
 
 ## Relationships
 
@@ -685,7 +781,10 @@ _Avoid_: report when the exported evidence artifact is meant
 - No temporary local-admin authentication path exists for **Instance Bootstrap**.
 - A **Bootstrap Secret** is consumed or rotated immediately after successful **Bootstrap Operator Claim** completion.
 - A **Bootstrap Secret** is a **Sensitive Value** and must enter through a **Safe Sensitive Input Path**.
+- V1 is split into **First Value Milestone** and **Production Delivery Milestone**.
+- **First Value Milestone** precedes **Production Delivery Milestone**.
 - **Bounded Onboarding** is the V1 onboarding posture for **Small-Group Production**.
+- **Guided Organization Provisioning** is allowed under **Bounded Onboarding** only when **Public Onboarding** admits the **User** and required abuse controls are active for that posture.
 - A **Self-Hosted Instance** typically begins with locked onboarding until **Instance Bootstrap** completes.
 - Self-hosting does not require a separate product codebase or deployment refactor.
 - **Instance Bootstrap** is the one-time initialization flow for a new **Instance**; do not describe it as first login or signup.
@@ -697,9 +796,15 @@ _Avoid_: report when the exported evidence artifact is meant
 - A **Self-Hosted Instance** supports one or more **Organizations**; the customer decides whether to create additional **Organizations** after bootstrap.
 - Additional **Organizations** on a **Hosted Instance** for one enterprise customer may be added later without changing the **Instance** model.
 - **Small-Group Production** uses the **Enterprise-Ready Model** without requiring every enterprise feature to exist first.
-- Under **Bounded Onboarding**, only an **Instance Operator** creates **Organizations**.
-- Under **Bounded Onboarding**, normal **Users** join **Organizations** through **Invitations** and **Memberships**.
-- Under **Bounded Onboarding**, **Public Onboarding** may create **Users** only when needed to accept an **Invitation** or complete authentication through the **Human Identity Provider**.
+- **First Value Milestone** uses the **Enterprise-Ready Model** tenant, membership, authorization, audit, and key boundaries where they are part of first-run behavior.
+- **First Value Milestone** is not permission to store production-grade **Sensitive Values** in non-protected **Environments**.
+- **First Value Milestone** does not require provider **App Connections**, provider **Secret Sync**, **Protected Environments**, machine credentials, OIDC, approval workflows, or the **Storage Security Gate**.
+- **Production Delivery Milestone** requires the **Storage Security Gate** before production **Secret Delivery** or provider **Secret Sync**.
+- **Production Delivery Milestone** is the milestone that may handle production-grade **Sensitive Values**.
+- Under **Bounded Onboarding**, **Organizations** are created either by an **Instance Operator** or by **Guided Organization Provisioning**.
+- Under **Guided Organization Provisioning**, **Public Onboarding** creates a **Personal Organization**, a **Default Team**, and an owner **Membership** for the admitted **User**.
+- Under **Guided Organization Provisioning**, **Public Onboarding** creates a first **Project** and non-protected development **Environment** with default **Display Names** so the **User** can reach product value before naming or configuring every object.
+- Under **Bounded Onboarding**, normal **Users** join existing **Organizations** through **Invitations** and **Memberships**.
 - An **Instance** has one **Instance Configuration**.
 - **Instance Identity Configuration** designates one **Human Identity Provider**.
 - WorkOS AuthKit is the default **Human Identity Provider** configuration.
@@ -742,7 +847,11 @@ _Avoid_: report when the exported evidence artifact is meant
 - A **User** can have **Memberships** in many **Organizations** and **Projects**.
 - A **User** or **Machine Identity** receives **Organization Access** through **Memberships**.
 - A **User** or **Machine Identity** may receive **Service Access** outside any customer **Organization**.
-- **Public Onboarding** can create a **User** and, when broad public signup is enabled, may create an **Organization**.
+- **Public Onboarding** can create a **User** and, through **Guided Organization Provisioning**, may create a **Personal Organization** for that **User**.
+- A **Personal Organization** starts with a **Default Team**.
+- A **Personal Organization** starts with exactly one owner **Membership** for its creating **User**.
+- A **Personal Organization** starts with a first **Project** and a non-protected development **Environment**.
+- A **Personal Organization** can add more **Users** later through **Invitations** and **Memberships**.
 - An **Invitation** can create a **Membership** for an existing **User**.
 - An **Invitation** can create a **User** only through **Public Onboarding**.
 - An **Invitation** targets exactly one **Membership** grant.
@@ -812,12 +921,14 @@ _Avoid_: report when the exported evidence artifact is meant
 - An **Environment** belongs to exactly one **Project**.
 - An **Environment** contains zero or more **Secrets**.
 - An **Environment** can share **Secret Shapes** with another **Environment**.
+- An **Environment** never copies a **Sensitive Value** to or from another **Environment**; only **Secret Shapes** propagate across **Environments**, and a value shared across **Environments** must come from an explicit **Shared Secret Source**.
 - An **Environment Default** belongs to exactly one non-protected **Environment**.
 - A **Shared Secret Source** belongs to one **Project** and is explicitly attached to one or more **Environments**.
 - A **Secret** has one or more **Secret Versions**.
 - A **Blind Secret Write** creates one **Secret Version**.
 - A **Blind Secret Write** is not a separate kind of **Secret**.
 - A **Blind Secret Write** may use service-side generation so the caller never learns the **Sensitive Value**.
+- In a non-protected **Environment**, a normal secret-write command may create a missing **Secret Shape** from a **Display Name**, client-mint the underlying **Opaque Resource ID**, and then perform the **Blind Secret Write**.
 - A **Secret Version** may be a **Draft Version** before **Promotion**.
 - A **Blind Secret Write** in a **Protected Environment** creates a **Draft Version**.
 - A **Protected Environment** has a **Draft Area** for unpromoted **Draft Versions**.
@@ -880,6 +991,8 @@ _Avoid_: report when the exported evidence artifact is meant
 - **Publish** makes a **Staged Change Set** live by performing **Promotion** of its **Promotion Change Set** and activating its configuration changes in one reviewed action.
 - **Publish** clears every gate the acting **User** is individually authorized to clear in a single interruption and fans out to a **Distinct Approver** only where the **Protected Approval Policy** requires one.
 - Protected **Draft Versions** in a **Staged Change Set** remain subject to their **Protected Approval Policy** at **Publish**; batching does not bypass approval.
+- The **Protected Change Orchestrator** owns the state machine for **Staged Change Sets**, **Promotion Change Sets**, **Approval Requests**, **Publish**, **Partial Approvals**, stale closures, and final apply.
+- The **Protected Change Orchestrator** consumes **Effective Access**, **High-Assurance Challenge**, **Sensitive Detail Gate**, **Storage Security Gate**, **Approval Notification**, and delivery Adapter Interfaces; it does not replace them.
 - If a pending **Approval Request** includes a discarded **Draft Version** in its **Promotion Change Set**, the request closes without **Promotion**, **Secret Delivery**, **Secret Sync**, or protected delivery configuration changes.
 - Existing **Partial Approvals** on an **Approval Request** closed by **Draft Version Discard** become audit-only and unusable for delivery or future **Approval Requests**.
 - A draft-discard-closed **Approval Request** cannot be approved, rejected, or canceled.
@@ -945,6 +1058,8 @@ _Avoid_: report when the exported evidence artifact is meant
 - A **Promotion Change Set** does not freeze **Secret Sync**, **Runtime Injection Policy**, **App Connection**, or other delivery target configuration.
 - An **Approval Impact Review** is recomputed before **Approval Request** approval.
 - An **Approval Impact Review** contains metadata only and excludes **Sensitive Values**.
+- An **Approval Impact Review** includes the enabled **Secret Syncs** that **Promotion** will enqueue through **Immediate Sync After Promotion**.
+- An **Approval Impact Review** for a `cloudflare` **Secret Sync** includes **Cloudflare Worker Secret Deploy** impact for exact **Cloudflare Worker Scripts** and binding names.
 - An **Approval Impact Review** has an **Approval Impact Review Fingerprint** derived from the server-generated delivery and sync impact facts being reviewed.
 - An **Approval Impact Review Fingerprint** must not be derived from **Sensitive Values**.
 - An **Approval Impact Snapshot** is persisted when an approval satisfies the **Protected Approval Policy** and causes **Promotion**.
@@ -1022,6 +1137,8 @@ _Avoid_: report when the exported evidence artifact is meant
 - A **Published Version** is the **Secret Source of Truth** for protected delivery.
 - A **Promotion** makes every **Draft Version** in its **Promotion Change Set** a **Published Version** for protected delivery.
 - **Promotion** triggers **Immediate Sync After Promotion** for enabled **Secret Syncs** affected by any promoted version in the **Promotion Change Set**.
+- **Promotion** approval authorizes **Immediate Sync After Promotion** only for enabled **Secret Syncs** and delivery impact shown in the accepted **Approval Impact Review**.
+- **Promotion** approval does not create, enable, or change a **Secret Sync**, **Secret Sync Binding**, **App Connection**, **Connection Boundary**, **Runtime Injection Policy**, or other protected delivery configuration.
 - Environment-based **Secret Delivery** is for **Startup Configuration**.
 - Rapidly changing values are not **Startup Configuration** and should not be modeled as repeated protected **Promotion** requests.
 - A **Rollback** creates a new **Secret Version** from an older retained encrypted **Secret Version** and promotes it.
@@ -1041,16 +1158,24 @@ _Avoid_: report when the exported evidence artifact is meant
 - **Misuse-Resistant Defaults** make **Secret Use** easier than **Secret Reveal**.
 - A **Secret Egress** moves a **Secret** value through either **Secret Delivery** or **Secret Reveal**.
 - **Runtime Injection** is a kind of **Secret Delivery**.
+- A **First Value Proof** runs against a non-protected development **Environment**.
+- A **First Value Proof** uses a service-generated **Blind Secret Write**, explicit one-command secret selection, and local **Runtime Injection**.
+- A **First Value Proof** is not a dedicated CLI command; it composes the normal secret-write and runtime-injection commands that users will keep using.
+- A **First Value Proof** returns metadata-only success or failure and never returns the **Sensitive Value**, child-process environment, raw digest, or provider state.
+- A **First Value Proof** demonstrates that insecur can create and deliver a **Sensitive Value** without revealing it to the caller; it does not prove that an arbitrary child process cannot read a value after the **Runtime Trust Boundary**.
 - A **CLI Profile** can select defaults for **Runtime Injection**.
 - A **CLI Profile** may reference one **Runtime Policy Key** by opaque ID.
 - A **Runtime Policy Key** is a **Configured Selector**.
 - A **Runtime Policy Key** resolves to exactly one **Runtime Injection Policy**.
 - A **Runtime Injection Policy** has one or more immutable **Runtime Injection Policy Versions**.
+- A non-protected **Runtime Injection** may use exact one-command **Secret** selection through **Opaque Resource IDs** or **Display Name Resolution**.
+- A **Protected Environment** **Runtime Injection** requires a **Runtime Injection Policy**.
 - The active **Runtime Injection Policy Version** authorizes **Runtime Injection** for exact **Secret** bindings.
 - **Runtime Policy Version Retention** preserves **Runtime Injection Policy Versions** independently of **Rollback Retention Window**.
 - A **Runtime Injection Policy Version** stores immutable secret IDs and historical **Display Names** as ordinary metadata, while provider-side names, policy binding names, and security-relevant relationships remain **Sensitive Metadata**.
 - An **Injection Grant** is issued from exactly one **Runtime Injection Policy Version**.
 - An **Injection Grant** is fresh, one-use, and non-reusable.
+- A **Protected Environment** issues an **Injection Grant** only to a **Machine Identity** credential, such as a deploy key or OIDC identity; a human session token, including one an agent inherits, cannot obtain a **Protected Environment** **Injection Grant**, so a local agent has no path to a **Protected Environment** **Sensitive Value**.
 - A **Runtime Injection Policy Version** may require a **Command Fingerprint**.
 - **Runtime Injection** crosses the **Runtime Trust Boundary** when the child process starts.
 - **Runtime Injection** obeys the **Command Output Boundary**.
@@ -1169,9 +1294,13 @@ _Avoid_: report when the exported evidence artifact is meant
 - **GitHub Environment Protection** is satisfied at minimum by a deployment branch policy restricting the **GitHub Environment** to selected or protected branches; a wait timer alone does not satisfy it, and required reviewers are recommended.
 - A non-protected **Environment** `github-app` **Secret Sync** may target either a **GitHub Repository Secret** or a **GitHub Environment**.
 - insecur does not write organization-level GitHub Actions secrets; organization-wide scope lies outside the **Project** **Connection Boundary**.
-- The **Sync Target** for a `cloudflare` **Secret Sync** is a **Cloudflare Secrets Store** in the account **Connection Boundary**, not an individual Worker script.
-- insecur writes and overwrites secrets in the **Cloudflare Secrets Store**; binding stored secrets to Workers is the customer's responsibility and lies outside insecur's **Connection Boundary**.
-- A **Managed Provider Delete** for a `cloudflare` binding deletes the secret from the **Cloudflare Secrets Store**, which can break Workers still bound to it.
+- The **Sync Target** for a `cloudflare` **Secret Sync** is a **Cloudflare Worker Secret** on an exact **Cloudflare Worker Script** inside the **Connection Boundary**.
+- A **Cloudflare Worker Script** may represent a Wrangler environment deployment, so different insecur **Environments** can map to different script names.
+- insecur writes and overwrites **Cloudflare Worker Secrets** directly and does not edit `wrangler` configuration.
+- Adding, updating, or deleting a **Cloudflare Worker Secret** causes a **Cloudflare Worker Secret Deploy** for the affected **Cloudflare Worker Script**.
+- Protected **Environment** `cloudflare` **Secret Sync** plan, approval, and audit output must describe the **Cloudflare Worker Secret Deploy** as production deploy impact.
+- When **Promotion** enqueues an already-enabled `cloudflare` **Secret Sync**, the accepted **Approval Impact Review** is the approval evidence for the resulting **Cloudflare Worker Secret Deploy**.
+- A **Managed Provider Delete** for a `cloudflare` binding deletes the **Cloudflare Worker Secret** from the exact **Cloudflare Worker Script** that the binding managed.
 - The **Sync Target** for a `vercel` **Secret Sync** is one **Vercel Project** in the **Connection Boundary** plus an explicit **Vercel Deployment Target** scope; insecur does not infer the scope from the source **Environment** name.
 - A `vercel` **Vercel Deployment Target** scope is one or more of `production` and `preview`, and a `gitBranch` may narrow a `preview` scope.
 - insecur writes every `vercel` synced variable as a write-only sensitive variable, so a **Vercel Deployment Target** scope cannot include `development`, where sensitive variables are unavailable.
@@ -1183,7 +1312,12 @@ _Avoid_: report when the exported evidence artifact is meant
 - An **Organization Data Key** protects organization-owned sensitive data and is the baseline key boundary for **Sensitive Metadata**.
 - A **Project Data Key** protects project secret data.
 - **Key Rotation** creates or activates a new **Key Version**.
-- The **Storage Security Gate** blocks production **Runtime Injection** and **Secret Sync** until tenant-bound encryption for **Secrets**, **Provider Credentials**, and **Sensitive Metadata** is implemented and verified.
+- The **Storage Security Gate** blocks **Secret Sync** and production **Secret Delivery** until tenant-bound encryption for **Secrets**, **Provider Credentials**, and **Sensitive Metadata** is implemented and verified.
+- The **Storage Security Gate** reports metadata-only readiness and must not decrypt **Sensitive Values**, **Provider Credentials**, key material, or **Sensitive Metadata** to decide whether delivery may run.
+- The local development **Runtime Injection** loop, a non-protected **Environment** **Current Version** injected into a local child process, is not gated by the **Storage Security Gate** and depends only on tenant-bound encryption of stored **Secrets**, since it uses no **Provider Credential** and no **Secret Sync**.
+- A **Security Runbook** produces metadata-only evidence for a **Security Evidence Bundle**.
+- A **Security Release Gate** consumes a **Security Evidence Bundle** and returns a metadata-only readiness decision.
+- A **Security Evidence Bundle** must not include **Sensitive Values**, raw provider bodies, child-process environments, key material, or plaintext logs.
 
 ## Example Dialogue
 
@@ -1198,6 +1332,9 @@ _Avoid_: report when the exported evidence artifact is meant
 >
 > **Dev:** "Does setting a production secret immediately affect deploys?"
 > **Domain expert:** "No. In a **Protected Environment**, setting creates a **Draft Version**; only **Promotion** creates a **Published Version** eligible for delivery."
+>
+> **Dev:** "If we sync a production secret to Cloudflare, is that just updating metadata?"
+> **Domain expert:** "No. A `cloudflare` **Secret Sync** writes a **Cloudflare Worker Secret** on an exact **Cloudflare Worker Script**, and that creates **Cloudflare Worker Secret Deploy** impact for that script."
 >
 > **Dev:** "Do we keep plaintext copies for emergency rollback?"
 > **Domain expert:** "No. The **Rollback Retention Window** keeps encrypted prior **Published Versions** eligible for **Rollback**."
@@ -1291,6 +1428,15 @@ _Avoid_: report when the exported evidence artifact is meant
 >
 > **Dev:** "How does a self-hosted install get its first user and organization?"
 > **Domain expert:** "Through **Instance Bootstrap** and **Bootstrap Operator Claim** completion. Bootstrap configures the **Human Identity Provider**, creates the **Instance**, **Instance Configuration**, first **Organization**, and a pending claim. The first **Instance Operator** is created only when a **Human Identity Provider**-authenticated **User** also presents the **Bootstrap Secret**."
+>
+> **Dev:** "Does a solo hosted user need someone to create an organization before they can try the product?"
+> **Domain expert:** "No. **Guided Organization Provisioning** creates a **Personal Organization**, **Default Team**, owner **Membership**, first **Project**, and non-protected development **Environment** for an admitted **User**, while growth still happens through **Invitations** and **Memberships**."
+>
+> **Dev:** "Can the first-run demo prove the agent never reads the value?"
+> **Domain expert:** "No. A **First Value Proof** proves delivery-without-reveal for the caller and output path: a service-generated **Blind Secret Write** is consumed through **Runtime Injection** using ordinary CLI commands and returns metadata-only success or failure. After the **Runtime Trust Boundary**, an arbitrary child process can read the development value it was intentionally given."
+>
+> **Dev:** "Should First Value Proof be a special onboarding command?"
+> **Domain expert:** "No. It should use the real **Blind Secret Write** and **Runtime Injection** commands so the first success demonstrates the actual product surface."
 >
 > **Dev:** "Does self-hosting mean a different product or rewrite?"
 > **Domain expert:** "No. A **Self-Hosted Instance** uses the same insecur runtime as a **Hosted Instance**, deployed into customer-controlled Cloudflare infrastructure. The customer holds **Instance Operator** and controls **Instance Configuration**."
@@ -1512,6 +1658,7 @@ _Avoid_: report when the exported evidence artifact is meant
 - "webhook" should be written as **Webhook Subscription** when referring to the configured outbound integration, not the destination URL alone.
 - "organization settings" should be written as **Organization Configuration** when the configured object is meant.
 - "signup" is ambiguous between **User** creation, **Organization** creation, and the full **Public Onboarding** flow; use the precise term.
+- "personal account" should be written as **Personal Organization** when the tenant boundary is meant.
 - "invite" should be written as **Invitation** when referring to pending membership acceptance.
 - "ban" and "disable tenant" should be written as **Tenant Suspension** when the organization still exists for evidence and remediation.
 - "support access" and "operator access" should be written as **Service Access** when the action operates insecur across organizations.
@@ -1608,6 +1755,9 @@ _Avoid_: report when the exported evidence artifact is meant
 - "primary approval path" should be written as **Primary Approval Notification Channel** only when referring to notification preference, not approval authority.
 - "approval source of truth" should refer to server-generated **Promotion Change Set** and **Approval Impact Review** facts for pending approval, and **Approval Impact Snapshot** for historical final approval evidence, not an **Approval Context Note**.
 - "approve and enable sync" should be split into **Promotion** and a separate **Protected Delivery Configuration Change**.
+- "agent never reads the value" should not be used for non-protected local **Runtime Injection**; say **First Value Proof** demonstrates delivery-without-reveal in caller output, while the child process can read injected values after the **Runtime Trust Boundary**.
+- "first-run proof command" should not be used; **First Value Proof** uses normal secret-write and runtime-injection commands.
+- "secret name as ID" should not be used; a non-protected create-or-update shortcut may create a **Secret Shape** from a **Display Name**, but audit and durable selection still use the generated **Opaque Resource ID**.
 - "blind secret" should be written as **Blind Secret Write** when the write flow is meant; a blind write still creates a normal **Secret Version**.
 - "stage a secret" should be written as **Blind Secret Write** when a value is being written without reveal, or **Draft Version** when the stored version is meant.
 - "go live" should be written as **Promotion** for a **Protected Environment** and **Current Version** selection for a non-protected **Environment**.
@@ -1637,6 +1787,7 @@ _Avoid_: report when the exported evidence artifact is meant
 - "production secret" should be written as **Protected Environment** **Secret** when discussing reveal and delivery policy.
 - "default production variable" is unsafe language; use **Secret Shape** for shared metadata and **Environment Default** for a non-protected environment value.
 - "shared secret" should mean **Shared Secret Source**, not environment inheritance or a copied value.
+- "promote variables to staging or production" or "move variables between environments" should be written as **Secret Shape** propagation across **Environments**, which carries no **Sensitive Value**; reserve **Promotion** for the within-**Protected Environment** **Draft Version** to **Published Version** step.
 - "run policy" should be written as **Runtime Injection Policy** when it authorizes secret delivery.
 - "wrapper" is ambiguous; use **Runtime Injection** for the delivery behavior, and say separate helper process only when a distinct local process is meant.
 - "sandbox" should not be used for **Runtime Injection** unless the child process is actually isolated from its own environment and outputs.

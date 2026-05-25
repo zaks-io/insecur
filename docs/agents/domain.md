@@ -7,6 +7,8 @@ How the engineering skills should consume this repo's domain documentation when 
 - **`CONTEXT.md`** at the repo root.
 - **`docs/adr/`** for ADRs that touch the area you're about to work in.
 
+`CONTEXT.md` starts with a Navigation section. Use that map first when you know the domain area but not the exact term.
+
 If any of these files don't exist, proceed silently. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
 
 ## File structure

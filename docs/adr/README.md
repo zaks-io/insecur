@@ -26,7 +26,6 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0020: Instance And Deployment Posture](0020-instance-and-deployment-posture.md)
 - [ADR-0021: Small-Group Production First](0021-small-group-production-first.md)
 - [ADR-0022: Per-Instance Provider App Registration](0022-per-instance-provider-app-registration.md)
-- [ADR-0023: Cloudflare Secrets Store Sync Target](0023-cloudflare-secrets-store-sync-target.md)
 - [ADR-0024: libsodium WASM For GitHub Sealed-Box Encryption](0024-libsodium-wasm-for-github-sealed-box.md)
 - [ADR-0025: Secret Version Store Below Promotion](0025-secret-version-store.md)
 - [ADR-0026: Encryption Envelope Below Per-Domain Wrappers](0026-encryption-envelope-below-per-domain-wrappers.md)
@@ -41,6 +40,14 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0035: Display Name Resolution With A Destructive Carve-Out](0035-display-name-resolution.md)
 - [ADR-0036: Neon Postgres Behind Hyperdrive With Row-Level Security](0036-neon-postgres-over-hyperdrive-with-rls.md)
 - [ADR-0037: Tenant-Scoped Bound Store Over Row-Level Security](0037-tenant-scoped-bound-store-over-rls.md)
+- [ADR-0038: Protected Environment Delivery Requires A Machine Credential](0038-protected-delivery-requires-machine-credential.md)
+- [ADR-0039: Cloudflare Worker Secrets Sync Target](0039-cloudflare-worker-secrets-sync-target.md)
+- [ADR-0040: Guided Personal Organization Provisioning](0040-guided-personal-organization-provisioning.md)
+- [ADR-0041: First Value Before Production Delivery](0041-first-value-before-production-delivery.md)
+
+## Superseded
+
+- [ADR-0023: Cloudflare Secrets Store Sync Target](0023-cloudflare-secrets-store-sync-target.md), superseded by [ADR-0039](0039-cloudflare-worker-secrets-sync-target.md)
 
 ## Open Questions To Grill
 

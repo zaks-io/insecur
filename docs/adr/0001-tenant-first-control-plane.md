@@ -45,7 +45,7 @@ insecur will adopt an organization-first control plane before v1 production use.
 - Audit log entries include organization context and project context when applicable.
 - Organization-level sensitive data is protected by organization data keys; project secrets are protected by project data keys.
 - Encrypted records store the key version needed to decrypt or rewrap them.
-- Secret ciphertext is bound to organization, project, environment, secret, and version identity with authenticated data.
+- The Secret ciphertext layer is bound to organization, project, environment, and secret identity with authenticated data; the DEK-wrap layer binds the data-key version.
 - Secret version creation, current-version updates, and rollback must be serialized or transactional enough for multi-user writes.
 - Key rotation and credential rotation are first-class workflows with dry-run/plan output, resumable execution, verification, and audit events.
 - Routes and CLI commands must make the organization context explicit or derive it from a checked local project config.

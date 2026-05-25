@@ -1,6 +1,6 @@
 # @insecur/worker
 
-Cloudflare Worker API for insecur. Hono + D1 + WebCrypto envelope encryption.
+Cloudflare Worker API for insecur. This package currently contains a Hono + D1 + WebCrypto pre-v1 scaffold; the V1 docs now target Hyperdrive-backed Neon Postgres with Row-Level Security through the Tenant-Scoped Store.
 
 This package currently contains the pre-v1 scaffold API. It is useful for validating shape, but it is not production-ready for valuable secrets until the v1 security baseline in `../../docs/security-plan.md` is implemented.
 

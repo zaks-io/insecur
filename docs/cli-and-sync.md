@@ -22,12 +22,52 @@ The CLI should be the primary interface for developers, agents, and CI.
 
 The v1 flow should make secrets easier to use without increasing where agents can read them:
 
+Flagship promise: agents and CI can use production secrets for approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
+
 1. Store and rotate the secret in insecur as the Secret Source of Truth.
-2. Sync derived copies to a Cloudflare Secrets Store, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary.
+2. Sync derived copies to direct Cloudflare Worker secrets, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary.
 3. Use `insecur run <profile-id> -- <command>` for deploys and local commands that should receive secrets just in time without writing local secret files.
 4. Keep human, agent, and JSON output metadata-only so command runners can use secrets without putting values into model context, logs, or terminal scrollback.
 
-Production Secret Sync and Runtime Injection require the Storage Security Gate: root key material outside D1, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, and AES-GCM authenticated data binding ciphertext to organization, project, environment, secret, version, app connection, provider credential, and sensitive metadata identity. Delivery commands fail closed for production use until that gate passes.
+Production Secret Delivery and Secret Sync require the [Storage Security Gate](storage-security-gate.md): a metadata-only readiness verdict over root key placement, tenant data keys, key versions, Tenant-Scoped Store/RLS, encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, and no-plaintext persistence. Delivery commands fail closed for production use until that gate passes.
+
+## Guided First Run
+
+Hosted first run should start after Guided Organization Provisioning has already created a Personal Organization, owner Membership, first Project, and non-protected development Environment for the admitted User. The CLI should be able to select those defaults and write only opaque IDs to `.insecur.json`; the user should not have to name an Organization, Project, or Environment before seeing product value.
+
+The first development Environment is non-protected and intended for safe first use. It can receive a Blind Secret Write that becomes current immediately and can be used through local Runtime Injection without revealing the Sensitive Value in shell history, local files, CLI JSON, or agent transcript. Provider App Connections, Secret Sync setup, Protected Environments, and production deploy workflows are follow-on setup after the user has a working secret path.
+
+The beachhead workflow is a First Value Proof: generate a development secret server-side with the normal `secrets set` command, consume it with the normal `run` command, and return only success or failure. The proof should not require Cloudflare, Vercel, GitHub, provider tokens, repository selection, Worker script names, production environment setup, or a dedicated onboarding-only CLI command.
+
+Preferred command sequence:
+
+```bash
+insecur secrets set --secret-name INSECUR_PROOF_SECRET --generate random --length 32 --comment "First value proof"
+insecur run --secret-name INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
+```
+
+The sequence uses normal product primitives:
+
+1. Resolve the Personal Organization, first Project, first non-protected development Environment, and default local Runtime Injection profile.
+2. Create or update the Secret Shape for the requested binding through the normal `secrets set --secret-name` path.
+3. Perform a service-generated Blind Secret Write whose output is metadata only.
+4. Run the copyable verifier in `examples/first-value-proof/verify.mjs` through Runtime Injection with one exact non-protected secret selected by `run --secret-name`.
+5. Print metadata-only success or failure, including opaque IDs and operation IDs, but never the Sensitive Value, child-process environment, or raw digest.
+
+The verifier is intentionally ordinary application code:
+
+```js
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+const value = process.env.INSECUR_PROOF_SECRET;
+const challenge = "insecur:first-value-proof:v1";
+const mac = createHmac("sha256", value).update(challenge).digest();
+const expected = createHmac("sha256", value).update(challenge).digest();
+
+console.log(timingSafeEqual(mac, expected) ? "secret proof: ok" : "secret proof: failed");
+```
+
+This gives the user a working example they can run immediately and then adapt into their own application code. It proves that the caller can create and use a generated non-protected development secret without seeing it in command output or local files. It does not prove that an arbitrary child process cannot read an injected development value after Runtime Injection crosses the Runtime Trust Boundary.
 
 ## Local Configuration
 
@@ -116,7 +156,7 @@ V1 is configuration-driven and does not need general search over Sensitive Metad
 
 ID generation rules:
 
-- Opaque resource IDs are client-minted on create and supplied as explicit flags such as `--project-id`, `--env-id`, `--secret-id`, `--connection-id`, `--sync-id`, and `--policy-id`.
+- Opaque resource IDs are client-minted on create. Most create commands accept explicit flags such as `--project-id`, `--env-id`, `--secret-id`, `--connection-id`, `--sync-id`, and `--policy-id`; narrow developer-first shortcuts may client-mint the opaque ID internally when the parent scope is fully resolved, returning the generated ID in metadata-only output.
 - The server validates ID format and enforces tenant-scoped uniqueness, returning a conflict (exit code `6`) when a client-minted ID already exists in that tenant.
 - A client-minted ID is the natural creation idempotency key, so a retried create with the same ID resolves to the same resource or a clean conflict without a separate `--idempotency-key`.
 - Opaque resource IDs are non-secret selectors, not capability tokens; authorization is enforced server-side and a guessed cross-tenant ID still fails authorization.
@@ -132,7 +172,7 @@ Display Name Resolution rules:
 
 - Targeting commands accept an explicit Display Name flag such as `--project-name`, `--env-name`, `--secret-name`, `--connection-name`, `--sync-name`, or `--profile-name`, separate from the opaque `--*-id` flag. A name flag is never overloaded onto an ID flag.
 - The CLI performs Display Name Resolution client-side: it resolves the Display Name to exactly one opaque resource ID through a Scoped List in the already-resolved parent scope, then acts on that ID. The server contract stays opaque-ID-only; a Display Name is never sent as a durable selector.
-- Resolution is exact-match and case-sensitive. Zero matches return not found (exit code `5`). Two or more matches return a validation error (exit code `2`) that lists candidate opaque IDs and Display Names and never auto-selects. Substring or fuzzy matching is for interactive `list` filtering only, never for resolution before an action.
+- Resolution is exact-match and case-sensitive. Zero matches return not found (exit code `5`) unless a command explicitly documents create-on-missing behavior in a fully resolved parent scope. Two or more matches return a validation error (exit code `2`) that lists candidate opaque IDs and Display Names and never auto-selects. Substring or fuzzy matching is for interactive `list` filtering only, never for resolution before an action.
 - A Display Name resolves within exactly one fully-resolved parent scope from the precedence chain of CLI flags, environment variables, `.insecur.json`, and user profile defaults. If the parent scope is not pinned to one Organization, Project, or Environment, the command fails before resolving the child rather than searching across scopes. Multi-level resolution resolves each level in order, such as `--env-name` before `--secret-name`. There is no cross-Project Display Name Resolution.
 - Read commands and non-destructive mutations accept Display Name Resolution for any caller.
 - Protected but recoverable actions such as `promote`, `publish`, and `rollback` accept Display Name Resolution for any caller, because the High-Assurance Challenge, Approval Impact Review, or Destructive Confirmation shows the resolved opaque ID and Display Name before anything changes.
@@ -380,6 +420,7 @@ Rules:
 - `set --generate` requests service-side generation and is preferred when an Agent needs a random credential without seeing it.
 - `set --value-stdin` accepts a caller-supplied value and avoids shell history leaks.
 - `--value <secret>` is not supported.
+- In a non-protected Environment, `secrets set --secret-name <display-name>` is create-or-update: zero matches creates a Secret Shape with a client-minted opaque Secret ID, one match writes a new Secret Version for that Secret, and multiple matches fail. The generated or resolved opaque Secret ID is returned in metadata-only output and used in audit records.
 - Secret selectors are opaque IDs. Secret names are Display Names and never durable plaintext selectors.
 - Mutations support `--comment`, `--json`, `--dry-run`, and `--idempotency-key`.
 - Secret Reveal is not supported for Protected Environment secrets.
@@ -423,6 +464,7 @@ Rules:
 - Approval confirmation warns, but does not block, when the Draft Area contains newer Draft Versions outside the Promotion Change Set; the warning should encourage requesting Promotion again if those Draft Versions should be included.
 - A Promotion Change Set freezes Draft Version identity only; it does not freeze Secret Sync, Runtime Injection Policy, App Connection, or other delivery target configuration.
 - Approval uses a metadata-only Approval Impact Review recomputed before approval.
+- Approval Impact Review includes every enabled Secret Sync that Promotion will enqueue, including Cloudflare Worker Secret Deploy impact for exact Worker scripts and binding names.
 - Approval submission must reject stale approval views when current delivery or sync impact differs from the impact the approver reviewed.
 - Stale Approval Impact Review returns exit code `6` with stable code `approval.review_stale`, leaves the Approval Request pending, and does not perform Promotion, cancel the request, or mark it superseded.
 - Approval Requests have exactly one approval purpose in V1.
@@ -432,7 +474,7 @@ Rules:
 - Creating disabled Secret Syncs or disabled Secret Sync Bindings for a Protected Environment is a protected delivery configuration change, even though it does not sync yet.
 - Protected delivery configuration changes include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
 - `promote` cannot create, enable, or change Secret Sync destinations, Runtime Injection Policies, App Connections, Connection Boundaries, or other delivery targets.
-- Promotion immediately enqueues every enabled Secret Sync affected by any promoted version in the Promotion Change Set and returns operation IDs/status metadata.
+- Promotion immediately enqueues every enabled Secret Sync affected by any promoted version in the Promotion Change Set and returns operation IDs/status metadata. The accepted Approval Impact Review authorizes those immediate syncs and deploy impacts; no second approval is required for already-enabled syncs.
 - Environment-based delivery is Startup Configuration. Rapidly changing values should use a future dynamic secret/configuration mechanism, not repeated Promotion requests.
 - Scheduling approval, Promotion, or sync is deferred for v1.
 - `promote` requests or performs Promotion for one or more Draft Versions; it makes those Draft Versions Published Versions only after the Protected Approval Policy is satisfied.
@@ -442,6 +484,8 @@ Rules:
 ### Staged Change Set And Publish
 
 A Staged Change Set lets an agent or developer assemble a batch of not-yet-live changes in a non-protected development context, then make them live through one reviewed Publish. This is a plan-then-apply shape: stage everything, confirm the batch, and take a single human interruption at the end rather than one per change.
+
+The canonical orchestration contract is [protected-change-orchestration.md](protected-change-orchestration.md). This CLI section describes the command shape that exercises that contract.
 
 ```bash
 insecur staged show --json
@@ -485,6 +529,7 @@ Rules:
 - Production runtime injection requires the Storage Security Gate.
 - Protected Environment runtime injection uses Published Versions only; Draft Versions are never delivered.
 - Protected Environment runtime injection requires a server-owned Runtime Injection Policy.
+- Non-protected runtime injection may select exact secrets for one command with repeated `--secret-id` or `--secret-name` flags. Protected Environments reject direct secret selection and require a Runtime Injection Policy.
 - `.insecur.json` may reference a policy by opaque Runtime Policy Key ID, but the server validates the policy, actor, environment, command, and Command Fingerprint before issuing an Injection Grant.
 - Every Runtime Injection execution requires a fresh server-issued Injection Grant.
 - An Injection Grant is short-lived, one-use, non-reusable, and scoped to one Runtime Injection Policy execution.
@@ -557,7 +602,7 @@ Rules:
 insecur connections list --json
 insecur connections create github --connection-id conn_01JZ8EFH2R7M4T0V9X3C5D8F1G --method github-app --display-name-stdin
 insecur connections create vercel --connection-id conn_01JZ8EGK5Q2R7V0X3Z6C9D1F4H --method vercel-integration-oauth --display-name-stdin
-insecur connections create cloudflare --connection-id conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K --method scoped-api-token --display-name-stdin --allow-account-id cfacct_01JZ8ESV1N4M7T0V3X9Z2C8D5F --allow-store-id cfstore_01JZ8EJQ1N4M7T0V3X9Z2C8D5F
+insecur connections create cloudflare --connection-id conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K --method scoped-api-token --display-name-stdin --allow-account-id cfacct_01JZ8ESV1N4M7T0V3X9Z2C8D5F --allow-worker-script my-api-production
 insecur connections status conn_01JZ8EFH2R7M4T0V9X3C5D8F1G --json
 insecur connections rotate conn_01JZ8EFH2R7M4T0V9X3C5D8F1G --dry-run --json
 insecur connections reauth conn_01JZ8EGK5Q2R7V0X3Z6C9D1F4H
@@ -572,7 +617,7 @@ Rules:
 - Production app connection credentials require the Storage Security Gate before they can be used for Secret Sync.
 - Provider credentials are encrypted organization data with key version metadata and authenticated-data binding to the organization, app connection, provider, credential, and key version identity.
 - App Connection selectors are opaque IDs. Display names and provider target names are encrypted Sensitive Metadata.
-- Cloudflare `create` requires an explicit connection boundary pinning the allowed account and Cloudflare Secrets Store.
+- Cloudflare `create` requires an explicit connection boundary pinning the allowed account and allowed Worker script targets.
 - Provider authorization callbacks for OAuth or app-install methods use one-time tenant-bound state tied to the intended Organization, initiating User, pending App Connection operation, Connection Method, and Connection Boundary.
 - Callback completion re-checks the initiating User's current Organization Access and verifies provider account, installation, team, repository, project, worker, or resource identity before credentials are stored.
 - Callback completion fails closed for replayed state, provider/issuer mix-up, canceled or superseded operations, Tenant Suspension, lost Organization Access, or provider identity mismatch.
@@ -603,12 +648,12 @@ insecur syncs create vercel-env \
   --target-project-id vercel_prj_123 \
   --target-env-id vercel_env_01JZ8EQR5Q2R7V0X3Z6C9D1F4H
 
-insecur syncs create cloudflare-secrets-store \
+insecur syncs create cloudflare-worker-secret \
   --sync-id sync_01JZ8ERS8S3V6X0Z2C5D8F1G4K \
   --connection-id conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K \
   --source-env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A \
   --bind-secret sec_01JZ8ETB7P2M9N3K5T8V1X6Z0A=DATABASE_URL \
-  --target-store-id cfstore_01JZ8EJQ1N4M7T0V3X9Z2C8D5F
+  --target-script-name my-api-production
 
 insecur syncs plan sync_01JZ8EKR4P7M9N3K5T8V1X6Z0A --json
 insecur syncs run sync_01JZ8EKR4P7M9N3K5T8V1X6Z0A --operation op_123
@@ -651,7 +696,7 @@ Security posture:
 - Protected Environment setup, approval, enablement, and manual run fail closed with `provider.unavailable` when Explicit Provider Lookup cannot determine the safe status for every exact Secret Sync Binding destination.
 - Non-protected setup, enablement, and manual run may proceed when Explicit Provider Lookup cannot determine overwrite status only with `sync.overwrite_status_unknown`, user-visible unknown-overwrite warning output, operation-scoped confirmation, and an audit event.
 - CLI and automation must use a scoped flag such as `--allow-unknown-provider-overwrite` for unknown provider overwrite confirmation; generic `--yes` is not sufficient.
-- After Promotion, every enabled Secret Sync affected by any promoted version enqueues immediately.
+- After Promotion, every enabled Secret Sync affected by any promoted version enqueues immediately when it was included in the accepted Approval Impact Review.
 - Disabled syncs remain disabled and are not enqueued by Promotion.
 - Disabling a Secret Sync leaves provider-side managed copies in place, and status/plan output must warn that those copies still exist.
 - Sync plan, run, status, and verification commands must not read Sensitive Values back from providers.
@@ -698,7 +743,7 @@ Core fields:
 - `org_id`
 - `project_id`
 - `display_name_ciphertext`
-- `kind`: `github-actions`, `vercel-env`, or `cloudflare-secrets-store`
+- `kind`: `github-actions`, `vercel-env`, or `cloudflare-worker-secret`
 - `connection_id`
 - `source_env_id`
 - exact Secret Sync Bindings: source Secret ID plus provider-side secret or variable name
@@ -724,7 +769,7 @@ An organization admin creates an app connection.
 
 - GitHub uses GitHub App installation where possible.
 - Vercel uses Vercel Integration OAuth.
-- Cloudflare uses a manually configured scoped API token with Secrets Store write permission unless a suitable Cloudflare app/OAuth install flow becomes available for that API.
+- Cloudflare uses a manually configured scoped API token with the minimum permission needed to update direct Worker secrets unless a suitable Cloudflare app/OAuth install flow becomes available for that API.
 - OAuth and app-install callback state is tenant-bound and one-time use. A callback can complete only the pending connection or reauthorization operation that created it.
 
 The app connection stores encrypted provider credentials as organization data.
@@ -763,6 +808,7 @@ Plan output includes:
 - Target existence and provider-side protection summary where the provider exposes it.
 - Secret Sync Binding IDs, Secret IDs, Display Names, provider-side destination names after Sensitive Detail Gate, and planned Managed Provider Deletes.
 - For bound destinations that already exist in the provider, plan output reports a Provider Overwrite Warning and Provider Sync Overwrite intent without reading or comparing the provider-side Sensitive Value.
+- For Cloudflare Worker secret targets, plan output labels every create, update, or delete as Cloudflare Worker Secret Deploy impact and shows the exact affected Worker script and binding names without Sensitive Values.
 - For Protected Environments, plan output returns `provider.unavailable` and cannot produce an approval-ready result when any exact binding destination lacks completed Explicit Provider Lookup status.
 - For non-protected Environments, plan output may continue when lookup status is unavailable with warning code `sync.overwrite_status_unknown`; later create, enable, or run requires operation-scoped confirmation before provider writes.
 - Plan output reports `sync.source_value_missing` for any binding whose source lacks an eligible Current Version/Published Version.
@@ -789,10 +835,11 @@ The queued worker:
 - Blocks with `sync.provider_drift` before decrypting Sensitive Values if the target GitHub Environment no longer has visible protection rules.
 - Decrypts Sensitive Values only inside request/job execution after Sync Execution Revalidation passes.
 - Writes provider secrets using the app connection, overwriting existing provider-side values for exact Secret Sync Bindings without Provider Readback.
+- For Cloudflare Worker secret targets, treats each provider write or managed delete as Cloudflare Worker Secret Deploy impact and records that impact in audit.
 - Records managed provider keys where the provider supports metadata or where insecur can track them internally.
 - Writes audit events for start, per-target result summary, and completion.
 - Stores provider errors in normalized form.
-- Updates operation status in D1 after every meaningful state transition.
+- Updates operation status in the Tenant-Scoped Store after every meaningful state transition.
 - Retries retryable provider failures with delay metadata.
 - Sends exhausted failures to a dead-letter path for Service Access review.
 
@@ -823,7 +870,7 @@ Agents should be able to:
 Sync execution is queue-backed:
 
 1. `syncs run` validates authorization and idempotency.
-2. The API writes an operation record in D1.
+2. The API writes an operation record through the Tenant-Scoped Store.
 3. The API enqueues a sync job.
 4. The API returns an operation ID.
 5. A queue consumer performs Sync Execution Revalidation, then provider writes, and records progress.
@@ -832,7 +879,7 @@ Sync execution is queue-backed:
 
 Runtime rules:
 
-- D1 is the operation and audit source of truth.
+- Neon Postgres, reached only through the Tenant-Scoped Store, is the operation and audit source of truth.
 - Queue messages contain operation IDs and target identifiers, not Sensitive Values.
 - Sensitive Values are decrypted only inside the active queue consumer execution after Sync Execution Revalidation passes.
 - Queue consumers treat Provider Drift as a non-retryable authorization/configuration failure until reauthorization or approved configuration change occurs.
@@ -840,7 +887,7 @@ Runtime rules:
 - Retryable provider failures use delayed retries.
 - Exhausted failures go to a dead-letter path.
 - Concurrent runs for the same provider destination are serialized through a Durable Object execution gate.
-- The Durable Object is coordination only; D1 remains the operation and audit source of truth.
+- The Durable Object is coordination only; Postgres remains the operation and audit source of truth.
 - Operation audit events include enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
 - Secret Sync Deletion operations may finish as `completed_with_warnings` when Orphaned Managed Provider Copies remain after provider cleanup failures.
 
@@ -933,24 +980,27 @@ Notes:
 - Track provider variable IDs when available.
 - Support environment-specific syncs.
 
-### Cloudflare Secrets Store
+### Cloudflare Worker Secrets
 
-Kind: `cloudflare-secrets-store`
+Kind: `cloudflare-worker-secret`
 
 Target config:
 
 - Account ID.
-- Cloudflare Secrets Store ID; any required provider store name is Sensitive Metadata.
+- Worker script name, including the concrete Wrangler environment script name where applicable.
+- Secret binding names from exact Secret Sync Bindings.
 
 Notes:
 
 - Start with scoped Cloudflare API tokens for hosted sync.
-- Use the minimum permissions needed to write secrets into the selected Cloudflare Secrets Store.
+- Use the minimum permissions needed to write direct secrets on the selected Worker scripts.
 - Require a connection boundary and show it in `connections status`.
-- Pin the target account and Cloudflare Secrets Store inside the connection boundary.
-- Binding stored secrets into Worker scripts through a `secrets_store_secrets` binding is the customer's responsibility and lies outside insecur's connection boundary.
-- Deleting a managed secret from the store can break Workers still bound to it, so store-level deletes surface warnings.
-- If Cloudflare exposes a suitable OAuth/provider app flow for the Secrets Store API later, add it as a new connection method.
+- Pin the target account and allowed Worker scripts inside the connection boundary.
+- For Wrangler environments, target the concrete script name that Cloudflare deploys, such as `my-api-production`, rather than the insecur Environment Display Name.
+- Worker code reads direct Worker secrets as normal environment bindings such as `env.DATABASE_URL`; insecur does not edit `wrangler` configuration.
+- Writing, updating, or deleting a Cloudflare Worker secret creates provider-side deploy impact for that Worker script/environment. Protected plan, approval, run, status, and audit output must call this production deploy impact.
+- Deleting a managed Worker secret can break the affected Worker at runtime, so managed deletes surface destructive warnings.
+- If Cloudflare exposes a suitable OAuth/provider app flow for direct Worker secret management later, add it as a new connection method.
 - Never accept global API keys.
 
 ## API Shape
@@ -998,6 +1048,7 @@ CLI:
 - `pull --out` writes values to an approved file with mode `0600`.
 - Protected Environment file delivery is always denied.
 - `run` injects values into the child process without printing them.
+- The First Value Proof command sequence uses only normal `secrets set --generate` and `run --secret-name` commands, creates or updates only non-protected development resources, exercises non-protected `secrets set --secret-name` create-or-update behavior, runs the copyable verifier from `examples/first-value-proof/verify.mjs`, requires no provider connection, and returns metadata-only success/failure with no Sensitive Value, raw digest, child-process environment, local plaintext file, or provider state.
 - Sensitive Values never appear in JSON output.
 - No ordinary management command can reveal, read back, export, or log Sensitive Values by changing output format or adding a convenience flag.
 - Protected Environment Blind Secret Write returns Draft Version metadata only.
@@ -1006,7 +1057,7 @@ CLI:
 - Pending Approval Request tests cover no age-based expiration and no automatic inclusion of newer Draft Versions.
 - Approval Request Supersession tests cover repeat Promotion requests for the same Protected Environment regardless of requester, new immutable IDs, superseded stale-view denial, notification coalescing, and audit retention.
 - Approval warning tests cover newer Draft Versions outside the Promotion Change Set without blocking approval.
-- Approval Impact Review tests cover recomputed delivery/sync targets, metadata-only output, Sensitive Detail Gate before decrypted Sensitive Metadata display, stale approval-view denial, and pending request preservation.
+- Approval Impact Review tests cover recomputed delivery/sync targets, enabled syncs that Promotion will enqueue, Cloudflare Worker Secret Deploy impact, metadata-only output, Sensitive Detail Gate before decrypted Sensitive Metadata display, stale approval-view denial, and pending request preservation.
 - Approval Notification tests cover no Approval Context Note plaintext, no Sensitive Values, no Display Names such as organization/project/environment/secret names, no decrypted Sensitive Metadata such as provider target names, no raw bodies, no approval impact details, no bearer approval tokens, lock-screen safe browser/mobile push payloads, no approve/deny email actions, and authenticated-view-plus-Sensitive-Detail-Gate sensitive details for browser/mobile push deep links.
 - Push Device Registration tests cover High-Assurance Challenge on new registration and registration replacement, user/device scoping, Sensitive Metadata storage protection, create/update/delete audit, user revocation, logout-all/MFA reset/suspicious activity/lost-device/offboarding invalidation, and no approval or High-Assurance authority from push alone.
 - Approval fatigue tests cover actor, organization, and Protected Environment rate limits plus notification coalescing for superseded requests.
@@ -1014,7 +1065,7 @@ CLI:
 - Display Name tests cover normal authorized display without Sensitive Detail Gate, scoped filtering, and exclusion from out-of-band Approval Notifications.
 - Approval purpose separation tests cover rejection of combined Promotion plus protected delivery configuration changes.
 - Non-protected Blind Secret Write updates Current Version immediately by default.
-- Approved Protected Environment Promotion enqueues every enabled Secret Sync affected by any promoted version immediately and reports operation IDs.
+- Approved Protected Environment Promotion enqueues every enabled Secret Sync affected by any promoted version immediately when included in the accepted Approval Impact Review, reports operation IDs, and does not require a second deploy approval for already-enabled syncs.
 - Secret Sync Binding tests cover exact Secret IDs, provider-side destination names, rejection of all-secrets/tag/prefix/pattern selection, and no automatic inclusion of newly created environment Secrets.
 - Sync Execution Revalidation tests cover provider identity, credential scope, Connection Boundary, target identity, required provider protection state, source version eligibility, `sync.provider_drift`, and no Sensitive Value decrypt before the revalidation gate passes.
 - Provider Sync Overwrite tests cover Provider Overwrite Warnings for exact existing destinations and overwriting existing provider-side values for exact bindings without Provider Readback, value comparison, value preservation, or Sensitive Values in output.
@@ -1022,6 +1073,7 @@ CLI:
 - Secret Sync Deletion tests cover destructive confirmation, deletion of all bindings, Managed Provider Deletes for all managed provider-side copies, Protected Environment approval, tombstone audit retention, and no future runs after deletion.
 - Secret Sync Deletion partial-cleanup tests cover `completed_with_warnings`, Orphaned Managed Provider Copy records, user-visible alerts, retry cleanup metadata, and no Sensitive Values in warning output.
 - Secret Sync Disable tests cover non-destructive pause behavior and warnings for remaining provider-side managed copies.
+- Cloudflare Worker Secret Deploy tests cover plan, approval, audit, and status output labeling protected Worker secret writes, updates, and deletes as production deploy impact for the exact target script and binding names without exposing Sensitive Values.
 - Explicit Provider Lookup tests cover exact configured binding destinations only, one App Connection and Connection Boundary per lookup, no standalone probe command/API/UI, wildcard/prefix/empty/pattern/list request rejection, rate limits, audit events with exact target/name/binding and response class, safe Provider Lookup Status normalization, no provider-native error text, no provider-side Sensitive Value readback, and no Secret Shape, Secret Version, Secret Sync, Secret Sync Binding, or placeholder-record creation.
 - Provider Overwrite Warning tests cover Secret Sync setup, plan, and approval warnings for exact provider destinations that already exist without exposing the provider-side Sensitive Value, provider inventory, unrelated names, provider-native error text, or raw provider bodies.
 - Protected Explicit Provider Lookup tests cover `provider.unavailable` fail-closed behavior when Protected Environment setup, approval, enablement, or manual run cannot determine lookup status for every exact binding destination.

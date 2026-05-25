@@ -15,7 +15,7 @@ insecur uses one product model for both insecur-operated service and customer-op
 
 **Organization** remains the secrets tenant boundary; **Instance** owns onboarding posture, **Instance Identity Configuration**, rate limits, **Instance Operator** assignments, and instance-scoped **Webhook Subscriptions**. **Organization Configuration** owns tenant governance such as approval policy and organization-scoped **Webhook Subscriptions**.
 
-On a **Hosted Instance**, customers primarily work at the **Organization** layer and **Instance Operator** defaults to insecur administration. On a **Self-Hosted Instance**, the customer holds **Instance Operator** and may configure **Instance Configuration** freely, including rate limits.
+On a **Hosted Instance**, customers primarily work at the **Organization** layer and **Instance Operator** defaults to insecur administration. Public Onboarding may create a Personal Organization for an admitted User through Guided Organization Provisioning when that posture is enabled. On a **Self-Hosted Instance**, the customer holds **Instance Operator** and may configure **Instance Configuration** freely, including rate limits.
 
 **Service Access** remains separate from **Instance Operator**. **Service Access** is insecur platform operations across **Organizations** in a **Hosted Instance**; it is not customer Instance administration.
 

@@ -9,3 +9,5 @@ insecur will treat security runbooks and release gates as product requirements, 
 ## Consequences
 
 Security work must be captured in docs and automation. Runbooks should include dry-run, execution, verification, expected audit events, and recovery notes. A future `pnpm security:check` should provide an agent-friendly local gate mapped to OWASP ASVS, OWASP API Security Top 10, and the project's own tenant/security invariants.
+
+The canonical runbook template, release gate profiles, evidence bundle shape, and stable control categories live in [security-runbooks-and-release-gates.md](../security-runbooks-and-release-gates.md).
