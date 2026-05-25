@@ -39,12 +39,13 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0033: Staged Change Set And Single Publish Gate](0033-staged-change-set-and-publish.md)
 - [ADR-0034: Authorization Through A Single Effective Access Resolver](0034-effective-access-resolver.md)
 - [ADR-0035: Display Name Resolution With A Destructive Carve-Out](0035-display-name-resolution.md)
+- [ADR-0036: Neon Postgres Behind Hyperdrive With Row-Level Security](0036-neon-postgres-over-hyperdrive-with-rls.md)
+- [ADR-0037: Tenant-Scoped Bound Store Over Row-Level Security](0037-tenant-scoped-bound-store-over-rls.md)
 
 ## Open Questions To Grill
 
 These surfaced while grilling infrastructure (ADR-0027 through ADR-0030) and were deferred, not decided.
 
 - **Root-key rotation window mechanics.** ADR-0028 rotates by creating a new versioned, named root secret and rewrapping data keys from old to new, with encrypted records carrying the key version to select the right root during the window. Open is whether the implementation leans on Secrets Store's own secret versioning or a dual-named-secret window, and how the old version is retired once rewrap completes. Confirm at implementation against ADR-0005's rotation workflow.
-- **Rate-limit primitive.** Deferred with public onboarding. D1 counter rows (the binding map in ADR-0027 already homes them in D1) suffice for V1's few unauthenticated endpoints; a dedicated primitive (Durable Object or external) is only forced when broad public signup and its abuse controls land.
+- **Rate-limit primitive.** Deferred with public onboarding. Postgres counter rows suffice for V1's few unauthenticated endpoints; a dedicated primitive (Durable Object or external) is only forced when broad public signup and its abuse controls land.
 - **External telemetry sink specifics.** ADR-0030 fixes the hybrid shape and the allowlist contract but not the vendor. Axiom is the lean choice for the metadata-only stream; Sentry is permitted only with default PII, request-data, breadcrumb, and local-variable capture disabled. Final sink selection and its subprocessor review are open.
-- **Data residency.** V1 lets D1 auto-place its primary location, which is US-biased and fixed at database creation. Revisit before onboarding any EU or residency-constrained Organization, since changing a D1 primary location after creation is not a live operation and would force a migration.
