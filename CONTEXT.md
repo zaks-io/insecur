@@ -561,7 +561,7 @@ An explicit environment-scoped setting that allows **Agent-Reachable Channels** 
 _Avoid_: project-wide preview automation, preview default when explicit environment enablement is meant
 
 **Preview Automation Authority**:
-The bounded authority granted by a **Preview Automation Opt-In** to execute already-configured **Runtime Injection Policies** and **Secret Syncs** for one non-protected preview **Environment**.
+The bounded authority to execute already-configured **Runtime Injection Policies** and **Secret Syncs** for a non-protected preview **Environment**, granted by **Preview Automation Opt-In** under Balanced or by the Automation-Friendly **Delivery Risk Policy Preset**.
 _Avoid_: preview admin, provider setup authority, arbitrary preview secret access
 
 ### Machine Access And Provider Connections
@@ -1206,9 +1206,10 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - No **Delivery Risk Policy Preset** may make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
 - The Balanced **Delivery Risk Policy Preset** allows non-protected development automation by default.
 - The Balanced **Delivery Risk Policy Preset** requires a **Preview Automation Opt-In** before **Agent-Reachable Channels** can perform delivery actions for a non-protected preview **Environment**.
+- The Automation-Friendly **Delivery Risk Policy Preset** grants **Preview Automation Authority** by default for non-protected preview **Environments** in its scope.
 - A **Preview Automation Opt-In** is scoped to one non-protected preview **Environment** and does not enable automation for other preview **Environments** in the same **Project**.
 - A **Preview Automation Opt-In** grants only **Preview Automation Authority**.
-- **Preview Automation Authority** can execute existing **Runtime Injection Policies**, existing **Secret Syncs**, and existing **Secret Sync Bindings** for the opted-in preview **Environment**.
+- **Preview Automation Authority** can execute existing **Runtime Injection Policies**, existing **Secret Syncs**, and existing **Secret Sync Bindings** for the non-protected preview **Environment** where it applies.
 - **Preview Automation Authority** must not create or change **App Connections**, **Connection Boundaries**, **Secret Syncs**, **Secret Sync Bindings**, **Runtime Injection Policies**, provider targets, or the delivered **Secret** set.
 - Enabling a **Preview Automation Opt-In** or expanding **Preview Automation Authority** is a **Risk-Broadening Delivery Change**.
 - A **Risk-Broadening Delivery Change** requires the **Human Approval Surface** and a **High-Assurance Challenge**.
@@ -1513,6 +1514,9 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 >
 > **Dev:** "After Preview Automation Opt-In, can the agent add a new preview sync target or secret?"
 > **Domain expert:** "No. **Preview Automation Authority** is execution-only for already-configured **Runtime Injection Policies**, **Secret Syncs**, and **Secret Sync Bindings**. Adding provider targets, changing bindings, changing **Runtime Injection Policies**, or expanding the delivered **Secret** set is a separate **Risk-Broadening Delivery Change**."
+>
+> **Dev:** "Does Automation-Friendly let agents configure preview delivery?"
+> **Domain expert:** "No. Automation-Friendly grants the same execution-only **Preview Automation Authority** by default for non-protected preview **Environments** in scope. It removes the per-environment opt-in step; it does not let agents create **App Connections**, add **Secret Sync Bindings**, change **Runtime Injection Policies**, or expand the delivered **Secret** set."
 >
 > **Dev:** "Does self-hosting mean a different product or rewrite?"
 > **Domain expert:** "No. A **Self-Hosted Instance** uses the same insecur runtime as a **Hosted Instance**, deployed into customer-controlled Cloudflare infrastructure. The customer holds **Instance Operator** and controls **Instance Configuration**."
@@ -1844,6 +1848,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "turn on preview automation" should be written as **Preview Automation Opt-In** under the Balanced **Delivery Risk Policy Preset**.
 - "project-wide preview automation" should not be used for Balanced; **Preview Automation Opt-In** is environment-scoped in V1.
 - "preview automation can configure providers" should not be used; **Preview Automation Authority** executes already-configured delivery only.
+- "Automation-Friendly can configure preview delivery" should not be used; Automation-Friendly grants execution-only **Preview Automation Authority** by default for non-protected preview **Environments** in scope.
 - "blind secret" should be written as **Blind Secret Write** when the write flow is meant; a blind write still creates a normal **Secret Version**.
 - "stage a secret" should be written as **Blind Secret Write** when a value is being written without reveal, or **Draft Version** when the stored version is meant.
 - "go live" should be written as **Promotion** for a **Protected Environment** and **Current Version** selection for a non-protected **Environment**.
