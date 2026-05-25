@@ -108,7 +108,7 @@ Profile-ID-based `insecur run <profile-id> -- <command>` for deploys and local c
 
 **V1 approval UX and delivery policy**
 
-Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, Cloudflare Worker Secret Deploy approval evidence, and Risk-Broadening Delivery Policy Changes. Delivery Risk Policy Presets default to Balanced, can be switched to Strict or Automation-Friendly, and can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only. Under Balanced, preview automation requires environment-scoped Preview Automation Opt-In. Presets are backed by versioned policy infrastructure so later enterprise controls do not require refactoring authorization or audit.
+Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, Cloudflare Worker Secret Deploy approval evidence, and Risk-Broadening Delivery Changes. Delivery Risk Policy Presets default to Balanced, can be switched to Strict or Automation-Friendly, and can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only. Under Balanced, preview automation requires environment-scoped Preview Automation Opt-In, which can execute only existing Runtime Injection Policies, Secret Syncs, and Secret Sync Bindings. Presets are backed by versioned policy infrastructure so later enterprise controls do not require refactoring authorization or audit.
 
 **Post-v1 hardening**
 

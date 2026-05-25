@@ -548,17 +548,21 @@ _Avoid_: blanket agent permissions, production shortcut
 A named user-facing choice that applies a versioned **Delivery Risk Policy** template, such as Strict, Balanced, or Automation-Friendly.
 _Avoid_: custom policy language when the V1 preset surface is meant, security level when delivery-channel policy is meant
 
-**Risk-Broadening Delivery Policy Change**:
-A **Delivery Risk Policy** or **Delivery Risk Policy Preset** change that increases **Agent-Reachable Channel** authority for **Secret Delivery**, deployment, approval, or confirmation.
+**Risk-Broadening Delivery Change**:
+A **Delivery Risk Policy**, **Delivery Risk Policy Preset**, or delivery configuration change that increases **Agent-Reachable Channel** authority for **Secret Delivery**, deployment, approval, or confirmation.
 _Avoid_: policy upgrade when security posture may be getting looser
 
-**Risk-Tightening Delivery Policy Change**:
-A **Delivery Risk Policy** or **Delivery Risk Policy Preset** change that reduces **Agent-Reachable Channel** authority for **Secret Delivery**, deployment, approval, or confirmation.
+**Risk-Tightening Delivery Change**:
+A **Delivery Risk Policy**, **Delivery Risk Policy Preset**, or delivery configuration change that reduces **Agent-Reachable Channel** authority for **Secret Delivery**, deployment, approval, or confirmation.
 _Avoid_: policy downgrade when security posture may be getting stricter
 
 **Preview Automation Opt-In**:
-An explicit environment-scoped setting that allows **Agent-Reachable Channels** to perform configured delivery actions for one non-protected preview **Environment** under the Balanced **Delivery Risk Policy Preset**.
+An explicit environment-scoped setting that allows **Agent-Reachable Channels** to execute already-configured delivery actions for one non-protected preview **Environment** under the Balanced **Delivery Risk Policy Preset**.
 _Avoid_: project-wide preview automation, preview default when explicit environment enablement is meant
+
+**Preview Automation Authority**:
+The bounded authority granted by a **Preview Automation Opt-In** to execute already-configured **Runtime Injection Policies** and **Secret Syncs** for one non-protected preview **Environment**.
+_Avoid_: preview admin, provider setup authority, arbitrary preview secret access
 
 ### Machine Access And Provider Connections
 
@@ -1203,10 +1207,13 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - The Balanced **Delivery Risk Policy Preset** allows non-protected development automation by default.
 - The Balanced **Delivery Risk Policy Preset** requires a **Preview Automation Opt-In** before **Agent-Reachable Channels** can perform delivery actions for a non-protected preview **Environment**.
 - A **Preview Automation Opt-In** is scoped to one non-protected preview **Environment** and does not enable automation for other preview **Environments** in the same **Project**.
-- Enabling a **Preview Automation Opt-In** is a **Risk-Broadening Delivery Policy Change**.
-- A **Risk-Broadening Delivery Policy Change** requires the **Human Approval Surface** and a **High-Assurance Challenge**.
-- An **Agent-Reachable Channel** may request, plan, stage, or poll a **Risk-Broadening Delivery Policy Change**, but cannot complete it.
-- A **Risk-Tightening Delivery Policy Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but is still audited.
+- A **Preview Automation Opt-In** grants only **Preview Automation Authority**.
+- **Preview Automation Authority** can execute existing **Runtime Injection Policies**, existing **Secret Syncs**, and existing **Secret Sync Bindings** for the opted-in preview **Environment**.
+- **Preview Automation Authority** must not create or change **App Connections**, **Connection Boundaries**, **Secret Syncs**, **Secret Sync Bindings**, **Runtime Injection Policies**, provider targets, or the delivered **Secret** set.
+- Enabling a **Preview Automation Opt-In** or expanding **Preview Automation Authority** is a **Risk-Broadening Delivery Change**.
+- A **Risk-Broadening Delivery Change** requires the **Human Approval Surface** and a **High-Assurance Challenge**.
+- An **Agent-Reachable Channel** may request, plan, stage, or poll a **Risk-Broadening Delivery Change**, but cannot complete it.
+- A **Risk-Tightening Delivery Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but is still audited.
 - A **Delivery Risk Policy Preset** change is not completed solely through an **Agent-Reachable Channel** in V1.
 - A **CLI Profile** can select defaults for **Runtime Injection**.
 - A **CLI Profile** may reference one **Runtime Policy Key** by opaque ID.
@@ -1496,13 +1503,16 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 > **Domain expert:** "**Guided Organization Provisioning** applies the Balanced **Delivery Risk Policy Preset** by default so first use stays low-friction without making protected production gates agent-clearable."
 >
 > **Dev:** "Can an agent switch the organization from Strict to Automation-Friendly?"
-> **Domain expert:** "No. That is a **Risk-Broadening Delivery Policy Change**. An **Agent-Reachable Channel** may request or poll it, but an authorized **User** must complete it through the **Human Approval Surface** with a **High-Assurance Challenge**."
+> **Domain expert:** "No. That is a **Risk-Broadening Delivery Change**. An **Agent-Reachable Channel** may request or poll it, but an authorized **User** must complete it through the **Human Approval Surface** with a **High-Assurance Challenge**."
 >
 > **Dev:** "Can a user tighten the preset without step-up?"
-> **Domain expert:** "Yes. A **Risk-Tightening Delivery Policy Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but it is still audited and not terminal-only in V1."
+> **Domain expert:** "Yes. A **Risk-Tightening Delivery Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but it is still audited and not terminal-only in V1."
 >
 > **Dev:** "In Balanced, can agents deploy every preview environment by default?"
 > **Domain expert:** "No. Balanced allows non-protected development automation by default, but preview delivery requires a **Preview Automation Opt-In** on each non-protected preview **Environment**."
+>
+> **Dev:** "After Preview Automation Opt-In, can the agent add a new preview sync target or secret?"
+> **Domain expert:** "No. **Preview Automation Authority** is execution-only for already-configured **Runtime Injection Policies**, **Secret Syncs**, and **Secret Sync Bindings**. Adding provider targets, changing bindings, changing **Runtime Injection Policies**, or expanding the delivered **Secret** set is a separate **Risk-Broadening Delivery Change**."
 >
 > **Dev:** "Does self-hosting mean a different product or rewrite?"
 > **Domain expert:** "No. A **Self-Hosted Instance** uses the same insecur runtime as a **Hosted Instance**, deployed into customer-controlled Cloudflare infrastructure. The customer holds **Instance Operator** and controls **Instance Configuration**."
@@ -1829,10 +1839,11 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "agent can deploy preview" should be written as a **Delivery Risk Policy** allowing non-protected preview delivery through **Agent-Reachable Channels**.
 - "sane defaults" should be written as **Delivery Risk Policy Presets** when discussing delivery-channel risk posture.
 - "custom risk policy" should be written as future enterprise policy surface unless the current V1 **Delivery Risk Policy Preset** model is meant.
-- "loosen the preset" should be written as a **Risk-Broadening Delivery Policy Change**.
-- "tighten the preset" should be written as a **Risk-Tightening Delivery Policy Change**.
+- "loosen the preset" should be written as a **Risk-Broadening Delivery Change**.
+- "tighten the preset" should be written as a **Risk-Tightening Delivery Change**.
 - "turn on preview automation" should be written as **Preview Automation Opt-In** under the Balanced **Delivery Risk Policy Preset**.
 - "project-wide preview automation" should not be used for Balanced; **Preview Automation Opt-In** is environment-scoped in V1.
+- "preview automation can configure providers" should not be used; **Preview Automation Authority** executes already-configured delivery only.
 - "blind secret" should be written as **Blind Secret Write** when the write flow is meant; a blind write still creates a normal **Secret Version**.
 - "stage a secret" should be written as **Blind Secret Write** when a value is being written without reveal, or **Draft Version** when the stored version is meant.
 - "go live" should be written as **Promotion** for a **Protected Environment** and **Current Version** selection for a non-protected **Environment**.
