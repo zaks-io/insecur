@@ -57,7 +57,10 @@ ship. Full counsel punch list in [research/legal-liability.md](research/legal-li
   attestation. Counsel work; the exclusion only holds if it is enforced and not knowingly undercut.
 - **Claim-wording governance (ADR-0044, 0045, 0046, 0047):** no claims register (decided ADRs-only).
   Marketing and contract copy for no-reveal custody, tamper-evident audit, US residency, and the
-  regulated-industry exclusion must be checked against the governing ADR before publishing.
+  regulated-industry exclusion must be checked against the governing ADR before publishing. Use
+  [security-and-privacy-posture-record.md](security-and-privacy-posture-record.md) as the internal
+  private source record for high-level external security/privacy documentation, not as publishable
+  copy or a public-documentation draft.
 
 ## Privacy
 
@@ -90,9 +93,6 @@ ship. Full counsel punch list in [research/legal-liability.md](research/legal-li
 
 ## Limits to finalize (proposed defaults, confirm)
 
-- **Secret value max size:** 64 KB (insecur's storage limit). Sync targets are validated against
-  provider caps at plan time (e.g. Cloudflare Secrets Store ~1 KB) rather than capping everyone
-  at the smallest provider.
 - **Rollback Retention Window:** 90 days of prior encrypted Published Versions.
 - **Audit retention:** Free 7d, Team 90d, Enterprise custom (set in pricing-strategy.md).
 - **Free-tier caps:** 1 org / 3 projects / 3 members (set in pricing-strategy.md).

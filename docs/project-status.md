@@ -4,9 +4,9 @@ Last updated: 2026-05-25
 
 ## Current State
 
-insecur currently contains no implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, and the copyable `examples/first-value-proof`. The next code written is the target product, built against these docs. The target product direction is Small-Group Production first: personal projects and relatively small trusted groups using production-quality secret protection, while the underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/Vercel/GitHub, protected delivery, and CLI runtime injection for deploys and local commands.
+insecur currently contains no implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, and the copyable `examples/first-value-proof`. The next code written is the target product, built against these docs. The target product direction starts with Diskless Development Secret Use for developers and agents: replace plaintext local secret files with just-in-time Runtime Injection in a non-protected development Environment. The underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/Vercel/GitHub, protected delivery, and CLI runtime injection for deploys and local commands.
 
-The flagship V1 promise is to let agents and CI use production secrets for approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
+The first V1 promise is to stop giving coding agents plaintext local secret files. The production promise is to let agents and CI cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
 
@@ -15,7 +15,7 @@ The GitHub repository exists at `zaks-io/insecur` and is configured as the local
 The disposable learning code has been deleted from the working tree per ADR-0018. None of it was an accepted product decision, so nothing carries forward; any equivalent capability in the target product is built fresh against the current docs and passes the security baseline, not reused from the scaffold. Recorded here only so the deletion is not mistaken for lost product work. What was removed:
 
 - `apps/worker` Cloudflare Worker API using Hono and D1, including the D1 schema, migrations, and `wrangler.toml`
-- `packages/cli` Node CLI (`login`, `pull`, `run`)
+- `packages/cli` Node CLI (`login`, unsafe pre-V1 `pull`, `run`)
 - WebCrypto envelope encryption for immutable secret versions
 - GitHub OAuth human login with an allowlist and HMAC-signed session cookies
 - Machine tokens hashed at rest with project/action scoped authorization
@@ -59,11 +59,11 @@ Nothing to build or verify yet. The scaffold that previously passed `pnpm typech
 - No Cloudflare Queue-backed sync execution, retry, or dead-letter workflow exists yet
 - No Durable Object provider-target serialization exists yet
 - CLI/sync shape is documented but not implemented
-- No cross-tenant authorization regression tests exist
+- No cross-tenant authorization regression tests exist yet; the design is specified in [ADR-0054](adr/0054-tenant-isolation-tests-real-postgres.md) and [build-tooling.md](build-tooling.md) (real per-PR Neon Postgres as the `NOBYPASSRLS` runtime role, never SQLite/PGlite)
 - The Security Runbooks And Release Gates contract is documented, but individual security runbooks have not been written yet
 - No public onboarding abuse controls, signup lockdown, or tenant suspension workflow exists yet
 - No ASVS/API Top 10/security release gate automation or evidence bundle exists yet
-- No dependency, supply-chain, or secret scanning workflow exists yet
+- No dependency, supply-chain, or secret scanning workflow exists yet; the design is specified in [ADR-0056](adr/0056-supply-chain-hardening-posture.md) and [build-tooling.md](build-tooling.md) (pnpm lifecycle blocking and release quarantine, Renovate floor, gitleaks/semgrep/syft/grype, daily CVE scan)
 - No UI exists
 - No Human Approval Surface or Delivery Risk Policy Preset implementation exists yet
 - No WorkOS AuthKit, WorkOS MFA, or high-risk action challenge implementation exists yet
@@ -83,7 +83,7 @@ This is a dependency-ordered implementation sequence, not a release plan. Which 
 
 **First Value Milestone**
 
-Guided Organization Provisioning for Personal Organizations with an owner Membership, Default Team, first Project, non-protected development Environment, developer-first CLI defaults, non-protected `secrets set --secret-name` create-or-update, service-generated Blind Secret Write, local `run --secret-name`, the copyable First Value Proof in `examples/first-value-proof`, metadata-only output, and enough tenant-qualified authorization/audit/encryption to avoid creating migration debt.
+Guided Organization Provisioning for Personal Organizations with an owner Membership, Default Team, first Project, non-protected development Environment, developer-first CLI defaults with scoped-unique profile slugs and policy Display Names, non-protected `secrets set --variable-key` create-or-update, service-generated Blind Secret Write, local `run --variable-key`, Diskless Development Secret Use, the copyable First Value Proof in `examples/first-value-proof`, metadata-only output, and enough tenant-qualified authorization/audit/encryption to avoid creating migration debt.
 
 **Production Delivery Foundation**
 
@@ -99,7 +99,7 @@ OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, 
 
 **V1 runtime injection**
 
-Profile-ID-based `insecur run <profile-id> -- <command>` for deploys and local commands so developers and agents can use secrets without local secret files or secret reveal. The guided First Value Proof uses this path in a non-protected development Environment before any provider setup. Production runtime injection remains blocked until the Storage Security Gate passes.
+Profile-backed `insecur run <profile-slug-or-id> -- <command>` for deploys and local commands so developers and agents can use secrets without local secret files or secret reveal. The guided First Value Proof uses this path in a non-protected development Environment before any provider setup. Production runtime injection remains blocked until the Storage Security Gate passes.
 
 **V1 approval UX and delivery policy**
 
@@ -111,7 +111,7 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 
 ## Recommended Next Steps
 
-1. Build the First Value Milestone: Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, non-protected `secrets set --secret-name`, local `run --secret-name`, metadata-only output, and the copyable First Value Proof.
+1. Build the First Value Milestone: Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, non-protected `secrets set --variable-key`, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
 2. Implement the Production Delivery Foundation: Neon Postgres tenant-first schema, Tenant-Scoped Store, Row-Level Security policies, tenant-qualified audit log, project ownership by organization, Instance Bootstrap, Bootstrap Operator Claim completion, first-Organization owner Membership creation, Instance Operator-controlled Organization creation, organization/project memberships, and scope-first authorization.
 3. Move route shape and authorization to organization-qualified object-level checks.
 4. Add organization and project data keys before storing provider credentials or production secrets in multi-tenant mode.
@@ -124,7 +124,7 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 11. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
 12. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
 13. Implement GitHub Actions OIDC federation for short-lived CI access.
-14. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
+14. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-slug-or-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
 15. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs behind the Storage Security Gate.
 16. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, queue-backed run, verify, retry/reauth.
 17. Add Cloudflare Queues, retry, dead-letter handling, and Durable Object provider-target serialization for sync operations.

@@ -11,7 +11,7 @@ The CLI should be the primary interface for developers, agents, and CI.
 - Source-of-truth first: insecur owns canonical secret versions; provider stores and child process environments receive derived deliveries.
 - No plaintext persistence: CLI config, caches, operation records, and local metadata never store Sensitive Values.
 - Secret-free logging: CLI debug output, errors, and JSON output never include Sensitive Values or child process environments.
-- Safe input only: Sensitive Values enter through stdin, masked prompts, request bodies, or provider authorization flows, never URLs or CLI arguments.
+- Safe input only: Sensitive Values enter through stdin, masked prompts, request bodies, service generation, provider authorization flows, or development-only Secret Import. Ordinary secret-write commands never accept URLs, CLI arguments, or named local value files.
 - Misuse-resistant defaults: ordinary management commands should not have accidental reveal, readback, or export shapes.
 - Scriptable by default: every command supports `--json`, and JSON output never contains Sensitive Values.
 - Agent-friendly: stable exit codes, stable error codes, dry-runs, operation IDs, and resumable long-running operations.
@@ -20,13 +20,15 @@ The CLI should be the primary interface for developers, agents, and CI.
 
 ## V1 Product Flow
 
-The v1 flow should make secrets easier to use without increasing where agents can read them:
+The v1 flow should make secrets easier to use without increasing where agents can read them. The first wedge is replacing plaintext local secret files for development:
 
-Flagship promise: agents and CI can use production secrets for approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
+First promise: developers can stop giving coding agents `.env` files. Non-protected development secrets live in insecur and are delivered only at command runtime through `insecur run`, keeping them out of repo files, shell history, local config, terminal output, and agent-readable disk state.
+
+Production promise: agents and CI can cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
 1. Store and rotate the secret in insecur as the Secret Source of Truth.
-2. Sync derived copies to direct Cloudflare Worker secrets, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary.
-3. Use `insecur run <profile-id> -- <command>` for deploys and local commands that should receive secrets just in time without writing local secret files.
+2. Use `insecur run <profile-slug-or-id> -- <command>` for local commands that should receive development secrets just in time without writing local secret files.
+3. Sync derived copies to direct Cloudflare Worker secrets, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary.
 4. Keep human, agent, and JSON output metadata-only so command runners can use secrets without putting values into model context, logs, or terminal scrollback.
 
 Production Secret Delivery and Secret Sync require the [Storage Security Gate](storage-security-gate.md): a metadata-only readiness verdict over root key placement, tenant data keys, key versions, Tenant-Scoped Store/RLS, encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, and no-plaintext persistence. Delivery commands fail closed for production use until that gate passes.
@@ -35,23 +37,23 @@ Production Secret Delivery and Secret Sync require the [Storage Security Gate](s
 
 Hosted first run should start after Guided Organization Provisioning has already created a Personal Organization, owner Membership, first Project, and non-protected development Environment for the admitted User. The CLI should be able to select those defaults and write only opaque IDs to `.insecur.json`; the user should not have to name an Organization, Project, or Environment before seeing product value.
 
-The first development Environment is non-protected and intended for safe first use. It can receive a Blind Secret Write that becomes current immediately and can be used through local Runtime Injection without revealing the Sensitive Value in shell history, local files, CLI JSON, or agent transcript. Provider App Connections, Secret Sync setup, Protected Environments, and production deploy workflows are follow-on setup after the user has a working secret path.
+The first development Environment is non-protected and intended for safe first use. It can receive a Blind Secret Write that becomes current immediately and can be used through local Runtime Injection without revealing the Sensitive Value in shell history, local secret files, CLI JSON, or agent transcript. Existing `.env` files are adoption sources through Secret Import, not steady-state runtime dependencies. Provider App Connections, Secret Sync setup, Protected Environments, and production deploy workflows are follow-on setup after the user has a working diskless development secret path.
 
-The beachhead workflow is a First Value Proof: generate a development secret server-side with the normal `secrets set` command, consume it with the normal `run` command, and return only success or failure. The proof should not require Cloudflare, Vercel, GitHub, provider tokens, repository selection, Worker script names, production environment setup, or a dedicated onboarding-only CLI command.
+The beachhead workflow is a First Value Proof for Diskless Development Secret Use: generate a development secret server-side with the normal `secrets set` command, consume it with the normal `run` command, and return only success or failure. The proof should not require Cloudflare, Vercel, GitHub, provider tokens, repository selection, Worker script names, production environment setup, or a dedicated onboarding-only CLI command.
 
 Preferred command sequence:
 
 ```bash
-insecur secrets set --secret-name INSECUR_PROOF_SECRET --generate random --length 32 --comment "First value proof"
-insecur run --secret-name INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
+insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32 --comment "First value proof"
+insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
 The sequence uses normal product primitives:
 
 1. Resolve the Personal Organization, first Project, first non-protected development Environment, and default local Runtime Injection profile.
-2. Create or update the Secret Shape for the requested binding through the normal `secrets set --secret-name` path.
+2. Create or update the Secret Shape for the requested Variable Key through the normal `secrets set --variable-key` path.
 3. Perform a service-generated Blind Secret Write whose output is metadata only.
-4. Run the copyable verifier in `examples/first-value-proof/verify.mjs` through Runtime Injection with one exact non-protected secret selected by `run --secret-name`.
+4. Run the copyable verifier in `examples/first-value-proof/verify.mjs` through Runtime Injection with one exact non-protected secret selected by `run --variable-key`.
 5. Print metadata-only success or failure, including opaque IDs and operation IDs, but never the Sensitive Value, child-process environment, or raw digest.
 
 The verifier is intentionally ordinary application code:
@@ -67,7 +69,7 @@ const expected = createHmac("sha256", value).update(challenge).digest();
 console.log(timingSafeEqual(mac, expected) ? "secret proof: ok" : "secret proof: failed");
 ```
 
-This gives the user a working example they can run immediately and then adapt into their own application code. It proves that the caller can create and use a generated non-protected development secret without seeing it in command output or local files. It does not prove that an arbitrary child process cannot read an injected development value after Runtime Injection crosses the Runtime Trust Boundary.
+This gives the user a working example they can run immediately and then adapt into their own application code. It proves that the caller can create and use a generated non-protected development secret without seeing it in command output or local secret files. It does not prove that an arbitrary child process or active local malware cannot read an injected development value after Runtime Injection crosses the Runtime Trust Boundary.
 
 ## Local Configuration
 
@@ -92,7 +94,7 @@ This gives the user a working example they can run immediately and then adapt in
 Rules:
 
 - No Sensitive Values.
-- Store opaque IDs as durable selectors in committed project config. Display Names are normal labels, not selectors.
+- Store opaque IDs as durable resource selectors in committed project config. Variable Keys are application delivery keys; Display Names are normal labels, not selectors.
 - `--org-id`, `--project-id`, and `--env-id` flags override config.
 - `gitBranchToEnvironment` overrides `defaultEnvId` unless `--env-id` is passed.
 - Monorepos can pass `--config-dir <path>`.
@@ -120,6 +122,8 @@ Example profile shape:
 {
   "profiles": {
     "prof_01JZ8E6H2R7M4T0V9X3C5D8F1G": {
+      "slug": "local-dev",
+      "displayName": "Local development",
       "host": "https://insecur.cloud",
       "orgId": "org_01JZ8E2QYQ6M7F4K9A2B3C4D5E",
       "projectId": "prj_01JZ8E3A0K7J5T9Q2R4S6V8W0X",
@@ -127,6 +131,8 @@ Example profile shape:
       "defaultRunPolicyId": "rp_01JZ8E7K0N4P6T9V2X5Z8C1D3F"
     },
     "prof_01JZ8E8M5Q2R7V0X3Z6C9D1F4G": {
+      "slug": "production-deploy",
+      "displayName": "Production deploy",
       "host": "https://insecur.cloud",
       "orgId": "org_01JZ8E2QYQ6M7F4K9A2B3C4D5E",
       "projectId": "prj_01JZ8E3A0K7J5T9Q2R4S6V8W0X",
@@ -141,7 +147,11 @@ Profile rules:
 
 - CLI Profiles are selectors only; they do not contain Sensitive Values.
 - A profile selects organization, project, environment, and default Runtime Policy Key by opaque ID.
-- `insecur run <profile-id> -- <command>` is shorthand for selecting that profile before runtime injection.
+- A CLI Profile is not a secret group. It may choose the default Runtime Injection Policy for a local context, but the policy owns the exact secret bindings for one workflow.
+- CLI Profile Slugs are user-editable lower-kebab local aliases and must be unique inside the user's local CLI configuration.
+- CLI Profile Display Names are user-editable freeform labels and are not command selectors.
+- Guided first-run default slugs should use readable lower-kebab names such as `local-dev`, `test-integration`, and `preview-deploy` where those workflows exist.
+- `insecur run <profile-slug-or-id> -- <command>` is shorthand for selecting that profile before runtime injection.
 - Flags still override profile defaults.
 
 ### Identification Model
@@ -149,8 +159,12 @@ Profile rules:
 V1 is configuration-driven and does not need general search over Sensitive Metadata.
 
 - Use Scoped Lists for discovery, such as project secrets, environment policies, app connections, and sync targets.
-- Use Configured Selectors for repeated commands. Configured Selectors are opaque IDs, not plaintext names or slugs.
+- Use Configured Selectors for durable repeated resource selection. Configured Selectors are opaque IDs, not plaintext names or slugs. Variable Keys remain the stable application keys injected into child process environments and provider destinations.
 - Display Names are ordinary metadata shown after authorization and may be used for scoped list filtering.
+- Use explicit name flags for ergonomic one-shot commands, such as `--project-name`, `--env-name`, and `--policy-name`. Name flags resolve through Display Name Resolution and then act on the resolved opaque ID. Secret create-or-update uses `--variable-key`, not `--secret-name`, because the value is the application-facing key delivered into runtime environments.
+- Human and JSON output for ergonomic selectors should include a resolved target echo: type, Display Name or slug, opaque ID, and parent scope. This keeps commands readable for humans and agents without making names durable selectors.
+- Workflow-facing selectors that people and agents type repeatedly must be scoped-unique. Runtime Injection Policy Display Names are unique inside one Environment. CLI Profile Slugs are unique inside one user's local CLI configuration.
+- Users can choose or rename those workflow labels. Product defaults are editable suggestions, not reserved words.
 - Do not build plaintext search indexes over Sensitive Metadata such as Approval Context Notes, Push Device Registrations, provider target names, provider-side secret or variable names used by Explicit Provider Lookup or Secret Sync Bindings, policy binding names, or security-relevant relationships.
 - Add blind indexes later only as a separate design if exact-match lookup becomes necessary.
 
@@ -170,16 +184,17 @@ Resolved ID cache rules:
 
 Display Name Resolution rules:
 
-- Targeting commands accept an explicit Display Name flag such as `--project-name`, `--env-name`, `--secret-name`, `--connection-name`, `--sync-name`, or `--profile-name`, separate from the opaque `--*-id` flag. A name flag is never overloaded onto an ID flag.
+- Targeting commands accept an explicit Display Name flag such as `--project-name`, `--env-name`, `--policy-name`, `--connection-name`, or `--sync-name`, separate from the opaque `--*-id` flag. A name flag is never overloaded onto an ID flag. CLI Profiles use a CLI Profile Slug for command selection, and Secrets use a Variable Key for application delivery.
 - The CLI performs Display Name Resolution client-side: it resolves the Display Name to exactly one opaque resource ID through a Scoped List in the already-resolved parent scope, then acts on that ID. The server contract stays opaque-ID-only; a Display Name is never sent as a durable selector.
 - Resolution is exact-match and case-sensitive. Zero matches return not found (exit code `5`) unless a command explicitly documents create-on-missing behavior in a fully resolved parent scope. Two or more matches return a validation error (exit code `2`) that lists candidate opaque IDs and Display Names and never auto-selects. Substring or fuzzy matching is for interactive `list` filtering only, never for resolution before an action.
-- A Display Name resolves within exactly one fully-resolved parent scope from the precedence chain of CLI flags, environment variables, `.insecur.json`, and user profile defaults. If the parent scope is not pinned to one Organization, Project, or Environment, the command fails before resolving the child rather than searching across scopes. Multi-level resolution resolves each level in order, such as `--env-name` before `--secret-name`. There is no cross-Project Display Name Resolution.
+- For scoped-unique Display Names, create and rename reject duplicates with a validation error before ambiguity can exist. Interactive flows may suggest available defaults, but must not silently choose a confusing suffix; non-interactive flows fail until the caller provides an available name.
+- A Display Name resolves within exactly one fully-resolved parent scope from the precedence chain of CLI flags, environment variables, `.insecur.json`, and user profile defaults. If the parent scope is not pinned to one Organization, Project, or Environment, the command fails before resolving the child rather than searching across scopes. Multi-level resolution resolves each level in order, such as `--env-name` before `--policy-name`. There is no cross-Project Display Name Resolution.
 - Read commands and non-destructive mutations accept Display Name Resolution for any caller.
 - Protected but recoverable actions such as `promote`, `publish`, and `rollback` accept Display Name Resolution for any caller, because the High-Assurance Challenge, Approval Impact Review, or Destructive Confirmation shows the resolved opaque ID and Display Name before anything changes.
 - Irreversible or destructive actions such as Draft Version Discard, Secret Sync Deletion, and connection disconnect require the opaque `--*-id` for non-interactive and Machine Identity callers and do not accept a Display Name. Interactive human callers may resolve by name but receive a Destructive Confirmation echoing the resolved opaque ID. This extends the existing rule that API and Machine Identity Draft Version Discard require exact IDs.
 - The audit record and any local cache always store the resolved opaque ID, never the Display Name.
 - The CLI never caches a Display Name to opaque ID mapping. Every name flag re-resolves live against a current Scoped List, so a rename cannot silently retarget a later command through a stale cache. Only opaque IDs are cached.
-- Agents should resolve a Display Name once, then reuse the opaque ID for later commands, since Display Names are mutable and a later resolution may select a different resource.
+- Agents may use name flags for readability when the parent scope is fully resolved and the command is non-destructive or recoverable. For multi-step operations, agents should resolve a Display Name once, log or return the resolved target echo, then reuse the opaque ID for later commands because Display Names are mutable and a later resolution may select a different resource.
 
 ### Environment Variables
 
@@ -203,8 +218,9 @@ Rules:
 
 - Session-only credential variables are never written by insecur to disk.
 - Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
-- Prefer `insecur shell <profile-id>` or one-shot `insecur run <profile-id> --login -- <command>` so the CLI can keep credentials in memory or in a child process environment without printing them.
-- Do not accept Sensitive Values through CLI arguments. Use stdin, masked prompts, or provider authorization flows.
+- `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
+- Prefer `insecur shell <profile-slug-or-id>` or one-shot `insecur run <profile-slug-or-id> --login -- <command>` so the CLI can keep credentials in memory or in a child process environment without printing them.
+- Do not accept Sensitive Values through CLI arguments or named local value files. Use stdin, masked prompts, service generation, or provider authorization flows.
 
 Precedence:
 
@@ -221,6 +237,7 @@ All commands should support:
 - `--org-id <id>`
 - `--project-id <id>` where project context applies
 - `--env-id <id>` where environment context applies
+- `--profile <slug>`
 - `--profile-id <id>`
 - `--config-dir <path>`
 - `--json`
@@ -248,7 +265,25 @@ Success envelope:
   "data": {},
   "meta": {
     "requestId": "req_...",
-    "operationId": "op_..."
+    "operationId": "op_...",
+    "resolvedTargets": [
+      {
+        "type": "cli_profile",
+        "id": "prof_01JZ8E6H2R7M4T0V9X3C5D8F1G",
+        "slug": "local-dev",
+        "displayName": "Local development"
+      },
+      {
+        "type": "runtime_policy",
+        "id": "rp_01JZ8E7K0N4P6T9V2X5Z8C1D3F",
+        "displayName": "dev-web",
+        "parent": {
+          "type": "environment",
+          "id": "env_01JZ8E3W4C8M2H6N9P1Q3R5T7V",
+          "displayName": "development"
+        }
+      }
+    ]
   }
 }
 ```
@@ -269,11 +304,11 @@ Error envelope:
 }
 ```
 
-Secret delivery commands are the exception. `run` and sync operations may move Secret values to approved destinations by design, but human and JSON output still contain metadata only. File delivery is local-development or legacy-tooling support, not a production path for Protected Environment secrets. Secret Reveal to stdout or API response is not supported for Protected Environment secrets.
+Secret delivery commands are the exception. `run` and sync operations may move Secret values to approved destinations by design, but human and JSON output still contain metadata only. Local file output is not a V1 delivery path: `pull`, `export`, dotenv generation, JSON secret files, and similar commands must not write stored Sensitive Values to local plaintext files. Secret Reveal to stdout or API response is not supported for Protected Environment secrets.
 
 Sensitive Values must never appear in CLI logs, debug output, JSON envelopes, operation records, cache files, profile files, or error messages. Runtime Injection may hold approved values in process memory only long enough to fork/exec the child process.
 
-Sensitive Values must never be accepted in URLs, query strings, route params, CLI arguments, or shell-visible value flags. Use request bodies over TLS, CLI stdin, masked prompts, or provider authorization flows.
+Sensitive Values must never be accepted in URLs, query strings, route params, CLI arguments, shell-visible value flags, or named local value files for ordinary secret-write commands. Use request bodies over TLS, CLI stdin, masked prompts, service generation, or provider authorization flows. Local file ingress exists only through development-only Secret Import.
 
 CLI command design should make safe management paths short and predictable while making exposure paths impossible or explicit. Protected Environment reveal, provider readback, and accidental export command shapes are not allowed.
 
@@ -293,7 +328,7 @@ CLI command design should make safe management paths short and predictable while
 
 ## Agent Execution And Human Step-Up
 
-A local coding agent has no identity of its own. It runs inside a human-initiated session, started with `insecur shell <profile-id>` or `insecur run <profile-id> --login -- <command>`, inherits the short-lived `INSECUR_SESSION_TOKEN` from the process environment, and acts with the human's Effective Access. Because a High-Assurance Challenge re-verifies the human freshly, the agent can do low-risk work autonomously but cannot clear high-risk gates on its own.
+A local coding agent has no identity of its own. It runs inside a human-initiated session, started with `insecur shell <profile-slug-or-id>` or `insecur run <profile-slug-or-id> --login -- <command>`, inherits the short-lived `INSECUR_SESSION_TOKEN` from the process environment, and acts with the human's Effective Access. Because a High-Assurance Challenge re-verifies the human freshly, the agent can do low-risk work autonomously but cannot clear high-risk gates on its own.
 
 - Any action requiring a High-Assurance Challenge that the acting credential cannot satisfy fails closed with exit code `10` and stable error code `auth.high_assurance_required`.
 - The `auth.high_assurance_required` error envelope carries a bounded operation ID in `meta.operationId` describing the exact pending action the human must authorize.
@@ -323,7 +358,7 @@ Notes:
 
 - Browser/device login is for humans.
 - Human CLI auth is memory/session-only by default; no session token, refresh token, or access token is saved to disk.
-- `insecur shell <profile-id>` launches a subshell with a short-lived session token in that child environment and clears it when the shell exits.
+- `insecur shell <profile-slug-or-id>` launches a subshell with a short-lived session token in that child environment and clears it when the shell exits.
 - OIDC is preferred for CI and agents running in supported platforms.
 - Bootstrap credentials are a narrow fallback and should exchange for short-lived access tokens.
 - Bootstrap secrets and OIDC tokens are Sensitive Values and use safe sensitive input paths only, such as provider flow or stdin, never `--token <value>` or `--client-secret <value>`.
@@ -421,9 +456,17 @@ Rules:
 - Blind Secret Write creates a normal Secret Version; service-side generation is an option on the normal write flow.
 - `set --generate` requests service-side generation and is preferred when an Agent needs a random credential without seeing it.
 - `set --value-stdin` accepts a caller-supplied value and avoids shell history leaks.
-- `--value <secret>` is not supported.
-- In a non-protected Environment, `secrets set --secret-name <display-name>` is create-or-update: zero matches creates a Secret Shape with a client-minted opaque Secret ID, one match writes a new Secret Version for that Secret, and multiple matches fail. The generated or resolved opaque Secret ID is returned in metadata-only output and used in audit records.
-- Secret selectors are opaque IDs. Secret names are Display Names and never durable plaintext selectors.
+- `set --value-stdin` preserves stdin exactly after UTF-8 decoding, including trailing newlines and multiline content. It must not trim the final newline, normalize line endings, or parse dotenv syntax.
+- V1 Secret values are valid UTF-8 text only. Invalid UTF-8 from stdin, masked prompt input, request bodies, or development Secret Import fails before any Blind Secret Write with stable error code `secret.invalid_encoding`; there is no binary mode, implicit base64 decoding, or replacement-character decoding.
+- Secret value size is measured in encoded UTF-8 bytes after validation, not characters. Values over the 64 KiB insecur storage limit fail before any Blind Secret Write with stable error code `secret.value_too_large`.
+- Empty values are rejected by default with stable error code `secret.empty_value`. `--allow-empty` is required to intentionally store a zero-length Sensitive Value through stdin, masked prompt, API input, or development Secret Import.
+- If neither `--generate` nor `--value-stdin` is provided and stdin is an interactive TTY, `secrets set` prompts for the value with a masked prompt.
+- If neither `--generate` nor `--value-stdin` is provided and stdin is non-interactive, `secrets set` fails with stable error code `secret.input_required` and tells the caller to use `--generate` or `--value-stdin`.
+- `--value <secret>` and `--value-file <path>` are not supported.
+- Ordinary `secrets set` commands must not open named local files for Sensitive Values. Local file ingestion is limited to non-protected development Secret Import.
+- In a non-protected Environment, `secrets set --variable-key <KEY>` is create-or-update: zero matches creates a Secret Shape for that Variable Key with a client-minted opaque Secret ID, one match writes a new Secret Version for that Secret, and multiple matches are invalid because Variable Keys are unique in a Project. The generated or resolved opaque Secret ID is returned in metadata-only output and used in audit records.
+- `--variable-key <KEY>` must match `^[A-Z_][A-Z0-9_]*$` in V1. The CLI must reject lowercase, hyphenated, dotted, empty, Unicode, whitespace-containing, or digit-leading keys instead of normalizing them.
+- The application-facing key-value pair is Variable Key to selected Secret Version value. Secret resource selectors are opaque IDs; Display Names are readability labels and never durable plaintext selectors.
 - Mutations support `--comment`, `--json`, `--dry-run`, and `--idempotency-key`.
 - Secret Reveal is not supported for Protected Environment secrets.
 - Setting a value in one Environment never copies that value to another Environment.
@@ -437,7 +480,7 @@ Rules:
 - Draft Versions created after an Approval Request are not added to that request.
 - Approval Requests notify authorized approvers through UI, email, or another configured channel.
 - Approval Notifications are out-of-band alerts, not approval review surfaces. They include only low-privilege server-generated metadata such as Approval Request ID, generic purpose, created time, and a non-authorizing link to the authenticated approval view.
-- Approval Notifications must not include Approval Context Note plaintext, Sensitive Values, Display Names such as organization/project/environment/secret names, decrypted Sensitive Metadata such as provider target names, provider-side names, policy binding names, security-relevant relationships, raw bodies, or approval impact details.
+- Approval Notifications must not include Approval Context Note plaintext, Sensitive Values, Variable Keys, Display Names such as organization/project/environment labels, decrypted Sensitive Metadata such as provider target names, provider-side names, policy binding names, security-relevant relationships, raw bodies, or approval impact details.
 - Notification links route to the authenticated approval view and are not bearer approval tokens. Decrypted Sensitive Metadata in that view requires Sensitive Detail Gate.
 - Protected Environment approval happens in the authenticated web app Human Approval Surface, not in a terminal-only flow. CLI commands may create the request, show metadata-only status, and poll the bounded operation.
 - Approval Notification channels may include in-app notification, browser push, mobile push through a Capacitor-wrapped web app, email, or future channels.
@@ -467,7 +510,8 @@ Rules:
 - Approval confirmation warns, but does not block, when the Draft Area contains newer Draft Versions outside the Promotion Change Set; the warning should encourage requesting Promotion again if those Draft Versions should be included.
 - A Promotion Change Set freezes Draft Version identity only; it does not freeze Secret Sync, Runtime Injection Policy, App Connection, or other delivery target configuration.
 - Approval uses a metadata-only Approval Impact Review recomputed before approval.
-- Approval Impact Review includes every enabled Secret Sync that Promotion will enqueue, including Cloudflare Worker Secret Deploy impact for exact Worker scripts and binding names.
+- Approval Impact Review includes every enabled eligible Secret Sync that Promotion will enqueue, including Cloudflare Worker Secret Deploy impact for exact Worker scripts and binding names.
+- Approval Impact Review validates Provider Value Size Limits for every enabled Secret Sync that Promotion would enqueue. If any affected value would fail with `sync.provider_value_too_large`, approval or final publish is blocked before Promotion; no Published Version changes and no Immediate Sync After Promotion operation is enqueued.
 - Approval submission must reject stale approval views when current delivery or sync impact differs from the impact the approver reviewed.
 - Stale Approval Impact Review returns exit code `6` with stable code `approval.review_stale`, leaves the Approval Request pending, and does not perform Promotion, cancel the request, or mark it superseded.
 - Approval Requests have exactly one approval purpose in V1.
@@ -477,7 +521,8 @@ Rules:
 - Creating disabled Secret Syncs or disabled Secret Sync Bindings for a Protected Environment is a protected delivery configuration change, even though it does not sync yet.
 - Protected delivery configuration changes include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
 - `promote` cannot create, enable, or change Secret Sync destinations, Runtime Injection Policies, App Connections, Connection Boundaries, or other delivery targets.
-- Promotion immediately enqueues every enabled Secret Sync affected by any promoted version in the Promotion Change Set and returns operation IDs/status metadata. The accepted Approval Impact Review authorizes those immediate syncs and deploy impacts; no second approval is required for already-enabled syncs.
+- Promotion immediately enqueues every enabled eligible Secret Sync affected by any promoted version in the Promotion Change Set and returns operation IDs/status metadata. The accepted Approval Impact Review authorizes those immediate syncs and deploy impacts; no second approval is required for already-enabled syncs.
+- Promotion does not publish a Protected Environment value that an already-enabled Secret Sync is known to reject for Provider Value Size Limit. The user must change the value, disable or change the sync through the protected delivery configuration path, or choose Runtime Injection before requesting Promotion again.
 - Environment-based delivery is Startup Configuration. Rapidly changing values should use a future dynamic secret/configuration mechanism, not repeated Promotion requests.
 - Scheduling approval, Promotion, or sync is deferred for v1.
 - `promote` requests or performs Promotion for one or more Draft Versions; it makes those Draft Versions Published Versions only after the Protected Approval Policy is satisfied.
@@ -513,26 +558,35 @@ Rules:
 ```bash
 insecur run prof_01JZ8E6H2R7M4T0V9X3C5D8F1G -- npm run dev
 insecur run prof_01JZ8E8M5Q2R7V0X3Z6C9D1F4G -- npm run deploy
+insecur run --profile local-dev -- npm run dev
 insecur run --profile-id prof_01JZ8E6H2R7M4T0V9X3C5D8F1G -- npm test
+insecur run --policy-name dev-web -- npm run dev
+insecur run --policy-name test-integration -- npm test
 insecur run --policy-id rp_01JZ8E7K0N4P6T9V2X5Z8C1D3F -- npm run dev
+insecur run --policy-id rp_01JZ8EBR4P7M9N3K5T8V1X6Z0A -- npm test
 insecur run --policy-id rp_01JZ8E9P8S3V6X0Z2C5D8F1G4H -- npm run deploy
 insecur run --watch -- npm run dev
 ```
 
 Rules:
 
-- `run <profile-id> -- <command>` selects a CLI Profile by opaque ID, resolves its environment and default runtime policy, then performs runtime injection.
-- `--profile-id` is equivalent to the positional profile form when both identify the same profile ID.
+- `run <profile-slug-or-id> -- <command>` selects a CLI Profile by slug or opaque ID, resolves its environment and default runtime policy, then performs runtime injection.
+- `--profile-id` is equivalent to the positional profile form when both identify the same profile ID. `--profile <slug>` is equivalent to the positional profile form when both identify the same CLI Profile Slug.
+- `--profile` selects a CLI Profile by CLI Profile Slug. `--policy-name` is a Display Name Resolution convenience. Both resolve to opaque IDs before the run is requested.
 - `run` injects secrets into the child process only.
 - `--json` reports delivery metadata only and never embeds Sensitive Values.
+- Human and JSON output should echo the resolved profile, policy, environment, and command target metadata so humans and agents can understand at a glance which workflow and secret set were used.
 - `--watch` is development-only and should restart the child process after changes.
 - Runtime injection is the preferred deploy and local command path because the caller receives metadata, not Sensitive Values.
 - Developers should use runtime injection instead of `.env` files whenever the command can read from environment variables.
+- An Environment may hold more secrets than the current command needs. Runtime Injection must inject only the exact secrets selected by the chosen policy or one-command non-protected selection, not every secret in the Environment.
+- Runtime Injection Policies are the saved switching primitive for repeatable local workflows such as dev server, test suite, migration script, and preview deploy. Switching policy should be the ergonomic way to change which environment variables enter the child process.
+- Direct `--secret-id` and `--variable-key` selection is a non-protected first-value and one-off debugging path. Repeatable workflows should move to a Runtime Injection Policy so the intended secret set is explicit, named, auditable, and reusable.
 - Agents should receive Secret Use through runtime injection, not Secret Reveal.
 - Production runtime injection requires the Storage Security Gate.
 - Protected Environment runtime injection uses Published Versions only; Draft Versions are never delivered.
 - Protected Environment runtime injection requires a server-owned Runtime Injection Policy.
-- Non-protected runtime injection may select exact secrets for one command with repeated `--secret-id` or `--secret-name` flags. Protected Environments reject direct secret selection and require a Runtime Injection Policy.
+- Non-protected runtime injection may select exact secrets for one command with repeated `--secret-id` or `--variable-key` flags. Protected Environments reject direct secret selection and require a Runtime Injection Policy.
 - `.insecur.json` may reference a policy by opaque Runtime Policy Key ID, but the server validates the policy, actor, environment, command, and Command Fingerprint before issuing an Injection Grant.
 - Every Runtime Injection execution requires a fresh server-issued Injection Grant.
 - An Injection Grant is short-lived, one-use, non-reusable, and scoped to one Runtime Injection Policy execution.
@@ -552,6 +606,7 @@ Rules:
 insecur run-policies create \
   --policy-id rp_01JZ8E9P8S3V6X0Z2C5D8F1G4H \
   --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A \
+  --display-name-stdin \
   --command "npm run deploy" \
   --command-fingerprint sha256:... \
   --secret-ids sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A,sec_01JZ8ECW6Q1N4M7T0V3X9Z2C8D \
@@ -564,6 +619,11 @@ insecur run-policies disable rp_01JZ8E9P8S3V6X0Z2C5D8F1G4H --comment "Rotate dep
 Rules:
 
 - Runtime Injection Policies are stored server-side.
+- Runtime Injection Policies have Display Names for human and agent readability, but the Runtime Policy Key and policy ID remain the durable selectors.
+- Runtime Injection Policy Display Names are user-editable and must be unique within the selected Environment.
+- Default policy names should be lower-kebab, action-oriented, and boring: examples include `dev-web`, `test`, `test-integration`, `migration`, and `preview-deploy`.
+- If a default policy name already exists, interactive create flows may offer alternatives, but non-interactive and agent-driven create flows must fail with a validation error instead of silently creating `dev-web-2` or another ambiguous near-duplicate.
+- A policy represents one workflow-bound delivery set, not a reusable bag of secrets. A development Environment can contain unrelated values for several workflows, while each policy injects only the values needed by its own command shape.
 - Creating, publishing, changing, or disabling a policy for a Protected Environment requires a High-Assurance Challenge.
 - Policies constrain actor, Project, Environment, command shape, Command Fingerprint, exact secret bindings, TTL, and delivery mode.
 - Creating or changing a policy creates a new immutable Runtime Injection Policy Version and updates the active version pointer.
@@ -581,23 +641,43 @@ Rules:
 - Command, script, dependency, or bundle changes should change the Command Fingerprint and require reapproval before protected delivery continues.
 - Policies do not contain Sensitive Values.
 
-### Controlled File Delivery
+### Local Secret File Migration
 
 ```bash
-insecur pull --out .env
-insecur pull --out secrets.json --format json
-insecur export --out secrets.env --format dotenv-export
+insecur import .env --env-id env_01JZ8E3W4C8M2H6N9P1Q3R5T7V
+insecur import .env --env-id env_01JZ8E3W4C8M2H6N9P1Q3R5T7V --dry-run --json
+insecur import .env.local --variable-key-prefix LOCAL_ --comment "Migrate local development secrets"
+insecur local-files rm .env
 ```
 
 Rules:
 
-- File delivery is denied for Protected Environment secrets.
-- `pull` and `export` require an explicit `--out`.
-- `--out` writes mode `0600` and refuses to overwrite by default.
-- Inside a git repository, non-protected file delivery refuses tracked files and files not matched by ignore rules unless an explicit break-glass flag is provided.
-- Break-glass flags do not override Protected Environment file delivery denial.
-- `--json` reports delivery metadata only and never embeds Sensitive Values.
-- File delivery for dev uses that Environment's own values or Environment Defaults, never copied Protected Environment values.
+- Local Secret File Migration is one-way: values may enter insecur from a local `.env`-style file, but stored secrets are never written back to `.env`, dotenv, JSON, or other plaintext local secret files.
+- Local Secret File Migration is an adoption helper, not a normal recurring operation or steady-state refresh path.
+- Local Secret File Migration targets only non-protected development Environments. Protected, preview, staging, production, and other non-development Environments reject `import` with `import.unsupported_environment` before parsing values or creating an Import Preflight result.
+- `import` parses the file client-side and treats each parsed dotenv key as a Variable Key.
+- `import` is create-only: it creates missing Secret Shapes and Secrets, then creates one Blind Secret Write per parsed key-value pair through Safe Sensitive Input Paths.
+- If any final Variable Key already has a Secret in the target Environment, `import` fails Import Preflight with `import.existing_secret`, writes nothing, and reports the conflicting final Variable Keys without values.
+- `import` does not support updating existing Secrets from a local file. Existing Secrets are changed through normal `secrets set`, generation, rotation, Runtime Injection, and Secret Sync workflows.
+- `import` never creates, changes, or binds Runtime Injection Policies, Secret Syncs, CLI Profiles, or other delivery configuration. There is no import flag that turns imported keys into a policy.
+- Imported Secrets are not delivered to child processes until selected by an explicit Runtime Injection Policy or by one-command non-protected direct selection.
+- If `--variable-key-prefix` is supplied, `import` prepends it to every parsed dotenv key before Import Preflight validation, duplicate detection, Secret Shape matching, Secret Import Plan output, and Blind Secret Writes.
+- `--variable-key-prefix`, when supplied, must match `^[A-Z_][A-Z0-9_]*$`. Prefixes are not a normalization feature; the CLI must not silently uppercase, replace separators, trim internal whitespace, or otherwise normalize either the prefix or parsed keys.
+- `import` applies the same final Variable Key format rule, `^[A-Z_][A-Z0-9_]*$`, after applying any Variable Key Prefix.
+- `import` is all-or-nothing. It performs a full preflight parse and validation pass before any Blind Secret Write is sent. If any final Variable Key is invalid, any final Variable Key is duplicated, any final Variable Key already exists in the target Environment, or any parse error occurs, the command writes nothing.
+- Import preflight error output may include line numbers, invalid parsed keys, invalid final Variable Keys, duplicate final Variable Keys, existing-secret conflicts, and stable error codes, but never parsed values or raw file contents.
+- Duplicate final Variable Keys are invalid. V1 must not use first-one-wins, last-one-wins, parser-specific dotenv precedence, or automatic merge behavior.
+- `import --dry-run` performs Import Preflight and returns a Secret Import Plan without sending Blind Secret Writes or creating Secrets, Secret Shapes, or Secret Versions.
+- Secret Import Plan output is metadata-only. It may include target Organization, Project, Environment, parsed key count, final Variable Keys, Secret Shapes that would be created or matched, Secrets that would be created, invalid parsed keys, invalid final Variable Keys, duplicate final Variable Keys, existing-secret conflicts, line numbers, and stable error codes.
+- `import` output is metadata-only and never includes parsed values, raw file contents, or generated child-process environments.
+- `import` must not rewrite, redact, truncate, rename, or automatically delete the source file.
+- After successful import, human output may warn that the source file still exists and suggest `insecur local-files rm <path>` as a separate cleanup step.
+- `local-files rm` performs ordinary local filesystem deletion after explicit confirmation; it is not secure shredding and must not claim to remove backups, snapshots, editor swap files, or prior disk blocks.
+- `local-files rm` never reads, parses, logs, or prints file contents.
+- `import` defaults to the selected non-protected development Environment when one is available.
+- Protected Environment values enter through protected `secrets set`, generation, Draft Versions, Promotion, rollback, and delivery workflows, not through local file import.
+- `pull`, `export`, `--out`, `dotenv-export`, and equivalent local plaintext file output commands are not V1 command shapes.
+- Legacy tools that need environment variables should run under Runtime Injection instead of receiving a generated local file.
 
 ### App Connections
 
@@ -678,6 +758,7 @@ Security posture:
 - Secret Sync intentionally stores secret values in the destination provider's secret store until overwritten, rotated, or deleted.
 - Secret Sync is one-way delivery from insecur to the provider.
 - Secret Sync uses explicit Secret Sync Bindings from exact Secret IDs in the source Environment to provider-side secret or variable names.
+- A Secret Sync Binding may default the provider-side destination name from the Secret Shape's Variable Key, but the stored binding is still exact and provider-side names remain Sensitive Metadata.
 - Secret Sync does not support all-secrets, tag, prefix, suffix, regex, folder, or pattern-based selection.
 - Adding a Secret to an Environment does not add it to an existing Secret Sync.
 - Changing Secret Sync Bindings for a Protected Environment requires the protected delivery configuration approval path.
@@ -699,7 +780,8 @@ Security posture:
 - Protected Environment setup, approval, enablement, and manual run fail closed with `provider.unavailable` when Explicit Provider Lookup cannot determine the safe status for every exact Secret Sync Binding destination.
 - Non-protected setup, enablement, and manual run may proceed when Explicit Provider Lookup cannot determine overwrite status only with `sync.overwrite_status_unknown`, user-visible unknown-overwrite warning output, operation-scoped confirmation, and an audit event.
 - CLI and automation must use a scoped flag such as `--allow-unknown-provider-overwrite` for unknown provider overwrite confirmation; generic `--yes` is not sufficient.
-- After Promotion, every enabled Secret Sync affected by any promoted version enqueues immediately when it was included in the accepted Approval Impact Review.
+- After Promotion, every enabled eligible Secret Sync affected by any promoted version enqueues immediately when it was included in the accepted Approval Impact Review.
+- If an enabled affected Secret Sync would fail Provider Value Size Limit validation, protected Promotion is blocked before publish instead of enqueueing a doomed sync.
 - Disabled syncs remain disabled and are not enqueued by Promotion.
 - Disabling a Secret Sync leaves provider-side managed copies in place, and status/plan output must warn that those copies still exist.
 - Sync plan, run, status, and verification commands must not read Sensitive Values back from providers.
@@ -824,6 +906,19 @@ Plan output includes:
 
 Plan output must not include Sensitive Values.
 
+Secret Sync Provider Value Size Limits are destination-specific:
+
+- The 64 KiB insecur Secret value storage limit is not a provider compatibility guarantee.
+- Each Sync Target adapter has a Provider Value Size Limit and validates every bound value during plan and immediately before provider write.
+- If any bound value exceeds the destination Provider Value Size Limit, `plan`, `enable`, manual run, and execution revalidation fail the whole sync with `sync.provider_value_too_large` before any provider write starts. Unaffected bindings are not written.
+- For protected Promotion, the same provider-size check runs before publish. A failure returns `sync.provider_value_too_large`, blocks Promotion, leaves Published Versions unchanged, and enqueues no Immediate Sync After Promotion operation.
+- Provider value size failure is a deterministic pre-write failure, not a best-effort partial sync. Provider API failures after writes begin are reported through operation status, audit, retry, and repair metadata rather than treated as an atomic provider rollback.
+- Low-privilege and automation-safe output may show the Secret ID, binding ID, destination type, provider cap, and `over_limit`, but not exact value byte length for Protected Environment Secrets.
+- Authorized full-fidelity plan, status, approval, and security-review output may show exact encoded byte length to help the User fix the failure. For Protected Environment Secrets, exact value byte length is Sensitive Metadata and requires Sensitive Detail Gate.
+- Secret Sync never transforms a too-large value to fit a provider. It must not compress, truncate, split, chunk, implicitly base64-encode, or otherwise rewrite the value for provider compatibility.
+- Fixes for `sync.provider_value_too_large` must be explicit: use Runtime Injection instead of Secret Sync, write a smaller value, use provider-supported external storage, or store caller-managed encoded text intentionally.
+- Current planning examples: GitHub Actions secrets cap at 48 KB; Cloudflare Workers variables/secrets cap at 5 KB; Cloudflare Secrets Store caps account secret strings at 1024 bytes; Vercel supports 64 KB total Environment Variables per deployment for supported runtimes, while Edge Functions and Middleware cap each variable at 5 KB.
+
 ### 4. Run
 
 Running the sync creates an operation, enqueues work, and returns the operation ID. Provider writes happen in queue consumers, not in the initial request.
@@ -834,6 +929,7 @@ The queued worker:
 - Blocks with `sync.source_value_missing` when any non-protected source binding has no Current Version.
 - Performs Sync Execution Revalidation for actor, sync, source Environment, App Connection, Provider Account Linkage, Connection Boundary, and provider target constraints before decrypting Sensitive Values.
 - For Protected Environment sources, loads only Published Versions and blocks with `sync.source_value_missing` if any selected secret has no Published Version.
+- Blocks the whole run with `sync.provider_value_too_large` before any provider write when any bound value exceeds the destination Provider Value Size Limit.
 - Revalidates that a Protected Environment GitHub Actions sync still targets an existing GitHub Environment before writing Sensitive Values.
 - Blocks with `sync.provider_drift` before decrypting Sensitive Values if the target GitHub Environment no longer has visible protection rules.
 - Decrypts Sensitive Values only inside request/job execution after Sync Execution Revalidation passes.
@@ -852,11 +948,13 @@ Verification confirms provider state without exposing values.
 
 Verification never reads provider-side Sensitive Values back, even if a provider API allows it. It checks metadata, update timestamps, key presence, protection status, and provider response status only.
 
-Secret Import is a separate workflow, not sync verification or reconciliation. Import must use Safe Sensitive Input Paths and produce audit events. V1 Secret Import must not read Sensitive Values from provider secret stores.
+Secret Import is a development adoption workflow, not sync verification, reconciliation, or a general value-file input mechanism. Import must use Safe Sensitive Input Paths and produce audit events. V1 Secret Import must not read Sensitive Values from provider secret stores and must not target Protected or non-development Environments.
 
 Explicit Provider Lookup is metadata-only and exists only for Secret Sync setup, planning, and approval in V1. It is not a standalone CLI/API/UI probe. Its purpose is to check whether one exact Secret Sync Binding destination already exists and produce a Provider Overwrite Warning before sync approval or execution. Explicit Provider Lookup checks one exact configured provider-side name, target, or binding inside one App Connection and Connection Boundary. It must not list provider inventory, enumerate provider-side names, return unrelated provider objects, expose raw provider response bodies, or accept wildcard, prefix, empty, pattern, or list requests. It returns only minimal existence/status metadata, normalized Provider Lookup Status, provider object IDs where needed, safe hashes where needed, and no Sensitive Values. Failed lookups return stable safe codes such as `provider.lookup_not_found`, `provider.permission_denied`, `provider.boundary_mismatch`, and `provider.unavailable`; they must not return, log, audit, persist, or place in operation records provider-native error text, raw provider bodies, raw provider headers, stack traces, unrelated provider object names, or Sensitive Values. Every lookup is audited with actor, organization, project/environment when applicable, app connection, exact target/name/binding, provider response class, request ID, and operation ID. Protected Environment setup, approval, enablement, and manual run fail closed with `provider.unavailable` if lookup cannot determine every exact binding destination status. Non-protected setup, enablement, and manual run may continue after unavailable lookup status only with warning code `sync.overwrite_status_unknown`, operation-scoped confirmation, and an audit event. Generic `--yes`, stored defaults, and previous confirmations do not satisfy this condition. Provider-side secret and variable names, provider existence status, and provider target names are Sensitive Metadata. Explicit Provider Lookup does not create Secret Shapes, Secret Versions, Secret Syncs, Secret Sync Bindings, or placeholder records. It does not perform Provider Sync Overwrite. Sync only writes later through the normal confirmation or approval flow for exact bindings with eligible source versions. Orphaned Managed Provider Copies are cleanup metadata, not import sources.
 
 Explicit Provider Lookup output is scope-bounded. Authorized full-fidelity setup, plan, approval, or detail output may decrypt provider-side names only after Sensitive Detail Gate, but default low-privilege or automation output uses opaque IDs, hashes, and safe status codes. Lookup operations must not place provider-side names in plaintext search indexes, logs, analytics events, durable queue payloads, unscoped caches, or error messages.
+
+Provider value-size output is scope-bounded the same way. Exact value byte length for Protected Environment Secrets is Sensitive Metadata; it is excluded from low-privilege JSON, automation-safe operation output, logs, analytics, durable queue payloads, unscoped caches, and error messages. Low-detail output uses `over_limit`, provider cap, destination type, Secret ID, and binding ID instead. Output may recommend explicit remedies, but must not offer automatic compression, truncation, chunking, or implicit encoding flags.
 
 ### 6. Retry Or Reauth
 
@@ -885,6 +983,7 @@ Runtime rules:
 - Neon Postgres, reached only through the Tenant-Scoped Store, is the operation and audit source of truth.
 - Queue messages contain operation IDs and target identifiers, not Sensitive Values.
 - Sensitive Values are decrypted only inside the active queue consumer execution after Sync Execution Revalidation passes.
+- Queue consumers complete all deterministic pre-write checks for the write set before the first provider write starts. A pre-write failure writes no bindings.
 - Queue consumers treat Provider Drift as a non-retryable authorization/configuration failure until reauthorization or approved configuration change occurs.
 - Queue consumers must not log decrypted values, raw provider request bodies, or raw provider response bodies.
 - Retryable provider failures use delayed retries.
@@ -1048,10 +1147,27 @@ CLI:
 
 - Config precedence.
 - `.insecur.json` contains no Sensitive Values.
-- `pull --out` writes values to an approved file with mode `0600`.
-- Protected Environment file delivery is always denied.
+- `import .env` parses values client-side, creates Blind Secret Writes, and returns metadata-only output.
+- `secrets set` uses a masked prompt by default only for interactive TTY callers without `--generate` or `--value-stdin`; non-interactive callers fail with `secret.input_required`.
+- `secrets set --value-stdin` preserves the exact stdin value, including trailing newlines and multiline content, with no trimming, line-ending normalization, dotenv parsing, or Sensitive Value output.
+- Invalid-encoding tests cover stdin, masked prompt input, API request bodies, and development Secret Import rejecting non-UTF-8 input with `secret.invalid_encoding`, no replacement characters, no implicit base64 decoding, no binary mode, no parsed values in output, and no writes.
+- Secret value size tests cover multibyte UTF-8 characters being counted by encoded byte length, not character count, and `secret.value_too_large` failing before any Blind Secret Write or Secret Version creation.
+- Provider value size tests cover `sync.provider_value_too_large` for every supported Sync Target, provider caps lower than 64 KiB, Vercel total-environment budget behavior, failure during plan, enablement, manual run, and Sync Execution Revalidation, protected Promotion blocking before publish when Immediate Sync After Promotion would be doomed, all-or-nothing pre-write behavior where no bindings are written when one binding is too large, exact value byte length shown only in authorized full-fidelity output, Protected Environment exact value byte length gated as Sensitive Metadata, low-privilege output showing only `over_limit`, provider cap, destination type, Secret ID, and binding ID, no automatic compression/truncation/chunking/implicit encoding, and no Sensitive Values.
+- Empty-value tests cover empty stdin, blank masked prompts, API input, and empty imported values failing by default with `secret.empty_value`, and succeeding only when the caller explicitly supplies `--allow-empty` or the API equivalent.
+- Variable Key validation rejects invalid `--variable-key` values and invalid final `.env` import keys that do not match `^[A-Z_][A-Z0-9_]*$`, with no silent normalization.
+- Import preflight applies `--variable-key-prefix` before validation and duplicate detection.
+- Import rejects Protected, preview, staging, production, and other non-development Environments with `import.unsupported_environment`.
+- Import is create-only and fails preflight with `import.existing_secret` if any final Variable Key already has a Secret in the target Environment.
+- Import does not support updating existing Secrets from local files; existing Secrets are changed through normal secret-write, generation, and rotation workflows.
+- Import never creates, changes, or binds Runtime Injection Policies, Secret Syncs, CLI Profiles, or other delivery configuration.
+- `secrets set --value-file <path>` and equivalent named local value-file inputs are invalid V1 command shapes.
+- Import preflight rejects any invalid final key, duplicate final key, existing-secret conflict, or parse error before creating Secrets or Secret Versions, reports line numbers and invalid, duplicate, or conflicting keys without values, and writes nothing on failure.
+- `import .env --dry-run --json` returns a metadata-only Secret Import Plan with no Blind Secret Writes and no created Secrets, Secret Shapes, or Secret Versions.
+- `import .env` does not rewrite, redact, truncate, rename, or automatically delete the source file.
+- `local-files rm .env` deletes only after explicit confirmation and does not claim secure erasure.
+- `pull`, `export`, dotenv generation, JSON secret file output, and equivalent local plaintext file output commands are invalid V1 command shapes.
 - `run` injects values into the child process without printing them.
-- The First Value Proof command sequence uses only normal `secrets set --generate` and `run --secret-name` commands, creates or updates only non-protected development resources, exercises non-protected `secrets set --secret-name` create-or-update behavior, runs the copyable verifier from `examples/first-value-proof/verify.mjs`, requires no provider connection, and returns metadata-only success/failure with no Sensitive Value, raw digest, child-process environment, local plaintext file, or provider state.
+- The First Value Proof command sequence uses only normal `secrets set --generate` and `run --variable-key` commands, creates or updates only non-protected development resources, exercises non-protected `secrets set --variable-key` create-or-update behavior, runs the copyable verifier from `examples/first-value-proof/verify.mjs`, requires no provider connection, and returns metadata-only success/failure with no Sensitive Value, raw digest, child-process environment, local plaintext file, or provider state.
 - Sensitive Values never appear in JSON output.
 - No ordinary management command can reveal, read back, export, or log Sensitive Values by changing output format or adding a convenience flag.
 - Protected Environment Blind Secret Write returns Draft Version metadata only.
@@ -1060,15 +1176,17 @@ CLI:
 - Pending Approval Request tests cover no age-based expiration and no automatic inclusion of newer Draft Versions.
 - Approval Request Supersession tests cover repeat Promotion requests for the same Protected Environment regardless of requester, new immutable IDs, superseded stale-view denial, notification coalescing, and audit retention.
 - Approval warning tests cover newer Draft Versions outside the Promotion Change Set without blocking approval.
-- Approval Impact Review tests cover recomputed delivery/sync targets, enabled syncs that Promotion will enqueue, Cloudflare Worker Secret Deploy impact, metadata-only output, Sensitive Detail Gate before decrypted Sensitive Metadata display, stale approval-view denial, and pending request preservation.
-- Approval Notification tests cover no Approval Context Note plaintext, no Sensitive Values, no Display Names such as organization/project/environment/secret names, no decrypted Sensitive Metadata such as provider target names, no raw bodies, no approval impact details, no bearer approval tokens, lock-screen safe browser/mobile push payloads, no approve/deny email actions, and authenticated-view-plus-Sensitive-Detail-Gate sensitive details for browser/mobile push deep links.
+- Approval Impact Review tests cover recomputed delivery/sync targets, enabled syncs that Promotion will enqueue, Provider Value Size Limit failure blocking Promotion before publish, Cloudflare Worker Secret Deploy impact, metadata-only output, Sensitive Detail Gate before decrypted Sensitive Metadata display, stale approval-view denial, and pending request preservation.
+- Approval Notification tests cover no Approval Context Note plaintext, no Sensitive Values, no Variable Keys, no Display Names such as organization/project/environment labels, no decrypted Sensitive Metadata such as provider target names, no raw bodies, no approval impact details, no bearer approval tokens, lock-screen safe browser/mobile push payloads, no approve/deny email actions, and authenticated-view-plus-Sensitive-Detail-Gate sensitive details for browser/mobile push deep links.
 - Push Device Registration tests cover High-Assurance Challenge on new registration and registration replacement, user/device scoping, Sensitive Metadata storage protection, create/update/delete audit, user revocation, logout-all/MFA reset/suspicious activity/lost-device/offboarding invalidation, and no approval or High-Assurance authority from push alone.
 - Approval fatigue tests cover actor, organization, and Protected Environment rate limits plus notification coalescing for superseded requests.
 - Approval Context Note tests cover Sensitive Metadata encryption, Sensitive Detail Gate before display, no plaintext indexes/logs/analytics/low-privilege exports, length limits, display escaping, untrusted visual separation, no active HTML/markdown rendering, no warning suppression, no change-set mutation, and no policy influence.
 - Display Name tests cover normal authorized display without Sensitive Detail Gate, scoped filtering, and exclusion from out-of-band Approval Notifications.
+- Resolved target echo tests cover `--policy-name`, `--profile`, and other ergonomic selectors returning type, Display Name or slug, opaque ID, and parent scope in human and JSON output without using names as durable server selectors.
+- Scoped-unique name tests cover Runtime Injection Policy Display Names unique within an Environment, CLI Profile Slugs unique within local user config, duplicate create/rename rejection, editable defaults, and non-interactive default-name collision failure.
 - Approval purpose separation tests cover rejection of combined Promotion plus protected delivery configuration changes.
 - Non-protected Blind Secret Write updates Current Version immediately by default.
-- Approved Protected Environment Promotion enqueues every enabled Secret Sync affected by any promoted version immediately when included in the accepted Approval Impact Review, reports operation IDs, and does not require a second deploy approval for already-enabled syncs.
+- Approved Protected Environment Promotion enqueues every enabled eligible Secret Sync affected by any promoted version immediately when included in the accepted Approval Impact Review, reports operation IDs, and does not require a second deploy approval for already-enabled syncs.
 - Secret Sync Binding tests cover exact Secret IDs, provider-side destination names, rejection of all-secrets/tag/prefix/pattern selection, and no automatic inclusion of newly created environment Secrets.
 - Sync Execution Revalidation tests cover provider identity, credential scope, Connection Boundary, target identity, required provider protection state, source version eligibility, `sync.provider_drift`, and no Sensitive Value decrypt before the revalidation gate passes.
 - Provider Sync Overwrite tests cover Provider Overwrite Warnings for exact existing destinations and overwriting existing provider-side values for exact bindings without Provider Readback, value comparison, value preservation, or Sensitive Values in output.
@@ -1082,9 +1200,9 @@ CLI:
 - Protected Explicit Provider Lookup tests cover `provider.unavailable` fail-closed behavior when Protected Environment setup, approval, enablement, or manual run cannot determine lookup status for every exact binding destination.
 - Non-protected unknown-overwrite tests cover `sync.overwrite_status_unknown` behavior when setup, plan, enablement, or manual run proceeds despite unavailable lookup status, including operation-scoped confirmation, rejection of generic `--yes` alone, audit events, and no provider-native error text, raw provider bodies, provider inventory, unrelated provider object names, or Sensitive Values in output.
 - Secret Sync source value tests cover `sync.source_value_missing` for missing Current Versions in non-protected Environments and missing Published Versions in Protected Environments.
-- Secret Import tests cover Safe Sensitive Input Paths and prove provider-side Sensitive Values are not read back in V1.
+- Secret Import tests cover Safe Sensitive Input Paths, non-protected development Environment restriction, and no provider-side Sensitive Value readback in V1.
 - Protected Approval Policy covers one-approver and optional two-approver flows, requester self-approval denial, Machine Identity approval denial, and Service Access approval denial.
-- Protected Environment Promotion, rollback, Secret Import, Runtime Injection Policy changes, Secret Sync enable/run, App Connection changes, repository-scoped overrides, protected Shared Secret Source attachment, and Push Device Registration creation/replacement enforce High-Assurance Challenges.
+- Protected Environment Promotion, rollback, Runtime Injection Policy changes, Secret Sync enable/run, App Connection changes, repository-scoped overrides, protected Shared Secret Source attachment, and Push Device Registration creation/replacement enforce High-Assurance Challenges.
 - Provider authorization callback tests cover one-time state, replay denial, post-callback Organization Access re-checks, provider identity verification, canceled/superseded operation denial, Tenant Suspension denial, and cross-tenant linkage denial.
 - `--json` output is stable.
 - Error code to exit code mapping.

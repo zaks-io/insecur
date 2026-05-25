@@ -51,7 +51,7 @@ The near-term product posture for personal projects and relatively small trusted
 _Avoid_: public multi-tenant production when broad public onboarding is not meant, dev-only mode
 
 **First Value Milestone**:
-The first V1 milestone where an admitted User reaches provider-free **Secret Use** in a non-protected development **Environment** through **Guided Organization Provisioning** and **First Value Proof**.
+The first V1 milestone where an admitted User reaches provider-free **Diskless Development Secret Use** in a non-protected development **Environment** through **Guided Organization Provisioning** and **First Value Proof**.
 _Avoid_: production-ready, unsafe mode, demo-only product
 
 **Production Delivery Milestone**:
@@ -200,6 +200,10 @@ _Avoid_: hard-coded permission, rule when access assignment is meant
 A **Built-In Role** preset whose **Authorization Scope** bundle authorizes protected-change approval and rejection without granting project or organization configuration authority or **Approval Request Cancellation** authority.
 _Avoid_: approver permission when the Role is meant
 
+**Metadata Viewer Role**:
+A **Built-In Role** preset whose **Authorization Scope** bundle authorizes scoped metadata detail visibility without granting Sensitive Value access, Secret Delivery, configuration mutation, or approval authority.
+_Avoid_: secret viewer, support role when the role is customer-scoped metadata visibility
+
 **Organization Owner**:
 A **User** with an owner **Role** **Membership** in one **Organization**.
 _Avoid_: instance operator, admin when organization ownership is meant
@@ -226,16 +230,48 @@ _Avoid_: app, service when the managed secret boundary is meant
 A named deployment context inside a project, such as development, preview, staging, or production.
 _Avoid_: stage, target when the project environment is meant
 
+**Variable Key**:
+The application-facing key used when a Secret is delivered as an environment variable or as the default provider-side variable name, such as `DATABASE_URL`. V1 Variable Keys are ASCII uppercase env-var-safe strings matching `^[A-Z_][A-Z0-9_]*$`.
+_Avoid_: Display Name, Opaque Resource ID, Runtime Policy Key, cryptographic key
+
+**Variable Key Prefix**:
+An optional ASCII uppercase env-var-safe string prepended to parsed import keys before Import Preflight validates and de-duplicates the resulting Variable Keys.
+_Avoid_: normalization, namespace when the exact delivered key prefix is meant
+
 **Secret**:
-A named record whose value is a single UTF-8 string, stored for a project environment.
-_Avoid_: config, env var when referring to the managed record, JSON/structured value when the single-string V1 shape is meant
+An Environment-scoped managed key-value slot for one Secret Shape. Its delivered key is the Secret Shape's **Variable Key**, and its value is the selected **Secret Version**.
+_Avoid_: config, Display Name, JSON/structured value when the single-string V1 shape is meant
 
 **Sensitive Value**:
 Plaintext material that can directly authenticate, decrypt, authorize secret delivery, or reveal a managed secret.
 _Avoid_: actual secret, secret when the broader protected plaintext category is meant
 
+**Text Secret Value**:
+A V1 Secret Version Sensitive Value represented as one valid UTF-8 string, not arbitrary binary data.
+_Avoid_: binary secret, best-effort decoded secret
+
+**Secret Value Size Limit**:
+The V1 maximum allowed size of a Text Secret Value: 64 KiB measured in encoded UTF-8 bytes rather than characters.
+_Avoid_: character limit, provider-wide smallest cap
+
+**Provider Value Size Limit**:
+A destination-specific maximum value size enforced by a provider sync target for one bound provider-side secret or variable.
+_Avoid_: insecur storage limit, global provider limit
+
+**All-Or-Nothing Sync Pre-Write Gate**:
+The Secret Sync rule that a deterministic pre-write failure on any exact binding blocks every provider write in that sync run before the first provider write starts.
+_Avoid_: best-effort sync, partial sync when a pre-write check fails
+
+**Protected Promotion Sync Preflight**:
+The provider-size eligibility check that blocks protected Promotion when an enabled affected Secret Sync would reject a promoted value.
+_Avoid_: publish first and let the immediate sync fail
+
+**Automatic Provider Value Transform**:
+Any Secret Sync behavior that changes a Text Secret Value to fit a provider destination, such as compression, truncation, chunking, implicit base64 encoding, or other automatic re-encoding.
+_Avoid_: convenience encoding, provider fit shim
+
 **Secret Shape**:
-The non-secret definition of a secret, such as name, description, required status, and generation hint.
+The project-level non-secret definition of a variable, including its **Variable Key**, optional Display Name, description, required status, and generation hint.
 _Avoid_: default when referring only to metadata
 
 **Environment Default**:
@@ -427,12 +463,24 @@ The rule that logs, traces, errors, audit metadata, and analytics never contain 
 _Avoid_: redacted when the value should never enter the log path
 
 **Sensitive Metadata**:
-Non-plaintext metadata that can reveal security-relevant structure, integrations, provider-side targets, provider-side secret or variable names, approval context, device routing, or relationships.
+Metadata treated as sensitive by default because it can reveal security-relevant structure, integrations, provider-side targets, provider-side secret or variable names, approval context, device routing, or relationships.
 _Avoid_: safe metadata
 
+**Value Length Metadata**:
+Metadata describing the encoded byte length of a Text Secret Value. For Protected Environment Secrets, exact Value Length Metadata is Sensitive Metadata.
+_Avoid_: safe length, value preview
+
 **Sensitive Metadata Encryption**:
-The rule that Sensitive Metadata is encrypted at rest under tenant-bound data keys, while only opaque resource IDs remain plaintext for joins and lookup.
+The rule that Sensitive Metadata is encrypted at rest under tenant-bound data keys, while only fields on the Plaintext Metadata Allowlist remain plaintext for routing, joins, lookup, and basic navigation.
 _Avoid_: metadata-only when storage protection is meant
+
+**Plaintext Metadata Allowlist**:
+The narrow set of ordinary metadata fields allowed to remain plaintext because hiding them would make safe operation and review harder.
+_Avoid_: safe metadata, non-sensitive metadata when the field is merely allowed by exception
+
+**Metadata Visibility Policy**:
+An Organization Configuration or project/environment-scoped policy that controls which actor classes and surfaces may see ordinary metadata, without assigning privacy sensitivity field by field.
+_Avoid_: security level when the visible metadata surface is meant
 
 **Sensitive Detail Gate**:
 A High-Assurance Challenge required before decrypted Sensitive Metadata is displayed in a User-facing surface or full-fidelity export.
@@ -443,8 +491,20 @@ A non-semantic identifier used for durable references, joins, and configured sel
 _Avoid_: slug when a durable selector is meant
 
 **Display Name**:
-A user-authored product label stored as ordinary metadata for navigation, review, Scoped List filtering, and Display Name Resolution after authentication and authorization. Display Names are not Sensitive Values or Sensitive Metadata, and must not be relied on to carry confidential content.
+A user-authored product label on the Plaintext Metadata Allowlist for navigation, review, Scoped List filtering, and Display Name Resolution after authentication and authorization. Display Names are not Sensitive Values or Sensitive Metadata, but they can leak architectural hints and must not carry confidential content.
 _Avoid_: private name when a normal user-authored label is meant
+
+**Scoped-Unique Display Name**:
+A Display Name that must be unique within one defined parent scope so command-facing Display Name Resolution cannot be ambiguous.
+_Avoid_: global name, slug, opaque ID
+
+**Default Display Name**:
+A product-suggested initial Display Name applied during provisioning or creation, editable by the User and never reserved as authority.
+_Avoid_: reserved name, system ID, slug
+
+**Resolved Target Echo**:
+A metadata-only CLI or API output fragment that shows the resolved Opaque Resource ID, Display Name, type, and parent scope for a command target before or after acting.
+_Avoid_: confirmation when no human decision is required, selector when the ID is the durable selector
 
 **Scoped List**:
 An authorized list bounded by Organization, Project, Environment, or resource scope that may display Display Names after authorization, and decrypted Sensitive Metadata only after authorization and Sensitive Detail Gate.
@@ -460,7 +520,19 @@ _Avoid_: search, server-side name selector when only Opaque Resource IDs are dur
 
 **Safe Sensitive Input Path**:
 An input path for Sensitive Values that avoids URLs, query strings, route params, command arguments, logs, and shell history.
-_Avoid_: value flag when the value itself is sensitive
+_Avoid_: value flag or named file input when the value itself is sensitive
+
+**Masked Secret Prompt**:
+An interactive TTY prompt that accepts a Sensitive Value without echoing it and without writing it to shell history, logs, or command arguments.
+_Avoid_: prompt flag when non-interactive input is meant
+
+**Exact Stdin Value Input**:
+A Safe Sensitive Input Path where stdin content is accepted as the Sensitive Value without trimming trailing newlines, normalizing line endings, or changing multiline content.
+_Avoid_: trimmed stdin, echo-safe input
+
+**Explicit Empty Value Write**:
+A Blind Secret Write that intentionally stores a zero-length Sensitive Value only after the actor selects an explicit empty-value control.
+_Avoid_: accidental empty input, blank means delete
 
 **Misuse-Resistant Defaults**:
 A product posture where ordinary management paths are easy, while accidental Sensitive Value exposure paths are absent, denied, or forced through explicit high-risk controls.
@@ -480,9 +552,41 @@ _Avoid_: approval, MFA when no high-assurance identity proof is required
 Secret delivery that supplies plaintext secret values to a child process at execution time through the process environment, never by writing a dotenv or other plaintext file, even on a developer's own machine.
 _Avoid_: pull, export when the value is meant to be consumed only by the process
 
+**Diskless Development Secret Use**:
+A non-protected development workflow where local commands receive Sensitive Values through **Runtime Injection** instead of local plaintext secret files.
+_Avoid_: memory-only security when implying compromise-proof, agent-proof secret
+
+**Local Secret File**:
+A developer-workstation file, such as `.env`, that stores plaintext Sensitive Values for local application commands.
+_Avoid_: config when the file contains Sensitive Values
+
+**Local Secret File Migration**:
+A one-way non-protected development adoption helper that reads a Local Secret File through a **Safe Sensitive Input Path** and creates **Blind Secret Writes** without writing Sensitive Values back to local files.
+_Avoid_: export, pull, file delivery
+
+**Import Preflight**:
+A metadata-only validation pass over a Local Secret File or other import source that must succeed before any Blind Secret Writes are created.
+_Avoid_: partial import, best effort import
+
+**Secret Import Plan**:
+A metadata-only description of what a Secret Import would create, match, or reject, produced without creating Secrets or Secret Versions and without showing Sensitive Values.
+_Avoid_: value preview, env preview
+
+**Secret Import Delivery Separation**:
+The rule that Secret Import migrates Sensitive Values into non-protected development Secrets without creating, changing, or binding Runtime Injection Policies, Secret Syncs, CLI Profiles, or other delivery configuration.
+_Avoid_: auto policy, import-created delivery
+
+**Import Existing Secret Conflict**:
+An Import Preflight failure where a final Variable Key already maps to a Secret in the target Environment.
+_Avoid_: overwrite by default, silent update
+
+**Local Secret File Removal**:
+An explicit user-commanded local filesystem deletion of a Local Secret File after migration, without rewriting the file or claiming secure erasure.
+_Avoid_: shred, secure delete, automatic cleanup
+
 **Runtime Injection Policy**:
-A server-owned rule that authorizes runtime injection for a constrained command shape and exact secret bindings.
-_Avoid_: local config when the authorization rule is meant
+A server-owned, workflow-scoped rule that authorizes runtime injection for a constrained command shape and exact secret bindings.
+_Avoid_: local config when the authorization rule is meant, secret group when detached from a command or workflow
 
 **Runtime Injection Policy Version**:
 An immutable snapshot of a runtime injection policy's bindings, command constraints, TTL, fingerprint requirements, and delivery behavior.
@@ -518,7 +622,11 @@ _Avoid_: observability when the security investigation trail is meant
 
 **CLI Profile**:
 A named non-secret CLI context that selects host, organization, project, environment, and default runtime policy.
-_Avoid_: profile when user identity or provider account is meant
+_Avoid_: profile when user identity, provider account, or a secret set is meant
+
+**CLI Profile Slug**:
+A short lower-kebab local alias for one CLI Profile, unique inside the User's local CLI configuration and used for command selection.
+_Avoid_: Display Name when the selector is meant, Opaque Resource ID when the local alias is meant
 
 **Secret Reveal**:
 Secret egress that returns a plaintext secret value to the caller.
@@ -529,8 +637,8 @@ Permission to cause secret delivery without receiving the plaintext secret value
 _Avoid_: access when it could be confused with secret reveal
 
 **First Value Proof**:
-A provider-free first-run demonstration that uses ordinary CLI commands for a service-generated **Blind Secret Write** and local **Runtime Injection** to show **Secret Use** without **Secret Reveal**.
-_Avoid_: agent-proof secret, provider setup test
+A provider-free first-run demonstration of **Diskless Development Secret Use** that uses ordinary CLI commands for a service-generated **Blind Secret Write** and local **Runtime Injection**.
+_Avoid_: agent-proof secret, production readiness proof, provider setup test
 
 **Agent-Reachable Channel**:
 An interaction path an **Agent** can drive with an inherited human session, **Machine Identity**, or local automation credential, such as CLI commands, API calls, and operation polling.
@@ -685,7 +793,7 @@ A provider-side secret or variable whose cleanup state is unknown after insecur 
 _Avoid_: deleted when provider cleanup failed
 
 **Immediate Sync After Promotion**:
-The rule that promotion immediately enqueues enabled secret syncs affected by promoted versions.
+The rule that promotion immediately enqueues enabled secret syncs affected by promoted versions after Protected Promotion Sync Preflight passes.
 _Avoid_: scheduled sync when no scheduling policy exists
 
 **Provider Readback**:
@@ -693,8 +801,8 @@ Reading a Sensitive Value back from an external provider secret store.
 _Avoid_: verification when only provider metadata or status is checked
 
 **Secret Import**:
-A controlled input workflow that creates insecur Secret Versions from Sensitive Values supplied through Safe Sensitive Input Paths.
-_Avoid_: sync reconciliation, provider readback
+A controlled non-protected development adoption helper that creates new insecur Secrets and Secret Versions from Sensitive Values supplied through Safe Sensitive Input Paths.
+_Avoid_: sync reconciliation, provider readback, steady-state refresh, rotation, file reload
 
 **Explicit Provider Lookup**:
 An audited provider API check for one exact configured Secret Sync Binding destination that returns minimal existence/status metadata for setup, planning, or approval without listing provider inventory or reading Sensitive Values.
@@ -762,8 +870,16 @@ _Avoid_: key revision
 A planned key lifecycle event that replaces key material or provider authorization material.
 _Avoid_: rekey when discussing the broader workflow
 
+**Customer-Managed Key Custody**:
+An Organization-scoped Key Custody mode on a Hosted Instance where the Organization supplies a customer-controlled wrapping authority and grants insecur runtime limited use of it for that Organization's data-key chain.
+_Avoid_: BYOK when implying raw key upload; zero-knowledge when insecur runtime can still perform authorized delivery
+
+**Custody-Locked Organization**:
+An Organization whose configured Key Custody root is unavailable or revoked, so decrypting operations fail closed while non-decrypting navigation, status, audit, and recovery surfaces remain available.
+_Avoid_: deleted organization, suspended organization when the cause is key custody availability
+
 **Keyring**:
-The component that resolves the key hierarchy (the root key in Cloudflare Secrets Store, then an Organization Data Key, then a Project Data Key, then a per-record key), holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared-database Instance it bounds the Sensitive Values, while Row-Level Security under the **Tenant-Scoped Store** bounds the metadata rows; together they form the tenant-isolation boundary.
+The component that resolves the key hierarchy from the configured Key Custody root through an Organization Data Key, a Project Data Key, and a per-record key, holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared-database Instance it bounds the Sensitive Values, while Row-Level Security under the **Tenant-Scoped Store** bounds the metadata rows; together they form the tenant-isolation boundary.
 _Avoid_: key store when the resolving and rewrapping component is meant
 
 **Tenant-Scoped Store**:
@@ -855,6 +971,11 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - An **Organization** has one **Organization Configuration**.
 - **Instance Configuration** controls how the **Instance** runs and who can authenticate.
 - **Organization Configuration** controls how secrets are governed inside one **Organization**.
+- Metadata fields default to **Sensitive Metadata** unless they are on the **Plaintext Metadata Allowlist**.
+- The **Plaintext Metadata Allowlist** includes **Opaque Resource IDs**, **Display Names**, stable type and status codes, timestamps, actor IDs and types, counts, and non-secret readiness flags.
+- A **Metadata Visibility Policy** may hide **Display Names** or other **Plaintext Metadata Allowlist** fields from lower-assurance surfaces without turning those fields into **Sensitive Metadata**.
+- A **Metadata Visibility Policy** does not classify privacy sensitivity field by field.
+- A **Metadata Visibility Policy** must not reveal **Sensitive Values** or bypass the **Sensitive Detail Gate** for decrypted **Sensitive Metadata**.
 - A **Webhook Subscription** includes one or more selected **Webhook Event Types**.
 - A **Webhook Subscription** delivers an **Event Notification** only when a selected **Webhook Event Type** occurs.
 - An **Event Notification** identifies its **Webhook Event Type** with a stable event code.
@@ -880,6 +1001,13 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - An **Organization** owns zero or more **Machine Identities**.
 - An **Organization** owns zero or more **App Connections**.
 - An **Organization** owns **Audit Log** entries for actions within its boundary.
+- **Customer-Managed Key Custody** applies to exactly one **Organization**.
+- Enabling, replacing, or disabling **Customer-Managed Key Custody** through insecur requires **Organization Configuration** authority, the **Human Approval Surface**, and a **High-Assurance Challenge**.
+- Replacing **Customer-Managed Key Custody** rewraps **Organization Data Keys** to the new custody root before retiring the prior custody root.
+- **Customer-Managed Key Custody** supports the claim that insecur cannot perform future decrypting operations for that **Organization** after the customer revokes or disables the custody grant.
+- **Customer-Managed Key Custody** does not support a zero-knowledge claim because insecur runtime can still decrypt through the active customer grant for approved delivery paths.
+- A **Custody-Locked Organization** cannot perform decrypting operations such as **Secret Delivery**, **Runtime Injection**, **Secret Sync**, Key Rotation rewrap, or decrypted **Sensitive Metadata** detail.
+- A **Custody-Locked Organization** still permits non-decrypting navigation, status, audit, and recovery surfaces according to **Metadata Visibility Policy**.
 - A **User** can have **Memberships** in many **Organizations** and **Projects**.
 - A **User** or **Machine Identity** receives **Organization Access** through **Memberships**.
 - A **User** or **Machine Identity** may receive **Service Access** outside any customer **Organization**.
@@ -918,6 +1046,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - The **User** and **Team** **Membership** model is compatible with future explicit **Authorization Scope** grants, but V1 does not expose them for human/team assignment.
 - A **Membership** for a **Machine Identity** carries explicit **Authorization Scopes**, not **Roles**.
 - A **Membership** answers who may act in which **Organization** or **Project** scope.
+- **Machine Identity** execution uses exact opaque selectors or preconfigured policy keys, not **Scoped Lists** or **Display Name Resolution**.
 - A **User** or **Team** **Membership** at **Organization** scope contributes **Authorization Scopes** that apply to **Projects** in that **Organization**.
 - A **User** or **Team** **Membership** at **Project** scope contributes narrower project-scoped **Authorization Scopes**.
 - V1 **Effective Access** for **Users** and **Teams** is additive; there are no deny rules or negative overrides.
@@ -925,13 +1054,17 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - **Organization Access** uses **Scope-First Authorization**.
 - **Organization Access** authorization evaluates **Effective Access** **Authorization Scopes**, not **Role** names.
 - A **Role** bundles **Authorization Scopes** for **User** and **Team** access assignments.
-- V1 exposes **Built-In Roles** only for **User** and **Team** assignment: owner, admin, developer, approval, and read-only.
+- V1 exposes **Built-In Roles** only for **User** and **Team** assignment: owner, admin, developer, metadata viewer, approval, and read-only.
 - V1 does not expose arbitrary human or team **Authorization Scope** editing.
 - **Built-In Roles** are implemented as **Authorization Scope** bundles and should not be special-cased in authorization checks.
 - The owner **Built-In Role** contributes approval **Authorization Scopes** for solo-owner operation.
 - The admin and developer **Built-In Roles** do not contribute approval **Authorization Scopes**.
 - The **Approval Role** is the additive **Built-In Role** for granting approval **Authorization Scopes** to non-owners where the **Protected Approval Policy** allows them, without contributing project configuration, **App Connection**, **Secret Sync**, **Runtime Injection Policy**, or membership management **Authorization Scopes**.
 - The **Approval Role** does not authorize **Approval Request Cancellation** by itself.
+- The **Metadata Viewer Role** is the additive **Built-In Role** for granting scoped metadata detail visibility to non-owners where **Metadata Visibility Policy** allows it.
+- The **Metadata Viewer Role** must not authorize **Sensitive Values**, **Secret Reveal**, **Secret Delivery**, **Runtime Injection**, **Secret Sync**, configuration mutation, or approval authority.
+- The **Metadata Viewer Role** does not bypass the **Sensitive Detail Gate** for decrypted **Sensitive Metadata**.
+- **Machine Identities** do not receive the **Metadata Viewer Role** in V1.
 - Approval **Authorization Scopes** may be contributed by **Organization**-scoped or **Project**-scoped **User** and **Team** **Memberships**.
 - **Organization**-scoped approval **Authorization Scopes** apply to **Approval Requests** for **Protected Environments** in any **Project** in that **Organization**.
 - **Project**-scoped approval **Authorization Scopes** apply only to **Approval Requests** for **Protected Environments** in that **Project**.
@@ -954,23 +1087,51 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - **Effective Access** for machine credentials uses the same **Authorization Scope** vocabulary as **Roles**, but the credential-level assignment carrier is **Credential Scopes** rather than a **Role**.
 - A **Project** belongs to exactly one **Organization**.
 - A **Project** contains zero or more **Environments**.
+- A **Project** owns zero or more **Secret Shapes**.
+- A **Secret Shape** has one **Variable Key**.
+- A **Variable Key** is unique within one **Project** in V1.
+- A **Variable Key** must match `^[A-Z_][A-Z0-9_]*$` in V1.
 - An **Environment** belongs to exactly one **Project**.
 - An **Environment** has a freeform **Display Name** chosen at creation; insecur does not enforce a fixed set of environment names.
 - An **Environment**'s protected status is fixed at creation and is not togglable; changing protection means creating a new **Environment** and migrating **Secret Shapes** to it, not flipping a flag on the existing one.
 - A **Protected Environment** cannot be demoted to non-protected, and a non-protected **Environment** cannot be promoted to **Protected Environment** in place.
 - An **Environment** contains zero or more **Secrets**.
 - An **Environment** can share **Secret Shapes** with another **Environment**.
+- An **Environment** has at most one **Secret** for each **Secret Shape**.
+- The logical application key-value store for one **Environment** is its **Secret** set: **Variable Key** to selected **Secret Version** **Sensitive Value**.
 - An **Environment** never copies a **Sensitive Value** to or from another **Environment**; only **Secret Shapes** propagate across **Environments**, and a value shared across **Environments** must come from an explicit **Shared Secret Source**.
 - An **Environment Default** belongs to exactly one non-protected **Environment**.
 - A **Shared Secret Source** belongs to one **Project** and is explicitly attached to one or more **Environments**.
 - A **Secret** has one or more **Secret Versions**.
-- A **Secret Version** holds exactly one **Sensitive Value**, and that value is a single UTF-8 string.
+- A **Secret Version** holds exactly one **Text Secret Value**.
 - insecur does not model structured or multi-field **Secret** values in V1; a structured value is a later additive type, not a V1 shape.
-- A **Secret Version**'s **Sensitive Value** has a maximum stored size enforced by insecur, and **Secret Sync** validates each value against the destination provider's own cap at plan time rather than capping every value at the smallest provider; the working size limits are tracked in open questions until finalized.
+- A **Secret Version**'s **Text Secret Value** is subject to the **Secret Value Size Limit**; values over 64 KiB fail before write with `secret.value_too_large`.
+- The **Secret Value Size Limit** is measured in encoded UTF-8 bytes after validation, not characters.
+- **Secret Sync** validates each value against the destination **Provider Value Size Limit** at plan time rather than capping every **Text Secret Value** at the smallest provider limit.
+- A value may be valid for insecur storage and invalid for a specific **Secret Sync** target; that sync plan or run fails with `sync.provider_value_too_large` before provider write, and a protected **Promotion** that would enqueue that sync is blocked before publish.
+- **Secret Sync** does not perform **Automatic Provider Value Transform**; a too-large value must be fixed by explicit user action such as choosing **Runtime Injection**, writing a smaller value, using provider-supported external storage, or storing caller-managed encoded text.
 - A **Blind Secret Write** creates one **Secret Version**.
 - A **Blind Secret Write** is not a separate kind of **Secret**.
 - A **Blind Secret Write** may use service-side generation so the caller never learns the **Sensitive Value**.
-- In a non-protected **Environment**, a normal secret-write command may create a missing **Secret Shape** from a **Display Name**, client-mint the underlying **Opaque Resource ID**, and then perform the **Blind Secret Write**.
+- In a non-protected **Environment**, a normal secret-write command may create a missing **Secret Shape** from a **Variable Key**, client-mint the underlying **Opaque Resource ID**, and then perform the **Blind Secret Write**.
+- A local `.env` import targets only a non-protected development **Environment**.
+- A local `.env` import must be rejected for **Protected Environments** and for non-development **Environments**.
+- A local `.env` import is create-only: it creates missing **Secret Shapes** and **Secrets** by final **Variable Key**, then creates one **Secret Version** per imported key-value pair without returning the **Sensitive Value**.
+- A local `.env` import must not create a new **Secret Version** for an existing **Secret**.
+- If a final **Variable Key** already maps to a **Secret** in the target **Environment**, **Import Preflight** fails with an **Import Existing Secret Conflict** before any **Blind Secret Writes** are created.
+- **Secret Import Delivery Separation** means **Local Secret File Migration** must not create, change, or bind **Runtime Injection Policies**, **Secret Syncs**, **CLI Profiles**, or other delivery configuration.
+- Imported **Secrets** are not delivered to child processes until selected by an explicit **Runtime Injection Policy** or by one-command non-protected direct selection.
+- **Secret Import** and **Local Secret File Migration** are adoption helpers, not normal recurring operations.
+- Existing **Secret** changes use ordinary secret-write, generation, rotation, **Runtime Injection**, and **Secret Sync** workflows rather than repeated **Local Secret File Migration**.
+- Protected **Environment** values enter through protected secret-write, generation, draft, **Promotion**, and rollback workflows, not through **Local Secret File Migration**.
+- A **Variable Key Prefix** is applied before **Import Preflight** validation and duplicate detection.
+- A **Variable Key Prefix** must be ASCII uppercase env-var-safe, and every final prefixed key must still match the **Variable Key** format.
+- **Local Secret File Migration** must not silently normalize parsed keys; without an explicit **Variable Key Prefix**, invalid or lowercase parsed keys fail **Import Preflight**.
+- **Local Secret File Migration** requires **Import Preflight** before any **Blind Secret Writes**.
+- **Import Preflight** failure is all-or-nothing: invalid final **Variable Keys**, duplicate final **Variable Keys**, **Import Existing Secret Conflicts**, or parse errors stop the import before any **Secrets** or **Secret Versions** are created.
+- **Import Preflight** error output may show line numbers, invalid parsed keys, invalid final **Variable Keys**, duplicate final **Variable Keys**, and existing-secret conflicts, but must not show parsed **Sensitive Values**.
+- **Import Preflight** may produce a **Secret Import Plan** instead of creating **Blind Secret Writes**.
+- A **Secret Import Plan** may show target scope, final **Variable Keys**, planned **Secret Shape** creation or matching, planned **Secret** creation, planned **Secret Version** writes, invalid parsed keys, invalid final **Variable Keys**, duplicate final **Variable Keys**, **Import Existing Secret Conflicts**, line numbers, and stable error codes, but must not show parsed **Sensitive Values** or raw source contents.
 - A **Secret Version** may be a **Draft Version** before **Promotion**.
 - A **Blind Secret Write** in a **Protected Environment** creates a **Draft Version**.
 - A **Protected Environment** has a **Draft Area** for unpromoted **Draft Versions**.
@@ -1046,7 +1207,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - An **Approval Notification** contains low-privilege server-generated metadata only, such as **Approval Request** ID, generic purpose, created time, and a non-authorizing link to the authenticated approval view.
 - A push **Approval Notification** payload is lock-screen safe: generic approval-pending text, opaque request reference, created time, and a non-authorizing deep link only.
 - An **Approval Notification** must not include **Approval Context Note** plaintext.
-- An **Approval Notification** must not include **Sensitive Values**, **Display Names** such as organization/project/environment/secret names, or decrypted **Sensitive Metadata** such as provider target names, provider-side names, policy binding names, or security-relevant relationships.
+- An **Approval Notification** must not include **Sensitive Values**, **Variable Keys**, **Display Names** such as organization/project/environment labels, or decrypted **Sensitive Metadata** such as provider target names, provider-side names, policy binding names, or security-relevant relationships.
 - **Approval Notification** channels may include in-app notifications, browser push, mobile push through a wrapped web app, email, or future channels.
 - Browser push and mobile push through **Push Device Registrations** are the **Primary Approval Notification Channel** when available.
 - In-app notifications and email are fallback **Approval Notification** channels.
@@ -1101,6 +1262,9 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - An **Approval Impact Review** is recomputed before **Approval Request** approval.
 - An **Approval Impact Review** contains metadata only and excludes **Sensitive Values**.
 - An **Approval Impact Review** includes the enabled **Secret Syncs** that **Promotion** will enqueue through **Immediate Sync After Promotion**.
+- A **Protected Promotion Sync Preflight** validates the **Provider Value Size Limit** for every enabled **Secret Sync** that would be affected by a protected **Promotion**.
+- A **Protected Promotion Sync Preflight** is part of the **Approval Impact Review** and must pass before final approval can perform **Promotion**.
+- If **Protected Promotion Sync Preflight** would return `sync.provider_value_too_large`, the **Approval Request** cannot perform **Promotion**; no **Published Version** changes and no **Immediate Sync After Promotion** enqueue occurs.
 - An **Approval Impact Review** for a `cloudflare` **Secret Sync** includes **Cloudflare Worker Secret Deploy** impact for exact **Cloudflare Worker Scripts** and binding names.
 - An **Approval Impact Review** has an **Approval Impact Review Fingerprint** derived from the server-generated delivery and sync impact facts being reviewed.
 - An **Approval Impact Review Fingerprint** must not be derived from **Sensitive Values**.
@@ -1180,6 +1344,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Promotion** makes every **Draft Version** in its **Promotion Change Set** a **Published Version** for protected delivery.
 - **Promotion** triggers **Immediate Sync After Promotion** for enabled **Secret Syncs** affected by any promoted version in the **Promotion Change Set**.
 - **Promotion** approval authorizes **Immediate Sync After Promotion** only for enabled **Secret Syncs** and delivery impact shown in the accepted **Approval Impact Review**.
+- **Promotion** does not publish a value that an already-enabled **Secret Sync** is known to reject for **Provider Value Size Limit**.
 - **Promotion** approval does not create, enable, or change a **Secret Sync**, **Secret Sync Binding**, **App Connection**, **Connection Boundary**, **Runtime Injection Policy**, or other protected delivery configuration.
 - Environment-based **Secret Delivery** is for **Startup Configuration**.
 - Rapidly changing values are not **Startup Configuration** and should not be modeled as repeated protected **Promotion** requests.
@@ -1192,16 +1357,36 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - **Opaque Resource IDs** are the only plaintext durable selectors for server-side resources.
 - **Sensitive Detail Gate** is required before any User-facing surface or full-fidelity export displays decrypted **Sensitive Metadata**.
 - **Display Names** are ordinary metadata and can appear in authorized app surfaces, **Scoped Lists**, approval review, and **Display Name Resolution** without a **Sensitive Detail Gate**.
-- Low-detail surfaces may show **Opaque Resource IDs**, **Display Names**, counts, status, hashes, lengths, presence flags, and generic pending states without a **Sensitive Detail Gate**.
+- Low-detail surfaces may show **Opaque Resource IDs**, **Display Names**, counts, status, hashes, non-sensitive lengths, presence flags, and generic pending states without a **Sensitive Detail Gate**.
+- Exact **Value Length Metadata** for **Protected Environment** **Secrets** requires **Sensitive Detail Gate** before User-facing display or full-fidelity export.
+- A **Scoped-Unique Display Name** is still a normal **Display Name**; uniqueness improves command ergonomics and does not make the name a durable selector.
+- A **Default Display Name** is an editable suggestion, not a reserved word or hidden system identifier.
+- A **Variable Key** is the key in the application-facing key-value pair; **Opaque Resource IDs**, **Display Names**, **CLI Profile Slugs**, and **Runtime Policy Keys** are selectors or labels around delivery.
+- A **Variable Key** is not a **CLI Profile Slug**: **Variable Keys** use uppercase underscore env-var format, while **CLI Profile Slugs** use lower-kebab local aliases.
 - **Display Name Resolution** resolves a **Display Name** to exactly one **Opaque Resource ID** within one already-authorized scope, or fails with a not-found or ambiguity result; it never auto-selects among multiple matches.
 - **Display Name Resolution** is client-side, so a **Display Name** is never a durable or server-side selector; only **Opaque Resource IDs** are cached or stored in committed config.
+- A **Resolved Target Echo** makes name-based commands readable while preserving **Opaque Resource IDs** as the durable authority.
+- A name-based command should show a **Resolved Target Echo** for the resolved target in human and JSON output when that helps humans or **Agents** understand what will happen.
 - An irreversible or destructive action requires an **Opaque Resource ID** for non-interactive and **Machine Identity** callers and does not accept **Display Name Resolution**.
 - **Sensitive Values** enter insecur only through **Safe Sensitive Input Paths**.
+- Ordinary **Secret** writes do not accept named local file inputs for **Sensitive Values**; use stdin, masked prompt, service generation, request body, or provider authorization flow.
+- Stdin input for an ordinary **Secret** write is **Exact Stdin Value Input**: after UTF-8 decoding, trailing newlines and multiline content are part of the **Sensitive Value** and are not trimmed or normalized.
+- Ordinary **Secret** writes and **Secret Import** create **Text Secret Values** only; invalid UTF-8 fails with `secret.invalid_encoding`, and insecur does not provide binary mode, implicit base64 decoding, or replacement-character decoding in V1.
+- Ordinary **Secret** writes and **Secret Import** enforce the **Secret Value Size Limit** in encoded UTF-8 bytes after validation and before any write.
+- A zero-length **Sensitive Value** is valid only through an **Explicit Empty Value Write**; empty stdin, a blank masked prompt, or an empty imported value fails by default with `secret.empty_value`.
+- If a human TTY runs an ordinary **Secret** write without service generation or stdin input, the CLI uses a **Masked Secret Prompt**.
+- Non-interactive **Secret** writes must not prompt; they fail with stable error code `secret.input_required` unless the caller explicitly selects service generation or stdin input.
 - **Misuse-Resistant Defaults** make **Secret Use** easier than **Secret Reveal**.
 - A **Secret Egress** moves a **Secret** value through either **Secret Delivery** or **Secret Reveal**.
 - **Runtime Injection** is a kind of **Secret Delivery**.
+- **Diskless Development Secret Use** uses **Runtime Injection** to avoid steady-state **Local Secret Files**.
+- A **Local Secret File** may be an adoption source through **Local Secret File Migration** and **Secret Import**, but is not the steady-state runtime path for development secrets.
+- V1 does not write **Local Secret Files** from stored **Secrets**; `pull`, `export`, dotenv generation, and similar file-output flows are not supported.
+- **Local Secret File Migration** must not rewrite, redact, or automatically delete the source **Local Secret File**.
+- **Local Secret File Removal** is a separate explicit local command after migration; it uses ordinary filesystem deletion and must not claim to remove backups, snapshots, editor copies, or prior disk blocks.
+- **Diskless Development Secret Use** reduces exposure to agents, shell history, repository scans, backups, and disk-scanning credential theft; it does not prevent the injected child process or active local malware from reading values after the **Runtime Trust Boundary**.
 - A **First Value Proof** runs against a non-protected development **Environment**.
-- A **First Value Proof** uses a service-generated **Blind Secret Write**, explicit one-command secret selection, and local **Runtime Injection**.
+- A **First Value Proof** uses a service-generated **Blind Secret Write**, explicit one-command secret selection, and local **Runtime Injection** to demonstrate **Diskless Development Secret Use**.
 - A **First Value Proof** is not a dedicated CLI command; it composes the normal secret-write and runtime-injection commands that users will keep using.
 - A **First Value Proof** returns metadata-only success or failure and never returns the **Sensitive Value**, child-process environment, raw digest, or provider state.
 - A **First Value Proof** demonstrates that insecur can create and deliver a **Sensitive Value** without revealing it to the caller; it does not prove that an arbitrary child process cannot read a value after the **Runtime Trust Boundary**.
@@ -1230,10 +1415,22 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - Selecting Automation-Friendly after onboarding is a **Risk-Broadening Delivery Change**.
 - A **CLI Profile** can select defaults for **Runtime Injection**.
 - A **CLI Profile** may reference one **Runtime Policy Key** by opaque ID.
+- A **CLI Profile** is not a **Secret** set; it can choose a default **Runtime Injection Policy**, but the policy owns exact delivery bindings.
+- A **CLI Profile** has one **CLI Profile Slug** inside the User's local CLI configuration.
+- A **CLI Profile** may have a freeform **Display Name** for readability, but that Display Name is not the command selector.
 - A **Runtime Policy Key** is a **Configured Selector**.
 - A **Runtime Policy Key** resolves to exactly one **Runtime Injection Policy**.
 - A **Runtime Injection Policy** has one or more immutable **Runtime Injection Policy Versions**.
-- A non-protected **Runtime Injection** may use exact one-command **Secret** selection through **Opaque Resource IDs** or **Display Name Resolution**.
+- A **Runtime Injection Policy** has a **Scoped-Unique Display Name** inside its **Environment**.
+- A **Runtime Injection Policy** may start with a **Default Display Name**, such as `dev-web`, `test-integration`, `migration`, or `preview-deploy`, and the **User** may rename it.
+- A **Runtime Injection Policy** is the saved switching boundary for repeatable local workflows such as development, testing, migration, and preview delivery.
+- An **Environment** may contain more **Secrets** than any one **Runtime Injection Policy** injects.
+- A **Runtime Injection Policy** must inject only its exact bound **Secrets**, not every **Secret** in the selected **Environment**.
+- A **Runtime Injection Policy** binding selects exact **Secrets** by **Opaque Resource ID**; runtime injection delivers each bound **Secret** under its **Variable Key** in the child process environment.
+- Runtime injection does not support per-policy **Variable Key** aliases in V1.
+- A non-protected **Runtime Injection** may use exact one-command **Secret** selection through **Opaque Resource IDs** or **Variable Keys**.
+- Exact one-command **Secret** selection is for first value, one-off debugging, and other ad hoc non-protected use; repeatable workflows should use a **Runtime Injection Policy**.
+- A **Runtime Injection Policy** may be selected by **Display Name Resolution** in a fully resolved parent scope for human and **Agent** ergonomics, but the resolved **Opaque Resource ID** is what authorizes, audits, and persists.
 - A **Protected Environment** **Runtime Injection** requires a **Runtime Injection Policy**.
 - The active **Runtime Injection Policy Version** authorizes **Runtime Injection** for exact **Secret** bindings.
 - **Runtime Policy Version Retention** preserves **Runtime Injection Policy Versions** independently of **Rollback Retention Window**.
@@ -1248,7 +1445,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Protected Environment** contains zero or more non-revealable **Secrets**.
 - **Secret Reveal** can apply only outside **Protected Environments**.
 - **Protected Environment** break-glass may use **Secret Delivery**, replacement, reauthorization, or **Rollback**, but not **Secret Reveal**.
-- A **High-Assurance Challenge** gates **Sensitive Detail Gate**, protected **Approval Request** approval or rejection, protected **Promotion**, protected **Rollback**, protected **Secret Import**, protected **Secret Sync** enable/run, **Protected Approval Policy Changes**, protected **Runtime Injection Policy** changes, protected **App Connection** changes, protected **Shared Secret Source** attachment, **Push Device Registration** creation/replacement, and mutating **Service Access** controls.
+- A **High-Assurance Challenge** gates **Sensitive Detail Gate**, protected **Approval Request** approval or rejection, protected **Promotion**, protected **Rollback**, protected **Secret Sync** enable/run, **Protected Approval Policy Changes**, protected **Runtime Injection Policy** changes, protected **App Connection** changes, protected **Shared Secret Source** attachment, **Push Device Registration** creation/replacement, and mutating **Service Access** controls.
 - A **Machine Identity** cannot satisfy a **High-Assurance Challenge**.
 - A **Machine Identity** may create **Blind Secret Writes** and request **Promotion** if **Organization Access** allows it.
 - A **Machine Identity** may cancel its own pending **Approval Request** when its current machine credential and **Effective Access** still authorize the affected **Project** and **Protected Environment**.
@@ -1299,6 +1496,13 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Secret Sync** has one or more exact **Secret Sync Bindings**.
 - A **Secret Sync** performs **Sync Execution Revalidation** before decrypting **Sensitive Values** or writing provider-side values.
 - A **Secret Sync** plan may use cached provider metadata, but cached planning metadata does not authorize decrypt or provider writes.
+- A **Secret Sync** validates every bound **Text Secret Value** against the destination **Provider Value Size Limit** during planning and revalidates immediately before provider write.
+- **Provider Value Size Limit** failure uses the **All-Or-Nothing Sync Pre-Write Gate**: if any bound value exceeds its destination limit, the run fails with `sync.provider_value_too_large` and writes none of the bindings.
+- Non-protected manual **Secret Sync** reports `sync.provider_value_too_large` as a **Secret Sync** run failure, not a secret-write failure.
+- `sync.provider_value_too_large` low-detail and **Agent-Reachable Channel** output may show `over_limit`, destination **Provider Value Size Limit**, **Opaque Resource IDs**, and destination type, but not exact **Value Length Metadata** for **Protected Environment** **Secrets**.
+- Authorized full-fidelity plan, status, approval, and security-review surfaces may show exact **Value Length Metadata** after **Sensitive Detail Gate** when that helps a User fix a provider-size failure.
+- **Secret Sync** must not compress, truncate, split, chunk, implicitly base64-encode, or otherwise transform a **Text Secret Value** to satisfy a **Provider Value Size Limit**.
+- The **All-Or-Nothing Sync Pre-Write Gate** applies to deterministic pre-write failures; it is not a cross-provider transaction or rollback guarantee after provider writes have begun.
 - **Sync Execution Revalidation** checks **Provider Account Linkage**, **Connection Boundary**, provider credential scope, **Sync Target** identity, provider-side resource identity, required provider protection state, and eligible source version.
 - **Sync Execution Revalidation** fails closed on **Provider Drift**.
 - **Provider Drift** during **Sync Execution Revalidation** returns stable code `sync.provider_drift`.
@@ -1335,8 +1539,12 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Secret Sync** may be enabled or disabled.
 - A **Secret Sync** does not perform **Provider Readback**.
 - **Secret Import** uses **Safe Sensitive Input Paths**.
-- The V1 adoption paths into insecur are manual entry through a **Safe Sensitive Input Path** (stdin, masked prompt, or request body) and **Secret Import** of a local `.env` file or other local file from the **User**'s own machine.
-- A local `.env` or file **Secret Import** runs client-side to create one **Blind Secret Write** per parsed key and never writes the parsed **Sensitive Values** to a durable plaintext file or to logs.
+- The V1 development adoption paths into insecur are manual entry through a **Safe Sensitive Input Path** (stdin, masked prompt, or request body) and **Secret Import** of a local `.env` file or other local file from the **User**'s own machine.
+- A local `.env` or file **Secret Import** targets only a non-protected development **Environment**, runs client-side, performs **Import Preflight**, creates one **Blind Secret Write** per parsed **Variable Key** only after the whole source is valid, and never writes the parsed **Sensitive Values** to a durable plaintext file or to logs.
+- **Local Secret File Migration** is the only V1 local-file ingress path for **Sensitive Values** and is limited to non-protected development adoption.
+- **Local Secret File Migration** is one-way: values may enter insecur from a **Local Secret File**, but stored **Secrets** are not written back to `.env`, dotenv, JSON, or other local plaintext secret files.
+- **Local Secret File Migration** leaves the source **Local Secret File** unchanged and may warn that it still exists.
+- **Local Secret File Removal** may delete the source file only through a separate explicit user command and confirmation.
 - **Secret Import** is separate from **Secret Sync** verification.
 - **Secret Import** does not read **Sensitive Values** from provider secret stores in V1; there is no provider read-back adoption path, consistent with **Provider Readback** being prohibited.
 - Existing provider-side destinations can be detected during **Secret Sync** setup and planning to produce **Provider Overwrite Warnings** for exact bindings.
@@ -1404,10 +1612,73 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 > **Domain expert:** "No. An **Environment**'s protected status is fixed at creation. Create a new **Protected Environment** and migrate the **Secret Shapes**; there is no in-place protect/unprotect toggle."
 >
 > **Dev:** "Can a Secret hold a JSON blob with several fields?"
-> **Domain expert:** "Not in V1. A **Secret** value is a single UTF-8 string. Structured values are a deferred additive type, so model multiple fields as separate **Secrets** for now."
+> **Domain expert:** "Not in V1. A **Secret** value is a **Text Secret Value**: one valid UTF-8 string. Structured values are a deferred additive type, so model multiple fields as separate **Secrets** for now."
+>
+> **Dev:** "Where is the actual key-value store?"
+> **Domain expert:** "Inside each **Environment**. A **Secret Shape** defines the **Variable Key** such as `DATABASE_URL`; that Environment's **Secret** points to the selected **Secret Version** whose **Sensitive Value** is delivered. Runtime injection turns that into `DATABASE_URL=<value>` for the child process."
 >
 > **Dev:** "Can I bulk-load my local `.env` to get started?"
-> **Domain expert:** "Yes, through a client-side **Secret Import** over a **Safe Sensitive Input Path**: it parses the file locally and does one **Blind Secret Write** per key. That is import, not **Secret Sync**, and insecur never reads values back from a provider to populate itself."
+> **Domain expert:** "Yes, through **Local Secret File Migration** using client-side **Secret Import** over a **Safe Sensitive Input Path**: it parses the file locally and does one **Blind Secret Write** per **Variable Key**. That is import, not **Secret Sync**, and insecur never reads values back from a provider to populate itself."
+>
+> **Dev:** "If one `.env` key is invalid, do we import the rest?"
+> **Domain expert:** "No. **Import Preflight** validates the whole file before any **Blind Secret Writes**. Errors may show invalid **Variable Keys** and line numbers, but never values."
+>
+> **Dev:** "If the same `.env` key appears twice, should import use the last one?"
+> **Domain expert:** "No. Duplicate final **Variable Keys** fail **Import Preflight**. The user should clean up the file so there is exactly one intended value for each key."
+>
+> **Dev:** "Can I preview what `.env` import will do before values move?"
+> **Domain expert:** "Yes. Produce a **Secret Import Plan** from **Import Preflight**: target scope, final **Variable Keys**, planned **Secret Shape** creates or matches, planned **Secret** creates, and any invalid or duplicate final keys. It must not show **Sensitive Values** or raw file contents."
+>
+> **Dev:** "If I import with `--variable-key-prefix LOCAL_`, do we validate `DATABASE_URL` or `LOCAL_DATABASE_URL`?"
+> **Domain expert:** "Validate the final **Variable Key**. Apply the **Variable Key Prefix** first, then **Import Preflight** validates and de-duplicates the final keys. The prefix cannot normalize or fix parsed keys unless the final key itself is valid."
+>
+> **Dev:** "If `.env` contains a key that already exists in the target Environment, should import update it?"
+> **Domain expert:** "No. **Local Secret File Migration** is create-only. Existing final **Variable Keys** produce **Import Existing Secret Conflicts** and no writes happen. Change existing **Secrets** with normal secret-write or rotation workflows, not by reloading a local file."
+>
+> **Dev:** "Should `.env` import automatically create a Runtime Injection Policy from the imported keys?"
+> **Domain expert:** "No. **Secret Import Delivery Separation** is strict: import migrates values into non-protected development **Secrets** only. It must never create, change, or bind **Runtime Injection Policies**."
+>
+> **Dev:** "Can I import a `.env` file into production or another Protected Environment?"
+> **Domain expert:** "No. **Local Secret File Migration** is only for non-protected development **Environments**. Protected values enter through protected secret-write, generation, draft, **Promotion**, and rollback workflows."
+>
+> **Dev:** "Can I run `secrets set --value-file ./secret.txt`?"
+> **Domain expert:** "No. Ordinary **Secret** writes must not accept named local file inputs. Use `--value-stdin`, a masked prompt, service generation, request body, or provider authorization flow. **Local Secret File Migration** is the only V1 local-file ingress path, and only for non-protected development adoption."
+>
+> **Dev:** "If I run `secrets set` in my terminal without `--generate` or `--value-stdin`, what happens?"
+> **Domain expert:** "In a human TTY, the CLI uses a **Masked Secret Prompt**. In non-interactive mode, it fails with `secret.input_required` and tells the caller to choose service generation or stdin input."
+>
+> **Dev:** "Does `--value-stdin` trim the newline from `echo secret`?"
+> **Domain expert:** "No. Stdin uses **Exact Stdin Value Input**. If the caller sends a trailing newline or multiline value, that is the **Sensitive Value**. Use a no-newline producer such as `printf %s` when no newline is intended."
+>
+> **Dev:** "Can I store an empty secret value?"
+> **Domain expert:** "Yes, but only as an **Explicit Empty Value Write**. Empty stdin, a blank masked prompt, or an empty imported value fails by default with `secret.empty_value`; the caller must explicitly allow a zero-length value."
+>
+> **Dev:** "Can I pipe arbitrary binary bytes into `--value-stdin`?"
+> **Domain expert:** "No. V1 **Secret** values are **Text Secret Values**. Invalid UTF-8 fails with `secret.invalid_encoding`; if a binary credential is needed, encode it before writing and store the encoded text intentionally."
+>
+> **Dev:** "Is the Secret value size limit counted in characters or bytes?"
+> **Domain expert:** "Bytes. The V1 **Secret Value Size Limit** is 64 KiB encoded UTF-8 bytes after validation. If the value exceeds the limit, the write fails with `secret.value_too_large` before any **Secret Version** is created."
+>
+> **Dev:** "Does the 64 KiB storage limit fit every provider sync target?"
+> **Domain expert:** "No. 64 KiB is insecur's storage limit, not a provider compatibility promise. **Secret Sync** must validate the destination **Provider Value Size Limit** and fail with `sync.provider_value_too_large` before provider write when a stored value is too large for that target."
+>
+> **Dev:** "If one sync binding is too large for the provider, do the other bindings still write?"
+> **Domain expert:** "No. That hits the **All-Or-Nothing Sync Pre-Write Gate**: `sync.provider_value_too_large` blocks the whole run before any provider write starts."
+>
+> **Dev:** "Should the too-large error show the exact value length?"
+> **Domain expert:** "Only in authorized full-fidelity plan, status, approval, or security-review surfaces. For **Protected Environment** **Secrets**, exact **Value Length Metadata** is **Sensitive Metadata** and requires **Sensitive Detail Gate**. Low-detail and **Agent-Reachable Channel** output shows `over_limit`, provider cap, destination type, and opaque IDs."
+>
+> **Dev:** "Should insecur auto-compress, truncate, chunk, or encode a too-large value for provider sync?"
+> **Domain expert:** "No. That would be **Automatic Provider Value Transform** and would change application semantics. Fail with `sync.provider_value_too_large`; the User must explicitly choose **Runtime Injection**, a smaller value, provider-supported external storage, or caller-managed encoded text."
+>
+> **Dev:** "Can protected Promotion publish a value that an already-enabled sync cannot deliver because of a provider cap?"
+> **Domain expert:** "No. The **Approval Impact Review** includes **Protected Promotion Sync Preflight**. `sync.provider_value_too_large` blocks **Promotion** before any **Published Version** change or **Immediate Sync After Promotion** enqueue."
+>
+> **Dev:** "Should import rewrite or delete the `.env` after the values are migrated?"
+> **Domain expert:** "No. **Local Secret File Migration** leaves the file unchanged. If the user wants cleanup, they run a separate **Local Secret File Removal** command with explicit confirmation."
+>
+> **Dev:** "Can I export the secrets back to `.env` for a legacy local tool?"
+> **Domain expert:** "No. V1 supports migration from **Local Secret Files**, not writing **Local Secret Files**. Use **Runtime Injection** for local commands."
 >
 > **Dev:** "If we sync a production secret to Cloudflare, is that just updating metadata?"
 > **Domain expert:** "No. A `cloudflare` **Secret Sync** writes a **Cloudflare Worker Secret** on an exact **Cloudflare Worker Script**, and that creates **Cloudflare Worker Secret Deploy** impact for that script."
@@ -1509,7 +1780,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 > **Domain expert:** "No. **Guided Organization Provisioning** creates a **Personal Organization**, **Default Team**, owner **Membership**, first **Project**, and non-protected development **Environment** for an admitted **User**, while growth still happens through **Invitations** and **Memberships**."
 >
 > **Dev:** "Can the first-run demo prove the agent never reads the value?"
-> **Domain expert:** "No. A **First Value Proof** proves delivery-without-reveal for the caller and output path: a service-generated **Blind Secret Write** is consumed through **Runtime Injection** using ordinary CLI commands and returns metadata-only success or failure. After the **Runtime Trust Boundary**, an arbitrary child process can read the development value it was intentionally given."
+> **Domain expert:** "No. A **First Value Proof** proves **Diskless Development Secret Use** for the caller and output path: a service-generated **Blind Secret Write** is consumed through **Runtime Injection** using ordinary CLI commands and returns metadata-only success or failure. After the **Runtime Trust Boundary**, an arbitrary child process can read the development value it was intentionally given."
 >
 > **Dev:** "Should First Value Proof be a special onboarding command?"
 > **Domain expert:** "No. It should use the real **Blind Secret Write** and **Runtime Injection** commands so the first success demonstrates the actual product surface."
@@ -1581,7 +1852,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 > **Domain expert:** "No. Every **Secret Sync** run performs **Sync Execution Revalidation** immediately before decrypting **Sensitive Values**. **Provider Drift** returns `sync.provider_drift` and writes nothing."
 >
 > **Dev:** "If a provider secret already exists, can we import it?"
-> **Domain expert:** "Only if the **Sensitive Value** enters through **Secret Import**. V1 does not read provider-side **Sensitive Values**. If the destination is already set, **Explicit Provider Lookup** produces a **Provider Overwrite Warning** for the exact **Secret Sync Binding**."
+> **Domain expert:** "Only if the **Sensitive Value** enters through a **Safe Sensitive Input Path**. V1 does not read provider-side **Sensitive Values**. If the destination is already set, **Explicit Provider Lookup** produces a **Provider Overwrite Warning** for the exact **Secret Sync Binding**."
 >
 > **Dev:** "If a provider already has a value for a synced variable, do we preserve it?"
 > **Domain expert:** "No. A **Secret Sync** is authoritative for exact **Secret Sync Bindings**. Once the **User** approves those bindings, sync performs **Provider Sync Overwrite** without reading the old provider-side value."
@@ -1617,7 +1888,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 > **Domain expert:** "Yes. Use a service-generated **Blind Secret Write** to create a **Draft Version**, then have the agent request **Promotion**. The **User** approves that request once."
 >
 > **Dev:** "After approval, do production provider secrets wait for another command?"
-> **Domain expert:** "No. **Immediate Sync After Promotion** enqueues every enabled **Secret Sync** affected by any promoted version."
+> **Domain expert:** "No, after **Protected Promotion Sync Preflight** passes. **Immediate Sync After Promotion** enqueues every enabled **Secret Sync** affected by any promoted version."
 >
 > **Dev:** "Can an agent ask to promote everything it staged?"
 > **Domain expert:** "No. It must create a **Promotion Change Set** with exact **Draft Versions** in one **Protected Environment**."
@@ -1797,6 +2068,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "policy version" should be written as **Runtime Injection Policy Version** when it refers to runtime authorization state.
 - "edit policy" means create a new **Runtime Injection Policy Version** and update the active version pointer.
 - "secret filter" should not be used for **Runtime Injection Policy**; use exact secret bindings.
+- "secret group" is ambiguous; use **Runtime Injection Policy** when the saved set is for a command or workflow, and **Team** when the group is people.
 - "wildcard" and "pattern" are invalid for **Runtime Injection Policy** secret selection.
 - "command log" should be written as **Command Output Boundary** when deciding whether stdout/stderr can be captured.
 - "API key" is ambiguous; use **Scoped Provider Token** for manually created provider tokens and deployment secret for insecur's own platform/provider keys.
@@ -1809,6 +2081,16 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "repo secret" is ambiguous; use GitHub repository secret when referring to repository-wide provider scope, and project-specific Secret Sync when referring to insecur's Project boundary.
 - "sync import" is ambiguous and unsafe; use **Secret Import** for a value entering insecur and **Secret Sync** for a value leaving insecur.
 - "import from .env" and "load my env file" should be written as a client-side **Secret Import** through a **Safe Sensitive Input Path**, not **Secret Sync** and not **Provider Readback**.
+- "protected import" and "production .env import" should not be used for **Local Secret File Migration**; local file import is only for non-protected development **Environments**.
+- "prefix-normalized key" should not be used for **Variable Key Prefix** behavior; prefixes are applied before **Import Preflight**, and the final **Variable Key** must be valid as written.
+- "best effort import" and "partial import" should not be used for **Local Secret File Migration**; use **Import Preflight** and all-or-nothing import.
+- "last key wins" and "first key wins" should not be used for duplicate final **Variable Keys** in **Local Secret File Migration**; duplicates fail **Import Preflight**.
+- "overwrite on import", "update on import", and "reload from .env" should not be used for **Local Secret File Migration**; import is create-only and existing final **Variable Keys** produce **Import Existing Secret Conflicts**.
+- "auto-create policy from import" and "import-created policy" should not be used; **Secret Import Delivery Separation** forbids **Secret Import** from creating, changing, or binding **Runtime Injection Policies**.
+- "preview `.env` values" and "show imported values" should not be used for import dry-runs; use **Secret Import Plan** for metadata-only import impact.
+- "pull secrets", "export secrets", and "generate .env" should not be used for local plaintext file output in V1; write **Local Secret File Migration** for `.env` to insecur and **Runtime Injection** for command execution.
+- "shred .env" or "securely delete .env" should not be used unless secure erasure is actually guaranteed; write **Local Secret File Removal** for ordinary local deletion.
+- "auto-delete after import" and "rewrite .env after import" should not be used; **Local Secret File Migration** leaves the source file unchanged.
 - "provider probe" should not be used; **Explicit Provider Lookup** is not a standalone UI, API, or CLI command in V1.
 - "provider error message" should be written as **Provider Lookup Status** for **Explicit Provider Lookup** failures; raw provider text is not product output.
 - "orphan value" should be written as **Orphaned Managed Provider Copy** when provider cleanup may have failed; it is not a stored insecur **Sensitive Value**.
@@ -1856,7 +2138,14 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "approval link" should be written as an **Approval Notification** deep link when it opens the authenticated approval view, and must not imply a bearer approval action.
 - "stale approval link" should be written as an **Approval Notification** deep link resolving to closed or stale approval view state.
 - "view sensitive details" should be written as satisfying the **Sensitive Detail Gate** when decrypted **Sensitive Metadata** is displayed.
-- "secret name", "environment name", and "project name" should be written as **Display Name** when they are user-authored product labels.
+- "secret name" is ambiguous; use **Variable Key** for the application-facing key such as `DATABASE_URL`, and **Display Name** only for a user-authored readability label.
+- "env var name" and "environment variable key" should be written as **Variable Key**.
+- "normalize env var names" should not be used for V1 import; parsed keys must not be silently converted into **Variable Keys**, and any explicit **Variable Key Prefix** is applied before validation rather than treated as normalization.
+- "environment name" and "project name" should be written as **Display Name** when they are user-authored product labels.
+- "human-friendly name" and "agent-friendly name" should usually be written as **Display Name** plus **Display Name Resolution**; do not create a second plaintext selector unless a separate decision adds it.
+- "unique policy name" should be written as **Scoped-Unique Display Name** for **Runtime Injection Policy** when the command-facing name must be unique inside an **Environment**.
+- "default policy name" should be written as **Default Display Name** when the product suggests an editable initial policy name.
+- "show me what this command targets" should be written as **Resolved Target Echo** when the output echoes the resolved ID, Display Name, type, and parent scope.
 - "email approval" should not be used; approval happens in the authenticated approval view, not in email.
 - "push token" should be written as **Push Device Registration** when ownership, revocation, or notification delivery is the boundary.
 - "primary approval path" should be written as **Primary Approval Notification Channel** only when referring to notification preference, not approval authority.
@@ -1864,7 +2153,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "approve and enable sync" should be split into **Promotion** and a separate **Protected Delivery Configuration Change**.
 - "agent never reads the value" should not be used for non-protected local **Runtime Injection**; say **First Value Proof** demonstrates delivery-without-reveal in caller output, while the child process can read injected values after the **Runtime Trust Boundary**.
 - "first-run proof command" should not be used; **First Value Proof** uses normal secret-write and runtime-injection commands.
-- "secret name as ID" should not be used; a non-protected create-or-update shortcut may create a **Secret Shape** from a **Display Name**, but audit and durable selection still use the generated **Opaque Resource ID**.
+- "secret name as ID" should not be used; a non-protected create-or-update shortcut may create a **Secret Shape** from a **Variable Key**, but audit and durable resource selection still use the generated **Opaque Resource ID**.
 - "terminal approval" should not be used for **Protected Environment** approval in V1; use **Human Approval Surface** for the approval and **Agent-Reachable Channel** for request/poll behavior.
 - "let the agent deploy production" should be written as a rejected **Delivery Risk Policy** shape for **Protected Environments** in V1.
 - "agent can deploy preview" should be written as a **Delivery Risk Policy** allowing non-protected preview delivery through **Agent-Reachable Channels**.
@@ -1885,24 +2174,34 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "backup copy" should be written as **Rollback Retention Window** when referring to encrypted prior version retention for rollback.
 - "single source of truth" should be written as **Secret Source of Truth** when referring to insecur's canonical value for sync and delivery.
 - "profile" is ambiguous; use **CLI Profile** for named local command/deploy context.
+- "profile name" should be written as **CLI Profile Slug** when the command selector is meant; a **CLI Profile** Display Name may be freeform and is not a selector.
 - "storage is ready" should be written as **Storage Security Gate** when referring to the required tenant-bound encryption baseline for **Secrets**, **Provider Credentials**, and **Sensitive Metadata**.
 - "encrypted at rest" is too weak when discussing storage invariants; use **No Plaintext Persistence**.
 - "redact secrets" is too weak when discussing observability invariants; use **Secret-Free Logging**.
 - "metadata-only" does not mean broadly safe; use **Sensitive Metadata** when names, targets, or relationships can expose security-relevant structure.
 - "provider variable name" or "provider secret name" used by **Explicit Provider Lookup** or **Secret Sync Binding** should be written as **Sensitive Metadata**.
+- "exact secret length" should be written as **Value Length Metadata**; for **Protected Environment** **Secrets**, it is **Sensitive Metadata**.
 - "metadata encryption" should be written as **Sensitive Metadata Encryption** when referring to security-relevant names, targets, or relationships.
 - "slug" should not be used for durable server-side selectors; use **Opaque Resource ID**.
 - "search" should not be used for v1 Sensitive Metadata discovery; use **Scoped List** or **Configured Selector**.
 - "name" is ambiguous; use **Display Name** for user-authored product labels and **Sensitive Metadata** for provider-side names, targets, notes, device routing, or security-relevant relationships.
+- "key" is ambiguous; use **Variable Key** for application env-var keys, **Opaque Resource ID** for resource identity, **Runtime Policy Key** for the current runtime policy selector term, and cryptographic key terms for encryption material.
 - "scoped lookup", "look up by name", and "find the X named Y" are ambiguous; use **Scoped List** for an authorized browse or filter and **Display Name Resolution** for resolving a name to exactly one **Opaque Resource ID** before acting.
 - "pass the secret" is ambiguous; use **Safe Sensitive Input Path** when describing how values enter the system.
-- "value flag" is unsafe for **Sensitive Values**; use stdin, a masked prompt, request body, or provider authorization flow.
+- "value flag" and "value file" are unsafe for ordinary **Secret** writes; use stdin, a **Masked Secret Prompt**, request body, service generation, or provider authorization flow.
+- "trim stdin" or "strip the final newline" should not be used for **Sensitive Value** stdin input; use **Exact Stdin Value Input**.
+- "blank means delete" or "empty means unset" should not be used for **Secrets**; use **Explicit Empty Value Write** for a zero-length **Sensitive Value** and normal delete/remove terms for deletion.
+- "prompt in CI" should not be used for **Secret** writes; non-interactive callers must select service generation or stdin input.
 - "idiot-proof" should be written as **Misuse-Resistant Defaults** when referring to product behavior that prevents accidental unsafe actions.
 - "MFA required" should be written as **High-Assurance Challenge** when referring to a fresh verification gate for a high-risk action.
 - "actual secret" should be written as **Sensitive Value** when referring to protected plaintext beyond managed **Secret** values.
 - "plaintext access" is ambiguous between **Secret Delivery** and **Secret Reveal**; use **Secret Reveal** only when the caller receives the plaintext value.
 - "keys" is ambiguous between **Secrets** and encryption keys; use **Secret** for application values and **Organization Data Key** or **Project Data Key** for encryption material.
-- "structured secret", "JSON secret", and "multi-field secret" should not be used for V1; a **Secret** value is a single UTF-8 string, and structured values are a deferred additive type.
+- "structured secret", "JSON secret", and "multi-field secret" should not be used for V1; a **Secret** value is a **Text Secret Value**, and structured values are a deferred additive type.
+- "binary secret" should not be used for V1 managed **Secrets**; store caller-encoded text as a **Text Secret Value** when binary credential material must be represented.
+- "character limit" should not be used for V1 managed **Secret** values; use **Secret Value Size Limit** measured in encoded UTF-8 bytes.
+- "fits every provider" should not be used for the 64 KiB **Secret Value Size Limit**; use **Provider Value Size Limit** for destination-specific sync caps.
+- "auto-compress", "auto-truncate", "chunk the secret", and "auto-encode for provider sync" should be written as forbidden **Automatic Provider Value Transform**.
 - "access to secrets" is ambiguous between **Secret Use** and **Secret Reveal**; use **Secret Use** when the actor can trigger delivery but cannot receive the value.
 - "production secret" should be written as **Protected Environment** **Secret** when discussing reveal and delivery policy.
 - "make this environment protected", "toggle protection", and "lock the environment" should not be used; an **Environment**'s protected status is fixed at creation, so changing it means creating a new **Environment**.

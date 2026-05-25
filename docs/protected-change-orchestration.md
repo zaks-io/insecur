@@ -75,6 +75,7 @@ State names are documentation vocabulary, not a required database enum. The requ
 - A High-Assurance Challenge for Publish is single-use, time-limited, and bound to the exact Staged Change Set review fingerprint.
 - A batch whose contents, target state, approval policy, requester authority, or delivery impact changes after review must be reviewed again.
 - Approval Impact Review is recomputed immediately before approval or final apply and includes enabled Secret Syncs that Promotion will enqueue.
+- Approval Impact Review validates Provider Value Size Limits for enabled Secret Syncs affected by protected Promotion; `sync.provider_value_too_large` blocks Promotion before Published Version changes or Immediate Sync After Promotion enqueue.
 - Cloudflare Worker Secret Deploy impact from already-enabled Cloudflare Secret Syncs is approval evidence inside the accepted Approval Impact Review, not a second deploy approval.
 - Partial Approvals count only while their Approval Impact Review Fingerprint still matches and the approving User still has current approval authority.
 - Requester self-approval is allowed only for a one-approval Protected Approval Policy when the requester has approval scopes and completes the High-Assurance Challenge.
@@ -93,10 +94,10 @@ The orchestrator is deep when callers do not need to know the protected-change s
 
 - Ask the Effective Access Resolver for current capability in one Organization, Project, and Protected Environment.
 - Ask the Protected Approval Policy evaluator which approval gates are required.
-- Produce Approval Impact Review facts from current delivery configuration, exact Draft Versions, enabled sync enqueue impact, and Cloudflare Worker Secret Deploy impact where applicable.
+- Produce Approval Impact Review facts from current delivery configuration, exact Draft Versions, enabled sync enqueue impact, Provider Value Size Limit eligibility, and Cloudflare Worker Secret Deploy impact where applicable.
 - Bind High-Assurance Challenge evidence to the current review fingerprint.
 - Store Approval Requests, Partial Approvals, snapshots, closures, and audit records through the Tenant-Scoped Store.
-- Call Secret Version Store Promotion only after gates are satisfied.
+- Call Secret Version Store Promotion only after gates and Protected Promotion Sync Preflight are satisfied.
 - Activate protected delivery configuration changes only from the reviewed Staged Change Set.
 - Emit metadata-only events to Approval Notification adapters.
 - Enqueue Immediate Sync After Promotion as operation IDs and target metadata, never Sensitive Values.
@@ -111,7 +112,7 @@ The Interface is the test surface:
 - Staged Change Set tests prove one Protected Environment scope, exact batch fingerprinting, no App Connection setup item, and stale review after any batch or target change.
 - Publish tests prove one High-Assurance Challenge can clear only the gates the acting User is authorized to clear, and Distinct Approver requirements still fan out.
 - Approval purpose separation tests prove Promotion approval cannot create or change protected delivery configuration, and protected delivery configuration approval cannot promote Draft Versions by itself.
-- Approval Impact Review tests prove delivery and sync impact are recomputed before approval/final apply, Sensitive Values are excluded, and stale review returns a stable denial without live effects.
+- Approval Impact Review tests prove delivery and sync impact are recomputed before approval/final apply, Provider Value Size Limit failures block Promotion before publish, Sensitive Values are excluded, and stale review returns a stable denial without live effects.
 - Partial Approval tests prove fingerprint binding, Approver Access Revalidation, distinct User counting, requester self-approval rules, and audit-only behavior after invalidation.
 - Closure tests prove rejection, cancellation, supersession, Approval Policy Staleness, Requester Access Staleness, target lifecycle closure, and draft-discard closure are terminal.
 - Draft Version Reuse tests prove closed Approval Requests cannot contribute approvals, impact reviews, snapshots, or screen state to a fresh request.

@@ -52,6 +52,13 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0047: Regulated-Industry Exclusion By Contract And Attestation](0047-regulated-industry-exclusion-by-contract-and-attestation.md)
 - [ADR-0048: Breach Forensic Record Separate From Product Audit Retention](0048-breach-forensic-record-separate-from-audit-retention.md)
 - [ADR-0049: Vendor Ports And Adapters](0049-vendor-ports-and-adapters.md)
+- [ADR-0050: Customer-Managed Key Custody](0050-customer-managed-key-custody.md)
+- [ADR-0051: Web Console Architecture](0051-web-console-architecture.md)
+- [ADR-0052: Web No-Reveal Boundary And Management Parity](0052-web-no-reveal-boundary-and-management-parity.md)
+- [ADR-0053: Remote Build Cache Trust Model](0053-remote-build-cache-trust-model.md)
+- [ADR-0054: Tenant-Isolation Tests Run Against Real Postgres](0054-tenant-isolation-tests-real-postgres.md)
+- [ADR-0055: ESLint And Prettier Type-Aware Toolchain](0055-eslint-prettier-type-aware-toolchain.md)
+- [ADR-0056: Supply-Chain Hardening Posture](0056-supply-chain-hardening-posture.md)
 
 ## Superseded
 
