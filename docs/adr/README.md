@@ -44,6 +44,7 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0039: Cloudflare Worker Secrets Sync Target](0039-cloudflare-worker-secrets-sync-target.md)
 - [ADR-0040: Guided Personal Organization Provisioning](0040-guided-personal-organization-provisioning.md)
 - [ADR-0041: First Value Before Production Delivery](0041-first-value-before-production-delivery.md)
+- [ADR-0042: Policy-Gated Delivery Channels](0042-policy-gated-delivery-channels.md)
 
 ## Superseded
 

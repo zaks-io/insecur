@@ -72,6 +72,7 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 - No ASVS/API Top 10/security release gate automation or evidence bundle exists yet
 - No dependency, supply-chain, or secret scanning workflow exists yet
 - No UI exists
+- No Human Approval Surface or Delivery Risk Policy implementation exists yet
 - No WorkOS AuthKit, WorkOS MFA, or high-risk action challenge implementation exists yet
 - No GitHub Actions OIDC federation endpoint exists
 - No key rotation, machine identity credential rotation, app connection credential rotation, or provider reauthorization workflow exists
@@ -105,6 +106,10 @@ OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, 
 
 Profile-ID-based `insecur run <profile-id> -- <command>` for deploys and local commands so developers and agents can use secrets without local secret files or secret reveal. The guided First Value Proof uses this path in a non-protected development Environment before any provider setup. Production runtime injection remains blocked until the Storage Security Gate passes.
 
+**V1 approval UX and delivery policy**
+
+Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, and Cloudflare Worker Secret Deploy approval evidence. Delivery Risk Policy defaults secure and can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only.
+
 **Post-v1 hardening**
 
 Focused UI, rotation framework, Cron Triggers, Durable Object serialization, encrypted R2 backups, restore testing, key rotation procedure, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
@@ -119,17 +124,18 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 6. Bind the secret ciphertext layer to organization/project/environment/secret identity and bind the DEK-wrap layer to the data-key version with AES-GCM authenticated data.
 7. Add the Storage Security Gate from [storage-security-gate.md](storage-security-gate.md) so production Secret Delivery and Secret Sync fail closed until tenant-bound storage readiness is verified.
 8. Add Protected Environment Draft Version, Promotion, Published Version, rollback, Rollback Retention Window behavior, and the Protected Change Orchestrator from [protected-change-orchestration.md](protected-change-orchestration.md).
-9. Strengthen secret version write, promotion, and rollback concurrency guarantees.
-10. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
-11. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
-12. Implement GitHub Actions OIDC federation for short-lived CI access.
-13. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
-14. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs behind the Storage Security Gate.
-15. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, queue-backed run, verify, retry/reauth.
-16. Add Cloudflare Queues, retry, dead-letter handling, and Durable Object provider-target serialization for sync operations.
-17. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
-18. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
-19. Write the security runbooks catalogued in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
-20. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests before broad public signup.
-21. Add the security release gate evidence bundle and automation from [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md), including ASVS/API Top 10 checks, dependency scanning, and secret scanning.
-22. Add the focused UI after API, CLI, and sync flows are verified.
+9. Add the Human Approval Surface and Delivery Risk Policy so Protected Environment gates are not terminal-only while non-protected preview/development relaxations are explicit and audited.
+10. Strengthen secret version write, promotion, and rollback concurrency guarantees.
+11. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
+12. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
+13. Implement GitHub Actions OIDC federation for short-lived CI access.
+14. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
+15. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs behind the Storage Security Gate.
+16. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, queue-backed run, verify, retry/reauth.
+17. Add Cloudflare Queues, retry, dead-letter handling, and Durable Object provider-target serialization for sync operations.
+18. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
+19. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
+20. Write the security runbooks catalogued in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
+21. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests before broad public signup.
+22. Add the security release gate evidence bundle and automation from [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md), including ASVS/API Top 10 checks, dependency scanning, and secret scanning.
+23. Add the broader focused UI after API, CLI, and sync flows are verified.

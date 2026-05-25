@@ -25,7 +25,7 @@ The design notes live in [docs/architecture.md](docs/architecture.md), the CLI/s
 
 The first production release is not a dev-only secrets store or a single-owner shortcut. V1 targets Small-Group Production: personal projects and relatively small trusted groups using production-quality secret protection, with an Enterprise-Ready Model underneath so later enterprise support does not require a tenant, authorization, audit, or key-boundary refactor.
 
-V1 is split into two ordered milestones: **First Value** proves provider-free non-protected development Secret Use, and **Production Delivery** adds protected environments, provider sync, machine access, approvals, audit/export, runbooks, and the Storage Security Gate.
+V1 is split into two ordered milestones: **First Value** proves provider-free non-protected development Secret Use, and **Production Delivery** adds protected environments, provider sync, machine access, policy-gated approval UX, audit/export, runbooks, and the Storage Security Gate.
 
 Hosted onboarding creates a Personal Organization, owner Membership, first Project, and non-protected development Environment for an admitted user so the first session can focus on a provider-free First Value Proof: creating and using a secret through local Runtime Injection without provider setup. The copyable verifier lives in [examples/first-value-proof](examples/first-value-proof). That Personal Organization can grow into a small-team Organization through Invitations and Memberships.
 
@@ -40,5 +40,6 @@ Production Secret Delivery and Secret Sync are blocked until the [Storage Securi
 - **First Value** — guided Personal Organization provisioning, first Project, non-protected development Environment, service-generated Blind Secret Write, `run --secret-name`, and copyable First Value Proof
 - **Production foundation** — tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key versions, protected promotion/rollback, and security gates
 - **V1 machine access** — machine identities and GitHub Actions OIDC federation for short-lived CI access
+- **V1 approval UX** — Human Approval Surface for protected gates plus Delivery Risk Policy for explicit non-protected preview/development automation
 - **V1 delivery** — OAuth app connections and sync engines for Vercel, GitHub, and direct Cloudflare Worker secrets, plus profile-based `insecur run` for deploy and local command injection
 - **Post-v1 hardening** — focused UI, deeper rotation automation, R2 backups, restore tests, and operational polish

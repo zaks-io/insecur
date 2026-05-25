@@ -532,6 +532,18 @@ _Avoid_: access when it could be confused with secret reveal
 A provider-free first-run demonstration that uses ordinary CLI commands for a service-generated **Blind Secret Write** and local **Runtime Injection** to show **Secret Use** without **Secret Reveal**.
 _Avoid_: agent-proof secret, provider setup test
 
+**Agent-Reachable Channel**:
+An interaction path an **Agent** can drive with an inherited human session, **Machine Identity**, or local automation credential, such as CLI commands, API calls, and operation polling.
+_Avoid_: CLI-only when API access is also possible
+
+**Human Approval Surface**:
+The authenticated web app surface where a **User** reviews high-risk action impact, satisfies **High-Assurance Challenges**, and confirms protected delivery decisions outside an agent-controlled terminal.
+_Avoid_: approval email, terminal approval, notification when review authority is meant
+
+**Delivery Risk Policy**:
+An **Organization Configuration** or project/environment-scoped policy that controls which **Secret Delivery**, deployment, approval, and confirmation paths are allowed for non-protected, preview, and protected workflows.
+_Avoid_: blanket agent permissions, production shortcut
+
 ### Machine Access And Provider Connections
 
 **Protected Environment**:
@@ -1163,6 +1175,10 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **First Value Proof** is not a dedicated CLI command; it composes the normal secret-write and runtime-injection commands that users will keep using.
 - A **First Value Proof** returns metadata-only success or failure and never returns the **Sensitive Value**, child-process environment, raw digest, or provider state.
 - A **First Value Proof** demonstrates that insecur can create and deliver a **Sensitive Value** without revealing it to the caller; it does not prove that an arbitrary child process cannot read a value after the **Runtime Trust Boundary**.
+- An **Agent-Reachable Channel** can request, plan, stage, and poll high-risk operations, but cannot satisfy a **High-Assurance Challenge** by itself.
+- A **Human Approval Surface** is required for **Protected Environment** approval, **Promotion**, protected delivery configuration changes, protected **Secret Sync** enable/run, protected **Runtime Injection Policy** changes, and Cloudflare Worker Secret Deploy approval evidence.
+- A **Delivery Risk Policy** may allow **Agent-Reachable Channels** to perform configured non-protected preview or development delivery actions.
+- A **Delivery Risk Policy** must not make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
 - A **CLI Profile** can select defaults for **Runtime Injection**.
 - A **CLI Profile** may reference one **Runtime Policy Key** by opaque ID.
 - A **Runtime Policy Key** is a **Configured Selector**.
@@ -1437,6 +1453,12 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 >
 > **Dev:** "Should First Value Proof be a special onboarding command?"
 > **Domain expert:** "No. It should use the real **Blind Secret Write** and **Runtime Injection** commands so the first success demonstrates the actual product surface."
+>
+> **Dev:** "Can a policy let agents deploy preview environments from the CLI?"
+> **Domain expert:** "Yes, a **Delivery Risk Policy** may allow configured non-protected preview or development delivery through **Agent-Reachable Channels**. Protected production approval still routes through the **Human Approval Surface**."
+>
+> **Dev:** "Can an organization configure production approval to be terminal-only?"
+> **Domain expert:** "No, not in V1. An **Agent-Reachable Channel** may request and poll the operation, but **Protected Environment** approval and **High-Assurance Challenge** completion happen through the **Human Approval Surface**."
 >
 > **Dev:** "Does self-hosting mean a different product or rewrite?"
 > **Domain expert:** "No. A **Self-Hosted Instance** uses the same insecur runtime as a **Hosted Instance**, deployed into customer-controlled Cloudflare infrastructure. The customer holds **Instance Operator** and controls **Instance Configuration**."
@@ -1758,6 +1780,9 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "agent never reads the value" should not be used for non-protected local **Runtime Injection**; say **First Value Proof** demonstrates delivery-without-reveal in caller output, while the child process can read injected values after the **Runtime Trust Boundary**.
 - "first-run proof command" should not be used; **First Value Proof** uses normal secret-write and runtime-injection commands.
 - "secret name as ID" should not be used; a non-protected create-or-update shortcut may create a **Secret Shape** from a **Display Name**, but audit and durable selection still use the generated **Opaque Resource ID**.
+- "terminal approval" should not be used for **Protected Environment** approval in V1; use **Human Approval Surface** for the approval and **Agent-Reachable Channel** for request/poll behavior.
+- "let the agent deploy production" should be written as a rejected **Delivery Risk Policy** shape for **Protected Environments** in V1.
+- "agent can deploy preview" should be written as a **Delivery Risk Policy** allowing non-protected preview delivery through **Agent-Reachable Channels**.
 - "blind secret" should be written as **Blind Secret Write** when the write flow is meant; a blind write still creates a normal **Secret Version**.
 - "stage a secret" should be written as **Blind Secret Write** when a value is being written without reveal, or **Draft Version** when the stored version is meant.
 - "go live" should be written as **Promotion** for a **Protected Environment** and **Current Version** selection for a non-protected **Environment**.

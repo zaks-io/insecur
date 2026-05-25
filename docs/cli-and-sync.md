@@ -297,9 +297,10 @@ A local coding agent has no identity of its own. It runs inside a human-initiate
 
 - Any action requiring a High-Assurance Challenge that the acting credential cannot satisfy fails closed with exit code `10` and stable error code `auth.high_assurance_required`.
 - The `auth.high_assurance_required` error envelope carries a bounded operation ID in `meta.operationId` describing the exact pending action the human must authorize.
-- The human clears the High-Assurance Challenge out-of-band in the authenticated web app against that bounded operation ID. The challenge authorizes only that operation and creates no reusable authority for future actions.
+- The human clears the High-Assurance Challenge out-of-band in the authenticated web app Human Approval Surface against that bounded operation ID. The challenge authorizes only that operation and creates no reusable authority for future actions.
 - The agent resumes by polling `insecur operations wait <operation-id>` and continuing against the same bounded operation ID once the human has cleared the challenge.
 - A Machine Identity or deploy key credential receives the same `10` / `auth.high_assurance_required` result for high-risk gates and cannot self-clear; it must surface the step-up to a human.
+- Delivery Risk Policy may allow configured non-protected development or preview delivery from agent-reachable CLI/API channels. Protected Environment approval, protected Secret Sync enable/run, protected Runtime Injection Policy changes, and production Cloudflare Worker Secret Deploy approval evidence cannot be completed terminal-only in V1.
 
 ## Command Shape
 
@@ -437,6 +438,7 @@ Rules:
 - Approval Notifications are out-of-band alerts, not approval review surfaces. They include only low-privilege server-generated metadata such as Approval Request ID, generic purpose, created time, and a non-authorizing link to the authenticated approval view.
 - Approval Notifications must not include Approval Context Note plaintext, Sensitive Values, Display Names such as organization/project/environment/secret names, decrypted Sensitive Metadata such as provider target names, provider-side names, policy binding names, security-relevant relationships, raw bodies, or approval impact details.
 - Notification links route to the authenticated approval view and are not bearer approval tokens. Decrypted Sensitive Metadata in that view requires Sensitive Detail Gate.
+- Protected Environment approval happens in the authenticated web app Human Approval Surface, not in a terminal-only flow. CLI commands may create the request, show metadata-only status, and poll the bounded operation.
 - Approval Notification channels may include in-app notification, browser push, mobile push through a Capacitor-wrapped web app, email, or future channels.
 - Browser push and mobile push through Push Device Registrations are the Primary Approval Notification Channel when available. In-app notifications and email are fallback channels.
 - Browser/mobile push payloads are lock-screen safe and may contain only generic approval-pending text, opaque request references, created time, and non-authorizing deep links.
