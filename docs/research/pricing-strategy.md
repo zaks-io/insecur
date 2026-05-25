@@ -4,18 +4,20 @@ Last updated: 2026-05-25
 
 A proposed pricing model for insecur and the reasoning behind it. Companion to
 [competitive-landscape.md](competitive-landscape.md). Dollar amounts are working assumptions;
-the structure is the argument.
+the structure is the argument. The cost basis that must justify these prices is not yet modeled,
+see [unit-economics.md](unit-economics.md).
 
-## Positioning: premium, trustworthy, not cheap
+## Positioning: on par, trustworthy, not cheap
 
 The product asks customers to hand over production secrets. For that job, being the cheapest
-option is a liability, not an advantage. Price is a trust signal: a credible premium price
-says "we are an enterprise-grade custodian," while bargain pricing reads as "the cheap,
-insecure option." insecur deliberately prices as a trusted production custodian.
+option is a liability, not an advantage. Price is a trust signal: a credible, market-rate price
+says "we are a serious custodian," while bargain pricing reads as "the cheap, insecure option."
+insecur prices on par with the established per-seat tools, neither above them as a luxury good
+nor below them as the budget pick.
 
-The premium only lands if it is backed by visible substance. Pricing rides on top of the
-security posture, it does not substitute for it. The things that justify the price and must be
-marketed, not hidden in implementation:
+A market-rate price still only lands if it is backed by visible substance. Pricing rides on top
+of the security posture, it does not substitute for it. The things that justify the price and
+must be marketed, not hidden in implementation:
 
 - No-reveal custody: agents and ordinary human sessions have no read path to Protected
   Environment Sensitive Values.
@@ -30,15 +32,15 @@ marketed, not hidden in implementation:
 Charge **per human seat ($25/seat/month, with an annual discount)**. Do not meter automation.
 
 - **Seats are humans.** The people who manage production secrets pay per seat. $25 matches Phase
-  Enterprise and sits just above Doppler Team ($21), credibly premium without the Vault-style
-  ~$1,150+/mo floor. An annual commitment earns a discount (target ~15-20% off, in line with
+  Enterprise and sits just above Doppler Team ($21), credible and predictable without the
+  Vault-style ~$1,150+/mo floor. An annual commitment earns a discount (target ~15-20% off, in line with
   competitors), giving a lower effective monthly rate in exchange for the commitment.
 - **Machines are free and unlimited.** Machine identities, deploy keys, OIDC exchanges, runtime
   injections, and sync runs are never metered, at any tier.
 
 This resolves the usual tension. Per-seat pricing is compatible with the agent/CI wedge because
-agents and CI are not seats. "We charge for people, never for your robots" is a stronger and
-more premium story than usage metering, and it avoids the competitor mistakes:
+agents and CI are not seats. "We charge for people, never for your robots" is a stronger, clearer
+story than usage metering, and it avoids the competitor mistakes:
 
 - Infisical meters per identity (machines count as seats), which penalizes automation.
 - Pulumi ESC meters per API call, which penalizes read-heavy CI.
@@ -129,25 +131,25 @@ between a self-serve team and an enterprise buyer, and gating it there is standa
 | Pulumi ESC | Per secret + per API call | Punishes read-heavy CI and good secret hygiene |
 | HCP Vault Dedicated | Cluster-hour + per-client | Expensive floor (~$1,150+/mo), not small-team friendly |
 | AWS/GCP/Azure native | Per secret/version + per API call | Single-platform; metering compounds across platforms |
-| **insecur (proposed)** | **Per human seat ($20); free dev tier; robots free** | **Premium and predictable; production custody is the paywall; automation never metered** |
+| **insecur (proposed)** | **Per human seat ($25); free dev tier; robots free** | **Market-rate and predictable; production custody is the paywall; automation never metered** |
 
-The positioning: insecur charges a premium per-seat price for human access to production
+The positioning: insecur charges a market-rate per-seat price for human access to production
 custody, gives dev away free, and never bills the agent/CI loop. That is a different shape from
-the seat-cheap generalists and the usage-metered infra tools, and it matches a premium trust
-brand.
+the usage-metered infra tools, and it sits alongside the established per-seat tools on price
+while competing on custody model rather than on discount.
 
 ## Risks and mitigations
 
-- **$20/seat with no track record can deter early adopters.** Mitigate with the free dev tier
+- **$25/seat with no track record can deter early adopters.** Mitigate with the free dev tier
   (real product experience at zero cost) and early-stage trust artifacts; do not discount the
-  production tier to win logos, since that undercuts the premium signal.
+  production tier to win logos, since price is itself a trust signal.
 - **Per-seat can discourage adding collaborators on small teams.** Mitigate by keeping machines
   free (most "users" of a secrets system are automated) and by a generous Free dev tier for
-  evaluation. The buyer for paid is a company shipping production, for whom $20/seat is trivial.
+  evaluation. The buyer for paid is a company shipping production, for whom $25/seat is trivial.
 - **Free tier abuse.** Free holds no production secrets, which bounds the blast radius. Public
   onboarding still requires the abuse controls, quotas, and Signup Lockdown in the architecture
   docs before broad signup.
-- **Premium price must be backed by proof.** Prioritize SOC 2 and a published pen test on the
+- **The price must be backed by proof.** Prioritize SOC 2 and a published pen test on the
   roadmap; market the no-reveal and blast-radius story explicitly.
 
 ## Decided

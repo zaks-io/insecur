@@ -2,7 +2,7 @@
 
 Date: 2026-05-23
 
-Status: Accepted
+Status: Accepted (amended by ADR-0045, which adds asymmetric signing in V1)
 
 Audit exports must be tamper-evident before v1 production use, but the first design should stay simple: tenant-bounded JSONL audit entries, a per-export hash chain over canonicalized entries, and an HMACed manifest. The goal is practical integrity verification for humans and agents, not a heavy compliance ledger.
 

@@ -46,6 +46,12 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0041: First Value Before Production Delivery](0041-first-value-before-production-delivery.md)
 - [ADR-0042: Policy-Gated Delivery Channels](0042-policy-gated-delivery-channels.md)
 - [ADR-0043: Delivery Risk Policy Presets](0043-delivery-risk-policy-presets.md)
+- [ADR-0044: No-Reveal Custody Is A Product-Surface Guarantee](0044-no-reveal-custody-is-a-product-surface-guarantee.md)
+- [ADR-0045: Asymmetric Signing For Audit Exports In V1](0045-asymmetric-signing-for-audit-exports-in-v1.md)
+- [ADR-0046: US Residency Claim Scoped To Data At Rest](0046-us-residency-claim-scoped-to-data-at-rest.md)
+- [ADR-0047: Regulated-Industry Exclusion By Contract And Attestation](0047-regulated-industry-exclusion-by-contract-and-attestation.md)
+- [ADR-0048: Breach Forensic Record Separate From Product Audit Retention](0048-breach-forensic-record-separate-from-audit-retention.md)
+- [ADR-0049: Vendor Ports And Adapters](0049-vendor-ports-and-adapters.md)
 
 ## Superseded
 

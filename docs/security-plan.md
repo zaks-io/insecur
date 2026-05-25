@@ -233,6 +233,7 @@ Plan for:
 - Plaintext lookup/index fields are limited to opaque resource IDs and Display Names. Approval Context Notes, Approval Rejection Notes, Push Device Registrations, provider target names, provider-side secret or variable names used by Explicit Provider Lookup or Secret Sync Bindings, policy binding names, and security-relevant relationships are encrypted Sensitive Metadata.
 - V1 does not include general search over Sensitive Metadata. Identification uses Scoped Lists, Configured Selectors, opaque IDs, Display Names, and authorized detail views.
 - Display Names may be used for scoped lookup and list filtering after authorization. Sensitive Metadata must not be copied into plaintext search indexes.
+- Display Names are unencrypted plaintext metadata, so users must not place Sensitive Values or confidential context in them; the CLI and UI should surface this guidance when a Display Name is created or edited.
 - Rotation that rewraps data keys or per-record DEKs instead of exposing Sensitive Values.
 - Draft Version Discard must crypto-erase discarded draft value material immediately by deleting ciphertext and/or destroying version-specific decryptability while retaining tombstone/audit metadata only.
 - Emergency restore path that can decrypt retired keys under explicit Service Access control.

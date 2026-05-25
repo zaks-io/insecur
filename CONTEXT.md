@@ -227,8 +227,8 @@ A named deployment context inside a project, such as development, preview, stagi
 _Avoid_: stage, target when the project environment is meant
 
 **Secret**:
-A named value stored for a project environment.
-_Avoid_: config, env var when referring to the managed record
+A named record whose value is a single UTF-8 string, stored for a project environment.
+_Avoid_: config, env var when referring to the managed record, JSON/structured value when the single-string V1 shape is meant
 
 **Sensitive Value**:
 Plaintext material that can directly authenticate, decrypt, authorize secret delivery, or reveal a managed secret.
@@ -443,7 +443,7 @@ A non-semantic identifier used for durable references, joins, and configured sel
 _Avoid_: slug when a durable selector is meant
 
 **Display Name**:
-A user-authored product label stored as ordinary metadata for navigation, review, Scoped List filtering, and Display Name Resolution after authentication and authorization. Display Names are not Sensitive Values or Sensitive Metadata.
+A user-authored product label stored as ordinary metadata for navigation, review, Scoped List filtering, and Display Name Resolution after authentication and authorization. Display Names are not Sensitive Values or Sensitive Metadata, and must not be relied on to carry confidential content.
 _Avoid_: private name when a normal user-authored label is meant
 
 **Scoped List**:
@@ -567,8 +567,8 @@ _Avoid_: preview admin, provider setup authority, arbitrary preview secret acces
 ### Machine Access And Provider Connections
 
 **Protected Environment**:
-An environment whose secrets do not support secret reveal.
-_Avoid_: production when the protection policy is meant
+An environment whose secrets do not support secret reveal; its protected status is fixed at creation and cannot be toggled.
+_Avoid_: production when the protection policy is meant, demote/promote when the fixed-at-creation protection flag is meant
 
 **Machine Identity**:
 A non-human actor owned by an organization.
@@ -786,6 +786,10 @@ _Avoid_: event log when the security record is meant
 A tenant-bounded artifact containing audit log entries for a time range.
 _Avoid_: report when the exported evidence artifact is meant
 
+**Breach Forensic Record**:
+The combined record used to investigate and scope a security incident, broader than the Audit Log: it spans the product Audit Log, Cloudflare account and Secrets Store infrastructure logs, and the out-of-band escrow-access log. It is retained on a fixed floor independent of product audit retention tiers.
+_Avoid_: audit log when the broader incident record is meant
+
 ### Operations And Release Gates
 
 **Security Runbook**:
@@ -951,12 +955,18 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Project** belongs to exactly one **Organization**.
 - A **Project** contains zero or more **Environments**.
 - An **Environment** belongs to exactly one **Project**.
+- An **Environment** has a freeform **Display Name** chosen at creation; insecur does not enforce a fixed set of environment names.
+- An **Environment**'s protected status is fixed at creation and is not togglable; changing protection means creating a new **Environment** and migrating **Secret Shapes** to it, not flipping a flag on the existing one.
+- A **Protected Environment** cannot be demoted to non-protected, and a non-protected **Environment** cannot be promoted to **Protected Environment** in place.
 - An **Environment** contains zero or more **Secrets**.
 - An **Environment** can share **Secret Shapes** with another **Environment**.
 - An **Environment** never copies a **Sensitive Value** to or from another **Environment**; only **Secret Shapes** propagate across **Environments**, and a value shared across **Environments** must come from an explicit **Shared Secret Source**.
 - An **Environment Default** belongs to exactly one non-protected **Environment**.
 - A **Shared Secret Source** belongs to one **Project** and is explicitly attached to one or more **Environments**.
 - A **Secret** has one or more **Secret Versions**.
+- A **Secret Version** holds exactly one **Sensitive Value**, and that value is a single UTF-8 string.
+- insecur does not model structured or multi-field **Secret** values in V1; a structured value is a later additive type, not a V1 shape.
+- A **Secret Version**'s **Sensitive Value** has a maximum stored size enforced by insecur, and **Secret Sync** validates each value against the destination provider's own cap at plan time rather than capping every value at the smallest provider; the working size limits are tracked in open questions until finalized.
 - A **Blind Secret Write** creates one **Secret Version**.
 - A **Blind Secret Write** is not a separate kind of **Secret**.
 - A **Blind Secret Write** may use service-side generation so the caller never learns the **Sensitive Value**.
@@ -1325,8 +1335,10 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Secret Sync** may be enabled or disabled.
 - A **Secret Sync** does not perform **Provider Readback**.
 - **Secret Import** uses **Safe Sensitive Input Paths**.
+- The V1 adoption paths into insecur are manual entry through a **Safe Sensitive Input Path** (stdin, masked prompt, or request body) and **Secret Import** of a local `.env` file or other local file from the **User**'s own machine.
+- A local `.env` or file **Secret Import** runs client-side to create one **Blind Secret Write** per parsed key and never writes the parsed **Sensitive Values** to a durable plaintext file or to logs.
 - **Secret Import** is separate from **Secret Sync** verification.
-- **Secret Import** does not read **Sensitive Values** from provider secret stores in V1.
+- **Secret Import** does not read **Sensitive Values** from provider secret stores in V1; there is no provider read-back adoption path, consistent with **Provider Readback** being prohibited.
 - Existing provider-side destinations can be detected during **Secret Sync** setup and planning to produce **Provider Overwrite Warnings** for exact bindings.
 - **Explicit Provider Lookup** is not a standalone UI, API, or CLI probe in V1.
 - **Explicit Provider Lookup** is scoped to one **App Connection**, **Connection Boundary**, provider target, and exact provider-side name or binding.
@@ -1387,6 +1399,15 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 >
 > **Dev:** "Does setting a production secret immediately affect deploys?"
 > **Domain expert:** "No. In a **Protected Environment**, setting creates a **Draft Version**; only **Promotion** creates a **Published Version** eligible for delivery."
+>
+> **Dev:** "Can I flip an existing dev environment to protected once it's ready for production?"
+> **Domain expert:** "No. An **Environment**'s protected status is fixed at creation. Create a new **Protected Environment** and migrate the **Secret Shapes**; there is no in-place protect/unprotect toggle."
+>
+> **Dev:** "Can a Secret hold a JSON blob with several fields?"
+> **Domain expert:** "Not in V1. A **Secret** value is a single UTF-8 string. Structured values are a deferred additive type, so model multiple fields as separate **Secrets** for now."
+>
+> **Dev:** "Can I bulk-load my local `.env` to get started?"
+> **Domain expert:** "Yes, through a client-side **Secret Import** over a **Safe Sensitive Input Path**: it parses the file locally and does one **Blind Secret Write** per key. That is import, not **Secret Sync**, and insecur never reads values back from a provider to populate itself."
 >
 > **Dev:** "If we sync a production secret to Cloudflare, is that just updating metadata?"
 > **Domain expert:** "No. A `cloudflare` **Secret Sync** writes a **Cloudflare Worker Secret** on an exact **Cloudflare Worker Script**, and that creates **Cloudflare Worker Secret Deploy** impact for that script."
@@ -1787,6 +1808,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "protected GitHub environment" is ambiguous; use **GitHub Environment Protection** when the provider-side rules are the security gate.
 - "repo secret" is ambiguous; use GitHub repository secret when referring to repository-wide provider scope, and project-specific Secret Sync when referring to insecur's Project boundary.
 - "sync import" is ambiguous and unsafe; use **Secret Import** for a value entering insecur and **Secret Sync** for a value leaving insecur.
+- "import from .env" and "load my env file" should be written as a client-side **Secret Import** through a **Safe Sensitive Input Path**, not **Secret Sync** and not **Provider Readback**.
 - "provider probe" should not be used; **Explicit Provider Lookup** is not a standalone UI, API, or CLI command in V1.
 - "provider error message" should be written as **Provider Lookup Status** for **Explicit Provider Lookup** failures; raw provider text is not product output.
 - "orphan value" should be written as **Orphaned Managed Provider Copy** when provider cleanup may have failed; it is not a stored insecur **Sensitive Value**.
@@ -1880,8 +1902,10 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "actual secret" should be written as **Sensitive Value** when referring to protected plaintext beyond managed **Secret** values.
 - "plaintext access" is ambiguous between **Secret Delivery** and **Secret Reveal**; use **Secret Reveal** only when the caller receives the plaintext value.
 - "keys" is ambiguous between **Secrets** and encryption keys; use **Secret** for application values and **Organization Data Key** or **Project Data Key** for encryption material.
+- "structured secret", "JSON secret", and "multi-field secret" should not be used for V1; a **Secret** value is a single UTF-8 string, and structured values are a deferred additive type.
 - "access to secrets" is ambiguous between **Secret Use** and **Secret Reveal**; use **Secret Use** when the actor can trigger delivery but cannot receive the value.
 - "production secret" should be written as **Protected Environment** **Secret** when discussing reveal and delivery policy.
+- "make this environment protected", "toggle protection", and "lock the environment" should not be used; an **Environment**'s protected status is fixed at creation, so changing it means creating a new **Environment**.
 - "default production variable" is unsafe language; use **Secret Shape** for shared metadata and **Environment Default** for a non-protected environment value.
 - "shared secret" should mean **Shared Secret Source**, not environment inheritance or a copied value.
 - "promote variables to staging or production" or "move variables between environments" should be written as **Secret Shape** propagation across **Environments**, which carries no **Sensitive Value**; reserve **Promotion** for the within-**Protected Environment** **Draft Version** to **Published Version** step.

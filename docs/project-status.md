@@ -4,62 +4,55 @@ Last updated: 2026-05-25
 
 ## Current State
 
-insecur currently contains disposable Cloudflare-native secrets manager learning code that was added before the product decisions in these docs were settled. The target product direction is Small-Group Production first: personal projects and relatively small trusted groups using production-quality secret protection, while the underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/Vercel/GitHub, protected delivery, and CLI runtime injection for deploys and local commands.
+insecur currently contains no implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, and the copyable `examples/first-value-proof`. The next code written is the target product, built against these docs. The target product direction is Small-Group Production first: personal projects and relatively small trusted groups using production-quality secret protection, while the underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/Vercel/GitHub, protected delivery, and CLI runtime injection for deploys and local commands.
 
 The flagship V1 promise is to let agents and CI use production secrets for approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
 
-## Disposable Existing Code
+## Removed Pre-V1 Scaffold
 
-These surfaces exist in the repository but are not accepted V1 product decisions. They may be deleted freely, and any code reused for V1 must pass a targeted design and security review against the current docs.
+The disposable learning code has been deleted from the working tree per ADR-0018. None of it was an accepted product decision, so nothing carries forward; any equivalent capability in the target product is built fresh against the current docs and passes the security baseline, not reused from the scaffold. Recorded here only so the deletion is not mistaken for lost product work. What was removed:
 
-- pnpm + Turborepo monorepo
-- `apps/worker` Cloudflare Worker API using Hono and D1
-- `packages/cli` Node CLI
-- D1 schema for identities, tokens, projects, environments, secrets, secret versions, and audit log
+- `apps/worker` Cloudflare Worker API using Hono and D1, including the D1 schema, migrations, and `wrangler.toml`
+- `packages/cli` Node CLI (`login`, `pull`, `run`)
 - WebCrypto envelope encryption for immutable secret versions
-- GitHub OAuth human login with an allowlist
-- HMAC-signed session cookies
-- Machine tokens hashed at rest
-- Project/action scoped machine token authorization
+- GitHub OAuth human login with an allowlist and HMAC-signed session cookies
+- Machine tokens hashed at rest with project/action scoped authorization
 - Secret CRUD, version history, rollback, and dotenv export
-- Audit logging for authenticated actions and denied authorization attempts
-- CLI `login`, `pull`, and `run`
-- Basic API hardening headers and `Cache-Control: no-store` for `/v1/*`
-- Input validation for opaque IDs and Display Names
-- ADRs documenting tenant-first architecture, Cloudflare-native scope, auth, machine identities, key rotation, app connections/syncs, CLI contract, and security gates
-- `docs/cli-and-sync.md` documenting target CLI shape and secret sync workflow
-- `docs/security-plan.md` documenting security plans
-- `docs/security-runbooks-and-release-gates.md` documenting the runbook template, release gate profiles, and evidence bundle
+- Audit logging, basic API hardening headers, and opaque-ID/Display-Name input validation
+- The generated `dist/`, `node_modules/`, and `pnpm-lock.yaml`
+
+### Kept (not scaffold)
+
+- The workspace skeleton: root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `turbo.json`, and the per-package `package.json`/`tsconfig`/`README` stubs for `apps/worker` and `packages/cli` (no source).
+- `examples/first-value-proof`, the copyable First Value Proof.
+- All documentation: CONTEXT, architecture, the ADRs, `docs/cli-and-sync.md`, `docs/security-plan.md`, and `docs/security-runbooks-and-release-gates.md`.
 
 ## Verified Locally
 
-- `pnpm typecheck`
-- `pnpm build`
-
-The Worker build uses `wrangler deploy --dry-run --outdir dist`.
+Nothing to build or verify yet. The scaffold that previously passed `pnpm typecheck` and `pnpm build` has been removed; the skeleton has no source, and `node_modules`/`pnpm-lock.yaml` are gone. The first build/typecheck baseline gets re-established when the target product's First Value slice is implemented.
 
 ## Not Yet Done
 
 - Neon Postgres has not been provisioned for the V1 target architecture
 - Cloudflare Hyperdrive has not been configured for the V1 target architecture
-- Current scaffold still contains D1 bindings and `apps/worker/wrangler.toml` still contains `REPLACE_WITH_YOUR_D1_ID`; these are disposable pre-V1 details, not the target persistence model
+- Neither D1 nor any persistence is wired; the target persistence model (Neon Postgres) is not provisioned
 - Production Worker deployment has not been smoke-tested
-- No GitHub labels have been created yet
-- Current schema is not tenant-first
-- Current routes are not organization-qualified
-- Current authorization is project-scoped, not membership/role based
-- Current human authentication is GitHub OAuth scaffold, not WorkOS AuthKit
-- Current machine tokens are long-lived instead of machine identity issued short-lived access tokens
-- Current CLI authentication is not yet memory/session-only
+- No Linear triage labels have been created yet in project INS-
+- No tenant-first schema exists yet
+- No organization-qualified routes exist yet
+- No membership/role-based authorization exists yet
+- No human authentication exists yet; the target is WorkOS AuthKit
+- No machine identity-issued short-lived access tokens exist yet
+- No CLI authentication exists yet; the target is memory/session-only
 - Environment-scoped deploy keys and deploy key rotation policies do not exist yet
-- Current encryption model does not yet have organization data keys and project data keys
-- Current encryption does not bind ciphertext to tenant/resource identity with authenticated data
+- No organization data keys or project data keys exist yet
+- No ciphertext binding to tenant/resource identity with authenticated data exists yet
 - Sensitive Metadata encryption is not implemented yet
 - No key version model or key rotation workflow exists yet
-- Secret version writes and rollback need stronger concurrency guarantees before multi-user use
-- Audit rows are not yet tenant-qualified with typed actor/resource fields and denied-auth coverage
+- No secret version write or rollback concurrency guarantees exist yet (needed before multi-user use)
+- No tenant-qualified audit rows with typed actor/resource fields and denied-auth coverage exist yet
 - No tamper-evident audit export, hash chain, or HMACed manifest exists yet
 - No app connection model exists for provider OAuth app installations
 - No secret sync model exists yet for provider destinations
@@ -80,11 +73,13 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 
 ## Important Product Boundary
 
-The current implementation is disposable learning code. It is not a dev-only product direction, not a supported product mode, not evidence of intended product behavior, and not safe for valuable production secrets or unrelated external tenants on `insecur.cloud`.
+The removed scaffold was disposable learning code. It was not a dev-only product direction, not a supported product mode, not evidence of intended product behavior, and not safe for valuable production secrets or unrelated external tenants on `insecur.cloud`.
 
 The First Value Milestone is allowed to prove the non-protected development loop before production delivery is ready, but it is not safe for production-grade Sensitive Values. The Production Delivery Milestone must meet the Small-Group Production security baseline before storing valuable secrets: organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, tenant-bounded audit/export behavior, controlled Organization creation through Instance Operators or Guided Organization Provisioning, and Invitation-based Organization Access. Public onboarding controls, quotas, abuse handling, tenant enumeration defenses, and Service Access boundaries are required before enabling broad public signup or operating a Hosted Instance for unrelated tenants.
 
 ## Build Order
+
+This is a dependency-ordered implementation sequence, not a release plan. Which slice ships as which version is **not decided**; see [phasing.md](phasing.md). The milestone names below are build ordering, not version boundaries.
 
 **First Value Milestone**
 
