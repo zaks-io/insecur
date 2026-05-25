@@ -38,6 +38,7 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0032: Agent Execution In The Human Session With First-Class Step-Up](0032-agent-session-execution-and-step-up.md)
 - [ADR-0033: Staged Change Set And Single Publish Gate](0033-staged-change-set-and-publish.md)
 - [ADR-0034: Authorization Through A Single Effective Access Resolver](0034-effective-access-resolver.md)
+- [ADR-0035: Display Name Resolution With A Destructive Carve-Out](0035-display-name-resolution.md)
 
 ## Open Questions To Grill
 
