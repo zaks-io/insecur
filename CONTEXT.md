@@ -1202,6 +1202,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Delivery Risk Policy Preset** is the V1 user-facing control for **Delivery Risk Policy**.
 - A **Delivery Risk Policy Preset** applies a versioned policy template with auditable scope, version, actor, and before/after effective policy.
 - Balanced is the default **Delivery Risk Policy Preset** for a new **Organization** and **Project** created through **Guided Organization Provisioning**.
+- **Guided Organization Provisioning** applies Balanced without showing a **Delivery Risk Policy Preset** picker during first onboarding.
 - Strict, Balanced, and Automation-Friendly are the V1 **Delivery Risk Policy Presets**.
 - No **Delivery Risk Policy Preset** may make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
 - The Balanced **Delivery Risk Policy Preset** allows non-protected development automation by default.
@@ -1216,6 +1217,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - An **Agent-Reachable Channel** may request, plan, stage, or poll a **Risk-Broadening Delivery Change**, but cannot complete it.
 - A **Risk-Tightening Delivery Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but is still audited.
 - A **Delivery Risk Policy Preset** change is not completed solely through an **Agent-Reachable Channel** in V1.
+- Selecting Automation-Friendly after onboarding is a **Risk-Broadening Delivery Change**.
 - A **CLI Profile** can select defaults for **Runtime Injection**.
 - A **CLI Profile** may reference one **Runtime Policy Key** by opaque ID.
 - A **Runtime Policy Key** is a **Configured Selector**.
@@ -1502,6 +1504,9 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 >
 > **Dev:** "Which preset does onboarding apply?"
 > **Domain expert:** "**Guided Organization Provisioning** applies the Balanced **Delivery Risk Policy Preset** by default so first use stays low-friction without making protected production gates agent-clearable."
+>
+> **Dev:** "Can onboarding offer Automation-Friendly for advanced users?"
+> **Domain expert:** "No. First onboarding does not show a **Delivery Risk Policy Preset** picker. It applies Balanced automatically; selecting Automation-Friendly later is a **Risk-Broadening Delivery Change** through the **Human Approval Surface**."
 >
 > **Dev:** "Can an agent switch the organization from Strict to Automation-Friendly?"
 > **Domain expert:** "No. That is a **Risk-Broadening Delivery Change**. An **Agent-Reachable Channel** may request or poll it, but an authorized **User** must complete it through the **Human Approval Surface** with a **High-Assurance Challenge**."
@@ -1843,6 +1848,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "agent can deploy preview" should be written as a **Delivery Risk Policy** allowing non-protected preview delivery through **Agent-Reachable Channels**.
 - "sane defaults" should be written as **Delivery Risk Policy Presets** when discussing delivery-channel risk posture.
 - "custom risk policy" should be written as future enterprise policy surface unless the current V1 **Delivery Risk Policy Preset** model is meant.
+- "choose Automation-Friendly during onboarding" should not be used; **Guided Organization Provisioning** applies Balanced automatically.
 - "loosen the preset" should be written as a **Risk-Broadening Delivery Change**.
 - "tighten the preset" should be written as a **Risk-Tightening Delivery Change**.
 - "turn on preview automation" should be written as **Preview Automation Opt-In** under the Balanced **Delivery Risk Policy Preset**.

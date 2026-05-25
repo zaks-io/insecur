@@ -23,7 +23,7 @@ A Risk-Broadening Delivery Change, such as Strict to Balanced, Balanced to Autom
 
 Delivery Risk Policy becomes a versioned domain object even when the UI only shows presets. Audit must record the active preset, policy template version, scope, actor, and before/after effective policy for changes.
 
-V1 onboarding does not ask users to design a policy. Guided Organization Provisioning applies Balanced by default. Users may switch to Strict or Automation-Friendly later, subject to configuration authorization, risk-broadening step-up rules, and audit.
+V1 onboarding does not ask users to design a policy and does not present a preset picker. Guided Organization Provisioning applies Balanced automatically. Users may switch to Strict or Automation-Friendly later, subject to configuration authorization, risk-broadening step-up rules, and audit. Selecting Automation-Friendly after onboarding is a Risk-Broadening Delivery Change and requires the Human Approval Surface plus a High-Assurance Challenge.
 
 Balanced does not include a project-wide preview automation switch in V1. Each non-protected preview Environment must be opted in separately so future preview targets do not silently inherit agent-reachable delivery authority.
 
