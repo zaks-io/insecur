@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for `zaks-io/insecur` using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in Linear project INS- using the Linear MCP server. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
