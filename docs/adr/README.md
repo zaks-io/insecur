@@ -35,6 +35,9 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0029: Single-Account Environments And CD Trust Model](0029-environments-and-cd-trust-model.md)
 - [ADR-0030: Hybrid Allowlisted Operational Telemetry](0030-hybrid-allowlisted-telemetry.md)
 - [ADR-0031: Keyring Below The Encryption Engine](0031-keyring-below-the-encryption-engine.md)
+- [ADR-0032: Agent Execution In The Human Session With First-Class Step-Up](0032-agent-session-execution-and-step-up.md)
+- [ADR-0033: Staged Change Set And Single Publish Gate](0033-staged-change-set-and-publish.md)
+- [ADR-0034: Authorization Through A Single Effective Access Resolver](0034-effective-access-resolver.md)
 
 ## Open Questions To Grill
 

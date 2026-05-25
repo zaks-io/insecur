@@ -140,7 +140,7 @@ Agent/DX requirements:
 - Normal deploy key rotation may preserve the same active Auth Method; compromise-response rotation must revoke, disable, or mark the Auth Method untrusted when pending machine-created Approval Requests should become requester-access-stale.
 - Non-expiring deploy keys are allowed only when explicitly configured and visible in status, plan, and audit output.
 - Deploy key create, exchange, denial, rotation, expiration, and disable events are audited.
-- Auth errors need stable machine-readable codes such as `auth.expired`, `auth.insufficient_scope`, `auth.mfa_required`, and `auth.reauth_required`.
+- Auth errors need stable machine-readable codes such as `auth.expired`, `auth.insufficient_scope`, `auth.reauth_required`, and `auth.high_assurance_required` for a fresh High-Assurance Challenge gate on a high-risk action. `auth.mfa_enrollment_required` is reserved for the distinct case where the human has no eligible factor enrolled; the action-boundary step-up does not use `auth.mfa_required`.
 - Non-interactive CLI and CI flows must never depend on human SMS verification.
 
 ### 2. Authorization And Tenancy Plan

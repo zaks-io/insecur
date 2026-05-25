@@ -114,11 +114,32 @@ V1 is configuration-driven and does not need general search over Sensitive Metad
 - Do not build plaintext search indexes over Sensitive Metadata such as Approval Context Notes, Push Device Registrations, provider target names, provider-side secret or variable names used by Explicit Provider Lookup or Secret Sync Bindings, policy binding names, or security-relevant relationships.
 - Add blind indexes later only as a separate design if exact-match lookup becomes necessary.
 
+ID generation rules:
+
+- Opaque resource IDs are client-minted on create and supplied as explicit flags such as `--project-id`, `--env-id`, `--secret-id`, `--connection-id`, `--sync-id`, and `--policy-id`.
+- The server validates ID format and enforces tenant-scoped uniqueness, returning a conflict (exit code `6`) when a client-minted ID already exists in that tenant.
+- A client-minted ID is the natural creation idempotency key, so a retried create with the same ID resolves to the same resource or a clean conflict without a separate `--idempotency-key`.
+- Opaque resource IDs are non-secret selectors, not capability tokens; authorization is enforced server-side and a guessed cross-tenant ID still fails authorization.
+- `--idempotency-key` is for non-create actions such as promote, run, and rotate that have no client-minted resource ID.
+
 Resolved ID cache rules:
 
-- The CLI may cache server-issued IDs in user config or a local cache outside the repository.
+- The CLI may cache resolved IDs, ones it created or saw in a Scoped List, in user config or a local cache outside the repository.
 - Cached IDs are hints only; authorization and tenant resolution still happen on the API.
 - If an ID no longer resolves inside the authorized tenant boundary, the CLI must refresh scoped lists and report a stable warning or error code.
+
+Display Name Resolution rules:
+
+- Targeting commands accept an explicit Display Name flag such as `--project-name`, `--env-name`, `--secret-name`, `--connection-name`, `--sync-name`, or `--profile-name`, separate from the opaque `--*-id` flag. A name flag is never overloaded onto an ID flag.
+- The CLI performs Display Name Resolution client-side: it resolves the Display Name to exactly one opaque resource ID through a Scoped List in the already-resolved parent scope, then acts on that ID. The server contract stays opaque-ID-only; a Display Name is never sent as a durable selector.
+- Resolution is exact-match and case-sensitive. Zero matches return not found (exit code `5`). Two or more matches return a validation error (exit code `2`) that lists candidate opaque IDs and Display Names and never auto-selects. Substring or fuzzy matching is for interactive `list` filtering only, never for resolution before an action.
+- A Display Name resolves within exactly one fully-resolved parent scope from the precedence chain of CLI flags, environment variables, `.insecur.json`, and user profile defaults. If the parent scope is not pinned to one Organization, Project, or Environment, the command fails before resolving the child rather than searching across scopes. Multi-level resolution resolves each level in order, such as `--env-name` before `--secret-name`. There is no cross-Project Display Name Resolution.
+- Read commands and non-destructive mutations accept Display Name Resolution for any caller.
+- Protected but recoverable actions such as `promote`, `publish`, and `rollback` accept Display Name Resolution for any caller, because the High-Assurance Challenge, Approval Impact Review, or Destructive Confirmation shows the resolved opaque ID and Display Name before anything changes.
+- Irreversible or destructive actions such as Draft Version Discard, Secret Sync Deletion, and connection disconnect require the opaque `--*-id` for non-interactive and Machine Identity callers and do not accept a Display Name. Interactive human callers may resolve by name but receive a Destructive Confirmation echoing the resolved opaque ID. This extends the existing rule that API and Machine Identity Draft Version Discard require exact IDs.
+- The audit record and any local cache always store the resolved opaque ID, never the Display Name.
+- The CLI never caches a Display Name to opaque ID mapping. Every name flag re-resolves live against a current Scoped List, so a rename cannot silently retarget a later command through a stale cache. Only opaque IDs are cached.
+- Agents should resolve a Display Name once, then reuse the opaque ID for later commands, since Display Names are mutable and a later resolution may select a different resource.
 
 ### Environment Variables
 
@@ -228,6 +249,17 @@ CLI command design should make safe management paths short and predictable while
 - `7`: provider error
 - `8`: rate limited or retryable upstream failure
 - `9`: operation incomplete
+- `10`: human step-up required (a High-Assurance Challenge the acting credential cannot satisfy)
+
+## Agent Execution And Human Step-Up
+
+A local coding agent has no identity of its own. It runs inside a human-initiated session, started with `insecur shell <profile-id>` or `insecur run <profile-id> --login -- <command>`, inherits the short-lived `INSECUR_SESSION_TOKEN` from the process environment, and acts with the human's Effective Access. Because a High-Assurance Challenge re-verifies the human freshly, the agent can do low-risk work autonomously but cannot clear high-risk gates on its own.
+
+- Any action requiring a High-Assurance Challenge that the acting credential cannot satisfy fails closed with exit code `10` and stable error code `auth.high_assurance_required`.
+- The `auth.high_assurance_required` error envelope carries a bounded operation ID in `meta.operationId` describing the exact pending action the human must authorize.
+- The human clears the High-Assurance Challenge out-of-band in the authenticated web app against that bounded operation ID. The challenge authorizes only that operation and creates no reusable authority for future actions.
+- The agent resumes by polling `insecur operations wait <operation-id>` and continuing against the same bounded operation ID once the human has cleared the challenge.
+- A Machine Identity or deploy key credential receives the same `10` / `auth.high_assurance_required` result for high-risk gates and cannot self-clear; it must surface the step-up to a human.
 
 ## Command Shape
 
@@ -395,7 +427,8 @@ Rules:
 - Stale Approval Impact Review returns exit code `6` with stable code `approval.review_stale`, leaves the Approval Request pending, and does not perform Promotion, cancel the request, or mark it superseded.
 - Approval Requests have exactly one approval purpose in V1.
 - A promotion Approval Request contains one Promotion Change Set and cannot include protected delivery configuration changes.
-- Protected delivery configuration changes require separate approval or a separate High-Assurance Challenge from secret Promotion.
+- Protected delivery configuration changes carry distinct authority and audit from secret Promotion and are never merged into a promotion Approval Request; this is a separation of approval purpose, not necessarily a separate human interruption.
+- A single Publish of a Staged Change Set may satisfy several such gates at once, clearing every gate the acting User is individually authorized to clear in one High-Assurance Challenge while still fanning out to a Distinct Approver wherever a multi-approval Protected Approval Policy requires one.
 - Creating disabled Secret Syncs or disabled Secret Sync Bindings for a Protected Environment is a protected delivery configuration change, even though it does not sync yet.
 - Protected delivery configuration changes include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
 - `promote` cannot create, enable, or change Secret Sync destinations, Runtime Injection Policies, App Connections, Connection Boundaries, or other delivery targets.
@@ -405,6 +438,28 @@ Rules:
 - `promote` requests or performs Promotion for one or more Draft Versions; it makes those Draft Versions Published Versions only after the Protected Approval Policy is satisfied.
 - `rollback` creates a new Secret Version from a retained encrypted prior Published Version; it never reveals the old plaintext value to the caller and requires a High-Assurance Challenge for Protected Environments.
 - Rollback eligibility is controlled by a configurable Rollback Retention Window.
+
+### Staged Change Set And Publish
+
+A Staged Change Set lets an agent or developer assemble a batch of not-yet-live changes in a non-protected development context, then make them live through one reviewed Publish. This is a plan-then-apply shape: stage everything, confirm the batch, and take a single human interruption at the end rather than one per change.
+
+```bash
+insecur staged show --json
+insecur staged add-draft --staged-id stg_01JZ8EM4P7N9K3T5V8X1Z6C0A --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A --secret-id sec_01JZ8ETB7P2M9N3K5T8V1X6Z0A
+insecur staged add-sync --staged-id stg_01JZ8EM4P7N9K3T5V8X1Z6C0A --sync-id sync_01JZ8EKR4P7M9N3K5T8V1X6Z0A --disabled
+insecur publish --staged-id stg_01JZ8EM4P7N9K3T5V8X1Z6C0A --dry-run --json
+insecur publish --staged-id stg_01JZ8EM4P7N9K3T5V8X1Z6C0A
+```
+
+Rules:
+
+- A Staged Change Set holds Draft Versions and pending configuration changes such as disabled Secret Syncs, Secret Sync Bindings, Shared Secret Source attachments, and policy changes, assembled freely while not live.
+- App Connection setup is not staged. It is a live, human-performed prerequisite (see App Connections). If a Scoped List shows no App Connection covering the needed Connection Boundary, the agent must hand off to a human to create it before the batch can reference it.
+- `publish --dry-run` returns a metadata-only Approval Impact Review over the whole batch: which Draft Versions promote, which Secret Syncs and Bindings activate, which policies change, and which gates the acting User can clear versus which require a Distinct Approver.
+- `publish` performs Promotion of the batch's Promotion Change Set and activates its configuration changes in one reviewed action, metadata-only in human, agent, and JSON output, and never reveals Sensitive Values.
+- A single Publish clears every gate the acting User is individually authorized to clear in one High-Assurance Challenge bound to the batch, and does not bypass any gate the User cannot satisfy.
+- Where a multi-approval Protected Approval Policy applies, Publish still fans the promotion out to a Distinct Approver; batching never collapses a multi-approval policy into self-approval.
+- The High-Assurance Challenge for a Publish is bound to a fingerprint of the exact batch contents, is single-use, and is time-limited; if the batch changes or the challenge expires, a fresh Publish review and challenge are required.
 
 ### Runtime Injection
 
@@ -523,6 +578,8 @@ Rules:
 - Callback completion fails closed for replayed state, provider/issuer mix-up, canceled or superseded operations, Tenant Suspension, lost Organization Access, or provider identity mismatch.
 - Creating an App Connection, replacing credentials, reauthorizing, or changing a Connection Boundary requires a High-Assurance Challenge.
 - `rotate` and `reauth` create audited operations.
+- An App Connection is organization-owned. It records the User who performed setup as `created_by` for audit, but it is not personal to that User and survives their offboarding or loss of Organization Access.
+- App Connection setup is a one-time, live, human-performed action per Organization and provider, not a Staged Change Set item and not something a Machine Identity can perform. An agent that needs a missing connection must hand off to a human, surfaced as exit code `10`.
 
 ### Secret Syncs
 

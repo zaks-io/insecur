@@ -129,8 +129,12 @@ The assignment that binds one **User**, **Team**, or **Machine Identity** to one
 _Avoid_: permission, grant, WorkOS membership when the authorization assignment is meant
 
 **Effective Access**:
-The final set of **Authorization Scopes** an actor can use for one requested organization, project, environment, and action. Effective Access is the source of truth for authorization decisions.
+The final set of **Authorization Scopes** an actor holds for one requested organization, project, and environment, computed by the **Effective Access Resolver** and checked against the **Authorization Scope** an action requires. Effective Access is the source of truth for authorization decisions.
 _Avoid_: permission when the evaluated result is meant
+
+**Effective Access Resolver**:
+The single component that computes **Effective Access**. Both **User** actors (**Membership** plus **Role** expanded to scopes) and **Machine Identity** actors (**Credential Scopes**) resolve through it into one coordinate-bound **Authorization Scope** set; it is the only reader of the resource selectors that granted scopes carry, unions organization-tier and project-tier grants for the requested **Opaque Resource IDs**, decides only within one **Organization** and never across (that is **Service Access**), and stays protected-ignorant, leaving promotion approval to the **Protected Environment** regime above it.
+_Avoid_: per-route access check, role check, the human bypass
 
 **Authorization Scope**:
 An atomic organization or project capability checked during **Organization Access** authorization.
@@ -243,6 +247,14 @@ _Avoid_: save, set when protected delivery is meant
 **Promotion Change Set**:
 An exact immutable set of Draft Versions requested for Promotion together.
 _Avoid_: all staged changes
+
+**Staged Change Set**:
+A batch of not-yet-live protected changes (Draft Versions, disabled Secret Syncs and Bindings, pending Shared Secret Source attachments, and pending policy changes) assembled together and made live through a single Publish.
+_Avoid_: Promotion Change Set when configuration changes are included, deploy
+
+**Publish**:
+The single reviewed action that makes a Staged Change Set live by promoting its Draft Versions and activating its configuration changes, clearing every gate the acting User is individually authorized to clear and fanning out to a Distinct Approver only where the Protected Approval Policy requires one.
+_Avoid_: Promotion when the whole batch is meant, deploy, Published Version when the secret-version noun is meant
 
 **Approval Request**:
 A pending protected promotion or configuration change waiting for required human approval before it can affect delivery.
@@ -377,7 +389,7 @@ A non-semantic identifier used for durable references, joins, and configured sel
 _Avoid_: slug when a durable selector is meant
 
 **Display Name**:
-A user-authored product label stored as ordinary metadata for navigation, review, and scoped lookup after authentication and authorization. Display Names are not Sensitive Values or Sensitive Metadata.
+A user-authored product label stored as ordinary metadata for navigation, review, Scoped List filtering, and Display Name Resolution after authentication and authorization. Display Names are not Sensitive Values or Sensitive Metadata.
 _Avoid_: private name when a normal user-authored label is meant
 
 **Scoped List**:
@@ -387,6 +399,10 @@ _Avoid_: search when configured discovery is meant
 **Configured Selector**:
 An opaque resource ID used to select a configured object without searching or storing plaintext Sensitive Metadata selectors.
 _Avoid_: slug, search term
+
+**Display Name Resolution**:
+The client-side resolution of a Display Name to exactly one Opaque Resource ID within an already-authorized scope before a command acts.
+_Avoid_: search, server-side name selector when only Opaque Resource IDs are durable selectors
 
 **Safe Sensitive Input Path**:
 An input path for Sensitive Values that avoids URLs, query strings, route params, command arguments, logs, and shell history.
@@ -859,6 +875,11 @@ _Avoid_: report when the exported evidence artifact is meant
 - A **Promotion Change Set** is immutable after the **Approval Request** is created.
 - **Draft Versions** created after an **Approval Request** are outside that request's **Promotion Change Set**.
 - A fresh **Promotion Change Set** may include **Draft Versions** that were part of a rejected, canceled, superseded, policy-stale, requester-access-stale, or target-lifecycle-closed **Approval Request** when **Draft Version Reuse** is allowed.
+- A **Staged Change Set** contains zero or more **Draft Versions** and zero or more pending configuration changes such as disabled **Secret Syncs**, **Secret Sync Bindings**, **Shared Secret Source** attachments, and **Protected Approval Policy** changes.
+- A **Staged Change Set** assembled for a **Protected Environment** carries exactly one **Promotion Change Set** for that environment's **Draft Versions**.
+- **Publish** makes a **Staged Change Set** live by performing **Promotion** of its **Promotion Change Set** and activating its configuration changes in one reviewed action.
+- **Publish** clears every gate the acting **User** is individually authorized to clear in a single interruption and fans out to a **Distinct Approver** only where the **Protected Approval Policy** requires one.
+- Protected **Draft Versions** in a **Staged Change Set** remain subject to their **Protected Approval Policy** at **Publish**; batching does not bypass approval.
 - If a pending **Approval Request** includes a discarded **Draft Version** in its **Promotion Change Set**, the request closes without **Promotion**, **Secret Delivery**, **Secret Sync**, or protected delivery configuration changes.
 - Existing **Partial Approvals** on an **Approval Request** closed by **Draft Version Discard** become audit-only and unusable for delivery or future **Approval Requests**.
 - A draft-discard-closed **Approval Request** cannot be approved, rejected, or canceled.
@@ -1011,8 +1032,11 @@ _Avoid_: report when the exported evidence artifact is meant
 - **Sensitive Metadata** requires **Sensitive Metadata Encryption** before durable storage.
 - **Opaque Resource IDs** are the only plaintext durable selectors for server-side resources.
 - **Sensitive Detail Gate** is required before any User-facing surface or full-fidelity export displays decrypted **Sensitive Metadata**.
-- **Display Names** are ordinary metadata and can appear in authorized app surfaces, **Scoped Lists**, approval review, and scoped lookup without a **Sensitive Detail Gate**.
+- **Display Names** are ordinary metadata and can appear in authorized app surfaces, **Scoped Lists**, approval review, and **Display Name Resolution** without a **Sensitive Detail Gate**.
 - Low-detail surfaces may show **Opaque Resource IDs**, **Display Names**, counts, status, hashes, lengths, presence flags, and generic pending states without a **Sensitive Detail Gate**.
+- **Display Name Resolution** resolves a **Display Name** to exactly one **Opaque Resource ID** within one already-authorized scope, or fails with a not-found or ambiguity result; it never auto-selects among multiple matches.
+- **Display Name Resolution** is client-side, so a **Display Name** is never a durable or server-side selector; only **Opaque Resource IDs** are cached or stored in committed config.
+- An irreversible or destructive action requires an **Opaque Resource ID** for non-interactive and **Machine Identity** callers and does not accept **Display Name Resolution**.
 - **Sensitive Values** enter insecur only through **Safe Sensitive Input Paths**.
 - **Misuse-Resistant Defaults** make **Secret Use** easier than **Secret Reveal**.
 - A **Secret Egress** moves a **Secret** value through either **Secret Delivery** or **Secret Reveal**.
@@ -1064,6 +1088,8 @@ _Avoid_: report when the exported evidence artifact is meant
 - insecur does not reject a broad provider scope; it raises a **Connection Boundary Warning** at connect time and in **Secret Sync** plans and audits the accepted breadth.
 - A **Connection Boundary Warning** is metadata-only and excludes **Sensitive Values** and provider inventory.
 - An **App Connection** has one verified **Provider Account Linkage**.
+- An **App Connection** is owned by its **Organization**, records the **User** who performed its setup, and survives that **User's** offboarding or loss of **Organization Access**.
+- **App Connection** setup is a live **User**-performed action requiring the provider OAuth or app-install flow and a **High-Assurance Challenge**; it is never part of a **Staged Change Set** and cannot be performed by a **Machine Identity**.
 - A **Provider Authorization Callback** can create or replace **Provider Credentials** only for one pending **App Connection** operation.
 - A **Provider Authorization Callback** is bound to exactly one **Organization**, initiating **User**, pending **App Connection** or reauthorization operation, **Connection Method**, and intended **Connection Boundary**.
 - A **Provider Authorization Callback** must re-check the initiating **User's** **Organization Access** before persisting **Provider Credentials** or changing **Provider Account Linkage**.
@@ -1447,7 +1473,7 @@ _Avoid_: report when the exported evidence artifact is meant
 > **Domain expert:** "No. One **Protected Environment** has one pending promotion **Approval Request**. Newer requests supersede older ones and notifications coalesce around the latest request."
 >
 > **Dev:** "Can one approval both promote values and enable a new production sync destination?"
-> **Domain expert:** "No. V1 **Approval Requests** have one approval purpose. **Promotion** and **Protected Delivery Configuration Changes** require separate approvals."
+> **Domain expert:** "A single **Approval Request** has one approval purpose, so **Promotion** and **Protected Delivery Configuration Changes** stay distinct in authority and audit. A single **Publish** can still clear both in one interruption when the acting **User** is individually authorized for each."
 >
 > **Dev:** "Does a production sync mean every variable in the environment goes to the provider?"
 > **Domain expert:** "No. A **Secret Sync** has exact **Secret Sync Bindings** for the variables selected for that destination."
@@ -1460,6 +1486,18 @@ _Avoid_: report when the exported evidence artifact is meant
 >
 > **Dev:** "What if provider cleanup fails while deleting a sync?"
 > **Domain expert:** "Tombstone the sync, alert the **User**, and preserve **Orphaned Managed Provider Copy** metadata for retry cleanup. Treat it as a warning, not a critical platform failure."
+>
+> **Dev:** "When an agent stands up a whole new environment, does the human get pinged for every change?"
+> **Domain expert:** "No. The agent assembles a **Staged Change Set** in a non-protected context, and the human takes one interruption at **Publish**. **Publish** clears every gate the acting **User** is individually authorized to clear under one **High-Assurance Challenge** bound to the exact batch."
+>
+> **Dev:** "Does batching let the agent self-approve a change that needs two people?"
+> **Domain expert:** "No. Where a multi-approval **Protected Approval Policy** applies, **Publish** still fans the **Promotion** out to a **Distinct Approver**. Batching never collapses a multi-approval policy into **Requester Self-Approval**."
+>
+> **Dev:** "The agent hit a step-up it cannot clear. What now?"
+> **Domain expert:** "It fails closed with a step-up signal carrying a bounded operation, the human clears the **High-Assurance Challenge** out-of-band, and the agent resumes against that same bounded operation. An **Agent** acting in a human session cannot satisfy a **High-Assurance Challenge** itself."
+>
+> **Dev:** "Can the agent set up the GitHub **App Connection** as part of the batch?"
+> **Domain expert:** "No. An **App Connection** is **Organization**-owned, set up live by a human once per provider, and it survives that **User's** offboarding. If no connection covers the needed **Connection Boundary**, the agent hands off to a human before the batch can reference it."
 
 ## Flagged Ambiguities
 
@@ -1533,7 +1571,7 @@ _Avoid_: report when the exported evidence artifact is meant
 - "stale discard confirmation" should not execute; human **Draft Version Discard** requires refreshed metadata-only impact and fresh **Destructive Confirmation** when impact or access changes.
 - "reuse approval" should not be used for **Draft Version Reuse**; only the unpromoted **Draft Versions** can be selected again, not approval evidence or request state.
 - "discard approval" should not be used; discarding a **Draft Version** closes affected pending **Approval Requests** without approving or rejecting them.
-- "promote all" and "all staged changes" should be written as an explicit **Promotion Change Set** with exact **Draft Versions**.
+- "promote all" and "all staged changes" as a promotion selector should be written as an explicit **Promotion Change Set** with exact **Draft Versions**; the assembled batch of pending changes itself is a **Staged Change Set** made live by **Publish**.
 - "overwrite approval request" should be written as **Approval Request Supersession**; the old request is marked superseded, not mutated in place.
 - "deny approval" should be written as **Approval Request Rejection** when referring to a human review outcome, and authorization denial when referring to access failure.
 - "cancel approval" should be written as **Approval Request Cancellation** when the requesting **User**, requesting **Machine Identity**, or scoped admin closes a pending request without review.
@@ -1587,6 +1625,7 @@ _Avoid_: report when the exported evidence artifact is meant
 - "slug" should not be used for durable server-side selectors; use **Opaque Resource ID**.
 - "search" should not be used for v1 Sensitive Metadata discovery; use **Scoped List** or **Configured Selector**.
 - "name" is ambiguous; use **Display Name** for user-authored product labels and **Sensitive Metadata** for provider-side names, targets, notes, device routing, or security-relevant relationships.
+- "scoped lookup", "look up by name", and "find the X named Y" are ambiguous; use **Scoped List** for an authorized browse or filter and **Display Name Resolution** for resolving a name to exactly one **Opaque Resource ID** before acting.
 - "pass the secret" is ambiguous; use **Safe Sensitive Input Path** when describing how values enter the system.
 - "value flag" is unsafe for **Sensitive Values**; use stdin, a masked prompt, request body, or provider authorization flow.
 - "idiot-proof" should be written as **Misuse-Resistant Defaults** when referring to product behavior that prevents accidental unsafe actions.
@@ -1602,3 +1641,8 @@ _Avoid_: report when the exported evidence artifact is meant
 - "wrapper" is ambiguous; use **Runtime Injection** for the delivery behavior, and say separate helper process only when a distinct local process is meant.
 - "sandbox" should not be used for **Runtime Injection** unless the child process is actually isolated from its own environment and outputs.
 - "rapidly changing env var" is usually not **Startup Configuration**; use a future dynamic secret or configuration mechanism instead of repeated **Promotion** requests.
+- "publish the changes", "go live with everything", and "ship the batch" should be written as **Publish** of a **Staged Change Set** when a grouped set of protected and configuration changes is made live together.
+- "single approval for everything" should be written as **Publish** clearing every gate the acting **User** is individually authorized to clear; it does not collapse distinct approval purposes or bypass a multi-approval **Protected Approval Policy**.
+- "server-issued ID" or "server-generated ID" for a resource should be written as a client-minted **Opaque Resource ID** that the server validates for format and tenant-scoped uniqueness.
+- "user-owned connection" should be written as an **Organization**-owned **App Connection** that records the **User** who performed setup; it is not deleted when that **User** is offboarded.
+- "agent step-up" or "let the agent approve" should be written as a **High-Assurance Challenge** the human completes out-of-band; an **Agent** acting in a human session cannot satisfy it and resumes the bounded operation after the human clears it.
