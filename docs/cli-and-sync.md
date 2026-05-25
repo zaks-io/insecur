@@ -300,7 +300,8 @@ A local coding agent has no identity of its own. It runs inside a human-initiate
 - The human clears the High-Assurance Challenge out-of-band in the authenticated web app Human Approval Surface against that bounded operation ID. The challenge authorizes only that operation and creates no reusable authority for future actions.
 - The agent resumes by polling `insecur operations wait <operation-id>` and continuing against the same bounded operation ID once the human has cleared the challenge.
 - A Machine Identity or deploy key credential receives the same `10` / `auth.high_assurance_required` result for high-risk gates and cannot self-clear; it must surface the step-up to a human.
-- Delivery Risk Policy may allow configured non-protected development or preview delivery from agent-reachable CLI/API channels. Protected Environment approval, protected Secret Sync enable/run, protected Runtime Injection Policy changes, and production Cloudflare Worker Secret Deploy approval evidence cannot be completed terminal-only in V1.
+- Delivery Risk Policy Presets may allow configured non-protected development or preview delivery from agent-reachable CLI/API channels. V1 exposes Strict, Balanced, and Automation-Friendly presets instead of a custom policy editor; the server still stores versioned, scoped, auditable Delivery Risk Policy behind the preset. Protected Environment approval, protected Secret Sync enable/run, protected Runtime Injection Policy changes, and production Cloudflare Worker Secret Deploy approval evidence cannot be completed terminal-only in V1.
+- Risk-broadening Delivery Risk Policy changes, including loosening presets or enabling preview automation, return the same `10` / `auth.high_assurance_required` path from CLI/API. Risk-tightening changes are authenticated web app settings actions and are not completed terminal-only in V1.
 
 ## Command Shape
 

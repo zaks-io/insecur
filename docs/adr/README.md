@@ -45,6 +45,7 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0040: Guided Personal Organization Provisioning](0040-guided-personal-organization-provisioning.md)
 - [ADR-0041: First Value Before Production Delivery](0041-first-value-before-production-delivery.md)
 - [ADR-0042: Policy-Gated Delivery Channels](0042-policy-gated-delivery-channels.md)
+- [ADR-0043: Delivery Risk Policy Presets](0043-delivery-risk-policy-presets.md)
 
 ## Superseded
 

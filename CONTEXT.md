@@ -544,6 +544,18 @@ _Avoid_: approval email, terminal approval, notification when review authority i
 An **Organization Configuration** or project/environment-scoped policy that controls which **Secret Delivery**, deployment, approval, and confirmation paths are allowed for non-protected, preview, and protected workflows.
 _Avoid_: blanket agent permissions, production shortcut
 
+**Delivery Risk Policy Preset**:
+A named user-facing choice that applies a versioned **Delivery Risk Policy** template, such as Strict, Balanced, or Automation-Friendly.
+_Avoid_: custom policy language when the V1 preset surface is meant, security level when delivery-channel policy is meant
+
+**Risk-Broadening Delivery Policy Change**:
+A **Delivery Risk Policy** or **Delivery Risk Policy Preset** change that increases **Agent-Reachable Channel** authority for **Secret Delivery**, deployment, approval, or confirmation.
+_Avoid_: policy upgrade when security posture may be getting looser
+
+**Risk-Tightening Delivery Policy Change**:
+A **Delivery Risk Policy** or **Delivery Risk Policy Preset** change that reduces **Agent-Reachable Channel** authority for **Secret Delivery**, deployment, approval, or confirmation.
+_Avoid_: policy downgrade when security posture may be getting stricter
+
 ### Machine Access And Provider Connections
 
 **Protected Environment**:
@@ -1179,6 +1191,15 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Human Approval Surface** is required for **Protected Environment** approval, **Promotion**, protected delivery configuration changes, protected **Secret Sync** enable/run, protected **Runtime Injection Policy** changes, and Cloudflare Worker Secret Deploy approval evidence.
 - A **Delivery Risk Policy** may allow **Agent-Reachable Channels** to perform configured non-protected preview or development delivery actions.
 - A **Delivery Risk Policy** must not make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
+- A **Delivery Risk Policy Preset** is the V1 user-facing control for **Delivery Risk Policy**.
+- A **Delivery Risk Policy Preset** applies a versioned policy template with auditable scope, version, actor, and before/after effective policy.
+- Balanced is the default **Delivery Risk Policy Preset** for a new **Organization** and **Project** created through **Guided Organization Provisioning**.
+- Strict, Balanced, and Automation-Friendly are the V1 **Delivery Risk Policy Presets**.
+- No **Delivery Risk Policy Preset** may make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
+- A **Risk-Broadening Delivery Policy Change** requires the **Human Approval Surface** and a **High-Assurance Challenge**.
+- An **Agent-Reachable Channel** may request, plan, stage, or poll a **Risk-Broadening Delivery Policy Change**, but cannot complete it.
+- A **Risk-Tightening Delivery Policy Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but is still audited.
+- A **Delivery Risk Policy Preset** change is not completed solely through an **Agent-Reachable Channel** in V1.
 - A **CLI Profile** can select defaults for **Runtime Injection**.
 - A **CLI Profile** may reference one **Runtime Policy Key** by opaque ID.
 - A **Runtime Policy Key** is a **Configured Selector**.
@@ -1459,6 +1480,18 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 >
 > **Dev:** "Can an organization configure production approval to be terminal-only?"
 > **Domain expert:** "No, not in V1. An **Agent-Reachable Channel** may request and poll the operation, but **Protected Environment** approval and **High-Assurance Challenge** completion happen through the **Human Approval Surface**."
+>
+> **Dev:** "Should users configure delivery risk through a custom policy editor in V1?"
+> **Domain expert:** "No. V1 exposes **Delivery Risk Policy Presets** backed by versioned **Delivery Risk Policy** templates. Users see Strict, Balanced, and Automation-Friendly, while the system stores auditable policy infrastructure for future enterprise controls."
+>
+> **Dev:** "Which preset does onboarding apply?"
+> **Domain expert:** "**Guided Organization Provisioning** applies the Balanced **Delivery Risk Policy Preset** by default so first use stays low-friction without making protected production gates agent-clearable."
+>
+> **Dev:** "Can an agent switch the organization from Strict to Automation-Friendly?"
+> **Domain expert:** "No. That is a **Risk-Broadening Delivery Policy Change**. An **Agent-Reachable Channel** may request or poll it, but an authorized **User** must complete it through the **Human Approval Surface** with a **High-Assurance Challenge**."
+>
+> **Dev:** "Can a user tighten the preset without step-up?"
+> **Domain expert:** "Yes. A **Risk-Tightening Delivery Policy Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but it is still audited and not terminal-only in V1."
 >
 > **Dev:** "Does self-hosting mean a different product or rewrite?"
 > **Domain expert:** "No. A **Self-Hosted Instance** uses the same insecur runtime as a **Hosted Instance**, deployed into customer-controlled Cloudflare infrastructure. The customer holds **Instance Operator** and controls **Instance Configuration**."
@@ -1783,6 +1816,10 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "terminal approval" should not be used for **Protected Environment** approval in V1; use **Human Approval Surface** for the approval and **Agent-Reachable Channel** for request/poll behavior.
 - "let the agent deploy production" should be written as a rejected **Delivery Risk Policy** shape for **Protected Environments** in V1.
 - "agent can deploy preview" should be written as a **Delivery Risk Policy** allowing non-protected preview delivery through **Agent-Reachable Channels**.
+- "sane defaults" should be written as **Delivery Risk Policy Presets** when discussing delivery-channel risk posture.
+- "custom risk policy" should be written as future enterprise policy surface unless the current V1 **Delivery Risk Policy Preset** model is meant.
+- "loosen the preset" should be written as a **Risk-Broadening Delivery Policy Change**.
+- "tighten the preset" should be written as a **Risk-Tightening Delivery Policy Change**.
 - "blind secret" should be written as **Blind Secret Write** when the write flow is meant; a blind write still creates a normal **Secret Version**.
 - "stage a secret" should be written as **Blind Secret Write** when a value is being written without reveal, or **Draft Version** when the stored version is meant.
 - "go live" should be written as **Promotion** for a **Protected Environment** and **Current Version** selection for a non-protected **Environment**.

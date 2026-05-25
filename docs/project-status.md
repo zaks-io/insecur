@@ -72,7 +72,7 @@ The Worker build uses `wrangler deploy --dry-run --outdir dist`.
 - No ASVS/API Top 10/security release gate automation or evidence bundle exists yet
 - No dependency, supply-chain, or secret scanning workflow exists yet
 - No UI exists
-- No Human Approval Surface or Delivery Risk Policy implementation exists yet
+- No Human Approval Surface or Delivery Risk Policy Preset implementation exists yet
 - No WorkOS AuthKit, WorkOS MFA, or high-risk action challenge implementation exists yet
 - No GitHub Actions OIDC federation endpoint exists
 - No key rotation, machine identity credential rotation, app connection credential rotation, or provider reauthorization workflow exists
@@ -108,7 +108,7 @@ Profile-ID-based `insecur run <profile-id> -- <command>` for deploys and local c
 
 **V1 approval UX and delivery policy**
 
-Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, and Cloudflare Worker Secret Deploy approval evidence. Delivery Risk Policy defaults secure and can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only.
+Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, Cloudflare Worker Secret Deploy approval evidence, and Risk-Broadening Delivery Policy Changes. Delivery Risk Policy Presets default to Balanced, can be switched to Strict or Automation-Friendly, and can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only. Presets are backed by versioned policy infrastructure so later enterprise controls do not require refactoring authorization or audit.
 
 **Post-v1 hardening**
 
@@ -124,7 +124,7 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 6. Bind the secret ciphertext layer to organization/project/environment/secret identity and bind the DEK-wrap layer to the data-key version with AES-GCM authenticated data.
 7. Add the Storage Security Gate from [storage-security-gate.md](storage-security-gate.md) so production Secret Delivery and Secret Sync fail closed until tenant-bound storage readiness is verified.
 8. Add Protected Environment Draft Version, Promotion, Published Version, rollback, Rollback Retention Window behavior, and the Protected Change Orchestrator from [protected-change-orchestration.md](protected-change-orchestration.md).
-9. Add the Human Approval Surface and Delivery Risk Policy so Protected Environment gates are not terminal-only while non-protected preview/development relaxations are explicit and audited.
+9. Add the Human Approval Surface and Delivery Risk Policy Presets so Protected Environment gates are not terminal-only while non-protected preview/development relaxations are explicit, versioned, and audited.
 10. Strengthen secret version write, promotion, and rollback concurrency guarantees.
 11. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
 12. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.

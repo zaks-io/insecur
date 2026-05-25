@@ -27,6 +27,8 @@ The first production release is not a dev-only secrets store or a single-owner s
 
 V1 is split into two ordered milestones: **First Value** proves provider-free non-protected development Secret Use, and **Production Delivery** adds protected environments, provider sync, machine access, policy-gated approval UX, audit/export, runbooks, and the Storage Security Gate.
 
+Delivery risk is exposed through simple presets backed by versioned policy infrastructure. Guided onboarding applies Balanced by default; users may later choose Strict or Automation-Friendly without being asked to design a custom policy during first use. Broadening automation requires Human Approval Surface step-up, while tightening risk stays lower-friction and audited. All presets keep protected production approval and High-Assurance Challenges in the Human Approval Surface.
+
 Hosted onboarding creates a Personal Organization, owner Membership, first Project, and non-protected development Environment for an admitted user so the first session can focus on a provider-free First Value Proof: creating and using a secret through local Runtime Injection without provider setup. The copyable verifier lives in [examples/first-value-proof](examples/first-value-proof). That Personal Organization can grow into a small-team Organization through Invitations and Memberships.
 
 The current unsafe scaffold is disposable learning code, not a supported product mode or evidence of intended product behavior. V1 work should replace or delete scaffold surfaces rather than preserve them behind warnings, compatibility shims, or unsafe deployment flags.
@@ -40,6 +42,6 @@ Production Secret Delivery and Secret Sync are blocked until the [Storage Securi
 - **First Value** — guided Personal Organization provisioning, first Project, non-protected development Environment, service-generated Blind Secret Write, `run --secret-name`, and copyable First Value Proof
 - **Production foundation** — tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key versions, protected promotion/rollback, and security gates
 - **V1 machine access** — machine identities and GitHub Actions OIDC federation for short-lived CI access
-- **V1 approval UX** — Human Approval Surface for protected gates plus Delivery Risk Policy for explicit non-protected preview/development automation
+- **V1 approval UX** — Human Approval Surface for protected gates plus Delivery Risk Policy Presets for explicit non-protected preview/development automation
 - **V1 delivery** — OAuth app connections and sync engines for Vercel, GitHub, and direct Cloudflare Worker secrets, plus profile-based `insecur run` for deploy and local command injection
 - **Post-v1 hardening** — focused UI, deeper rotation automation, R2 backups, restore tests, and operational polish
