@@ -556,6 +556,10 @@ _Avoid_: policy upgrade when security posture may be getting looser
 A **Delivery Risk Policy** or **Delivery Risk Policy Preset** change that reduces **Agent-Reachable Channel** authority for **Secret Delivery**, deployment, approval, or confirmation.
 _Avoid_: policy downgrade when security posture may be getting stricter
 
+**Preview Automation Opt-In**:
+An explicit environment-scoped setting that allows **Agent-Reachable Channels** to perform configured delivery actions for one non-protected preview **Environment** under the Balanced **Delivery Risk Policy Preset**.
+_Avoid_: project-wide preview automation, preview default when explicit environment enablement is meant
+
 ### Machine Access And Provider Connections
 
 **Protected Environment**:
@@ -1196,6 +1200,10 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - Balanced is the default **Delivery Risk Policy Preset** for a new **Organization** and **Project** created through **Guided Organization Provisioning**.
 - Strict, Balanced, and Automation-Friendly are the V1 **Delivery Risk Policy Presets**.
 - No **Delivery Risk Policy Preset** may make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
+- The Balanced **Delivery Risk Policy Preset** allows non-protected development automation by default.
+- The Balanced **Delivery Risk Policy Preset** requires a **Preview Automation Opt-In** before **Agent-Reachable Channels** can perform delivery actions for a non-protected preview **Environment**.
+- A **Preview Automation Opt-In** is scoped to one non-protected preview **Environment** and does not enable automation for other preview **Environments** in the same **Project**.
+- Enabling a **Preview Automation Opt-In** is a **Risk-Broadening Delivery Policy Change**.
 - A **Risk-Broadening Delivery Policy Change** requires the **Human Approval Surface** and a **High-Assurance Challenge**.
 - An **Agent-Reachable Channel** may request, plan, stage, or poll a **Risk-Broadening Delivery Policy Change**, but cannot complete it.
 - A **Risk-Tightening Delivery Policy Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but is still audited.
@@ -1492,6 +1500,9 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 >
 > **Dev:** "Can a user tighten the preset without step-up?"
 > **Domain expert:** "Yes. A **Risk-Tightening Delivery Policy Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but it is still audited and not terminal-only in V1."
+>
+> **Dev:** "In Balanced, can agents deploy every preview environment by default?"
+> **Domain expert:** "No. Balanced allows non-protected development automation by default, but preview delivery requires a **Preview Automation Opt-In** on each non-protected preview **Environment**."
 >
 > **Dev:** "Does self-hosting mean a different product or rewrite?"
 > **Domain expert:** "No. A **Self-Hosted Instance** uses the same insecur runtime as a **Hosted Instance**, deployed into customer-controlled Cloudflare infrastructure. The customer holds **Instance Operator** and controls **Instance Configuration**."
@@ -1820,6 +1831,8 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - "custom risk policy" should be written as future enterprise policy surface unless the current V1 **Delivery Risk Policy Preset** model is meant.
 - "loosen the preset" should be written as a **Risk-Broadening Delivery Policy Change**.
 - "tighten the preset" should be written as a **Risk-Tightening Delivery Policy Change**.
+- "turn on preview automation" should be written as **Preview Automation Opt-In** under the Balanced **Delivery Risk Policy Preset**.
+- "project-wide preview automation" should not be used for Balanced; **Preview Automation Opt-In** is environment-scoped in V1.
 - "blind secret" should be written as **Blind Secret Write** when the write flow is meant; a blind write still creates a normal **Secret Version**.
 - "stage a secret" should be written as **Blind Secret Write** when a value is being written without reveal, or **Draft Version** when the stored version is meant.
 - "go live" should be written as **Promotion** for a **Protected Environment** and **Current Version** selection for a non-protected **Environment**.

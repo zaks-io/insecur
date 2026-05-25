@@ -24,6 +24,8 @@ Production Delivery should be policy-gated by risk tier. The secure default is t
 
 V1 should expose Delivery Risk Policy as presets rather than a custom policy editor. Guided Organization Provisioning applies Balanced by default. Strict, Balanced, and Automation-Friendly are simple user-facing choices backed by versioned policy templates, scoped effective policy, migration behavior, and audit records so later enterprise policy surfaces can build on the same infrastructure.
 
+Balanced allows non-protected development automation by default, but not blanket preview automation. Each non-protected preview Environment needs its own Preview Automation Opt-In before Agent-Reachable Channels can perform configured delivery actions for that environment.
+
 Changing those presets is also policy-gated. Risk-broadening Delivery Risk Policy changes require the Human Approval Surface and a High-Assurance Challenge. Risk-tightening changes may be completed by an authorized User in the authenticated web app without step-up, but remain audited. No preset change is completed solely through an agent-reachable channel in V1.
 
 In scope:
