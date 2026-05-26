@@ -22,8 +22,6 @@ here.
 
 ## Security and operations
 
-- **Incident Response runbook: not thought through.** Needed for SOC 2 and table stakes for a
-  secrets custodian. Write the "tenant reports a compromised secret" path.
 - **Secret rotation must be first-class and easy** (UX + runbook). SOC 2 likely depends on it.
 - **SOC 2:** plan for it from the start; pursue certification once customers arrive.
 - **Root-key rotation window mechanics:** see ADR "Open Questions To Grill".
@@ -33,8 +31,9 @@ here.
   Secrets Store binding/role changes out of band. Launch tasks, not yet implemented.
 - **Breach forensic record (ADR-0048):** design the durable, integrity-protected forensic archive
   (audit plus signed export to R2) on a fixed retention floor independent of product audit tiers,
-  and ensure the future Incident Response runbook collects Cloudflare infrastructure logs and the
-  escrow-access log, not just the product audit log, which cannot see root-key extraction.
+  and wire the Incident Response runbook escalation path (ADR-0059) to collect Cloudflare
+  infrastructure logs and the escrow-access log, not just the product audit log, which cannot see
+  root-key extraction.
 
 ## Legal, claims, and contracts
 

@@ -54,6 +54,7 @@ Write these before relying on insecur for valuable production secrets:
 | Key management | Root key rotation; Organization Data Key rotation; Project Data Key rotation; failed or interrupted rotation job. |
 | Backup and recovery | Neon Postgres restore from encrypted backup; emergency break-glass recovery without Protected Environment Secret Reveal. |
 | Audit and investigation | Tamper-evident audit export and verification; suspicious audit activity investigation. |
+| Incident response | Tenant-reported secret compromise: triage and escalation routing, then tenant-value containment (publish a new value, re-sync, revoke grants, enumerate reach) with the explicit upstream-revocation handoff (ADR-0059). |
 
 ## Release Gate Interface
 
@@ -140,3 +141,6 @@ The local check may combine automated tests with required manual evidence placeh
 - Service Access runbooks support investigation without Secret Reveal or Sensitive Values.
 - Broad public signup is a separate gate above Small-Group Production, not a default consequence of V1 readiness.
 - A production migration cannot proceed without RLS coverage evidence and a fresh recoverability path.
+- A tenant-reported secret compromise defaults to tenant-side rotation and escalates to the custody-material compromise runbook and ADR-0048 forensic collection only on a defined signal: cross-tenant correlation, a leaked value matching insecur-held material, an unexplained decrypt in the audit log, or a Cloudflare or escrow log anomaly. Tenant self-classification does not drive routing (ADR-0059).
+- Delivery-side rotation does not revoke a credential at its upstream issuer; the tenant-reported-compromise runbook surfaces the upstream-revocation step the tenant must perform and insecur cannot (ADR-0059).
+- V1 stores no hash or second representation of Secret values for leak detection. Leak Verification, if built, computes on demand and never persists a hash index (ADR-0059).

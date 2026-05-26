@@ -59,6 +59,7 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0056: Supply-Chain Hardening Posture](0056-supply-chain-hardening-posture.md)
 - [ADR-0057: Inline Sync Execution and Partial-Failure Model](0057-inline-sync-execution-and-partial-failure-model.md)
 - [ADR-0058: Minimal Backup and Tested Restore for V1](0058-minimal-backup-and-tested-restore.md)
+- [ADR-0059: Tenant-Reported Secret Compromise Response](0059-tenant-reported-secret-compromise-response.md)
 
 ## Superseded
 

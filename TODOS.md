@@ -52,12 +52,6 @@ blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); 
   threshold = 1 now) so Staged Change Set and multi-approver drop in later without a migration.
   _Effort: S (design constraint, ongoing)._
 
-## Before Production Delivery ships
-
-- [ ] **#8 Write the Incident Response runbook**, starting with the "tenant reports a compromised
-  secret" path. No code; table stakes for a secrets custodian. `docs/open-questions.md` flags it
-  as not yet thought through. _Effort: S. Depends on: nothing._
-
 ## Business
 
 - [ ] **#10 Model unit economics against a realistic automation profile** before pricing is
@@ -90,6 +84,17 @@ blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); 
   Consequences: one batch read unions org-tier and project-tier grants (`project_id = ANY($ids)`),
   request-scoped membership memo never cached across requests, machine path already O(1), and a
   round-trip-count test asserts resolving N resource IDs costs one read.
+
+- [x] **#8 Incident Response runbook: "tenant reports a compromised secret" path designed.**
+  Resolved in [ADR-0059](docs/adr/0059-tenant-reported-secret-compromise-response.md) and the
+  Runbook Catalog + invariants in
+  [security-runbooks-and-release-gates.md](docs/security-runbooks-and-release-gates.md): one
+  triage-and-route entry runbook, tenant-side rotation by default with a four-signal escalation to
+  the custody-material compromise + ADR-0048 forensic path, two-column containment (insecur
+  delivery-side vs the tenant's upstream-revocation step it cannot execute), and Leak Verification
+  deferred (no stored hash index; decrypt-on-demand if ever built). Residual is build-gated, not
+  design: fill the exact execute/verify commands when the rotation CLI/API surface exists and run a
+  triage tabletop before the first valuable production secret (Small-Group Production gate).
 
 ## Deferred scope (tracking only — see docs/phasing.md for rationale)
 
