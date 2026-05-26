@@ -4,7 +4,7 @@ Last updated: 2026-05-26
 
 ## Current State
 
-insecur currently contains no implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, and the copyable `examples/first-value-proof`. The next code written is the target product, built against these docs. The target product direction starts with Diskless Development Secret Use for developers and agents: replace plaintext local secret files with just-in-time Runtime Injection in a non-protected development Environment. The underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/GitHub, protected delivery, and CLI runtime injection for deploys and local commands. The Vercel sync adapter is deferred past V1 behind the same provider port model.
+insecur currently contains no product implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, First Value domain package scaffolds, and the copyable `examples/first-value-proof`. The next behavior written is the target product, built against these docs. The target product direction starts with Diskless Development Secret Use for developers and agents: replace plaintext local secret files with just-in-time Runtime Injection in a non-protected development Environment. The underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/GitHub, protected delivery, and CLI runtime injection for deploys and local commands. The Vercel sync adapter is deferred past V1 behind the same provider port model.
 
 The first V1 promise is to stop giving coding agents plaintext local secret files. The production promise is to let agents and CI cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
@@ -25,13 +25,13 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 
 ### Kept (not scaffold)
 
-- The workspace skeleton: root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `turbo.json`, and the per-package `package.json`/`tsconfig`/`README` stubs for `apps/worker` and `packages/cli` (no source).
+- The workspace skeleton: root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `turbo.json`, the package context map in `docs/context-map.md`, the `apps/worker` and `packages/cli` stubs, and the First Value domain package stubs under `packages/`.
 - `examples/first-value-proof`, the copyable First Value Proof.
 - All documentation: CONTEXT, the consolidated specs in `docs/specs/`, architecture, the ADRs, `docs/cli-and-sync.md`, `docs/security-plan.md`, and `docs/security-runbooks-and-release-gates.md`.
 
 ## Verified Locally
 
-Nothing to build or verify yet. The scaffold that previously passed `pnpm typecheck` and `pnpm build` has been removed; the skeleton has no source, and `node_modules`/`pnpm-lock.yaml` are gone. The first build/typecheck baseline gets re-established when the target product's First Value slice is implemented.
+Nothing product-bearing to build or verify yet. The scaffold that previously passed `pnpm typecheck` and `pnpm build` has been removed; the new app and package source entrypoints are empty TypeScript modules, and `node_modules`/`pnpm-lock.yaml` are gone. The first meaningful build/typecheck baseline gets re-established when the target product's First Value slice is implemented.
 
 ## Not Yet Done
 

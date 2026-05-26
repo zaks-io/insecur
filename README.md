@@ -10,10 +10,22 @@ insecur's v1 product focus is narrow: store secrets securely as the source of tr
 
 ```
 apps/
-  worker/   Cloudflare Worker API (target: Hono + Hyperdrive-backed Postgres)
+  worker/   Cloudflare Worker API composition
 packages/
-  cli/      Node CLI for runtime injection and agent-safe operations
+  domain/             shared domain primitives and stable vocabulary shapes
+  access/             Effective Access Resolver
+  tenant-store/       Tenant-Scoped Store and RLS adapter contract
+  crypto/             Keyring and Encryption Envelope
+  audit/              Audit Event Writer
+  secrets/            Secret Version Store and Blind Secret Write rules
+  runtime-injection/  Runtime Injection Grant Service
+  onboarding/         Guided Organization Provisioning
+  cli/                Node CLI for runtime injection and agent-safe operations
 ```
+
+The agent context routing map lives in [CONTEXT-MAP.md](CONTEXT-MAP.md). The
+package ownership map lives in [docs/context-map.md](docs/context-map.md).
+`CONTEXT.md` remains the source of truth for domain language.
 
 ## Quick start
 

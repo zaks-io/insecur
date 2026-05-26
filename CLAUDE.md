@@ -1,5 +1,7 @@
 # insecur
 
+insecur is no-reveal secrets custody for teams shipping with agents and CI. See `docs/vision.md` for the north star: what this is, what it is trying to accomplish, and the overall direction of the repo.
+
 ## Agent skills
 
 ### Issue tracker
@@ -12,7 +14,7 @@ This repo uses the default five-label triage vocabulary. See `docs/agents/triage
 
 ### Domain docs
 
-This repo uses a single-context domain doc layout. See `docs/agents/domain.md`.
+This repo uses a multi-context domain doc layout rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
 
 ### Project status
 

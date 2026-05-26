@@ -1,11 +1,12 @@
 # Pricing Strategy
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 A proposed pricing model for insecur and the reasoning behind it. Companion to
 [competitive-landscape.md](competitive-landscape.md). Dollar amounts are working assumptions;
-the structure is the argument. The cost basis that must justify these prices is not yet modeled,
-see [unit-economics.md](unit-economics.md).
+the structure is the argument. The rough cost basis is modeled in
+[unit-economics.md](unit-economics.md); it supports the current price as long as Free and
+automation-heavy tenants are bounded by abuse and reliability limits.
 
 ## Positioning: on par, trustworthy, not cheap
 
@@ -35,8 +36,10 @@ Charge **per human seat ($25/seat/month, with an annual discount)**. Do not mete
   Enterprise and sits just above Doppler Team ($21), credible and predictable without the
   Vault-style ~$1,150+/mo floor. An annual commitment earns a discount (target ~15-20% off, in line with
   competitors), giving a lower effective monthly rate in exchange for the commitment.
-- **Machines are free and unlimited.** Machine identities, deploy keys, OIDC exchanges, runtime
-  injections, and sync runs are never metered, at any tier.
+- **Machines are free and unmetered.** Machine identities, deploy keys, OIDC exchanges, runtime
+  injections, and sync runs are never billable seats or usage meters. They are still subject to
+  abuse, reliability, and fair-use limits so "robots are free" does not become a denial-of-wallet
+  surface.
 
 This resolves the usual tension. Per-seat pricing is compatible with the agent/CI wedge because
 agents and CI are not seats. "We charge for people, never for your robots" is a stronger, clearer
@@ -84,7 +87,7 @@ is the land-and-expand engine. Startups buy without a sales call and grow into E
 | Protected Environments | none | unlimited | unlimited |
 | Provider connections (CF / Vercel / GitHub) | 1 | unlimited | unlimited |
 | Members | up to 3 | per seat | per seat |
-| Machine identities / deploy keys / OIDC / runtime injection / sync runs | unlimited | unlimited | unlimited |
+| Machine identities / deploy keys / OIDC / runtime injection / sync runs | unmetered, fair-use limits | unmetered, fair-use limits | custom fair-use / contract |
 | Approval workflows + risk presets | n/a (no protected envs) | all presets | all + future custom policy |
 | Audit retention | 7 days | 90 days | custom |
 | Tamper-evident audit export | – | yes | yes |

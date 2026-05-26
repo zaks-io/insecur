@@ -1,0 +1,29 @@
+{
+  "name": "@insecur/runtime-injection",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@insecur/access": "workspace:*",
+    "@insecur/audit": "workspace:*",
+    "@insecur/domain": "workspace:*",
+    "@insecur/secrets": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
+

@@ -10,8 +10,10 @@ here.
 
 ## Business
 
-- **Unit economics / COGS: not modeled.** The $25/seat price has no cost basis yet. See
-  [research/unit-economics.md](research/unit-economics.md). Blocks defending the price.
+- **Unit economics / COGS: rough model exists.** The first model supports the $25/seat price for
+  normal Team usage, but depends on Free-tier quotas, fair-use automation limits, and measured
+  runtime-injection costs once implemented. See
+  [research/unit-economics.md](research/unit-economics.md).
 - **Demand validation.** The founder is the design partner and first user. Broaden validation
   before heavy go-to-market spend.
 - **Team seat minimum / platform floor:** open (from pricing-strategy.md).

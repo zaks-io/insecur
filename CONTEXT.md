@@ -21,6 +21,8 @@ Glossary paths:
 
 Architecture docs that deepen the glossary:
 
+- `CONTEXT-MAP.md` owns the agent routing map across root, app, and package context files.
+- `docs/context-map.md` owns the package context map and package ownership rules.
 - `docs/first-value-milestone.md` owns the **First Value Milestone** integration contract.
 - `docs/protected-change-orchestration.md` owns the **Protected Change Orchestrator** Interface.
 - `docs/operation-store.md` owns the **Operation Store** Interface.

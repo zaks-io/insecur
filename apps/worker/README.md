@@ -1,51 +1,34 @@
 # @insecur/worker
 
-Cloudflare Worker API for insecur. This package currently contains a Hono + D1 + WebCrypto pre-v1 scaffold; the V1 docs now target Hyperdrive-backed Neon Postgres with Row-Level Security through the Tenant-Scoped Store.
+Cloudflare Worker API composition for insecur.
 
-This package currently contains the pre-v1 scaffold API. It is useful for validating shape, but it is not production-ready for valuable secrets until the v1 security baseline in `../../docs/security-plan.md` is implemented.
+This package is currently a deployable-package skeleton. Product behavior should
+be built by composing the domain packages in `../../packages`, not by placing
+authorization, persistence, encryption, Secret Version, or Runtime Injection
+rules directly in routes.
 
 See [`../../docs/setup.md`](../../docs/setup.md) for end-to-end setup.
+See [`../../docs/context-map.md`](../../docs/context-map.md) for package
+ownership.
 
 ## Layout
 
 ```
-src/
-  index.ts              Hono app, route wiring
-  env.ts                Worker env + Variables types
-  util.ts               base64, sha256, randomBytes, constant-time compare
-  crypto.ts             AES-256-GCM envelope encryption (KEK wraps per-version DEK)
-  session.ts            HMAC-signed session cookie
-  auth.ts               Bearer token + session authz middleware
-  scopes.ts             Machine token scope parsing + project checks
-  audit.ts              audit_log writer
-  routes/
-    oauth.ts            GitHub OAuth login + callback + logout
-    projects.ts         Projects + environments CRUD
-    secrets.ts          Secrets CRUD + versions + rollback + bulk dotenv
-    tokens.ts           Machine token mint + list + revoke
-migrations/
-  0001_init.sql         schema
+src/                    Worker route and binding composition, when implemented
 ```
 
-## Routes
+## Owns
 
-| Method | Path | Auth |
-|---|---|---|
-| GET    | `/health` | none |
-| GET    | `/v1/auth/github/login` | none |
-| GET    | `/v1/auth/github/callback` | none |
-| POST   | `/v1/auth/github/logout` | session |
-| GET    | `/v1/me` | session/bearer |
-| GET    | `/v1/projects` | session/bearer |
-| POST   | `/v1/projects` | session human |
-| GET    | `/v1/projects/:slug/envs` | session/bearer |
-| POST   | `/v1/projects/:slug/envs` | session human |
-| GET    | `/v1/projects/:p/envs/:e/secrets` | project read |
-| GET    | `/v1/projects/:p/envs/:e/secrets/:name` | project read |
-| PUT    | `/v1/projects/:p/envs/:e/secrets/:name` | project write |
-| GET    | `/v1/projects/:p/envs/:e/secrets/:name/versions` | project read |
-| POST   | `/v1/projects/:p/envs/:e/secrets/:name/rollback` | project write |
-| GET    | `/v1/projects/:p/envs/:e/dotenv` | project read |
-| POST   | `/v1/tokens` | session (humans only) |
-| GET    | `/v1/tokens` | session human |
-| POST   | `/v1/tokens/:id/revoke` | session human |
+- Cloudflare Worker request handling.
+- Hono route wiring when implementation begins.
+- Worker bindings and environment typing.
+- Transport-level request parsing and response formatting.
+
+## Does Not Own
+
+- Effective Access decisions.
+- Tenant-Scoped Store transaction rules.
+- Encryption or Keyring behavior.
+- Secret Version append/current rules.
+- Runtime Injection Grant state machines.
+- Audit event metadata allowlists.
