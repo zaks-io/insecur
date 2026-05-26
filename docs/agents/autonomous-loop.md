@@ -10,6 +10,8 @@ security posture, or domain language while doing so.
 
 - Keep implementation issues in the `INS` Linear team. Do not create an agent-only subteam for
   product work.
+- Use `First Value Implementation` for First Value build work and
+  `First Value Customer Validation` for discovery, design-partner, evidence, and scope-gate work.
 - Use Linear projects for product milestones such as First Value Milestone, Production Delivery
   Foundation, V1 Machine Access, V1 Sync, V1 Runtime Injection, and V1 Approval UX.
 - Use project milestones or parent issues for workstreams from `docs/specs/agent-workstreams.md`.
@@ -17,6 +19,9 @@ security posture, or domain language while doing so.
 - Use Linear relationships for dependency order. `blocked by` and `blocks` are the ordering
   mechanism; labels are routing metadata.
 - Use `ready-for-agent` only for issues that an agent can implement without new product judgment.
+- Blocked implementation issues must not carry `ready-for-agent`. When their blockers are done,
+  move them to `Todo` and add `ready-for-agent` only if the issue still satisfies the full
+  agent-ready contract.
 - Use `ready-for-human` for issues that require product, security, credential, vendor, or
   architecture judgment before implementation.
 
@@ -37,6 +42,9 @@ An issue may receive `ready-for-agent` only when all of these are true:
 - It does not require new ADR decisions, credential setup, provider approval, or customer judgment.
 
 If any of these are missing, apply `needs-info` or `ready-for-human`, not `ready-for-agent`.
+
+For First Value ticket publishing and dependency setup, follow
+`docs/agents/linear-ticketing.md` and `docs/specs/first-value-ticket-plan.md`.
 
 ## Agent Selection Loop
 

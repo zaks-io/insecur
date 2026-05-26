@@ -1,7 +1,17 @@
 # Issue tracker: Linear
 
-Issues and PRDs for this repo live in Linear project INS-. Use the Linear MCP server for all operations.
-Autonomous implementation agents must follow `docs/agents/autonomous-loop.md`.
+Issues and PRDs for this repo live in Linear team `INS`. Use the Linear MCP server for all
+operations. Autonomous implementation agents must follow `docs/agents/autonomous-loop.md`.
+
+## Projects
+
+- `First Value Customer Validation` tracks discovery, design-partner onboarding, evidence review,
+  and scope-gate work.
+- `First Value Implementation` tracks agent-build work for the First Value Milestone.
+
+The First Value ticket graph and dependency order are documented in
+`docs/specs/first-value-ticket-plan.md`. The Linear publishing checklist is documented in
+`docs/agents/linear-ticketing.md`.
 
 ## Conventions
 
@@ -11,6 +21,16 @@ Autonomous implementation agents must follow `docs/agents/autonomous-loop.md`.
 - **Comment on an issue**: Use `save_comment` with the issue ID.
 - **Apply / remove labels**: Use `save_issue` with the `labels` parameter.
 - **Close**: Use `save_issue` with `state: "Done"` or appropriate completed state.
+
+## Parent issues and dependencies
+
+- Use parent issues for workstreams such as `W0 - Tooling, CI, and Supply Chain`.
+- Do not create workstream labels.
+- Publish blockers before blocked issues so child descriptions can cite real issue IDs.
+- Use `blockedBy` and `blocks` relationships for ordering.
+- Keep blocked implementation issues in `Backlog` without `ready-for-agent`.
+- Move an implementation issue to `Todo` and add `ready-for-agent` only after all blockers are
+  `Done` and the issue still satisfies the agent-ready contract.
 
 ## MCP scope
 
@@ -23,7 +43,7 @@ understand the work.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a Linear issue in project INS-.
+Create a Linear issue in team `INS` and the appropriate project.
 
 ## When a skill says "fetch the relevant ticket"
 

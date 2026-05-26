@@ -10,7 +10,10 @@ The first V1 promise is to stop giving coding agents plaintext local secret file
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
 Linear triage labels exist for team INS, and the First Value Customer Validation project now tracks
-the initial customer-validation and proof-loop work.
+the initial customer-validation work. First Value implementation work is tracked separately in the
+First Value Implementation project using the parent workstreams and dependency graph documented in
+[first-value-ticket-plan.md](specs/first-value-ticket-plan.md). Linear ticket publishing rules live
+in [linear-ticketing.md](agents/linear-ticketing.md).
 
 ## Customer Validation Plan
 
@@ -125,28 +128,29 @@ Vercel sync, focused UI, rotation framework automation, Cron Triggers, Cloudflar
 
 ## Recommended Next Steps
 
-1. Run the customer-validation loop from [customer-validation.md](customer-validation.md): 20 discovery interviews with agent-heavy teams, five design partners, and repeated First Value usage evidence.
-2. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md) as a narrow vertical slice through the real foundation: Tenant-Scoped Store, Row-Level Security, Effective Access, Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, tenant-bound Secret encryption, Secret Version Store, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
-3. Use the design-partner loop to shorten and harden the First Value proof before widening provider scope or web management.
-4. Expand the foundation toward Production Delivery: full Neon Postgres tenant-first schema, tenant-qualified audit log, project ownership by organization, Instance Bootstrap, Bootstrap Operator Claim completion, first-Organization owner Membership creation, Instance Operator-controlled Organization creation, organization/project memberships, and scope-first authorization.
-5. Move route shape and authorization to organization-qualified object-level checks.
-6. Add organization and project data keys before storing provider credentials or production secrets in multi-tenant mode.
-7. Add key versions and root/organization/project data key rotation workflows.
-8. Bind the secret ciphertext layer to organization/project/environment/secret identity and bind the DEK-wrap layer to the data-key version with AES-GCM authenticated data.
-9. Add the Storage Security Gate from [storage-security-gate.md](storage-security-gate.md) so production Secret Delivery and Secret Sync fail closed until tenant-bound storage readiness is verified.
-10. Add Protected Environment Draft Version, Promotion, Published Version, rollback, Rollback Retention Window behavior, and the Protected Change Orchestrator from [protected-change-orchestration.md](protected-change-orchestration.md).
-11. Add the Human Approval Surface and Delivery Risk Policy Presets so Protected Environment gates are not terminal-only while non-protected preview/development relaxations are explicit, versioned, and audited.
-12. Strengthen secret version write, promotion, and rollback concurrency guarantees.
-13. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
-14. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
-15. Implement GitHub Actions OIDC federation for short-lived CI access.
-16. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-slug-or-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
-17. Add the GitHub App connection and Cloudflare scoped-token App Connection, then project-owned secret syncs behind the Storage Security Gate. Keep the Vercel adapter seam add-back-ready, but do not build Vercel sync in V1.
-18. Add the [Operation Store](operation-store.md), lease-row Sync Target Serialization with a fencing token, in-request retry with backoff, and the partial-failure state machine (`blocked`/`incomplete`) for sync operations (ADR-0057). Cloudflare Queues and Durable Objects are deferred past V1.
-19. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, inline run, verify, retry/reauth, and `incomplete`-operation resume through the Operation Store.
-20. Add sync operation audit events for lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release.
-21. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
-22. Write the security runbooks catalogued in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
-23. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests before broad public signup.
-24. Add the security release gate evidence bundle and automation from [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md), including ASVS/API Top 10 checks, dependency scanning, and secret scanning.
-25. Add the broader focused UI after API, CLI, and sync flows are verified.
+1. Work the First Value Implementation Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), starting with the unblocked tooling baseline and the required human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
+2. Run the customer-validation loop from [customer-validation.md](customer-validation.md): 20 discovery interviews with agent-heavy teams, five design partners, and repeated First Value usage evidence.
+3. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md) as a narrow vertical slice through the real foundation: Tenant-Scoped Store, Row-Level Security, Effective Access, Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, tenant-bound Secret encryption, Secret Version Store, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
+4. Use the design-partner loop to shorten and harden the First Value proof before widening provider scope or web management.
+5. Expand the foundation toward Production Delivery: full Neon Postgres tenant-first schema, tenant-qualified audit log, project ownership by organization, Instance Bootstrap, Bootstrap Operator Claim completion, first-Organization owner Membership creation, Instance Operator-controlled Organization creation, organization/project memberships, and scope-first authorization.
+6. Move route shape and authorization to organization-qualified object-level checks.
+7. Add organization and project data keys before storing provider credentials or production secrets in multi-tenant mode.
+8. Add key versions and root/organization/project data key rotation workflows.
+9. Bind the secret ciphertext layer to organization/project/environment/secret identity and bind the DEK-wrap layer to the data-key version with AES-GCM authenticated data.
+10. Add the Storage Security Gate from [storage-security-gate.md](storage-security-gate.md) so production Secret Delivery and Secret Sync fail closed until tenant-bound storage readiness is verified.
+11. Add Protected Environment Draft Version, Promotion, Published Version, rollback, Rollback Retention Window behavior, and the Protected Change Orchestrator from [protected-change-orchestration.md](protected-change-orchestration.md).
+12. Add the Human Approval Surface and Delivery Risk Policy Presets so Protected Environment gates are not terminal-only while non-protected preview/development relaxations are explicit, versioned, and audited.
+13. Strengthen secret version write, promotion, and rollback concurrency guarantees.
+14. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
+15. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
+16. Implement GitHub Actions OIDC federation for short-lived CI access.
+17. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-slug-or-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
+18. Add the GitHub App connection and Cloudflare scoped-token App Connection, then project-owned secret syncs behind the Storage Security Gate. Keep the Vercel adapter seam add-back-ready, but do not build Vercel sync in V1.
+19. Add the [Operation Store](operation-store.md), lease-row Sync Target Serialization with a fencing token, in-request retry with backoff, and the partial-failure state machine (`blocked`/`incomplete`) for sync operations (ADR-0057). Cloudflare Queues and Durable Objects are deferred past V1.
+20. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, inline run, verify, retry/reauth, and `incomplete`-operation resume through the Operation Store.
+21. Add sync operation audit events for lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release.
+22. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
+23. Write the security runbooks catalogued in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
+24. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests before broad public signup.
+25. Add the security release gate evidence bundle and automation from [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md), including ASVS/API Top 10 checks, dependency scanning, and secret scanning.
+26. Add the broader focused UI after API, CLI, and sync flows are verified.
