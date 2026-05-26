@@ -19,7 +19,9 @@ repos at 100 tokens a second, and teams started running several in parallel. The
 a break-in. It is a helpful status line you scrolled past: "I'll just read your `.env` to
 debug this." You cannot out-watch a swarm of fast agents, and you cannot predict where a
 creative one will look. Oversight was never the control. The only thing that holds at this
-speed is structural: take the readable secret off the table.
+speed is structural: take the readable secret off the table. Public evidence that developers
+are already running into this problem is captured in
+[`research/problem-evidence.md`](research/problem-evidence.md).
 
 ## What it is trying to accomplish
 

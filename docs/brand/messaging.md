@@ -17,7 +17,8 @@ unreadable.
 Three beats, always in this order:
 
 1. **Hook (why now):** the agent already read your `.env`, and you are about to run five
-   more in parallel. See the agent narrative in `voice.md`.
+   more in parallel. See the agent narrative in `voice.md` and the public problem evidence
+   in [`../research/problem-evidence.md`](../research/problem-evidence.md).
 2. **Mechanic (what we do):** "Use it, don't reveal it." Secrets go in, get used, and never
    come back out as plaintext.
 3. **Proof (why believe it):** the mechanism, shown not asserted. No reveal path below the
