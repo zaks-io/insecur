@@ -1,8 +1,8 @@
 # insecur
 
-A multi-tenant secrets manager for developers and agents working in the Cloudflare + Vercel + GitHub Actions stack. The first wedge is replacing plaintext local secret files with diskless development secret use through the `insecur` CLI; the production path adds Cloudflare Workers, Hyperdrive-backed Neon Postgres with Row-Level Security, envelope encryption with WebCrypto, OAuth app connections, runtime injection, and provider sync without revealing plaintext secrets by default.
+A multi-tenant secrets manager for developers and agents working in the Cloudflare + GitHub Actions stack, with Vercel kept as an additive provider adapter behind the same port model. The first wedge is replacing plaintext local secret files with diskless development secret use through the `insecur` CLI; the production path adds Cloudflare Workers, Hyperdrive-backed Neon Postgres with Row-Level Security, envelope encryption with WebCrypto, OAuth app connections, runtime injection, and provider sync without revealing plaintext secrets by default.
 
-insecur's v1 product focus is narrow: store secrets securely as the source of truth, replace `.env` files for local development with just-in-time runtime injection, sync secrets to Cloudflare, Vercel, and GitHub when those platforms need native secrets, and keep developers and agents away from steady-state plaintext secret files.
+insecur's v1 product focus is narrow: store secrets securely as the source of truth, replace `.env` files for local development with just-in-time runtime injection, sync secrets to Cloudflare and GitHub when those platforms need native secrets, and keep developers and agents away from steady-state plaintext secret files. The Vercel sync adapter is deferred past V1.
 
 > Yes, the name is on purpose.
 
@@ -19,7 +19,17 @@ packages/
 
 See [docs/setup.md](docs/setup.md).
 
-The design notes live in [docs/architecture.md](docs/architecture.md), the CLI/sync plan lives in [docs/cli-and-sync.md](docs/cli-and-sync.md), protected change orchestration lives in [docs/protected-change-orchestration.md](docs/protected-change-orchestration.md), the Storage Security Gate lives in [docs/storage-security-gate.md](docs/storage-security-gate.md), security runbooks/release gates live in [docs/security-runbooks-and-release-gates.md](docs/security-runbooks-and-release-gates.md), and the security planning checklist lives in [docs/security-plan.md](docs/security-plan.md). Architectural decisions are indexed in [docs/adr/README.md](docs/adr/README.md).
+Start with [docs/specs/README.md](docs/specs/README.md). The canonical product spec lives in
+[docs/specs/product-spec.md](docs/specs/product-spec.md), and autonomous implementation seams live
+in [docs/specs/agent-workstreams.md](docs/specs/agent-workstreams.md).
+
+The older area docs still hold useful detail: [docs/architecture.md](docs/architecture.md),
+[docs/cli-and-sync.md](docs/cli-and-sync.md),
+[docs/protected-change-orchestration.md](docs/protected-change-orchestration.md),
+[docs/storage-security-gate.md](docs/storage-security-gate.md),
+[docs/security-runbooks-and-release-gates.md](docs/security-runbooks-and-release-gates.md), and
+[docs/security-plan.md](docs/security-plan.md). Architectural decisions are indexed in
+[docs/adr/README.md](docs/adr/README.md).
 
 ## Production V1 Boundary
 
@@ -43,5 +53,5 @@ Production Secret Delivery and Secret Sync are blocked until the [Storage Securi
 - **Production foundation** — tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key versions, protected promotion/rollback, and security gates
 - **V1 machine access** — machine identities and GitHub Actions OIDC federation for short-lived CI access
 - **V1 approval UX** — Human Approval Surface for protected gates plus Delivery Risk Policy Presets for explicit non-protected preview/development automation
-- **V1 delivery** — OAuth app connections and sync engines for Vercel, GitHub, and direct Cloudflare Worker secrets, plus profile-based `insecur run` for deploy and local command injection
-- **Post-v1 hardening** — focused UI, deeper rotation automation, R2 backups, restore tests, and operational polish
+- **V1 delivery** — OAuth app connections and sync engines for GitHub and direct Cloudflare Worker secrets, plus profile-based `insecur run` for deploy and local command injection
+- **Post-v1 hardening** — Vercel sync, focused UI, deeper rotation automation, broader recovery drills, and operational polish

@@ -2,6 +2,9 @@
 
 Architectural decisions for insecur live here. ADRs are intentionally short records of decisions that are costly to reverse, surprising without context, or likely to be re-litigated.
 
+Implementation starts from the consolidated specs in [../specs/README.md](../specs/README.md).
+Use this index for traceability and rationale after locating the relevant spec section.
+
 ## Accepted
 
 - [ADR-0001: Tenant-First Control Plane](0001-tenant-first-control-plane.md)

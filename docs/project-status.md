@@ -1,10 +1,10 @@
 # Project Status
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Current State
 
-insecur currently contains no implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, and the copyable `examples/first-value-proof`. The next code written is the target product, built against these docs. The target product direction starts with Diskless Development Secret Use for developers and agents: replace plaintext local secret files with just-in-time Runtime Injection in a non-protected development Environment. The underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/Vercel/GitHub, protected delivery, and CLI runtime injection for deploys and local commands.
+insecur currently contains no implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, and the copyable `examples/first-value-proof`. The next code written is the target product, built against these docs. The target product direction starts with Diskless Development Secret Use for developers and agents: replace plaintext local secret files with just-in-time Runtime Injection in a non-protected development Environment. The underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/GitHub, protected delivery, and CLI runtime injection for deploys and local commands. The Vercel sync adapter is deferred past V1 behind the same provider port model.
 
 The first V1 promise is to stop giving coding agents plaintext local secret files. The production promise is to let agents and CI cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
@@ -27,7 +27,7 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 
 - The workspace skeleton: root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `turbo.json`, and the per-package `package.json`/`tsconfig`/`README` stubs for `apps/worker` and `packages/cli` (no source).
 - `examples/first-value-proof`, the copyable First Value Proof.
-- All documentation: CONTEXT, architecture, the ADRs, `docs/cli-and-sync.md`, `docs/security-plan.md`, and `docs/security-runbooks-and-release-gates.md`.
+- All documentation: CONTEXT, the consolidated specs in `docs/specs/`, architecture, the ADRs, `docs/cli-and-sync.md`, `docs/security-plan.md`, and `docs/security-runbooks-and-release-gates.md`.
 
 ## Verified Locally
 
@@ -94,7 +94,7 @@ Machine identities, GitHub Actions OIDC federation, and environment-scoped deplo
 
 **V1 sync**
 
-OAuth app connections and inline sync engines for Vercel, GitHub Actions, and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. Production sync remains blocked until the Storage Security Gate passes.
+OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter is deferred past V1 but remains additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes.
 
 **V1 runtime injection**
 
@@ -106,7 +106,7 @@ Human Approval Surface for Protected Environment approval, High-Assurance Challe
 
 **Post-v1 hardening**
 
-Focused UI, rotation framework, Cron Triggers, Cloudflare Queues and Durable Object sync execution (additive over V1 inline sync), encrypted R2 backups, restore testing, key rotation procedure, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
+Vercel sync, focused UI, rotation framework automation, Cron Triggers, Cloudflare Queues and Durable Object sync execution (additive over V1 inline sync), broader recovery drills, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
 
 ## Recommended Next Steps
 
@@ -124,7 +124,7 @@ Focused UI, rotation framework, Cron Triggers, Cloudflare Queues and Durable Obj
 12. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
 13. Implement GitHub Actions OIDC federation for short-lived CI access.
 14. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-slug-or-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
-15. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs behind the Storage Security Gate.
+15. Add the GitHub App connection and Cloudflare scoped-token App Connection, then project-owned secret syncs behind the Storage Security Gate. Keep the Vercel adapter seam add-back-ready, but do not build Vercel sync in V1.
 16. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, inline run, verify, retry/reauth, and `incomplete`-operation resume.
 17. Add lease-row Sync Target Serialization with a fencing token, in-request retry with backoff, and the partial-failure state machine (`blocked`/`incomplete`) for sync operations (ADR-0057). Cloudflare Queues and Durable Objects are deferred past V1.
 18. Add sync operation audit events for lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release.

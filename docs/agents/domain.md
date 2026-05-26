@@ -4,8 +4,12 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
+- **`docs/specs/README.md`** for the current implementation entry point.
+- **`docs/specs/product-spec.md`** for the consolidated product state and ADR trace links.
+- **`docs/specs/agent-workstreams.md`** when planning or taking an implementation slice.
 - **`CONTEXT.md`** at the repo root.
-- **`docs/adr/`** for ADRs that touch the area you're about to work in.
+- **`docs/adr/`** only for ADRs linked from the spec section that touches the area you're about to
+  work in.
 
 `CONTEXT.md` starts with a Navigation section. Use that map first when you know the domain area but not the exact term.
 
@@ -18,6 +22,9 @@ This is a single-context repo:
 ```text
 /
 ├── CONTEXT.md
+├── docs/specs/
+│   ├── product-spec.md
+│   └── agent-workstreams.md
 ├── docs/adr/
 │   ├── 0001-example-decision.md
 │   └── 0002-example-decision.md
