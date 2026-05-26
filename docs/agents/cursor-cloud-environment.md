@@ -1,0 +1,43 @@
+# Cursor Cloud Environment
+
+This repo has a committed Cursor Cloud Agent environment so remote agents use the same Node and pnpm baseline as local development and future CI.
+
+## Source Of Truth
+
+- `.cursor/environment.json` is the repo-level Cursor Cloud Agent config.
+- `.cursor/Dockerfile` defines the machine baseline.
+- `.nvmrc`, `.node-version`, `.npmrc`, `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` define the Node and pnpm contract.
+
+Cursor's repo-level environment config should be treated as reviewable infrastructure. Do not replace it with only personal or team dashboard settings.
+
+## Cursor References
+
+- Cursor environment schema: https://cursor.com/schemas/environment.schema.json
+- Cursor Cloud environment release notes: https://cursor.com/changelog/05-13-26
+- Cursor environment announcement: https://cursor.com/blog/cloud-agent-development-environments
+
+## Maintenance Rules
+
+- Keep Node on major 24 until `docs/build-tooling.md` changes.
+- Keep pnpm on `10.19.0` until the package manager baseline is intentionally updated.
+- Keep dependency installation in `.cursor/environment.json` `install`; it must be idempotent and safe to rerun after checkout.
+- Do not add `start` or long-running `terminals` until the Worker dev workflow is ready to run consistently in remote agent sessions.
+- Do not `COPY` the repository into `.cursor/Dockerfile`; Cursor manages checkout and branch state.
+- Do not add secrets to `.cursor/environment.json` or `.cursor/Dockerfile`.
+- Any package added to `onlyBuiltDependencies` is a supply-chain decision and should be reviewed as such.
+
+## Validation
+
+Use these checks after environment changes:
+
+```sh
+node --version
+pnpm --version
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm build
+docker build -f .cursor/Dockerfile .cursor -t insecur-cursor-env-test
+docker run --rm insecur-cursor-env-test sh -lc 'node --version && pnpm --version'
+```
+
+`pnpm build` currently reaches the Worker dry-run deploy and fails until the Worker has a `wrangler.jsonc` or explicit deploy entry point. Do not fix that as part of Cursor environment maintenance unless the task is also to restore the Worker build baseline.

@@ -24,3 +24,7 @@ This repo uses a multi-context domain doc layout rooted at `CONTEXT-MAP.md`. See
 ### Project status
 
 Current implementation status and next steps are tracked in `docs/project-status.md`.
+
+### Cursor Cloud environment
+
+Remote Cursor agent setup and maintenance notes live in `docs/agents/cursor-cloud-environment.md`.
