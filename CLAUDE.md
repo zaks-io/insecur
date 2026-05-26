@@ -8,6 +8,11 @@ insecur is no-reveal secrets custody for teams shipping with agents and CI. See 
 
 Issues are tracked in Linear project INS- using the Linear MCP server. See `docs/agents/issue-tracker.md`.
 
+### Autonomous agent loop
+
+Agents working from Linear must follow `docs/agents/autonomous-loop.md` for issue readiness,
+claiming, blockers, PR handoff, and Linear setup conventions.
+
 ### Triage labels
 
 This repo uses the default five-label triage vocabulary. See `docs/agents/triage-labels.md`.
