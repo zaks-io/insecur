@@ -510,8 +510,8 @@ Rules:
 - Approval confirmation warns, but does not block, when the Draft Area contains newer Draft Versions outside the Promotion Change Set; the warning should encourage requesting Promotion again if those Draft Versions should be included.
 - A Promotion Change Set freezes Draft Version identity only; it does not freeze Secret Sync, Runtime Injection Policy, App Connection, or other delivery target configuration.
 - Approval uses a metadata-only Approval Impact Review recomputed before approval.
-- Approval Impact Review includes every enabled eligible Secret Sync that Promotion will enqueue, including Cloudflare Worker Secret Deploy impact for exact Worker scripts and binding names.
-- Approval Impact Review validates Provider Value Size Limits for every enabled Secret Sync that Promotion would enqueue. If any affected value would fail with `sync.provider_value_too_large`, approval or final publish is blocked before Promotion; no Published Version changes and no Immediate Sync After Promotion operation is enqueued.
+- Approval Impact Review includes every enabled eligible Secret Sync that Promotion will run, including Cloudflare Worker Secret Deploy impact for exact Worker scripts and binding names.
+- Approval Impact Review validates Provider Value Size Limits for every enabled Secret Sync that Promotion would run. If any affected value would fail with `sync.provider_value_too_large`, approval or final publish is blocked before Promotion; no Published Version changes and no Immediate Sync After Promotion operation starts.
 - Approval submission must reject stale approval views when current delivery or sync impact differs from the impact the approver reviewed.
 - Stale Approval Impact Review returns exit code `6` with stable code `approval.review_stale`, leaves the Approval Request pending, and does not perform Promotion, cancel the request, or mark it superseded.
 - Approval Requests have exactly one approval purpose in V1.
@@ -521,7 +521,7 @@ Rules:
 - Creating disabled Secret Syncs or disabled Secret Sync Bindings for a Protected Environment is a protected delivery configuration change, even though it does not sync yet.
 - Protected delivery configuration changes include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
 - `promote` cannot create, enable, or change Secret Sync destinations, Runtime Injection Policies, App Connections, Connection Boundaries, or other delivery targets.
-- Promotion immediately enqueues every enabled eligible Secret Sync affected by any promoted version in the Promotion Change Set and returns operation IDs/status metadata. The accepted Approval Impact Review authorizes those immediate syncs and deploy impacts; no second approval is required for already-enabled syncs.
+- Promotion immediately runs every enabled eligible Secret Sync affected by any promoted version in the Promotion Change Set through Inline Sync Execution and returns operation IDs/status metadata. The accepted Approval Impact Review authorizes those immediate syncs and deploy impacts; no second approval is required for already-enabled syncs.
 - Promotion does not publish a Protected Environment value that an already-enabled Secret Sync is known to reject for Provider Value Size Limit. The user must change the value, disable or change the sync through the protected delivery configuration path, or choose Runtime Injection before requesting Promotion again.
 - Environment-based delivery is Startup Configuration. Rapidly changing values should use a future dynamic secret/configuration mechanism, not repeated Promotion requests.
 - Scheduling approval, Promotion, or sync is deferred for v1.
@@ -599,6 +599,16 @@ Rules:
 - A separate resident helper process is optional future hardening only if it creates a real boundary; it is not required for the v1 security model.
 - Runtime injection crosses the Runtime Trust Boundary once the child process starts; the child can read its delivered environment.
 - Dynamic runtime injection is preferred over provider Secret Sync for high-sensitivity Protected Environment secrets when the workflow can support it because it avoids storing a persistent copy in the provider.
+
+Failure codes for `run` (all fail closed; the child process is never started on any of them, so it cannot launch with a missing, empty, or previously seen value):
+
+- `injection.grant_denied` (exit `4`): the server refused to issue an Injection Grant for the requested policy or secret set. Not retryable. Distinct from `auth.required` (exit `3`, session expired or absent) and `auth.high_assurance_required` (exit `10`, step-up); a denial that only needs step-up returns the `10` path, not this code.
+- `injection.command_fingerprint_mismatch` (exit `2`): the command does not match the policy's Command Fingerprint. Not retryable without changing the command or the policy.
+- `injection.decrypt_failed` (exit `1`): an approved value could not be decrypted or delivered (key version unavailable, ciphertext identity mismatch, or envelope integrity failure). Not retryable; an integrity failure must not be silently retried.
+- `injection.grant_expired` (exit `6`): the short-lived one-use Injection Grant expired before fork/exec. Fail closed; re-run to obtain a fresh grant.
+- `injection.unreachable` (exit `8`): the control plane could not be reached to issue the Injection Grant. Retryable.
+
+There is no stale-secret fallback by construction: no Sensitive Value is persisted, and every run requires a fresh one-use Injection Grant, so a failed injection has nothing cached to fall back to.
 
 ### Runtime Injection Policies
 
@@ -780,9 +790,9 @@ Security posture:
 - Protected Environment setup, approval, enablement, and manual run fail closed with `provider.unavailable` when Explicit Provider Lookup cannot determine the safe status for every exact Secret Sync Binding destination.
 - Non-protected setup, enablement, and manual run may proceed when Explicit Provider Lookup cannot determine overwrite status only with `sync.overwrite_status_unknown`, user-visible unknown-overwrite warning output, operation-scoped confirmation, and an audit event.
 - CLI and automation must use a scoped flag such as `--allow-unknown-provider-overwrite` for unknown provider overwrite confirmation; generic `--yes` is not sufficient.
-- After Promotion, every enabled eligible Secret Sync affected by any promoted version enqueues immediately when it was included in the accepted Approval Impact Review.
-- If an enabled affected Secret Sync would fail Provider Value Size Limit validation, protected Promotion is blocked before publish instead of enqueueing a doomed sync.
-- Disabled syncs remain disabled and are not enqueued by Promotion.
+- After Promotion, every enabled eligible Secret Sync affected by any promoted version runs immediately when it was included in the accepted Approval Impact Review.
+- If an enabled affected Secret Sync would fail Provider Value Size Limit validation, protected Promotion is blocked before publish instead of starting a doomed sync.
+- Disabled syncs remain disabled and are not run by Promotion.
 - Disabling a Secret Sync leaves provider-side managed copies in place, and status/plan output must warn that those copies still exist.
 - Sync plan, run, status, and verification commands must not read Sensitive Values back from providers.
 - For high-sensitivity Protected Environment secrets, prefer Runtime Injection when the command can authenticate to insecur with OIDC or another short-lived auth method at execution time.
@@ -911,7 +921,7 @@ Secret Sync Provider Value Size Limits are destination-specific:
 - The 64 KiB insecur Secret value storage limit is not a provider compatibility guarantee.
 - Each Sync Target adapter has a Provider Value Size Limit and validates every bound value during plan and immediately before provider write.
 - If any bound value exceeds the destination Provider Value Size Limit, `plan`, `enable`, manual run, and execution revalidation fail the whole sync with `sync.provider_value_too_large` before any provider write starts. Unaffected bindings are not written.
-- For protected Promotion, the same provider-size check runs before publish. A failure returns `sync.provider_value_too_large`, blocks Promotion, leaves Published Versions unchanged, and enqueues no Immediate Sync After Promotion operation.
+- For protected Promotion, the same provider-size check runs before publish. A failure returns `sync.provider_value_too_large`, blocks Promotion, leaves Published Versions unchanged, and starts no Immediate Sync After Promotion operation.
 - Provider value size failure is a deterministic pre-write failure, not a best-effort partial sync. Provider API failures after writes begin are reported through operation status, audit, retry, and repair metadata rather than treated as an atomic provider rollback.
 - Low-privilege and automation-safe output may show the Secret ID, binding ID, destination type, provider cap, and `over_limit`, but not exact value byte length for Protected Environment Secrets.
 - Authorized full-fidelity plan, status, approval, and security-review output may show exact encoded byte length to help the User fix the failure. For Protected Environment Secrets, exact value byte length is Sensitive Metadata and requires Sensitive Detail Gate.
@@ -921,9 +931,9 @@ Secret Sync Provider Value Size Limits are destination-specific:
 
 ### 4. Run
 
-Running the sync creates an operation, enqueues work, and returns the operation ID. Provider writes happen in queue consumers, not in the initial request.
+Running the sync creates an operation, claims the Sync Target Serialization lease, performs the provider writes in the same request, and returns the operation ID. Provider writes happen inline in the triggering request (ADR-0057), not in a queue consumer.
 
-The queued worker:
+The run, inside the triggering request:
 
 - Loads current source secret versions for non-protected sources.
 - Blocks with `sync.source_value_missing` when any non-protected source binding has no Current Version.
@@ -932,7 +942,7 @@ The queued worker:
 - Blocks the whole run with `sync.provider_value_too_large` before any provider write when any bound value exceeds the destination Provider Value Size Limit.
 - Revalidates that a Protected Environment GitHub Actions sync still targets an existing GitHub Environment before writing Sensitive Values.
 - Blocks with `sync.provider_drift` before decrypting Sensitive Values if the target GitHub Environment no longer has visible protection rules.
-- Decrypts Sensitive Values only inside request/job execution after Sync Execution Revalidation passes.
+- Decrypts Sensitive Values only inside the request execution after Sync Execution Revalidation passes.
 - Writes provider secrets using the app connection, overwriting existing provider-side values for exact Secret Sync Bindings without Provider Readback.
 - For Cloudflare Worker secret targets, treats each provider write or managed delete as Cloudflare Worker Secret Deploy impact and records that impact in audit.
 - Records managed provider keys where the provider supports metadata or where insecur can track them internally.
@@ -940,7 +950,7 @@ The queued worker:
 - Stores provider errors in normalized form.
 - Updates operation status in the Tenant-Scoped Store after every meaningful state transition.
 - Retries retryable provider failures with delay metadata.
-- Sends exhausted failures to a dead-letter path for Service Access review.
+- Parks exhausted or action-required failures as an `incomplete` operation resumable by operation ID; there is no dead-letter path.
 
 ### 5. Verify
 
@@ -968,29 +978,26 @@ Agents should be able to:
 
 ## Sync Execution Runtime
 
-Sync execution is queue-backed:
+Sync execution is inline and synchronous within the triggering request (ADR-0057); Cloudflare Queues and the Durable Object gate are deferred past V1:
 
-1. `syncs run` validates authorization and idempotency.
-2. The API writes an operation record through the Tenant-Scoped Store.
-3. The API enqueues a sync job.
-4. The API returns an operation ID.
-5. A queue consumer performs Sync Execution Revalidation, then provider writes, and records progress.
-6. A Durable Object serializes provider writes for the same organization/provider/target.
-7. `operations get` and `operations wait` report machine-readable state.
+1. `syncs run` validates authorization and idempotency, and is rejected as a conflict (exit 6) when the sync already has an open `incomplete` operation.
+2. The request writes an operation record through the Tenant-Scoped Store and claims the Sync Target Serialization lease.
+3. The request runs Sync Execution Revalidation, then the All-Or-Nothing Sync Pre-Write Gate, then the provider writes, recording per-binding progress, all in the same request.
+4. The request returns an operation ID; `operations get` and `operations wait` report machine-readable state.
 
 Runtime rules:
 
-- Neon Postgres, reached only through the Tenant-Scoped Store, is the operation and audit source of truth.
-- Queue messages contain operation IDs and target identifiers, not Sensitive Values.
-- Sensitive Values are decrypted only inside the active queue consumer execution after Sync Execution Revalidation passes.
-- Queue consumers complete all deterministic pre-write checks for the write set before the first provider write starts. A pre-write failure writes no bindings.
-- Queue consumers treat Provider Drift as a non-retryable authorization/configuration failure until reauthorization or approved configuration change occurs.
-- Queue consumers must not log decrypted values, raw provider request bodies, or raw provider response bodies.
-- Retryable provider failures use delayed retries.
-- Exhausted failures go to a dead-letter path.
-- Concurrent runs for the same provider destination are serialized through a Durable Object execution gate.
-- The Durable Object is coordination only; Postgres remains the operation and audit source of truth.
-- Operation audit events include enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
+- Neon Postgres, reached only through the Tenant-Scoped Store, is the source of truth for operation state, per-binding write status, the serialization lease, and audit events.
+- Sensitive Values are decrypted only inside the active request execution after Sync Execution Revalidation passes, and are never persisted.
+- All deterministic pre-write checks for the write set complete before the first provider write starts. A pre-write failure writes no bindings and the operation ends `blocked` (exit 7/2) with zero writes.
+- After writes begin, a provider failure on binding k of n produces an Incomplete Sync Run, not a rollback: the operation ends `incomplete` (exit 9) with `cause` ∈ {`retryable`, `action_required`} and surfaces "N of M written, retry <op-id>". Per-binding write status is `pending` → `written` | `failed{code, retryable}`.
+- Provider Drift is a non-retryable `action_required` authorization/configuration failure until reauthorization or an approved configuration change occurs.
+- Decrypted values, raw provider request bodies, and raw provider response bodies are never logged.
+- Transient provider failures (503, 429, timeout, connection reset) retry in-request with backoff and honor `Retry-After`. An `incomplete` operation does not age out; there is no dead-letter path and no background sweeper.
+- `operations retry <op-id>` resumes the same operation: re-claim the lease, re-run Sync Execution Revalidation, and write only the `pending` and `failed` bindings.
+- Concurrent runs for the same organization/provider/target are serialized by the lease row, with a monotonic fencing token checked before each provider write so a stale holder cannot write after losing the lease; an expired lease is reclaimable. Contention fails fast as a retryable `sync.target_busy` (exit 8).
+- For Cloudflare Workers the adapter stages all bindings into one new Worker version and deploys once, so it never lands in a per-binding partial state; GitHub and Vercel are inherently per-binding.
+- Operation audit events include lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release.
 - Secret Sync Deletion operations may finish as `completed_with_warnings` when Orphaned Managed Provider Copies remain after provider cleanup failures.
 
 ## Sync Behavior
@@ -1176,7 +1183,7 @@ CLI:
 - Pending Approval Request tests cover no age-based expiration and no automatic inclusion of newer Draft Versions.
 - Approval Request Supersession tests cover repeat Promotion requests for the same Protected Environment regardless of requester, new immutable IDs, superseded stale-view denial, notification coalescing, and audit retention.
 - Approval warning tests cover newer Draft Versions outside the Promotion Change Set without blocking approval.
-- Approval Impact Review tests cover recomputed delivery/sync targets, enabled syncs that Promotion will enqueue, Provider Value Size Limit failure blocking Promotion before publish, Cloudflare Worker Secret Deploy impact, metadata-only output, Sensitive Detail Gate before decrypted Sensitive Metadata display, stale approval-view denial, and pending request preservation.
+- Approval Impact Review tests cover recomputed delivery/sync targets, enabled syncs that Promotion will run, Provider Value Size Limit failure blocking Promotion before publish, Cloudflare Worker Secret Deploy impact, metadata-only output, Sensitive Detail Gate before decrypted Sensitive Metadata display, stale approval-view denial, and pending request preservation.
 - Approval Notification tests cover no Approval Context Note plaintext, no Sensitive Values, no Variable Keys, no Display Names such as organization/project/environment labels, no decrypted Sensitive Metadata such as provider target names, no raw bodies, no approval impact details, no bearer approval tokens, lock-screen safe browser/mobile push payloads, no approve/deny email actions, and authenticated-view-plus-Sensitive-Detail-Gate sensitive details for browser/mobile push deep links.
 - Push Device Registration tests cover High-Assurance Challenge on new registration and registration replacement, user/device scoping, Sensitive Metadata storage protection, create/update/delete audit, user revocation, logout-all/MFA reset/suspicious activity/lost-device/offboarding invalidation, and no approval or High-Assurance authority from push alone.
 - Approval fatigue tests cover actor, organization, and Protected Environment rate limits plus notification coalescing for superseded requests.
@@ -1186,7 +1193,7 @@ CLI:
 - Scoped-unique name tests cover Runtime Injection Policy Display Names unique within an Environment, CLI Profile Slugs unique within local user config, duplicate create/rename rejection, editable defaults, and non-interactive default-name collision failure.
 - Approval purpose separation tests cover rejection of combined Promotion plus protected delivery configuration changes.
 - Non-protected Blind Secret Write updates Current Version immediately by default.
-- Approved Protected Environment Promotion enqueues every enabled eligible Secret Sync affected by any promoted version immediately when included in the accepted Approval Impact Review, reports operation IDs, and does not require a second deploy approval for already-enabled syncs.
+- Approved Protected Environment Promotion runs every enabled eligible Secret Sync affected by any promoted version immediately when included in the accepted Approval Impact Review, reports operation IDs, and does not require a second deploy approval for already-enabled syncs.
 - Secret Sync Binding tests cover exact Secret IDs, provider-side destination names, rejection of all-secrets/tag/prefix/pattern selection, and no automatic inclusion of newly created environment Secrets.
 - Sync Execution Revalidation tests cover provider identity, credential scope, Connection Boundary, target identity, required provider protection state, source version eligibility, `sync.provider_drift`, and no Sensitive Value decrypt before the revalidation gate passes.
 - Provider Sync Overwrite tests cover Provider Overwrite Warnings for exact existing destinations and overwriting existing provider-side values for exact bindings without Provider Readback, value comparison, value preservation, or Sensitive Values in output.

@@ -14,7 +14,7 @@ The orchestrator owns:
 - Approval Impact Review, Approval Impact Review Fingerprint, and Approval Impact Snapshot orchestration.
 - Partial Approval counting, requester self-approval rules, and Approver Access Revalidation.
 - Terminal closing conditions: rejection, cancellation, supersession, Approval Policy Staleness, Requester Access Staleness, target lifecycle closure, and draft-discard closure.
-- Final apply ordering for Promotion, protected delivery configuration activation, audit records, and Immediate Sync After Promotion enqueue intents.
+- Final apply ordering for Promotion, protected delivery configuration activation, audit records, and Immediate Sync After Promotion run intents.
 
 The orchestrator does not own:
 
@@ -74,8 +74,8 @@ State names are documentation vocabulary, not a required database enum. The requ
 - Protected delivery configuration changes remain distinct from Promotion in authority and audit, even when one Publish clears several gates in one interruption.
 - A High-Assurance Challenge for Publish is single-use, time-limited, and bound to the exact Staged Change Set review fingerprint.
 - A batch whose contents, target state, approval policy, requester authority, or delivery impact changes after review must be reviewed again.
-- Approval Impact Review is recomputed immediately before approval or final apply and includes enabled Secret Syncs that Promotion will enqueue.
-- Approval Impact Review validates Provider Value Size Limits for enabled Secret Syncs affected by protected Promotion; `sync.provider_value_too_large` blocks Promotion before Published Version changes or Immediate Sync After Promotion enqueue.
+- Approval Impact Review is recomputed immediately before approval or final apply and includes enabled Secret Syncs that Promotion will run.
+- Approval Impact Review validates Provider Value Size Limits for enabled Secret Syncs affected by protected Promotion; `sync.provider_value_too_large` blocks Promotion before Published Version changes or any Immediate Sync After Promotion run.
 - Cloudflare Worker Secret Deploy impact from already-enabled Cloudflare Secret Syncs is approval evidence inside the accepted Approval Impact Review, not a second deploy approval.
 - Partial Approvals count only while their Approval Impact Review Fingerprint still matches and the approving User still has current approval authority.
 - Requester self-approval is allowed only for a one-approval Protected Approval Policy when the requester has approval scopes and completes the High-Assurance Challenge.
@@ -85,7 +85,7 @@ State names are documentation vocabulary, not a required database enum. The requ
 - Draft Version Discard closes any pending Approval Request whose Promotion Change Set includes the discarded Draft Version.
 - App Connections are prerequisites, not staged items. Missing App Connections create a human handoff before a Staged Change Set can reference that provider reach.
 - Final apply persists the accepted Approval Impact Snapshot before or with the live state change, so the approval-time evidence remains reconstructable.
-- Immediate Sync After Promotion enqueues enabled affected Secret Syncs after Promotion only when that impact was included in the accepted Approval Impact Review; disabled syncs stay disabled.
+- Immediate Sync After Promotion runs enabled affected Secret Syncs after Promotion only when that impact was included in the accepted Approval Impact Review; disabled syncs stay disabled.
 - Human, agent, JSON, audit, notification, dry-run, and operation outputs remain metadata-only and never include Sensitive Values.
 
 ## Implementation Shape
@@ -94,7 +94,7 @@ The orchestrator is deep when callers do not need to know the protected-change s
 
 - Ask the Effective Access Resolver for current capability in one Organization, Project, and Protected Environment.
 - Ask the Protected Approval Policy evaluator which approval gates are required.
-- Produce Approval Impact Review facts from current delivery configuration, exact Draft Versions, enabled sync enqueue impact, Provider Value Size Limit eligibility, and Cloudflare Worker Secret Deploy impact where applicable.
+- Produce Approval Impact Review facts from current delivery configuration, exact Draft Versions, enabled sync run impact, Provider Value Size Limit eligibility, and Cloudflare Worker Secret Deploy impact where applicable.
 - Bind High-Assurance Challenge evidence to the current review fingerprint.
 - Store Approval Requests, Partial Approvals, snapshots, closures, and audit records through the Tenant-Scoped Store.
 - Call Secret Version Store Promotion only after gates and Protected Promotion Sync Preflight are satisfied.
@@ -117,5 +117,5 @@ The Interface is the test surface:
 - Closure tests prove rejection, cancellation, supersession, Approval Policy Staleness, Requester Access Staleness, target lifecycle closure, and draft-discard closure are terminal.
 - Draft Version Reuse tests prove closed Approval Requests cannot contribute approvals, impact reviews, snapshots, or screen state to a fresh request.
 - Draft Version Discard tests prove affected pending Approval Requests close without Promotion and existing Partial Approvals become audit-only.
-- Immediate Sync After Promotion tests prove enabled affected Secret Syncs enqueue after Promotion only when included in the accepted Approval Impact Review, disabled syncs do not, and Cloudflare Worker Secret Deploy impact does not require a second approval for already-enabled syncs.
+- Immediate Sync After Promotion tests prove enabled affected Secret Syncs run after Promotion only when included in the accepted Approval Impact Review, disabled syncs do not, and Cloudflare Worker Secret Deploy impact does not require a second approval for already-enabled syncs.
 - Metadata safety tests prove no Sensitive Values, decrypted Sensitive Metadata, raw provider bodies, or child-process environments appear in review, approval, publish, notification, audit, operation, or JSON output.

@@ -27,4 +27,4 @@ The Service Access surface is a distinct deployment with its own auth audience. 
 - The API Worker enforces one authorization path for every caller, so web-specific scope limits (including the no-reveal boundary in ADR-0052) are expressed as token scope, not UI logic.
 - The Service Binding is private worker-to-worker; the API Worker is not publicly reachable by the browser.
 - Two deploy targets for human surfaces (tenant console, Service Access surface) plus the API Worker. The operator surface carries no reveal, delivery, value, or approval scope by construction.
-- The live approval inbox transport (Server-Sent Events with Durable Object fan-out) and other in-console UX are reversible design choices below this ADR, not part of the fixed architecture.
+- The live approval inbox transport (Server-Sent Events; the Durable Object fan-out option is deferred with Durable Objects past V1) and other in-console UX are reversible design choices below this ADR, not part of the fixed architecture.

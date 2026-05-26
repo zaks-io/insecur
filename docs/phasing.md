@@ -52,7 +52,7 @@ The reduction is deliberately **additive**: every deferred layer is reversibilit
 ### Deferred past V1 (tracking only)
 
 - Vercel sync adapter.
-- Cloudflare Queues + Durable Objects (inline sync with a per-target advisory lock replaces them; see TODOS #2).
+- Cloudflare Queues + Durable Objects (inline sync replaces them: a per-target lease row with a fencing token for serialization, and compare-and-set plus partial unique indexes for the atomic single-use invariants; see ADR-0057 and TODOS #2).
 - Automated key-rotation engine (the `key_version` seam and rewrap primitive stay in V1; the scheduler does not).
 - Service Access surface.
 - Staged Change Set / batch publish.

@@ -5,50 +5,10 @@ committed production spine). Scope cut-lines live in [docs/phasing.md](docs/phas
 file is the action list. When a task lands, move its outcome into the relevant spec and check
 it off here.
 
-Verdict from the review: the reduced scope is sound as direction, but #1 through #4 must close
-before implementation starts.
+Verdict from the review: the reduced scope is sound as direction. Of the four pre-implementation
+blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); #3 and #4 remain.
 
 ## P1 — Close before implementation starts
-
-- [ ] **#1 Reconcile docs to the reduced V1.** Record the cut-lines in `docs/phasing.md` (done
-  in this pass) and resolve the four stale ADR contradictions with explicit superseded-by notes
-  so a doc-driven build never targets a retired decision:
-  - 0002 vs 0036 (0002 says "no Postgres"; 0036 makes Neon a hard dependency)
-  - 0023 vs 0039 (0023 CF Secrets Store sync superseded; 0006/0011/0027 still reference the old model)
-  - 0014 vs 0045 (0014 defers Ed25519; 0045 pulls it into V1)
-  - 0017 vs 0033 (0017 implies two human actions; 0033 says one gate)
-  - _Effort: S. Depends on: nothing._
-
-- [ ] **#2 Inline-sync partial-failure state machine. Design resolved 2026-05-25 grill;
-  reconciliation work remains.** The All-Or-Nothing Sync Pre-Write Gate is pre-write only; it
-  does not cover a provider 5xx on binding k of n after writes have started, and deferring
-  Cloudflare Queues removed the dead-letter net. Resolved design:
-  - **Inline Sync Execution**, no queue/cron. Transient provider errors (503/429/timeout/reset)
-    retry in-request with backoff and honor `Retry-After`; user-actionable errors (reauth,
-    drift, 4xx validation, boundary mismatch, value-too-large) stop and surface the remedy.
-  - **Cloudflare stages all bindings into one new Worker version and deploys once**, so it never
-    lands in per-binding partial (staging failure leaves prod untouched). GitHub and Vercel are
-    inherently per-binding. (Amends ADR-0039.)
-  - **Per-binding status** `pending` → `written` | `failed{code, retryable}` on the operation
-    record. **Operation states:** `running`, `succeeded` (exit 0), `blocked` (pre-write gate
-    tripped, 0 writes, exit 7/2), `incomplete` (writes started, exit 9, `cause` ∈
-    {`retryable`, `action_required`}, surfaces "N of M written, retry <op-id>"), `canceled`.
-    `incomplete` does not age out.
-  - **Sync Target Serialization via a lease row, NOT a Postgres advisory lock** (Hyperdrive
-    transaction-mode pooling makes session locks unreliable and forbids holding a txn across
-    provider I/O). Keyed by (org, provider, target), `held_by_operation_id` + `expires_at`,
-    claimed in a short txn, renewed between writes, reclaimable when expired; fencing token
-    checked before each provider write. Contention fails fast as retryable `sync.target_busy`
-    (exit 8).
-  - **Resume reuses the same operation** (`operations retry <op-id>`): re-claim lease, re-run
-    Sync Execution Revalidation, write only `pending`/`failed` bindings. A fresh `syncs run`
-    against a sync with an open `incomplete` op is rejected as conflict (exit 6) pointing at it.
-
-  Remaining: CONTEXT.md glossary terms added (Inline Sync Execution, Incomplete Sync Run, Sync
-  Run Resume, Sync Target Serialization). Still owed — an ADR superseding ADR-0012 + ADR-0013 and
-  amending ADR-0039; rewrite the queue-backed Sync Execution Runtime in `docs/cli-and-sync.md`
-  (~969-994, 922-944) to the inline model. _Effort: M (design done; reconciliation S/M). Depends
-  on: #1. Sources: Finding 4, Outside Voice._
 
 - [ ] **#3 Minimal backup + tested restore (CRITICAL). Model resolved 2026-05-25 grill; drill is
   a pre-production gate.** A custodian that loses the root-key custody material or the Neon
@@ -84,15 +44,8 @@ before implementation starts.
   `bootstrap.already_claimed` (exit 6), no operator granted, fail-closed. **Partial unique index**
   is the caller-agnostic backstop making more than one bootstrap-origin Instance Operator
   structurally impossible regardless of code path. On win, invalidate the one-time Bootstrap
-  Secret. _Effort: S._
-
-- [ ] **#6 Enumerate `injection.*` error codes** for `run`: `injection.grant_denied`,
-  `injection.decrypt_failed`, `injection.unreachable`. All fail-closed, no stale cached secret.
-  _Effort: S._
-
-- [ ] **#7 Build the Effective Access Resolver as set-based queries** (CONTEXT.md:180). It unions
-  org-tier and project-tier grants per requested Opaque Resource ID; per-ID lookups are an N+1 on
-  every authorization check. _Effort: S/M._
+  Secret. Same CAS + partial-unique-index pattern now governs one-use Injection Grant consumption
+  and the single-pending-Approval-Request invariant (ADR-0027). _Effort: S._
 
 - [ ] **#9 Keep the deferred layers add-back-ready.** Hold the Approval Request data model
   batch-ready and the Protected Approval Policy threshold generalizable (count approvals,
@@ -111,6 +64,32 @@ before implementation starts.
   load-bearing. The "robots free" promise (machines unmetered) sits against automation-driven
   Cloudflare cost; no cut in this review addresses it, and `docs/research/unit-economics.md` is a
   stub. _Effort: M. Depends on: a real automation usage sample (ideally from V1 dogfooding)._
+
+## Closed (landed in specs/ADRs)
+
+- [x] **#1 Reconcile docs to the reduced V1.** All four stale ADR pairs resolved: 0002→0036 (Neon)
+  and 0014→0045 (Ed25519 in V1) carry Status amendment notes; 0023→0039 (Cloudflare sync target)
+  is superseded with 0006/0011 in-part notes; 0017→0033 (one logical publish gate) now
+  cross-references ADR-0033. The retired Queues/Durable-Objects sync runtime was swept to Inline
+  Sync Execution (ADR-0057) across architecture.md, security-plan.md, cli-and-sync.md,
+  protected-change-orchestration.md, project-status.md, phasing.md, and ADR-0016/0025/0027/0051.
+
+- [x] **#2 Inline-sync partial-failure state machine.** Design + reconciliation done. ADR-0057
+  supersedes ADR-0012/0013 and amends ADR-0039; CONTEXT.md carries the four glossary terms
+  (Inline Sync Execution, Incomplete Sync Run, Sync Run Resume, Sync Target Serialization); the
+  queue-backed Sync Execution Runtime in cli-and-sync.md and architecture.md is rewritten to the
+  inline model (lease-row serialization with a fencing token, `blocked`/`incomplete` operation
+  states, same-op resume, no dead-letter).
+
+- [x] **#6 Enumerate `injection.*` error codes** — written into cli-and-sync.md Runtime Injection:
+  `grant_denied` (exit 4), `command_fingerprint_mismatch` (2), `decrypt_failed` (1),
+  `grant_expired` (6), `unreachable` (8); all fail-closed (child never starts), no stale-secret
+  fallback by construction.
+
+- [x] **#7 Effective Access Resolver as set-based queries** — contract recorded in ADR-0034
+  Consequences: one batch read unions org-tier and project-tier grants (`project_id = ANY($ids)`),
+  request-scoped membership memo never cached across requests, machine path already O(1), and a
+  round-trip-count test asserts resolving N resource IDs costs one read.
 
 ## Deferred scope (tracking only — see docs/phasing.md for rationale)
 

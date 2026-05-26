@@ -56,8 +56,7 @@ Nothing to build or verify yet. The scaffold that previously passed `pnpm typech
 - No tamper-evident audit export, hash chain, or HMACed manifest exists yet
 - No app connection model exists for provider OAuth app installations
 - No secret sync model exists yet for provider destinations
-- No Cloudflare Queue-backed sync execution, retry, or dead-letter workflow exists yet
-- No Durable Object provider-target serialization exists yet
+- No inline sync execution, in-request retry, lease-row serialization, or `incomplete`-operation resume exists yet (ADR-0057)
 - CLI/sync shape is documented but not implemented
 - No cross-tenant authorization regression tests exist yet; the design is specified in [ADR-0054](adr/0054-tenant-isolation-tests-real-postgres.md) and [build-tooling.md](build-tooling.md) (real per-PR Neon Postgres as the `NOBYPASSRLS` runtime role, never SQLite/PGlite)
 - The Security Runbooks And Release Gates contract is documented, but individual security runbooks have not been written yet
@@ -95,7 +94,7 @@ Machine identities, GitHub Actions OIDC federation, and environment-scoped deplo
 
 **V1 sync**
 
-OAuth app connections and queue-backed sync engines for Vercel, GitHub Actions, and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. Production sync remains blocked until the Storage Security Gate passes.
+OAuth app connections and inline sync engines for Vercel, GitHub Actions, and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. Production sync remains blocked until the Storage Security Gate passes.
 
 **V1 runtime injection**
 
@@ -107,7 +106,7 @@ Human Approval Surface for Protected Environment approval, High-Assurance Challe
 
 **Post-v1 hardening**
 
-Focused UI, rotation framework, Cron Triggers, Durable Object serialization, encrypted R2 backups, restore testing, key rotation procedure, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
+Focused UI, rotation framework, Cron Triggers, Cloudflare Queues and Durable Object sync execution (additive over V1 inline sync), encrypted R2 backups, restore testing, key rotation procedure, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
 
 ## Recommended Next Steps
 
@@ -126,9 +125,9 @@ Focused UI, rotation framework, Cron Triggers, Durable Object serialization, enc
 13. Implement GitHub Actions OIDC federation for short-lived CI access.
 14. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-slug-or-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
 15. Add OAuth app connections for Vercel, GitHub, and Cloudflare, then project-owned secret syncs behind the Storage Security Gate.
-16. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, queue-backed run, verify, retry/reauth.
-17. Add Cloudflare Queues, retry, dead-letter handling, and Durable Object provider-target serialization for sync operations.
-18. Add sync operation audit events for enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release.
+16. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, inline run, verify, retry/reauth, and `incomplete`-operation resume.
+17. Add lease-row Sync Target Serialization with a fencing token, in-request retry with backoff, and the partial-failure state machine (`blocked`/`incomplete`) for sync operations (ADR-0057). Cloudflare Queues and Durable Objects are deferred past V1.
+18. Add sync operation audit events for lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release.
 19. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
 20. Write the security runbooks catalogued in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
 21. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests before broad public signup.

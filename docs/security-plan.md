@@ -109,7 +109,7 @@ Plan for:
 - High-risk human actions require a High-Assurance Challenge: a fresh WorkOS passkey/TOTP challenge or equivalent high-assurance session.
 - High-Assurance Challenge is required for Sensitive Detail Gate, Protected Environment Approval Request approval or rejection, Promotion, protected rollback, Runtime Injection Policy create/update/publish/disable for a Protected Environment, App Connection create/reauthorization/credential replacement/scope or Connection Boundary change, Protected Environment Secret Sync create/enable/manual run, protected Secret Sync Binding changes, repository-scoped GitHub Actions override from a Protected Environment, Shared Secret Source attachment to a Protected Environment, Push Device Registration creation/replacement, Risk-Broadening Delivery Changes, Protected Approval Policy changes, and mutating Service Access controls such as signup lockdown, tenant suspension, allowlists, reinstatement, or deletion escalation.
 - Protected Environment approval and High-Assurance Challenge completion require the Human Approval Surface in V1; terminal-only approval is not supported for production protected gates.
-- Protected Environment Promotion is blocked before publish when the accepted Approval Impact Review shows an enabled affected Secret Sync would exceed its Provider Value Size Limit; no Published Version changes or Immediate Sync After Promotion enqueue occur for that request.
+- Protected Environment Promotion is blocked before publish when the accepted Approval Impact Review shows an enabled affected Secret Sync would exceed its Provider Value Size Limit; no Published Version changes or Immediate Sync After Promotion run occurs for that request.
 - Delivery Risk Policy Presets default secure and may relax only non-protected development or preview delivery channels; Balanced preview relaxation requires environment-scoped Preview Automation Opt-In.
 - Machine Identities cannot satisfy High-Assurance Challenges. They may create Blind Secret Writes, request Promotion, and cancel their own pending Approval Requests if Organization Access allows it, and otherwise may use only exact policies or operations already authorized by a User through a High-Assurance Challenge.
 - A High-Assurance Challenge may authorize a bounded Operation ID for asynchronous execution, but it must not create reusable authority for future unrelated operations.
@@ -425,7 +425,7 @@ Plan for:
 - Protected Environment Secret Reveal denial must happen before value decrypt.
 - Production environments are Protected Environments by default.
 - Setting a Protected Environment secret does not immediately affect provider sync or runtime injection; explicit Promotion is required.
-- After approval, Promotion selects the Published Versions for the Promotion Change Set only after provider-size eligibility passes for enabled affected Secret Syncs; configured Runtime Injection uses them on the next grant, and every enabled eligible Secret Sync affected by any promoted version enqueues immediately.
+- After approval, Promotion selects the Published Versions for the Promotion Change Set only after provider-size eligibility passes for enabled affected Secret Syncs; configured Runtime Injection uses them on the next grant, and every enabled eligible Secret Sync affected by any promoted version runs immediately through Inline Sync Execution.
 - Approval confirmation may show Display Names after authorization. It may show decrypted Sensitive Metadata such as provider-side target names, Approval Context Notes, and security-relevant relationships only after Sensitive Detail Gate and before approval submission; the confirmation and resulting operation output contain metadata only and no Sensitive Values.
 - Approval submission must revalidate the Approval Impact Review against current delivery and sync configuration before performing Promotion.
 - Scheduled promotion or scheduled sync is deferred; v1 approval uses Immediate Sync After Promotion for enabled syncs.
@@ -491,7 +491,7 @@ Agent/DX requirements:
 - `insecur secrets set --value-stdin` preserves stdin exactly after UTF-8 decoding, including trailing newlines and multiline content, with no trimming, line-ending normalization, or dotenv parsing.
 - V1 managed Secret values are valid UTF-8 text only; invalid UTF-8 from stdin, masked prompt input, request bodies, or development Secret Import fails with `secret.invalid_encoding` before any Blind Secret Write.
 - Managed Secret value size is measured in encoded UTF-8 bytes after validation; values over 64 KiB fail with `secret.value_too_large` before any Blind Secret Write.
-- Secret Sync validates destination Provider Value Size Limits during planning and immediately before provider write; if any value fits insecur storage but exceeds the provider cap, the whole sync fails with `sync.provider_value_too_large` before any provider write starts. Protected Promotion performs the same check before publish for enabled affected syncs and blocks Promotion rather than enqueueing a doomed sync.
+- Secret Sync validates destination Provider Value Size Limits during planning and immediately before provider write; if any value fits insecur storage but exceeds the provider cap, the whole sync fails with `sync.provider_value_too_large` before any provider write starts. Protected Promotion performs the same check before publish for enabled affected syncs and blocks Promotion rather than starting a doomed sync.
 - Exact value byte length for Protected Environment Secrets is Sensitive Metadata. Full-fidelity plan/status/approval output may show it only after Sensitive Detail Gate; low-privilege and automation-safe output uses `over_limit`, provider cap, destination type, Secret ID, and binding ID instead.
 - Secret Sync must not automatically compress, truncate, split, chunk, implicitly base64-encode, or otherwise transform a value to fit a provider cap. `sync.provider_value_too_large` remediation is explicit: Runtime Injection, a smaller value, provider-supported external storage, or caller-managed encoded text.
 - Empty Sensitive Values fail by default with `secret.empty_value`; callers must explicitly use `--allow-empty` or an API equivalent to create a zero-length value through stdin, masked prompt, request body, or development Secret Import.
@@ -567,18 +567,18 @@ Plan for:
 - Manual scoped provider tokens require least-privilege setup guidance, provider-side revocation instructions, expiration/rotation tracking where possible, and audit events for creation, test, use, rotation, and deletion.
 - Cloudflare app connections require an explicit connection boundary. Account-level Cloudflare tokens are allowed only when narrower provider permissions are unavailable, and secret syncs must pin allowed Workers and environments.
 - Project-owned secret syncs that reference app connections.
-- Sync dry-run, diff, queue-backed execution, retry, dead-letter handling, and audit events.
+- Sync dry-run, diff, inline execution, in-request retry, `incomplete`-operation resume, and audit events (ADR-0057).
 - Sync job idempotency to avoid partial duplicate writes.
-- Durable Object serialization per organization/provider/target to prevent concurrent provider writes from racing.
-- Sync audit trails that include enqueue, lock acquisition, provider write summaries, retry, dead-letter, completion, cancellation, and lock release events.
+- Lease-row serialization per organization/provider/target, with a fencing token checked before each provider write, to prevent concurrent provider writes from racing (ADR-0057).
+- Sync audit trails that include lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release events.
 
 Agent/DX requirements:
 
 - `insecur connections list --json` never returns credentials.
 - `insecur sync plan --json` shows target changes without exposing values.
 - `insecur sync run --operation <id>` is resumable.
-- Queue messages store operation IDs and target metadata, never Sensitive Values.
-- Operation status should expose enough state for agents to distinguish queued, locked, running, retrying, waiting for reauthorization, dead-lettered, failed, completed_with_warnings, and completed states.
+- Operation records store operation IDs and target metadata, never Sensitive Values.
+- Operation status should expose enough state for agents to distinguish running, blocked, incomplete (cause `retryable` or `action_required`, including waiting for reauthorization), succeeded, completed_with_warnings, and canceled states.
 - Provider errors are normalized enough for agents to decide whether to retry, reauth, or stop.
 
 ### 6. Audit, Monitoring, And Detection Plan
@@ -775,7 +775,7 @@ Before v1 production use, require:
 - Approval Context Note tests prove agent/user notes are Sensitive Metadata, encrypted at rest, hidden until Sensitive Detail Gate, length-limited, escaped, visually separated from server-generated facts, excluded from plaintext indexes/logs/analytics/low-privilege exports, unable to suppress warnings or alter the approved change set, and never treated as approval source of truth.
 - Approval Rejection Note tests prove rejection notes are optional in V1, Sensitive Metadata, encrypted at rest, hidden until Sensitive Detail Gate, length-limited, escaped, visually separated from server-generated rejection facts, excluded from plaintext indexes/logs/analytics/low-privilege exports, unable to suppress warnings or alter the rejected change set, and never required by default Protected Approval Policy.
 - Approval purpose separation tests prove Promotion approval cannot create, enable, or change protected delivery configuration and protected delivery configuration approval cannot promote Draft Versions.
-- Immediate Sync After Promotion tests prove approval enqueues every enabled eligible Secret Sync affected by any promoted version in the Promotion Change Set, blocks Promotion before publish when an enabled affected sync would fail Provider Value Size Limit validation, and never enqueues disabled syncs.
+- Immediate Sync After Promotion tests prove approval runs every enabled eligible Secret Sync affected by any promoted version in the Promotion Change Set through Inline Sync Execution, blocks Promotion before publish when an enabled affected sync would fail Provider Value Size Limit validation, and never runs disabled syncs.
 - Secret Sync Binding tests prove syncs use exact Secret IDs, reject all-secrets/tag/prefix/pattern selection, and do not include newly created environment Secrets until explicitly bound.
 - Sync Execution Revalidation tests prove every sync run rechecks Provider Account Linkage, credential scope, Connection Boundary, target identity, provider protection state, exact bindings, and source version eligibility immediately before decrypt/write; Provider Drift returns `sync.provider_drift` before Sensitive Value decrypt and requires reauthorization or approved configuration change.
 - Provider Sync Overwrite tests prove bound provider-side values are overwritten only after setup/plan/approval has produced Provider Overwrite Warnings for exact existing destinations, and without Provider Readback, value comparison, value preservation, or Sensitive Values in output.
