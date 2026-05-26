@@ -5,8 +5,9 @@ This is the copyable non-protected development example for the first insecur ses
 It uses the real product flow:
 
 ```bash
-insecur secrets set --secret-name INSECUR_PROOF_SECRET --generate random --length 32 --comment "First value proof"
-insecur run --secret-name INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
+insecur init
+insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32 --comment "First value proof"
+insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
 The verifier expects `INSECUR_PROOF_SECRET` in its environment, uses it as an HMAC key for an internal challenge, and prints only success or failure. It does not print the secret, the child-process environment, or a digest.

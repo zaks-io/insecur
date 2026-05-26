@@ -44,6 +44,7 @@ The beachhead workflow is a First Value Proof for Diskless Development Secret Us
 Preferred command sequence:
 
 ```bash
+insecur init
 insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32 --comment "First value proof"
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
