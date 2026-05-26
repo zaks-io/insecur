@@ -17,6 +17,8 @@ seams is a dependency or a downstream consumer, not a place to improvise.
 - No Sensitive Value appears in logs, audit metadata, telemetry, JSON output, screenshots, test
   names, fixtures committed to git, or agent-facing prose.
 - Protected Environment delivery fails closed until the Storage Security Gate passes.
+- First Value work uses the real seams in [first-value-milestone.md](../first-value-milestone.md);
+  do not add an unsafe onboarding, storage, auth, or CLI shortcut.
 - When a workstream needs a new decision, write or amend an ADR, then update the specs before
   continuing.
 
@@ -26,13 +28,14 @@ These are the seams agents should integrate through instead of sharing internals
 
 | Seam | Owner | Contract |
 | --- | --- | --- |
+| First Value Milestone Contract | W2/W4/W5 with W1/W3/W10 | Provider-free non-protected development Secret Use through the real tenant, access, storage, crypto, Secret Version, Runtime Injection, and audit seams. |
 | Tenant-Scoped Store | W1 | Short scoped transaction, tenant-local RLS setting, no raw executor, audit-safe typed data access. |
 | Effective Access Resolver | W2 | Actor plus Organization/Project/Environment IDs in, coordinate-bound Authorization Scope set out. |
 | Keyring | W3 | Resolve and rewrap key hierarchy without exposing tenant keys to callers. |
 | Encryption Envelope | W3 | Domain identity plus plaintext in, wrapped material out; decrypt only into approved execution path. |
 | Storage Security Gate | W3 | Readiness verdict and evidence for production Secret Delivery and Secret Sync. |
 | Secret Version Store | W4 | Wrapped material and exact IDs only; append, publish, rollback, discard; no approval knowledge. |
-| Operation Store | W1 with W8/W10 | Durable operation state, idempotency, wait/retry metadata, and audit references. |
+| Operation Store | W1 with W8/W10 | Durable operation state, idempotency, wait/retry metadata, leases, fencing tokens, cancellation, and audit references. |
 | Protected Change Orchestrator | W6 | Metadata-only exact-ID state machine for Promotion, rollback, approval, and policy gates. |
 | Provider Adapter Port | W8 | Metadata-only plan/lookup plus approved write execution; no provider value read-back. |
 | Runtime Injection Grant Service | W5 with W7 | Short-lived one-use grant issue/consume for exact Runtime Injection Policy Version. |
@@ -45,12 +48,14 @@ These are the seams agents should integrate through instead of sharing internals
 2. W1, W2, and W3 define interface stubs together, then build persistence, access, and crypto in
    parallel against fake adapters where needed.
 3. W4 builds the Secret Version Store and safe write/read-for-use paths on top of W1 and W3.
-4. W5 builds CLI command framework and non-protected First Value Runtime Injection on W2/W4.
-5. W6 and W9 build Protected Change Orchestration and the Human Approval Surface on W2/W4.
-6. W7 adds Machine Identity, GitHub OIDC, and deploy credentials so protected runtime injection has
+4. W2, W4, W5, and W10 build the First Value Milestone only through the contract in
+   [first-value-milestone.md](../first-value-milestone.md).
+5. W5 builds CLI command framework and non-protected First Value Runtime Injection on W2/W4.
+6. W6 and W9 build Protected Change Orchestration and the Human Approval Surface on W2/W4.
+7. W7 adds Machine Identity, GitHub OIDC, and deploy credentials so protected runtime injection has
    a real credential boundary.
-7. W8 adds App Connections and Cloudflare/GitHub sync on W1/W3/W4/W6/W10.
-8. W10 keeps audit, telemetry, backup, restore, incident response, and release-gate evidence wired
+8. W8 adds App Connections and Cloudflare/GitHub sync on W1/W3/W4/W6/W10.
+9. W10 keeps audit, telemetry, backup, restore, incident response, and release-gate evidence wired
    throughout.
 
 ## W0 - Tooling, CI, And Supply Chain
@@ -95,13 +100,16 @@ Primary references: [ADR-0027](../adr/0027-shared-instance-topology-and-binding-
 [ADR-0036](../adr/0036-neon-postgres-over-hyperdrive-with-rls.md),
 [ADR-0037](../adr/0037-tenant-scoped-bound-store-over-rls.md),
 [ADR-0054](../adr/0054-tenant-isolation-tests-real-postgres.md),
-[ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md).
+[ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md),
+[operation-store.md](../operation-store.md).
 
 Interface commitments:
 
 - `withTenantScope(scope, callback)` or equivalent is the only database entry point.
 - RLS policies ship in the same migration as their tables.
 - Store tests prove an unscoped query fails closed and cross-org reads are blocked by the database.
+- Operation Store tests prove idempotent start, compare-and-set transitions, safe polling output,
+  lease fencing, and no Sensitive Values in operation metadata.
 
 ## W2 - Human Identity, Authorization, And Onboarding
 
@@ -127,7 +135,8 @@ Primary references: [ADR-0003](../adr/0003-human-authentication-and-authorizatio
 [ADR-0020](../adr/0020-instance-and-deployment-posture.md),
 [ADR-0032](../adr/0032-agent-session-execution-and-step-up.md),
 [ADR-0034](../adr/0034-effective-access-resolver.md),
-[ADR-0040](../adr/0040-guided-personal-organization-provisioning.md).
+[ADR-0040](../adr/0040-guided-personal-organization-provisioning.md),
+[first-value-milestone.md](../first-value-milestone.md).
 
 Interface commitments:
 
@@ -136,6 +145,8 @@ Interface commitments:
   and one batch read for many resource IDs.
 - High-Assurance Challenge completion yields bounded single-action evidence, not reusable broad
   authority.
+- Guided Organization Provisioning creates First Value objects through normal Organization,
+  Membership, Project, Environment, and audit paths.
 
 ## W3 - Key Custody, Keyring, Encryption, And Storage Security Gate
 
@@ -188,7 +199,8 @@ Does not own encryption implementation, approval policy, CLI rendering, or provi
 Primary references: [ADR-0016](../adr/0016-delivery-first-secret-egress.md),
 [ADR-0017](../adr/0017-protected-environment-promotion-and-rollback.md),
 [ADR-0025](../adr/0025-secret-version-store.md),
-[ADR-0041](../adr/0041-first-value-before-production-delivery.md).
+[ADR-0041](../adr/0041-first-value-before-production-delivery.md),
+[first-value-milestone.md](../first-value-milestone.md).
 
 Interface commitments:
 
@@ -197,6 +209,8 @@ Interface commitments:
 - Draft Versions are never delivered.
 - Rollback path has no decrypt call.
 - Import failures and plans never include values or raw file contents.
+- Non-protected First Value writes still create normal Secret Shapes, Secrets, and Secret Versions
+  through the Secret Version Store.
 
 ## W5 - CLI, Local Config, And Runtime Injection
 
@@ -216,11 +230,13 @@ Primary references: [ADR-0007](../adr/0007-developer-first-cli-contract.md),
 [ADR-0032](../adr/0032-agent-session-execution-and-step-up.md),
 [ADR-0035](../adr/0035-display-name-resolution.md),
 [ADR-0038](../adr/0038-protected-delivery-requires-machine-credential.md),
+[first-value-milestone.md](../first-value-milestone.md),
 [cli-and-sync.md](../cli-and-sync.md).
 
 Interface commitments:
 
 - Human and JSON output are metadata-only by default.
+- First Value commands use ordinary `secrets set` and `run` paths, not onboarding-only commands.
 - Non-interactive destructive commands require exact Opaque Resource IDs.
 - Protected Environment injection refuses human session tokens and requires W7 machine credentials.
 - Child process output is never captured by insecur.
@@ -302,6 +318,7 @@ Primary references: [ADR-0006](../adr/0006-app-connections-and-secret-syncs.md),
 [ADR-0024](../adr/0024-libsodium-wasm-for-github-sealed-box.md),
 [ADR-0039](../adr/0039-cloudflare-worker-secrets-sync-target.md),
 [ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md),
+[operation-store.md](../operation-store.md),
 [cli-and-sync.md](../cli-and-sync.md).
 
 Interface commitments:
@@ -309,6 +326,8 @@ Interface commitments:
 - Provider adapters never read provider-side Sensitive Values.
 - Syncs use exact bindings only, never patterns.
 - Sync execution revalidates immediately before decrypt/write.
+- Sync operation state lives in the Operation Store; provider adapters do not own private status,
+  retry, lease, or polling tables.
 - Cloudflare stages all bindings into one Worker deploy.
 - GitHub per-binding partial failure parks as `incomplete` with same-operation resume.
 - Superseded ADR-0012/0013/0023 mechanics are not implemented in V1.

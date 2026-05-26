@@ -806,7 +806,7 @@ insecur operations wait op_123 --json
 insecur operations cancel op_123
 ```
 
-Long-running sync, rotation, backup, restore, and provider reauthorization workflows return an operation ID.
+Long-running sync, rotation, backup, restore, and provider reauthorization workflows return an operation ID. Operation state, polling, waiting, cancellation, retry metadata, sync leases, and fencing tokens are owned by the [Operation Store](operation-store.md); CLI commands render that metadata rather than reading workflow-private tables.
 
 ### Audit
 
@@ -981,13 +981,13 @@ Agents should be able to:
 Sync execution is inline and synchronous within the triggering request (ADR-0057); Cloudflare Queues and the Durable Object gate are deferred past V1:
 
 1. `syncs run` validates authorization and idempotency, and is rejected as a conflict (exit 6) when the sync already has an open `incomplete` operation.
-2. The request writes an operation record through the Tenant-Scoped Store and claims the Sync Target Serialization lease.
+2. The request writes an Operation through the Operation Store and claims the Sync Target Serialization lease.
 3. The request runs Sync Execution Revalidation, then the All-Or-Nothing Sync Pre-Write Gate, then the provider writes, recording per-binding progress, all in the same request.
 4. The request returns an operation ID; `operations get` and `operations wait` report machine-readable state.
 
 Runtime rules:
 
-- Neon Postgres, reached only through the Tenant-Scoped Store, is the source of truth for operation state, per-binding write status, the serialization lease, and audit events.
+- The Operation Store, backed by Neon Postgres through the Tenant-Scoped Store, is the source of truth for operation state, per-binding write status, the serialization lease, fencing tokens, and audit references.
 - Sensitive Values are decrypted only inside the active request execution after Sync Execution Revalidation passes, and are never persisted.
 - All deterministic pre-write checks for the write set complete before the first provider write starts. A pre-write failure writes no bindings and the operation ends `blocked` (exit 7/2) with zero writes.
 - After writes begin, a provider failure on binding k of n produces an Incomplete Sync Run, not a rollback: the operation ends `incomplete` (exit 9) with `cause` ∈ {`retryable`, `action_required`} and surfaces "N of M written, retry <op-id>". Per-binding write status is `pending` → `written` | `failed{code, retryable}`.

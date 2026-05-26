@@ -11,8 +11,10 @@ Read in this order:
    and handoff contracts for autonomous agents.
 3. [CONTEXT.md](../../CONTEXT.md) - domain vocabulary and exact term definitions.
 4. Area docs only when the workstream calls for them, such as
+   [First Value Milestone](../first-value-milestone.md),
    [Storage Security Gate](../storage-security-gate.md),
    [Protected Change Orchestration](../protected-change-orchestration.md),
+   [Operation Store](../operation-store.md),
    [CLI And Sync Plan](../cli-and-sync.md), or
    [Security Runbooks And Release Gates](../security-runbooks-and-release-gates.md).
 

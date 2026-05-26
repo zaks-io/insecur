@@ -21,10 +21,18 @@ Glossary paths:
 
 Architecture docs that deepen the glossary:
 
+- `docs/first-value-milestone.md` owns the **First Value Milestone** integration contract.
 - `docs/protected-change-orchestration.md` owns the **Protected Change Orchestrator** Interface.
+- `docs/operation-store.md` owns the **Operation Store** Interface.
 - `docs/storage-security-gate.md` owns the **Storage Security Gate** Interface.
 - `docs/security-runbooks-and-release-gates.md` owns the **Security Runbook**, **Security Release Gate**, and **Security Evidence Bundle** Interfaces.
 - `docs/adr/README.md` indexes accepted decisions behind the terms.
+
+Terminology posture:
+
+- Use industry-standard terms when they have clear meaning in secrets management and distributed systems: **Tenant**, **Organization**, **Project**, **Environment**, **Secret**, **Secret Version**, **Runtime Injection**, **Machine Identity**, **OIDC**, **Audit Log**, **Keyring**, **Encryption Envelope**, **Row-Level Security**, **Idempotency Key**, **Lease**, and **Fencing Token**.
+- Keep Insecur-specific product terms only where common alternatives are ambiguous: **Secret Shape**, **Environment Deploy Key**, **First Value Milestone**, **First Value Proof**, **Storage Security Gate**, **Protected Change Orchestrator**, and **Operation Store**.
+- When provider vocabulary collides with Insecur vocabulary, qualify the provider term explicitly, such as **GitHub Environment** or **Vercel Deployment Target**. Do not use provider-native names as unqualified domain terms.
 
 ## Language
 
@@ -51,7 +59,7 @@ The near-term product posture for personal projects and relatively small trusted
 _Avoid_: public multi-tenant production when broad public onboarding is not meant, dev-only mode
 
 **First Value Milestone**:
-The first V1 milestone where an admitted User reaches provider-free **Diskless Development Secret Use** in a non-protected development **Environment** through **Guided Organization Provisioning** and **First Value Proof**.
+The first V1 milestone where an admitted User reaches provider-free **Diskless Development Secret Use** in a non-protected development **Environment** through **Guided Organization Provisioning** and **First Value Proof**, using the real tenant, authorization, storage, key, Secret Version, audit, and Runtime Injection seams defined in `docs/first-value-milestone.md`.
 _Avoid_: production-ready, unsafe mode, demo-only product
 
 **Production Delivery Milestone**:
@@ -271,8 +279,8 @@ Any Secret Sync behavior that changes a Text Secret Value to fit a provider dest
 _Avoid_: convenience encoding, provider fit shim
 
 **Secret Shape**:
-The project-level non-secret definition of a variable, including its **Variable Key**, optional Display Name, description, required status, and generation hint.
-_Avoid_: default when referring only to metadata
+An Insecur-specific term for the project-level non-secret definition of one application-facing secret variable, including its **Variable Key**, optional Display Name, description, required status, and generation hint.
+_Avoid_: default when referring only to metadata, secret schema when the product term is needed, stored secret value
 
 **Environment Default**:
 A non-protected environment value intended for local or development delivery.
@@ -285,6 +293,10 @@ _Avoid_: inherited secret, copied secret
 **Secret Version**:
 An immutable historical value for a secret.
 _Avoid_: revision
+
+**Secret Version Store**:
+The plaintext-free Module that owns per-Secret version chains, Current Version selection, Draft Version storage, Published Version selection, Rollback, Draft Version Discard, and atomic publish of exact versions while accepting and returning wrapped material only.
+_Avoid_: approval service, encryption engine, secret table when the lifecycle Interface is meant
 
 **Blind Secret Write**:
 A secret write that creates a Secret Version without returning the Sensitive Value to the caller.
@@ -604,6 +616,10 @@ _Avoid_: profile when the policy selector is meant
 A short-lived authorization to perform one runtime injection under a runtime injection policy.
 _Avoid_: token, reusable approval
 
+**Runtime Injection Grant Service**:
+The Module that issues and consumes one-use **Injection Grants** for exact **Runtime Injection Policy Versions** or allowed non-protected one-command selections.
+_Avoid_: reusable session token, local policy file, Secret Reveal path
+
 **Command Fingerprint**:
 A stable identifier for the command inputs approved by a runtime injection policy.
 _Avoid_: command name when the approved command identity is meant
@@ -691,8 +707,8 @@ A short-lived credential held only in process memory or a child shell environmen
 _Avoid_: saved token, credential cache
 
 **Environment Deploy Key**:
-A machine auth method scoped to one organization, project, and environment for runtime injection.
-_Avoid_: deploy token when the environment boundary matters
+An Insecur-specific machine auth method scoped to one organization, project, and environment for runtime injection.
+_Avoid_: SSH deploy key, Git deploy key, deploy token when the environment boundary matters, actor when the **Machine Identity** is meant
 
 **Deploy Key Rotation Policy**:
 The configured expiration and rotation behavior for an environment deploy key.
@@ -832,6 +848,10 @@ _Avoid_: raw provider error, provider message
 A trackable long-running workflow such as a sync, rotation, backup, restore, or provider reauthorization.
 _Avoid_: job when referring to the user-visible workflow
 
+**Operation Store**:
+The durable metadata Module for **Operations**, idempotency, wait/retry state, cancellation, Sync Target Serialization leases, fencing tokens, and audit references. Its canonical Interface lives in `docs/operation-store.md`.
+_Avoid_: job queue when the durable user-visible workflow record is meant, provider adapter when live provider work is meant
+
 **Sync Target**:
 An external destination that receives secrets from a secret sync.
 _Avoid_: environment when referring to an external provider destination
@@ -898,6 +918,10 @@ _Avoid_: deleted organization, suspended organization when the cause is key cust
 The component that resolves the key hierarchy from the configured Key Custody root through an Organization Data Key, a Project Data Key, and a per-record key, holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared-database Instance it bounds the Sensitive Values, while Row-Level Security under the **Tenant-Scoped Store** bounds the metadata rows; together they form the tenant-isolation boundary.
 _Avoid_: key store when the resolving and rewrapping component is meant
 
+**Encryption Envelope**:
+The domain-agnostic cryptographic Module that wraps and unwraps Sensitive Values, Provider Credentials, and Sensitive Metadata using trusted Opaque Resource IDs for identity binding, returning wrapped material to callers and allowing decrypt output only into approved execution paths.
+_Avoid_: per-domain secret wrapper when the shared cryptographic Interface is meant
+
 **Tenant-Scoped Store**:
 The single persistence seam through which all metadata reads and writes pass. A caller provides a structural scope derived from the resolved actor and a callback; the store opens one short transaction, sets the tenant scope transaction-local so Row-Level Security enforces it, and runs the callback against a scoped handle, never exposing a raw executor. **Organization Access** scopes it to one **Organization**'s rows and **Service Access** opens the audited cross-Organization path. With the **Keyring** it forms the tenant-isolation boundary in the shared-database Instance: it bounds the metadata rows, the keyring bounds the values.
 _Avoid_: repository, DAO, raw query when the scoped transactional seam is meant
@@ -913,6 +937,10 @@ _Avoid_: encryption done when the full storage baseline is meant; "production Ru
 **Audit Log**:
 An append-only history of meaningful authenticated actions and authorization denials.
 _Avoid_: event log when the security record is meant
+
+**Audit Event Writer**:
+The Module that writes typed, tenant-qualified, metadata-only Audit Log entries and denied-action records while enforcing Sensitive Value and Sensitive Metadata safety rules for audit payloads.
+_Avoid_: logger, telemetry emitter, free-form event sink
 
 **Audit Export**:
 A tenant-bounded artifact containing audit log entries for a time range.
@@ -965,6 +993,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - Additional **Organizations** on a **Hosted Instance** for one enterprise customer may be added later without changing the **Instance** model.
 - **Small-Group Production** uses the **Enterprise-Ready Model** without requiring every enterprise feature to exist first.
 - **First Value Milestone** uses the **Enterprise-Ready Model** tenant, membership, authorization, audit, and key boundaries where they are part of first-run behavior.
+- **First Value Milestone** uses the real **Tenant-Scoped Store**, **Effective Access Resolver**, **Keyring**, **Secret Version Store**, **Runtime Injection**, and **Audit Event Writer** seams where the first-run behavior touches those concerns.
 - **First Value Milestone** is not permission to store production-grade **Sensitive Values** in non-protected **Environments**.
 - **First Value Milestone** does not require provider **App Connections**, provider **Secret Sync**, **Protected Environments**, machine credentials, OIDC, approval workflows, or the **Storage Security Gate**.
 - **Production Delivery Milestone** requires the **Storage Security Gate** before production **Secret Delivery** or provider **Secret Sync**.
@@ -1598,6 +1627,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - insecur does not sync to Vercel `development`; local development values come from **Runtime Injection**, not synced provider variables.
 - A `vercel` **Secret Sync Binding** stays a pure source **Secret** to provider variable-name mapping; the **Vercel Deployment Target** scope lives on the **Sync Target**, not the binding.
 - A **Secret Sync** run creates one **Operation**.
+- The **Operation Store** owns the durable metadata state of an **Operation**; provider writes, decrypt, approval decisions, and audit event formatting stay in their own Modules.
 - An **Operation** produces one or more **Audit Log** entries.
 - An **Audit Export** contains one or more **Audit Log** entries.
 - An **Organization Data Key** protects organization-owned sensitive data and is the baseline key boundary for **Sensitive Metadata**.

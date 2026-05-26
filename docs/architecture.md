@@ -16,7 +16,7 @@ The logical key-value store is Environment-scoped: each Secret Shape defines an 
 
 V1 is the first production release, not a dev-only milestone or single-owner secret store. V1 targets Small-Group Production: valuable secrets for personal projects and relatively small trusted groups, backed by the Enterprise-Ready Model so later enterprise support does not require a tenant, authorization, audit, or key-boundary refactor. Public hostile-tenant onboarding, broad enterprise administration, and complex enterprise policy surfaces can mature after the core storage and delivery spine is excellent.
 
-V1 is planned in two ordered milestones. The First Value Milestone gets an admitted user to provider-free Diskless Development Secret Use in a non-protected development Environment without waiting for provider setup or production delivery readiness. The Production Delivery Milestone adds the Storage Security Gate, Protected Environments, machine credentials, OIDC, provider App Connections, Secret Syncs, approvals, audit/export, and runbooks needed for Small-Group Production.
+V1 is planned in two ordered milestones. The [First Value Milestone](first-value-milestone.md) gets an admitted user to provider-free Diskless Development Secret Use in a non-protected development Environment without waiting for provider setup or production delivery readiness, while still using the real tenant, access, storage, key, Secret Version, Runtime Injection, and audit seams. The Production Delivery Milestone adds the Storage Security Gate, Protected Environments, machine credentials, OIDC, provider App Connections, Secret Syncs, approvals, audit/export, and runbooks needed for Small-Group Production.
 
 The product should use Misuse-Resistant Defaults: common management flows should be easy, while accidental Sensitive Value exposure through reveal, readback, export, logs, debug paths, or output modes should be structurally unavailable.
 
@@ -304,9 +304,9 @@ The CLI should remain easy for agents:
 
 ## Sync Execution Runtime
 
-Secret sync runs execute inline, synchronously within the triggering request (ADR-0057). A request Worker creates an operation record, runs Sync Execution Revalidation and the provider writes in that same request, and returns an operation ID that humans, agents, and CI poll or wait on. Cloudflare Queues and the Durable Object gate are deferred past V1.
+Secret sync runs execute inline, synchronously within the triggering request (ADR-0057). A request Worker creates an Operation through the [Operation Store](operation-store.md), runs Sync Execution Revalidation and the provider writes in that same request, and returns an operation ID that humans, agents, and CI poll or wait on. Cloudflare Queues and the Durable Object gate are deferred past V1.
 
-The Tenant-Scoped Store backed by Neon Postgres is the source of truth for operation state, per-binding write status, idempotency, the serialization lease, and audit events. Transient provider failures retry in-request with backoff and honor `Retry-After`; user-actionable failures stop and surface the remedy. There is no dead-letter queue: an exhausted or action-required failure parks as an `incomplete` operation that a human or agent resumes by operation ID.
+The Operation Store, backed by the Tenant-Scoped Store and Neon Postgres, is the source of truth for operation state, per-binding write status, idempotency, the serialization lease, fencing tokens, and audit references. Transient provider failures retry in-request with backoff and honor `Retry-After`; user-actionable failures stop and surface the remedy. There is no dead-letter queue: an exhausted or action-required failure parks as an `incomplete` operation that a human or agent resumes by operation ID.
 
 Provider writes are serialized through a lease row in the Tenant-Scoped Store keyed by organization, provider, and target identity, holding `held_by_operation_id`, `expires_at`, and a monotonic fencing token checked before each write. The lease prevents concurrent sync runs from racing the same Vercel project, GitHub repository/environment, or Cloudflare Worker script/binding, and a crashed holder's lease is reclaimable once expired. Contention fails fast as a retryable `sync.target_busy`.
 
@@ -320,16 +320,17 @@ The audit trail for a sync operation should include lease claim, Sync Execution 
 4. Introduce organization and project data keys.
 5. Add key version tracking and root/data-key rotation workflows.
 6. Bind the secret ciphertext layer to organization/project/environment/secret identity and bind the DEK-wrap layer to the data-key version with AES-GCM authenticated data.
-7. Add the [Storage Security Gate](storage-security-gate.md) that blocks production Secret Delivery and Secret Sync until tenant-bound storage readiness is verified.
-8. Add Protected Environment Draft Version, Promotion, Published Version, rollback, and Rollback Retention Window behavior.
-9. Serialize secret version writes, promotion, and rollback so published/current pointers cannot drift from the secret they belong to under concurrent writers.
-10. Replace long-lived machine tokens with machine identities and short-lived access tokens.
-11. Add GitHub Actions OIDC exchange.
-12. Add CLI Profiles and policy-backed `insecur run <profile-slug-or-id> -- <command>` for deploy and local runtime injection behind the Storage Security Gate.
-13. Add organization-owned app connections for Vercel, GitHub, and Cloudflare.
-14. Add project-owned secret syncs that use app connections behind the Storage Security Gate.
-15. Add inline sync execution with operation IDs, in-request retries, the `blocked`/`incomplete` partial-failure model, and lease-row serialization for each provider target (ADR-0057).
-16. Add UI after API, CLI, and sync behavior are verified.
+7. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md), after the tenant, membership, key, envelope, Secret Version, Runtime Injection, and audit seams exist in their narrow form.
+8. Add the [Storage Security Gate](storage-security-gate.md) that blocks production Secret Delivery and Secret Sync until tenant-bound storage readiness is verified.
+9. Add Protected Environment Draft Version, Promotion, Published Version, rollback, and Rollback Retention Window behavior through [protected-change-orchestration.md](protected-change-orchestration.md).
+10. Serialize secret version writes, promotion, and rollback so published/current pointers cannot drift from the secret they belong to under concurrent writers.
+11. Replace long-lived machine tokens with machine identities and short-lived access tokens.
+12. Add GitHub Actions OIDC exchange.
+13. Add CLI Profiles and policy-backed `insecur run <profile-slug-or-id> -- <command>` for deploy and local runtime injection behind the Storage Security Gate.
+14. Add organization-owned app connections for GitHub and Cloudflare, keeping the Vercel adapter add-back-ready but deferred past V1.
+15. Add project-owned secret syncs that use app connections behind the Storage Security Gate.
+16. Add inline sync execution through [operation-store.md](operation-store.md), with operation IDs, in-request retries, the `blocked`/`incomplete` partial-failure model, and lease-row serialization for each provider target.
+17. Add UI after API, CLI, and sync behavior are verified.
 
 ## Security References
 

@@ -17,7 +17,9 @@ The first product wedge is Diskless Development Secret Use in a non-protected de
 Environment. The user reaches value through Guided Organization Provisioning, a Personal
 Organization, a first Project, a development Environment, a service-generated Blind Secret Write,
 and local Runtime Injection. This First Value path must use the real domain model, not an unsafe
-alternate mode.
+alternate mode. The First Value Milestone contract is the thin vertical slice through the real
+Tenant-Scoped Store, Effective Access Resolver, Keyring, encryption envelope, Secret Version Store,
+Runtime Injection Grant Service, and Audit Event Writer seams.
 
 Production Delivery follows with Protected Environments, provider Secret Sync, machine access,
 OIDC, Human Approval Surface, audit/export, runbooks, and the Storage Security Gate. Valuable
@@ -59,6 +61,7 @@ Trace: [ADR-0001](../adr/0001-tenant-first-control-plane.md),
 [ADR-0021](../adr/0021-small-group-production-first.md),
 [ADR-0040](../adr/0040-guided-personal-organization-provisioning.md),
 [ADR-0041](../adr/0041-first-value-before-production-delivery.md),
+[first-value-milestone.md](../first-value-milestone.md),
 [phasing.md](../phasing.md).
 
 ## 2. Deployment And Instance Topology
@@ -74,6 +77,10 @@ instance key material and instance-level secrets. Workers KV is excluded for sec
 state because eventual consistency is unsafe for revocation and authorization. Cloudflare Queues
 and Durable Objects are deferred past V1; their concerns are handled in Postgres by lease rows,
 compare-and-set updates, and partial unique indexes.
+
+Durable operation state goes through the Operation Store. Operation records, idempotency keys,
+wait/retry metadata, Sync Target Serialization leases, fencing tokens, and audit references are
+tenant-qualified metadata in Postgres, not queue payloads or provider-adapter private tables.
 
 Neon Postgres is reached through Cloudflare Hyperdrive. The database runtime role is
 `NOBYPASSRLS`; migrations use a distinct elevated role. Hyperdrive transaction-mode pooling means
@@ -93,7 +100,8 @@ Trace: [ADR-0002](../adr/0002-cloudflare-native-focused-stack.md),
 [ADR-0036](../adr/0036-neon-postgres-over-hyperdrive-with-rls.md),
 [ADR-0037](../adr/0037-tenant-scoped-bound-store-over-rls.md),
 [ADR-0049](../adr/0049-vendor-ports-and-adapters.md),
-[ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md).
+[ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md),
+[operation-store.md](../operation-store.md).
 
 ## 3. Tenant Model And Onboarding
 
@@ -398,7 +406,9 @@ an operation ID, performs Sync Execution Revalidation immediately before decrypt
 and records per-binding status. Deterministic pre-write failure blocks all provider writes and ends
 `blocked`. After writes begin, a provider failure produces an `incomplete` Operation with retryable
 or action-required cause. Resume reuses the same operation ID, reclaims the lease, revalidates, and
-writes only pending or failed bindings.
+writes only pending or failed bindings. The Operation Store owns this durable state, idempotency,
+polling, retry, cancellation, lease, and fencing-token metadata; provider adapters own only provider
+plan/lookup/write behavior behind their Adapter Port.
 
 Sync Target Serialization uses a lease row in the Tenant-Scoped Store keyed by Organization,
 provider, and target identity, with expiry and a fencing token. There is no dead-letter queue,
@@ -413,6 +423,7 @@ Trace: [ADR-0006](../adr/0006-app-connections-and-secret-syncs.md),
 [ADR-0024](../adr/0024-libsodium-wasm-for-github-sealed-box.md),
 [ADR-0039](../adr/0039-cloudflare-worker-secrets-sync-target.md),
 [ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md),
+[operation-store.md](../operation-store.md),
 [cli-and-sync.md](../cli-and-sync.md).
 
 ## 10. Web, API, And Human Surfaces

@@ -742,6 +742,11 @@ Each runbook should include:
 
 The canonical release gate Interface, evidence bundle, gate profiles, and automation contract live in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md). This checklist remains the detailed V1 gate evidence.
 
+Where this checklist names deferred Staged Change Set, batch Publish, multi-approver, or Partial
+Approval behavior, V1 evidence means add-back-readiness, schema/interface compatibility, and
+negative evidence that no deferred surface is exposed. Full behavior tests become blocking when the
+scope decision enables those surfaces.
+
 Before v1 production use, require:
 
 - Threat model reviewed against this document.
@@ -757,7 +762,7 @@ Before v1 production use, require:
 - Misuse-Resistant Defaults reviewed across CLI, API, and UI surfaces so ordinary management paths cannot accidentally reveal Sensitive Values.
 - First Value Proof tests verify provider-free setup, non-protected development Environment only, normal `secrets set --generate` and `run --variable-key` commands, service-generated Blind Secret Write, Runtime Injection into the copyable verifier in `examples/first-value-proof/verify.mjs`, metadata-only output, no Sensitive Values, no raw digests, no child-process environment capture, no local plaintext files, no onboarding-only proof command, and no claim that arbitrary child processes cannot read injected development values.
 - Protected Environment Blind Secret Write, Promotion request, Approval Request, Draft Version non-delivery, rollback, and Rollback Retention Window behavior tested.
-- Protected Change Orchestration tests from [protected-change-orchestration.md](protected-change-orchestration.md) pass for Staged Change Set, Publish, Approval Request lifecycle, stale closures, Partial Approval, final apply, and metadata-only output.
+- Protected Change Orchestration tests from [protected-change-orchestration.md](protected-change-orchestration.md) pass for the V1 live Promotion path, Approval Request lifecycle, stale closures, final apply, metadata-only output, and add-back-readiness for deferred Staged Change Set, Publish, and Partial Approval behavior.
 - Promotion Change Set tests prove exact Draft Version IDs, one Protected Environment, immutable approval payload, no wildcard/all-staged selection, and all-or-nothing Promotion.
 - Draft Version Reuse tests prove closed Approval Requests may contribute only still-existing, non-discarded Draft Versions to a fresh Promotion Change Set while the target still accepts protected Promotion, and cannot reuse the prior Approval Request, Partial Approvals, Approval Impact Review, Approval Impact Review Fingerprint, Approval Impact Snapshot, or approval screen state.
 - Draft Version Discard tests prove requester-own-draft discard, scoped owner/admin cleanup discard, cross-project denial, no Sensitive Value reveal, human UI/CLI destructive confirmation requirement, confirmation metadata-only impact with exact Draft Version IDs, affected Approval Request IDs, Partial Approval audit-only warning, and crypto-erasure warning, confirmation exclusion of Sensitive Values/decrypted Sensitive Metadata/Approval Context Notes/Approval Rejection Notes, confirmation binding to exact computed impact, execution-time revalidation of impact and actor Effective Access, stale confirmation denial when a draft was promoted/already discarded/removed from scope or affected Approval Request set changed, no Approval Request or High-Assurance Challenge requirement, API/Machine Identity exact Draft Version ID requirement, wildcard/all-drafts denial, idempotent repeated discard for exact IDs, immediate encrypted value material crypto-erasure, tombstone/audit metadata retention, no product/admin/support/restore recovery path for the discarded Sensitive Value, audit records, affected pending Approval Request closure without Promotion, Partial Approvals becoming audit-only, terminal non-restore behavior, discarded Draft Version exclusion from later Draft Version Reuse, and requiring a new Blind Secret Write/new Draft Version if the same value is still wanted.

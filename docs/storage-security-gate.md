@@ -21,6 +21,20 @@ The gate does not:
 - Make provider secret stores part of the Secret Source of Truth; provider stores remain derived delivery targets.
 - Block the local development Runtime Injection loop as a product feature flag. Non-protected local injection still depends on tenant-bound encryption of stored Secrets, but it does not require provider credentials or Secret Sync readiness.
 
+## Hard Commitments
+
+- Production Secret Delivery and production Secret Sync call the gate in the server-side delivery
+  path immediately before decrypt, Injection Grant use, Provider Credential use, or provider write.
+- `unknown` is delivery-blocking. A missing migration, missing evidence row, failed readiness
+  probe, or unreachable dependency is not treated as a warning for production delivery.
+- A passed setup command, deploy, migration, or release gate is evidence, not durable authority.
+  Delivery attempts re-check the readiness facts they depend on.
+- First Value non-protected local Runtime Injection is a carve-out only from the full production
+  readiness verdict. It still uses tenant-bound encryption of stored Secrets, the Tenant-Scoped
+  Store, Effective Access, Secret-Free Logging, and No Plaintext Persistence.
+- The gate never creates a Secret Reveal path, never downgrades Protected Environment delivery
+  rules, and never replaces Machine Identity custody for Protected Environment Runtime Injection.
+
 ## Interface
 
 The gate returns a metadata-only readiness verdict. It must never return Sensitive Values, decrypted Sensitive Metadata, key material, Provider Credentials, raw provider bodies, child-process environments, or decrypted request bodies.
@@ -65,7 +79,9 @@ The gate is checked server-side immediately before decrypt or provider write. A 
 
 ## Implementation Shape
 
-The gate should be a shallow orchestrator over deeper modules:
+The gate is deep at its Interface because every production delivery caller gets one readiness
+verdict instead of re-implementing storage safety checks. Its Implementation composes readiness
+facts from deeper modules:
 
 - The Keyring exposes key-chain readiness: root reachable, tenant data keys present, key versions modeled, and tenant-scoped cache invariants holding.
 - The Tenant-Scoped Store exposes metadata-store readiness: scoped transactions, active RLS policies, runtime role without `BYPASSRLS`, and no raw executor access.

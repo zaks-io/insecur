@@ -16,7 +16,11 @@ Import does not modify the source file. The CLI may offer a separate explicit lo
 
 The CLI does not persist credentials by default. Human login is memory/session-only: use an authenticated subshell or a one-shot command, with short-lived tokens stored only in process memory or a child process environment for that shell session.
 
-Production Runtime Injection depends on the Storage Security Gate. CLI runtime injection must fail closed until tenant-bound encryption for Secrets, Provider Credentials, and Sensitive Metadata is implemented and verified.
+Production Runtime Injection depends on the Storage Security Gate. Production-capable CLI runtime
+injection must fail closed until tenant-bound encryption for Secrets, Provider Credentials, and
+Sensitive Metadata is implemented and verified. Non-protected local Runtime Injection for the First
+Value Milestone is allowed before the full gate, but it still uses tenant-bound Secret encryption,
+the Tenant-Scoped Store, Effective Access, Secret-Free Logging, and No Plaintext Persistence.
 
 ## Consequences
 

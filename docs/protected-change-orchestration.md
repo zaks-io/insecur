@@ -26,6 +26,21 @@ The orchestrator does not own:
 - Approval Notification delivery; notification adapters receive metadata-only events.
 - App Connection setup, which is a live human/provider authorization flow and not a Staged Change Set item.
 
+## V1 Cut And Add-Back Shape
+
+This document describes the deepened Module shape, including the accepted Staged Change Set and
+Publish model. V1 does not expose full Staged Change Set or batch Publish behavior unless the scope
+decision is reopened. V1 live behavior is the narrower protected Promotion path: exact Draft Version
+IDs in one Protected Environment create a Promotion Change Set and Approval Request, then the
+orchestrator applies Promotion only after the current review, approval, staleness, and delivery
+preflight gates pass.
+
+Implementation must still keep the data model and Interface add-back-ready: approval counts are
+threshold-generalizable even when the threshold is one, Approval Request purpose stays explicit, and
+protected delivery configuration changes remain distinct from Promotion. Do not implement a
+temporary promotion-only module that would require a later migration to add Staged Change Sets,
+Distinct Approvers, or protected configuration items.
+
 ## Interface
 
 The Interface should be narrow and exact:

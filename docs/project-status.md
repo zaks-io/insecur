@@ -82,7 +82,7 @@ This is a dependency-ordered implementation sequence, not a release plan. Which 
 
 **First Value Milestone**
 
-Guided Organization Provisioning for Personal Organizations with an owner Membership, Default Team, first Project, non-protected development Environment, developer-first CLI defaults with scoped-unique profile slugs and policy Display Names, non-protected `secrets set --variable-key` create-or-update, service-generated Blind Secret Write, local `run --variable-key`, Diskless Development Secret Use, the copyable First Value Proof in `examples/first-value-proof`, metadata-only output, and enough tenant-qualified authorization/audit/encryption to avoid creating migration debt.
+Guided Organization Provisioning for Personal Organizations with an owner Membership, Default Team, first Project, non-protected development Environment, developer-first CLI defaults with scoped-unique profile slugs and policy Display Names, non-protected `secrets set --variable-key` create-or-update, service-generated Blind Secret Write, local `run --variable-key`, Diskless Development Secret Use, the copyable First Value Proof in `examples/first-value-proof`, metadata-only output, and enough tenant-qualified authorization/audit/encryption to avoid creating migration debt. The governing integration contract is [first-value-milestone.md](first-value-milestone.md).
 
 **Production Delivery Foundation**
 
@@ -94,7 +94,7 @@ Machine identities, GitHub Actions OIDC federation, and environment-scoped deplo
 
 **V1 sync**
 
-OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter is deferred past V1 but remains additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes.
+OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter is deferred past V1 but remains additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes. Sync operation state, retry, resume, leases, and fencing tokens are governed by [operation-store.md](operation-store.md).
 
 **V1 runtime injection**
 
@@ -110,8 +110,8 @@ Vercel sync, focused UI, rotation framework automation, Cron Triggers, Cloudflar
 
 ## Recommended Next Steps
 
-1. Build the First Value Milestone: Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, non-protected `secrets set --variable-key`, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
-2. Implement the Production Delivery Foundation: Neon Postgres tenant-first schema, Tenant-Scoped Store, Row-Level Security policies, tenant-qualified audit log, project ownership by organization, Instance Bootstrap, Bootstrap Operator Claim completion, first-Organization owner Membership creation, Instance Operator-controlled Organization creation, organization/project memberships, and scope-first authorization.
+1. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md) as a narrow vertical slice through the real foundation: Tenant-Scoped Store, Row-Level Security, Effective Access, Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, tenant-bound Secret encryption, Secret Version Store, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
+2. Expand that foundation toward Production Delivery: full Neon Postgres tenant-first schema, tenant-qualified audit log, project ownership by organization, Instance Bootstrap, Bootstrap Operator Claim completion, first-Organization owner Membership creation, Instance Operator-controlled Organization creation, organization/project memberships, and scope-first authorization.
 3. Move route shape and authorization to organization-qualified object-level checks.
 4. Add organization and project data keys before storing provider credentials or production secrets in multi-tenant mode.
 5. Add key versions and root/organization/project data key rotation workflows.
@@ -125,8 +125,8 @@ Vercel sync, focused UI, rotation framework automation, Cron Triggers, Cloudflar
 13. Implement GitHub Actions OIDC federation for short-lived CI access.
 14. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-slug-or-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
 15. Add the GitHub App connection and Cloudflare scoped-token App Connection, then project-owned secret syncs behind the Storage Security Gate. Keep the Vercel adapter seam add-back-ready, but do not build Vercel sync in V1.
-16. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, inline run, verify, retry/reauth, and `incomplete`-operation resume.
-17. Add lease-row Sync Target Serialization with a fencing token, in-request retry with backoff, and the partial-failure state machine (`blocked`/`incomplete`) for sync operations (ADR-0057). Cloudflare Queues and Durable Objects are deferred past V1.
+16. Add the [Operation Store](operation-store.md), lease-row Sync Target Serialization with a fencing token, in-request retry with backoff, and the partial-failure state machine (`blocked`/`incomplete`) for sync operations (ADR-0057). Cloudflare Queues and Durable Objects are deferred past V1.
+17. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, inline run, verify, retry/reauth, and `incomplete`-operation resume through the Operation Store.
 18. Add sync operation audit events for lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release.
 19. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
 20. Write the security runbooks catalogued in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
