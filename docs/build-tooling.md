@@ -225,6 +225,34 @@ export default tseslint.config(
     files: ["**/*.js", "**/*.mjs", "**/*.cjs"],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  // Complexity and size budgets (ADR-0055). Core rules, so they apply to JS
+  // and TS alike; caller-agnostic, enforced in CI at --max-warnings=0.
+  {
+    rules: {
+      complexity: ["error", 8],
+      "max-depth": ["error", 3],
+      "max-params": ["error", 4],
+      "max-nested-callbacks": ["error", 3],
+      "max-statements": ["error", 15],
+      "max-lines-per-function": [
+        "error",
+        { max: 50, skipBlankLines: true, skipComments: true },
+      ],
+      "max-lines": [
+        "error",
+        { max: 250, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  // Tests run long by nature (describe blocks, fixtures); relax the two length
+  // caps there. complexity, depth, and params still apply to test code.
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+    rules: {
+      "max-lines": "off",
+      "max-lines-per-function": "off",
+    },
+  },
   // Must be last: turn off rules that conflict with Prettier.
   eslintConfigPrettier,
 );
@@ -233,6 +261,24 @@ export default tseslint.config(
 `projectService: true` relies on TypeScript project references across the workspace, so there are no per-package ESLint tsconfigs. The Cloudflare Worker package gets its ambient types from `@cloudflare/workers-types` through its own `tsconfig`, not through ESLint globals.
 
 Each package defines `"lint": "eslint ."` so the Turbo `lint` task fans out per package.
+
+### Complexity And Size Budgets
+
+These caps keep generated code small and decomposed. Agents write the bulk of this codebase and will, unprompted, emit long functions and large files; the budgets fail the build before that lands instead of relying on a reviewer to catch it. They are core ESLint rules (not type-aware), so they apply to JS and TS alike, and they run in the same `validate` gate at `--max-warnings=0`, so the limit blocks every author identically.
+
+| Rule | Value | Caps |
+| --- | --- | --- |
+| `complexity` | 8 | cyclomatic branches per function |
+| `max-depth` | 3 | nested block depth |
+| `max-params` | 4 | parameters per function |
+| `max-nested-callbacks` | 3 | callback nesting |
+| `max-statements` | 15 | statements per function |
+| `max-lines-per-function` | 50 | lines per function (blank/comment-skipped) |
+| `max-lines` | 250 | lines per file (blank/comment-skipped) |
+
+Per-character line width is absent on purpose: Prettier's `printWidth: 100` already governs column width, and `max-lines` governs file length.
+
+Test files (`**/*.{test,spec}.{ts,tsx}`) turn off `max-lines` and `max-lines-per-function` only; a long `describe` block or fixture is not the smell these budgets target, but `complexity`, `max-depth`, and `max-params` still apply. If `describe`/`it` nesting later trips `max-statements` or `max-nested-callbacks`, add those to the test override rather than weakening the global value.
 
 ## Prettier
 
@@ -389,6 +435,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 - `pnpm verify` runs lint, typecheck, test, and `prettier --check` green locally, reading the remote cache but not writing it.
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
+- A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `validate`; test files are exempt from the two length caps only.
 - An upstream type error fails a downstream `typecheck` rather than returning a stale cached pass (the `topo` transit node works).
 - A commit that introduces a type error, a lint error, a formatting drift, or a staged secret is blocked at pre-commit; a push with a failing local test is blocked at pre-push; `--no-verify` bypasses locally but the same checks block at CI `validate`.
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.
