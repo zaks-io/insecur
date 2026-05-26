@@ -70,6 +70,12 @@ loop) then Production Delivery foundation (storage, keys, RLS, Protected Environ
 machine access (identities, OIDC, short-lived deploy keys) then provider sync (Cloudflare,
 GitHub) then approval UX and Delivery Risk Policy presets then hardening.
 
+Customer-validation direction: the first beachhead is not "all teams that need secrets
+management." It is agent-heavy solo developers and small trusted teams shipping real apps in
+the Cloudflare Workers and GitHub Actions stack who already feel that plaintext `.env` files
+are the wrong primitive. The operating plan for proving that wedge lives in
+[`customer-validation.md`](customer-validation.md).
+
 ## Non-goals
 
 - Cloning Vault: no dynamic database credential engines, no broad enterprise policy editor.

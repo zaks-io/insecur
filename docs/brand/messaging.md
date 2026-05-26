@@ -6,11 +6,15 @@ restate the voice rules.
 
 ## The buyer
 
-A small team or solo dev shipping to Cloudflare, Vercel, and GitHub Actions, running coding
-and deploy agents plus CI, who wants production secrets used but not readable, without
-standing up Vault or paying enterprise prices for an approval workflow. They love their
-agents. We are not here to make them distrust the agent. We are here to make the secret
+The first buyer is a small team or solo dev shipping through Cloudflare Workers and GitHub
+Actions, running coding and deploy agents plus CI, who wants secrets used but not readable,
+without standing up Vault or paying enterprise prices for an approval workflow. They love
+their agents. We are not here to make them distrust the agent. We are here to make the secret
 unreadable.
+
+Vercel remains part of the broader product direction, but the first customer-validation
+beachhead is Cloudflare Workers plus GitHub Actions. Lead with the narrow wedge until the
+First Value loop has repeated usage evidence.
 
 ## The narrative arc
 
@@ -36,6 +40,14 @@ not exist."
 - Gloss: the one-liner from `voice.md` (no-reveal custody for production secrets; your code
   and agents can use them, nobody can read them back).
 - CTA: start the free dev loop (no production secrets, no card).
+
+**First Value proof** is the first conversion event, not a feature tour:
+- `insecur init`
+- `insecur secrets set --generate --variable-key <KEY>`
+- `insecur run --variable-key <KEY> -- <command>`
+
+The proof should make the user feel the missing `.env` file, the successful command, and the
+absence of plaintext output.
 
 **"How no-reveal actually works"** is the conversion engine for the security-minded buyer.
 A mechanism page, not a feature list. Walk the custody guarantee end to end: where the

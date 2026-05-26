@@ -33,7 +33,8 @@ See [docs/setup.md](docs/setup.md).
 
 Start with [docs/specs/README.md](docs/specs/README.md). The canonical product spec lives in
 [docs/specs/product-spec.md](docs/specs/product-spec.md), and autonomous implementation seams live
-in [docs/specs/agent-workstreams.md](docs/specs/agent-workstreams.md).
+in [docs/specs/agent-workstreams.md](docs/specs/agent-workstreams.md). The current customer
+validation and product-excellence plan lives in [docs/customer-validation.md](docs/customer-validation.md).
 
 The older area docs still hold useful detail: [docs/architecture.md](docs/architecture.md),
 [docs/cli-and-sync.md](docs/cli-and-sync.md),
@@ -48,6 +49,12 @@ The older area docs still hold useful detail: [docs/architecture.md](docs/archit
 The first production release is not a dev-only secrets store or a single-owner shortcut. V1 targets Small-Group Production: personal projects and relatively small trusted groups using production-quality secret protection, with an Enterprise-Ready Model underneath so later enterprise support does not require a tenant, authorization, audit, or key-boundary refactor.
 
 V1 is split into two ordered milestones: **First Value** proves provider-free Diskless Development Secret Use for non-protected development secrets, and **Production Delivery** adds protected environments, provider sync, machine access, policy-gated approval UX, audit/export, runbooks, and the Storage Security Gate.
+
+First Value is also the customer-validation proof. The first beachhead is agent-heavy solo
+developers and small trusted teams shipping through Cloudflare Workers and GitHub Actions. The
+proof loop should be short enough to show the product's core idea directly: create or generate one
+development secret, run one command with Runtime Injection, and never create a plaintext `.env`
+file for an agent to read.
 
 Delivery risk is exposed through simple presets backed by versioned policy infrastructure. Guided onboarding applies Balanced automatically without a first-run preset picker; users may later choose Strict or Automation-Friendly without being asked to design a custom policy. Balanced allows development automation by default, while preview automation requires opt-in on each non-protected preview environment. Automation-Friendly removes that per-environment preview opt-in step, but still only executes already-configured delivery paths. Broadening automation requires Human Approval Surface step-up, while tightening risk stays lower-friction and audited. All presets keep protected production approval and High-Assurance Challenges in the Human Approval Surface.
 

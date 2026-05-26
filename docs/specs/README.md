@@ -9,8 +9,10 @@ Read in this order:
    links in one linear document.
 2. [Agent Workstreams](agent-workstreams.md) - isolated implementation groups, seams, dependencies,
    and handoff contracts for autonomous agents.
-3. [CONTEXT.md](../../CONTEXT.md) - domain vocabulary and exact term definitions.
-4. Area docs only when the workstream calls for them, such as
+3. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
+   proof loop, design-partner loop, and success signals that should constrain First Value scope.
+4. [CONTEXT.md](../../CONTEXT.md) - domain vocabulary and exact term definitions.
+5. Area docs only when the workstream calls for them, such as
    [First Value Milestone](../first-value-milestone.md),
    [Storage Security Gate](../storage-security-gate.md),
    [Protected Change Orchestration](../protected-change-orchestration.md),
