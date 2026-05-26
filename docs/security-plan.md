@@ -654,16 +654,21 @@ Agent/DX requirements:
 
 ### 8. Backup, Restore, And Deletion Plan
 
-Backup and restore are security features for availability and recovery.
+Backup and restore are security features for availability and recovery. The V1 minimal recovery model is decided in [ADR-0058](adr/0058-minimal-backup-and-tested-restore.md); this section is the operational summary.
 
-Plan for:
+Three loss scenarios, three mechanisms:
 
-- Encrypted R2 backups for Postgres snapshots or exports.
-- Separate backup key material from runtime key material where practical.
-- Restore tests before v1 production use.
-- Tenant-scoped export and deletion workflows.
-- Recovery drills for root key loss, data key corruption, provider credential compromise, and accidental secret deletion.
-- Documented limits: if root key material is lost, encrypted data is unrecoverable.
+- **Corruption, bad migration, or accidental delete with the Neon account intact** — Neon native point-in-time restore. History retention is set to 7 days. RPO near-zero, RTO minutes.
+- **Loss of the Neon account or project** — one scheduled daily independent encrypted logical export to R2, encrypted under the existing instance custody chain (no separate backup key in V1). RPO 24h, RTO same business day, manual.
+- **Root-key custody loss** — recover the key from the ADR-0028 offline escrow. RPO zero by the escrow-before-load invariant, RTO a few hours, manual.
+
+Recovery targets are internal best-effort goals, not customer-facing SLAs.
+
+Tested restore is a hard pre-production gate, not post-v1 hardening. Before any valuable production secret is stored, alongside Storage Security Gate sign-off, one end-to-end restore drill must pass: provision a fresh Neon project, import the latest R2 export, load the escrowed root key into a fresh Secrets Store binding, and decrypt a recovery canary (a sentinel organization, project, and secret with a known plaintext) to its expected value. The measured wall-clock restore time is recorded against the targets, and the "Neon Postgres restore from encrypted backup" runbook carries the rehearsed steps.
+
+The loss limit stays documented: if both the escrow and the live root key are lost, encrypted data is unrecoverable by design (ADR-0044, ADR-0028).
+
+Tenant-scoped export and deletion workflows remain as specified under the privacy posture; they are a data-subject concern separate from disaster recovery. Deferred past V1 and additive: separate backup key material, tighter RPO, cross-region copies, and the broader recovery-drill set (data key corruption, accidental secret deletion beyond the point-in-time window).
 
 Agent/DX requirements:
 

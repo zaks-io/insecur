@@ -2,7 +2,13 @@
 
 Date: 2026-05-25
 
-Status: Accepted
+Status: Accepted (amended by ADR-0057)
+
+> **Amended (2026-05-25, ADR-0057).** A Cloudflare Worker secret write is a production deploy, so
+> the Cloudflare adapter stages all bindings of a sync run into one new Worker version and deploys
+> once. A staging failure leaves production untouched and is retried; only the single deploy
+> commits. Cloudflare therefore never lands in a per-binding partial state, unlike GitHub and
+> Vercel. See ADR-0057 for the inline execution and partial-failure model.
 
 V1 Cloudflare Secret Sync targets direct per-Worker secrets on explicit Cloudflare Worker scripts, not account-level Cloudflare Secrets Store. This supersedes ADR-0023 because the beachhead workflow is deploying approved production secrets to a Worker without editing Wrangler configuration, and direct Worker secrets match that mental model better than an account-wide store plus customer-managed `secrets_store_secrets` bindings. A Cloudflare sync target records the account, Worker script name, and exact secret binding names; different insecur Environments can target different Worker script names, including Wrangler environment scripts such as `my-api-production`.
 
@@ -14,4 +20,4 @@ V1 Cloudflare Secret Sync targets direct per-Worker secrets on explicit Cloudfla
 
 ## Consequences
 
-Cloudflare remains the manual-token exception until a suitable app or OAuth flow exists for Worker secret management. App connections pin the Cloudflare account and allowed Worker script targets, and Secret Syncs pin exact script names and binding names. Writing, updating, or deleting a Cloudflare Worker secret has provider-side deploy impact for that Worker script/environment, so protected sync plan, approval, and audit output must call it a production deploy and show the exact affected script and bindings without revealing Sensitive Values. When Promotion enqueues an already-enabled Cloudflare Secret Sync through Immediate Sync After Promotion, the accepted Approval Impact Review is the approval evidence for the resulting Worker secret deploy; creating, enabling, or changing the sync still requires the separate protected delivery configuration path. Cloudflare Secrets Store remains valid for insecur Instance key material under ADR-0028, but it is not the V1 customer Cloudflare Secret Sync target.
+Cloudflare remains the manual-token exception until a suitable app or OAuth flow exists for Worker secret management. App connections pin the Cloudflare account and allowed Worker script targets, and Secret Syncs pin exact script names and binding names. Writing, updating, or deleting a Cloudflare Worker secret has provider-side deploy impact for that Worker script/environment, so protected sync plan, approval, and audit output must call it a production deploy and show the exact affected script and bindings without revealing Sensitive Values. When Promotion runs an already-enabled Cloudflare Secret Sync through Immediate Sync After Promotion, the accepted Approval Impact Review is the approval evidence for the resulting Worker secret deploy; creating, enabling, or changing the sync still requires the separate protected delivery configuration path. Cloudflare Secrets Store remains valid for insecur Instance key material under ADR-0028, but it is not the V1 customer Cloudflare Secret Sync target.

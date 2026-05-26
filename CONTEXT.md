@@ -776,6 +776,22 @@ _Avoid_: import prompt, provider diff
 The pre-decrypt check that a Secret Sync run performs immediately before provider writes to confirm the current provider identity, boundary, target, protection state, and source version still match authorized configuration.
 _Avoid_: plan validation when execution authorization is meant
 
+**Inline Sync Execution**:
+A Secret Sync run that performs provider writes synchronously within the triggering request rather than handing them to a background queue, retrying transient provider failures in-request with backoff.
+_Avoid_: queued sync, background job, dead-letter when the run is synchronous
+
+**Incomplete Sync Run**:
+A Secret Sync run that started provider writes and could not finish them all, leaving some Secret Sync Bindings written and others not; it records per-binding write status and stays resumable by its Operation, distinct from a run that the All-Or-Nothing Sync Pre-Write Gate blocked before any write.
+_Avoid_: failed sync, rolled-back sync, partial when the pre-write gate blocked all writes
+
+**Sync Run Resume**:
+Re-running an Incomplete Sync Run under its original Operation, which re-runs Sync Execution Revalidation and writes only the Secret Sync Bindings not yet confirmed written.
+_Avoid_: new sync run, retry that rewrites already-confirmed bindings
+
+**Sync Target Serialization**:
+The guarantee that at most one Secret Sync run writes to a given provider target at a time, so concurrent runs cannot interleave Provider Sync Overwrite writes to the same destination.
+_Avoid_: global sync lock across unrelated targets, queue ordering
+
 **Secret Sync Disable**:
 A non-destructive action that stops future Secret Sync writes while leaving existing provider-side managed copies in place.
 _Avoid_: delete when pausing delivery
@@ -793,8 +809,8 @@ A provider-side secret or variable whose cleanup state is unknown after insecur 
 _Avoid_: deleted when provider cleanup failed
 
 **Immediate Sync After Promotion**:
-The rule that promotion immediately enqueues enabled secret syncs affected by promoted versions after Protected Promotion Sync Preflight passes.
-_Avoid_: scheduled sync when no scheduling policy exists
+The rule that promotion immediately runs enabled secret syncs affected by promoted versions through Inline Sync Execution after Protected Promotion Sync Preflight passes.
+_Avoid_: scheduled sync when no scheduling policy exists, enqueued or deferred sync
 
 **Provider Readback**:
 Reading a Sensitive Value back from an external provider secret store.

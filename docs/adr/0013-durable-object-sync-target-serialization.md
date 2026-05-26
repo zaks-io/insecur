@@ -2,7 +2,13 @@
 
 Date: 2026-05-23
 
-Status: Accepted
+Status: Superseded by ADR-0057
+
+> **Superseded (2026-05-25).** The 2026-05-25 scope review deferred Durable Objects past V1.
+> ADR-0057 replaces the Durable Object gate with a Postgres lease row for Sync Target
+> Serialization (Hyperdrive transaction-mode pooling rules out session advisory locks). The
+> concurrency boundary and per-target audit intent below carry forward; the Durable Object
+> primitive does not. Re-adding a Durable Object gate later is additive.
 
 Secret sync execution will use a Durable Object execution gate per provider target, keyed by organization, provider, and target identity. Queues deliver work, the Tenant-Scoped Store records operation and audit state in Postgres, and the Durable Object prevents concurrent sync runs from racing the same Vercel project, GitHub repository/environment, or Cloudflare Worker script/binding.
 

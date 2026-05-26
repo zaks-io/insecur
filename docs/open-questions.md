@@ -26,8 +26,6 @@ here.
   secrets custodian. Write the "tenant reports a compromised secret" path.
 - **Secret rotation must be first-class and easy** (UX + runbook). SOC 2 likely depends on it.
 - **SOC 2:** plan for it from the start; pursue certification once customers arrive.
-- **Disaster recovery.** Define RTO/RPO and a tested restore for the Key Custody material and
-  the Metadata Store. Do not leave recovery to a "post-v1 hardening" bucket.
 - **Root-key rotation window mechanics:** see ADR "Open Questions To Grill".
 - **External telemetry sink vendor:** see ADR "Open Questions To Grill".
 - **Root-key custody operational controls (ADR-0044):** minimize Cloudflare account administrators,

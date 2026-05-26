@@ -2,7 +2,13 @@
 
 Date: 2026-05-23
 
-Status: Accepted
+Status: Superseded by ADR-0057
+
+> **Superseded (2026-05-25).** The 2026-05-25 scope review deferred Cloudflare Queues past V1.
+> ADR-0057 replaces queue-backed execution with Inline Sync Execution. The Operation record,
+> Sync Execution Revalidation timing, and idempotent/resumable requirement below carry forward;
+> the enqueue, queue-consumer, and dead-letter mechanics do not. Re-adding queues later is
+> additive behind the same Operation/audit contract.
 
 Secret sync runs will be queue-backed operations rather than long-running request handlers. A sync run creates an operation record, enqueues work through Cloudflare Queues, and returns an operation ID that humans, agents, and CI can poll or wait on.
 

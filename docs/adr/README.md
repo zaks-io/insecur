@@ -15,8 +15,6 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0009: WorkOS MFA Without SMS](0009-workos-mfa-without-sms.md)
 - [ADR-0010: WorkOS AuthKit For Human Authentication](0010-workos-authkit-for-human-authentication.md)
 - [ADR-0011: Provider Connection Method Matrix](0011-provider-connection-method-matrix.md)
-- [ADR-0012: Queue-Backed Sync Execution](0012-queue-backed-sync-execution.md)
-- [ADR-0013: Durable Object Sync Target Serialization](0013-durable-object-sync-target-serialization.md)
 - [ADR-0014: Tamper-Evident Audit Exports](0014-tamper-evident-audit-exports.md)
 - [ADR-0015: Production V1 Security Baseline](0015-production-v1-security-baseline.md)
 - [ADR-0016: Delivery-First Secret Egress](0016-delivery-first-secret-egress.md)
@@ -59,9 +57,13 @@ Architectural decisions for insecur live here. ADRs are intentionally short reco
 - [ADR-0054: Tenant-Isolation Tests Run Against Real Postgres](0054-tenant-isolation-tests-real-postgres.md)
 - [ADR-0055: ESLint And Prettier Type-Aware Toolchain](0055-eslint-prettier-type-aware-toolchain.md)
 - [ADR-0056: Supply-Chain Hardening Posture](0056-supply-chain-hardening-posture.md)
+- [ADR-0057: Inline Sync Execution and Partial-Failure Model](0057-inline-sync-execution-and-partial-failure-model.md)
+- [ADR-0058: Minimal Backup and Tested Restore for V1](0058-minimal-backup-and-tested-restore.md)
 
 ## Superseded
 
+- [ADR-0012: Queue-Backed Sync Execution](0012-queue-backed-sync-execution.md), superseded by [ADR-0057](0057-inline-sync-execution-and-partial-failure-model.md) (Cloudflare Queues deferred past V1)
+- [ADR-0013: Durable Object Sync Target Serialization](0013-durable-object-sync-target-serialization.md), superseded by [ADR-0057](0057-inline-sync-execution-and-partial-failure-model.md) (Durable Objects deferred past V1)
 - [ADR-0023: Cloudflare Secrets Store Sync Target](0023-cloudflare-secrets-store-sync-target.md), superseded by [ADR-0039](0039-cloudflare-worker-secrets-sync-target.md)
 
 ## Open Questions To Grill
