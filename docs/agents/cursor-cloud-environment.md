@@ -38,6 +38,7 @@ Use these checks after environment changes:
 node --version
 pnpm --version
 pnpm install --frozen-lockfile
+pnpm verify
 pnpm typecheck
 pnpm build
 docker build -f .cursor/Dockerfile .cursor -t insecur-cursor-env-test

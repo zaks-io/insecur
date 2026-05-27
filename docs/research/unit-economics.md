@@ -133,11 +133,11 @@ Planning assumption for one Runtime Injection run:
 
 Estimated marginal cost per `1M` Runtime Injection runs after included usage:
 
-| Assumption | Cloudflare | Neon | Total |
-| --- | ---: | ---: | ---: |
-| Low: `25ms` Worker CPU/run, `25` CU-hours DB | `$1.10` | `$2.65` | `$3.75` |
-| Mid: `50ms` Worker CPU/run, `50` CU-hours DB | `$1.60` | `$5.30` | `$6.90` |
-| High: `100ms` Worker CPU/run, `100` CU-hours DB | `$2.60` | `$10.60` | `$13.20` |
+| Assumption                                      | Cloudflare |     Neon |    Total |
+| ----------------------------------------------- | ---------: | -------: | -------: |
+| Low: `25ms` Worker CPU/run, `25` CU-hours DB    |    `$1.10` |  `$2.65` |  `$3.75` |
+| Mid: `50ms` Worker CPU/run, `50` CU-hours DB    |    `$1.60` |  `$5.30` |  `$6.90` |
+| High: `100ms` Worker CPU/run, `100` CU-hours DB |    `$2.60` | `$10.60` | `$13.20` |
 
 This says paid automation can be unmetered for normal use. It also says abuse can be cheap enough
 to miss until it is not: a botnet or runaway agent can multiply this quickly, and database
@@ -216,13 +216,13 @@ payment_cogs = invoice_amount * 2.9% + $0.30 + invoice_amount * 0.7%
 
 Effective fee per paid seat:
 
-| Seats on one monthly invoice | Revenue | Fee | Fee / seat |
-| ---: | ---: | ---: | ---: |
-| 1 | `$25` | `$1.20` | `$1.20` |
-| 2 | `$50` | `$2.10` | `$1.05` |
-| 3 | `$75` | `$3.00` | `$1.00` |
-| 5 | `$125` | `$4.80` | `$0.96` |
-| 10 | `$250` | `$9.30` | `$0.93` |
+| Seats on one monthly invoice | Revenue |     Fee | Fee / seat |
+| ---------------------------: | ------: | ------: | ---------: |
+|                            1 |   `$25` | `$1.20` |    `$1.20` |
+|                            2 |   `$50` | `$2.10` |    `$1.05` |
+|                            3 |   `$75` | `$3.00` |    `$1.00` |
+|                            5 |  `$125` | `$4.80` |    `$0.96` |
+|                           10 |  `$250` | `$9.30` |    `$0.93` |
 
 Annual billing paid up front reduces the fixed `$0.30` invoice fee and improves cash, but it only
 lowers payment COGS to about `$0.90/seat/month` at these prices. Annual billing is more useful for
@@ -233,12 +233,12 @@ cash flow and commitment than for gross margin.
 These scenarios exclude the shared platform floor and support. They are meant to show marginal
 tenant economics once a Hosted Instance is already running.
 
-| Scenario | Revenue | Workload shape | Product infra | Payment COGS | Total COGS | Gross margin |
-| --- | ---: | --- | ---: | ---: | ---: | ---: |
-| Free active org | `$0` | 1 user, 1 project, 1k injections, small writes | `<$0.05` | `$0` | `<$0.05` | n/a |
-| Team expected | `$125` | 5 seats, 10k injections, light sync, normal UI/API | `$0.10-$1` | `$4.80` | `$5-$6` | `95-96%` |
-| Team automation-heavy | `$250` | 10 seats, about 1M injection-equivalent runs plus sync | `$5-$20` | `$9.30` | `$14-$30` | `88-94%` |
-| Automation whale | `$625` | 25 seats, about 10M injection-equivalent runs plus heavy sync | `$50-$150` | `$22.80` | `$73-$173` | `72-88%` |
+| Scenario              | Revenue | Workload shape                                                | Product infra | Payment COGS | Total COGS | Gross margin |
+| --------------------- | ------: | ------------------------------------------------------------- | ------------: | -----------: | ---------: | -----------: |
+| Free active org       |    `$0` | 1 user, 1 project, 1k injections, small writes                |      `<$0.05` |         `$0` |   `<$0.05` |          n/a |
+| Team expected         |  `$125` | 5 seats, 10k injections, light sync, normal UI/API            |    `$0.10-$1` |      `$4.80` |    `$5-$6` |     `95-96%` |
+| Team automation-heavy |  `$250` | 10 seats, about 1M injection-equivalent runs plus sync        |      `$5-$20` |      `$9.30` |  `$14-$30` |     `88-94%` |
+| Automation whale      |  `$625` | 25 seats, about 10M injection-equivalent runs plus heavy sync |    `$50-$150` |     `$22.80` | `$73-$173` |     `72-88%` |
 
 Interpretation:
 
@@ -253,14 +253,14 @@ Interpretation:
 
 The Hosted Instance has a fixed monthly cost before the first paid seat:
 
-| Layer | Lean V1 production floor | More conservative floor |
-| --- | ---: | ---: |
-| Cloudflare Workers Paid | `$5` | `$5` |
-| Neon | `$15-$30` Launch, kept warm enough for low traffic | `$150-$200` Scale or always-on larger compute |
-| Resend | `$0-$20` | `$20` |
-| R2 / logs / misc | `$1-$10` | `$10-$30` |
-| WorkOS custom domain | `$0` | `$99` if used |
-| **Total** | **`$25-$65/month`** | **`$285-$355/month`** |
+| Layer                   |                           Lean V1 production floor |                       More conservative floor |
+| ----------------------- | -------------------------------------------------: | --------------------------------------------: |
+| Cloudflare Workers Paid |                                               `$5` |                                          `$5` |
+| Neon                    | `$15-$30` Launch, kept warm enough for low traffic | `$150-$200` Scale or always-on larger compute |
+| Resend                  |                                           `$0-$20` |                                         `$20` |
+| R2 / logs / misc        |                                           `$1-$10` |                                     `$10-$30` |
+| WorkOS custom domain    |                                               `$0` |                                 `$99` if used |
+| **Total**               |                                **`$25-$65/month`** |                         **`$285-$355/month`** |
 
 This is platform-wide, not per tenant. It matters early and becomes negligible once there are a few
 dozen paid seats.
@@ -281,16 +281,16 @@ does not yet define rate limits. That is the main open financial risk.
 
 Recommended Free defaults before broad public signup:
 
-| Dimension | Proposed Free default | Reason |
-| --- | ---: | --- |
-| Runtime Injection runs | `1,000/day/org`, `10,000/month/org` | Enough for real dev use; blocks runaway agents. |
-| API requests | `10,000/day/org`, with lower unauthenticated limits | Keeps aggregate free traffic bounded. |
-| Secret writes/imported keys | `100/day/org`, `1,000/month/org` | Prevents storage/audit spam. |
-| Operation polling | Exponential backoff required; cap tight loops | Agents can accidentally poll too fast. |
-| Concurrent operations | `3/org` | Prevents sync/import storms. |
-| Stored secret versions | `10,000/org` or storage equivalent | Keeps abandoned free tenants bounded. |
-| Audit retention | Existing `7 days` | Storage control and tier distinction. |
-| Provider sync | Development-only, low default daily cap if enabled | Free should not become a production sync worker. |
+| Dimension                   |                               Proposed Free default | Reason                                           |
+| --------------------------- | --------------------------------------------------: | ------------------------------------------------ |
+| Runtime Injection runs      |                 `1,000/day/org`, `10,000/month/org` | Enough for real dev use; blocks runaway agents.  |
+| API requests                | `10,000/day/org`, with lower unauthenticated limits | Keeps aggregate free traffic bounded.            |
+| Secret writes/imported keys |                    `100/day/org`, `1,000/month/org` | Prevents storage/audit spam.                     |
+| Operation polling           |       Exponential backoff required; cap tight loops | Agents can accidentally poll too fast.           |
+| Concurrent operations       |                                             `3/org` | Prevents sync/import storms.                     |
+| Stored secret versions      |                  `10,000/org` or storage equivalent | Keeps abandoned free tenants bounded.            |
+| Audit retention             |                                   Existing `7 days` | Storage control and tier distinction.            |
+| Provider sync               |  Development-only, low default daily cap if enabled | Free should not become a production sync worker. |
 
 These should be enforced as `Instance Configuration` and `Organization Configuration` limits, with
 stable `rate_limited` and retry metadata. They are abuse and reliability controls, not billable
@@ -309,13 +309,13 @@ Team should remain "robots are free" in billing. The implementation still needs 
 
 Suggested first Team thresholds:
 
-| Dimension | Default Team threshold | Behavior |
-| --- | ---: | --- |
-| Runtime Injection runs | `100,000/seat/month`, pooled, minimum `250,000/org/month` | Alert internally; do not hard-block immediately. |
-| API requests | `1M/seat/month`, pooled, minimum `2M/org/month` | Alert, then rate-limit if abusive. |
-| Sync binding writes | `10,000/seat/month`, pooled, minimum `25,000/org/month` | Alert; high values often mean bad workflow design. |
-| Concurrent operations | `10/org`, raisable | Protects reliability. |
-| Operation polling | Backoff after first few polls | Protects DB. |
+| Dimension              |                                    Default Team threshold | Behavior                                           |
+| ---------------------- | --------------------------------------------------------: | -------------------------------------------------- |
+| Runtime Injection runs | `100,000/seat/month`, pooled, minimum `250,000/org/month` | Alert internally; do not hard-block immediately.   |
+| API requests           |           `1M/seat/month`, pooled, minimum `2M/org/month` | Alert, then rate-limit if abusive.                 |
+| Sync binding writes    |   `10,000/seat/month`, pooled, minimum `25,000/org/month` | Alert; high values often mean bad workflow design. |
+| Concurrent operations  |                                        `10/org`, raisable | Protects reliability.                              |
+| Operation polling      |                             Backoff after first few polls | Protects DB.                                       |
 
 The public copy should say "unmetered automation subject to abuse and fair-use limits." Avoid the
 word "unlimited" in contracts unless the AUP gives enough room to throttle abusive workloads.

@@ -60,7 +60,15 @@ Delivery risk is exposed through simple presets backed by versioned policy infra
 
 Hosted onboarding creates a Personal Organization, owner Membership, first Project, and non-protected development Environment for an admitted user so the first session can focus on replacing local secret files: creating and using a development secret through local Runtime Injection without provider setup. The copyable verifier lives in [examples/first-value-proof](examples/first-value-proof). That Personal Organization can grow into a small-team Organization through Invitations and Memberships.
 
-The current unsafe scaffold is disposable learning code, not a supported product mode or evidence of intended product behavior. V1 work should replace or delete scaffold surfaces rather than preserve them behind warnings, compatibility shims, or unsafe deployment flags.
+The current repo scaffold is the accepted implementation baseline: Node 24/pnpm 10 workspace
+tooling, First Value app/package stubs, `pnpm verify`, and the copyable First Value Proof. It is
+real scaffolding, not product behavior. The package entrypoints are still empty and do not yet
+implement secrets custody, runtime injection, provider sync, authorization, audit, or UI features.
+
+The removed unsafe scaffold was disposable learning code, not a supported product mode or evidence
+of intended product behavior. V1 work should replace or delete any remaining references to those
+old surfaces rather than preserve them behind warnings, compatibility shims, or unsafe deployment
+flags.
 
 Provider secrets are derived delivery targets, not the source of truth. Rotation and changes start in insecur, then flow through audited sync or runtime injection paths.
 

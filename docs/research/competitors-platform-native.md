@@ -73,7 +73,7 @@ distribution is exactly the gap a multi-platform tool fills.
   via API or dashboard once added.**
 - **Cross-platform sync:** No (Cloudflare-only; Workers and AI Gateway today).
 - **Runtime / Workers binding:** wrangler `secrets_store_secrets = [{binding, store_id,
-  secret_name}]`; read via `await env.<BINDING>.get()` returning plaintext in the Worker.
+secret_name}]`; read via `await env.<BINDING>.get()` returning plaintext in the Worker.
 - **Status:** Still open beta (not GA) in 2026; launched Apr 2025.
 - **Per-Worker secrets (`wrangler secret put`):** older, distinct mechanism. Attaches to one
   Worker, deployed with code, `env.MY_SECRET`. Encrypted at rest, hidden after set. No

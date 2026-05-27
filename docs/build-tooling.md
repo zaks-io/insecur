@@ -17,21 +17,21 @@ This is the implementation spec for insecur's monorepo build tooling and quality
 
 The load-bearing decision is the major version of each tool, not the patch. Pin the latest patch within each required major at implementation time and resolve shared versions through the pnpm catalog. The versions below are the known-good floor as of 2026-05-25.
 
-| Tool | Required major | Known-good floor |
-| --- | --- | --- |
-| Node.js | 24 | 24 (active LTS) |
-| pnpm | 10 | 10.19.0 |
-| Turborepo | 2 | 2.8.0 |
-| TypeScript | 5 | 5.x latest |
-| ESLint | 9 (flat config) | 9.x latest |
-| typescript-eslint | 8 | 8.x latest |
-| eslint-config-prettier | 10 | 10.x latest |
-| Prettier | 3 | 3.5.3 |
-| Vitest | 3 | 3.x latest |
+| Tool                            | Required major   | Known-good floor      |
+| ------------------------------- | ---------------- | --------------------- |
+| Node.js                         | 24               | 24 (active LTS)       |
+| pnpm                            | 10               | 10.19.0               |
+| Turborepo                       | 2                | 2.8.0                 |
+| TypeScript                      | 5                | 5.x latest            |
+| ESLint                          | 9 (flat config)  | 9.x latest            |
+| typescript-eslint               | 8                | 8.x latest            |
+| eslint-config-prettier          | 10               | 10.x latest           |
+| Prettier                        | 3                | 3.5.3                 |
+| Vitest                          | 3                | 3.x latest            |
 | @cloudflare/vitest-pool-workers | matches wrangler | latest for wrangler 4 |
-| Wrangler | 4 | 4.x latest |
-| lefthook | 2 | 2.1.8 |
-| postgres (postgres.js) | 3 | 3.x latest |
+| Wrangler                        | 4                | 4.x latest            |
+| lefthook                        | 2                | 2.1.8                 |
+| postgres (postgres.js)          | 3                | 3.x latest            |
 
 pnpm 10 is mandatory, not a preference: `minimumReleaseAge` and `strictDepBuilds` (ADR-0056) are pnpm 10 features and the repo is currently pinned at `pnpm@9.0.0`. The 9 to 10 upgrade is a prerequisite.
 
@@ -62,7 +62,7 @@ engine-strict=true
 ```jsonc
 {
   "packageManager": "pnpm@10.19.0",
-  "engines": { "node": ">=24 <25" }
+  "engines": { "node": ">=24 <25" },
 }
 ```
 
@@ -127,7 +127,7 @@ Remote cache trust model is ADR-0053. Full file:
     "tsconfig.base.json",
     "eslint.config.ts",
     ".prettierrc.json",
-    ".prettierignore"
+    ".prettierignore",
   ],
   "globalEnv": ["CI", "NODE_ENV"],
   "futureFlags": { "longerSignatureKey": true },
@@ -137,7 +137,7 @@ Remote cache trust model is ADR-0053. Full file:
     "build": {
       "dependsOn": ["^build"],
       "env": ["CLOUDFLARE_ENV"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
     },
     "dev": { "cache": false, "persistent": true },
     "typecheck": { "dependsOn": ["topo"], "outputs": [] },
@@ -146,10 +146,10 @@ Remote cache trust model is ADR-0053. Full file:
     "test:rls": {
       "dependsOn": ["topo"],
       "cache": false,
-      "env": ["DATABASE_URL_RUNTIME"]
+      "env": ["DATABASE_URL_RUNTIME"],
     },
-    "typegen": { "cache": false, "outputs": [] }
-  }
+    "typegen": { "cache": false, "outputs": [] },
+  },
 }
 ```
 
@@ -183,8 +183,8 @@ Set the developer default by putting `--cache=local:rw,remote:r` into the root s
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
-    "prepare": "lefthook install"
-  }
+    "prepare": "lefthook install",
+  },
 }
 ```
 
@@ -234,14 +234,8 @@ export default tseslint.config(
       "max-params": ["error", 4],
       "max-nested-callbacks": ["error", 3],
       "max-statements": ["error", 15],
-      "max-lines-per-function": [
-        "error",
-        { max: 50, skipBlankLines: true, skipComments: true },
-      ],
-      "max-lines": [
-        "error",
-        { max: 250, skipBlankLines: true, skipComments: true },
-      ],
+      "max-lines-per-function": ["error", { max: 50, skipBlankLines: true, skipComments: true }],
+      "max-lines": ["error", { max: 250, skipBlankLines: true, skipComments: true }],
     },
   },
   // Tests run long by nature (describe blocks, fixtures); relax the two length
@@ -266,15 +260,15 @@ Each package defines `"lint": "eslint ."` so the Turbo `lint` task fans out per 
 
 These caps keep generated code small and decomposed. Agents write the bulk of this codebase and will, unprompted, emit long functions and large files; the budgets fail the build before that lands instead of relying on a reviewer to catch it. They are core ESLint rules (not type-aware), so they apply to JS and TS alike, and they run in the same `validate` gate at `--max-warnings=0`, so the limit blocks every author identically.
 
-| Rule | Value | Caps |
-| --- | --- | --- |
-| `complexity` | 8 | cyclomatic branches per function |
-| `max-depth` | 3 | nested block depth |
-| `max-params` | 4 | parameters per function |
-| `max-nested-callbacks` | 3 | callback nesting |
-| `max-statements` | 15 | statements per function |
-| `max-lines-per-function` | 50 | lines per function (blank/comment-skipped) |
-| `max-lines` | 250 | lines per file (blank/comment-skipped) |
+| Rule                     | Value | Caps                                       |
+| ------------------------ | ----- | ------------------------------------------ |
+| `complexity`             | 8     | cyclomatic branches per function           |
+| `max-depth`              | 3     | nested block depth                         |
+| `max-params`             | 4     | parameters per function                    |
+| `max-nested-callbacks`   | 3     | callback nesting                           |
+| `max-statements`         | 15    | statements per function                    |
+| `max-lines-per-function` | 50    | lines per function (blank/comment-skipped) |
+| `max-lines`              | 250   | lines per file (blank/comment-skipped)     |
 
 Per-character line width is absent on purpose: Prettier's `printWidth: 100` already governs column width, and `max-lines` governs file length.
 

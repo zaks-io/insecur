@@ -11,7 +11,10 @@
   },
   "types": "./dist/index.d.ts",
   "scripts": {
+    "topo": "node -e \"\"",
     "build": "tsc",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
@@ -19,7 +22,8 @@
     "@insecur/domain": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.6.0"
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
-

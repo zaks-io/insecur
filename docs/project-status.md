@@ -4,7 +4,28 @@ Last updated: 2026-05-27
 
 ## Current State
 
-insecur currently contains no product implementation. The disposable Cloudflare-native secrets manager learning code that predated these docs has been removed from the working tree per ADR-0018; what remains is the documentation, the workspace skeleton, First Value domain package scaffolds, and the copyable `examples/first-value-proof`. The next behavior written is the target product, built against these docs. The target product direction starts with Diskless Development Secret Use for developers and agents: replace plaintext local secret files with just-in-time Runtime Injection in a non-protected development Environment. The underlying model stays enterprise-ready through organizations, memberships, roles, authorization scopes, tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First Value focuses on guided first run through a Personal Organization with a provider-free First Value Proof in a non-protected development Environment. Production Delivery focuses on secure storage, provider sync for Cloudflare/GitHub, protected delivery, and CLI runtime injection for deploys and local commands. The Vercel sync adapter is deferred past V1 behind the same provider port model.
+insecur is no longer pure planning. The repo now has an accepted executable scaffold and
+verification baseline for First Value work: Node 24, pnpm 10, the workspace package graph, the
+package-manager lockfile and catalog, Turbo task wiring, Prettier, ESLint, Vitest, package/app
+stubs, and `pnpm verify` across all 10 workspace packages.
+
+That scaffold is not product-bearing yet. The app and package `src/index.ts` entrypoints remain
+deliberately empty modules, and no Tenant-Scoped Store, human authentication, keyring, Secret
+Version Store, Blind Secret Write, Runtime Injection, provider sync, audit, or UI behavior is wired
+into product code yet. The next product behavior written is the target product, built against these
+docs.
+
+The disposable Cloudflare-native secrets manager learning code that predated these docs has been
+removed from the working tree per ADR-0018. The target product direction starts with Diskless
+Development Secret Use for developers and agents: replace plaintext local secret files with
+just-in-time Runtime Injection in a non-protected development Environment. The underlying model
+stays enterprise-ready through organizations, memberships, roles, authorization scopes,
+tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group
+Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First
+Value focuses on guided first run through a Personal Organization with a provider-free First Value
+Proof in a non-protected development Environment. Production Delivery focuses on secure storage,
+provider sync for Cloudflare/GitHub, protected delivery, and CLI runtime injection for deploys and
+local commands. The Vercel sync adapter is deferred past V1 behind the same provider port model.
 
 The first V1 promise is to stop giving coding agents plaintext local secret files. The production promise is to let agents and CI cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
@@ -21,8 +42,8 @@ Linear project milestones and ticket publishing rules live in
 First Value human setup tickets are complete in Linear: `FV-H1` recorded the non-secret
 Neon/Hyperdrive setup inputs, `FV-H2` recorded the non-secret WorkOS AuthKit development setup
 inputs, and `FV-H3` recorded the non-secret Cloudflare Secrets Store root-key custody setup inputs.
-Those tickets unblock implementation planning, but the corresponding persistence, authentication,
-and keyring behavior is not wired into product code yet.
+Those tickets unblock implementation work, but the corresponding persistence, authentication, and
+keyring behavior is not wired into product code yet.
 
 ## Customer Validation Plan
 
@@ -52,18 +73,32 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 - Generated `dist/`, `node_modules/`, and other disposable build/install artifacts from the
   removed scaffold. The current workspace has its own package-manager baseline.
 
-### Kept (not scaffold)
+### Current Target Scaffold
 
-- The workspace skeleton: root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `turbo.json`, the package context map in `docs/context-map.md`, the `apps/worker` and `packages/cli` stubs, and the First Value domain package stubs under `packages/`.
+This is the accepted implementation baseline agents should build on. It is separate from the
+removed unsafe scaffold.
+
+- The executable workspace baseline: root `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`,
+  `tsconfig.base.json`, `turbo.json`, `.prettierrc.json`, `.prettierignore`, `eslint.config.ts`,
+  `vitest.config.ts`, package scripts, and the package context map in `docs/context-map.md`.
+- The First Value app/package skeleton: the `apps/worker` stub, `packages/cli`, and First Value
+  domain package stubs under `packages/`. Their source entrypoints are deliberately empty until
+  product slices implement the corresponding seams.
 - `examples/first-value-proof`, the copyable First Value Proof.
 - All documentation: CONTEXT, the consolidated specs in `docs/specs/`, architecture, the ADRs, `docs/cli-and-sync.md`, `docs/security-plan.md`, and `docs/security-runbooks-and-release-gates.md`.
 
 ## Verified Locally
 
 The repo has no product-bearing implementation yet; the app and package source entrypoints are
-empty TypeScript modules. The workspace baseline is present on Node 24 and pnpm 10:
+empty TypeScript modules. The accepted scaffold and workspace verification baseline are present on
+Node 24 and pnpm 10:
 
+- `pnpm install --frozen-lockfile` passes.
+- `pnpm verify` passes across all 10 workspace packages with Prettier, ESLint, TypeScript, and
+  Vitest task fan-out.
 - `pnpm typecheck` passes across all 10 workspace packages.
+- `pnpm test:rls` is wired as an uncached tenant-store placeholder; real Postgres RLS tests start
+  with FV-04.
 - `pnpm build --filter='!@insecur/worker'` passes for the 9 non-worker packages.
 - Full `pnpm build` still fails at `@insecur/worker` because no `wrangler.jsonc` or Worker
   entry-point configuration exists yet. This is the documented Worker setup gap, not evidence of a
@@ -156,7 +191,7 @@ repo docs.
 
 ## Recommended Next Steps
 
-1. Work the `First Value Build` Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), starting with the unblocked tooling baseline and the required human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
+1. Work the `First Value Build` Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), continuing from the completed tooling baseline and the completed human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
 2. Run the customer-validation loop from [customer-validation.md](customer-validation.md): 20 discovery interviews with agent-heavy teams, five design partners, and repeated First Value usage evidence.
 3. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md) as a narrow vertical slice through the real foundation: Tenant-Scoped Store, Row-Level Security, Effective Access, Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, tenant-bound Secret encryption, Secret Version Store, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
 4. Use the design-partner loop to shorten and harden the First Value proof before widening provider scope or web management.

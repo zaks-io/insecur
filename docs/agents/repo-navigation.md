@@ -16,42 +16,42 @@ ADRs linked by the relevant section.
 
 ## Where Things Live
 
-| Need | Start here |
-| --- | --- |
-| Current state, next steps, and not-yet-done list | `docs/project-status.md` |
-| Product north star and non-goals | `docs/vision.md` |
-| Authoritative domain vocabulary | `CONTEXT.md` |
-| Which context file to load | `CONTEXT-MAP.md` |
-| Package ownership and dependency direction | `docs/context-map.md` |
-| Current product shape and ADR trace links | `docs/specs/product-spec.md` |
-| Implementation workstream boundaries | `docs/specs/agent-workstreams.md` |
-| First Value build contract | `docs/first-value-milestone.md` |
-| First Value Linear ticket graph | `docs/specs/first-value-ticket-plan.md` |
-| CLI and provider sync behavior | `docs/cli-and-sync.md` |
-| Storage readiness gate | `docs/storage-security-gate.md` |
-| Protected change flow | `docs/protected-change-orchestration.md` |
-| Operation retry, resume, and leases | `docs/operation-store.md` |
-| Agent workflow and Linear rules | `docs/agents/workflow.md` |
-| Cursor Cloud setup | `docs/agents/cursor-cloud-environment.md` |
+| Need                                             | Start here                                |
+| ------------------------------------------------ | ----------------------------------------- |
+| Current state, next steps, and not-yet-done list | `docs/project-status.md`                  |
+| Product north star and non-goals                 | `docs/vision.md`                          |
+| Authoritative domain vocabulary                  | `CONTEXT.md`                              |
+| Which context file to load                       | `CONTEXT-MAP.md`                          |
+| Package ownership and dependency direction       | `docs/context-map.md`                     |
+| Current product shape and ADR trace links        | `docs/specs/product-spec.md`              |
+| Implementation workstream boundaries             | `docs/specs/agent-workstreams.md`         |
+| First Value build contract                       | `docs/first-value-milestone.md`           |
+| First Value Linear ticket graph                  | `docs/specs/first-value-ticket-plan.md`   |
+| CLI and provider sync behavior                   | `docs/cli-and-sync.md`                    |
+| Storage readiness gate                           | `docs/storage-security-gate.md`           |
+| Protected change flow                            | `docs/protected-change-orchestration.md`  |
+| Operation retry, resume, and leases              | `docs/operation-store.md`                 |
+| Agent workflow and Linear rules                  | `docs/agents/workflow.md`                 |
+| Cursor Cloud setup                               | `docs/agents/cursor-cloud-environment.md` |
 
 ## Code Routing
 
 The current source tree is intentionally thin. Product behavior should be added through package
 seams instead of route or CLI shortcuts.
 
-| Area | Files |
-| --- | --- |
-| Worker/API transport and Cloudflare bindings | `apps/worker/` |
-| CLI parsing, local config, output, and child process execution | `packages/cli/` |
-| Shared branded primitives and result vocabulary | `packages/domain/` |
-| Authorization and Effective Access | `packages/access/` |
-| Tenant-scoped transactions and RLS adapter contract | `packages/tenant-store/` |
-| Keyring, envelope encryption, and ciphertext binding | `packages/crypto/` |
-| Metadata-only audit events | `packages/audit/` |
-| Secret Shape, Blind Secret Write, and Secret Version Store | `packages/secrets/` |
-| Runtime Injection grants | `packages/runtime-injection/` |
-| Guided Organization Provisioning | `packages/onboarding/` |
-| Copyable First Value proof | `examples/first-value-proof/` |
+| Area                                                           | Files                         |
+| -------------------------------------------------------------- | ----------------------------- |
+| Worker/API transport and Cloudflare bindings                   | `apps/worker/`                |
+| CLI parsing, local config, output, and child process execution | `packages/cli/`               |
+| Shared branded primitives and result vocabulary                | `packages/domain/`            |
+| Authorization and Effective Access                             | `packages/access/`            |
+| Tenant-scoped transactions and RLS adapter contract            | `packages/tenant-store/`      |
+| Keyring, envelope encryption, and ciphertext binding           | `packages/crypto/`            |
+| Metadata-only audit events                                     | `packages/audit/`             |
+| Secret Shape, Blind Secret Write, and Secret Version Store     | `packages/secrets/`           |
+| Runtime Injection grants                                       | `packages/runtime-injection/` |
+| Guided Organization Provisioning                               | `packages/onboarding/`        |
+| Copyable First Value proof                                     | `examples/first-value-proof/` |
 
 For package work, read the package `CONTEXT.md` first, then load only the root glossary terms and
 ADRs named by that local context.
@@ -84,6 +84,10 @@ security, and domain source of truth.
 
 ## Current Shape To Remember
 
-The repo is documentation-first and pre-product implementation. The removed scaffold is not a
-compatibility target. New code should implement the target product described by the specs and the
-First Value package seams.
+The repo is documentation-led, but it is no longer planning-only. Build on the accepted executable
+scaffold: the First Value app/package stubs, Node 24/pnpm 10 workspace baseline, Turbo task graph,
+Prettier/ESLint/Vitest wiring, and `pnpm verify`.
+
+Product behavior is still pre-implementation. The package entrypoints are empty, and the removed
+unsafe scaffold is not a compatibility target. New code should implement the target product
+described by the specs and the First Value package seams.

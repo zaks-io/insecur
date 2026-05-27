@@ -31,14 +31,14 @@ insecur asks customers to hand over the keys to their production systems. Three 
 
 ## The liability regimes that actually apply (US, LLC)
 
-| Regime | What triggers it | Practical exposure |
-|---|---|---|
-| **Contract (ToS / MSA / DPA)** | Every paid customer | The primary battleground. Your limitation-of-liability, warranty disclaimer, and indemnity terms decide most of your real risk. |
-| **Common-law negligence** | A breach attributable to unreasonable security | "Failure to use reasonable care" as a secrets custodian. Standard rises because security is your core service. |
-| **FTC Act §5 + state UDAP** | A gap between security marketing and reality | Deceptive-practices liability for over-claiming. The FTC actively pursues security-marketing mismatches; states add their own consumer-protection hooks. |
-| **State breach-notification laws** | Unauthorized access to "personal information" | All 50 states. Notice timelines and definitions vary. See the surprise below about whether secrets even count. |
-| **CCPA / CPRA** | For-profit + thresholds ($25M rev, 100k consumers, or 50% rev from PI) | Likely below threshold early, but B2B contacts now count. Includes a private right of action for breaches of *unencrypted* PI ($100-$750 per consumer). |
-| **HIPAA / GLBA / PCI / FedRAMP** | Regulated-industry customer data | Deliberately **out of scope** via the acceptable-use exclusion. Keep it that way; willful blindness undoes it. |
+| Regime                             | What triggers it                                                       | Practical exposure                                                                                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contract (ToS / MSA / DPA)**     | Every paid customer                                                    | The primary battleground. Your limitation-of-liability, warranty disclaimer, and indemnity terms decide most of your real risk.                          |
+| **Common-law negligence**          | A breach attributable to unreasonable security                         | "Failure to use reasonable care" as a secrets custodian. Standard rises because security is your core service.                                           |
+| **FTC Act §5 + state UDAP**        | A gap between security marketing and reality                           | Deceptive-practices liability for over-claiming. The FTC actively pursues security-marketing mismatches; states add their own consumer-protection hooks. |
+| **State breach-notification laws** | Unauthorized access to "personal information"                          | All 50 states. Notice timelines and definitions vary. See the surprise below about whether secrets even count.                                           |
+| **CCPA / CPRA**                    | For-profit + thresholds ($25M rev, 100k consumers, or 50% rev from PI) | Likely below threshold early, but B2B contacts now count. Includes a private right of action for breaches of _unencrypted_ PI ($100-$750 per consumer).  |
+| **HIPAA / GLBA / PCI / FedRAMP**   | Regulated-industry customer data                                       | Deliberately **out of scope** via the acceptable-use exclusion. Keep it that way; willful blindness undoes it.                                           |
 
 ## Where the architecture cuts your exposure
 
@@ -47,11 +47,11 @@ these away through sloppy implementation or marketing:
 
 - **No plaintext on any durable surface** plus **full encryption** is the strongest single
   mitigation. It is also a near-complete defense to the CCPA breach private right of action, which
-  only reaches *nonencrypted* personal information. Logging one plaintext secret forfeits that.
+  only reaches _nonencrypted_ personal information. Logging one plaintext secret forfeits that.
 - **Free tier holds no production secrets.** This caps blast radius, support burden, and abuse
   exposure for the largest, least-vetted slice of users. Good liability hygiene; keep the fence.
 - **No-reveal custody, tenant-bound keys, tamper-evident audit, crypto-erase on discard.** These
-  let you argue "reasonable, above-market security" against a negligence claim, *if* they ship and
+  let you argue "reasonable, above-market security" against a negligence claim, _if_ they ship and
   the marketing matches what shipped.
 - **Storage Security Gate** is your documented line between "safe for production secrets" and
   "not." Storing real customer secrets before that gate passes (e.g. in the disposable scaffold or
@@ -64,8 +64,8 @@ these away through sloppy implementation or marketing:
 These are the items most likely to be missed and most likely to hurt.
 
 1. **The "no-reveal custodian" promise and ADR-0028 do not agree in V1.** ADR-0028 states plainly
-   that Cloudflare Secrets Store has no per-secret binding ACL, so *any identity that can deploy a
-   Worker in the account can bind the root key and read it at runtime*. "Deploy access cannot
+   that Cloudflare Secrets Store has no per-secret binding ACL, so _any identity that can deploy a
+   Worker in the account can bind the root key and read it at runtime_. "Deploy access cannot
    decrypt tenant data" is explicitly **not** a V1 guarantee. That means the company (you, any
    future contractor with deploy rights, or anyone who compromises the Cloudflare account) can
    technically decrypt all tenant data. Consequences:
@@ -76,7 +76,7 @@ These are the items most likely to be missed and most likely to hurt.
      technically unable to comply, so do not tell customers you are.
    - Fix path is already named in the ADR (external KMS once there are multiple Service Access
      operators). Until then, the marketing must say what the system actually does: strong
-     encryption and no *casual* read path, not cryptographic inability.
+     encryption and no _casual_ read path, not cryptographic inability.
 
 2. **Encryption is a real shield against the CCPA private right of action.** This cuts in your
    favor and is worth protecting deliberately. The whole "no plaintext persistence" regime keeps
@@ -119,8 +119,8 @@ These are the items most likely to be missed and most likely to hurt.
 
 7. **Key custody is now a physical and insider obligation.** Offline root-key escrow removes the
    single-point-of-loss risk but creates a second copy of the master key that must be physically
-   secured with out-of-band access logging. Lose both the store and the escrow and *all customer
-   data is permanently unrecoverable* (the docs say so). That is an availability/data-loss liability:
+   secured with out-of-band access logging. Lose both the store and the escrow and _all customer
+   data is permanently unrecoverable_ (the docs say so). That is an availability/data-loss liability:
    a customer locked out of their production secrets has a business-critical outage and a breach-of-
    contract claim. The ToS must disclaim consequential and availability damages and set honest
    recovery expectations.
@@ -148,7 +148,7 @@ These are the items most likely to be missed and most likely to hurt.
 
 ## What the contracts need to carry
 
-The architecture limits *technical* blast radius; contracts limit *legal* blast radius. The
+The architecture limits _technical_ blast radius; contracts limit _legal_ blast radius. The
 minimum set for taking production secrets:
 
 - **Terms of Service / MSA** with: limitation of liability and an aggregate cap; "AS IS" warranty

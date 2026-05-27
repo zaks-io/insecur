@@ -39,4 +39,3 @@ workflow.
 This package may depend on `@insecur/domain`. It must not depend on
 `@insecur/secrets`; the Secret Version Store consumes this package, not the
 other way around.
-

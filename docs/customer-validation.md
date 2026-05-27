@@ -167,4 +167,3 @@ The docs and site should lead with customer proof, then mechanism:
 Avoid feature-list positioning against broad secrets management. The message is not "we do
 everything Doppler or Vault does." The message is "the readable local secret is gone, and the
 production reveal path never appears."
-

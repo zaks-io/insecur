@@ -60,6 +60,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 ### Quick reference
 
 - **Install deps:** `pnpm install --frozen-lockfile`
+- **Verify:** `pnpm verify` (format check, lint, typecheck, and unit-test task fan-out)
 - **Typecheck:** `pnpm typecheck` (runs across all 10 workspace packages)
 - **Build:** `pnpm build` (worker build fails until `wrangler.jsonc` exists — this is expected and documented in `docs/agents/cursor-cloud-environment.md`)
 - **Build without worker:** `pnpm build --filter='!@insecur/worker'`
@@ -69,6 +70,8 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 
 - `engine-strict=true` in `.npmrc` means `pnpm install` will hard-fail if Node is not on major 24. Always verify `node --version` first.
 - `@insecur/worker` build requires a `wrangler.jsonc` that does not exist yet. Filter it out for now: `pnpm build --filter='!@insecur/worker'`.
-- No ESLint config, Prettier config, lefthook config, or test files exist yet. `pnpm lint`, `pnpm test`, and `pnpm format:check` are not wired up. See `docs/build-tooling.md` for the planned configuration.
+- ESLint, Prettier, Vitest, and `pnpm verify` are wired up. Package tests currently use Vitest's no-test pass-through until product slices add real tests.
+- `pnpm test:rls` is wired as an uncached tenant-store placeholder. Real Postgres RLS tests start with FV-04 and require `DATABASE_URL_RUNTIME`.
+- Lefthook, GitHub Actions validation, and secret/dependency scanning are not wired yet; FV-02 owns that follow-up.
 - All package `src/index.ts` files export `export {};` — this is a deliberate empty skeleton per ADR-0018.
 - `pnpm-workspace.yaml` has `strictDepBuilds: true` and `onlyBuiltDependencies` allowlist. Adding a dependency that runs lifecycle scripts requires an explicit allowlist addition.

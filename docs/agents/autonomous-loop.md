@@ -80,6 +80,7 @@ When an agent starts an issue:
 Claiming this issue.
 
 Plan:
+
 - Read the listed context docs.
 - Implement only the stated scope.
 - Run the required checks.
@@ -129,12 +130,15 @@ Use this Linear comment:
 Blocked.
 
 Reason:
+
 - ...
 
 Needed to continue:
+
 - ...
 
 Recommended next issue or decision:
+
 - ...
 ```
 
@@ -173,21 +177,27 @@ After opening the PR, add this Linear completion comment:
 Implementation ready for review.
 
 PR:
+
 - ...
 
 Checks run:
+
 - ...
 
 Acceptance criteria satisfied:
+
 - ...
 
 Security invariants checked:
+
 - ...
 
 Follow-up issues:
+
 - ...
 
 Residual risk:
+
 - ...
 ```
 
@@ -223,21 +233,21 @@ through the Linear MCP.
 
 Interpret Linear fields this way:
 
-| Linear field | Agent meaning |
-| --- | --- |
-| Team `INS` | The issue belongs to this repo. |
-| Label `zaks-io/insecur` | The issue belongs to this repository. Required before orchestration. |
-| Project | Phase or major program, such as First Value Build. |
-| Project milestone | Delivery gate inside the project. Required for non-container issues. |
-| Parent issue | Workstream container from `docs/specs/agent-workstreams.md`. Intentionally unmilestoned. |
-| Sub-issue | One implementation job, sized for one PR. |
-| `blocked by` / `blocks` | Execution order. Do not start blocked work. |
-| `ready-for-agent` | Permission for autonomous implementation. |
-| `ready-for-human` | Human judgment required before implementation. |
-| `needs-info` | Issue is missing enough context to execute. |
-| Risk label | Review posture and extra care needed. |
-| Type label | General work kind; not an execution rule. |
-| Status | Current workflow state. |
+| Linear field            | Agent meaning                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| Team `INS`              | The issue belongs to this repo.                                                          |
+| Label `zaks-io/insecur` | The issue belongs to this repository. Required before orchestration.                     |
+| Project                 | Phase or major program, such as First Value Build.                                       |
+| Project milestone       | Delivery gate inside the project. Required for non-container issues.                     |
+| Parent issue            | Workstream container from `docs/specs/agent-workstreams.md`. Intentionally unmilestoned. |
+| Sub-issue               | One implementation job, sized for one PR.                                                |
+| `blocked by` / `blocks` | Execution order. Do not start blocked work.                                              |
+| `ready-for-agent`       | Permission for autonomous implementation.                                                |
+| `ready-for-human`       | Human judgment required before implementation.                                           |
+| `needs-info`            | Issue is missing enough context to execute.                                              |
+| Risk label              | Review posture and extra care needed.                                                    |
+| Type label              | General work kind; not an execution rule.                                                |
+| Status                  | Current workflow state.                                                                  |
 
 Do not use labels for workstreams. Use parent issues for workstream grouping, project milestones
 for delivery gates, and issue relationships for execution order.
@@ -247,15 +257,15 @@ for delivery gates, and issue relationships for execution order.
 An agent-ready issue should contain enough prose for an agent to execute without guessing. It does
 not need to follow an exact template, but it must answer these questions:
 
-| Question | Required content |
-| --- | --- |
-| What is the outcome? | One concrete goal. |
-| Where is the relevant context? | Links to repo docs, package `CONTEXT.md` files, specs, or ADRs. |
-| What is in scope? | The behavior, files, modules, or tests the agent may touch. |
-| What is out of scope? | Product decisions, cleanup, refactors, or adjacent work the agent must not absorb. |
-| How is done verified? | Acceptance criteria and required local/CI checks. |
-| What must remain true? | Security and domain invariants for the slice. |
-| What depends on what? | Any blockers or downstream issues not already encoded in Linear relationships. |
+| Question                       | Required content                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------- |
+| What is the outcome?           | One concrete goal.                                                                 |
+| Where is the relevant context? | Links to repo docs, package `CONTEXT.md` files, specs, or ADRs.                    |
+| What is in scope?              | The behavior, files, modules, or tests the agent may touch.                        |
+| What is out of scope?          | Product decisions, cleanup, refactors, or adjacent work the agent must not absorb. |
+| How is done verified?          | Acceptance criteria and required local/CI checks.                                  |
+| What must remain true?         | Security and domain invariants for the slice.                                      |
+| What depends on what?          | Any blockers or downstream issues not already encoded in Linear relationships.     |
 
 If the issue body does not answer these questions, the agent must not implement. It should comment
 with the missing information and move the issue to `Blocked`, `needs-info`, or `ready-for-human`
@@ -265,52 +275,52 @@ depending on what is missing.
 
 Agents should interpret statuses this way:
 
-| Status | Agent behavior |
-| --- | --- |
-| `Triage` | Intake state. Do not claim until it is sorted into the roadmap. |
-| `Backlog` | Planned work that is not ready to start. Do not claim. |
-| `Todo` | Ready to start if it also has `ready-for-agent` and no blockers. |
-| `In Progress` | Someone is actively working. Do not claim unless assigned/delegated. |
-| `Blocked` | Cannot continue until the blocker is resolved. |
-| `In Review` | Implementation is ready for review. |
+| Status              | Agent behavior                                                                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Triage`            | Intake state. Do not claim until it is sorted into the roadmap.                                                                                |
+| `Backlog`           | Planned work that is not ready to start. Do not claim.                                                                                         |
+| `Todo`              | Ready to start if it also has `ready-for-agent` and no blockers.                                                                               |
+| `In Progress`       | Someone is actively working. Do not claim unless assigned/delegated.                                                                           |
+| `Blocked`           | Cannot continue until the blocker is resolved.                                                                                                 |
+| `In Review`         | Implementation is ready for review.                                                                                                            |
 | `Changes Requested` | PR has actionable review feedback. The orchestrator should route fixes to the original implementation agent and keep using the same PR branch. |
-| `Ready to Merge` | Review is complete and required checks are passing. |
-| `Done` | Completed. Do not modify unless a follow-up issue says to. |
-| `Canceled` | Intentionally closed without completion. Do not modify. |
-| `Duplicate` | Closed as a duplicate. Do not modify; follow the canonical issue. |
+| `Ready to Merge`    | Review is complete and required checks are passing.                                                                                            |
+| `Done`              | Completed. Do not modify unless a follow-up issue says to.                                                                                     |
+| `Canceled`          | Intentionally closed without completion. Do not modify.                                                                                        |
+| `Duplicate`         | Closed as a duplicate. Do not modify; follow the canonical issue.                                                                              |
 
 ## Label Contract
 
 Readiness labels control whether an agent may work. Every repo issue should also carry
 `zaks-io/insecur`; this is a routing label, not a readiness signal.
 
-| Label | Agent behavior |
-| --- | --- |
-| `needs-triage` | Do not implement. Human sorting is needed. |
-| `needs-info` | Do not implement. Required context is missing. |
+| Label             | Agent behavior                                                  |
+| ----------------- | --------------------------------------------------------------- |
+| `needs-triage`    | Do not implement. Human sorting is needed.                      |
+| `needs-info`      | Do not implement. Required context is missing.                  |
 | `ready-for-agent` | May implement if status is `Todo` and the issue is not blocked. |
-| `ready-for-human` | Do not implement. Human judgment is required. |
-| `wontfix` | Do not implement. |
+| `ready-for-human` | Do not implement. Human judgment is required.                   |
+| `wontfix`         | Do not implement.                                               |
 
 Risk labels change review expectations:
 
-| Label | Agent behavior |
-| --- | --- |
-| `risk-normal` | Normal implementation care. |
-| `risk-security-sensitive` | Extra scrutiny for auth, custody, secrets, audit, or authorization. |
-| `risk-schema` | Extra scrutiny for migrations, RLS, persistent schema, or data contracts. |
-| `risk-cross-cutting` | Extra scrutiny for shared seams, multi-package behavior, or workflow changes. |
+| Label                     | Agent behavior                                                                |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `risk-normal`             | Normal implementation care.                                                   |
+| `risk-security-sensitive` | Extra scrutiny for auth, custody, secrets, audit, or authorization.           |
+| `risk-schema`             | Extra scrutiny for migrations, RLS, persistent schema, or data contracts.     |
+| `risk-cross-cutting`      | Extra scrutiny for shared seams, multi-package behavior, or workflow changes. |
 
 Use Linear's existing `Type` labels only as broad classification:
 
-| Type label | Meaning |
-| --- | --- |
-| `Bug` | Defect fix. |
-| `Feature` | New product or platform behavior. |
-| `Improvement` | Existing behavior improvement. |
-| `Tech Debt` | Refactor, cleanup, or maintenance. |
-| `Spike` | Research, investigation, or decision prep. |
-| `Hotfix` | Emergency production fix. |
+| Type label    | Meaning                                    |
+| ------------- | ------------------------------------------ |
+| `Bug`         | Defect fix.                                |
+| `Feature`     | New product or platform behavior.          |
+| `Improvement` | Existing behavior improvement.             |
+| `Tech Debt`   | Refactor, cleanup, or maintenance.         |
+| `Spike`       | Research, investigation, or decision prep. |
+| `Hotfix`      | Emergency production fix.                  |
 
 Documentation-only and test-only work should be clear from the issue title, body, and acceptance
 criteria. Do not create a second type taxonomy for agents.
@@ -320,15 +330,15 @@ criteria. Do not create a second type taxonomy for agents.
 For the First Value implementation project, parent issues should mirror the workstreams in
 `docs/specs/agent-workstreams.md`:
 
-| Parent issue | Scope |
-| --- | --- |
-| `W0 - Tooling, CI, and Supply Chain` | Package manager, validation, CI, scanning, supply-chain posture. |
-| `W1 - Persistence, Tenant Boundary, and Operations State` | Neon Postgres, RLS, Tenant-Scoped Store, Operation Store. |
-| `W2 - Human Identity, Authorization, and Onboarding` | WorkOS, Memberships, Effective Access, Guided Organization Provisioning. |
-| `W3 - Key Custody, Keyring, Encryption, and Storage Security Gate` | Key hierarchy, envelope encryption, custody readiness. |
-| `W4 - Secret Lifecycle and Version Store` | Secret Shape, Secret Version Store, non-protected write path. |
-| `W5 - CLI, Local Config, and Runtime Injection` | CLI framework, local config, one-use Runtime Injection grants. |
-| `W10 - Audit, Evidence, and Release Gates` | Audit writer, security evidence, release-gate support. |
+| Parent issue                                                       | Scope                                                                    |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `W0 - Tooling, CI, and Supply Chain`                               | Package manager, validation, CI, scanning, supply-chain posture.         |
+| `W1 - Persistence, Tenant Boundary, and Operations State`          | Neon Postgres, RLS, Tenant-Scoped Store, Operation Store.                |
+| `W2 - Human Identity, Authorization, and Onboarding`               | WorkOS, Memberships, Effective Access, Guided Organization Provisioning. |
+| `W3 - Key Custody, Keyring, Encryption, and Storage Security Gate` | Key hierarchy, envelope encryption, custody readiness.                   |
+| `W4 - Secret Lifecycle and Version Store`                          | Secret Shape, Secret Version Store, non-protected write path.            |
+| `W5 - CLI, Local Config, and Runtime Injection`                    | CLI framework, local config, one-use Runtime Injection grants.           |
+| `W10 - Audit, Evidence, and Release Gates`                         | Audit writer, security evidence, release-gate support.                   |
 
 Later milestone projects may add W6, W7, W8, and W9 parent issues when those areas become active.
 

@@ -21,23 +21,23 @@ context for a specific task.
 
 ## App Contexts
 
-| Path | Load when |
-| --- | --- |
-| `apps/worker/CONTEXT.md` | Working on Cloudflare Worker routes, request composition, bindings, or API transport. |
+| Path                      | Load when                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/worker/CONTEXT.md`  | Working on Cloudflare Worker routes, request composition, bindings, or API transport.             |
 | `packages/cli/CONTEXT.md` | Working on CLI commands, local config, safe input, output formatting, or child process execution. |
 
 ## First Value Package Contexts
 
-| Path | Module |
-| --- | --- |
-| `packages/domain/CONTEXT.md` | Shared domain primitives and stable vocabulary shapes. |
-| `packages/access/CONTEXT.md` | Effective Access Resolver and scope-first authorization. |
-| `packages/tenant-store/CONTEXT.md` | Tenant-Scoped Store and metadata isolation. |
-| `packages/crypto/CONTEXT.md` | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
-| `packages/audit/CONTEXT.md` | Audit Event Writer and metadata-only audit records. |
-| `packages/secrets/CONTEXT.md` | Secret Version Store and Blind Secret Write rules. |
-| `packages/runtime-injection/CONTEXT.md` | Runtime Injection Grant Service. |
-| `packages/onboarding/CONTEXT.md` | Guided Organization Provisioning. |
+| Path                                    | Module                                                         |
+| --------------------------------------- | -------------------------------------------------------------- |
+| `packages/domain/CONTEXT.md`            | Shared domain primitives and stable vocabulary shapes.         |
+| `packages/access/CONTEXT.md`            | Effective Access Resolver and scope-first authorization.       |
+| `packages/tenant-store/CONTEXT.md`      | Tenant-Scoped Store and metadata isolation.                    |
+| `packages/crypto/CONTEXT.md`            | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
+| `packages/audit/CONTEXT.md`             | Audit Event Writer and metadata-only audit records.            |
+| `packages/secrets/CONTEXT.md`           | Secret Version Store and Blind Secret Write rules.             |
+| `packages/runtime-injection/CONTEXT.md` | Runtime Injection Grant Service.                               |
+| `packages/onboarding/CONTEXT.md`        | Guided Organization Provisioning.                              |
 
 ## Reading Rules
 

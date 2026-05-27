@@ -38,14 +38,14 @@ The milestone does not own:
 
 The First Value Milestone must use the real seams, even when their implementations are still narrow:
 
-| Seam | First Value requirement |
-| --- | --- |
-| Tenant-Scoped Store | All persisted tenant metadata and Secret Version metadata go through scoped transactions. No raw executor reaches onboarding, secret write, or CLI command handlers. |
-| Effective Access Resolver | The admitted User receives owner Organization Access through Membership and Role, and every route checks Effective Access. No route branches on User type, Role name, or owner shortcut. |
+| Seam                            | First Value requirement                                                                                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tenant-Scoped Store             | All persisted tenant metadata and Secret Version metadata go through scoped transactions. No raw executor reaches onboarding, secret write, or CLI command handlers.                                         |
+| Effective Access Resolver       | The admitted User receives owner Organization Access through Membership and Role, and every route checks Effective Access. No route branches on User type, Role name, or owner shortcut.                     |
 | Keyring and Encryption Envelope | Stored Secrets are wrapped under tenant-bound keys with ciphertext identity binding. First Value may use a minimal key hierarchy only if it preserves Organization/Project data-key and `key_version` seams. |
-| Secret Version Store | The non-protected write path appends a Secret Version and makes it the Current Version through the store. The store accepts and returns wrapped material only. |
-| Runtime Injection Grant Service | Every `run` receives a fresh one-use Injection Grant, even for non-protected development. Direct `--variable-key` selection is a First Value convenience, not a reusable policy bypass. |
-| Audit Event Writer | Onboarding, Secret write, Injection Grant issue/consume, and denied attempts create tenant-qualified metadata-only audit events. |
+| Secret Version Store            | The non-protected write path appends a Secret Version and makes it the Current Version through the store. The store accepts and returns wrapped material only.                                               |
+| Runtime Injection Grant Service | Every `run` receives a fresh one-use Injection Grant, even for non-protected development. Direct `--variable-key` selection is a First Value convenience, not a reusable policy bypass.                      |
+| Audit Event Writer              | Onboarding, Secret write, Injection Grant issue/consume, and denied attempts create tenant-qualified metadata-only audit events.                                                                             |
 
 ## Interface
 

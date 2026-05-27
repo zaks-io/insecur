@@ -95,7 +95,7 @@ For delegated implementation work, the preferred loop is:
 9. Cursor pushes fixes to the same PR.
 10. The orchestrator repeats local worktree review until the PR is clean enough.
 11. When checks and review are clean, Linear moves to `Ready to Merge` and the configured merge
-   policy decides whether the orchestrator may merge or must escalate to a human.
+    policy decides whether the orchestrator may merge or must escalate to a human.
 
 The local orchestrator should maximize throughput by unblocking PRs, keeping review quality high,
 and routing ordinary fixes back to the assigned agent. It should not quietly become the local
@@ -117,17 +117,17 @@ approval.
 
 Start by choosing the smallest skill that matches the task:
 
-| Task | Skill |
-| --- | --- |
-| Convert docs/specs into Linear work | `insecur-roadmap-to-linear` |
-| Audit labels, statuses, blockers, or readiness | `insecur-linear-readiness-audit` |
-| Implement one ready issue | `insecur-implement-issue` |
-| Run an independent bug-focused diff review | `insecur-code-review` |
-| Review local changes before PR | `insecur-local-code-review` |
-| Review one PR | `insecur-review-pr` |
-| Keep the agent implementation queue moving | `insecur-goal-keep-agent-queue-moving` |
+| Task                                               | Skill                                      |
+| -------------------------------------------------- | ------------------------------------------ |
+| Convert docs/specs into Linear work                | `insecur-roadmap-to-linear`                |
+| Audit labels, statuses, blockers, or readiness     | `insecur-linear-readiness-audit`           |
+| Implement one ready issue                          | `insecur-implement-issue`                  |
+| Run an independent bug-focused diff review         | `insecur-code-review`                      |
+| Review local changes before PR                     | `insecur-local-code-review`                |
+| Review one PR                                      | `insecur-review-pr`                        |
+| Keep the agent implementation queue moving         | `insecur-goal-keep-agent-queue-moving`     |
 | Review newly landed `main` commits and queue fixes | `insecur-goal-review-main-and-queue-fixes` |
-| Keep agent docs and runtime adapters aligned | `insecur-doc-sync` |
+| Keep agent docs and runtime adapters aligned       | `insecur-doc-sync`                         |
 
 If no skill matches, use the shared docs directly and keep the change narrow.
 

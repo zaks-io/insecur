@@ -102,9 +102,11 @@ Issue bodies must include:
 
 ```md
 ## Outcome
+
 Fix the reviewed-main finding in one concrete slice.
 
 ## Context
+
 - AGENTS.md
 - CONTEXT-MAP.md
 - docs/project-status.md
@@ -112,24 +114,31 @@ Fix the reviewed-main finding in one concrete slice.
 - Reviewed main range: <old-sha>..<new-sha>
 
 ## Finding
+
 What the review found, with file and line references when available.
 
 ## In scope
+
 The smallest implementation surface that should fix the issue.
 
 ## Out of scope
+
 Product decisions, unrelated cleanup, and any adjacent follow-up not needed for this fix.
 
 ## Acceptance criteria
+
 - [ ] Locally verifiable criteria.
 
 ## Required checks
+
 Named commands or evidence.
 
 ## Security invariants
+
 Metadata-only, no Sensitive Values, and any relevant package-specific invariants.
 
 ## Dependencies
+
 Known blockers or "None".
 ```
 

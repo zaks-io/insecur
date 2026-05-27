@@ -54,4 +54,3 @@ transport, bindings, and request composition, not domain invariants.
 - Secret Version lifecycle.
 - Runtime Injection Grant state.
 - Audit metadata allowlists.
-
