@@ -7,6 +7,16 @@ description: Use when reviewing an insecur PR against a Linear issue, acceptance
 
 Review PRs for correctness, security posture, and issue fit. Use a bug-focused review stance.
 
+## Review Model
+
+Use the strongest available code-review-capable model and reasoning setting for this skill. Prefer
+Opus-class, GPT-5.5 extra-high reasoning, or the current best equivalent. Do not use the fast
+implementation workhorse as the default reviewer when a stronger review tier is available.
+
+If only a lower-tier reviewer is available, state that limitation in the review output. Do not move
+`risk-security-sensitive`, `risk-schema`, or `risk-cross-cutting` PRs to `Ready to Merge` without a
+strong review pass or explicit human approval.
+
 ## Required Context
 
 Read these first:
@@ -41,3 +51,7 @@ Lead with findings, ordered by severity, with file and line references when avai
 If no blocking findings remain, say so clearly and identify any residual risk or test gap. Move the
 Linear issue to `Ready to Merge` only when the user asked you to manage Linear state and required
 checks are passing.
+
+When running under the orchestrator and findings require author changes, post the detailed feedback
+on the PR and have the orchestrator move Linear to `Changes Requested`. The orchestrator should send
+the feedback back to the original implementation agent thread rather than fixing the PR locally.

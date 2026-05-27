@@ -37,19 +37,22 @@ Claude agents should:
 ## Cursor
 
 Cursor and Cursor Background Agents should read `.cursor/rules/insecur.mdc` and the Cursor Cloud
-environment notes in `docs/agents/cursor-cloud-environment.md`. Use Cursor for isolated remote
-implementation work where the issue is already `Todo` + `ready-for-agent`.
+environment notes in `docs/agents/cursor-cloud-environment.md`. Use Cursor Composer 2.5 as the
+default workhorse for isolated remote implementation where the issue is already `Todo` +
+`ready-for-agent`. Preserve the original thread for review fixes.
 
 Cursor agents should:
 
 - implement one Linear issue per branch and PR
+- resume the same thread, branch, and PR when the orchestrator sends `Changes Requested` feedback
 - use the branch name shape `ins-<number>-<short-slug>`
 - leave Linear comments for claim, blocker, and PR handoff
 - stop on missing product, security, credential, provider, or ADR decisions
 
 ## Runtime Selection Hints
 
-Use Cursor when the issue is isolated, well specified, and implementation-heavy.
+Use Cursor Composer 2.5 when the issue is isolated, well specified, implementation-heavy, and
+locally or CI verifiable.
 
 Use Codex when the task needs local verification, repo-wide cleanup, Linear/data maintenance, or
 orchestrator development.

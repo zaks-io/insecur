@@ -14,6 +14,7 @@ sync, read `docs/agents/workflow.md`.
 | `insecur-roadmap-to-linear` | Turning docs/specs into Linear projects, parent issues, implementation issues, labels, and dependencies. |
 | `insecur-linear-readiness-audit` | Auditing Linear issues for repo label coverage, readiness, blockers, statuses, and body completeness. |
 | `insecur-implement-issue` | Implementing one `Todo` + `ready-for-agent` Linear issue as one PR. |
+| `insecur-local-code-review` | Reviewing local changes or an implementation branch before opening a PR. |
 | `insecur-review-pr` | Reviewing a PR against its Linear issue, security invariants, tests, and docs. |
 | `insecur-orchestrator` | Designing, simulating, or running the orchestration loop across Linear, agents, and PRs. |
 | `insecur-doc-sync` | Keeping Codex, Claude, Cursor, repo skills, and `docs/agents` instructions aligned. |
@@ -37,6 +38,7 @@ Use the current INS status contract from `docs/agents/autonomous-loop.md`:
 - `In Progress`
 - `Blocked`
 - `In Review`
+- `Changes Requested`
 - `Ready to Merge`
 - `Done`
 - `Canceled`

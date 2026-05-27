@@ -32,6 +32,7 @@ Use current INS statuses:
 - `In Progress`
 - `Blocked`
 - `In Review`
+- `Changes Requested`
 - `Ready to Merge`
 - `Done`
 - `Canceled`

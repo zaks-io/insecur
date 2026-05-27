@@ -16,7 +16,7 @@ Runtime adapters should stay short. If the workflow changes, update shared docs 
 
 ## Work Flow
 
-Work moves through this repo in five stages.
+Work moves through this repo in six stages.
 
 1. Roadmap
 
@@ -33,23 +33,71 @@ Work moves through this repo in five stages.
 
 3. Implementation
 
-   Use `skills/insecur-implement-issue/SKILL.md` for one Linear issue and one PR. The agent claims
-   the issue, moves it to `In Progress`, creates an `ins-<number>-<short-slug>` branch, implements
-   only the stated scope, runs required checks, opens a PR, comments in Linear, and moves the issue
-   to `In Review`.
+   Use `skills/insecur-implement-issue/SKILL.md` for one Linear issue and one branch. The agent
+   claims the issue, moves it to `In Progress`, creates an `ins-<number>-<short-slug>` branch,
+   implements only the stated scope, and runs required checks.
 
-4. Review
+4. Pre-PR Local Review
+
+   Use `skills/insecur-local-code-review/SKILL.md` to review the local branch or working-tree diff
+   before opening a PR. This catches issue-scope problems, missed acceptance criteria, weak tests,
+   security invariant gaps, debug output, and unrelated cleanup while the issue is still
+   `In Progress`.
+
+5. PR Review
 
    Use `skills/insecur-review-pr/SKILL.md` to review the PR against the Linear issue, acceptance
-   criteria, security invariants, tests, and changed docs. Move to `Ready to Merge` only after
-   review feedback is addressed and required checks pass.
+   criteria, security invariants, tests, and changed docs. If review finds actionable feedback,
+   post it on the PR, move Linear to `Changes Requested`, and send the original Cursor agent thread
+   back to the same branch and PR. Move to `Ready to Merge` only after review feedback is addressed
+   and required checks pass.
 
-5. Orchestration
+6. Orchestration
 
    Use `skills/insecur-orchestrator/SKILL.md` when coordinating multiple agents. The orchestrator
-   polls Linear, selects `Todo` + `ready-for-agent` issues with no blockers, chooses Codex, Claude,
-   or Cursor based on the work shape, watches PRs and checks, updates Linear, and escalates human
-   decisions.
+   polls Linear, selects `Todo` + `ready-for-agent` issues with no blockers, uses Cursor Composer
+   2.5 as the default implementation workhorse where it fits, watches PRs and checks, updates
+   Linear, loops feedback back to the original Cursor agent thread, and escalates human decisions.
+
+## Orchestrator Review Loop
+
+For delegated implementation work, the preferred loop is:
+
+1. The orchestrator assigns or delegates a ready Linear issue to Cursor.
+2. Cursor runs the remote implementation environment through Composer 2.5 by default when the
+   issue is implementation-heavy, well scoped, and does not require new product or security
+   judgment.
+3. Before PR handoff, the implementation branch gets a local review pass with
+   `skills/insecur-local-code-review/SKILL.md` where the environment supports it.
+4. Cursor opens a PR, comments in Linear, and moves the issue to `In Review`.
+5. The orchestrator checks out the PR in a local worktree and launches a review subagent with
+   `skills/insecur-review-pr/SKILL.md`, using the strongest available code-review model and
+   reasoning tier, such as Opus-class, GPT-5.5 extra-high reasoning, or the current best
+   equivalent.
+6. Review findings are posted as normal GitHub PR review comments.
+7. If changes are needed, Linear moves to `Changes Requested`.
+8. The orchestrator replies in the original Cursor agent thread with the PR feedback and required
+   next checks, so the same environment and branch continue.
+9. Cursor pushes fixes to the same PR.
+10. The orchestrator repeats local worktree review until the PR is clean enough.
+11. When checks and review are clean, Linear moves to `Ready to Merge` and the configured merge
+   policy decides whether the orchestrator may merge or must escalate to a human.
+
+The local orchestrator should maximize throughput by unblocking PRs, keeping review quality high,
+and routing ordinary fixes back to the assigned agent. It should not quietly become the local
+implementer for a stuck PR unless a human explicitly redirects it or the original agent thread is no
+longer usable.
+
+Composer 2.5 is the preferred fast, economical implementation runner for agent-ready tickets. The
+orchestrator is the quality gate: it verifies that the issue was interpreted correctly, acceptance
+criteria are satisfied, security invariants hold, tests are meaningful, code quality is high, and
+important risks are surfaced to the user.
+
+Implementation and review should use different defaults. Composer 2.5 is the workhorse for
+well-scoped implementation. PR review should use the strongest available review tier. If only a
+lower-tier reviewer is available, the orchestrator must say so and should not move security,
+schema, or cross-cutting PRs to `Ready to Merge` without a stronger review pass or explicit human
+approval.
 
 ## Skill Selection
 
@@ -60,6 +108,7 @@ Start by choosing the smallest skill that matches the task:
 | Convert docs/specs into Linear work | `insecur-roadmap-to-linear` |
 | Audit labels, statuses, blockers, or readiness | `insecur-linear-readiness-audit` |
 | Implement one ready issue | `insecur-implement-issue` |
+| Review local changes before PR | `insecur-local-code-review` |
 | Review one PR | `insecur-review-pr` |
 | Coordinate many issues or agent runs | `insecur-orchestrator` |
 | Keep agent docs and runtime adapters aligned | `insecur-doc-sync` |
@@ -76,6 +125,7 @@ Use `docs/agents/autonomous-loop.md` as the detailed state contract.
 - `In Progress`: active implementation.
 - `Blocked`: visible blocker; no improvising around missing decisions.
 - `In Review`: PR opened and ready for review.
+- `Changes Requested`: PR has actionable feedback; return to the original agent thread for fixes.
 - `Ready to Merge`: checks and review are complete.
 - `Done`: merged or otherwise complete.
 - `Canceled` or `Duplicate`: closed; do not modify without a new reason.

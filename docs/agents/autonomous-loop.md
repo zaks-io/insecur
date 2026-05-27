@@ -187,6 +187,27 @@ Residual risk:
 Move the issue to `In Review`. Move it to `Ready to Merge` only after review feedback is addressed
 and required checks pass.
 
+## Review And Fix Loop
+
+The orchestrator owns the review/fix loop. It should review PRs from an isolated local worktree or
+review subagent, then route actionable feedback through normal GitHub PR review comments.
+
+When review finds actionable implementation feedback:
+
+1. Post the detailed findings on the PR.
+2. Move the Linear issue to `Changes Requested`.
+3. Return to the original Cursor agent thread for that issue whenever possible, so the same remote
+   environment, branch, and context can continue.
+4. Tell the Cursor agent what changed, which PR comments must be addressed, and which checks still
+   need to pass.
+5. After the agent pushes fixes, rerun review from a clean local worktree and move the issue back
+   to `In Review`.
+
+The local orchestrator should not become the local implementer for ordinary review feedback. It may
+make bookkeeping updates, verify checks, and escalate important problems, but implementation fixes
+should stay with the assigned agent unless the original agent thread is unavailable or a human
+explicitly redirects the work.
+
 ## Linear Field Contract
 
 Agents treat Linear as the queue, state machine, and dependency graph. Linear views and templates
@@ -244,6 +265,7 @@ Agents should interpret statuses this way:
 | `In Progress` | Someone is actively working. Do not claim unless assigned/delegated. |
 | `Blocked` | Cannot continue until the blocker is resolved. |
 | `In Review` | Implementation is ready for review. |
+| `Changes Requested` | PR has actionable review feedback. The orchestrator should route fixes to the original implementation agent and keep using the same PR branch. |
 | `Ready to Merge` | Review is complete and required checks are passing. |
 | `Done` | Completed. Do not modify unless a follow-up issue says to. |
 | `Canceled` | Intentionally closed without completion. Do not modify. |
