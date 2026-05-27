@@ -43,4 +43,3 @@ and size validation, append/current behavior, and metadata-only outputs.
 
 This package may consume lower packages. It should not import worker routes, CLI
 commands, provider adapters, or protected-change orchestration.
-

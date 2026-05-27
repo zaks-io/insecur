@@ -35,4 +35,3 @@ should not need fake adapters because it should not call outward.
 ## Dependency Rule
 
 This package must not depend on another `@insecur/*` package.
-

@@ -38,7 +38,7 @@ On each run:
 8. Build a prompt package from the issue, linked docs, repo instructions, and runtime adapter.
 9. Delegate the work and record the run in a Linear comment.
 10. Require or run a pre-PR local review with `skills/insecur-local-code-review/SKILL.md` where the
-   implementation environment supports it.
+    implementation environment supports it.
 11. Watch for PRs, failed checks, stale branches, blockers, and review comments.
 12. Update Linear state using the status contract in `docs/agents/autonomous-loop.md`.
 

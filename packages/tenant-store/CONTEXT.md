@@ -48,4 +48,3 @@ transactions, tenant scope setting, and the Row-Level Security adapter contract.
 - Encryption.
 - Audit event formatting.
 - Provider behavior.
-

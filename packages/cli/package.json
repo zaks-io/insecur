@@ -7,17 +7,22 @@
     "insecur": "./dist/index.js"
   },
   "scripts": {
+    "topo": "node -e \"\"",
     "build": "tsc",
     "clean": "rm -rf dist",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "start": "node --import tsx/esm src/index.ts",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "commander": "^12.1.0"
+    "commander": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

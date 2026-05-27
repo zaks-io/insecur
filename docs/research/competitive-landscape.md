@@ -23,6 +23,7 @@ The competitors split into two groups:
    GitHub Actions secrets.
 
 Detailed per-product profiles, with source URLs, live in:
+
 - [competitors-dedicated.md](competitors-dedicated.md)
 - [competitors-platform-native.md](competitors-platform-native.md)
 
@@ -54,23 +55,23 @@ Each piece exists somewhere in the market. Nobody packages them for the
 
 Legend: Yes / No / Partial / N/A. "insecur V1" is the documented target, not current code.
 
-| Capability | insecur V1 | Doppler | Infisical | Phase | EnvKey | Vault/HCP | Akeyless | 1Password | Pulumi ESC |
-|---|---|---|---|---|---|---|---|---|---|
-| CF Workers native sync | Yes (core) | DIY/manual | Yes | Yes | No | No | No | No | Via wrangler wrap |
-| Vercel native sync | Yes (core) | Yes | Yes | Yes | No | Enterprise | No | No | Via IaC |
-| GitHub Actions native sync | Yes (core) | Yes | Yes | Yes | Via token | Enterprise | Action | Action | Yes (OIDC) |
-| Runtime injection (`run -- cmd`) | Yes | Yes | Yes | Yes | Sidecar | Sidecar | CLI fetch | Yes (best DX) | Yes |
-| OIDC for CI (no stored token) | Yes (GH OIDC) | Yes (GH) | Yes (multi) | Partial | No | Yes | Yes | No | Yes |
-| Short-lived machine creds | Yes | Partial | Yes | Yes | Yes | Yes | Yes | No (static token) | Yes (OIDC) |
-| Delivery-without-reveal default | Yes (enforced) | Partial (Restricted, UI) | No (proxy preview) | Partial (Sealed opt-in) | No | No | No | Partial (`op run`) | No |
-| No reveal path for protected vals | Yes | No | No | Partial | No | No | No | No | No |
-| Approval not clearable by agent | Yes | Team+ | Enterprise | No | No | Enterprise (Control Groups) | JIT | No | Enterprise |
-| Risk presets (Strict/Balanced/Auto) | Yes | No | No | No | No | No | No | No | No |
-| Multi-tenant orgs + RBAC | Yes | Yes | Yes | Yes | Yes (Ent namespaces) | Yes | Yes | Yes | Yes |
-| Audit + versioning + rollback | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes |
-| Tamper-evident audit export | Yes (hash chain) | No | No | No | No | No | No | No | No |
-| Self-hosted option | No (hosted) | No | Yes (MIT) | Yes (OSS) | Yes (OSS) | Yes | Hybrid | Connect proxy | No |
-| Dynamic secrets engines | Out of scope | No | Yes | No | No | Yes | Yes | No | Yes |
+| Capability                          | insecur V1       | Doppler                  | Infisical          | Phase                   | EnvKey               | Vault/HCP                   | Akeyless  | 1Password          | Pulumi ESC        |
+| ----------------------------------- | ---------------- | ------------------------ | ------------------ | ----------------------- | -------------------- | --------------------------- | --------- | ------------------ | ----------------- |
+| CF Workers native sync              | Yes (core)       | DIY/manual               | Yes                | Yes                     | No                   | No                          | No        | No                 | Via wrangler wrap |
+| Vercel native sync                  | Yes (core)       | Yes                      | Yes                | Yes                     | No                   | Enterprise                  | No        | No                 | Via IaC           |
+| GitHub Actions native sync          | Yes (core)       | Yes                      | Yes                | Yes                     | Via token            | Enterprise                  | Action    | Action             | Yes (OIDC)        |
+| Runtime injection (`run -- cmd`)    | Yes              | Yes                      | Yes                | Yes                     | Sidecar              | Sidecar                     | CLI fetch | Yes (best DX)      | Yes               |
+| OIDC for CI (no stored token)       | Yes (GH OIDC)    | Yes (GH)                 | Yes (multi)        | Partial                 | No                   | Yes                         | Yes       | No                 | Yes               |
+| Short-lived machine creds           | Yes              | Partial                  | Yes                | Yes                     | Yes                  | Yes                         | Yes       | No (static token)  | Yes (OIDC)        |
+| Delivery-without-reveal default     | Yes (enforced)   | Partial (Restricted, UI) | No (proxy preview) | Partial (Sealed opt-in) | No                   | No                          | No        | Partial (`op run`) | No                |
+| No reveal path for protected vals   | Yes              | No                       | No                 | Partial                 | No                   | No                          | No        | No                 | No                |
+| Approval not clearable by agent     | Yes              | Team+                    | Enterprise         | No                      | No                   | Enterprise (Control Groups) | JIT       | No                 | Enterprise        |
+| Risk presets (Strict/Balanced/Auto) | Yes              | No                       | No                 | No                      | No                   | No                          | No        | No                 | No                |
+| Multi-tenant orgs + RBAC            | Yes              | Yes                      | Yes                | Yes                     | Yes (Ent namespaces) | Yes                         | Yes       | Yes                | Yes               |
+| Audit + versioning + rollback       | Yes              | Yes                      | Yes                | Yes                     | Yes                  | Yes                         | Yes       | Partial            | Yes               |
+| Tamper-evident audit export         | Yes (hash chain) | No                       | No                 | No                      | No                   | No                          | No        | No                 | No                |
+| Self-hosted option                  | No (hosted)      | No                       | Yes (MIT)          | Yes (OSS)               | Yes (OSS)            | Yes                         | Hybrid    | Connect proxy      | No                |
+| Dynamic secrets engines             | Out of scope     | No                       | Yes                | No                      | No                   | Yes                         | Yes       | No                 | Yes               |
 
 Read the "Out of scope" and "No" rows together: insecur is deliberately narrower than Vault,
 Akeyless, and Pulumi ESC (no dynamic DB credential engines, no SCIM/LDAP/SAML/PAM/HSM, no
@@ -83,30 +84,31 @@ breadth.
 
 Dedicated platforms (entry paid tier, free tier shape):
 
-| Product | Free tier | Paid entry | Pricing model | Self-host |
-|---|---|---|---|---|
-| Doppler | 3 users, 10 projects, 3-day audit | $8/user/mo (Dev), $21/user/mo (Team) | Per seat | No |
-| Infisical | 5 identities, 3 projects, 10 integrations | $18/mo per identity | Per identity (user+machine) | Yes (MIT) |
-| Phase | 5 users, 3 apps, 24h audit, 120 req/min | $10/user/mo (Pro), $25/user/mo (Ent) | Per seat | Yes (OSS) |
-| EnvKey | Self-host only (cloud shut down Feb 2025) | N/A | Was flat per-team | Yes (MIT) |
-| HashiCorp Vault | Community OSS self-host | HCP Dedicated ~$1,150+/mo small cluster | Cluster-hour + per-client | Yes |
-| HCP Vault Secrets | **Dead**: EOS Jun 2025, EOL Jul 2026 | N/A | (was per-secret) | N/A |
-| Akeyless | 500 static secrets, 5 clients | Custom (not published) | Usage-based enterprise | Hybrid only |
-| 1Password | Bundled w/ plan | ~$8/user/mo Business | Per seat | Connect proxy only |
-| Pulumi ESC | 25 secrets, 10k API calls/mo | $0.50/secret/mo (Team), $0.75 (Ent) | Per secret + per API call | No (ESC cloud-only) |
+| Product           | Free tier                                 | Paid entry                              | Pricing model               | Self-host           |
+| ----------------- | ----------------------------------------- | --------------------------------------- | --------------------------- | ------------------- |
+| Doppler           | 3 users, 10 projects, 3-day audit         | $8/user/mo (Dev), $21/user/mo (Team)    | Per seat                    | No                  |
+| Infisical         | 5 identities, 3 projects, 10 integrations | $18/mo per identity                     | Per identity (user+machine) | Yes (MIT)           |
+| Phase             | 5 users, 3 apps, 24h audit, 120 req/min   | $10/user/mo (Pro), $25/user/mo (Ent)    | Per seat                    | Yes (OSS)           |
+| EnvKey            | Self-host only (cloud shut down Feb 2025) | N/A                                     | Was flat per-team           | Yes (MIT)           |
+| HashiCorp Vault   | Community OSS self-host                   | HCP Dedicated ~$1,150+/mo small cluster | Cluster-hour + per-client   | Yes                 |
+| HCP Vault Secrets | **Dead**: EOS Jun 2025, EOL Jul 2026      | N/A                                     | (was per-secret)            | N/A                 |
+| Akeyless          | 500 static secrets, 5 clients             | Custom (not published)                  | Usage-based enterprise      | Hybrid only         |
+| 1Password         | Bundled w/ plan                           | ~$8/user/mo Business                    | Per seat                    | Connect proxy only  |
+| Pulumi ESC        | 25 secrets, 10k API calls/mo              | $0.50/secret/mo (Team), $0.75 (Ent)     | Per secret + per API call   | No (ESC cloud-only) |
 
 Platform-native baseline (what insecur layers on top of, all single-platform):
 
-| Store | Cost | Key limits |
-|---|---|---|
-| AWS Secrets Manager | $0.40/secret/mo + $0.05/10k API calls | 64 KB/secret, 500k secrets/region |
-| GCP Secret Manager | $0.06/active version/mo + $0.03/10k access; 6 versions+10k ops free | 64 KiB/version |
-| Azure Key Vault | No storage fee; $0.03/10k transactions | 25 KB/secret |
-| Cloudflare Secrets Store | Free in open beta; paid pricing unpublished | **1 KB/secret, 100 secrets/account, 1 store/account**, still beta in 2026 |
-| Vercel env vars | Included | 64 KB total per deployment; "Sensitive" flag = write-only |
-| GitHub Actions secrets | Included | 48 KB/secret; 1,000 org / 100 repo / 100 env; not visible to Dependabot |
+| Store                    | Cost                                                                | Key limits                                                                |
+| ------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| AWS Secrets Manager      | $0.40/secret/mo + $0.05/10k API calls                               | 64 KB/secret, 500k secrets/region                                         |
+| GCP Secret Manager       | $0.06/active version/mo + $0.03/10k access; 6 versions+10k ops free | 64 KiB/version                                                            |
+| Azure Key Vault          | No storage fee; $0.03/10k transactions                              | 25 KB/secret                                                              |
+| Cloudflare Secrets Store | Free in open beta; paid pricing unpublished                         | **1 KB/secret, 100 secrets/account, 1 store/account**, still beta in 2026 |
+| Vercel env vars          | Included                                                            | 64 KB total per deployment; "Sensitive" flag = write-only                 |
+| GitHub Actions secrets   | Included                                                            | 48 KB/secret; 1,000 org / 100 repo / 100 env; not visible to Dependabot   |
 
 Notes that matter for insecur:
+
 - **Cloudflare Secrets Store is the weakest native store** (1 KB values, 100 secrets, one
   store per account, still beta, no published rotation/versioning). insecur targeting the
   Cloudflare stack means it competes against a thin, immature baseline there.
@@ -171,7 +173,7 @@ No structural no-reveal.
 
 insecur should win the buyer who is: a small team or solo dev with multiple projects,
 shipping to **Cloudflare + Vercel + GitHub Actions**, running **coding/deploy agents and CI**
-that need to *use* production secrets, who wants those secrets *used but not readable* by the
+that need to _use_ production secrets, who wants those secrets _used but not readable_ by the
 agent or by a casual human session, without standing up Vault or paying enterprise prices for
 an approval workflow.
 
@@ -195,6 +197,7 @@ Concretely, the defensible combination is:
    else makes you either configure deeply or buy at Enterprise.
 
 Risks to the wedge:
+
 - **Infisical and Phase can close the gap** fastest: both already do tri-platform sync and
   one (Phase) has a credible no-reveal primitive. The moat is the agent-custody + approval
   framing and execution quality, not the feature checkboxes alone.

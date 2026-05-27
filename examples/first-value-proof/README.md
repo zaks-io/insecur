@@ -21,5 +21,5 @@ INSECUR_PROOF_SECRET="$(node -e 'console.log(require("node:crypto").randomBytes(
 Expected output:
 
 ```json
-{"ok":true,"checked":"INSECUR_PROOF_SECRET","proof":"hmac-challenge"}
+{ "ok": true, "checked": "INSECUR_PROOF_SECRET", "proof": "hmac-challenge" }
 ```

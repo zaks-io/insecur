@@ -37,4 +37,3 @@ in audit records.
 
 This package may depend on `@insecur/domain`. Higher packages may consume the
 Audit Event Writer, but audit writing should not call into those higher packages.
-

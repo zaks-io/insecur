@@ -26,21 +26,21 @@ seams is a dependency or a downstream consumer, not a place to improvise.
 
 These are the seams agents should integrate through instead of sharing internals:
 
-| Seam | Owner | Contract |
-| --- | --- | --- |
-| First Value Milestone Contract | W2/W4/W5 with W1/W3/W10 | Provider-free non-protected development Secret Use through the real tenant, access, storage, crypto, Secret Version, Runtime Injection, and audit seams. |
-| Tenant-Scoped Store | W1 | Short scoped transaction, tenant-local RLS setting, no raw executor, audit-safe typed data access. |
-| Effective Access Resolver | W2 | Actor plus Organization/Project/Environment IDs in, coordinate-bound Authorization Scope set out. |
-| Keyring | W3 | Resolve and rewrap key hierarchy without exposing tenant keys to callers. |
-| Encryption Envelope | W3 | Domain identity plus plaintext in, wrapped material out; decrypt only into approved execution path. |
-| Storage Security Gate | W3 | Readiness verdict and evidence for production Secret Delivery and Secret Sync. |
-| Secret Version Store | W4 | Wrapped material and exact IDs only; append, publish, rollback, discard; no approval knowledge. |
-| Operation Store | W1 with W8/W10 | Durable operation state, idempotency, wait/retry metadata, leases, fencing tokens, cancellation, and audit references. |
-| Protected Change Orchestrator | W6 | Metadata-only exact-ID state machine for Promotion, rollback, approval, and policy gates. |
-| Provider Adapter Port | W8 | Metadata-only plan/lookup plus approved write execution; no provider value read-back. |
-| Runtime Injection Grant Service | W5 with W7 | Short-lived one-use grant issue/consume for exact Runtime Injection Policy Version. |
-| Audit Event Writer | W10 | Typed tenant-qualified event write with Sensitive Metadata handling and export compatibility. |
-| Human Approval Surface | W9 with W6 | Web-mediated challenge and approval UI for bounded operation IDs and impact reviews. |
+| Seam                            | Owner                   | Contract                                                                                                                                                 |
+| ------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First Value Milestone Contract  | W2/W4/W5 with W1/W3/W10 | Provider-free non-protected development Secret Use through the real tenant, access, storage, crypto, Secret Version, Runtime Injection, and audit seams. |
+| Tenant-Scoped Store             | W1                      | Short scoped transaction, tenant-local RLS setting, no raw executor, audit-safe typed data access.                                                       |
+| Effective Access Resolver       | W2                      | Actor plus Organization/Project/Environment IDs in, coordinate-bound Authorization Scope set out.                                                        |
+| Keyring                         | W3                      | Resolve and rewrap key hierarchy without exposing tenant keys to callers.                                                                                |
+| Encryption Envelope             | W3                      | Domain identity plus plaintext in, wrapped material out; decrypt only into approved execution path.                                                      |
+| Storage Security Gate           | W3                      | Readiness verdict and evidence for production Secret Delivery and Secret Sync.                                                                           |
+| Secret Version Store            | W4                      | Wrapped material and exact IDs only; append, publish, rollback, discard; no approval knowledge.                                                          |
+| Operation Store                 | W1 with W8/W10          | Durable operation state, idempotency, wait/retry metadata, leases, fencing tokens, cancellation, and audit references.                                   |
+| Protected Change Orchestrator   | W6                      | Metadata-only exact-ID state machine for Promotion, rollback, approval, and policy gates.                                                                |
+| Provider Adapter Port           | W8                      | Metadata-only plan/lookup plus approved write execution; no provider value read-back.                                                                    |
+| Runtime Injection Grant Service | W5 with W7              | Short-lived one-use grant issue/consume for exact Runtime Injection Policy Version.                                                                      |
+| Audit Event Writer              | W10                     | Typed tenant-qualified event write with Sensitive Metadata handling and export compatibility.                                                            |
+| Human Approval Surface          | W9 with W6              | Web-mediated challenge and approval UI for bounded operation IDs and impact reviews.                                                                     |
 
 ## Integration Order
 

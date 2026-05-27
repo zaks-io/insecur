@@ -39,4 +39,3 @@ not test private helper branches through route behavior.
 
 This package may depend on `@insecur/domain`. It may consume a
 Tenant-Scoped Store Interface without exposing raw store handles to callers.
-

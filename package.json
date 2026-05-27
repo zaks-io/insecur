@@ -5,9 +5,15 @@
   "description": "Self-hosted secrets manager on Cloudflare Workers",
   "packageManager": "pnpm@10.19.0",
   "scripts": {
-    "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
-    "dev": "turbo run dev",
+    "build": "turbo run build --cache=local:rw,remote:r",
+    "typecheck": "turbo run typecheck --cache=local:rw,remote:r",
+    "lint": "turbo run lint --cache=local:rw,remote:r",
+    "test": "turbo run test --cache=local:rw,remote:r",
+    "test:rls": "turbo run test:rls",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "dev": "turbo run dev --cache=local:rw,remote:r",
     "dev:worker": "turbo run dev --filter @insecur/worker",
     "deploy:worker": "turbo run deploy --filter @insecur/worker",
     "migrate:local": "turbo run migrate:local --filter @insecur/worker",
@@ -19,6 +25,16 @@
     "node": ">=24 <25"
   },
   "devDependencies": {
-    "turbo": "^2.8.0"
+    "@eslint/js": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "globals": "catalog:",
+    "jiti": "catalog:",
+    "prettier": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
   }
 }

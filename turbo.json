@@ -1,19 +1,54 @@
 {
-  "$schema": "https://turborepo.dev/schema.json",
+  "$schema": "https://turbo.build/schema.json",
+  "envMode": "strict",
   "globalDependencies": [
+    ".env",
+    ".env.*",
+    ".node-version",
+    ".nvmrc",
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
-    "tsconfig.base.json"
+    "tsconfig.base.json",
+    "eslint.config.ts",
+    ".prettierrc.json",
+    ".prettierignore"
   ],
   "globalEnv": ["CI", "NODE_ENV"],
+  "futureFlags": {
+    "longerSignatureKey": true
+  },
+  "remoteCache": {
+    "signature": true
+  },
   "tasks": {
+    "topo": {
+      "dependsOn": ["^topo"]
+    },
     "build": {
       "dependsOn": ["^build"],
+      "env": ["CLOUDFLARE_ENV"],
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["topo"],
+      "outputs": []
+    },
+    "lint": {
+      "dependsOn": ["topo"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["topo"],
+      "outputs": []
+    },
+    "test:rls": {
+      "dependsOn": ["topo"],
+      "cache": false,
+      "env": ["DATABASE_URL_RUNTIME"]
+    },
+    "typegen": {
+      "cache": false,
       "outputs": []
     },
     "dev": {

@@ -57,25 +57,25 @@ All mutating calls use resolved actor scope from the Effective Access Resolver, 
 
 ## State Model
 
-| Object | State | Meaning |
-| --- | --- | --- |
-| Draft Version | `draft` | Stored in the Draft Area and not eligible for protected delivery. |
-| Draft Version | `published` | Made live by Promotion and eligible for protected delivery as a Published Version. |
-| Draft Version | `discarded` | Terminally removed from the Draft Area; encrypted value material is crypto-erased in V1. |
-| Approval Request | `pending` | Waiting for approval, rejection, cancellation, or a stale/close condition. |
-| Approval Request | `approved_applied` | Protected Approval Policy was satisfied and Promotion was applied. |
-| Approval Request | `rejected` | Closed by approver review without Promotion or delivery changes. |
-| Approval Request | `canceled` | Closed by requester, requester Machine Identity, or scoped cleanup authority without Promotion or delivery changes. |
-| Approval Request | `superseded` | Replaced by a newer Approval Request for the same Protected Environment. |
-| Approval Request | `policy_stale` | Closed because the Protected Approval Policy changed before approval completed. |
-| Approval Request | `requester_access_stale` | Closed because the requester lost durable authority before approval completed. |
-| Approval Request | `target_closed` | Closed because the Project or Protected Environment no longer accepts protected Promotion. |
-| Approval Request | `draft_discard_closed` | Closed because Draft Version Discard removed a Draft Version in the Promotion Change Set. |
-| Staged Change Set | `assembling` | Holds not-yet-live Draft Versions and protected delivery configuration items. |
-| Staged Change Set | `reviewed` | Has a current metadata-only review fingerprint. |
-| Staged Change Set | `waiting_for_distinct_approver` | The acting User cleared the gates they can clear, but a Distinct Approver is still required. |
-| Staged Change Set | `applied` | The reviewed batch became live under the same fingerprint. |
-| Staged Change Set | `stale` | The batch, target, policy, requester authority, or impact changed and needs a fresh review. |
+| Object            | State                           | Meaning                                                                                                             |
+| ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Draft Version     | `draft`                         | Stored in the Draft Area and not eligible for protected delivery.                                                   |
+| Draft Version     | `published`                     | Made live by Promotion and eligible for protected delivery as a Published Version.                                  |
+| Draft Version     | `discarded`                     | Terminally removed from the Draft Area; encrypted value material is crypto-erased in V1.                            |
+| Approval Request  | `pending`                       | Waiting for approval, rejection, cancellation, or a stale/close condition.                                          |
+| Approval Request  | `approved_applied`              | Protected Approval Policy was satisfied and Promotion was applied.                                                  |
+| Approval Request  | `rejected`                      | Closed by approver review without Promotion or delivery changes.                                                    |
+| Approval Request  | `canceled`                      | Closed by requester, requester Machine Identity, or scoped cleanup authority without Promotion or delivery changes. |
+| Approval Request  | `superseded`                    | Replaced by a newer Approval Request for the same Protected Environment.                                            |
+| Approval Request  | `policy_stale`                  | Closed because the Protected Approval Policy changed before approval completed.                                     |
+| Approval Request  | `requester_access_stale`        | Closed because the requester lost durable authority before approval completed.                                      |
+| Approval Request  | `target_closed`                 | Closed because the Project or Protected Environment no longer accepts protected Promotion.                          |
+| Approval Request  | `draft_discard_closed`          | Closed because Draft Version Discard removed a Draft Version in the Promotion Change Set.                           |
+| Staged Change Set | `assembling`                    | Holds not-yet-live Draft Versions and protected delivery configuration items.                                       |
+| Staged Change Set | `reviewed`                      | Has a current metadata-only review fingerprint.                                                                     |
+| Staged Change Set | `waiting_for_distinct_approver` | The acting User cleared the gates they can clear, but a Distinct Approver is still required.                        |
+| Staged Change Set | `applied`                       | The reviewed batch became live under the same fingerprint.                                                          |
+| Staged Change Set | `stale`                         | The batch, target, policy, requester authority, or impact changed and needs a fresh review.                         |
 
 State names are documentation vocabulary, not a required database enum. The required behavior is that terminal states never become pending or approvable again, and live effects only happen from a current reviewed state.
 

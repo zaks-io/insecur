@@ -11,9 +11,9 @@ blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); 
 ## P1 — Close before implementation starts
 
 - [ ] **#3 Minimal backup + tested restore (CRITICAL). Model resolved 2026-05-25 grill; drill is
-  a pre-production gate.** A custodian that loses the root-key custody material or the Neon
-  metadata store is unrecoverable for tenants, and `docs/open-questions.md` forbade deferring this
-  to post-v1 hardening. Resolved model (ADR-0058, security-plan.md §8):
+      a pre-production gate.** A custodian that loses the root-key custody material or the Neon
+      metadata store is unrecoverable for tenants, and `docs/open-questions.md` forbade deferring this
+      to post-v1 hardening. Resolved model (ADR-0058, security-plan.md §8):
   - **Three scenarios, three mechanisms:** Neon native PITR with 7-day retention (corruption /
     accidental delete, account intact; RPO ~0, RTO minutes); one daily independent encrypted
     logical export to R2 under the existing custody-chain key (Neon-account loss; RPO 24h, RTO
@@ -30,71 +30,71 @@ blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); 
   _Effort: M. Depends on: storage baseline / Storage Security Gate work._
 
 - [ ] **#4 Write the AUP clickwrap + onboarding attestation** before the first non-founder user.
-  The regulated-industry exclusion (ADR-0047) only holds if it is enforced at onboarding; the
-  clickwrap is unwritten counsel work today. _Effort: S (counsel). Depends on: before first
-  external user, not before code._
+      The regulated-industry exclusion (ADR-0047) only holds if it is enforced at onboarding; the
+      clickwrap is unwritten counsel work today. _Effort: S (counsel). Depends on: before first
+      external user, not before code._
 
 ## P2 — Build-time correctness
 
 - [ ] **#5 Atomic single-consumption on the Bootstrap Operator Claim** (CONTEXT.md:97-99).
-  Resolved 2026-05-25 grill: two mechanisms, different jobs. **CAS** consumes the single pending
-  claim in one statement — `UPDATE bootstrap_operator_claim SET status='consumed',
-  consumed_by=$user, consumed_at=now() WHERE status='pending'`; rowcount 1 wins, rowcount 0 means
-  already claimed (pool/isolation-safe behind Hyperdrive, no advisory lock). The loser gets
-  `bootstrap.already_claimed` (exit 6), no operator granted, fail-closed. **Partial unique index**
-  is the caller-agnostic backstop making more than one bootstrap-origin Instance Operator
-  structurally impossible regardless of code path. On win, invalidate the one-time Bootstrap
-  Secret. Same CAS + partial-unique-index pattern now governs one-use Injection Grant consumption
-  and the single-pending-Approval-Request invariant (ADR-0027). _Effort: S._
+      Resolved 2026-05-25 grill: two mechanisms, different jobs. **CAS** consumes the single pending
+      claim in one statement — `UPDATE bootstrap_operator_claim SET status='consumed',
+consumed_by=$user, consumed_at=now() WHERE status='pending'`; rowcount 1 wins, rowcount 0 means
+      already claimed (pool/isolation-safe behind Hyperdrive, no advisory lock). The loser gets
+      `bootstrap.already_claimed` (exit 6), no operator granted, fail-closed. **Partial unique index**
+      is the caller-agnostic backstop making more than one bootstrap-origin Instance Operator
+      structurally impossible regardless of code path. On win, invalidate the one-time Bootstrap
+      Secret. Same CAS + partial-unique-index pattern now governs one-use Injection Grant consumption
+      and the single-pending-Approval-Request invariant (ADR-0027). _Effort: S._
 
 - [ ] **#9 Keep the deferred layers add-back-ready.** Hold the Approval Request data model
-  batch-ready and the Protected Approval Policy threshold generalizable (count approvals,
-  threshold = 1 now) so Staged Change Set and multi-approver drop in later without a migration.
-  _Effort: S (design constraint, ongoing)._
+      batch-ready and the Protected Approval Policy threshold generalizable (count approvals,
+      threshold = 1 now) so Staged Change Set and multi-approver drop in later without a migration.
+      _Effort: S (design constraint, ongoing)._
 
 ## Business
 
 - [ ] **#10 Model unit economics against a realistic automation profile** before pricing is
-  load-bearing. The "robots free" promise (machines unmetered) sits against automation-driven
-  Cloudflare cost; no cut in this review addresses it, and `docs/research/unit-economics.md` is a
-  stub. _Effort: M. Depends on: a real automation usage sample (ideally from V1 dogfooding)._
+      load-bearing. The "robots free" promise (machines unmetered) sits against automation-driven
+      Cloudflare cost; no cut in this review addresses it, and `docs/research/unit-economics.md` is a
+      stub. _Effort: M. Depends on: a real automation usage sample (ideally from V1 dogfooding)._
 
 ## Closed (landed in specs/ADRs)
 
 - [x] **#1 Reconcile docs to the reduced V1.** All four stale ADR pairs resolved: 0002→0036 (Neon)
-  and 0014→0045 (Ed25519 in V1) carry Status amendment notes; 0023→0039 (Cloudflare sync target)
-  is superseded with 0006/0011 in-part notes; 0017→0033 (one logical publish gate) now
-  cross-references ADR-0033. The retired Queues/Durable-Objects sync runtime was swept to Inline
-  Sync Execution (ADR-0057) across architecture.md, security-plan.md, cli-and-sync.md,
-  protected-change-orchestration.md, project-status.md, phasing.md, and ADR-0016/0025/0027/0051.
+      and 0014→0045 (Ed25519 in V1) carry Status amendment notes; 0023→0039 (Cloudflare sync target)
+      is superseded with 0006/0011 in-part notes; 0017→0033 (one logical publish gate) now
+      cross-references ADR-0033. The retired Queues/Durable-Objects sync runtime was swept to Inline
+      Sync Execution (ADR-0057) across architecture.md, security-plan.md, cli-and-sync.md,
+      protected-change-orchestration.md, project-status.md, phasing.md, and ADR-0016/0025/0027/0051.
 
 - [x] **#2 Inline-sync partial-failure state machine.** Design + reconciliation done. ADR-0057
-  supersedes ADR-0012/0013 and amends ADR-0039; CONTEXT.md carries the four glossary terms
-  (Inline Sync Execution, Incomplete Sync Run, Sync Run Resume, Sync Target Serialization); the
-  queue-backed Sync Execution Runtime in cli-and-sync.md and architecture.md is rewritten to the
-  inline model (lease-row serialization with a fencing token, `blocked`/`incomplete` operation
-  states, same-op resume, no dead-letter).
+      supersedes ADR-0012/0013 and amends ADR-0039; CONTEXT.md carries the four glossary terms
+      (Inline Sync Execution, Incomplete Sync Run, Sync Run Resume, Sync Target Serialization); the
+      queue-backed Sync Execution Runtime in cli-and-sync.md and architecture.md is rewritten to the
+      inline model (lease-row serialization with a fencing token, `blocked`/`incomplete` operation
+      states, same-op resume, no dead-letter).
 
 - [x] **#6 Enumerate `injection.*` error codes** — written into cli-and-sync.md Runtime Injection:
-  `grant_denied` (exit 4), `command_fingerprint_mismatch` (2), `decrypt_failed` (1),
-  `grant_expired` (6), `unreachable` (8); all fail-closed (child never starts), no stale-secret
-  fallback by construction.
+      `grant_denied` (exit 4), `command_fingerprint_mismatch` (2), `decrypt_failed` (1),
+      `grant_expired` (6), `unreachable` (8); all fail-closed (child never starts), no stale-secret
+      fallback by construction.
 
 - [x] **#7 Effective Access Resolver as set-based queries** — contract recorded in ADR-0034
-  Consequences: one batch read unions org-tier and project-tier grants (`project_id = ANY($ids)`),
-  request-scoped membership memo never cached across requests, machine path already O(1), and a
-  round-trip-count test asserts resolving N resource IDs costs one read.
+      Consequences: one batch read unions org-tier and project-tier grants (`project_id = ANY($ids)`),
+      request-scoped membership memo never cached across requests, machine path already O(1), and a
+      round-trip-count test asserts resolving N resource IDs costs one read.
 
 - [x] **#8 Incident Response runbook: "tenant reports a compromised secret" path designed.**
-  Resolved in [ADR-0059](docs/adr/0059-tenant-reported-secret-compromise-response.md) and the
-  Runbook Catalog + invariants in
-  [security-runbooks-and-release-gates.md](docs/security-runbooks-and-release-gates.md): one
-  triage-and-route entry runbook, tenant-side rotation by default with a four-signal escalation to
-  the custody-material compromise + ADR-0048 forensic path, two-column containment (insecur
-  delivery-side vs the tenant's upstream-revocation step it cannot execute), and Leak Verification
-  deferred (no stored hash index; decrypt-on-demand if ever built). Residual is build-gated, not
-  design: fill the exact execute/verify commands when the rotation CLI/API surface exists and run a
-  triage tabletop before the first valuable production secret (Small-Group Production gate).
+      Resolved in [ADR-0059](docs/adr/0059-tenant-reported-secret-compromise-response.md) and the
+      Runbook Catalog + invariants in
+      [security-runbooks-and-release-gates.md](docs/security-runbooks-and-release-gates.md): one
+      triage-and-route entry runbook, tenant-side rotation by default with a four-signal escalation to
+      the custody-material compromise + ADR-0048 forensic path, two-column containment (insecur
+      delivery-side vs the tenant's upstream-revocation step it cannot execute), and Leak Verification
+      deferred (no stored hash index; decrypt-on-demand if ever built). Residual is build-gated, not
+      design: fill the exact execute/verify commands when the rotation CLI/API surface exists and run a
+      triage tabletop before the first valuable production secret (Small-Group Production gate).
 
 ## Deferred scope
 

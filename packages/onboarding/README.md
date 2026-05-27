@@ -41,4 +41,3 @@ created owner Membership resolves through the Effective Access Resolver.
 
 This package may compose lower packages. It must not import worker route code,
 CLI command code, provider adapters, or production delivery modules.
-

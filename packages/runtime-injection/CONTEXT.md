@@ -58,4 +58,3 @@ Grant state. CLI child process execution stays in `@insecur/cli`.
 - Secret Version append behavior.
 - Provider Secret Sync.
 - Protected Environment approval.
-

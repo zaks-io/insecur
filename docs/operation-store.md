@@ -63,17 +63,17 @@ implementation tables by callers.
 
 State names are documentation vocabulary, not a required database enum:
 
-| State | Meaning |
-| --- | --- |
-| `pending` | Operation was created but has not begun live effects. |
-| `waiting_for_human` | Operation is blocked on Human Approval Surface or High-Assurance Challenge evidence. |
-| `running` | Operation is actively performing work. |
-| `blocked` | Deterministic pre-effect validation failed; no live effect was attempted. |
-| `incomplete` | Live effects started and the Operation parked with retryable or action-required remaining work. |
-| `succeeded` | Operation finished with all intended effects complete. |
+| State                     | Meaning                                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `pending`                 | Operation was created but has not begun live effects.                                                            |
+| `waiting_for_human`       | Operation is blocked on Human Approval Surface or High-Assurance Challenge evidence.                             |
+| `running`                 | Operation is actively performing work.                                                                           |
+| `blocked`                 | Deterministic pre-effect validation failed; no live effect was attempted.                                        |
+| `incomplete`              | Live effects started and the Operation parked with retryable or action-required remaining work.                  |
+| `succeeded`               | Operation finished with all intended effects complete.                                                           |
 | `completed_with_warnings` | Operation finished locally but left non-blocking warnings, such as Orphaned Managed Provider Copy cleanup state. |
-| `canceled` | Operation was closed by an authorized actor without further live effects. |
-| `failed` | Operation hit a terminal implementation or integrity failure that is not safe to retry automatically. |
+| `canceled`                | Operation was closed by an authorized actor without further live effects.                                        |
+| `failed`                  | Operation hit a terminal implementation or integrity failure that is not safe to retry automatically.            |
 
 Terminal states do not return to `running`. `incomplete` is resumable by the same Operation ID, and
 `blocked` requires a new user action or configuration change unless the caller explicitly defines an

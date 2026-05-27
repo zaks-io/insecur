@@ -20,8 +20,10 @@ if (mac.length !== expected.length || !timingSafeEqual(mac, expected)) {
   fail("verification_failed");
 }
 
-console.log(JSON.stringify({
-  ok: true,
-  checked: variableName,
-  proof: "hmac-challenge"
-}));
+console.log(
+  JSON.stringify({
+    ok: true,
+    checked: variableName,
+    proof: "hmac-challenge",
+  }),
+);

@@ -35,6 +35,7 @@ not exist."
 ## Surface map
 
 **Landing hero stack** (each line does one job, never two):
+
 - Hook line: the agent line, e.g. "Your agent already read your `.env`."
 - Mechanic line: "Use it, don't reveal it."
 - Gloss: the one-liner from `voice.md` (no-reveal custody for production secrets; your code
@@ -42,6 +43,7 @@ not exist."
 - CTA: start the free dev loop (no production secrets, no card).
 
 **First Value proof** is the first conversion event, not a feature tour:
+
 - `insecur init`
 - `insecur secrets set --generate --variable-key <KEY>`
 - `insecur run --variable-key <KEY> -- <command>`
@@ -62,6 +64,7 @@ no usage meters, because bill anxiety is off-brand for a product whose pitch is 
 with production."
 
 **Competitive frame** (custody vs management):
+
 - vs Doppler: great DX, but Cloudflare is DIY and "Restricted" is a UI mask, not a
   storage-layer guarantee.
 - vs Infisical: closest shape, but secrets are plaintext-readable by anyone with read access;
@@ -77,6 +80,7 @@ The one-line version: everyone else manages secrets, we take custody of them.
 
 The price is backed by proof or it does not land. Market these as they ship; do not bury
 them in implementation:
+
 - No-reveal custody and small blast radius, with the mechanism explained.
 - Tamper-evident audit export, approvals an agent cannot clear, short-lived machine
   credentials.

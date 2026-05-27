@@ -63,7 +63,12 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 The repo has no product-bearing implementation yet; the app and package source entrypoints are
 empty TypeScript modules. The workspace baseline is present on Node 24 and pnpm 10:
 
+- `pnpm install --frozen-lockfile` passes.
+- `pnpm verify` passes across all 10 workspace packages with Prettier, ESLint, TypeScript, and
+  Vitest task fan-out.
 - `pnpm typecheck` passes across all 10 workspace packages.
+- `pnpm test:rls` is wired as an uncached tenant-store placeholder; real Postgres RLS tests start
+  with FV-04.
 - `pnpm build --filter='!@insecur/worker'` passes for the 9 non-worker packages.
 - Full `pnpm build` still fails at `@insecur/worker` because no `wrangler.jsonc` or Worker
   entry-point configuration exists yet. This is the documented Worker setup gap, not evidence of a

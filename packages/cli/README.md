@@ -40,4 +40,3 @@ invariants should be tested in the owning package.
 
 This package may depend on shared domain packages for types and output shapes,
 but must not bypass the Worker API for server-owned behavior.
-

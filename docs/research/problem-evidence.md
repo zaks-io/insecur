@@ -161,4 +161,3 @@ The evidence supports the existing product posture:
 - **Messaging should avoid anti-agent framing.** The users in these threads like their
   agents. The pitch is not "agents are bad"; it is "agents are fast enough that readable
   secrets are the wrong primitive."
-

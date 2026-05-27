@@ -56,4 +56,3 @@ resource coordinate; this package returns coordinate-bound Effective Access.
 - Protected approval and Promotion.
 - Tenant-Scoped Store transaction mechanics.
 - Route-level not-found behavior.
-

@@ -64,31 +64,31 @@ every package below it. Add dependencies only when code crosses that Interface.
 These packages are scaffolded now because the First Value Milestone must use the
 real seams even when the implementations are narrow.
 
-| Package | Module | Owns | Does not own |
-| --- | --- | --- | --- |
-| `@insecur/domain` | Domain primitives | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types | Persistence, encryption, authorization decisions, provider behavior |
-| `@insecur/access` | Effective Access Resolver | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests | Human authentication, Service Access, Protected Environment approval |
-| `@insecur/tenant-store` | Tenant-Scoped Store | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests | Business rules, authorization semantics, encryption |
-| `@insecur/crypto` | Keyring and Encryption Envelope | tenant-bound key resolution, key versions, ciphertext identity binding, wrapped material shapes | Secret lifecycle decisions, raw persistence, delivery policy |
-| `@insecur/audit` | Audit Event Writer | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references | Audit export integrity, operation state, Sensitive Value storage |
-| `@insecur/secrets` | Secret Version Store | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs | Runtime Injection, Promotion approval, raw SQL, provider sync |
-| `@insecur/runtime-injection` | Runtime Injection Grant Service | Injection Grants, one-use consume rules, variable-key scoped injection decisions, command output safety | CLI process spawning, child process trust, provider sync |
-| `@insecur/onboarding` | Guided Organization Provisioning | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation | Public onboarding abuse controls, WorkOS authentication, production delivery |
+| Package                      | Module                           | Owns                                                                                                                     | Does not own                                                                 |
+| ---------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `@insecur/domain`            | Domain primitives                | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                        | Persistence, encryption, authorization decisions, provider behavior          |
+| `@insecur/access`            | Effective Access Resolver        | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests     | Human authentication, Service Access, Protected Environment approval         |
+| `@insecur/tenant-store`      | Tenant-Scoped Store              | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                       | Business rules, authorization semantics, encryption                          |
+| `@insecur/crypto`            | Keyring and Encryption Envelope  | tenant-bound key resolution, key versions, ciphertext identity binding, wrapped material shapes                          | Secret lifecycle decisions, raw persistence, delivery policy                 |
+| `@insecur/audit`             | Audit Event Writer               | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references                              | Audit export integrity, operation state, Sensitive Value storage             |
+| `@insecur/secrets`           | Secret Version Store             | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs        | Runtime Injection, Promotion approval, raw SQL, provider sync                |
+| `@insecur/runtime-injection` | Runtime Injection Grant Service  | Injection Grants, one-use consume rules, variable-key scoped injection decisions, command output safety                  | CLI process spawning, child process trust, provider sync                     |
+| `@insecur/onboarding`        | Guided Organization Provisioning | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation | Public onboarding abuse controls, WorkOS authentication, production delivery |
 
 ## Deferred Packages
 
 These modules are intentionally documented but not scaffolded yet. Create the
 package when its Interface is ready to be implemented and tested.
 
-| Future package | Module | Trigger |
-| --- | --- | --- |
-| `@insecur/operations` | Operation Store | First resumable, retryable, pollable, or human-waiting workflow |
-| `@insecur/protected-change` | Protected Change Orchestrator | Protected Environment Draft Version, Promotion, Approval Request, or rollback work |
-| `@insecur/sync` | Secret Sync | First provider sync lifecycle implementation |
-| `@insecur/provider-github` | GitHub provider adapter | GitHub App installation or GitHub Actions secret sync work |
-| `@insecur/provider-cloudflare` | Cloudflare provider adapter | Cloudflare Worker Secret sync work |
-| `@insecur/storage-security-gate` | Storage Security Gate | Production delivery fail-closed readiness checks |
-| `@insecur/web-console` | Human Approval Surface and management UI | Focused web UI work after API and CLI flows are verified |
+| Future package                   | Module                                   | Trigger                                                                            |
+| -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `@insecur/operations`            | Operation Store                          | First resumable, retryable, pollable, or human-waiting workflow                    |
+| `@insecur/protected-change`      | Protected Change Orchestrator            | Protected Environment Draft Version, Promotion, Approval Request, or rollback work |
+| `@insecur/sync`                  | Secret Sync                              | First provider sync lifecycle implementation                                       |
+| `@insecur/provider-github`       | GitHub provider adapter                  | GitHub App installation or GitHub Actions secret sync work                         |
+| `@insecur/provider-cloudflare`   | Cloudflare provider adapter              | Cloudflare Worker Secret sync work                                                 |
+| `@insecur/storage-security-gate` | Storage Security Gate                    | Production delivery fail-closed readiness checks                                   |
+| `@insecur/web-console`           | Human Approval Surface and management UI | Focused web UI work after API and CLI flows are verified                           |
 
 ## App Composition
 

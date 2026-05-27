@@ -58,4 +58,3 @@ or metadata-only write results.
 - Provider Secret Sync.
 - Raw SQL execution.
 - Human authentication.
-

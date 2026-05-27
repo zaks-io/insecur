@@ -76,25 +76,25 @@ reinforces the message that production-grade trust is something you pay for.
 Three tiers: self-serve Free, self-serve Team, sales-led Enterprise. The self-serve Team tier
 is the land-and-expand engine. Startups buy without a sales call and grow into Enterprise.
 
-| | Free (Dev) | Team | Enterprise |
-|---|---|---|---|
-| Price | $0 | $25/seat/mo (humans), annual discount | Custom |
-| Motion | Self-serve | Self-serve | Sales-led |
-| Production custody (Protected Environments) | None (dev/non-protected only) | Yes | Yes |
-| Organizations | 1 | 1 | Multiple |
-| Projects | up to 3 | unlimited | unlimited |
-| Non-protected dev environments | unlimited | unlimited | unlimited |
-| Protected Environments | none | unlimited | unlimited |
-| Provider connections (CF / Vercel / GitHub) | 1 | unlimited | unlimited |
-| Members | up to 3 | per seat | per seat |
-| Machine identities / deploy keys / OIDC / runtime injection / sync runs | unmetered, fair-use limits | unmetered, fair-use limits | custom fair-use / contract |
-| Approval workflows + risk presets | n/a (no protected envs) | all presets | all + future custom policy |
-| Audit retention | 7 days | 90 days | custom |
-| Tamper-evident audit export | – | yes | yes |
-| SSO / SAML / SCIM | – | – | yes |
-| Advanced audit access (longer retention, log streaming/SIEM, full-fidelity export) | – | standard | extended |
-| Support / SLA | community | standard | dedicated + SLA |
-| Compliance artifacts (SOC 2, pen test) | – | shared | shared + DPA/custom |
+|                                                                                    | Free (Dev)                    | Team                                  | Enterprise                 |
+| ---------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------- | -------------------------- |
+| Price                                                                              | $0                            | $25/seat/mo (humans), annual discount | Custom                     |
+| Motion                                                                             | Self-serve                    | Self-serve                            | Sales-led                  |
+| Production custody (Protected Environments)                                        | None (dev/non-protected only) | Yes                                   | Yes                        |
+| Organizations                                                                      | 1                             | 1                                     | Multiple                   |
+| Projects                                                                           | up to 3                       | unlimited                             | unlimited                  |
+| Non-protected dev environments                                                     | unlimited                     | unlimited                             | unlimited                  |
+| Protected Environments                                                             | none                          | unlimited                             | unlimited                  |
+| Provider connections (CF / Vercel / GitHub)                                        | 1                             | unlimited                             | unlimited                  |
+| Members                                                                            | up to 3                       | per seat                              | per seat                   |
+| Machine identities / deploy keys / OIDC / runtime injection / sync runs            | unmetered, fair-use limits    | unmetered, fair-use limits            | custom fair-use / contract |
+| Approval workflows + risk presets                                                  | n/a (no protected envs)       | all presets                           | all + future custom policy |
+| Audit retention                                                                    | 7 days                        | 90 days                               | custom                     |
+| Tamper-evident audit export                                                        | –                             | yes                                   | yes                        |
+| SSO / SAML / SCIM                                                                  | –                             | –                                     | yes                        |
+| Advanced audit access (longer retention, log streaming/SIEM, full-fidelity export) | –                             | standard                              | extended                   |
+| Support / SLA                                                                      | community                     | standard                              | dedicated + SLA            |
+| Compliance artifacts (SOC 2, pen test)                                             | –                             | shared                                | shared + DPA/custom        |
 
 The shape is the point: free where value is proven (dev), premium per-seat where production
 trust is delivered, sales-led where enterprise identity, governance, and compliance enter.
@@ -125,15 +125,15 @@ between a self-serve team and an enterprise buyer, and gating it there is standa
 
 ## How this compares to competitors
 
-| Product | Primary meter | Problem it creates |
-|---|---|---|
-| Doppler | Per seat ($8 / $21) | Reasonable; no production-vs-dev trust fence |
-| Infisical | Per identity (users + machines) | Penalizes automation, opposite of agent-friendly |
-| Phase | Per seat ($10 / $25) | Standard; no production value fence |
-| 1Password | Per seat + rate-limited reads | Tight read caps throttle CI on low tiers |
-| Pulumi ESC | Per secret + per API call | Punishes read-heavy CI and good secret hygiene |
-| HCP Vault Dedicated | Cluster-hour + per-client | Expensive floor (~$1,150+/mo), not small-team friendly |
-| AWS/GCP/Azure native | Per secret/version + per API call | Single-platform; metering compounds across platforms |
+| Product                | Primary meter                                        | Problem it creates                                                                           |
+| ---------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Doppler                | Per seat ($8 / $21)                                  | Reasonable; no production-vs-dev trust fence                                                 |
+| Infisical              | Per identity (users + machines)                      | Penalizes automation, opposite of agent-friendly                                             |
+| Phase                  | Per seat ($10 / $25)                                 | Standard; no production value fence                                                          |
+| 1Password              | Per seat + rate-limited reads                        | Tight read caps throttle CI on low tiers                                                     |
+| Pulumi ESC             | Per secret + per API call                            | Punishes read-heavy CI and good secret hygiene                                               |
+| HCP Vault Dedicated    | Cluster-hour + per-client                            | Expensive floor (~$1,150+/mo), not small-team friendly                                       |
+| AWS/GCP/Azure native   | Per secret/version + per API call                    | Single-platform; metering compounds across platforms                                         |
 | **insecur (proposed)** | **Per human seat ($25); free dev tier; robots free** | **Market-rate and predictable; production custody is the paywall; automation never metered** |
 
 The positioning: insecur charges a market-rate per-seat price for human access to production

@@ -2,7 +2,7 @@
 
 The source of truth for how insecur talks. Landing pages, docs, CLI copy, error
 messages, sales decks, and tweets all inherit from this file. Engineering's source of
-truth for *what things are called* is `CONTEXT.md`; this file governs how we say them
+truth for _what things are called_ is `CONTEXT.md`; this file governs how we say them
 to the outside world. The two never contradict (see the lexicon table below).
 
 Calibration: **witty and warm** (we roast the status quo and vendor theater, never the
@@ -80,6 +80,7 @@ agent blameless, which keeps us the agent-friendly brand, and makes the real sub
 thing you cannot fix by paying attention.
 
 Approved lines:
+
 - "'I'll just read your `.env` to debug this.' Your agent, three seconds ago, while you
   were looking at something else."
 - "One agent outran your attention. Now you're running five."
@@ -100,11 +101,13 @@ same way bargain pricing reads as insecure.
 
 **1. Confess, don't flatter.** Name the problem, including the customer's, without blaming
 the customer for it. The mess is universal and mostly the industry's fault.
+
 - Do: "Your `.env` is a liability. Let's make it disappear."
 - Don't: "Congratulations on taking security seriously." (empty flattery)
 - Don't: "You screwed this up." (we roast the status quo, not the customer)
 
 **2. Witty about the mess, deadpan about the guarantee.** The rigor is never the punchline.
+
 - Do (witty headline): "The secrets manager that won't show you the secret."
 - Do (deadpan guarantee): "Protected Environment values have no read, export, or
   file-delivery path. Enforced below the API."
@@ -112,12 +115,14 @@ the customer for it. The mess is universal and mostly the industry's fault.
 
 **3. Show the mechanism, not the magic.** Trust comes from explaining how, not from
 adjectives.
+
 - Do: "Every secret is encrypted under a tenant-bound key, so a leak in one org cannot
   decrypt another."
 - Don't: "Bank-level, military-grade, next-gen encryption."
 
 **4. Robots are guests; humans are the risk.** We welcome agents and CI, we never charge
 for them, and we assume the human is the leak.
+
 - Do: "Give CI a key that expires in fifteen minutes, not a token that lives forever."
 - Do: "We charge for people, never your robots."
 - Don't: imply machines cost money or count as seats.
@@ -125,6 +130,7 @@ for them, and we assume the human is the leak.
   not malicious.
 
 **5. Confident because rigorous, never arrogant.** We make specific, true claims.
+
 - Do: "When something leaks, it leaks small."
 - Don't: "insecur is unhackable." / "100% secure."
 
@@ -157,27 +163,29 @@ and people.
 Left is the engineering term from `CONTEXT.md` (do not change it). Right is how we say it
 in public. Every public phrase must trace to exactly one canonical term.
 
-| Canonical (CONTEXT.md) | Public-facing line |
-|---|---|
-| Delivery-without-reveal / no-reveal custody | "Use it, don't reveal it" |
-| Runtime Injection / Diskless Development Secret Use | "Delete your `.env`. Secrets load at runtime, never to disk." |
-| Approval not clearable by agent | "Your agent can ship it. It can't approve itself." |
-| Machine Identity / OIDC / short-lived deploy keys | "Robots get keys that expire, not passwords that don't." |
-| Tamper-evident audit export (hash chain) | "An audit log you can prove nobody edited." |
-| Small blast radius / tenant-bound data keys | "When something leaks, it leaks small." |
-| Misuse-Resistant Defaults | "The dangerous path isn't hidden. It's gone." |
-| Per human seat, never per robot | "We charge for people, not robots." |
-| Storage Security Gate | "Production custody stays locked until the storage gate passes." |
+| Canonical (CONTEXT.md)                              | Public-facing line                                               |
+| --------------------------------------------------- | ---------------------------------------------------------------- |
+| Delivery-without-reveal / no-reveal custody         | "Use it, don't reveal it"                                        |
+| Runtime Injection / Diskless Development Secret Use | "Delete your `.env`. Secrets load at runtime, never to disk."    |
+| Approval not clearable by agent                     | "Your agent can ship it. It can't approve itself."               |
+| Machine Identity / OIDC / short-lived deploy keys   | "Robots get keys that expire, not passwords that don't."         |
+| Tamper-evident audit export (hash chain)            | "An audit log you can prove nobody edited."                      |
+| Small blast radius / tenant-bound data keys         | "When something leaks, it leaks small."                          |
+| Misuse-Resistant Defaults                           | "The dangerous path isn't hidden. It's gone."                    |
+| Per human seat, never per robot                     | "We charge for people, not robots."                              |
+| Storage Security Gate                               | "Production custody stays locked until the storage gate passes." |
 
 ---
 
 ## Taglines
 
 **Chosen:**
+
 - Product line (durable): **Use it, don't reveal it.**
 - Campaign line (timely): **Your agent already read your `.env`.**
 
 **Bench (approved, situational):**
+
 - "The secrets manager that won't show you the secret."
 - "We took the reveal button out."
 - "Free for dev. We charge for people, not robots."
@@ -206,6 +214,7 @@ The CLI is the product in V1. Every prompt, confirmation, and error is brand voi
 trust signal. Three reference flows; build to these.
 
 **Set a secret (input is never echoed, never logged, never on disk):**
+
 ```
 $ insecur secret set DATABASE_URL
   Paste the value (it won't echo, and it never touches your shell history):
@@ -214,6 +223,7 @@ $ insecur secret set DATABASE_URL
 ```
 
 **Run a command (runtime injection, nothing hits disk):**
+
 ```
 $ insecur run my-api -- npm start
   Injecting 6 secrets into the process environment. None hit disk.
@@ -221,6 +231,7 @@ $ insecur run my-api -- npm start
 ```
 
 **Denied reveal (the brand-defining moment):**
+
 ```
 $ insecur secret get DATABASE_URL
   There's no reveal command, and that's the entire point.
