@@ -15,7 +15,8 @@ Runtime-specific files are adapters. Do not duplicate the shared workflow in the
 ## Codex
 
 Codex reads `AGENTS.md` automatically. Use Codex for local repo edits, verification, Linear
-maintenance, orchestration scripts, and careful code review.
+maintenance, queue-moving orchestration scripts, periodic main review that queues fixes, and
+careful code review.
 
 Codex agents should:
 

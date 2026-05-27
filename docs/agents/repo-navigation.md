@@ -64,6 +64,8 @@ ADRs named by that local context.
 - Use `skills/insecur-implement-issue/SKILL.md` for one ready issue.
 - Use `skills/insecur-local-code-review/SKILL.md` before opening a PR.
 - Use `skills/insecur-review-pr/SKILL.md` for PR review.
+- Use `skills/insecur-goal-review-main-and-queue-fixes/SKILL.md` for the periodic sidecar review of
+  newly landed `main` commits that should become queued fixes.
 - Use `skills/insecur-doc-sync/SKILL.md` when changing these instructions.
 
 Agents should treat Linear as the queue and dependency graph, but repo docs as the product,

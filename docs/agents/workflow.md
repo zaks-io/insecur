@@ -17,7 +17,7 @@ Runtime adapters should stay short. If the workflow changes, update shared docs 
 
 ## Work Flow
 
-Work moves through this repo in six stages.
+Work moves through this repo in six stages plus one sidecar review loop.
 
 1. Roadmap
 
@@ -57,10 +57,20 @@ Work moves through this repo in six stages.
 
 6. Orchestration
 
-   Use `skills/insecur-orchestrator/SKILL.md` when coordinating multiple agents. The orchestrator
-   polls Linear, selects `Todo` + `ready-for-agent` issues with no blockers, uses Cursor Composer
-   2.5 as the default implementation workhorse where it fits, watches PRs and checks, updates
-   Linear, loops feedback back to the original Cursor agent thread, and escalates human decisions.
+   Use `skills/insecur-goal-keep-agent-queue-moving/SKILL.md` when coordinating multiple agents.
+   The orchestrator polls Linear, selects `Todo` + `ready-for-agent` issues with no blockers, uses
+   Cursor Composer 2.5 as the default implementation workhorse where it fits, watches PRs and
+   checks, updates Linear, loops feedback back to the original Cursor agent thread, and escalates
+   human decisions.
+
+7. Review Main And Queue Fixes Sidecar
+
+   Use `skills/insecur-goal-review-main-and-queue-fixes/SKILL.md` for the periodic review agent
+   that checks `origin/main` for new commits, reviews only the newly landed range from a disposable
+   worktree, and files actionable Linear issues for bugs, security regressions, or product-direction
+   drift. Issues created by this loop must still satisfy the normal Linear contract before they
+   receive `ready-for-agent`; otherwise they stay in `Triage` or `Backlog` with the appropriate
+   readiness label.
 
 ## Orchestrator Review Loop
 
@@ -113,7 +123,8 @@ Start by choosing the smallest skill that matches the task:
 | Implement one ready issue | `insecur-implement-issue` |
 | Review local changes before PR | `insecur-local-code-review` |
 | Review one PR | `insecur-review-pr` |
-| Coordinate many issues or agent runs | `insecur-orchestrator` |
+| Keep the agent implementation queue moving | `insecur-goal-keep-agent-queue-moving` |
+| Review newly landed `main` commits and queue fixes | `insecur-goal-review-main-and-queue-fixes` |
 | Keep agent docs and runtime adapters aligned | `insecur-doc-sync` |
 
 If no skill matches, use the shared docs directly and keep the change narrow.

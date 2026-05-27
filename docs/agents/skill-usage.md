@@ -4,8 +4,8 @@ This repo keeps executable agent workflows under `skills/*/SKILL.md`. They are r
 an agent should read the named skill when the user asks for that workflow, even if the runtime does
 not auto-install repo skills.
 
-For the end-to-end flow across roadmap, readiness, implementation, review, orchestration, and doc
-sync, read `docs/agents/workflow.md`.
+For the end-to-end flow across roadmap, readiness, implementation, review, the queue-moving loop,
+the main-fix queueing loop, and doc sync, read `docs/agents/workflow.md`.
 
 ## Available Skills
 
@@ -16,8 +16,18 @@ sync, read `docs/agents/workflow.md`.
 | `insecur-implement-issue` | Implementing one `Todo` + `ready-for-agent` Linear issue as one PR. |
 | `insecur-local-code-review` | Reviewing local changes or an implementation branch before opening a PR. |
 | `insecur-review-pr` | Reviewing a PR against its Linear issue, security invariants, tests, and docs. |
-| `insecur-orchestrator` | Designing, simulating, or running the orchestration loop across Linear, agents, and PRs. |
+| `insecur-goal-keep-agent-queue-moving` | Keeping the implementation queue moving across Linear, delegated agents, PRs, checks, and review feedback. |
+| `insecur-goal-review-main-and-queue-fixes` | Reviewing new `main` commits on a periodic loop and queueing actionable fixes in Linear. |
 | `insecur-doc-sync` | Keeping Codex, Claude, Cursor, repo skills, and `docs/agents` instructions aligned. |
+
+## Recurring Loops To Run
+
+Run these side by side:
+
+- `insecur-goal-keep-agent-queue-moving` keeps Linear, delegated agents, PRs, checks, and review
+  feedback moving.
+- `insecur-goal-review-main-and-queue-fixes` reviews newly landed `main` commits and queues
+  actionable fixes in Linear.
 
 ## How To Run A Repo Skill
 

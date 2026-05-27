@@ -1,9 +1,9 @@
 ---
-name: insecur-orchestrator
-description: Use when designing, simulating, or running the insecur orchestration loop that polls Linear, selects ready work, delegates agents, watches PRs, and updates issue state.
+name: insecur-goal-keep-agent-queue-moving
+description: Use when running the insecur loop whose goal is to keep the agent implementation queue moving by polling Linear, selecting ready work, delegating agents, watching PRs, and updating issue state.
 ---
 
-# Insecur Orchestrator
+# Insecur Keep Agent Queue Moving
 
 Coordinate work; do not make product decisions.
 
@@ -26,18 +26,21 @@ On each run:
 2. Find `Todo` issues with `ready-for-agent`, no blockers, and no active assignee/delegate.
 3. Find active `In Progress`, `Blocked`, `In Review`, `Changes Requested`, and `Ready to Merge`
    issues.
-4. Check PR state for active work before starting new work.
-5. Select work by priority, dependency order, milestone focus, risk, and file/package contention.
-6. Choose an executor runtime:
+4. Include agent-ready issues filed by
+   `skills/insecur-goal-review-main-and-queue-fixes/SKILL.md` in the same queue as other `Todo` +
+   `ready-for-agent` work.
+5. Check PR state for active work before starting new work.
+6. Select work by priority, dependency order, milestone focus, risk, and file/package contention.
+7. Choose an executor runtime:
    - Cursor Composer 2.5 as the default workhorse for isolated, well-scoped implementation.
    - Codex for local repo edits, verification, and orchestration maintenance.
    - Claude for planning, docs/spec refinement, or second-pass review.
-7. Build a prompt package from the issue, linked docs, repo instructions, and runtime adapter.
-8. Delegate the work and record the run in a Linear comment.
-9. Require or run a pre-PR local review with `skills/insecur-local-code-review/SKILL.md` where the
+8. Build a prompt package from the issue, linked docs, repo instructions, and runtime adapter.
+9. Delegate the work and record the run in a Linear comment.
+10. Require or run a pre-PR local review with `skills/insecur-local-code-review/SKILL.md` where the
    implementation environment supports it.
-10. Watch for PRs, failed checks, stale branches, blockers, and review comments.
-11. Update Linear state using the status contract in `docs/agents/autonomous-loop.md`.
+11. Watch for PRs, failed checks, stale branches, blockers, and review comments.
+12. Update Linear state using the status contract in `docs/agents/autonomous-loop.md`.
 
 ## Review Loop
 
