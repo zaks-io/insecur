@@ -4,6 +4,10 @@ Use this file first when deciding which domain context to load. It is a routing
 map for agents, not a glossary. Authoritative term definitions live in
 `CONTEXT.md`; package context files point to the relevant slices.
 
+For general repo orientation, start with `docs/agents/repo-navigation.md`.
+Return here when you need to choose the right domain, app, package, or spec
+context for a specific task.
+
 ## Global Context
 
 - `CONTEXT.md` - source of truth for domain language across the repo.
@@ -45,4 +49,3 @@ map for agents, not a glossary. Authoritative term definitions live in
 4. Do not redefine glossary terms in package context files. Edit root
    `CONTEXT.md` when domain language changes.
 5. Keep package context files small enough for routine agent navigation.
-
