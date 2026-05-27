@@ -4,6 +4,8 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
+- **`docs/agents/repo-navigation.md`** for the fast map of status docs, specs, package owners, and
+  agent workflows.
 - **`CONTEXT-MAP.md`** at the repo root to choose the relevant local context file.
 - **`docs/specs/README.md`** for the current implementation entry point.
 - **`docs/specs/product-spec.md`** for the consolidated product state and ADR trace links.

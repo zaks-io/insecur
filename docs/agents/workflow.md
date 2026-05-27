@@ -6,6 +6,7 @@ workflow lives in repo docs and repo-local skills, not in one tool's private pro
 ## Source Of Truth
 
 - Product direction: `docs/vision.md`, `docs/project-status.md`, and the relevant specs or ADRs.
+- Fast repo navigation: `docs/agents/repo-navigation.md`.
 - Domain map: `CONTEXT-MAP.md` and local package/app `CONTEXT.md` files.
 - Issue queue: Linear team `INS`, filtered by repo label `zaks-io/insecur`.
 - Agent protocol: `docs/agents/*`.

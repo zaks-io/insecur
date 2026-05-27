@@ -15,9 +15,17 @@ Runtime-specific files are adapters only. Shared workflow truth lives in `docs/a
 The end-to-end repo workflow is documented in `docs/agents/workflow.md`: how to choose a skill,
 move work through Linear, implement one issue, review PRs, and coordinate agents.
 
+### Fast repo navigation
+
+Use `docs/agents/repo-navigation.md` when you need to quickly find the right status doc, spec,
+context map, package owner, Linear workflow doc, or repo-local skill. Start with
+`docs/project-status.md`, then `CONTEXT-MAP.md`, then the local `CONTEXT.md` for the app or package
+you will touch.
+
 ### Issue tracker
 
-Issues are tracked in Linear project INS- using the Linear MCP server. See `docs/agents/issue-tracker.md`.
+Issues are tracked in Linear team `INS` using the Linear MCP server. See
+`docs/agents/issue-tracker.md`.
 
 ### Autonomous agent loop
 

@@ -5,6 +5,7 @@ The source of truth for agent behavior is shared:
 - `docs/agents/autonomous-loop.md`
 - `docs/agents/issue-tracker.md`
 - `docs/agents/linear-ticketing.md`
+- `docs/agents/repo-navigation.md`
 - `docs/agents/workflow.md`
 - `docs/agents/skill-usage.md`
 - `skills/*/SKILL.md`
@@ -19,6 +20,7 @@ maintenance, orchestration scripts, and careful code review.
 Codex agents should:
 
 - read the relevant repo-local skill when named by the user or task
+- use `docs/agents/repo-navigation.md` for fast orientation before broad repo exploration
 - use Linear MCP tools for INS issue state
 - use local shell verification before final handoff
 - avoid changing unrelated files in a dirty worktree
@@ -31,6 +33,7 @@ writing or critiquing specs, and second-pass review.
 Claude agents should:
 
 - treat `docs/agents/*` and `skills/*/SKILL.md` as the source of truth
+- use `docs/agents/repo-navigation.md` to find the right spec, context file, or package owner
 - avoid creating a separate Claude-only workflow
 - preserve the Linear status and label contracts
 
@@ -43,6 +46,7 @@ default workhorse for isolated remote implementation where the issue is already 
 
 Cursor agents should:
 
+- use `docs/agents/repo-navigation.md` before broad searching or reading unrelated ADRs
 - implement one Linear issue per branch and PR
 - resume the same thread, branch, and PR when the orchestrator sends `Changes Requested` feedback
 - use the branch name shape `ins-<number>-<short-slug>`

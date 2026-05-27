@@ -15,6 +15,7 @@ Read these first:
 - `CLAUDE.md`
 - `.cursor/rules/insecur.mdc`
 - `docs/agents/workflow.md`
+- `docs/agents/repo-navigation.md`
 - `docs/agents/skill-usage.md`
 - `docs/agents/environment-adapters.md`
 - `docs/agents/autonomous-loop.md`
