@@ -84,6 +84,10 @@ security, and domain source of truth.
 
 ## Current Shape To Remember
 
-The repo is documentation-first and pre-product implementation. The removed scaffold is not a
-compatibility target. New code should implement the target product described by the specs and the
-First Value package seams.
+The repo is documentation-led, but it is no longer planning-only. Build on the accepted executable
+scaffold: the First Value app/package stubs, Node 24/pnpm 10 workspace baseline, Turbo task graph,
+Prettier/ESLint/Vitest wiring, and `pnpm verify`.
+
+Product behavior is still pre-implementation. The package entrypoints are empty, and the removed
+unsafe scaffold is not a compatibility target. New code should implement the target product
+described by the specs and the First Value package seams.

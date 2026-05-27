@@ -55,8 +55,9 @@ authorization, audit, or key-boundary rewrite.
 
 ## Direction of the repo
 
-This repo is documentation-first by design: the docs are the product spec, and the next code
-written is the target product built against them.
+This repo is documentation-led by design: the docs are the product spec, and the accepted code now
+present is the First Value scaffold and verification baseline. The next product behavior written is
+the target product built against these docs.
 
 - `../CONTEXT.md` is the canonical domain language; `../CONTEXT-MAP.md` and `context-map.md`
   route work to packages.
