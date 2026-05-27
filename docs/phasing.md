@@ -1,6 +1,6 @@
 # Phasing
 
-Last updated: 2026-05-25. Status: **V1 scope is decided; finer release-splitting within V1 is still a working sequence.**
+Last updated: 2026-05-27. Status: **V1 scope is decided; deferred scope is parked here until explicitly promoted; finer release-splitting within V1 is still a working sequence.**
 
 The 2026-05-25 scope review (see [V1 scope decisions](#v1-scope-decisions-2026-05-25-scope-review) below) settled what V1 contains: the reduced production spine, Cloudflare + GitHub providers, Vercel and several heavier layers deferred. What remains open is the finer cut inside V1: whether First Value ships on its own before Production Delivery, and what counts as second-release versus post-v1 hardening. Do not infer those finer boundaries from the specs.
 
@@ -49,16 +49,34 @@ The reduction is deliberately **additive**: every deferred layer is reversibilit
 - BFF / session-cookie web security model; the web surface is read-only metadata browsing plus the Human Approval Surface.
 - Full CI / supply-chain rig.
 
-### Deferred past V1 (tracking only)
+### Deferred scope parking lot
 
-- Vercel sync adapter.
-- Cloudflare Queues + Durable Objects (inline sync replaces them: a per-target lease row with a fencing token for serialization, and compare-and-set plus partial unique indexes for the atomic single-use invariants; see ADR-0057 and TODOS #2).
-- Automated key-rotation engine (the `key_version` seam and rewrap primitive stay in V1; the scheduler does not).
-- Service Access surface.
-- Staged Change Set / batch publish.
-- Multi-approver and Partial Approvals (data model held batch-ready, threshold generalizable but fixed at 1 for V1; see TODOS #9).
-- Full web management parity (V1 web does not mutate most resources; those changes go through the CLI).
+This section is the source of truth for work that is intentionally deferred. While an item remains
+here, do **not** create Linear projects, project milestones, parent issues, implementation issues, or
+placeholder tickets for it. The repo docs are the parking lot.
+
+Active-scope issues may preserve seams that keep deferred work additive, but they must not build the
+deferred behavior. For example, a provider port can stay Vercel-ready while Vercel sync itself
+remains unticketed.
+
+To promote a deferred item, update this section first: remove the item from the table below, add it
+to the appropriate decided scope or build-order section with a concrete product outcome, and only
+then create Linear scaffolding.
+
+| Deferred item | Current boundary | Promotion trigger |
+| --- | --- | --- |
+| Vercel sync adapter | Keep the provider port model additive, but do not build Vercel sync or create Vercel Linear work. | Promote only after Cloudflare + GitHub delivery proves the provider sync spine or customer validation makes Vercel the next highest-confidence provider. |
+| Cloudflare Queues + Durable Objects for sync execution | Inline sync with Postgres lease rows, fencing tokens, and compare-and-set invariants is the current execution model. | Promote only if inline sync or Postgres-backed serialization shows operational limits that justify queue/DO complexity. |
+| Automated key-rotation engine | Keep `key_version`, rewrap primitives, and manual rotation/runbook seams; do not build a scheduler or autonomous rotation workflow. | Promote after the core key custody path and production runbooks exist and repeated manual rotation evidence shows automation is worth the added control surface. |
+| Service Access surface | No Service Access product surface, permissions, or workflows are in active scope. | Promote after Production Delivery proves human, machine, sync, and runtime-injection access paths and a concrete service-to-service use case needs first-class support. |
+| Staged Change Set / batch publish | Use the per-Protected-Environment Promotion Change Set path; do not build batch publish. | Promote when real approval workflows show repeated approval fatigue or multi-secret staging needs that cannot be handled by the narrower publish path. |
+| Multi-approver and Partial Approvals | Keep policy data model seams generalizable, but fix the active approval threshold at one approver. | Promote when small-team production use requires multi-party approval as a product requirement, not just as an enterprise-shaped future option. |
+| Full web management parity and broader UI | The active web surface is read-only metadata browsing plus the Human Approval Surface; mutating management flows stay CLI/API-first. | Promote after CLI/API workflows are proven and the next UI surface has a narrow, validated operator workflow. |
+| Broader recovery and disaster-recovery hardening | Minimal encrypted backup and tested restore remain pre-production gates; separate backup keys, tighter RPO, cross-region copies, and broader drills stay deferred. | Promote after the first tested restore path is operational and production reliability goals require additional recovery coverage. |
+| Better token revocation workflows | Build the required credential lifecycle and audit paths, but do not broaden revocation UX or automation beyond the active production-delivery need. | Promote after machine identity, deploy key, and provider credential flows produce concrete revocation pain. |
+| Public onboarding hardening for unrelated tenants | Bounded onboarding and controlled organization creation are active; broad public hostile-tenant signup is not. | Promote before enabling broad public signup or operating the Hosted Instance for unrelated external tenants. |
 
 ## Current non-binding sequencing
 
 The Build Order and Recommended Next Steps in [project-status.md](project-status.md) are the current best-guess ordering for implementation within the V1 scope set above. They are useful for "what to build next," not authoritative for the finer release boundaries, which stay open. Treat them as a working sequence.
+They do not authorize Linear scaffolding for anything still listed in the deferred scope parking lot.

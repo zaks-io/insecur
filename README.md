@@ -70,7 +70,9 @@ Production Secret Delivery and Secret Sync are blocked until the [Storage Securi
 
 - **First Value** — guided Personal Organization provisioning, first Project, non-protected development Environment, service-generated Blind Secret Write, `run --variable-key`, Diskless Development Secret Use, and copyable First Value Proof
 - **Production foundation** — tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key versions, protected promotion/rollback, and security gates
-- **V1 machine access** — machine identities and GitHub Actions OIDC federation for short-lived CI access
-- **V1 approval UX** — Human Approval Surface for protected gates plus Delivery Risk Policy Presets for explicit non-protected preview/development automation
-- **V1 delivery** — OAuth app connections and sync engines for GitHub and direct Cloudflare Worker secrets, plus profile-based `insecur run` for deploy and local command injection
-- **Post-v1 hardening** — Vercel sync, focused UI, deeper rotation automation, broader recovery drills, and operational polish
+- **Machine access and CI trust** — machine identities and GitHub Actions OIDC federation for short-lived CI access
+- **Approval UX and delivery policy** — Human Approval Surface for protected gates plus Delivery Risk Policy Presets for explicit non-protected preview/development automation
+- **Runtime Injection Delivery** — profile-backed `insecur run` for deploy and local command injection
+- **Provider Sync: GitHub and Cloudflare** — OAuth app connections and sync engines for GitHub and direct Cloudflare Worker secrets
+- **Audit, runbooks, and release gates** — audit export, tested restore evidence, security runbooks, and production release gates
+- **Deferred scope** — tracked in [docs/phasing.md](docs/phasing.md#deferred-scope-parking-lot), not in Linear until promoted in the repo docs

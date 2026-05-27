@@ -7,6 +7,8 @@ This repo has a committed Cursor Cloud Agent environment so remote agents use th
 - `.cursor/environment.json` is the repo-level Cursor Cloud Agent config.
 - `.cursor/Dockerfile` defines the machine baseline.
 - `.nvmrc`, `.node-version`, `.npmrc`, `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` define the Node and pnpm contract.
+- `docs/agents/repo-navigation.md` is the fast repo map remote agents should read before broad
+  exploration.
 
 Cursor's repo-level environment config should be treated as reviewable infrastructure. Do not replace it with only personal or team dashboard settings.
 
@@ -20,6 +22,8 @@ Cursor's repo-level environment config should be treated as reviewable infrastru
 
 - Keep Node on major 24 until `docs/build-tooling.md` changes.
 - Keep pnpm on `10.19.0` until the package manager baseline is intentionally updated.
+- Keep Cursor Cloud instructions aligned with `AGENTS.md`, `.cursor/rules/insecur.mdc`, and
+  `docs/agents/repo-navigation.md`; do not create remote-only navigation rules.
 - Keep dependency installation in `.cursor/environment.json` `install`; it must be idempotent and safe to rerun after checkout.
 - Do not add `start` or long-running `terminals` until the Worker dev workflow is ready to run consistently in remote agent sessions.
 - Do not `COPY` the repository into `.cursor/Dockerfile`; Cursor manages checkout and branch state.

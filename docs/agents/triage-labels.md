@@ -13,3 +13,8 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 When a skill mentions a role, such as "apply the AFK-ready triage label", use the corresponding label string from this table.
 
 Edit the right-hand column to match whatever vocabulary this repo actually uses if the label names change.
+
+## Repo label
+
+Every Linear issue for this repo should also carry `zaks-io/insecur`. This is a repo routing label,
+not one of the five triage roles.

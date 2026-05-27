@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ## Current State
 
@@ -9,11 +9,20 @@ insecur currently contains no product implementation. The disposable Cloudflare-
 The first V1 promise is to stop giving coding agents plaintext local secret files. The production promise is to let agents and CI cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
-Linear triage labels exist for team INS, and the First Value Customer Validation project now tracks
-the initial customer-validation work. First Value implementation work is tracked separately in the
-First Value Implementation project using the parent workstreams and dependency graph documented in
-[first-value-ticket-plan.md](specs/first-value-ticket-plan.md). Linear ticket publishing rules live
-in [linear-ticketing.md](agents/linear-ticketing.md).
+Linear triage labels exist for team INS. Current active Linear projects are:
+`Customer Discovery & Design Partners`, `First Value Build`, `Production Delivery Foundation`,
+`Machine Access and CI Trust`, `Runtime Injection Delivery`,
+`Provider Sync: GitHub and Cloudflare`, `Approval UX and Delivery Policy`, and
+`Audit, Runbooks, and Release Gates`. First Value implementation work uses the parent workstreams
+and dependency graph documented in [first-value-ticket-plan.md](specs/first-value-ticket-plan.md).
+Linear project milestones and ticket publishing rules live in
+[linear-ticketing.md](agents/linear-ticketing.md).
+
+First Value human setup tickets are complete in Linear: `FV-H1` recorded the non-secret
+Neon/Hyperdrive setup inputs, `FV-H2` recorded the non-secret WorkOS AuthKit development setup
+inputs, and `FV-H3` recorded the non-secret Cloudflare Secrets Store root-key custody setup inputs.
+Those tickets unblock implementation planning, but the corresponding persistence, authentication,
+and keyring behavior is not wired into product code yet.
 
 ## Customer Validation Plan
 
@@ -40,7 +49,8 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 - Machine tokens hashed at rest with project/action scoped authorization
 - Secret CRUD, version history, rollback, and dotenv export
 - Audit logging, basic API hardening headers, and opaque-ID/Display-Name input validation
-- The generated `dist/`, `node_modules/`, and `pnpm-lock.yaml`
+- Generated `dist/`, `node_modules/`, and other disposable build/install artifacts from the
+  removed scaffold. The current workspace has its own package-manager baseline.
 
 ### Kept (not scaffold)
 
@@ -50,22 +60,33 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 
 ## Verified Locally
 
-Nothing product-bearing to build or verify yet. The scaffold that previously passed `pnpm typecheck` and `pnpm build` has been removed; the new app and package source entrypoints are empty TypeScript modules, and `node_modules`/`pnpm-lock.yaml` are gone. The first meaningful build/typecheck baseline gets re-established when the target product's First Value slice is implemented.
+The repo has no product-bearing implementation yet; the app and package source entrypoints are
+empty TypeScript modules. The workspace baseline is present on Node 24 and pnpm 10:
+
+- `pnpm typecheck` passes across all 10 workspace packages.
+- `pnpm build --filter='!@insecur/worker'` passes for the 9 non-worker packages.
+- Full `pnpm build` still fails at `@insecur/worker` because no `wrangler.jsonc` or Worker
+  entry-point configuration exists yet. This is the documented Worker setup gap, not evidence of a
+  product implementation failure.
 
 ## Not Yet Done
 
-- Neon Postgres has not been provisioned for the V1 target architecture
-- Cloudflare Hyperdrive has not been configured for the V1 target architecture
-- Neither D1 nor any persistence is wired; the target persistence model (Neon Postgres) is not provisioned
+- Neon Postgres is not wired into the product yet; First Value non-secret setup inputs are recorded
+  in Linear `FV-H1`
+- Cloudflare Hyperdrive is not wired into the product yet; First Value non-secret setup inputs are
+  recorded in Linear `FV-H1`
+- Neither D1 nor any target persistence is wired into the product code yet
 - Production Worker deployment has not been smoke-tested
 - No tenant-first schema exists yet
 - No organization-qualified routes exist yet
 - No membership/role-based authorization exists yet
-- No human authentication exists yet; the target is WorkOS AuthKit
+- No human authentication implementation exists yet; First Value WorkOS AuthKit setup inputs are
+  recorded in Linear `FV-H2`
 - No machine identity-issued short-lived access tokens exist yet
 - No CLI authentication exists yet; the target is memory/session-only
 - Environment-scoped deploy keys and deploy key rotation policies do not exist yet
-- No organization data keys or project data keys exist yet
+- No organization data keys or project data keys exist yet; First Value Cloudflare Secrets Store
+  setup inputs are recorded in Linear `FV-H3`
 - No ciphertext binding to tenant/resource identity with authenticated data exists yet
 - Sensitive Metadata encryption is not implemented yet
 - No key version model or key rotation workflow exists yet
@@ -106,29 +127,36 @@ Guided Organization Provisioning for Personal Organizations with an owner Member
 
 Neon Postgres schema, Tenant-Scoped Store, Row-Level Security policies, Instance Bootstrap, WorkOS-backed Instance Identity Configuration, Bootstrap Operator Claim completion, first-Organization owner Membership, Default Team creation, Instance Operator-controlled Organization creation, Guided Organization Provisioning for Personal Organizations with a first Project and non-protected development Environment, organization/project memberships, scope-first authorization with built-in role presets, WorkOS AuthKit migration, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, AES-GCM authenticated data binding, Protected Environment promotion/rollback, the Storage Security Gate readiness contract in [storage-security-gate.md](storage-security-gate.md), and tenant-qualified routes.
 
-**V1 machine access**
+**Machine Access and CI Trust**
 
 Machine identities, GitHub Actions OIDC federation, and environment-scoped deploy keys with configurable rotation policies for scoped Runtime Injection automation without storing broad long-lived tokens. This is the custody boundary that lets CI use Protected Environment Sensitive Values while local agents and ordinary human sessions cannot read them.
 
-**V1 sync**
+**Provider Sync: GitHub and Cloudflare**
 
-OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter is deferred past V1 but remains additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes. Sync operation state, retry, resume, leases, and fencing tokens are governed by [operation-store.md](operation-store.md).
+OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter remains in the [deferred scope parking lot](phasing.md#deferred-scope-parking-lot) but stays additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes. Sync operation state, retry, resume, leases, and fencing tokens are governed by [operation-store.md](operation-store.md).
 
-**V1 runtime injection**
+**Runtime Injection Delivery**
 
 Profile-backed `insecur run <profile-slug-or-id> -- <command>` for deploys and local commands so developers and agents can use secrets without local secret files or secret reveal. The guided First Value Proof uses this path in a non-protected development Environment before any provider setup. Production runtime injection remains blocked until the Storage Security Gate passes.
 
-**V1 approval UX and delivery policy**
+**Approval UX and Delivery Policy**
 
 Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, Cloudflare Worker Secret Deploy approval evidence, and Risk-Broadening Delivery Changes. Delivery Risk Policy Presets default to Balanced, first onboarding does not show a preset picker, and users can later switch to Strict or Automation-Friendly. They can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only. Under Balanced, preview automation requires environment-scoped Preview Automation Opt-In; under Automation-Friendly, the same Preview Automation Authority applies by default for non-protected preview Environments in scope. Preview Automation Authority can execute only existing Runtime Injection Policies, Secret Syncs, and Secret Sync Bindings. Presets are backed by versioned policy infrastructure so later enterprise controls do not require refactoring authorization or audit.
 
-**Post-v1 hardening**
+**Audit, Runbooks, and Release Gates**
 
-Vercel sync, focused UI, rotation framework automation, Cron Triggers, Cloudflare Queues and Durable Object sync execution (additive over V1 inline sync), broader recovery drills, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
+Tenant-qualified audit hardening, tamper-evident audit exports with JSONL hash chains and HMACed manifests, `audit verify`, security runbooks, tested restore evidence, ASVS/API Top 10 checks, dependency scanning, secret scanning, SBOM/vulnerability scanning, the release-gate evidence bundle, and pre-production gate automation.
+
+**Deferred scope**
+
+Deferred work is tracked in [phasing.md](phasing.md#deferred-scope-parking-lot), not in Linear.
+Do not create Linear projects, project milestones, parent issues, implementation issues, or
+placeholder tickets for those items until they are promoted out of the deferred parking lot in the
+repo docs.
 
 ## Recommended Next Steps
 
-1. Work the First Value Implementation Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), starting with the unblocked tooling baseline and the required human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
+1. Work the `First Value Build` Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), starting with the unblocked tooling baseline and the required human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
 2. Run the customer-validation loop from [customer-validation.md](customer-validation.md): 20 discovery interviews with agent-heavy teams, five design partners, and repeated First Value usage evidence.
 3. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md) as a narrow vertical slice through the real foundation: Tenant-Scoped Store, Row-Level Security, Effective Access, Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, tenant-bound Secret encryption, Secret Version Store, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
 4. Use the design-partner loop to shorten and harden the First Value proof before widening provider scope or web management.

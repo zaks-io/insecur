@@ -10,12 +10,20 @@ security posture, or domain language while doing so.
 
 - Keep implementation issues in the `INS` Linear team. Do not create an agent-only subteam for
   product work.
-- Use `First Value Implementation` for First Value build work and
-  `First Value Customer Validation` for discovery, design-partner, evidence, and scope-gate work.
-- Use Linear projects for product milestones such as First Value Milestone, Production Delivery
-  Foundation, V1 Machine Access, V1 Sync, V1 Runtime Injection, and V1 Approval UX.
-- Use project milestones or parent issues for workstreams from `docs/specs/agent-workstreams.md`.
-  Do not create workstream labels.
+- Apply the repo routing label `zaks-io/insecur` to every Linear issue for this repo.
+- Use `First Value Build` for First Value build work and `Customer Discovery & Design Partners`
+  for discovery, design-partner, evidence, and scope-gate work.
+- Use Linear projects for product milestones such as First Value Build, Production Delivery
+  Foundation, Machine Access and CI Trust, Runtime Injection Delivery, Provider Sync: GitHub and
+  Cloudflare, Approval UX and Delivery Policy, and Audit, Runbooks, and Release Gates.
+- Use project milestones for delivery gates and parent issues for workstreams from
+  `docs/specs/agent-workstreams.md`. Do not create workstream labels.
+- Parent workstream issues are containers and should stay in `Backlog` with only `zaks-io/insecur`,
+  no readiness label, no Type/risk label, and no milestone.
+- Every non-container issue in an active project should have the appropriate project milestone.
+- Do not create Linear projects, project milestones, parent issues, implementation issues, or
+  placeholder tickets for anything still listed in
+  `docs/phasing.md#deferred-scope-parking-lot`. Promote the work in the repo docs first.
 - Use Linear relationships for dependency order. `blocked by` and `blocks` are the ordering
   mechanism; labels are routing metadata.
 - Use `ready-for-agent` only for issues that an agent can implement without new product judgment.
@@ -51,6 +59,7 @@ For First Value ticket publishing and dependency setup, follow
 Agents should only select work matching this shape:
 
 - Team: `INS`
+- Label: `zaks-io/insecur`
 - Label: `ready-for-agent`
 - Status: `Todo`
 - Blocked: false
@@ -185,6 +194,27 @@ Residual risk:
 Move the issue to `In Review`. Move it to `Ready to Merge` only after review feedback is addressed
 and required checks pass.
 
+## Review And Fix Loop
+
+The orchestrator owns the review/fix loop. It should review PRs from an isolated local worktree or
+review subagent, then route actionable feedback through normal GitHub PR review comments.
+
+When review finds actionable implementation feedback:
+
+1. Post the detailed findings on the PR.
+2. Move the Linear issue to `Changes Requested`.
+3. Return to the original Cursor agent thread for that issue whenever possible, so the same remote
+   environment, branch, and context can continue.
+4. Tell the Cursor agent what changed, which PR comments must be addressed, and which checks still
+   need to pass.
+5. After the agent pushes fixes, rerun review from a clean local worktree and move the issue back
+   to `In Review`.
+
+The local orchestrator should not become the local implementer for ordinary review feedback. It may
+make bookkeeping updates, verify checks, and escalate important problems, but implementation fixes
+should stay with the assigned agent unless the original agent thread is unavailable or a human
+explicitly redirects the work.
+
 ## Linear Field Contract
 
 Agents treat Linear as the queue, state machine, and dependency graph. Linear views and templates
@@ -196,8 +226,10 @@ Interpret Linear fields this way:
 | Linear field | Agent meaning |
 | --- | --- |
 | Team `INS` | The issue belongs to this repo. |
-| Project | Product milestone or delivery slice. |
-| Parent issue or project milestone | Workstream or architectural area from `docs/specs/agent-workstreams.md`. |
+| Label `zaks-io/insecur` | The issue belongs to this repository. Required before orchestration. |
+| Project | Phase or major program, such as First Value Build. |
+| Project milestone | Delivery gate inside the project. Required for non-container issues. |
+| Parent issue | Workstream container from `docs/specs/agent-workstreams.md`. Intentionally unmilestoned. |
 | Sub-issue | One implementation job, sized for one PR. |
 | `blocked by` / `blocks` | Execution order. Do not start blocked work. |
 | `ready-for-agent` | Permission for autonomous implementation. |
@@ -207,8 +239,8 @@ Interpret Linear fields this way:
 | Type label | General work kind; not an execution rule. |
 | Status | Current workflow state. |
 
-Do not use labels for workstreams. Use parent issues, project milestones, and issue relationships
-for that structure.
+Do not use labels for workstreams. Use parent issues for workstream grouping, project milestones
+for delivery gates, and issue relationships for execution order.
 
 ## Issue Body Contract
 
@@ -235,18 +267,22 @@ Agents should interpret statuses this way:
 
 | Status | Agent behavior |
 | --- | --- |
+| `Triage` | Intake state. Do not claim until it is sorted into the roadmap. |
 | `Backlog` | Planned work that is not ready to start. Do not claim. |
 | `Todo` | Ready to start if it also has `ready-for-agent` and no blockers. |
 | `In Progress` | Someone is actively working. Do not claim unless assigned/delegated. |
 | `Blocked` | Cannot continue until the blocker is resolved. |
 | `In Review` | Implementation is ready for review. |
+| `Changes Requested` | PR has actionable review feedback. The orchestrator should route fixes to the original implementation agent and keep using the same PR branch. |
 | `Ready to Merge` | Review is complete and required checks are passing. |
 | `Done` | Completed. Do not modify unless a follow-up issue says to. |
 | `Canceled` | Intentionally closed without completion. Do not modify. |
+| `Duplicate` | Closed as a duplicate. Do not modify; follow the canonical issue. |
 
 ## Label Contract
 
-Readiness labels control whether an agent may work:
+Readiness labels control whether an agent may work. Every repo issue should also carry
+`zaks-io/insecur`; this is a routing label, not a readiness signal.
 
 | Label | Agent behavior |
 | --- | --- |
