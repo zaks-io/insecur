@@ -1,0 +1,58 @@
+# Agent Environment Adapters
+
+The source of truth for agent behavior is shared:
+
+- `docs/agents/autonomous-loop.md`
+- `docs/agents/issue-tracker.md`
+- `docs/agents/linear-ticketing.md`
+- `docs/agents/workflow.md`
+- `docs/agents/skill-usage.md`
+- `skills/*/SKILL.md`
+
+Runtime-specific files are adapters. Do not duplicate the shared workflow in them.
+
+## Codex
+
+Codex reads `AGENTS.md` automatically. Use Codex for local repo edits, verification, Linear
+maintenance, orchestration scripts, and careful code review.
+
+Codex agents should:
+
+- read the relevant repo-local skill when named by the user or task
+- use Linear MCP tools for INS issue state
+- use local shell verification before final handoff
+- avoid changing unrelated files in a dirty worktree
+
+## Claude
+
+Claude and Claude Code should read `CLAUDE.md`. Use Claude for planning, roadmap refinement,
+writing or critiquing specs, and second-pass review.
+
+Claude agents should:
+
+- treat `docs/agents/*` and `skills/*/SKILL.md` as the source of truth
+- avoid creating a separate Claude-only workflow
+- preserve the Linear status and label contracts
+
+## Cursor
+
+Cursor and Cursor Background Agents should read `.cursor/rules/insecur.mdc` and the Cursor Cloud
+environment notes in `docs/agents/cursor-cloud-environment.md`. Use Cursor for isolated remote
+implementation work where the issue is already `Todo` + `ready-for-agent`.
+
+Cursor agents should:
+
+- implement one Linear issue per branch and PR
+- use the branch name shape `ins-<number>-<short-slug>`
+- leave Linear comments for claim, blocker, and PR handoff
+- stop on missing product, security, credential, provider, or ADR decisions
+
+## Runtime Selection Hints
+
+Use Cursor when the issue is isolated, well specified, and implementation-heavy.
+
+Use Codex when the task needs local verification, repo-wide cleanup, Linear/data maintenance, or
+orchestrator development.
+
+Use Claude when the task needs broad reasoning, docs synthesis, roadmap shaping, or independent
+review.

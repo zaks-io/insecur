@@ -10,6 +10,7 @@ security posture, or domain language while doing so.
 
 - Keep implementation issues in the `INS` Linear team. Do not create an agent-only subteam for
   product work.
+- Apply the repo routing label `zaks-io/insecur` to every Linear issue for this repo.
 - Use `First Value Implementation` for First Value build work and
   `First Value Customer Validation` for discovery, design-partner, evidence, and scope-gate work.
 - Use Linear projects for product milestones such as First Value Milestone, Production Delivery
@@ -51,6 +52,7 @@ For First Value ticket publishing and dependency setup, follow
 Agents should only select work matching this shape:
 
 - Team: `INS`
+- Label: `zaks-io/insecur`
 - Label: `ready-for-agent`
 - Status: `Todo`
 - Blocked: false
@@ -196,6 +198,7 @@ Interpret Linear fields this way:
 | Linear field | Agent meaning |
 | --- | --- |
 | Team `INS` | The issue belongs to this repo. |
+| Label `zaks-io/insecur` | The issue belongs to this repository. Required before orchestration. |
 | Project | Product milestone or delivery slice. |
 | Parent issue or project milestone | Workstream or architectural area from `docs/specs/agent-workstreams.md`. |
 | Sub-issue | One implementation job, sized for one PR. |
@@ -235,6 +238,7 @@ Agents should interpret statuses this way:
 
 | Status | Agent behavior |
 | --- | --- |
+| `Triage` | Intake state. Do not claim until it is sorted into the roadmap. |
 | `Backlog` | Planned work that is not ready to start. Do not claim. |
 | `Todo` | Ready to start if it also has `ready-for-agent` and no blockers. |
 | `In Progress` | Someone is actively working. Do not claim unless assigned/delegated. |
@@ -243,10 +247,12 @@ Agents should interpret statuses this way:
 | `Ready to Merge` | Review is complete and required checks are passing. |
 | `Done` | Completed. Do not modify unless a follow-up issue says to. |
 | `Canceled` | Intentionally closed without completion. Do not modify. |
+| `Duplicate` | Closed as a duplicate. Do not modify; follow the canonical issue. |
 
 ## Label Contract
 
-Readiness labels control whether an agent may work:
+Readiness labels control whether an agent may work. Every repo issue should also carry
+`zaks-io/insecur`; this is a routing label, not a readiness signal.
 
 | Label | Agent behavior |
 | --- | --- |

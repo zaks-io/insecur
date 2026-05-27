@@ -18,9 +18,15 @@ The First Value ticket graph and dependency order are documented in
 - **Create an issue**: Use `save_issue` with `team: "INS"` to create issues in the project.
 - **Read an issue**: Use `get_issue` with the issue ID (e.g., `INS-123`).
 - **List issues**: Use `list_issues` with appropriate filters like `team: "INS"`, `state`, `assignee`, etc.
-- **Comment on an issue**: Use `save_comment` with the issue ID.
+- **Comment on an issue**: Use the Linear comment tool with the issue ID.
 - **Apply / remove labels**: Use `save_issue` with the `labels` parameter.
 - **Close**: Use `save_issue` with `state: "Done"` or appropriate completed state.
+
+## Repo label
+
+Every Linear issue for this repo must carry the repo routing label `zaks-io/insecur`. Preserve that
+label when updating labels. Agents and orchestrators should filter on it before considering an
+issue part of this repo's queue.
 
 ## Parent issues and dependencies
 

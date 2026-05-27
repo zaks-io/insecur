@@ -4,6 +4,17 @@ insecur is no-reveal secrets custody for teams shipping with agents and CI. See 
 
 ## Agent skills
 
+This repo has repo-local skills in `skills/*/SKILL.md`. If a task names one of those skills or
+matches its description, read the matching skill before acting. See `docs/agents/skill-usage.md`.
+
+Runtime-specific files are adapters only. Shared workflow truth lives in `docs/agents/*` and
+`skills/*/SKILL.md`; keep Codex, Claude, and Cursor behavior aligned through those files.
+
+### Workflow
+
+The end-to-end repo workflow is documented in `docs/agents/workflow.md`: how to choose a skill,
+move work through Linear, implement one issue, review PRs, and coordinate agents.
+
 ### Issue tracker
 
 Issues are tracked in Linear project INS- using the Linear MCP server. See `docs/agents/issue-tracker.md`.
@@ -28,3 +39,8 @@ Current implementation status and next steps are tracked in `docs/project-status
 ### Cursor Cloud environment
 
 Remote Cursor agent setup and maintenance notes live in `docs/agents/cursor-cloud-environment.md`.
+
+### Environment adapters
+
+Codex, Claude, and Cursor runtime differences are documented in
+`docs/agents/environment-adapters.md`.

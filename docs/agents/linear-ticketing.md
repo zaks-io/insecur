@@ -6,6 +6,7 @@ docs define the product and workflow; Linear tracks executable slices and human 
 ## Projects
 
 Use team `INS`.
+Apply label `zaks-io/insecur` to every issue for this repo.
 
 | Project | Purpose |
 | --- | --- |
@@ -58,14 +59,15 @@ and are not agent-ready implementation work.
 
 1. Confirm team `INS`, project, labels, and statuses exist.
 2. Create or update the project before creating workstream parents.
-3. Create workstream parents in `Backlog` with no readiness label.
+3. Create workstream parents in `Backlog` with label `zaks-io/insecur` and no readiness label.
 4. Create child issues in dependency order so blockers have real issue IDs.
 5. Set `parentId` to the matching workstream parent.
 6. Use Linear `blockedBy` or `blocks` relationships for ordering.
 7. Put blocked AFK issues in `Backlog` without `ready-for-agent`.
 8. Put unblocked AFK issues in `Todo` with `ready-for-agent`.
 9. Put HITL issues in `Backlog` with `ready-for-human`.
-10. Add risk and type labels that match the work, such as `Feature`, `Tech Debt`,
+10. Preserve `zaks-io/insecur` when updating issue labels.
+11. Add risk and type labels that match the work, such as `Feature`, `Tech Debt`,
     `risk-schema`, `risk-security-sensitive`, or `risk-cross-cutting`.
 
 ## Readiness Updates

@@ -1,0 +1,34 @@
+---
+description: Insecur repo agent protocol for Cursor and Cursor Background Agents
+alwaysApply: true
+---
+
+# Insecur Cursor Protocol
+
+Follow the shared repo protocol. Do not create a Cursor-only workflow.
+
+Read these before implementation work:
+
+- `AGENTS.md`
+- `CONTEXT-MAP.md`
+- `docs/agents/environment-adapters.md`
+- `docs/agents/workflow.md`
+- `docs/agents/skill-usage.md`
+- `docs/agents/autonomous-loop.md`
+- `docs/agents/issue-tracker.md`
+- the relevant `skills/*/SKILL.md`
+- the Linear issue body and linked context docs
+
+Linear work must use team `INS` and label `zaks-io/insecur`.
+
+Only implement issues that are:
+
+- `Todo`
+- `ready-for-agent`
+- unblocked
+- scoped to one PR
+
+Use branch names like `ins-123-short-slug`. Open PRs titled `INS-123: Short summary`.
+
+Stop and comment in Linear when product scope, security posture, credentials, provider approval, or
+ADR decisions are missing.
