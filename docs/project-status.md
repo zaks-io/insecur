@@ -101,13 +101,16 @@ baseline are present on Node 24 and pnpm 10:
   with FV-04.
 - `pnpm dev:check` passes and verifies the local toolchain, Wrangler 4, and scaffold files without
   printing secret values.
+- `pnpm dev:db:reset` starts a local Postgres 17 Docker Compose database, creates separate
+  migration and runtime roles, verifies that the runtime role has `rolbypassrls=false`, and checks
+  the Neon-adjacent local settings.
 - `pnpm build` passes, including the Worker dry-run deploy through the committed
   `apps/worker/wrangler.jsonc`.
 
 ## Not Yet Done
 
-- Neon Postgres is not wired into the product yet; First Value non-secret setup inputs are recorded
-  in Linear `FV-H1`
+- Neon Postgres is not wired into the product yet; local Postgres is an iteration aid only, and
+  First Value non-secret setup inputs are recorded in Linear `FV-H1`
 - Cloudflare Hyperdrive is not wired into the product yet; First Value non-secret setup inputs are
   recorded in Linear `FV-H1`
 - Neither D1 nor any target persistence is wired into the product code yet

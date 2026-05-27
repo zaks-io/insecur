@@ -1,0 +1,38 @@
+name: insecur
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    ports:
+      - "127.0.0.1:${INSECUR_POSTGRES_PORT:?}:5432"
+    environment:
+      POSTGRES_DB: ${INSECUR_POSTGRES_DB:?}
+      POSTGRES_USER: ${INSECUR_POSTGRES_SUPERUSER:?}
+      POSTGRES_PASSWORD: ${INSECUR_POSTGRES_SUPERUSER_PASSWORD:?}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+      INSECUR_POSTGRES_DB: ${INSECUR_POSTGRES_DB:?}
+      INSECUR_POSTGRES_MIGRATION_ROLE: ${INSECUR_POSTGRES_MIGRATION_ROLE:?}
+      INSECUR_POSTGRES_MIGRATION_PASSWORD: ${INSECUR_POSTGRES_MIGRATION_PASSWORD:?}
+      INSECUR_POSTGRES_RUNTIME_ROLE: ${INSECUR_POSTGRES_RUNTIME_ROLE:?}
+      INSECUR_POSTGRES_RUNTIME_PASSWORD: ${INSECUR_POSTGRES_RUNTIME_PASSWORD:?}
+    command:
+      - postgres
+      - -c
+      - idle_in_transaction_session_timeout=300000
+      - -c
+      - max_connections=112
+      - -c
+      - password_encryption=scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infra/postgres/check-runtime-role.sh:/usr/local/bin/insecur-postgres-guard:ro
+
+volumes:
+  postgres-data:

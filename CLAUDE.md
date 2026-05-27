@@ -63,6 +63,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - **Verify:** `pnpm verify` (format check, lint, typecheck, and unit-test task fan-out)
 - **Typecheck:** `pnpm typecheck` (runs across all 10 workspace packages)
 - **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and scaffold file checks)
+- **Local Postgres:** `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
 - **Build:** `pnpm build` (includes the Worker dry-run deploy through `apps/worker/wrangler.jsonc`)
 - **Worker dev:** `pnpm dev:worker` then check `http://localhost:8787/healthz`
 - **Hello-world proof:** `INSECUR_PROOF_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") node examples/first-value-proof/verify.mjs`
@@ -72,6 +73,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - `engine-strict=true` in `.npmrc` means `pnpm install` will hard-fail if Node is not on major 24. Always verify `node --version` first.
 - `@insecur/worker` has a scaffold-only `/healthz` route. It is not product behavior and does not prove storage, auth, encryption, audit, or Runtime Injection.
 - ESLint, Prettier, Vitest, and `pnpm verify` are wired up. Package tests currently use Vitest's no-test pass-through until product slices add real tests.
+- Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
 - `pnpm test:rls` is wired as an uncached tenant-store placeholder. Real Postgres RLS tests start with FV-04 and require `DATABASE_URL_RUNTIME`.
 - Lefthook, GitHub Actions validation, and secret/dependency scanning are not wired yet; FV-02 owns that follow-up.
 - Package `src/index.ts` files export `export {};` — this is a deliberate empty skeleton per ADR-0018.

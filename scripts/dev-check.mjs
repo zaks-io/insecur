@@ -13,6 +13,16 @@ const optionalEnvKeys = [
   "APP_BASE_URL",
   "WORKOS_REDIRECT_URI",
 ];
+const localPostgresEnvKeys = [
+  "INSECUR_POSTGRES_PORT",
+  "INSECUR_POSTGRES_DB",
+  "INSECUR_POSTGRES_SUPERUSER",
+  "INSECUR_POSTGRES_SUPERUSER_PASSWORD",
+  "INSECUR_POSTGRES_MIGRATION_ROLE",
+  "INSECUR_POSTGRES_MIGRATION_PASSWORD",
+  "INSECUR_POSTGRES_RUNTIME_ROLE",
+  "INSECUR_POSTGRES_RUNTIME_PASSWORD",
+];
 
 const results = [];
 
@@ -24,9 +34,31 @@ checkCommand(
   (value) => /^4\./u.test(value),
   "Wrangler 4",
 );
+checkOptionalCommand(
+  "docker",
+  ["--version"],
+  (value) => /^Docker version /u.test(value),
+  "Docker CLI",
+);
+checkOptionalCommand(
+  "docker",
+  ["compose", "version"],
+  (value) => /^Docker Compose version v?(?:[2-9]|[1-9][0-9]+)\./u.test(value),
+  "Docker Compose >=2",
+);
+checkOptionalCommand(
+  "docker",
+  ["info", "--format", "{{.ServerVersion}}"],
+  (value) => value.length > 0,
+  "Docker daemon",
+);
 checkPath("apps/worker/wrangler.jsonc");
+checkPath("compose.yaml");
+checkPath("infra/postgres/init/001-local-roles.sh");
+checkPath("infra/postgres/check-runtime-role.sh");
 checkPath(".env.example");
 checkPath("apps/worker/.dev.vars.example");
+checkLocalPostgresEnv();
 checkOptionalEnv();
 
 for (const result of results) {
@@ -54,6 +86,18 @@ function checkCommand(command, args, isExpected, label) {
   );
 }
 
+function checkOptionalCommand(command, args, isExpected, label) {
+  const result = spawnSync(command, args, {
+    cwd: root,
+    encoding: "utf8",
+  });
+  const value = result.stdout.trim();
+  record(
+    result.status === 0 && isExpected(value) ? "OK" : "WARN",
+    `${label}: ${value || "missing"}`,
+  );
+}
+
 function checkPath(relativePath) {
   record(existsSync(join(root, relativePath)) ? "OK" : "FAIL", relativePath);
 }
@@ -63,6 +107,13 @@ function checkOptionalEnv() {
   const missing = optionalEnvKeys.filter((key) => !process.env[key] && !localKeys.has(key));
   const status = missing.length === 0 ? "OK" : "WARN";
   record(status, `optional service env keys missing: ${missing.length}`);
+}
+
+function checkLocalPostgresEnv() {
+  const localKeys = readEnvKeys(".env.local");
+  const missing = localPostgresEnvKeys.filter((key) => !process.env[key] && !localKeys.has(key));
+  const status = missing.length === 0 ? "OK" : "WARN";
+  record(status, `local Postgres env keys missing: ${missing.length}`);
 }
 
 function readEnvKeys(relativePath) {

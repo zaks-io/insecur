@@ -63,6 +63,7 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0057: Inline Sync Execution and Partial-Failure Model](0057-inline-sync-execution-and-partial-failure-model.md)
 - [ADR-0058: Minimal Backup and Tested Restore for V1](0058-minimal-backup-and-tested-restore.md)
 - [ADR-0059: Tenant-Reported Secret Compromise Response](0059-tenant-reported-secret-compromise-response.md)
+- [ADR-0060: Postgres 17 Development Baseline](0060-postgres-17-development-baseline.md)
 
 ## Superseded
 

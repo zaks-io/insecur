@@ -6,6 +6,7 @@ This is the implementation spec for insecur's monorepo build tooling and quality
 - ADR-0054: tenant-isolation tests run against real Postgres as the `NOBYPASSRLS` role
 - ADR-0055: ESLint and Prettier type-aware toolchain
 - ADR-0056: supply-chain hardening posture (pnpm lifecycle blocking, release quarantine)
+- ADR-0060: Postgres 17 development baseline while Postgres 18 is preview on Neon
 - ADR-0029: environments and CD trust model (staging auto, production gated, machine-identity deploy)
 - ADR-0008: security gates and runbooks (the gate contract these tools satisfy)
 - ADR-0036 / ADR-0037: Neon RLS and the Tenant-Scoped Bound Store these tests exercise
@@ -30,6 +31,7 @@ The load-bearing decision is the major version of each tool, not the patch. Pin 
 | Vitest                          | 3                | 3.x latest            |
 | @cloudflare/vitest-pool-workers | matches wrangler | latest for wrangler 4 |
 | Wrangler                        | 4                | 4.x latest            |
+| Local Postgres                  | 17               | 17.x latest           |
 | lefthook                        | 2                | 2.1.8                 |
 | postgres (postgres.js)          | 3                | 3.x latest            |
 
@@ -346,6 +348,10 @@ Two distinct tiers, separated because one can run anywhere and one needs a real 
 
 1. **Worker and unit tests (`test`).** Run under Vitest with `@cloudflare/vitest-pool-workers` so code executes in `workerd` against real bindings. Runs locally, in pre-push, and in CI `validate`. No external secrets.
 2. **Tenant-isolation tests (`test:rls`).** Run under plain Vitest with `postgres.js` connecting to a per-PR Neon branch as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME` (ADR-0054). Never SQLite or PGlite, never the migration role. Runs only in CI on the preview job and never on forked pull requests. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
+
+Local Postgres uses the same major version as the stable Neon target, currently Postgres 17
+(ADR-0060). It exists so agents can iterate on migrations and store code before a Neon branch is
+available; it is not the authoritative RLS gate.
 
 ## CI Topology (ADR-0029)
 

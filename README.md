@@ -31,6 +31,19 @@ package ownership map lives in [docs/context-map.md](docs/context-map.md).
 
 See [docs/setup.md](docs/setup.md).
 
+Useful scaffold commands:
+
+```sh
+pnpm dev:check
+pnpm dev:db:up
+pnpm dev:db:reset
+pnpm dev:worker
+```
+
+`pnpm dev:db:reset` rebuilds the local Postgres 17 Docker Compose database and runs the
+runtime-role guard. It is a local iteration aid only; Neon-backed RLS tests remain the
+authoritative gate.
+
 Start with [docs/specs/README.md](docs/specs/README.md). The canonical product spec lives in
 [docs/specs/product-spec.md](docs/specs/product-spec.md), and autonomous implementation seams live
 in [docs/specs/agent-workstreams.md](docs/specs/agent-workstreams.md). The current customer

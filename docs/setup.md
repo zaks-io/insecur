@@ -30,6 +30,38 @@ behavior.
 
 `pnpm dev:check` reports missing optional service keys by name and never prints values.
 
+## Local Postgres
+
+The local database scaffold is for contributor and agent iteration only. It uses Docker Compose with
+Postgres 17, matching the stable Neon target while Postgres 18 remains preview on Neon
+([ADR-0060](adr/0060-postgres-17-development-baseline.md)). It does not replace Neon branch-backed
+RLS tests.
+
+Start the local database:
+
+```sh
+pnpm dev:db:up
+```
+
+Reset it from scratch and run the role guard:
+
+```sh
+pnpm dev:db:reset
+```
+
+Run only the guard against an already-started database:
+
+```sh
+pnpm dev:db:guard
+```
+
+The first DB command generates local-only values into ignored `.env.local` if they are missing. The
+scaffold creates separate migration and runtime roles and checks that the runtime role is distinct,
+can connect, and has `rolbypassrls=false`. It also pins Neon-adjacent local settings for SCRAM
+password auth, `idle_in_transaction_session_timeout`, and `max_connections`. The guard proves role
+posture and local configuration only; complete tenant-isolation coverage still belongs to
+`pnpm test:rls` against a real Neon Postgres branch as `DATABASE_URL_RUNTIME`.
+
 V1 product setup guidance should be written only after the tenant-first authorization model,
 WorkOS AuthKit, short-lived machine access, tenant-bound key hierarchy, Sensitive Metadata
 encryption, audit/export integrity, and
