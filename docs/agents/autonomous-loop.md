@@ -11,12 +11,16 @@ security posture, or domain language while doing so.
 - Keep implementation issues in the `INS` Linear team. Do not create an agent-only subteam for
   product work.
 - Apply the repo routing label `zaks-io/insecur` to every Linear issue for this repo.
-- Use `First Value Implementation` for First Value build work and
-  `First Value Customer Validation` for discovery, design-partner, evidence, and scope-gate work.
-- Use Linear projects for product milestones such as First Value Milestone, Production Delivery
-  Foundation, V1 Machine Access, V1 Sync, V1 Runtime Injection, and V1 Approval UX.
+- Use `First Value Build` for First Value build work and `Customer Discovery & Design Partners`
+  for discovery, design-partner, evidence, and scope-gate work.
+- Use Linear projects for product milestones such as First Value Build, Production Delivery
+  Foundation, Machine Access and CI Trust, Runtime Injection Delivery, Provider Sync: GitHub and
+  Cloudflare, Approval UX and Delivery Policy, and Audit, Runbooks, and Release Gates.
 - Use project milestones or parent issues for workstreams from `docs/specs/agent-workstreams.md`.
   Do not create workstream labels.
+- Do not create Linear projects, project milestones, parent issues, implementation issues, or
+  placeholder tickets for anything still listed in
+  `docs/phasing.md#deferred-scope-parking-lot`. Promote the work in the repo docs first.
 - Use Linear relationships for dependency order. `blocked by` and `blocks` are the ordering
   mechanism; labels are routing metadata.
 - Use `ready-for-agent` only for issues that an agent can implement without new product judgment.

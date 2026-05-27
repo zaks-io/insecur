@@ -15,6 +15,7 @@ Read these first:
 - `AGENTS.md`
 - `CONTEXT-MAP.md`
 - `docs/project-status.md`
+- `docs/phasing.md`
 - `docs/agents/issue-tracker.md`
 - `docs/agents/linear-ticketing.md`
 - `docs/agents/autonomous-loop.md`
@@ -64,8 +65,8 @@ Use current Type labels:
 
 ## Workflow
 
-1. Inventory the docs and extract capabilities, decisions, constraints, and explicit not-yet-done
-   work.
+1. Inventory the docs and extract capabilities, decisions, constraints, explicit not-yet-done work,
+   and anything listed in `docs/phasing.md#deferred-scope-parking-lot`.
 2. Group work by product milestone project, then by parent workstream issue.
 3. Create or update parent workstream issues as containers in `Backlog` without readiness labels.
 4. Create implementation issues as one-PR slices with the body contract in
@@ -81,6 +82,9 @@ Use current Type labels:
 ## Guardrails
 
 - Do not put Sensitive Values in Linear issue bodies, comments, examples, attachments, or logs.
+- Do not create Linear projects, project milestones, parent issues, implementation issues, or
+  placeholder tickets for anything still listed in
+  `docs/phasing.md#deferred-scope-parking-lot`. Promote the work in repo docs first.
 - Do not create workstream labels. Use parent issues or project milestones.
 - Do not make agent-ready issues that require new product, security, credential, vendor, or
   architecture judgment.

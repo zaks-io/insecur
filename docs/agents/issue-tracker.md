@@ -5,13 +5,37 @@ operations. Autonomous implementation agents must follow `docs/agents/autonomous
 
 ## Projects
 
-- `First Value Customer Validation` tracks discovery, design-partner onboarding, evidence review,
-  and scope-gate work.
-- `First Value Implementation` tracks agent-build work for the First Value Milestone.
+- `Customer Discovery & Design Partners` tracks discovery, design-partner onboarding, evidence
+  review, and scope-gate work.
+- `First Value Build` tracks agent-build work for the First Value proof.
+- `Production Delivery Foundation` tracks tenant, auth, key, storage, protected-environment, and
+  Storage Security Gate foundation work.
+- `Machine Access and CI Trust` tracks machine identities, deploy keys, GitHub Actions OIDC, and
+  scoped CI access.
+- `Runtime Injection Delivery` tracks profile-backed local and deploy runtime injection.
+- `Provider Sync: GitHub and Cloudflare` tracks active provider sync for GitHub Actions and direct
+  Cloudflare Worker secrets.
+- `Approval UX and Delivery Policy` tracks the Human Approval Surface, High-Assurance Challenges,
+  and Delivery Risk Policy Presets.
+- `Audit, Runbooks, and Release Gates` tracks audit export, tested restore evidence, runbooks, and
+  production release gates.
 
 The First Value ticket graph and dependency order are documented in
-`docs/specs/first-value-ticket-plan.md`. The Linear publishing checklist is documented in
-`docs/agents/linear-ticketing.md`.
+`docs/specs/first-value-ticket-plan.md`. The Linear project and milestone scaffold plus publishing
+checklist are documented in `docs/agents/linear-ticketing.md`.
+
+## Deferred scope
+
+Deferred work is tracked in the repo, not in Linear. The source of truth is
+`docs/phasing.md#deferred-scope-parking-lot`.
+
+Do not create Linear projects, project milestones, parent issues, implementation issues, or
+placeholder tickets for items still listed there. To work on a deferred item, first promote it in
+the repo docs by removing it from the deferred parking lot and adding a concrete product outcome to
+the decided scope or build order. Only then create Linear scaffolding.
+
+Active-scope issues may mention deferred work only to preserve additive seams; they must not build
+or track the deferred behavior itself.
 
 ## Conventions
 

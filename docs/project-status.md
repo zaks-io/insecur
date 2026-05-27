@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ## Current State
 
@@ -9,11 +9,14 @@ insecur currently contains no product implementation. The disposable Cloudflare-
 The first V1 promise is to stop giving coding agents plaintext local secret files. The production promise is to let agents and CI cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
 
 The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
-Linear triage labels exist for team INS, and the First Value Customer Validation project now tracks
-the initial customer-validation work. First Value implementation work is tracked separately in the
-First Value Implementation project using the parent workstreams and dependency graph documented in
-[first-value-ticket-plan.md](specs/first-value-ticket-plan.md). Linear ticket publishing rules live
-in [linear-ticketing.md](agents/linear-ticketing.md).
+Linear triage labels exist for team INS. Current active Linear projects are:
+`Customer Discovery & Design Partners`, `First Value Build`, `Production Delivery Foundation`,
+`Machine Access and CI Trust`, `Runtime Injection Delivery`,
+`Provider Sync: GitHub and Cloudflare`, `Approval UX and Delivery Policy`, and
+`Audit, Runbooks, and Release Gates`. First Value implementation work uses the parent workstreams
+and dependency graph documented in [first-value-ticket-plan.md](specs/first-value-ticket-plan.md).
+Linear project milestones and ticket publishing rules live in
+[linear-ticketing.md](agents/linear-ticketing.md).
 
 ## Customer Validation Plan
 
@@ -106,29 +109,36 @@ Guided Organization Provisioning for Personal Organizations with an owner Member
 
 Neon Postgres schema, Tenant-Scoped Store, Row-Level Security policies, Instance Bootstrap, WorkOS-backed Instance Identity Configuration, Bootstrap Operator Claim completion, first-Organization owner Membership, Default Team creation, Instance Operator-controlled Organization creation, Guided Organization Provisioning for Personal Organizations with a first Project and non-protected development Environment, organization/project memberships, scope-first authorization with built-in role presets, WorkOS AuthKit migration, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, AES-GCM authenticated data binding, Protected Environment promotion/rollback, the Storage Security Gate readiness contract in [storage-security-gate.md](storage-security-gate.md), and tenant-qualified routes.
 
-**V1 machine access**
+**Machine Access and CI Trust**
 
 Machine identities, GitHub Actions OIDC federation, and environment-scoped deploy keys with configurable rotation policies for scoped Runtime Injection automation without storing broad long-lived tokens. This is the custody boundary that lets CI use Protected Environment Sensitive Values while local agents and ordinary human sessions cannot read them.
 
-**V1 sync**
+**Provider Sync: GitHub and Cloudflare**
 
-OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter is deferred past V1 but remains additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes. Sync operation state, retry, resume, leases, and fencing tokens are governed by [operation-store.md](operation-store.md).
+OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter remains in the [deferred scope parking lot](phasing.md#deferred-scope-parking-lot) but stays additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes. Sync operation state, retry, resume, leases, and fencing tokens are governed by [operation-store.md](operation-store.md).
 
-**V1 runtime injection**
+**Runtime Injection Delivery**
 
 Profile-backed `insecur run <profile-slug-or-id> -- <command>` for deploys and local commands so developers and agents can use secrets without local secret files or secret reveal. The guided First Value Proof uses this path in a non-protected development Environment before any provider setup. Production runtime injection remains blocked until the Storage Security Gate passes.
 
-**V1 approval UX and delivery policy**
+**Approval UX and Delivery Policy**
 
 Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, Cloudflare Worker Secret Deploy approval evidence, and Risk-Broadening Delivery Changes. Delivery Risk Policy Presets default to Balanced, first onboarding does not show a preset picker, and users can later switch to Strict or Automation-Friendly. They can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only. Under Balanced, preview automation requires environment-scoped Preview Automation Opt-In; under Automation-Friendly, the same Preview Automation Authority applies by default for non-protected preview Environments in scope. Preview Automation Authority can execute only existing Runtime Injection Policies, Secret Syncs, and Secret Sync Bindings. Presets are backed by versioned policy infrastructure so later enterprise controls do not require refactoring authorization or audit.
 
-**Post-v1 hardening**
+**Audit, Runbooks, and Release Gates**
 
-Vercel sync, focused UI, rotation framework automation, Cron Triggers, Cloudflare Queues and Durable Object sync execution (additive over V1 inline sync), broader recovery drills, better token revocation workflows, and public-onboarding hardening for unrelated tenants.
+Tenant-qualified audit hardening, tamper-evident audit exports with JSONL hash chains and HMACed manifests, `audit verify`, security runbooks, tested restore evidence, ASVS/API Top 10 checks, dependency scanning, secret scanning, SBOM/vulnerability scanning, the release-gate evidence bundle, and pre-production gate automation.
+
+**Deferred scope**
+
+Deferred work is tracked in [phasing.md](phasing.md#deferred-scope-parking-lot), not in Linear.
+Do not create Linear projects, project milestones, parent issues, implementation issues, or
+placeholder tickets for those items until they are promoted out of the deferred parking lot in the
+repo docs.
 
 ## Recommended Next Steps
 
-1. Work the First Value Implementation Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), starting with the unblocked tooling baseline and the required human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
+1. Work the `First Value Build` Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), starting with the unblocked tooling baseline and the required human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
 2. Run the customer-validation loop from [customer-validation.md](customer-validation.md): 20 discovery interviews with agent-heavy teams, five design partners, and repeated First Value usage evidence.
 3. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md) as a narrow vertical slice through the real foundation: Tenant-Scoped Store, Row-Level Security, Effective Access, Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, tenant-bound Secret encryption, Secret Version Store, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
 4. Use the design-partner loop to shorten and harden the First Value proof before widening provider scope or web management.

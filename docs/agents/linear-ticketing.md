@@ -10,11 +10,46 @@ Apply label `zaks-io/insecur` to every issue for this repo.
 
 | Project | Purpose |
 | --- | --- |
-| `First Value Customer Validation` | Customer discovery, design-partner onboarding, evidence review, and scope gates. |
-| `First Value Implementation` | Agent-build work for the First Value Milestone. |
+| `Customer Discovery & Design Partners` | Customer discovery, design-partner onboarding, evidence review, and scope gates. |
+| `First Value Build` | Agent-build work for the First Value proof. |
+| `Production Delivery Foundation` | Tenant, auth, key, storage, protected-environment, and Storage Security Gate foundation. |
+| `Machine Access and CI Trust` | Machine identities, deploy keys, GitHub Actions OIDC, and scoped CI access. |
+| `Runtime Injection Delivery` | Profile-backed local and deploy Runtime Injection without secret reveal. |
+| `Provider Sync: GitHub and Cloudflare` | GitHub Actions and direct Cloudflare Worker secret sync. |
+| `Approval UX and Delivery Policy` | Human Approval Surface, High-Assurance Challenges, and Delivery Risk Policy Presets. |
+| `Audit, Runbooks, and Release Gates` | Audit export, tested restore evidence, runbooks, and production release gates. |
 
 The First Value implementation ticket graph lives in
 `docs/specs/first-value-ticket-plan.md`.
+
+## Project Milestones
+
+Use these Linear project milestones as tracking gates. Do not create milestones for deferred-scope
+items unless they have first been promoted out of `docs/phasing.md#deferred-scope-parking-lot`.
+
+| Project | Milestones |
+| --- | --- |
+| `Customer Discovery & Design Partners` | `Discovery Interviews Complete`; `Design Partners Recruited`; `Supported Repo Onboarding`; `Usage Evidence Review`; `Scope Gate Decision` |
+| `First Value Build` | `Tooling Baseline`; `Tenant and Security Foundation`; `Guided Onboarding Path`; `Secret Write Path`; `Runtime Injection Path`; `Copyable Proof Complete` |
+| `Production Delivery Foundation` | `Instance and Tenant Bootstrap`; `Human Auth and Authorization`; `Tenant-Bound Key Custody`; `Protected Environment Lifecycle`; `Storage Security Gate Ready` |
+| `Machine Access and CI Trust` | `Machine Identity Model`; `GitHub Actions OIDC Federation`; `Environment Deploy Keys`; `Short-Lived Access Tokens`; `Machine Access Audit Coverage` |
+| `Runtime Injection Delivery` | `Profile Model and Resolution`; `Profile-Backed CLI Run`; `Production Runtime Gate Enforcement`; `Deploy Runtime Injection`; `Metadata-Only Operation Output` |
+| `Provider Sync: GitHub and Cloudflare` | `App Connections and Boundaries`; `Sync Model and Exact Bindings`; `Explicit Provider Lookup`; `Inline Operation Store`; `GitHub Actions Sync`; `Cloudflare Worker Secret Sync`; `Sync Verify Retry Resume Audit` |
+| `Approval UX and Delivery Policy` | `Approval State Machine`; `Human Approval Surface`; `High-Assurance Challenges`; `Protected Delivery Configuration Approval`; `Delivery Risk Policy Presets`; `Preview Automation Opt-In` |
+| `Audit, Runbooks, and Release Gates` | `Tenant-Qualified Audit Hardening`; `Tamper-Evident Audit Export`; `Tested Restore Evidence`; `Security Runbooks`; `Release Gate Automation`; `Production Readiness Signoff` |
+
+## Deferred Scope Exclusion
+
+Before creating or updating Linear scaffolding, check
+`docs/phasing.md#deferred-scope-parking-lot`.
+
+Items in that section must not receive Linear projects, project milestones, parent issues,
+implementation issues, or placeholder tickets. The repo docs are the deferred-scope parking lot. If
+the work is now needed, promote it in the repo docs first by removing it from deferred scope and
+adding a concrete product outcome to the decided scope or build order.
+
+It is acceptable for an active issue to preserve a seam for deferred work, such as a provider port
+that remains Vercel-ready. The issue must not implement, schedule, or track the deferred behavior.
 
 ## Issue Body Contract
 

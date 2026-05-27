@@ -44,16 +44,10 @@ ADR." V1 keeps:
   Surface.
 - Full CI, real Postgres RLS tests, security gates, and supply-chain hardening.
 
-Deferred past V1:
-
-- Vercel sync adapter.
-- Cloudflare Queues and Durable Objects.
-- Automated scheduled key-rotation engine, while the V1 schema and keyring must keep the
-  `key_version` and rewrap seams.
-- Service Access surface.
-- Staged Change Set / batch Publish.
-- Multi-approver policies and Partial Approval behavior beyond the data-model-ready shape.
-- Full web management parity.
+Deferred scope lives in [docs/phasing.md](../phasing.md#deferred-scope-parking-lot). While an item
+remains in that parking lot, do not create Linear projects, project milestones, parent issues,
+implementation issues, or placeholder tickets for it. Active work may preserve additive seams, but
+must not build deferred behavior until the item is promoted in the repo docs.
 
 Trace: [ADR-0001](../adr/0001-tenant-first-control-plane.md),
 [ADR-0015](../adr/0015-production-v1-security-baseline.md),

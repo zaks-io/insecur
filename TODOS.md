@@ -96,10 +96,10 @@ blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); 
   design: fill the exact execute/verify commands when the rotation CLI/API surface exists and run a
   triage tabletop before the first valuable production secret (Small-Group Production gate).
 
-## Deferred scope (tracking only — see docs/phasing.md for rationale)
+## Deferred scope
 
-Vercel sync adapter; Cloudflare Queues + Durable Objects; automated key-rotation engine; Service
-Access surface; Staged Change Set / batch publish; multi-approver + Partial Approvals; full web
-management parity. All deferrals are additive (reversibility 4-5) because the vendor ports
-(ADR-0049), versioned policy, operation/audit model, and `key_version` schema seams already
-exist.
+The deferred-scope source of truth is
+[docs/phasing.md#deferred-scope-parking-lot](docs/phasing.md#deferred-scope-parking-lot). Do not
+create Linear projects, project milestones, parent issues, implementation issues, or placeholder
+tickets for anything listed there until it is promoted out of the deferred parking lot in the repo
+docs.

@@ -16,15 +16,15 @@ Use two Linear projects under team `INS`:
 
 | Project | Purpose |
 | --- | --- |
-| `First Value Customer Validation` | Discovery, design-partner onboarding, evidence review, and scope-gate work. |
-| `First Value Implementation` | Agent-build work for the First Value Milestone. |
+| `Customer Discovery & Design Partners` | Discovery, design-partner onboarding, evidence review, and scope-gate work. |
+| `First Value Build` | Agent-build work for the First Value proof. |
 
 Do not create workstream labels. Use parent issues for workstreams and Linear relationships for
 execution order.
 
 ## Workstream Parents
 
-Create these parent issues in `First Value Implementation`. They are workstream containers, not
+Create these parent issues in `First Value Build`. They are workstream containers, not
 agent-ready implementation issues.
 
 | Parent issue | Scope |
@@ -114,10 +114,10 @@ CLI output.
 
 ## Existing Issue Cleanup
 
-- Keep `First Value Customer Validation` for validation work.
-- Move `INS-1` to `First Value Implementation`, parent it under W5, retitle it to
+- Keep `Customer Discovery & Design Partners` for validation work.
+- Move `INS-1` to `First Value Build`, parent it under W5, retitle it to
   `Complete the copyable First Value Proof end to end`, and use it as the final proof ticket.
-- Move `INS-4` to `First Value Implementation`, parent it under W10, and keep it as
+- Move `INS-4` to `First Value Build`, parent it under W10, and keep it as
   telemetry/feedback capture.
 - Remove `INS-1 blocks INS-3`; recruiting can start before implementation completes.
 - Set validation dependencies:
