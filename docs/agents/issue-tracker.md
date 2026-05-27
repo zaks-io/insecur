@@ -56,6 +56,9 @@ issue part of this repo's queue.
 
 - Use parent issues for workstreams such as `W0 - Tooling, CI, and Supply Chain`.
 - Do not create workstream labels.
+- Parent workstream issues are containers: keep them in `Backlog` with only `zaks-io/insecur`, no
+  readiness label, no Type/risk label, and no milestone.
+- Assign every non-container issue in an active project to a project milestone.
 - Publish blockers before blocked issues so child descriptions can cite real issue IDs.
 - Use `blockedBy` and `blocks` relationships for ordering.
 - Keep blocked implementation issues in `Backlog` without `ready-for-agent`.

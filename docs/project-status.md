@@ -18,6 +18,12 @@ and dependency graph documented in [first-value-ticket-plan.md](specs/first-valu
 Linear project milestones and ticket publishing rules live in
 [linear-ticketing.md](agents/linear-ticketing.md).
 
+First Value human setup tickets are complete in Linear: `FV-H1` recorded the non-secret
+Neon/Hyperdrive setup inputs, `FV-H2` recorded the non-secret WorkOS AuthKit development setup
+inputs, and `FV-H3` recorded the non-secret Cloudflare Secrets Store root-key custody setup inputs.
+Those tickets unblock implementation planning, but the corresponding persistence, authentication,
+and keyring behavior is not wired into product code yet.
+
 ## Customer Validation Plan
 
 Product excellence for insecur means proving a narrow customer pull before broadening the
@@ -43,7 +49,8 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 - Machine tokens hashed at rest with project/action scoped authorization
 - Secret CRUD, version history, rollback, and dotenv export
 - Audit logging, basic API hardening headers, and opaque-ID/Display-Name input validation
-- The generated `dist/`, `node_modules/`, and `pnpm-lock.yaml`
+- Generated `dist/`, `node_modules/`, and other disposable build/install artifacts from the
+  removed scaffold. The current workspace has its own package-manager baseline.
 
 ### Kept (not scaffold)
 
@@ -53,22 +60,33 @@ The disposable learning code has been deleted from the working tree per ADR-0018
 
 ## Verified Locally
 
-Nothing product-bearing to build or verify yet. The scaffold that previously passed `pnpm typecheck` and `pnpm build` has been removed; the new app and package source entrypoints are empty TypeScript modules, and `node_modules`/`pnpm-lock.yaml` are gone. The first meaningful build/typecheck baseline gets re-established when the target product's First Value slice is implemented.
+The repo has no product-bearing implementation yet; the app and package source entrypoints are
+empty TypeScript modules. The workspace baseline is present on Node 24 and pnpm 10:
+
+- `pnpm typecheck` passes across all 10 workspace packages.
+- `pnpm build --filter='!@insecur/worker'` passes for the 9 non-worker packages.
+- Full `pnpm build` still fails at `@insecur/worker` because no `wrangler.jsonc` or Worker
+  entry-point configuration exists yet. This is the documented Worker setup gap, not evidence of a
+  product implementation failure.
 
 ## Not Yet Done
 
-- Neon Postgres has not been provisioned for the V1 target architecture
-- Cloudflare Hyperdrive has not been configured for the V1 target architecture
-- Neither D1 nor any persistence is wired; the target persistence model (Neon Postgres) is not provisioned
+- Neon Postgres is not wired into the product yet; First Value non-secret setup inputs are recorded
+  in Linear `FV-H1`
+- Cloudflare Hyperdrive is not wired into the product yet; First Value non-secret setup inputs are
+  recorded in Linear `FV-H1`
+- Neither D1 nor any target persistence is wired into the product code yet
 - Production Worker deployment has not been smoke-tested
 - No tenant-first schema exists yet
 - No organization-qualified routes exist yet
 - No membership/role-based authorization exists yet
-- No human authentication exists yet; the target is WorkOS AuthKit
+- No human authentication implementation exists yet; First Value WorkOS AuthKit setup inputs are
+  recorded in Linear `FV-H2`
 - No machine identity-issued short-lived access tokens exist yet
 - No CLI authentication exists yet; the target is memory/session-only
 - Environment-scoped deploy keys and deploy key rotation policies do not exist yet
-- No organization data keys or project data keys exist yet
+- No organization data keys or project data keys exist yet; First Value Cloudflare Secrets Store
+  setup inputs are recorded in Linear `FV-H3`
 - No ciphertext binding to tenant/resource identity with authenticated data exists yet
 - Sensitive Metadata encryption is not implemented yet
 - No key version model or key rotation workflow exists yet

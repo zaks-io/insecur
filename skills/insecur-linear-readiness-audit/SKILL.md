@@ -22,7 +22,9 @@ Read these first:
 For each relevant INS issue, check:
 
 - It has label `zaks-io/insecur`.
-- Parent workstream issues are containers in `Backlog` and do not have readiness labels.
+- Parent workstream issues are containers in `Backlog` and have only the repo routing label: no
+  readiness label, no Type/risk label, and no project milestone.
+- Every non-container issue in an active project has a project milestone.
 - Agent-ready implementation issues are `Todo`, have `ready-for-agent`, are unblocked, and satisfy
   the issue body contract.
 - Blocked implementation issues are `Backlog` or `Blocked` and do not have `ready-for-agent`.

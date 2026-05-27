@@ -16,8 +16,11 @@ security posture, or domain language while doing so.
 - Use Linear projects for product milestones such as First Value Build, Production Delivery
   Foundation, Machine Access and CI Trust, Runtime Injection Delivery, Provider Sync: GitHub and
   Cloudflare, Approval UX and Delivery Policy, and Audit, Runbooks, and Release Gates.
-- Use project milestones or parent issues for workstreams from `docs/specs/agent-workstreams.md`.
-  Do not create workstream labels.
+- Use project milestones for delivery gates and parent issues for workstreams from
+  `docs/specs/agent-workstreams.md`. Do not create workstream labels.
+- Parent workstream issues are containers and should stay in `Backlog` with only `zaks-io/insecur`,
+  no readiness label, no Type/risk label, and no milestone.
+- Every non-container issue in an active project should have the appropriate project milestone.
 - Do not create Linear projects, project milestones, parent issues, implementation issues, or
   placeholder tickets for anything still listed in
   `docs/phasing.md#deferred-scope-parking-lot`. Promote the work in the repo docs first.
@@ -224,8 +227,9 @@ Interpret Linear fields this way:
 | --- | --- |
 | Team `INS` | The issue belongs to this repo. |
 | Label `zaks-io/insecur` | The issue belongs to this repository. Required before orchestration. |
-| Project | Product milestone or delivery slice. |
-| Parent issue or project milestone | Workstream or architectural area from `docs/specs/agent-workstreams.md`. |
+| Project | Phase or major program, such as First Value Build. |
+| Project milestone | Delivery gate inside the project. Required for non-container issues. |
+| Parent issue | Workstream container from `docs/specs/agent-workstreams.md`. Intentionally unmilestoned. |
 | Sub-issue | One implementation job, sized for one PR. |
 | `blocked by` / `blocks` | Execution order. Do not start blocked work. |
 | `ready-for-agent` | Permission for autonomous implementation. |
@@ -235,8 +239,8 @@ Interpret Linear fields this way:
 | Type label | General work kind; not an execution rule. |
 | Status | Current workflow state. |
 
-Do not use labels for workstreams. Use parent issues, project milestones, and issue relationships
-for that structure.
+Do not use labels for workstreams. Use parent issues for workstream grouping, project milestones
+for delivery gates, and issue relationships for execution order.
 
 ## Issue Body Contract
 

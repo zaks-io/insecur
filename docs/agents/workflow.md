@@ -23,7 +23,8 @@ Work moves through this repo in six stages plus one sidecar review loop.
 
    Use `skills/insecur-roadmap-to-linear/SKILL.md` to turn docs, specs, ADRs, and project status
    into Linear projects, parent workstream issues, implementation issues, labels, and dependencies.
-   Workstreams are parent issues or project milestones, not labels.
+   Workstreams are parent issues, delivery gates are project milestones, and execution order is
+   represented with Linear relationships. Do not use labels for workstreams.
    Do not create Linear scaffolding for anything still listed in
    `docs/phasing.md#deferred-scope-parking-lot`; promote it in the repo docs first.
 
