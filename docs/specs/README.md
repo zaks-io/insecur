@@ -37,11 +37,11 @@ The repo is past pure planning: the accepted First Value app/package skeleton an
 verification baseline are present, and `pnpm verify` is the local proof that the scaffold is
 executable.
 
-There is still no product-bearing implementation yet. Package entrypoints are intentionally empty,
-and the Tenant-Scoped Store, authentication, keyring, Secret Version Store, Runtime Injection,
-provider sync, audit, and UI seams are not wired. The previous pre-V1 scaffold was removed as
-disposable learning code. New work should implement the target product described here, not preserve
-or compatibly emulate the removed scaffold.
+There is still no product-bearing implementation yet. The Worker has only a health-check route,
+package entrypoints are intentionally empty, and the Tenant-Scoped Store, authentication, keyring,
+Secret Version Store, Runtime Injection, provider sync, audit, and UI seams are not wired. The
+previous pre-V1 scaffold was removed as disposable learning code. New work should implement the
+target product described here, not preserve or compatibly emulate the removed scaffold.
 
 Trace: [ADR-0018](../adr/0018-retire-unsafe-pre-v1-scaffold.md),
 [project-status.md](../project-status.md).

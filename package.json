@@ -13,11 +13,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "dev:check": "node scripts/dev-check.mjs",
+    "doctor": "pnpm dev:check",
     "dev": "turbo run dev --cache=local:rw,remote:r",
     "dev:worker": "turbo run dev --filter @insecur/worker",
     "deploy:worker": "turbo run deploy --filter @insecur/worker",
-    "migrate:local": "turbo run migrate:local --filter @insecur/worker",
-    "migrate:remote": "turbo run migrate:remote --filter @insecur/worker",
     "cli": "pnpm --filter @insecur/cli start",
     "clean": "turbo run clean"
   },

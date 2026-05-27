@@ -1,0 +1,2 @@
+# The local /healthz Worker route does not require secrets.
+# Add local-only Worker variables here only when a product slice defines them.

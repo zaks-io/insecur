@@ -62,8 +62,9 @@ Hosted onboarding creates a Personal Organization, owner Membership, first Proje
 
 The current repo scaffold is the accepted implementation baseline: Node 24/pnpm 10 workspace
 tooling, First Value app/package stubs, `pnpm verify`, and the copyable First Value Proof. It is
-real scaffolding, not product behavior. The package entrypoints are still empty and do not yet
-implement secrets custody, runtime injection, provider sync, authorization, audit, or UI features.
+real scaffolding, not product behavior. The Worker has only a health-check route, and package
+entrypoints are still empty. The repo does not yet implement secrets custody, runtime injection,
+provider sync, authorization, audit, or UI features.
 
 The removed unsafe scaffold was disposable learning code, not a supported product mode or evidence
 of intended product behavior. V1 work should replace or delete any remaining references to those

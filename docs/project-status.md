@@ -9,11 +9,11 @@ verification baseline for First Value work: Node 24, pnpm 10, the workspace pack
 package-manager lockfile and catalog, Turbo task wiring, Prettier, ESLint, Vitest, package/app
 stubs, and `pnpm verify` across all 10 workspace packages.
 
-That scaffold is not product-bearing yet. The app and package `src/index.ts` entrypoints remain
-deliberately empty modules, and no Tenant-Scoped Store, human authentication, keyring, Secret
-Version Store, Blind Secret Write, Runtime Injection, provider sync, audit, or UI behavior is wired
-into product code yet. The next product behavior written is the target product, built against these
-docs.
+That scaffold is not product-bearing yet. The Worker has only a local health-check route, package
+`src/index.ts` entrypoints remain deliberately empty modules, and no Tenant-Scoped Store, human
+authentication, keyring, Secret Version Store, Blind Secret Write, Runtime Injection, provider
+sync, audit, or UI behavior is wired into product code yet. The next product behavior written is
+the target product, built against these docs.
 
 The disposable Cloudflare-native secrets manager learning code that predated these docs has been
 removed from the working tree per ADR-0018. The target product direction starts with Diskless
@@ -81,17 +81,17 @@ removed unsafe scaffold.
 - The executable workspace baseline: root `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`,
   `tsconfig.base.json`, `turbo.json`, `.prettierrc.json`, `.prettierignore`, `eslint.config.ts`,
   `vitest.config.ts`, package scripts, and the package context map in `docs/context-map.md`.
-- The First Value app/package skeleton: the `apps/worker` stub, `packages/cli`, and First Value
-  domain package stubs under `packages/`. Their source entrypoints are deliberately empty until
-  product slices implement the corresponding seams.
+- The First Value app/package skeleton: the `apps/worker` health-check stub, `packages/cli`, and
+  First Value domain package stubs under `packages/`. Package source entrypoints are deliberately
+  empty until product slices implement the corresponding seams.
 - `examples/first-value-proof`, the copyable First Value Proof.
 - All documentation: CONTEXT, the consolidated specs in `docs/specs/`, architecture, the ADRs, `docs/cli-and-sync.md`, `docs/security-plan.md`, and `docs/security-runbooks-and-release-gates.md`.
 
 ## Verified Locally
 
-The repo has no product-bearing implementation yet; the app and package source entrypoints are
-empty TypeScript modules. The accepted scaffold and workspace verification baseline are present on
-Node 24 and pnpm 10:
+The repo has no product-bearing implementation yet; the Worker exposes only `/healthz`, and package
+source entrypoints are empty TypeScript modules. The accepted scaffold and workspace verification
+baseline are present on Node 24 and pnpm 10:
 
 - `pnpm install --frozen-lockfile` passes.
 - `pnpm verify` passes across all 10 workspace packages with Prettier, ESLint, TypeScript, and
@@ -99,10 +99,10 @@ Node 24 and pnpm 10:
 - `pnpm typecheck` passes across all 10 workspace packages.
 - `pnpm test:rls` is wired as an uncached tenant-store placeholder; real Postgres RLS tests start
   with FV-04.
-- `pnpm build --filter='!@insecur/worker'` passes for the 9 non-worker packages.
-- Full `pnpm build` still fails at `@insecur/worker` because no `wrangler.jsonc` or Worker
-  entry-point configuration exists yet. This is the documented Worker setup gap, not evidence of a
-  product implementation failure.
+- `pnpm dev:check` passes and verifies the local toolchain, Wrangler 4, and scaffold files without
+  printing secret values.
+- `pnpm build` passes, including the Worker dry-run deploy through the committed
+  `apps/worker/wrangler.jsonc`.
 
 ## Not Yet Done
 

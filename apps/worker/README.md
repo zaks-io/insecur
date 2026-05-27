@@ -14,8 +14,11 @@ ownership.
 ## Layout
 
 ```
-src/                    Worker route and binding composition, when implemented
+src/                    Worker route and binding composition
+wrangler.jsonc          Local and dry-run Worker configuration
 ```
+
+The current Worker surface is only `GET /healthz` for local scaffold verification.
 
 ## Owns
 

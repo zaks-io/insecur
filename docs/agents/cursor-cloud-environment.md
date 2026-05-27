@@ -25,7 +25,8 @@ Cursor's repo-level environment config should be treated as reviewable infrastru
 - Keep Cursor Cloud instructions aligned with `AGENTS.md`, `.cursor/rules/insecur.mdc`, and
   `docs/agents/repo-navigation.md`; do not create remote-only navigation rules.
 - Keep dependency installation in `.cursor/environment.json` `install`; it must be idempotent and safe to rerun after checkout.
-- Do not add `start` or long-running `terminals` until the Worker dev workflow is ready to run consistently in remote agent sessions.
+- Do not add long-running `terminals` unless a task specifically needs an always-on remote Worker
+  session.
 - Do not `COPY` the repository into `.cursor/Dockerfile`; Cursor manages checkout and branch state.
 - Do not add secrets to `.cursor/environment.json` or `.cursor/Dockerfile`.
 - Any package added to `onlyBuiltDependencies` is a supply-chain decision and should be reviewed as such.
@@ -38,11 +39,10 @@ Use these checks after environment changes:
 node --version
 pnpm --version
 pnpm install --frozen-lockfile
+pnpm dev:check
 pnpm verify
 pnpm typecheck
 pnpm build
 docker build -f .cursor/Dockerfile .cursor -t insecur-cursor-env-test
 docker run --rm insecur-cursor-env-test sh -lc 'node --version && pnpm --version'
 ```
-
-`pnpm build` currently reaches the Worker dry-run deploy and fails until the Worker has a `wrangler.jsonc` or explicit deploy entry point. Do not fix that as part of Cursor environment maintenance unless the task is also to restore the Worker build baseline.
