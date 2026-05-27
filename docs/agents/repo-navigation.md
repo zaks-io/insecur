@@ -62,6 +62,8 @@ ADRs named by that local context.
 - Use `docs/agents/autonomous-loop.md` before claiming or updating implementation work.
 - Use `docs/agents/skill-usage.md` to choose a repo-local skill.
 - Use `skills/insecur-implement-issue/SKILL.md` for one ready issue.
+- Use `skills/insecur-code-review/SKILL.md` for standalone bug-focused diff review, CodeRabbit
+  escalation decisions, or remote Cursor review prompts.
 - Use `skills/insecur-local-code-review/SKILL.md` before opening a PR.
 - Use `skills/insecur-review-pr/SKILL.md` for PR review.
 - Use `skills/insecur-goal-review-main-and-queue-fixes/SKILL.md` for the periodic sidecar review of

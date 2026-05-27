@@ -22,12 +22,20 @@ strong review pass or explicit human approval.
 Read these first:
 
 - `AGENTS.md`
+- `docs/project-status.md`
 - `CONTEXT-MAP.md`
+- `CONTEXT.md`
+- `docs/agents/workflow.md`
 - `docs/agents/autonomous-loop.md`
 - `docs/agents/issue-tracker.md`
+- `docs/specs/README.md`
+- `docs/adr/README.md`
+- the PR description, commits, changed files, and checks
 - the linked Linear issue
 - context docs named by the issue
-- changed package or app `CONTEXT.md` files
+- changed package or app `README.md` or `CONTEXT.md` files
+
+Also use `skills/insecur-code-review/SKILL.md` and its checklist for the bug taxonomy.
 
 ## Review Checks
 

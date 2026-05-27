@@ -122,6 +122,7 @@ Start by choosing the smallest skill that matches the task:
 | Convert docs/specs into Linear work | `insecur-roadmap-to-linear` |
 | Audit labels, statuses, blockers, or readiness | `insecur-linear-readiness-audit` |
 | Implement one ready issue | `insecur-implement-issue` |
+| Run an independent bug-focused diff review | `insecur-code-review` |
 | Review local changes before PR | `insecur-local-code-review` |
 | Review one PR | `insecur-review-pr` |
 | Keep the agent implementation queue moving | `insecur-goal-keep-agent-queue-moving` |

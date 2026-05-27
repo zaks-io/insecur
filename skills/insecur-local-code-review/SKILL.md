@@ -19,12 +19,19 @@ reviewer is available, state that limitation in the output.
 Read these first:
 
 - `AGENTS.md`
+- `docs/project-status.md`
 - `CONTEXT-MAP.md`
+- `CONTEXT.md`
+- `docs/agents/workflow.md`
 - `docs/agents/autonomous-loop.md`
 - `docs/agents/issue-tracker.md`
+- `docs/specs/README.md`
+- `docs/adr/README.md`
 - the Linear issue body when the local changes correspond to an issue
 - context docs named by the issue
-- changed package or app `CONTEXT.md` files
+- changed package or app `README.md` or `CONTEXT.md` files
+
+Also use `skills/insecur-code-review/SKILL.md` and its checklist for the bug taxonomy.
 
 ## Diff Scope
 

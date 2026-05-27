@@ -14,6 +14,7 @@ the main-fix queueing loop, and doc sync, read `docs/agents/workflow.md`.
 | `insecur-roadmap-to-linear` | Turning docs/specs into Linear projects, parent issues, implementation issues, labels, and dependencies. |
 | `insecur-linear-readiness-audit` | Auditing Linear issues for repo label coverage, readiness, blockers, statuses, and body completeness. |
 | `insecur-implement-issue` | Implementing one `Todo` + `ready-for-agent` Linear issue as one PR. |
+| `insecur-code-review` | Running an independent bug-focused diff review, CodeRabbit escalation decision, or remote Cursor review prompt. |
 | `insecur-local-code-review` | Reviewing local changes or an implementation branch before opening a PR. |
 | `insecur-review-pr` | Reviewing a PR against its Linear issue, security invariants, tests, and docs. |
 | `insecur-goal-keep-agent-queue-moving` | Keeping the implementation queue moving across Linear, delegated agents, PRs, checks, and review feedback. |
