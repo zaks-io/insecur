@@ -115,7 +115,7 @@ Start by choosing the smallest skill that matches the task:
 | -------------------------------------------------- | -------------------------- |
 | Convert docs/specs into Linear work or audit it    | `workflow-issue-triage`    |
 | Implement one ready issue                          | `workflow-agent-implement` |
-| Review a diff, branch, or PR                        | `workflow-code-review`     |
+| Review a diff, branch, or PR                       | `workflow-code-review`     |
 | Open or ship the current branch as a PR            | `workflow-create-pr`       |
 | Keep the agent implementation queue moving         | `workflow-agent-queue`     |
 | Review newly landed `main` commits and queue fixes | `workflow-agent-review`    |

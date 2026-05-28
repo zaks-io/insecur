@@ -13,7 +13,9 @@ Runtime-specific files are adapters only. Shared workflow truth lives in `docs/a
 ### Workflow
 
 The end-to-end repo workflow is documented in `docs/agents/workflow.md`: how to choose a skill,
-move work through Linear, implement one issue, review PRs, and coordinate agents.
+move work through Linear, implement one issue, review PRs, and coordinate agents. Read
+`docs/agents/workflow/config.md` first for the workflow lookup table (commands, Linear IDs, labels,
+runtimes, gates) before using any `workflow-*` skill.
 
 ### Fast repo navigation
 

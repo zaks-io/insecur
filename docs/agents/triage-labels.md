@@ -18,3 +18,10 @@ Edit the right-hand column to match whatever vocabulary this repo actually uses 
 
 Every Linear issue for this repo should also carry `zaks-io/insecur`. This is a repo routing label,
 not one of the five triage roles.
+
+## Full label set and IDs
+
+This file covers only the readiness roles plus the repo routing label. For the complete verified
+label set (readiness, risk, type, repo routing, remote-worker) with Linear IDs, statuses, and
+project IDs, see `docs/agents/workflow/config.md`. That config is the workflow lookup table; keep it
+in sync with live Linear `INS` metadata.
