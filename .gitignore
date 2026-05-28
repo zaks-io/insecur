@@ -10,3 +10,7 @@ dist/
 coverage/
 .turbo/
 .claude/scheduled_tasks.lock
+
+# Agent-created git worktrees (disposable; used by workflow-* skills)
+.claude/worktrees/
+.codex/worktrees/
