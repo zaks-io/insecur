@@ -2,6 +2,15 @@
 
 insecur is no-reveal secrets custody for teams shipping with agents and CI. See `docs/vision.md` for the north star: what this is, what it is trying to accomplish, and the overall direction of the repo.
 
+This project is not live yet and has no users. We are still building out, configuring, and verifying the application before going live. There is no production data worth protecting.
+
+During this build-out period:
+- Destructive operations (dropping databases, wiping state, resetting environments, recreating schemas) are fine and do not need extra confirmation.
+- Do not write data-preservation migration scripts, backwards-compatible schema changes, or multi-step rollout plans to protect data that does not exist. Just change the schema and reset. Prefer recreate-from-scratch over migrate.
+- Secret rotation, real migrations, and staged rollout plans come later, once we are live.
+
+This stays true until the project actually ships.
+
 ## Agent skills
 
 This repo has repo-local skills in `skills/*/SKILL.md`. If a task names one of those skills or
