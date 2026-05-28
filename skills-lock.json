@@ -1,4 +1,53 @@
 {
   "version": 1,
-  "skills": {}
+  "skills": {
+    "workflow-agent-implement": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-agent-implement/SKILL.md",
+      "computedHash": "19ddcc3293675c9fedc6824ffb74c33ce816a9ea235e9c565bb1d6218476f788"
+    },
+    "workflow-agent-queue": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-agent-queue/SKILL.md",
+      "computedHash": "696fcf79be4495a93328e0456e0c4c18cc074f96527b130bbc7fcb99f335a94f"
+    },
+    "workflow-agent-review": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-agent-review/SKILL.md",
+      "computedHash": "312303bb45558d7c78a9218c6a6893e66a5ec86b120476c6415d4428c2700f53"
+    },
+    "workflow-code-review": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-code-review/SKILL.md",
+      "computedHash": "a896dbeda8c2d3a2af0f6d3cc61a99194b0cd818e8c1b6fc813d8f12f2fa7081"
+    },
+    "workflow-create-pr": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-create-pr/SKILL.md",
+      "computedHash": "88ff3d6f1cceea31eaba63b52b34d0aab2eeafabe03c1d66acf0c92a63b82a0a"
+    },
+    "workflow-issue-triage": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-issue-triage/SKILL.md",
+      "computedHash": "1065483d02def58ed1173b924b1e7be8a1e86c3b93e419cd6fa4e1eb1d336507"
+    },
+    "workflow-secret-redaction": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-secret-redaction/SKILL.md",
+      "computedHash": "e29e4865c984fbb2ae45504694fd737048c2fa50ec6bf9a460bac03d15b92652"
+    },
+    "workflow-setup": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-setup/SKILL.md",
+      "computedHash": "f13ac54685ed7537e720762f0d110830ee25f5e90498bb44b3f47db07081a4b8"
+    }
+  }
 }
