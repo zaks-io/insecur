@@ -25,6 +25,7 @@ ADRs linked by the relevant section.
 | Package ownership and dependency direction       | `docs/context-map.md`                     |
 | Current product shape and ADR trace links        | `docs/specs/product-spec.md`              |
 | Implementation workstream boundaries             | `docs/specs/agent-workstreams.md`         |
+| Production MVP acceptance contract               | `docs/production-mvp-acceptance.md`       |
 | First Value build contract                       | `docs/first-value-milestone.md`           |
 | First Value Linear ticket graph                  | `docs/specs/first-value-ticket-plan.md`   |
 | CLI and provider sync behavior                   | `docs/cli-and-sync.md`                    |

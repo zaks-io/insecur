@@ -156,6 +156,8 @@ The First Value Milestone is allowed to prove the non-protected development loop
 ## Build Order
 
 This is a dependency-ordered implementation sequence, not a release plan. Which slice ships as which version is **not decided**; see [phasing.md](phasing.md). The milestone names below are build ordering, not version boundaries.
+Use [production-mvp-acceptance.md](production-mvp-acceptance.md) as the pass/fail contract for when
+the actual production MVP is ready.
 
 **First Value Milestone**
 
