@@ -86,6 +86,6 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - ESLint, Prettier, Vitest, and `pnpm verify` are wired up. Package tests currently use Vitest's no-test pass-through until product slices add real tests.
 - Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
 - `pnpm test:rls` is wired as an uncached tenant-store placeholder. Real Postgres RLS tests start with FV-04 and require `DATABASE_URL_RUNTIME`.
-- Lefthook, GitHub Actions validation, and secret/dependency scanning are not wired yet; FV-02 owns that follow-up.
+- Lefthook is installed and its git hooks fire (pre-commit, pre-push, prepare-commit-msg), but `lefthook.yml` has no jobs configured yet, so the hooks are empty passes. GitHub Actions validation and secret/dependency scanning are not wired yet; FV-02 owns that follow-up.
 - Package `src/index.ts` files export `export {};` — this is a deliberate empty skeleton per ADR-0018.
 - `pnpm-workspace.yaml` has `strictDepBuilds: true` and `onlyBuiltDependencies` allowlist. Adding a dependency that runs lifecycle scripts requires an explicit allowlist addition.
