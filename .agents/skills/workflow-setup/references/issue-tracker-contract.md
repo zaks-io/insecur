@@ -26,7 +26,6 @@ Readiness:
 - `needs-info`
 - `ready-for-agent`
 - `ready-for-human`
-- `remote-worker`
 - `wontfix`
 
 Risk:
@@ -63,9 +62,16 @@ contains:
 
 - Ready implementation work is `Todo`, unblocked, labeled `ready-for-agent`, and
   has a complete agent-ready body.
-- Remote worker work also has `remote-worker`.
+- Issue-assigned agent work, when supported by the repo, uses the
+  project-configured worker routing label, field, or metadata the tracker
+  integration needs to select the environment.
+- When the user explicitly chooses an issue-assigned worker path, Orchestrator or
+  Issue Triage may add the configured worker routing label or field only after
+  verifying the issue is otherwise ready and unblocked.
+- If a repo uses an extra label such as `remote-worker`, record it in
+  `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
-  workflow state. Agent Queue owns the authority to mutate workflow state unless
+  workflow state. Agent Orchestrator owns the authority to mutate workflow state unless
   the user explicitly says otherwise.
 - Blocked work is not labeled `ready-for-agent`.
 - Human setup, credentials, product judgment, provider approval, customer input,
@@ -75,11 +81,30 @@ contains:
 - Parent or workstream issues are containers unless explicitly marked
   executable.
 
+## Tracker Metadata Verification
+
+Setup must record query-safe tracker metadata for the configured scope:
+
+- exact provider IDs, keys, or display names accepted by the tracker tool
+- status field names used by the current tool, such as `status`, `state`, or
+  `statusType`
+- blocker and dependency relationship fields
+- routing and readiness labels
+- a read-only verification query that returns the expected issue set
+
+Do not treat an empty tracker response as proof that no work exists until the
+configured provider ID or query-safe name has been verified. Do not parse local
+tool-result cache files when the tracker tool can answer directly.
+
+Do not mutate a real implementation issue to test whether a delegation field,
+agent name, or integration exists. Use read-only metadata, existing verified
+config, provider docs, or a user-approved test issue.
+
 ## Orphan Rules
 
 An orphan is a real issue that belongs in the workflow but is missing the project,
 team, parent, route label, status, body contract, or dependency links that let
-Agent Queue reason about it.
+Agent Orchestrator reason about it.
 
 - Route orphans when the correct project, team, parent, or label is directly
   evidenced by the issue, linked docs, PR, branch, or configured repo route.
