@@ -355,7 +355,7 @@ available; it is not the authoritative RLS gate.
 
 ## CI Topology (ADR-0029)
 
-GitHub Actions. Every job installs with `pnpm install --frozen-lockfile` on Node 24 and reads the remote cache; only CI writes it.
+GitHub Actions on Blacksmith-hosted runners (ADR-0061). Every job sets `runs-on` to a Blacksmith runner label (e.g. `blacksmith-4vcpu-ubuntu-2404`), not `ubuntu-latest`; the Blacksmith GitHub App must be installed on the org. Every job installs with `pnpm install --frozen-lockfile` on Node 24 and reads the remote cache; only CI writes it.
 
 ### Required status-check workflow: `validate`
 
