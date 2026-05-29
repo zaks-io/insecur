@@ -12,22 +12,22 @@ These are shared workflow skills maintained outside this repo and used across pr
 
 ## Available Skills
 
-| Skill                       | Use when                                                                                                |
-| --------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `workflow-setup`            | Creating or refreshing the repo-local agent config the other workflow skills read.                      |
-| `workflow-issue-triage`     | Turning docs/specs into tracker work and auditing issues for readiness, labels, blockers, and statuses. |
-| `workflow-agent-implement`  | Implementing one `Todo` + `ready-for-agent` Linear issue as one PR.                                     |
-| `workflow-code-review`      | Bug-focused review of a diff, branch, PR, or main-branch commit range.                                  |
-| `workflow-create-pr`        | Opening, refreshing, or shipping the current branch as a PR with checks and Conventional Commits.       |
-| `workflow-agent-queue`      | Keeping the implementation queue moving across Linear, delegated agents, PRs, checks, and feedback.     |
-| `workflow-agent-review`     | Reviewing new `main` commits and PRs on a loop and creating tracker issues for the queue.               |
-| `workflow-secret-redaction` | Redacting or inspecting secret-bearing files and values without exposing them.                          |
+| Skill                         | Use when                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `workflow-setup`              | Creating or refreshing the repo-local agent config the other workflow skills read.                      |
+| `workflow-issue-triage`       | Turning docs/specs into tracker work and auditing issues for readiness, labels, blockers, and statuses. |
+| `workflow-agent-implement`    | Implementing one `Todo` + `ready-for-agent` Linear issue as one PR.                                     |
+| `workflow-code-review`        | Bug-focused review of a diff, branch, PR, or main-branch commit range.                                  |
+| `workflow-create-pr`          | Opening, refreshing, or shipping the current branch as a PR with checks and Conventional Commits.       |
+| `workflow-agent-orchestrator` | Orchestrating implementation work across Linear, delegated agents, PRs, checks, and feedback.           |
+| `workflow-agent-review`       | Reviewing new `main` commits and PRs on a loop and creating tracker issues for the queue.               |
+| `workflow-secret-redaction`   | Redacting or inspecting secret-bearing files and values without exposing them.                          |
 
 ## Recurring Loops To Run
 
 Run these side by side:
 
-- `workflow-agent-queue` keeps Linear, delegated agents, PRs, checks, and review feedback moving.
+- `workflow-agent-orchestrator` keeps Linear, delegated agents, PRs, checks, and review feedback moving.
 - `workflow-agent-review` reviews newly landed `main` commits and PRs and queues actionable fixes in
   Linear.
 

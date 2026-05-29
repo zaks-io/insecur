@@ -6,6 +6,16 @@ Workflow lookup table for the shared `workflow-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
 external systems (Linear, GitHub, CI), not here.
 
+## Verification
+
+- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names.
+- Last verified: 2026-05-28.
+- Evidence sources: `package.json`, `.npmrc`, git remote/branch, `AGENTS.md`/`CLAUDE.md` symlinks, `.agents/skills/*` + `.claude/skills/*` + root `skills/*` symlinks, live Linear `list_teams`/`list_issue_statuses`/`list_issue_labels`.
+- Safe commands run: `git remote get-url origin`, `git symbolic-ref --short HEAD`, `jq` over `package.json`, `ls -la`/`-ef` symlink checks, `git log`/`diff`/`wc` over skills.
+- Read-only tool calls: Linear `list_teams (INS)`, `list_issue_statuses (INS)`, `list_issue_labels (INS, 100)` — all IDs below confirmed unchanged.
+- Inferred values: none.
+- Critical unknowns: none.
+
 ## Repo
 
 - Name: insecur
@@ -31,7 +41,7 @@ external systems (Linear, GitHub, CI), not here.
 - Label docs: `docs/agents/triage-labels.md` (mirror; covers readiness subset — see Unknowns)
 - Routing label: `zaks-io/insecur` (id `498e1661-64bb-4b1e-b3ca-3883dd6aa7a3`, parent `repo`); required on every repo issue, preserve on updates
 - Triage scope: filter the `INS` queue by `zaks-io/insecur` before treating an issue as this repo's work
-- Orphan policy: route only when project/team/parent/label is directly evidenced; else leave in `Triage` with `needs-info` or `ready-for-human`; never `ready-for-agent` until routing, body, labels, status, blockers are all correct
+- Orphan policy: route only when project/team/parent/label is directly evidenced; else leave in `Triage` with `needs-info` or `ready-for-human`; never `ready-for-agent` until routing, body, and labels are correct. Encode status and blockers separately.
 - Issue key examples: INS-16, INS-34, INS-35
 
 ### Statuses (verified IDs)
@@ -58,6 +68,12 @@ Readiness (parent `Readiness`):
 - ready-for-human `30de6f2d-ac9e-4384-a751-1c5c08ce47f0`
 - wontfix `d219cd4b-27a2-4a20-960d-b9b1ff43fa49`
 - remote worker: `remote-cursor` `7ca081c9-f1fb-45ba-a6a4-751e3dc30fec` (no `Readiness` parent; this repo uses Cursor as the remote worker)
+
+### Label Policies
+
+- `ready-for-agent`: no further human refinement is needed before agent handoff; does not mean unblocked or startable.
+- `remote-cursor`: approved to run in the remote Cursor environment; does not mean unblocked or startable.
+- Startable work criteria: `Todo`, `ready-for-agent`, complete agent-ready body, no active blockers, no active claim, and no open PR.
 
 Risk (no parent):
 
@@ -91,10 +107,10 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 `docs/phasing.md#deferred-scope-parking-lot`.
 
 - Priority policy: no agent priority automation; humans set priority
-- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked work stays in `Backlog`/`Blocked` without `ready-for-agent`
+- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked work may keep `ready-for-agent`; dependency state controls scheduling, not readiness metadata.
 - Agent-ready issue body: contract in `docs/agents/linear-ticketing.md#issue-body-contract` and `docs/agents/autonomous-loop.md` (Outcome, Context, In scope, Out of scope, Acceptance criteria, Required checks, Security invariants, Dependencies)
-- Status transition owner: Agent Queue (`workflow-agent-queue`)
-- Labels are signals, not authority: Linear status is the workflow source of truth; Agent Queue owns transitions
+- Status transition owner: Agent Orchestrator (`workflow-agent-orchestrator`)
+- Labels are signals, not authority: Linear status is the workflow source of truth; Agent Orchestrator owns transitions
 
 ## Work Coordination
 
@@ -102,25 +118,25 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Authoritative PR state: GitHub `zaks-io/insecur`
 - Authoritative check state: local `pnpm verify` (no hosted CI yet)
 - Authoritative deploy state: Cloudflare (Worker `insecur-worker`)
-- Queue mutation authority: Agent Queue only
+- Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)
 - Review authority: Agent Review (clean context / disposable worktree)
-- Merge authority: human (no auto-merge; Queue may move to Ready to Merge only)
+- Merge authority: human (no auto-merge; Agent Orchestrator may move to Ready to Merge only)
 - Claim record: Linear assignment/delegation + claim comment + In Progress status
-- Queue local state: non-authoritative scratch/checkpoints only; refresh Linear/GitHub before acting
+- Orchestrator local state: non-authoritative scratch/checkpoints only; refresh Linear/GitHub before acting
 - Handoff format: see `docs/agents/workflow/` handoff shape (Issue, Branch, PR, Owner, Runtime, Environment, Current state, Next owner, Next action, Files changed, Checks, Code review, Tracker updates, Blockers, Residual risk)
 
 ## Agent Runtimes
 
-- Local Codex: local edits, verification, Linear maintenance, queue orchestration, careful review (reads `AGENTS.md`)
-- Remote worker: Cursor Composer 2.5 (default implementation workhorse for `Todo` + `ready-for-agent`); label `remote-cursor`; resume same thread/branch/PR on Changes Requested
+- Local Codex: local edits, verification, Linear maintenance, orchestration, careful review (reads `AGENTS.md`)
+- Remote worker: Cursor Composer 2.5 (default implementation workhorse for startable issues); label `remote-cursor`; resume same thread/branch/PR on Changes Requested
 - Claude: planning, spec work, second-pass review (reads `CLAUDE.md`)
 - Claude Code source of truth: `.claude/` in this repo; `.claude/skills/*` symlink to `.agents/skills/*` (canonical)
 - Claude Code imports: project `CLAUDE.md`; `AGENTS.md` is a symlink to `CLAUDE.md` (one file, cannot drift), so Codex and Claude read the same adapter
 - Claude Code symlinks: `.claude/skills/workflow-*` -> `../.agents/skills/workflow-*`; root `skills/workflow-*` -> `../.agents/skills/workflow-*` (verified resolving 2026-05-28; all SKILL.md identical by md5)
 - Claude Code verification: `AGENTS.md -ef CLAUDE.md` confirmed (symlink); `.claude/skills/*` and `.agents/skills/*` md5 match confirmed
 - Review model policy: implementation uses Composer 2.5; PR review uses strongest available tier (Opus-class / GPT-5.5 extra-high or current best). Do not move security/schema/cross-cutting PRs to Ready to Merge on a weak review without explicit human approval
-- Agent Queue: `workflow-agent-queue`
+- Agent Orchestrator: `workflow-agent-orchestrator` (status-transition owner; replaced the former Agent Queue skill)
 - Agent Review: `workflow-agent-review`
 - Agent Implement: `workflow-agent-implement`
 
@@ -131,7 +147,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Required checks: `pnpm verify` locally (no hosted CI gate yet)
 - Code review: `workflow-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
 - CodeRabbit: not wired; escalate to `/code-review ultra` or human for high-risk PRs
-- Issue update: Agent Queue moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
+- Issue update: Agent Orchestrator moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
 - Merge authority: human
 
 ## Environments

@@ -53,10 +53,10 @@ Work moves through this repo in five stages plus one sidecar review loop.
 
 5. Orchestration
 
-   Use `skills/workflow-agent-queue/SKILL.md` when coordinating multiple agents. The queue polls
-   Linear, selects `Todo` + `ready-for-agent` issues with no blockers, uses Cursor Composer 2.5 as
-   the default implementation workhorse where it fits, watches PRs and checks, updates Linear, loops
-   feedback back to the original Cursor agent thread, and escalates human decisions.
+   Use `skills/workflow-agent-orchestrator/SKILL.md` when coordinating multiple agents. The
+   orchestrator polls Linear, selects `Todo` + `ready-for-agent` issues with no blockers, uses Cursor
+   Composer 2.5 as the default implementation workhorse where it fits, watches PRs and checks, updates
+   Linear, loops feedback back to the original Cursor agent thread, and escalates human decisions.
 
 6. Review Main And Queue Fixes Sidecar
 
@@ -111,14 +111,14 @@ approval.
 
 Start by choosing the smallest skill that matches the task:
 
-| Task                                               | Skill                      |
-| -------------------------------------------------- | -------------------------- |
-| Convert docs/specs into Linear work or audit it    | `workflow-issue-triage`    |
-| Implement one ready issue                          | `workflow-agent-implement` |
-| Review a diff, branch, or PR                       | `workflow-code-review`     |
-| Open or ship the current branch as a PR            | `workflow-create-pr`       |
-| Keep the agent implementation queue moving         | `workflow-agent-queue`     |
-| Review newly landed `main` commits and queue fixes | `workflow-agent-review`    |
+| Task                                               | Skill                         |
+| -------------------------------------------------- | ----------------------------- |
+| Convert docs/specs into Linear work or audit it    | `workflow-issue-triage`       |
+| Implement one ready issue                          | `workflow-agent-implement`    |
+| Review a diff, branch, or PR                       | `workflow-code-review`        |
+| Open or ship the current branch as a PR            | `workflow-create-pr`          |
+| Orchestrate agent implementation work              | `workflow-agent-orchestrator` |
+| Review newly landed `main` commits and queue fixes | `workflow-agent-review`       |
 
 If no skill matches, use the shared docs directly and keep the change narrow.
 
