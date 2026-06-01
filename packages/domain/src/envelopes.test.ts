@@ -114,4 +114,37 @@ describe("metadata envelopes", () => {
       );
     }).toThrow(/forbidden key: wrappedValue/);
   });
+
+  it("rejects package seam byte field names (valueUtf8, plaintextUtf8)", () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+
+    expect(() => {
+      successEnvelope({ valueUtf8: bytes });
+    }).toThrow(/forbidden key: valueUtf8/);
+
+    expect(() => {
+      successEnvelope({ organizationId: "org_01JZ8E2QYQ6M7F4K9A2B3C4D5E", plaintextUtf8: bytes });
+    }).toThrow(/forbidden key: plaintextUtf8/);
+
+    expect(() => {
+      assertMetadataOnlyEnvelopeShape({
+        ok: true,
+        data: {
+          result: {
+            nested: { valueUtf8: bytes },
+          },
+        },
+      });
+    }).toThrow(/forbidden key: valueUtf8/);
+
+    expect(() => {
+      assertMetadataOnlyEnvelopeShape({
+        ok: true,
+        data: {},
+        meta: {
+          details: [{ plaintextUtf8: bytes }],
+        },
+      });
+    }).toThrow(/forbidden key: plaintextUtf8/);
+  });
 });

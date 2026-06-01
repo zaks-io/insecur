@@ -39,11 +39,17 @@ export interface ErrorEnvelope {
 
 export type MetadataEnvelope<TData> = SuccessEnvelope<TData> | ErrorEnvelope;
 
-/** Keys that must never appear on metadata envelopes (Sensitive Value guard). */
+/**
+ * Keys that must never appear on metadata envelopes (Sensitive Value guard).
+ * Includes seam input field names (`valueUtf8`, `plaintextUtf8`) that must not
+ * be serialized through CLI/API JSON envelopes.
+ */
 export const FORBIDDEN_ENVELOPE_KEYS = [
   "value",
+  "valueUtf8",
   "secret",
   "plaintext",
+  "plaintextUtf8",
   "sensitiveValue",
   "token",
   "password",
