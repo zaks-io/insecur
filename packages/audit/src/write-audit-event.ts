@@ -1,44 +1,29 @@
-import type {
-  AuditEventId,
-  EnvironmentId,
-  OpaqueResourceId,
-  OperationId,
-  OrganizationId,
-  ProjectId,
-  RequestId,
-  UserId,
-} from "@insecur/domain";
-import { NotImplementedError } from "@insecur/domain";
-
-export interface AuditActorRef {
-  type: "user";
-  userId: UserId;
-}
-
-/** Metadata-only audit event input (Plaintext Metadata Allowlist). */
-export interface AuditEventInput {
-  eventCode: string;
-  outcome: "success" | "denied";
-  actor: AuditActorRef;
-  organizationId: OrganizationId;
-  projectId?: ProjectId;
-  environmentId?: EnvironmentId;
-  resource?: {
-    type: string;
-    id: OpaqueResourceId;
-  };
-  requestId?: RequestId;
-  operationId?: OperationId;
-}
+import type { AuditEventId } from "@insecur/domain";
+import { withTenantScope } from "@insecur/tenant-store";
+import { generateAuditEventId } from "./generate-audit-event-id.js";
+import { insertAuditEventRow } from "./insert-audit-event-row.js";
+import type { AuditEventInput } from "./audit-types.js";
+import { resolveAuditResultCode, validateAuditEventInput } from "./validate-audit-event.js";
 
 export interface AuditEventResult {
   auditEventId: AuditEventId;
 }
 
 /**
- * Records a tenant-qualified metadata-only audit event.
+ * Records a tenant-qualified metadata-only audit event through the Tenant-Scoped Store.
  */
-export function writeAuditEvent(event: AuditEventInput): Promise<AuditEventResult> {
-  void event;
-  return Promise.reject(new NotImplementedError("writeAuditEvent"));
+export async function writeAuditEvent(event: AuditEventInput): Promise<AuditEventResult> {
+  validateAuditEventInput(event);
+
+  const auditEventId = generateAuditEventId();
+  const resultCode = resolveAuditResultCode(event);
+
+  await withTenantScope(
+    { kind: "organization", organizationId: event.organizationId },
+    async (sql) => {
+      await insertAuditEventRow(sql, auditEventId, event, resultCode);
+    },
+  );
+
+  return { auditEventId };
 }

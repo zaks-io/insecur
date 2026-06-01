@@ -19,7 +19,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/tenant-store/test/**/*.ts", "packages/tenant-store/vitest.rls.config.ts"],
+    files: [
+      "packages/audit/test/**/*.ts",
+      "packages/tenant-store/test/**/*.ts",
+      "packages/tenant-store/vitest.rls.config.ts",
+    ],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
