@@ -1,3 +1,4 @@
+export { bytesToBase64Url, base64UrlToBytes } from "./base64url.js";
 export { type Brand, brandValue } from "./brand.js";
 export {
   type OpaqueResourceId,

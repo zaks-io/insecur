@@ -1,4 +1,4 @@
-import { userId } from "@insecur/domain";
+import { base64UrlToBytes, bytesToBase64Url, userId } from "@insecur/domain";
 import { CLI_SESSION_TTL_SECONDS } from "./constants.js";
 import type { UserActor } from "./user-actor.js";
 
@@ -11,28 +11,6 @@ interface EphemeralSessionPayload {
   readonly exp: number;
   readonly iat: number;
   readonly typ: string;
-}
-
-function encodeBase64Url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/gu, "-")
-    .replace(/\//gu, "_")
-    .replace(/=+$/u, "");
-}
-
-function decodeBase64Url(value: string): Uint8Array | null {
-  try {
-    const normalized = value.replace(/-/gu, "+").replace(/_/gu, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
-  } catch {
-    return null;
-  }
 }
 
 type SigningKey = Awaited<ReturnType<typeof crypto.subtle.importKey>>;
@@ -49,7 +27,7 @@ async function signPayload(payloadJson: string, secret: string): Promise<string>
   const key = await importSigningKey(secret);
   const data = new TextEncoder().encode(payloadJson);
   const signature = await crypto.subtle.sign("HMAC", key, data);
-  return encodeBase64Url(new Uint8Array(signature));
+  return bytesToBase64Url(new Uint8Array(signature));
 }
 
 async function verifySignature(
@@ -57,7 +35,7 @@ async function verifySignature(
   signature: string,
   secret: string,
 ): Promise<boolean> {
-  const signatureBytes = decodeBase64Url(signature);
+  const signatureBytes = base64UrlToBytes(signature);
   if (signatureBytes === null) {
     return false;
   }
@@ -91,10 +69,10 @@ export async function mintEphemeralSessionCredential(
     iat: issuedAt,
     typ: EPHEMERAL_TYP,
   };
-  const header = encodeBase64Url(
+  const header = bytesToBase64Url(
     new TextEncoder().encode(JSON.stringify({ alg: "HS256", typ: "JWT" })),
   );
-  const body = encodeBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
+  const body = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
   const signingInput = `${header}.${body}`;
   const signature = await signPayload(signingInput, input.signingSecret);
   return {
@@ -124,7 +102,7 @@ function parseCredentialParts(
 }
 
 function parsePayload(body: string): EphemeralSessionPayload | null {
-  const bodyBytes = decodeBase64Url(body);
+  const bodyBytes = base64UrlToBytes(body);
   if (bodyBytes === null) {
     return null;
   }
