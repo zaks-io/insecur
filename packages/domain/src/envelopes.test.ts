@@ -1,7 +1,10 @@
+import { Buffer } from "node:buffer";
 import { describe, expect, it } from "vitest";
 import {
   assertMetadataOnlyEnvelopeShape,
+  assertMetadataOnlyValue,
   errorEnvelope,
+  isBinaryPayload,
   MetadataEnvelopeValidationError,
   successEnvelope,
 } from "./envelopes.js";
@@ -146,5 +149,35 @@ describe("metadata envelopes", () => {
         },
       });
     }).toThrow(/forbidden key: plaintextUtf8/);
+  });
+
+  it("rejects binary payloads at any depth", () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+
+    expect(isBinaryPayload(bytes)).toBe(true);
+    expect(isBinaryPayload(new ArrayBuffer(8))).toBe(true);
+    expect(isBinaryPayload(new DataView(new ArrayBuffer(8)))).toBe(true);
+    expect(isBinaryPayload(Buffer.from("secret"))).toBe(true);
+
+    expect(() => {
+      successEnvelope(bytes);
+    }).toThrow(/forbidden binary payload/);
+
+    expect(() => {
+      successEnvelope({ organizationId: "org_01JZ8E2QYQ6M7F4K9A2B3C4D5E", payload: bytes });
+    }).toThrow(/forbidden binary payload/);
+
+    expect(() => {
+      assertMetadataOnlyValue({
+        items: [{ label: "ok", nested: { raw: bytes } }],
+      });
+    }).toThrow(/forbidden binary payload/);
+
+    expect(() => {
+      assertMetadataOnlyEnvelopeShape({
+        ok: true,
+        data: { wrapped: { bytes: new ArrayBuffer(4) } },
+      });
+    }).toThrow(/forbidden binary payload/);
   });
 });

@@ -58,22 +58,98 @@ export const FORBIDDEN_ENVELOPE_KEYS = [
   "dek",
 ] as const;
 
+export type MetadataEnvelopeValidationReason =
+  | "forbidden_key"
+  | "binary_payload"
+  | "unsupported_value";
+
 const FORBIDDEN_KEY_SET = new Set<string>(FORBIDDEN_ENVELOPE_KEYS);
 
 export class MetadataEnvelopeValidationError extends Error {
-  readonly forbiddenKey: string;
+  readonly reason: MetadataEnvelopeValidationReason;
+  readonly forbiddenKey?: string | undefined;
 
-  constructor(forbiddenKey: string) {
-    super(`envelope contains forbidden key: ${forbiddenKey}`);
+  constructor(reason: MetadataEnvelopeValidationReason, message: string, forbiddenKey?: string) {
+    super(message);
     this.name = "MetadataEnvelopeValidationError";
-    this.forbiddenKey = forbiddenKey;
+    this.reason = reason;
+    if (forbiddenKey !== undefined) {
+      this.forbiddenKey = forbiddenKey;
+    }
   }
+
+  static forbiddenKey(key: string): MetadataEnvelopeValidationError {
+    return new MetadataEnvelopeValidationError(
+      "forbidden_key",
+      `envelope contains forbidden key: ${key}`,
+      key,
+    );
+  }
+
+  static binaryPayload(): MetadataEnvelopeValidationError {
+    return new MetadataEnvelopeValidationError(
+      "binary_payload",
+      "envelope contains forbidden binary payload",
+    );
+  }
+
+  static unsupportedValue(description: string): MetadataEnvelopeValidationError {
+    return new MetadataEnvelopeValidationError(
+      "unsupported_value",
+      `envelope contains unsupported value: ${description}`,
+    );
+  }
+}
+
+function isNodeBuffer(value: unknown): boolean {
+  return typeof Buffer !== "undefined" && Buffer.isBuffer(value);
+}
+
+export function isBinaryPayload(value: unknown): boolean {
+  if (value instanceof ArrayBuffer) {
+    return true;
+  }
+  if (ArrayBuffer.isView(value)) {
+    return true;
+  }
+  return isNodeBuffer(value);
+}
+
+function isPlainMetadataObject(value: object): boolean {
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  return prototype === Object.prototype || prototype === null;
+}
+
+function assertJsonSafeNonObjectPrimitive(value: unknown): void {
+  const valueType = typeof value;
+  if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+    return;
+  }
+  if (valueType === "undefined") {
+    throw MetadataEnvelopeValidationError.unsupportedValue("undefined");
+  }
+  if (valueType === "bigint") {
+    throw MetadataEnvelopeValidationError.unsupportedValue("bigint");
+  }
+  if (valueType === "symbol") {
+    throw MetadataEnvelopeValidationError.unsupportedValue("symbol");
+  }
+  if (valueType === "function") {
+    throw MetadataEnvelopeValidationError.unsupportedValue("function");
+  }
+}
+
+function assertJsonSafePrimitive(value: unknown): void {
+  if (isBinaryPayload(value)) {
+    throw MetadataEnvelopeValidationError.binaryPayload();
+  }
+  assertJsonSafeNonObjectPrimitive(value);
 }
 
 function assertNoForbiddenKeys(record: Record<string, unknown>): void {
   for (const key of Object.keys(record)) {
     if (FORBIDDEN_KEY_SET.has(key)) {
-      throw new MetadataEnvelopeValidationError(key);
+      throw MetadataEnvelopeValidationError.forbiddenKey(key);
     }
   }
 }
@@ -85,21 +161,42 @@ function visitMetadataContainer(value: Record<string, unknown>): void {
   }
 }
 
-/**
- * Recursively rejects plain objects and arrays that carry forbidden Sensitive
- * Value key names anywhere in the tree.
- */
-export function assertMetadataOnlyValue(value: unknown): void {
-  if (value === null || typeof value !== "object") {
-    return;
+function assertMetadataOnlyObject(value: object): void {
+  if (isBinaryPayload(value)) {
+    throw MetadataEnvelopeValidationError.binaryPayload();
   }
+
   if (Array.isArray(value)) {
     for (const item of value) {
       assertMetadataOnlyValue(item);
     }
     return;
   }
+
+  if (!isPlainMetadataObject(value)) {
+    throw MetadataEnvelopeValidationError.unsupportedValue("non-plain object");
+  }
+
   visitMetadataContainer(value as Record<string, unknown>);
+}
+
+/**
+ * Recursively rejects forbidden Sensitive Value keys, binary payloads, and
+ * non-JSON-safe values. Metadata envelopes may contain only JSON-safe primitives,
+ * arrays, and plain objects.
+ */
+export function assertMetadataOnlyValue(value: unknown): void {
+  if (value === null) {
+    return;
+  }
+
+  const valueType = typeof value;
+  if (valueType !== "object") {
+    assertJsonSafePrimitive(value);
+    return;
+  }
+
+  assertMetadataOnlyObject(value as object);
 }
 
 export function assertMetadataOnlyEnvelopeShape(value: Record<string, unknown>): void {
