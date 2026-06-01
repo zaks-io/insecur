@@ -14,3 +14,5 @@ coverage/
 # Agent-created git worktrees (disposable; used by workflow-* skills)
 .claude/worktrees/
 .codex/worktrees/
+sbom.cyclonedx.json
+.gitleaksignore

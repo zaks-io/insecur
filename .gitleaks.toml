@@ -1,0 +1,57 @@
+# Gitleaks config for insecur CI and local hooks.
+# Rule-specific allowlists use path+line AND conditions; default rules stay enabled.
+title = "insecur gitleaks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Linear tracker UUID false positives in workflow agent config (secret must be UUID only)"
+condition = "and"
+paths = ['''(?i)^docs/agents/workflow/config\.md$''']
+regexes = [
+  '''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''',
+]
+
+[[rules.allowlists]]
+description = "Supply-chain toolchain prose in project documentation"
+condition = "and"
+paths = [
+  '''(?i)^docs/production-mvp-acceptance\.md$''',
+  '''(?i)^docs/project-status\.md$''',
+  '''(?i)^docs/build-tooling\.md$''',
+]
+regexes = [
+  '''^gitleaks/semgrep/syft/grype$''',
+  '''^SBOM/vulnerability$''',
+]
+
+[[rules.allowlists]]
+description = "SBOM token false positive in supply-chain project docs only"
+condition = "and"
+paths = [
+  '''(?i)^docs/production-mvp-acceptance\.md$''',
+  '''(?i)^docs/project-status\.md$''',
+  '''(?i)^docs/build-tooling\.md$''',
+]
+stopwords = ["SBOM"]
+
+[[rules.allowlists]]
+description = "Historical scaffold JSON example in setup doc"
+condition = "and"
+paths = ['''(?i)^docs/setup\.md$''']
+regexes = ['''^sk_live_abc123$''']
+
+[[rules]]
+id = "curl-auth-header"
+
+[[rules.allowlists]]
+description = "Historical scaffold curl Bearer placeholder in setup doc"
+condition = "and"
+paths = ['''(?i)^docs/setup\.md$''']
+regexes = [
+  '''^ins_live_\.\.\.$''',
+]
