@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assertMetadataOnlyEnvelopeShape, errorEnvelope, successEnvelope } from "./envelopes.js";
+import {
+  assertMetadataOnlyEnvelopeShape,
+  errorEnvelope,
+  MetadataEnvelopeValidationError,
+  successEnvelope,
+} from "./envelopes.js";
 import { organizationId, requestId } from "./resource-ids.js";
 
 describe("metadata envelopes", () => {
@@ -30,13 +35,13 @@ describe("metadata envelopes", () => {
     });
   });
 
-  it("rejects envelopes that carry forbidden sensitive keys", () => {
+  it("rejects top-level forbidden keys via assertMetadataOnlyEnvelopeShape", () => {
     expect(() => {
       assertMetadataOnlyEnvelopeShape({
         ok: true,
         data: { value: "must-not-appear" },
       });
-    }).toThrow(/forbidden key: value/);
+    }).toThrow(MetadataEnvelopeValidationError);
 
     expect(() => {
       assertMetadataOnlyEnvelopeShape({
@@ -49,5 +54,64 @@ describe("metadata envelopes", () => {
         },
       });
     }).toThrow(/forbidden key: plaintext/);
+  });
+
+  it("rejects nested forbidden keys in data and meta", () => {
+    expect(() => {
+      assertMetadataOnlyEnvelopeShape({
+        ok: true,
+        data: {
+          organizationId: "org_01JZ8E2QYQ6M7F4K9A2B3C4D5E",
+          nested: { value: "must-not-appear" },
+        },
+      });
+    }).toThrow(/forbidden key: value/);
+
+    expect(() => {
+      assertMetadataOnlyEnvelopeShape({
+        ok: true,
+        data: {},
+        meta: {
+          resolvedTargets: [
+            {
+              type: "environment",
+              id: "env_01JZ8E3W4C8M2H6N9P1Q3R5T7V",
+              parent: { type: "project", id: "prj_01JZ8E3A0K7J5T9Q2R4S6V8W0X", secret: "nope" },
+            },
+          ],
+        },
+      });
+    }).toThrow(/forbidden key: secret/);
+
+    expect(() => {
+      assertMetadataOnlyEnvelopeShape({
+        ok: false,
+        error: {
+          code: "auth.insufficient_scope",
+          message: "denied",
+          retryable: false,
+        },
+        meta: {
+          details: [{ nested: { token: "must-not-appear" } }],
+        },
+      });
+    }).toThrow(/forbidden key: token/);
+  });
+
+  it("rejects forbidden keys when building envelopes", () => {
+    expect(() => {
+      successEnvelope({ nested: { value: "must-not-appear" } });
+    }).toThrow(/forbidden key: value/);
+
+    expect(() => {
+      errorEnvelope(
+        {
+          code: "secret.empty_value",
+          message: "empty",
+          retryable: false,
+        },
+        { wrappedValue: "nope" } as never,
+      );
+    }).toThrow(/forbidden key: wrappedValue/);
   });
 });

@@ -39,17 +39,6 @@ export interface ErrorEnvelope {
 
 export type MetadataEnvelope<TData> = SuccessEnvelope<TData> | ErrorEnvelope;
 
-export function successEnvelope<TData>(
-  data: TData,
-  meta?: MetadataEnvelopeMeta,
-): SuccessEnvelope<TData> {
-  return meta === undefined ? { ok: true, data } : { ok: true, data, meta };
-}
-
-export function errorEnvelope(error: ErrorBody, meta?: MetadataEnvelopeMeta): ErrorEnvelope {
-  return meta === undefined ? { ok: false, error } : { ok: false, error, meta };
-}
-
 /** Keys that must never appear on metadata envelopes (Sensitive Value guard). */
 export const FORBIDDEN_ENVELOPE_KEYS = [
   "value",
@@ -63,30 +52,69 @@ export const FORBIDDEN_ENVELOPE_KEYS = [
   "dek",
 ] as const;
 
-function assertNoForbiddenKeys(value: Record<string, unknown>): void {
-  for (const key of FORBIDDEN_ENVELOPE_KEYS) {
-    if (key in value) {
-      throw new Error(`envelope contains forbidden key: ${key}`);
+const FORBIDDEN_KEY_SET = new Set<string>(FORBIDDEN_ENVELOPE_KEYS);
+
+export class MetadataEnvelopeValidationError extends Error {
+  readonly forbiddenKey: string;
+
+  constructor(forbiddenKey: string) {
+    super(`envelope contains forbidden key: ${forbiddenKey}`);
+    this.name = "MetadataEnvelopeValidationError";
+    this.forbiddenKey = forbiddenKey;
+  }
+}
+
+function assertNoForbiddenKeys(record: Record<string, unknown>): void {
+  for (const key of Object.keys(record)) {
+    if (FORBIDDEN_KEY_SET.has(key)) {
+      throw new MetadataEnvelopeValidationError(key);
     }
   }
 }
 
-function assertMetadataSection(value: unknown): void {
+function visitMetadataContainer(value: Record<string, unknown>): void {
+  assertNoForbiddenKeys(value);
+  for (const child of Object.values(value)) {
+    assertMetadataOnlyValue(child);
+  }
+}
+
+/**
+ * Recursively rejects plain objects and arrays that carry forbidden Sensitive
+ * Value key names anywhere in the tree.
+ */
+export function assertMetadataOnlyValue(value: unknown): void {
   if (value === null || typeof value !== "object") {
     return;
   }
-  assertNoForbiddenKeys(value as Record<string, unknown>);
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      assertMetadataOnlyValue(item);
+    }
+    return;
+  }
+  visitMetadataContainer(value as Record<string, unknown>);
 }
 
 export function assertMetadataOnlyEnvelopeShape(value: Record<string, unknown>): void {
-  assertNoForbiddenKeys(value);
-  if ("data" in value) {
-    assertMetadataSection(value.data);
+  assertMetadataOnlyValue(value);
+}
+
+export function successEnvelope<TData>(
+  data: TData,
+  meta?: MetadataEnvelopeMeta,
+): SuccessEnvelope<TData> {
+  assertMetadataOnlyValue(data);
+  if (meta !== undefined) {
+    assertMetadataOnlyValue(meta);
   }
-  if ("error" in value) {
-    assertMetadataSection(value.error);
+  return meta === undefined ? { ok: true, data } : { ok: true, data, meta };
+}
+
+export function errorEnvelope(error: ErrorBody, meta?: MetadataEnvelopeMeta): ErrorEnvelope {
+  assertMetadataOnlyValue(error);
+  if (meta !== undefined) {
+    assertMetadataOnlyValue(meta);
   }
-  if ("meta" in value) {
-    assertMetadataSection(value.meta);
-  }
+  return meta === undefined ? { ok: false, error } : { ok: false, error, meta };
 }

@@ -70,11 +70,13 @@ export {
   type ErrorBody,
   type ErrorEnvelope,
   FORBIDDEN_ENVELOPE_KEYS,
+  MetadataEnvelopeValidationError,
   type MetadataEnvelope,
   type MetadataEnvelopeMeta,
   type ResolvedTargetEcho,
   type SuccessEnvelope,
   assertMetadataOnlyEnvelopeShape,
+  assertMetadataOnlyValue,
   errorEnvelope,
   successEnvelope,
 } from "./envelopes.js";
