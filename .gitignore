@@ -15,3 +15,4 @@ coverage/
 .claude/worktrees/
 .codex/worktrees/
 sbom.cyclonedx.json
+.gitleaksignore

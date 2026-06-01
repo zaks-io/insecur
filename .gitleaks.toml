@@ -1,0 +1,26 @@
+# Gitleaks config for insecur CI and local hooks.
+# Allowlists target known documentation false positives; default rules stay enabled.
+title = "insecur gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation false positives (Linear UUIDs, toolchain names, scaffold placeholders)"
+paths = [
+  # Entire file is verified Linear label/project UUID metadata (no credentials).
+  '''(?i)^docs/agents/workflow/config\.md$''',
+]
+regexTarget = "line"
+regexes = [
+  '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''',
+  '''gitleaks/semgrep/syft/grype''',
+  '''SBOM/vulnerability''',
+  '''ins_live_\.\.\.''',
+  '''sk_live_abc123''',
+  '''authorization:\s*Bearer\s+ins_live''',
+]
+stopwords = [
+  # generic-api-key can match the SBOM token in supply-chain doc prose.
+  "SBOM",
+]

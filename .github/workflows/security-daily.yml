@@ -48,7 +48,7 @@ jobs:
         run: bash scripts/ci/install-gitleaks.sh
 
       - name: Scan git history for secrets
-        run: gitleaks git --redact --no-banner --verbose
+        run: bash scripts/ci/gitleaks-detect.sh git
 
   dependency-scan:
     name: Dependency scan (placeholder)

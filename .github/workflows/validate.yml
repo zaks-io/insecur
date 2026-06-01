@@ -67,7 +67,7 @@ jobs:
         run: bash scripts/ci/install-gitleaks.sh
 
       - name: Detect secrets
-        run: gitleaks detect --source . --redact --no-banner --verbose
+        run: bash scripts/ci/gitleaks-detect.sh detect
 
   sast:
     name: SAST (semgrep)

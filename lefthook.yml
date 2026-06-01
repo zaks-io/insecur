@@ -23,7 +23,7 @@ pre-commit:
     - name: gitleaks
       run: |
         if command -v gitleaks >/dev/null 2>&1; then
-          gitleaks protect --staged --redact --no-banner
+          gitleaks protect --config .gitleaks.toml --staged --redact --no-banner
         else
           echo "gitleaks not installed; skipping staged secret scan (CI validate still runs gitleaks)."
         fi
