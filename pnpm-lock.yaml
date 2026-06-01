@@ -342,6 +342,9 @@ importers:
         specifier: 'catalog:'
         version: 3.4.9
     devDependencies:
+      '@insecur/crypto':
+        specifier: workspace:*
+        version: link:../crypto
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.4

@@ -6,6 +6,16 @@ export {
   DecryptError,
 } from "./encryption.js";
 export {
+  DATA_KEY_VERSION_STATUSES,
+  type DataKeyVersionStatus,
+  isDataKeyVersionStatus,
+} from "./data-key-lifecycle.js";
+export {
+  type OrganizationDataKeyMetadata,
+  type ProjectDataKeyMetadata,
+  type TenantDataKeyMetadataReader,
+} from "./data-key-metadata.js";
+export {
   type ActiveDataKeyVersions,
   type DataKeyVersions,
   createKeyring,
@@ -16,6 +26,16 @@ export {
   StaticRootKeyProvider,
   type TenantDataKeySource,
 } from "./keyring.js";
-export { RootKeyNotConfiguredError } from "./errors.js";
+export {
+  assertTenantDataKeyReadiness,
+  checkTenantDataKeyReadiness,
+  type DataKeyReadinessIssue,
+  type DataKeyReadinessIssueCode,
+  type DataKeyReadinessReport,
+  type DataKeyReadinessStatus,
+  type KeyringReadinessInput,
+} from "./keyring-readiness.js";
+export { MetadataTenantDataKeySource } from "./metadata-tenant-data-key-source.js";
+export { RootKeyNotConfiguredError, TenantDataKeyNotReadyError } from "./errors.js";
 export { configureKeyring, getKeyring, resetKeyringForTests } from "./crypto-runtime.js";
 export { toStoreFacingCiphertext } from "./envelope.js";
