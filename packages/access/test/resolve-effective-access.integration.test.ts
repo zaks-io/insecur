@@ -7,7 +7,7 @@ import {
 import { organizationId, projectId, userId } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
-import { requireDatabaseUrl } from "../../tenant-store/scripts/lib/env-local.mjs";
+import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
   TEST_ORG_A_ID,
@@ -19,14 +19,7 @@ import {
 
 const TEST_MEM_PROJECT_DEV_ID = "mem_00000000000000000000000003";
 
-let runtimeUrl: string | undefined;
-try {
-  runtimeUrl = requireDatabaseUrl("DATABASE_URL_RUNTIME");
-} catch {
-  runtimeUrl = undefined;
-}
-
-const describeIntegration = runtimeUrl ? describe : describe.skip;
+const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
 const ACTOR = {
   type: "user" as const,
@@ -35,9 +28,6 @@ const ACTOR = {
 
 describeIntegration("resolveEffectiveAccess (tenant-scoped store)", () => {
   beforeAll(async () => {
-    if (!runtimeUrl) {
-      return;
-    }
     await seedTenantBaseline();
   });
 

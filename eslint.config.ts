@@ -23,6 +23,8 @@ export default tseslint.config(
       "packages/access/test/**/*.ts",
       "packages/access/vitest.config.ts",
       "packages/audit/test/**/*.ts",
+      "packages/onboarding/test/**/*.ts",
+      "packages/onboarding/vitest.config.ts",
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
     ],

@@ -3,18 +3,11 @@ import { recordAccessDenial } from "../src/index.js";
 import { AUTH_ERROR_CODES, organizationId, requestId, userId } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
-import { requireDatabaseUrl } from "../../tenant-store/scripts/lib/env-local.mjs";
+import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import { TEST_ORG_A_ID, TEST_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
 
-let runtimeUrl: string | undefined;
-try {
-  runtimeUrl = requireDatabaseUrl("DATABASE_URL_RUNTIME");
-} catch {
-  runtimeUrl = undefined;
-}
-
-const describeIntegration = runtimeUrl ? describe : describe.skip;
+const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
 interface AuditRow {
   event_code: string;
@@ -24,9 +17,6 @@ interface AuditRow {
 
 describeIntegration("recordAccessDenial (audit event writer)", () => {
   beforeAll(async () => {
-    if (!runtimeUrl) {
-      return;
-    }
     await seedTenantBaseline();
   });
 

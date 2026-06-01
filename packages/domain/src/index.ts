@@ -61,6 +61,8 @@ export {
   type AuthErrorCode,
   INJECTION_ERROR_CODES,
   type InjectionErrorCode,
+  ONBOARDING_ERROR_CODES,
+  type OnboardingErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,
