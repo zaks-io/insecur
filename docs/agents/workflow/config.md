@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-05-28
+Last updated: 2026-06-01
 
 Workflow lookup table for the shared `workflow-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
@@ -124,6 +124,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Merge authority: human (no auto-merge; Agent Orchestrator may move to Ready to Merge only)
 - Claim record: Linear assignment/delegation + claim comment + In Progress status
 - Orchestrator local state: non-authoritative scratch/checkpoints only; refresh Linear/GitHub before acting
+- Friction log: Linear issue `INS-99` (`Agent Orchestrator friction log`), parked in `Canceled`; append metadata-only comments
 - Handoff format: see `docs/agents/workflow/` handoff shape (Issue, Branch, PR, Owner, Runtime, Environment, Current state, Next owner, Next action, Files changed, Checks, Code review, Tracker updates, Blockers, Residual risk)
 
 ## Agent Runtimes
