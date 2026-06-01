@@ -104,6 +104,7 @@ contract:
 
 - outcome
 - context docs
+- likely files, packages, or artifacts
 - in scope
 - out of scope
 - acceptance criteria
@@ -114,6 +115,12 @@ contract:
 If a required field is unknowable from the plan, add the heading, mark the ticket
 `needs-info`, leave the specific question, and do not mark it ready. Do not
 fabricate criteria to make a ticket look ready.
+
+Prefer slices that match known strong agent-fit work: docs, tests, build or CI
+updates, small refactors with clear checks, scoped bugs with reproduction, and
+isolated UI changes with target states. Mark high-risk or ambiguous work for
+human planning when the plan does not settle the security, product, data, or
+architecture decision.
 
 ## Labels And Readiness
 
@@ -159,8 +166,9 @@ colliding slices concurrently.
 
 ## Self-Healing
 
-Heal unambiguous mechanical mistakes, escalate intent, never leave a silent dead
-end, and record every fix. For decompose specifically:
+Use model judgment over current evidence to repair stale or inconsistent ticket
+structure, escalate missing intent or authority, never leave a silent dead end,
+and record every fix. For decompose specifically:
 
 - Heal a wrong or duplicate `kind-*`, a stale label that resolves to a verified
   one, and a re-run duplicate by converging on the canonical ticket.

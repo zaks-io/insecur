@@ -46,6 +46,7 @@ Last updated: YYYY-MM-DD
 - Label docs:
 - Project, board, repo, milestone, or roadmap:
 - Routing label:
+- Repo-route label: the label that names the target repo (such as `<org>/<repo>`); required before issue-assigned delegation so the agent resolves which repo to clone
 - Triage scope: Todo and active or PR-linked current issues by default; backlog only when explicitly requested
 - Orphan policy:
 - Issue key examples:
@@ -56,22 +57,34 @@ Last updated: YYYY-MM-DD
 - Status transition owner: Issue Triage may reconcile verified stale states and move requested intake cleanup to ready state; Agent Orchestrator owns active workflow transitions
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Readiness label policy:
-  - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable
+  - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable; remove when the issue moves to Done
   - needs-info:
   - ready-for-human:
 - Worker environment labels:
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
-- Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, no active blockers, no active claim or open PR
+- Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, repo-route label when issue-assigned, no active blockers, no active claim or open PR
+- Done cleanup: remove ready-for-agent or the repo-configured readiness label
+  when moving an issue to Done
+- Agent suitability policy: default agent work includes docs, tests, build/CI,
+  small local refactors, scoped bugs with reproduction, and isolated UI changes;
+  human planning required for auth, secrets, PII, payments, production,
+  destructive data, broad refactors, cross-repo work, unclear domain behavior,
+  or performance work without benchmarks
 - Kind labels: kind-spec, kind-epic, kind-slice (single-select; skills enforce exclusivity; only kind-slice is dispatchable)
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
+- Risk label policy: use the default risk labels as dimensions, not severity levels; add repo-specific risk labels only when they change routing, checks, approvals, or reviewer assignment
+- Review evidence labels: Code review passed
+- Review evidence label policy:
+  - Code review passed: latest linked PR head SHA passed the configured code review gate; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
 - Priority policy:
 - Dependency policy:
 - Dependency graph mechanism: tracker relationship/blocker field, or configured body shape
 - File footprint convention: where decompose records predicted files/packages per slice
-- Agent-ready issue body:
+- Agent-ready issue body: outcome, context docs, likely files/packages/artifacts,
+  scope, acceptance criteria, required checks, safety invariants, dependencies
 - Labels are signals, not authority:
 
 ## Work Coordination
@@ -79,7 +92,7 @@ Last updated: YYYY-MM-DD
 - Worker delegation paths: local-worktree, issue-assigned, or both
 - Default worker path:
 - Parallelism policy:
-- Concurrency cap: max workers dispatched at once
+- Concurrency cap: max workers dispatched at once (default 3 if unset)
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before re-dispatch or escalation
 - Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
 - Required checks for merge: the CI checks that define green for the integrate gate
@@ -96,8 +109,16 @@ Last updated: YYYY-MM-DD
 - Merge authority:
 - Claim record:
 - Orchestrator local state:
+- Verified-ready backlog policy: when the user scopes a set of tickets that has
+  already been reviewed as implementation-ready, Orchestrator owns moving every
+  ticket through implementation, PR, review, and merge, and repairs routine label,
+  status, route, handoff, and review-evidence mismatches from current evidence
+- Completely-blocked stop policy: stop the recurring orchestrator run for the
+  scoped queue when no startable tickets, PRs to advance, stuck workers to nudge,
+  checks to rerun or route, stale metadata repairs, or in-flight work can still
+  produce signal
 - Friction-log ticket: dedicated ticket ID, parked out of the work queue, for orchestrator friction comments
-- Spec-conformance cadence: when Orchestrator triggers workflow-spec-conformance, such as every N merges or a timer
+- Delivery metrics: merge rate, first-pass check rate, review rework, stuck workers, human escalations, and agent cost when available
 - Handoff format:
 
 ## Agent Access
@@ -105,13 +126,16 @@ Last updated: YYYY-MM-DD
 - Local Codex:
 - Issue-assigned agents: none, or project-specific routing/continuation notes
 - Issue-assigned delegation: tool or field, verified agent names or IDs, and continuation path
+- Issue-assigned continuation replies: reply into the agent-session thread (its thread-root comment's parentId); top-level issue comments are not continuation unless verified here. For Linear + Cursor this is the "agent session" thread; record the session handle (such as the cursor.com/agents/bc-id URL)
 - Delegation probe policy: never mutate real implementation issues
 - Claude:
 - Claude Code source of truth:
 - Claude Code imports:
 - Claude Code symlinks:
 - Claude Code verification:
-- Review model policy:
+- Review model policy: use the strongest configured reasoning path for
+  orchestration and review decisions where evidence must be synthesized; use
+  cheaper paths only for mechanical inventory reads when configured
 - Agent Orchestrator:
 - Agent Review:
 - Agent Implement:
@@ -123,6 +147,12 @@ Last updated: YYYY-MM-DD
 - Required checks:
 - Code review:
 - CodeRabbit:
+- Draft PR policy: draft only while checks, requested human prep, or required
+  author fixes are incomplete; draft state alone is not a code review request.
+  Agent Orchestrator diagnoses stuck draft PRs, marks unblocked drafts
+  ready-for-review, and verifies the code-host PR is non-draft unless this repo
+  says otherwise. A kept-draft PR is pre-review, not ready-for-review
+- Ready-for-review owner: Agent Orchestrator
 - Issue update:
 - Merge authority:
 
@@ -185,9 +215,10 @@ State authority should live in external systems:
 Every configured readiness or worker environment label needs a short treatment
 policy in this file. `ready-for-agent` should answer "does a human need to refine
 this ticket before I hand it to an implementation agent?" It must not be used as
-a dependency, status, or scheduling signal. Worker environment labels such as
-`remote-cursor` should answer "is this issue allowed to run in that configured
-environment?" They must not be used as dependency, status, or scheduling signals.
+a dependency, status, or scheduling signal, and it must be removed when the
+ticket moves to Done. Worker environment labels such as `remote-cursor` should
+answer "is this issue allowed to run in that configured environment?" They must
+not be used as dependency, status, or scheduling signals.
 
 Issue-assigned worker config should be stable enough for Orchestrator to act
 without probing real work. Record the configured worker path, environment labels
