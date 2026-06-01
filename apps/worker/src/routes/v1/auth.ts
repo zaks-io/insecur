@@ -5,16 +5,14 @@ import {
 } from "@insecur/auth";
 import { errorEnvelope, requestId, successEnvelope } from "@insecur/domain";
 import { Hono } from "hono";
-import { createAdmittedUserResolver, createAuthConfig } from "../../auth/config.js";
-import { createWorkOSSessionPortFromEnv } from "../../auth/workos-port.js";
+import { createAuthContext } from "../../auth/auth-context.js";
 import type { WorkerEnv } from "../../env.js";
 
 export const authRoutes = new Hono<{ Bindings: WorkerEnv }>();
 
 authRoutes.post("/cli/exchange", async (context) => {
   const reqId = requestId.generate();
-  const config = createAuthConfig(context.env);
-  const workos = createWorkOSSessionPortFromEnv(context.env);
+  const { config, workos, resolveAdmittedUser } = createAuthContext(context.env);
   const credentials = parseRequestCredentials({
     authorizationHeader: context.req.header("Authorization"),
     cookieHeader: context.req.header("Cookie"),
@@ -24,7 +22,7 @@ authRoutes.post("/cli/exchange", async (context) => {
     credentials,
     config,
     workos,
-    resolveAdmittedUser: createAdmittedUserResolver(context.env),
+    resolveAdmittedUser,
     requireCsrf: true,
     requestId: reqId,
   });
