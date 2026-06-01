@@ -27,6 +27,8 @@ export default tseslint.config(
       "packages/audit/test/**/*.ts",
       "packages/onboarding/test/**/*.ts",
       "packages/onboarding/vitest.config.ts",
+      "packages/instance-bootstrap/test/**/*.ts",
+      "packages/instance-bootstrap/vitest.config.ts",
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
     ],
