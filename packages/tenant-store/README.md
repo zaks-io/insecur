@@ -36,9 +36,10 @@ default privileges alone.
 pnpm test:rls   # real Postgres as DATABASE_URL_RUNTIME; never SQLite/PGlite
 ```
 
-Local runs load `DATABASE_URL_*` from the repo `.env.local` when present (dotenv-style
-unquoting and URL validation via `scripts/lib/env-local.mjs`). Migration and seed failures
-redact database URLs before logging. CI uses per-PR Neon branches (ADR-0054).
+Local runs load `DATABASE_URL_*` from the repo `.env.local` when present and unset in the
+process environment (explicit env vars win over the file). Dotenv-style unquoting and URL
+validation live in `scripts/lib/env-local.mjs`. Migration and seed failures redact database
+URLs before logging. CI uses per-PR Neon branches (ADR-0054).
 
 ## Owns
 

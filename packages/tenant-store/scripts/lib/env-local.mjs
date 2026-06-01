@@ -98,13 +98,10 @@ export function loadRepoEnvLocal(options = {}) {
 
   const assignments = parseEnvAssignments(readFileSync(path, "utf8"));
   for (const { key, value } of assignments) {
-    if (DATABASE_URL_ENV_KEYS.includes(key)) {
-      process.env[key] = value;
+    if (process.env[key] !== undefined) {
       continue;
     }
-    if (process.env[key] === undefined) {
-      process.env[key] = value;
-    }
+    process.env[key] = value;
   }
 
   normalizeDatabaseUrlEnv();
