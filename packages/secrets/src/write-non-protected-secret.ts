@@ -13,6 +13,7 @@ import { persistNonProtectedWrite, toWriteResult } from "./persist-non-protected
 import { recordSecretWriteAudit } from "./record-secret-write-audit.js";
 import { SecretWriteError } from "./secret-write-error.js";
 import { validateTextSecretValue } from "./validate-text-secret-value.js";
+import { validateVariableKeyForWrite } from "./validate-variable-key-for-write.js";
 
 export interface WriteNonProtectedSecretInput {
   organizationId: OrganizationId;
@@ -70,22 +71,27 @@ async function maybeRecordDeniedWrite(
 async function executeWrite(
   input: WriteNonProtectedSecretInput,
 ): Promise<WriteNonProtectedSecretResult> {
-  validateTextSecretValue(input.valueUtf8, input.allowEmpty === true ? { allowEmpty: true } : {});
+  const variableKey = validateVariableKeyForWrite(input.variableKey);
+  const validatedInput = { ...input, variableKey };
+  validateTextSecretValue(
+    validatedInput.valueUtf8,
+    validatedInput.allowEmpty === true ? { allowEmpty: true } : {},
+  );
   const newVersionId = secretVersionId.generate();
-  const persisted = await persistNonProtectedWrite(input, newVersionId);
+  const persisted = await persistNonProtectedWrite(validatedInput, newVersionId);
   const audit = await recordSecretWriteAudit({
     outcome: "success",
-    actor: input.actor,
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
+    actor: validatedInput.actor,
+    organizationId: validatedInput.organizationId,
+    projectId: validatedInput.projectId,
+    environmentId: validatedInput.environmentId,
     secretId: persisted.secretId,
     secretVersionId: persisted.secretVersionId,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-    ...(input.operation !== undefined ? { operation: input.operation } : {}),
+    ...(validatedInput.request !== undefined ? { request: validatedInput.request } : {}),
+    ...(validatedInput.operation !== undefined ? { operation: validatedInput.operation } : {}),
   });
 
-  return toWriteResult(input, persisted, audit?.auditEventId);
+  return toWriteResult(validatedInput, persisted, audit?.auditEventId);
 }
 
 /**
@@ -97,7 +103,7 @@ export async function writeNonProtectedSecret(
   try {
     return await executeWrite(input);
   } catch (error) {
-    await maybeRecordDeniedWrite(input, error);
+    await maybeRecordDeniedWrite(input, error).catch(() => undefined);
     throw error;
   }
 }

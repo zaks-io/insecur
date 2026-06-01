@@ -1,5 +1,12 @@
 import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
-import { brandOpaqueResourceIdForPrefix } from "@insecur/domain";
+import {
+  VALIDATION_ERROR_CODES,
+  brandOpaqueResourceIdForPrefix,
+  environmentId,
+  projectId,
+  userId,
+  type VariableKey,
+} from "@insecur/domain";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   TenantSecretVersionStore,
@@ -10,7 +17,14 @@ import {
 import { requireDatabaseUrl } from "../../tenant-store/scripts/lib/env-local.mjs";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 
+import {
+  TEST_ENV_A_ID,
+  TEST_PROJECT_A_ID,
+  TEST_USER_ID,
+} from "../../tenant-store/test/rls/test-ids.js";
+
 import { testOrganization, uniqueVariableKey, writeTestSecret } from "./integration-helpers.js";
+import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
 
 let runtimeUrl: string | undefined;
 try {
@@ -90,6 +104,51 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     );
     expect(current?.secretVersionId).toBe(second.secretVersionId);
     expect(current?.versionNumber).toBe(2);
+  });
+
+  it("records denied audit for invalid Variable Key without creating a secret", async () => {
+    const org = testOrganization();
+    const invalidKey = "invalid-variable-key" as VariableKey;
+    const sensitive = new TextEncoder().encode("must-not-persist");
+
+    await expect(
+      writeNonProtectedSecret({
+        organizationId: org,
+        projectId: projectId.brand(TEST_PROJECT_A_ID),
+        environmentId: environmentId.brand(TEST_ENV_A_ID),
+        variableKey: invalidKey,
+        actor: { type: "user", userId: userId.brand(TEST_USER_ID) },
+        valueUtf8: sensitive,
+      }),
+    ).rejects.toMatchObject({ code: VALIDATION_ERROR_CODES.invalidVariableKey });
+
+    const secretRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      (sql) =>
+        sql<{ id: string }[]>`
+          SELECT id
+          FROM secrets
+          WHERE environment_id = ${TEST_ENV_A_ID}
+            AND variable_key = ${invalidKey}
+        `,
+    );
+    expect(secretRows).toHaveLength(0);
+
+    const deniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      (sql) =>
+        sql<{ event_code: string; result_code: string; resource_id: string | null }[]>`
+          SELECT event_code, result_code, resource_id
+          FROM audit_events
+          WHERE event_code = ${"secret.non_protected_write_denied"}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+    );
+    expect(deniedAudit[0]?.result_code).toBe(VALIDATION_ERROR_CODES.invalidVariableKey);
+    expect(deniedAudit[0]?.resource_id).toBeNull();
+    expect(JSON.stringify(deniedAudit)).not.toContain(new TextDecoder().decode(sensitive));
+    expect(JSON.stringify(deniedAudit)).not.toContain(invalidKey);
   });
 });
 
