@@ -1,13 +1,16 @@
 import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
 import {
   brandOpaqueResourceIdForPrefix,
+  environmentId,
   INJECTION_ERROR_CODES,
+  projectId,
   type VariableKey,
 } from "@insecur/domain";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
+import { TEST_ENV_B_ID, TEST_PROJECT_B_ID } from "../../tenant-store/test/rls/test-ids.js";
 import { uniqueVariableKey, writeTestSecret } from "../../secrets/test/integration-helpers.js";
 
 import { InjectionGrantError } from "../src/injection-grant-error.js";
@@ -49,6 +52,21 @@ async function loadAuditRow(
   });
 }
 
+async function loadGrantSecretIds(
+  organizationId: ReturnType<typeof testOrganization>,
+  grantId: string,
+): Promise<string[]> {
+  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+    const rows = await sql<{ secret_ids: string[] }[]>`
+      SELECT secret_ids
+      FROM injection_grants
+      WHERE id = ${grantId}
+      LIMIT 1
+    `;
+    return rows[0]?.secret_ids ?? [];
+  });
+}
+
 describeIntegration("Runtime Injection Grant Service", () => {
   beforeAll(async () => {
     await seedTenantBaseline();
@@ -71,19 +89,22 @@ describeIntegration("Runtime Injection Grant Service", () => {
     const org = testOrganization();
     const plaintext = new TextEncoder().encode(`fv11-${crypto.randomUUID()}`);
     const variableKey: VariableKey = uniqueVariableKey("FV11_GRANT");
-    await writeTestSecret(variableKey, plaintext);
+    const written = await writeTestSecret(variableKey, plaintext);
 
     const issued = await issueInjectionGrant({
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
-      variableKeys: [variableKey],
+      selectors: [{ kind: "variable_key", variableKey }],
       actor: testActor(),
     });
 
     expect(issued.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
     expect(issued.auditEventId).toMatch(/^aud_[0-9A-Z]{26}$/);
     expect(JSON.stringify(issued)).not.toContain(new TextDecoder().decode(plaintext));
+
+    const boundSecretIds = await loadGrantSecretIds(org, issued.grantId);
+    expect(boundSecretIds).toEqual([written.secretId]);
 
     const issueAuditEventId = issued.auditEventId;
     if (issueAuditEventId === undefined) {
@@ -101,11 +122,12 @@ describeIntegration("Runtime Injection Grant Service", () => {
       actor: testActor(),
     });
 
+    expect(consumed.secretId).toBe(written.secretId);
     expect(consumed.variableKey).toBe(variableKey);
     expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(plaintext));
-    expect(JSON.stringify({ variableKey: consumed.variableKey })).not.toContain(
-      new TextDecoder().decode(plaintext),
-    );
+    expect(
+      JSON.stringify({ variableKey: consumed.variableKey, secretId: consumed.secretId }),
+    ).not.toContain(new TextDecoder().decode(plaintext));
 
     await expect(
       consumeInjectionGrant({
@@ -134,18 +156,74 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(JSON.stringify(replayAuditRows)).not.toContain(new TextDecoder().decode(plaintext));
   });
 
-  it("rejects consume for a variable key outside the grant binding", async () => {
+  it("issues and consumes by exact secret id selector", async () => {
     const org = testOrganization();
-    const allowedKey = uniqueVariableKey("FV11_ALLOWED");
-    const otherKey = uniqueVariableKey("FV11_OTHER");
-    await writeTestSecret(allowedKey, new TextEncoder().encode("allowed"));
-    await writeTestSecret(otherKey, new TextEncoder().encode("other"));
+    const plaintext = new TextEncoder().encode(`fv11-secret-id-${crypto.randomUUID()}`);
+    const variableKey = uniqueVariableKey("FV11_SECRET_ID");
+    const written = await writeTestSecret(variableKey, plaintext);
 
     const issued = await issueInjectionGrant({
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
-      variableKeys: [allowedKey],
+      selectors: [{ kind: "secret_id", secretId: written.secretId }],
+      actor: testActor(),
+    });
+
+    const boundSecretIds = await loadGrantSecretIds(org, issued.grantId);
+    expect(boundSecretIds).toEqual([written.secretId]);
+
+    const consumed = await consumeInjectionGrant({
+      organizationId: org,
+      grantId: issued.grantId,
+      secretId: written.secretId,
+      actor: testActor(),
+    });
+
+    expect(consumed.secretId).toBe(written.secretId);
+    expect(consumed.variableKey).toBe(variableKey);
+    expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(plaintext));
+    expect(JSON.stringify(consumed)).not.toContain(new TextDecoder().decode(plaintext));
+  });
+
+  it("denies issue when project and environment coordinates disagree", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV11_COORD");
+    await writeTestSecret(variableKey, new TextEncoder().encode("coord-test"));
+
+    await expect(
+      issueInjectionGrant({
+        organizationId: org,
+        projectId: testProject(),
+        environmentId: environmentId.brand(TEST_ENV_B_ID),
+        selectors: [{ kind: "variable_key", variableKey }],
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    await expect(
+      issueInjectionGrant({
+        organizationId: org,
+        projectId: projectId.brand(TEST_PROJECT_B_ID),
+        environmentId: testEnvironment(),
+        selectors: [{ kind: "variable_key", variableKey }],
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+  });
+
+  it("rejects consume for a binding outside the grant secret set", async () => {
+    const org = testOrganization();
+    const allowedKey = uniqueVariableKey("FV11_ALLOWED");
+    const otherKey = uniqueVariableKey("FV11_OTHER");
+    const allowed = await writeTestSecret(allowedKey, new TextEncoder().encode("allowed"));
+    const other = await writeTestSecret(otherKey, new TextEncoder().encode("other"));
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selectors: [{ kind: "secret_id", secretId: allowed.secretId }],
       actor: testActor(),
     });
 
@@ -153,7 +231,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
       consumeInjectionGrant({
         organizationId: org,
         grantId: issued.grantId,
-        variableKey: otherKey,
+        secretId: other.secretId,
         actor: testActor(),
       }),
     ).rejects.toBeInstanceOf(InjectionGrantError);
@@ -168,7 +246,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
-      variableKeys: [variableKey],
+      selectors: [{ kind: "variable_key", variableKey }],
       actor: testActor(),
     });
 

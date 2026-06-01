@@ -2,29 +2,33 @@ import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur
 import {
   INJECTION_ERROR_CODES,
   injectionGrantId,
-  secretId,
   type EnvironmentId,
   type InjectionGrantId,
   type OrganizationId,
   type ProjectId,
-  type VariableKey,
 } from "@insecur/domain";
 import {
+  ProjectEnvironmentCoordinateError,
   TenantInjectionGrantStore,
-  TenantSecretVersionStore,
   withTenantScope,
 } from "@insecur/tenant-store";
 
 import { assertRuntimeInjectionAccess, ISSUE_SCOPE } from "./assert-runtime-injection-access.js";
 import { computeInjectionGrantExpiresAt } from "./injection-grant-ttl.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
+import type { InjectionGrantIssueSelector } from "./injection-grant-selectors.js";
+import { assertNonEmptyIssueSelectors } from "./injection-grant-selectors.js";
 import { recordInjectionGrantAudit } from "./record-injection-grant-audit.js";
+import {
+  resolveInjectionGrantBindings,
+  type GrantCoordinate,
+} from "./resolve-injection-grant-bindings.js";
 
 export interface IssueInjectionGrantCoreInput {
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId: EnvironmentId;
-  variableKeys: readonly [VariableKey, ...VariableKey[]];
+  selectors: readonly InjectionGrantIssueSelector[];
   actor: AuditActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
@@ -36,47 +40,19 @@ export interface IssueInjectionGrantCoreResult {
   auditEventId?: string;
 }
 
-async function assertSecretsExistForKeys(
-  organizationId: OrganizationId,
-  environmentId: EnvironmentId,
-  variableKeys: readonly VariableKey[],
-): Promise<void> {
-  await withTenantScope({ kind: "organization", organizationId }, async (sql) => {
-    const versionStore = new TenantSecretVersionStore(sql);
-    for (const variableKey of variableKeys) {
-      const rows = await sql<{ id: string }[]>`
-        SELECT id
-        FROM secrets
-        WHERE environment_id = ${environmentId}
-          AND variable_key = ${variableKey}
-        LIMIT 1
-      `;
-      const secretRow = rows[0];
-      if (!secretRow) {
-        throw new InjectionGrantError(
-          INJECTION_ERROR_CODES.grantDenied,
-          "no secret for requested variable key",
-        );
-      }
-      const current = await versionStore.getCurrentVersion(secretId.brand(secretRow.id));
-      if (!current) {
-        throw new InjectionGrantError(
-          INJECTION_ERROR_CODES.grantDenied,
-          "secret has no current version",
-        );
-      }
-    }
-  });
+function toGrantCoordinate(input: IssueInjectionGrantCoreInput): GrantCoordinate {
+  return {
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+  };
 }
 
 export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
-  const coordinate = {
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-  };
+  assertNonEmptyIssueSelectors(input.selectors);
+  const coordinate = toGrantCoordinate(input);
 
   await assertRuntimeInjectionAccess(
     { type: "user", userId: input.actor.userId },
@@ -84,7 +60,14 @@ export async function executeIssueInjectionGrant(
     ISSUE_SCOPE,
   );
 
-  await assertSecretsExistForKeys(input.organizationId, input.environmentId, input.variableKeys);
+  await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async (sql) => {
+      await new TenantInjectionGrantStore(sql).assertIssueCoordinate(coordinate);
+    },
+  );
+
+  const bindings = await resolveInjectionGrantBindings(coordinate, input.selectors);
 
   const grantId = injectionGrantId.generate();
   const expiresAtDate = computeInjectionGrantExpiresAt();
@@ -92,14 +75,12 @@ export async function executeIssueInjectionGrant(
   await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async (sql) => {
-      const grantStore = new TenantInjectionGrantStore(sql);
-      await grantStore.assertNonProtectedEnvironment(input.organizationId, input.environmentId);
-      await grantStore.insertGrant({
+      await new TenantInjectionGrantStore(sql).insertGrant({
         organizationId: input.organizationId,
         projectId: input.projectId,
         environmentId: input.environmentId,
         grantId,
-        variableKeys: input.variableKeys,
+        bindings,
         expiresAt: expiresAtDate,
       });
     },
@@ -149,8 +130,12 @@ export async function issueInjectionGrantWithAudit(
   } catch (error) {
     if (error instanceof InjectionGrantError) {
       await recordDeniedIssue(input, error.code).catch(() => undefined);
-    } else if (error instanceof Error && error.message.includes("protected")) {
+    } else if (error instanceof ProjectEnvironmentCoordinateError) {
       await recordDeniedIssue(input, INJECTION_ERROR_CODES.grantDenied).catch(() => undefined);
+      throw new InjectionGrantError(
+        INJECTION_ERROR_CODES.grantDenied,
+        "project environment coordinate invalid",
+      );
     }
     throw error;
   }

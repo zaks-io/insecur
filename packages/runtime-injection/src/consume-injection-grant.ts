@@ -7,6 +7,7 @@ import {
   type InjectionGrantId,
   type OrganizationId,
   type ProjectId,
+  type SecretId,
   type VariableKey,
 } from "@insecur/domain";
 import {
@@ -16,20 +17,26 @@ import {
 } from "@insecur/tenant-store";
 
 import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-injection-access.js";
-import { decryptGrantSecretValue } from "./decrypt-grant-secret.js";
+import { decryptGrantSecretById } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
+import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
 import { recordInjectionGrantAudit } from "./record-injection-grant-audit.js";
+import {
+  resolveConsumeSecretId,
+  type GrantCoordinate,
+} from "./resolve-injection-grant-bindings.js";
 
 export interface ConsumeInjectionGrantCoreInput {
   organizationId: OrganizationId;
   grantId: InjectionGrantId;
-  variableKey: VariableKey;
+  selector: InjectionGrantConsumeSelector;
   actor: AuditActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }
 
 export interface ConsumeInjectionGrantCoreResult {
+  secretId: SecretId;
   variableKey: VariableKey;
   valueUtf8: Uint8Array;
   auditEventId?: string;
@@ -63,10 +70,10 @@ async function loadGrantCoordinate(
 async function consumeGrantOnce(
   organizationId: OrganizationId,
   grantId: InjectionGrantId,
-  variableKey: VariableKey,
+  requestedSecretId: SecretId,
 ) {
   return withTenantScope({ kind: "organization", organizationId }, (sql) =>
-    new TenantInjectionGrantStore(sql).tryConsumeGrant(organizationId, grantId, variableKey),
+    new TenantInjectionGrantStore(sql).tryConsumeGrant(organizationId, grantId, requestedSecretId),
   );
 }
 
@@ -78,20 +85,24 @@ export async function executeConsumeInjectionGrant(
     throw new InjectionGrantError(INJECTION_ERROR_CODES.grantDenied, "injection grant not found");
   }
 
+  const grantCoordinate: GrantCoordinate = {
+    organizationId: input.organizationId,
+    projectId: coordinate.projectId,
+    environmentId: coordinate.environmentId,
+  };
+
   await assertRuntimeInjectionAccess(
     { type: "user", userId: input.actor.userId },
-    {
-      organizationId: input.organizationId,
-      projectId: coordinate.projectId,
-      environmentId: coordinate.environmentId,
-    },
+    grantCoordinate,
     CONSUME_SCOPE,
   );
+
+  const resolved = await resolveConsumeSecretId(grantCoordinate, input.selector);
 
   const consumeResult = await consumeGrantOnce(
     input.organizationId,
     input.grantId,
-    input.variableKey,
+    resolved.secretId,
   );
   if (!consumeResult.ok) {
     throw new InjectionGrantError(
@@ -100,19 +111,20 @@ export async function executeConsumeInjectionGrant(
     );
   }
 
-  const plaintext = await decryptGrantSecretValue({
+  const plaintext = await decryptGrantSecretById({
     organizationId: input.organizationId,
     projectId: coordinate.projectId,
     environmentId: coordinate.environmentId,
-    variableKey: input.variableKey,
+    secretId: resolved.secretId,
   });
 
-  return buildConsumeSuccessResult(input, coordinate, plaintext);
+  return buildConsumeSuccessResult(input, coordinate, resolved, plaintext);
 }
 
 async function buildConsumeSuccessResult(
   input: ConsumeInjectionGrantCoreInput,
   coordinate: { projectId: ProjectId; environmentId: EnvironmentId },
+  resolved: { secretId: SecretId; variableKey: VariableKey },
   plaintext: Uint8Array,
 ): Promise<ConsumeInjectionGrantCoreResult> {
   const audit = await recordInjectionGrantAudit({
@@ -128,7 +140,8 @@ async function buildConsumeSuccessResult(
   });
 
   return {
-    variableKey: input.variableKey,
+    secretId: resolved.secretId,
+    variableKey: resolved.variableKey,
     valueUtf8: plaintext,
     ...(audit?.auditEventId !== undefined ? { auditEventId: audit.auditEventId } : {}),
   };

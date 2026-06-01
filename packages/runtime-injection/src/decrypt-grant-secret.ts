@@ -5,10 +5,9 @@ import {
   type EnvironmentId,
   type OrganizationId,
   type ProjectId,
-  type VariableKey,
+  type SecretId,
 } from "@insecur/domain";
 import {
-  resolveSecretForRead,
   TenantSecretVersionStore,
   withTenantScope,
   type TenantScopedSql,
@@ -16,23 +15,15 @@ import {
 
 import { InjectionGrantError } from "./injection-grant-error.js";
 
-export async function decryptGrantSecretValue(input: {
+export async function decryptGrantSecretById(input: {
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId: EnvironmentId;
-  variableKey: VariableKey;
+  secretId: SecretId;
 }): Promise<Uint8Array> {
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
-      const resolvedSecretId = await resolveSecretForRead(sql, {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        variableKey: input.variableKey,
-      });
-      return decryptResolvedSecret(input, resolvedSecretId, sql);
-    },
+    async (sql) => decryptResolvedSecret(input, input.secretId, sql),
   );
 }
 
@@ -42,7 +33,7 @@ async function decryptResolvedSecret(
     projectId: ProjectId;
     environmentId: EnvironmentId;
   },
-  resolvedSecretId: Awaited<ReturnType<typeof resolveSecretForRead>>,
+  resolvedSecretId: SecretId,
   sql: TenantScopedSql,
 ): Promise<Uint8Array> {
   const version = await new TenantSecretVersionStore(sql).getCurrentVersion(resolvedSecretId);
