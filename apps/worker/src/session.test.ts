@@ -47,6 +47,20 @@ describe("worker session routes", () => {
     });
   });
 
+  it("returns auth.invalid for three-part bearer with invalid base64 signature", async () => {
+    const response = await app.request(
+      "/v1/session/whoami",
+      { method: "GET", headers: { Authorization: "Bearer a.b.!" } },
+      env,
+    );
+    expect(response.status).toBe(401);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: { code: "auth.invalid" },
+    });
+  });
+
   it("returns auth.expired for expired bearer credentials", async () => {
     const minted = await mintEphemeralSessionCredential({
       actor: {

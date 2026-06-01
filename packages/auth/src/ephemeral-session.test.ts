@@ -37,6 +37,14 @@ describe("ephemeral session credentials", () => {
     }
   });
 
+  it("rejects malformed three-part credentials with invalid base64 signature", async () => {
+    const verified = await verifyEphemeralSessionCredential("a.b.!", signingSecret);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("invalid");
+    }
+  });
+
   it("rejects expired credentials", async () => {
     const minted = await mintEphemeralSessionCredential({
       actor,

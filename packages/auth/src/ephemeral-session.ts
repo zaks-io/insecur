@@ -20,15 +20,19 @@ function encodeBase64Url(bytes: Uint8Array): string {
     .replace(/=+$/u, "");
 }
 
-function decodeBase64Url(value: string): Uint8Array {
-  const normalized = value.replace(/-/gu, "+").replace(/_/gu, "/");
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
+function decodeBase64Url(value: string): Uint8Array | null {
+  try {
+    const normalized = value.replace(/-/gu, "+").replace(/_/gu, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  } catch {
+    return null;
   }
-  return bytes;
 }
 
 type SigningKey = Awaited<ReturnType<typeof crypto.subtle.importKey>>;
@@ -53,9 +57,12 @@ async function verifySignature(
   signature: string,
   secret: string,
 ): Promise<boolean> {
+  const signatureBytes = decodeBase64Url(signature);
+  if (signatureBytes === null) {
+    return false;
+  }
   const key = await importSigningKey(secret);
   const data = new TextEncoder().encode(payloadJson);
-  const signatureBytes = decodeBase64Url(signature);
   return crypto.subtle.verify("HMAC", key, signatureBytes, data);
 }
 
@@ -117,8 +124,12 @@ function parseCredentialParts(
 }
 
 function parsePayload(body: string): EphemeralSessionPayload | null {
+  const bodyBytes = decodeBase64Url(body);
+  if (bodyBytes === null) {
+    return null;
+  }
   try {
-    const decoded = new TextDecoder().decode(decodeBase64Url(body));
+    const decoded = new TextDecoder().decode(bodyBytes);
     return JSON.parse(decoded) as EphemeralSessionPayload;
   } catch {
     return null;
