@@ -14,13 +14,14 @@
     "topo": "node -e \"\"",
     "build": "tsc",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@insecur/access": "workspace:*",
     "@insecur/audit": "workspace:*",
+    "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/secrets": "workspace:*",
     "@insecur/tenant-store": "workspace:*"

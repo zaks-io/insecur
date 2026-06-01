@@ -14,7 +14,7 @@ import {
   decodeInlineCiphertextStorageRef,
   withTenantScope,
 } from "@insecur/tenant-store";
-import { requireDatabaseUrl } from "../../tenant-store/scripts/lib/env-local.mjs";
+import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 
 import {
@@ -26,14 +26,7 @@ import {
 import { testOrganization, uniqueVariableKey, writeTestSecret } from "./integration-helpers.js";
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
 
-let runtimeUrl: string | undefined;
-try {
-  runtimeUrl = requireDatabaseUrl("DATABASE_URL_RUNTIME");
-} catch {
-  runtimeUrl = undefined;
-}
-
-const describeIntegration = runtimeUrl ? describe : describe.skip;
+const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
 function createTestRootKey(): Uint8Array {
   const root = new Uint8Array(32);
@@ -43,9 +36,6 @@ function createTestRootKey(): Uint8Array {
 
 describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
   beforeAll(async () => {
-    if (!runtimeUrl) {
-      return;
-    }
     await seedTenantBaseline();
   });
 
