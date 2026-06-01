@@ -49,6 +49,7 @@ packages/cli
   -> packages/onboarding
   -> packages/runtime-injection
   -> packages/secrets
+  -> packages/auth
   -> packages/access
   -> packages/audit
   -> packages/tenant-store
@@ -67,6 +68,7 @@ real seams even when the implementations are narrow.
 | Package                      | Module                           | Owns                                                                                                                     | Does not own                                                                 |
 | ---------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | `@insecur/domain`            | Domain primitives                | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                        | Persistence, encryption, authorization decisions, provider behavior          |
+| `@insecur/auth`              | Human authentication sessions    | WorkOS sealed session validation, User actor context, CLI ephemeral credentials, CSRF helpers for browser mutations      | Effective Access, CLI commands, WorkOS hosted login UI, Machine Identity     |
 | `@insecur/access`            | Effective Access Resolver        | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests     | Human authentication, Service Access, Protected Environment approval         |
 | `@insecur/tenant-store`      | Tenant-Scoped Store              | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                       | Business rules, authorization semantics, encryption                          |
 | `@insecur/crypto`            | Keyring and Encryption Envelope  | tenant-bound key resolution, key versions, ciphertext identity binding, wrapped material shapes                          | Secret lifecycle decisions, raw persistence, delivery policy                 |
