@@ -1,3 +1,4 @@
+import { coordinateCacheKey } from "./coordinate-cache-key.js";
 import type { EffectiveAccessResult } from "./resolve-effective-access.js";
 import type { ActorRef, ResourceCoordinate } from "./resolve-effective-access.js";
 
@@ -6,9 +7,7 @@ export class EffectiveAccessMemo {
   private readonly cache = new Map<string, EffectiveAccessResult>();
 
   private cacheKey(actor: ActorRef, coordinate: ResourceCoordinate): string {
-    const project = coordinate.projectId ?? "";
-    const environment = coordinate.environmentId ?? "";
-    return `${actor.userId}:${coordinate.organizationId}:${project}:${environment}`;
+    return `${actor.userId}:${coordinateCacheKey(coordinate)}`;
   }
 
   get(actor: ActorRef, coordinate: ResourceCoordinate): EffectiveAccessResult | undefined {

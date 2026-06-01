@@ -2,10 +2,11 @@ import {
   AUTHORIZATION_SCOPES,
   hasAuthorizationScope,
   resolveEffectiveAccess,
+  resolveEffectiveAccessBatch,
 } from "../src/index.js";
 import { organizationId, projectId, userId } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { closeRuntimeSql } from "@insecur/tenant-store";
+import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { requireDatabaseUrl } from "../../tenant-store/scripts/lib/env-local.mjs";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
@@ -15,6 +16,8 @@ import {
   TEST_PROJECT_B_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
+
+const TEST_MEM_PROJECT_DEV_ID = "mem_00000000000000000000000003";
 
 let runtimeUrl: string | undefined;
 try {
@@ -54,6 +57,42 @@ describeIntegration("resolveEffectiveAccess (tenant-scoped store)", () => {
     );
     expect(hasAuthorizationScope(result, AUTHORIZATION_SCOPES.secretNonProtectedWrite)).toBe(true);
     expect(hasAuthorizationScope(result, AUTHORIZATION_SCOPES.runtimeInjectionRun)).toBe(true);
+  });
+
+  it("unions project-tier memberships loaded in one tenant-scoped batch read", async () => {
+    const org = organizationId.brand(TEST_ORG_A_ID);
+    const project = projectId.brand(TEST_PROJECT_A_ID);
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`
+        INSERT INTO memberships (id, org_id, team_id, user_id, role_preset, project_id)
+        VALUES (
+          ${TEST_MEM_PROJECT_DEV_ID},
+          ${TEST_ORG_A_ID},
+          NULL,
+          ${TEST_USER_ID},
+          ${"developer"},
+          ${TEST_PROJECT_A_ID}
+        )
+        ON CONFLICT (id) DO NOTHING
+      `;
+    });
+
+    const results = await resolveEffectiveAccessBatch(ACTOR, [
+      { organizationId: org, projectId: project },
+    ]);
+    expect(results).toHaveLength(1);
+    const atProject = results[0];
+    if (atProject === undefined) {
+      throw new Error("expected one effective access result");
+    }
+
+    expect(hasAuthorizationScope(atProject, AUTHORIZATION_SCOPES.onboardingGuidedProvision)).toBe(
+      true,
+    );
+    expect(hasAuthorizationScope(atProject, AUTHORIZATION_SCOPES.secretNonProtectedWrite)).toBe(
+      true,
+    );
   });
 
   it("returns empty scopes when guessing another organization coordinate", async () => {

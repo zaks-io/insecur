@@ -11,6 +11,7 @@ export {
   isBuiltInRolePreset,
 } from "./built-in-role-scopes.js";
 export { EffectiveAccessMemo } from "./effective-access-memo.js";
+export { EffectiveAccessRequestCache } from "./effective-access-request-cache.js";
 export { hasAuthorizationScope } from "./has-authorization-scope.js";
 export { loadActorMemberships, type LoadMembershipsInput } from "./load-memberships.js";
 export type { MembershipRow } from "./membership-row.js";
@@ -23,5 +24,6 @@ export {
   type ResolveEffectiveAccessOptions,
   type ResourceCoordinate,
   resolveEffectiveAccess,
+  resolveEffectiveAccessBatch,
 } from "./resolve-effective-access.js";
 export { unionEffectiveAccessScopes } from "./union-effective-access-scopes.js";

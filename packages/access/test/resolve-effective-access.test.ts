@@ -1,9 +1,11 @@
 import {
   AUTHORIZATION_SCOPES,
   EffectiveAccessMemo,
+  EffectiveAccessRequestCache,
   expandBuiltInRolePresetToScopes,
   hasAuthorizationScope,
   resolveEffectiveAccess,
+  resolveEffectiveAccessBatch,
   unionEffectiveAccessScopes,
   type LoadMembershipsFn,
   type MembershipRow,
@@ -35,6 +37,15 @@ function membership(
   };
 }
 
+function syntheticProjectId(index: number): ReturnType<typeof projectId.brand> {
+  const body = index.toString(16).toUpperCase().padStart(26, "0");
+  return projectId.brand(`prj_${body}`);
+}
+
+function coordinateForProject(project: ReturnType<typeof projectId.brand>) {
+  return { organizationId: ORG_A, projectId: project };
+}
+
 describe("resolveEffectiveAccess", () => {
   it("resolves First Value owner scopes from organization-tier membership", async () => {
     const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
@@ -57,6 +68,11 @@ describe("resolveEffectiveAccess", () => {
       expect(hasAuthorizationScope(result, scope)).toBe(true);
     }
     expect(loadMemberships).toHaveBeenCalledTimes(1);
+    expect(loadMemberships).toHaveBeenCalledWith({
+      actor: ACTOR,
+      organizationId: ORG_A,
+      projectIds: [PROJECT_A],
+    });
   });
 
   it("returns no scopes for a user without applicable memberships", async () => {
@@ -99,31 +115,59 @@ describe("resolveEffectiveAccess", () => {
     expect(loadMemberships).toHaveBeenCalledTimes(1);
   });
 
-  it("issues one membership read regardless of how many scopes are checked afterward", async () => {
+  it("does not treat unknown role presets as authorization shortcuts", () => {
+    expect(expandBuiltInRolePresetToScopes("owner")).not.toEqual([]);
+    expect(expandBuiltInRolePresetToScopes("custom-role")).toEqual([]);
+  });
+});
+
+describe("resolveEffectiveAccessBatch", () => {
+  it("loads memberships once for one project coordinate and once for fifty", async () => {
     const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
       membership({ rolePreset: "owner" }),
     ]);
 
-    const result = await resolveEffectiveAccess(
-      ACTOR,
-      { organizationId: ORG_A, projectId: PROJECT_A },
-      { deps: { loadMemberships } },
-    );
-
-    const checks = [
-      AUTHORIZATION_SCOPES.onboardingGuidedProvision,
-      AUTHORIZATION_SCOPES.secretNonProtectedWrite,
-      AUTHORIZATION_SCOPES.runtimeInjectionRun,
-      AUTHORIZATION_SCOPES.organizationRead,
-    ];
-    for (const scope of checks) {
-      expect(hasAuthorizationScope(result, scope)).toBe(true);
-    }
+    const oneProject = [coordinateForProject(syntheticProjectId(1))];
+    await resolveEffectiveAccessBatch(ACTOR, oneProject, { deps: { loadMemberships } });
     expect(loadMemberships).toHaveBeenCalledTimes(1);
+
+    vi.mocked(loadMemberships).mockClear();
+
+    const fiftyProjects = Array.from({ length: 50 }, (_, index) =>
+      coordinateForProject(syntheticProjectId(index + 1)),
+    );
+    const results = await resolveEffectiveAccessBatch(ACTOR, fiftyProjects, {
+      deps: { loadMemberships },
+    });
+
+    expect(results).toHaveLength(50);
+    expect(loadMemberships).toHaveBeenCalledTimes(1);
+    expect(loadMemberships).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: ACTOR,
+        organizationId: ORG_A,
+        projectIds: expect.arrayContaining([syntheticProjectId(1), syntheticProjectId(50)]),
+      }),
+    );
+    expect(vi.mocked(loadMemberships).mock.calls[0]?.[0].projectIds).toHaveLength(50);
   });
 
-  it("does not treat unknown role presets as authorization shortcuts", () => {
-    expect(expandBuiltInRolePresetToScopes("owner")).not.toEqual([]);
-    expect(expandBuiltInRolePresetToScopes("custom-role")).toEqual([]);
+  it("deduplicates membership store reads through EffectiveAccessRequestCache", async () => {
+    const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
+      membership({ rolePreset: "owner" }),
+    ]);
+    const requestCache = new EffectiveAccessRequestCache();
+
+    await resolveEffectiveAccessBatch(ACTOR, [coordinateForProject(syntheticProjectId(1))], {
+      deps: { loadMemberships, requestCache },
+    });
+    await resolveEffectiveAccessBatch(
+      ACTOR,
+      [coordinateForProject(syntheticProjectId(1)), coordinateForProject(syntheticProjectId(2))],
+      { deps: { loadMemberships, requestCache } },
+    );
+
+    expect(loadMemberships).toHaveBeenCalledTimes(2);
+    expect(requestCache.membershipLoadCount()).toBe(2);
   });
 });
