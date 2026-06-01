@@ -43,9 +43,34 @@ export const INJECTION_ERROR_CODES = {
 
 export type InjectionErrorCode = (typeof INJECTION_ERROR_CODES)[keyof typeof INJECTION_ERROR_CODES];
 
+/** Crypto package failures surfaced to callers (decrypt remains opaque). */
+export const CRYPTO_ERROR_CODES = {
+  decryptFailed: "crypto.decrypt_failed",
+  rootKeyNotConfigured: "crypto.root_key_not_configured",
+} as const;
+
+export type CryptoErrorCode = (typeof CRYPTO_ERROR_CODES)[keyof typeof CRYPTO_ERROR_CODES];
+
+/** Tenant-scoped store configuration and runtime failures. */
+export const STORE_ERROR_CODES = {
+  runtimeConfigMissing: "store.runtime_config_missing",
+} as const;
+
+export type StoreErrorCode = (typeof STORE_ERROR_CODES)[keyof typeof STORE_ERROR_CODES];
+
+/** Audit event writer validation failures. */
+export const AUDIT_ERROR_CODES = {
+  eventInvalid: "audit.event_invalid",
+} as const;
+
+export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[keyof typeof AUDIT_ERROR_CODES];
+
 export type KnownErrorCode =
   | ValidationErrorCode
   | AuthErrorCode
   | SecretErrorCode
   | InjectionErrorCode
+  | CryptoErrorCode
+  | StoreErrorCode
+  | AuditErrorCode
   | (string & {});

@@ -56,13 +56,19 @@ export {
   isVariableKey,
 } from "./variable-key.js";
 export {
+  AUDIT_ERROR_CODES,
+  type AuditErrorCode,
   AUTH_ERROR_CODES,
   type AuthErrorCode,
+  CRYPTO_ERROR_CODES,
+  type CryptoErrorCode,
   INJECTION_ERROR_CODES,
   type InjectionErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,
+  STORE_ERROR_CODES,
+  type StoreErrorCode,
   VALIDATION_ERROR_CODES,
   type ValidationErrorCode,
 } from "./error-codes.js";

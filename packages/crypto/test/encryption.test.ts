@@ -1,4 +1,10 @@
-import { environmentId, organizationId, projectId, secretId } from "@insecur/domain";
+import {
+  CRYPTO_ERROR_CODES,
+  environmentId,
+  organizationId,
+  projectId,
+  secretId,
+} from "@insecur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
@@ -38,6 +44,26 @@ function createTestRootKey(): Uint8Array {
   const root = new Uint8Array(32);
   crypto.getRandomValues(root);
   return root;
+}
+
+function tamperCiphertextTail(ciphertext: Uint8Array): Uint8Array {
+  const tampered = new Uint8Array(ciphertext);
+  const lastIndex = tampered.byteLength - 1;
+  const lastByte = tampered[lastIndex];
+  if (lastByte !== undefined) {
+    tampered[lastIndex] = lastByte ^ 0xff;
+  }
+  return tampered;
+}
+
+async function decryptFailureCode(run: () => Promise<unknown>): Promise<string> {
+  try {
+    await run();
+    expect.fail("expected decrypt to throw");
+  } catch (error) {
+    expect(error).toBeInstanceOf(DecryptError);
+    return (error as DecryptError).code;
+  }
 }
 
 describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
@@ -110,6 +136,8 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
     ).rejects.toMatchObject({
       name: "DecryptError",
       message: "decrypt failed",
+      code: CRYPTO_ERROR_CODES.decryptFailed,
+      retryable: false,
     });
 
     try {
@@ -122,6 +150,42 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
       expect(error).toBeInstanceOf(DecryptError);
       expect(String(error)).not.toMatch(/aad|identity|key version|auth/i);
     }
+  });
+
+  it("uses the same decrypt failure code for wrong key, tampering, and identity mismatch", async () => {
+    const wrapped = await encryptSecretValue(identity(), samplePlaintext());
+    const storeFacing = {
+      organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
+      projectDataKeyVersion: wrapped.projectDataKeyVersion,
+      ciphertext: toStoreFacingCiphertext(wrapped),
+    };
+    const tampered = tamperCiphertextTail(wrapped.ciphertext);
+
+    const identityMismatchCode = await decryptFailureCode(() =>
+      decryptSecretValueForRuntime(
+        identity({ organizationId: ORG_B, projectId: PROJECT_B }),
+        storeFacing,
+      ),
+    );
+
+    const tamperedCiphertextCode = await decryptFailureCode(() =>
+      decryptSecretValueForRuntime(identity(), {
+        ...wrapped,
+        ciphertext: tampered,
+      }),
+    );
+
+    resetKeyringForTests();
+    configureKeyring(createKeyring(createTestRootKey()));
+
+    const wrongKeyCode = await decryptFailureCode(() =>
+      decryptSecretValueForRuntime(identity(), wrapped),
+    );
+
+    expect(identityMismatchCode).toBe(CRYPTO_ERROR_CODES.decryptFailed);
+    expect(tamperedCiphertextCode).toBe(CRYPTO_ERROR_CODES.decryptFailed);
+    expect(wrongKeyCode).toBe(CRYPTO_ERROR_CODES.decryptFailed);
+    expect(new Set([identityMismatchCode, tamperedCiphertextCode, wrongKeyCode]).size).toBe(1);
   });
 
   it("does not persist plaintext or identity strings in store-facing ciphertext bytes", async () => {
