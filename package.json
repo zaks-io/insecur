@@ -13,7 +13,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
-    "verify:ci": "pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:rw",
     "prepare": "node scripts/lefthook-install.mjs",
     "dev:check": "node scripts/dev-check.mjs",
     "dev:db:env": "node scripts/dev-db.mjs env",

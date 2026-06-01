@@ -63,10 +63,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      - name: Install gitleaks (OSS CLI)
+        run: bash scripts/ci/install-gitleaks.sh
+
+      - name: Detect secrets
+        run: gitleaks detect --source . --redact --no-banner --verbose
 
   sast:
     name: SAST (semgrep)
@@ -89,19 +90,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          path: .
-          format: cyclonedx-json
-          output-file: sbom.cyclonedx.json
-
-      - name: Scan SBOM for CVEs
-        uses: anchore/scan-action@v3
-        with:
-          sbom: sbom.cyclonedx.json
-          fail-build: true
-          severity-cutoff: high
+      - name: Generate SBOM and scan for CVEs
+        run: bash scripts/ci/sbom-grype.sh high
 
   dependency-scan:
     name: Dependency scan (placeholder)
