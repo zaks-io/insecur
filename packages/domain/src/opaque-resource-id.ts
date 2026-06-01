@@ -76,3 +76,22 @@ export function brandOpaqueResourceIdForPrefix(
   }
   return parsed.value;
 }
+
+/** Crockford base32 alphabet (subset of [0-9A-Z]). */
+const CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+const OPAQUE_RESOURCE_ID_BODY_LENGTH = 26;
+
+function generateOpaqueResourceIdBody(): string {
+  const bytes = new Uint8Array(OPAQUE_RESOURCE_ID_BODY_LENGTH);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => CROCKFORD_ALPHABET.charAt(byte % 32)).join("");
+}
+
+/** Compose and validate a new opaque resource ID for the given prefix. */
+export function generateOpaqueResourceIdForPrefix(
+  prefix: OpaqueResourceIdPrefix,
+): OpaqueResourceId {
+  const raw = `${PREFIX_TO_LITERAL[prefix]}${generateOpaqueResourceIdBody()}`;
+  return brandOpaqueResourceIdForPrefix(prefix, raw);
+}
