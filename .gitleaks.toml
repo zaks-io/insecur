@@ -54,5 +54,4 @@ condition = "and"
 paths = ['''(?i)^docs/setup\.md$''']
 regexes = [
   '''^ins_live_\.\.\.$''',
-  '''^ins_live''',
 ]
