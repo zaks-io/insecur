@@ -37,6 +37,10 @@ describe("bytesToBase64Url / base64UrlToBytes", () => {
   it("returns null for malformed input with bad characters", () => {
     expect(base64UrlToBytes("not!!!valid")).toBeNull();
     expect(base64UrlToBytes("abc def")).toBeNull();
+    expect(base64UrlToBytes("+/")).toBeNull();
+    expect(base64UrlToBytes("-/")).toBeNull();
+    expect(base64UrlToBytes("a+b/c")).toBeNull();
+    expect(base64UrlToBytes("YWJj+")).toBeNull();
   });
 
   it("returns null for malformed input with invalid base64 length", () => {
