@@ -1,0 +1,99 @@
+# Daily supply-chain and security scan skeleton. See docs/build-tooling.md.
+name: security-daily
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vulnerability-scan:
+    name: Vulnerability scan (grype)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+
+      - name: Scan SBOM for CVEs
+        uses: anchore/scan-action@v3
+        with:
+          sbom: sbom.cyclonedx.json
+          fail-build: false
+          severity-cutoff: critical
+
+  sast-full:
+    name: SAST full scan (semgrep)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: auto
+
+  secret-scan-history:
+    name: Secret scan history (gitleaks)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  dependency-scan:
+    name: Dependency scan (placeholder)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Dependency scan gate
+        env:
+          DEPENDENCY_SCAN_ENABLED: ${{ vars.DEPENDENCY_SCAN_ENABLED }}
+        run: |
+          set -euo pipefail
+          if [ "${DEPENDENCY_SCAN_ENABLED:-}" != "true" ]; then
+            echo "::notice::dependency-scan skipped: set repository variable DEPENDENCY_SCAN_ENABLED=true and configure scanner credentials before enabling."
+            exit 0
+          fi
+          echo "::error::DEPENDENCY_SCAN_ENABLED is true but no dependency scanner is wired yet."
+          exit 1
+
+  report-criticals:
+    name: Report critical findings (placeholder)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    needs:
+      - vulnerability-scan
+      - sast-full
+      - secret-scan-history
+    steps:
+      - name: Linear reporting gate
+        env:
+          LINEAR_SECURITY_REPORTING_ENABLED: ${{ vars.LINEAR_SECURITY_REPORTING_ENABLED }}
+        run: |
+          set -euo pipefail
+          if [ "${LINEAR_SECURITY_REPORTING_ENABLED:-}" != "true" ]; then
+            echo "::notice::Linear security reporting skipped: set LINEAR_SECURITY_REPORTING_ENABLED=true and configure LINEAR_API_KEY before enabling automated issue filing."
+            exit 0
+          fi
+          echo "::error::LINEAR_SECURITY_REPORTING_ENABLED is true but automated Linear filing is not wired yet."
+          exit 1

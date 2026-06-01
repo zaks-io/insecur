@@ -4,6 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+  - lefthook
   - sharp
   - workerd
 strictDepBuilds: true
