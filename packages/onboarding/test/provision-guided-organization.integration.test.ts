@@ -19,8 +19,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
-import { TEST_INSTANCE_ID } from "../../tenant-store/test/rls/test-ids.js";
+import { TEST_INSTANCE_ID, TEST_ORG_A_ID } from "../../tenant-store/test/rls/test-ids.js";
 import { GuidedOrganizationProvisionError, provisionGuidedOrganization } from "../src/index.js";
+import { cleanupGuidedOrganizationFixture } from "./cleanup-guided-organization.js";
 
 const PROVISION_USER_ID = "usr_00000000000000000000000088";
 const PROVISION_ORG_ID = "org_00000000000000000000000088";
@@ -45,9 +46,11 @@ interface AuditRow {
 describeIntegration("provisionGuidedOrganization", () => {
   beforeAll(async () => {
     await seedTenantBaseline();
+    await cleanupGuidedOrganizationFixture(PROVISION_ORG_ID);
   });
 
   afterAll(async () => {
+    await cleanupGuidedOrganizationFixture(PROVISION_ORG_ID);
     await closeRuntimeSql();
   });
 
@@ -167,6 +170,54 @@ describeIntegration("provisionGuidedOrganization", () => {
       outcome: "denied",
       result_code: ONBOARDING_ERROR_CODES.alreadyProvisioned,
     });
+  });
+
+  it("does not write denied audit events into another tenant on resource id collision", async () => {
+    const outsider = userId.brand("usr_00000000000000000000000097");
+    const collidingOrg = organizationId.brand(TEST_ORG_A_ID);
+
+    const deniedCountBefore = await withTenantScope(
+      { kind: "organization", organizationId: collidingOrg },
+      async (sql) => {
+        const rows = await sql<{ count: string }[]>`
+          SELECT COUNT(*)::text AS count
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisionDenied}
+        `;
+        return Number(rows[0]?.count ?? "0");
+      },
+    );
+
+    await expect(
+      provisionGuidedOrganization({
+        userId: outsider,
+        instanceId: TEST_INSTANCE_ID,
+        isAdmitted: true,
+        resourceIds: {
+          organizationId: collidingOrg,
+          defaultTeamId: teamId.brand("team_00000000000000000000000097"),
+          ownerMembershipId: membershipId.brand("mem_00000000000000000000000097"),
+          projectId: projectId.brand("prj_00000000000000000000000097"),
+          developmentEnvironmentId: environmentId.brand("env_00000000000000000000000097"),
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: ONBOARDING_ERROR_CODES.resourceConflict,
+    } satisfies Partial<GuidedOrganizationProvisionError>);
+
+    const deniedCountAfter = await withTenantScope(
+      { kind: "organization", organizationId: collidingOrg },
+      async (sql) => {
+        const rows = await sql<{ count: string }[]>`
+          SELECT COUNT(*)::text AS count
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisionDenied}
+        `;
+        return Number(rows[0]?.count ?? "0");
+      },
+    );
+
+    expect(deniedCountAfter).toBe(deniedCountBefore);
   });
 
   it("denies provisioning for a user who is not admitted", async () => {

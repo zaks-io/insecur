@@ -107,7 +107,6 @@ async function persistAndAuditSuccess(
     if (idempotent !== null) {
       return idempotent;
     }
-    await recordProvisionDenied(input, ids.organizationId, ONBOARDING_ERROR_CODES.resourceConflict);
     throw new GuidedOrganizationProvisionError(
       ONBOARDING_ERROR_CODES.resourceConflict,
       "guided organization resource id conflict",
