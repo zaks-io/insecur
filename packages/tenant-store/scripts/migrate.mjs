@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { grantRuntimeTablePrivileges, resolveRuntimeRole } from "./grant-runtime.mjs";
 import { loadRepoEnvLocal, redactLoggableError, requireDatabaseUrl } from "./lib/env-local.mjs";
+import { TENANT_STORE_MIGRATION_LOCK_KEY } from "./lib/test-advisory-locks.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const migrationsDir = join(packageRoot, "migrations");
@@ -21,6 +22,7 @@ try {
 const sql = postgres(databaseUrl, { prepare: false, max: 1 });
 
 try {
+  await sql`SELECT pg_advisory_lock(${TENANT_STORE_MIGRATION_LOCK_KEY})`;
   await sql.unsafe(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version text PRIMARY KEY,
@@ -65,5 +67,10 @@ try {
   console.error(redactLoggableError(error));
   process.exit(1);
 } finally {
+  try {
+    await sql`SELECT pg_advisory_unlock(${TENANT_STORE_MIGRATION_LOCK_KEY})`;
+  } catch {
+    // Best-effort unlock before closing the connection.
+  }
   await sql.end({ timeout: 5 });
 }
