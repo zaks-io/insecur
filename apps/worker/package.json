@@ -16,10 +16,10 @@
   "dependencies": {
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
-    "hono": "catalog:"
+    "hono": "4.12.23"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "catalog:",
+    "@cloudflare/workers-types": "4.20260529.1",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",

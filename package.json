@@ -40,9 +40,9 @@
     "jiti": "catalog:",
     "lefthook": "catalog:",
     "prettier": "catalog:",
-    "turbo": "catalog:",
+    "turbo": "2.9.16",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
+    "typescript-eslint": "8.60.0",
     "vitest": "catalog:"
   }
 }
