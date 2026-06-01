@@ -16,6 +16,7 @@ cd "${repo_root}"
 case "${mode}" in
   detect)
     gitleaks detect --config "${config}" --source . --redact --no-banner --verbose
+    bash "${repo_root}/scripts/ci/gitleaks-workflow-config-probe.sh"
     ;;
   git)
     gitleaks git --config "${config}" --redact --no-banner --verbose

@@ -9,13 +9,11 @@ useDefault = true
 id = "generic-api-key"
 
 [[rules.allowlists]]
-description = "Linear tracker UUID metadata in workflow agent config"
+description = "Linear tracker UUID false positives in workflow agent config (secret must be UUID only)"
 condition = "and"
 paths = ['''(?i)^docs/agents/workflow/config\.md$''']
-regexTarget = "line"
 regexes = [
-  '''`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`''',
-  '''(?:^|\s)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\s|$)''',
+  '''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''',
 ]
 
 [[rules.allowlists]]
@@ -26,10 +24,9 @@ paths = [
   '''(?i)^docs/project-status\.md$''',
   '''(?i)^docs/build-tooling\.md$''',
 ]
-regexTarget = "line"
 regexes = [
-  '''gitleaks/semgrep/syft/grype''',
-  '''SBOM/vulnerability''',
+  '''^gitleaks/semgrep/syft/grype$''',
+  '''^SBOM/vulnerability$''',
 ]
 
 [[rules.allowlists]]
@@ -46,8 +43,7 @@ stopwords = ["SBOM"]
 description = "Historical scaffold JSON example in setup doc"
 condition = "and"
 paths = ['''(?i)^docs/setup\.md$''']
-regexTarget = "line"
-regexes = ['''sk_live_abc123''']
+regexes = ['''^sk_live_abc123$''']
 
 [[rules]]
 id = "curl-auth-header"
@@ -56,8 +52,7 @@ id = "curl-auth-header"
 description = "Historical scaffold curl Bearer placeholder in setup doc"
 condition = "and"
 paths = ['''(?i)^docs/setup\.md$''']
-regexTarget = "line"
 regexes = [
-  '''ins_live_\.\.\.''',
-  '''authorization:\s*Bearer\s+ins_live''',
+  '''^ins_live_\.\.\.$''',
+  '''^ins_live''',
 ]
