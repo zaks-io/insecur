@@ -1,23 +1,63 @@
 # Gitleaks config for insecur CI and local hooks.
-# Allowlists target known documentation false positives; default rules stay enabled.
+# Rule-specific allowlists use path+line AND conditions; default rules stay enabled.
 title = "insecur gitleaks"
 
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Documentation false positives (Linear UUIDs, toolchain names, scaffold placeholders)"
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Linear tracker UUID metadata in workflow agent config"
+condition = "and"
+paths = ['''(?i)^docs/agents/workflow/config\.md$''']
 regexTarget = "line"
 regexes = [
   '''`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`''',
   '''(?:^|\s)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\s|$)''',
+]
+
+[[rules.allowlists]]
+description = "Supply-chain toolchain prose in project documentation"
+condition = "and"
+paths = [
+  '''(?i)^docs/production-mvp-acceptance\.md$''',
+  '''(?i)^docs/project-status\.md$''',
+  '''(?i)^docs/build-tooling\.md$''',
+]
+regexTarget = "line"
+regexes = [
   '''gitleaks/semgrep/syft/grype''',
   '''SBOM/vulnerability''',
-  '''ins_live_\.\.\.''',
-  '''sk_live_abc123''',
-  '''authorization:\s*Bearer\s+ins_live''',
 ]
-stopwords = [
-  # generic-api-key can match the SBOM token in supply-chain doc prose.
-  "SBOM",
+
+[[rules.allowlists]]
+description = "SBOM token false positive in supply-chain project docs only"
+condition = "and"
+paths = [
+  '''(?i)^docs/production-mvp-acceptance\.md$''',
+  '''(?i)^docs/project-status\.md$''',
+  '''(?i)^docs/build-tooling\.md$''',
+]
+stopwords = ["SBOM"]
+
+[[rules.allowlists]]
+description = "Historical scaffold JSON example in setup doc"
+condition = "and"
+paths = ['''(?i)^docs/setup\.md$''']
+regexTarget = "line"
+regexes = ['''sk_live_abc123''']
+
+[[rules]]
+id = "curl-auth-header"
+
+[[rules.allowlists]]
+description = "Historical scaffold curl Bearer placeholder in setup doc"
+condition = "and"
+paths = ['''(?i)^docs/setup\.md$''']
+regexTarget = "line"
+regexes = [
+  '''ins_live_\.\.\.''',
+  '''authorization:\s*Bearer\s+ins_live''',
 ]
