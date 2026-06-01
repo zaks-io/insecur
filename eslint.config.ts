@@ -19,6 +19,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ["packages/tenant-store/test/**/*.ts", "packages/tenant-store/vitest.rls.config.ts"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
     files: ["packages/cli/**/*.ts", "scripts/**/*.{ts,mjs}"],
     languageOptions: {
       globals: {
@@ -27,7 +31,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.js", "**/*.mjs", "**/*.cjs"],
+    files: ["**/*.js", "**/*.mjs", "**/*.cjs", "eslint.config.ts"],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {

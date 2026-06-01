@@ -52,7 +52,7 @@ SELECT format(
 )\gexec
 
 SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'db_name')\gexec
-SELECT format('GRANT CONNECT, TEMPORARY ON DATABASE %I TO %I', :'db_name', :'migration_role')\gexec
+SELECT format('GRANT CONNECT, TEMPORARY, CREATE ON DATABASE %I TO %I', :'db_name', :'migration_role')\gexec
 SELECT format('GRANT CONNECT, TEMPORARY ON DATABASE %I TO %I', :'db_name', :'runtime_role')\gexec
 
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;

@@ -2,21 +2,52 @@
 
 Tenant-Scoped Store and metadata-store adapter contract.
 
-This package owns the persistence seam for tenant-owned metadata. Callers should
-receive a scoped callback Interface, never a raw SQL executor.
+This package owns the persistence seam for tenant-owned metadata. Callers receive
+a scoped SQL handle inside `withTenantScope`; the postgres.js pool is not exported.
+
+## Entry point
+
+```ts
+import { withTenantScope } from "@insecur/tenant-store";
+
+await withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+  return sql`SELECT id FROM projects WHERE org_id = ${organizationId}`;
+});
+```
+
+Service Access uses `{ kind: "service" }` and sets `app.service` transaction-locally.
+
+## Migrations
+
+```bash
+pnpm migrate:local   # requires DATABASE_URL_MIGRATION (see docs/setup.md)
+pnpm dev:db:reset    # local Docker Postgres + migrate
+```
+
+SQL migrations live in `migrations/` and apply RLS policies in the same step as
+table creation (ADR-0037). After migrations apply, `migrate.mjs` grants DML on
+tenant tables to the runtime role from `INSECUR_POSTGRES_RUNTIME_ROLE` or
+`DATABASE_URL_RUNTIME` so `pnpm test:rls` works without relying on Docker init
+default privileges alone.
+
+## RLS tests
+
+```bash
+pnpm test:rls   # real Postgres as DATABASE_URL_RUNTIME; never SQLite/PGlite
+```
+
+Local runs load `DATABASE_URL_*` from the repo `.env.local` when present and unset in the
+process environment (explicit env vars win over the file). Dotenv-style unquoting and URL
+validation live in `scripts/lib/env-local.mjs`. Migration and seed failures redact database
+URLs before logging. CI uses per-PR Neon branches (ADR-0054).
 
 ## Owns
 
 - Scoped transaction Interface.
 - Organization Access and Service Access store scope shapes.
 - Transaction-local tenant scope setting.
-- RLS adapter contract for Neon Postgres behind Hyperdrive.
-- Cross-tenant store regression tests.
-
-## Consumes
-
-- `@insecur/domain` for tenant and resource identity shapes.
-- A Postgres adapter implementation once persistence is implemented.
+- RLS-backed metadata isolation for First Value tables.
+- Cross-tenant store regression tests against real Postgres.
 
 ## Does Not Own
 
@@ -24,12 +55,6 @@ receive a scoped callback Interface, never a raw SQL executor.
 - Business rules for onboarding, secrets, runtime injection, or sync.
 - Encryption, Keyring, or Sensitive Value handling.
 - Audit event formatting.
-
-## Interface Tests
-
-Tests should prove scoped reads and writes only see rows for the active
-Organization Access scope, unscoped access fails closed, and Service Access
-stays explicit and audited by callers.
 
 ## Dependency Rule
 

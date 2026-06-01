@@ -1,22 +1,27 @@
-import type { OrganizationId } from "@insecur/domain";
-import { NotImplementedError } from "@insecur/domain";
-
-/** Store scope passed into every tenant-scoped database entry point. */
-export interface TenantScope {
-  organizationId: OrganizationId;
-}
-
-export type TenantScopedCallback<TResult> = () => Promise<TResult>;
+import { getRuntimeSql } from "./db/connection.js";
+import { applyTenantScope } from "./apply-tenant-scope.js";
+import type { TenantScope, TenantScopedCallback } from "./tenant-scope.js";
+import type { TenantScopedSql } from "./tenant-scoped-sql.js";
 
 /**
  * The only supported database entry point for tenant-owned metadata.
  * @see docs/adr/0037-tenant-scoped-bound-store-over-rls.md
  */
-export function withTenantScope<TResult>(
+export async function withTenantScope<TResult>(
   scope: TenantScope,
   callback: TenantScopedCallback<TResult>,
 ): Promise<TResult> {
-  void scope;
-  void callback;
-  return Promise.reject(new NotImplementedError("withTenantScope"));
+  const sql = getRuntimeSql();
+  return (await sql.begin(async (tx) => {
+    const scoped = tx as TenantScopedSql;
+    await applyTenantScope(scoped, scope);
+    return callback(scoped);
+  })) as TResult;
 }
+
+export type {
+  OrganizationTenantScope,
+  ServiceTenantScope,
+  TenantScope,
+  TenantScopedCallback,
+} from "./tenant-scope.js";
