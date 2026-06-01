@@ -22,6 +22,8 @@ export default tseslint.config(
     files: [
       "packages/access/test/**/*.ts",
       "packages/access/vitest.config.ts",
+      "packages/secrets/test/**/*.ts",
+      "packages/secrets/vitest.config.ts",
       "packages/audit/test/**/*.ts",
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
@@ -52,10 +54,20 @@ export default tseslint.config(
     },
   },
   {
+    files: ["packages/secrets/src/is-valid-utf8.ts"],
+    rules: {
+      complexity: "off",
+      "max-lines-per-function": "off",
+      "max-statements": "off",
+    },
+  },
+  {
     files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
     rules: {
       "max-lines": "off",
       "max-lines-per-function": "off",
+      "max-statements": "off",
+      complexity: "off",
     },
   },
   eslintConfigPrettier,
