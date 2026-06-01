@@ -1,42 +1,37 @@
-# EXAMPLE USAGE:
-#
-#   Refer for explanation to following link:
-#   https://lefthook.dev/configuration/
-#
-# pre-push:
-#   jobs:
-#     - name: packages audit
-#       tags:
-#         - frontend
-#         - security
-#       run: yarn audit
-#
-#     - name: gems audit
-#       tags:
-#         - backend
-#         - security
-#       run: bundle audit
-#
-# pre-commit:
-#   parallel: true
-#   jobs:
-#     - run: yarn eslint {staged_files}
-#       glob: "*.{js,ts,jsx,tsx}"
-#
-#     - name: rubocop
-#       glob: "*.rb"
-#       exclude:
-#         - config/application.rb
-#         - config/routes.rb
-#       run: bundle exec rubocop --force-exclusion -- {all_files}
-#
-#     - name: govet
-#       files: git ls-files -m
-#       glob: "*.go"
-#       run: go vet -- {files}
-#
-#     - script: "hello.js"
-#       runner: node
-#
-#     - script: "hello.go"
-#       runner: go run
+# Local git hooks aligned with pnpm verify and docs/build-tooling.md.
+# CI validate is the enforcement boundary; --no-verify is an accepted human escape hatch.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format-and-lint
+      glob: "*.{ts,tsx}"
+      group:
+        piped: true
+        jobs:
+          - name: prettier
+            run: pnpm exec prettier --write {staged_files}
+            stage_fixed: true
+          - name: eslint
+            run: pnpm exec eslint --fix --max-warnings=0 {staged_files}
+            stage_fixed: true
+
+    - name: prettier-noncode
+      glob: "*.{json,jsonc,md,yaml,yml}"
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true
+
+    - name: gitleaks
+      run: |
+        if command -v gitleaks >/dev/null 2>&1; then
+          gitleaks protect --config .gitleaks.toml --staged --redact --no-banner
+        else
+          echo "gitleaks not installed; skipping staged secret scan (CI validate still runs gitleaks)."
+        fi
+
+    - name: typecheck
+      run: pnpm exec turbo run typecheck --cache=local:rw,remote:r
+
+pre-push:
+  jobs:
+    - name: test
+      run: pnpm exec turbo run test --cache=local:rw,remote:r
