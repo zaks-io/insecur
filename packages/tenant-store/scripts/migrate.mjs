@@ -3,13 +3,18 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { grantRuntimeTablePrivileges, resolveRuntimeRole } from "./grant-runtime.mjs";
+import { loadRepoEnvLocal, redactLoggableError, requireDatabaseUrl } from "./lib/env-local.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const migrationsDir = join(packageRoot, "migrations");
 
-const databaseUrl = process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL;
-if (!databaseUrl) {
-  console.error("DATABASE_URL_MIGRATION or DATABASE_URL is required");
+loadRepoEnvLocal();
+
+let databaseUrl;
+try {
+  databaseUrl = requireDatabaseUrl("DATABASE_URL_MIGRATION", "DATABASE_URL");
+} catch (error) {
+  console.error(redactLoggableError(error));
   process.exit(1);
 }
 
@@ -56,6 +61,9 @@ try {
   }
 
   console.log("Migrations complete");
+} catch (error) {
+  console.error(redactLoggableError(error));
+  process.exit(1);
 } finally {
   await sql.end({ timeout: 5 });
 }

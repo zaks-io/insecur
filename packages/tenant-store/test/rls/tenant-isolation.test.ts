@@ -1,6 +1,7 @@
 import { organizationId, projectId } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
+import { redactLoggableError, requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
 import { closeRuntimeSql, withTenantScope } from "../../src/index.js";
 import { seedTenantBaseline } from "./seed.js";
 import {
@@ -16,7 +17,13 @@ import {
   TEST_VERSION_B_ID,
 } from "./test-ids.js";
 
-const runtimeUrl = process.env.DATABASE_URL_RUNTIME;
+let runtimeUrl: string | undefined;
+try {
+  runtimeUrl = requireDatabaseUrl("DATABASE_URL_RUNTIME");
+} catch {
+  runtimeUrl = undefined;
+}
+
 const describeRls = runtimeUrl ? describe : describe.skip;
 
 interface IdRow {
@@ -39,7 +46,12 @@ describeRls("tenant row-level security (real Postgres)", () => {
     if (!runtimeUrl) {
       return;
     }
-    const sql = postgres(runtimeUrl, { prepare: false, max: 1 });
+    let sql;
+    try {
+      sql = postgres(runtimeUrl, { prepare: false, max: 1 });
+    } catch (error) {
+      throw new Error(redactLoggableError(error), { cause: error });
+    }
     try {
       const organizations = await sql`SELECT id FROM organizations`;
       expect(organizations).toEqual([]);

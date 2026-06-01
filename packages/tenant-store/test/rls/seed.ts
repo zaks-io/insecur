@@ -3,6 +3,11 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import {
+  redactDatabaseUrlsInText,
+  redactLoggableError,
+  requireDatabaseUrl,
+} from "../../scripts/lib/env-local.mjs";
+import {
   TEST_ENV_A_ID,
   TEST_ENV_B_ID,
   TEST_INSTANCE_ID,
@@ -23,22 +28,34 @@ import {
 
 const packageRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
-export async function seedTenantBaseline(): Promise<void> {
-  const url = process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error("DATABASE_URL_MIGRATION is required to seed RLS test data");
-  }
-
+function runLocalMigrate(): void {
   const migrate = spawnSync("node", ["scripts/migrate.mjs"], {
     cwd: packageRoot,
     env: process.env,
-    stdio: "inherit",
+    stdio: ["inherit", "pipe", "pipe"],
   });
-  if (migrate.status !== 0) {
-    throw new Error("migrate.mjs failed");
+  if (migrate.status === 0) {
+    return;
   }
 
-  const sql = postgres(url, { prepare: false, max: 1 });
+  const stderr = migrate.stderr?.toString("utf8") ?? "";
+  const stdout = migrate.stdout?.toString("utf8") ?? "";
+  const detail = redactDatabaseUrlsInText([stderr, stdout].filter(Boolean).join("\n").trim());
+  throw new Error(detail === "" ? "migrate.mjs failed" : `migrate.mjs failed: ${detail}`);
+}
+
+function createMigrationSql(url: string): postgres.Sql {
+  try {
+    return postgres(url, { prepare: false, max: 1 });
+  } catch (error) {
+    throw new Error(redactLoggableError(error), { cause: error });
+  }
+}
+
+export async function seedTenantBaseline(): Promise<void> {
+  const url = requireDatabaseUrl("DATABASE_URL_MIGRATION", "DATABASE_URL");
+  runLocalMigrate();
+  const sql = createMigrationSql(url);
   try {
     await sql`
       INSERT INTO instances (id, display_name)
@@ -64,6 +81,8 @@ export async function seedTenantBaseline(): Promise<void> {
       secretId: TEST_SECRET_B_ID,
       secretVersionId: TEST_VERSION_B_ID,
     });
+  } catch (error) {
+    throw new Error(redactLoggableError(error), { cause: error });
   } finally {
     await sql.end({ timeout: 5 });
   }

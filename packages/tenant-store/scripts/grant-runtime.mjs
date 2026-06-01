@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { normalizeDatabaseUrlEnv, unquoteEnvValue } from "./lib/env-local.mjs";
 
 /**
  * Grant DML on tenant tables to the NOBYPASSRLS runtime role. Migrations create tables
@@ -6,14 +7,16 @@ import postgres from "postgres";
  * migrate.mjs runs against Neon or other hosts.
  */
 export function resolveRuntimeRole() {
+  normalizeDatabaseUrlEnv();
+
   const fromEnv = process.env.INSECUR_POSTGRES_RUNTIME_ROLE?.trim();
   if (fromEnv) {
-    return fromEnv;
+    return unquoteEnvValue(fromEnv);
   }
 
   const runtimeUrl = process.env.DATABASE_URL_RUNTIME?.trim();
   if (runtimeUrl) {
-    return new URL(runtimeUrl).username;
+    return new URL(unquoteEnvValue(runtimeUrl)).username;
   }
 
   return null;
