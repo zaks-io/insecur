@@ -8,7 +8,9 @@ import { TEST_ORG_A_ID, TEST_ORG_B_ID, TEST_PROJECT_A_ID, TEST_PROJECT_B_ID } fr
 const runtimeUrl = process.env.DATABASE_URL_RUNTIME;
 const describeRls = runtimeUrl ? describe : describe.skip;
 
-interface IdRow { id: string }
+interface IdRow {
+  id: string;
+}
 
 describeRls("tenant row-level security (real Postgres)", () => {
   beforeAll(async () => {
