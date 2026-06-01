@@ -270,6 +270,9 @@ importers:
         specifier: workspace:*
         version: link:../tenant-store
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
       eslint:
         specifier: 'catalog:'
         version: 9.39.4(jiti@2.7.0)
