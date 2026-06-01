@@ -16,5 +16,6 @@ export {
   StaticRootKeyProvider,
   type TenantDataKeySource,
 } from "./keyring.js";
+export { RootKeyNotConfiguredError } from "./errors.js";
 export { configureKeyring, getKeyring, resetKeyringForTests } from "./crypto-runtime.js";
 export { toStoreFacingCiphertext } from "./envelope.js";

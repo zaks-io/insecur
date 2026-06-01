@@ -5,3 +5,11 @@ export class DecryptError extends Error {
     this.name = "DecryptError";
   }
 }
+
+/** Root key material is not configured; encrypt and decrypt must fail closed. */
+export class RootKeyNotConfiguredError extends Error {
+  constructor() {
+    super("instance root key is not configured");
+    this.name = "RootKeyNotConfiguredError";
+  }
+}

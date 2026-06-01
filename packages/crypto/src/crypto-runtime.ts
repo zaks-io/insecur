@@ -1,3 +1,4 @@
+import { RootKeyNotConfiguredError } from "./errors.js";
 import { createKeyring, type Keyring } from "./keyring.js";
 
 let configuredKeyring: Keyring | undefined;
@@ -14,16 +15,6 @@ function readDevRootKeyFromEnv(): Uint8Array | undefined {
   return bytes;
 }
 
-function createDefaultKeyring(): Keyring {
-  const fromEnv = readDevRootKeyFromEnv();
-  if (fromEnv) {
-    return createKeyring(fromEnv);
-  }
-  const ephemeral = new Uint8Array(32);
-  crypto.getRandomValues(ephemeral);
-  return createKeyring(ephemeral);
-}
-
 export function configureKeyring(keyring: Keyring): void {
   configuredKeyring = keyring;
 }
@@ -33,6 +24,15 @@ export function resetKeyringForTests(): void {
 }
 
 export function getKeyring(): Keyring {
-  configuredKeyring ??= createDefaultKeyring();
+  if (configuredKeyring) {
+    return configuredKeyring;
+  }
+
+  const fromEnv = readDevRootKeyFromEnv();
+  if (!fromEnv) {
+    throw new RootKeyNotConfiguredError();
+  }
+
+  configuredKeyring = createKeyring(fromEnv);
   return configuredKeyring;
 }
