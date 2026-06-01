@@ -20,6 +20,7 @@ export default tseslint.config(
   },
   {
     files: [
+      "packages/access/test/**/*.ts",
       "packages/audit/test/**/*.ts",
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
