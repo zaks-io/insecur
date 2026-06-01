@@ -1,12 +1,6 @@
+import { environmentId, membershipId, organizationId, projectId, teamId } from "@insecur/domain";
 import type { ProvisionGuidedOrganizationResourceIds } from "./provision-guided-organization-types.js";
 import type { GuidedOrganizationResourceIds } from "./guided-organization-store.js";
-import {
-  generateEnvironmentId,
-  generateMembershipId,
-  generateOrganizationId,
-  generateProjectId,
-  generateTeamId,
-} from "./generate-resource-id.js";
 
 export function toStoreResourceIds(
   ids: ProvisionGuidedOrganizationResourceIds,
@@ -27,10 +21,10 @@ export function mintGuidedOrganizationIds(
     return toStoreResourceIds(resourceIds);
   }
   return {
-    organizationId: generateOrganizationId(),
-    defaultTeamId: generateTeamId(),
-    ownerMembershipId: generateMembershipId(),
-    projectId: generateProjectId(),
-    developmentEnvironmentId: generateEnvironmentId(),
+    organizationId: organizationId.generate(),
+    defaultTeamId: teamId.generate(),
+    ownerMembershipId: membershipId.generate(),
+    projectId: projectId.generate(),
+    developmentEnvironmentId: environmentId.generate(),
   };
 }
