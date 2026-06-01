@@ -6,7 +6,7 @@ import type {
   TenantDataKeyMetadataReader,
 } from "./data-key-metadata.js";
 import { RootKeyNotConfiguredError } from "./errors.js";
-import type { RootKeyProvider } from "./keyring.js";
+import type { KeyVersion, RootKeyProvider } from "./keyring.js";
 
 export type DataKeyReadinessIssueCode =
   | "root_key.unreachable"
@@ -51,9 +51,13 @@ function inactiveProjectIssue(): DataKeyReadinessIssue {
 
 async function collectRootReadinessIssues(
   rootKeyProvider: RootKeyProvider,
+  rootKeyVersion: KeyVersion | null,
 ): Promise<DataKeyReadinessIssue[]> {
+  if (rootKeyVersion === null) {
+    return [];
+  }
   try {
-    await rootKeyProvider.getRootKeyBytes(1);
+    await rootKeyProvider.getRootKeyBytes(rootKeyVersion);
     return [];
   } catch {
     return [{ code: "root_key.unreachable", scope: "organization" }];
@@ -92,13 +96,16 @@ function collectProjectReadinessIssues(
 export async function checkTenantDataKeyReadiness(
   input: KeyringReadinessInput,
 ): Promise<DataKeyReadinessReport> {
-  const organizationKey = await input.metadata.getActiveOrganizationDataKey(input.organizationId);
-  const projectKey = await input.metadata.getActiveProjectDataKey(
+  const organizationKey = await input.metadata.getOrganizationDataKeyForReadiness(
+    input.organizationId,
+  );
+  const projectKey = await input.metadata.getProjectDataKeyForReadiness(
     input.organizationId,
     input.projectId,
   );
+  const rootKeyVersion = organizationKey?.rootKeyVersion ?? null;
   const issues = [
-    ...(await collectRootReadinessIssues(input.rootKeyProvider)),
+    ...(await collectRootReadinessIssues(input.rootKeyProvider, rootKeyVersion)),
     ...collectOrganizationReadinessIssues(organizationKey),
     ...collectProjectReadinessIssues(organizationKey, projectKey),
   ];

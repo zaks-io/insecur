@@ -46,4 +46,21 @@ export interface TenantDataKeyMetadataReader {
     projectId: ProjectId,
     keyVersion: KeyVersion,
   ): Promise<ProjectDataKeyMetadata | null>;
+
+  /**
+   * Returns the organization data key row used for delivery readiness checks.
+   * Prefer active rows; otherwise the highest key_version regardless of status.
+   */
+  getOrganizationDataKeyForReadiness(
+    organizationId: OrganizationId,
+  ): Promise<OrganizationDataKeyMetadata | null>;
+
+  /**
+   * Returns the project data key row used for delivery readiness checks.
+   * Prefer active rows; otherwise the highest key_version regardless of status.
+   */
+  getProjectDataKeyForReadiness(
+    organizationId: OrganizationId,
+    projectId: ProjectId,
+  ): Promise<ProjectDataKeyMetadata | null>;
 }

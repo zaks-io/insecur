@@ -63,6 +63,19 @@ class ScopedMetadataReader implements TenantDataKeyMetadataReader {
     const key = this.projectKeys.get(projectId);
     return Promise.resolve(key?.keyVersion === keyVersion ? key : null);
   }
+
+  getOrganizationDataKeyForReadiness(
+    organizationId: typeof ORG_A,
+  ): Promise<OrganizationDataKeyMetadata | null> {
+    return this.getActiveOrganizationDataKey(organizationId);
+  }
+
+  getProjectDataKeyForReadiness(
+    organizationId: typeof ORG_A,
+    projectId: typeof PROJECT_A,
+  ): Promise<ProjectDataKeyMetadata | null> {
+    return this.getActiveProjectDataKey(organizationId, projectId);
+  }
 }
 
 function createRootProvider(): StaticRootKeyProvider {
@@ -106,6 +119,7 @@ describe("cross-tenant tenant data key resolution", () => {
 
   it("resolves active versions only for the scoped organization", async () => {
     const versions = await keyring.getActiveDataKeyVersions(ORG_A, PROJECT_A);
+    expect(versions.rootKeyVersion).toBe(1);
     expect(versions.organizationDataKeyVersion).toBe(1);
     expect(versions.projectDataKeyVersion).toBe(1);
   });

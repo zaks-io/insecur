@@ -35,20 +35,13 @@ export class MetadataTenantDataKeySource implements TenantDataKeySource {
     return {
       organizationId,
       projectId,
+      rootKeyVersion: organizationKey.rootKeyVersion,
       organizationDataKeyVersion: organizationKey.keyVersion,
       projectDataKeyVersion: projectKey.keyVersion,
     };
   }
 
-  async assertVersionsAvailable(
-    organizationId: OrganizationId,
-    projectId: ProjectId,
-    versions: DataKeyVersions,
-  ): Promise<void> {
-    await this.resolveVersions(organizationId, projectId, versions);
-  }
-
-  private async resolveVersions(
+  async resolveVersions(
     organizationId: OrganizationId,
     projectId: ProjectId,
     versions: DataKeyVersions,
@@ -73,6 +66,7 @@ export class MetadataTenantDataKeySource implements TenantDataKeySource {
     return {
       organizationId,
       projectId,
+      rootKeyVersion: organizationKey.rootKeyVersion,
       organizationDataKeyVersion: organizationKey.keyVersion,
       projectDataKeyVersion: projectKey.keyVersion,
     };

@@ -44,6 +44,22 @@ function toProjectMetadata(row: ProjectDataKeyRow) {
 export class TenantDataKeyMetadataStore {
   constructor(private readonly sql: TenantScopedSql) {}
 
+  async getOrganizationDataKeyForReadiness(organizationId: OrganizationId) {
+    const active = await this.getActiveOrganizationDataKey(organizationId);
+    if (active) {
+      return active;
+    }
+    return this.getLatestOrganizationDataKey(organizationId);
+  }
+
+  async getProjectDataKeyForReadiness(organizationId: OrganizationId, projectId: ProjectId) {
+    const active = await this.getActiveProjectDataKey(organizationId, projectId);
+    if (active) {
+      return active;
+    }
+    return this.getLatestProjectDataKey(organizationId, projectId);
+  }
+
   async getActiveOrganizationDataKey(organizationId: OrganizationId) {
     const rows = await this.sql<OrganizationDataKeyRow[]>`
       SELECT
@@ -128,6 +144,49 @@ export class TenantDataKeyMetadataStore {
       WHERE org_id = ${organizationId}
         AND project_id = ${projectId}
         AND key_version = ${keyVersion}
+      LIMIT 1
+    `;
+    const row = rows[0];
+    return row ? toProjectMetadata(row) : null;
+  }
+
+  private async getLatestOrganizationDataKey(organizationId: OrganizationId) {
+    const rows = await this.sql<OrganizationDataKeyRow[]>`
+      SELECT
+        id,
+        org_id,
+        key_version,
+        status,
+        root_key_version,
+        wrapped_storage_ref,
+        custody_evidence_ref,
+        created_at,
+        updated_at
+      FROM organization_data_keys
+      WHERE org_id = ${organizationId}
+      ORDER BY key_version DESC
+      LIMIT 1
+    `;
+    const row = rows[0];
+    return row ? toOrganizationMetadata(row) : null;
+  }
+
+  private async getLatestProjectDataKey(organizationId: OrganizationId, projectId: ProjectId) {
+    const rows = await this.sql<ProjectDataKeyRow[]>`
+      SELECT
+        id,
+        org_id,
+        project_id,
+        key_version,
+        status,
+        organization_data_key_version,
+        wrapped_storage_ref,
+        created_at,
+        updated_at
+      FROM project_data_keys
+      WHERE org_id = ${organizationId}
+        AND project_id = ${projectId}
+      ORDER BY key_version DESC
       LIMIT 1
     `;
     const row = rows[0];
