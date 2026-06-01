@@ -1,0 +1,49 @@
+/**
+ * Stable dotted error codes shared across packages.
+ * Extend per-package catalogs in later slices; domain holds cross-cutting validation codes.
+ */
+export const VALIDATION_ERROR_CODES = {
+  invalidOpaqueResourceId: "validation.invalid_opaque_resource_id",
+  invalidDisplayName: "validation.invalid_display_name",
+  displayNameEmpty: "validation.display_name_empty",
+  invalidVariableKey: "validation.invalid_variable_key",
+} as const;
+
+export type ValidationErrorCode =
+  (typeof VALIDATION_ERROR_CODES)[keyof typeof VALIDATION_ERROR_CODES];
+
+/** Scaffolding for known auth error codes (implementation in access/auth slices). */
+export const AUTH_ERROR_CODES = {
+  expired: "auth.expired",
+  insufficientScope: "auth.insufficient_scope",
+  reauthRequired: "auth.reauth_required",
+  highAssuranceRequired: "auth.high_assurance_required",
+  mfaEnrollmentRequired: "auth.mfa_enrollment_required",
+} as const;
+
+export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
+
+/** Scaffolding for secret-write error codes (implementation in secrets slice). */
+export const SECRET_ERROR_CODES = {
+  invalidEncoding: "secret.invalid_encoding",
+  emptyValue: "secret.empty_value",
+  inputRequired: "secret.input_required",
+  valueTooLarge: "secret.value_too_large",
+} as const;
+
+export type SecretErrorCode = (typeof SECRET_ERROR_CODES)[keyof typeof SECRET_ERROR_CODES];
+
+/** Scaffolding for runtime injection error codes. */
+export const INJECTION_ERROR_CODES = {
+  grantDenied: "injection.grant_denied",
+  decryptFailed: "injection.decrypt_failed",
+} as const;
+
+export type InjectionErrorCode = (typeof INJECTION_ERROR_CODES)[keyof typeof INJECTION_ERROR_CODES];
+
+export type KnownErrorCode =
+  | ValidationErrorCode
+  | AuthErrorCode
+  | SecretErrorCode
+  | InjectionErrorCode
+  | (string & {});
