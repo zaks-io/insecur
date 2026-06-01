@@ -7,13 +7,10 @@ useDefault = true
 
 [allowlist]
 description = "Documentation false positives (Linear UUIDs, toolchain names, scaffold placeholders)"
-paths = [
-  # Entire file is verified Linear label/project UUID metadata (no credentials).
-  '''(?i)^docs/agents/workflow/config\.md$''',
-]
 regexTarget = "line"
 regexes = [
-  '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''',
+  '''`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`''',
+  '''(?:^|\s)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\s|$)''',
   '''gitleaks/semgrep/syft/grype''',
   '''SBOM/vulnerability''',
   '''ins_live_\.\.\.''',
