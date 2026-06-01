@@ -180,4 +180,21 @@ describe("metadata envelopes", () => {
       });
     }).toThrow(/forbidden binary payload/);
   });
+
+  it("rejects non-finite numbers (NaN, Infinity)", () => {
+    for (const nonFinite of [Number.NaN, Infinity, -Infinity]) {
+      expect(() => {
+        successEnvelope({ count: nonFinite });
+      }).toThrow(/unsupported value: non-finite number/);
+
+      expect(() => {
+        assertMetadataOnlyEnvelopeShape({
+          ok: true,
+          data: { nested: { count: nonFinite } },
+        });
+      }).toThrow(/unsupported value: non-finite number/);
+    }
+
+    expect(successEnvelope({ count: 0, ratio: 1.5 })).toMatchObject({ ok: true });
+  });
 });

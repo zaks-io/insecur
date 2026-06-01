@@ -120,9 +120,19 @@ function isPlainMetadataObject(value: object): boolean {
   return prototype === Object.prototype || prototype === null;
 }
 
+function assertFiniteNumber(value: number): void {
+  if (!Number.isFinite(value)) {
+    throw MetadataEnvelopeValidationError.unsupportedValue("non-finite number");
+  }
+}
+
 function assertJsonSafeNonObjectPrimitive(value: unknown): void {
   const valueType = typeof value;
-  if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+  if (valueType === "string" || valueType === "boolean") {
+    return;
+  }
+  if (valueType === "number") {
+    assertFiniteNumber(value as number);
     return;
   }
   if (valueType === "undefined") {
