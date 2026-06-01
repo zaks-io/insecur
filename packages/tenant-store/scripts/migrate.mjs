@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
+import { grantRuntimeTablePrivileges, resolveRuntimeRole } from "./grant-runtime.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const migrationsDir = join(packageRoot, "migrations");
@@ -42,6 +43,16 @@ try {
       await tx.unsafe(body);
       await tx`INSERT INTO schema_migrations (version) VALUES (${version})`;
     });
+  }
+
+  const runtimeRole = resolveRuntimeRole();
+  if (runtimeRole) {
+    console.log(`Granting runtime table privileges to ${runtimeRole}`);
+    await grantRuntimeTablePrivileges(sql, runtimeRole);
+  } else {
+    console.warn(
+      "Skipping runtime grants: set INSECUR_POSTGRES_RUNTIME_ROLE or DATABASE_URL_RUNTIME",
+    );
   }
 
   console.log("Migrations complete");

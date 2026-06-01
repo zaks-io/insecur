@@ -25,7 +25,10 @@ pnpm dev:db:reset    # local Docker Postgres + migrate
 ```
 
 SQL migrations live in `migrations/` and apply RLS policies in the same step as
-table creation (ADR-0037).
+table creation (ADR-0037). After migrations apply, `migrate.mjs` grants DML on
+tenant tables to the runtime role from `INSECUR_POSTGRES_RUNTIME_ROLE` or
+`DATABASE_URL_RUNTIME` so `pnpm test:rls` works without relying on Docker init
+default privileges alone.
 
 ## RLS tests
 

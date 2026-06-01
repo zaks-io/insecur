@@ -9,8 +9,11 @@ import {
   TEST_ORG_B_ID,
   TEST_PROJECT_A_ID,
   TEST_PROJECT_B_ID,
+  TEST_SECRET_A_ID,
   TEST_TEAM_B_ID,
   TEST_USER_ID,
+  TEST_VERSION_A_ID,
+  TEST_VERSION_B_ID,
 } from "./test-ids.js";
 
 const runtimeUrl = process.env.DATABASE_URL_RUNTIME;
@@ -113,5 +116,28 @@ describeRls("tenant row-level security (real Postgres)", () => {
         `,
     );
     expect(rows).toEqual([]);
+  });
+
+  it("rejects secret updates that point current_version_id at another organization version", async () => {
+    const orgA = organizationId.brand(TEST_ORG_A_ID);
+
+    await expect(
+      withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
+        await sql`
+          UPDATE secrets
+          SET current_version_id = ${TEST_VERSION_B_ID}
+          WHERE id = ${TEST_SECRET_A_ID}
+        `;
+      }),
+    ).rejects.toMatchObject({ code: "23503" });
+
+    const rows = await withTenantScope(
+      { kind: "organization", organizationId: orgA },
+      async (sql) =>
+        await sql<{ current_version_id: string | null }[]>`
+          SELECT current_version_id FROM secrets WHERE id = ${TEST_SECRET_A_ID}
+        `,
+    );
+    expect(rows[0]?.current_version_id).toBe(TEST_VERSION_A_ID);
   });
 });

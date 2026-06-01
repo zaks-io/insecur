@@ -111,8 +111,14 @@ CREATE TABLE secret_versions (
   ciphertext_storage_ref text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (secret_id, version_number),
+  UNIQUE (org_id, secret_id, id),
   FOREIGN KEY (org_id, secret_id) REFERENCES secrets (org_id, id)
 );
+
+ALTER TABLE secrets
+  ADD CONSTRAINT secrets_org_id_id_current_version_id_fkey
+  FOREIGN KEY (org_id, id, current_version_id)
+  REFERENCES secret_versions (org_id, secret_id, id);
 
 CREATE TABLE injection_grants (
   id text PRIMARY KEY,

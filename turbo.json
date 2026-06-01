@@ -61,7 +61,12 @@
     },
     "migrate:local": {
       "cache": false,
-      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION"]
+      "env": [
+        "DATABASE_URL",
+        "DATABASE_URL_MIGRATION",
+        "DATABASE_URL_RUNTIME",
+        "INSECUR_POSTGRES_RUNTIME_ROLE"
+      ]
     },
     "migrate:remote": {
       "cache": false
