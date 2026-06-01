@@ -5,14 +5,18 @@ import {
   AuditEventValidationError,
 } from "../src/index.js";
 import {
+  AUTH_ERROR_CODES,
   environmentId,
+  INJECTION_ERROR_CODES,
   injectionGrantId,
   operationId,
   organizationId,
   projectId,
   requestId,
+  SECRET_ERROR_CODES,
   secretId,
   userId,
+  VALIDATION_ERROR_CODES,
 } from "@insecur/domain";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -42,15 +46,49 @@ describe("audit metadata allowlist", () => {
   });
 
   it("accepts denied events with stable reason codes only", () => {
-    expect(() => {
-      validateAuditEventInput({
-        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
-        outcome: "denied",
-        actor: { type: "user", userId: USER },
-        organizationId: ORG,
-        denial: { reasonCode: "auth.insufficient_scope" },
-      });
-    }).not.toThrow();
+    const validReasonCodes = [
+      AUTH_ERROR_CODES.insufficientScope,
+      SECRET_ERROR_CODES.invalidEncoding,
+      INJECTION_ERROR_CODES.grantDenied,
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    ];
+
+    for (const reasonCode of validReasonCodes) {
+      expect(() => {
+        validateAuditEventInput({
+          eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
+          outcome: "denied",
+          actor: { type: "user", userId: USER },
+          organizationId: ORG,
+          denial: { reasonCode },
+        });
+      }).not.toThrow();
+    }
+  });
+
+  it("rejects non-dotted or free-form denial reasonCode values", () => {
+    const invalidReasonCodes = [
+      "not_a_dotted_code",
+      "auth",
+      "AUTH.insufficient_scope",
+      "auth.insufficient scope",
+      "Error: access denied",
+      "secret value was invalid",
+      "auth..insufficient_scope",
+      "",
+    ];
+
+    for (const reasonCode of invalidReasonCodes) {
+      expect(() => {
+        validateAuditEventInput({
+          eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
+          outcome: "denied",
+          actor: { type: "user", userId: USER },
+          organizationId: ORG,
+          denial: { reasonCode },
+        });
+      }).toThrow(/stable dotted code/);
+    }
   });
 
   it("rejects forbidden sensitive-value keys anywhere in the payload", () => {

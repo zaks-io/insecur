@@ -11,6 +11,7 @@ import {
   type FirstValueAuditEventCode,
 } from "./audit-event-codes.js";
 import type { AuditEventInput } from "./audit-types.js";
+import { isStableDottedErrorCode } from "./stable-dotted-error-code.js";
 
 export class AuditEventValidationError extends Error {
   constructor(message: string) {
@@ -20,8 +21,10 @@ export class AuditEventValidationError extends Error {
 }
 
 function assertKnownErrorCode(value: string): asserts value is KnownErrorCode {
-  if (value.length === 0 || /\s/.test(value)) {
-    throw new AuditEventValidationError("denial reasonCode must be a stable dotted code");
+  if (!isStableDottedErrorCode(value)) {
+    throw new AuditEventValidationError(
+      "denial reasonCode must be a stable dotted code (e.g. auth.insufficient_scope)",
+    );
   }
 }
 
