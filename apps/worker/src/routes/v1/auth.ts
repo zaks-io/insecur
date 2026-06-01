@@ -9,15 +9,10 @@ import { createAdmittedUserResolver, createAuthConfig } from "../../auth/config.
 import { createWorkOSSessionPortFromEnv } from "../../auth/workos-port.js";
 import type { WorkerEnv } from "../../env.js";
 
-function newRequestId() {
-  const suffix = crypto.randomUUID().replace(/-/gu, "").slice(0, 26).toUpperCase();
-  return requestId.brand(`req_${suffix}`);
-}
-
 export const authRoutes = new Hono<{ Bindings: WorkerEnv }>();
 
 authRoutes.post("/cli/exchange", async (context) => {
-  const reqId = newRequestId();
+  const reqId = requestId.generate();
   const config = createAuthConfig(context.env);
   const workos = createWorkOSSessionPortFromEnv(context.env);
   const credentials = parseRequestCredentials({

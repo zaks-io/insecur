@@ -25,6 +25,7 @@
     "postgres": "catalog:"
   },
   "devDependencies": {
+    "@insecur/crypto": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",

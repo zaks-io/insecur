@@ -9,11 +9,6 @@ export interface AuthVariables {
   userActor: UserActor;
 }
 
-function newRequestId() {
-  const suffix = crypto.randomUUID().replace(/-/gu, "").slice(0, 26).toUpperCase();
-  return requestId.brand(`req_${suffix}`);
-}
-
 export const requireUserActor = createMiddleware<{
   Bindings: WorkerEnv;
   Variables: AuthVariables;
@@ -32,7 +27,7 @@ export const requireUserActor = createMiddleware<{
     resolveAdmittedUser: createAdmittedUserResolver(context.env),
   });
   if (!resolved.ok) {
-    const reqId = newRequestId();
+    const reqId = requestId.generate();
     return context.json(
       errorEnvelope(
         {

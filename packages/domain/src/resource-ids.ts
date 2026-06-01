@@ -1,6 +1,7 @@
 import { type Brand, brandValue } from "./brand.js";
 import {
   brandOpaqueResourceIdForPrefix,
+  generateOpaqueResourceIdForPrefix,
   parseOpaqueResourceId,
   type OpaqueResourceIdPrefix,
 } from "./opaque-resource-id.js";
@@ -43,6 +44,10 @@ function createResourceIdHelpers<TBrand extends string>(
     },
     brand(raw: string): Brand<string, TBrand> {
       brandOpaqueResourceIdForPrefix(prefix, raw);
+      return brandValue<string, TBrand>(raw);
+    },
+    generate(): Brand<string, TBrand> {
+      const raw = generateOpaqueResourceIdForPrefix(prefix);
       return brandValue<string, TBrand>(raw);
     },
     brandLabel,
