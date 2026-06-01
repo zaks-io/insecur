@@ -13,3 +13,5 @@ export class RootKeyNotConfiguredError extends Error {
     this.name = "RootKeyNotConfiguredError";
   }
 }
+
+export { TenantDataKeyNotReadyError } from "./keyring-readiness.js";

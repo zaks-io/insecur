@@ -24,7 +24,12 @@ import {
   TEST_USER_ID,
   TEST_VERSION_A_ID,
   TEST_VERSION_B_ID,
+  TEST_ORG_KEY_A_ID,
+  TEST_ORG_KEY_B_ID,
+  TEST_PROJECT_KEY_A_ID,
+  TEST_PROJECT_KEY_B_ID,
 } from "./test-ids.js";
+import { seedDataKeys } from "./seed-data-keys.js";
 
 const packageRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
@@ -71,6 +76,8 @@ export async function seedTenantBaseline(): Promise<void> {
       membershipId: TEST_MEM_A_ID,
       secretId: TEST_SECRET_A_ID,
       secretVersionId: TEST_VERSION_A_ID,
+      organizationDataKeyId: TEST_ORG_KEY_A_ID,
+      projectDataKeyId: TEST_PROJECT_KEY_A_ID,
     });
     await seedOrganization(sql, {
       organizationId: TEST_ORG_B_ID,
@@ -80,6 +87,8 @@ export async function seedTenantBaseline(): Promise<void> {
       membershipId: TEST_MEM_B_ID,
       secretId: TEST_SECRET_B_ID,
       secretVersionId: TEST_VERSION_B_ID,
+      organizationDataKeyId: TEST_ORG_KEY_B_ID,
+      projectDataKeyId: TEST_PROJECT_KEY_B_ID,
     });
   } catch (error) {
     throw new Error(redactLoggableError(error), { cause: error });
@@ -96,11 +105,19 @@ interface SeedOrgInput {
   membershipId: string;
   secretId: string;
   secretVersionId: string;
+  organizationDataKeyId: string;
+  projectDataKeyId: string;
 }
 
 async function seedOrganization(sql: postgres.Sql, input: SeedOrgInput): Promise<void> {
   await sql.begin(async (tx) => {
     await seedOrganizationCore(tx, input);
+    await seedDataKeys(tx, {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      organizationDataKeyId: input.organizationDataKeyId,
+      projectDataKeyId: input.projectDataKeyId,
+    });
     await seedSecretWithVersion(tx, input);
   });
 }
@@ -172,12 +189,16 @@ async function seedSecretWithVersion(
       org_id,
       secret_id,
       version_number,
+      organization_data_key_version,
+      project_data_key_version,
       ciphertext_storage_ref
     )
     VALUES (
       ${input.secretVersionId},
       ${input.organizationId},
       ${input.secretId},
+      ${1},
+      ${1},
       ${1},
       ${"synthetic-ciphertext-ref"}
     )

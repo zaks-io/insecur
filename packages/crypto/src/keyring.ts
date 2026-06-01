@@ -32,6 +32,13 @@ export interface TenantDataKeySource {
     organizationId: OrganizationId,
     projectId: ProjectId,
   ): Promise<ActiveDataKeyVersions>;
+
+  /** Confirms version metadata exists under the tenant scope before deriving key material. */
+  assertVersionsAvailable(
+    organizationId: OrganizationId,
+    projectId: ProjectId,
+    versions: DataKeyVersions,
+  ): Promise<void>;
 }
 
 async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
@@ -86,6 +93,8 @@ export class Keyring {
     projectId: ProjectId,
     versions: DataKeyVersions,
   ): Promise<CryptoKey> {
+    await this.dataKeySource.assertVersionsAvailable(organizationId, projectId, versions);
+
     const cacheKey = [
       organizationId,
       projectId,
@@ -138,6 +147,10 @@ export class DefaultTenantDataKeySource implements TenantDataKeySource {
       organizationDataKeyVersion: DEFAULT_ORGANIZATION_DATA_KEY_VERSION,
       projectDataKeyVersion: DEFAULT_PROJECT_DATA_KEY_VERSION,
     });
+  }
+
+  assertVersionsAvailable(): Promise<void> {
+    return Promise.resolve();
   }
 }
 
