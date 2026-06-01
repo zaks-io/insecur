@@ -14,14 +14,17 @@
     "topo": "node -e \"\"",
     "build": "tsc",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@insecur/domain": "workspace:*"
+    "@insecur/audit": "workspace:*",
+    "@insecur/domain": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

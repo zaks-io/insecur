@@ -7,6 +7,7 @@ import {
   redactLoggableError,
   requireDatabaseUrl,
 } from "../../scripts/lib/env-local.mjs";
+import { TENANT_STORE_SEED_LOCK_KEY } from "../../scripts/lib/test-advisory-locks.mjs";
 import {
   TEST_ENV_A_ID,
   TEST_ENV_B_ID,
@@ -62,34 +63,39 @@ export async function seedTenantBaseline(): Promise<void> {
   runLocalMigrate();
   const sql = createMigrationSql(url);
   try {
-    await sql`
-      INSERT INTO instances (id, display_name)
-      VALUES (${TEST_INSTANCE_ID}, ${"Synthetic test instance"})
-      ON CONFLICT (id) DO NOTHING
-    `;
+    await sql`SELECT pg_advisory_lock(${TENANT_STORE_SEED_LOCK_KEY})`;
+    try {
+      await sql`
+        INSERT INTO instances (id, display_name)
+        VALUES (${TEST_INSTANCE_ID}, ${"Synthetic test instance"})
+        ON CONFLICT (id) DO NOTHING
+      `;
 
-    await seedOrganization(sql, {
-      organizationId: TEST_ORG_A_ID,
-      projectId: TEST_PROJECT_A_ID,
-      environmentId: TEST_ENV_A_ID,
-      teamId: TEST_TEAM_A_ID,
-      membershipId: TEST_MEM_A_ID,
-      secretId: TEST_SECRET_A_ID,
-      secretVersionId: TEST_VERSION_A_ID,
-      organizationDataKeyId: TEST_ORG_KEY_A_ID,
-      projectDataKeyId: TEST_PROJECT_KEY_A_ID,
-    });
-    await seedOrganization(sql, {
-      organizationId: TEST_ORG_B_ID,
-      projectId: TEST_PROJECT_B_ID,
-      environmentId: TEST_ENV_B_ID,
-      teamId: TEST_TEAM_B_ID,
-      membershipId: TEST_MEM_B_ID,
-      secretId: TEST_SECRET_B_ID,
-      secretVersionId: TEST_VERSION_B_ID,
-      organizationDataKeyId: TEST_ORG_KEY_B_ID,
-      projectDataKeyId: TEST_PROJECT_KEY_B_ID,
-    });
+      await seedOrganization(sql, {
+        organizationId: TEST_ORG_A_ID,
+        projectId: TEST_PROJECT_A_ID,
+        environmentId: TEST_ENV_A_ID,
+        teamId: TEST_TEAM_A_ID,
+        membershipId: TEST_MEM_A_ID,
+        secretId: TEST_SECRET_A_ID,
+        secretVersionId: TEST_VERSION_A_ID,
+        organizationDataKeyId: TEST_ORG_KEY_A_ID,
+        projectDataKeyId: TEST_PROJECT_KEY_A_ID,
+      });
+      await seedOrganization(sql, {
+        organizationId: TEST_ORG_B_ID,
+        projectId: TEST_PROJECT_B_ID,
+        environmentId: TEST_ENV_B_ID,
+        teamId: TEST_TEAM_B_ID,
+        membershipId: TEST_MEM_B_ID,
+        secretId: TEST_SECRET_B_ID,
+        secretVersionId: TEST_VERSION_B_ID,
+        organizationDataKeyId: TEST_ORG_KEY_B_ID,
+        projectDataKeyId: TEST_PROJECT_KEY_B_ID,
+      });
+    } finally {
+      await sql`SELECT pg_advisory_unlock(${TENANT_STORE_SEED_LOCK_KEY})`;
+    }
   } catch (error) {
     throw new Error(redactLoggableError(error), { cause: error });
   } finally {

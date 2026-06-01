@@ -135,10 +135,19 @@ importers:
 
   packages/access:
     dependencies:
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../audit
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
       eslint:
         specifier: 'catalog:'
         version: 9.39.4(jiti@2.7.0)
