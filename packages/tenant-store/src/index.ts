@@ -16,3 +16,20 @@ export {
   type SeedProjectDataKeyInput,
 } from "./data-keys/types.js";
 export { TenantDataKeyMetadataStore } from "./data-keys/tenant-data-key-metadata-store.js";
+export {
+  decodeInlineCiphertextStorageRef,
+  encodeInlineCiphertextStorageRef,
+  INLINE_CIPHERTEXT_STORAGE_PREFIX,
+} from "./secrets/ciphertext-storage-ref.js";
+export {
+  SecretVersionStoreConflictError,
+  SecretVersionStoreNotFoundError,
+} from "./secrets/errors.js";
+export { TenantSecretVersionStore } from "./secrets/tenant-secret-version-store.js";
+export type {
+  AppendSecretVersionAndMakeLiveInput,
+  AppendSecretVersionAndMakeLiveResult,
+  ResolveSecretForWriteInput,
+  SecretVersionStoreRow,
+  StoredWrappedSecretMaterial,
+} from "./secrets/types.js";
