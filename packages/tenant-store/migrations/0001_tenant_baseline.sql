@@ -33,16 +33,19 @@ CREATE TABLE projects (
   id text PRIMARY KEY,
   org_id text NOT NULL REFERENCES organizations (id),
   display_name text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id)
 );
 
 CREATE TABLE environments (
   id text PRIMARY KEY,
   org_id text NOT NULL REFERENCES organizations (id),
-  project_id text NOT NULL REFERENCES projects (id),
+  project_id text NOT NULL,
   display_name text NOT NULL,
   is_protected boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id)
 );
 
 CREATE TABLE teams (
@@ -50,16 +53,18 @@ CREATE TABLE teams (
   org_id text NOT NULL REFERENCES organizations (id),
   display_name text NOT NULL,
   is_default boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id)
 );
 
 CREATE TABLE memberships (
   id text PRIMARY KEY,
   org_id text NOT NULL REFERENCES organizations (id),
-  team_id text REFERENCES teams (id),
+  team_id text,
   user_id text NOT NULL,
   role_preset text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (org_id, team_id) REFERENCES teams (org_id, id)
 );
 
 CREATE TABLE organization_data_keys (
@@ -74,45 +79,52 @@ CREATE TABLE organization_data_keys (
 CREATE TABLE project_data_keys (
   id text PRIMARY KEY,
   org_id text NOT NULL REFERENCES organizations (id),
-  project_id text NOT NULL REFERENCES projects (id),
+  project_id text NOT NULL,
   key_version integer NOT NULL,
   status text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (project_id, key_version)
+  UNIQUE (project_id, key_version),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id)
 );
 
 CREATE TABLE secrets (
   id text PRIMARY KEY,
   org_id text NOT NULL REFERENCES organizations (id),
-  project_id text NOT NULL REFERENCES projects (id),
-  environment_id text NOT NULL REFERENCES environments (id),
+  project_id text NOT NULL,
+  environment_id text NOT NULL,
   variable_key text NOT NULL,
   current_version_id text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (environment_id, variable_key)
+  UNIQUE (environment_id, variable_key),
+  UNIQUE (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, environment_id) REFERENCES environments (org_id, id)
 );
 
 CREATE TABLE secret_versions (
   id text PRIMARY KEY,
   org_id text NOT NULL REFERENCES organizations (id),
-  secret_id text NOT NULL REFERENCES secrets (id),
+  secret_id text NOT NULL,
   version_number integer NOT NULL,
   organization_data_key_version integer,
   project_data_key_version integer,
   ciphertext_storage_ref text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (secret_id, version_number)
+  UNIQUE (secret_id, version_number),
+  FOREIGN KEY (org_id, secret_id) REFERENCES secrets (org_id, id)
 );
 
 CREATE TABLE injection_grants (
   id text PRIMARY KEY,
   org_id text NOT NULL REFERENCES organizations (id),
-  project_id text NOT NULL REFERENCES projects (id),
-  environment_id text NOT NULL REFERENCES environments (id),
+  project_id text NOT NULL,
+  environment_id text NOT NULL,
   variable_keys text[] NOT NULL,
   expires_at timestamptz NOT NULL,
   consumed_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, environment_id) REFERENCES environments (org_id, id)
 );
 
 CREATE TABLE audit_events (

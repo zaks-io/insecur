@@ -3,7 +3,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import { closeRuntimeSql, withTenantScope } from "../../src/index.js";
 import { seedTenantBaseline } from "./seed.js";
-import { TEST_ORG_A_ID, TEST_ORG_B_ID, TEST_PROJECT_A_ID, TEST_PROJECT_B_ID } from "./test-ids.js";
+import {
+  TEST_MEM_CROSS_ORG_ID,
+  TEST_ORG_A_ID,
+  TEST_ORG_B_ID,
+  TEST_PROJECT_A_ID,
+  TEST_PROJECT_B_ID,
+  TEST_TEAM_B_ID,
+  TEST_USER_ID,
+} from "./test-ids.js";
 
 const runtimeUrl = process.env.DATABASE_URL_RUNTIME;
 const describeRls = runtimeUrl ? describe : describe.skip;
@@ -77,5 +85,33 @@ describeRls("tenant row-level security (real Postgres)", () => {
       async (sql) => await sql<IdRow[]>`SELECT id FROM projects ORDER BY id`,
     );
     expect(rows.map((row) => row.id)).toEqual([TEST_PROJECT_A_ID]);
+  });
+
+  it("rejects membership inserts that reference a team from another organization", async () => {
+    const orgA = organizationId.brand(TEST_ORG_A_ID);
+
+    await expect(
+      withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
+        await sql`
+          INSERT INTO memberships (id, org_id, team_id, user_id, role_preset)
+          VALUES (
+            ${TEST_MEM_CROSS_ORG_ID},
+            ${TEST_ORG_A_ID},
+            ${TEST_TEAM_B_ID},
+            ${TEST_USER_ID},
+            ${"developer"}
+          )
+        `;
+      }),
+    ).rejects.toMatchObject({ code: "23503" });
+
+    const rows = await withTenantScope(
+      { kind: "organization", organizationId: orgA },
+      async (sql) =>
+        await sql<IdRow[]>`
+          SELECT id FROM memberships WHERE id = ${TEST_MEM_CROSS_ORG_ID}
+        `,
+    );
+    expect(rows).toEqual([]);
   });
 });
