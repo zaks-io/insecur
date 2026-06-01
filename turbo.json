@@ -31,19 +31,19 @@
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "dependsOn": ["topo"],
+      "dependsOn": ["topo", "^build"],
       "outputs": []
     },
     "lint": {
-      "dependsOn": ["topo"],
+      "dependsOn": ["topo", "^build"],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["topo"],
+      "dependsOn": ["topo", "^build"],
       "outputs": []
     },
     "test:rls": {
-      "dependsOn": ["topo"],
+      "dependsOn": ["topo", "^build"],
       "cache": false,
       "env": ["DATABASE_URL_RUNTIME"]
     },

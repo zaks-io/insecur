@@ -142,11 +142,11 @@ Remote cache trust model is ADR-0053. Full file:
       "outputs": ["dist/**"],
     },
     "dev": { "cache": false, "persistent": true },
-    "typecheck": { "dependsOn": ["topo"], "outputs": [] },
-    "lint": { "dependsOn": ["topo"], "outputs": [] },
-    "test": { "dependsOn": ["topo"], "outputs": [] },
+    "typecheck": { "dependsOn": ["topo", "^build"], "outputs": [] },
+    "lint": { "dependsOn": ["topo", "^build"], "outputs": [] },
+    "test": { "dependsOn": ["topo", "^build"], "outputs": [] },
     "test:rls": {
-      "dependsOn": ["topo"],
+      "dependsOn": ["topo", "^build"],
       "cache": false,
       "env": ["DATABASE_URL_RUNTIME"],
     },
@@ -161,7 +161,7 @@ Notes that an implementing agent must not change without understanding them:
 - `test:rls` has `cache: false` because it runs against live Neon branch state (ADR-0054) and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
 - `globalDependencies` includes the root `eslint.config.ts`, Prettier config, and `.prettierignore` so a rule change busts every cached `lint`.
 - `envMode: strict` means a task only sees environment variables it declares. Declare new inputs in the task `env` array, do not relax the mode.
-- `build` keeps `^build` as a harmless no-op today; it becomes real when a library is compiled rather than consumed just-in-time.
+- `lint`, `typecheck`, `test`, and `test:rls` depend on `^build` so workspace packages that export `dist/**` types (for example `@insecur/domain`) are built before downstream checks run. `pnpm verify` must pass from a clean checkout without a separate prebuild.
 
 ### Cache write scope (ADR-0053)
 
