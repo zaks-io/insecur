@@ -4,15 +4,15 @@ import {
   StaticRootKeyProvider,
   type TenantDataKeyMetadataReader,
 } from "@insecur/crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
 import { TenantDataKeyMetadataStore, closeRuntimeSql, withTenantScope } from "../../src/index.js";
 import { seedTenantBaseline } from "./seed.js";
 import {
-  TEST_ORG_A_ID,
-  TEST_ORG_KEY_A_ID,
-  TEST_PROJECT_A_ID,
-  TEST_PROJECT_KEY_A_ID,
+  TEST_ORG_B_ID,
+  TEST_ORG_KEY_B_ID,
+  TEST_PROJECT_B_ID,
+  TEST_PROJECT_KEY_B_ID,
 } from "./test-ids.js";
 
 let runtimeUrl: string | undefined;
@@ -69,40 +69,62 @@ class StoreBackedMetadataReader implements TenantDataKeyMetadataReader {
   }
 }
 
-async function retireSeededDataKeys(orgA: ReturnType<typeof organizationId.brand>): Promise<void> {
-  await withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
+/** Uses org B data-key rows only; org A seed rows stay active for isolation tests. */
+async function retireReadinessFixtureDataKeys(
+  orgB: ReturnType<typeof organizationId.brand>,
+): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId: orgB }, async (sql) => {
     await sql`
       UPDATE organization_data_keys
       SET status = ${"retired"}
-      WHERE org_id = ${TEST_ORG_A_ID}
-        AND id = ${TEST_ORG_KEY_A_ID}
+      WHERE org_id = ${TEST_ORG_B_ID}
+        AND id = ${TEST_ORG_KEY_B_ID}
     `;
     await sql`
       UPDATE project_data_keys
       SET status = ${"revoked"}
-      WHERE org_id = ${TEST_ORG_A_ID}
-        AND id = ${TEST_PROJECT_KEY_A_ID}
+      WHERE org_id = ${TEST_ORG_B_ID}
+        AND id = ${TEST_PROJECT_KEY_B_ID}
+    `;
+  });
+}
+
+async function restoreReadinessFixtureDataKeys(
+  orgB: ReturnType<typeof organizationId.brand>,
+): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId: orgB }, async (sql) => {
+    await sql`
+      UPDATE organization_data_keys
+      SET status = ${"active"}
+      WHERE org_id = ${TEST_ORG_B_ID}
+        AND id = ${TEST_ORG_KEY_B_ID}
+    `;
+    await sql`
+      UPDATE project_data_keys
+      SET status = ${"active"}
+      WHERE org_id = ${TEST_ORG_B_ID}
+        AND id = ${TEST_PROJECT_KEY_B_ID}
     `;
   });
 }
 
 async function expectInactiveReadinessReport(
   reader: StoreBackedMetadataReader,
-  orgA: ReturnType<typeof organizationId.brand>,
-  projectA: ReturnType<typeof projectId.brand>,
+  orgB: ReturnType<typeof organizationId.brand>,
+  projectB: ReturnType<typeof projectId.brand>,
 ): Promise<void> {
-  const readinessRow = await reader.getOrganizationDataKeyForReadiness(orgA);
+  const readinessRow = await reader.getOrganizationDataKeyForReadiness(orgB);
   expect(readinessRow?.status).toBe("retired");
-  expect(await reader.getActiveOrganizationDataKey(orgA)).toBeNull();
+  expect(await reader.getActiveOrganizationDataKey(orgB)).toBeNull();
 
-  const projectReadinessRow = await reader.getProjectDataKeyForReadiness(orgA, projectA);
+  const projectReadinessRow = await reader.getProjectDataKeyForReadiness(orgB, projectB);
   expect(projectReadinessRow?.status).toBe("revoked");
 
   const root = new Uint8Array(32);
   crypto.getRandomValues(root);
   const report = await checkTenantDataKeyReadiness({
-    organizationId: orgA,
-    projectId: projectA,
+    organizationId: orgB,
+    projectId: projectB,
     metadata: reader,
     rootKeyProvider: new StaticRootKeyProvider(root),
   });
@@ -116,6 +138,9 @@ async function expectInactiveReadinessReport(
 }
 
 describeRls("tenant data key readiness (real Postgres store)", () => {
+  const orgB = organizationId.brand(TEST_ORG_B_ID);
+  const projectB = projectId.brand(TEST_PROJECT_B_ID);
+
   beforeAll(async () => {
     if (!runtimeUrl) {
       return;
@@ -123,16 +148,21 @@ describeRls("tenant data key readiness (real Postgres store)", () => {
     await seedTenantBaseline();
   });
 
+  afterEach(async () => {
+    if (!runtimeUrl) {
+      return;
+    }
+    await restoreReadinessFixtureDataKeys(orgB);
+  });
+
   afterAll(async () => {
     await closeRuntimeSql();
   });
 
   it("reports inactive (not missing) when only retired organization keys exist", async () => {
-    const orgA = organizationId.brand(TEST_ORG_A_ID);
-    const projectA = projectId.brand(TEST_PROJECT_A_ID);
-    const reader = new StoreBackedMetadataReader(orgA);
+    const reader = new StoreBackedMetadataReader(orgB);
 
-    await retireSeededDataKeys(orgA);
-    await expectInactiveReadinessReport(reader, orgA, projectA);
+    await retireReadinessFixtureDataKeys(orgB);
+    await expectInactiveReadinessReport(reader, orgB, projectB);
   });
 });
