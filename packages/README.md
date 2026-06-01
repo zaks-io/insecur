@@ -12,6 +12,7 @@ reading map before loading slices of the root `../CONTEXT.md`.
 ## Current Scaffold
 
 - `@insecur/domain` - shared domain primitives and stable vocabulary shapes
+- `@insecur/auth` - WorkOS session composition, User actor context, and CLI exchange contract
 - `@insecur/access` - Effective Access Resolver and scope-first authorization
 - `@insecur/tenant-store` - Tenant-Scoped Store and RLS adapter contract
 - `@insecur/crypto` - Keyring and Encryption Envelope

@@ -107,6 +107,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@insecur/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@insecur/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       hono:
         specifier: 'catalog:'
         version: 4.12.22
@@ -151,6 +157,28 @@ importers:
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.4(@types/node@24.12.4)(jiti@2.7.0)(tsx@4.22.3)
+
+  packages/auth:
+    dependencies:
+      '@insecur/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@workos-inc/node':
+        specifier: ^10.0.0
+        version: 10.0.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1404,6 +1432,10 @@ packages:
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
 
+  '@workos-inc/node@10.0.0':
+    resolution: {integrity: sha512-Vnqd/TAoNZSYTW7FSxR/f+BnWMyffK0ueX+KNBnoahMHOcLCMiF3Y5Rkt4VIdRdvvhQ+pR2JgcwCHIEcE1OXWw==}
+    engines: {node: '>=22.11.0'}
+
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
     peerDependencies:
@@ -1613,6 +1645,9 @@ packages:
   esutils@2.0.3:
     resolution: {integrity: sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==}
     engines: {node: '>=0.10.0'}
+
+  eventemitter3@5.0.4:
+    resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
 
   expect-type@1.3.0:
     resolution: {integrity: sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA==}
@@ -3007,6 +3042,10 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
+  '@workos-inc/node@10.0.0':
+    dependencies:
+      eventemitter3: 5.0.4
+
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
       acorn: 8.16.0
@@ -3282,6 +3321,8 @@ snapshots:
       '@types/estree': 1.0.9
 
   esutils@2.0.3: {}
+
+  eventemitter3@5.0.4: {}
 
   expect-type@1.3.0: {}
 

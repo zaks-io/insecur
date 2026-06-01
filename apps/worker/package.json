@@ -14,6 +14,8 @@
     "clean": "rm -rf dist .wrangler"
   },
   "dependencies": {
+    "@insecur/auth": "workspace:*",
+    "@insecur/domain": "workspace:*",
     "hono": "catalog:"
   },
   "devDependencies": {
