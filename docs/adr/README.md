@@ -65,6 +65,7 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0059: Tenant-Reported Secret Compromise Response](0059-tenant-reported-secret-compromise-response.md)
 - [ADR-0060: Postgres 17 Development Baseline](0060-postgres-17-development-baseline.md)
 - [ADR-0061: Blacksmith Runners For GitHub Actions](0061-blacksmith-github-actions-runners.md)
+- [ADR-0062: Package-Seam Failures Are ErrorBody-Compatible](0062-package-seam-failures-are-errorbody-compatible.md)
 
 ## Superseded
 

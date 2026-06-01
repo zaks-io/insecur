@@ -1,5 +1,10 @@
+import { CRYPTO_ERROR_CODES, type CryptoErrorCode } from "@insecur/domain";
+
 /** Opaque decrypt failure; does not distinguish wrong key, tampering, or identity mismatch. */
 export class DecryptError extends Error {
+  readonly code: CryptoErrorCode = CRYPTO_ERROR_CODES.decryptFailed;
+  readonly retryable = false;
+
   constructor() {
     super("decrypt failed");
     this.name = "DecryptError";
@@ -8,6 +13,9 @@ export class DecryptError extends Error {
 
 /** Root key material is not configured; encrypt and decrypt must fail closed. */
 export class RootKeyNotConfiguredError extends Error {
+  readonly code: CryptoErrorCode = CRYPTO_ERROR_CODES.rootKeyNotConfigured;
+  readonly retryable = false;
+
   constructor() {
     super("instance root key is not configured");
     this.name = "RootKeyNotConfiguredError";

@@ -1,5 +1,7 @@
 import {
   assertMetadataOnlyValue,
+  AUDIT_ERROR_CODES,
+  type AuditErrorCode,
   MetadataEnvelopeValidationError,
   type KnownErrorCode,
 } from "@insecur/domain";
@@ -14,6 +16,9 @@ import type { AuditEventInput } from "./audit-types.js";
 import { isStableDottedErrorCode } from "./stable-dotted-error-code.js";
 
 export class AuditEventValidationError extends Error {
+  readonly code: AuditErrorCode = AUDIT_ERROR_CODES.eventInvalid;
+  readonly retryable = false;
+
   constructor(message: string) {
     super(message);
     this.name = "AuditEventValidationError";
