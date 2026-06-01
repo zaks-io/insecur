@@ -45,7 +45,7 @@
     "test:rls": {
       "dependsOn": ["topo", "^build"],
       "cache": false,
-      "env": ["DATABASE_URL_RUNTIME"]
+      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION", "DATABASE_URL_RUNTIME"]
     },
     "typegen": {
       "cache": false,
@@ -60,7 +60,8 @@
       "cache": false
     },
     "migrate:local": {
-      "cache": false
+      "cache": false,
+      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION"]
     },
     "migrate:remote": {
       "cache": false

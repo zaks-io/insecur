@@ -63,6 +63,26 @@ function reset() {
   compose(["down", "--volumes", "--remove-orphans"]);
   compose(["up", "--wait", "postgres"]);
   compose(["exec", "-T", "postgres", "sh", "/usr/local/bin/insecur-postgres-guard"]);
+  migrateLocal();
+}
+
+function migrateLocal() {
+  writeEnv();
+  const resolved = resolveEnv(readEnv());
+  const env = { ...process.env };
+  for (const [key, value] of resolved) {
+    env[key] = value;
+  }
+
+  const result = spawnSync("pnpm", ["--filter", "@insecur/tenant-store", "migrate:local"], {
+    cwd: root,
+    env,
+    stdio: "inherit",
+  });
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
 }
 
 function guard() {

@@ -12,17 +12,20 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "topo": "node -e \"\"",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run --passWithNoTests",
-    "test:rls": "vitest run --passWithNoTests",
+    "test:rls": "vitest run --config vitest.rls.config.ts",
+    "migrate:local": "node ./scripts/migrate.mjs",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@insecur/domain": "workspace:*"
+    "@insecur/domain": "workspace:*",
+    "postgres": "catalog:"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
