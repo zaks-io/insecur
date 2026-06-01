@@ -1,8 +1,7 @@
 import { parseRequestCredentials, resolveUserActor, type UserActor } from "@insecur/auth";
 import { errorEnvelope, requestId } from "@insecur/domain";
 import { createMiddleware } from "hono/factory";
-import { createAdmittedUserResolver, createAuthConfig } from "./config.js";
-import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
+import { createAuthContext } from "./auth-context.js";
 import type { WorkerEnv } from "../env.js";
 
 export interface AuthVariables {
@@ -13,8 +12,7 @@ export const requireUserActor = createMiddleware<{
   Bindings: WorkerEnv;
   Variables: AuthVariables;
 }>(async (context, next) => {
-  const config = createAuthConfig(context.env);
-  const workos = createWorkOSSessionPortFromEnv(context.env);
+  const { config, workos, resolveAdmittedUser } = createAuthContext(context.env);
   const credentials = parseRequestCredentials({
     authorizationHeader: context.req.header("Authorization"),
     cookieHeader: context.req.header("Cookie"),
@@ -24,7 +22,7 @@ export const requireUserActor = createMiddleware<{
     credentials,
     config,
     workos,
-    resolveAdmittedUser: createAdmittedUserResolver(context.env),
+    resolveAdmittedUser,
   });
   if (!resolved.ok) {
     const reqId = requestId.generate();

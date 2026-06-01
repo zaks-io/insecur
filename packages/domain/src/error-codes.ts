@@ -43,6 +43,15 @@ export const INJECTION_ERROR_CODES = {
 
 export type InjectionErrorCode = (typeof INJECTION_ERROR_CODES)[keyof typeof INJECTION_ERROR_CODES];
 
+/** Guided Organization Provisioning error codes. */
+export const ONBOARDING_ERROR_CODES = {
+  alreadyProvisioned: "onboarding.already_provisioned",
+  resourceConflict: "onboarding.resource_conflict",
+} as const;
+
+export type OnboardingErrorCode =
+  (typeof ONBOARDING_ERROR_CODES)[keyof typeof ONBOARDING_ERROR_CODES];
+
 /** Crypto package failures surfaced to callers (decrypt remains opaque). */
 export const CRYPTO_ERROR_CODES = {
   decryptFailed: "crypto.decrypt_failed",
@@ -70,6 +79,7 @@ export type KnownErrorCode =
   | AuthErrorCode
   | SecretErrorCode
   | InjectionErrorCode
+  | OnboardingErrorCode
   | CryptoErrorCode
   | StoreErrorCode
   | AuditErrorCode

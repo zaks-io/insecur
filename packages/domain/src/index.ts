@@ -1,3 +1,4 @@
+export { bytesToBase64Url, base64UrlToBytes } from "./base64url.js";
 export { type Brand, brandValue } from "./brand.js";
 export {
   type OpaqueResourceId,
@@ -64,6 +65,8 @@ export {
   type CryptoErrorCode,
   INJECTION_ERROR_CODES,
   type InjectionErrorCode,
+  ONBOARDING_ERROR_CODES,
+  type OnboardingErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,
