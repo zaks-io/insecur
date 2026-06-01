@@ -12,9 +12,9 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "topo": "node -e \"\"",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
@@ -22,6 +22,7 @@
     "@insecur/domain": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
