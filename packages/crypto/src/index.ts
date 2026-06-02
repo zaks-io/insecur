@@ -36,6 +36,18 @@ export {
   type KeyringReadinessInput,
 } from "./keyring-readiness.js";
 export { MetadataTenantDataKeySource } from "./metadata-tenant-data-key-source.js";
+export {
+  createKeyringFromRootKeyProvider,
+  createKeyringFromSecretsStoreBinding,
+  SecretsStoreRootKeyProvider,
+  type SecretsStoreSecretBinding,
+} from "./secrets-store-root-key-provider.js";
+export {
+  INSTANCE_ROOT_KEY_BYTE_LENGTH,
+  INSTANCE_ROOT_KEY_HEX_LENGTH,
+  parseInstanceRootKeyHex,
+  tryParseInstanceRootKeyHex,
+} from "./root-key-material.js";
 export { RootKeyNotConfiguredError, TenantDataKeyNotReadyError } from "./errors.js";
 export { configureKeyring, getKeyring, resetKeyringForTests } from "./crypto-runtime.js";
 export { toStoreFacingCiphertext } from "./envelope.js";
