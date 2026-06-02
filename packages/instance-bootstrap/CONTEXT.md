@@ -38,6 +38,15 @@ Membership creation.
 - Metadata-only bootstrap status and stable denial errors.
 - Bootstrap audit event recording.
 
+## Claim completion contract
+
+Bootstrap Operator Claim completion accepts a WorkOS-resolved `UserActor` from
+`@insecur/auth`, not a bare target `userId`. `completeBootstrapOperatorClaim`
+uses `actor.userId` as the only grant subject for Instance Operator and
+first-Organization owner Membership rows. Callers must resolve the actor from
+Human Identity Provider session context (INS-25); passing a separate target
+user id is intentionally unsupported.
+
 ## Does Not Own
 
 - WorkOS hosted login UI.

@@ -8,7 +8,8 @@ Foundation.
 - One-time Instance initialization (Instance, Instance Configuration, Instance
   Identity Configuration, first Organization, Default Team, pending claim).
 - Atomic Bootstrap Operator Claim consumption and first Instance Operator grant.
-- First-Organization owner Membership creation after claim completion.
+- First-Organization owner Membership creation after claim completion (grants use
+  the authenticated `UserActor.userId` only).
 
 ## Consumes
 

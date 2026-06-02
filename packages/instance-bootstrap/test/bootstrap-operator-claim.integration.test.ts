@@ -77,6 +77,24 @@ async function loadClaimStatus(instanceId: string): Promise<string | null> {
   });
 }
 
+async function loadBootstrapGrantUserIds(
+  instanceId: string,
+  orgId: string,
+): Promise<{ operatorUserIds: string[]; membershipUserIds: string[] }> {
+  return withTenantScope({ kind: "service" }, async (sql) => {
+    const operators = await sql<{ user_id: string }[]>`
+      SELECT user_id FROM instance_operators WHERE instance_id = ${instanceId}
+    `;
+    const memberships = await sql<{ user_id: string }[]>`
+      SELECT user_id FROM memberships WHERE org_id = ${orgId} AND project_id IS NULL
+    `;
+    return {
+      operatorUserIds: operators.map((row) => row.user_id),
+      membershipUserIds: memberships.map((row) => row.user_id),
+    };
+  });
+}
+
 describeIntegration("bootstrap operator claim", () => {
   let bootstrapSecret: string;
 
@@ -174,6 +192,10 @@ describeIntegration("bootstrap operator claim", () => {
     expect(result.organizationId).toBe(org);
     expect(result.status.operatorUserId).toBe(claimActor.userId);
 
+    const grantUserIds = await loadBootstrapGrantUserIds(BOOTSTRAP_INSTANCE_ID, BOOTSTRAP_ORG_ID);
+    expect(grantUserIds.operatorUserIds).toEqual([CLAIM_USER_ID]);
+    expect(grantUserIds.membershipUserIds).toEqual([CLAIM_USER_ID]);
+
     const effectiveAccess = await resolveEffectiveAccess(
       { type: "user", userId: claimActor.userId },
       { organizationId: org },
@@ -229,6 +251,12 @@ describeIntegration("bootstrap operator claim", () => {
     if (status.phase === "complete") {
       expect(status.operatorUserId).toBe(claimActor.userId);
     }
+
+    const grantUserIds = await loadBootstrapGrantUserIds(BOOTSTRAP_INSTANCE_ID, BOOTSTRAP_ORG_ID);
+    expect(grantUserIds.operatorUserIds).toEqual([CLAIM_USER_ID]);
+    expect(grantUserIds.membershipUserIds).toEqual([CLAIM_USER_ID]);
+    expect(grantUserIds.operatorUserIds).not.toContain(OTHER_USER_ID);
+    expect(grantUserIds.membershipUserIds).not.toContain(OTHER_USER_ID);
   });
 
   it("rolls back claim consumption when post-grant audit write fails", async () => {
