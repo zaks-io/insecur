@@ -1,6 +1,6 @@
 import { parseRequestCredentials, resolveUserActor, type UserActor } from "@insecur/auth";
-import { errorEnvelope, requestId } from "@insecur/domain";
 import { createMiddleware } from "hono/factory";
+import { AuthFailureError } from "./auth-failure-error.js";
 import { createAuthContext } from "./auth-context.js";
 import type { WorkerEnv } from "../env.js";
 
@@ -25,18 +25,7 @@ export const requireUserActor = createMiddleware<{
     resolveAdmittedUser,
   });
   if (!resolved.ok) {
-    const reqId = requestId.generate();
-    return context.json(
-      errorEnvelope(
-        {
-          code: resolved.failure.code,
-          message: resolved.failure.message,
-          retryable: resolved.failure.retryable,
-        },
-        { requestId: reqId },
-      ),
-      401,
-    );
+    throw new AuthFailureError(resolved.failure);
   }
   context.set("userActor", resolved.actor);
   await next();

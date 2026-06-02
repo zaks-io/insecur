@@ -27,6 +27,8 @@ export default tseslint.config(
       "packages/runtime-injection/test/**/*.ts",
       "packages/runtime-injection/vitest.config.ts",
       "packages/audit/test/**/*.ts",
+      "packages/operations/test/**/*.ts",
+      "packages/operations/vitest.config.ts",
       "packages/onboarding/test/**/*.ts",
       "packages/onboarding/vitest.config.ts",
       "packages/instance-bootstrap/test/**/*.ts",

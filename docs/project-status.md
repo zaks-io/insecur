@@ -1,224 +1,201 @@
 # Project Status
 
-Last updated: 2026-05-27
+Last updated: 2026-06-02
 
 ## Current State
 
-insecur is no longer pure planning. The repo now has an accepted executable scaffold and
-verification baseline for First Value work: Node 24, pnpm 10, the workspace package graph, the
-package-manager lockfile and catalog, Turbo task wiring, Prettier, ESLint, Vitest, package/app
-stubs, and `pnpm verify` across all 10 workspace packages.
+insecur has moved well past the empty scaffold. The repo now has product-bearing package
+code for the First Value and Production Delivery foundation, plus a Worker auth/session
+surface. The main missing piece is composition into the full user-facing First Value
+flow: CLI commands, Worker routes for provisioning/secrets/runtime injection, and
+provider sync are not wired yet.
 
-That scaffold is not product-bearing yet. The Worker has only a local health-check route, package
-`src/index.ts` entrypoints remain deliberately empty modules, and no Tenant-Scoped Store, human
-authentication, keyring, Secret Version Store, Blind Secret Write, Runtime Injection, provider
-sync, audit, or UI behavior is wired into product code yet. The next product behavior written is
-the target product, built against these docs.
+The current workspace is Node 24 and pnpm 10, with Turbo, Prettier, ESLint, Vitest,
+package builds, local Postgres development scripts, RLS migrations, Blacksmith-backed
+CI workflows, gitleaks config, and daily security scan workflow files. `pnpm verify`
+passes on this worktree across the current app/package graph.
 
-The disposable Cloudflare-native secrets manager learning code that predated these docs has been
-removed from the working tree per ADR-0018. The target product direction starts with Diskless
-Development Secret Use for developers and agents: replace plaintext local secret files with
-just-in-time Runtime Injection in a non-protected development Environment. The underlying model
-stays enterprise-ready through organizations, memberships, roles, authorization scopes,
-tenant-qualified audit, and tenant-bound keys so the same spine can grow into Small-Group
-Production. V1 is split into a First Value Milestone and a Production Delivery Milestone. First
-Value focuses on guided first run through a Personal Organization with a provider-free First Value
-Proof in a non-protected development Environment. Production Delivery focuses on secure storage,
-provider sync for Cloudflare/GitHub, protected delivery, and CLI runtime injection for deploys and
-local commands. The Vercel sync adapter is deferred past V1 behind the same provider port model.
+The accepted implementation direction is still Diskless Development Secret Use first:
+developers and agents should use non-protected development secrets through Runtime
+Injection without creating plaintext local secret files. Production delivery remains
+behind the Storage Security Gate and the Small-Group Production baseline.
 
-The first V1 promise is to stop giving coding agents plaintext local secret files. The production promise is to let agents and CI cause approved deploy and runtime workflows without giving local agents or ordinary human sessions a read path to Protected Environment Sensitive Values.
+The GitHub repository is `zaks-io/insecur`, and Linear team `INS` is the tracker. First
+Value implementation still follows [first-value-ticket-plan.md](specs/first-value-ticket-plan.md)
+and the milestone contract in [first-value-milestone.md](first-value-milestone.md).
 
-The GitHub repository exists at `zaks-io/insecur` and is configured as the local `origin` remote.
-Linear triage labels exist for team INS. Current active Linear projects are:
-`Customer Discovery & Design Partners`, `First Value Build`, `Production Delivery Foundation`,
-`Machine Access and CI Trust`, `Runtime Injection Delivery`,
-`Provider Sync: GitHub and Cloudflare`, `Approval UX and Delivery Policy`, and
-`Audit, Runbooks, and Release Gates`. First Value implementation work uses the parent workstreams
-and dependency graph documented in [first-value-ticket-plan.md](specs/first-value-ticket-plan.md).
-Linear project milestones and ticket publishing rules live in
-[linear-ticketing.md](agents/linear-ticketing.md).
+## Implemented In Code
 
-First Value human setup tickets are complete in Linear: `FV-H1` recorded the non-secret
-Neon/Hyperdrive setup inputs, `FV-H2` recorded the non-secret WorkOS AuthKit development setup
-inputs, and `FV-H3` recorded the non-secret Cloudflare Secrets Store root-key custody setup inputs.
-Those tickets unblock implementation work, but the corresponding persistence, authentication, and
-keyring behavior is not wired into product code yet.
-
-## Customer Validation Plan
-
-Product excellence for insecur means proving a narrow customer pull before broadening the
-platform. The first validation beachhead is agent-heavy solo developers and small trusted teams
-shipping through Cloudflare Workers and GitHub Actions. The first product proof is the ordinary
-First Value loop: provision a Personal Organization, create or generate one non-protected
-development Secret through a Blind Secret Write, and run one local command through Runtime
-Injection without creating a plaintext `.env` file or revealing the Sensitive Value in output.
-
-The customer-validation operating plan lives in [customer-validation.md](customer-validation.md).
-It calls for 20 discovery interviews, five manually supported design partners, and repeated
-usage signals before widening the first product beyond the First Value proof. This is a
-go-to-market and product-learning constraint, not a replacement for the security baseline.
-
-## Removed Pre-V1 Scaffold
-
-The disposable learning code has been deleted from the working tree per ADR-0018. None of it was an accepted product decision, so nothing carries forward; any equivalent capability in the target product is built fresh against the current docs and passes the security baseline, not reused from the scaffold. Recorded here only so the deletion is not mistaken for lost product work. What was removed:
-
-- `apps/worker` Cloudflare Worker API using Hono and D1, including the D1 schema, migrations, and `wrangler.toml`
-- `packages/cli` Node CLI (`login`, unsafe pre-V1 `pull`, `run`)
-- WebCrypto envelope encryption for immutable secret versions
-- GitHub OAuth human login with an allowlist and HMAC-signed session cookies
-- Machine tokens hashed at rest with project/action scoped authorization
-- Secret CRUD, version history, rollback, and dotenv export
-- Audit logging, basic API hardening headers, and opaque-ID/Display-Name input validation
-- Generated `dist/`, `node_modules/`, and other disposable build/install artifacts from the
-  removed scaffold. The current workspace has its own package-manager baseline.
-
-### Current Target Scaffold
-
-This is the accepted implementation baseline agents should build on. It is separate from the
-removed unsafe scaffold.
-
-- The executable workspace baseline: root `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`,
-  `tsconfig.base.json`, `turbo.json`, `.prettierrc.json`, `.prettierignore`, `eslint.config.ts`,
-  `vitest.config.ts`, package scripts, and the package context map in `docs/context-map.md`.
-- The First Value app/package skeleton: the `apps/worker` health-check stub, `packages/cli`, and
-  First Value domain package stubs under `packages/`. Package source entrypoints are deliberately
-  empty until product slices implement the corresponding seams.
-- `examples/first-value-proof`, the copyable First Value Proof.
-- All documentation: CONTEXT, the consolidated specs in `docs/specs/`, architecture, the ADRs, `docs/cli-and-sync.md`, `docs/security-plan.md`, and `docs/security-runbooks-and-release-gates.md`.
+- `@insecur/domain` owns shared domain primitives: opaque resource IDs, resource ID
+  brands, display names, Variable Keys, base64url byte encoding, metadata-only
+  envelopes, stable error codes, and request/audit ID generation.
+- `@insecur/auth` owns WorkOS-backed human session composition, admitted User actor
+  resolution, CSRF helpers, HMAC-signed ephemeral CLI session credentials, request
+  credential parsing, auth failure envelopes, and fake WorkOS sessions for tests.
+- `apps/worker` exposes `GET /healthz`, `POST /v1/auth/cli/exchange`, and
+  `GET /v1/session/whoami`. It validates auth configuration at construction,
+  supports development fake sessions, requires CSRF for browser-to-CLI exchange, and
+  returns metadata-only success/error envelopes.
+- `@insecur/tenant-store` owns the Postgres persistence seam: scoped transactions,
+  transaction-local tenant scope, runtime connection handling, local migration scripts,
+  runtime-role grants, and RLS helper scripts/tests.
+- Tenant-store migrations now create the First Value metadata spine: instances,
+  organizations, projects, environments, teams, memberships, organization/project data
+  key metadata, secrets, secret versions, injection grants, audit events, operations,
+  instance bootstrap tables, invitations, and sync target leases. Tenant-owned tables
+  have RLS enabled and forced.
+- `@insecur/access` owns Effective Access resolution, built-in role presets, First
+  Value owner scopes, request-level memoization/cache behavior, project/org coordinate
+  filtering, scope checks, and access-denied audit recording.
+- `@insecur/audit` owns tenant-qualified, metadata-only audit event validation and
+  writing, including stable denied-result codes and payload allowlist checks that fail
+  closed on sensitive-looking keys or binary payloads.
+- `@insecur/crypto` owns the keyring and encryption envelope below domain workflows:
+  root-key runtime configuration, organization/project data key metadata resolution,
+  key readiness reports, AES-GCM envelope behavior, ciphertext identity binding, DEK
+  wrap AAD, and opaque decrypt failures.
+- `@insecur/secrets` owns non-protected Blind Secret Write and Secret Version Store
+  behavior: safe value ingress policy, UTF-8 and 64 KiB value validation, Variable Key
+  validation, append/current-version persistence, wrapped-material storage, metadata-only
+  write results, and denied write audit.
+- `@insecur/runtime-injection` owns server-side one-use Injection Grant behavior:
+  exact secret selectors, issue/consume flows, grant TTL, secret-version binding at issue
+  time, decrypt-for-runtime path, denied issue/consume audit, and metadata-only grant
+  results.
+- `@insecur/onboarding` owns Guided Organization Provisioning and early membership
+  management: Personal Organization, Default Team, owner Membership, first Project,
+  non-protected development Environment, operator-created Organizations, invitations,
+  project-scoped invitation acceptance, and related audit events.
+- `@insecur/instance-bootstrap` owns initial instance setup and Bootstrap Operator Claim
+  completion: instance posture/config rows, WorkOS-ready identity configuration,
+  bootstrap secret verifier hashing, pending claim CAS, first Organization owner grant,
+  Instance Operator grant, bootstrap status, and rollback on failed post-grant audit.
+- `@insecur/operations` owns the Operation Store and sync target serialization core:
+  operation create/transition/progress/retry/cancel/poll, metadata-safe operation
+  progress, `blocked` and `incomplete` resume semantics, sync target key validation,
+  leases, renew/release, fencing tokens, stale-token rejection, and target-busy errors.
+- Package failures have been aligned around ErrorBody-compatible stable codes where the
+  package surface exposes failures to Worker/API callers.
 
 ## Verified Locally
 
-The repo has no product-bearing implementation yet; the Worker exposes only `/healthz`, and package
-source entrypoints are empty TypeScript modules. The accepted scaffold and workspace verification
-baseline are present on Node 24 and pnpm 10:
+- `pnpm verify` passes as of 2026-06-02. It ran `pnpm format:check` and Turbo
+  `lint`, `typecheck`, and `test` across 59 tasks.
+- Worker auth/session tests pass, including unauthenticated/invalid/expired credential
+  responses, valid bearer `whoami`, and WorkOS-browser-session-to-CLI credential exchange.
+- Package unit tests pass for domain primitives, auth, access role/scope logic, audit
+  metadata allowlists, crypto envelope/AAD/readiness behavior, secret input validation,
+  runtime injection metadata/selector rules, operation state/metadata rules, and bootstrap
+  secret/authenticated-actor checks.
+- DB-backed integration tests are present for tenant isolation, data-key isolation,
+  access resolution, audit writes, non-protected secret writes, runtime injection grants,
+  guided provisioning, membership management, instance bootstrap, operation store, and
+  sync target leases. In ordinary `pnpm verify`, suites that need `DATABASE_URL_RUNTIME`
+  are skipped when the runtime DB is not configured.
+- `pnpm test:rls` remains the real-Postgres RLS gate. Use it with the local Postgres
+  reset flow or per-PR Neon runtime role before treating RLS behavior as freshly verified.
 
-- `pnpm install --frozen-lockfile` passes.
-- `pnpm verify` passes across all 10 workspace packages with Prettier, ESLint, TypeScript, and
-  Vitest task fan-out.
-- `pnpm typecheck` passes across all 10 workspace packages.
-- `pnpm test:rls` is wired as an uncached tenant-store placeholder; real Postgres RLS tests start
-  with FV-04.
-- `pnpm dev:check` passes and verifies the local toolchain, Wrangler 4, and scaffold files without
-  printing secret values.
-- `pnpm dev:db:reset` starts a local Postgres 17 Docker Compose database, creates separate
-  migration and runtime roles, verifies that the runtime role has `rolbypassrls=false`, and checks
-  the Neon-adjacent local settings.
-- `pnpm build` passes, including the Worker dry-run deploy through the committed
-  `apps/worker/wrangler.jsonc`.
+## Not Yet Wired
 
-## Not Yet Done
+- The CLI package is still an empty entrypoint. No `insecur login`, `insecur secrets set`,
+  `insecur run`, local profile config, child process spawning, masked prompt, JSON output,
+  or first-value proof command path exists yet.
+- The Worker exposes auth/session routes only. There are no HTTP routes yet for instance
+  bootstrap, guided provisioning, membership management, secret writes, runtime injection
+  grant issue/consume, operations, provider sync, Storage Security Gate, or audit export.
+- WorkOS AuthKit is represented through session validation and config composition, but
+  hosted login/logout/callback UI, MFA enrollment, and high-risk action challenges are not
+  implemented.
+- Admitted User resolution in the Worker is still a development JSON map, not persisted
+  User admission or production identity configuration.
+- Neon/Hyperdrive production bindings are not composed through the Worker yet. Local
+  Postgres and the tenant-store connection package are the current persistence path.
+- Root key custody and Cloudflare Secrets Store integration are not implemented. Crypto
+  has root-key runtime configuration and tenant data-key metadata behavior, but production
+  custody/escrow wiring is still pending.
+- Key rotation workflows are not implemented. Version metadata and readiness checks exist,
+  but rotation operations, rewrap workflows, and operator UX do not.
+- Protected Environments, Draft/Published Version, Promotion, rollback, Protected Change
+  Orchestrator, Human Approval Surface, Delivery Risk Policy Presets, and Storage Security
+  Gate enforcement are not implemented.
+- Machine Identity, GitHub Actions OIDC, environment-scoped deploy keys, deploy-key
+  rotation, and short-lived CI access tokens are not implemented.
+- Provider App Connections and Secret Sync adapters for GitHub Actions and Cloudflare
+  Worker secrets are not implemented. Operation Store and sync target lease primitives
+  exist, but provider connect/plan/write/verify flows do not.
+- Tamper-evident audit export, JSONL hash chains, HMACed manifests, `audit verify`, backup
+  and restore evidence, and breach forensic records are not implemented.
+- Public signup controls, signup lockdown, quotas, tenant suspension, abuse handling, and
+  tenant enumeration defenses are not implemented.
+- No web console UI exists.
 
-- Neon Postgres is not wired into the product yet; local Postgres is an iteration aid only, and
-  First Value non-secret setup inputs are recorded in Linear `FV-H1`
-- Cloudflare Hyperdrive is not wired into the product yet; First Value non-secret setup inputs are
-  recorded in Linear `FV-H1`
-- Neither D1 nor any target persistence is wired into the product code yet
-- Production Worker deployment has not been smoke-tested
-- No tenant-first schema exists yet
-- No organization-qualified routes exist yet
-- No membership/role-based authorization exists yet
-- No human authentication implementation exists yet; First Value WorkOS AuthKit setup inputs are
-  recorded in Linear `FV-H2`
-- No machine identity-issued short-lived access tokens exist yet
-- No CLI authentication exists yet; the target is memory/session-only
-- Environment-scoped deploy keys and deploy key rotation policies do not exist yet
-- No organization data keys or project data keys exist yet; First Value Cloudflare Secrets Store
-  setup inputs are recorded in Linear `FV-H3`
-- No ciphertext binding to tenant/resource identity with authenticated data exists yet
-- Sensitive Metadata encryption is not implemented yet
-- No key version model or key rotation workflow exists yet
-- No secret version write or rollback concurrency guarantees exist yet (needed before multi-user use)
-- No tenant-qualified audit rows with typed actor/resource fields and denied-auth coverage exist yet
-- No tamper-evident audit export, hash chain, or HMACed manifest exists yet
-- No app connection model exists for provider OAuth app installations
-- No secret sync model exists yet for provider destinations
-- No inline sync execution, in-request retry, lease-row serialization, or `incomplete`-operation resume exists yet (ADR-0057)
-- CLI/sync shape is documented but not implemented
-- No cross-tenant authorization regression tests exist yet; the design is specified in [ADR-0054](adr/0054-tenant-isolation-tests-real-postgres.md) and [build-tooling.md](build-tooling.md) (real per-PR Neon Postgres as the `NOBYPASSRLS` runtime role, never SQLite/PGlite)
-- The Security Runbooks And Release Gates contract is documented, but individual security runbooks have not been written yet
-- No public onboarding abuse controls, signup lockdown, or tenant suspension workflow exists yet
-- No ASVS/API Top 10/security release gate automation or evidence bundle exists yet
-- No dependency, supply-chain, or secret scanning workflow exists yet; the design is specified in [ADR-0056](adr/0056-supply-chain-hardening-posture.md) and [build-tooling.md](build-tooling.md) (pnpm lifecycle blocking and release quarantine, Renovate floor, gitleaks/semgrep/syft/grype, daily CVE scan)
-- No UI exists
-- No Human Approval Surface or Delivery Risk Policy Preset implementation exists yet
-- No WorkOS AuthKit, WorkOS MFA, or high-risk action challenge implementation exists yet
-- No GitHub Actions OIDC federation endpoint exists
-- No key rotation, machine identity credential rotation, app connection credential rotation, or provider reauthorization workflow exists
-- No R2 backup or restore test exists
+## Product Boundary
 
-## Important Product Boundary
+The removed pre-V1 scaffold remains disposable learning code. It is not a supported product
+mode and should not be treated as evidence of intended product behavior. Current work must
+continue through the package seams above.
 
-The removed scaffold was disposable learning code. It was not a dev-only product direction, not a supported product mode, not evidence of intended product behavior, and not safe for valuable production secrets or unrelated external tenants on `insecur.cloud`.
-
-The First Value Milestone is allowed to prove the non-protected development loop before production delivery is ready, but it is not safe for production-grade Sensitive Values. The Production Delivery Milestone must meet the Small-Group Production security baseline before storing valuable secrets: organization, membership, role, machine identity, app connection, secret sync, tenant-qualified route, tenant-aware key, tenant-bounded audit/export behavior, controlled Organization creation through Instance Operators or Guided Organization Provisioning, and Invitation-based Organization Access. Public onboarding controls, quotas, abuse handling, tenant enumeration defenses, and Service Access boundaries are required before enabling broad public signup or operating a Hosted Instance for unrelated tenants.
+The First Value Milestone can prove the non-protected development loop before production
+delivery is ready. It is not safe for production-grade Sensitive Values. Production delivery
+must meet the Small-Group Production baseline before storing or delivering valuable secrets:
+tenant-qualified storage, membership and role authorization, tenant-bound keys, no-reveal
+secret custody, protected delivery policy, machine access, app connections, tenant-bounded
+audit, controlled Organization creation, and invitation-based Organization access.
 
 ## Build Order
 
-This is a dependency-ordered implementation sequence, not a release plan. Which slice ships as which version is **not decided**; see [phasing.md](phasing.md). The milestone names below are build ordering, not version boundaries.
-Use [production-mvp-acceptance.md](production-mvp-acceptance.md) as the pass/fail contract for when
-the actual production MVP is ready.
+This is dependency order, not a release plan. Version boundaries are still governed by
+[phasing.md](phasing.md), and production readiness is governed by
+[production-mvp-acceptance.md](production-mvp-acceptance.md).
 
-**First Value Milestone**
+**First Value Completion**
 
-Guided Organization Provisioning for Personal Organizations with an owner Membership, Default Team, first Project, non-protected development Environment, developer-first CLI defaults with scoped-unique profile slugs and policy Display Names, non-protected `secrets set --variable-key` create-or-update, service-generated Blind Secret Write, local `run --variable-key`, Diskless Development Secret Use, the copyable First Value Proof in `examples/first-value-proof`, metadata-only output, and enough tenant-qualified authorization/audit/encryption to avoid creating migration debt. The governing integration contract is [first-value-milestone.md](first-value-milestone.md).
+Wire the existing packages into the usable First Value path: instance/admitted-user setup,
+guided Personal Organization provisioning, non-protected development secret write, one-use
+Runtime Injection Grant issue/consume, CLI profile defaults, `insecur run`, metadata-only
+output, and the copyable First Value Proof.
 
 **Production Delivery Foundation**
 
-Neon Postgres schema, Tenant-Scoped Store, Row-Level Security policies, Instance Bootstrap, WorkOS-backed Instance Identity Configuration, Bootstrap Operator Claim completion, first-Organization owner Membership, Default Team creation, Instance Operator-controlled Organization creation, Guided Organization Provisioning for Personal Organizations with a first Project and non-protected development Environment, organization/project memberships, scope-first authorization with built-in role presets, WorkOS AuthKit migration, organization and project data keys, key versions, provider credentials and Sensitive Metadata encrypted under tenant-bound data keys, AES-GCM authenticated data binding, Protected Environment promotion/rollback, the Storage Security Gate readiness contract in [storage-security-gate.md](storage-security-gate.md), and tenant-qualified routes.
+Finish Worker composition, persisted identity/admission behavior, production Postgres/Hyperdrive
+binding, root-key custody, key readiness enforcement, Storage Security Gate checks, protected
+environment modeling, route-level authorization, and tenant-qualified audit coverage.
 
-**Machine Access and CI Trust**
+**Machine Access And CI Trust**
 
-Machine identities, GitHub Actions OIDC federation, and environment-scoped deploy keys with configurable rotation policies for scoped Runtime Injection automation without storing broad long-lived tokens. This is the custody boundary that lets CI use Protected Environment Sensitive Values while local agents and ordinary human sessions cannot read them.
+Add Machine Identities, GitHub Actions OIDC, environment-scoped deploy keys, rotation policy,
+and short-lived automation access for scoped Runtime Injection without broad long-lived tokens.
 
-**Provider Sync: GitHub and Cloudflare**
+**Provider Sync: GitHub And Cloudflare**
 
-OAuth app connections and inline sync engines for GitHub Actions and direct Cloudflare Worker secrets. Cloudflare Worker secret writes are production deploys for the affected Worker script/environment and must be presented as such in plan, approval, and audit output. The Vercel sync adapter remains in the [deferred scope parking lot](phasing.md#deferred-scope-parking-lot) but stays additive behind the provider port model. Production sync remains blocked until the Storage Security Gate passes. Sync operation state, retry, resume, leases, and fencing tokens are governed by [operation-store.md](operation-store.md).
+Build App Connections and inline sync adapters on top of the Operation Store and sync target
+lease/fencing primitives. Cloudflare Worker secret writes remain production deploys for the
+affected script/environment and need approval and audit evidence.
 
-**Runtime Injection Delivery**
+**Approval UX And Delivery Policy**
 
-Profile-backed `insecur run <profile-slug-or-id> -- <command>` for deploys and local commands so developers and agents can use secrets without local secret files or secret reveal. The guided First Value Proof uses this path in a non-protected development Environment before any provider setup. Production runtime injection remains blocked until the Storage Security Gate passes.
+Add Protected Environment approval, high-assurance challenges, protected delivery configuration
+change approvals, protected Secret Sync enable/run approvals, Cloudflare Worker Secret Deploy
+approval evidence, and versioned Delivery Risk Policy Presets.
 
-**Approval UX and Delivery Policy**
+**Audit, Runbooks, And Release Gates**
 
-Human Approval Surface for Protected Environment approval, High-Assurance Challenges, protected delivery configuration changes, protected Secret Sync enable/run, Cloudflare Worker Secret Deploy approval evidence, and Risk-Broadening Delivery Changes. Delivery Risk Policy Presets default to Balanced, first onboarding does not show a preset picker, and users can later switch to Strict or Automation-Friendly. They can allow configured non-protected development or preview delivery through agent-reachable CLI/API channels without making Protected Environment approval terminal-only. Under Balanced, preview automation requires environment-scoped Preview Automation Opt-In; under Automation-Friendly, the same Preview Automation Authority applies by default for non-protected preview Environments in scope. Preview Automation Authority can execute only existing Runtime Injection Policies, Secret Syncs, and Secret Sync Bindings. Presets are backed by versioned policy infrastructure so later enterprise controls do not require refactoring authorization or audit.
-
-**Audit, Runbooks, and Release Gates**
-
-Tenant-qualified audit hardening, tamper-evident audit exports with JSONL hash chains and HMACed manifests, `audit verify`, security runbooks, tested restore evidence, ASVS/API Top 10 checks, dependency scanning, secret scanning, SBOM/vulnerability scanning, the release-gate evidence bundle, and pre-production gate automation.
-
-**Deferred scope**
-
-Deferred work is tracked in [phasing.md](phasing.md#deferred-scope-parking-lot), not in Linear.
-Do not create Linear projects, project milestones, parent issues, implementation issues, or
-placeholder tickets for those items until they are promoted out of the deferred parking lot in the
-repo docs.
+Add tamper-evident audit exports, `audit verify`, tested restore evidence, security runbooks,
+ASVS/API Top 10 checks, dependency scanning, secret scanning, SBOM/vulnerability scanning, and
+release-gate evidence bundles.
 
 ## Recommended Next Steps
 
-1. Work the `First Value Build` Linear graph from [first-value-ticket-plan.md](specs/first-value-ticket-plan.md), continuing from the completed tooling baseline and the completed human setup tickets for Neon, WorkOS, and Cloudflare Secrets Store.
-2. Run the customer-validation loop from [customer-validation.md](customer-validation.md): 20 discovery interviews with agent-heavy teams, five design partners, and repeated First Value usage evidence.
-3. Build the First Value Milestone through [first-value-milestone.md](first-value-milestone.md) as a narrow vertical slice through the real foundation: Tenant-Scoped Store, Row-Level Security, Effective Access, Guided Organization Provisioning, Personal Organization, owner Membership, Default Team, first Project, non-protected development Environment, tenant-bound Secret encryption, Secret Version Store, local `run --variable-key`, Diskless Development Secret Use, metadata-only output, and the copyable First Value Proof.
-4. Use the design-partner loop to shorten and harden the First Value proof before widening provider scope or web management.
-5. Expand the foundation toward Production Delivery: full Neon Postgres tenant-first schema, tenant-qualified audit log, project ownership by organization, Instance Bootstrap, Bootstrap Operator Claim completion, first-Organization owner Membership creation, Instance Operator-controlled Organization creation, organization/project memberships, and scope-first authorization.
-6. Move route shape and authorization to organization-qualified object-level checks.
-7. Add organization and project data keys before storing provider credentials or production secrets in multi-tenant mode.
-8. Add key versions and root/organization/project data key rotation workflows.
-9. Bind the secret ciphertext layer to organization/project/environment/secret identity and bind the DEK-wrap layer to the data-key version with AES-GCM authenticated data.
-10. Add the Storage Security Gate from [storage-security-gate.md](storage-security-gate.md) so production Secret Delivery and Secret Sync fail closed until tenant-bound storage readiness is verified.
-11. Add Protected Environment Draft Version, Promotion, Published Version, rollback, Rollback Retention Window behavior, and the Protected Change Orchestrator from [protected-change-orchestration.md](protected-change-orchestration.md).
-12. Add the Human Approval Surface and Delivery Risk Policy Presets so Protected Environment gates are not terminal-only while non-protected preview/development relaxations are explicit, versioned, and audited.
-13. Strengthen secret version write, promotion, and rollback concurrency guarantees.
-14. Replace long-lived machine token flows with machine identities, environment-scoped deploy keys, configurable deploy key rotation policies, and short-lived access tokens.
-15. Replace scaffold GitHub OAuth with WorkOS AuthKit for human authentication, MFA, and high-risk action challenge behavior.
-16. Implement GitHub Actions OIDC federation for short-lived CI access.
-17. Add memory/session-only CLI auth and developer-first CLI support for `insecur run <profile-slug-or-id> -- <command>`, dry-runs, operation IDs, runtime injection, and metadata-only JSON output behind the Storage Security Gate.
-18. Add the GitHub App connection and Cloudflare scoped-token App Connection, then project-owned secret syncs behind the Storage Security Gate. Keep the Vercel adapter seam add-back-ready, but do not build Vercel sync in V1.
-19. Add the [Operation Store](operation-store.md), lease-row Sync Target Serialization with a fencing token, in-request retry with backoff, and the partial-failure state machine (`blocked`/`incomplete`) for sync operations (ADR-0057). Cloudflare Queues and Durable Objects are deferred past V1.
-20. Implement the sync lifecycle from `docs/cli-and-sync.md`: connect, create, plan, inline run, verify, retry/reauth, and `incomplete`-operation resume through the Operation Store.
-21. Add sync operation audit events for lease claim, Sync Execution Revalidation result, provider write summaries, retry, completion or `incomplete` or cancellation, and lease release.
-22. Add tamper-evident audit exports with JSONL hash chains, HMACed manifests, and `audit verify`.
-23. Write the security runbooks catalogued in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
-24. Add public onboarding abuse controls, signup lockdown, tenant suspension, quotas, and tenant enumeration tests before broad public signup.
-25. Add the security release gate evidence bundle and automation from [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md), including ASVS/API Top 10 checks, dependency scanning, and secret scanning.
-26. Add the broader focused UI after API, CLI, and sync flows are verified.
+1. Wire the existing package implementations into Worker routes for instance bootstrap,
+   guided provisioning, non-protected secret write, and Runtime Injection Grant issue/consume.
+2. Implement the CLI First Value path: profile config, safe secret input, metadata-only
+   `secrets set`, one-command `run`, and child-process env injection without local secret files.
+3. Run `pnpm dev:db:reset && pnpm test:rls` before treating the DB-backed integration suites as
+   current evidence.
+4. Convert the First Value Proof in `examples/first-value-proof` from standalone proof script to
+   a real CLI/API integration proof once the CLI and routes exist.
+5. Add production identity persistence and replace the Worker development admitted-user JSON map.
+6. Add root-key custody through the intended Cloudflare Secrets Store path and enforce key
+   readiness before secret writes or runtime delivery.
+7. Keep provider sync and protected delivery behind the Storage Security Gate until tenant-bound
+   storage, authorization, audit, and key readiness are all composed through routes.

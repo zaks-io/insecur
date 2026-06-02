@@ -21,7 +21,6 @@ export {
   type EffectiveAccessResult,
   type LoadMembershipsFn,
   type ResolveEffectiveAccessDeps,
-  type ResolveEffectiveAccessOptions,
   type ResourceCoordinate,
   resolveEffectiveAccess,
   resolveEffectiveAccessBatch,

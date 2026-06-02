@@ -1,13 +1,56 @@
 import { toBufferSource } from "./buffer.js";
-import { GCM_IV_LENGTH } from "./constants.js";
+import { ENVELOPE_FORMAT_VERSION, GCM_IV_LENGTH, RECORD_TYPE_SECRET } from "./constants.js";
+import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
 import {
   ENVELOPE_HEADER_LENGTH,
   parseEnvelopeLayout,
   writeEnvelopeHeader,
 } from "./envelope-layout.js";
-import { serializeDekWrapAad, serializeSecretCiphertextAad } from "./identity-binding.js";
 import type { SecretCiphertextIdentity } from "./types.js";
+
+const FIELD_SEPARATOR = "\u001f";
+
+function encodeField(value: string): string {
+  return value;
+}
+
+/**
+ * Canonical ciphertext-layer AAD for Secret records.
+ * Identity is recomputed at decrypt; it is never stored alongside ciphertext.
+ */
+export function serializeSecretCiphertextAad(identity: SecretCiphertextIdentity): Uint8Array {
+  const parts = [
+    String(RECORD_TYPE_SECRET),
+    encodeField(identity.organizationId),
+    encodeField(identity.projectId),
+    encodeField(identity.environmentId),
+    encodeField(identity.secretId),
+  ];
+  return new TextEncoder().encode(parts.join(FIELD_SEPARATOR));
+}
+
+/** DEK-wrap layer AAD binds format marker and project data-key version. */
+export function serializeDekWrapAad(projectDataKeyVersion: number): Uint8Array {
+  const parts = [
+    String(RECORD_TYPE_SECRET),
+    String(ENVELOPE_FORMAT_VERSION),
+    String(projectDataKeyVersion),
+  ];
+  return new TextEncoder().encode(parts.join(FIELD_SEPARATOR));
+}
+
+export function identityMatches(
+  left: SecretCiphertextIdentity,
+  right: SecretCiphertextIdentity,
+): boolean {
+  return (
+    left.organizationId === right.organizationId &&
+    left.projectId === right.projectId &&
+    left.environmentId === right.environmentId &&
+    left.secretId === right.secretId
+  );
+}
 
 function randomIv(): Uint8Array {
   const iv = new Uint8Array(GCM_IV_LENGTH);
@@ -62,14 +105,14 @@ function concatBytes(...parts: Uint8Array[]): Uint8Array {
   return out;
 }
 
-export interface SealSecretValueInput {
+interface SealSecretValueInput {
   identity: SecretCiphertextIdentity;
   plaintextUtf8: Uint8Array;
   projectDataKey: CryptoKey;
   projectDataKeyVersion: number;
 }
 
-export async function sealSecretValue(input: SealSecretValueInput): Promise<Uint8Array> {
+async function sealSecretValue(input: SealSecretValueInput): Promise<Uint8Array> {
   const dek = new Uint8Array(32);
   crypto.getRandomValues(dek);
   const dekKey = await crypto.subtle.importKey("raw", toBufferSource(dek), "AES-GCM", false, [
@@ -102,7 +145,7 @@ export async function sealSecretValue(input: SealSecretValueInput): Promise<Uint
   return concatBytes(header, wrappedDek, valueCiphertext);
 }
 
-export interface OpenSecretValueInput {
+interface OpenSecretValueInput {
   identity: SecretCiphertextIdentity;
   envelopeBytes: Uint8Array;
   projectDataKey: CryptoKey;
@@ -131,7 +174,7 @@ async function decryptParsedEnvelope(
   );
 }
 
-export async function openSecretValue(input: OpenSecretValueInput): Promise<Uint8Array> {
+async function openSecretValue(input: OpenSecretValueInput): Promise<Uint8Array> {
   try {
     const layout = parseEnvelopeLayout(input.envelopeBytes);
     return await decryptParsedEnvelope(layout, input.identity, input.projectDataKey);
@@ -141,6 +184,79 @@ export async function openSecretValue(input: OpenSecretValueInput): Promise<Uint
     }
     throw new DecryptError();
   }
+}
+
+/** Wrapped material returned to callers; never plaintext at rest. */
+export interface WrappedSecretValue {
+  organizationDataKeyVersion: number;
+  projectDataKeyVersion: number;
+  ciphertext: Uint8Array;
+  /**
+   * Optional encrypt-path echo. Persisted Secret Version rows store only
+   * key-version columns and ciphertext bytes.
+   */
+  identity?: SecretCiphertextIdentity;
+}
+
+/**
+ * Write-path encryption for Blind Secret Write and storage.
+ * Accepts plaintext only at the encryption boundary; callers must not log input.
+ */
+export async function encryptSecretValue(
+  identity: SecretCiphertextIdentity,
+  plaintextUtf8: Uint8Array,
+): Promise<WrappedSecretValue> {
+  const keyring = getKeyring();
+  const activeVersions = await keyring.getActiveDataKeyVersions(
+    identity.organizationId,
+    identity.projectId,
+  );
+  const projectDataKey = await keyring.getProjectDataKey(
+    identity.organizationId,
+    identity.projectId,
+    activeVersions,
+  );
+  const ciphertext = await sealSecretValue({
+    identity,
+    plaintextUtf8,
+    projectDataKey,
+    projectDataKeyVersion: activeVersions.projectDataKeyVersion,
+  });
+  return {
+    organizationDataKeyVersion: activeVersions.organizationDataKeyVersion,
+    projectDataKeyVersion: activeVersions.projectDataKeyVersion,
+    ciphertext,
+    identity,
+  };
+}
+
+/**
+ * Runtime-only decrypt for approved Injection Grant consume.
+ * Must not be used for reveal, export, or CLI/API read paths.
+ */
+export async function decryptSecretValueForRuntime(
+  identity: SecretCiphertextIdentity,
+  wrapped: WrappedSecretValue,
+): Promise<Uint8Array> {
+  if (wrapped.identity !== undefined && !identityMatches(identity, wrapped.identity)) {
+    throw new DecryptError();
+  }
+
+  const keyring = getKeyring();
+  const projectDataKey = await keyring.getProjectDataKey(
+    identity.organizationId,
+    identity.projectId,
+    {
+      organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
+      projectDataKeyVersion: wrapped.projectDataKeyVersion,
+    },
+  );
+
+  return openSecretValue({
+    identity,
+    envelopeBytes: wrapped.ciphertext,
+    projectDataKey,
+  });
 }
 
 /** Bytes persisted by the Secret Version Store (no caller identity echo). */
