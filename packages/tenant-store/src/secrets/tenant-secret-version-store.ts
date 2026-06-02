@@ -1,4 +1,4 @@
-import { secretId, secretVersionId, type SecretId } from "@insecur/domain";
+import { secretId, secretVersionId, type SecretId, type SecretVersionId } from "@insecur/domain";
 
 import type { TenantScopedSql } from "../tenant-scoped-sql.js";
 import {
@@ -48,6 +48,39 @@ function toStoredWrappedMaterial(row: SecretVersionRow): StoredWrappedSecretMate
  */
 export class TenantSecretVersionStore {
   constructor(private readonly sql: TenantScopedSql) {}
+
+  async getVersionById(
+    secretIdValue: SecretId,
+    secretVersionIdValue: SecretVersionId,
+  ): Promise<SecretVersionStoreRow | null> {
+    const versions = await this.sql<SecretVersionRow[]>`
+      SELECT
+        id,
+        org_id,
+        secret_id,
+        version_number,
+        organization_data_key_version,
+        project_data_key_version,
+        ciphertext_storage_ref
+      FROM secret_versions
+      WHERE secret_id = ${secretIdValue}
+        AND id = ${secretVersionIdValue}
+      LIMIT 1
+    `;
+    const version = versions[0];
+    if (!version) {
+      return null;
+    }
+
+    return {
+      secretVersionId: secretVersionId.brand(version.id),
+      secretId: secretId.brand(version.secret_id),
+      versionNumber: version.version_number,
+      organizationDataKeyVersion: version.organization_data_key_version ?? 0,
+      projectDataKeyVersion: version.project_data_key_version ?? 0,
+      wrapped: toStoredWrappedMaterial(version),
+    };
+  }
 
   async getCurrentVersion(secretIdValue: SecretId): Promise<SecretVersionStoreRow | null> {
     const secrets = await this.sql<SecretRow[]>`

@@ -26,6 +26,25 @@ export {
   SecretVersionStoreNotFoundError,
 } from "./secrets/errors.js";
 export { TenantSecretVersionStore } from "./secrets/tenant-secret-version-store.js";
+export { resolveSecretForRead } from "./secrets/resolve-secret-for-read.js";
+export type {
+  ResolveSecretForReadInput,
+  ResolvedSecretForRead,
+} from "./secrets/resolve-secret-for-read-types.js";
+export {
+  ProjectEnvironmentCoordinateError,
+  assertProjectEnvironmentCoordinate,
+} from "./injection-grants/assert-project-environment-coordinate.js";
+export {
+  TenantInjectionGrantStore,
+  type ConsumedInjectionGrantRow,
+  type InjectionGrantConsumeFailure,
+} from "./injection-grants/tenant-injection-grant-store.js";
+export type {
+  InsertInjectionGrantInput,
+  InjectionGrantRow,
+  ResolvedInjectionGrantBinding,
+} from "./injection-grants/types.js";
 export type {
   AppendSecretVersionAndMakeLiveInput,
   AppendSecretVersionAndMakeLiveResult,

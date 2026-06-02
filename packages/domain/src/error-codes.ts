@@ -38,6 +38,7 @@ export type SecretErrorCode = (typeof SECRET_ERROR_CODES)[keyof typeof SECRET_ER
 /** Scaffolding for runtime injection error codes. */
 export const INJECTION_ERROR_CODES = {
   grantDenied: "injection.grant_denied",
+  grantExpired: "injection.grant_expired",
   decryptFailed: "injection.decrypt_failed",
 } as const;
 

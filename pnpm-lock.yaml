@@ -291,6 +291,9 @@ importers:
       '@insecur/audit':
         specifier: workspace:*
         version: link:../audit
+      '@insecur/crypto':
+        specifier: workspace:*
+        version: link:../crypto
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
