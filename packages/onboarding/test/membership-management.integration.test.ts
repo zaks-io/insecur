@@ -193,6 +193,11 @@ describeIntegration("membership management (PDF-02)", () => {
 
     await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
       await sql`DELETE FROM invitations WHERE invitee_user_id = ${DUPLICATE_INVITEE_USER_ID}`;
+      await sql`
+        DELETE FROM audit_events
+        WHERE resource_type = ${"invitation"}
+          AND resource_id IN (${SECOND_INVITATION_ID}, ${THIRD_INVITATION_ID})
+      `;
     });
   });
 
@@ -240,18 +245,19 @@ describeIntegration("membership management (PDF-02)", () => {
         return await sql<{ event_code: string }[]>`
           SELECT event_code
           FROM audit_events
-          WHERE event_code IN ${sql([
-            FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
-            FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
-          ])}
+          WHERE resource_type = ${"invitation"}
+            AND resource_id = ${INVITATION_ID}
+            AND event_code IN ${sql([
+              FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
+              FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
+            ])}
+          ORDER BY event_code
         `;
       },
     );
-    expect(invitationAudit.map((row) => row.event_code).sort()).toEqual(
-      [
-        FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
-        FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
-      ].sort(),
-    );
+    expect(invitationAudit.map((row) => row.event_code)).toEqual([
+      FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
+      FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
+    ]);
   });
 });
