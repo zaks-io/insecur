@@ -381,6 +381,31 @@ describeIntegration("Runtime Injection Grant Service", () => {
     ).rejects.toBeInstanceOf(InjectionGrantError);
   });
 
+  it("rejects consume when variable key selector does not match grant binding", async () => {
+    const org = testOrganization();
+    const allowedKey = uniqueVariableKey("FV11_VK_ALLOWED");
+    const otherKey = uniqueVariableKey("FV11_VK_OTHER");
+    await writeTestSecret(allowedKey, new TextEncoder().encode("allowed-vk"));
+    await writeTestSecret(otherKey, new TextEncoder().encode("other-vk"));
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey: allowedKey },
+      actor: testActor(),
+    });
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId: issued.grantId,
+        variableKey: otherKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+  });
+
   it("denies consume without burning a legacy multi-key grant row", async () => {
     const org = testOrganization();
     const firstKey = uniqueVariableKey("FV11_MULTI_A");

@@ -47,7 +47,7 @@ Grant state. CLI child process execution stays in `@insecur/cli`.
 
 - Injection Grant issue and consume rules.
 - One-use grant invariants.
-- Exact Variable Key delivery decisions.
+- Exact Secret ID or Variable Key delivery decisions.
 - Runtime Injection Policy evaluation when implemented.
 - Metadata-only run result and denial shapes.
 

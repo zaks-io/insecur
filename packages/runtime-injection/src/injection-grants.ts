@@ -23,7 +23,7 @@ export interface IssueInjectionGrantInput {
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId: EnvironmentId;
-  /** Exactly one Secret binding per grant (First Value: one `run --variable-key`). */
+  /** Exactly one Secret binding per grant (First Value: one `run --variable-key` or `--secret-id`). */
   selector: InjectionGrantIssueSelector;
   actor: AuditActorRef;
   request?: AuditRequestRef;
