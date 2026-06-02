@@ -3,6 +3,54 @@ import type { WorkerEnv } from "../env.js";
 import { createAdmittedUserResolver, createAuthConfig } from "./config.js";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
 
+export type AuthConfigField =
+  | "workos.clientId"
+  | "workos.apiKey"
+  | "workos.cookiePassword"
+  | "sessionSigningSecret";
+
+export class AuthConfigError extends Error {
+  readonly field: AuthConfigField;
+
+  constructor(field: AuthConfigField) {
+    super(authConfigErrorMessage(field));
+    this.name = "AuthConfigError";
+    this.field = field;
+  }
+}
+
+function authConfigErrorMessage(field: AuthConfigField): string {
+  switch (field) {
+    case "workos.clientId":
+      return "auth configuration invalid: workos.clientId must be a non-empty value";
+    case "workos.apiKey":
+      return "auth configuration invalid: workos.apiKey must be a non-empty value";
+    case "workos.cookiePassword":
+      return "auth configuration invalid: workos.cookiePassword must be a non-empty value";
+    case "sessionSigningSecret":
+      return "auth configuration invalid: sessionSigningSecret must be at least 32 characters";
+  }
+}
+
+function isBlank(value: string): boolean {
+  return value.trim() === "";
+}
+
+export function validateAuthContext(config: InsecurAuthConfig): void {
+  if (isBlank(config.workos.clientId)) {
+    throw new AuthConfigError("workos.clientId");
+  }
+  if (isBlank(config.workos.apiKey)) {
+    throw new AuthConfigError("workos.apiKey");
+  }
+  if (isBlank(config.workos.cookiePassword)) {
+    throw new AuthConfigError("workos.cookiePassword");
+  }
+  if (config.sessionSigningSecret.length < 32) {
+    throw new AuthConfigError("sessionSigningSecret");
+  }
+}
+
 export interface AuthContext {
   readonly config: InsecurAuthConfig;
   readonly workos: WorkOSSessionPort;
@@ -10,8 +58,10 @@ export interface AuthContext {
 }
 
 export function createAuthContext(env: WorkerEnv): AuthContext {
+  const config = createAuthConfig(env);
+  validateAuthContext(config);
   return {
-    config: createAuthConfig(env),
+    config,
     workos: createWorkOSSessionPortFromEnv(env),
     resolveAdmittedUser: createAdmittedUserResolver(env),
   };
