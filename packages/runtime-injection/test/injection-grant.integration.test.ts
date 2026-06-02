@@ -2,6 +2,7 @@ import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
 import {
   brandOpaqueResourceIdForPrefix,
+  brandValue,
   environmentId,
   injectionGrantId,
   INJECTION_ERROR_CODES,
@@ -13,7 +14,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
-import { TEST_ENV_B_ID, TEST_PROJECT_B_ID } from "../../tenant-store/test/rls/test-ids.js";
+import {
+  TEST_ENV_B_ID,
+  TEST_PROJECT_B_ID,
+  TEST_USER_ID,
+} from "../../tenant-store/test/rls/test-ids.js";
 import { uniqueVariableKey, writeTestSecret } from "../../secret-store/test/integration-helpers.js";
 
 import { InjectionGrantError } from "../src/injection-grant-error.js";
@@ -288,6 +293,70 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(consumeAudit?.related_resource_id).not.toBe(
       brandOpaqueResourceIdForPrefix("sv", secondWrite.secretVersionId),
     );
+  });
+
+  it("denies consume with org-only audit when grant id is malformed", async () => {
+    const org = testOrganization();
+    const malformedGrantId = brandValue<string, "InjectionGrantId">("igr_not-a-valid-grant-id");
+    const variableKey = uniqueVariableKey("FV11_MALFORMED_GRANT");
+    const plaintext = new TextEncoder().encode(`malformed-grant-${crypto.randomUUID()}`);
+    await writeTestSecret(variableKey, plaintext);
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId: malformedGrantId,
+        variableKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const deniedRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return sql<
+          {
+            event_code: string;
+            outcome: string;
+            result_code: string | null;
+            project_id: string | null;
+            environment_id: string | null;
+            resource_type: string | null;
+            resource_id: string | null;
+          }[]
+        >`
+          SELECT
+            event_code,
+            outcome,
+            result_code,
+            project_id,
+            environment_id,
+            resource_type,
+            resource_id
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied}
+            AND actor_user_id = ${TEST_USER_ID}
+            AND project_id IS NULL
+            AND environment_id IS NULL
+            AND resource_id IS NULL
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+
+    expect(deniedRows).toHaveLength(1);
+    expect(deniedRows[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
+      outcome: "denied",
+      result_code: INJECTION_ERROR_CODES.grantDenied,
+      project_id: null,
+      environment_id: null,
+      resource_type: null,
+      resource_id: null,
+    });
+    expect(JSON.stringify(deniedRows)).not.toContain(malformedGrantId);
+    expect(JSON.stringify(deniedRows)).not.toContain(new TextDecoder().decode(plaintext));
   });
 
   it("denies consume with org-only audit when grant id does not exist", async () => {

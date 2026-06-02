@@ -8,7 +8,7 @@ import {
   writeAuditEvent,
 } from "@insecur/audit";
 import {
-  brandOpaqueResourceIdForPrefix,
+  parseOpaqueResourceId,
   type EnvironmentId,
   type InjectionGrantId,
   type KnownErrorCode,
@@ -34,6 +34,32 @@ export interface RecordInjectionGrantAuditInput {
   reasonCode?: KnownErrorCode;
 }
 
+function injectionGrantAuditResource(grantId: InjectionGrantId) {
+  const parsed = parseOpaqueResourceId(grantId, "igr");
+  if (!parsed.ok) {
+    return {};
+  }
+  return {
+    resource: {
+      type: "injection_grant" as const,
+      id: parsed.value,
+    },
+  };
+}
+
+function secretVersionAuditRelatedResource(secretVersionId: SecretVersionId) {
+  const parsed = parseOpaqueResourceId(secretVersionId, "sv");
+  if (!parsed.ok) {
+    return {};
+  }
+  return {
+    relatedResource: {
+      type: "secret_version" as const,
+      id: parsed.value,
+    },
+  };
+}
+
 function eventCodeFor(input: RecordInjectionGrantAuditInput): FirstValueAuditEventCode {
   if (input.phase === "issue") {
     return input.outcome === "success"
@@ -53,21 +79,9 @@ function auditBaseForInjectionGrant(input: RecordInjectionGrantAuditInput) {
     ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
     ...(input.request !== undefined ? { request: input.request } : {}),
     ...(input.operation !== undefined ? { operation: input.operation } : {}),
-    ...(input.grantId !== undefined
-      ? {
-          resource: {
-            type: "injection_grant" as const,
-            id: brandOpaqueResourceIdForPrefix("igr", input.grantId),
-          },
-        }
-      : {}),
+    ...(input.grantId !== undefined ? injectionGrantAuditResource(input.grantId) : {}),
     ...(input.deliveredSecretVersionId !== undefined
-      ? {
-          relatedResource: {
-            type: "secret_version" as const,
-            id: brandOpaqueResourceIdForPrefix("sv", input.deliveredSecretVersionId),
-          },
-        }
+      ? secretVersionAuditRelatedResource(input.deliveredSecretVersionId)
       : {}),
   };
 }
