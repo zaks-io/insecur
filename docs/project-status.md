@@ -54,7 +54,7 @@ and the milestone contract in [first-value-milestone.md](first-value-milestone.m
   root-key runtime configuration, organization/project data key metadata resolution,
   key readiness reports, AES-GCM envelope behavior, ciphertext identity binding, DEK
   wrap AAD, and opaque decrypt failures.
-- `@insecur/secrets` owns non-protected Blind Secret Write and Secret Version Store
+- `@insecur/secret-store` owns non-protected Blind Secret Write and Secret Version Store
   behavior: safe value ingress policy, UTF-8 and 64 KiB value validation, Variable Key
   validation, append/current-version persistence, wrapped-material storage, metadata-only
   write results, and denied write audit.
