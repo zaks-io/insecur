@@ -54,7 +54,94 @@ describeIntegration("provisionGuidedOrganization", () => {
     await closeRuntimeSql();
   });
 
-  it("creates the First Value tenant shape for an admitted user", async () => {
+  it("creates the First Value tenant shape for an admitted user without client-minted ids", async () => {
+    const admittedUser = userId.brand(PROVISION_USER_ID);
+
+    const result = await provisionGuidedOrganization({
+      userId: admittedUser,
+      instanceId: TEST_INSTANCE_ID,
+      isAdmitted: true,
+    });
+
+    expect(result.organizationId).toMatch(/^org_/);
+    expect(result.defaultTeamId).toMatch(/^team_/);
+    expect(result.ownerMembershipId).toMatch(/^mem_/);
+    expect(result.projectId).toMatch(/^prj_/);
+    expect(result.developmentEnvironmentId).toMatch(/^env_/);
+
+    const environments = await withTenantScope(
+      { kind: "organization", organizationId: result.organizationId },
+      async (sql) => {
+        return await sql<EnvironmentRow[]>`
+          SELECT is_protected, display_name
+          FROM environments
+          WHERE id = ${result.developmentEnvironmentId}
+        `;
+      },
+    );
+    expect(environments[0]?.is_protected).toBe(false);
+    expect(environments[0]?.display_name).toBe("Development");
+
+    const effectiveAccess = await resolveEffectiveAccess(
+      { type: "user", userId: admittedUser },
+      {
+        organizationId: result.organizationId,
+        projectId: result.projectId,
+      },
+    );
+    for (const scope of FIRST_VALUE_OWNER_SCOPES) {
+      expect(hasAuthorizationScope(effectiveAccess, scope)).toBe(true);
+    }
+    expect(
+      hasAuthorizationScope(effectiveAccess, AUTHORIZATION_SCOPES.onboardingGuidedProvision),
+    ).toBe(true);
+
+    const auditRows = await withTenantScope(
+      { kind: "organization", organizationId: result.organizationId },
+      async (sql) => {
+        return await sql<AuditRow[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisioned}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(auditRows[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisioned,
+      outcome: "success",
+      result_code: "audit.succeeded",
+    });
+
+    await cleanupGuidedOrganizationFixture(result.organizationId);
+  });
+
+  it("creates two distinct organizations when called twice without client-minted ids", async () => {
+    const admittedUser = userId.brand(PROVISION_USER_ID);
+
+    const first = await provisionGuidedOrganization({
+      userId: admittedUser,
+      instanceId: TEST_INSTANCE_ID,
+      isAdmitted: true,
+    });
+    const second = await provisionGuidedOrganization({
+      userId: admittedUser,
+      instanceId: TEST_INSTANCE_ID,
+      isAdmitted: true,
+    });
+
+    expect(second.organizationId).not.toBe(first.organizationId);
+    expect(second.defaultTeamId).not.toBe(first.defaultTeamId);
+    expect(second.ownerMembershipId).not.toBe(first.ownerMembershipId);
+    expect(second.projectId).not.toBe(first.projectId);
+    expect(second.developmentEnvironmentId).not.toBe(first.developmentEnvironmentId);
+
+    await cleanupGuidedOrganizationFixture(first.organizationId);
+    await cleanupGuidedOrganizationFixture(second.organizationId);
+  });
+
+  it("creates the First Value tenant shape with client-minted resource ids", async () => {
     const admittedUser = userId.brand(PROVISION_USER_ID);
     const resourceIds = {
       organizationId: organizationId.brand(PROVISION_ORG_ID),
@@ -72,54 +159,9 @@ describeIntegration("provisionGuidedOrganization", () => {
     });
 
     expect(result).toEqual(resourceIds);
-
-    const environments = await withTenantScope(
-      { kind: "organization", organizationId: resourceIds.organizationId },
-      async (sql) => {
-        return await sql<EnvironmentRow[]>`
-          SELECT is_protected, display_name
-          FROM environments
-          WHERE id = ${resourceIds.developmentEnvironmentId}
-        `;
-      },
-    );
-    expect(environments[0]?.is_protected).toBe(false);
-    expect(environments[0]?.display_name).toBe("Development");
-
-    const effectiveAccess = await resolveEffectiveAccess(
-      { type: "user", userId: admittedUser },
-      {
-        organizationId: resourceIds.organizationId,
-        projectId: resourceIds.projectId,
-      },
-    );
-    for (const scope of FIRST_VALUE_OWNER_SCOPES) {
-      expect(hasAuthorizationScope(effectiveAccess, scope)).toBe(true);
-    }
-    expect(
-      hasAuthorizationScope(effectiveAccess, AUTHORIZATION_SCOPES.onboardingGuidedProvision),
-    ).toBe(true);
-
-    const auditRows = await withTenantScope(
-      { kind: "organization", organizationId: resourceIds.organizationId },
-      async (sql) => {
-        return await sql<AuditRow[]>`
-          SELECT event_code, outcome, result_code
-          FROM audit_events
-          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisioned}
-          ORDER BY created_at DESC
-          LIMIT 1
-        `;
-      },
-    );
-    expect(auditRows[0]).toMatchObject({
-      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisioned,
-      outcome: "success",
-      result_code: "audit.succeeded",
-    });
   });
 
-  it("is idempotent when retried with the same client-minted resource ids", async () => {
+  it("conflicts when reusing previously-used client-minted resource ids", async () => {
     const admittedUser = userId.brand(PROVISION_USER_ID);
     const resourceIds = {
       organizationId: organizationId.brand(PROVISION_ORG_ID),
@@ -129,60 +171,29 @@ describeIntegration("provisionGuidedOrganization", () => {
       developmentEnvironmentId: environmentId.brand(PROVISION_ENV_ID),
     };
 
-    const second = await provisionGuidedOrganization({
-      userId: admittedUser,
-      instanceId: TEST_INSTANCE_ID,
-      isAdmitted: true,
-      resourceIds,
-    });
-
-    expect(second).toEqual(resourceIds);
-  });
-
-  it("conflicts when provisioning again without client-minted ids", async () => {
-    const admittedUser = userId.brand(PROVISION_USER_ID);
-
     await expect(
       provisionGuidedOrganization({
         userId: admittedUser,
         instanceId: TEST_INSTANCE_ID,
         isAdmitted: true,
+        resourceIds,
       }),
     ).rejects.toMatchObject({
-      code: ONBOARDING_ERROR_CODES.alreadyProvisioned,
+      code: ONBOARDING_ERROR_CODES.resourceConflict,
       organizationId: PROVISION_ORG_ID,
     } satisfies Partial<GuidedOrganizationProvisionError>);
-
-    const deniedAudit = await withTenantScope(
-      { kind: "organization", organizationId: organizationId.brand(PROVISION_ORG_ID) },
-      async (sql) => {
-        return await sql<AuditRow[]>`
-          SELECT event_code, outcome, result_code
-          FROM audit_events
-          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisionDenied}
-          ORDER BY created_at DESC
-          LIMIT 1
-        `;
-      },
-    );
-    expect(deniedAudit[0]).toMatchObject({
-      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisionDenied,
-      outcome: "denied",
-      result_code: ONBOARDING_ERROR_CODES.alreadyProvisioned,
-    });
   });
 
-  it("does not write denied audit events into another tenant on resource id collision", async () => {
+  it("does not write audit events into another tenant on resource id collision", async () => {
     const outsider = userId.brand("usr_00000000000000000000000097");
     const collidingOrg = organizationId.brand(TEST_ORG_A_ID);
 
-    const deniedCountBefore = await withTenantScope(
+    const auditCountBefore = await withTenantScope(
       { kind: "organization", organizationId: collidingOrg },
       async (sql) => {
         const rows = await sql<{ count: string }[]>`
           SELECT COUNT(*)::text AS count
           FROM audit_events
-          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisionDenied}
         `;
         return Number(rows[0]?.count ?? "0");
       },
@@ -205,32 +216,46 @@ describeIntegration("provisionGuidedOrganization", () => {
       code: ONBOARDING_ERROR_CODES.resourceConflict,
     } satisfies Partial<GuidedOrganizationProvisionError>);
 
-    const deniedCountAfter = await withTenantScope(
+    const auditCountAfter = await withTenantScope(
       { kind: "organization", organizationId: collidingOrg },
       async (sql) => {
         const rows = await sql<{ count: string }[]>`
           SELECT COUNT(*)::text AS count
           FROM audit_events
-          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisionDenied}
         `;
         return Number(rows[0]?.count ?? "0");
       },
     );
 
-    expect(deniedCountAfter).toBe(deniedCountBefore);
+    expect(auditCountAfter).toBe(auditCountBefore);
   });
 
   it("denies provisioning for a user who is not admitted", async () => {
     const notAdmittedUser = userId.brand("usr_00000000000000000000000099");
+    const freshOrgId = organizationId.brand("org_00000000000000000000000099");
 
     await expect(
       provisionGuidedOrganization({
         userId: notAdmittedUser,
         instanceId: TEST_INSTANCE_ID,
         isAdmitted: false,
+        resourceIds: {
+          organizationId: freshOrgId,
+          defaultTeamId: teamId.brand("team_00000000000000000000000099"),
+          ownerMembershipId: membershipId.brand("mem_00000000000000000000000099"),
+          projectId: projectId.brand("prj_00000000000000000000000099"),
+          developmentEnvironmentId: environmentId.brand("env_00000000000000000000000099"),
+        },
       }),
     ).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.required,
     } satisfies Partial<GuidedOrganizationProvisionError>);
+
+    const orgRows = await withTenantScope({ kind: "service" }, async (sql) => {
+      return await sql<{ id: string }[]>`
+        SELECT id FROM organizations WHERE id = ${freshOrgId}
+      `;
+    });
+    expect(orgRows).toHaveLength(0);
   });
 });
