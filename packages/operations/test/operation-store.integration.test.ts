@@ -1,6 +1,9 @@
 import { auditEventId, organizationId } from "@insecur/domain";
-import { closeRuntimeSql } from "@insecur/tenant-store";
+import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { casApplyOperationTransition } from "../src/apply-operation-transition.js";
+import { OPERATION_ERROR_CODES } from "../src/operation-errors.js";
+import { TenantOperationStore } from "../src/tenant-operation-store.js";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import { TEST_ORG_A_ID } from "../../tenant-store/test/rls/test-ids.js";
@@ -53,35 +56,62 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const running = await transitionOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
     });
     expect(running.operation.state).toBe("running");
 
-    await expect(
-      transitionOperation({
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      const store = new TenantOperationStore(sql);
+      const snapshot = await store.getById(org, created.operation.operationId);
+      if (snapshot === null) {
+        throw new Error("operation not found");
+      }
+      expect(snapshot.state).toBe("running");
+
+      await casApplyOperationTransition(sql, snapshot, {
         organizationId: org,
         operationId: created.operation.operationId,
-        expectedState: "pending",
         nextState: "blocked",
-      }),
-    ).rejects.toMatchObject({
-      code: "operation.stale_transition",
+        progressPatch: {},
+        legalFromStates: "by-transition-table",
+        notAllowedError: {
+          code: OPERATION_ERROR_CODES.invalidTransition,
+          message: (state) => `operation transition not allowed: ${state} -> blocked`,
+        },
+      });
+
+      await expect(
+        casApplyOperationTransition(sql, snapshot, {
+          organizationId: org,
+          operationId: created.operation.operationId,
+          nextState: "incomplete",
+          progressPatch: {},
+          legalFromStates: "by-transition-table",
+          notAllowedError: {
+            code: OPERATION_ERROR_CODES.invalidTransition,
+            message: (state) => `operation transition not allowed: ${state} -> incomplete`,
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: "operation.stale_transition",
+      });
     });
 
-    const succeeded = await transitionOperation({
+    await transitionOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      expectedState: "running",
+      nextState: "running",
+    });
+    await transitionOperation({
+      organizationId: org,
+      operationId: created.operation.operationId,
       nextState: "succeeded",
     });
-    expect(succeeded.operation.state).toBe("succeeded");
 
     await expect(
       transitionOperation({
         organizationId: org,
         operationId: created.operation.operationId,
-        expectedState: "succeeded",
         nextState: "running",
       }),
     ).rejects.toMatchObject({
@@ -125,13 +155,11 @@ describeIntegration("operation store (tenant-scoped)", () => {
     await transitionOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
     });
     await transitionOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      expectedState: "running",
       nextState: "incomplete",
     });
 
