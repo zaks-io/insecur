@@ -50,6 +50,7 @@ jobs:
           else
             echo "::notice::Remote Turbo cache writes skipped. Configure TURBO_TOKEN, TURBO_TEAM, and TURBO_REMOTE_CACHE_SIGNATURE_KEY repository secrets to enable signed CI cache publication (ADR-0053)."
           fi
+          pnpm duplicates:warn
           pnpm format:check
           pnpm exec turbo run lint typecheck test "${cache_flags}"
 

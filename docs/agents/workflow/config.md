@@ -24,11 +24,11 @@ external systems (Linear, GitHub, CI), not here.
 - Branch prefix: `ins-<number>-<short-slug>` (one Linear issue per branch)
 - Package manager: pnpm@10.19.0 (corepack), Node `>=24 <25` (`engine-strict=true`)
 - Install: `pnpm install --frozen-lockfile`
-- Full local gate: `pnpm verify` (format:check + turbo lint typecheck test)
-- Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm dev:check`
+- Full local gate: `pnpm verify` (duplicate warnings + format:check + turbo lint typecheck test)
+- Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploy via apps/worker/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
-- Preview checks: none wired (no GitHub Actions yet; FV-02 owns CI)
+- Preview checks: none wired; hosted `validate` and `security-daily` workflows exist, but no preview deploy exists yet
 - Production deploy path: `pnpm deploy:worker` (Cloudflare Worker `insecur-worker`); approval required
 - Production approval required: yes
 
@@ -116,7 +116,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 - Authoritative issue state: Linear team `INS`
 - Authoritative PR state: GitHub `zaks-io/insecur`
-- Authoritative check state: local `pnpm verify` (no hosted CI yet)
+- Authoritative check state: local `pnpm verify` plus hosted GitHub `validate`; duplicate-code CI annotations are warning-only for now
 - Authoritative deploy state: Cloudflare (Worker `insecur-worker`)
 - Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)
@@ -145,7 +145,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 - PR title: Conventional Commits; reference issue (e.g. `feat(cli): ... (INS-NN)`)
 - PR body: Summary, Changes, Risk, Test plan; metadata-only (no Sensitive Values)
-- Required checks: `pnpm verify` locally (no hosted CI gate yet)
+- Required checks: `pnpm verify` locally; run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
 - Code review: `workflow-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
 - CodeRabbit: not wired; escalate to `/code-review ultra` or human for high-risk PRs
 - Issue update: Agent Orchestrator moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
@@ -158,7 +158,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Local services: local Postgres 17 (iteration aid only; ADR-0060 pins 17 until Neon supports 18)
 - Development: may use cloud backing services while app runs locally
 - Development backing services: Neon Postgres (real RLS tests need `DATABASE_URL_RUNTIME`, start at FV-04); Cloudflare Workers
-- Preview: none (no GitHub Actions / preview deploy wired)
+- Preview: none (no preview deploy wired)
 - Preview purpose: n/a until FV-02
 - Production: explicit approval required
 - Production forbidden without approval: `pnpm deploy:worker`, any Cloudflare/Neon production mutation, secret/key material changes

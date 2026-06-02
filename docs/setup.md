@@ -7,8 +7,9 @@ setup path today is contributor and agent verification of the scaffold.
 2. Install dependencies with `pnpm install --frozen-lockfile`.
 3. Run `pnpm dev:check`.
 4. Run `pnpm verify`.
-5. Run `pnpm build`.
-6. Optionally run the copyable proof:
+5. Run `pnpm duplicates:check` when touching repeated logic or shared helpers.
+6. Run `pnpm build`.
+7. Optionally run the copyable proof:
    `INSECUR_PROOF_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") node examples/first-value-proof/verify.mjs`.
 
 The local Worker skeleton can be started with:

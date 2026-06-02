@@ -9,6 +9,7 @@ dist/
 .DS_Store
 coverage/
 .turbo/
+.jscpd-report/
 .claude/scheduled_tasks.lock
 
 # Agent-created git worktrees (disposable; used by workflow-* skills)

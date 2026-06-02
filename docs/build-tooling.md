@@ -29,6 +29,7 @@ The load-bearing decision is the major version of each tool, not the patch. Pin 
 | eslint-config-prettier          | 10               | 10.x latest           |
 | Prettier                        | 3                | 3.5.3                 |
 | Vitest                          | 3                | 3.x latest            |
+| jscpd                           | 4                | 4.2.4                 |
 | @cloudflare/vitest-pool-workers | matches wrangler | latest for wrangler 4 |
 | Wrangler                        | 4                | 4.x latest            |
 | Local Postgres                  | 17               | 17.x latest           |
@@ -102,6 +103,7 @@ catalog:
   prettier: ^3.5.3
   vitest: ^3.0.0
   "@vitest/coverage-v8": ^3.0.0
+  jscpd: ^4.2.4
   lefthook: ^2.1.8
   jiti: ^2.4.0
   globals: ^16.0.0
@@ -180,17 +182,43 @@ Set the developer default by putting `--cache=local:rw,remote:r` into the root s
     "build": "turbo run build --cache=local:rw,remote:r",
     "typecheck": "turbo run typecheck --cache=local:rw,remote:r",
     "lint": "turbo run lint --cache=local:rw,remote:r",
+    "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
+    "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "test": "turbo run test --cache=local:rw,remote:r",
     "test:rls": "turbo run test:rls",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:warn && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "lefthook install",
   },
 }
 ```
 
 `verify` is the single local command that mirrors the CI `validate` job minus the steps that need secrets. A green `verify` should predict a green `validate`.
+
+## Duplicate Code Detection
+
+jscpd is the repo-wide copy/paste detector. It scans product TypeScript and JavaScript under
+`apps`, `packages`, and `scripts` using `.jscpd.json`, excluding tests and generated code. The
+strict local command is:
+
+```sh
+pnpm duplicates:check
+```
+
+The threshold is `0`, so any detected clone exits non-zero. This is intentionally stricter than CI
+while the current duplicate backlog is being burned down.
+
+`pnpm verify` and CI `validate` run:
+
+```sh
+pnpm duplicates:warn
+```
+
+That command writes `.jscpd-report/ci/jscpd-report.json`, emits GitHub warning annotations in CI for
+each clone, and exits zero. The warning text is aimed at agents: dedupe repeated logic before handoff
+or document why the repetition is intentional. Once the duplicate backlog is empty, replace the
+warning command in `verify` and `validate.yml` with `pnpm duplicates:check`.
 
 ## ESLint (eslint.config.ts)
 
@@ -367,6 +395,7 @@ prettier --check .
 gitleaks (full working tree, authoritative)
 semgrep (stock rule packs; SAST; fills the project-status SAST gap)
 syft (generate SBOM) then grype (scan SBOM for known CVEs)
+jscpd duplicate-code annotations (warning-only until the duplicate backlog is empty)
 ```
 
 This job is a required status check on the protected branch. It runs for forked pull requests too, because it touches no secrets.
@@ -437,6 +466,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
 - A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `validate`; test files are exempt from the two length caps only.
 - An upstream type error fails a downstream `typecheck` rather than returning a stale cached pass (the `topo` transit node works).
+- `pnpm duplicates:warn` emits GitHub warning annotations for every jscpd clone without failing `validate`; `pnpm duplicates:check` is available as the strict local zero-threshold gate.
 - A commit that introduces a type error, a lint error, a formatting drift, or a staged secret is blocked at pre-commit; a push with a failing local test is blocked at pre-push; `--no-verify` bypasses locally but the same checks block at CI `validate`.
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.
 - A forked pull request runs `validate` only and reaches no secret-bearing step.
