@@ -67,6 +67,8 @@ export {
   type InjectionErrorCode,
   ONBOARDING_ERROR_CODES,
   type OnboardingErrorCode,
+  BOOTSTRAP_ERROR_CODES,
+  type BootstrapErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,

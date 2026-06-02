@@ -3,6 +3,9 @@
  * success or denied event code; denied codes pair with {@link AUDIT_DENIED_RESULT_CODES}.
  */
 export const FIRST_VALUE_AUDIT_EVENT_CODES = {
+  bootstrapInstanceOperatorGranted: "bootstrap.instance_operator_granted",
+  bootstrapOwnerMembershipGranted: "bootstrap.owner_membership_granted",
+  bootstrapOperatorClaimDenied: "bootstrap.operator_claim_denied",
   onboardingGuidedProvisioned: "onboarding.guided_organization_provisioned",
   onboardingGuidedProvisionDenied: "onboarding.guided_organization_provision_denied",
   secretNonProtectedWrite: "secret.non_protected_write",
@@ -24,6 +27,7 @@ const FIRST_VALUE_AUDIT_EVENT_CODE_SET = new Set<string>(
 );
 
 export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEventCode>([
+  FIRST_VALUE_AUDIT_EVENT_CODES.bootstrapOperatorClaimDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisionDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied,

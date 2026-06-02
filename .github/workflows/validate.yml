@@ -53,6 +53,34 @@ jobs:
           pnpm format:check
           pnpm exec turbo run lint typecheck test "${cache_flags}"
 
+  postgres-integration:
+    name: Postgres integration (bootstrap claim)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Reset local Postgres and migrate
+        run: pnpm dev:db:reset
+
+      - name: Run instance-bootstrap integration tests
+        run: pnpm exec turbo run test:integration --filter=@insecur/instance-bootstrap
+
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: blacksmith-4vcpu-ubuntu-2404
