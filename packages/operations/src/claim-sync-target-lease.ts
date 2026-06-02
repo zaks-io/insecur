@@ -1,5 +1,6 @@
 import { withTenantScope } from "@insecur/tenant-store";
 import type { ClaimSyncTargetLeaseInput, SyncTargetLeaseClaimResult } from "./operation-types.js";
+import { persistOperationSyncTargetLease } from "./persist-operation-sync-target-lease.js";
 import { TenantSyncTargetLeaseStore } from "./tenant-sync-target-lease-store.js";
 
 /**
@@ -16,6 +17,12 @@ export async function claimSyncTargetLease(
         target: input.target,
         operationId: input.operationId,
         ttlSeconds: input.ttlSeconds,
+      });
+      await persistOperationSyncTargetLease(sql, {
+        organizationId: input.target.organizationId,
+        operationId: input.operationId,
+        target: input.target,
+        fencingToken,
       });
       return { fencingToken, target: input.target };
     },

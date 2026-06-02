@@ -38,6 +38,64 @@ describeIntegration("sync target leases", () => {
     await closeRuntimeSql();
   });
 
+  it("translates concurrent claim races into retryable sync.target_busy", async () => {
+    const target = testTarget("concurrent-race");
+    const [firstOp, secondOp] = await Promise.all([
+      createOperation({ organizationId: target.organizationId, intentCode: "sync.run" }),
+      createOperation({ organizationId: target.organizationId, intentCode: "sync.run" }),
+    ]);
+    const contenders = [
+      { operationId: firstOp.operation.operationId },
+      { operationId: secondOp.operation.operationId },
+    ];
+
+    const results = await Promise.allSettled(
+      contenders.map((contender) =>
+        claimSyncTargetLease({
+          target,
+          operationId: contender.operationId,
+          ttlSeconds: 120,
+        }),
+      ),
+    );
+
+    const outcomes = results.flatMap((result, index) => {
+      const contender = contenders[index];
+      if (contender === undefined) {
+        return [];
+      }
+      return [{ contender, result }];
+    });
+
+    const winners = outcomes.filter(
+      (outcome): outcome is typeof outcome & { result: PromiseFulfilledResult<unknown> } =>
+        outcome.result.status === "fulfilled",
+    );
+    const losers = outcomes.filter((outcome) => outcome.result.status === "rejected");
+    expect(winners).toHaveLength(1);
+    expect(losers).toHaveLength(1);
+    const loser = losers[0];
+    expect(loser).toBeDefined();
+    if (loser?.result.status === "rejected") {
+      expect(loser.result.reason).toMatchObject({
+        code: "sync.target_busy",
+        retryable: true,
+      });
+    }
+
+    const winner = winners[0];
+    expect(winner).toBeDefined();
+    if (winner === undefined || winner.result.status !== "fulfilled") {
+      throw new Error("expected one successful concurrent lease claim");
+    }
+
+    await releaseSyncTargetLease({
+      target,
+      operationId: winner.contender.operationId,
+      fencingToken: winner.result.value.fencingToken,
+    });
+  });
+
   it("allows only one active writer per exact sync target", async () => {
     const target = testTarget("concurrent");
     const firstOp = await createOperation({
@@ -81,6 +139,30 @@ describeIntegration("sync target leases", () => {
     expect(secondLease.fencingToken).toBe(1);
   });
 
+  it("requires a fencing token for guarded transitions after lease claim", async () => {
+    const target = testTarget("lease-required");
+    const created = await createOperation({
+      organizationId: target.organizationId,
+      intentCode: "sync.run",
+    });
+    await claimSyncTargetLease({
+      target,
+      operationId: created.operation.operationId,
+      ttlSeconds: 120,
+    });
+
+    await expect(
+      transitionOperation({
+        organizationId: target.organizationId,
+        operationId: created.operation.operationId,
+        expectedState: "pending",
+        nextState: "running",
+      }),
+    ).rejects.toMatchObject({
+      code: "operation.lease_required",
+    });
+  });
+
   it("rejects guarded transitions when the fencing token is stale", async () => {
     const target = testTarget("stale-fencing");
     const created = await createOperation({
@@ -115,6 +197,17 @@ describeIntegration("sync target leases", () => {
       ttlSeconds: 60,
     });
     expect(takeover.fencingToken).toBeGreaterThan(lease.fencingToken);
+
+    await expect(
+      transitionOperation({
+        organizationId: target.organizationId,
+        operationId: created.operation.operationId,
+        expectedState: "running",
+        nextState: "succeeded",
+      }),
+    ).rejects.toMatchObject({
+      code: "operation.lease_required",
+    });
 
     const auditRef = auditEventId.brand("aud_00000000000000000000000003");
     await expect(

@@ -12,7 +12,11 @@ import {
   isTransitionAllowed,
   type OperationState,
 } from "./operation-states.js";
-import type { OperationPollResult, OperationProgress } from "./operation-types.js";
+import type {
+  OperationPollResult,
+  OperationProgress,
+  OperationProgressPatch,
+} from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 
 function progressToJson(progress: OperationProgress) {
@@ -121,7 +125,7 @@ export class TenantOperationStore {
     operationId: OperationId;
     expectedState: OperationState;
     nextState: OperationState;
-    progressPatch: OperationProgress;
+    progressPatch: OperationProgressPatch;
   }): Promise<OperationPollResult> {
     const existing = await this.getById(input.organizationId, input.operationId);
     if (existing === null) {
@@ -130,7 +134,7 @@ export class TenantOperationStore {
     assertTransitionPreconditions(existing, input);
 
     const mergedProgress = mergeOperationProgress(existing.progress, input.progressPatch);
-    validateOperationProgress(mergedProgress);
+    validateOperationProgress(mergedProgress, input.organizationId);
 
     const rows = await this.sql<OperationRow[]>`
       UPDATE operations
@@ -165,7 +169,7 @@ export class TenantOperationStore {
   async recordProgress(input: {
     organizationId: OrganizationId;
     operationId: OperationId;
-    progressPatch: OperationProgress;
+    progressPatch: OperationProgressPatch;
   }): Promise<OperationPollResult> {
     const existing = await this.getById(input.organizationId, input.operationId);
     if (existing === null) {
@@ -179,7 +183,7 @@ export class TenantOperationStore {
     }
 
     const mergedProgress = mergeOperationProgress(existing.progress, input.progressPatch);
-    validateOperationProgress(mergedProgress);
+    validateOperationProgress(mergedProgress, input.organizationId);
 
     const rows = await this.sql<OperationRow[]>`
       UPDATE operations

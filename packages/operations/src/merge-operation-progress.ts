@@ -1,5 +1,5 @@
 import type { AuditEventId } from "@insecur/domain";
-import type { OperationProgress } from "./operation-types.js";
+import type { OperationProgress, OperationProgressPatch } from "./operation-types.js";
 
 function mergeAuditEventIds(
   existing: readonly AuditEventId[] | undefined,
@@ -27,27 +27,46 @@ function mergeCounters(
 
 export function mergeOperationProgress(
   existing: OperationProgress,
-  patch: OperationProgress,
+  patch: OperationProgressPatch,
 ): OperationProgress {
-  const auditEventIds = mergeAuditEventIds(existing.auditEventIds, patch.auditEventIds);
-  const counters = mergeCounters(existing.counters, patch.counters);
+  const { syncTargetLease, ...patchRest } = patch;
+  const auditEventIds = mergeAuditEventIds(existing.auditEventIds, patchRest.auditEventIds);
+  const counters = mergeCounters(existing.counters, patchRest.counters);
 
   const merged: OperationProgress = {
     ...existing,
-    ...patch,
+    ...patchRest,
     ...(auditEventIds !== undefined ? { auditEventIds } : {}),
     ...(counters !== undefined ? { counters } : {}),
-    ...(patch.wait !== undefined
-      ? { wait: patch.wait }
+    ...(patchRest.wait !== undefined
+      ? { wait: patchRest.wait }
       : existing.wait !== undefined
         ? { wait: existing.wait }
         : {}),
-    ...(patch.retry !== undefined
-      ? { retry: patch.retry }
+    ...(patchRest.retry !== undefined
+      ? { retry: patchRest.retry }
       : existing.retry !== undefined
         ? { retry: existing.retry }
         : {}),
+    ...(existing.syncTargetLease !== undefined
+      ? { syncTargetLease: existing.syncTargetLease }
+      : {}),
   };
 
+  return applySyncTargetLeasePatch(merged, syncTargetLease);
+}
+
+function applySyncTargetLeasePatch(
+  merged: OperationProgress,
+  syncTargetLease: OperationProgressPatch["syncTargetLease"],
+): OperationProgress {
+  if (syncTargetLease === null) {
+    const { syncTargetLease: binding, ...withoutLease } = merged;
+    void binding;
+    return withoutLease;
+  }
+  if (syncTargetLease !== undefined) {
+    return { ...merged, syncTargetLease };
+  }
   return merged;
 }

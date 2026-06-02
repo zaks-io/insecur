@@ -6,6 +6,12 @@ import {
 } from "@insecur/domain";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationProgress } from "./operation-types.js";
+import {
+  assertFencingToken,
+  isSyncProviderKind,
+  validateSyncTargetKey,
+} from "./sync-target-types.js";
+import type { SyncTargetKey } from "./sync-target-types.js";
 import { isStableDottedCode } from "./stable-dotted-code.js";
 
 function assertKnownErrorCode(value: string, field: string): asserts value is KnownErrorCode {
@@ -87,6 +93,28 @@ function assertRetryMetadata(retry: OperationProgress["retry"]): void {
   }
 }
 
+function assertSyncTargetLeaseProgress(
+  lease: NonNullable<OperationProgress["syncTargetLease"]>,
+  organizationId?: SyncTargetKey["organizationId"],
+): void {
+  assertFencingToken(lease.fencingToken);
+  if (organizationId !== undefined) {
+    validateSyncTargetKey({
+      organizationId,
+      projectId: lease.projectId,
+      providerKind: lease.providerKind,
+      targetIdentity: lease.targetIdentity,
+    });
+    return;
+  }
+  if (!isSyncProviderKind(lease.providerKind)) {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.invalidMetadata,
+      "syncTargetLease.providerKind must be a supported sync provider kind",
+    );
+  }
+}
+
 function assertMutationIdempotencyKey(key: string): void {
   if (key.length === 0 || key.length > 256) {
     throw new OperationStoreError(
@@ -99,9 +127,15 @@ function assertMutationIdempotencyKey(key: string): void {
 /**
  * Rejects secret-bearing or free-form operation metadata before persistence or polling.
  */
-export function validateOperationProgress(progress: OperationProgress): void {
+export function validateOperationProgress(
+  progress: OperationProgress,
+  organizationId?: SyncTargetKey["organizationId"],
+): void {
   assertMetadataOnlyProgress(progress);
 
+  if (progress.syncTargetLease !== undefined) {
+    assertSyncTargetLeaseProgress(progress.syncTargetLease, organizationId);
+  }
   if (progress.auditEventIds !== undefined) {
     assertAuditEventIds(progress.auditEventIds);
   }

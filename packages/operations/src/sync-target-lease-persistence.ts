@@ -1,5 +1,6 @@
 import type { OperationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
+import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { SyncTargetLeaseRow } from "./sync-target-lease-row.js";
 import type { FencingToken, SyncTargetKey } from "./sync-target-types.js";
 import { assertFencingToken } from "./sync-target-types.js";
@@ -10,7 +11,18 @@ export function parseFencingToken(row: Pick<SyncTargetLeaseRow, "fencing_token">
   return fencingToken;
 }
 
-export async function insertSyncTargetLease(
+function targetBusyError(): OperationStoreError {
+  return new OperationStoreError(
+    OPERATION_ERROR_CODES.targetBusy,
+    "sync target lease is held by another operation",
+    true,
+  );
+}
+
+/**
+ * Atomically claims or resumes a sync target lease without surfacing raw Postgres conflicts.
+ */
+export async function upsertClaimSyncTargetLease(
   sql: TenantScopedSql,
   input: {
     target: SyncTargetKey;
@@ -18,8 +30,8 @@ export async function insertSyncTargetLease(
     ttlSeconds: number;
   },
 ): Promise<FencingToken> {
-  const rows = await sql<SyncTargetLeaseRow[]>`
-    INSERT INTO sync_target_leases (
+  const rows = await sql<Pick<SyncTargetLeaseRow, "fencing_token">[]>`
+    INSERT INTO sync_target_leases AS existing (
       org_id,
       project_id,
       provider_kind,
@@ -37,11 +49,25 @@ export async function insertSyncTargetLease(
       ${1},
       now() + (${input.ttlSeconds} * interval '1 second')
     )
+    ON CONFLICT (org_id, project_id, provider_kind, target_identity) DO UPDATE
+    SET
+      held_by_operation_id = EXCLUDED.held_by_operation_id,
+      fencing_token = CASE
+        WHEN existing.expires_at > now()
+          AND existing.held_by_operation_id = EXCLUDED.held_by_operation_id
+        THEN existing.fencing_token
+        ELSE existing.fencing_token + 1
+      END,
+      expires_at = now() + (${input.ttlSeconds} * interval '1 second'),
+      updated_at = now()
+    WHERE
+      existing.expires_at <= now()
+      OR existing.held_by_operation_id = EXCLUDED.held_by_operation_id
     RETURNING fencing_token
   `;
   const row = rows[0];
   if (row === undefined) {
-    throw new Error("insert sync_target_lease returned no row");
+    throw targetBusyError();
   }
   return parseFencingToken(row);
 }
@@ -69,33 +95,30 @@ export async function selectSyncTargetLeaseForUpdate(
   return rows[0] ?? null;
 }
 
-export async function takeoverSyncTargetLease(
+export async function selectActiveSyncTargetLeaseForOperation(
   sql: TenantScopedSql,
   input: {
-    target: SyncTargetKey;
+    organizationId: SyncTargetKey["organizationId"];
     operationId: OperationId;
-    ttlSeconds: number;
   },
-): Promise<FencingToken | null> {
+): Promise<SyncTargetLeaseRow | null> {
   const rows = await sql<SyncTargetLeaseRow[]>`
-    UPDATE sync_target_leases
-    SET
-      held_by_operation_id = ${input.operationId},
-      fencing_token = fencing_token + 1,
-      expires_at = now() + (${input.ttlSeconds} * interval '1 second'),
-      updated_at = now()
-    WHERE org_id = ${input.target.organizationId}
-      AND project_id = ${input.target.projectId}
-      AND provider_kind = ${input.target.providerKind}
-      AND target_identity = ${input.target.targetIdentity}
-      AND (
-        expires_at <= now()
-        OR held_by_operation_id = ${input.operationId}
-      )
-    RETURNING fencing_token
+    SELECT
+      org_id,
+      project_id,
+      provider_kind,
+      target_identity,
+      held_by_operation_id,
+      fencing_token,
+      expires_at
+    FROM sync_target_leases
+    WHERE org_id = ${input.organizationId}
+      AND held_by_operation_id = ${input.operationId}
+      AND expires_at > now()
+    ORDER BY updated_at DESC
+    LIMIT 1
   `;
-  const row = rows[0];
-  return row === undefined ? null : parseFencingToken(row);
+  return rows[0] ?? null;
 }
 
 export async function extendSyncTargetLeaseExpiry(

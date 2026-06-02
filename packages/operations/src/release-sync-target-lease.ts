@@ -1,5 +1,6 @@
 import { withTenantScope } from "@insecur/tenant-store";
 import type { ReleaseSyncTargetLeaseInput } from "./operation-types.js";
+import { clearOperationSyncTargetLease } from "./persist-operation-sync-target-lease.js";
 import { TenantSyncTargetLeaseStore } from "./tenant-sync-target-lease-store.js";
 
 /**
@@ -14,6 +15,10 @@ export async function releaseSyncTargetLease(input: ReleaseSyncTargetLeaseInput)
         target: input.target,
         operationId: input.operationId,
         fencingToken: input.fencingToken,
+      });
+      await clearOperationSyncTargetLease(sql, {
+        organizationId: input.target.organizationId,
+        operationId: input.operationId,
       });
     },
   );

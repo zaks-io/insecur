@@ -41,6 +41,7 @@ export {
   isSyncProviderKind,
   validateSyncTargetKey,
 } from "./sync-target-types.js";
+export type { OperationSyncTargetLeaseProgress } from "./sync-target-lease-operation-progress.js";
 export { assertSyncTargetLease } from "./assert-sync-target-lease.js";
 export { claimSyncTargetLease } from "./claim-sync-target-lease.js";
 export { renewSyncTargetLease } from "./renew-sync-target-lease.js";

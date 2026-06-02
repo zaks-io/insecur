@@ -1,5 +1,6 @@
 import type { AuditEventId, KnownErrorCode, OperationId, OrganizationId } from "@insecur/domain";
 import type { OperationState } from "./operation-states.js";
+import type { OperationSyncTargetLeaseProgress } from "./sync-target-lease-operation-progress.js";
 import type { FencingToken, SyncTargetKey, SyncTargetLeaseContext } from "./sync-target-types.js";
 
 export interface OperationWaitMetadata {
@@ -22,7 +23,14 @@ export interface OperationProgress {
   readonly providerStatusCode?: KnownErrorCode;
   readonly resultCode?: KnownErrorCode;
   readonly mutationIdempotencyKey?: string;
+  /** Set when this operation has claimed a sync target lease; cleared on release. */
+  readonly syncTargetLease?: OperationSyncTargetLeaseProgress;
 }
+
+/** Internal patch shape; `syncTargetLease: null` clears the binding. */
+export type OperationProgressPatch = Omit<OperationProgress, "syncTargetLease"> & {
+  readonly syncTargetLease?: OperationSyncTargetLeaseProgress | null;
+};
 
 export interface CreateOperationInput {
   readonly organizationId: OrganizationId;

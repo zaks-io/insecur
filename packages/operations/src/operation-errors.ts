@@ -10,6 +10,7 @@ export const OPERATION_ERROR_CODES = {
   targetBusy: "sync.target_busy",
   staleFencingToken: "operation.stale_fencing_token",
   leaseNotHeld: "operation.lease_not_held",
+  leaseRequired: "operation.lease_required",
 } as const;
 
 export type OperationErrorCode = (typeof OPERATION_ERROR_CODES)[keyof typeof OPERATION_ERROR_CODES];
