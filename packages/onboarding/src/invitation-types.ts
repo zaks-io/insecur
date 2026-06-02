@@ -14,7 +14,8 @@ export interface CreateInvitationInput {
   actor: ActorRef;
   organizationId: OrganizationId;
   inviteeUserId: UserId;
-  rolePreset: BuiltInRolePreset;
+  /** Validated at runtime with built-in role preset rules before persistence. */
+  rolePreset: string;
   /** When set, the invitation grants a project-scoped membership. */
   projectId?: ProjectId;
   invitationId?: InvitationId;

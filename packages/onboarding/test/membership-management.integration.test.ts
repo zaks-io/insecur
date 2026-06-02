@@ -6,6 +6,7 @@ import {
 } from "@insecur/access";
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
+  AUTH_ERROR_CODES,
   invitationId,
   membershipId,
   ONBOARDING_ERROR_CODES,
@@ -23,6 +24,7 @@ import {
   TEST_ORG_A_ID,
   TEST_ORG_B_ID,
   TEST_PROJECT_A_ID,
+  TEST_PROJECT_B_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
 import {
@@ -48,6 +50,9 @@ const GRANTED_MEMBERSHIP_ID = "mem_00000000000000000000000071";
 const DUPLICATE_INVITEE_USER_ID = "usr_00000000000000000000000066";
 const SECOND_INVITATION_ID = "inv_00000000000000000000000072";
 const THIRD_INVITATION_ID = "inv_00000000000000000000000073";
+const FOURTH_INVITATION_ID = "inv_00000000000000000000000074";
+const FIFTH_INVITATION_ID = "inv_00000000000000000000000075";
+const ORG_SCOPED_INVITEE_USER_ID = "usr_00000000000000000000000074";
 
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 
@@ -82,7 +87,13 @@ describeIntegration("membership management (PDF-02)", () => {
       organizationId: ORG_A,
       inviteeUserId: INVITEE_USER_ID,
       membershipId: GRANTED_MEMBERSHIP_ID,
-      invitationIds: [INVITATION_ID, SECOND_INVITATION_ID, THIRD_INVITATION_ID],
+      invitationIds: [
+        INVITATION_ID,
+        SECOND_INVITATION_ID,
+        THIRD_INVITATION_ID,
+        FOURTH_INVITATION_ID,
+        FIFTH_INVITATION_ID,
+      ],
     });
     await cleanupMembershipFixture(OPERATOR_ORG_ID);
     await cleanupInstanceOperatorGrant(TEST_INSTANCE_ID, OPERATOR_GRANT_ID);
@@ -219,6 +230,171 @@ describeIntegration("membership management (PDF-02)", () => {
       }),
     ).rejects.toMatchObject({
       code: ONBOARDING_ERROR_CODES.invitationNotPending,
+    });
+  });
+
+  it("rejects invalid role presets before persistence", async () => {
+    const org = ORG_A;
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+    const invitee = userId.brand(INVITEE_USER_ID);
+
+    await expect(
+      createInvitation({
+        actor: ownerActor,
+        organizationId: org,
+        inviteeUserId: invitee,
+        rolePreset: "not-a-built-in-role",
+        invitationId: invitationId.brand(FOURTH_INVITATION_ID),
+      }),
+    ).rejects.toMatchObject({
+      code: ONBOARDING_ERROR_CODES.invitationInvalid,
+    });
+
+    const invalidPresetAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+            AND result_code = ${ONBOARDING_ERROR_CODES.invitationInvalid}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(invalidPresetAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied,
+      outcome: "denied",
+      result_code: ONBOARDING_ERROR_CODES.invitationInvalid,
+    });
+
+    const invitationRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) =>
+        await sql<{ id: string }[]>`
+          SELECT id FROM invitations WHERE id = ${FOURTH_INVITATION_ID}
+        `,
+    );
+    expect(invitationRows).toEqual([]);
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`
+        DELETE FROM audit_events
+        WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+          AND result_code = ${ONBOARDING_ERROR_CODES.invitationInvalid}
+      `;
+    });
+  });
+
+  it("rejects cross-organization project coordinates with a stable auth denial", async () => {
+    const org = ORG_A;
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+    const invitee = userId.brand(ORG_SCOPED_INVITEE_USER_ID);
+    const foreignProject = projectId.brand(TEST_PROJECT_B_ID);
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`DELETE FROM invitations WHERE invitee_user_id = ${ORG_SCOPED_INVITEE_USER_ID}`;
+    });
+
+    await expect(
+      createInvitation({
+        actor: ownerActor,
+        organizationId: org,
+        inviteeUserId: invitee,
+        rolePreset: BUILT_IN_ROLE_PRESETS.developer,
+        projectId: foreignProject,
+        invitationId: invitationId.brand(FIFTH_INVITATION_ID),
+      }),
+    ).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.insufficientScope,
+    });
+
+    const crossOrgDeniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+            AND result_code = ${AUTH_ERROR_CODES.insufficientScope}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(crossOrgDeniedAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied,
+      outcome: "denied",
+      result_code: AUTH_ERROR_CODES.insufficientScope,
+    });
+
+    const invitationRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) =>
+        await sql<{ id: string }[]>`
+          SELECT id FROM invitations WHERE id = ${FIFTH_INVITATION_ID}
+        `,
+    );
+    expect(invitationRows).toEqual([]);
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`DELETE FROM invitations WHERE invitee_user_id = ${ORG_SCOPED_INVITEE_USER_ID}`;
+      await sql`
+        DELETE FROM audit_events
+        WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+          AND result_code = ${AUTH_ERROR_CODES.insufficientScope}
+      `;
+    });
+  });
+
+  it("creates a valid organization-scoped invitation", async () => {
+    const org = ORG_A;
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+    const invitee = userId.brand(ORG_SCOPED_INVITEE_USER_ID);
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`DELETE FROM invitations WHERE invitee_user_id = ${ORG_SCOPED_INVITEE_USER_ID}`;
+    });
+
+    const created = await createInvitation({
+      actor: ownerActor,
+      organizationId: org,
+      inviteeUserId: invitee,
+      rolePreset: BUILT_IN_ROLE_PRESETS.readOnly,
+      invitationId: invitationId.brand(FOURTH_INVITATION_ID),
+    });
+
+    expect(created).toMatchObject({
+      invitationId: FOURTH_INVITATION_ID,
+      organizationId: TEST_ORG_A_ID,
+      inviteeUserId: ORG_SCOPED_INVITEE_USER_ID,
+      rolePreset: BUILT_IN_ROLE_PRESETS.readOnly,
+      projectId: null,
+    });
+
+    const invitationRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) =>
+        await sql<{ role_preset: string; project_id: string | null; status: string }[]>`
+          SELECT role_preset, project_id, status
+          FROM invitations
+          WHERE id = ${FOURTH_INVITATION_ID}
+        `,
+    );
+    expect(invitationRows[0]).toMatchObject({
+      role_preset: BUILT_IN_ROLE_PRESETS.readOnly,
+      project_id: null,
+      status: "pending",
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`DELETE FROM invitations WHERE id = ${FOURTH_INVITATION_ID}`;
+      await sql`
+        DELETE FROM audit_events
+        WHERE resource_type = ${"invitation"}
+          AND resource_id = ${FOURTH_INVITATION_ID}
+      `;
     });
   });
 
