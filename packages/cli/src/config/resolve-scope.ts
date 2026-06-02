@@ -1,0 +1,84 @@
+import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import type { GlobalCliFlags } from "../cli-options.js";
+import type { InsecurProjectConfig } from "./project-config.js";
+import type { CliUserConfig, CliUserProfile } from "./user-config.js";
+
+export interface ResolvedCliScope {
+  readonly host: string;
+  readonly orgId: OrganizationId | undefined;
+  readonly projectId: ProjectId | undefined;
+  readonly envId: EnvironmentId | undefined;
+  readonly profileId: CliProfileId | undefined;
+  readonly profileSlug: string | undefined;
+  readonly profile: CliUserProfile | undefined;
+}
+
+const DEFAULT_HOST = "https://insecur.cloud";
+
+function readEnv(name: string): string | undefined {
+  const value = process.env[name];
+  return value === "" ? undefined : value;
+}
+
+function firstDefined<T>(...values: readonly (T | undefined)[]): T | undefined {
+  for (const value of values) {
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function resolveProfileFromUserConfig(
+  userConfig: CliUserConfig,
+  flags: GlobalCliFlags,
+): CliUserProfile | undefined {
+  if (flags.profileId !== undefined) {
+    return userConfig.profiles[flags.profileId];
+  }
+  const slug = flags.profile ?? readEnv("INSECUR_PROFILE");
+  if (slug === undefined) {
+    return undefined;
+  }
+  return Object.values(userConfig.profiles).find((profile) => profile.slug === slug);
+}
+
+export function resolveCliScope(
+  flags: GlobalCliFlags,
+  projectConfig: InsecurProjectConfig | null,
+  userConfig: CliUserConfig,
+): ResolvedCliScope {
+  const profile = resolveProfileFromUserConfig(userConfig, flags);
+  const host =
+    firstDefined(flags.host, readEnv("INSECUR_HOST"), projectConfig?.host, profile?.host) ??
+    DEFAULT_HOST;
+  const orgId = firstDefined(
+    flags.orgId,
+    readEnv("INSECUR_ORG") as OrganizationId | undefined,
+    projectConfig?.orgId,
+    profile?.orgId,
+  );
+  const projectId = firstDefined(
+    flags.projectId,
+    readEnv("INSECUR_PROJECT") as ProjectId | undefined,
+    projectConfig?.projectId,
+    profile?.projectId,
+  );
+  const envId = firstDefined(
+    flags.envId,
+    readEnv("INSECUR_ENV") as EnvironmentId | undefined,
+    projectConfig?.defaultEnvId,
+    profile?.envId,
+  );
+  const profileId = firstDefined(flags.profileId, projectConfig?.profileId);
+  const profileSlug = firstDefined(flags.profile, profile?.slug);
+  return {
+    host,
+    orgId,
+    projectId,
+    envId,
+    profileId,
+    profileSlug,
+    profile,
+  };
+}

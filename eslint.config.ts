@@ -35,6 +35,8 @@ export default tseslint.config(
       "packages/onboarding/vitest.config.ts",
       "packages/instance-bootstrap/test/**/*.ts",
       "packages/instance-bootstrap/vitest.config.ts",
+      "packages/cli/test/**/*.ts",
+      "packages/cli/vitest.config.ts",
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
     ],
@@ -78,6 +80,14 @@ export default tseslint.config(
       "max-lines-per-function": "off",
       "max-statements": "off",
       complexity: "off",
+    },
+  },
+  {
+    files: ["packages/cli/src/config/resolve-scope.ts"],
+    rules: {
+      complexity: "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/non-nullable-type-assertion-style": "off",
     },
   },
   eslintConfigPrettier,

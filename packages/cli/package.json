@@ -12,8 +12,13 @@
     "clean": "rm -rf dist",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "start": "node --import tsx/esm src/index.ts",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@insecur/auth": "workspace:*",
+    "@insecur/domain": "workspace:*",
+    "commander": "^12.1.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
