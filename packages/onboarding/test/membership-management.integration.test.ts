@@ -14,7 +14,7 @@ import {
   teamId,
   userId,
 } from "@insecur/domain";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
@@ -34,18 +34,22 @@ import {
 } from "../src/index.js";
 import {
   cleanupInstanceOperatorGrant,
+  cleanupInvitationAcceptanceFixture,
   cleanupMembershipFixture,
 } from "./cleanup-membership-fixture.js";
 
 const OPERATOR_GRANT_ID = "iop_00000000000000000000000099";
 const OPERATOR_ORG_ID = "org_00000000000000000000000099";
 const OPERATOR_TEAM_ID = "team_00000000000000000000000099";
-const INVITEE_USER_ID = "usr_00000000000000000000000077";
-const INVITATION_ID = "inv_00000000000000000000000001";
-const GRANTED_MEMBERSHIP_ID = "mem_00000000000000000000000077";
+/** PDF-02 membership-management fixtures (suffix 71 — avoid bootstrap claim test IDs ending in 77). */
+const INVITEE_USER_ID = "usr_00000000000000000000000071";
+const INVITATION_ID = "inv_00000000000000000000000071";
+const GRANTED_MEMBERSHIP_ID = "mem_00000000000000000000000071";
 const DUPLICATE_INVITEE_USER_ID = "usr_00000000000000000000000066";
-const SECOND_INVITATION_ID = "inv_00000000000000000000000002";
-const THIRD_INVITATION_ID = "inv_00000000000000000000000003";
+const SECOND_INVITATION_ID = "inv_00000000000000000000000072";
+const THIRD_INVITATION_ID = "inv_00000000000000000000000073";
+
+const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
@@ -64,14 +68,22 @@ describeIntegration("membership management (PDF-02)", () => {
     });
   });
 
+  beforeEach(async () => {
+    await cleanupInvitationAcceptanceFixture({
+      organizationId: ORG_A,
+      inviteeUserId: INVITEE_USER_ID,
+      membershipId: GRANTED_MEMBERSHIP_ID,
+      invitationIds: [INVITATION_ID],
+    });
+  });
+
   afterAll(async () => {
-    await withTenantScope(
-      { kind: "organization", organizationId: organizationId.brand(TEST_ORG_A_ID) },
-      async (sql) => {
-        await sql`DELETE FROM invitations WHERE invitee_user_id = ${INVITEE_USER_ID}`;
-        await sql`DELETE FROM memberships WHERE id = ${GRANTED_MEMBERSHIP_ID}`;
-      },
-    );
+    await cleanupInvitationAcceptanceFixture({
+      organizationId: ORG_A,
+      inviteeUserId: INVITEE_USER_ID,
+      membershipId: GRANTED_MEMBERSHIP_ID,
+      invitationIds: [INVITATION_ID, SECOND_INVITATION_ID, THIRD_INVITATION_ID],
+    });
     await cleanupMembershipFixture(OPERATOR_ORG_ID);
     await cleanupInstanceOperatorGrant(TEST_INSTANCE_ID, OPERATOR_GRANT_ID);
     await closeRuntimeSql();
@@ -104,7 +116,7 @@ describeIntegration("membership management (PDF-02)", () => {
   });
 
   it("accepts an invitation into exactly one project-scoped membership", async () => {
-    const org = organizationId.brand(TEST_ORG_A_ID);
+    const org = ORG_A;
     const project = projectId.brand(TEST_PROJECT_A_ID);
     const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
     const invitee = userId.brand(INVITEE_USER_ID);
@@ -151,6 +163,27 @@ describeIntegration("membership management (PDF-02)", () => {
       false,
     );
 
+    const invitationAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string }[]>`
+          SELECT event_code
+          FROM audit_events
+          WHERE resource_type = ${"invitation"}
+            AND resource_id = ${INVITATION_ID}
+            AND event_code IN ${sql([
+              FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
+              FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
+            ])}
+          ORDER BY event_code
+        `;
+      },
+    );
+    expect(invitationAudit.map((row) => row.event_code)).toEqual([
+      FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
+      FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
+    ]);
+
     await expect(
       acceptInvitation({
         invitationId: invitation.invitationId,
@@ -163,7 +196,7 @@ describeIntegration("membership management (PDF-02)", () => {
   });
 
   it("rejects duplicate pending org-scoped invitations for the same invitee", async () => {
-    const org = organizationId.brand(TEST_ORG_A_ID);
+    const org = ORG_A;
     const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
     const invitee = userId.brand(DUPLICATE_INVITEE_USER_ID);
 
@@ -204,6 +237,18 @@ describeIntegration("membership management (PDF-02)", () => {
   it("denies cross-organization invitation reads under RLS", async () => {
     const orgB = organizationId.brand(TEST_ORG_B_ID);
     const outsiderInvitee = userId.brand(INVITEE_USER_ID);
+    const org = ORG_A;
+    const project = projectId.brand(TEST_PROJECT_A_ID);
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+
+    await createInvitation({
+      actor: ownerActor,
+      organizationId: org,
+      inviteeUserId: outsiderInvitee,
+      rolePreset: BUILT_IN_ROLE_PRESETS.developer,
+      projectId: project,
+      invitationId: invitationId.brand(INVITATION_ID),
+    });
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgB },
@@ -223,9 +268,8 @@ describeIntegration("membership management (PDF-02)", () => {
     ).rejects.toBeInstanceOf(MembershipManagementError);
   });
 
-  it("records operator organization and invitation audit events", async () => {
+  it("records operator organization audit events", async () => {
     const operatorOrg = organizationId.brand(OPERATOR_ORG_ID);
-    const orgA = organizationId.brand(TEST_ORG_A_ID);
 
     const operatorAudit = await withTenantScope(
       { kind: "organization", organizationId: operatorOrg },
@@ -238,26 +282,5 @@ describeIntegration("membership management (PDF-02)", () => {
       },
     );
     expect(operatorAudit.length).toBeGreaterThan(0);
-
-    const invitationAudit = await withTenantScope(
-      { kind: "organization", organizationId: orgA },
-      async (sql) => {
-        return await sql<{ event_code: string }[]>`
-          SELECT event_code
-          FROM audit_events
-          WHERE resource_type = ${"invitation"}
-            AND resource_id = ${INVITATION_ID}
-            AND event_code IN ${sql([
-              FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
-              FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
-            ])}
-          ORDER BY event_code
-        `;
-      },
-    );
-    expect(invitationAudit.map((row) => row.event_code)).toEqual([
-      FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
-      FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
-    ]);
   });
 });
