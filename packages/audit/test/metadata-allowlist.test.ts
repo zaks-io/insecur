@@ -15,6 +15,7 @@ import {
   requestId,
   SECRET_ERROR_CODES,
   secretId,
+  secretVersionId,
   userId,
   VALIDATION_ERROR_CODES,
 } from "@insecur/domain";
@@ -29,6 +30,22 @@ const REQUEST = requestId.brand("req_00000000000000000000000001");
 const OPERATION = operationId.brand("op_00000000000000000000000001");
 
 describe("audit metadata allowlist", () => {
+  it("accepts grant consume success with delivered secret version related resource", () => {
+    expect(() => {
+      validateAuditEventInput({
+        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumed,
+        outcome: "success",
+        actor: { type: "user", userId: USER },
+        organizationId: ORG,
+        resource: { type: "injection_grant", id: GRANT },
+        relatedResource: {
+          type: "secret_version",
+          id: secretVersionId.brand("sv_00000000000000000000000001"),
+        },
+      });
+    }).not.toThrow();
+  });
+
   it("accepts metadata-only successful secret write events", () => {
     expect(() => {
       validateAuditEventInput({

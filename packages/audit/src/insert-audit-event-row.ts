@@ -17,6 +17,8 @@ async function insertRow(sql: TenantScopedSql, row: AuditEventInsertRow): Promis
       environment_id,
       resource_type,
       resource_id,
+      related_resource_type,
+      related_resource_id,
       request_id,
       operation_id
     ) VALUES (
@@ -31,6 +33,8 @@ async function insertRow(sql: TenantScopedSql, row: AuditEventInsertRow): Promis
       ${row.environmentId},
       ${row.resourceType},
       ${row.resourceId},
+      ${row.relatedResourceType},
+      ${row.relatedResourceId},
       ${row.requestId},
       ${row.operationId}
     )

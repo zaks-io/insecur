@@ -14,6 +14,7 @@ import {
   type KnownErrorCode,
   type OrganizationId,
   type ProjectId,
+  type SecretVersionId,
 } from "@insecur/domain";
 
 export type InjectionGrantAuditPhase = "issue" | "consume";
@@ -26,6 +27,8 @@ export interface RecordInjectionGrantAuditInput {
   projectId: ProjectId;
   environmentId: EnvironmentId;
   grantId?: InjectionGrantId;
+  /** Metadata-only delivered Secret Version identity (consume success only). */
+  deliveredSecretVersionId?: SecretVersionId;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
   reasonCode?: KnownErrorCode;
@@ -57,6 +60,14 @@ export async function recordInjectionGrantAudit(
           resource: {
             type: "injection_grant" as const,
             id: brandOpaqueResourceIdForPrefix("igr", input.grantId),
+          },
+        }
+      : {}),
+    ...(input.deliveredSecretVersionId !== undefined
+      ? {
+          relatedResource: {
+            type: "secret_version" as const,
+            id: brandOpaqueResourceIdForPrefix("sv", input.deliveredSecretVersionId),
           },
         }
       : {}),

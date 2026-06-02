@@ -23,6 +23,8 @@ export interface AuditEventInsertRow {
   environmentId: EnvironmentId | null;
   resourceType: AuditResourceType | null;
   resourceId: OpaqueResourceId | null;
+  relatedResourceType: AuditResourceType | null;
+  relatedResourceId: OpaqueResourceId | null;
   requestId: RequestId | null;
   operationId: OperationId | null;
 }
@@ -34,6 +36,18 @@ function optionalResource(
     return { resourceType: null, resourceId: null };
   }
   return { resourceType: event.resource.type, resourceId: event.resource.id };
+}
+
+function optionalRelatedResource(
+  event: AuditEventInput,
+): Pick<AuditEventInsertRow, "relatedResourceType" | "relatedResourceId"> {
+  if (event.relatedResource === undefined) {
+    return { relatedResourceType: null, relatedResourceId: null };
+  }
+  return {
+    relatedResourceType: event.relatedResource.type,
+    relatedResourceId: event.relatedResource.id,
+  };
 }
 
 export function toAuditEventInsertRow(
@@ -52,6 +66,7 @@ export function toAuditEventInsertRow(
     projectId: event.projectId ?? null,
     environmentId: event.environmentId ?? null,
     ...optionalResource(event),
+    ...optionalRelatedResource(event),
     requestId: event.request?.requestId ?? null,
     operationId: event.operation?.operationId ?? null,
   };
