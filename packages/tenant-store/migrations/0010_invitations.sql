@@ -16,8 +16,10 @@ CREATE TABLE invitations (
   CONSTRAINT invitations_org_project_fkey FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id)
 );
 
+-- Org-scoped invitations use project_id IS NULL; treat NULLs as equal for pending uniqueness.
 CREATE UNIQUE INDEX invitations_one_pending_per_invitee_org_project
   ON invitations (org_id, invitee_user_id, project_id)
+  NULLS NOT DISTINCT
   WHERE status = 'pending';
 
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;

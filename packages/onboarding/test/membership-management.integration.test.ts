@@ -43,6 +43,9 @@ const OPERATOR_TEAM_ID = "team_00000000000000000000000099";
 const INVITEE_USER_ID = "usr_00000000000000000000000077";
 const INVITATION_ID = "inv_00000000000000000000000001";
 const GRANTED_MEMBERSHIP_ID = "mem_00000000000000000000000077";
+const DUPLICATE_INVITEE_USER_ID = "usr_00000000000000000000000066";
+const SECOND_INVITATION_ID = "inv_00000000000000000000000002";
+const THIRD_INVITATION_ID = "inv_00000000000000000000000003";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
@@ -159,12 +162,46 @@ describeIntegration("membership management (PDF-02)", () => {
     });
   });
 
+  it("rejects duplicate pending org-scoped invitations for the same invitee", async () => {
+    const org = organizationId.brand(TEST_ORG_A_ID);
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+    const invitee = userId.brand(DUPLICATE_INVITEE_USER_ID);
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`DELETE FROM invitations WHERE invitee_user_id = ${DUPLICATE_INVITEE_USER_ID}`;
+    });
+
+    await createInvitation({
+      actor: ownerActor,
+      organizationId: org,
+      inviteeUserId: invitee,
+      rolePreset: BUILT_IN_ROLE_PRESETS.readOnly,
+      invitationId: invitationId.brand(SECOND_INVITATION_ID),
+    });
+
+    await expect(
+      createInvitation({
+        actor: ownerActor,
+        organizationId: org,
+        inviteeUserId: invitee,
+        rolePreset: BUILT_IN_ROLE_PRESETS.developer,
+        invitationId: invitationId.brand(THIRD_INVITATION_ID),
+      }),
+    ).rejects.toMatchObject({
+      code: ONBOARDING_ERROR_CODES.resourceConflict,
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`DELETE FROM invitations WHERE invitee_user_id = ${DUPLICATE_INVITEE_USER_ID}`;
+    });
+  });
+
   it("denies cross-organization invitation reads under RLS", async () => {
-    const orgA = organizationId.brand(TEST_ORG_A_ID);
     const orgB = organizationId.brand(TEST_ORG_B_ID);
+    const outsiderInvitee = userId.brand(INVITEE_USER_ID);
 
     const rows = await withTenantScope(
-      { kind: "organization", organizationId: orgA },
+      { kind: "organization", organizationId: orgB },
       async (sql) =>
         await sql<{ id: string }[]>`
           SELECT id FROM invitations WHERE id = ${INVITATION_ID}
@@ -176,7 +213,7 @@ describeIntegration("membership management (PDF-02)", () => {
       acceptInvitation({
         invitationId: invitationId.brand(INVITATION_ID),
         organizationId: orgB,
-        acceptingUserId: userId.brand(INVITEE_USER_ID),
+        acceptingUserId: outsiderInvitee,
       }),
     ).rejects.toBeInstanceOf(MembershipManagementError);
   });
