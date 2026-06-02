@@ -15,12 +15,14 @@
     "build": "tsc",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@insecur/access": "workspace:*",
     "@insecur/audit": "workspace:*",
+    "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/tenant-store": "workspace:*"
   },

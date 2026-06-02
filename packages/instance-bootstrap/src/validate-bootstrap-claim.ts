@@ -23,7 +23,7 @@ async function denyClaim(
 ): Promise<never> {
   await recordBootstrapOperatorClaimDenied(
     targetOrganizationId,
-    input.userId,
+    input.actor,
     reasonCode,
     input.request,
   );

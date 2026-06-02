@@ -1,3 +1,4 @@
+import type { UserActor } from "@insecur/auth";
 import type {
   DisplayName,
   MembershipId,
@@ -62,7 +63,8 @@ export interface RunInstanceBootstrapResult {
 
 export interface CompleteBootstrapOperatorClaimInput {
   instanceId: string;
-  userId: UserId;
+  /** Human Identity Provider-authenticated actor from session resolution (INS-25). */
+  actor: UserActor;
   bootstrapSecret: string;
   operatorGrantId: string;
   ownerMembershipId: MembershipId;

@@ -20,5 +20,10 @@ export {
   type AuditResourceType,
 } from "./audit-types.js";
 export { generateAuditEventId } from "./generate-audit-event-id.js";
-export { AuditEventValidationError, validateAuditEventInput } from "./validate-audit-event.js";
+export { insertAuditEventRow } from "./insert-audit-event-row.js";
+export {
+  AuditEventValidationError,
+  resolveAuditResultCode,
+  validateAuditEventInput,
+} from "./validate-audit-event.js";
 export { type AuditEventResult, writeAuditEvent } from "./write-audit-event.js";

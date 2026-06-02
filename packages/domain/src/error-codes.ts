@@ -56,6 +56,7 @@ export const BOOTSTRAP_ERROR_CODES = {
   claimNotAvailable: "bootstrap.claim_not_available",
   alreadyClaimed: "bootstrap.already_claimed",
   invalidSecret: "bootstrap.invalid_secret",
+  authenticatedActorRequired: "bootstrap.authenticated_actor_required",
 } as const;
 
 export type BootstrapErrorCode = (typeof BOOTSTRAP_ERROR_CODES)[keyof typeof BOOTSTRAP_ERROR_CODES];

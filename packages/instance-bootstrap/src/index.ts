@@ -3,7 +3,9 @@ export {
   hashBootstrapSecret,
   verifyBootstrapSecret,
 } from "./bootstrap-secret.js";
+export { assertAuthenticatedBootstrapActor } from "./assert-authenticated-bootstrap-actor.js";
 export { BootstrapError, isBootstrapError } from "./bootstrap-error.js";
+export type { UserActor } from "@insecur/auth";
 export { getBootstrapStatus } from "./bootstrap-status.js";
 export { runInstanceBootstrap } from "./run-instance-bootstrap.js";
 export { completeBootstrapOperatorClaim } from "./complete-bootstrap-operator-claim.js";
