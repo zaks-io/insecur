@@ -4,7 +4,7 @@ import {
   resolveEffectiveAccess,
   type ActorRef,
   type AuthorizationScope,
-  type ResolveEffectiveAccessOptions,
+  type ResolveEffectiveAccessDeps,
   type ResourceCoordinate,
 } from "@insecur/access";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
@@ -15,9 +15,9 @@ export async function assertRuntimeInjectionAccess(
   actor: ActorRef,
   coordinate: ResourceCoordinate,
   requiredScope: AuthorizationScope,
-  options?: ResolveEffectiveAccessOptions,
+  deps?: ResolveEffectiveAccessDeps,
 ): Promise<void> {
-  const effectiveAccess = await resolveEffectiveAccess(actor, coordinate, options);
+  const effectiveAccess = await resolveEffectiveAccess(actor, coordinate, deps);
   if (!hasAuthorizationScope(effectiveAccess, requiredScope)) {
     throw new InjectionGrantError(
       AUTH_ERROR_CODES.insufficientScope,
