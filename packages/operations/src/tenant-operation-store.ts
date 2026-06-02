@@ -1,5 +1,9 @@
 import { operationId, type OperationId, type OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
+import {
+  insertOperation as persistOperationRow,
+  insertOperationStart as persistOperationStart,
+} from "./insert-operation-row.js";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
@@ -92,46 +96,24 @@ export class TenantOperationStore {
     return row === undefined ? null : toOperationPollResult(row);
   }
 
-  async insertOperation(input: {
+  insertOperation(input: {
     operationId: OperationId;
     organizationId: OrganizationId;
     intentCode: string;
     idempotencyKey?: string;
     progress: OperationProgress;
   }): Promise<OperationPollResult> {
-    validateOperationProgress(input.progress);
-    const rows = await this.sql<OperationRow[]>`
-      INSERT INTO operations (
-        id,
-        org_id,
-        state,
-        intent_code,
-        idempotency_key,
-        progress
-      )
-      VALUES (
-        ${input.operationId},
-        ${input.organizationId},
-        ${"pending"},
-        ${input.intentCode},
-        ${input.idempotencyKey ?? null},
-        ${this.sql.json(progressToJson(input.progress))}
-      )
-      RETURNING
-        id,
-        org_id,
-        state,
-        intent_code,
-        idempotency_key,
-        progress,
-        created_at,
-        updated_at
-    `;
-    const row = rows[0];
-    if (row === undefined) {
-      throw new Error("insert operation returned no row");
-    }
-    return toOperationPollResult(row);
+    return persistOperationRow(this.sql, input);
+  }
+
+  insertOperationStart(input: {
+    operationId: OperationId;
+    organizationId: OrganizationId;
+    intentCode: string;
+    idempotencyKey?: string;
+    progress: OperationProgress;
+  }): Promise<{ operation: OperationPollResult; created: boolean }> {
+    return persistOperationStart(this.sql, input);
   }
 
   async compareAndSetTransition(input: {

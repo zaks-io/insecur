@@ -17,20 +17,19 @@ export async function retryOperation(input: RetryOperationInput): Promise<Operat
         throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
       }
 
+      if (
+        input.idempotencyKey !== undefined &&
+        current.progress.mutationIdempotencyKey === input.idempotencyKey &&
+        current.state === "running"
+      ) {
+        return { operation: current, created: false };
+      }
+
       if (!RETRYABLE_OPERATION_STATES.has(current.state)) {
         throw new OperationStoreError(
           OPERATION_ERROR_CODES.notRetryable,
           `operation in state ${current.state} cannot be retried`,
         );
-      }
-
-      if (input.idempotencyKey !== undefined) {
-        if (
-          current.progress.mutationIdempotencyKey === input.idempotencyKey &&
-          current.state === "running"
-        ) {
-          return { operation: current, created: false };
-        }
       }
 
       const progressPatch =

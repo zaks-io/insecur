@@ -20,26 +20,13 @@ export async function createOperation(
     { kind: "organization", organizationId: input.organizationId },
     async (sql) => {
       const store = new TenantOperationStore(sql);
-
-      if (input.idempotencyKey !== undefined) {
-        const existing = await store.findByIdempotencyKey(
-          input.organizationId,
-          input.idempotencyKey,
-        );
-        if (existing !== null) {
-          return { operation: existing, created: false };
-        }
-      }
-
-      const operation = await store.insertOperation({
+      return await store.insertOperationStart({
         operationId: generateOperationId(),
         organizationId: input.organizationId,
         intentCode: input.intentCode,
         ...(input.idempotencyKey !== undefined ? { idempotencyKey: input.idempotencyKey } : {}),
         progress: initialProgress,
       });
-
-      return { operation, created: true };
     },
   );
 }
