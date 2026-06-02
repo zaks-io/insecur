@@ -54,6 +54,54 @@
       "sourceType": "github",
       "skillPath": "skills/workflow-setup/SKILL.md",
       "computedHash": "ad1d45edff949887653b0831672443762750d27138c013879351cd41b004b549"
+    },
+    "ziw-code-review": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-code-review/SKILL.md",
+      "computedHash": "6f7487f3b64211b2a17bde4b8e13534d160559de3dc053ee1e7907662002a02f"
+    },
+    "ziw-implement": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-implement/SKILL.md",
+      "computedHash": "98a120424741aa336967f6dd2d7c8f20040a111f41f67fdd2783a0e1107ce58d"
+    },
+    "ziw-orchestrate": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-orchestrate/SKILL.md",
+      "computedHash": "2df772bd4de21e80d35ccc125ce251ed59897199446a34532d4493fc1a83fab3"
+    },
+    "ziw-pr": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-pr/SKILL.md",
+      "computedHash": "fe8e73d3711bf50f5fd85d0c0f87cacd2416766b309acb348eec1482eac7ea3b"
+    },
+    "ziw-review": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-review/SKILL.md",
+      "computedHash": "6a4db7850618ed6d2be9ac4c7737d3eaf0d0595506cda1a5a0664e4330d9fa46"
+    },
+    "ziw-setup": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-setup/SKILL.md",
+      "computedHash": "ec3bb378c54905137799adedae928635b0cdb5d45d9db80e5467d09e98682e54"
+    },
+    "ziw-to-issues": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-to-issues/SKILL.md",
+      "computedHash": "8943c0911d534bb1137b1281fd750ae3007f70cec005e81d503ad9d01faa1fcb"
+    },
+    "ziw-triage": {
+      "source": "zaks-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ziw-triage/SKILL.md",
+      "computedHash": "37c1f042d3b6d81ac3a47d7ca9c47c891332c7212debf8aebf7650f2256cef41"
     }
   }
 }
