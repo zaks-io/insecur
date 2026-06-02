@@ -2,6 +2,7 @@ import { withTenantScope } from "@insecur/tenant-store";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationMutationResult, TransitionOperationInput } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
+import { enforceSyncTargetLease } from "./enforce-sync-target-lease.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 
 function buildProgressPatch(
@@ -27,6 +28,11 @@ export async function transitionOperation(
     { kind: "organization", organizationId: input.organizationId },
     async (sql) => {
       const store = new TenantOperationStore(sql);
+      await enforceSyncTargetLease(sql, {
+        organizationId: input.organizationId,
+        operationId: input.operationId,
+        lease: input.lease,
+      });
 
       if (input.idempotencyKey !== undefined) {
         const current = await store.getById(input.organizationId, input.operationId);

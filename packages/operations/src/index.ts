@@ -14,7 +14,9 @@ export {
   type OperationState,
 } from "./operation-states.js";
 export {
+  type AssertSyncTargetLeaseInput,
   type CancelOperationInput,
+  type ClaimSyncTargetLeaseInput,
   type CreateOperationInput,
   type GetOperationInput,
   type OperationMutationResult,
@@ -23,9 +25,26 @@ export {
   type OperationRetryMetadata,
   type OperationWaitMetadata,
   type RecordOperationProgressInput,
+  type ReleaseSyncTargetLeaseInput,
+  type RenewSyncTargetLeaseInput,
   type RetryOperationInput,
+  type SyncTargetLeaseClaimResult,
   type TransitionOperationInput,
 } from "./operation-types.js";
+export {
+  SYNC_PROVIDER_KINDS,
+  type FencingToken,
+  type SyncProviderKind,
+  type SyncTargetKey,
+  type SyncTargetLeaseContext,
+  assertFencingToken,
+  isSyncProviderKind,
+  validateSyncTargetKey,
+} from "./sync-target-types.js";
+export { assertSyncTargetLease } from "./assert-sync-target-lease.js";
+export { claimSyncTargetLease } from "./claim-sync-target-lease.js";
+export { renewSyncTargetLease } from "./renew-sync-target-lease.js";
+export { releaseSyncTargetLease } from "./release-sync-target-lease.js";
 export { mergeOperationProgress } from "./merge-operation-progress.js";
 export {
   validateOperationIntentCode,

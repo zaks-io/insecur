@@ -1,5 +1,6 @@
 import type { AuditEventId, KnownErrorCode, OperationId, OrganizationId } from "@insecur/domain";
 import type { OperationState } from "./operation-states.js";
+import type { FencingToken, SyncTargetKey, SyncTargetLeaseContext } from "./sync-target-types.js";
 
 export interface OperationWaitMetadata {
   readonly reasonCode: KnownErrorCode;
@@ -37,12 +38,16 @@ export interface TransitionOperationInput {
   readonly nextState: OperationState;
   readonly progress?: OperationProgress;
   readonly idempotencyKey?: string;
+  /** Required after a sync target lease is acquired for guarded mutable transitions. */
+  readonly lease?: SyncTargetLeaseContext;
 }
 
 export interface RecordOperationProgressInput {
   readonly organizationId: OrganizationId;
   readonly operationId: OperationId;
   readonly progress: OperationProgress;
+  /** Required after a sync target lease is acquired for guarded progress updates during sync. */
+  readonly lease?: SyncTargetLeaseContext;
 }
 
 export interface GetOperationInput {
@@ -74,4 +79,34 @@ export interface OperationPollResult {
 export interface OperationMutationResult {
   readonly operation: OperationPollResult;
   readonly created: boolean;
+}
+
+export interface ClaimSyncTargetLeaseInput {
+  readonly target: SyncTargetKey;
+  readonly operationId: OperationId;
+  readonly ttlSeconds: number;
+}
+
+export interface RenewSyncTargetLeaseInput {
+  readonly target: SyncTargetKey;
+  readonly operationId: OperationId;
+  readonly fencingToken: FencingToken;
+  readonly ttlSeconds: number;
+}
+
+export interface ReleaseSyncTargetLeaseInput {
+  readonly target: SyncTargetKey;
+  readonly operationId: OperationId;
+  readonly fencingToken: FencingToken;
+}
+
+export interface AssertSyncTargetLeaseInput {
+  readonly target: SyncTargetKey;
+  readonly operationId: OperationId;
+  readonly fencingToken: FencingToken;
+}
+
+export interface SyncTargetLeaseClaimResult {
+  readonly target: SyncTargetKey;
+  readonly fencingToken: FencingToken;
 }
