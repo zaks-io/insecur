@@ -59,5 +59,5 @@ URLs before logging. CI uses per-PR Neon branches (ADR-0054).
 ## Dependency Rule
 
 This package may depend on `@insecur/domain`. It must not depend on higher
-domain packages such as `@insecur/secrets`, `@insecur/onboarding`, or
+domain packages such as `@insecur/secret-store`, `@insecur/onboarding`, or
 `@insecur/runtime-injection`.

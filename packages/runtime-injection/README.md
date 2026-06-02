@@ -19,7 +19,7 @@ which exact Variable Keys may be delivered for a requested run.
 
 - `@insecur/domain` for identity and result shapes.
 - `@insecur/access` for caller-supplied Effective Access checks.
-- `@insecur/secrets` for selected Secret Version material.
+- `@insecur/secret-store` for selected Secret Version material.
 - `@insecur/tenant-store` for scoped grant persistence.
 - `@insecur/audit` for issue, consume, and denied-attempt events.
 

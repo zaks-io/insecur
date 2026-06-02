@@ -14,7 +14,7 @@ import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import { TEST_ENV_B_ID, TEST_PROJECT_B_ID } from "../../tenant-store/test/rls/test-ids.js";
-import { uniqueVariableKey, writeTestSecret } from "../../secrets/test/integration-helpers.js";
+import { uniqueVariableKey, writeTestSecret } from "../../secret-store/test/integration-helpers.js";
 
 import { InjectionGrantError } from "../src/injection-grant-error.js";
 import { consumeInjectionGrant, issueInjectionGrant } from "../src/injection-grants.js";
