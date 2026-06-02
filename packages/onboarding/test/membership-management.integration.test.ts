@@ -102,6 +102,33 @@ describeIntegration("membership management (PDF-02)", () => {
       code: ONBOARDING_ERROR_CODES.notInstanceOperator,
     });
 
+    const operatorDeniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: ORG_A },
+      async (sql) => {
+        return await sql<
+          {
+            event_code: string;
+            outcome: string;
+            result_code: string;
+            actor_user_id: string | null;
+          }[]
+        >`
+          SELECT event_code, outcome, result_code, actor_user_id
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationDenied}
+            AND actor_user_id = ${INVITEE_USER_ID}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(operatorDeniedAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationDenied,
+      outcome: "denied",
+      result_code: ONBOARDING_ERROR_CODES.notInstanceOperator,
+      actor_user_id: INVITEE_USER_ID,
+    });
+
     const created = await createOperatorOrganization({
       instanceId: TEST_INSTANCE_ID,
       operatorUserId: operator,
@@ -224,12 +251,81 @@ describeIntegration("membership management (PDF-02)", () => {
       code: ONBOARDING_ERROR_CODES.resourceConflict,
     });
 
+    const duplicateDeniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+            AND result_code = ${ONBOARDING_ERROR_CODES.resourceConflict}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(duplicateDeniedAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied,
+      outcome: "denied",
+      result_code: ONBOARDING_ERROR_CODES.resourceConflict,
+    });
+
     await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
       await sql`DELETE FROM invitations WHERE invitee_user_id = ${DUPLICATE_INVITEE_USER_ID}`;
       await sql`
         DELETE FROM audit_events
         WHERE resource_type = ${"invitation"}
           AND resource_id IN (${SECOND_INVITATION_ID}, ${THIRD_INVITATION_ID})
+      `;
+      await sql`
+        DELETE FROM audit_events
+        WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+          AND result_code = ${ONBOARDING_ERROR_CODES.resourceConflict}
+      `;
+    });
+  });
+
+  it("records invitation create denied audit when invitee already has membership", async () => {
+    const org = ORG_A;
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+    const existingMember = userId.brand(TEST_USER_ID);
+
+    await expect(
+      createInvitation({
+        actor: ownerActor,
+        organizationId: org,
+        inviteeUserId: existingMember,
+        rolePreset: BUILT_IN_ROLE_PRESETS.readOnly,
+        invitationId: invitationId.brand(THIRD_INVITATION_ID),
+      }),
+    ).rejects.toMatchObject({
+      code: ONBOARDING_ERROR_CODES.membershipAlreadyExists,
+    });
+
+    const membershipDeniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+            AND result_code = ${ONBOARDING_ERROR_CODES.membershipAlreadyExists}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(membershipDeniedAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied,
+      outcome: "denied",
+      result_code: ONBOARDING_ERROR_CODES.membershipAlreadyExists,
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`
+        DELETE FROM audit_events
+        WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
+          AND result_code = ${ONBOARDING_ERROR_CODES.membershipAlreadyExists}
       `;
     });
   });

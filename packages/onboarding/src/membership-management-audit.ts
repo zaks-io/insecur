@@ -13,6 +13,22 @@ import {
   type UserId,
 } from "@insecur/domain";
 
+export async function recordOperatorOrganizationDenied(input: {
+  operatorUserId: UserId;
+  organizationId: OrganizationId;
+  reasonCode: KnownErrorCode;
+  request?: AuditRequestRef;
+}): Promise<void> {
+  await writeAuditEvent({
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationDenied,
+    outcome: "denied",
+    actor: { type: "user", userId: input.operatorUserId },
+    organizationId: input.organizationId,
+    denial: { reasonCode: input.reasonCode },
+    ...(input.request !== undefined ? { request: input.request } : {}),
+  });
+}
+
 export async function recordOperatorOrganizationCreated(input: {
   operatorUserId: UserId;
   organizationId: OrganizationId;
