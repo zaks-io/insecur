@@ -56,6 +56,8 @@ interface AuditEventInputBase {
   projectId?: ProjectId;
   environmentId?: EnvironmentId;
   resource?: AuditResourceRef;
+  /** Secondary metadata-only resource (e.g. delivered Secret Version on grant consume). */
+  relatedResource?: AuditResourceRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }
