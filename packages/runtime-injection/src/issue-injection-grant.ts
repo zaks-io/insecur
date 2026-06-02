@@ -2,6 +2,8 @@ import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur
 import { INJECTION_ERROR_CODES, injectionGrantId, type InjectionGrantId } from "@insecur/domain";
 import {
   ProjectEnvironmentCoordinateError,
+  SecretVersionStoreConflictError,
+  SecretVersionStoreNotFoundError,
   TenantInjectionGrantStore,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -131,6 +133,15 @@ export async function issueInjectionGrantWithAudit(
       throw new InjectionGrantError(
         INJECTION_ERROR_CODES.grantDenied,
         "project environment coordinate invalid",
+      );
+    } else if (
+      error instanceof SecretVersionStoreNotFoundError ||
+      error instanceof SecretVersionStoreConflictError
+    ) {
+      await recordDeniedIssue(input, INJECTION_ERROR_CODES.grantDenied).catch(() => undefined);
+      throw new InjectionGrantError(
+        INJECTION_ERROR_CODES.grantDenied,
+        "injection grant selector does not resolve to a secret",
       );
     }
     throw error;

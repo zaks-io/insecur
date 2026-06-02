@@ -6,6 +6,8 @@ import {
 } from "@insecur/domain";
 import {
   resolveSecretForRead,
+  SecretVersionStoreConflictError,
+  SecretVersionStoreNotFoundError,
   TenantSecretVersionStore,
   type ResolvedInjectionGrantBinding,
   withTenantScope,
@@ -13,6 +15,19 @@ import {
 
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantIssueSelector } from "./injection-grant-selectors.js";
+
+function grantDeniedForUnresolvedSelector(error: unknown): never {
+  if (
+    error instanceof SecretVersionStoreNotFoundError ||
+    error instanceof SecretVersionStoreConflictError
+  ) {
+    throw new InjectionGrantError(
+      INJECTION_ERROR_CODES.grantDenied,
+      "injection grant selector does not resolve to a secret",
+    );
+  }
+  throw error;
+}
 
 export interface GrantCoordinate {
   organizationId: OrganizationId;
@@ -28,22 +43,27 @@ export async function resolveInjectionGrantBinding(
     { kind: "organization", organizationId: coordinate.organizationId },
     async (sql) => {
       const versionStore = new TenantSecretVersionStore(sql);
-      const resolved = await resolveSecretForRead(
-        sql,
-        selector.kind === "variable_key"
-          ? {
-              organizationId: coordinate.organizationId,
-              projectId: coordinate.projectId,
-              environmentId: coordinate.environmentId,
-              variableKey: selector.variableKey,
-            }
-          : {
-              organizationId: coordinate.organizationId,
-              projectId: coordinate.projectId,
-              environmentId: coordinate.environmentId,
-              secretId: selector.secretId,
-            },
-      );
+      let resolved;
+      try {
+        resolved = await resolveSecretForRead(
+          sql,
+          selector.kind === "variable_key"
+            ? {
+                organizationId: coordinate.organizationId,
+                projectId: coordinate.projectId,
+                environmentId: coordinate.environmentId,
+                variableKey: selector.variableKey,
+              }
+            : {
+                organizationId: coordinate.organizationId,
+                projectId: coordinate.projectId,
+                environmentId: coordinate.environmentId,
+                secretId: selector.secretId,
+              },
+        );
+      } catch (error) {
+        grantDeniedForUnresolvedSelector(error);
+      }
       const boundVersion = await versionStore.getCurrentVersion(resolved.secretId);
       if (!boundVersion) {
         throw new InjectionGrantError(

@@ -1,3 +1,4 @@
+import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
 import {
   brandOpaqueResourceIdForPrefix,
@@ -5,6 +6,7 @@ import {
   injectionGrantId,
   INJECTION_ERROR_CODES,
   projectId,
+  secretId,
   type VariableKey,
 } from "@insecur/domain";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -29,6 +31,25 @@ function createTestRootKey(): Uint8Array {
   const root = new Uint8Array(32);
   crypto.getRandomValues(root);
   return root;
+}
+
+async function loadLatestIssueDeniedAudit(organizationId: ReturnType<typeof testOrganization>) {
+  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+    const rows = await sql<
+      {
+        event_code: string;
+        outcome: string;
+        result_code: string | null;
+      }[]
+    >`
+      SELECT event_code, outcome, result_code
+      FROM audit_events
+      WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied}
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+    return rows[0];
+  });
 }
 
 async function loadAuditRow(
@@ -230,6 +251,46 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(new TextDecoder().decode(consumed.valueUtf8)).not.toBe(
       new TextDecoder().decode(secondValue),
     );
+  });
+
+  it("denies issue with audit when variable key selector does not exist", async () => {
+    const org = testOrganization();
+    const missingKey: VariableKey = uniqueVariableKey("FV11_MISSING_VK");
+
+    await expect(
+      issueInjectionGrant({
+        organizationId: org,
+        projectId: testProject(),
+        environmentId: testEnvironment(),
+        selector: { kind: "variable_key", variableKey: missingKey },
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const deniedAudit = await loadLatestIssueDeniedAudit(org);
+    expect(deniedAudit?.event_code).toBe(FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied);
+    expect(deniedAudit?.outcome).toBe("denied");
+    expect(deniedAudit?.result_code).toBe(INJECTION_ERROR_CODES.grantDenied);
+  });
+
+  it("denies issue with audit when secret id selector does not exist", async () => {
+    const org = testOrganization();
+    const missingSecretId = secretId.generate();
+
+    await expect(
+      issueInjectionGrant({
+        organizationId: org,
+        projectId: testProject(),
+        environmentId: testEnvironment(),
+        selector: { kind: "secret_id", secretId: missingSecretId },
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const deniedAudit = await loadLatestIssueDeniedAudit(org);
+    expect(deniedAudit?.event_code).toBe(FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied);
+    expect(deniedAudit?.outcome).toBe("denied");
+    expect(deniedAudit?.result_code).toBe(INJECTION_ERROR_CODES.grantDenied);
   });
 
   it("denies issue when project and environment coordinates disagree", async () => {
