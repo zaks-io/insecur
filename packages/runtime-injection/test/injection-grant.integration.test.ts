@@ -62,10 +62,20 @@ async function loadAuditRow(
         event_code: string;
         outcome: string;
         result_code: string | null;
+        resource_type: string | null;
         resource_id: string | null;
+        related_resource_type: string | null;
+        related_resource_id: string | null;
       }[]
     >`
-      SELECT event_code, outcome, result_code, resource_id
+      SELECT
+        event_code,
+        outcome,
+        result_code,
+        resource_type,
+        resource_id,
+        related_resource_type,
+        related_resource_id
       FROM audit_events
       WHERE id = ${auditEventId}
       LIMIT 1
@@ -160,6 +170,20 @@ describeIntegration("Runtime Injection Grant Service", () => {
       }),
     ).not.toContain(new TextDecoder().decode(plaintext));
 
+    const consumeAuditEventId = consumed.auditEventId;
+    if (consumeAuditEventId === undefined) {
+      throw new Error("expected consume audit event id");
+    }
+    const consumeAudit = await loadAuditRow(org, consumeAuditEventId);
+    expect(consumeAudit?.event_code).toBe("runtime_injection.grant_consumed");
+    expect(consumeAudit?.resource_type).toBe("injection_grant");
+    expect(consumeAudit?.resource_id).toBe(brandOpaqueResourceIdForPrefix("igr", issued.grantId));
+    expect(consumeAudit?.related_resource_type).toBe("secret_version");
+    expect(consumeAudit?.related_resource_id).toBe(
+      brandOpaqueResourceIdForPrefix("sv", written.secretVersionId),
+    );
+    expect(JSON.stringify(consumeAudit)).not.toContain(new TextDecoder().decode(plaintext));
+
     await expect(
       consumeInjectionGrant({
         organizationId: org,
@@ -250,6 +274,19 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(firstValue));
     expect(new TextDecoder().decode(consumed.valueUtf8)).not.toBe(
       new TextDecoder().decode(secondValue),
+    );
+
+    const consumeAuditEventId = consumed.auditEventId;
+    if (consumeAuditEventId === undefined) {
+      throw new Error("expected consume audit event id");
+    }
+    const consumeAudit = await loadAuditRow(org, consumeAuditEventId);
+    expect(consumeAudit?.related_resource_type).toBe("secret_version");
+    expect(consumeAudit?.related_resource_id).toBe(
+      brandOpaqueResourceIdForPrefix("sv", firstWrite.secretVersionId),
+    );
+    expect(consumeAudit?.related_resource_id).not.toBe(
+      brandOpaqueResourceIdForPrefix("sv", secondWrite.secretVersionId),
     );
   });
 
