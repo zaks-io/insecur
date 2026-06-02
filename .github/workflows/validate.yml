@@ -79,7 +79,7 @@ jobs:
         run: pnpm dev:db:reset
 
       - name: Run instance-bootstrap integration tests
-        run: pnpm --filter @insecur/instance-bootstrap test:integration
+        run: pnpm exec turbo run test:integration --filter=@insecur/instance-bootstrap
 
   secret-scan:
     name: Secret scan (gitleaks)

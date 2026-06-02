@@ -47,6 +47,11 @@
       "cache": false,
       "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION", "DATABASE_URL_RUNTIME"]
     },
+    "test:integration": {
+      "dependsOn": ["topo", "^build"],
+      "cache": false,
+      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION", "DATABASE_URL_RUNTIME"]
+    },
     "typegen": {
       "cache": false,
       "outputs": []
