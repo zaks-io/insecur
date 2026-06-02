@@ -1,4 +1,7 @@
+import { INJECTION_ERROR_CODES } from "@insecur/domain";
 import type { SecretId, VariableKey } from "@insecur/domain";
+
+import { InjectionGrantError } from "./injection-grant-error.js";
 
 export type InjectionGrantIssueSelector =
   | { kind: "variable_key"; variableKey: VariableKey }
@@ -7,14 +10,6 @@ export type InjectionGrantIssueSelector =
 export type InjectionGrantConsumeSelector =
   | { kind: "variable_key"; variableKey: VariableKey }
   | { kind: "secret_id"; secretId: SecretId };
-
-export function assertNonEmptyIssueSelectors(
-  selectors: readonly InjectionGrantIssueSelector[],
-): asserts selectors is readonly [InjectionGrantIssueSelector, ...InjectionGrantIssueSelector[]] {
-  if (selectors.length === 0) {
-    throw new Error("at least one injection grant selector is required");
-  }
-}
 
 export function normalizeConsumeSelector(input: {
   variableKey?: VariableKey;
@@ -32,4 +27,14 @@ export function normalizeConsumeSelector(input: {
     throw new Error("exactly one of variableKey or secretId is required to consume");
   }
   return { kind: "variable_key", variableKey: input.variableKey };
+}
+
+/** First Value grants bind exactly one Secret per issue/consume cycle. */
+export function assertSingleIssueSelectorCount(selectorCount: number): void {
+  if (selectorCount !== 1) {
+    throw new InjectionGrantError(
+      INJECTION_ERROR_CODES.grantDenied,
+      "injection grant allows exactly one secret binding",
+    );
+  }
 }

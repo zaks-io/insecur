@@ -4,11 +4,14 @@ import type {
   OrganizationId,
   ProjectId,
   SecretId,
+  SecretVersionId,
   VariableKey,
 } from "@insecur/domain";
 
+/** One exact Secret + Secret Version bound at grant issue (metadata only). */
 export interface ResolvedInjectionGrantBinding {
   secretId: SecretId;
+  secretVersionId: SecretVersionId;
   variableKey: VariableKey;
 }
 
@@ -17,7 +20,7 @@ export interface InsertInjectionGrantInput {
   projectId: ProjectId;
   environmentId: EnvironmentId;
   grantId: InjectionGrantId;
-  bindings: readonly ResolvedInjectionGrantBinding[];
+  binding: ResolvedInjectionGrantBinding;
   expiresAt: Date;
 }
 
@@ -28,6 +31,7 @@ export interface InjectionGrantRow {
   environment_id: string;
   variable_keys: string[];
   secret_ids: string[];
+  secret_version_id: string | null;
   expires_at: Date;
   consumed_at: Date | null;
 }

@@ -52,18 +52,20 @@ async function loadAuditRow(
   });
 }
 
-async function loadGrantSecretIds(
+async function loadGrantBinding(
   organizationId: ReturnType<typeof testOrganization>,
   grantId: string,
-): Promise<string[]> {
+) {
   return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
-    const rows = await sql<{ secret_ids: string[] }[]>`
-      SELECT secret_ids
+    const rows = await sql<
+      { secret_ids: string[]; secret_version_id: string | null; variable_keys: string[] }[]
+    >`
+      SELECT secret_ids, secret_version_id, variable_keys
       FROM injection_grants
       WHERE id = ${grantId}
       LIMIT 1
     `;
-    return rows[0]?.secret_ids ?? [];
+    return rows[0];
   });
 }
 
@@ -95,7 +97,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
-      selectors: [{ kind: "variable_key", variableKey }],
+      selector: { kind: "variable_key", variableKey },
       actor: testActor(),
     });
 
@@ -103,8 +105,10 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(issued.auditEventId).toMatch(/^aud_[0-9A-Z]{26}$/);
     expect(JSON.stringify(issued)).not.toContain(new TextDecoder().decode(plaintext));
 
-    const boundSecretIds = await loadGrantSecretIds(org, issued.grantId);
-    expect(boundSecretIds).toEqual([written.secretId]);
+    const stored = await loadGrantBinding(org, issued.grantId);
+    expect(stored?.secret_ids).toEqual([written.secretId]);
+    expect(stored?.secret_version_id).toBe(written.secretVersionId);
+    expect(stored?.variable_keys).toEqual([variableKey]);
 
     const issueAuditEventId = issued.auditEventId;
     if (issueAuditEventId === undefined) {
@@ -123,10 +127,15 @@ describeIntegration("Runtime Injection Grant Service", () => {
     });
 
     expect(consumed.secretId).toBe(written.secretId);
+    expect(consumed.secretVersionId).toBe(written.secretVersionId);
     expect(consumed.variableKey).toBe(variableKey);
     expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(plaintext));
     expect(
-      JSON.stringify({ variableKey: consumed.variableKey, secretId: consumed.secretId }),
+      JSON.stringify({
+        variableKey: consumed.variableKey,
+        secretId: consumed.secretId,
+        secretVersionId: consumed.secretVersionId,
+      }),
     ).not.toContain(new TextDecoder().decode(plaintext));
 
     await expect(
@@ -166,12 +175,12 @@ describeIntegration("Runtime Injection Grant Service", () => {
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
-      selectors: [{ kind: "secret_id", secretId: written.secretId }],
+      selector: { kind: "secret_id", secretId: written.secretId },
       actor: testActor(),
     });
 
-    const boundSecretIds = await loadGrantSecretIds(org, issued.grantId);
-    expect(boundSecretIds).toEqual([written.secretId]);
+    const stored = await loadGrantBinding(org, issued.grantId);
+    expect(stored?.secret_version_id).toBe(written.secretVersionId);
 
     const consumed = await consumeInjectionGrant({
       organizationId: org,
@@ -181,9 +190,45 @@ describeIntegration("Runtime Injection Grant Service", () => {
     });
 
     expect(consumed.secretId).toBe(written.secretId);
+    expect(consumed.secretVersionId).toBe(written.secretVersionId);
     expect(consumed.variableKey).toBe(variableKey);
     expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(plaintext));
     expect(JSON.stringify(consumed)).not.toContain(new TextDecoder().decode(plaintext));
+  });
+
+  it("delivers the secret version bound at issue after rotation", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV11_ROTATE");
+    const firstValue = new TextEncoder().encode(`rotate-first-${crypto.randomUUID()}`);
+    const secondValue = new TextEncoder().encode(`rotate-second-${crypto.randomUUID()}`);
+
+    const firstWrite = await writeTestSecret(variableKey, firstValue);
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey },
+      actor: testActor(),
+    });
+
+    const stored = await loadGrantBinding(org, issued.grantId);
+    expect(stored?.secret_version_id).toBe(firstWrite.secretVersionId);
+
+    const secondWrite = await writeTestSecret(variableKey, secondValue);
+    expect(secondWrite.secretVersionId).not.toBe(firstWrite.secretVersionId);
+
+    const consumed = await consumeInjectionGrant({
+      organizationId: org,
+      grantId: issued.grantId,
+      variableKey,
+      actor: testActor(),
+    });
+
+    expect(consumed.secretVersionId).toBe(firstWrite.secretVersionId);
+    expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(firstValue));
+    expect(new TextDecoder().decode(consumed.valueUtf8)).not.toBe(
+      new TextDecoder().decode(secondValue),
+    );
   });
 
   it("denies issue when project and environment coordinates disagree", async () => {
@@ -196,7 +241,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
         organizationId: org,
         projectId: testProject(),
         environmentId: environmentId.brand(TEST_ENV_B_ID),
-        selectors: [{ kind: "variable_key", variableKey }],
+        selector: { kind: "variable_key", variableKey },
         actor: testActor(),
       }),
     ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
@@ -206,7 +251,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
         organizationId: org,
         projectId: projectId.brand(TEST_PROJECT_B_ID),
         environmentId: testEnvironment(),
-        selectors: [{ kind: "variable_key", variableKey }],
+        selector: { kind: "variable_key", variableKey },
         actor: testActor(),
       }),
     ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
@@ -223,7 +268,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
-      selectors: [{ kind: "secret_id", secretId: allowed.secretId }],
+      selector: { kind: "secret_id", secretId: allowed.secretId },
       actor: testActor(),
     });
 
@@ -246,7 +291,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
-      selectors: [{ kind: "variable_key", variableKey }],
+      selector: { kind: "variable_key", variableKey },
       actor: testActor(),
     });
 

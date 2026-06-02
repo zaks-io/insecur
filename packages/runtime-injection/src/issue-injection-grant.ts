@@ -1,12 +1,5 @@
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
-import {
-  INJECTION_ERROR_CODES,
-  injectionGrantId,
-  type EnvironmentId,
-  type InjectionGrantId,
-  type OrganizationId,
-  type ProjectId,
-} from "@insecur/domain";
+import { INJECTION_ERROR_CODES, injectionGrantId, type InjectionGrantId } from "@insecur/domain";
 import {
   ProjectEnvironmentCoordinateError,
   TenantInjectionGrantStore,
@@ -17,18 +10,17 @@ import { assertRuntimeInjectionAccess, ISSUE_SCOPE } from "./assert-runtime-inje
 import { computeInjectionGrantExpiresAt } from "./injection-grant-ttl.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantIssueSelector } from "./injection-grant-selectors.js";
-import { assertNonEmptyIssueSelectors } from "./injection-grant-selectors.js";
 import { recordInjectionGrantAudit } from "./record-injection-grant-audit.js";
 import {
-  resolveInjectionGrantBindings,
+  resolveInjectionGrantBinding,
   type GrantCoordinate,
 } from "./resolve-injection-grant-bindings.js";
 
 export interface IssueInjectionGrantCoreInput {
-  organizationId: OrganizationId;
-  projectId: ProjectId;
-  environmentId: EnvironmentId;
-  selectors: readonly InjectionGrantIssueSelector[];
+  organizationId: GrantCoordinate["organizationId"];
+  projectId: GrantCoordinate["projectId"];
+  environmentId: GrantCoordinate["environmentId"];
+  selector: InjectionGrantIssueSelector;
   actor: AuditActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
@@ -51,7 +43,6 @@ function toGrantCoordinate(input: IssueInjectionGrantCoreInput): GrantCoordinate
 export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
-  assertNonEmptyIssueSelectors(input.selectors);
   const coordinate = toGrantCoordinate(input);
 
   await assertRuntimeInjectionAccess(
@@ -67,7 +58,7 @@ export async function executeIssueInjectionGrant(
     },
   );
 
-  const bindings = await resolveInjectionGrantBindings(coordinate, input.selectors);
+  const binding = await resolveInjectionGrantBinding(coordinate, input.selector);
 
   const grantId = injectionGrantId.generate();
   const expiresAtDate = computeInjectionGrantExpiresAt();
@@ -80,7 +71,7 @@ export async function executeIssueInjectionGrant(
         projectId: input.projectId,
         environmentId: input.environmentId,
         grantId,
-        bindings,
+        binding,
         expiresAt: expiresAtDate,
       });
     },

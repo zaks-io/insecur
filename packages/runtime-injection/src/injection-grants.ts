@@ -5,6 +5,7 @@ import type {
   OrganizationId,
   ProjectId,
   SecretId,
+  SecretVersionId,
   VariableKey,
 } from "@insecur/domain";
 
@@ -22,7 +23,8 @@ export interface IssueInjectionGrantInput {
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId: EnvironmentId;
-  selectors: readonly [InjectionGrantIssueSelector, ...InjectionGrantIssueSelector[]];
+  /** Exactly one Secret binding per grant (First Value: one `run --variable-key`). */
+  selector: InjectionGrantIssueSelector;
   actor: AuditActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
@@ -52,6 +54,7 @@ export interface ConsumeInjectionGrantInput {
  */
 export interface ConsumeInjectionGrantResult {
   secretId: SecretId;
+  secretVersionId: SecretVersionId;
   variableKey: VariableKey;
   /** Process-environment delivery only; never serialize to metadata envelopes. */
   valueUtf8: Uint8Array;
@@ -59,7 +62,7 @@ export interface ConsumeInjectionGrantResult {
 }
 
 /**
- * Issues a fresh short-lived Injection Grant for exact Secret selectors in a non-protected Environment.
+ * Issues a fresh short-lived Injection Grant for one exact Secret in a non-protected Environment.
  */
 export function issueInjectionGrant(
   input: IssueInjectionGrantInput,
@@ -68,7 +71,7 @@ export function issueInjectionGrant(
 }
 
 /**
- * Consumes a one-use Injection Grant and returns the decrypted value for runtime delivery only.
+ * Consumes a one-use Injection Grant and returns the bound Secret Version value for runtime delivery only.
  */
 export function consumeInjectionGrant(
   input: ConsumeInjectionGrantInput,

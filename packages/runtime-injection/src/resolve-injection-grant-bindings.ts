@@ -3,8 +3,6 @@ import {
   type EnvironmentId,
   type OrganizationId,
   type ProjectId,
-  type SecretId,
-  type VariableKey,
 } from "@insecur/domain";
 import {
   resolveSecretForRead,
@@ -22,60 +20,14 @@ export interface GrantCoordinate {
   environmentId: EnvironmentId;
 }
 
-export async function resolveInjectionGrantBindings(
+export async function resolveInjectionGrantBinding(
   coordinate: GrantCoordinate,
-  selectors: readonly InjectionGrantIssueSelector[],
-): Promise<readonly ResolvedInjectionGrantBinding[]> {
+  selector: InjectionGrantIssueSelector,
+): Promise<ResolvedInjectionGrantBinding> {
   return withTenantScope(
     { kind: "organization", organizationId: coordinate.organizationId },
     async (sql) => {
       const versionStore = new TenantSecretVersionStore(sql);
-      const bindings: ResolvedInjectionGrantBinding[] = [];
-
-      for (const selector of selectors) {
-        const resolved = await resolveSecretForRead(
-          sql,
-          selector.kind === "variable_key"
-            ? {
-                organizationId: coordinate.organizationId,
-                projectId: coordinate.projectId,
-                environmentId: coordinate.environmentId,
-                variableKey: selector.variableKey,
-              }
-            : {
-                organizationId: coordinate.organizationId,
-                projectId: coordinate.projectId,
-                environmentId: coordinate.environmentId,
-                secretId: selector.secretId,
-              },
-        );
-        const current = await versionStore.getCurrentVersion(resolved.secretId);
-        if (!current) {
-          throw new InjectionGrantError(
-            INJECTION_ERROR_CODES.grantDenied,
-            "secret has no current version",
-          );
-        }
-        bindings.push({
-          secretId: resolved.secretId,
-          variableKey: resolved.variableKey,
-        });
-      }
-
-      return bindings;
-    },
-  );
-}
-
-export async function resolveConsumeSecretId(
-  coordinate: GrantCoordinate,
-  selector:
-    | { kind: "variable_key"; variableKey: VariableKey }
-    | { kind: "secret_id"; secretId: SecretId },
-): Promise<{ secretId: SecretId; variableKey: VariableKey }> {
-  return withTenantScope(
-    { kind: "organization", organizationId: coordinate.organizationId },
-    async (sql) => {
       const resolved = await resolveSecretForRead(
         sql,
         selector.kind === "variable_key"
@@ -92,7 +44,19 @@ export async function resolveConsumeSecretId(
               secretId: selector.secretId,
             },
       );
-      return resolved;
+      const boundVersion = await versionStore.getCurrentVersion(resolved.secretId);
+      if (!boundVersion) {
+        throw new InjectionGrantError(
+          INJECTION_ERROR_CODES.grantDenied,
+          "secret has no current version",
+        );
+      }
+
+      return {
+        secretId: resolved.secretId,
+        secretVersionId: boundVersion.secretVersionId,
+        variableKey: resolved.variableKey,
+      };
     },
   );
 }

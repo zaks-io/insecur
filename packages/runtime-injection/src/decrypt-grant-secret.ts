@@ -6,6 +6,7 @@ import {
   type OrganizationId,
   type ProjectId,
   type SecretId,
+  type SecretVersionId,
 } from "@insecur/domain";
 import {
   TenantSecretVersionStore,
@@ -15,32 +16,37 @@ import {
 
 import { InjectionGrantError } from "./injection-grant-error.js";
 
-export async function decryptGrantSecretById(input: {
+export async function decryptBoundGrantSecretVersion(input: {
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId: EnvironmentId;
   secretId: SecretId;
+  secretVersionId: SecretVersionId;
 }): Promise<Uint8Array> {
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => decryptResolvedSecret(input, input.secretId, sql),
+    async (sql) => decryptResolvedVersion(input, sql),
   );
 }
 
-async function decryptResolvedSecret(
+async function decryptResolvedVersion(
   input: {
     organizationId: OrganizationId;
     projectId: ProjectId;
     environmentId: EnvironmentId;
+    secretId: SecretId;
+    secretVersionId: SecretVersionId;
   },
-  resolvedSecretId: SecretId,
   sql: TenantScopedSql,
 ): Promise<Uint8Array> {
-  const version = await new TenantSecretVersionStore(sql).getCurrentVersion(resolvedSecretId);
+  const version = await new TenantSecretVersionStore(sql).getVersionById(
+    input.secretId,
+    input.secretVersionId,
+  );
   if (!version) {
     throw new InjectionGrantError(
       INJECTION_ERROR_CODES.grantDenied,
-      "secret has no current version",
+      "bound secret version not found",
     );
   }
 
@@ -50,7 +56,7 @@ async function decryptResolvedSecret(
         organizationId: input.organizationId,
         projectId: input.projectId,
         environmentId: input.environmentId,
-        secretId: resolvedSecretId,
+        secretId: input.secretId,
       },
       version.wrapped,
     );
