@@ -96,6 +96,9 @@ export class TenantInjectionGrantStore {
   }
 
   getBoundGrant(grant: InjectionGrantRow): ConsumedInjectionGrantRow | null {
+    if (grant.secret_ids.length !== 1 || grant.variable_keys.length !== 1) {
+      return null;
+    }
     const boundSecretId = grant.secret_ids[0];
     const boundVariableKey = grant.variable_keys[0];
     const boundVersionId = grant.secret_version_id;

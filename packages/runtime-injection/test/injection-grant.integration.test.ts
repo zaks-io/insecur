@@ -2,6 +2,7 @@ import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/
 import {
   brandOpaqueResourceIdForPrefix,
   environmentId,
+  injectionGrantId,
   INJECTION_ERROR_CODES,
   projectId,
   type VariableKey,
@@ -280,6 +281,51 @@ describeIntegration("Runtime Injection Grant Service", () => {
         actor: testActor(),
       }),
     ).rejects.toBeInstanceOf(InjectionGrantError);
+  });
+
+  it("denies consume when a grant row has more than one secret binding", async () => {
+    const org = testOrganization();
+    const firstKey = uniqueVariableKey("FV11_MULTI_A");
+    const secondKey = uniqueVariableKey("FV11_MULTI_B");
+    const first = await writeTestSecret(firstKey, new TextEncoder().encode("multi-a"));
+    const second = await writeTestSecret(secondKey, new TextEncoder().encode("multi-b"));
+
+    const grantId = injectionGrantId.generate();
+    const expiresAt = new Date(Date.now() + 60_000);
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`
+        INSERT INTO injection_grants (
+          id,
+          org_id,
+          project_id,
+          environment_id,
+          variable_keys,
+          secret_ids,
+          secret_version_id,
+          expires_at
+        )
+        VALUES (
+          ${grantId},
+          ${org},
+          ${testProject()},
+          ${testEnvironment()},
+          ${[firstKey, secondKey]},
+          ${[first.secretId, second.secretId]},
+          ${first.secretVersionId},
+          ${expiresAt}
+        )
+      `;
+    });
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId,
+        variableKey: firstKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
   });
 
   it("records grant_expired when consuming after TTL", async () => {

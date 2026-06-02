@@ -9,7 +9,10 @@ import {
 import { assertRuntimeInjectionAccess, ISSUE_SCOPE } from "./assert-runtime-injection-access.js";
 import { computeInjectionGrantExpiresAt } from "./injection-grant-ttl.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
-import type { InjectionGrantIssueSelector } from "./injection-grant-selectors.js";
+import {
+  assertSingleIssueSelectorCount,
+  type InjectionGrantIssueSelector,
+} from "./injection-grant-selectors.js";
 import { recordInjectionGrantAudit } from "./record-injection-grant-audit.js";
 import {
   resolveInjectionGrantBinding,
@@ -57,6 +60,8 @@ export async function executeIssueInjectionGrant(
       await new TenantInjectionGrantStore(sql).assertIssueCoordinate(coordinate);
     },
   );
+
+  assertSingleIssueSelectorCount(1);
 
   const binding = await resolveInjectionGrantBinding(coordinate, input.selector);
 
