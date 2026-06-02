@@ -22,6 +22,7 @@ export {
   type OperationMutationResult,
   type OperationPollResult,
   type OperationProgress,
+  type OperationProgressInput,
   type OperationRetryMetadata,
   type OperationWaitMetadata,
   type RecordOperationProgressInput,
@@ -50,6 +51,7 @@ export { mergeOperationProgress } from "./merge-operation-progress.js";
 export {
   validateOperationIntentCode,
   validateOperationProgress,
+  validateOperationProgressInput,
 } from "./validate-operation-metadata.js";
 export { TenantOperationStore, generateOperationId } from "./tenant-operation-store.js";
 export { cancelOperation } from "./cancel-operation.js";

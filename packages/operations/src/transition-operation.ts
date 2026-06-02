@@ -1,7 +1,7 @@
 import { withTenantScope } from "@insecur/tenant-store";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationMutationResult, TransitionOperationInput } from "./operation-types.js";
-import { validateOperationProgress } from "./validate-operation-metadata.js";
+import { validateOperationProgressInput } from "./validate-operation-metadata.js";
 import { enforceSyncTargetLease } from "./enforce-sync-target-lease.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 
@@ -22,7 +22,7 @@ export async function transitionOperation(
   input: TransitionOperationInput,
 ): Promise<OperationMutationResult> {
   const progressPatch = buildProgressPatch(input);
-  validateOperationProgress(progressPatch);
+  validateOperationProgressInput(progressPatch);
 
   return await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },

@@ -17,6 +17,7 @@ import {
   transitionOperation,
   cancelOperation,
 } from "../src/index.js";
+import type { OperationProgressInput } from "../src/operation-types.js";
 import type { SyncTargetKey } from "../src/sync-target-types.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
@@ -138,6 +139,56 @@ describeIntegration("sync target leases", () => {
       ttlSeconds: 120,
     });
     expect(secondLease.fencingToken).toBe(1);
+  });
+
+  it("rejects caller-injected syncTargetLease on progress mutations", async () => {
+    const target = testTarget("reject-injected-lease");
+    const created = await createOperation({
+      organizationId: target.organizationId,
+      intentCode: "sync.run",
+    });
+    const lease = await claimSyncTargetLease({
+      target,
+      operationId: created.operation.operationId,
+      ttlSeconds: 120,
+    });
+
+    const injectedProgress = {
+      syncTargetLease: {
+        projectId: target.projectId,
+        providerKind: target.providerKind,
+        targetIdentity: target.targetIdentity,
+        fencingToken: lease.fencingToken + 99,
+      },
+    } as OperationProgressInput;
+
+    await expect(
+      transitionOperation({
+        organizationId: target.organizationId,
+        operationId: created.operation.operationId,
+        expectedState: "pending",
+        nextState: "running",
+        progress: injectedProgress,
+      }),
+    ).rejects.toMatchObject({
+      code: "operation.invalid_metadata",
+    });
+
+    await expect(
+      recordOperationProgress({
+        organizationId: target.organizationId,
+        operationId: created.operation.operationId,
+        progress: injectedProgress,
+      }),
+    ).rejects.toMatchObject({
+      code: "operation.invalid_metadata",
+    });
+
+    const polled = await getOperation({
+      organizationId: target.organizationId,
+      operationId: created.operation.operationId,
+    });
+    expect(polled.progress.syncTargetLease?.fencingToken).toBe(lease.fencingToken);
   });
 
   it("requires a fencing token for guarded transitions after lease claim", async () => {

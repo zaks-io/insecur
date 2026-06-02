@@ -14,16 +14,13 @@ import type { SyncTargetLeaseContext } from "./sync-target-types.js";
 import { leaseTargetMatchesOperation } from "./sync-target-types.js";
 
 function resolveRequiredLeaseBinding(
-  progressBinding: OperationSyncTargetLeaseProgress | undefined,
   activeLease: SyncTargetLeaseSnapshot | null,
+  progressBinding: OperationSyncTargetLeaseProgress | undefined,
 ): OperationSyncTargetLeaseProgress | null {
-  if (progressBinding !== undefined) {
-    return progressBinding;
+  if (activeLease !== null) {
+    return syncTargetLeaseProgressFromKey(activeLease.target, activeLease.fencingToken);
   }
-  if (activeLease === null) {
-    return null;
-  }
-  return syncTargetLeaseProgressFromKey(activeLease.target, activeLease.fencingToken);
+  return progressBinding ?? null;
 }
 
 async function assertOptionalLease(
@@ -95,11 +92,11 @@ export async function enforceSyncTargetLease(
   }
 
   const requiredBinding = resolveRequiredLeaseBinding(
-    operation.progress.syncTargetLease,
     await leaseStore.findActiveLeaseHeldByOperation({
       organizationId: input.organizationId,
       operationId: input.operationId,
     }),
+    operation.progress.syncTargetLease,
   );
 
   if (requiredBinding === null) {

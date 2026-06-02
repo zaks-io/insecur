@@ -14,8 +14,8 @@ export interface OperationRetryMetadata {
   readonly reasonCode?: KnownErrorCode;
 }
 
-/** Metadata-only durable progress; must never carry Sensitive Values. */
-export interface OperationProgress {
+/** Caller-writable metadata-only progress; must never carry Sensitive Values. */
+export interface OperationProgressInput {
   readonly auditEventIds?: readonly AuditEventId[];
   readonly wait?: OperationWaitMetadata;
   readonly retry?: OperationRetryMetadata;
@@ -23,12 +23,15 @@ export interface OperationProgress {
   readonly providerStatusCode?: KnownErrorCode;
   readonly resultCode?: KnownErrorCode;
   readonly mutationIdempotencyKey?: string;
-  /** Set when this operation has claimed a sync target lease; cleared on release. */
+}
+
+/** Stored operation progress, including lease binding owned by claim/release APIs. */
+export interface OperationProgress extends OperationProgressInput {
   readonly syncTargetLease?: OperationSyncTargetLeaseProgress;
 }
 
 /** Internal patch shape; `syncTargetLease: null` clears the binding. */
-export type OperationProgressPatch = Omit<OperationProgress, "syncTargetLease"> & {
+export type OperationProgressPatch = OperationProgressInput & {
   readonly syncTargetLease?: OperationSyncTargetLeaseProgress | null;
 };
 
@@ -36,7 +39,7 @@ export interface CreateOperationInput {
   readonly organizationId: OrganizationId;
   readonly intentCode: string;
   readonly idempotencyKey?: string;
-  readonly progress?: OperationProgress;
+  readonly progress?: OperationProgressInput;
 }
 
 export interface TransitionOperationInput {
@@ -44,7 +47,7 @@ export interface TransitionOperationInput {
   readonly operationId: OperationId;
   readonly expectedState: OperationState;
   readonly nextState: OperationState;
-  readonly progress?: OperationProgress;
+  readonly progress?: OperationProgressInput;
   readonly idempotencyKey?: string;
   /** Required after a sync target lease is acquired for guarded mutable transitions. */
   readonly lease?: SyncTargetLeaseContext;
@@ -53,7 +56,7 @@ export interface TransitionOperationInput {
 export interface RecordOperationProgressInput {
   readonly organizationId: OrganizationId;
   readonly operationId: OperationId;
-  readonly progress: OperationProgress;
+  readonly progress: OperationProgressInput;
   /** Required after a sync target lease is acquired for guarded progress updates during sync. */
   readonly lease?: SyncTargetLeaseContext;
 }

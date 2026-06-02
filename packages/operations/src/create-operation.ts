@@ -2,7 +2,7 @@ import { withTenantScope } from "@insecur/tenant-store";
 import type { CreateOperationInput, OperationMutationResult } from "./operation-types.js";
 import {
   validateOperationIntentCode,
-  validateOperationProgress,
+  validateOperationProgressInput,
 } from "./validate-operation-metadata.js";
 import { generateOperationId, TenantOperationStore } from "./tenant-operation-store.js";
 
@@ -14,7 +14,7 @@ export async function createOperation(
 ): Promise<OperationMutationResult> {
   validateOperationIntentCode(input.intentCode);
   const initialProgress = input.progress ?? {};
-  validateOperationProgress(initialProgress);
+  validateOperationProgressInput(initialProgress);
 
   return await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },

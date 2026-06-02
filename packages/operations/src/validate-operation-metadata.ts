@@ -5,7 +5,7 @@ import {
   type KnownErrorCode,
 } from "@insecur/domain";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
-import type { OperationProgress } from "./operation-types.js";
+import type { OperationProgress, OperationProgressInput } from "./operation-types.js";
 import {
   assertFencingToken,
   isSyncProviderKind,
@@ -122,6 +122,26 @@ function assertMutationIdempotencyKey(key: string): void {
       "mutationIdempotencyKey must be 1-256 characters",
     );
   }
+}
+
+function assertCallerProgressInput(progress: OperationProgressInput): void {
+  if ("syncTargetLease" in (progress as Record<string, unknown>)) {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.invalidMetadata,
+      "syncTargetLease is owned by sync target lease claim and release APIs",
+    );
+  }
+}
+
+/**
+ * Validates caller-supplied progress patches. Rejects syncTargetLease injection.
+ */
+export function validateOperationProgressInput(
+  progress: OperationProgressInput,
+  organizationId?: SyncTargetKey["organizationId"],
+): void {
+  assertCallerProgressInput(progress);
+  validateOperationProgress(progress, organizationId);
 }
 
 /**
