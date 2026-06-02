@@ -372,6 +372,9 @@ importers:
 
   packages/secret-store:
     dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../access
       '@insecur/audit':
         specifier: workspace:*
         version: link:../audit
