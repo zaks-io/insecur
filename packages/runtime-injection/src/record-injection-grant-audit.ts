@@ -24,8 +24,8 @@ export interface RecordInjectionGrantAuditInput {
   outcome: "success" | "denied";
   actor: AuditActorRef;
   organizationId: OrganizationId;
-  projectId: ProjectId;
-  environmentId: EnvironmentId;
+  projectId?: ProjectId;
+  environmentId?: EnvironmentId;
   grantId?: InjectionGrantId;
   /** Metadata-only delivered Secret Version identity (consume success only). */
   deliveredSecretVersionId?: SecretVersionId;
@@ -45,14 +45,12 @@ function eventCodeFor(input: RecordInjectionGrantAuditInput): FirstValueAuditEve
     : FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied;
 }
 
-export async function recordInjectionGrantAudit(
-  input: RecordInjectionGrantAuditInput,
-): Promise<AuditEventResult | undefined> {
-  const base = {
+function auditBaseForInjectionGrant(input: RecordInjectionGrantAuditInput) {
+  return {
     actor: input.actor,
     organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
+    ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
     ...(input.request !== undefined ? { request: input.request } : {}),
     ...(input.operation !== undefined ? { operation: input.operation } : {}),
     ...(input.grantId !== undefined
@@ -72,6 +70,12 @@ export async function recordInjectionGrantAudit(
         }
       : {}),
   };
+}
+
+export async function recordInjectionGrantAudit(
+  input: RecordInjectionGrantAuditInput,
+): Promise<AuditEventResult | undefined> {
+  const base = auditBaseForInjectionGrant(input);
 
   if (input.outcome === "success") {
     return writeAuditEvent({

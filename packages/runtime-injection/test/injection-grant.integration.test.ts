@@ -290,6 +290,64 @@ describeIntegration("Runtime Injection Grant Service", () => {
     );
   });
 
+  it("denies consume with org-only audit when grant id does not exist", async () => {
+    const org = testOrganization();
+    const missingGrantId = injectionGrantId.generate();
+    const variableKey = uniqueVariableKey("FV11_MISSING_GRANT");
+    const plaintext = new TextEncoder().encode(`missing-grant-${crypto.randomUUID()}`);
+    await writeTestSecret(variableKey, plaintext);
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId: missingGrantId,
+        variableKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const deniedRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return sql<
+          {
+            event_code: string;
+            outcome: string;
+            result_code: string | null;
+            project_id: string | null;
+            environment_id: string | null;
+            resource_type: string | null;
+            resource_id: string | null;
+          }[]
+        >`
+          SELECT
+            event_code,
+            outcome,
+            result_code,
+            project_id,
+            environment_id,
+            resource_type,
+            resource_id
+          FROM audit_events
+          WHERE resource_id = ${brandOpaqueResourceIdForPrefix("igr", missingGrantId)}
+            AND event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied}
+        `;
+      },
+    );
+
+    expect(deniedRows).toHaveLength(1);
+    expect(deniedRows[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
+      outcome: "denied",
+      result_code: INJECTION_ERROR_CODES.grantDenied,
+      project_id: null,
+      environment_id: null,
+      resource_type: "injection_grant",
+      resource_id: brandOpaqueResourceIdForPrefix("igr", missingGrantId),
+    });
+    expect(JSON.stringify(deniedRows)).not.toContain(new TextDecoder().decode(plaintext));
+  });
+
   it("denies issue with audit when variable key selector does not exist", async () => {
     const org = testOrganization();
     const missingKey: VariableKey = uniqueVariableKey("FV11_MISSING_VK");
