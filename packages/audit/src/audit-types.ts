@@ -25,6 +25,7 @@ export type AuditResourceType =
   | "environment"
   | "team"
   | "membership"
+  | "invitation"
   | "secret"
   | "secret_version"
   | "injection_grant"
