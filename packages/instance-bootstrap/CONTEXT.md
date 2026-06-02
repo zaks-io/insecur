@@ -47,6 +47,13 @@ first-Organization owner Membership rows. Callers must resolve the actor from
 Human Identity Provider session context (INS-25); passing a separate target
 user id is intentionally unsupported.
 
+Claim consumption, verifier invalidation, `instance_operators`,
+`memberships`, Effective Access validation, and required success audit events
+run in one `withTenantScope` transaction via `executeBootstrapClaimInTransaction`.
+Post-grant assertion or audit failures roll back the pending claim so retries do
+not surface `bootstrap.already_claimed` with durable grants and no success
+audit evidence.
+
 ## Does Not Own
 
 - WorkOS hosted login UI.
