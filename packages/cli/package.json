@@ -15,9 +15,6 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "commander": "catalog:"
-  },
   "devDependencies": {
     "@types/node": "catalog:",
     "eslint": "catalog:",

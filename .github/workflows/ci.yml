@@ -1,6 +1,7 @@
 # Required status check: deterministic validation with no secrets (fork-safe).
-# See docs/build-tooling.md and ADR-0029 / ADR-0061.
-name: validate
+# Branch protection keys on the job names below (Verify, Coverage, ...), not
+# the workflow name. See docs/build-tooling.md and ADR-0029 / ADR-0061.
+name: CI
 
 on:
   pull_request:
@@ -10,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -51,8 +52,93 @@ jobs:
             echo "::notice::Remote Turbo cache writes skipped. Configure TURBO_TOKEN, TURBO_TEAM, and TURBO_REMOTE_CACHE_SIGNATURE_KEY repository secrets to enable signed CI cache publication (ADR-0053)."
           fi
           pnpm duplicates:warn
+          pnpm duplicates:ci
           pnpm format:check
           pnpm exec turbo run lint typecheck test "${cache_flags}"
+
+  coverage:
+    name: Coverage (unit, DB-less)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Enforces the ratchet thresholds in vitest.config.ts. Integration and
+      # RLS suites are excluded; this is exactly the suite CI can run without a
+      # database. Same command lefthook pre-push runs locally.
+      - name: Run coverage with thresholds
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  knip:
+    name: Knip (unused code and deps)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Flags unused files, deps, and unlisted deps. Export/type-level dead-code
+      # rules are deferred (knip.json `rules`) until product code wires up the
+      # package index skeletons (ADR-0018); enable them as the ratchet tightens.
+      - name: Run knip
+        run: pnpm knip
+
+  actionlint:
+    name: Actionlint (workflow lint)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install actionlint
+        run: bash scripts/ci/install-actionlint.sh
+
+      # Lints every workflow under .github/workflows and shellchecks run: blocks.
+      # Custom runner labels are declared in .github/actionlint.yaml (ADR-0061).
+      - name: Lint workflows
+        run: actionlint -color
 
   postgres-integration:
     name: Postgres integration (bootstrap claim)

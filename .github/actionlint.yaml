@@ -1,0 +1,5 @@
+# Custom self-hosted runner labels actionlint cannot know about.
+# Blacksmith runners are mandated by ADR-0061; the label is intentional.
+self-hosted-runner:
+  labels:
+    - blacksmith-4vcpu-ubuntu-2404
