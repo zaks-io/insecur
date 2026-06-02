@@ -53,35 +53,45 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const running = await transitionOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
     });
     expect(running.operation.state).toBe("running");
 
-    await expect(
+    const [firstConcurrent, secondConcurrent] = await Promise.allSettled([
       transitionOperation({
         organizationId: org,
         operationId: created.operation.operationId,
-        expectedState: "pending",
-        nextState: "blocked",
+        nextState: "succeeded",
       }),
-    ).rejects.toMatchObject({
+      transitionOperation({
+        organizationId: org,
+        operationId: created.operation.operationId,
+        nextState: "failed",
+      }),
+    ]);
+    const concurrentOutcomes = [firstConcurrent, secondConcurrent];
+    const concurrentFulfilled = concurrentOutcomes.filter(
+      (result) => result.status === "fulfilled",
+    );
+    const concurrentRejected = concurrentOutcomes.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    expect(concurrentFulfilled).toHaveLength(1);
+    expect(concurrentRejected).toHaveLength(1);
+    expect(concurrentRejected[0]?.reason).toMatchObject({
       code: "operation.stale_transition",
     });
 
-    const succeeded = await transitionOperation({
-      organizationId: org,
-      operationId: created.operation.operationId,
-      expectedState: "running",
-      nextState: "succeeded",
-    });
-    expect(succeeded.operation.state).toBe("succeeded");
+    const terminalState =
+      concurrentFulfilled[0]?.status === "fulfilled"
+        ? concurrentFulfilled[0].value.operation.state
+        : undefined;
+    expect(terminalState).toMatch(/^(succeeded|failed)$/);
 
     await expect(
       transitionOperation({
         organizationId: org,
         operationId: created.operation.operationId,
-        expectedState: "succeeded",
         nextState: "running",
       }),
     ).rejects.toMatchObject({
@@ -125,13 +135,11 @@ describeIntegration("operation store (tenant-scoped)", () => {
     await transitionOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
     });
     await transitionOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      expectedState: "running",
       nextState: "incomplete",
     });
 

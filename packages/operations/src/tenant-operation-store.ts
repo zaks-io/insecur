@@ -8,10 +8,10 @@ import { mergeOperationProgress } from "./merge-operation-progress.js";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import {
-  isTerminalOperationState,
-  isTransitionAllowed,
-  type OperationState,
-} from "./operation-states.js";
+  casApplyOperationTransition,
+  type ApplyTransitionInput,
+} from "./apply-operation-transition.js";
+import { isTerminalOperationState } from "./operation-states.js";
 import type {
   OperationPollResult,
   OperationProgress,
@@ -23,33 +23,7 @@ function progressToJson(progress: OperationProgress) {
   return JSON.parse(JSON.stringify(progress)) as Parameters<TenantScopedSql["json"]>[0];
 }
 
-function assertTransitionPreconditions(
-  existing: OperationPollResult,
-  input: {
-    expectedState: OperationState;
-    nextState: OperationState;
-  },
-): void {
-  if (existing.state !== input.expectedState) {
-    throw new OperationStoreError(
-      OPERATION_ERROR_CODES.staleTransition,
-      `expected state ${input.expectedState}, found ${existing.state}`,
-      true,
-    );
-  }
-  if (isTerminalOperationState(existing.state)) {
-    throw new OperationStoreError(
-      OPERATION_ERROR_CODES.terminalState,
-      `operation is terminal in state ${existing.state}`,
-    );
-  }
-  if (!isTransitionAllowed(existing.state, input.nextState)) {
-    throw new OperationStoreError(
-      OPERATION_ERROR_CODES.invalidTransition,
-      `operation transition not allowed: ${existing.state} -> ${input.nextState}`,
-    );
-  }
-}
+export type { ApplyTransitionInput } from "./apply-operation-transition.js";
 
 export class TenantOperationStore {
   constructor(private readonly sql: TenantScopedSql) {}
@@ -120,50 +94,15 @@ export class TenantOperationStore {
     return persistOperationStart(this.sql, input);
   }
 
-  async compareAndSetTransition(input: {
-    organizationId: OrganizationId;
-    operationId: OperationId;
-    expectedState: OperationState;
-    nextState: OperationState;
-    progressPatch: OperationProgressPatch;
-  }): Promise<OperationPollResult> {
-    const existing = await this.getById(input.organizationId, input.operationId);
-    if (existing === null) {
+  /**
+   * Read-once compare-and-set state transition: one getById, gate, then CAS UPDATE.
+   */
+  async applyTransition(input: ApplyTransitionInput): Promise<OperationPollResult> {
+    const current = await this.getById(input.organizationId, input.operationId);
+    if (current === null) {
       throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
     }
-    assertTransitionPreconditions(existing, input);
-
-    const mergedProgress = mergeOperationProgress(existing.progress, input.progressPatch);
-    validateOperationProgress(mergedProgress, input.organizationId);
-
-    const rows = await this.sql<OperationRow[]>`
-      UPDATE operations
-      SET
-        state = ${input.nextState},
-        progress = ${this.sql.json(progressToJson(mergedProgress))},
-        updated_at = now()
-      WHERE id = ${input.operationId}
-        AND org_id = ${input.organizationId}
-        AND state = ${input.expectedState}
-      RETURNING
-        id,
-        org_id,
-        state,
-        intent_code,
-        idempotency_key,
-        progress,
-        created_at,
-        updated_at
-    `;
-    const row = rows[0];
-    if (row === undefined) {
-      throw new OperationStoreError(
-        OPERATION_ERROR_CODES.staleTransition,
-        "compare-and-set transition lost a concurrent write",
-        true,
-      );
-    }
-    return toOperationPollResult(row);
+    return await casApplyOperationTransition(this.sql, current, input);
   }
 
   async recordProgress(input: {

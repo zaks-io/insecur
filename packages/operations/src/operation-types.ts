@@ -45,7 +45,6 @@ export interface CreateOperationInput {
 export interface TransitionOperationInput {
   readonly organizationId: OrganizationId;
   readonly operationId: OperationId;
-  readonly expectedState: OperationState;
   readonly nextState: OperationState;
   readonly progress?: OperationProgressInput;
   readonly idempotencyKey?: string;

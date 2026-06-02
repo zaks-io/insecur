@@ -166,7 +166,6 @@ describeIntegration("sync target leases", () => {
       transitionOperation({
         organizationId: target.organizationId,
         operationId: created.operation.operationId,
-        expectedState: "pending",
         nextState: "running",
         progress: injectedProgress,
       }),
@@ -207,7 +206,6 @@ describeIntegration("sync target leases", () => {
       transitionOperation({
         organizationId: target.organizationId,
         operationId: created.operation.operationId,
-        expectedState: "pending",
         nextState: "running",
       }),
     ).rejects.toMatchObject({
@@ -230,7 +228,6 @@ describeIntegration("sync target leases", () => {
     await transitionOperation({
       organizationId: target.organizationId,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
       lease,
     });
@@ -254,7 +251,6 @@ describeIntegration("sync target leases", () => {
       transitionOperation({
         organizationId: target.organizationId,
         operationId: created.operation.operationId,
-        expectedState: "running",
         nextState: "succeeded",
       }),
     ).rejects.toMatchObject({
@@ -266,7 +262,6 @@ describeIntegration("sync target leases", () => {
       transitionOperation({
         organizationId: target.organizationId,
         operationId: created.operation.operationId,
-        expectedState: "running",
         nextState: "succeeded",
         lease,
         progress: {
@@ -332,7 +327,6 @@ describeIntegration("sync target leases", () => {
     await transitionOperation({
       organizationId: target.organizationId,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
       lease: renewed,
     });
@@ -381,14 +375,12 @@ describeIntegration("sync target leases", () => {
     await transitionOperation({
       organizationId: target.organizationId,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
       lease,
     });
     await transitionOperation({
       organizationId: target.organizationId,
       operationId: created.operation.operationId,
-      expectedState: "running",
       nextState: "succeeded",
       lease,
     });
@@ -422,14 +414,12 @@ describeIntegration("sync target leases", () => {
     await transitionOperation({
       organizationId: target.organizationId,
       operationId: created.operation.operationId,
-      expectedState: "pending",
       nextState: "running",
       lease,
     });
     await transitionOperation({
       organizationId: target.organizationId,
       operationId: created.operation.operationId,
-      expectedState: "running",
       nextState: "incomplete",
       lease,
     });
