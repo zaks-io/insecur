@@ -24,6 +24,18 @@ The GitHub repository is `zaks-io/insecur`, and Linear team `INS` is the tracker
 Value implementation still follows [first-value-ticket-plan.md](specs/first-value-ticket-plan.md)
 and the milestone contract in [first-value-milestone.md](first-value-milestone.md).
 
+A recent seam-deepening pass (the `ARCH-0`/`ARCH-1` epics, INS-115 through INS-127)
+collapsed shallow modules, sealed the Encryption Envelope internals, unified package
+failures on ErrorBody-compatible codes, and tightened onboarding/operations/runtime-injection
+audit behavior. A follow-up architecture review (epic INS-133, `ARCH-2`) is now open and
+holds the verified trailing test-surface and duplication work: accept-side invitation
+denial-audit coverage (INS-134), `resolveUserActor` admission re-check tests (INS-135),
+making CSRF unconditional in `exchangeCliSession` (INS-136), centralizing the Postgres
+`23505` check (INS-137), homing the Stable Dotted Code validator in `@insecur/domain`
+(INS-138), and `MetadataTenantDataKeySource` invalid-key coverage (INS-139). Related open
+dedup tickets INS-130 and INS-132 consolidate the per-package denial-audit builders. None of
+these block First Value wiring; they harden seams already in code.
+
 ## Implemented In Code
 
 - `@insecur/domain` owns shared domain primitives: opaque resource IDs, resource ID
@@ -199,3 +211,6 @@ release-gate evidence bundles.
    readiness before secret writes or runtime delivery.
 7. Keep provider sync and protected delivery behind the Storage Security Gate until tenant-bound
    storage, authorization, audit, and key readiness are all composed through routes.
+8. Burn down the `ARCH-2` hardening backlog (epic INS-133) opportunistically alongside First
+   Value wiring. The slices are scoped to one PR each, carry mutation-based acceptance checks,
+   and are independent except INS-135/INS-136 (both touch `packages/auth`, different files).
