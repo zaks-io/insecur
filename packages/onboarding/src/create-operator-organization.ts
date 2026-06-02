@@ -1,10 +1,14 @@
 import { parseDisplayName } from "@insecur/domain";
 import { ONBOARDING_ERROR_CODES } from "@insecur/domain";
-import { assertInstanceOperator } from "./assert-instance-operator.js";
+import { isInstanceOperator } from "./assert-instance-operator.js";
 import { GUIDED_ORGANIZATION_DEFAULT_DISPLAY_NAMES } from "./default-display-names.js";
+import { loadInstanceAnchorOrganizationId } from "./load-instance-anchor-organization-id.js";
 import { MembershipManagementError } from "./membership-management-error.js";
 import { mintOperatorOrganizationIds } from "./mint-operator-organization-ids.js";
-import { recordOperatorOrganizationCreated } from "./membership-management-audit.js";
+import {
+  recordOperatorOrganizationCreated,
+  recordOperatorOrganizationDenied,
+} from "./membership-management-audit.js";
 import type {
   CreateOperatorOrganizationInput,
   CreateOperatorOrganizationResult,
@@ -34,13 +38,32 @@ function resolveDisplayName(raw: string | undefined, fallback: string) {
   return parsed.value;
 }
 
+async function assertCanCreateOperatorOrganization(
+  input: CreateOperatorOrganizationInput,
+): Promise<void> {
+  if (await isInstanceOperator(input.instanceId, input.operatorUserId)) {
+    return;
+  }
+  const auditOrganizationId = await loadInstanceAnchorOrganizationId(input.instanceId);
+  await recordOperatorOrganizationDenied({
+    operatorUserId: input.operatorUserId,
+    organizationId: auditOrganizationId,
+    reasonCode: ONBOARDING_ERROR_CODES.notInstanceOperator,
+    ...(input.request !== undefined ? { request: input.request } : {}),
+  });
+  throw new MembershipManagementError(
+    ONBOARDING_ERROR_CODES.notInstanceOperator,
+    "instance operator authority required",
+  );
+}
+
 /**
  * Creates an Organization and non-authorizing Default Team under Instance Operator authority.
  */
 export async function createOperatorOrganization(
   input: CreateOperatorOrganizationInput,
 ): Promise<CreateOperatorOrganizationResult> {
-  await assertInstanceOperator(input.instanceId, input.operatorUserId);
+  await assertCanCreateOperatorOrganization(input);
 
   const ids = mintOperatorOrganizationIds(input.resourceIds);
   const organizationDisplayName = resolveDisplayName(

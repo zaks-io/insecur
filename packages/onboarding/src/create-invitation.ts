@@ -1,4 +1,11 @@
-import { AUTH_ERROR_CODES, invitationId, ONBOARDING_ERROR_CODES } from "@insecur/domain";
+import {
+  AUTH_ERROR_CODES,
+  invitationId,
+  ONBOARDING_ERROR_CODES,
+  type InvitationId,
+  type KnownErrorCode,
+  type OrganizationId,
+} from "@insecur/domain";
 import { assertMembershipManageScope } from "./assert-membership-manage-scope.js";
 import {
   recordInvitationCreateDenied,
@@ -13,6 +20,29 @@ import {
 import type { CreateInvitationInput, CreateInvitationResult } from "./invitation-types.js";
 
 export type { CreateInvitationInput, CreateInvitationResult } from "./invitation-types.js";
+
+async function denyInvitationCreate(
+  input: CreateInvitationInput,
+  denial: {
+    reasonCode: KnownErrorCode;
+    message: string;
+    organizationId?: OrganizationId;
+    invitationId?: InvitationId;
+  },
+): Promise<never> {
+  await recordInvitationCreateDenied({
+    actorUserId: input.actor.userId,
+    organizationId: input.organizationId,
+    reasonCode: denial.reasonCode,
+    ...(input.request !== undefined ? { request: input.request } : {}),
+  });
+  throw new MembershipManagementError(
+    denial.reasonCode,
+    denial.message,
+    denial.organizationId,
+    denial.invitationId,
+  );
+}
 
 function isUniqueViolation(error: unknown): boolean {
   return (
@@ -51,11 +81,11 @@ async function assertInviteeHasNoMembership(input: CreateInvitationInput): Promi
       projectId: projectScope,
     })
   ) {
-    throw new MembershipManagementError(
-      ONBOARDING_ERROR_CODES.membershipAlreadyExists,
-      "invitee already has a membership for this scope",
-      input.organizationId,
-    );
+    await denyInvitationCreate(input, {
+      reasonCode: ONBOARDING_ERROR_CODES.membershipAlreadyExists,
+      message: "invitee already has a membership for this scope",
+      organizationId: input.organizationId,
+    });
   }
 }
 
@@ -85,12 +115,12 @@ export async function createInvitation(
     if (!isUniqueViolation(error)) {
       throw error;
     }
-    throw new MembershipManagementError(
-      ONBOARDING_ERROR_CODES.resourceConflict,
-      "invitation resource id conflict",
-      input.organizationId,
-      invId,
-    );
+    await denyInvitationCreate(input, {
+      reasonCode: ONBOARDING_ERROR_CODES.resourceConflict,
+      message: "invitation resource id conflict",
+      organizationId: input.organizationId,
+      invitationId: invId,
+    });
   }
 
   await recordInvitationCreated({
