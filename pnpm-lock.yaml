@@ -107,12 +107,30 @@ importers:
 
   apps/worker:
     dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../../packages/access
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@insecur/auth':
         specifier: workspace:*
         version: link:../../packages/auth
       '@insecur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@insecur/onboarding':
+        specifier: workspace:*
+        version: link:../../packages/onboarding
+      '@insecur/runtime-injection':
+        specifier: workspace:*
+        version: link:../../packages/runtime-injection
+      '@insecur/secrets':
+        specifier: workspace:*
+        version: link:../../packages/secrets
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../../packages/tenant-store
       hono:
         specifier: 'catalog:'
         version: 4.12.22

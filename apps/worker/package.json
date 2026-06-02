@@ -14,8 +14,14 @@
     "clean": "rm -rf dist .wrangler"
   },
   "dependencies": {
+    "@insecur/access": "workspace:*",
+    "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/onboarding": "workspace:*",
+    "@insecur/runtime-injection": "workspace:*",
+    "@insecur/secrets": "workspace:*",
+    "@insecur/tenant-store": "workspace:*",
     "hono": "catalog:"
   },
   "devDependencies": {
