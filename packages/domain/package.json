@@ -19,6 +19,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

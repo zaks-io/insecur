@@ -344,7 +344,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     ).rejects.toBeInstanceOf(InjectionGrantError);
   });
 
-  it("denies consume when a grant row has more than one secret binding", async () => {
+  it("denies consume without burning a legacy multi-key grant row", async () => {
     const org = testOrganization();
     const firstKey = uniqueVariableKey("FV11_MULTI_A");
     const secondKey = uniqueVariableKey("FV11_MULTI_B");
@@ -384,6 +384,29 @@ describeIntegration("Runtime Injection Grant Service", () => {
         organizationId: org,
         grantId,
         variableKey: firstKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const afterFirstAttempt = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        const rows = await sql<{ consumed_at: Date | null }[]>`
+          SELECT consumed_at
+          FROM injection_grants
+          WHERE id = ${grantId}
+          LIMIT 1
+        `;
+        return rows[0];
+      },
+    );
+    expect(afterFirstAttempt?.consumed_at).toBeNull();
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId,
+        variableKey: secondKey,
         actor: testActor(),
       }),
     ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });

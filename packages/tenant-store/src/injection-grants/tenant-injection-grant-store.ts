@@ -201,6 +201,8 @@ export class TenantInjectionGrantStore {
         AND org_id = ${input.organizationId}
         AND consumed_at IS NULL
         AND expires_at > now()
+        AND cardinality(secret_ids) = 1
+        AND cardinality(variable_keys) = 1
         AND secret_version_id = ${input.bound.secretVersionId}
         AND ${input.requestedSecretId} = ANY (secret_ids)
         AND ${input.requestedVariableKey} = ANY (variable_keys)
