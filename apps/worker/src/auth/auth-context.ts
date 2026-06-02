@@ -28,7 +28,7 @@ function authConfigErrorMessage(field: AuthConfigField): string {
     case "workos.cookiePassword":
       return "auth configuration invalid: workos.cookiePassword must be a non-empty value";
     case "sessionSigningSecret":
-      return "auth configuration invalid: sessionSigningSecret must be at least 32 characters";
+      return "auth configuration invalid: sessionSigningSecret must be a non-empty value of at least 32 characters";
   }
 }
 
@@ -45,6 +45,9 @@ export function validateAuthContext(config: InsecurAuthConfig): void {
   }
   if (isBlank(config.workos.cookiePassword)) {
     throw new AuthConfigError("workos.cookiePassword");
+  }
+  if (isBlank(config.sessionSigningSecret)) {
+    throw new AuthConfigError("sessionSigningSecret");
   }
   if (config.sessionSigningSecret.length < 32) {
     throw new AuthConfigError("sessionSigningSecret");

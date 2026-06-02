@@ -82,6 +82,15 @@ describe("validateAuthContext", () => {
     }, "workos.cookiePassword");
   });
 
+  it("rejects a blank sessionSigningSecret even when padded to 32 characters", () => {
+    expectAuthConfigError(() => {
+      validateAuthContext({
+        ...validConfig,
+        sessionSigningSecret: "                                ",
+      });
+    }, "sessionSigningSecret");
+  });
+
   it("rejects a sessionSigningSecret shorter than 32 characters", () => {
     expectAuthConfigError(() => {
       validateAuthContext({ ...validConfig, sessionSigningSecret: "too-short-signing-secret" });
@@ -111,6 +120,14 @@ describe("createAuthContext", () => {
   it("throws before returning when sessionSigningSecret is shorter than 32 characters", () => {
     expectAuthConfigError(
       () => createAuthContext({ ...env, SESSION_SIGNING_SECRET: "short-signing-secret-value" }),
+      "sessionSigningSecret",
+    );
+  });
+
+  it("throws before returning when sessionSigningSecret is blank but 32 characters long", () => {
+    expectAuthConfigError(
+      () =>
+        createAuthContext({ ...env, SESSION_SIGNING_SECRET: "                                " }),
       "sessionSigningSecret",
     );
   });
