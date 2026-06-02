@@ -6,7 +6,12 @@ import {
   type KnownErrorCode,
   type OrganizationId,
 } from "@insecur/domain";
+import {
+  assertInvitationProjectCoordinate,
+  assertInvitationRolePreset,
+} from "./assert-invitation-create-input.js";
 import { assertMembershipManageScope } from "./assert-membership-manage-scope.js";
+import type { BuiltInRolePreset } from "@insecur/access";
 import {
   recordInvitationCreateDenied,
   recordInvitationCreated,
@@ -95,9 +100,12 @@ async function assertInviteeHasNoMembership(input: CreateInvitationInput): Promi
 export async function createInvitation(
   input: CreateInvitationInput,
 ): Promise<CreateInvitationResult> {
+  await assertInvitationRolePreset(input);
+  await assertInvitationProjectCoordinate(input);
   await assertCanCreateInvitation(input);
   await assertInviteeHasNoMembership(input);
 
+  const rolePreset = input.rolePreset as BuiltInRolePreset;
   const projectScope = input.projectId ?? null;
   const invId = input.invitationId ?? invitationId.generate();
   const defaultTeamId = await loadDefaultTeamId(input.organizationId);
@@ -108,7 +116,7 @@ export async function createInvitation(
       organizationId: input.organizationId,
       teamId: defaultTeamId,
       inviteeUserId: input.inviteeUserId,
-      rolePreset: input.rolePreset,
+      rolePreset,
       projectId: projectScope,
     });
   } catch (error) {
@@ -135,7 +143,7 @@ export async function createInvitation(
     organizationId: input.organizationId,
     teamId: defaultTeamId,
     inviteeUserId: input.inviteeUserId,
-    rolePreset: input.rolePreset,
+    rolePreset,
     projectId: projectScope,
   };
 }
