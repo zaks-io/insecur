@@ -45,9 +45,8 @@ export async function clearOperationSyncTargetLease(
     return;
   }
 
-  await store.recordProgress({
+  await store.clearSyncTargetLeaseBinding({
     organizationId: input.organizationId,
     operationId: input.operationId,
-    progressPatch: { syncTargetLease: null },
   });
 }

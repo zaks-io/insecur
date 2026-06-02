@@ -8,6 +8,7 @@ import {
   assertSyncTargetLease,
   claimSyncTargetLease,
   createOperation,
+  getOperation,
   OperationStoreError,
   recordOperationProgress,
   releaseSyncTargetLease,
@@ -297,6 +298,12 @@ describeIntegration("sync target leases", () => {
       fencingToken: renewed.fencingToken,
     });
 
+    const polled = await getOperation({
+      organizationId: target.organizationId,
+      operationId: created.operation.operationId,
+    });
+    expect(polled.progress).not.toHaveProperty("syncTargetLease");
+
     await expect(
       assertSyncTargetLease({
         target,
@@ -306,6 +313,47 @@ describeIntegration("sync target leases", () => {
     ).rejects.toMatchObject({
       code: "operation.lease_not_held",
     });
+  });
+
+  it("releases lease binding after terminal success", async () => {
+    const target = testTarget("release-after-success");
+    const created = await createOperation({
+      organizationId: target.organizationId,
+      intentCode: "sync.run",
+    });
+    const lease = await claimSyncTargetLease({
+      target,
+      operationId: created.operation.operationId,
+      ttlSeconds: 60,
+    });
+
+    await transitionOperation({
+      organizationId: target.organizationId,
+      operationId: created.operation.operationId,
+      expectedState: "pending",
+      nextState: "running",
+      lease,
+    });
+    await transitionOperation({
+      organizationId: target.organizationId,
+      operationId: created.operation.operationId,
+      expectedState: "running",
+      nextState: "succeeded",
+      lease,
+    });
+
+    await releaseSyncTargetLease({
+      target,
+      operationId: created.operation.operationId,
+      fencingToken: lease.fencingToken,
+    });
+
+    const polled = await getOperation({
+      organizationId: target.organizationId,
+      operationId: created.operation.operationId,
+    });
+    expect(polled.state).toBe("succeeded");
+    expect(polled.progress).not.toHaveProperty("syncTargetLease");
   });
 
   it("supports retry resume with lease reclaim and guarded progress", async () => {
