@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@insecur/auth": "workspace:*",
+    "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
     "hono": "catalog:"
   },
