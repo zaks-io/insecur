@@ -10,6 +10,7 @@ import {
 import type { SyncTargetLeaseSnapshot } from "./sync-target-lease-row.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 import { TenantSyncTargetLeaseStore } from "./tenant-sync-target-lease-store.js";
+import type { OperationPollResult } from "./operation-types.js";
 import type { SyncTargetLeaseContext } from "./sync-target-types.js";
 import { leaseTargetMatchesOperation } from "./sync-target-types.js";
 
@@ -82,11 +83,14 @@ export async function enforceSyncTargetLease(
     organizationId: OrganizationId;
     operationId: OperationId;
     lease: SyncTargetLeaseContext | undefined;
+    /** When set, lease checks use this snapshot instead of reading the operation again. */
+    operation?: OperationPollResult;
   },
 ): Promise<void> {
-  const store = new TenantOperationStore(sql);
   const leaseStore = new TenantSyncTargetLeaseStore(sql);
-  const operation = await store.getById(input.organizationId, input.operationId);
+  const operation =
+    input.operation ??
+    (await new TenantOperationStore(sql).getById(input.organizationId, input.operationId));
   if (operation === null) {
     throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
   }

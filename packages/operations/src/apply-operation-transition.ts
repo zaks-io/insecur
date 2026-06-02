@@ -37,6 +37,8 @@ export interface ApplyTransitionInput {
     key: string;
     alreadyAppliedWhen: (current: OperationPollResult) => boolean;
   };
+  /** Runs after the single operation read and before transition gates or CAS. */
+  beforeTransition?: (current: OperationPollResult) => Promise<void>;
 }
 
 function assertApplyTransitionAllowed(

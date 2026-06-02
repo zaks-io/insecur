@@ -28,12 +28,6 @@ export async function transitionOperation(
     { kind: "organization", organizationId: input.organizationId },
     async (sql) => {
       const store = new TenantOperationStore(sql);
-      await enforceSyncTargetLease(sql, {
-        organizationId: input.organizationId,
-        operationId: input.operationId,
-        lease: input.lease,
-      });
-
       const operation = await store.applyTransition({
         organizationId: input.organizationId,
         operationId: input.operationId,
@@ -43,6 +37,14 @@ export async function transitionOperation(
         notAllowedError: {
           code: OPERATION_ERROR_CODES.invalidTransition,
           message: (state) => `operation transition not allowed: ${state} -> ${input.nextState}`,
+        },
+        beforeTransition: async (current) => {
+          await enforceSyncTargetLease(sql, {
+            organizationId: input.organizationId,
+            operationId: input.operationId,
+            lease: input.lease,
+            operation: current,
+          });
         },
         ...(input.idempotencyKey === undefined
           ? {}

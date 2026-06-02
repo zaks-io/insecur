@@ -102,6 +102,9 @@ export class TenantOperationStore {
     if (current === null) {
       throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
     }
+    if (input.beforeTransition !== undefined) {
+      await input.beforeTransition(current);
+    }
     return await casApplyOperationTransition(this.sql, current, input);
   }
 
