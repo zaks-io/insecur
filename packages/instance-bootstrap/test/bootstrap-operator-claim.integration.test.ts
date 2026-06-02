@@ -4,6 +4,7 @@ import {
   hasAuthorizationScope,
   resolveEffectiveAccess,
 } from "@insecur/access";
+import * as assertOwnerEffectiveAccess from "../src/assert-owner-effective-access-in-transaction.js";
 import * as bootstrapAudit from "../src/bootstrap-audit.js";
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
@@ -43,6 +44,14 @@ const ROLLBACK_CLAIM_ID = "boc_00000000000000000000000002";
 const ROLLBACK_OPERATOR_GRANT_ID = "iop_00000000000000000000000002";
 const ROLLBACK_MEM_ID = "mem_00000000000000000000000076";
 const ROLLBACK_USER_ID = "usr_00000000000000000000000076";
+
+const ASSERTION_ROLLBACK_INSTANCE_ID = "inst_BOOTSTRAP_ASSERT_ROLLBACK";
+const ASSERTION_ROLLBACK_ORG_ID = "org_00000000000000000000000073";
+const ASSERTION_ROLLBACK_TEAM_ID = "team_00000000000000000000000073";
+const ASSERTION_ROLLBACK_CLAIM_ID = "boc_00000000000000000000000005";
+const ASSERTION_ROLLBACK_OPERATOR_GRANT_ID = "iop_00000000000000000000000005";
+const ASSERTION_ROLLBACK_MEM_ID = "mem_00000000000000000000000073";
+const ASSERTION_ROLLBACK_USER_ID = "usr_00000000000000000000000073";
 
 const FK_INSTANCE_A = "inst_BOOTSTRAP_FK_TEST_A";
 const FK_INSTANCE_B = "inst_BOOTSTRAP_FK_TEST_B";
@@ -102,6 +111,7 @@ describeIntegration("bootstrap operator claim", () => {
     await seedTenantBaseline();
     await cleanupBootstrapFixture(BOOTSTRAP_INSTANCE_ID);
     await cleanupBootstrapFixture(ROLLBACK_INSTANCE_ID);
+    await cleanupBootstrapFixture(ASSERTION_ROLLBACK_INSTANCE_ID);
     await cleanupBootstrapFixture(FK_INSTANCE_A);
     await cleanupBootstrapFixture(FK_INSTANCE_B);
     bootstrapSecret = randomBytes(32).toString("base64url");
@@ -124,6 +134,7 @@ describeIntegration("bootstrap operator claim", () => {
   afterAll(async () => {
     await cleanupBootstrapFixture(BOOTSTRAP_INSTANCE_ID);
     await cleanupBootstrapFixture(ROLLBACK_INSTANCE_ID);
+    await cleanupBootstrapFixture(ASSERTION_ROLLBACK_INSTANCE_ID);
     await cleanupBootstrapFixture(FK_INSTANCE_A);
     await cleanupBootstrapFixture(FK_INSTANCE_B);
     await closeRuntimeSql();
@@ -301,6 +312,70 @@ describeIntegration("bootstrap operator claim", () => {
       `;
     });
     expect(operators).toEqual([]);
+
+    const retryResult = await completeBootstrapOperatorClaim({
+      instanceId: ROLLBACK_INSTANCE_ID,
+      actor: testUserActor(ROLLBACK_USER_ID),
+      bootstrapSecret: rollbackSecret,
+      operatorGrantId: ROLLBACK_OPERATOR_GRANT_ID,
+      ownerMembershipId: membershipId.brand(ROLLBACK_MEM_ID),
+    });
+
+    expect(retryResult.status.phase).toBe("complete");
+    expect(await loadClaimStatus(ROLLBACK_INSTANCE_ID)).toBe("consumed");
+    const grantUserIds = await loadBootstrapGrantUserIds(ROLLBACK_INSTANCE_ID, ROLLBACK_ORG_ID);
+    expect(grantUserIds.operatorUserIds).toEqual([ROLLBACK_USER_ID]);
+    expect(grantUserIds.membershipUserIds).toEqual([ROLLBACK_USER_ID]);
+  });
+
+  it("rolls back claim consumption when post-grant Effective Access assertion fails", async () => {
+    const assertionRollbackSecret = randomBytes(32).toString("base64url");
+
+    await runInstanceBootstrap({
+      instanceId: ASSERTION_ROLLBACK_INSTANCE_ID,
+      instanceDisplayName: testDisplayName("Assertion rollback bootstrap instance"),
+      organizationDisplayName: testDisplayName("Assertion rollback bootstrap org"),
+      defaultTeamDisplayName: testDisplayName("Default"),
+      resourceIds: {
+        organizationId: organizationId.brand(ASSERTION_ROLLBACK_ORG_ID),
+        defaultTeamId: teamId.brand(ASSERTION_ROLLBACK_TEAM_ID),
+        claimId: ASSERTION_ROLLBACK_CLAIM_ID,
+      },
+      bootstrapSecret: assertionRollbackSecret,
+      workosClientId: "client_test_bootstrap",
+    });
+
+    const assertionSpy = vi
+      .spyOn(assertOwnerEffectiveAccess, "assertOwnerEffectiveAccessInTransaction")
+      .mockRejectedValue(
+        new BootstrapError(
+          BOOTSTRAP_ERROR_CODES.claimNotAvailable,
+          "simulated effective access assertion failure",
+        ),
+      );
+
+    await expect(
+      completeBootstrapOperatorClaim({
+        instanceId: ASSERTION_ROLLBACK_INSTANCE_ID,
+        actor: testUserActor(ASSERTION_ROLLBACK_USER_ID),
+        bootstrapSecret: assertionRollbackSecret,
+        operatorGrantId: ASSERTION_ROLLBACK_OPERATOR_GRANT_ID,
+        ownerMembershipId: membershipId.brand(ASSERTION_ROLLBACK_MEM_ID),
+      }),
+    ).rejects.toMatchObject({
+      code: BOOTSTRAP_ERROR_CODES.claimNotAvailable,
+    });
+
+    assertionSpy.mockRestore();
+
+    expect(await loadClaimStatus(ASSERTION_ROLLBACK_INSTANCE_ID)).toBe("pending");
+
+    const grantUserIds = await loadBootstrapGrantUserIds(
+      ASSERTION_ROLLBACK_INSTANCE_ID,
+      ASSERTION_ROLLBACK_ORG_ID,
+    );
+    expect(grantUserIds.operatorUserIds).toEqual([]);
+    expect(grantUserIds.membershipUserIds).toEqual([]);
   });
 
   it("rejects bootstrap claims whose first organization is not on the same instance", async () => {
