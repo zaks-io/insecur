@@ -301,9 +301,12 @@ describeIntegration("bootstrap operator claim", () => {
         INSERT INTO organizations (id, instance_id, display_name)
         VALUES (${FK_ORG_B}, ${FK_INSTANCE_B}, ${"FK org B"})
       `;
+    });
 
-      await expect(
-        sql`
+    const mismatchedClaimId = "boc_00000000000000000000000004";
+    await expect(
+      withTenantScope({ kind: "service" }, async (sql) => {
+        await sql`
           INSERT INTO bootstrap_operator_claims (
             id,
             instance_id,
@@ -311,14 +314,21 @@ describeIntegration("bootstrap operator claim", () => {
             status
           )
           VALUES (
-            ${"boc_00000000000000000000000004"},
+            ${mismatchedClaimId},
             ${FK_INSTANCE_B},
             ${FK_ORG_A},
             ${"pending"}
           )
-        `,
-      ).rejects.toMatchObject({ code: "23503" });
+        `;
+      }),
+    ).rejects.toMatchObject({ code: "23503" });
+
+    const claimsOnInstanceB = await withTenantScope({ kind: "service" }, async (sql) => {
+      return await sql<{ id: string }[]>`
+        SELECT id FROM bootstrap_operator_claims WHERE instance_id = ${FK_INSTANCE_B}
+      `;
     });
+    expect(claimsOnInstanceB).toEqual([]);
   });
 });
 
