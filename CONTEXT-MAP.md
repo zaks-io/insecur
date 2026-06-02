@@ -35,7 +35,7 @@ context for a specific task.
 | `packages/tenant-store/CONTEXT.md`      | Tenant-Scoped Store and metadata isolation.                    |
 | `packages/crypto/CONTEXT.md`            | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
 | `packages/audit/CONTEXT.md`             | Audit Event Writer and metadata-only audit records.            |
-| `packages/secrets/CONTEXT.md`           | Secret Version Store and Blind Secret Write rules.             |
+| `packages/secret-store/CONTEXT.md`      | Secret Version Store and Blind Secret Write rules.             |
 | `packages/runtime-injection/CONTEXT.md` | Runtime Injection Grant Service.                               |
 | `packages/onboarding/CONTEXT.md`        | Guided Organization Provisioning.                              |
 

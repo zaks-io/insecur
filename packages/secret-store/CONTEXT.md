@@ -1,6 +1,6 @@
-# @insecur/secrets Context
+# @insecur/secret-store Context
 
-Scoped context for agents working in `packages/secrets`. This file is a reading
+Scoped context for agents working in `packages/secret-store`. This file is a reading
 map, not an independent glossary. Authoritative term definitions live in
 `../../CONTEXT.md`.
 

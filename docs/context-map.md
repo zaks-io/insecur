@@ -49,7 +49,7 @@ packages/cli
   -> packages/instance-bootstrap
   -> packages/onboarding
   -> packages/runtime-injection
-  -> packages/secrets
+  -> packages/secret-store
   -> packages/auth
   -> packages/access
   -> packages/audit
@@ -74,7 +74,7 @@ real seams even when the implementations are narrow.
 | `@insecur/tenant-store`       | Tenant-Scoped Store                   | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                                                | Business rules, authorization semantics, encryption                          |
 | `@insecur/crypto`             | Keyring and Encryption Envelope       | tenant-bound key resolution, key versions, ciphertext identity binding, wrapped material shapes                                                   | Secret lifecycle decisions, raw persistence, delivery policy                 |
 | `@insecur/audit`              | Audit Event Writer                    | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references                                                       | Audit export integrity, operation state, Sensitive Value storage             |
-| `@insecur/secrets`            | Secret Version Store                  | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs                                 | Runtime Injection, Promotion approval, raw SQL, provider sync                |
+| `@insecur/secret-store`       | Secret Version Store                  | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs                                 | Runtime Injection, Promotion approval, raw SQL, provider sync                |
 | `@insecur/runtime-injection`  | Runtime Injection Grant Service       | Injection Grants, one-use consume rules, variable-key scoped injection decisions, command output safety                                           | CLI process spawning, child process trust, provider sync                     |
 | `@insecur/onboarding`         | Guided Organization Provisioning      | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation                          | Public onboarding abuse controls, WorkOS authentication, production delivery |
 | `@insecur/instance-bootstrap` | Instance Bootstrap and operator claim | Instance posture, WorkOS-ready identity configuration, Bootstrap Operator Claim CAS, Instance Operator grant, first-Organization owner Membership | WorkOS login UI, public signup, CLI wiring                                   |
@@ -119,7 +119,7 @@ The First Value Milestone should pass through these package Interfaces:
    transactions.
 4. `@insecur/crypto` wraps stored Sensitive Values with tenant/resource identity
    binding.
-5. `@insecur/secrets` creates a Blind Secret Write and appends the Secret
+5. `@insecur/secret-store` creates a Blind Secret Write and appends the Secret
    Version.
 6. `@insecur/runtime-injection` issues and consumes a one-use Injection Grant.
 7. `@insecur/audit` records metadata-only events for successful and denied

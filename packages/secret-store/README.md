@@ -1,4 +1,4 @@
-# @insecur/secrets
+# @insecur/secret-store
 
 Secret Version Store and Blind Secret Write rules.
 
