@@ -1,5 +1,5 @@
 # Local git hooks aligned with pnpm verify and docs/build-tooling.md.
-# CI validate is the enforcement boundary; --no-verify is an accepted human escape hatch.
+# The CI workflow is the enforcement boundary; --no-verify is an accepted human escape hatch.
 pre-commit:
   parallel: true
   jobs:
@@ -25,13 +25,22 @@ pre-commit:
         if command -v gitleaks >/dev/null 2>&1; then
           gitleaks protect --config .gitleaks.toml --staged --redact --no-banner
         else
-          echo "gitleaks not installed; skipping staged secret scan (CI validate still runs gitleaks)."
+          echo "gitleaks not installed; skipping staged secret scan (CI still runs gitleaks)."
         fi
 
     - name: typecheck
       run: pnpm exec turbo run typecheck --cache=local:rw,remote:r
 
 pre-push:
+  parallel: true
   jobs:
-    - name: test
-      run: pnpm exec turbo run test --cache=local:rw,remote:r
+    # Pre-push mirrors the CI workflow's deterministic gate so the high-churn
+    # failures (lint, types, tests, format, duplicates, knip, actionlint) are
+    # caught here, not after a CI round-trip. `pnpm verify` is the same floor
+    # CI's Verify job runs; test:coverage is CI's Coverage job. Security
+    # scanners (semgrep, grype) stay CI-only: low frequency, not the hot path.
+    - name: verify
+      run: pnpm verify
+
+    - name: test-coverage
+      run: pnpm test:coverage
