@@ -1,0 +1,226 @@
+# Required status check: deterministic validation with no secrets (fork-safe).
+# Branch protection keys on the job names below (Verify, Coverage, ...), not
+# the workflow name. See docs/build-tooling.md and ADR-0029 / ADR-0061.
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm verify (CI remote cache)
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+        run: |
+          set -euo pipefail
+          cache_flags="--cache=local:rw,remote:r"
+          if [ -n "${TURBO_REMOTE_CACHE_SIGNATURE_KEY:-}" ] && [ -n "${TURBO_TOKEN:-}" ]; then
+            cache_flags="--cache=local:rw,remote:rw"
+            echo "Remote Turbo cache writes enabled (CI-only, signed when signature key is set)."
+          else
+            echo "::notice::Remote Turbo cache writes skipped. Configure TURBO_TOKEN, TURBO_TEAM, and TURBO_REMOTE_CACHE_SIGNATURE_KEY repository secrets to enable signed CI cache publication (ADR-0053)."
+          fi
+          pnpm duplicates:warn
+          pnpm duplicates:ci
+          pnpm format:check
+          pnpm exec turbo run lint typecheck test "${cache_flags}"
+
+  coverage:
+    name: Coverage (unit, DB-less)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Enforces the ratchet thresholds in vitest.config.ts. Integration and
+      # RLS suites are excluded; this is exactly the suite CI can run without a
+      # database. Same command lefthook pre-push runs locally.
+      - name: Run coverage with thresholds
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  knip:
+    name: Knip (unused code and deps)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Flags unused files, deps, and unlisted deps. Export/type-level dead-code
+      # rules are deferred (knip.json `rules`) until product code wires up the
+      # package index skeletons (ADR-0018); enable them as the ratchet tightens.
+      - name: Run knip
+        run: pnpm knip
+
+  actionlint:
+    name: Actionlint (workflow lint)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install actionlint
+        run: bash scripts/ci/install-actionlint.sh
+
+      # Lints every workflow under .github/workflows and shellchecks run: blocks.
+      # Custom runner labels are declared in .github/actionlint.yaml (ADR-0061).
+      - name: Lint workflows
+        run: actionlint -color
+
+  postgres-integration:
+    name: Postgres integration (bootstrap claim)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Reset local Postgres and migrate
+        run: pnpm dev:db:reset
+
+      - name: Run instance-bootstrap integration tests
+        run: pnpm exec turbo run test:integration --filter=@insecur/instance-bootstrap
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks (OSS CLI)
+        run: bash scripts/ci/install-gitleaks.sh
+
+      - name: Detect secrets
+        run: bash scripts/ci/gitleaks-detect.sh detect
+
+  sast:
+    name: SAST (semgrep)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: auto
+
+  sbom-vulnerability:
+    name: SBOM and vulnerability scan (syft + grype)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM and scan for CVEs
+        run: bash scripts/ci/sbom-grype.sh high
+
+  dependency-scan:
+    name: Dependency scan (placeholder)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Dependency scan gate
+        env:
+          DEPENDENCY_SCAN_ENABLED: ${{ vars.DEPENDENCY_SCAN_ENABLED }}
+        run: |
+          set -euo pipefail
+          if [ "${DEPENDENCY_SCAN_ENABLED:-}" != "true" ]; then
+            echo "::notice::dependency-scan skipped: set repository variable DEPENDENCY_SCAN_ENABLED=true and configure scanner credentials before enabling."
+            exit 0
+          fi
+          echo "::error::DEPENDENCY_SCAN_ENABLED is true but no dependency scanner is wired yet."
+          exit 1

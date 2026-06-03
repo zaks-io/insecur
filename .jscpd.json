@@ -1,0 +1,26 @@
+{
+  "threshold": 0,
+  "reporters": ["console", "ai"],
+  "format": ["typescript", "javascript"],
+  "minLines": 6,
+  "minTokens": 60,
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/.turbo/**",
+    "**/.wrangler/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__tests__/**",
+    "**/generated/**",
+    "**/__generated__/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*.d.ts",
+    "**/*.d.mts",
+    "**/*.d.cts",
+    "**/*.gen.*",
+    "**/*.generated.*"
+  ]
+}

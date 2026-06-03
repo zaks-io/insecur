@@ -29,6 +29,7 @@ The load-bearing decision is the major version of each tool, not the patch. Pin 
 | eslint-config-prettier          | 10               | 10.x latest           |
 | Prettier                        | 3                | 3.5.3                 |
 | Vitest                          | 3                | 3.x latest            |
+| jscpd                           | 4                | 4.2.4                 |
 | @cloudflare/vitest-pool-workers | matches wrangler | latest for wrangler 4 |
 | Wrangler                        | 4                | 4.x latest            |
 | Local Postgres                  | 17               | 17.x latest           |
@@ -102,6 +103,7 @@ catalog:
   prettier: ^3.5.3
   vitest: ^3.0.0
   "@vitest/coverage-v8": ^3.0.0
+  jscpd: ^4.2.4
   lefthook: ^2.1.8
   jiti: ^2.4.0
   globals: ^16.0.0
@@ -180,17 +182,70 @@ Set the developer default by putting `--cache=local:rw,remote:r` into the root s
     "build": "turbo run build --cache=local:rw,remote:r",
     "typecheck": "turbo run typecheck --cache=local:rw,remote:r",
     "lint": "turbo run lint --cache=local:rw,remote:r",
+    "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
+    "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "test": "turbo run test --cache=local:rw,remote:r",
     "test:rls": "turbo run test:rls",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:warn && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "lefthook install",
   },
 }
 ```
 
-`verify` is the single local command that mirrors the CI `validate` job minus the steps that need secrets. A green `verify` should predict a green `validate`.
+`verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the steps that need secrets. A green `verify` should predict a green `CI`.
+
+## Duplicate Code Detection
+
+jscpd is the repo-wide copy/paste detector. It scans product TypeScript and JavaScript under
+`apps`, `packages`, and `scripts` using `.jscpd.json`, excluding tests and generated code. Three
+commands wrap it, each with a different threshold:
+
+```sh
+pnpm duplicates:check   # threshold 0  — strict local zero gate
+pnpm duplicates:ci      # threshold 0.5 — ratchet floor, blocking in CI and pre-push
+pnpm duplicates:warn    # annotations only, never fails
+```
+
+`duplicates:check` exits non-zero on any clone; it is the aspirational zero target for local use.
+`duplicates:ci` is the **blocking ratchet**: set just above the current duplication (currently
+~0.42%) so CI and pre-push are green today but any new duplication trips them. Lower the `--threshold`
+in the `duplicates:ci` script as the backlog burns down; never raise it.
+
+`duplicates:warn` writes `.jscpd-report/ci/jscpd-report.json` and emits GitHub warning annotations for
+each clone without failing, so reviewers see every clone even those under the ratchet. The `CI`
+workflow and `pnpm verify` run `duplicates:warn` (annotate) followed by `duplicates:ci` (enforce).
+Once the backlog reaches zero, drop the ratchet to `0` and `duplicates:ci` becomes `duplicates:check`.
+
+## Unused Code and Dependencies (knip)
+
+[knip](https://knip.dev) flags unused files, unused and unlisted dependencies, and dead exports
+across the pnpm workspace using `knip.json`. The blocking command, run in CI (the `Knip` job),
+pre-push, and `pnpm verify`, is:
+
+```sh
+pnpm knip
+```
+
+Export- and type-level dead-code rules (`exports`, `types`, `nsExports`, `nsTypes`, `enumMembers`,
+`duplicates`) are deferred off in `knip.json` because the package `src/index.ts` files are deliberate
+empty skeletons (ADR-0018) and nothing re-exports through them yet, so every internal symbol would
+read as unused. The active rules catch dependency drift and orphaned files now. As product code wires
+the package indexes up, turn those rules back on one at a time — that is the knip ratchet.
+
+## Workflow Lint (actionlint)
+
+[actionlint](https://github.com/rhysd/actionlint) lints every workflow under `.github/workflows`
+and shellchecks each `run:` block. It is blocking in CI (the `Actionlint` job) and runs in pre-push
+and `pnpm verify`.
+
+CI installs a pinned actionlint via `scripts/ci/install-actionlint.sh` and runs the binary directly,
+so the CI job is the authoritative gate. Locally, `pnpm lint:actions` (via
+`scripts/ci/actionlint-local.mjs`) runs actionlint if it is on PATH and skips with a notice
+otherwise, mirroring the optional-local gitleaks pattern; pre-push only triggers it when a workflow
+file or `.github/actionlint.yaml` is in the push. Blacksmith's custom runner label is unknown to
+actionlint, so it is declared in `.github/actionlint.yaml` (ADR-0061) to suppress the false positive.
 
 ## ESLint (eslint.config.ts)
 
@@ -260,7 +315,7 @@ Each package defines `"lint": "eslint ."` so the Turbo `lint` task fans out per 
 
 ### Complexity And Size Budgets
 
-These caps keep generated code small and decomposed. Agents write the bulk of this codebase and will, unprompted, emit long functions and large files; the budgets fail the build before that lands instead of relying on a reviewer to catch it. They are core ESLint rules (not type-aware), so they apply to JS and TS alike, and they run in the same `validate` gate at `--max-warnings=0`, so the limit blocks every author identically.
+These caps keep generated code small and decomposed. Agents write the bulk of this codebase and will, unprompted, emit long functions and large files; the budgets fail the build before that lands instead of relying on a reviewer to catch it. They are core ESLint rules (not type-aware), so they apply to JS and TS alike, and they run in the same `CI` gate at `--max-warnings=0`, so the limit blocks every author identically.
 
 | Rule                     | Value | Caps                                       |
 | ------------------------ | ----- | ------------------------------------------ |
@@ -302,7 +357,7 @@ pnpm-lock.yaml
 
 ## lefthook.yml
 
-Pre-commit catches everything that can run locally; pre-push runs the local-runnable test tier. `--no-verify` is an accepted human escape hatch because CI branch protection is the real enforcement boundary, not the hook.
+Pre-commit catches per-file issues on staged files (format, lint, typecheck, staged secret scan). Pre-push runs the full deterministic CI gate so the high-churn failures — lint, types, tests, format, duplicates, knip, actionlint, coverage thresholds — are caught locally instead of after a CI round-trip: `pnpm verify` is the same floor CI's `Verify` job runs, and `pnpm test:coverage` is CI's `Coverage` job. Security scanners (semgrep, grype, gitleaks history) stay CI-only because they are low-frequency and do not belong in the push hot path. `--no-verify` is an accepted human escape hatch because CI branch protection is the real enforcement boundary, not the hook.
 
 The `format-and-lint` group runs Prettier then ESLint sequentially on the same TypeScript files so `eslint --fix` operates on Prettier's output and the two do not race when re-staging. Independent jobs run in parallel.
 
@@ -335,9 +390,12 @@ pre-commit:
       run: pnpm exec turbo run typecheck --cache=local:rw,remote:r
 
 pre-push:
+  parallel: true
   jobs:
-    - name: test
-      run: pnpm exec turbo run test --cache=local:rw,remote:r
+    - name: verify
+      run: pnpm verify
+    - name: test-coverage
+      run: pnpm test:coverage
 ```
 
 `gitleaks protect --staged` is the pre-commit form for gitleaks 8.x; on gitleaks 8.18 and later use the equivalent `gitleaks git --staged --redact`. The same gitleaks scan runs authoritatively in CI regardless, so a bypassed hook is still caught.
@@ -346,7 +404,7 @@ pre-push:
 
 Two distinct tiers, separated because one can run anywhere and one needs a real database and secrets.
 
-1. **Worker and unit tests (`test`).** Run under Vitest with `@cloudflare/vitest-pool-workers` so code executes in `workerd` against real bindings. Runs locally, in pre-push, and in CI `validate`. No external secrets.
+1. **Worker and unit tests (`test`).** Run under Vitest with `@cloudflare/vitest-pool-workers` so code executes in `workerd` against real bindings. Runs locally, in pre-push, and in the `CI` workflow. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage and enforces the ratchet thresholds in `vitest.config.ts`; it excludes integration and RLS suites so it stays DB-less.
 2. **Tenant-isolation tests (`test:rls`).** Run under plain Vitest with `postgres.js` connecting to a per-PR Neon branch as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME` (ADR-0054). Never SQLite or PGlite, never the migration role. Runs only in CI on the preview job and never on forked pull requests. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
 
 Local Postgres uses the same major version as the stable Neon target, currently Postgres 17
@@ -357,19 +415,23 @@ available; it is not the authoritative RLS gate.
 
 GitHub Actions on Blacksmith-hosted runners (ADR-0061). Every job sets `runs-on` to a Blacksmith runner label (e.g. `blacksmith-4vcpu-ubuntu-2404`), not `ubuntu-latest`; the Blacksmith GitHub App must be installed on the org. Every job installs with `pnpm install --frozen-lockfile` on Node 24 and reads the remote cache; only CI writes it.
 
-### Required status-check workflow: `validate`
+### Required status-check workflow: `CI` (`ci.yml`)
 
-Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets:
+Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets. Branch protection keys on the job names within this workflow (`Verify`, `Coverage`, ...), not the workflow name, so the jobs are the required checks:
 
 ```
 turbo run lint typecheck build test --cache=local:rw,remote:rw
 prettier --check .
+test:coverage (unit coverage, enforces ratchet thresholds; DB-less)
+knip (unused files, deps, and unlisted deps)
+actionlint (workflow lint + run-block shellcheck)
 gitleaks (full working tree, authoritative)
 semgrep (stock rule packs; SAST; fills the project-status SAST gap)
 syft (generate SBOM) then grype (scan SBOM for known CVEs)
+jscpd duplicate-code: warning annotations + blocking ratchet (duplicates:ci, threshold 0.5%)
 ```
 
-This job is a required status check on the protected branch. It runs for forked pull requests too, because it touches no secrets.
+These jobs are required status checks on the protected branch. They run for forked pull requests too, because they touch no secrets.
 
 ### Preview workflow: `pr-preview`
 
@@ -420,11 +482,11 @@ Connecting `test:rls` as the migration role silently disables RLS and turns the 
 
 ## Fork Isolation
 
-A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no `test:rls`. The `pr-preview` workflow guards every secret step on the PR not originating from a fork. An untrusted fork of a secrets manager must never touch a credential. The `validate` job is the only thing a fork PR runs, and it holds no secrets.
+A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no `test:rls`. The `pr-preview` workflow guards every secret step on the PR not originating from a fork. An untrusted fork of a secrets manager must never touch a credential. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
 
 ## Code Review Gate
 
-CodeRabbit performs automated PR review and is additive to the deterministic floor, not a replacement for it. Configure it through `.coderabbit.yaml`. CodeRabbit conversations must be resolved before merge. Branch protection requires the `validate` status check, requires review approval, and has administrator bypass disabled so the protected branch rules apply uniformly, including to the operator. No force-push to the protected branch.
+CodeRabbit performs automated PR review and is additive to the deterministic floor, not a replacement for it. Configure it through `.coderabbit.yaml`. CodeRabbit conversations must be resolved before merge. Branch protection requires the `CI` workflow's status checks, requires review approval, and has administrator bypass disabled so the protected branch rules apply uniformly, including to the operator. No force-push to the protected branch.
 
 ## Done
 
@@ -435,11 +497,12 @@ The build-tooling layer is complete when all of the following are verifiable:
 - `pnpm verify` runs lint, typecheck, test, and `prettier --check` green locally, reading the remote cache but not writing it.
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
-- A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `validate`; test files are exempt from the two length caps only.
+- A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `CI`; test files are exempt from the two length caps only.
 - An upstream type error fails a downstream `typecheck` rather than returning a stale cached pass (the `topo` transit node works).
-- A commit that introduces a type error, a lint error, a formatting drift, or a staged secret is blocked at pre-commit; a push with a failing local test is blocked at pre-push; `--no-verify` bypasses locally but the same checks block at CI `validate`.
+- `pnpm duplicates:warn` emits GitHub warning annotations for every jscpd clone without failing `CI`; `pnpm duplicates:check` is available as the strict local zero-threshold gate.
+- A commit that introduces a type error, a lint error, a formatting drift, or a staged secret is blocked at pre-commit; a push with a failing local test or a coverage threshold regression is blocked at pre-push; `--no-verify` bypasses locally but the same checks block in `CI`.
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.
-- A forked pull request runs `validate` only and reaches no secret-bearing step.
+- A forked pull request runs the `CI` workflow only and reaches no secret-bearing step.
 - A merge to `main` auto-deploys staging; a production deploy waits on a GitHub Environment required reviewer and runs under a machine identity distinct from the approver.
 - The daily security scan runs and files criticals to Linear project INS-.
-- Branch protection has administrator bypass disabled and requires the `validate` check plus review approval.
+- Branch protection has administrator bypass disabled and requires the `CI` workflow's checks plus review approval.

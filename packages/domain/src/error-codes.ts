@@ -48,7 +48,24 @@ export type InjectionErrorCode = (typeof INJECTION_ERROR_CODES)[keyof typeof INJ
 export const ONBOARDING_ERROR_CODES = {
   alreadyProvisioned: "onboarding.already_provisioned",
   resourceConflict: "onboarding.resource_conflict",
+  notInstanceOperator: "onboarding.not_instance_operator",
+  invitationInvalid: "onboarding.invitation_invalid",
+  invitationNotPending: "onboarding.invitation_not_pending",
+  invitationInviteeMismatch: "onboarding.invitation_invitee_mismatch",
+  membershipAlreadyExists: "onboarding.membership_already_exists",
 } as const;
+
+/** Instance bootstrap and Bootstrap Operator Claim error codes. */
+export const BOOTSTRAP_ERROR_CODES = {
+  alreadyBootstrapped: "bootstrap.already_bootstrapped",
+  notBootstrapped: "bootstrap.not_bootstrapped",
+  claimNotAvailable: "bootstrap.claim_not_available",
+  alreadyClaimed: "bootstrap.already_claimed",
+  invalidSecret: "bootstrap.invalid_secret",
+  authenticatedActorRequired: "bootstrap.authenticated_actor_required",
+} as const;
+
+export type BootstrapErrorCode = (typeof BOOTSTRAP_ERROR_CODES)[keyof typeof BOOTSTRAP_ERROR_CODES];
 
 export type OnboardingErrorCode =
   (typeof ONBOARDING_ERROR_CODES)[keyof typeof ONBOARDING_ERROR_CODES];
@@ -81,6 +98,7 @@ export type KnownErrorCode =
   | SecretErrorCode
   | InjectionErrorCode
   | OnboardingErrorCode
+  | BootstrapErrorCode
   | CryptoErrorCode
   | StoreErrorCode
   | AuditErrorCode

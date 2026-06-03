@@ -2,6 +2,7 @@ import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
 import {
   brandOpaqueResourceIdForPrefix,
+  brandValue,
   environmentId,
   injectionGrantId,
   INJECTION_ERROR_CODES,
@@ -13,8 +14,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
-import { TEST_ENV_B_ID, TEST_PROJECT_B_ID } from "../../tenant-store/test/rls/test-ids.js";
-import { uniqueVariableKey, writeTestSecret } from "../../secrets/test/integration-helpers.js";
+import {
+  TEST_ENV_B_ID,
+  TEST_PROJECT_B_ID,
+  TEST_USER_ID,
+} from "../../tenant-store/test/rls/test-ids.js";
+import { uniqueVariableKey, writeTestSecret } from "../../secret-store/test/integration-helpers.js";
 
 import { InjectionGrantError } from "../src/injection-grant-error.js";
 import { consumeInjectionGrant, issueInjectionGrant } from "../src/injection-grants.js";
@@ -62,10 +67,20 @@ async function loadAuditRow(
         event_code: string;
         outcome: string;
         result_code: string | null;
+        resource_type: string | null;
         resource_id: string | null;
+        related_resource_type: string | null;
+        related_resource_id: string | null;
       }[]
     >`
-      SELECT event_code, outcome, result_code, resource_id
+      SELECT
+        event_code,
+        outcome,
+        result_code,
+        resource_type,
+        resource_id,
+        related_resource_type,
+        related_resource_id
       FROM audit_events
       WHERE id = ${auditEventId}
       LIMIT 1
@@ -160,6 +175,20 @@ describeIntegration("Runtime Injection Grant Service", () => {
       }),
     ).not.toContain(new TextDecoder().decode(plaintext));
 
+    const consumeAuditEventId = consumed.auditEventId;
+    if (consumeAuditEventId === undefined) {
+      throw new Error("expected consume audit event id");
+    }
+    const consumeAudit = await loadAuditRow(org, consumeAuditEventId);
+    expect(consumeAudit?.event_code).toBe("runtime_injection.grant_consumed");
+    expect(consumeAudit?.resource_type).toBe("injection_grant");
+    expect(consumeAudit?.resource_id).toBe(brandOpaqueResourceIdForPrefix("igr", issued.grantId));
+    expect(consumeAudit?.related_resource_type).toBe("secret_version");
+    expect(consumeAudit?.related_resource_id).toBe(
+      brandOpaqueResourceIdForPrefix("sv", written.secretVersionId),
+    );
+    expect(JSON.stringify(consumeAudit)).not.toContain(new TextDecoder().decode(plaintext));
+
     await expect(
       consumeInjectionGrant({
         organizationId: org,
@@ -251,6 +280,141 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(new TextDecoder().decode(consumed.valueUtf8)).not.toBe(
       new TextDecoder().decode(secondValue),
     );
+
+    const consumeAuditEventId = consumed.auditEventId;
+    if (consumeAuditEventId === undefined) {
+      throw new Error("expected consume audit event id");
+    }
+    const consumeAudit = await loadAuditRow(org, consumeAuditEventId);
+    expect(consumeAudit?.related_resource_type).toBe("secret_version");
+    expect(consumeAudit?.related_resource_id).toBe(
+      brandOpaqueResourceIdForPrefix("sv", firstWrite.secretVersionId),
+    );
+    expect(consumeAudit?.related_resource_id).not.toBe(
+      brandOpaqueResourceIdForPrefix("sv", secondWrite.secretVersionId),
+    );
+  });
+
+  it("denies consume with org-only audit when grant id is malformed", async () => {
+    const org = testOrganization();
+    const malformedGrantId = brandValue<string, "InjectionGrantId">("igr_not-a-valid-grant-id");
+    const variableKey = uniqueVariableKey("FV11_MALFORMED_GRANT");
+    const plaintext = new TextEncoder().encode(`malformed-grant-${crypto.randomUUID()}`);
+    await writeTestSecret(variableKey, plaintext);
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId: malformedGrantId,
+        variableKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const deniedRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return sql<
+          {
+            event_code: string;
+            outcome: string;
+            result_code: string | null;
+            project_id: string | null;
+            environment_id: string | null;
+            resource_type: string | null;
+            resource_id: string | null;
+          }[]
+        >`
+          SELECT
+            event_code,
+            outcome,
+            result_code,
+            project_id,
+            environment_id,
+            resource_type,
+            resource_id
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied}
+            AND actor_user_id = ${TEST_USER_ID}
+            AND project_id IS NULL
+            AND environment_id IS NULL
+            AND resource_id IS NULL
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+
+    expect(deniedRows).toHaveLength(1);
+    expect(deniedRows[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
+      outcome: "denied",
+      result_code: INJECTION_ERROR_CODES.grantDenied,
+      project_id: null,
+      environment_id: null,
+      resource_type: null,
+      resource_id: null,
+    });
+    expect(JSON.stringify(deniedRows)).not.toContain(malformedGrantId);
+    expect(JSON.stringify(deniedRows)).not.toContain(new TextDecoder().decode(plaintext));
+  });
+
+  it("denies consume with org-only audit when grant id does not exist", async () => {
+    const org = testOrganization();
+    const missingGrantId = injectionGrantId.generate();
+    const variableKey = uniqueVariableKey("FV11_MISSING_GRANT");
+    const plaintext = new TextEncoder().encode(`missing-grant-${crypto.randomUUID()}`);
+    await writeTestSecret(variableKey, plaintext);
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId: missingGrantId,
+        variableKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const deniedRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return sql<
+          {
+            event_code: string;
+            outcome: string;
+            result_code: string | null;
+            project_id: string | null;
+            environment_id: string | null;
+            resource_type: string | null;
+            resource_id: string | null;
+          }[]
+        >`
+          SELECT
+            event_code,
+            outcome,
+            result_code,
+            project_id,
+            environment_id,
+            resource_type,
+            resource_id
+          FROM audit_events
+          WHERE resource_id = ${brandOpaqueResourceIdForPrefix("igr", missingGrantId)}
+            AND event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied}
+        `;
+      },
+    );
+
+    expect(deniedRows).toHaveLength(1);
+    expect(deniedRows[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
+      outcome: "denied",
+      result_code: INJECTION_ERROR_CODES.grantDenied,
+      project_id: null,
+      environment_id: null,
+      resource_type: "injection_grant",
+      resource_id: brandOpaqueResourceIdForPrefix("igr", missingGrantId),
+    });
+    expect(JSON.stringify(deniedRows)).not.toContain(new TextDecoder().decode(plaintext));
   });
 
   it("denies issue with audit when variable key selector does not exist", async () => {
@@ -344,7 +508,32 @@ describeIntegration("Runtime Injection Grant Service", () => {
     ).rejects.toBeInstanceOf(InjectionGrantError);
   });
 
-  it("denies consume when a grant row has more than one secret binding", async () => {
+  it("rejects consume when variable key selector does not match grant binding", async () => {
+    const org = testOrganization();
+    const allowedKey = uniqueVariableKey("FV11_VK_ALLOWED");
+    const otherKey = uniqueVariableKey("FV11_VK_OTHER");
+    await writeTestSecret(allowedKey, new TextEncoder().encode("allowed-vk"));
+    await writeTestSecret(otherKey, new TextEncoder().encode("other-vk"));
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey: allowedKey },
+      actor: testActor(),
+    });
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId: issued.grantId,
+        variableKey: otherKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+  });
+
+  it("denies consume without burning a legacy multi-key grant row", async () => {
     const org = testOrganization();
     const firstKey = uniqueVariableKey("FV11_MULTI_A");
     const secondKey = uniqueVariableKey("FV11_MULTI_B");
@@ -384,6 +573,29 @@ describeIntegration("Runtime Injection Grant Service", () => {
         organizationId: org,
         grantId,
         variableKey: firstKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const afterFirstAttempt = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        const rows = await sql<{ consumed_at: Date | null }[]>`
+          SELECT consumed_at
+          FROM injection_grants
+          WHERE id = ${grantId}
+          LIMIT 1
+        `;
+        return rows[0];
+      },
+    );
+    expect(afterFirstAttempt?.consumed_at).toBeNull();
+
+    await expect(
+      consumeInjectionGrant({
+        organizationId: org,
+        grantId,
+        variableKey: secondKey,
         actor: testActor(),
       }),
     ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });

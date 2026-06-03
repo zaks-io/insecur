@@ -26,6 +26,7 @@ export {
   type RequestId,
   type UserId,
   type StagedChangeId,
+  type InvitationId,
   organizationId,
   projectId,
   environmentId,
@@ -42,6 +43,7 @@ export {
   requestId,
   userId,
   stagedChangeId,
+  invitationId,
 } from "./resource-ids.js";
 export {
   type DisplayName,
@@ -67,6 +69,8 @@ export {
   type InjectionErrorCode,
   ONBOARDING_ERROR_CODES,
   type OnboardingErrorCode,
+  BOOTSTRAP_ERROR_CODES,
+  type BootstrapErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,

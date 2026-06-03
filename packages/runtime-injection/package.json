@@ -23,7 +23,6 @@
     "@insecur/audit": "workspace:*",
     "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
-    "@insecur/secrets": "workspace:*",
     "@insecur/tenant-store": "workspace:*"
   },
   "devDependencies": {

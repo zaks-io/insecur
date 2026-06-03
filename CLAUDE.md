@@ -72,7 +72,10 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 ### Quick reference
 
 - **Install deps:** `pnpm install --frozen-lockfile`
-- **Verify:** `pnpm verify` (format check, lint, typecheck, and unit-test task fan-out)
+- **Verify:** `pnpm verify` (duplicate warnings + blocking ratchet, knip, format check, lint, typecheck, and unit-test task fan-out)
+- **Duplicate scan:** `pnpm duplicates:check` (strict jscpd zero gate). CI/pre-push enforce `pnpm duplicates:ci` (ratchet, threshold 0.5%).
+- **Unused code/deps:** `pnpm knip` (blocking in CI, pre-push, and verify)
+- **Workflow lint:** `pnpm lint:actions` (actionlint; blocking in CI, optional-local in pre-push/verify)
 - **Typecheck:** `pnpm typecheck` (runs across all 10 workspace packages)
 - **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and scaffold file checks)
 - **Local Postgres:** `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
@@ -85,8 +88,9 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - `engine-strict=true` in `.npmrc` means `pnpm install` will hard-fail if Node is not on major 24. Always verify `node --version` first.
 - `@insecur/worker` has a scaffold-only `/healthz` route. It is not product behavior and does not prove storage, auth, encryption, audit, or Runtime Injection.
 - ESLint, Prettier, Vitest, and `pnpm verify` are wired up. Package tests currently use Vitest's no-test pass-through until product slices add real tests.
+- jscpd duplicate-code detection: `pnpm duplicates:check` is the strict local zero gate; the `CI` workflow and pre-push run `pnpm duplicates:warn` (annotations) then `pnpm duplicates:ci` (blocking ratchet at threshold 0.5%, just above the current ~0.42% backlog). knip (`pnpm knip`) is also blocking in CI, pre-push, and verify; its export/type dead-code rules are deferred off in `knip.json` until package indexes wire up (ADR-0018).
 - Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
 - `pnpm test:rls` is wired as an uncached tenant-store placeholder. Real Postgres RLS tests start with FV-04 and require `DATABASE_URL_RUNTIME`.
-- Lefthook pre-commit runs staged Prettier/ESLint, optional local gitleaks (skipped when `gitleaks` is not on PATH), and `turbo typecheck`; pre-push runs `turbo test`. CI `validate` and `security-daily` workflows mirror `pnpm verify` plus supply-chain scan jobs on Blacksmith runners (`docs/build-tooling.md`).
+- Lefthook pre-commit runs staged Prettier/ESLint, optional local gitleaks (skipped when `gitleaks` is not on PATH), and `turbo typecheck`; pre-push runs `pnpm verify` + `pnpm test:coverage`, mirroring CI's `Verify` and `Coverage` jobs so lint/type/test/format/dup/knip/actionlint/coverage churn is caught before pushing. The `CI` (`ci.yml`) and `security-daily` workflows add the security scanners (gitleaks, semgrep, syft+grype) on Blacksmith runners; those stay CI-only and out of the push hot path (`docs/build-tooling.md`).
 - Package `src/index.ts` files export `export {};` — this is a deliberate empty skeleton per ADR-0018.
 - `pnpm-workspace.yaml` has `strictDepBuilds: true` and `onlyBuiltDependencies` allowlist. Adding a dependency that runs lifecycle scripts requires an explicit allowlist addition.

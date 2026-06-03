@@ -3,8 +3,9 @@ import {
   INSECUR_SESSION_CREDENTIAL_HEADER,
   parseRequestCredentials,
 } from "@insecur/auth";
-import { errorEnvelope, requestId, successEnvelope } from "@insecur/domain";
+import { requestId, successEnvelope } from "@insecur/domain";
 import { Hono } from "hono";
+import { AuthFailureError } from "../../auth/auth-failure-error.js";
 import { createAuthContext } from "../../auth/auth-context.js";
 import type { WorkerEnv } from "../../env.js";
 
@@ -27,17 +28,7 @@ authRoutes.post("/cli/exchange", async (context) => {
     requestId: reqId,
   });
   if (!exchanged.ok) {
-    return context.json(
-      errorEnvelope(
-        {
-          code: exchanged.failure.code,
-          message: exchanged.failure.message,
-          retryable: exchanged.failure.retryable,
-        },
-        { requestId: reqId },
-      ),
-      401,
-    );
+    throw new AuthFailureError(exchanged.failure);
   }
   return context.json(successEnvelope(exchanged.body, { requestId: reqId }), 200, {
     [INSECUR_SESSION_CREDENTIAL_HEADER]: exchanged.credential,

@@ -1,5 +1,6 @@
 **/dist/**
 **/.wrangler/**
 **/coverage/**
+.jscpd-report/
 pnpm-lock.yaml
 **/*.gen.ts

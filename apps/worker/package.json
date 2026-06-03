@@ -17,6 +17,7 @@
     "@insecur/access": "workspace:*",
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
+    "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/onboarding": "workspace:*",
     "@insecur/runtime-injection": "workspace:*",

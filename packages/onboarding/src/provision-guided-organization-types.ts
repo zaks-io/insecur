@@ -26,7 +26,10 @@ export interface ProvisionGuidedOrganizationInput {
   projectDisplayName?: DisplayName;
   teamDisplayName?: DisplayName;
   environmentDisplayName?: DisplayName;
-  /** Client-minted opaque IDs for idempotent retries (see docs/cli-and-sync.md). */
+  /**
+   * Client-minted opaque IDs for create (see docs/cli-and-sync.md). Reusing an ID that
+   * already exists in the tenant yields `onboarding.resource_conflict`.
+   */
   resourceIds?: ProvisionGuidedOrganizationResourceIds;
   request?: AuditRequestRef;
 }

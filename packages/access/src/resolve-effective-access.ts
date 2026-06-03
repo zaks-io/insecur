@@ -29,47 +29,9 @@ export interface EffectiveAccessResult {
 export type LoadMembershipsFn = (input: LoadMembershipsInput) => Promise<readonly MembershipRow[]>;
 
 export interface ResolveEffectiveAccessDeps {
-  loadMemberships: LoadMembershipsFn;
+  loadMemberships?: LoadMembershipsFn;
   memo?: EffectiveAccessMemo;
   requestCache?: EffectiveAccessRequestCache;
-}
-
-export interface ResolveEffectiveAccessOptions {
-  deps?: ResolveEffectiveAccessDeps;
-  memo?: EffectiveAccessMemo;
-  requestCache?: EffectiveAccessRequestCache;
-}
-
-const defaultDeps: ResolveEffectiveAccessDeps = {
-  loadMemberships: loadActorMemberships,
-};
-
-function resolveLoadMemberships(options?: ResolveEffectiveAccessOptions): LoadMembershipsFn {
-  return options?.deps?.loadMemberships ?? defaultDeps.loadMemberships;
-}
-
-function resolveMemo(options?: ResolveEffectiveAccessOptions): EffectiveAccessMemo | undefined {
-  return options?.memo ?? options?.deps?.memo;
-}
-
-function resolveRequestCache(
-  options?: ResolveEffectiveAccessOptions,
-): EffectiveAccessRequestCache | undefined {
-  return options?.requestCache ?? options?.deps?.requestCache;
-}
-
-function resolveDeps(options?: ResolveEffectiveAccessOptions): ResolveEffectiveAccessDeps {
-  const loadMemberships = resolveLoadMemberships(options);
-  const memo = resolveMemo(options);
-  const requestCache = resolveRequestCache(options);
-  const deps: ResolveEffectiveAccessDeps = { loadMemberships };
-  if (memo) {
-    deps.memo = memo;
-  }
-  if (requestCache) {
-    deps.requestCache = requestCache;
-  }
-  return deps;
 }
 
 function assertSingleOrganization(coordinates: readonly ResourceCoordinate[]): OrganizationId {
@@ -88,16 +50,17 @@ function assertSingleOrganization(coordinates: readonly ResourceCoordinate[]): O
 async function loadMembershipsForCoordinates(
   actor: ActorRef,
   coordinates: readonly ResourceCoordinate[],
-  deps: ResolveEffectiveAccessDeps,
+  deps?: ResolveEffectiveAccessDeps,
 ): Promise<readonly MembershipRow[]> {
   const organizationId = assertSingleOrganization(coordinates);
   const projectIds = uniqueProjectIdsFromCoordinates(coordinates);
   const loadInput: LoadMembershipsInput = { actor, organizationId, projectIds };
-  const requestCache = deps.requestCache;
+  const loadMemberships = deps?.loadMemberships ?? loadActorMemberships;
+  const requestCache = deps?.requestCache;
   if (requestCache) {
-    return requestCache.loadMemberships(loadInput, deps.loadMemberships);
+    return requestCache.loadMemberships(loadInput, loadMemberships);
   }
-  return deps.loadMemberships(loadInput);
+  return loadMemberships(loadInput);
 }
 
 function buildEffectiveAccessResult(
@@ -117,14 +80,13 @@ function buildEffectiveAccessResult(
 export async function resolveEffectiveAccessBatch(
   actor: ActorRef,
   coordinates: readonly ResourceCoordinate[],
-  options?: ResolveEffectiveAccessOptions,
+  deps?: ResolveEffectiveAccessDeps,
 ): Promise<readonly EffectiveAccessResult[]> {
   if (coordinates.length === 0) {
     return [];
   }
 
-  const deps = resolveDeps(options);
-  const memo = deps.memo;
+  const memo = deps?.memo;
   const uncachedCoordinates = coordinates.filter((coordinate) => !memo?.get(actor, coordinate));
 
   const computed = new Map<string, EffectiveAccessResult>();
@@ -158,8 +120,8 @@ export async function resolveEffectiveAccessBatch(
 export async function resolveEffectiveAccess(
   actor: ActorRef,
   coordinate: ResourceCoordinate,
-  options?: ResolveEffectiveAccessOptions,
+  deps?: ResolveEffectiveAccessDeps,
 ): Promise<EffectiveAccessResult> {
-  const [result] = await resolveEffectiveAccessBatch(actor, [coordinate], options);
+  const [result] = await resolveEffectiveAccessBatch(actor, [coordinate], deps);
   return result ?? buildEffectiveAccessResult(coordinate, []);
 }

@@ -55,7 +55,7 @@ describe("resolveEffectiveAccess", () => {
     const result = await resolveEffectiveAccess(
       ACTOR,
       { organizationId: ORG_A, projectId: PROJECT_A },
-      { deps: { loadMemberships } },
+      { loadMemberships },
     );
 
     for (const scope of [
@@ -81,7 +81,7 @@ describe("resolveEffectiveAccess", () => {
     const result = await resolveEffectiveAccess(
       OUTSIDER,
       { organizationId: ORG_A, projectId: PROJECT_A },
-      { deps: { loadMemberships } },
+      { loadMemberships },
     );
 
     expect(result.scopes).toEqual([]);
@@ -109,8 +109,8 @@ describe("resolveEffectiveAccess", () => {
     const memo = new EffectiveAccessMemo();
     const coordinate = { organizationId: ORG_A, projectId: PROJECT_A };
 
-    await resolveEffectiveAccess(ACTOR, coordinate, { deps: { loadMemberships, memo } });
-    await resolveEffectiveAccess(ACTOR, coordinate, { deps: { loadMemberships, memo } });
+    await resolveEffectiveAccess(ACTOR, coordinate, { loadMemberships, memo });
+    await resolveEffectiveAccess(ACTOR, coordinate, { loadMemberships, memo });
 
     expect(loadMemberships).toHaveBeenCalledTimes(1);
   });
@@ -128,7 +128,7 @@ describe("resolveEffectiveAccessBatch", () => {
     ]);
 
     const oneProject = [coordinateForProject(syntheticProjectId(1))];
-    await resolveEffectiveAccessBatch(ACTOR, oneProject, { deps: { loadMemberships } });
+    await resolveEffectiveAccessBatch(ACTOR, oneProject, { loadMemberships });
     expect(loadMemberships).toHaveBeenCalledTimes(1);
 
     vi.mocked(loadMemberships).mockClear();
@@ -137,7 +137,7 @@ describe("resolveEffectiveAccessBatch", () => {
       coordinateForProject(syntheticProjectId(index + 1)),
     );
     const results = await resolveEffectiveAccessBatch(ACTOR, fiftyProjects, {
-      deps: { loadMemberships },
+      loadMemberships,
     });
 
     expect(results).toHaveLength(50);
@@ -159,12 +159,13 @@ describe("resolveEffectiveAccessBatch", () => {
     const requestCache = new EffectiveAccessRequestCache();
 
     await resolveEffectiveAccessBatch(ACTOR, [coordinateForProject(syntheticProjectId(1))], {
-      deps: { loadMemberships, requestCache },
+      loadMemberships,
+      requestCache,
     });
     await resolveEffectiveAccessBatch(
       ACTOR,
       [coordinateForProject(syntheticProjectId(1)), coordinateForProject(syntheticProjectId(2))],
-      { deps: { loadMemberships, requestCache } },
+      { loadMemberships, requestCache },
     );
 
     expect(loadMemberships).toHaveBeenCalledTimes(2);

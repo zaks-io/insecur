@@ -25,7 +25,8 @@ export type OpaqueResourceIdPrefix =
   | "op"
   | "req"
   | "usr"
-  | "stg";
+  | "stg"
+  | "inv";
 
 const PREFIX_TO_LITERAL: Record<OpaqueResourceIdPrefix, string> = {
   org: "org_",
@@ -44,6 +45,7 @@ const PREFIX_TO_LITERAL: Record<OpaqueResourceIdPrefix, string> = {
   req: "req_",
   usr: "usr_",
   stg: "stg_",
+  inv: "inv_",
 };
 
 export type ParseOpaqueResourceIdResult =

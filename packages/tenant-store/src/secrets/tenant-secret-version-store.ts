@@ -6,6 +6,7 @@ import {
   encodeInlineCiphertextStorageRef,
 } from "./ciphertext-storage-ref.js";
 import { resolveSecretForWrite as resolveSecretForWriteRow } from "./resolve-secret-for-write.js";
+import { SecretVersionStoreNotFoundError } from "./errors.js";
 export { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
 import type {
   AppendSecretVersionAndMakeLiveInput,
@@ -40,6 +41,71 @@ function toStoredWrappedMaterial(row: SecretVersionRow): StoredWrappedSecretMate
     projectDataKeyVersion: row.project_data_key_version,
     ciphertext: decodeInlineCiphertextStorageRef(row.ciphertext_storage_ref),
   };
+}
+
+async function lockSecretForAppend(
+  sql: TenantScopedSql,
+  orgId: AppendSecretVersionAndMakeLiveInput["organizationId"],
+  secretIdValue: SecretId,
+): Promise<void> {
+  const locked = await sql<{ id: string }[]>`
+    SELECT id
+    FROM secrets
+    WHERE id = ${secretIdValue}
+      AND org_id = ${orgId}
+    FOR UPDATE
+  `;
+  if (!locked[0]) {
+    throw new SecretVersionStoreNotFoundError("secret not found for append-and-make-live");
+  }
+}
+
+async function insertVersionAndMakeLive(
+  sql: TenantScopedSql,
+  input: AppendSecretVersionAndMakeLiveInput,
+  storageRef: string,
+): Promise<number> {
+  const rows = await sql<{ version_number: number }[]>`
+    WITH inserted AS (
+      INSERT INTO secret_versions (
+        id,
+        org_id,
+        secret_id,
+        version_number,
+        organization_data_key_version,
+        project_data_key_version,
+        ciphertext_storage_ref
+      )
+      SELECT
+        ${input.secretVersionId},
+        ${input.organizationId},
+        ${input.secretId},
+        COALESCE(
+          (
+            SELECT MAX(sv.version_number)
+            FROM secret_versions sv
+            WHERE sv.secret_id = ${input.secretId}
+          ),
+          0
+        ) + 1,
+        ${input.wrapped.organizationDataKeyVersion},
+        ${input.wrapped.projectDataKeyVersion},
+        ${storageRef}
+      RETURNING version_number
+    )
+    UPDATE secrets s
+    SET current_version_id = ${input.secretVersionId}
+    FROM inserted i
+    WHERE s.id = ${input.secretId}
+      AND s.org_id = ${input.organizationId}
+    RETURNING i.version_number AS version_number
+  `;
+
+  const versionNumber = rows[0]?.version_number;
+  if (versionNumber === undefined || !Number.isInteger(versionNumber) || versionNumber < 1) {
+    throw new Error("failed to allocate secret version number");
+  }
+  return versionNumber;
 }
 
 /**
@@ -133,57 +199,15 @@ export class TenantSecretVersionStore {
   async appendVersionAndMakeLive(
     input: AppendSecretVersionAndMakeLiveInput,
   ): Promise<AppendSecretVersionAndMakeLiveResult> {
-    const orgId = input.organizationId;
-    const resolvedSecretId = input.secretId;
-    const versionNumber = await this.nextVersionNumber(resolvedSecretId);
     const storageRef = encodeInlineCiphertextStorageRef(input.wrapped.ciphertext);
-
-    await this.sql`
-      INSERT INTO secret_versions (
-        id,
-        org_id,
-        secret_id,
-        version_number,
-        organization_data_key_version,
-        project_data_key_version,
-        ciphertext_storage_ref
-      )
-      VALUES (
-        ${input.secretVersionId},
-        ${orgId},
-        ${resolvedSecretId},
-        ${versionNumber},
-        ${input.wrapped.organizationDataKeyVersion},
-        ${input.wrapped.projectDataKeyVersion},
-        ${storageRef}
-      )
-    `;
-
-    await this.sql`
-      UPDATE secrets
-      SET current_version_id = ${input.secretVersionId}
-      WHERE id = ${resolvedSecretId}
-        AND org_id = ${orgId}
-    `;
+    await lockSecretForAppend(this.sql, input.organizationId, input.secretId);
+    const versionNumber = await insertVersionAndMakeLive(this.sql, input, storageRef);
 
     return {
-      secretId: resolvedSecretId,
+      secretId: input.secretId,
       secretVersionId: input.secretVersionId,
       versionNumber,
       createdSecretShape: input.createdSecretShape,
     };
-  }
-
-  private async nextVersionNumber(secretIdValue: SecretId): Promise<number> {
-    const rows = await this.sql<{ next_version: number }[]>`
-      SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version
-      FROM secret_versions
-      WHERE secret_id = ${secretIdValue}
-    `;
-    const next = rows[0]?.next_version;
-    if (next === undefined || !Number.isInteger(next) || next < 1) {
-      throw new Error("failed to allocate secret version number");
-    }
-    return next;
   }
 }

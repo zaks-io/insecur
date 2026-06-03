@@ -1,3 +1,5 @@
+import type { SecretsStoreSecretBinding } from "@insecur/crypto";
+
 export interface WorkerEnv {
   readonly WORKOS_API_KEY: string;
   readonly WORKOS_CLIENT_ID: string;
@@ -9,4 +11,6 @@ export interface WorkerEnv {
   readonly ADMITTED_USER_MAP_JSON?: string;
   /** JSON array of fake sealed sessions for local/testing (development only). */
   readonly WORKOS_FAKE_SESSIONS_JSON?: string;
+  /** Instance root key from Cloudflare Secrets Store (production path). */
+  readonly INSTANCE_ROOT_KEY?: SecretsStoreSecretBinding;
 }

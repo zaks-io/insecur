@@ -22,6 +22,7 @@ export type OperationId = Brand<string, "OperationId">;
 export type RequestId = Brand<string, "RequestId">;
 export type UserId = Brand<string, "UserId">;
 export type StagedChangeId = Brand<string, "StagedChangeId">;
+export type InvitationId = Brand<string, "InvitationId">;
 
 type ParseBrandedIdResult<T> =
   | { ok: true; value: T }
@@ -70,3 +71,4 @@ export const operationId = createResourceIdHelpers("op", "OperationId");
 export const requestId = createResourceIdHelpers("req", "RequestId");
 export const userId = createResourceIdHelpers("usr", "UserId");
 export const stagedChangeId = createResourceIdHelpers("stg", "StagedChangeId");
+export const invitationId = createResourceIdHelpers("inv", "InvitationId");

@@ -23,16 +23,10 @@ export interface AuditEventInsertRow {
   environmentId: EnvironmentId | null;
   resourceType: AuditResourceType | null;
   resourceId: OpaqueResourceId | null;
+  relatedResourceType: AuditResourceType | null;
+  relatedResourceId: OpaqueResourceId | null;
   requestId: RequestId | null;
   operationId: OperationId | null;
-}
-
-function optionalProjectId(event: AuditEventInput): ProjectId | null {
-  return event.projectId ?? null;
-}
-
-function optionalEnvironmentId(event: AuditEventInput): EnvironmentId | null {
-  return event.environmentId ?? null;
 }
 
 function optionalResource(
@@ -44,12 +38,16 @@ function optionalResource(
   return { resourceType: event.resource.type, resourceId: event.resource.id };
 }
 
-function optionalRequestId(event: AuditEventInput): RequestId | null {
-  return event.request?.requestId ?? null;
-}
-
-function optionalOperationId(event: AuditEventInput): OperationId | null {
-  return event.operation?.operationId ?? null;
+function optionalRelatedResource(
+  event: AuditEventInput,
+): Pick<AuditEventInsertRow, "relatedResourceType" | "relatedResourceId"> {
+  if (event.relatedResource === undefined) {
+    return { relatedResourceType: null, relatedResourceId: null };
+  }
+  return {
+    relatedResourceType: event.relatedResource.type,
+    relatedResourceId: event.relatedResource.id,
+  };
 }
 
 export function toAuditEventInsertRow(
@@ -65,10 +63,11 @@ export function toAuditEventInsertRow(
     resultCode,
     actorType: event.actor.type,
     actorUserId: event.actor.userId,
-    projectId: optionalProjectId(event),
-    environmentId: optionalEnvironmentId(event),
+    projectId: event.projectId ?? null,
+    environmentId: event.environmentId ?? null,
     ...optionalResource(event),
-    requestId: optionalRequestId(event),
-    operationId: optionalOperationId(event),
+    ...optionalRelatedResource(event),
+    requestId: event.request?.requestId ?? null,
+    operationId: event.operation?.operationId ?? null,
   };
 }

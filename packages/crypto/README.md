@@ -37,5 +37,5 @@ workflow.
 ## Dependency Rule
 
 This package may depend on `@insecur/domain`. It must not depend on
-`@insecur/secrets`; the Secret Version Store consumes this package, not the
+`@insecur/secret-store`; the Secret Version Store consumes this package, not the
 other way around.

@@ -49,7 +49,7 @@ seams instead of route or CLI shortcuts.
 | Tenant-scoped transactions and RLS adapter contract            | `packages/tenant-store/`      |
 | Keyring, envelope encryption, and ciphertext binding           | `packages/crypto/`            |
 | Metadata-only audit events                                     | `packages/audit/`             |
-| Secret Shape, Blind Secret Write, and Secret Version Store     | `packages/secrets/`           |
+| Secret Shape, Blind Secret Write, and Secret Version Store     | `packages/secret-store/`      |
 | Runtime Injection grants                                       | `packages/runtime-injection/` |
 | Guided Organization Provisioning                               | `packages/onboarding/`        |
 | Copyable First Value proof                                     | `examples/first-value-proof/` |
