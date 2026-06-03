@@ -88,6 +88,14 @@ describe("AAD field-separator injection resistance", () => {
     ).toThrow(InvalidAadFieldError);
   });
 
+  it("rejects sensitive metadata record resource ids that are not well-formed opaque ids", () => {
+    expect(() =>
+      serializeSensitiveMetadataCiphertextAad(
+        sensitiveMetadataIdentity({ recordResourceId: "not-an-id" as typeof RECORD_A }),
+      ),
+    ).toThrow(InvalidAadFieldError);
+  });
+
   it("produces distinct provider-credential AAD for distinct valid identities", () => {
     const left = serializeProviderCredentialCiphertextAad(providerIdentity());
     const right = serializeProviderCredentialCiphertextAad(

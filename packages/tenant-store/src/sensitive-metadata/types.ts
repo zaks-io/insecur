@@ -14,6 +14,8 @@ export interface UpsertSensitiveMetadataInput {
   readonly wrapped: WrappedSensitiveMetadata;
 }
 
+export type GetSensitiveMetadataFieldInput = Omit<UpsertSensitiveMetadataInput, "wrapped">;
+
 export interface StoredWrappedSensitiveMetadata {
   readonly organizationDataKeyVersion: number;
   readonly projectDataKeyVersion: number | null;
