@@ -21,7 +21,7 @@
     "@insecur/domain": "workspace:*",
     "@insecur/onboarding": "workspace:*",
     "@insecur/runtime-injection": "workspace:*",
-    "@insecur/secrets": "workspace:*",
+    "@insecur/secret-store": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "hono": "catalog:"
   },

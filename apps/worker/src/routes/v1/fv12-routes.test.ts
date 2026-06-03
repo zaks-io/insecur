@@ -42,8 +42,8 @@ vi.mock("@insecur/onboarding", () => ({
   },
 }));
 
-vi.mock("@insecur/secrets", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@insecur/secrets")>();
+vi.mock("@insecur/secret-store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/secret-store")>();
   return {
     ...actual,
     writeNonProtectedSecret,
@@ -267,7 +267,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps secret validation failures without leaking values", async () => {
-      const { SecretWriteError } = await import("@insecur/secrets");
+      const { SecretWriteError } = await import("@insecur/secret-store");
       writeNonProtectedSecret.mockRejectedValue(
         new SecretWriteError(SECRET_ERROR_CODES.valueTooLarge, "Secret value is too large."),
       );

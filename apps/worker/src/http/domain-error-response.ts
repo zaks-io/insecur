@@ -12,7 +12,7 @@ import {
 } from "@insecur/domain";
 import { GuidedOrganizationProvisionError } from "@insecur/onboarding";
 import { InjectionGrantError } from "@insecur/runtime-injection";
-import { SecretWriteError } from "@insecur/secrets";
+import { SecretWriteError } from "@insecur/secret-store";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
 
 const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([

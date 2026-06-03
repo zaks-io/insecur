@@ -137,9 +137,9 @@ importers:
       '@insecur/runtime-injection':
         specifier: workspace:*
         version: link:../../packages/runtime-injection
-      '@insecur/secrets':
+      '@insecur/secret-store':
         specifier: workspace:*
-        version: link:../../packages/secrets
+        version: link:../../packages/secret-store
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../../packages/tenant-store

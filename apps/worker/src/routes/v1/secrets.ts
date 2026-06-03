@@ -4,7 +4,7 @@ import {
   assertSafeSecretValueIngress,
   rejectNamedLocalValueFile,
   writeNonProtectedSecret,
-} from "@insecur/secrets";
+} from "@insecur/secret-store";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { requireUserActor, type AuthVariables } from "../../auth/middleware.js";
