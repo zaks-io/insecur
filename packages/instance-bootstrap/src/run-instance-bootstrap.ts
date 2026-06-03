@@ -1,4 +1,5 @@
 import { BOOTSTRAP_ERROR_CODES } from "@insecur/domain";
+import { isUniqueConstraintViolation } from "@insecur/tenant-store";
 import { BootstrapError } from "./bootstrap-error.js";
 import { instanceExists, persistInstanceBootstrap } from "./bootstrap-store.js";
 import type {
@@ -6,15 +7,6 @@ import type {
   RunInstanceBootstrapInput,
   RunInstanceBootstrapResult,
 } from "./bootstrap-types.js";
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "23505"
-  );
-}
 
 export async function runInstanceBootstrap(
   input: RunInstanceBootstrapInput,
@@ -39,7 +31,7 @@ export async function runInstanceBootstrap(
       workosClientId: input.workosClientId,
     });
   } catch (error) {
-    if (isUniqueViolation(error)) {
+    if (isUniqueConstraintViolation(error)) {
       throw new BootstrapError(
         BOOTSTRAP_ERROR_CODES.alreadyBootstrapped,
         "instance is already bootstrapped",

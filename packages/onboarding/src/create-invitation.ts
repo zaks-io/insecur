@@ -6,6 +6,7 @@ import {
   type KnownErrorCode,
   type OrganizationId,
 } from "@insecur/domain";
+import { isUniqueConstraintViolation } from "@insecur/tenant-store";
 import {
   assertInvitationProjectCoordinate,
   assertInvitationRolePreset,
@@ -46,15 +47,6 @@ async function denyInvitationCreate(
     denial.message,
     denial.organizationId,
     denial.invitationId,
-  );
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "23505"
   );
 }
 
@@ -120,7 +112,7 @@ export async function createInvitation(
       projectId: projectScope,
     });
   } catch (error) {
-    if (!isUniqueViolation(error)) {
+    if (!isUniqueConstraintViolation(error)) {
       throw error;
     }
     await denyInvitationCreate(input, {
