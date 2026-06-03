@@ -43,7 +43,11 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 The `postgres-integration` job in `.github/workflows/ci.yml` resets Docker Compose Postgres
 17 once, runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ;
 runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
-`INSECUR_CI_RLS_GATE=1` and runs `test:rls` plus `test:e2e`. Turbo `test:rls` fans out to
+`INSECUR_CI_RLS_GATE=1` and runs `test:rls` plus `test:e2e`. Turbo `envMode: strict` only
+forwards `INSECUR_CI_RLS_GATE` when it is listed on the `test:rls` / `test:e2e` tasks in
+`turbo.json`; a probe task (`assert:ci-rls-gate-env`) runs first so CI logs prove the var
+reached the task process. Vitest setup logs `[insecur] INSECUR_CI_RLS_GATE=1` when fail-closed
+mode is active. Turbo `test:rls` fans out to
 `@insecur/tenant-store` (forced-RLS suite: tenant isolation, data-key isolation, secret-version
 concurrency) and `@insecur/access` (`*.integration.test.ts`). The job then runs
 `@insecur/instance-bootstrap` integration tests. Other packages' `*.integration.test.ts` files
