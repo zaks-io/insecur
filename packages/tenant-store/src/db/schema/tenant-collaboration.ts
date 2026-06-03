@@ -50,7 +50,8 @@ export const invitations = pgTable(
     ),
     uniqueIndex("invitations_one_pending_per_invitee_org_project")
       .on(table.orgId, table.inviteeUserId, table.projectId)
-      .where(sql`${table.status} = 'pending'`),
+      .where(sql`${table.status} = 'pending'`)
+      .nullsNotDistinct(),
   ],
 );
 

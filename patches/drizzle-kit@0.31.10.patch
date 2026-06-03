@@ -1,0 +1,188 @@
+diff --git a/api.mjs b/api.mjs
+index a940272dfb05accf57a472c46c52652ec9ad0080..436d1fb96da2425e2faeec67a8ed955fa3db9cc5 100644
+--- a/api.mjs
++++ b/api.mjs
+@@ -7644,7 +7644,8 @@ var init_gelSchema = __esm({
+       with: recordType(stringType(), anyType()).optional(),
+       method: stringType().default("btree"),
+       where: stringType().optional(),
+-      concurrently: booleanType().default(false)
++      concurrently: booleanType().default(false),
++      nullsNotDistinct: booleanType().optional()
+     }).strict();
+     fk = objectType({
+       name: stringType(),
+@@ -8290,7 +8291,8 @@ var init_pgSchema = __esm({
+       with: recordType(stringType(), anyType()).optional(),
+       method: stringType().default("btree"),
+       where: stringType().optional(),
+-      concurrently: booleanType().default(false)
++      concurrently: booleanType().default(false),
++      nullsNotDistinct: booleanType().optional()
+     }).strict();
+     indexV4 = objectType({
+       name: stringType(),
+@@ -8672,7 +8674,7 @@ var init_pgSchema = __esm({
+         index3.parse(idx);
+         return `${idx.name};${idx.columns.map(
+           (c5) => `${c5.expression}--${c5.isExpression}--${c5.asc}--${c5.nulls}--${c5.opclass ? c5.opclass : ""}`
+-        ).join(",,")};${idx.isUnique};${idx.concurrently};${idx.method};${idx.where};${JSON.stringify(idx.with)}`;
++        ).join(",,")};${idx.isUnique};${idx.concurrently};${idx.method};${idx.where};${JSON.stringify(idx.with)};${idx.nullsNotDistinct ?? false}`;
+       },
+       unsquashIdx: (input) => {
+         const [
+@@ -8682,7 +8684,8 @@ var init_pgSchema = __esm({
+           concurrently,
+           method,
+           where,
+-          idxWith
++          idxWith,
++          nullsNotDistinct
+         ] = input.split(";");
+         const columnString = columnsString.split(",,");
+         const columns = [];
+@@ -8703,7 +8706,8 @@ var init_pgSchema = __esm({
+           concurrently: concurrently === "true",
+           method,
+           where: where === "undefined" ? void 0 : where,
+-          with: !idxWith || idxWith === "undefined" ? void 0 : JSON.parse(idxWith)
++          with: !idxWith || idxWith === "undefined" ? void 0 : JSON.parse(idxWith),
++          nullsNotDistinct: nullsNotDistinct === "true"
+         });
+         return result;
+       },
+@@ -15004,7 +15008,8 @@ ${BREAKPOINT}ALTER TABLE ${tableNameWithSchema} ADD CONSTRAINT "${statement.newC
+           concurrently,
+           with: withMap,
+           method,
+-          where
++          where,
++          nullsNotDistinct
+         } = statement.data;
+         const indexPart = isUnique ? "UNIQUE INDEX" : "INDEX";
+         const value = columns.map(
+@@ -15021,7 +15026,7 @@ ${BREAKPOINT}ALTER TABLE ${tableNameWithSchema} ADD CONSTRAINT "${statement.newC
+           reversedString = reversedString.slice(0, -1);
+           return reversedString;
+         }
+-        return `CREATE ${indexPart}${concurrently ? " CONCURRENTLY" : ""} "${name}" ON ${tableNameWithSchema} USING ${method} (${value})${Object.keys(withMap).length !== 0 ? ` WITH (${reverseLogic(withMap)})` : ""}${where ? ` WHERE ${where}` : ""};`;
++        return `CREATE ${indexPart}${concurrently ? " CONCURRENTLY" : ""} "${name}" ON ${tableNameWithSchema} USING ${method} (${value})${Object.keys(withMap).length !== 0 ? ` WITH (${reverseLogic(withMap)})` : ""}${nullsNotDistinct ? " NULLS NOT DISTINCT" : ""}${where ? ` WHERE ${where}` : ""};`;
+       }
+     };
+     CreateMySqlIndexConvertor = class extends Convertor {
+@@ -22663,7 +22668,8 @@ ${withStyle.errorWarning(
+             where: value.config.where ? dialect6.sqlToQuery(value.config.where).sql : void 0,
+             concurrently: value.config.concurrently ?? false,
+             method: value.config.method ?? "btree",
+-            with: value.config.with ?? {}
++            with: value.config.with ?? {},
++            nullsNotDistinct: value.config.nullsNotDistinct ?? false
+           };
+         });
+         policies2.forEach((policy5) => {
+diff --git a/bin.cjs b/bin.cjs
+index 07274ea6f53fd54a129b3d338892feda6e995cff..270a34b9f4c0ed491493d08b1f2b40e88f7b94dd 100755
+--- a/bin.cjs
++++ b/bin.cjs
+@@ -6047,7 +6047,8 @@ var init_pgSchema = __esm({
+       with: recordType(stringType(), anyType()).optional(),
+       method: stringType().default("btree"),
+       where: stringType().optional(),
+-      concurrently: booleanType().default(false)
++      concurrently: booleanType().default(false),
++      nullsNotDistinct: booleanType().optional()
+     }).strict();
+     indexV4 = objectType({
+       name: stringType(),
+@@ -6429,7 +6430,7 @@ var init_pgSchema = __esm({
+         index2.parse(idx);
+         return `${idx.name};${idx.columns.map(
+           (c3) => `${c3.expression}--${c3.isExpression}--${c3.asc}--${c3.nulls}--${c3.opclass ? c3.opclass : ""}`
+-        ).join(",,")};${idx.isUnique};${idx.concurrently};${idx.method};${idx.where};${JSON.stringify(idx.with)}`;
++        ).join(",,")};${idx.isUnique};${idx.concurrently};${idx.method};${idx.where};${JSON.stringify(idx.with)};${idx.nullsNotDistinct ?? false}`;
+       },
+       unsquashIdx: (input) => {
+         const [
+@@ -6439,7 +6440,8 @@ var init_pgSchema = __esm({
+           concurrently,
+           method,
+           where,
+-          idxWith
++          idxWith,
++          nullsNotDistinct
+         ] = input.split(";");
+         const columnString = columnsString.split(",,");
+         const columns = [];
+@@ -6460,7 +6462,8 @@ var init_pgSchema = __esm({
+           concurrently: concurrently === "true",
+           method,
+           where: where === "undefined" ? void 0 : where,
+-          with: !idxWith || idxWith === "undefined" ? void 0 : JSON.parse(idxWith)
++          with: !idxWith || idxWith === "undefined" ? void 0 : JSON.parse(idxWith),
++          nullsNotDistinct: nullsNotDistinct === "true"
+         });
+         return result;
+       },
+@@ -7828,7 +7831,8 @@ var init_gelSchema = __esm({
+       with: recordType(stringType(), anyType()).optional(),
+       method: stringType().default("btree"),
+       where: stringType().optional(),
+-      concurrently: booleanType().default(false)
++      concurrently: booleanType().default(false),
++      nullsNotDistinct: booleanType().optional()
+     }).strict();
+     fk4 = objectType({
+       name: stringType(),
+@@ -17203,7 +17207,8 @@ ${withStyle.errorWarning(
+             where: value.config.where ? dialect6.sqlToQuery(value.config.where).sql : void 0,
+             concurrently: value.config.concurrently ?? false,
+             method: value.config.method ?? "btree",
+-            with: value.config.with ?? {}
++            with: value.config.with ?? {},
++            nullsNotDistinct: value.config.nullsNotDistinct ?? false
+           };
+         });
+         policies2.forEach((policy5) => {
+@@ -25017,7 +25022,8 @@ ${BREAKPOINT}ALTER TABLE ${tableNameWithSchema} ADD CONSTRAINT "${statement.newC
+           concurrently,
+           with: withMap,
+           method,
+-          where
++          where,
++          nullsNotDistinct
+         } = statement.data;
+         const indexPart = isUnique ? "UNIQUE INDEX" : "INDEX";
+         const value = columns.map(
+@@ -25034,7 +25040,7 @@ ${BREAKPOINT}ALTER TABLE ${tableNameWithSchema} ADD CONSTRAINT "${statement.newC
+           reversedString = reversedString.slice(0, -1);
+           return reversedString;
+         }
+-        return `CREATE ${indexPart}${concurrently ? " CONCURRENTLY" : ""} "${name}" ON ${tableNameWithSchema} USING ${method} (${value})${Object.keys(withMap).length !== 0 ? ` WITH (${reverseLogic(withMap)})` : ""}${where ? ` WHERE ${where}` : ""};`;
++        return `CREATE ${indexPart}${concurrently ? " CONCURRENTLY" : ""} "${name}" ON ${tableNameWithSchema} USING ${method} (${value})${Object.keys(withMap).length !== 0 ? ` WITH (${reverseLogic(withMap)})` : ""}${nullsNotDistinct ? " NULLS NOT DISTINCT" : ""}${where ? ` WHERE ${where}` : ""};`;
+       }
+     };
+     CreateMySqlIndexConvertor = class extends Convertor {
+diff --git a/utils.mjs b/utils.mjs
+index 3ad20c85c2c230ce4894f08c22429c057c368496..60733055a6429c6d546121900508c2bbb6766497 100644
+--- a/utils.mjs
++++ b/utils.mjs
+@@ -4993,7 +4993,8 @@ var index = objectType({
+   with: recordType(stringType(), anyType()).optional(),
+   method: stringType().default("btree"),
+   where: stringType().optional(),
+-  concurrently: booleanType().default(false)
++  concurrently: booleanType().default(false),
++  nullsNotDistinct: booleanType().optional()
+ }).strict();
+ var fk = objectType({
+   name: stringType(),
+@@ -5494,7 +5495,8 @@ var index3 = objectType({
+   with: recordType(stringType(), anyType()).optional(),
+   method: stringType().default("btree"),
+   where: stringType().optional(),
+-  concurrently: booleanType().default(false)
++  concurrently: booleanType().default(false),
++  nullsNotDistinct: booleanType().optional()
+ }).strict();
+ var indexV4 = objectType({
+   name: stringType(),

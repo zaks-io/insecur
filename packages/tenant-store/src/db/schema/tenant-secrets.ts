@@ -1,6 +1,7 @@
 /**
  * Drizzle schema source of truth (ADR-0037). Plain table definitions only.
  */
+import type { ForeignKeyBuilder } from "drizzle-orm/pg-core";
 import {
   foreignKey,
   integer,
@@ -13,6 +14,10 @@ import {
   uniqueIndex,
 } from "./pg-core.js";
 import { environments, organizations, projects } from "./tenant-hierarchy.js";
+
+/** Deferred so `secretVersions` exists before the composite current-version FK is attached. */
+const secretsDeferredConstraints: ForeignKeyBuilder[] = [];
+
 export const secrets = pgTable(
   "secrets",
   {
@@ -37,6 +42,7 @@ export const secrets = pgTable(
       columns: [table.orgId, table.environmentId],
       foreignColumns: [environments.orgId, environments.id],
     }),
+    ...secretsDeferredConstraints,
   ],
 );
 
@@ -62,6 +68,14 @@ export const secretVersions = pgTable(
       foreignColumns: [secrets.orgId, secrets.id],
     }),
   ],
+);
+
+secretsDeferredConstraints.push(
+  foreignKey({
+    name: "secrets_org_id_id_current_version_id_fkey",
+    columns: [secrets.orgId, secrets.id, secrets.currentVersionId],
+    foreignColumns: [secretVersions.orgId, secretVersions.secretId, secretVersions.id],
+  }),
 );
 
 export const injectionGrants = pgTable(

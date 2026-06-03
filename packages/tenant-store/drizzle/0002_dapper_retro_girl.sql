@@ -320,20 +320,18 @@ ALTER TABLE "secret_versions" ADD CONSTRAINT "secret_versions_org_id_secret_id_s
 ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_environment_id_environments_org_id_id_fk" FOREIGN KEY ("org_id","environment_id") REFERENCES "public"."environments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_id_current_version_id_fkey" FOREIGN KEY ("org_id","id","current_version_id") REFERENCES "public"."secret_versions"("org_id","secret_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sensitive_metadata_fields" ADD CONSTRAINT "sensitive_metadata_fields_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sync_target_leases" ADD CONSTRAINT "sync_target_leases_held_by_operation_id_operations_id_fk" FOREIGN KEY ("held_by_operation_id") REFERENCES "public"."operations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sync_target_leases" ADD CONSTRAINT "sync_target_leases_org_id_project_id_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teams" ADD CONSTRAINT "teams_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "bootstrap_operator_claim_one_pending_per_instance" ON "bootstrap_operator_claims" USING btree ("instance_id") WHERE "bootstrap_operator_claims"."status" = 'pending';--> statement-breakpoint
 CREATE UNIQUE INDEX "instance_operators_one_bootstrap_per_instance" ON "instance_operators" USING btree ("instance_id") WHERE "instance_operators"."grant_origin" = 'bootstrap';--> statement-breakpoint
-CREATE UNIQUE INDEX "invitations_one_pending_per_invitee_org_project" ON "invitations" USING btree ("org_id","invitee_user_id","project_id") WHERE "invitations"."status" = 'pending';--> statement-breakpoint
+CREATE UNIQUE INDEX "invitations_one_pending_per_invitee_org_project" ON "invitations" USING btree ("org_id","invitee_user_id","project_id") NULLS NOT DISTINCT WHERE "invitations"."status" = 'pending';--> statement-breakpoint
 CREATE UNIQUE INDEX "operations_org_idempotency_key_idx" ON "operations" USING btree ("org_id","idempotency_key") WHERE "operations"."idempotency_key" IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "organization_data_keys_one_active_per_org" ON "organization_data_keys" USING btree ("org_id") WHERE "organization_data_keys"."status" = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "project_data_keys_one_active_per_project" ON "project_data_keys" USING btree ("org_id","project_id") WHERE "project_data_keys"."status" = 'active';--> statement-breakpoint
 CREATE INDEX "sync_target_leases_held_by_operation_id_idx" ON "sync_target_leases" USING btree ("org_id","held_by_operation_id");--> statement-breakpoint
-ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_id_current_version_id_fkey" FOREIGN KEY ("org_id","id","current_version_id") REFERENCES "public"."secret_versions"("org_id","secret_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-DROP INDEX IF EXISTS "invitations_one_pending_per_invitee_org_project";--> statement-breakpoint
-CREATE UNIQUE INDEX "invitations_one_pending_per_invitee_org_project" ON "invitations" USING btree ("org_id","invitee_user_id","project_id") NULLS NOT DISTINCT WHERE "invitations"."status" = 'pending';--> statement-breakpoint
 CREATE OR REPLACE FUNCTION app.tenant_visible(check_org_id text)
 RETURNS boolean
 LANGUAGE sql

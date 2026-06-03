@@ -11,6 +11,22 @@ Neon CI).
 - `pnpm test:rls` (21 tests) passed using `DATABASE_URL_RUNTIME` (`insecur_runtime`, `NOBYPASSRLS`),
   distinct from `DATABASE_URL_MIGRATION`.
 - `pnpm verify`, `pnpm build`, and `pnpm test:rls` green on the change branch.
+- `pnpm --filter @insecur/tenant-store db:generate` reports **no schema changes** after edits (schema,
+  snapshot, and `0002` migration agree).
+
+## Source of truth
+
+`packages/tenant-store/src/db/schema/` (barrel: `index.ts`) is the Drizzle schema source. Constraints
+below are declared in TypeScript—not hand-appended to SQL:
+
+| Object                                                                                   | Location                                                            |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `secrets_org_id_id_current_version_id_fkey`                                              | `tenant-secrets.ts` (deferred `foreignKey` after `secretVersions`)  |
+| `invitations_one_pending_per_invitee_org_project` (`NULLS NOT DISTINCT`, partial unique) | `tenant-collaboration.ts` via `uniqueIndex(...).nullsNotDistinct()` |
+
+`drizzle-kit@0.31.10` is patched (`pnpm.patchedDependencies`) so partial unique indexes emit
+`NULLS NOT DISTINCT` in snapshots and migrations. `pg-core.ts` extends `IndexBuilder` with
+`.nullsNotDistinct()` for schema authoring.
 
 ## Known benign differences
 
