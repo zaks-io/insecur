@@ -56,6 +56,12 @@ This repo uses a multi-context domain doc layout rooted at `CONTEXT-MAP.md`. See
 
 Current implementation status and next steps are tracked in `docs/project-status.md`.
 
+### Testing
+
+The three-layer test strategy (unit / integration+RLS / preview smoke) and the agent
+one-command loop (`pnpm dev:db:reset && pnpm test:e2e`) are documented in
+`docs/agents/testing.md`; the decision record is `docs/adr/0065-test-layers-and-preview-smoke.md`.
+
 ### Cursor Cloud environment
 
 Remote Cursor agent setup and maintenance notes live in `docs/agents/cursor-cloud-environment.md`.
@@ -90,7 +96,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - ESLint, Prettier, Vitest, and `pnpm verify` are wired up. Package tests currently use Vitest's no-test pass-through until product slices add real tests.
 - jscpd duplicate-code detection: `pnpm duplicates:check` is the strict local zero gate; the `CI` workflow and pre-push run `pnpm duplicates:warn` (annotations) then `pnpm duplicates:ci` (blocking ratchet at threshold 0.5%, just above the current ~0.42% backlog). knip (`pnpm knip`) is also blocking in CI, pre-push, and verify; its export/type dead-code rules are deferred off in `knip.json` until package indexes wire up (ADR-0018).
 - Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
-- `pnpm test:rls` is wired as an uncached tenant-store placeholder. Real Postgres RLS tests start with FV-04 and require `DATABASE_URL_RUNTIME`.
+- `pnpm test:rls` runs the real forced-RLS tenant suite (requires `DATABASE_URL_RUNTIME`); it now executes in CI's `postgres-integration` job alongside `pnpm test:e2e` (the First Value loop through the real Worker routes). See `docs/agents/testing.md`.
 - Lefthook pre-commit runs staged Prettier/ESLint, optional local gitleaks (skipped when `gitleaks` is not on PATH), and `turbo typecheck`; pre-push runs `pnpm verify` + `pnpm test:coverage`, mirroring CI's `Verify` and `Coverage` jobs so lint/type/test/format/dup/knip/actionlint/coverage churn is caught before pushing. The `CI` (`ci.yml`) and `security-daily` workflows add the security scanners (gitleaks, semgrep, syft+grype) on Blacksmith runners; those stay CI-only and out of the push hot path (`docs/build-tooling.md`).
 - Package `src/index.ts` files export `export {};` — this is a deliberate empty skeleton per ADR-0018.
 - `pnpm-workspace.yaml` has `strictDepBuilds: true` and `onlyBuiltDependencies` allowlist. Adding a dependency that runs lifecycle scripts requires an explicit allowlist addition.

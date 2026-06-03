@@ -1,0 +1,186 @@
+# Per-PR preview deploy + First Value cloud smoke. GATED OFF until the preview
+# infrastructure exists: it only runs when repo variable PREVIEW_ENV_ENABLED == 'true'.
+# Standing up env.preview + the Worker->Hyperdrive binding + Neon/Cloudflare secrets
+# is tracked in the smoke/test-layers Linear ticket (see docs/adr). Ported from the
+# agent-paste preview-env pattern, reduced to insecur's single Worker.
+#
+# Security: every step uses only static commands or env-quoted values; no untrusted
+# github.event.* input flows into run: shell. Forked PRs are skipped (secret-bearing).
+name: PR Preview
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".claude/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  deploy:
+    name: Deploy PR Preview + First Value smoke
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 25
+    # Gate: opt-in until preview infra is stood up. Also skip forked PRs (secrets).
+    if: ${{ vars.PREVIEW_ENV_ENABLED == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+    environment:
+      name: Preview
+      url: ${{ steps.deploy.outputs.base_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create Neon PR branch
+        id: neon
+        uses: neondatabase/create-branch-action@v6
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: preview/pr-${{ github.event.pull_request.number }}
+          parent_branch: main
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Verify Neon branch isolation
+        env:
+          NEON_BRANCH_ID: ${{ steps.neon.outputs.branch_id }}
+          NEON_PRODUCTION_BRANCH_ID: ${{ vars.NEON_PRODUCTION_BRANCH_ID }}
+        run: |
+          test -n "$NEON_BRANCH_ID"
+          if [ -n "$NEON_PRODUCTION_BRANCH_ID" ] && [ "$NEON_BRANCH_ID" = "$NEON_PRODUCTION_BRANCH_ID" ]; then
+            echo "::error::PR Neon branch id matches production branch id"
+            exit 1
+          fi
+
+      - name: Migrate PR database
+        env:
+          DATABASE_URL_MIGRATION: ${{ steps.neon.outputs.db_url }}
+        run: pnpm --filter @insecur/tenant-store migrate:local
+
+      - name: Create or reuse PR Hyperdrive
+        id: hyperdrive
+        env:
+          PR_DATABASE_URL: ${{ steps.neon.outputs.db_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/ci/create-hyperdrive.mjs --name "insecur-db-pr-${PR_NUMBER}" --connection-string-env PR_DATABASE_URL --github-output hyperdrive_id
+
+      - name: Build Worker
+        run: pnpm build
+
+      # Deploy the single Worker to a per-PR preview name, binding the per-PR
+      # Hyperdrive. Emits base_url for the smoke + readiness steps.
+      - name: Deploy preview Worker
+        id: deploy
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HYPERDRIVE_ID: ${{ steps.hyperdrive.outputs.hyperdrive_id }}
+          CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
+        run: |
+          worker_name="insecur-worker-pr-${PR_NUMBER}"
+          pnpm exec wrangler deploy \
+            --config apps/worker/wrangler.jsonc \
+            --env preview \
+            --name "$worker_name" \
+            --var "PR_HYPERDRIVE_ID:${PR_HYPERDRIVE_ID}"
+          base_url="https://${worker_name}.${CLOUDFLARE_WORKERS_SUBDOMAIN}.workers.dev"
+          echo "base_url=${base_url}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for /healthz readiness
+        env:
+          BASE_URL: ${{ steps.deploy.outputs.base_url }}
+        run: |
+          # Require 3 consecutive 200s before declaring ready. 404/530 are
+          # expected-transient during route propagation and reset the counter.
+          CURL_TIMEOUT=5
+          CONSECUTIVE_REQUIRED=3
+          MAX_ATTEMPTS=45
+          SLEEP_SECONDS=2
+          consecutive=0
+          i=0
+          while [ $i -lt $MAX_ATTEMPTS ]; do
+            i=$((i+1))
+            status=$(curl -sS -o /dev/null -w "%{http_code}" --max-time $CURL_TIMEOUT "$BASE_URL/healthz" 2>/dev/null) || status="000"
+            if [ "$status" = "200" ]; then
+              consecutive=$((consecutive+1))
+              echo "$BASE_URL/healthz healthy ($consecutive/$CONSECUTIVE_REQUIRED) on attempt $i"
+              if [ $consecutive -ge $CONSECUTIVE_REQUIRED ]; then
+                echo "ready after $i attempt(s)"
+                exit 0
+              fi
+            else
+              consecutive=0
+              echo "not ready (status=$status) on attempt $i, retrying..."
+            fi
+            sleep $SLEEP_SECONDS
+          done
+          echo "::error::$BASE_URL/healthz never got $CONSECUTIVE_REQUIRED consecutive healthy responses"
+          exit 1
+
+      - name: First Value cloud smoke
+        env:
+          SMOKE_BASE_URL: ${{ steps.deploy.outputs.base_url }}
+          SMOKE_AUTH_BEARER: ${{ secrets.SMOKE_AUTH_BEARER }}
+          SMOKE_ORGANIZATION_ID: ${{ vars.SMOKE_ORGANIZATION_ID }}
+          SMOKE_PROJECT_ID: ${{ vars.SMOKE_PROJECT_ID }}
+          SMOKE_ENVIRONMENT_ID: ${{ vars.SMOKE_ENVIRONMENT_ID }}
+        run: node scripts/ci/smoke-first-value.mjs
+
+      - name: Comment PR preview link
+        uses: actions/github-script@v7
+        env:
+          BASE_URL: ${{ steps.deploy.outputs.base_url }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_BRANCH_ID: ${{ steps.neon.outputs.branch_id }}
+        with:
+          script: |
+            const body = [
+              "insecur PR preview is ready and passed the First Value smoke.",
+              "",
+              `Worker: ${process.env.BASE_URL}`,
+              `Neon branch: https://console.neon.tech/app/projects/${process.env.NEON_PROJECT_ID}/branches/${process.env.NEON_BRANCH_ID}`,
+            ].join("\n");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+  forked-pr:
+    name: Skip Forked PR
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ vars.PREVIEW_ENV_ENABLED == 'true' && github.event.pull_request.head.repo.full_name != github.repository }}
+    steps:
+      - name: Explain skip
+        run: echo "Skipping PR preview for forked PR - secret-bearing Cloudflare and Neon steps are not fork-safe."
