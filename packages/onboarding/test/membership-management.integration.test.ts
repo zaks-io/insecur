@@ -25,6 +25,7 @@ import {
   TEST_ORG_B_ID,
   TEST_PROJECT_A_ID,
   TEST_PROJECT_B_ID,
+  TEST_TEAM_A_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
 import {
@@ -53,6 +54,8 @@ const THIRD_INVITATION_ID = "inv_00000000000000000000000073";
 const FOURTH_INVITATION_ID = "inv_00000000000000000000000074";
 const FIFTH_INVITATION_ID = "inv_00000000000000000000000075";
 const ORG_SCOPED_INVITEE_USER_ID = "usr_00000000000000000000000074";
+/** Pre-seeded project membership for accept-path membershipAlreadyExists denial. */
+const EXISTING_PROJECT_MEMBERSHIP_ID = "mem_00000000000000000000000076";
 
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 
@@ -231,6 +234,175 @@ describeIntegration("membership management (PDF-02)", () => {
     ).rejects.toMatchObject({
       code: ONBOARDING_ERROR_CODES.invitationNotPending,
     });
+
+    const notPendingDeniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied}
+            AND result_code = ${ONBOARDING_ERROR_CODES.invitationNotPending}
+            AND resource_type = ${"invitation"}
+            AND resource_id = ${INVITATION_ID}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(notPendingDeniedAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied,
+      outcome: "denied",
+      result_code: ONBOARDING_ERROR_CODES.invitationNotPending,
+    });
+
+    const membershipRowsAfterNotPendingRetry = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ id: string; project_id: string | null }[]>`
+          SELECT id, project_id
+          FROM memberships
+          WHERE user_id = ${INVITEE_USER_ID}
+          ORDER BY id
+        `;
+      },
+    );
+    expect(membershipRowsAfterNotPendingRetry).toEqual(membershipRows);
+  });
+
+  it("records invitation accept denied audit when accepting user is not the invitee", async () => {
+    const org = ORG_A;
+    const project = projectId.brand(TEST_PROJECT_A_ID);
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+    const invitee = userId.brand(INVITEE_USER_ID);
+    const wrongAcceptor = userId.brand(DUPLICATE_INVITEE_USER_ID);
+
+    const invitation = await createInvitation({
+      actor: ownerActor,
+      organizationId: org,
+      inviteeUserId: invitee,
+      rolePreset: BUILT_IN_ROLE_PRESETS.developer,
+      projectId: project,
+      invitationId: invitationId.brand(INVITATION_ID),
+    });
+
+    await expect(
+      acceptInvitation({
+        invitationId: invitation.invitationId,
+        organizationId: org,
+        acceptingUserId: wrongAcceptor,
+      }),
+    ).rejects.toMatchObject({
+      code: ONBOARDING_ERROR_CODES.invitationInviteeMismatch,
+    });
+
+    const inviteeMismatchDeniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied}
+            AND result_code = ${ONBOARDING_ERROR_CODES.invitationInviteeMismatch}
+            AND resource_type = ${"invitation"}
+            AND resource_id = ${INVITATION_ID}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(inviteeMismatchDeniedAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied,
+      outcome: "denied",
+      result_code: ONBOARDING_ERROR_CODES.invitationInviteeMismatch,
+    });
+
+    const membershipRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ id: string }[]>`
+          SELECT id
+          FROM memberships
+          WHERE user_id IN (${INVITEE_USER_ID}, ${DUPLICATE_INVITEE_USER_ID})
+          ORDER BY id
+        `;
+      },
+    );
+    expect(membershipRows).toEqual([]);
+  });
+
+  it("records invitation accept denied audit when invitee already has membership for invitation scope", async () => {
+    const org = ORG_A;
+    const project = projectId.brand(TEST_PROJECT_A_ID);
+    const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
+    const invitee = userId.brand(INVITEE_USER_ID);
+
+    await createInvitation({
+      actor: ownerActor,
+      organizationId: org,
+      inviteeUserId: invitee,
+      rolePreset: BUILT_IN_ROLE_PRESETS.developer,
+      projectId: project,
+      invitationId: invitationId.brand(INVITATION_ID),
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+      await sql`
+        INSERT INTO memberships (id, org_id, team_id, user_id, role_preset, project_id)
+        VALUES (
+          ${EXISTING_PROJECT_MEMBERSHIP_ID},
+          ${TEST_ORG_A_ID},
+          ${TEST_TEAM_A_ID},
+          ${INVITEE_USER_ID},
+          ${BUILT_IN_ROLE_PRESETS.developer},
+          ${TEST_PROJECT_A_ID}
+        )
+      `;
+    });
+
+    await expect(
+      acceptInvitation({
+        invitationId: invitationId.brand(INVITATION_ID),
+        organizationId: org,
+        acceptingUserId: invitee,
+      }),
+    ).rejects.toMatchObject({
+      code: ONBOARDING_ERROR_CODES.membershipAlreadyExists,
+    });
+
+    const membershipAlreadyExistsDeniedAudit = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
+          SELECT event_code, outcome, result_code
+          FROM audit_events
+          WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied}
+            AND result_code = ${ONBOARDING_ERROR_CODES.membershipAlreadyExists}
+            AND resource_type = ${"invitation"}
+            AND resource_id = ${INVITATION_ID}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+      },
+    );
+    expect(membershipAlreadyExistsDeniedAudit[0]).toMatchObject({
+      event_code: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied,
+      outcome: "denied",
+      result_code: ONBOARDING_ERROR_CODES.membershipAlreadyExists,
+    });
+
+    const membershipRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<{ id: string }[]>`
+          SELECT id
+          FROM memberships
+          WHERE user_id = ${INVITEE_USER_ID}
+          ORDER BY id
+        `;
+      },
+    );
+    expect(membershipRows).toEqual([{ id: EXISTING_PROJECT_MEMBERSHIP_ID }]);
   });
 
   it("rejects invalid role presets before persistence", async () => {
