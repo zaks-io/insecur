@@ -33,6 +33,8 @@ export default tseslint.config(
       "packages/operations/vitest.config.ts",
       "packages/onboarding/test/**/*.ts",
       "packages/onboarding/vitest.config.ts",
+      "packages/environment-lifecycle/test/**/*.ts",
+      "packages/environment-lifecycle/vitest.config.ts",
       "packages/instance-bootstrap/test/**/*.ts",
       "packages/instance-bootstrap/vitest.config.ts",
       "packages/tenant-store/test/**/*.ts",
