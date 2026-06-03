@@ -27,6 +27,7 @@ export {
   type UserId,
   type StagedChangeId,
   type InvitationId,
+  type MachineIdentityId,
   organizationId,
   projectId,
   environmentId,
@@ -44,6 +45,7 @@ export {
   userId,
   stagedChangeId,
   invitationId,
+  machineIdentityId,
 } from "./resource-ids.js";
 export {
   type DisplayName,

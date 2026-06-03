@@ -1,7 +1,7 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
 import { membershipId, organizationId, projectId, userId } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
-import type { ActorRef } from "./resolve-effective-access.js";
+import type { UserActorRef } from "./resolve-effective-access.js";
 import type { MembershipRow } from "./membership-row.js";
 
 interface MembershipQueryRow {
@@ -13,7 +13,7 @@ interface MembershipQueryRow {
 }
 
 export interface LoadMembershipsInput {
-  actor: ActorRef;
+  actor: UserActorRef;
   organizationId: OrganizationId;
   /**
    * Project IDs to include project-tier memberships for, via one `IN` read.
