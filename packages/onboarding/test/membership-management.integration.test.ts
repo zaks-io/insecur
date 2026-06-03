@@ -67,7 +67,7 @@ describeIntegration("membership management (PDF-02)", () => {
     await cleanupMembershipFixture(OPERATOR_ORG_ID);
     await cleanupInstanceOperatorGrant(TEST_INSTANCE_ID, OPERATOR_GRANT_ID);
 
-    await withTenantScope({ kind: "service" }, async (sql) => {
+    await withTenantScope({ kind: "service" }, async ({ sql }) => {
       await sql`
         INSERT INTO instance_operators (id, instance_id, user_id, grant_origin)
         VALUES (${OPERATOR_GRANT_ID}, ${TEST_INSTANCE_ID}, ${TEST_USER_ID}, ${"admin"})
@@ -118,7 +118,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const operatorDeniedAudit = await withTenantScope(
       { kind: "organization", organizationId: ORG_A },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<
           {
             event_code: string;
@@ -182,7 +182,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const membershipRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ id: string; project_id: string | null }[]>`
           SELECT id, project_id
           FROM memberships
@@ -206,7 +206,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const invitationAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string }[]>`
           SELECT event_code
           FROM audit_events
@@ -237,7 +237,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const notPendingDeniedAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -258,7 +258,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const membershipRowsAfterNotPendingRetry = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ id: string; project_id: string | null }[]>`
           SELECT id, project_id
           FROM memberships
@@ -298,7 +298,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const inviteeMismatchDeniedAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -319,7 +319,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const membershipRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ id: string }[]>`
           SELECT id
           FROM memberships
@@ -346,7 +346,7 @@ describeIntegration("membership management (PDF-02)", () => {
       invitationId: invitationId.brand(INVITATION_ID),
     });
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
         INSERT INTO memberships (id, org_id, team_id, user_id, role_preset, project_id)
         VALUES (
@@ -372,7 +372,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const membershipAlreadyExistsDeniedAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -393,7 +393,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const membershipRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ id: string }[]>`
           SELECT id
           FROM memberships
@@ -424,7 +424,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const invalidPresetAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -443,14 +443,14 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const invitationRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<{ id: string }[]>`
           SELECT id FROM invitations WHERE id = ${FOURTH_INVITATION_ID}
         `,
     );
     expect(invitationRows).toEqual([]);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
         DELETE FROM audit_events
         WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
@@ -465,7 +465,7 @@ describeIntegration("membership management (PDF-02)", () => {
     const invitee = userId.brand(ORG_SCOPED_INVITEE_USER_ID);
     const foreignProject = projectId.brand(TEST_PROJECT_B_ID);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`DELETE FROM invitations WHERE invitee_user_id = ${ORG_SCOPED_INVITEE_USER_ID}`;
     });
 
@@ -484,7 +484,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const crossOrgDeniedAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -503,14 +503,14 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const invitationRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<{ id: string }[]>`
           SELECT id FROM invitations WHERE id = ${FIFTH_INVITATION_ID}
         `,
     );
     expect(invitationRows).toEqual([]);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`DELETE FROM invitations WHERE invitee_user_id = ${ORG_SCOPED_INVITEE_USER_ID}`;
       await sql`
         DELETE FROM audit_events
@@ -525,7 +525,7 @@ describeIntegration("membership management (PDF-02)", () => {
     const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
     const invitee = userId.brand(ORG_SCOPED_INVITEE_USER_ID);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`DELETE FROM invitations WHERE invitee_user_id = ${ORG_SCOPED_INVITEE_USER_ID}`;
     });
 
@@ -547,7 +547,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const invitationRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<{ role_preset: string; project_id: string | null; status: string }[]>`
           SELECT role_preset, project_id, status
           FROM invitations
@@ -560,7 +560,7 @@ describeIntegration("membership management (PDF-02)", () => {
       status: "pending",
     });
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`DELETE FROM invitations WHERE id = ${FOURTH_INVITATION_ID}`;
       await sql`
         DELETE FROM audit_events
@@ -575,7 +575,7 @@ describeIntegration("membership management (PDF-02)", () => {
     const ownerActor = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
     const invitee = userId.brand(DUPLICATE_INVITEE_USER_ID);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`DELETE FROM invitations WHERE invitee_user_id = ${DUPLICATE_INVITEE_USER_ID}`;
     });
 
@@ -601,7 +601,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const duplicateDeniedAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -618,7 +618,7 @@ describeIntegration("membership management (PDF-02)", () => {
       result_code: ONBOARDING_ERROR_CODES.resourceConflict,
     });
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`DELETE FROM invitations WHERE invitee_user_id = ${DUPLICATE_INVITEE_USER_ID}`;
       await sql`
         DELETE FROM audit_events
@@ -652,7 +652,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const membershipDeniedAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string; outcome: string; result_code: string }[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -669,7 +669,7 @@ describeIntegration("membership management (PDF-02)", () => {
       result_code: ONBOARDING_ERROR_CODES.membershipAlreadyExists,
     });
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
         DELETE FROM audit_events
         WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied}
@@ -696,7 +696,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgB },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<{ id: string }[]>`
           SELECT id FROM invitations WHERE id = ${INVITATION_ID}
         `,
@@ -717,7 +717,7 @@ describeIntegration("membership management (PDF-02)", () => {
 
     const operatorAudit = await withTenantScope(
       { kind: "organization", organizationId: operatorOrg },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<{ event_code: string }[]>`
           SELECT event_code
           FROM audit_events

@@ -1,7 +1,6 @@
-import { getRuntimeSql } from "./db/connection.js";
 import { applyTenantScope } from "./apply-tenant-scope.js";
+import { getRuntimeTenantDb, tenantScopedSql } from "./tenant-scoped-db.js";
 import type { TenantScope, TenantScopedCallback } from "./tenant-scope.js";
-import type { TenantScopedSql } from "./tenant-scoped-sql.js";
 
 /**
  * The only supported database entry point for tenant-owned metadata.
@@ -11,12 +10,11 @@ export async function withTenantScope<TResult>(
   scope: TenantScope,
   callback: TenantScopedCallback<TResult>,
 ): Promise<TResult> {
-  const sql = getRuntimeSql();
-  return (await sql.begin(async (tx) => {
-    const scoped = tx as TenantScopedSql;
-    await applyTenantScope(scoped, scope);
-    return callback(scoped);
-  })) as TResult;
+  const db = getRuntimeTenantDb();
+  return db.transaction(async (txDb) => {
+    await applyTenantScope(txDb, scope);
+    return callback({ db: txDb, sql: tenantScopedSql(txDb) });
+  });
 }
 
 export type {
@@ -24,4 +22,5 @@ export type {
   ServiceTenantScope,
   TenantScope,
   TenantScopedCallback,
+  TenantScopedHandles,
 } from "./tenant-scope.js";

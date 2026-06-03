@@ -12,8 +12,10 @@ import {
   type SecretVersionId,
   type VariableKey,
 } from "@insecur/domain";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
-import type { TenantScopedSql } from "../tenant-scoped-sql.js";
+import { injectionGrants } from "../db/schema/tenant-secrets.js";
+import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { assertProjectEnvironmentCoordinate } from "./assert-project-environment-coordinate.js";
 import type { InjectionGrantRow, InsertInjectionGrantInput } from "./types.js";
 
@@ -36,62 +38,49 @@ export interface ConsumedInjectionGrantRow {
  * Postgres-backed one-use Injection Grant persistence (metadata only).
  */
 export class TenantInjectionGrantStore {
-  constructor(private readonly sql: TenantScopedSql) {}
+  constructor(private readonly db: TenantScopedDb) {}
 
   async assertIssueCoordinate(input: {
     organizationId: OrganizationId;
     projectId: ProjectId;
     environmentId: EnvironmentId;
   }): Promise<void> {
-    await assertProjectEnvironmentCoordinate(this.sql, input);
+    await assertProjectEnvironmentCoordinate(this.db, input);
   }
 
   async insertGrant(input: InsertInjectionGrantInput): Promise<void> {
     const { binding } = input;
-    await this.sql`
-      INSERT INTO injection_grants (
-        id,
-        org_id,
-        project_id,
-        environment_id,
-        variable_keys,
-        secret_ids,
-        secret_version_id,
-        expires_at
-      )
-      VALUES (
-        ${input.grantId},
-        ${input.organizationId},
-        ${input.projectId},
-        ${input.environmentId},
-        ${[binding.variableKey]},
-        ${[binding.secretId]},
-        ${binding.secretVersionId},
-        ${input.expiresAt}
-      )
-    `;
+    await this.db.insert(injectionGrants).values({
+      id: input.grantId,
+      orgId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      variableKeys: [binding.variableKey],
+      secretIds: [binding.secretId],
+      secretVersionId: binding.secretVersionId,
+      expiresAt: input.expiresAt,
+    });
   }
 
   async getGrant(
     organizationId: OrganizationId,
     grantIdValue: InjectionGrantId,
   ): Promise<InjectionGrantRow | null> {
-    const rows = await this.sql<InjectionGrantRow[]>`
-      SELECT
-        id,
-        org_id,
-        project_id,
-        environment_id,
-        variable_keys,
-        secret_ids,
-        secret_version_id,
-        expires_at,
-        consumed_at
-      FROM injection_grants
-      WHERE id = ${grantIdValue}
-        AND org_id = ${organizationId}
-      LIMIT 1
-    `;
+    const rows = await this.db
+      .select({
+        id: injectionGrants.id,
+        org_id: injectionGrants.orgId,
+        project_id: injectionGrants.projectId,
+        environment_id: injectionGrants.environmentId,
+        variable_keys: injectionGrants.variableKeys,
+        secret_ids: injectionGrants.secretIds,
+        secret_version_id: injectionGrants.secretVersionId,
+        expires_at: injectionGrants.expiresAt,
+        consumed_at: injectionGrants.consumedAt,
+      })
+      .from(injectionGrants)
+      .where(and(eq(injectionGrants.id, grantIdValue), eq(injectionGrants.orgId, organizationId)))
+      .limit(1);
     return rows[0] ?? null;
   }
 
@@ -194,29 +183,33 @@ export class TenantInjectionGrantStore {
     requestedSecretId: SecretId;
     requestedVariableKey: VariableKey;
   }): Promise<InjectionGrantRow | null> {
-    const rows = await this.sql<InjectionGrantRow[]>`
-      UPDATE injection_grants
-      SET consumed_at = now()
-      WHERE id = ${input.grantId}
-        AND org_id = ${input.organizationId}
-        AND consumed_at IS NULL
-        AND expires_at > now()
-        AND cardinality(secret_ids) = 1
-        AND cardinality(variable_keys) = 1
-        AND secret_version_id = ${input.bound.secretVersionId}
-        AND ${input.requestedSecretId} = ANY (secret_ids)
-        AND ${input.requestedVariableKey} = ANY (variable_keys)
-      RETURNING
-        id,
-        org_id,
-        project_id,
-        environment_id,
-        variable_keys,
-        secret_ids,
-        secret_version_id,
-        expires_at,
-        consumed_at
-    `;
+    const rows = await this.db
+      .update(injectionGrants)
+      .set({ consumedAt: sql`now()` })
+      .where(
+        and(
+          eq(injectionGrants.id, input.grantId),
+          eq(injectionGrants.orgId, input.organizationId),
+          isNull(injectionGrants.consumedAt),
+          gt(injectionGrants.expiresAt, sql`now()`),
+          sql`cardinality(${injectionGrants.secretIds}) = 1`,
+          sql`cardinality(${injectionGrants.variableKeys}) = 1`,
+          eq(injectionGrants.secretVersionId, input.bound.secretVersionId),
+          sql`${input.requestedSecretId} = ANY (${injectionGrants.secretIds})`,
+          sql`${input.requestedVariableKey} = ANY (${injectionGrants.variableKeys})`,
+        ),
+      )
+      .returning({
+        id: injectionGrants.id,
+        org_id: injectionGrants.orgId,
+        project_id: injectionGrants.projectId,
+        environment_id: injectionGrants.environmentId,
+        variable_keys: injectionGrants.variableKeys,
+        secret_ids: injectionGrants.secretIds,
+        secret_version_id: injectionGrants.secretVersionId,
+        expires_at: injectionGrants.expiresAt,
+        consumed_at: injectionGrants.consumedAt,
+      });
     return rows[0] ?? null;
   }
 

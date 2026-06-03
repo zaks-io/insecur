@@ -40,15 +40,15 @@ describeRls("tenant data key metadata isolation (real Postgres)", () => {
 
     const organizationKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+      async ({ db }) => {
+        const store = new TenantDataKeyMetadataStore(db);
         return store.getActiveOrganizationDataKey(orgA);
       },
     );
     const projectKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+      async ({ db }) => {
+        const store = new TenantDataKeyMetadataStore(db);
         return store.getActiveProjectDataKey(orgA, projectA);
       },
     );
@@ -66,15 +66,15 @@ describeRls("tenant data key metadata isolation (real Postgres)", () => {
 
     const organizationKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+      async ({ db }) => {
+        const store = new TenantDataKeyMetadataStore(db);
         return store.getOrganizationDataKeyVersion(organizationId.brand(TEST_ORG_B_ID), 1);
       },
     );
     const projectKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+      async ({ db }) => {
+        const store = new TenantDataKeyMetadataStore(db);
         return store.getActiveProjectDataKey(orgA, projectId.brand(TEST_PROJECT_B_ID));
       },
     );

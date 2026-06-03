@@ -11,7 +11,7 @@ interface OrganizationRow {
 export async function loadInstanceAnchorOrganizationId(
   instanceId: string,
 ): Promise<OrganizationId> {
-  const rows = await withTenantScope({ kind: "service" }, async (sql) => {
+  const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
     return await sql<OrganizationRow[]>`
       SELECT id
       FROM organizations

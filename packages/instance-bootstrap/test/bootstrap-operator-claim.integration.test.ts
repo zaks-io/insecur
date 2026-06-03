@@ -78,7 +78,7 @@ interface ClaimRow {
 }
 
 async function loadClaimStatus(instanceId: string): Promise<string | null> {
-  return withTenantScope({ kind: "service" }, async (sql) => {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
     const rows = await sql<ClaimRow[]>`
       SELECT status FROM bootstrap_operator_claims WHERE instance_id = ${instanceId} LIMIT 1
     `;
@@ -90,7 +90,7 @@ async function loadBootstrapGrantUserIds(
   instanceId: string,
   orgId: string,
 ): Promise<{ operatorUserIds: string[]; membershipUserIds: string[] }> {
-  return withTenantScope({ kind: "service" }, async (sql) => {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
     const operators = await sql<{ user_id: string }[]>`
       SELECT user_id FROM instance_operators WHERE instance_id = ${instanceId}
     `;
@@ -178,7 +178,7 @@ describeIntegration("bootstrap operator claim", () => {
       code: BOOTSTRAP_ERROR_CODES.invalidSecret,
     });
 
-    const operators = await withTenantScope({ kind: "service" }, async (sql) => {
+    const operators = await withTenantScope({ kind: "service" }, async ({ sql }) => {
       return await sql<{ user_id: string }[]>`
         SELECT user_id FROM instance_operators WHERE instance_id = ${BOOTSTRAP_INSTANCE_ID}
       `;
@@ -217,7 +217,7 @@ describeIntegration("bootstrap operator claim", () => {
 
     const auditRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<AuditRow[]>`
           SELECT event_code, outcome
           FROM audit_events
@@ -306,7 +306,7 @@ describeIntegration("bootstrap operator claim", () => {
 
     expect(await loadClaimStatus(ROLLBACK_INSTANCE_ID)).toBe("pending");
 
-    const operators = await withTenantScope({ kind: "service" }, async (sql) => {
+    const operators = await withTenantScope({ kind: "service" }, async ({ sql }) => {
       return await sql<{ id: string }[]>`
         SELECT id FROM instance_operators WHERE instance_id = ${ROLLBACK_INSTANCE_ID}
       `;
@@ -395,7 +395,7 @@ describeIntegration("bootstrap operator claim", () => {
       workosClientId: "client_test_bootstrap",
     });
 
-    await withTenantScope({ kind: "service" }, async (sql) => {
+    await withTenantScope({ kind: "service" }, async ({ sql }) => {
       await sql`
         INSERT INTO instances (id, display_name)
         VALUES (${FK_INSTANCE_B}, ${"FK instance B"})
@@ -408,7 +408,7 @@ describeIntegration("bootstrap operator claim", () => {
 
     const mismatchedClaimId = "boc_00000000000000000000000004";
     await expect(
-      withTenantScope({ kind: "service" }, async (sql) => {
+      withTenantScope({ kind: "service" }, async ({ sql }) => {
         await sql`
           INSERT INTO bootstrap_operator_claims (
             id,
@@ -426,7 +426,7 @@ describeIntegration("bootstrap operator claim", () => {
       }),
     ).rejects.toMatchObject({ code: "23503" });
 
-    const claimsOnInstanceB = await withTenantScope({ kind: "service" }, async (sql) => {
+    const claimsOnInstanceB = await withTenantScope({ kind: "service" }, async ({ sql }) => {
       return await sql<{ id: string }[]>`
         SELECT id FROM bootstrap_operator_claims WHERE instance_id = ${FK_INSTANCE_B}
       `;

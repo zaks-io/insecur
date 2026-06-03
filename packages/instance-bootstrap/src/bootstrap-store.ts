@@ -36,7 +36,7 @@ interface BootstrapSecretVerifierRow {
 export async function loadInstanceBootstrapRow(
   instanceId: string,
 ): Promise<InstanceBootstrapRow | null> {
-  return withTenantScope({ kind: "service" }, async (sql) => {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
     const rows = await sql<InstanceBootstrapRow[]>`
       SELECT
         i.id AS instance_id,
@@ -58,7 +58,7 @@ export async function loadInstanceBootstrapRow(
 }
 
 export async function instanceExists(instanceId: string): Promise<boolean> {
-  return withTenantScope({ kind: "service" }, async (sql) => {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
     const rows = await sql<{ id: string }[]>`
       SELECT id FROM instances WHERE id = ${instanceId} LIMIT 1
     `;
@@ -77,7 +77,7 @@ export async function persistInstanceBootstrap(input: {
   bootstrapSecret: string;
   workosClientId: string;
 }): Promise<void> {
-  await withTenantScope({ kind: "service" }, async (sql) => {
+  await withTenantScope({ kind: "service" }, async ({ sql }) => {
     await insertBootstrapInstanceRecords(sql, input);
     await insertBootstrapSecretVerifier(sql, input.instanceId, input.bootstrapSecret);
   });
@@ -86,7 +86,7 @@ export async function persistInstanceBootstrap(input: {
 export async function loadPendingBootstrapClaim(
   instanceId: string,
 ): Promise<BootstrapClaimRow | null> {
-  return withTenantScope({ kind: "service" }, async (sql) => {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
     const rows = await sql<BootstrapClaimRow[]>`
       SELECT id, instance_id, first_organization_id, status
       FROM bootstrap_operator_claims
@@ -101,7 +101,7 @@ export async function loadPendingBootstrapClaim(
 export async function loadBootstrapSecretVerifier(
   instanceId: string,
 ): Promise<BootstrapSecretVerifierRow | null> {
-  return withTenantScope({ kind: "service" }, async (sql) => {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
     const rows = await sql<BootstrapSecretVerifierRow[]>`
       SELECT algorithm, salt_b64, hash_b64, consumed_at
       FROM bootstrap_secret_verifiers
@@ -126,7 +126,7 @@ export function isBootstrapSecretValid(secret: string, row: BootstrapSecretVerif
 }
 
 export async function loadDefaultTeamId(organizationId: OrganizationId): Promise<TeamId | null> {
-  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     const rows = await sql<{ id: string }[]>`
         SELECT id
         FROM teams

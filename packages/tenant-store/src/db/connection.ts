@@ -29,5 +29,7 @@ export async function closeRuntimeSql(): Promise<void> {
   if (runtimePool) {
     await runtimePool.end({ timeout: 5 });
     runtimePool = undefined;
+    const { resetRuntimeTenantDb } = await import("../tenant-scoped-db.js");
+    resetRuntimeTenantDb();
   }
 }

@@ -1,6 +1,8 @@
 import { organizationId, projectId, type OrganizationId, type ProjectId } from "@insecur/domain";
+import { and, desc, eq } from "drizzle-orm";
 
-import type { TenantScopedSql } from "../tenant-scoped-sql.js";
+import { organizationDataKeys, projectDataKeys } from "../db/schema/tenant-hierarchy.js";
+import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import {
   type DataKeyVersionStatus,
   type OrganizationDataKeyRow,
@@ -40,9 +42,33 @@ function toProjectMetadata(row: ProjectDataKeyRow) {
   };
 }
 
+const organizationDataKeySelect = {
+  id: organizationDataKeys.id,
+  org_id: organizationDataKeys.orgId,
+  key_version: organizationDataKeys.keyVersion,
+  status: organizationDataKeys.status,
+  root_key_version: organizationDataKeys.rootKeyVersion,
+  wrapped_storage_ref: organizationDataKeys.wrappedStorageRef,
+  custody_evidence_ref: organizationDataKeys.custodyEvidenceRef,
+  created_at: organizationDataKeys.createdAt,
+  updated_at: organizationDataKeys.updatedAt,
+} as const;
+
+const projectDataKeySelect = {
+  id: projectDataKeys.id,
+  org_id: projectDataKeys.orgId,
+  project_id: projectDataKeys.projectId,
+  key_version: projectDataKeys.keyVersion,
+  status: projectDataKeys.status,
+  organization_data_key_version: projectDataKeys.organizationDataKeyVersion,
+  wrapped_storage_ref: projectDataKeys.wrappedStorageRef,
+  created_at: projectDataKeys.createdAt,
+  updated_at: projectDataKeys.updatedAt,
+} as const;
+
 /** Tenant-scoped reads and writes for organization and project data key metadata. */
 export class TenantDataKeyMetadataStore {
-  constructor(private readonly sql: TenantScopedSql) {}
+  constructor(private readonly db: TenantScopedDb) {}
 
   async getOrganizationDataKeyForReadiness(organizationId: OrganizationId) {
     const active = await this.getActiveOrganizationDataKey(organizationId);
@@ -61,67 +87,49 @@ export class TenantDataKeyMetadataStore {
   }
 
   async getActiveOrganizationDataKey(organizationId: OrganizationId) {
-    const rows = await this.sql<OrganizationDataKeyRow[]>`
-      SELECT
-        id,
-        org_id,
-        key_version,
-        status,
-        root_key_version,
-        wrapped_storage_ref,
-        custody_evidence_ref,
-        created_at,
-        updated_at
-      FROM organization_data_keys
-      WHERE org_id = ${organizationId}
-        AND status = ${"active"}
-      LIMIT 1
-    `;
+    const rows = await this.db
+      .select(organizationDataKeySelect)
+      .from(organizationDataKeys)
+      .where(
+        and(
+          eq(organizationDataKeys.orgId, organizationId),
+          eq(organizationDataKeys.status, "active"),
+        ),
+      )
+      .limit(1);
     const row = rows[0];
-    return row ? toOrganizationMetadata(row) : null;
+    return row ? toOrganizationMetadata(row as OrganizationDataKeyRow) : null;
   }
 
   async getOrganizationDataKeyVersion(organizationId: OrganizationId, keyVersion: number) {
-    const rows = await this.sql<OrganizationDataKeyRow[]>`
-      SELECT
-        id,
-        org_id,
-        key_version,
-        status,
-        root_key_version,
-        wrapped_storage_ref,
-        custody_evidence_ref,
-        created_at,
-        updated_at
-      FROM organization_data_keys
-      WHERE org_id = ${organizationId}
-        AND key_version = ${keyVersion}
-      LIMIT 1
-    `;
+    const rows = await this.db
+      .select(organizationDataKeySelect)
+      .from(organizationDataKeys)
+      .where(
+        and(
+          eq(organizationDataKeys.orgId, organizationId),
+          eq(organizationDataKeys.keyVersion, keyVersion),
+        ),
+      )
+      .limit(1);
     const row = rows[0];
-    return row ? toOrganizationMetadata(row) : null;
+    return row ? toOrganizationMetadata(row as OrganizationDataKeyRow) : null;
   }
 
   async getActiveProjectDataKey(organizationId: OrganizationId, projectId: ProjectId) {
-    const rows = await this.sql<ProjectDataKeyRow[]>`
-      SELECT
-        id,
-        org_id,
-        project_id,
-        key_version,
-        status,
-        organization_data_key_version,
-        wrapped_storage_ref,
-        created_at,
-        updated_at
-      FROM project_data_keys
-      WHERE org_id = ${organizationId}
-        AND project_id = ${projectId}
-        AND status = ${"active"}
-      LIMIT 1
-    `;
+    const rows = await this.db
+      .select(projectDataKeySelect)
+      .from(projectDataKeys)
+      .where(
+        and(
+          eq(projectDataKeys.orgId, organizationId),
+          eq(projectDataKeys.projectId, projectId),
+          eq(projectDataKeys.status, "active"),
+        ),
+      )
+      .limit(1);
     const row = rows[0];
-    return row ? toProjectMetadata(row) : null;
+    return row ? toProjectMetadata(row as ProjectDataKeyRow) : null;
   }
 
   async getProjectDataKeyVersion(
@@ -129,115 +137,76 @@ export class TenantDataKeyMetadataStore {
     projectId: ProjectId,
     keyVersion: number,
   ) {
-    const rows = await this.sql<ProjectDataKeyRow[]>`
-      SELECT
-        id,
-        org_id,
-        project_id,
-        key_version,
-        status,
-        organization_data_key_version,
-        wrapped_storage_ref,
-        created_at,
-        updated_at
-      FROM project_data_keys
-      WHERE org_id = ${organizationId}
-        AND project_id = ${projectId}
-        AND key_version = ${keyVersion}
-      LIMIT 1
-    `;
+    const rows = await this.db
+      .select(projectDataKeySelect)
+      .from(projectDataKeys)
+      .where(
+        and(
+          eq(projectDataKeys.orgId, organizationId),
+          eq(projectDataKeys.projectId, projectId),
+          eq(projectDataKeys.keyVersion, keyVersion),
+        ),
+      )
+      .limit(1);
     const row = rows[0];
-    return row ? toProjectMetadata(row) : null;
+    return row ? toProjectMetadata(row as ProjectDataKeyRow) : null;
   }
 
   private async getLatestOrganizationDataKey(organizationId: OrganizationId) {
-    const rows = await this.sql<OrganizationDataKeyRow[]>`
-      SELECT
-        id,
-        org_id,
-        key_version,
-        status,
-        root_key_version,
-        wrapped_storage_ref,
-        custody_evidence_ref,
-        created_at,
-        updated_at
-      FROM organization_data_keys
-      WHERE org_id = ${organizationId}
-      ORDER BY key_version DESC
-      LIMIT 1
-    `;
+    const rows = await this.db
+      .select(organizationDataKeySelect)
+      .from(organizationDataKeys)
+      .where(eq(organizationDataKeys.orgId, organizationId))
+      .orderBy(desc(organizationDataKeys.keyVersion))
+      .limit(1);
     const row = rows[0];
-    return row ? toOrganizationMetadata(row) : null;
+    return row ? toOrganizationMetadata(row as OrganizationDataKeyRow) : null;
   }
 
   private async getLatestProjectDataKey(organizationId: OrganizationId, projectId: ProjectId) {
-    const rows = await this.sql<ProjectDataKeyRow[]>`
-      SELECT
-        id,
-        org_id,
-        project_id,
-        key_version,
-        status,
-        organization_data_key_version,
-        wrapped_storage_ref,
-        created_at,
-        updated_at
-      FROM project_data_keys
-      WHERE org_id = ${organizationId}
-        AND project_id = ${projectId}
-      ORDER BY key_version DESC
-      LIMIT 1
-    `;
+    const rows = await this.db
+      .select(projectDataKeySelect)
+      .from(projectDataKeys)
+      .where(
+        and(eq(projectDataKeys.orgId, organizationId), eq(projectDataKeys.projectId, projectId)),
+      )
+      .orderBy(desc(projectDataKeys.keyVersion))
+      .limit(1);
     const row = rows[0];
-    return row ? toProjectMetadata(row) : null;
+    return row ? toProjectMetadata(row as ProjectDataKeyRow) : null;
   }
 
   async insertOrganizationDataKey(input: SeedOrganizationDataKeyInput): Promise<void> {
-    await this.sql`
-      INSERT INTO organization_data_keys (
-        id,
-        org_id,
-        key_version,
-        status,
-        root_key_version,
-        wrapped_storage_ref,
-        custody_evidence_ref
-      )
-      VALUES (
-        ${input.id},
-        ${input.organizationId},
-        ${input.keyVersion},
-        ${input.status ?? "active"},
-        ${input.rootKeyVersion ?? 1},
-        ${input.wrappedStorageRef ?? null},
-        ${input.custodyEvidenceRef ?? null}
-      )
-      ON CONFLICT (org_id, key_version) DO NOTHING
-    `;
+    await this.db
+      .insert(organizationDataKeys)
+      .values({
+        id: input.id,
+        orgId: input.organizationId,
+        keyVersion: input.keyVersion,
+        status: input.status ?? "active",
+        rootKeyVersion: input.rootKeyVersion ?? 1,
+        wrappedStorageRef: input.wrappedStorageRef ?? null,
+        custodyEvidenceRef: input.custodyEvidenceRef ?? null,
+      })
+      .onConflictDoNothing({
+        target: [organizationDataKeys.orgId, organizationDataKeys.keyVersion],
+      });
   }
 
   async insertProjectDataKey(input: SeedProjectDataKeyInput): Promise<void> {
-    await this.sql`
-      INSERT INTO project_data_keys (
-        id,
-        org_id,
-        project_id,
-        key_version,
-        status,
-        organization_data_key_version,
-        wrapped_storage_ref
-      )
-      VALUES (
-        ${input.id},
-        ${input.organizationId},
-        ${input.projectId},
-        ${input.keyVersion},
-        ${input.status ?? "active"},
-        ${input.organizationDataKeyVersion},
-        ${input.wrappedStorageRef ?? null}
-      )
-      ON CONFLICT (project_id, key_version) DO NOTHING
-    `;
+    await this.db
+      .insert(projectDataKeys)
+      .values({
+        id: input.id,
+        orgId: input.organizationId,
+        projectId: input.projectId,
+        keyVersion: input.keyVersion,
+        status: input.status ?? "active",
+        organizationDataKeyVersion: input.organizationDataKeyVersion,
+        wrappedStorageRef: input.wrappedStorageRef ?? null,
+      })
+      .onConflictDoNothing({
+        target: [projectDataKeys.projectId, projectDataKeys.keyVersion],
+      });
   }
 }

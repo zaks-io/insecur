@@ -30,7 +30,7 @@ class StoreBackedMetadataReader implements TenantDataKeyMetadataReader {
   private withStore<T>(run: (store: TenantDataKeyMetadataStore) => Promise<T>): Promise<T> {
     return withTenantScope(
       { kind: "organization", organizationId: this.organizationId },
-      async (sql) => run(new TenantDataKeyMetadataStore(sql)),
+      async ({ db }) => run(new TenantDataKeyMetadataStore(db)),
     );
   }
 
@@ -73,7 +73,7 @@ class StoreBackedMetadataReader implements TenantDataKeyMetadataReader {
 async function retireReadinessFixtureDataKeys(
   orgB: ReturnType<typeof organizationId.brand>,
 ): Promise<void> {
-  await withTenantScope({ kind: "organization", organizationId: orgB }, async (sql) => {
+  await withTenantScope({ kind: "organization", organizationId: orgB }, async ({ sql }) => {
     await sql`
       UPDATE organization_data_keys
       SET status = ${"retired"}
@@ -92,7 +92,7 @@ async function retireReadinessFixtureDataKeys(
 async function restoreReadinessFixtureDataKeys(
   orgB: ReturnType<typeof organizationId.brand>,
 ): Promise<void> {
-  await withTenantScope({ kind: "organization", organizationId: orgB }, async (sql) => {
+  await withTenantScope({ kind: "organization", organizationId: orgB }, async ({ sql }) => {
     await sql`
       UPDATE organization_data_keys
       SET status = ${"active"}

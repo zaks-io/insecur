@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeInlineCiphertextStorageRef } from "../src/secrets/ciphertext-storage-ref.js";
 import { TenantProviderCredentialStore } from "../src/provider-credentials/tenant-provider-credential-store.js";
 import { TenantSensitiveMetadataStore } from "../src/sensitive-metadata/tenant-sensitive-metadata-store.js";
-import type { TenantScopedSql } from "../src/tenant-scoped-sql.js";
+import type { TenantScopedDb } from "../src/tenant-scoped-db.js";
 
 const ORG = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const CONN = appConnectionId.brand("conn_01JZ8EFH2R7M4T0V9X3C5D8F1G");
@@ -32,17 +32,37 @@ function createTestRootKey(): Uint8Array {
   return root;
 }
 
-function createCapturingSql(): { sql: TenantScopedSql; storageRefs: string[] } {
+function createCapturingDb(): { db: TenantScopedDb; storageRefs: string[] } {
   const storageRefs: string[] = [];
-  const sql = vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
-    for (const value of values) {
-      if (typeof value === "string" && value.startsWith("inline:b64:")) {
-        storageRefs.push(value);
-      }
+  const captureValues = (values: Record<string, unknown>) => {
+    const ref = values.ciphertextStorageRef;
+    if (typeof ref === "string" && ref.startsWith("inline:b64:")) {
+      storageRefs.push(ref);
     }
-    return [];
-  }) as unknown as TenantScopedSql;
-  return { sql, storageRefs };
+  };
+
+  const insertChain = {
+    values: vi.fn((values: Record<string, unknown>) => {
+      captureValues(values);
+      return {
+        onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+      };
+    }),
+  };
+
+  const db = {
+    insert: vi.fn(() => insertChain),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([]),
+        })),
+      })),
+    })),
+  } as unknown as TenantScopedDb;
+
+  return { db, storageRefs };
 }
 
 describe("tenant metadata stores avoid plaintext persistence", () => {
@@ -67,8 +87,8 @@ describe("tenant metadata stores avoid plaintext persistence", () => {
       },
       plaintext,
     );
-    const { sql, storageRefs } = createCapturingSql();
-    const store = new TenantProviderCredentialStore(sql);
+    const { db, storageRefs } = createCapturingDb();
+    const store = new TenantProviderCredentialStore(db);
 
     await store.upsertCredential({
       organizationId: ORG,
@@ -99,8 +119,8 @@ describe("tenant metadata stores avoid plaintext persistence", () => {
       },
       plaintext,
     );
-    const { sql, storageRefs } = createCapturingSql();
-    const store = new TenantSensitiveMetadataStore(sql);
+    const { db, storageRefs } = createCapturingDb();
+    const store = new TenantSensitiveMetadataStore(db);
 
     await store.upsertField({
       organizationId: ORG,
@@ -130,8 +150,8 @@ describe("tenant metadata stores avoid plaintext persistence", () => {
       },
       plaintext,
     );
-    const { sql, storageRefs } = createCapturingSql();
-    const store = new TenantSensitiveMetadataStore(sql);
+    const { db, storageRefs } = createCapturingDb();
+    const store = new TenantSensitiveMetadataStore(db);
 
     await store.upsertField({
       organizationId: ORG,

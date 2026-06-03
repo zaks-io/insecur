@@ -78,7 +78,7 @@ async function grantMembershipFromInvitation(
   const grantedMembershipId = input.membershipId ?? membershipId.generate();
   const accepted = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) =>
+    async ({ sql }) =>
       await acceptInvitationInTransaction(sql, {
         invitationId: input.invitationId,
         organizationId: input.organizationId,

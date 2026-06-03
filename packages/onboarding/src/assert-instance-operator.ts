@@ -7,7 +7,7 @@ interface OperatorRow {
 }
 
 export async function isInstanceOperator(instanceId: string, userId: UserId): Promise<boolean> {
-  const rows = await withTenantScope({ kind: "service" }, async (sql) => {
+  const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
     return await sql<OperatorRow[]>`
       SELECT user_id
       FROM instance_operators

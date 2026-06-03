@@ -41,12 +41,12 @@ export async function resolveInjectionGrantBinding(
 ): Promise<ResolvedInjectionGrantBinding> {
   return withTenantScope(
     { kind: "organization", organizationId: coordinate.organizationId },
-    async (sql) => {
-      const versionStore = new TenantSecretVersionStore(sql);
+    async ({ db }) => {
+      const versionStore = new TenantSecretVersionStore(db);
       let resolved;
       try {
         resolved = await resolveSecretForRead(
-          sql,
+          db,
           selector.kind === "variable_key"
             ? {
                 organizationId: coordinate.organizationId,

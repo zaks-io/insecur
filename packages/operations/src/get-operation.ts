@@ -10,7 +10,7 @@ import { TenantOperationStore } from "./tenant-operation-store.js";
 export async function getOperation(input: GetOperationInput): Promise<OperationPollResult> {
   const operation = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const store = new TenantOperationStore(sql);
       return await store.getById(input.organizationId, input.operationId);
     },

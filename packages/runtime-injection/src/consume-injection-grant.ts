@@ -67,8 +67,8 @@ async function loadGrantBinding(
   organizationId: OrganizationId,
   grantId: InjectionGrantId,
 ): Promise<LoadedGrantBinding | undefined> {
-  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
-    const store = new TenantInjectionGrantStore(sql);
+  return withTenantScope({ kind: "organization", organizationId }, async ({ db }) => {
+    const store = new TenantInjectionGrantStore(db);
     const grant = await store.getGrant(organizationId, grantId);
     if (!grant) {
       return undefined;
@@ -113,8 +113,8 @@ export async function executeConsumeInjectionGrant(
 
   const consumeResult = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    (sql) =>
-      new TenantInjectionGrantStore(sql).tryConsumeGrant(
+    ({ db }) =>
+      new TenantInjectionGrantStore(db).tryConsumeGrant(
         input.organizationId,
         input.grantId,
         identity.secretId,

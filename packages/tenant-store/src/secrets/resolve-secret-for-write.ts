@@ -1,42 +1,28 @@
 import { secretId, type SecretId } from "@insecur/domain";
+import { and, eq } from "drizzle-orm";
 
-import type { TenantScopedSql } from "../tenant-scoped-sql.js";
+import { secrets } from "../db/schema/tenant-secrets.js";
+import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { SecretVersionStoreConflictError } from "./errors.js";
 import type { ResolveSecretForWriteInput } from "./types.js";
 
-interface SecretRow {
-  id: string;
-  environment_id: string;
-  variable_key: string;
-}
-
 async function insertSecretRow(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: ResolveSecretForWriteInput,
   secretIdValue: SecretId,
 ): Promise<void> {
-  await sql`
-    INSERT INTO secrets (
-      id,
-      org_id,
-      project_id,
-      environment_id,
-      variable_key,
-      current_version_id
-    )
-    VALUES (
-      ${secretIdValue},
-      ${input.organizationId},
-      ${input.projectId},
-      ${input.environmentId},
-      ${input.variableKey},
-      NULL
-    )
-  `;
+  await db.insert(secrets).values({
+    id: secretIdValue,
+    orgId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    variableKey: input.variableKey,
+    currentVersionId: null,
+  });
 }
 
 async function resolveByExplicitSecretId(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: ResolveSecretForWriteInput,
 ): Promise<{ secretId: SecretId; createdSecretShape: boolean }> {
   const explicitId = input.secretId;
@@ -44,55 +30,60 @@ async function resolveByExplicitSecretId(
     throw new Error("explicit secret id required");
   }
 
-  const rows = await sql<SecretRow[]>`
-    SELECT id, environment_id, variable_key
-    FROM secrets
-    WHERE id = ${explicitId}
-      AND org_id = ${input.organizationId}
-    LIMIT 1
-  `;
+  const rows = await db
+    .select({
+      id: secrets.id,
+      environmentId: secrets.environmentId,
+      variableKey: secrets.variableKey,
+    })
+    .from(secrets)
+    .where(and(eq(secrets.id, explicitId), eq(secrets.orgId, input.organizationId)))
+    .limit(1);
   const existing = rows[0];
   if (existing) {
     if (
-      existing.environment_id !== input.environmentId ||
-      existing.variable_key !== input.variableKey
+      existing.environmentId !== input.environmentId ||
+      existing.variableKey !== input.variableKey
     ) {
       throw new SecretVersionStoreConflictError("secret selector does not match variable key");
     }
     return { secretId: secretId.brand(existing.id), createdSecretShape: false };
   }
 
-  await insertSecretRow(sql, input, explicitId);
+  await insertSecretRow(db, input, explicitId);
   return { secretId: explicitId, createdSecretShape: true };
 }
 
 async function resolveByVariableKey(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: ResolveSecretForWriteInput,
 ): Promise<{ secretId: SecretId; createdSecretShape: boolean }> {
-  const rows = await sql<{ id: string }[]>`
-    SELECT id
-    FROM secrets
-    WHERE environment_id = ${input.environmentId}
-      AND variable_key = ${input.variableKey}
-    LIMIT 1
-  `;
+  const rows = await db
+    .select({ id: secrets.id })
+    .from(secrets)
+    .where(
+      and(
+        eq(secrets.environmentId, input.environmentId),
+        eq(secrets.variableKey, input.variableKey),
+      ),
+    )
+    .limit(1);
   const match = rows[0];
   if (match) {
     return { secretId: secretId.brand(match.id), createdSecretShape: false };
   }
 
   const minted = secretId.generate();
-  await insertSecretRow(sql, input, minted);
+  await insertSecretRow(db, input, minted);
   return { secretId: minted, createdSecretShape: true };
 }
 
 export async function resolveSecretForWrite(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: ResolveSecretForWriteInput,
 ): Promise<{ secretId: SecretId; createdSecretShape: boolean }> {
   if (input.secretId !== undefined) {
-    return resolveByExplicitSecretId(sql, input);
+    return resolveByExplicitSecretId(db, input);
   }
-  return resolveByVariableKey(sql, input);
+  return resolveByVariableKey(db, input);
 }

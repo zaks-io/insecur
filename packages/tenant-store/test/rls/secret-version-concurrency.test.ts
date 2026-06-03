@@ -5,6 +5,7 @@ import {
   projectId,
   secretId,
   secretVersionId,
+  type OrganizationId,
   type SecretId,
   type VariableKey,
 } from "@insecur/domain";
@@ -48,8 +49,8 @@ async function appendVersion(secretIdValue: SecretId, suffix: number) {
   const versionId = secretVersionId.generate();
   const wrapped = syntheticWrappedMaterial(suffix);
 
-  return withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
-    const store = new TenantSecretVersionStore(sql);
+  return withTenantScope({ kind: "organization", organizationId: org }, async ({ db }) => {
+    const store = new TenantSecretVersionStore(db);
     return store.appendVersionAndMakeLive({
       organizationId: org,
       secretId: secretIdValue,
@@ -58,6 +59,71 @@ async function appendVersion(secretIdValue: SecretId, suffix: number) {
       createdSecretShape: false,
     });
   });
+}
+
+async function assertConcurrentVersionRows(
+  org: OrganizationId,
+  dedicatedSecretId: SecretId,
+  results: Awaited<ReturnType<typeof appendVersion>>[],
+): Promise<void> {
+  const versionNumbers = results.map((result) => result.versionNumber).sort((a, b) => a - b);
+  expect(versionNumbers).toEqual(
+    Array.from({ length: CONCURRENT_APPEND_COUNT }, (_, index) => index + 1),
+  );
+  expect(new Set(results.map((result) => result.secretVersionId)).size).toBe(
+    CONCURRENT_APPEND_COUNT,
+  );
+
+  const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
+    new TenantSecretVersionStore(db).getCurrentVersion(dedicatedSecretId),
+  );
+  expect(current).not.toBeNull();
+  expect(results.some((result) => result.secretVersionId === current?.secretVersionId)).toBe(true);
+  expect(current?.versionNumber).toBe(CONCURRENT_APPEND_COUNT);
+
+  const storedVersions = await withTenantScope(
+    { kind: "organization", organizationId: org },
+    ({ sql }) =>
+      sql<{ id: string; version_number: number; ciphertext_storage_ref: string }[]>`
+        SELECT id, version_number, ciphertext_storage_ref
+        FROM secret_versions
+        WHERE secret_id = ${dedicatedSecretId}
+        ORDER BY version_number
+      `,
+  );
+  expect(storedVersions).toHaveLength(CONCURRENT_APPEND_COUNT);
+  for (const row of storedVersions) {
+    expect(row.ciphertext_storage_ref).toMatch(/^inline:b64:/);
+    expect(JSON.stringify(row)).not.toContain("plaintext");
+  }
+
+  const currentPointer = await withTenantScope(
+    { kind: "organization", organizationId: org },
+    ({ sql }) =>
+      sql<{ current_version_id: string | null }[]>`
+        SELECT current_version_id
+        FROM secrets
+        WHERE id = ${dedicatedSecretId}
+        LIMIT 1
+      `,
+  );
+  expect(currentPointer[0]?.current_version_id).toBe(current?.secretVersionId);
+  expect(storedVersions.some((row) => row.id === currentPointer[0]?.current_version_id)).toBe(true);
+}
+
+async function assertSerialAppendAfterConcurrency(
+  org: OrganizationId,
+  dedicatedSecretId: SecretId,
+): Promise<void> {
+  const serial = await appendVersion(dedicatedSecretId, 200);
+  expect(serial.versionNumber).toBe(CONCURRENT_APPEND_COUNT + 1);
+
+  const serialCurrent = await withTenantScope(
+    { kind: "organization", organizationId: org },
+    ({ db }) => new TenantSecretVersionStore(db).getCurrentVersion(dedicatedSecretId),
+  );
+  expect(serialCurrent?.secretVersionId).toBe(serial.secretVersionId);
+  expect(serialCurrent?.versionNumber).toBe(CONCURRENT_APPEND_COUNT + 1);
 }
 
 describeRls("TenantSecretVersionStore append concurrency (real Postgres)", () => {
@@ -77,8 +143,8 @@ describeRls("TenantSecretVersionStore append concurrency (real Postgres)", () =>
     const dedicatedSecretId = secretId.generate();
     const variableKey = uniqueConcurrencyVariableKey();
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
-      const store = new TenantSecretVersionStore(sql);
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ db }) => {
+      const store = new TenantSecretVersionStore(db);
       await store.resolveSecretForWrite({
         organizationId: org,
         projectId: projectId.brand(TEST_PROJECT_A_ID),
@@ -94,62 +160,7 @@ describeRls("TenantSecretVersionStore append concurrency (real Postgres)", () =>
       ),
     );
 
-    const versionNumbers = results.map((result) => result.versionNumber).sort((a, b) => a - b);
-    expect(versionNumbers).toEqual(
-      Array.from({ length: CONCURRENT_APPEND_COUNT }, (_, index) => index + 1),
-    );
-    expect(new Set(results.map((result) => result.secretVersionId)).size).toBe(
-      CONCURRENT_APPEND_COUNT,
-    );
-
-    const current = await withTenantScope({ kind: "organization", organizationId: org }, (sql) =>
-      new TenantSecretVersionStore(sql).getCurrentVersion(dedicatedSecretId),
-    );
-    expect(current).not.toBeNull();
-    expect(results.some((result) => result.secretVersionId === current?.secretVersionId)).toBe(
-      true,
-    );
-    expect(current?.versionNumber).toBe(CONCURRENT_APPEND_COUNT);
-
-    const storedVersions = await withTenantScope(
-      { kind: "organization", organizationId: org },
-      (sql) =>
-        sql<{ id: string; version_number: number; ciphertext_storage_ref: string }[]>`
-          SELECT id, version_number, ciphertext_storage_ref
-          FROM secret_versions
-          WHERE secret_id = ${dedicatedSecretId}
-          ORDER BY version_number
-        `,
-    );
-    expect(storedVersions).toHaveLength(CONCURRENT_APPEND_COUNT);
-    for (const row of storedVersions) {
-      expect(row.ciphertext_storage_ref).toMatch(/^inline:b64:/);
-      expect(JSON.stringify(row)).not.toContain("plaintext");
-    }
-
-    const currentPointer = await withTenantScope(
-      { kind: "organization", organizationId: org },
-      (sql) =>
-        sql<{ current_version_id: string | null }[]>`
-          SELECT current_version_id
-          FROM secrets
-          WHERE id = ${dedicatedSecretId}
-          LIMIT 1
-        `,
-    );
-    expect(currentPointer[0]?.current_version_id).toBe(current?.secretVersionId);
-    expect(storedVersions.some((row) => row.id === currentPointer[0]?.current_version_id)).toBe(
-      true,
-    );
-
-    const serial = await appendVersion(dedicatedSecretId, 200);
-    expect(serial.versionNumber).toBe(CONCURRENT_APPEND_COUNT + 1);
-
-    const serialCurrent = await withTenantScope(
-      { kind: "organization", organizationId: org },
-      (sql) => new TenantSecretVersionStore(sql).getCurrentVersion(dedicatedSecretId),
-    );
-    expect(serialCurrent?.secretVersionId).toBe(serial.secretVersionId);
-    expect(serialCurrent?.versionNumber).toBe(CONCURRENT_APPEND_COUNT + 1);
+    await assertConcurrentVersionRows(org, dedicatedSecretId, results);
+    await assertSerialAppendAfterConcurrency(org, dedicatedSecretId);
   });
 });

@@ -44,7 +44,7 @@ async function projectBelongsToOrganization(
   organizationId: OrganizationId,
   projectId: ProjectId,
 ): Promise<boolean> {
-  const rows = await withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+  const rows = await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     return await sql<{ id: string }[]>`
         SELECT id
         FROM projects

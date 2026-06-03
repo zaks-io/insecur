@@ -59,7 +59,7 @@ function mapInvitationRow(row: InvitationQueryRow): PendingInvitationRow {
 export async function loadDefaultTeamId(orgId: OrganizationId): Promise<TeamId> {
   const rows = await withTenantScope(
     { kind: "organization", organizationId: orgId },
-    async (sql) => {
+    async ({ sql }) => {
       return await sql<DefaultTeamRow[]>`
         SELECT id
         FROM teams
@@ -87,7 +87,7 @@ export async function insertPendingInvitation(input: {
 }): Promise<void> {
   await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       await sql`
         INSERT INTO invitations (
           id,
@@ -118,7 +118,7 @@ export async function loadPendingInvitation(
 ): Promise<PendingInvitationRow | null> {
   const rows = await withTenantScope(
     { kind: "organization", organizationId: orgId },
-    async (sql) => {
+    async ({ sql }) => {
       return await sql<InvitationQueryRow[]>`
       SELECT id, org_id, team_id, invitee_user_id, role_preset, project_id, status
       FROM invitations
@@ -185,7 +185,7 @@ export async function membershipExistsForGrant(input: {
 }): Promise<boolean> {
   const rows = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       if (input.projectId === null) {
         return await sql<{ id: string }[]>`
           SELECT id

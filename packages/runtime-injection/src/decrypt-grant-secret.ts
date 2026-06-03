@@ -11,7 +11,7 @@ import {
 import {
   TenantSecretVersionStore,
   withTenantScope,
-  type TenantScopedSql,
+  type TenantScopedDb,
 } from "@insecur/tenant-store";
 
 import { InjectionGrantError } from "./injection-grant-error.js";
@@ -25,7 +25,7 @@ export async function decryptBoundGrantSecretVersion(input: {
 }): Promise<Uint8Array> {
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => decryptResolvedVersion(input, sql),
+    async ({ db }) => decryptResolvedVersion(input, db),
   );
 }
 
@@ -37,9 +37,9 @@ async function decryptResolvedVersion(
     secretId: SecretId;
     secretVersionId: SecretVersionId;
   },
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
 ): Promise<Uint8Array> {
-  const version = await new TenantSecretVersionStore(sql).getVersionById(
+  const version = await new TenantSecretVersionStore(db).getVersionById(
     input.secretId,
     input.secretVersionId,
   );

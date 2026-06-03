@@ -8,7 +8,7 @@ import { TenantSyncTargetLeaseStore } from "./tenant-sync-target-lease-store.js"
 export async function assertSyncTargetLease(input: AssertSyncTargetLeaseInput): Promise<void> {
   await withTenantScope(
     { kind: "organization", organizationId: input.target.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const store = new TenantSyncTargetLeaseStore(sql);
       await store.assertLeaseOwnership({
         target: input.target,
