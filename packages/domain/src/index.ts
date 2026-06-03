@@ -28,6 +28,7 @@ export {
   type StagedChangeId,
   type InvitationId,
   type MachineIdentityId,
+  type MachineAuthMethodId,
   type AppConnectionId,
   type ProviderCredentialId,
   organizationId,
@@ -48,6 +49,7 @@ export {
   stagedChangeId,
   invitationId,
   machineIdentityId,
+  machineAuthMethodId,
   appConnectionId,
   providerCredentialId,
 } from "./resource-ids.js";

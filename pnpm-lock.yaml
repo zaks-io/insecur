@@ -325,6 +325,34 @@ importers:
         specifier: 'catalog:'
         version: 4.1.7(@types/node@24.12.4)(@vitest/coverage-v8@4.1.7)(vite@7.3.3(@types/node@24.12.4)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
+  packages/machine-auth:
+    dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../access
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@insecur/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.7(@types/node@24.12.4)(@vitest/coverage-v8@4.1.7)(vite@7.3.3(@types/node@24.12.4)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+
   packages/onboarding:
     dependencies:
       '@insecur/access':

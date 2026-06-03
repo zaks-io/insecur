@@ -24,7 +24,7 @@ import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
 import { matchConsumeSelectorToBinding } from "./match-consume-selector.js";
-import { recordRuntimeInjectionAudit } from "@insecur/audit";
+import { auditActorUserId, recordRuntimeInjectionAudit } from "@insecur/audit";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
 
 export interface ConsumeInjectionGrantCoreInput {
@@ -104,7 +104,7 @@ export async function executeConsumeInjectionGrant(
   };
 
   await assertRuntimeInjectionAccess(
-    { type: "user", userId: input.actor.userId },
+    { type: "user", userId: auditActorUserId(input.actor) },
     grantCoordinate,
     CONSUME_SCOPE,
   );

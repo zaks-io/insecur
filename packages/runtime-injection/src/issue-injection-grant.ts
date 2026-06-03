@@ -4,6 +4,7 @@ import {
   type AuditActorRef,
   type AuditOperationRef,
   type AuditRequestRef,
+  auditActorUserId,
 } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
@@ -61,7 +62,7 @@ export async function executeIssueInjectionGrant(
   const coordinate = toGrantCoordinate(input);
 
   await assertRuntimeInjectionAccess(
-    { type: "user", userId: input.actor.userId },
+    { type: "user", userId: auditActorUserId(input.actor) },
     coordinate,
     ISSUE_SCOPE,
   );

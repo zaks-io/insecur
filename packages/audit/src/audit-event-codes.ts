@@ -30,6 +30,8 @@ export const FIRST_VALUE_AUDIT_EVENT_CODES = {
  * Writers must pair success and denied codes with matching outcomes.
  */
 export const PRODUCTION_AUDIT_EVENT_CODES = {
+  machineGithubActionsOidcExchanged: "machine_auth.github_actions_oidc_exchanged",
+  machineGithubActionsOidcExchangeDenied: "machine_auth.github_actions_oidc_exchange_denied",
   syncExecutionCompleted: "sync.execution_completed",
   syncExecutionDenied: "sync.execution_denied",
   syncRevalidationDenied: "sync.revalidation_denied",
@@ -77,6 +79,7 @@ export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEvent
 ]);
 
 export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventCode>([
+  PRODUCTION_AUDIT_EVENT_CODES.machineGithubActionsOidcExchangeDenied,
   PRODUCTION_AUDIT_EVENT_CODES.syncExecutionDenied,
   PRODUCTION_AUDIT_EVENT_CODES.syncRevalidationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.cryptoDataKeyDenied,

@@ -1,6 +1,7 @@
 import {
   AUDIT_SUCCESS_RESULT_CODE,
   environmentId,
+  machineIdentityId,
   operationId,
   organizationId,
   projectId,
@@ -48,6 +49,7 @@ describe("toAuditEventInsertRow", () => {
       resultCode: AUDIT_SUCCESS_RESULT_CODE,
       actorType: "user",
       actorUserId: USER,
+      actorMachineIdentityId: null,
       projectId: PROJECT,
       environmentId: ENV,
       resourceType: "secret",
@@ -101,5 +103,41 @@ describe("toAuditEventInsertRow", () => {
     );
 
     expect(row.details).toEqual({ gate: "storage_security", retryable: false });
+  });
+
+  it("maps machine and ci_exchange actors onto insert rows", () => {
+    const auditEventId = generateAuditEventId();
+    const machine = machineIdentityId.brand("mach_00000000000000000000000001");
+
+    const machineRow = toAuditEventInsertRow(
+      {
+        eventCode: "machine_auth.github_actions_oidc_exchanged",
+        outcome: "success",
+        actor: { type: "machine", machineIdentityId: machine },
+        organizationId: ORG,
+      },
+      auditEventId,
+      AUDIT_SUCCESS_RESULT_CODE,
+    );
+
+    expect(machineRow.actorType).toBe("machine");
+    expect(machineRow.actorUserId).toBeNull();
+    expect(machineRow.actorMachineIdentityId).toBe(machine);
+
+    const ciRow = toAuditEventInsertRow(
+      {
+        eventCode: "machine_auth.github_actions_oidc_exchange_denied",
+        outcome: "denied",
+        actor: { type: "ci_exchange" },
+        organizationId: ORG,
+        denial: { reasonCode: "auth.oidc_wrong_audience" },
+      },
+      auditEventId,
+      "auth.oidc_wrong_audience",
+    );
+
+    expect(ciRow.actorType).toBe("ci_exchange");
+    expect(ciRow.actorUserId).toBeNull();
+    expect(ciRow.actorMachineIdentityId).toBeNull();
   });
 });

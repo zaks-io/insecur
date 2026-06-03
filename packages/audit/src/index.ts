@@ -15,9 +15,13 @@ export {
   type FirstValueAuditEventCode,
   type ProductionAuditEventCode,
 } from "./audit-event-codes.js";
+export { auditActorUserId } from "./audit-actor.js";
 export { auditCorrelationRefs, auditOperationRef, auditRequestRef } from "./audit-correlation.js";
 export {
   type AuditActorRef,
+  type AuditCiExchangeActorRef,
+  type AuditMachineActorRef,
+  type AuditUserActorRef,
   type AuditActorType,
   type AuditCorrelationRefs,
   type AuditDenialMetadata,
