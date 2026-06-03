@@ -30,6 +30,7 @@ describe("resolveUserActor", () => {
         sessionData: "sealed_session_valid",
         userId: workosUserId,
         sessionId: "session_browser",
+        authenticationMethod: "Passkey",
       },
     ]);
     const credentials = parseRequestCredentials({
@@ -92,6 +93,7 @@ describe("resolveUserActor", () => {
         sessionData: "sealed_not_admitted",
         userId: "user_not_admitted",
         sessionId: "session_x",
+        authenticationMethod: "Passkey",
       },
     ]);
     const result = await resolveUserActor({
@@ -132,6 +134,58 @@ describe("resolveUserActor", () => {
       resolveAdmittedUser,
     });
     expect(result.ok).toBe(true);
+  });
+
+  it("returns auth.mfa_enrollment_required when no eligible MFA factors exist", async () => {
+    const workos = createFakeWorkOSSessionPort([
+      {
+        sessionData: "sealed_no_mfa",
+        userId: workosUserId,
+        sessionId: "session_no_mfa",
+        authenticationMethod: "Password",
+        authFactors: [],
+      },
+    ]);
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: null,
+        cookieHeader: "wos-session=sealed_no_mfa",
+        csrfHeader: null,
+      }),
+      config,
+      workos,
+      resolveAdmittedUser,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.mfaEnrollmentRequired);
+    }
+  });
+
+  it("returns auth.reauth_required for insufficient-assurance magic-auth sessions", async () => {
+    const workos = createFakeWorkOSSessionPort([
+      {
+        sessionData: "sealed_magic_auth",
+        userId: workosUserId,
+        sessionId: "session_magic",
+        authenticationMethod: "MagicAuth",
+        authFactors: [{ type: "totp" }],
+      },
+    ]);
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: null,
+        cookieHeader: "wos-session=sealed_magic_auth",
+        csrfHeader: null,
+      }),
+      config,
+      workos,
+      resolveAdmittedUser,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.reauthRequired);
+    }
   });
 
   it("returns auth.expired for expired bearer credentials", async () => {

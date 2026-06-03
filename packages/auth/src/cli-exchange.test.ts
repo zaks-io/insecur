@@ -23,6 +23,7 @@ describe("exchangeCliSession", () => {
         sessionData: "sealed_for_exchange",
         userId: "user_01workos",
         sessionId: "session_exchange",
+        authenticationMethod: "Passkey",
       },
     ]);
     const result = await exchangeCliSession({
@@ -39,6 +40,7 @@ describe("exchangeCliSession", () => {
     if (result.ok) {
       expect(result.credential.length).toBeGreaterThan(20);
       expect(result.body.sessionId).toBe("session_exchange");
+      expect(result.rotation?.sealedSession).toBe("sealed_for_exchange_rotated");
     }
   });
 
@@ -48,6 +50,7 @@ describe("exchangeCliSession", () => {
         sessionData: "sealed_for_exchange",
         userId: "user_01workos",
         sessionId: "session_exchange",
+        authenticationMethod: "Passkey",
       },
     ]);
     const result = await exchangeCliSession({
@@ -63,6 +66,32 @@ describe("exchangeCliSession", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.failure.code).toBe(AUTH_ERROR_CODES.invalid);
+    }
+  });
+
+  it("returns auth.mfa_enrollment_required when refresh reports MFA enrollment", async () => {
+    const csrf = generateCsrfToken();
+    const workos = createFakeWorkOSSessionPort([
+      {
+        sessionData: "sealed_mfa_enroll",
+        userId: "user_01workos",
+        sessionId: "session_mfa_enroll",
+        refreshFailure: "mfa_enrollment",
+      },
+    ]);
+    const result = await exchangeCliSession({
+      credentials: parseRequestCredentials({
+        authorizationHeader: null,
+        cookieHeader: `wos-session=sealed_mfa_enroll; insecur_csrf=${csrf}`,
+        csrfHeader: csrf,
+      }),
+      config,
+      workos,
+      resolveAdmittedUser: () => Promise.resolve(admittedUserId),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.mfaEnrollmentRequired);
     }
   });
 

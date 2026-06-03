@@ -19,6 +19,34 @@ export {
   validateCsrfToken,
 } from "./csrf.js";
 export {
+  HIGH_ASSURANCE_AUTHENTICATION_METHODS,
+  hasEligibleEnrolledMfaFactor,
+  INSUFFICIENT_ASSURANCE_AUTHENTICATION_METHODS,
+  isHighAssuranceAuthenticationMethod,
+  isSmsAuthFactor,
+  type WorkOSAuthFactorSummary,
+  type WorkOSAuthFactorType,
+} from "./mfa-posture.js";
+export {
+  authenticateWorkOSSession,
+  refreshWorkOSSession,
+  type RefreshWorkOSSessionResult,
+  type RefreshWorkOSSessionSuccess,
+  type ResolveWorkOSSessionResult,
+} from "./resolve-workos-session.js";
+export {
+  evaluateSessionAssurance,
+  type EvaluateSessionAssuranceInput,
+  type SessionAssuranceFailureReason,
+  type SessionAssuranceResult,
+} from "./session-assurance.js";
+export {
+  formatSessionSetCookie,
+  insecurCsrfCookieAttributes,
+  type SessionCookieAttributes,
+  workosSessionCookieAttributes,
+} from "./session-cookies.js";
+export {
   type MintEphemeralSessionInput,
   type MintEphemeralSessionResult,
   mintEphemeralSessionCredential,
@@ -47,5 +75,7 @@ export { createWorkOSSessionPort } from "./workos-session.js";
 export type {
   WorkOSAuthenticatedUser,
   WorkOSSessionAuthenticateResult,
+  WorkOSSessionContext,
   WorkOSSessionPort,
+  WorkOSSessionRefreshResult,
 } from "./workos-session-port.js";

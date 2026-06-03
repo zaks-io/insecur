@@ -1,7 +1,9 @@
 import {
   exchangeCliSession,
+  formatSessionSetCookie,
   INSECUR_SESSION_CREDENTIAL_HEADER,
   parseRequestCredentials,
+  workosSessionCookieAttributes,
 } from "@insecur/auth";
 import { requestId, successEnvelope } from "@insecur/domain";
 import { Hono } from "hono";
@@ -29,7 +31,14 @@ authRoutes.post("/cli/exchange", async (context) => {
   if (!exchanged.ok) {
     throw new AuthFailureError(exchanged.failure);
   }
-  return context.json(successEnvelope(exchanged.body, { requestId: reqId }), 200, {
+  const headers: Record<string, string> = {
     [INSECUR_SESSION_CREDENTIAL_HEADER]: exchanged.credential,
-  });
+  };
+  if (exchanged.rotation !== undefined) {
+    headers["Set-Cookie"] = formatSessionSetCookie(
+      workosSessionCookieAttributes,
+      exchanged.rotation.sealedSession,
+    );
+  }
+  return context.json(successEnvelope(exchanged.body, { requestId: reqId }), 200, headers);
 });

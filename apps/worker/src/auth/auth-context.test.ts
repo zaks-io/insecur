@@ -25,7 +25,12 @@ const env = {
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-    { sessionData: sealedSession, userId: workosUserId, sessionId: "session_context_test" },
+    {
+      sessionData: sealedSession,
+      userId: workosUserId,
+      sessionId: "session_context_test",
+      authenticationMethod: "Passkey",
+    },
   ]),
 };
 
