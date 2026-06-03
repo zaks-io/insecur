@@ -32,6 +32,39 @@ function expectAuthFailureEnvelope(body: unknown): void {
   expect(envelope.meta?.requestId).toMatch(/^req_/);
 }
 
+function cliExchangeSuccessEnv(
+  sealedSession: string,
+  workosUserId: string,
+  admittedUserId: string,
+): typeof env {
+  return {
+    ...env,
+    ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
+    WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+      {
+        sessionData: sealedSession,
+        userId: workosUserId,
+        sessionId: "session_success_test",
+        authenticationMethod: "Passkey",
+      },
+    ]),
+  };
+}
+
+function expectCliExchangeSuccessBody(body: unknown): void {
+  expect(body).toMatchObject({
+    ok: true,
+    data: { sessionId: "session_success_test" },
+  });
+  if (typeof body !== "object" || body === null) {
+    expect.fail("expected object response body");
+    return;
+  }
+  const successBody = body as { meta?: { requestId?: unknown } };
+  expect(typeof successBody.meta?.requestId).toBe("string");
+  expect(successBody.meta?.requestId).toMatch(/^req_/);
+}
+
 describe("centralized AuthFailure HTTP mapping", () => {
   it("maps requireUserActor failures to 401 via app.onError", async () => {
     const response = await app.request("/v1/session/whoami", { method: "GET" }, env);
@@ -78,18 +111,6 @@ describe("centralized AuthFailure HTTP mapping", () => {
     const workosUserId = "user_01workos";
     const admittedUserId = "usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
     const sealedSession = "sealed_auth_failure_success_test";
-    const successEnv = {
-      ...env,
-      ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
-      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-        {
-          sessionData: sealedSession,
-          userId: workosUserId,
-          sessionId: "session_success_test",
-          authenticationMethod: "Passkey",
-        },
-      ]),
-    };
     const csrf = generateCsrfToken();
     const response = await app.request(
       "/v1/auth/cli/exchange",
@@ -100,21 +121,10 @@ describe("centralized AuthFailure HTTP mapping", () => {
           "x-insecur-csrf": csrf,
         },
       },
-      successEnv,
+      cliExchangeSuccessEnv(sealedSession, workosUserId, admittedUserId),
     );
     expect(response.status).toBe(200);
     expect(response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER)).toBeTruthy();
-    const body: unknown = await response.json();
-    expect(body).toMatchObject({
-      ok: true,
-      data: { sessionId: "session_success_test" },
-    });
-    if (typeof body !== "object" || body === null) {
-      expect.fail("expected object response body");
-      return;
-    }
-    const successBody = body as { meta?: { requestId?: unknown } };
-    expect(typeof successBody.meta?.requestId).toBe("string");
-    expect(successBody.meta?.requestId).toMatch(/^req_/);
+    expectCliExchangeSuccessBody(await response.json());
   });
 });
