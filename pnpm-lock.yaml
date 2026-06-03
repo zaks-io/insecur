@@ -116,6 +116,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../../packages/access
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@insecur/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -125,6 +131,18 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@insecur/onboarding':
+        specifier: workspace:*
+        version: link:../../packages/onboarding
+      '@insecur/runtime-injection':
+        specifier: workspace:*
+        version: link:../../packages/runtime-injection
+      '@insecur/secret-store':
+        specifier: workspace:*
+        version: link:../../packages/secret-store
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../../packages/tenant-store
       hono:
         specifier: 'catalog:'
         version: 4.12.22

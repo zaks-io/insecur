@@ -2,6 +2,9 @@ import { errorEnvelope, requestId } from "@insecur/domain";
 import { Hono } from "hono";
 import { AuthFailureError } from "./auth/auth-failure-error.js";
 import { authRoutes } from "./routes/v1/auth.js";
+import { onboardingRoutes } from "./routes/v1/onboarding.js";
+import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
+import { secretsRoutes } from "./routes/v1/secrets.js";
 import { sessionRoutes } from "./routes/v1/session.js";
 import type { WorkerEnv } from "./env.js";
 
@@ -40,5 +43,8 @@ app.get("/healthz", (context) =>
 
 app.route("/v1/auth", authRoutes);
 app.route("/v1/session", sessionRoutes);
+app.route("/v1/onboarding", onboardingRoutes);
+app.route("/v1/projects", secretsRoutes);
+app.route("/v1/runtime-injection", runtimeInjectionRoutes);
 
 export default app;
