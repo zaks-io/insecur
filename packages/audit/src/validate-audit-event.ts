@@ -2,6 +2,7 @@ import {
   assertMetadataOnlyValue,
   AUDIT_ERROR_CODES,
   type AuditErrorCode,
+  isStableDottedCode,
   MetadataEnvelopeValidationError,
   type KnownErrorCode,
 } from "@insecur/domain";
@@ -13,8 +14,6 @@ import {
   type FirstValueAuditEventCode,
 } from "./audit-event-codes.js";
 import type { AuditEventInput } from "./audit-types.js";
-import { isStableDottedErrorCode } from "./stable-dotted-error-code.js";
-
 export class AuditEventValidationError extends Error {
   readonly code: AuditErrorCode = AUDIT_ERROR_CODES.eventInvalid;
   readonly retryable = false;
@@ -26,7 +25,7 @@ export class AuditEventValidationError extends Error {
 }
 
 function assertKnownErrorCode(value: string): asserts value is KnownErrorCode {
-  if (!isStableDottedErrorCode(value)) {
+  if (!isStableDottedCode(value)) {
     throw new AuditEventValidationError(
       "denial reasonCode must be a stable dotted code (e.g. auth.insufficient_scope)",
     );

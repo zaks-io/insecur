@@ -59,6 +59,11 @@ export {
   isVariableKey,
 } from "./variable-key.js";
 export {
+  STABLE_DOTTED_CODE_MAX_LENGTH,
+  STABLE_DOTTED_CODE_PATTERN,
+  isStableDottedCode,
+} from "./stable-dotted-code.js";
+export {
   AUDIT_ERROR_CODES,
   type AuditErrorCode,
   AUTH_ERROR_CODES,
