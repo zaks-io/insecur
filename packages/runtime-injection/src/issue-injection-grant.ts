@@ -16,6 +16,7 @@ import {
   SecretVersionStoreConflictError,
   SecretVersionStoreNotFoundError,
   TenantInjectionGrantStore,
+  createTenantScopedDb,
   withTenantScope,
 } from "@insecur/tenant-store";
 
@@ -66,11 +67,8 @@ export async function executeIssueInjectionGrant(
     ISSUE_SCOPE,
   );
 
-  await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
-      await new TenantInjectionGrantStore(sql).assertIssueCoordinate(coordinate);
-    },
+  await withTenantScope({ kind: "organization", organizationId: input.organizationId }, (sql) =>
+    new TenantInjectionGrantStore(createTenantScopedDb(sql)).assertIssueCoordinate(coordinate),
   );
 
   assertSingleIssueSelectorCount(1);
@@ -80,18 +78,15 @@ export async function executeIssueInjectionGrant(
   const grantId = injectionGrantId.generate();
   const expiresAtDate = computeInjectionGrantExpiresAt();
 
-  await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
-      await new TenantInjectionGrantStore(sql).insertGrant({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        grantId,
-        binding,
-        expiresAt: expiresAtDate,
-      });
-    },
+  await withTenantScope({ kind: "organization", organizationId: input.organizationId }, (sql) =>
+    new TenantInjectionGrantStore(createTenantScopedDb(sql)).insertGrant({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      grantId,
+      binding,
+      expiresAt: expiresAtDate,
+    }),
   );
 
   const audit = await recordRuntimeInjectionAudit({

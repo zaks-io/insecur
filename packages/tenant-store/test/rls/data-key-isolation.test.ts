@@ -2,7 +2,12 @@ import { organizationId, projectId } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import { redactLoggableError, requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
-import { TenantDataKeyMetadataStore, closeRuntimeSql, withTenantScope } from "../../src/index.js";
+import {
+  TenantDataKeyMetadataStore,
+  closeRuntimeSql,
+  createTenantScopedDb,
+  withTenantScope,
+} from "../../src/index.js";
 import { seedTenantBaseline } from "./seed.js";
 import {
   TEST_ORG_A_ID,
@@ -41,14 +46,14 @@ describeRls("tenant data key metadata isolation (real Postgres)", () => {
     const organizationKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+        const store = new TenantDataKeyMetadataStore(createTenantScopedDb(sql));
         return store.getActiveOrganizationDataKey(orgA);
       },
     );
     const projectKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+        const store = new TenantDataKeyMetadataStore(createTenantScopedDb(sql));
         return store.getActiveProjectDataKey(orgA, projectA);
       },
     );
@@ -67,14 +72,14 @@ describeRls("tenant data key metadata isolation (real Postgres)", () => {
     const organizationKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+        const store = new TenantDataKeyMetadataStore(createTenantScopedDb(sql));
         return store.getOrganizationDataKeyVersion(organizationId.brand(TEST_ORG_B_ID), 1);
       },
     );
     const projectKey = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async (sql) => {
-        const store = new TenantDataKeyMetadataStore(sql);
+        const store = new TenantDataKeyMetadataStore(createTenantScopedDb(sql));
         return store.getActiveProjectDataKey(orgA, projectId.brand(TEST_PROJECT_B_ID));
       },
     );

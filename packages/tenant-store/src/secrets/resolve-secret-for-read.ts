@@ -1,18 +1,13 @@
 import { parseVariableKey, secretId } from "@insecur/domain";
+import { and, eq } from "drizzle-orm";
 
-import type { TenantScopedSql } from "../tenant-scoped-sql.js";
+import { secrets } from "../db/schema/tenant-secrets.js";
+import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
 import type {
   ResolveSecretForReadInput,
   ResolvedSecretForRead,
 } from "./resolve-secret-for-read-types.js";
-
-interface SecretRow {
-  id: string;
-  project_id: string;
-  environment_id: string;
-  variable_key: string;
-}
 
 function assertExactlyOneSelector(input: ResolveSecretForReadInput): void {
   const hasVariableKey = input.variableKey !== undefined;
@@ -23,7 +18,7 @@ function assertExactlyOneSelector(input: ResolveSecretForReadInput): void {
 }
 
 async function resolveByExplicitSecretId(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: ResolveSecretForReadInput,
 ): Promise<ResolvedSecretForRead> {
   const explicitId = input.secretId;
@@ -31,23 +26,31 @@ async function resolveByExplicitSecretId(
     throw new Error("explicit secret id required");
   }
 
-  const rows = await sql<SecretRow[]>`
-    SELECT id, project_id, environment_id, variable_key
-    FROM secrets
-    WHERE id = ${explicitId}
-      AND org_id = ${input.organizationId}
-      AND project_id = ${input.projectId}
-      AND environment_id = ${input.environmentId}
-    LIMIT 1
-  `;
+  const rows = await db
+    .select({
+      id: secrets.id,
+      projectId: secrets.projectId,
+      environmentId: secrets.environmentId,
+      variableKey: secrets.variableKey,
+    })
+    .from(secrets)
+    .where(
+      and(
+        eq(secrets.id, explicitId),
+        eq(secrets.orgId, input.organizationId),
+        eq(secrets.projectId, input.projectId),
+        eq(secrets.environmentId, input.environmentId),
+      ),
+    )
+    .limit(1);
   const existing = rows[0];
   if (!existing) {
     throw new SecretVersionStoreNotFoundError("secret not found");
   }
-  if (input.variableKey !== undefined && existing.variable_key !== input.variableKey) {
+  if (input.variableKey !== undefined && existing.variableKey !== input.variableKey) {
     throw new SecretVersionStoreConflictError("secret selector does not match variable key");
   }
-  const parsedKey = parseVariableKey(existing.variable_key);
+  const parsedKey = parseVariableKey(existing.variableKey);
   if (!parsedKey.ok) {
     throw new SecretVersionStoreNotFoundError("secret variable key invalid");
   }
@@ -58,7 +61,7 @@ async function resolveByExplicitSecretId(
 }
 
 async function resolveByVariableKey(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: ResolveSecretForReadInput,
 ): Promise<ResolvedSecretForRead> {
   const variableKey = input.variableKey;
@@ -66,15 +69,23 @@ async function resolveByVariableKey(
     throw new Error("variable key required");
   }
 
-  const rows = await sql<SecretRow[]>`
-    SELECT id, project_id, environment_id, variable_key
-    FROM secrets
-    WHERE org_id = ${input.organizationId}
-      AND project_id = ${input.projectId}
-      AND environment_id = ${input.environmentId}
-      AND variable_key = ${variableKey}
-    LIMIT 1
-  `;
+  const rows = await db
+    .select({
+      id: secrets.id,
+      projectId: secrets.projectId,
+      environmentId: secrets.environmentId,
+      variableKey: secrets.variableKey,
+    })
+    .from(secrets)
+    .where(
+      and(
+        eq(secrets.orgId, input.organizationId),
+        eq(secrets.projectId, input.projectId),
+        eq(secrets.environmentId, input.environmentId),
+        eq(secrets.variableKey, variableKey),
+      ),
+    )
+    .limit(1);
   const match = rows[0];
   if (!match) {
     throw new SecretVersionStoreNotFoundError("secret not found for variable key");
@@ -89,12 +100,12 @@ async function resolveByVariableKey(
  * Resolves an existing Secret Shape by Variable Key or explicit Secret ID for read paths.
  */
 export async function resolveSecretForRead(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: ResolveSecretForReadInput,
 ): Promise<ResolvedSecretForRead> {
   assertExactlyOneSelector(input);
   if (input.secretId !== undefined) {
-    return resolveByExplicitSecretId(sql, input);
+    return resolveByExplicitSecretId(db, input);
   }
-  return resolveByVariableKey(sql, input);
+  return resolveByVariableKey(db, input);
 }

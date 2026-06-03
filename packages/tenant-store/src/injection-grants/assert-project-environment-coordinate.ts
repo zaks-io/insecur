@@ -1,6 +1,8 @@
 import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import { and, eq } from "drizzle-orm";
 
-import type { TenantScopedSql } from "../tenant-scoped-sql.js";
+import { environments } from "../db/schema/tenant-hierarchy.js";
+import type { TenantScopedDb } from "../tenant-scoped-db.js";
 
 export class ProjectEnvironmentCoordinateError extends Error {
   constructor(message: string) {
@@ -13,28 +15,31 @@ export class ProjectEnvironmentCoordinateError extends Error {
  * Proves the Environment belongs to the Organization and Project before grant issue.
  */
 export async function assertProjectEnvironmentCoordinate(
-  sql: TenantScopedSql,
+  db: TenantScopedDb,
   input: {
     organizationId: OrganizationId;
     projectId: ProjectId;
     environmentId: EnvironmentId;
   },
 ): Promise<{ isProtected: false }> {
-  const rows = await sql<{ project_id: string; is_protected: boolean }[]>`
-    SELECT project_id, is_protected
-    FROM environments
-    WHERE org_id = ${input.organizationId}
-      AND id = ${input.environmentId}
-    LIMIT 1
-  `;
+  const rows = await db
+    .select({
+      projectId: environments.projectId,
+      isProtected: environments.isProtected,
+    })
+    .from(environments)
+    .where(
+      and(eq(environments.orgId, input.organizationId), eq(environments.id, input.environmentId)),
+    )
+    .limit(1);
   const environment = rows[0];
   if (!environment) {
     throw new ProjectEnvironmentCoordinateError("environment not found");
   }
-  if (environment.project_id !== input.projectId) {
+  if (environment.projectId !== input.projectId) {
     throw new ProjectEnvironmentCoordinateError("environment does not belong to project");
   }
-  if (environment.is_protected) {
+  if (environment.isProtected) {
     throw new ProjectEnvironmentCoordinateError("environment is protected");
   }
   return { isProtected: false };

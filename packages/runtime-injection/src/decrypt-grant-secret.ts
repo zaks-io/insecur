@@ -10,6 +10,7 @@ import {
 } from "@insecur/domain";
 import {
   TenantSecretVersionStore,
+  createTenantScopedDb,
   withTenantScope,
   type TenantScopedSql,
 } from "@insecur/tenant-store";
@@ -39,7 +40,7 @@ async function decryptResolvedVersion(
   },
   sql: TenantScopedSql,
 ): Promise<Uint8Array> {
-  const version = await new TenantSecretVersionStore(sql).getVersionById(
+  const version = await new TenantSecretVersionStore(createTenantScopedDb(sql)).getVersionById(
     input.secretId,
     input.secretVersionId,
   );

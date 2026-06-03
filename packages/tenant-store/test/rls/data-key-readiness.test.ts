@@ -6,7 +6,12 @@ import {
 } from "@insecur/crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
-import { TenantDataKeyMetadataStore, closeRuntimeSql, withTenantScope } from "../../src/index.js";
+import {
+  TenantDataKeyMetadataStore,
+  closeRuntimeSql,
+  createTenantScopedDb,
+  withTenantScope,
+} from "../../src/index.js";
 import { seedTenantBaseline } from "./seed.js";
 import {
   TEST_ORG_B_ID,
@@ -30,7 +35,7 @@ class StoreBackedMetadataReader implements TenantDataKeyMetadataReader {
   private withStore<T>(run: (store: TenantDataKeyMetadataStore) => Promise<T>): Promise<T> {
     return withTenantScope(
       { kind: "organization", organizationId: this.organizationId },
-      async (sql) => run(new TenantDataKeyMetadataStore(sql)),
+      async (sql) => run(new TenantDataKeyMetadataStore(createTenantScopedDb(sql))),
     );
   }
 

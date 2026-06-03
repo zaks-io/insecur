@@ -9,6 +9,7 @@ import {
   SecretVersionStoreConflictError,
   SecretVersionStoreNotFoundError,
   TenantSecretVersionStore,
+  createTenantScopedDb,
   type ResolvedInjectionGrantBinding,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -42,11 +43,12 @@ export async function resolveInjectionGrantBinding(
   return withTenantScope(
     { kind: "organization", organizationId: coordinate.organizationId },
     async (sql) => {
-      const versionStore = new TenantSecretVersionStore(sql);
+      const db = createTenantScopedDb(sql);
+      const versionStore = new TenantSecretVersionStore(db);
       let resolved;
       try {
         resolved = await resolveSecretForRead(
-          sql,
+          db,
           selector.kind === "variable_key"
             ? {
                 organizationId: coordinate.organizationId,

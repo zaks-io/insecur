@@ -7,6 +7,7 @@ export {
   withTenantScope,
 } from "./with-tenant-scope.js";
 export type { TenantScopedSql } from "./tenant-scoped-sql.js";
+export { createTenantScopedDb, type TenantScopedDb } from "./tenant-scoped-db.js";
 export { closeRuntimeSql, RuntimeConfigMissingError } from "./db/connection.js";
 export {
   DATA_KEY_VERSION_STATUSES,

@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import {
   TenantSecretVersionStore,
   closeRuntimeSql,
+  createTenantScopedDb,
   decodeInlineCiphertextStorageRef,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -27,6 +28,33 @@ import { testOrganization, uniqueVariableKey, writeTestSecret } from "./integrat
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
+
+async function assertSuccessfulWritePersistedArtifacts(
+  org: ReturnType<typeof testOrganization>,
+  result: Awaited<ReturnType<typeof writeTestSecret>>,
+  plaintext: Uint8Array,
+): Promise<void> {
+  expect(result.createdSecretShape).toBe(true);
+  expect(result.secretId).toMatch(/^sec_[0-9A-Z]{26}$/);
+  expect(result.secretVersionId).toMatch(/^sv_[0-9A-Z]{26}$/);
+  expect(result.auditEventId).toMatch(/^aud_[0-9A-Z]{26}$/);
+  expect(JSON.stringify(result)).not.toContain(new TextDecoder().decode(plaintext));
+
+  const current = await withTenantScope({ kind: "organization", organizationId: org }, (sql) =>
+    new TenantSecretVersionStore(createTenantScopedDb(sql)).getCurrentVersion(result.secretId),
+  );
+  expect(current?.secretVersionId).toBe(result.secretVersionId);
+  expect(current?.versionNumber).toBe(1);
+
+  const storageRef = await loadStorageRef(org, result.secretVersionId);
+  expect(storageRef).toMatch(/^inline:b64:/);
+  assertStoredCiphertextExcludesPlaintext(storageRef, plaintext);
+
+  const auditRows = await loadAuditRow(org, result.auditEventId);
+  expect(auditRows?.event_code).toBe("secret.non_protected_write");
+  expect(auditRows?.resource_id).toBe(brandOpaqueResourceIdForPrefix("sec", result.secretId));
+  expect(JSON.stringify(auditRows)).not.toContain(new TextDecoder().decode(plaintext));
+}
 
 function createTestRootKey(): Uint8Array {
   const root = new Uint8Array(32);
@@ -56,27 +84,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     const org = testOrganization();
     const plaintext = new TextEncoder().encode(`fv10-${crypto.randomUUID()}`);
     const result = await writeTestSecret(uniqueVariableKey("FV10_WRITE"), plaintext);
-
-    expect(result.createdSecretShape).toBe(true);
-    expect(result.secretId).toMatch(/^sec_[0-9A-Z]{26}$/);
-    expect(result.secretVersionId).toMatch(/^sv_[0-9A-Z]{26}$/);
-    expect(result.auditEventId).toMatch(/^aud_[0-9A-Z]{26}$/);
-    expect(JSON.stringify(result)).not.toContain(new TextDecoder().decode(plaintext));
-
-    const current = await withTenantScope({ kind: "organization", organizationId: org }, (sql) =>
-      new TenantSecretVersionStore(sql).getCurrentVersion(result.secretId),
-    );
-    expect(current?.secretVersionId).toBe(result.secretVersionId);
-    expect(current?.versionNumber).toBe(1);
-
-    const storageRef = await loadStorageRef(org, result.secretVersionId);
-    expect(storageRef).toMatch(/^inline:b64:/);
-    assertStoredCiphertextExcludesPlaintext(storageRef, plaintext);
-
-    const auditRows = await loadAuditRow(org, result.auditEventId);
-    expect(auditRows?.event_code).toBe("secret.non_protected_write");
-    expect(auditRows?.resource_id).toBe(brandOpaqueResourceIdForPrefix("sec", result.secretId));
-    expect(JSON.stringify(auditRows)).not.toContain(new TextDecoder().decode(plaintext));
+    await assertSuccessfulWritePersistedArtifacts(org, result, plaintext);
   });
 
   it("updates an existing secret by variable key with a new current version", async () => {
@@ -90,7 +98,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     expect(second.secretVersionId).not.toBe(first.secretVersionId);
 
     const current = await withTenantScope({ kind: "organization", organizationId: org }, (sql) =>
-      new TenantSecretVersionStore(sql).getCurrentVersion(second.secretId),
+      new TenantSecretVersionStore(createTenantScopedDb(sql)).getCurrentVersion(second.secretId),
     );
     expect(current?.secretVersionId).toBe(second.secretVersionId);
     expect(current?.versionNumber).toBe(2);
