@@ -18,6 +18,7 @@ const config = {
 };
 
 const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
+const otherAdmittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5F");
 const workosUserId = "user_01workos";
 
 const resolveAdmittedUser = (externalId: string) =>
@@ -134,6 +135,60 @@ describe("resolveUserActor", () => {
       resolveAdmittedUser,
     });
     expect(result.ok).toBe(true);
+  });
+
+  it("returns not_admitted when bearer credential user is no longer admitted", async () => {
+    const workos = createFakeWorkOSSessionPort([]);
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_cli",
+      },
+      signingSecret: config.sessionSigningSecret,
+    });
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: `Bearer ${minted.credential}`,
+        cookieHeader: null,
+        csrfHeader: null,
+      }),
+      config,
+      workos,
+      resolveAdmittedUser: () => Promise.resolve(null),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.reason).toBe("not_admitted");
+    }
+  });
+
+  it("returns auth.invalid when bearer credential userId no longer matches admission", async () => {
+    const workos = createFakeWorkOSSessionPort([]);
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_cli",
+      },
+      signingSecret: config.sessionSigningSecret,
+    });
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: `Bearer ${minted.credential}`,
+        cookieHeader: null,
+        csrfHeader: null,
+      }),
+      config,
+      workos,
+      resolveAdmittedUser: () => Promise.resolve(otherAdmittedUserId),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.invalid);
+    }
   });
 
   it("returns auth.mfa_enrollment_required when no eligible MFA factors exist", async () => {
