@@ -1,5 +1,7 @@
 import postgres from "postgres";
-import { requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
+import { loadRepoEnvLocal, requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
+
+loadRepoEnvLocal();
 
 async function isRuntimeDatabaseReachable(url: string): Promise<boolean> {
   const sql = postgres(url, { max: 1, connect_timeout: 2 });
@@ -23,3 +25,9 @@ try {
 /** True when DATABASE_URL_RUNTIME is configured and Postgres accepts connections. */
 export const integrationDatabaseReady =
   runtimeUrl !== undefined && (await isRuntimeDatabaseReachable(runtimeUrl));
+
+if (process.env.INSECUR_CI_RLS_GATE === "1" && !integrationDatabaseReady) {
+  throw new Error(
+    "CI RLS gate requires DATABASE_URL_RUNTIME to be configured and Postgres to accept connections",
+  );
+}

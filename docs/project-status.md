@@ -42,7 +42,8 @@ schema and a raw SQL step owns the RLS policies and roles, but the data layer wa
 the schema cutover (INS-158) and the query-builder rewrite (INS-159) are in flight.
 
 A 2026-06-03 ADR-conformance audit then checked all 60 accepted ADRs against the code. Beyond the
-Drizzle drift above (already owned) and the RLS-suite-not-in-CI gap (already INS-144), it produced
+Drizzle drift above (already owned); the RLS CI gate (INS-144) is wired in `postgres-integration`,
+it produced
 four new tickets. The data-key model is HKDF-derived rather than wrapped, so ADR-0005 and ADR-0028
 were amended (2026-06-03) to make organization/project data keys random keys stored AES-GCM wrapped
 under the root in `wrapped_storage_ref`, with rotation rewrapping the blob and never decrypting a
@@ -132,13 +133,13 @@ divergences.
   guided provisioning, membership management, instance bootstrap, operation store, and
   sync target leases. In ordinary `pnpm verify`, suites that need `DATABASE_URL_RUNTIME`
   are skipped when the runtime DB is not configured.
-- `pnpm test:rls` remains the real-Postgres RLS gate. RLS policies are implemented and
-  forced (`ENABLE`+`FORCE ROW LEVEL SECURITY`, `NOBYPASSRLS` runtime role), but CI does
-  not yet provision Postgres and run the full suite — the only DB-provisioned CI job runs
-  `@insecur/instance-bootstrap` integration tests only, so most RLS tests are green-by-skip
-  in CI. Use the local Postgres reset flow or per-PR Neon runtime role before treating RLS
-  behavior as freshly verified. Wiring the full suite into CI is tracked in INS-144 (with
-  INS-141 covering the `@insecur/access` subset).
+- `pnpm test:rls` is the real-Postgres RLS gate (`ENABLE` + `FORCE ROW LEVEL SECURITY`,
+  `NOBYPASSRLS` runtime role). The `postgres-integration` CI job resets Docker Compose
+  Postgres 17, asserts migration vs runtime credentials and `NOBYPASSRLS`, then runs
+  `test:rls` (`@insecur/tenant-store` forced-RLS suite plus `@insecur/access` integration
+  RLS tests) and `test:e2e` with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build.
+  Package integration suites outside those tasks still self-gate in `pnpm verify` when
+  `DATABASE_URL_RUNTIME` is unset.
 
 ## Not Yet Wired
 

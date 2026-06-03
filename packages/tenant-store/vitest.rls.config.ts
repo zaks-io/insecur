@@ -1,4 +1,7 @@
 import { defineConfig } from "vitest/config";
+import { loadRepoEnvLocal } from "./scripts/lib/env-local.mjs";
+
+loadRepoEnvLocal();
 
 export default defineConfig({
   test: {
@@ -7,5 +10,6 @@ export default defineConfig({
     fileParallelism: false,
     hookTimeout: 60_000,
     testTimeout: 30_000,
+    passWithNoTests: false,
   },
 });

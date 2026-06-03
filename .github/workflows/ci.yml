@@ -165,16 +165,11 @@ jobs:
       - name: Reset local Postgres and migrate
         run: pnpm dev:db:reset
 
-      # Single Postgres reset feeds the DB-backed layers that are stable through
-      # the in-flight Drizzle conversion: test:rls (forced-RLS tenant suite,
-      # INS-144), test:e2e (composed First Value loop through the real Worker
-      # routes), and instance-bootstrap's integration suite. The broad raw-SQL
-      # package integration run is intentionally NOT wired here yet — those
-      # suites are being migrated to Drizzle and at least one currently fails
-      # against a real DB (green-by-skip until now). Wiring the rest is tracked
-      # alongside the Drizzle conversion (see INS-* smoke/test-layers ticket).
-      - name: Run RLS and e2e tests
-        run: pnpm exec turbo run test:rls test:e2e
+      # Single Postgres reset feeds the DB-backed layers: assert-rls-credentials,
+      # test:rls (tenant-store forced-RLS + access integration, INS-144),
+      # test:e2e (First Value loop), then instance-bootstrap integration.
+      - name: Run RLS guardrails and DB-backed tests
+        run: node scripts/ci/postgres-integration-tests.mjs
 
       - name: Run instance-bootstrap integration tests
         run: pnpm exec turbo run test:integration --filter=@insecur/instance-bootstrap

@@ -4,9 +4,9 @@ import {
   StaticRootKeyProvider,
   type TenantDataKeyMetadataReader,
 } from "@insecur/crypto";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
+import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
 import { TenantDataKeyMetadataStore, closeRuntimeSql, withTenantScope } from "../../src/index.js";
+import { describeRls, getRuntimeDatabaseUrl } from "./describe-rls.js";
 import { seedTenantBaseline } from "./seed.js";
 import {
   TEST_ORG_B_ID,
@@ -15,14 +15,7 @@ import {
   TEST_PROJECT_KEY_B_ID,
 } from "./test-ids.js";
 
-let runtimeUrl: string | undefined;
-try {
-  runtimeUrl = requireDatabaseUrl("DATABASE_URL_RUNTIME");
-} catch {
-  runtimeUrl = undefined;
-}
-
-const describeRls = runtimeUrl ? describe : describe.skip;
+const runtimeUrl = getRuntimeDatabaseUrl();
 
 class StoreBackedMetadataReader implements TenantDataKeyMetadataReader {
   constructor(private readonly organizationId: ReturnType<typeof organizationId.brand>) {}
