@@ -1,10 +1,10 @@
 import {
   FIRST_VALUE_AUDIT_EVENT_CODES,
+  recordActionAudit,
   type AuditActorRef,
   type AuditEventResult,
   type AuditOperationRef,
   type AuditRequestRef,
-  writeAuditEvent,
 } from "@insecur/audit";
 import {
   brandOpaqueResourceIdForPrefix,
@@ -32,7 +32,12 @@ export interface RecordSecretWriteAuditInput {
 export async function recordSecretWriteAudit(
   input: RecordSecretWriteAuditInput,
 ): Promise<AuditEventResult | undefined> {
-  const base = {
+  return recordActionAudit({
+    outcome: input.outcome,
+    eventCode:
+      input.outcome === "success"
+        ? FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite
+        : FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
     actor: input.actor,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -42,29 +47,11 @@ export async function recordSecretWriteAudit(
     ...(input.secretId !== undefined
       ? {
           resource: {
-            type: "secret" as const,
+            type: "secret",
             id: brandOpaqueResourceIdForPrefix("sec", input.secretId),
           },
         }
       : {}),
-  };
-
-  if (input.outcome === "success") {
-    return writeAuditEvent({
-      ...base,
-      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
-      outcome: "success",
-    });
-  }
-
-  if (input.reasonCode === undefined) {
-    return undefined;
-  }
-
-  return writeAuditEvent({
-    ...base,
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
-    outcome: "denied",
-    denial: { reasonCode: input.reasonCode },
+    ...(input.reasonCode !== undefined ? { reasonCode: input.reasonCode } : {}),
   });
 }

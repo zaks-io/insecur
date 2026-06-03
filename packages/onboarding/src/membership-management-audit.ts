@@ -1,6 +1,6 @@
 import {
   FIRST_VALUE_AUDIT_EVENT_CODES,
-  writeAuditEvent,
+  recordActionAudit,
   type AuditRequestRef,
 } from "@insecur/audit";
 import {
@@ -19,12 +19,12 @@ export async function recordOperatorOrganizationDenied(input: {
   reasonCode: KnownErrorCode;
   request?: AuditRequestRef;
 }): Promise<void> {
-  await writeAuditEvent({
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationDenied,
+  await recordActionAudit({
     outcome: "denied",
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationDenied,
     actor: { type: "user", userId: input.operatorUserId },
     organizationId: input.organizationId,
-    denial: { reasonCode: input.reasonCode },
+    reasonCode: input.reasonCode,
     ...(input.request !== undefined ? { request: input.request } : {}),
   });
 }
@@ -35,9 +35,9 @@ export async function recordOperatorOrganizationCreated(input: {
   defaultTeamId: TeamId;
   request?: AuditRequestRef;
 }): Promise<void> {
-  await writeAuditEvent({
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationCreated,
+  await recordActionAudit({
     outcome: "success",
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationCreated,
     actor: { type: "user", userId: input.operatorUserId },
     organizationId: input.organizationId,
     resource: {
@@ -54,9 +54,9 @@ export async function recordInvitationCreated(input: {
   invitationId: InvitationId;
   request?: AuditRequestRef;
 }): Promise<void> {
-  await writeAuditEvent({
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
+  await recordActionAudit({
     outcome: "success",
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
     actor: { type: "user", userId: input.actorUserId },
     organizationId: input.organizationId,
     resource: {
@@ -73,12 +73,12 @@ export async function recordInvitationCreateDenied(input: {
   reasonCode: KnownErrorCode;
   request?: AuditRequestRef;
 }): Promise<void> {
-  await writeAuditEvent({
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied,
+  await recordActionAudit({
     outcome: "denied",
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreateDenied,
     actor: { type: "user", userId: input.actorUserId },
     organizationId: input.organizationId,
-    denial: { reasonCode: input.reasonCode },
+    reasonCode: input.reasonCode,
     ...(input.request !== undefined ? { request: input.request } : {}),
   });
 }
@@ -90,9 +90,9 @@ export async function recordInvitationAccepted(input: {
   membershipId: MembershipId;
   request?: AuditRequestRef;
 }): Promise<void> {
-  await writeAuditEvent({
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
+  await recordActionAudit({
     outcome: "success",
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
     actor: { type: "user", userId: input.actorUserId },
     organizationId: input.organizationId,
     resource: {
@@ -110,16 +110,16 @@ export async function recordInvitationAcceptDenied(input: {
   invitationId?: InvitationId;
   request?: AuditRequestRef;
 }): Promise<void> {
-  await writeAuditEvent({
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied,
+  await recordActionAudit({
     outcome: "denied",
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAcceptDenied,
     actor: { type: "user", userId: input.actorUserId },
     organizationId: input.organizationId,
-    denial: { reasonCode: input.reasonCode },
+    reasonCode: input.reasonCode,
     ...(input.invitationId !== undefined
       ? {
           resource: {
-            type: "invitation" as const,
+            type: "invitation",
             id: brandOpaqueResourceIdForPrefix("inv", input.invitationId),
           },
         }
