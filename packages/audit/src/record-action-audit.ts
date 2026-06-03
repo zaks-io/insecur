@@ -1,6 +1,6 @@
 import type { EnvironmentId, KnownErrorCode, OrganizationId, ProjectId } from "@insecur/domain";
 
-import type { FirstValueAuditEventCode } from "./audit-event-codes.js";
+import type { AuditEventCode } from "./audit-event-codes.js";
 import type {
   AuditActorRef,
   AuditOperationRef,
@@ -11,7 +11,7 @@ import { type AuditEventResult, writeAuditEvent } from "./write-audit-event.js";
 
 export interface RecordActionAuditInput {
   outcome: "success" | "denied";
-  eventCode: FirstValueAuditEventCode;
+  eventCode: AuditEventCode;
   actor: AuditActorRef;
   organizationId: OrganizationId;
   projectId?: ProjectId;
@@ -23,7 +23,20 @@ export interface RecordActionAuditInput {
   reasonCode?: KnownErrorCode;
 }
 
-function actionAuditBase(input: RecordActionAuditInput) {
+export type ActionAuditScopeInput = Pick<
+  RecordActionAuditInput,
+  | "actor"
+  | "organizationId"
+  | "projectId"
+  | "environmentId"
+  | "resource"
+  | "relatedResource"
+  | "request"
+  | "operation"
+>;
+
+/** Shared tenant scope, correlation, and resource fields for action audit writers. */
+export function actionAuditScopeFields(input: ActionAuditScopeInput) {
   return {
     actor: input.actor,
     organizationId: input.organizationId,
@@ -43,7 +56,7 @@ function actionAuditBase(input: RecordActionAuditInput) {
 export async function recordActionAudit(
   input: RecordActionAuditInput,
 ): Promise<AuditEventResult | undefined> {
-  const base = actionAuditBase(input);
+  const base = actionAuditScopeFields(input);
 
   if (input.outcome === "success") {
     return writeAuditEvent({

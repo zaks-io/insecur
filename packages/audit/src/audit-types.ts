@@ -8,7 +8,7 @@ import type {
   RequestId,
   UserId,
 } from "@insecur/domain";
-import type { FirstValueAuditEventCode } from "./audit-event-codes.js";
+import type { AuditEventCode } from "./audit-event-codes.js";
 
 export type AuditEventOutcome = "success" | "denied";
 
@@ -29,19 +29,35 @@ export type AuditResourceType =
   | "secret"
   | "secret_version"
   | "injection_grant"
-  | "operation";
+  | "operation"
+  | "app_connection"
+  | "secret_sync"
+  | "approval_request"
+  | "organization_data_key"
+  | "project_data_key";
 
 export interface AuditResourceRef {
   type: AuditResourceType;
   id: OpaqueResourceId;
 }
 
+/** Request-scoped correlation identifier for audit and operation records. */
 export interface AuditRequestRef {
   requestId: RequestId;
 }
 
+/** Operation-scoped correlation identifier for long-running work. */
 export interface AuditOperationRef {
   operationId: OperationId;
+}
+
+/**
+ * Correlation identifiers carried on audit events. `requestId` and `operationId`
+ * are the supported correlation fields; both are metadata-only opaque IDs.
+ */
+export interface AuditCorrelationRefs {
+  request?: AuditRequestRef;
+  operation?: AuditOperationRef;
 }
 
 /** Metadata-only denial facts (stable error code, not exception text). */
@@ -49,17 +65,27 @@ export interface AuditDenialMetadata {
   reasonCode: KnownErrorCode;
 }
 
-interface AuditEventInputBase {
-  eventCode: FirstValueAuditEventCode;
-  actor: AuditActorRef;
+/** Primitive-only detail map validated against the metadata allowlist. */
+export type AuditEventDetailValue = string | number | boolean | null;
+
+export type AuditEventDetails = Readonly<Record<string, AuditEventDetailValue>>;
+
+export interface AuditTenantScope {
   organizationId: OrganizationId;
   projectId?: ProjectId;
   environmentId?: EnvironmentId;
+}
+
+interface AuditEventInputBase extends AuditTenantScope {
+  eventCode: AuditEventCode;
+  actor: AuditActorRef;
   resource?: AuditResourceRef;
   /** Secondary metadata-only resource (e.g. delivered Secret Version on grant consume). */
   relatedResource?: AuditResourceRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
+  /** Optional metadata-safe detail keys (allowlist-validated before persistence). */
+  details?: AuditEventDetails;
 }
 
 export interface AuditEventInputSuccess extends AuditEventInputBase {
