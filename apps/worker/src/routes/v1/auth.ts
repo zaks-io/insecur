@@ -24,7 +24,6 @@ authRoutes.post("/cli/exchange", async (context) => {
     config,
     workos,
     resolveAdmittedUser,
-    requireCsrf: true,
     requestId: reqId,
   });
   if (!exchanged.ok) {

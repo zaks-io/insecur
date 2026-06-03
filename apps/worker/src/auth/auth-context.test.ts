@@ -147,7 +147,6 @@ describe("createAuthContext", () => {
       config,
       workos,
       resolveAdmittedUser,
-      requireCsrf: true,
     });
     expect(exchanged.ok).toBe(true);
     if (exchanged.ok) {

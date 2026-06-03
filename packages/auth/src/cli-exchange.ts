@@ -23,7 +23,6 @@ export interface CliSessionExchangeInput {
   readonly config: InsecurAuthConfig;
   readonly workos: WorkOSSessionPort;
   readonly resolveAdmittedUser: AdmittedUserResolver;
-  readonly requireCsrf: boolean;
   readonly requestId?: RequestId;
 }
 
@@ -34,11 +33,9 @@ export interface CliSessionExchangeInput {
 export async function exchangeCliSession(
   input: CliSessionExchangeInput,
 ): Promise<CliSessionExchangeResult> {
-  if (input.requireCsrf) {
-    const csrfValid = validateCsrfToken(input.credentials.csrfCookie, input.credentials.csrfHeader);
-    if (!csrfValid) {
-      return { ok: false, failure: authFailureForReason("invalid") };
-    }
+  const csrfValid = validateCsrfToken(input.credentials.csrfCookie, input.credentials.csrfHeader);
+  if (!csrfValid) {
+    return { ok: false, failure: authFailureForReason("invalid") };
   }
 
   if (input.credentials.workosSealedSession === undefined) {
