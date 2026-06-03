@@ -10,7 +10,8 @@
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreDependencies": ["lefthook"]
+      "ignoreDependencies": ["lefthook"],
+      "ignoreBinaries": ["wrangler"]
     }
   },
   "rules": {

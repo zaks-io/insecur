@@ -1,0 +1,110 @@
+# Tear down per-PR preview resources on PR close, plus a scheduled janitor for
+# orphans. GATED to match pr-preview.yml: only runs when PREVIEW_ENV_ENABLED == 'true'.
+# Ported from the agent-paste preview-env teardown pattern, reduced to insecur's
+# single Worker + Neon branch + per-PR Hyperdrive.
+name: PR Preview Cleanup
+
+on:
+  pull_request:
+    types:
+      - closed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to clean up
+        required: false
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-cleanup-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
+
+env:
+  CI: "true"
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  cleanup:
+    name: Cleanup PR Preview
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    if: ${{ vars.PREVIEW_ENV_ENABLED == 'true' && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.pr_number != '')) }}
+    environment: Preview
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve PR number
+        id: pr
+        env:
+          RESOLVED_PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          if ! [[ "$RESOLVED_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Resolved PR number is not a positive integer: '$RESOLVED_PR_NUMBER'"
+            exit 1
+          fi
+          echo "number=$RESOLVED_PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Delete preview Worker
+        if: ${{ always() && steps.pr.outputs.number != '' }}
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          worker_name="insecur-worker-pr-${PR_NUMBER}"
+          pnpm exec wrangler delete --name "$worker_name" || echo "Worker $worker_name already removed"
+
+      - name: Delete preview Hyperdrive
+        if: ${{ always() && steps.pr.outputs.number != '' }}
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          hd_name="insecur-db-pr-${PR_NUMBER}"
+          hd_id=$(pnpm exec wrangler hyperdrive list 2>/dev/null | grep -oE "[0-9a-f]{32}" | head -1 || true)
+          if [ -n "$hd_id" ]; then
+            pnpm exec wrangler hyperdrive delete "$hd_id" || echo "Hyperdrive $hd_name already removed"
+          else
+            echo "No Hyperdrive matching $hd_name found"
+          fi
+
+      - name: Delete Neon PR branch
+        if: ${{ always() && steps.pr.outputs.number != '' }}
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: node scripts/ci/delete-neon-pr-branch.mjs
+
+  reconcile-stale:
+    name: Reconcile Stale PR Previews
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    if: ${{ vars.PREVIEW_ENV_ENABLED == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.pr_number == '')) }}
+    environment: Preview
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Explain
+        run: echo "Stale-preview reconciliation runs here once the preview env is live; see the smoke/test-layers ticket."

@@ -17,6 +17,7 @@
     "test": "turbo run test --cache=local:rw,remote:r",
     "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
     "test:rls": "turbo run test:rls",
+    "test:e2e": "turbo run test:e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
