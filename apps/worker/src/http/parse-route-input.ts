@@ -162,6 +162,37 @@ export function encodeRequestValueUtf8(value: string): Uint8Array {
   return new TextEncoder().encode(value);
 }
 
+export type InjectionGrantIssueSelectorInput =
+  | { kind: "variable_key"; variableKey: ReturnType<typeof parseVariableKeyField> }
+  | { kind: "secret_id"; secretId: SecretId };
+
+export function parseInjectionGrantIssueSelector(
+  body: Record<string, unknown>,
+): InjectionGrantIssueSelectorInput {
+  const variableKeyRaw = readOptionalString(body, "variableKey");
+  const secretIdRaw = readOptionalString(body, "secretId");
+  const hasVariableKey = variableKeyRaw !== undefined && variableKeyRaw !== "";
+  const hasSecretId = secretIdRaw !== undefined && secretIdRaw !== "";
+
+  if (hasVariableKey === hasSecretId) {
+    throw Object.assign(new Error("Exactly one of variableKey or secretId is required."), {
+      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    });
+  }
+
+  if (hasSecretId) {
+    const parsedSecretId = parseOptionalSecretId(secretIdRaw);
+    if (parsedSecretId === undefined) {
+      throw Object.assign(new Error("Invalid secret id."), {
+        code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      });
+    }
+    return { kind: "secret_id", secretId: parsedSecretId };
+  }
+
+  return { kind: "variable_key", variableKey: parseVariableKeyField(variableKeyRaw ?? "") };
+}
+
 function parseRequiredBrandedId<T>(
   record: Record<string, unknown>,
   field: string,

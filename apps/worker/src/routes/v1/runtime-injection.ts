@@ -5,6 +5,7 @@ import { handleDeliveryRoute, handleRoute } from "../../http/handle-route.js";
 import {
   parseEnvironmentIdParam,
   parseGrantIdParam,
+  parseInjectionGrantIssueSelector,
   parseJsonBody,
   parseOptionalSecretId,
   parseOrganizationIdParam,
@@ -29,13 +30,7 @@ runtimeInjectionRoutes.post("/grants", requireUserActor, async (context) => {
     const organizationId = parseOrganizationIdParam(readRequiredString(body, "organizationId"));
     const projectId = parseProjectIdParam(readRequiredString(body, "projectId"));
     const environmentId = parseEnvironmentIdParam(readRequiredString(body, "environmentId"));
-    const variableKey = parseVariableKeyField(readRequiredString(body, "variableKey"));
-    const secretId = parseOptionalSecretId(readOptionalString(body, "secretId"));
-
-    const selector =
-      secretId !== undefined
-        ? { kind: "secret_id" as const, secretId }
-        : { kind: "variable_key" as const, variableKey };
+    const selector = parseInjectionGrantIssueSelector(body);
 
     return issueInjectionGrant({
       organizationId,

@@ -296,7 +296,7 @@ describe("FV-12 worker routes", () => {
   });
 
   describe("POST /v1/runtime-injection/grants", () => {
-    it("delegates grant issue to the runtime-injection package", async () => {
+    it("delegates grant issue by variable key to the runtime-injection package", async () => {
       issueInjectionGrant.mockResolvedValue({
         grantId: grantIdValue,
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -328,6 +328,91 @@ describe("FV-12 worker routes", () => {
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: true, data: { grantId: grantIdValue } });
       expect(JSON.stringify(body)).not.toMatch(/valueUtf8|plaintext/i);
+    });
+
+    it("delegates grant issue by secret id without requiring variableKey", async () => {
+      const secretIdValue = secretId.brand("sec_00000000000000000000000001");
+      issueInjectionGrant.mockResolvedValue({
+        grantId: grantIdValue,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        auditEventId: "aud_00000000000000000000000002",
+      });
+
+      const response = await app.request(
+        "/v1/runtime-injection/grants",
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            organizationId: orgId,
+            projectId: projectIdValue,
+            environmentId: environmentIdValue,
+            secretId: secretIdValue,
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(issueInjectionGrant).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          selector: { kind: "secret_id", secretId: secretIdValue },
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: true, data: { grantId: grantIdValue } });
+      expect(JSON.stringify(body)).not.toMatch(/valueUtf8|plaintext/i);
+    });
+
+    it("rejects grant issue when both variableKey and secretId are present", async () => {
+      const response = await app.request(
+        "/v1/runtime-injection/grants",
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            organizationId: orgId,
+            projectId: projectIdValue,
+            environmentId: environmentIdValue,
+            variableKey: "API_KEY",
+            secretId: "sec_00000000000000000000000001",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
+    it("rejects grant issue when neither variableKey nor secretId is present", async () => {
+      const response = await app.request(
+        "/v1/runtime-injection/grants",
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            organizationId: orgId,
+            projectId: projectIdValue,
+            environmentId: environmentIdValue,
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
     });
 
     it("maps grant issue denials to metadata-only errors", async () => {
