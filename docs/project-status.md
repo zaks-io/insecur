@@ -44,10 +44,21 @@ these block First Value wiring; they harden seams already in code.
 - `@insecur/auth` owns WorkOS-backed human session composition, admitted User actor
   resolution, CSRF helpers, HMAC-signed ephemeral CLI session credentials, request
   credential parsing, auth failure envelopes, and fake WorkOS sessions for tests.
-- `apps/worker` exposes `GET /healthz`, `POST /v1/auth/cli/exchange`, and
-  `GET /v1/session/whoami`. It validates auth configuration at construction,
-  supports development fake sessions, requires CSRF for browser-to-CLI exchange, and
-  returns metadata-only success/error envelopes.
+- `apps/worker` exposes `GET /healthz`, `POST /v1/auth/cli/exchange`,
+  `GET /v1/session/whoami`, guided-provisioning/onboarding routes, a non-protected
+  Blind Secret Write route (`POST .../secrets/by-variable-key`), and Runtime Injection
+  Grant issue/consume routes (`POST .../runtime/grants`, `.../grants/:grantId/consume`).
+  The secret-write route encrypts through `@insecur/crypto` and the grant-consume route
+  decrypts and delivers `valueUtf8`, so live encrypt/decrypt already runs on real
+  routes. It validates auth configuration at construction, supports development fake
+  sessions, requires CSRF for browser-to-CLI exchange, and returns metadata-only
+  success/error envelopes.
+  - Custody caveat: today the keyring backing those routes resolves from
+    `@insecur/crypto`'s ambient `getKeyring()`, which falls back to a plaintext
+    `INSECUR_INSTANCE_ROOT_KEY_HEX` dev env var. The built `SecretsStoreRootKeyProvider`
+    /`createKeyringFromWorkerEnv` Cloudflare Secrets Store path is not yet wired into
+    `configureKeyring()`, so the live crypto runs on a dev root key, not custodied root
+    material. Tracked in INS-145/147/149/150.
 - `@insecur/tenant-store` owns the Postgres persistence seam: scoped transactions,
   transaction-local tenant scope, runtime connection handling, local migration scripts,
   runtime-role grants, and RLS helper scripts/tests.
@@ -104,17 +115,25 @@ these block First Value wiring; they harden seams already in code.
   guided provisioning, membership management, instance bootstrap, operation store, and
   sync target leases. In ordinary `pnpm verify`, suites that need `DATABASE_URL_RUNTIME`
   are skipped when the runtime DB is not configured.
-- `pnpm test:rls` remains the real-Postgres RLS gate. Use it with the local Postgres
-  reset flow or per-PR Neon runtime role before treating RLS behavior as freshly verified.
+- `pnpm test:rls` remains the real-Postgres RLS gate. RLS policies are implemented and
+  forced (`ENABLE`+`FORCE ROW LEVEL SECURITY`, `NOBYPASSRLS` runtime role), but CI does
+  not yet provision Postgres and run the full suite — the only DB-provisioned CI job runs
+  `@insecur/instance-bootstrap` integration tests only, so most RLS tests are green-by-skip
+  in CI. Use the local Postgres reset flow or per-PR Neon runtime role before treating RLS
+  behavior as freshly verified. Wiring the full suite into CI is tracked in INS-144 (with
+  INS-141 covering the `@insecur/access` subset).
 
 ## Not Yet Wired
 
 - The CLI package is still an empty entrypoint. No `insecur login`, `insecur secrets set`,
   `insecur run`, local profile config, child process spawning, masked prompt, JSON output,
   or first-value proof command path exists yet.
-- The Worker exposes auth/session routes only. There are no HTTP routes yet for instance
-  bootstrap, guided provisioning, membership management, secret writes, runtime injection
-  grant issue/consume, operations, provider sync, Storage Security Gate, or audit export.
+- The Worker now exposes auth/session, guided-provisioning/onboarding, non-protected
+  secret-write, and runtime-injection grant issue/consume routes (the latter two already
+  run live encrypt/decrypt, see above). Still missing: instance bootstrap, membership
+  management, operations, provider sync, Storage Security Gate enforcement, and audit
+  export routes. The custody gap is that the live crypto routes are not yet fed by the
+  Cloudflare Secrets Store keyring (INS-145/147/149).
 - WorkOS AuthKit is represented through session validation and config composition, but
   hosted login/logout/callback UI, MFA enrollment, and high-risk action challenges are not
   implemented.
