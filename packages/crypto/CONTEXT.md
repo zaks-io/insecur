@@ -17,6 +17,7 @@ shortcuts.
 - `../../docs/adr/0005-key-hierarchy-and-rotation.md`
 - `../../docs/adr/0026-encryption-envelope-below-per-domain-wrappers.md`
 - `../../docs/adr/0031-keyring-below-the-encryption-engine.md`
+- `../../docs/adr/0064-minimize-secret-resident-surface.md`
 - `../../docs/storage-security-gate.md`
 
 ## Terms To Load

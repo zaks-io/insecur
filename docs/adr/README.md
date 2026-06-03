@@ -67,6 +67,7 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0061: Blacksmith Runners For GitHub Actions](0061-blacksmith-github-actions-runners.md)
 - [ADR-0062: Package-Seam Failures Are ErrorBody-Compatible](0062-package-seam-failures-are-errorbody-compatible.md)
 - [ADR-0063: Guided Provisioning Creates, Does Not Reconcile](0063-guided-provisioning-creates-does-not-reconcile.md)
+- [ADR-0064: Minimize The Secret-Resident Surface In The Worker Process](0064-minimize-secret-resident-surface.md)
 
 ## Superseded
 
