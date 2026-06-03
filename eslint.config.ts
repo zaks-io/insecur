@@ -67,6 +67,13 @@ export default tseslint.config(
     },
   },
   {
+    files: ["packages/tenant-store/src/db/schema.ts"],
+    rules: {
+      "max-lines": "off",
+      "max-lines-per-function": "off",
+    },
+  },
+  {
     files: ["packages/secret-store/src/is-valid-utf8.ts"],
     rules: {
       complexity: "off",

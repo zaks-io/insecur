@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -8,7 +8,6 @@ import { loadRepoEnvLocal, redactLoggableError, requireDatabaseUrl } from "./lib
 import { TENANT_STORE_MIGRATION_LOCK_KEY } from "./lib/test-advisory-locks.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const legacyMigrationsDir = join(packageRoot, "migrations");
 const rawPoliciesSqlPath = join(packageRoot, "sql", "policies-and-roles.sql");
 
 loadRepoEnvLocal();
@@ -28,7 +27,6 @@ try {
 
   applyDrizzleBaseline();
   await applyRawPoliciesAndRoles(sql);
-  await applyLegacySqlMigrations(sql);
 
   const runtimeRole = resolveRuntimeRole();
   if (runtimeRole) {
@@ -66,7 +64,7 @@ function applyDrizzleBaseline() {
   );
 
   if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    throw new Error(`drizzle-kit migrate failed with status ${result.status ?? 1}`);
   }
 }
 
@@ -74,35 +72,4 @@ async function applyRawPoliciesAndRoles(sql) {
   const body = readFileSync(rawPoliciesSqlPath, "utf8");
   console.log("Applying raw policy and role SQL step");
   await sql.unsafe(body);
-}
-
-async function applyLegacySqlMigrations(sql) {
-  await sql.unsafe(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      version text PRIMARY KEY,
-      applied_at timestamptz NOT NULL DEFAULT now()
-    );
-  `);
-
-  const applied = new Set(
-    (await sql`SELECT version FROM schema_migrations ORDER BY version`).map((row) => row.version),
-  );
-
-  const files = readdirSync(legacyMigrationsDir)
-    .filter((name) => name.endsWith(".sql"))
-    .sort();
-
-  for (const file of files) {
-    const version = file.replace(/\.sql$/, "");
-    if (applied.has(version)) {
-      continue;
-    }
-
-    const body = readFileSync(join(legacyMigrationsDir, file), "utf8");
-    console.log(`Applying legacy migration ${file}`);
-    await sql.begin(async (tx) => {
-      await tx.unsafe(body);
-      await tx`INSERT INTO schema_migrations (version) VALUES (${version})`;
-    });
-  }
 }

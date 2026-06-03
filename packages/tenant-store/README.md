@@ -26,10 +26,10 @@ pnpm dev:db:reset    # local Docker Postgres + migrate
 
 `migrate.mjs` applies, in order:
 
-1. Drizzle baseline migrations (`drizzle/`, from `src/db/schema.ts` via `drizzle.config.ts`)
-2. Raw policy and role SQL (`sql/policies-and-roles.sql`, ADR-0037)
-3. Legacy numbered SQL in `migrations/` (retired in ARCH-2 S2)
-4. Runtime-role table grants for `pnpm test:rls`
+1. Drizzle baseline migrations (`drizzle/`, from `src/db/schema.ts` via `drizzle.config.ts`;
+   table DDL plus co-located `ENABLE`/`FORCE ROW LEVEL SECURITY`)
+2. Raw policy SQL (`sql/policies-and-roles.sql`, ADR-0037)
+3. Runtime-role table grants for `pnpm test:rls`
 
 Use `pnpm --filter @insecur/tenant-store db:generate` after editing `src/db/schema.ts`.
 Drizzle Kit reads `drizzle.config.ts`; migration credentials must not be the runtime role
