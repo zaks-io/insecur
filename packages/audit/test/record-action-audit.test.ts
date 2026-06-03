@@ -88,7 +88,7 @@ describe("recordActionAudit", () => {
     });
   });
 
-  it("returns undefined for denied without reasonCode", async () => {
+  it("records denied with audit.event_invalid when reasonCode is omitted", async () => {
     writeMock.mockClear();
 
     const result = await recordActionAudit({
@@ -98,8 +98,14 @@ describe("recordActionAudit", () => {
       organizationId: ORG,
     });
 
-    expect(result).toBeUndefined();
-    expect(writeMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ auditEventId: "aud_test" });
+    expect(writeMock).toHaveBeenCalledWith({
+      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
+      outcome: "denied",
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      denial: { reasonCode: AUDIT_ERROR_CODES.eventInvalid },
+    });
   });
 
   it("omits optional resource and relatedResource when absent", async () => {

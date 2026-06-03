@@ -102,6 +102,44 @@ describeRls("tenant row-level security (real Postgres)", () => {
     expect(rows.map((row) => row.id)).toEqual([TEST_PROJECT_A_ID]);
   });
 
+  it("rejects audit_events inserts for another organization under tenant scope", async () => {
+    const orgA = organizationId.brand(TEST_ORG_A_ID);
+    const crossTenantAuditId = "aud_00000000000000000000000099";
+
+    await expect(
+      withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
+        await sql`
+          INSERT INTO audit_events (
+            id,
+            org_id,
+            event_code,
+            outcome,
+            result_code,
+            actor_type,
+            actor_user_id
+          ) VALUES (
+            ${crossTenantAuditId},
+            ${TEST_ORG_B_ID},
+            ${"access.denied"},
+            ${"denied"},
+            ${"auth.insufficient_scope"},
+            ${"user"},
+            ${TEST_USER_ID}
+          )
+        `;
+      }),
+    ).rejects.toThrow();
+
+    const rows = await withTenantScope(
+      { kind: "organization", organizationId: orgA },
+      async (sql) =>
+        await sql<IdRow[]>`
+          SELECT id FROM audit_events WHERE id = ${crossTenantAuditId}
+        `,
+    );
+    expect(rows).toEqual([]);
+  });
+
   it("rejects membership inserts that reference a team from another organization", async () => {
     const orgA = organizationId.brand(TEST_ORG_A_ID);
 

@@ -24,7 +24,7 @@ import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
 import { matchConsumeSelectorToBinding } from "./match-consume-selector.js";
-import { recordInjectionGrantAudit } from "./record-injection-grant-audit.js";
+import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
 
 export interface ConsumeInjectionGrantCoreInput {
@@ -152,7 +152,7 @@ async function buildConsumeSuccessResult(
   },
   plaintext: Uint8Array,
 ): Promise<ConsumeInjectionGrantCoreResult> {
-  const audit = await recordInjectionGrantAudit({
+  const audit = await recordRuntimeInjectionAudit({
     phase: "consume",
     outcome: "success",
     actor: input.actor,
@@ -179,7 +179,7 @@ export async function recordDeniedConsume(
   reasonCode: InjectionGrantError["code"],
   coordinate?: { projectId: ProjectId; environmentId: EnvironmentId },
 ): Promise<void> {
-  await recordInjectionGrantAudit({
+  await recordRuntimeInjectionAudit({
     phase: "consume",
     outcome: "denied",
     actor: input.actor,

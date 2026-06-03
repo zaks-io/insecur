@@ -9,7 +9,12 @@ import type {
   RequestId,
   UserId,
 } from "@insecur/domain";
-import type { AuditActorType, AuditEventInput, AuditResourceType } from "./audit-types.js";
+import type {
+  AuditActorType,
+  AuditEventDetails,
+  AuditEventInput,
+  AuditResourceType,
+} from "./audit-types.js";
 
 export interface AuditEventInsertRow {
   id: AuditEventId;
@@ -27,6 +32,14 @@ export interface AuditEventInsertRow {
   relatedResourceId: OpaqueResourceId | null;
   requestId: RequestId | null;
   operationId: OperationId | null;
+  details: AuditEventDetails | null;
+}
+
+function optionalDetails(event: AuditEventInput): Pick<AuditEventInsertRow, "details"> {
+  if (event.details === undefined) {
+    return { details: null };
+  }
+  return { details: event.details };
 }
 
 function optionalResource(
@@ -69,5 +82,6 @@ export function toAuditEventInsertRow(
     ...optionalRelatedResource(event),
     requestId: event.request?.requestId ?? null,
     operationId: event.operation?.operationId ?? null,
+    ...optionalDetails(event),
   };
 }

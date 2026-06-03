@@ -1,5 +1,10 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
-import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import {
+  recordRuntimeInjectionAudit,
+  type AuditActorRef,
+  type AuditOperationRef,
+  type AuditRequestRef,
+} from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
   INJECTION_ERROR_CODES,
@@ -21,7 +26,6 @@ import {
   assertSingleIssueSelectorCount,
   type InjectionGrantIssueSelector,
 } from "./injection-grant-selectors.js";
-import { recordInjectionGrantAudit } from "./record-injection-grant-audit.js";
 import {
   resolveInjectionGrantBinding,
   type GrantCoordinate,
@@ -90,7 +94,7 @@ export async function executeIssueInjectionGrant(
     },
   );
 
-  const audit = await recordInjectionGrantAudit({
+  const audit = await recordRuntimeInjectionAudit({
     phase: "issue",
     outcome: "success",
     actor: input.actor,
@@ -113,7 +117,7 @@ export async function recordDeniedIssue(
   input: IssueInjectionGrantCoreInput,
   reasonCode: InjectionGrantError["code"],
 ): Promise<void> {
-  await recordInjectionGrantAudit({
+  await recordRuntimeInjectionAudit({
     phase: "issue",
     outcome: "denied",
     actor: input.actor,

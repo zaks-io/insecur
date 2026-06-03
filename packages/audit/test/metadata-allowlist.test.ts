@@ -177,6 +177,21 @@ describe("audit metadata allowlist", () => {
     }).toThrow(AuditEventValidationError);
   });
 
+  it("accepts production sync and approval denied events with stable codes", () => {
+    expect(() => {
+      validateAuditEventInput({
+        eventCode: "sync.revalidation_denied",
+        outcome: "denied",
+        actor: { type: "user", userId: USER },
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        denial: { reasonCode: "sync.provider_drift" },
+        operation: { operationId: OPERATION },
+      });
+    }).not.toThrow();
+  });
+
   it("rejects success outcomes on denied-only event names", () => {
     expect(() => {
       validateAuditEventInput({

@@ -1,6 +1,6 @@
 /**
  * First Value audit event names. Each security-relevant action has an explicit
- * success or denied event code; denied codes pair with {@link AUDIT_DENIED_RESULT_CODES}.
+ * success or denied event code; denied codes pair with stable result codes.
  */
 export const FIRST_VALUE_AUDIT_EVENT_CODES = {
   bootstrapInstanceOperatorGranted: "bootstrap.instance_operator_granted",
@@ -25,8 +25,39 @@ export const FIRST_VALUE_AUDIT_EVENT_CODES = {
   accessDenied: "access.denied",
 } as const;
 
+/**
+ * Production audit event names for sync, key custody, and approval workflows.
+ * Writers must pair success and denied codes with matching outcomes.
+ */
+export const PRODUCTION_AUDIT_EVENT_CODES = {
+  syncExecutionCompleted: "sync.execution_completed",
+  syncExecutionDenied: "sync.execution_denied",
+  syncRevalidationDenied: "sync.revalidation_denied",
+  cryptoDataKeyReady: "crypto.data_key_ready",
+  cryptoDataKeyDenied: "crypto.data_key_denied",
+  cryptoKeyRotationPlanned: "crypto.key_rotation_planned",
+  cryptoKeyRotationDenied: "crypto.key_rotation_denied",
+  approvalRequestCreated: "approval.request_created",
+  approvalRequestApproved: "approval.request_approved",
+  approvalRequestRejected: "approval.request_rejected",
+  approvalActionDenied: "approval.action_denied",
+} as const;
+
+/** All supported tenant-qualified audit event codes. */
+export const AUDIT_EVENT_CODES = {
+  ...FIRST_VALUE_AUDIT_EVENT_CODES,
+  ...PRODUCTION_AUDIT_EVENT_CODES,
+} as const;
+
 export type FirstValueAuditEventCode =
   (typeof FIRST_VALUE_AUDIT_EVENT_CODES)[keyof typeof FIRST_VALUE_AUDIT_EVENT_CODES];
+
+export type ProductionAuditEventCode =
+  (typeof PRODUCTION_AUDIT_EVENT_CODES)[keyof typeof PRODUCTION_AUDIT_EVENT_CODES];
+
+export type AuditEventCode = (typeof AUDIT_EVENT_CODES)[keyof typeof AUDIT_EVENT_CODES];
+
+const AUDIT_EVENT_CODE_SET = new Set<string>(Object.values(AUDIT_EVENT_CODES));
 
 const FIRST_VALUE_AUDIT_EVENT_CODE_SET = new Set<string>(
   Object.values(FIRST_VALUE_AUDIT_EVENT_CODES),
@@ -45,11 +76,39 @@ export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEvent
   FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
 ]);
 
+export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventCode>([
+  PRODUCTION_AUDIT_EVENT_CODES.syncExecutionDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.syncRevalidationDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.cryptoDataKeyDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.cryptoKeyRotationDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied,
+]);
+
+export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([
+  ...DENIED_FIRST_VALUE_AUDIT_EVENT_CODES,
+  ...DENIED_PRODUCTION_AUDIT_EVENT_CODES,
+]);
+
 export const SUCCESS_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEventCode>(
   Object.values(FIRST_VALUE_AUDIT_EVENT_CODES).filter(
     (code) => !DENIED_FIRST_VALUE_AUDIT_EVENT_CODES.has(code),
   ),
 );
+
+export const SUCCESS_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventCode>(
+  Object.values(PRODUCTION_AUDIT_EVENT_CODES).filter(
+    (code) => !DENIED_PRODUCTION_AUDIT_EVENT_CODES.has(code),
+  ),
+);
+
+export const SUCCESS_AUDIT_EVENT_CODES = new Set<AuditEventCode>([
+  ...SUCCESS_FIRST_VALUE_AUDIT_EVENT_CODES,
+  ...SUCCESS_PRODUCTION_AUDIT_EVENT_CODES,
+]);
+
+export function isAuditEventCode(value: string): value is AuditEventCode {
+  return AUDIT_EVENT_CODE_SET.has(value);
+}
 
 export function isFirstValueAuditEventCode(value: string): value is FirstValueAuditEventCode {
   return FIRST_VALUE_AUDIT_EVENT_CODE_SET.has(value);

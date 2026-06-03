@@ -8,12 +8,13 @@ import {
 } from "@insecur/domain";
 import {
   AUDIT_SUCCESS_RESULT_CODE,
-  DENIED_FIRST_VALUE_AUDIT_EVENT_CODES,
-  isFirstValueAuditEventCode,
-  SUCCESS_FIRST_VALUE_AUDIT_EVENT_CODES,
-  type FirstValueAuditEventCode,
+  DENIED_AUDIT_EVENT_CODES,
+  isAuditEventCode,
+  SUCCESS_AUDIT_EVENT_CODES,
+  type AuditEventCode,
 } from "./audit-event-codes.js";
 import type { AuditEventInput } from "./audit-types.js";
+
 export class AuditEventValidationError extends Error {
   readonly code: AuditErrorCode = AUDIT_ERROR_CODES.eventInvalid;
   readonly retryable = false;
@@ -33,15 +34,15 @@ function assertKnownErrorCode(value: string): asserts value is KnownErrorCode {
 }
 
 function assertOutcomeMatchesEventCode(
-  eventCode: FirstValueAuditEventCode,
+  eventCode: AuditEventCode,
   outcome: "success" | "denied",
 ): void {
-  if (outcome === "denied" && !DENIED_FIRST_VALUE_AUDIT_EVENT_CODES.has(eventCode)) {
+  if (outcome === "denied" && !DENIED_AUDIT_EVENT_CODES.has(eventCode)) {
     throw new AuditEventValidationError(
       `eventCode ${eventCode} is not a denied-action audit event name`,
     );
   }
-  if (outcome === "success" && !SUCCESS_FIRST_VALUE_AUDIT_EVENT_CODES.has(eventCode)) {
+  if (outcome === "success" && !SUCCESS_AUDIT_EVENT_CODES.has(eventCode)) {
     throw new AuditEventValidationError(
       `eventCode ${eventCode} is not a successful-action audit event name`,
     );
@@ -56,6 +57,14 @@ function assertMetadataOnlyAuditEvent(event: AuditEventInput): void {
       throw new AuditEventValidationError(error.message);
     }
     throw error;
+  }
+}
+
+function assertTenantScope(event: AuditEventInput): void {
+  if (event.environmentId !== undefined && event.projectId === undefined) {
+    throw new AuditEventValidationError(
+      "environment-scoped audit events require projectId for tenant qualification",
+    );
   }
 }
 
@@ -83,11 +92,12 @@ function assertDenialMetadata(event: AuditEventInput): void {
  */
 export function validateAuditEventInput(event: AuditEventInput): void {
   const eventCode = event.eventCode;
-  if (!isFirstValueAuditEventCode(eventCode)) {
+  if (!isAuditEventCode(eventCode)) {
     throw new AuditEventValidationError(`unknown audit eventCode: ${String(eventCode)}`);
   }
 
   assertMetadataOnlyAuditEvent(event);
+  assertTenantScope(event);
   assertOutcomeMatchesEventCode(eventCode, event.outcome);
   assertDenialMetadata(event);
 }

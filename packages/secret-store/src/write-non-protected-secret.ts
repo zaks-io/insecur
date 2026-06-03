@@ -146,7 +146,7 @@ async function finishSuccessfulWrite(
     secretVersionId: persisted.secretVersionId,
     variableKey: validatedInput.variableKey,
     createdSecretShape: persisted.createdSecretShape,
-    ...(audit?.auditEventId !== undefined ? { auditEventId: audit.auditEventId } : {}),
+    auditEventId: audit.auditEventId,
   };
 }
 

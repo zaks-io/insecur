@@ -1,6 +1,12 @@
-import type { EnvironmentId, KnownErrorCode, OrganizationId, ProjectId } from "@insecur/domain";
+import {
+  AUDIT_ERROR_CODES,
+  type EnvironmentId,
+  type KnownErrorCode,
+  type OrganizationId,
+  type ProjectId,
+} from "@insecur/domain";
 
-import type { FirstValueAuditEventCode } from "./audit-event-codes.js";
+import type { AuditEventCode } from "./audit-event-codes.js";
 import type {
   AuditActorRef,
   AuditOperationRef,
@@ -11,7 +17,7 @@ import { type AuditEventResult, writeAuditEvent } from "./write-audit-event.js";
 
 export interface RecordActionAuditInput {
   outcome: "success" | "denied";
-  eventCode: FirstValueAuditEventCode;
+  eventCode: AuditEventCode;
   actor: AuditActorRef;
   organizationId: OrganizationId;
   projectId?: ProjectId;
@@ -23,7 +29,20 @@ export interface RecordActionAuditInput {
   reasonCode?: KnownErrorCode;
 }
 
-function actionAuditBase(input: RecordActionAuditInput) {
+export type ActionAuditScopeInput = Pick<
+  RecordActionAuditInput,
+  | "actor"
+  | "organizationId"
+  | "projectId"
+  | "environmentId"
+  | "resource"
+  | "relatedResource"
+  | "request"
+  | "operation"
+>;
+
+/** Shared tenant scope, correlation, and resource fields for action audit writers. */
+export function actionAuditScopeFields(input: ActionAuditScopeInput) {
   return {
     actor: input.actor,
     organizationId: input.organizationId,
@@ -40,10 +59,8 @@ function actionAuditBase(input: RecordActionAuditInput) {
  * Assembles tenant-qualified audit base fields and records a metadata-only
  * success or denied action event through {@link writeAuditEvent}.
  */
-export async function recordActionAudit(
-  input: RecordActionAuditInput,
-): Promise<AuditEventResult | undefined> {
-  const base = actionAuditBase(input);
+export async function recordActionAudit(input: RecordActionAuditInput): Promise<AuditEventResult> {
+  const base = actionAuditScopeFields(input);
 
   if (input.outcome === "success") {
     return writeAuditEvent({
@@ -53,14 +70,12 @@ export async function recordActionAudit(
     });
   }
 
-  if (input.reasonCode === undefined) {
-    return undefined;
-  }
+  const reasonCode = input.reasonCode ?? AUDIT_ERROR_CODES.eventInvalid;
 
   return writeAuditEvent({
     ...base,
     eventCode: input.eventCode,
     outcome: "denied",
-    denial: { reasonCode: input.reasonCode },
+    denial: { reasonCode },
   });
 }
