@@ -55,8 +55,6 @@ function toRecordActionAuditInput(input: RecordScopedAuditInput) {
 }
 
 /** Records a tenant-scoped audit event with optional correlation identifiers. */
-export async function recordScopedAudit(
-  input: RecordScopedAuditInput,
-): Promise<AuditEventResult | undefined> {
+export async function recordScopedAudit(input: RecordScopedAuditInput): Promise<AuditEventResult> {
   return recordActionAudit(toRecordActionAuditInput(input));
 }

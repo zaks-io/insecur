@@ -27,7 +27,7 @@ export interface RecordAccessDeniedAuditInput {
 export async function recordAccessDeniedAudit(
   input: RecordAccessDeniedAuditInput,
 ): Promise<AuditEventResult> {
-  const result = await recordActionAudit({
+  return recordActionAudit({
     outcome: "denied",
     eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
     actor: input.actor,
@@ -39,10 +39,4 @@ export async function recordAccessDeniedAudit(
     ...(input.operation !== undefined ? { operation: input.operation } : {}),
     reasonCode: input.reasonCode ?? AUTH_ERROR_CODES.insufficientScope,
   });
-
-  if (result === undefined) {
-    throw new Error("recordAccessDeniedAudit requires a denial reasonCode");
-  }
-
-  return result;
 }

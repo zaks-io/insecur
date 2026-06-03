@@ -88,7 +88,12 @@ function approvalEventCode(input: RecordApprovalAuditInput) {
   }
 }
 
-/** Records metadata-only Secret Sync execution or revalidation audit events. */
+/**
+ * Records metadata-only Secret Sync execution or revalidation audit events.
+ *
+ * Revalidation has no success event code in V1; a successful revalidation is a
+ * no-op for audit (nothing is written) rather than a dropped denial.
+ */
 export async function recordSyncAudit(
   input: RecordSyncAuditInput,
 ): Promise<AuditEventResult | undefined> {

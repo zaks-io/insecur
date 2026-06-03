@@ -16,12 +16,15 @@ Every persisted audit event is:
 - **Result-stable** through `outcome` (`success` | `denied`) and a stored `resultCode`.
   Successful events use `audit.succeeded`; denied events store a stable dotted denial
   code (for example `auth.insufficient_scope`), never exception text.
-- **Metadata-only** through allowlist validation that rejects Sensitive Value keys,
-  binary payloads, and non-plain objects anywhere in the envelope, including optional
-  `details` maps.
+- **Metadata-only** through shared envelope safety rules (`FORBIDDEN_ENVELOPE_KEYS`
+  denylist plus plain-object checks) that reject Sensitive Value keys, binary payloads,
+  and non-plain objects anywhere in the envelope, including optional `details` maps
+  persisted as JSON when present.
 
 Denied security-relevant actions use explicit `*.denied` or `access.denied` event
-names and always include `denial.reasonCode`. Successful actions use paired success
+names and always include `denial.reasonCode` (callers should pass a domain-stable
+code; `recordActionAudit` falls back to `audit.event_invalid` when omitted).
+Successful actions use paired success
 event names; validation rejects outcome/event-code mismatches.
 
 ## Event code catalogs

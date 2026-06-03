@@ -56,6 +56,7 @@ describe("toAuditEventInsertRow", () => {
       relatedResourceId: null,
       requestId: REQUEST,
       operationId: OPERATION,
+      details: null,
     });
   });
 
@@ -80,5 +81,25 @@ describe("toAuditEventInsertRow", () => {
     expect(row.environmentId).toBeNull();
     expect(row.requestId).toBeNull();
     expect(row.operationId).toBeNull();
+    expect(row.details).toBeNull();
+  });
+
+  it("maps metadata-safe details onto the insert row", () => {
+    const auditEventId = generateAuditEventId();
+
+    const row = toAuditEventInsertRow(
+      {
+        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
+        outcome: "denied",
+        actor: { type: "user", userId: USER },
+        organizationId: ORG,
+        denial: { reasonCode: "auth.insufficient_scope" },
+        details: { gate: "storage_security", retryable: false },
+      },
+      auditEventId,
+      "auth.insufficient_scope",
+    );
+
+    expect(row.details).toEqual({ gate: "storage_security", retryable: false });
   });
 });

@@ -99,6 +99,26 @@ describe("production audit helpers", () => {
     );
   });
 
+  it("recordSyncAudit writes denied with default reason when reasonCode is omitted", async () => {
+    writeMock.mockClear();
+
+    await recordSyncAudit({
+      phase: "execution",
+      outcome: "denied",
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+    });
+
+    expect(writeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        denial: { reasonCode: "audit.event_invalid" },
+      }),
+    );
+  });
+
   it("recordAccessDeniedAudit always supplies a denial reason", async () => {
     writeMock.mockClear();
 

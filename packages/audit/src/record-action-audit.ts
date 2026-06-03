@@ -1,4 +1,10 @@
-import type { EnvironmentId, KnownErrorCode, OrganizationId, ProjectId } from "@insecur/domain";
+import {
+  AUDIT_ERROR_CODES,
+  type EnvironmentId,
+  type KnownErrorCode,
+  type OrganizationId,
+  type ProjectId,
+} from "@insecur/domain";
 
 import type { AuditEventCode } from "./audit-event-codes.js";
 import type {
@@ -53,9 +59,7 @@ export function actionAuditScopeFields(input: ActionAuditScopeInput) {
  * Assembles tenant-qualified audit base fields and records a metadata-only
  * success or denied action event through {@link writeAuditEvent}.
  */
-export async function recordActionAudit(
-  input: RecordActionAuditInput,
-): Promise<AuditEventResult | undefined> {
+export async function recordActionAudit(input: RecordActionAuditInput): Promise<AuditEventResult> {
   const base = actionAuditScopeFields(input);
 
   if (input.outcome === "success") {
@@ -66,14 +70,12 @@ export async function recordActionAudit(
     });
   }
 
-  if (input.reasonCode === undefined) {
-    return undefined;
-  }
+  const reasonCode = input.reasonCode ?? AUDIT_ERROR_CODES.eventInvalid;
 
   return writeAuditEvent({
     ...base,
     eventCode: input.eventCode,
     outcome: "denied",
-    denial: { reasonCode: input.reasonCode },
+    denial: { reasonCode },
   });
 }

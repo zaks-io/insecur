@@ -34,6 +34,7 @@ interface AuditRow {
   resource_id: string | null;
   request_id: string | null;
   operation_id: string | null;
+  details: Record<string, unknown> | null;
 }
 
 describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
@@ -104,7 +105,34 @@ describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
       resource_id: TEST_ORG_A_ID,
       request_id: "req_00000000000000000000000099",
       operation_id: null,
+      details: null,
     });
+  });
+
+  it("persists metadata-safe details json", async () => {
+    const org = organizationId.brand(TEST_ORG_A_ID);
+
+    const result = await writeAuditEvent({
+      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
+      outcome: "denied",
+      actor: { type: "user", userId: userId.brand(TEST_USER_ID) },
+      organizationId: org,
+      denial: { reasonCode: "auth.insufficient_scope" },
+      details: { gate: "storage_security" },
+    });
+
+    const rows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async (sql) => {
+        return await sql<Pick<AuditRow, "details">[]>`
+        SELECT details
+        FROM audit_events
+        WHERE id = ${result.auditEventId}
+      `;
+      },
+    );
+
+    expect(rows[0]?.details).toEqual({ gate: "storage_security" });
   });
 
   it("stores stable denial result codes for denied attempts", async () => {

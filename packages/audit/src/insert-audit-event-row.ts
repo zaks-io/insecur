@@ -1,9 +1,12 @@
 import type { TenantScopedSql } from "@insecur/tenant-store";
+import { auditDetailsToJson } from "./audit-details-json.js";
 import { toAuditEventInsertRow, type AuditEventInsertRow } from "./audit-event-row.js";
 import type { AuditEventInput } from "./audit-types.js";
 import type { AuditEventId, KnownErrorCode } from "@insecur/domain";
 
 async function insertRow(sql: TenantScopedSql, row: AuditEventInsertRow): Promise<void> {
+  const detailsValue = row.details === null ? null : sql.json(auditDetailsToJson(row.details));
+
   await sql`
     INSERT INTO audit_events (
       id,
@@ -20,7 +23,8 @@ async function insertRow(sql: TenantScopedSql, row: AuditEventInsertRow): Promis
       related_resource_type,
       related_resource_id,
       request_id,
-      operation_id
+      operation_id,
+      details
     ) VALUES (
       ${row.id},
       ${row.orgId},
@@ -36,7 +40,8 @@ async function insertRow(sql: TenantScopedSql, row: AuditEventInsertRow): Promis
       ${row.relatedResourceType},
       ${row.relatedResourceId},
       ${row.requestId},
-      ${row.operationId}
+      ${row.operationId},
+      ${detailsValue}
     )
   `;
 }

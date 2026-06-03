@@ -30,7 +30,7 @@ export interface RecordStorageAuditInput {
  */
 export async function recordStorageAudit(
   input: RecordStorageAuditInput,
-): Promise<AuditEventResult | undefined> {
+): Promise<AuditEventResult> {
   return recordActionAudit({
     ...actionAuditScopeFields({
       actor: input.actor,
