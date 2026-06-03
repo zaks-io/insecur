@@ -27,7 +27,6 @@ export async function grantRuntimeTablePrivileges(sql, runtimeRole) {
     SELECT tablename
     FROM pg_tables
     WHERE schemaname = 'public'
-      AND tablename <> 'schema_migrations'
     ORDER BY tablename
   `;
 
