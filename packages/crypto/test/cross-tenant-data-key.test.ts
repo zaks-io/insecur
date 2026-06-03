@@ -84,37 +84,47 @@ function createRootProvider(): StaticRootKeyProvider {
   return new StaticRootKeyProvider(root);
 }
 
+function activeOrganizationKey(
+  overrides: Partial<OrganizationDataKeyMetadata> = {},
+): OrganizationDataKeyMetadata {
+  return {
+    id: "odk_org_a",
+    organizationId: ORG_A,
+    keyVersion: 1,
+    status: "active",
+    rootKeyVersion: 1,
+    wrappedStorageRef: null,
+    custodyEvidenceRef: null,
+    ...overrides,
+  };
+}
+
+function activeProjectKey(overrides: Partial<ProjectDataKeyMetadata> = {}): ProjectDataKeyMetadata {
+  return {
+    id: "pdk_project_a",
+    organizationId: ORG_A,
+    projectId: PROJECT_A,
+    keyVersion: 1,
+    status: "active",
+    organizationDataKeyVersion: 1,
+    wrappedStorageRef: null,
+    ...overrides,
+  };
+}
+
+function createKeyring(
+  organizationKey: OrganizationDataKeyMetadata,
+  projectKeys: Map<string, ProjectDataKeyMetadata>,
+): Keyring {
+  const reader = new ScopedMetadataReader(ORG_A, organizationKey, projectKeys);
+  return new Keyring(createRootProvider(), new MetadataTenantDataKeySource(reader));
+}
+
 describe("cross-tenant tenant data key resolution", () => {
   let keyring: Keyring;
 
   beforeEach(() => {
-    const orgAReader = new ScopedMetadataReader(
-      ORG_A,
-      {
-        id: "odk_org_a",
-        organizationId: ORG_A,
-        keyVersion: 1,
-        status: "active",
-        rootKeyVersion: 1,
-        wrappedStorageRef: null,
-        custodyEvidenceRef: null,
-      },
-      new Map([
-        [
-          PROJECT_A,
-          {
-            id: "pdk_project_a",
-            organizationId: ORG_A,
-            projectId: PROJECT_A,
-            keyVersion: 1,
-            status: "active",
-            organizationDataKeyVersion: 1,
-            wrappedStorageRef: null,
-          },
-        ],
-      ]),
-    );
-    keyring = new Keyring(createRootProvider(), new MetadataTenantDataKeySource(orgAReader));
+    keyring = createKeyring(activeOrganizationKey(), new Map([[PROJECT_A, activeProjectKey()]]));
   });
 
   it("resolves active versions only for the scoped organization", async () => {
@@ -147,6 +157,65 @@ describe("cross-tenant tenant data key resolution", () => {
     await expect(
       keyring.getProjectDataKey(ORG_A, PROJECT_B, {
         organizationDataKeyVersion: 1,
+        projectDataKeyVersion: 1,
+      }),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+  });
+
+  it("fails closed when the active organization key is present but not active", async () => {
+    const inactiveOrgKeyring = createKeyring(
+      activeOrganizationKey({ status: "retired" }),
+      new Map([[PROJECT_A, activeProjectKey()]]),
+    );
+
+    await expect(
+      inactiveOrgKeyring.getActiveDataKeyVersions(ORG_A, PROJECT_A),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+  });
+
+  it("fails closed when the active project key is present but not active", async () => {
+    const inactiveProjectKeyring = createKeyring(
+      activeOrganizationKey(),
+      new Map([[PROJECT_A, activeProjectKey({ status: "revoked" })]]),
+    );
+
+    await expect(
+      inactiveProjectKeyring.getActiveDataKeyVersions(ORG_A, PROJECT_A),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+  });
+
+  it("fails closed when active keys disagree on organization data key version linkage", async () => {
+    const linkageMismatchKeyring = createKeyring(
+      activeOrganizationKey({ keyVersion: 1 }),
+      new Map([[PROJECT_A, activeProjectKey({ organizationDataKeyVersion: 2 })]]),
+    );
+
+    await expect(
+      linkageMismatchKeyring.getActiveDataKeyVersions(ORG_A, PROJECT_A),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+  });
+
+  it("fails closed when resolved organization and project key versions are linkage-mismatched", async () => {
+    const orgVersionOneProjectClaimsOrgVersionTwo = createKeyring(
+      activeOrganizationKey({ keyVersion: 1 }),
+      new Map([[PROJECT_A, activeProjectKey({ organizationDataKeyVersion: 2 })]]),
+    );
+
+    await expect(
+      orgVersionOneProjectClaimsOrgVersionTwo.getProjectDataKey(ORG_A, PROJECT_A, {
+        organizationDataKeyVersion: 1,
+        projectDataKeyVersion: 1,
+      }),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+
+    const orgVersionTwoProjectClaimsOrgVersionOne = createKeyring(
+      activeOrganizationKey({ keyVersion: 2 }),
+      new Map([[PROJECT_A, activeProjectKey({ organizationDataKeyVersion: 1 })]]),
+    );
+
+    await expect(
+      orgVersionTwoProjectClaimsOrgVersionOne.getProjectDataKey(ORG_A, PROJECT_A, {
+        organizationDataKeyVersion: 2,
         projectDataKeyVersion: 1,
       }),
     ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
