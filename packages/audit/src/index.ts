@@ -19,6 +19,7 @@ export {
   type AuditResourceRef,
   type AuditResourceType,
 } from "./audit-types.js";
+export { type RecordActionAuditInput, recordActionAudit } from "./record-action-audit.js";
 export { generateAuditEventId } from "./generate-audit-event-id.js";
 export { insertAuditEventRow } from "./insert-audit-event-row.js";
 export {

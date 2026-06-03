@@ -1,11 +1,11 @@
 import {
   FIRST_VALUE_AUDIT_EVENT_CODES,
+  recordActionAudit,
   type AuditActorRef,
   type AuditEventResult,
   type AuditOperationRef,
   type AuditRequestRef,
   type FirstValueAuditEventCode,
-  writeAuditEvent,
 } from "@insecur/audit";
 import {
   parseOpaqueResourceId,
@@ -89,24 +89,10 @@ function auditBaseForInjectionGrant(input: RecordInjectionGrantAuditInput) {
 export async function recordInjectionGrantAudit(
   input: RecordInjectionGrantAuditInput,
 ): Promise<AuditEventResult | undefined> {
-  const base = auditBaseForInjectionGrant(input);
-
-  if (input.outcome === "success") {
-    return writeAuditEvent({
-      ...base,
-      eventCode: eventCodeFor(input),
-      outcome: "success",
-    });
-  }
-
-  if (input.reasonCode === undefined) {
-    return undefined;
-  }
-
-  return writeAuditEvent({
-    ...base,
+  return recordActionAudit({
+    ...auditBaseForInjectionGrant(input),
+    outcome: input.outcome,
     eventCode: eventCodeFor(input),
-    outcome: "denied",
-    denial: { reasonCode: input.reasonCode },
+    ...(input.reasonCode !== undefined ? { reasonCode: input.reasonCode } : {}),
   });
 }
