@@ -72,9 +72,9 @@ async function provisionPersonalOrganization(
   input: Parameters<ApiClient["provisionPersonalOrganization"]>[0],
 ) {
   const body = buildPersonalOrganizationRequestBody({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
+    ...(input.organizationId === undefined ? {} : { organizationId: input.organizationId }),
+    ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
+    ...(input.environmentId === undefined ? {} : { environmentId: input.environmentId }),
   });
   const { response, body: responseBody } = await postJson(
     new URL("/v1/onboarding/personal-organization", base),
