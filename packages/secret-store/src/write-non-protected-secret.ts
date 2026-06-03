@@ -17,7 +17,6 @@ import type {
 import { secretVersionId } from "@insecur/domain";
 import {
   TenantSecretVersionStore,
-  createTenantScopedDb,
   withTenantScope,
   type AppendSecretVersionAndMakeLiveResult,
   type StoredWrappedSecretMaterial,
@@ -95,8 +94,8 @@ async function appendEncryptedVersionForWrite(
 ): Promise<AppendSecretVersionAndMakeLiveResult> {
   return withTenantScope(
     { kind: "organization", organizationId: validatedInput.organizationId },
-    async (sql) => {
-      const store = new TenantSecretVersionStore(createTenantScopedDb(sql));
+    async ({ db }) => {
+      const store = new TenantSecretVersionStore(db);
       const resolved = await store.resolveSecretForWrite({
         organizationId: validatedInput.organizationId,
         projectId: validatedInput.projectId,

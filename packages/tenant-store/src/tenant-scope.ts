@@ -13,6 +13,15 @@ export interface ServiceTenantScope {
 
 export type TenantScope = OrganizationTenantScope | ServiceTenantScope;
 
+import type { TenantScopedDb } from "./tenant-scoped-db.js";
 import type { TenantScopedSql } from "./tenant-scoped-sql.js";
 
-export type TenantScopedCallback<TResult> = (sql: TenantScopedSql) => Promise<TResult>;
+/** Handles for the active tenant-scoped Drizzle transaction (ADR-0037). */
+export interface TenantScopedHandles {
+  /** Drizzle query builder bound to the scoped transaction. */
+  db: TenantScopedDb;
+  /** postgres.js tagged SQL on the same transaction (raw statements). */
+  sql: TenantScopedSql;
+}
+
+export type TenantScopedCallback<TResult> = (handles: TenantScopedHandles) => Promise<TResult>;

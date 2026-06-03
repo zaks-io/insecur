@@ -20,7 +20,7 @@ export async function writeAuditEvent(event: AuditEventInput): Promise<AuditEven
 
   await withTenantScope(
     { kind: "organization", organizationId: event.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       await insertAuditEventRow(sql, auditEventId, event, resultCode);
     },
   );

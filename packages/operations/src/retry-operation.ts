@@ -10,7 +10,7 @@ import { TenantOperationStore } from "./tenant-operation-store.js";
 export async function retryOperation(input: RetryOperationInput): Promise<OperationMutationResult> {
   return await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const store = new TenantOperationStore(sql);
 
       const progressPatch =

@@ -11,7 +11,7 @@ export async function claimSyncTargetLease(
 ): Promise<SyncTargetLeaseClaimResult> {
   return await withTenantScope(
     { kind: "organization", organizationId: input.target.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const store = new TenantSyncTargetLeaseStore(sql);
       const fencingToken = await store.claimLease({
         target: input.target,

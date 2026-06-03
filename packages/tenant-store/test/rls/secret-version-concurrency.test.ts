@@ -11,7 +11,7 @@ import {
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TenantSecretVersionStore } from "../../src/secrets/tenant-secret-version-store.js";
-import { closeRuntimeSql, createTenantScopedDb, withTenantScope } from "../../src/index.js";
+import { closeRuntimeSql, withTenantScope } from "../../src/index.js";
 import { requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
 import { seedTenantBaseline } from "./seed.js";
 import { TEST_ENV_A_ID, TEST_ORG_A_ID, TEST_PROJECT_A_ID } from "./test-ids.js";
@@ -49,8 +49,8 @@ async function appendVersion(secretIdValue: SecretId, suffix: number) {
   const versionId = secretVersionId.generate();
   const wrapped = syntheticWrappedMaterial(suffix);
 
-  return withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
-    const store = new TenantSecretVersionStore(createTenantScopedDb(sql));
+  return withTenantScope({ kind: "organization", organizationId: org }, async ({ db }) => {
+    const store = new TenantSecretVersionStore(db);
     return store.appendVersionAndMakeLive({
       organizationId: org,
       secretId: secretIdValue,
@@ -74,8 +74,8 @@ async function assertConcurrentVersionRows(
     CONCURRENT_APPEND_COUNT,
   );
 
-  const current = await withTenantScope({ kind: "organization", organizationId: org }, (sql) =>
-    new TenantSecretVersionStore(createTenantScopedDb(sql)).getCurrentVersion(dedicatedSecretId),
+  const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
+    new TenantSecretVersionStore(db).getCurrentVersion(dedicatedSecretId),
   );
   expect(current).not.toBeNull();
   expect(results.some((result) => result.secretVersionId === current?.secretVersionId)).toBe(true);
@@ -83,7 +83,7 @@ async function assertConcurrentVersionRows(
 
   const storedVersions = await withTenantScope(
     { kind: "organization", organizationId: org },
-    (sql) =>
+    ({ sql }) =>
       sql<{ id: string; version_number: number; ciphertext_storage_ref: string }[]>`
         SELECT id, version_number, ciphertext_storage_ref
         FROM secret_versions
@@ -99,7 +99,7 @@ async function assertConcurrentVersionRows(
 
   const currentPointer = await withTenantScope(
     { kind: "organization", organizationId: org },
-    (sql) =>
+    ({ sql }) =>
       sql<{ current_version_id: string | null }[]>`
         SELECT current_version_id
         FROM secrets
@@ -120,8 +120,7 @@ async function assertSerialAppendAfterConcurrency(
 
   const serialCurrent = await withTenantScope(
     { kind: "organization", organizationId: org },
-    (sql) =>
-      new TenantSecretVersionStore(createTenantScopedDb(sql)).getCurrentVersion(dedicatedSecretId),
+    ({ db }) => new TenantSecretVersionStore(db).getCurrentVersion(dedicatedSecretId),
   );
   expect(serialCurrent?.secretVersionId).toBe(serial.secretVersionId);
   expect(serialCurrent?.versionNumber).toBe(CONCURRENT_APPEND_COUNT + 1);
@@ -144,8 +143,8 @@ describeRls("TenantSecretVersionStore append concurrency (real Postgres)", () =>
     const dedicatedSecretId = secretId.generate();
     const variableKey = uniqueConcurrencyVariableKey();
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
-      const store = new TenantSecretVersionStore(createTenantScopedDb(sql));
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ db }) => {
+      const store = new TenantSecretVersionStore(db);
       await store.resolveSecretForWrite({
         organizationId: org,
         projectId: projectId.brand(TEST_PROJECT_A_ID),

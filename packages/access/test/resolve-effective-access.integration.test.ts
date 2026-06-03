@@ -53,7 +53,7 @@ describeIntegration("resolveEffectiveAccess (tenant-scoped store)", () => {
     const org = organizationId.brand(TEST_ORG_A_ID);
     const project = projectId.brand(TEST_PROJECT_A_ID);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
         INSERT INTO memberships (id, org_id, team_id, user_id, role_preset, project_id)
         VALUES (

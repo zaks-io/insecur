@@ -39,7 +39,7 @@ describeIntegration("recordAccessDenial (audit event writer)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return sql<AuditRow[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events

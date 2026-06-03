@@ -66,7 +66,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
     const orgA = organizationId.brand(TEST_ORG_A_ID);
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) => await sql<IdRow[]>`SELECT id FROM organizations ORDER BY id`,
+      async ({ sql }) => await sql<IdRow[]>`SELECT id FROM organizations ORDER BY id`,
     );
     expect(rows.map((row) => row.id)).toEqual([TEST_ORG_A_ID]);
   });
@@ -77,7 +77,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<IdRow[]>`
           SELECT id FROM projects WHERE id = ${guessedProjectB}
         `,
@@ -88,7 +88,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
   it("allows service scope to read across organizations", async () => {
     const rows = await withTenantScope(
       { kind: "service" },
-      async (sql) => await sql<IdRow[]>`SELECT id FROM organizations ORDER BY id`,
+      async ({ sql }) => await sql<IdRow[]>`SELECT id FROM organizations ORDER BY id`,
     );
     expect(rows.map((row) => row.id)).toEqual([TEST_ORG_A_ID, TEST_ORG_B_ID]);
   });
@@ -97,7 +97,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
     const orgA = organizationId.brand(TEST_ORG_A_ID);
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) => await sql<IdRow[]>`SELECT id FROM projects ORDER BY id`,
+      async ({ sql }) => await sql<IdRow[]>`SELECT id FROM projects ORDER BY id`,
     );
     expect(rows.map((row) => row.id)).toEqual([TEST_PROJECT_A_ID]);
   });
@@ -107,7 +107,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
     const crossTenantAuditId = "aud_00000000000000000000000099";
 
     await expect(
-      withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
+      withTenantScope({ kind: "organization", organizationId: orgA }, async ({ sql }) => {
         await sql`
           INSERT INTO audit_events (
             id,
@@ -132,7 +132,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<IdRow[]>`
           SELECT id FROM audit_events WHERE id = ${crossTenantAuditId}
         `,
@@ -144,7 +144,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
     const orgA = organizationId.brand(TEST_ORG_A_ID);
 
     await expect(
-      withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
+      withTenantScope({ kind: "organization", organizationId: orgA }, async ({ sql }) => {
         await sql`
           INSERT INTO memberships (id, org_id, team_id, user_id, role_preset)
           VALUES (
@@ -160,7 +160,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<IdRow[]>`
           SELECT id FROM memberships WHERE id = ${TEST_MEM_CROSS_ORG_ID}
         `,
@@ -172,7 +172,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
     const orgA = organizationId.brand(TEST_ORG_A_ID);
 
     await expect(
-      withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
+      withTenantScope({ kind: "organization", organizationId: orgA }, async ({ sql }) => {
         await sql`
           UPDATE secrets
           SET current_version_id = ${TEST_VERSION_B_ID}
@@ -183,7 +183,7 @@ describeRls("tenant row-level security (real Postgres)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgA },
-      async (sql) =>
+      async ({ sql }) =>
         await sql<{ current_version_id: string | null }[]>`
           SELECT current_version_id FROM secrets WHERE id = ${TEST_SECRET_A_ID}
         `,

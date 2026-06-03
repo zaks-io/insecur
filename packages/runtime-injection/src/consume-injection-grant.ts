@@ -15,7 +15,6 @@ import {
 } from "@insecur/domain";
 import {
   TenantInjectionGrantStore,
-  createTenantScopedDb,
   type InjectionGrantConsumeFailure,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -68,8 +67,8 @@ async function loadGrantBinding(
   organizationId: OrganizationId,
   grantId: InjectionGrantId,
 ): Promise<LoadedGrantBinding | undefined> {
-  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
-    const store = new TenantInjectionGrantStore(createTenantScopedDb(sql));
+  return withTenantScope({ kind: "organization", organizationId }, async ({ db }) => {
+    const store = new TenantInjectionGrantStore(db);
     const grant = await store.getGrant(organizationId, grantId);
     if (!grant) {
       return undefined;
@@ -114,8 +113,8 @@ export async function executeConsumeInjectionGrant(
 
   const consumeResult = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    (sql) =>
-      new TenantInjectionGrantStore(createTenantScopedDb(sql)).tryConsumeGrant(
+    ({ db }) =>
+      new TenantInjectionGrantStore(db).tryConsumeGrant(
         input.organizationId,
         input.grantId,
         identity.secretId,

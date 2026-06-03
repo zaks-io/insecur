@@ -20,7 +20,7 @@ export async function atomicallyCompleteBootstrapOperatorClaim(
     defaultTeamId: TeamId;
   },
 ): Promise<AtomicallyCompleteBootstrapClaimResult | null> {
-  return withTenantScope({ kind: "service" }, async (sql) =>
+  return withTenantScope({ kind: "service" }, async ({ sql }) =>
     executeBootstrapClaimInTransaction(sql, {
       instanceId: input.instanceId,
       actor: input.actor,

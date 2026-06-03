@@ -32,7 +32,7 @@ export async function persistGuidedOrganization(
 ): Promise<void> {
   await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       await sql`
         INSERT INTO organizations (id, instance_id, display_name)
         VALUES (${input.organizationId}, ${input.instanceId}, ${input.organizationDisplayName})

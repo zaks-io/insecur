@@ -45,7 +45,7 @@ export async function loadActorMemberships(
 
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const rows =
         projectIds.length === 0
           ? await sql<MembershipQueryRow[]>`

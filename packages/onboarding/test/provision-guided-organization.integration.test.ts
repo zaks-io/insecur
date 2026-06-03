@@ -71,7 +71,7 @@ describeIntegration("provisionGuidedOrganization", () => {
 
     const environments = await withTenantScope(
       { kind: "organization", organizationId: result.organizationId },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<EnvironmentRow[]>`
           SELECT is_protected, display_name
           FROM environments
@@ -98,7 +98,7 @@ describeIntegration("provisionGuidedOrganization", () => {
 
     const auditRows = await withTenantScope(
       { kind: "organization", organizationId: result.organizationId },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<AuditRow[]>`
           SELECT event_code, outcome, result_code
           FROM audit_events
@@ -190,7 +190,7 @@ describeIntegration("provisionGuidedOrganization", () => {
 
     const auditCountBefore = await withTenantScope(
       { kind: "organization", organizationId: collidingOrg },
-      async (sql) => {
+      async ({ sql }) => {
         const rows = await sql<{ count: string }[]>`
           SELECT COUNT(*)::text AS count
           FROM audit_events
@@ -218,7 +218,7 @@ describeIntegration("provisionGuidedOrganization", () => {
 
     const auditCountAfter = await withTenantScope(
       { kind: "organization", organizationId: collidingOrg },
-      async (sql) => {
+      async ({ sql }) => {
         const rows = await sql<{ count: string }[]>`
           SELECT COUNT(*)::text AS count
           FROM audit_events
@@ -251,7 +251,7 @@ describeIntegration("provisionGuidedOrganization", () => {
       code: AUTH_ERROR_CODES.required,
     } satisfies Partial<GuidedOrganizationProvisionError>);
 
-    const orgRows = await withTenantScope({ kind: "service" }, async (sql) => {
+    const orgRows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
       return await sql<{ id: string }[]>`
         SELECT id FROM organizations WHERE id = ${freshOrgId}
       `;

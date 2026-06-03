@@ -10,7 +10,7 @@ export async function cleanupInvitationAcceptanceFixture(input: {
 }): Promise<void> {
   const { organizationId, inviteeUserId, membershipId, invitationIds } = input;
 
-  await withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+  await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     await sql`DELETE FROM invitations WHERE invitee_user_id = ${inviteeUserId}`;
     await sql`DELETE FROM memberships WHERE id = ${membershipId}`;
     await sql`DELETE FROM memberships WHERE user_id = ${inviteeUserId}`;
@@ -25,7 +25,7 @@ export async function cleanupInvitationAcceptanceFixture(input: {
 }
 
 export async function cleanupMembershipFixture(organizationId: string): Promise<void> {
-  await withTenantScope({ kind: "service" }, async (sql) => {
+  await withTenantScope({ kind: "service" }, async ({ sql }) => {
     await sql`DELETE FROM invitations WHERE org_id = ${organizationId}`;
     await sql`DELETE FROM audit_events WHERE org_id = ${organizationId}`;
     await sql`DELETE FROM memberships WHERE org_id = ${organizationId}`;
@@ -46,7 +46,7 @@ export async function cleanupInstanceOperatorGrant(
   instanceId: string,
   operatorGrantId: string,
 ): Promise<void> {
-  await withTenantScope({ kind: "service" }, async (sql) => {
+  await withTenantScope({ kind: "service" }, async ({ sql }) => {
     await sql`DELETE FROM instance_operators WHERE id = ${operatorGrantId}`;
     await sql`
       DELETE FROM instance_operators

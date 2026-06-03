@@ -39,7 +39,7 @@ function createTestRootKey(): Uint8Array {
 }
 
 async function loadLatestIssueDeniedAudit(organizationId: ReturnType<typeof testOrganization>) {
-  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     const rows = await sql<
       {
         event_code: string;
@@ -61,7 +61,7 @@ async function loadAuditRow(
   organizationId: ReturnType<typeof testOrganization>,
   auditEventId: string,
 ) {
-  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     const rows = await sql<
       {
         event_code: string;
@@ -93,7 +93,7 @@ async function loadGrantBinding(
   organizationId: ReturnType<typeof testOrganization>,
   grantId: string,
 ) {
-  return withTenantScope({ kind: "organization", organizationId }, async (sql) => {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     const rows = await sql<
       { secret_ids: string[]; secret_version_id: string | null; variable_keys: string[] }[]
     >`
@@ -200,7 +200,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     const replayAuditRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return sql<{ event_code: string; result_code: string | null }[]>`
         SELECT event_code, result_code
         FROM audit_events
@@ -313,7 +313,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     const deniedRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return sql<
           {
             event_code: string;
@@ -377,7 +377,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     const deniedRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return sql<
           {
             event_code: string;
@@ -543,7 +543,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     const grantId = injectionGrantId.generate();
     const expiresAt = new Date(Date.now() + 60_000);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
         INSERT INTO injection_grants (
           id,
@@ -579,7 +579,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     const afterFirstAttempt = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         const rows = await sql<{ consumed_at: Date | null }[]>`
           SELECT consumed_at
           FROM injection_grants
@@ -614,7 +614,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
       actor: testActor(),
     });
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
         UPDATE injection_grants
         SET expires_at = now() - interval '1 second'

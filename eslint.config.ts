@@ -78,10 +78,19 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+    files: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx",
+      "**/*.e2e.test.ts",
+      "**/*.integration.test.ts",
+    ],
     rules: {
       "max-lines": "off",
       "max-lines-per-function": "off",
+      "max-statements": "off",
+      complexity: "off",
     },
   },
   {

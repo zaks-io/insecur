@@ -49,7 +49,7 @@ export async function loadMachineMemberships(
 
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const rows = await sql<MachineMembershipQueryRow[]>`
         SELECT id, org_id, machine_identity_id, project_id, authorization_scopes
         FROM machine_identity_memberships

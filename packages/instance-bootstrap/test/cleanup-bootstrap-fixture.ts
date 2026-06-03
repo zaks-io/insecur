@@ -1,7 +1,7 @@
 import { withTenantScope } from "@insecur/tenant-store";
 
 export async function cleanupBootstrapFixture(instanceId: string): Promise<void> {
-  await withTenantScope({ kind: "service" }, async (sql) => {
+  await withTenantScope({ kind: "service" }, async ({ sql }) => {
     await sql`
       DELETE FROM audit_events
       WHERE org_id IN (SELECT id FROM organizations WHERE instance_id = ${instanceId})

@@ -14,7 +14,7 @@ export async function recordOperationProgress(
 
   const operation = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       await enforceSyncTargetLease(sql, {
         organizationId: input.organizationId,
         operationId: input.operationId,

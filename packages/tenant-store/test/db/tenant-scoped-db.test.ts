@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const drizzleMock = vi.hoisted(() =>
   vi.fn(() => ({
+    transaction: vi.fn(),
     query: {
       secrets: {},
       secretVersions: {},
@@ -13,9 +14,17 @@ vi.mock("drizzle-orm/postgres-js", () => ({
   drizzle: drizzleMock,
 }));
 
+vi.mock("../../src/db/connection.js", () => ({
+  getRuntimeSql: vi.fn(() => ({ options: { parsers: {}, serializers: {} } })),
+}));
+
 import { tenantStoreSchema } from "../../src/db/tenant-store-schema.js";
-import { createTenantScopedDb } from "../../src/tenant-scoped-db.js";
-import type { TenantScopedSql } from "../../src/tenant-scoped-sql.js";
+import {
+  getRuntimeTenantDb,
+  resetRuntimeTenantDb,
+  tenantScopedSql,
+  type TenantScopedDb,
+} from "../../src/tenant-scoped-db.js";
 
 describe("tenantStoreSchema", () => {
   it("bundles tables used by the tenant-store query layer", () => {
@@ -34,15 +43,28 @@ describe("tenantStoreSchema", () => {
   });
 });
 
-describe("createTenantScopedDb", () => {
+describe("getRuntimeTenantDb", () => {
   beforeEach(() => {
     drizzleMock.mockClear();
+    resetRuntimeTenantDb();
   });
 
-  it("wraps the transaction postgres handle with the tenant-store schema", () => {
-    const sql = { options: { parsers: {} } } as unknown as TenantScopedSql;
-    const db = createTenantScopedDb(sql);
-    expect(drizzleMock).toHaveBeenCalledWith(sql, { schema: tenantStoreSchema });
+  it("constructs Drizzle from the runtime pool with the tenant-store schema", () => {
+    const db = getRuntimeTenantDb();
+    expect(drizzleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ options: expect.any(Object) }),
+      {
+        schema: tenantStoreSchema,
+      },
+    );
     expect(db.query.secrets).toBeDefined();
+  });
+});
+
+describe("tenantScopedSql", () => {
+  it("returns the postgres.js transaction client behind a Drizzle tx", () => {
+    const client = { options: { parsers: {} } };
+    const db = { session: { client } } as unknown as TenantScopedDb;
+    expect(tenantScopedSql(db)).toBe(client);
   });
 });

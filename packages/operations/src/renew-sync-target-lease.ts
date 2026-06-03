@@ -10,7 +10,7 @@ export async function renewSyncTargetLease(
 ): Promise<SyncTargetLeaseClaimResult> {
   return await withTenantScope(
     { kind: "organization", organizationId: input.target.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const store = new TenantSyncTargetLeaseStore(sql);
       const fencingToken = await store.renewLease({
         target: input.target,

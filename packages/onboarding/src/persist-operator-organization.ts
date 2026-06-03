@@ -12,7 +12,7 @@ export interface PersistOperatorOrganizationInput {
 export async function persistOperatorOrganization(
   input: PersistOperatorOrganizationInput,
 ): Promise<void> {
-  await withTenantScope({ kind: "service" }, async (sql) => {
+  await withTenantScope({ kind: "service" }, async ({ sql }) => {
     await sql`
       INSERT INTO organizations (id, instance_id, display_name)
       VALUES (${input.organizationId}, ${input.instanceId}, ${input.organizationDisplayName})

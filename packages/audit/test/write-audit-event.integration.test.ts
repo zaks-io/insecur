@@ -68,7 +68,7 @@ describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<AuditRow[]>`
         SELECT
           id,
@@ -123,7 +123,7 @@ describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<Pick<AuditRow, "details">[]>`
         SELECT details
         FROM audit_events
@@ -148,7 +148,7 @@ describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
 
     const rows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) => {
+      async ({ sql }) => {
         return await sql<Pick<AuditRow, "outcome" | "result_code" | "event_code">[]>`
         SELECT outcome, result_code, event_code
         FROM audit_events

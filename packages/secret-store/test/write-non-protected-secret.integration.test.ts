@@ -11,7 +11,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import {
   TenantSecretVersionStore,
   closeRuntimeSql,
-  createTenantScopedDb,
   decodeInlineCiphertextStorageRef,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -40,8 +39,8 @@ async function assertSuccessfulWritePersistedArtifacts(
   expect(result.auditEventId).toMatch(/^aud_[0-9A-Z]{26}$/);
   expect(JSON.stringify(result)).not.toContain(new TextDecoder().decode(plaintext));
 
-  const current = await withTenantScope({ kind: "organization", organizationId: org }, (sql) =>
-    new TenantSecretVersionStore(createTenantScopedDb(sql)).getCurrentVersion(result.secretId),
+  const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
+    new TenantSecretVersionStore(db).getCurrentVersion(result.secretId),
   );
   expect(current?.secretVersionId).toBe(result.secretVersionId);
   expect(current?.versionNumber).toBe(1);
@@ -97,8 +96,8 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     expect(second.createdSecretShape).toBe(false);
     expect(second.secretVersionId).not.toBe(first.secretVersionId);
 
-    const current = await withTenantScope({ kind: "organization", organizationId: org }, (sql) =>
-      new TenantSecretVersionStore(createTenantScopedDb(sql)).getCurrentVersion(second.secretId),
+    const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
+      new TenantSecretVersionStore(db).getCurrentVersion(second.secretId),
     );
     expect(current?.secretVersionId).toBe(second.secretVersionId);
     expect(current?.versionNumber).toBe(2);
@@ -122,7 +121,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
 
     const secretRows = await withTenantScope(
       { kind: "organization", organizationId: org },
-      (sql) =>
+      ({ sql }) =>
         sql<{ id: string }[]>`
           SELECT id
           FROM secrets
@@ -134,7 +133,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
 
     const deniedAudit = await withTenantScope(
       { kind: "organization", organizationId: org },
-      (sql) =>
+      ({ sql }) =>
         sql<{ event_code: string; result_code: string; resource_id: string | null }[]>`
           SELECT event_code, result_code, resource_id
           FROM audit_events
@@ -156,7 +155,7 @@ async function loadStorageRef(
 ): Promise<string | undefined> {
   const rows = await withTenantScope(
     { kind: "organization", organizationId: org },
-    (sql) =>
+    ({ sql }) =>
       sql<{ ciphertext_storage_ref: string }[]>`
       SELECT ciphertext_storage_ref
       FROM secret_versions
@@ -176,7 +175,7 @@ async function loadAuditRow(
   }
   const rows = await withTenantScope(
     { kind: "organization", organizationId: org },
-    (sql) =>
+    ({ sql }) =>
       sql<{ event_code: string; resource_id: string | null }[]>`
       SELECT event_code, resource_id
       FROM audit_events

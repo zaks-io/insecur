@@ -60,7 +60,7 @@ describeIntegration("operation store (tenant-scoped)", () => {
     });
     expect(running.operation.state).toBe("running");
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       const store = new TenantOperationStore(sql);
       const snapshot = await store.getById(org, created.operation.operationId);
       if (snapshot === null) {

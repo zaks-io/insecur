@@ -26,7 +26,7 @@ export async function transitionOperation(
 
   return await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async (sql) => {
+    async ({ sql }) => {
       const store = new TenantOperationStore(sql);
       const operation = await store.applyTransition({
         organizationId: input.organizationId,

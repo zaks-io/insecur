@@ -166,7 +166,7 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
     // 4. Consume audit event written for this grant (metadata only, no plaintext).
     const auditRows = await withTenantScope(
       { kind: "organization", organizationId: ORG_A },
-      async (sql) =>
+      async ({ sql }) =>
         sql<{ event_code: string }[]>`
           SELECT event_code
           FROM audit_events
