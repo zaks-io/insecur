@@ -1,10 +1,33 @@
 export {
+  type ProviderCredentialCiphertextIdentity,
+  type ProviderConnectionMethod,
   type SecretCiphertextIdentity,
+  type SensitiveMetadataCiphertextIdentity,
+  type SensitiveMetadataFieldKey,
+  type SensitiveMetadataType,
+  type WrappedProviderCredential,
   type WrappedSecretValue,
+  type WrappedSensitiveMetadata,
+  decryptProviderCredentialForProviderUse,
   decryptSecretValueForRuntime,
+  decryptSensitiveMetadataForAuthorizedRead,
+  encryptProviderCredential,
   encryptSecretValue,
+  encryptSensitiveMetadata,
+  isOrganizationScopedSensitiveMetadata,
+  providerCredentialIdentityMatches,
+  sensitiveMetadataIdentityMatches,
+  serializeProviderCredentialCiphertextAad,
+  serializeSecretCiphertextAad,
+  serializeSensitiveMetadataCiphertextAad,
   DecryptError,
 } from "./encryption.js";
+export {
+  RECORD_TYPE_PROVIDER_CREDENTIAL,
+  RECORD_TYPE_SECRET,
+  RECORD_TYPE_SENSITIVE_METADATA,
+  SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL,
+} from "./constants.js";
 export {
   DATA_KEY_VERSION_STATUSES,
   type DataKeyVersionStatus,
@@ -18,6 +41,7 @@ export {
 export {
   type ActiveDataKeyVersions,
   type DataKeyVersions,
+  type OrganizationDataKeyVersions,
   createKeyring,
   DefaultTenantDataKeySource,
   Keyring,
@@ -50,4 +74,4 @@ export {
 } from "./root-key-material.js";
 export { RootKeyNotConfiguredError, TenantDataKeyNotReadyError } from "./errors.js";
 export { configureKeyring, getKeyring, resetKeyringForTests } from "./crypto-runtime.js";
-export { toStoreFacingCiphertext } from "./envelope.js";
+export { toStoreFacingCiphertext } from "./envelope-storage.js";

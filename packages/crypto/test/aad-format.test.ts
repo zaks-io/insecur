@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { ENVELOPE_FORMAT_VERSION, RECORD_TYPE_SECRET } from "../src/constants.js";
 import {
   identityMatches,
-  serializeDekWrapAad,
   serializeSecretCiphertextAad,
+  serializeSecretDekWrapAad,
 } from "../src/envelope.js";
 import type { SecretCiphertextIdentity } from "../src/types.js";
 
@@ -63,10 +63,10 @@ describe("serializeSecretCiphertextAad", () => {
   });
 });
 
-describe("serializeDekWrapAad", () => {
+describe("serializeSecretDekWrapAad", () => {
   it("produces canonical record type, format version, and key version bytes", () => {
     const projectDataKeyVersion = 3;
-    const aad = serializeDekWrapAad(projectDataKeyVersion);
+    const aad = serializeSecretDekWrapAad(projectDataKeyVersion);
     const expected = expectedDekWrapAadBytes(projectDataKeyVersion);
 
     expect(aad).toEqual(expected);

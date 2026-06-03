@@ -5,6 +5,8 @@ import { TenantDataKeyNotReadyError } from "./keyring-readiness.js";
 import {
   type ActiveDataKeyVersions,
   type DataKeyVersions,
+  type KeyVersion,
+  type OrganizationDataKeyVersions,
   type TenantDataKeySource,
 } from "./keyring.js";
 
@@ -14,6 +16,36 @@ import {
  */
 export class MetadataTenantDataKeySource implements TenantDataKeySource {
   constructor(private readonly metadata: TenantDataKeyMetadataReader) {}
+
+  async getActiveOrganizationVersions(
+    organizationId: OrganizationId,
+  ): Promise<OrganizationDataKeyVersions> {
+    const organizationKey = await this.metadata.getActiveOrganizationDataKey(organizationId);
+    if (organizationKey?.status !== "active") {
+      throw new TenantDataKeyNotReadyError();
+    }
+    return {
+      rootKeyVersion: organizationKey.rootKeyVersion,
+      organizationDataKeyVersion: organizationKey.keyVersion,
+    };
+  }
+
+  async resolveOrganizationVersions(
+    organizationId: OrganizationId,
+    organizationDataKeyVersion: KeyVersion,
+  ): Promise<OrganizationDataKeyVersions> {
+    const organizationKey = await this.metadata.getOrganizationDataKeyVersion(
+      organizationId,
+      organizationDataKeyVersion,
+    );
+    if (!organizationKey) {
+      throw new TenantDataKeyNotReadyError();
+    }
+    return {
+      rootKeyVersion: organizationKey.rootKeyVersion,
+      organizationDataKeyVersion: organizationKey.keyVersion,
+    };
+  }
 
   async getActiveVersions(
     organizationId: OrganizationId,

@@ -19,6 +19,11 @@ export interface DataKeyVersions {
   projectDataKeyVersion: KeyVersion;
 }
 
+export interface OrganizationDataKeyVersions {
+  rootKeyVersion: KeyVersion;
+  organizationDataKeyVersion: KeyVersion;
+}
+
 export interface ActiveDataKeyVersions extends DataKeyVersions {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
@@ -30,6 +35,15 @@ export interface ActiveDataKeyVersions extends DataKeyVersions {
  * First Value uses an in-memory or derived implementation until metadata rows carry material.
  */
 export interface TenantDataKeySource {
+  getActiveOrganizationVersions(
+    organizationId: OrganizationId,
+  ): Promise<OrganizationDataKeyVersions>;
+
+  resolveOrganizationVersions(
+    organizationId: OrganizationId,
+    organizationDataKeyVersion: KeyVersion,
+  ): Promise<OrganizationDataKeyVersions>;
+
   getActiveVersions(
     organizationId: OrganizationId,
     projectId: ProjectId,
@@ -90,6 +104,48 @@ export class Keyring {
     return this.dataKeySource.getActiveVersions(organizationId, projectId);
   }
 
+  async getActiveOrganizationDataKeyVersions(
+    organizationId: OrganizationId,
+  ): Promise<OrganizationDataKeyVersions> {
+    return this.dataKeySource.getActiveOrganizationVersions(organizationId);
+  }
+
+  async resolveOrganizationDataKeyVersions(
+    organizationId: OrganizationId,
+    organizationDataKeyVersion: KeyVersion,
+  ): Promise<OrganizationDataKeyVersions> {
+    return this.dataKeySource.resolveOrganizationVersions(
+      organizationId,
+      organizationDataKeyVersion,
+    );
+  }
+
+  async getOrganizationDataKey(
+    organizationId: OrganizationId,
+    versions: OrganizationDataKeyVersions,
+  ): Promise<CryptoKey> {
+    const cacheKey = [
+      "org",
+      organizationId,
+      versions.rootKeyVersion,
+      versions.organizationDataKeyVersion,
+    ].join(":");
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const rootBytes = await this.rootKeyProvider.getRootKeyBytes(versions.rootKeyVersion);
+    const orgBytes = await deriveKeyMaterial(
+      rootBytes,
+      organizationId,
+      `insecur:organization-data-key:v${String(versions.organizationDataKeyVersion)}`,
+    );
+    const organizationKey = await importAesKey(orgBytes);
+    this.cache.set(cacheKey, organizationKey);
+    return organizationKey;
+  }
+
   async getProjectDataKey(
     organizationId: OrganizationId,
     projectId: ProjectId,
@@ -140,6 +196,27 @@ export class StaticRootKeyProvider implements RootKeyProvider {
 }
 
 export class DefaultTenantDataKeySource implements TenantDataKeySource {
+  getActiveOrganizationVersions(
+    _organizationId: OrganizationId,
+  ): Promise<OrganizationDataKeyVersions> {
+    void _organizationId;
+    return Promise.resolve({
+      rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
+      organizationDataKeyVersion: DEFAULT_ORGANIZATION_DATA_KEY_VERSION,
+    });
+  }
+
+  resolveOrganizationVersions(
+    _organizationId: OrganizationId,
+    organizationDataKeyVersion: KeyVersion,
+  ): Promise<OrganizationDataKeyVersions> {
+    void _organizationId;
+    return Promise.resolve({
+      rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
+      organizationDataKeyVersion,
+    });
+  }
+
   getActiveVersions(
     organizationId: OrganizationId,
     projectId: ProjectId,
