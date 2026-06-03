@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-02
+Last updated: 2026-06-03
 
 ## Current State
 
@@ -35,6 +35,23 @@ making CSRF unconditional in `exchangeCliSession` (INS-136), centralizing the Po
 (INS-138), and `MetadataTenantDataKeySource` invalid-key coverage (INS-139). Related open
 dedup tickets INS-130 and INS-132 consolidate the per-package denial-audit builders. None of
 these block First Value wiring; they harden seams already in code.
+
+The same `ARCH-2` review opened the Drizzle restoration (INS-155): ADR-0037 says Drizzle owns the
+schema and a raw SQL step owns the RLS policies and roles, but the data layer was hand-written
+`postgres.js` with no Drizzle. Tooling (INS-156) and the ADR-0037 footnote (INS-157) have landed;
+the schema cutover (INS-158) and the query-builder rewrite (INS-159) are in flight.
+
+A 2026-06-03 ADR-conformance audit then checked all 60 accepted ADRs against the code. Beyond the
+Drizzle drift above (already owned) and the RLS-suite-not-in-CI gap (already INS-144), it produced
+four new tickets. The data-key model is HKDF-derived rather than wrapped, so ADR-0005 and ADR-0028
+were amended (2026-06-03) to make organization/project data keys random keys stored AES-GCM wrapped
+under the root in `wrapped_storage_ref`, with rotation rewrapping the blob and never decrypting a
+value; the keyring conversion plus the rewrap primitive is INS-160, blocked by the INS-159 query
+rewrite. The ESLint test-file override relaxing `complexity`/`max-statements` beyond ADR-0055 is
+INS-161 (ready-for-agent). Routing the runtime pool through Hyperdrive is INS-162 and the
+approval-gated production migration step is INS-163 (both ready-for-human). The audit found no other
+code-vs-ADR contradictions worth acting on; remaining gaps below are unbuilt pre-V1 work, not
+divergences.
 
 ## Implemented In Code
 
@@ -140,12 +157,19 @@ these block First Value wiring; they harden seams already in code.
 - Admitted User resolution in the Worker is still a development JSON map, not persisted
   User admission or production identity configuration.
 - Neon/Hyperdrive production bindings are not composed through the Worker yet. Local
-  Postgres and the tenant-store connection package are the current persistence path.
+  Postgres and the tenant-store connection package are the current persistence path. The
+  runtime pool opens directly from `DATABASE_URL_RUNTIME` with no Hyperdrive binding, which
+  diverges from ADR-0002/0036; routing it through Hyperdrive is tracked in INS-162.
 - Root key custody and Cloudflare Secrets Store integration are not implemented. Crypto
   has root-key runtime configuration and tenant data-key metadata behavior, but production
   custody/escrow wiring is still pending.
 - Key rotation workflows are not implemented. Version metadata and readiness checks exist,
-  but rotation operations, rewrap workflows, and operator UX do not.
+  but rotation operations, rewrap workflows, and operator UX do not. The data-key model is
+  also still HKDF-derived rather than wrapped: ADR-0005/0028 (2026-06-03 amendments) decide
+  that organization/project data keys are random keys stored AES-GCM wrapped under the root in
+  `wrapped_storage_ref`, so rotation can rewrap without decrypting values. Converting the keyring
+  off derivation and adding the rewrap primitive is tracked in INS-160, sequenced behind the
+  Drizzle restoration (INS-155) because it rewrites the data-key store.
 - Protected Environments, Draft/Published Version, Promotion, rollback, Protected Change
   Orchestrator, Human Approval Surface, Delivery Risk Policy Presets, and Storage Security
   Gate enforcement are not implemented.
