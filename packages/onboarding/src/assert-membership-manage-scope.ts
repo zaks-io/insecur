@@ -2,13 +2,13 @@ import {
   AUTHORIZATION_SCOPES,
   hasAuthorizationScope,
   resolveEffectiveAccess,
-  type ActorRef,
+  type UserActorRef,
 } from "@insecur/access";
 import { AUTH_ERROR_CODES, type OrganizationId, type ProjectId } from "@insecur/domain";
 import { MembershipManagementError } from "./membership-management-error.js";
 
 export async function assertMembershipManageScope(
-  actor: ActorRef,
+  actor: UserActorRef,
   organizationId: OrganizationId,
   projectId?: ProjectId,
 ): Promise<void> {

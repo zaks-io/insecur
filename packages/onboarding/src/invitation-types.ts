@@ -8,10 +8,10 @@ import type {
 } from "@insecur/domain";
 import type { BuiltInRolePreset } from "@insecur/access";
 import type { AuditRequestRef } from "@insecur/audit";
-import type { ActorRef } from "@insecur/access";
+import type { UserActorRef } from "@insecur/access";
 
 export interface CreateInvitationInput {
-  actor: ActorRef;
+  actor: UserActorRef;
   organizationId: OrganizationId;
   inviteeUserId: UserId;
   /** Validated at runtime with built-in role preset rules before persistence. */
