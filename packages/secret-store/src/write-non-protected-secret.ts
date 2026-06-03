@@ -1,4 +1,9 @@
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import {
+  encryptSecretValue,
+  toStoreFacingCiphertext,
+  type WrappedSecretValue,
+} from "@insecur/crypto";
 import type {
   EnvironmentId,
   OrganizationId,
@@ -8,8 +13,13 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import { secretVersionId } from "@insecur/domain";
+import {
+  TenantSecretVersionStore,
+  withTenantScope,
+  type AppendSecretVersionAndMakeLiveResult,
+  type StoredWrappedSecretMaterial,
+} from "@insecur/tenant-store";
 
-import { persistNonProtectedWrite, toWriteResult } from "./persist-non-protected-write.js";
 import { recordSecretWriteAudit } from "./record-secret-write-audit.js";
 import { SecretWriteError } from "./secret-write-error.js";
 import { validateTextSecretValue } from "./validate-text-secret-value.js";
@@ -42,6 +52,17 @@ export interface WriteNonProtectedSecretResult {
   auditEventId?: string;
 }
 
+/** Maps encryption output to store-facing wrapped material (no identity echo). */
+export function toStoredWrappedSecretMaterial(
+  wrapped: WrappedSecretValue,
+): StoredWrappedSecretMaterial {
+  return {
+    organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
+    projectDataKeyVersion: wrapped.projectDataKeyVersion,
+    ciphertext: toStoreFacingCiphertext(wrapped),
+  };
+}
+
 async function recordDeniedWrite(
   input: WriteNonProtectedSecretInput,
   reasonCode: SecretWriteError["code"],
@@ -68,17 +89,49 @@ async function maybeRecordDeniedWrite(
   }
 }
 
-async function executeWrite(
-  input: WriteNonProtectedSecretInput,
-): Promise<WriteNonProtectedSecretResult> {
-  const variableKey = validateVariableKeyForWrite(input.variableKey);
-  const validatedInput = { ...input, variableKey };
-  validateTextSecretValue(
-    validatedInput.valueUtf8,
-    validatedInput.allowEmpty === true ? { allowEmpty: true } : {},
+type ValidatedWriteInput = WriteNonProtectedSecretInput & { variableKey: VariableKey };
+
+async function appendEncryptedVersionForWrite(
+  validatedInput: ValidatedWriteInput,
+  newVersionId: SecretVersionId,
+): Promise<AppendSecretVersionAndMakeLiveResult> {
+  return withTenantScope(
+    { kind: "organization", organizationId: validatedInput.organizationId },
+    async (sql) => {
+      const store = new TenantSecretVersionStore(sql);
+      const resolved = await store.resolveSecretForWrite({
+        organizationId: validatedInput.organizationId,
+        projectId: validatedInput.projectId,
+        environmentId: validatedInput.environmentId,
+        variableKey: validatedInput.variableKey,
+        ...(validatedInput.secretId !== undefined ? { secretId: validatedInput.secretId } : {}),
+      });
+
+      const wrapped = await encryptSecretValue(
+        {
+          organizationId: validatedInput.organizationId,
+          projectId: validatedInput.projectId,
+          environmentId: validatedInput.environmentId,
+          secretId: resolved.secretId,
+        },
+        validatedInput.valueUtf8,
+      );
+
+      return store.appendVersionAndMakeLive({
+        organizationId: validatedInput.organizationId,
+        secretId: resolved.secretId,
+        secretVersionId: newVersionId,
+        wrapped: toStoredWrappedSecretMaterial(wrapped),
+        createdSecretShape: resolved.createdSecretShape,
+      });
+    },
   );
-  const newVersionId = secretVersionId.generate();
-  const persisted = await persistNonProtectedWrite(validatedInput, newVersionId);
+}
+
+async function finishSuccessfulWrite(
+  validatedInput: ValidatedWriteInput,
+  persisted: AppendSecretVersionAndMakeLiveResult,
+): Promise<WriteNonProtectedSecretResult> {
   const audit = await recordSecretWriteAudit({
     outcome: "success",
     actor: validatedInput.actor,
@@ -91,7 +144,27 @@ async function executeWrite(
     ...(validatedInput.operation !== undefined ? { operation: validatedInput.operation } : {}),
   });
 
-  return toWriteResult(validatedInput, persisted, audit?.auditEventId);
+  return {
+    secretId: persisted.secretId,
+    secretVersionId: persisted.secretVersionId,
+    variableKey: validatedInput.variableKey,
+    createdSecretShape: persisted.createdSecretShape,
+    ...(audit?.auditEventId !== undefined ? { auditEventId: audit.auditEventId } : {}),
+  };
+}
+
+async function executeWrite(
+  input: WriteNonProtectedSecretInput,
+): Promise<WriteNonProtectedSecretResult> {
+  const variableKey = validateVariableKeyForWrite(input.variableKey);
+  const validatedInput: ValidatedWriteInput = { ...input, variableKey };
+  validateTextSecretValue(
+    validatedInput.valueUtf8,
+    validatedInput.allowEmpty === true ? { allowEmpty: true } : {},
+  );
+  const newVersionId = secretVersionId.generate();
+  const persisted = await appendEncryptedVersionForWrite(validatedInput, newVersionId);
+  return finishSuccessfulWrite(validatedInput, persisted);
 }
 
 /**
