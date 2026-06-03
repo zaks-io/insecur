@@ -14,7 +14,7 @@ import {
   encryptSecretValue,
   type SecretCiphertextIdentity,
 } from "../src/encryption.js";
-import { toStoreFacingCiphertext } from "../src/envelope.js";
+import { toStoreFacingCiphertext } from "../src/envelope-storage.js";
 import { createKeyring } from "../src/keyring.js";
 
 const ORG_A = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");

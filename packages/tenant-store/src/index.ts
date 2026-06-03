@@ -53,3 +53,15 @@ export type {
   SecretVersionStoreRow,
   StoredWrappedSecretMaterial,
 } from "./secrets/types.js";
+export { TenantProviderCredentialStore } from "./provider-credentials/tenant-provider-credential-store.js";
+export type {
+  ProviderCredentialRow,
+  StoredWrappedProviderCredential,
+  UpsertProviderCredentialInput,
+} from "./provider-credentials/types.js";
+export { TenantSensitiveMetadataStore } from "./sensitive-metadata/tenant-sensitive-metadata-store.js";
+export type {
+  SensitiveMetadataFieldRow,
+  StoredWrappedSensitiveMetadata,
+  UpsertSensitiveMetadataInput,
+} from "./sensitive-metadata/types.js";
