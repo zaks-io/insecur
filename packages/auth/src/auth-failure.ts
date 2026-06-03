@@ -1,6 +1,12 @@
 import { AUTH_ERROR_CODES, type AuthErrorCode } from "@insecur/domain";
 
-export type AuthFailureReason = "missing" | "expired" | "invalid" | "not_admitted";
+export type AuthFailureReason =
+  | "missing"
+  | "expired"
+  | "invalid"
+  | "not_admitted"
+  | "mfa_enrollment"
+  | "insufficient_assurance";
 
 export interface AuthFailure {
   readonly code: AuthErrorCode;
@@ -36,6 +42,20 @@ export function authFailureForReason(reason: AuthFailureReason): AuthFailure {
       return {
         code: AUTH_ERROR_CODES.required,
         message: "Authentication is required.",
+        retryable: false,
+        reason,
+      };
+    case "mfa_enrollment":
+      return {
+        code: AUTH_ERROR_CODES.mfaEnrollmentRequired,
+        message: "Multi-factor authentication enrollment is required.",
+        retryable: false,
+        reason,
+      };
+    case "insufficient_assurance":
+      return {
+        code: AUTH_ERROR_CODES.reauthRequired,
+        message: "Authentication must be refreshed with a stronger factor.",
         retryable: false,
         reason,
       };

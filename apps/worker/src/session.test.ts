@@ -18,7 +18,12 @@ const env = {
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-    { sessionData: sealedSession, userId: workosUserId, sessionId: "session_browser" },
+    {
+      sessionData: sealedSession,
+      userId: workosUserId,
+      sessionId: "session_browser",
+      authenticationMethod: "Passkey",
+    },
   ]),
 };
 
@@ -113,6 +118,82 @@ describe("worker session routes", () => {
         sessionId: "session_cli_test",
       },
     });
+  });
+
+  it("returns auth.invalid when CSRF is missing on cli exchange", async () => {
+    const response = await app.request(
+      "/v1/auth/cli/exchange",
+      {
+        method: "POST",
+        headers: {
+          Cookie: `wos-session=${sealedSession}`,
+        },
+      },
+      env,
+    );
+    expect(response.status).toBe(401);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: { code: "auth.invalid" },
+    });
+  });
+
+  it("rotates the WorkOS session cookie on successful cli exchange", async () => {
+    const csrf = generateCsrfToken();
+    const response = await app.request(
+      "/v1/auth/cli/exchange",
+      {
+        method: "POST",
+        headers: {
+          Cookie: `wos-session=${sealedSession}; insecur_csrf=${csrf}`,
+          "x-insecur-csrf": csrf,
+        },
+      },
+      env,
+    );
+    expect(response.status).toBe(200);
+    const setCookie = response.headers.get("Set-Cookie");
+    expect(setCookie).toContain("wos-session=");
+    expect(setCookie).toContain("HttpOnly");
+    expect(setCookie).toContain("Secure");
+    expect(setCookie).toContain(`${sealedSession}_rotated`);
+  });
+
+  it("returns auth.reauth_required for insufficient-assurance browser sessions", async () => {
+    const magicSession = "sealed_magic_auth_worker";
+    const magicEnv = {
+      ...env,
+      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+        {
+          sessionData: magicSession,
+          userId: workosUserId,
+          sessionId: "session_magic",
+          authenticationMethod: "MagicAuth",
+          authFactors: [{ type: "totp" }],
+        },
+      ]),
+    };
+    const csrf = generateCsrfToken();
+    const response = await app.request(
+      "/v1/auth/cli/exchange",
+      {
+        method: "POST",
+        headers: {
+          Cookie: `wos-session=${magicSession}; insecur_csrf=${csrf}`,
+          "x-insecur-csrf": csrf,
+        },
+      },
+      magicEnv,
+    );
+    expect(response.status).toBe(401);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: { code: "auth.reauth_required" },
+    });
+    const text = JSON.stringify(body);
+    expect(text).not.toContain(magicSession);
   });
 
   it("exchanges a WorkOS browser session for a CLI credential header", async () => {

@@ -10,4 +10,14 @@ describe("auth ErrorBody-compatible failures", () => {
     expect(failure.retryable).toBe(false);
     expect(failure.message.length).toBeGreaterThan(0);
   });
+
+  it("maps MFA enrollment to auth.mfa_enrollment_required", () => {
+    const failure = authFailureForReason("mfa_enrollment");
+    expect(failure.code).toBe(AUTH_ERROR_CODES.mfaEnrollmentRequired);
+  });
+
+  it("maps insufficient assurance to auth.reauth_required", () => {
+    const failure = authFailureForReason("insufficient_assurance");
+    expect(failure.code).toBe(AUTH_ERROR_CODES.reauthRequired);
+  });
 });

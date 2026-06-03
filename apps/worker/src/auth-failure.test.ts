@@ -82,7 +82,12 @@ describe("centralized AuthFailure HTTP mapping", () => {
       ...env,
       ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
       WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-        { sessionData: sealedSession, userId: workosUserId, sessionId: "session_success_test" },
+        {
+          sessionData: sealedSession,
+          userId: workosUserId,
+          sessionId: "session_success_test",
+          authenticationMethod: "Passkey",
+        },
       ]),
     };
     const csrf = generateCsrfToken();

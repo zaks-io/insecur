@@ -2,41 +2,40 @@ import type { AdmittedUserResolver } from "./admitted-user.js";
 import { authFailureForReason, type AuthFailure } from "./auth-failure.js";
 import type { ParsedRequestCredentials } from "./credentials.js";
 import { verifyEphemeralSessionCredential } from "./ephemeral-session.js";
+import { authenticateWorkOSSession } from "./resolve-workos-session.js";
 import type { InsecurAuthConfig } from "./workos-config.js";
-import type { WorkOSSessionPort } from "./workos-session-port.js";
+import type { WorkOSSessionContext, WorkOSSessionPort } from "./workos-session-port.js";
 import type { UserActor } from "./user-actor.js";
 
 export type ResolveUserActorResult =
   | { ok: true; actor: UserActor }
   | { ok: false; failure: AuthFailure };
 
+function actorFromContext(context: WorkOSSessionContext, userId: UserActor["userId"]): UserActor {
+  return {
+    type: "user",
+    userId,
+    workosUserId: context.user.id,
+    sessionId: context.sessionId,
+  };
+}
+
 async function resolveFromWorkOSSession(
   sessionData: string,
   workos: WorkOSSessionPort,
   resolveAdmittedUser: AdmittedUserResolver,
 ): Promise<ResolveUserActorResult> {
-  const workosResult = await workos.authenticateSealedSession(sessionData);
-  if (!workosResult.authenticated) {
-    if (workosResult.reason === "missing") {
-      return { ok: false, failure: authFailureForReason("missing") };
-    }
-    if (workosResult.reason === "expired") {
-      return { ok: false, failure: authFailureForReason("expired") };
-    }
-    return { ok: false, failure: authFailureForReason("invalid") };
+  const workosResult = await authenticateWorkOSSession(workos, sessionData);
+  if (!workosResult.ok) {
+    return workosResult;
   }
-  const userId = await resolveAdmittedUser(workosResult.user.id);
+  const userId = await resolveAdmittedUser(workosResult.context.user.id);
   if (userId === null) {
     return { ok: false, failure: authFailureForReason("not_admitted") };
   }
   return {
     ok: true,
-    actor: {
-      type: "user",
-      userId,
-      workosUserId: workosResult.user.id,
-      sessionId: workosResult.sessionId,
-    },
+    actor: actorFromContext(workosResult.context, userId),
   };
 }
 
