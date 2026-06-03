@@ -34,7 +34,6 @@ describe("exchangeCliSession", () => {
       config,
       workos,
       resolveAdmittedUser: () => Promise.resolve(admittedUserId),
-      requireCsrf: true,
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -60,7 +59,6 @@ describe("exchangeCliSession", () => {
       config,
       workos,
       resolveAdmittedUser: () => Promise.resolve(admittedUserId),
-      requireCsrf: true,
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -69,17 +67,17 @@ describe("exchangeCliSession", () => {
   });
 
   it("returns auth.required when WorkOS cookie is absent", async () => {
+    const csrf = generateCsrfToken();
     const workos = createFakeWorkOSSessionPort([]);
     const result = await exchangeCliSession({
       credentials: parseRequestCredentials({
         authorizationHeader: null,
-        cookieHeader: null,
-        csrfHeader: null,
+        cookieHeader: `insecur_csrf=${csrf}`,
+        csrfHeader: csrf,
       }),
       config,
       workos,
       resolveAdmittedUser: () => Promise.resolve(admittedUserId),
-      requireCsrf: false,
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
