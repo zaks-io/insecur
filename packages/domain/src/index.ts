@@ -52,6 +52,11 @@ export {
   providerCredentialId,
 } from "./resource-ids.js";
 export {
+  ENVIRONMENT_LIFECYCLE_STAGES,
+  type EnvironmentLifecycleStage,
+  isEnvironmentLifecycleStage,
+} from "./environment-lifecycle-stage.js";
+export {
   type DisplayName,
   DISPLAY_NAME_MAX_LENGTH,
   type ParseDisplayNameResult,
@@ -85,6 +90,8 @@ export {
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,
+  ENVIRONMENT_ERROR_CODES,
+  type EnvironmentErrorCode,
   STORE_ERROR_CODES,
   type StoreErrorCode,
   VALIDATION_ERROR_CODES,

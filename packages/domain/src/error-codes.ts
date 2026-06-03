@@ -79,6 +79,19 @@ export const CRYPTO_ERROR_CODES = {
 
 export type CryptoErrorCode = (typeof CRYPTO_ERROR_CODES)[keyof typeof CRYPTO_ERROR_CODES];
 
+/** Environment lifecycle and posture validation failures. */
+export const ENVIRONMENT_ERROR_CODES = {
+  invalidLifecycleStage: "environment.invalid_lifecycle_stage",
+  protectedEnvironment: "environment.protected_environment",
+  lifecycleImmutable: "environment.lifecycle_immutable",
+  previewOptDownRequired: "environment.preview_opt_down_required",
+  previewOptDownInvalid: "environment.preview_opt_down_invalid",
+  notFound: "environment.not_found",
+} as const;
+
+export type EnvironmentErrorCode =
+  (typeof ENVIRONMENT_ERROR_CODES)[keyof typeof ENVIRONMENT_ERROR_CODES];
+
 /** Tenant-scoped store configuration and runtime failures. */
 export const STORE_ERROR_CODES = {
   runtimeConfigMissing: "store.runtime_config_missing",
@@ -101,6 +114,7 @@ export type KnownErrorCode =
   | OnboardingErrorCode
   | BootstrapErrorCode
   | CryptoErrorCode
+  | EnvironmentErrorCode
   | StoreErrorCode
   | AuditErrorCode
   | (string & {});

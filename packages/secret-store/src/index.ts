@@ -1,4 +1,11 @@
+export { assertEnvironmentAllowsNonProtectedWrite } from "./assert-environment-allows-non-protected-write.js";
 export { assertSecretNonProtectedWriteAccess } from "./assert-secret-non-protected-write-access.js";
+export {
+  getEnvironmentLifecycle,
+  updateAuthorizedEnvironmentLifecycle,
+  type GetEnvironmentLifecycleInput,
+  type UpdateAuthorizedEnvironmentLifecycleInput,
+} from "./environment-lifecycle.js";
 export { SECRET_VALUE_SIZE_LIMIT_BYTES } from "./constants.js";
 export {
   type RecordSecretWriteAuditInput,

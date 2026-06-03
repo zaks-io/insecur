@@ -35,6 +35,7 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 interface EnvironmentRow {
   is_protected: boolean;
   display_name: string;
+  lifecycle_stage: string;
 }
 
 interface AuditRow {
@@ -73,7 +74,7 @@ describeIntegration("provisionGuidedOrganization", () => {
       { kind: "organization", organizationId: result.organizationId },
       async (sql) => {
         return await sql<EnvironmentRow[]>`
-          SELECT is_protected, display_name
+          SELECT is_protected, display_name, lifecycle_stage
           FROM environments
           WHERE id = ${result.developmentEnvironmentId}
         `;
@@ -81,6 +82,7 @@ describeIntegration("provisionGuidedOrganization", () => {
     );
     expect(environments[0]?.is_protected).toBe(false);
     expect(environments[0]?.display_name).toBe("Development");
+    expect(environments[0]?.lifecycle_stage).toBe("development");
 
     const effectiveAccess = await resolveEffectiveAccess(
       { type: "user", userId: admittedUser },

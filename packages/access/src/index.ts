@@ -22,6 +22,11 @@ export { EffectiveAccessMemo } from "./effective-access-memo.js";
 export { EffectiveAccessRequestCache } from "./effective-access-request-cache.js";
 export { filterMachineMembershipsForCoordinate } from "./filter-machine-memberships-for-coordinate.js";
 export { hasAuthorizationScope } from "./has-authorization-scope.js";
+export {
+  EnvironmentLifecycleAccessError,
+  assertEnvironmentLifecycleUpdateAccess,
+  type EnvironmentLifecycleAccessCoordinate,
+} from "./assert-environment-lifecycle-update-access.js";
 export { intersectEffectiveAccessScopes } from "./intersect-effective-access-scopes.js";
 export { loadActorMemberships, type LoadMembershipsInput } from "./load-memberships.js";
 export {
