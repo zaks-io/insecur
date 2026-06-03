@@ -15,6 +15,13 @@
       "when": 1780510907812,
       "tag": "0001_app_schema_stub",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780517485312,
+      "tag": "0002_dapper_retro_girl",
+      "breakpoints": true
     }
   ]
 }
