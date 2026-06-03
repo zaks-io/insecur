@@ -1,5 +1,7 @@
+import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
 import {
+  AUTH_ERROR_CODES,
   environmentId,
   INJECTION_ERROR_CODES,
   projectId,
@@ -203,7 +205,16 @@ export async function consumeInjectionGrantWithAudit(
     return await executeConsumeInjectionGrant(input, loaded);
   } catch (error) {
     if (error instanceof InjectionGrantError) {
-      await recordDeniedConsume(input, error.code, coordinate).catch(() => undefined);
+      await auditAccessDenialOnFailure(error, {
+        isAccessDenied: (candidate): candidate is InjectionGrantError =>
+          candidate instanceof InjectionGrantError &&
+          candidate.code === AUTH_ERROR_CODES.insufficientScope,
+        recordDenied: () =>
+          recordDeniedConsume(input, AUTH_ERROR_CODES.insufficientScope, coordinate),
+      });
+      if (error.code !== AUTH_ERROR_CODES.insufficientScope) {
+        await recordDeniedConsume(input, error.code, coordinate).catch(() => undefined);
+      }
     }
     throw error;
   }

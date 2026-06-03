@@ -1,4 +1,6 @@
+import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   encryptSecretValue,
   toStoreFacingCiphertext,
@@ -80,13 +82,8 @@ async function recordDeniedWrite(
   });
 }
 
-async function maybeRecordDeniedWrite(
-  input: WriteNonProtectedSecretInput,
-  error: unknown,
-): Promise<void> {
-  if (error instanceof SecretWriteError) {
-    await recordDeniedWrite(input, error.code);
-  }
+function isInsufficientScopeSecretWriteError(error: unknown): error is SecretWriteError {
+  return error instanceof SecretWriteError && error.code === AUTH_ERROR_CODES.insufficientScope;
 }
 
 type ValidatedWriteInput = WriteNonProtectedSecretInput & { variableKey: VariableKey };
@@ -176,7 +173,13 @@ export async function writeNonProtectedSecret(
   try {
     return await executeWrite(input);
   } catch (error) {
-    await maybeRecordDeniedWrite(input, error).catch(() => undefined);
+    await auditAccessDenialOnFailure(error, {
+      isAccessDenied: isInsufficientScopeSecretWriteError,
+      recordDenied: () => recordDeniedWrite(input, AUTH_ERROR_CODES.insufficientScope),
+    });
+    if (error instanceof SecretWriteError && error.code !== AUTH_ERROR_CODES.insufficientScope) {
+      await recordDeniedWrite(input, error.code).catch(() => undefined);
+    }
     throw error;
   }
 }

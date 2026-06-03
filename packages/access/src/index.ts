@@ -15,6 +15,11 @@ export { EffectiveAccessRequestCache } from "./effective-access-request-cache.js
 export { hasAuthorizationScope } from "./has-authorization-scope.js";
 export { loadActorMemberships, type LoadMembershipsInput } from "./load-memberships.js";
 export type { MembershipRow } from "./membership-row.js";
+export {
+  auditAccessDenialOnFailure,
+  runWithAccessDenialAudit,
+  type AccessDenialAuditOptions,
+} from "./assert-access-or-audit.js";
 export { recordAccessDenial, type RecordAccessDenialInput } from "./record-access-denial.js";
 export {
   type ActorRef,
