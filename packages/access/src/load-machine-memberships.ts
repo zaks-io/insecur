@@ -53,7 +53,8 @@ export async function loadMachineMemberships(
       const rows = await sql<MachineMembershipQueryRow[]>`
         SELECT id, org_id, machine_identity_id, project_id, authorization_scopes
         FROM machine_identity_memberships
-        WHERE machine_identity_id = ${actorMachineIdentityId}
+        WHERE org_id = ${input.organizationId}
+          AND machine_identity_id = ${actorMachineIdentityId}
           AND project_id IN ${sql(projectIds)}
         ORDER BY id
       `;

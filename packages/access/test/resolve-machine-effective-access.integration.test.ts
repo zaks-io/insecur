@@ -32,9 +32,7 @@ describeIntegration("resolveEffectiveAccess for machine actors (tenant-scoped st
     await withTenantScope({ kind: "organization", organizationId: orgA }, async (sql) => {
       await sql`
         INSERT INTO machine_identities (id, org_id, display_name)
-        VALUES
-          (${TEST_MACHINE_A_ID}, ${TEST_ORG_A_ID}, ${"CI deploy identity"}),
-          (${TEST_MACHINE_B_ID}, ${TEST_ORG_B_ID}, ${"Org B machine identity"})
+        VALUES (${TEST_MACHINE_A_ID}, ${TEST_ORG_A_ID}, ${"CI deploy identity"})
         ON CONFLICT (id) DO NOTHING
       `;
 
@@ -60,6 +58,15 @@ describeIntegration("resolveEffectiveAccess for machine actors (tenant-scoped st
             "text",
           )}
         )
+        ON CONFLICT (id) DO NOTHING
+      `;
+    });
+
+    const orgB = organizationId.brand(TEST_ORG_B_ID);
+    await withTenantScope({ kind: "organization", organizationId: orgB }, async (sql) => {
+      await sql`
+        INSERT INTO machine_identities (id, org_id, display_name)
+        VALUES (${TEST_MACHINE_B_ID}, ${TEST_ORG_B_ID}, ${"Org B machine identity"})
         ON CONFLICT (id) DO NOTHING
       `;
 
