@@ -1,5 +1,6 @@
 import { parseDisplayName } from "@insecur/domain";
 import { ONBOARDING_ERROR_CODES } from "@insecur/domain";
+import { isUniqueConstraintViolation } from "@insecur/tenant-store";
 import { isInstanceOperator } from "./assert-instance-operator.js";
 import { GUIDED_ORGANIZATION_DEFAULT_DISPLAY_NAMES } from "./default-display-names.js";
 import { loadInstanceAnchorOrganizationId } from "./load-instance-anchor-organization-id.js";
@@ -20,15 +21,6 @@ export type {
   CreateOperatorOrganizationResult,
   OperatorOrganizationResourceIds,
 } from "./operator-organization-types.js";
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "23505"
-  );
-}
 
 function resolveDisplayName(raw: string | undefined, fallback: string) {
   const parsed = parseDisplayName(raw ?? fallback);
@@ -84,7 +76,7 @@ export async function createOperatorOrganization(
       teamDisplayName,
     });
   } catch (error) {
-    if (!isUniqueViolation(error)) {
+    if (!isUniqueConstraintViolation(error)) {
       throw error;
     }
     throw new MembershipManagementError(

@@ -1,3 +1,4 @@
+export { isUniqueConstraintViolation } from "./is-unique-constraint-violation.js";
 export {
   type TenantScope,
   type OrganizationTenantScope,

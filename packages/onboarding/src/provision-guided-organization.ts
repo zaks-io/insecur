@@ -1,4 +1,5 @@
 import { AUTH_ERROR_CODES, ONBOARDING_ERROR_CODES } from "@insecur/domain";
+import { isUniqueConstraintViolation } from "@insecur/tenant-store";
 import { assertOwnerFirstValueScopes } from "./assert-owner-first-value-scopes.js";
 import {
   persistGuidedOrganization,
@@ -29,15 +30,6 @@ function toProvisionResult(ids: GuidedOrganizationResourceIds): ProvisionGuidedO
   };
 }
 
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "23505"
-  );
-}
-
 /**
  * Creates Personal Organization, Default Team, owner Membership, first Project,
  * and non-protected development Environment for an admitted User.
@@ -60,7 +52,7 @@ export async function provisionGuidedOrganization(
       ...displayNames,
     });
   } catch (error) {
-    if (!isUniqueViolation(error)) {
+    if (!isUniqueConstraintViolation(error)) {
       throw error;
     }
     throw new GuidedOrganizationProvisionError(

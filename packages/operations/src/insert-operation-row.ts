@@ -1,20 +1,11 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
-import type { TenantScopedSql } from "@insecur/tenant-store";
+import { isUniqueConstraintViolation, type TenantScopedSql } from "@insecur/tenant-store";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
 import type { OperationPollResult, OperationProgress } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 
 function progressToJson(progress: OperationProgress) {
   return JSON.parse(JSON.stringify(progress)) as Parameters<TenantScopedSql["json"]>[0];
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "23505"
-  );
 }
 
 async function selectByIdempotencyKey(
@@ -147,7 +138,7 @@ async function insertWithIdempotencyKey(
   try {
     return await upsertOperationByIdempotencyKey(sql, input);
   } catch (error) {
-    if (!isUniqueViolation(error)) {
+    if (!isUniqueConstraintViolation(error)) {
       throw error;
     }
     const existing = await selectByIdempotencyKey(sql, input.organizationId, input.idempotencyKey);
