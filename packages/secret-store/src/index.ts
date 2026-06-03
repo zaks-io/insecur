@@ -15,7 +15,7 @@ export {
   validateTextSecretValue,
 } from "./validate-text-secret-value.js";
 export { validateVariableKeyForWrite } from "./validate-variable-key-for-write.js";
-export { toStoredWrappedSecretMaterial } from "./wrapped-secret-material.js";
+export { toStoredWrappedSecretMaterial } from "./write-non-protected-secret.js";
 export {
   type WriteAuthorizedNonProtectedSecretInput,
   writeAuthorizedNonProtectedSecret,

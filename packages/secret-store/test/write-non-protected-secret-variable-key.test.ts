@@ -8,18 +8,21 @@ import {
   userId,
   type VariableKey,
 } from "@insecur/domain";
+import { encryptSecretValue } from "@insecur/crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SecretWriteError } from "../src/secret-write-error.js";
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
 
-vi.mock("../src/persist-non-protected-write.js", () => ({
-  persistNonProtectedWrite: vi.fn(),
-}));
+vi.mock("@insecur/crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/crypto")>();
+  return {
+    ...actual,
+    encryptSecretValue: vi.fn(),
+  };
+});
 
-import { persistNonProtectedWrite } from "../src/persist-non-protected-write.js";
-
-const persistMock = vi.mocked(persistNonProtectedWrite);
+const encryptMock = vi.mocked(encryptSecretValue);
 
 function createTestRootKey(): Uint8Array {
   const root = new Uint8Array(32);
@@ -31,7 +34,7 @@ describe("writeNonProtectedSecret variable key validation", () => {
   beforeEach(() => {
     resetKeyringForTests();
     configureKeyring(createKeyring(createTestRootKey()));
-    persistMock.mockReset();
+    encryptMock.mockReset();
   });
 
   afterEach(() => {
@@ -54,7 +57,7 @@ describe("writeNonProtectedSecret variable key validation", () => {
       code: VALIDATION_ERROR_CODES.invalidVariableKey,
     });
 
-    expect(persistMock).not.toHaveBeenCalled();
+    expect(encryptMock).not.toHaveBeenCalled();
   });
 
   it("throws SecretWriteError without echoing the secret value", async () => {

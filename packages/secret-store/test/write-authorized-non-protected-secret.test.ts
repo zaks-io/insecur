@@ -13,17 +13,27 @@ import {
   userId,
   type VariableKey,
 } from "@insecur/domain";
+import { encryptSecretValue } from "@insecur/crypto";
+import { withTenantScope } from "@insecur/tenant-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { assertSecretNonProtectedWriteAccess } from "../src/assert-secret-non-protected-write-access.js";
 import { SecretWriteError } from "../src/secret-write-error.js";
 import { writeAuthorizedNonProtectedSecret } from "../src/write-authorized-non-protected-secret.js";
 
-vi.mock("../src/persist-non-protected-write.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/persist-non-protected-write.js")>();
+vi.mock("@insecur/crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/crypto")>();
   return {
     ...actual,
-    persistNonProtectedWrite: vi.fn(),
+    encryptSecretValue: vi.fn(),
+  };
+});
+
+vi.mock("@insecur/tenant-store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
+  return {
+    ...actual,
+    withTenantScope: vi.fn(),
   };
 });
 
@@ -35,11 +45,11 @@ vi.mock("../src/validate-text-secret-value.js", () => ({
   validateTextSecretValue: vi.fn(),
 }));
 
-import { persistNonProtectedWrite } from "../src/persist-non-protected-write.js";
 import { recordSecretWriteAudit } from "../src/record-secret-write-audit.js";
 import { validateTextSecretValue } from "../src/validate-text-secret-value.js";
 
-const persistMock = vi.mocked(persistNonProtectedWrite);
+const encryptMock = vi.mocked(encryptSecretValue);
+const withTenantScopeMock = vi.mocked(withTenantScope);
 const auditMock = vi.mocked(recordSecretWriteAudit);
 const validateValueMock = vi.mocked(validateTextSecretValue);
 
@@ -159,7 +169,8 @@ describe("assertSecretNonProtectedWriteAccess", () => {
 
 describe("writeAuthorizedNonProtectedSecret", () => {
   beforeEach(() => {
-    persistMock.mockReset();
+    encryptMock.mockReset();
+    withTenantScopeMock.mockReset();
     auditMock.mockClear();
     validateValueMock.mockReset();
   });
@@ -183,7 +194,7 @@ describe("writeAuthorizedNonProtectedSecret", () => {
     });
 
     expect(validateValueMock).not.toHaveBeenCalled();
-    expect(persistMock).not.toHaveBeenCalled();
+    expect(encryptMock).not.toHaveBeenCalled();
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "denied",
@@ -203,7 +214,7 @@ describe("writeAuthorizedNonProtectedSecret", () => {
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
     expect(validateValueMock).not.toHaveBeenCalled();
-    expect(persistMock).not.toHaveBeenCalled();
+    expect(encryptMock).not.toHaveBeenCalled();
   });
 
   it("rejects forged invalid Variable Keys only after authorization succeeds", async () => {
@@ -218,11 +229,16 @@ describe("writeAuthorizedNonProtectedSecret", () => {
       }),
     ).rejects.toMatchObject({ code: VALIDATION_ERROR_CODES.invalidVariableKey });
 
-    expect(persistMock).not.toHaveBeenCalled();
+    expect(encryptMock).not.toHaveBeenCalled();
   });
 
   it("delegates to writeNonProtectedSecret when authorization succeeds", async () => {
-    persistMock.mockResolvedValue({
+    encryptMock.mockResolvedValue({
+      organizationDataKeyVersion: 1,
+      projectDataKeyVersion: 1,
+      ciphertext: new Uint8Array([1, 2, 3]),
+    } as never);
+    withTenantScopeMock.mockResolvedValue({
       secretId: "sec_00000000000000000000000001" as never,
       secretVersionId: "sv_00000000000000000000000001" as never,
       createdSecretShape: true,
@@ -236,7 +252,7 @@ describe("writeAuthorizedNonProtectedSecret", () => {
 
     expect(result.createdSecretShape).toBe(true);
     expect(validateValueMock).toHaveBeenCalled();
-    expect(persistMock).toHaveBeenCalled();
+    expect(withTenantScopeMock).toHaveBeenCalled();
   });
 
   it("throws SecretWriteError compatible with ErrorBody on auth failure", async () => {
