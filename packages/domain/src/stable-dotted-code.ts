@@ -1,4 +1,7 @@
-/** Stable dotted vocabulary for operation intents and progress reason codes. */
+/**
+ * Stable dotted vocabulary shared across audit denial metadata and operation
+ * intents/progress reason codes (e.g. `auth.insufficient_scope`, `sync.run`).
+ */
 export const STABLE_DOTTED_CODE_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 
 export const STABLE_DOTTED_CODE_MAX_LENGTH = 128;

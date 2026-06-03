@@ -1,5 +1,6 @@
 import {
   assertMetadataOnlyValue,
+  isStableDottedCode,
   MetadataEnvelopeValidationError,
   type AuditEventId,
   type KnownErrorCode,
@@ -12,8 +13,6 @@ import {
   validateSyncTargetKey,
 } from "./sync-target-types.js";
 import type { SyncTargetKey } from "./sync-target-types.js";
-import { isStableDottedCode } from "./stable-dotted-code.js";
-
 function assertKnownErrorCode(value: string, field: string): asserts value is KnownErrorCode {
   if (!isStableDottedCode(value)) {
     throw new OperationStoreError(
