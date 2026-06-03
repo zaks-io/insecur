@@ -79,8 +79,6 @@ export default tseslint.config(
     rules: {
       "max-lines": "off",
       "max-lines-per-function": "off",
-      "max-statements": "off",
-      complexity: "off",
     },
   },
   {
