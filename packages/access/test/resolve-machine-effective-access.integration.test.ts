@@ -49,14 +49,11 @@ describeIntegration("resolveEffectiveAccess for machine actors (tenant-scoped st
           ${TEST_ORG_A_ID},
           ${TEST_MACHINE_A_ID},
           ${TEST_PROJECT_A_ID},
-          ${sql.array(
-            [
-              AUTHORIZATION_SCOPES.runtimeInjectionRun,
-              AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
-              AUTHORIZATION_SCOPES.approvalApprove,
-            ],
-            "text",
-          )}
+          ${[
+            AUTHORIZATION_SCOPES.runtimeInjectionRun,
+            AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
+            AUTHORIZATION_SCOPES.approvalApprove,
+          ]}
         )
         ON CONFLICT (id) DO NOTHING
       `;
@@ -83,7 +80,7 @@ describeIntegration("resolveEffectiveAccess for machine actors (tenant-scoped st
           ${TEST_ORG_B_ID},
           ${TEST_MACHINE_B_ID},
           ${TEST_PROJECT_B_ID},
-          ${sql.array([AUTHORIZATION_SCOPES.runtimeInjectionRun], "text")}
+          ${[AUTHORIZATION_SCOPES.runtimeInjectionRun]}
         )
         ON CONFLICT (id) DO NOTHING
       `;

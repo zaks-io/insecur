@@ -1,8 +1,9 @@
 import { organizationId, projectId } from "@insecur/domain";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it } from "vitest";
 import postgres from "postgres";
-import { redactLoggableError, requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
+import { redactLoggableError } from "../../scripts/lib/env-local.mjs";
 import { closeRuntimeSql, withTenantScope } from "../../src/index.js";
+import { describeRls, getRuntimeDatabaseUrl } from "./describe-rls.js";
 import { seedTenantBaseline } from "./seed.js";
 import {
   TEST_MEM_CROSS_ORG_ID,
@@ -17,14 +18,7 @@ import {
   TEST_VERSION_B_ID,
 } from "./test-ids.js";
 
-let runtimeUrl: string | undefined;
-try {
-  runtimeUrl = requireDatabaseUrl("DATABASE_URL_RUNTIME");
-} catch {
-  runtimeUrl = undefined;
-}
-
-const describeRls = runtimeUrl ? describe : describe.skip;
+const runtimeUrl = getRuntimeDatabaseUrl();
 
 interface IdRow {
   id: string;

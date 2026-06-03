@@ -24,6 +24,7 @@ export default tseslint.config(
       "vitest.coverage.config.ts",
       "packages/access/test/**/*.ts",
       "packages/access/vitest.config.ts",
+      "packages/access/vitest.rls.config.ts",
       "packages/secret-store/test/**/*.ts",
       "packages/secret-store/vitest.config.ts",
       "packages/runtime-injection/test/**/*.ts",

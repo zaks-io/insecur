@@ -1,5 +1,8 @@
 import { defineConfig, mergeConfig } from "vitest/config";
 import rootConfig from "../../vitest.config.js";
+import { loadRepoEnvLocal } from "../../packages/tenant-store/scripts/lib/env-local.mjs";
+
+loadRepoEnvLocal();
 
 // End-to-end First Value loop: real Worker routes against real Postgres + crypto.
 // load-env.ts hydrates DATABASE_URL* from the repo .env.local; the suite self-gates

@@ -9,22 +9,14 @@ import {
   type SecretId,
   type VariableKey,
 } from "@insecur/domain";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it } from "vitest";
 import { TenantSecretVersionStore } from "../../src/secrets/tenant-secret-version-store.js";
 import { closeRuntimeSql, withTenantScope } from "../../src/index.js";
-import { requireDatabaseUrl } from "../../scripts/lib/env-local.mjs";
+import { describeRls, getRuntimeDatabaseUrl } from "./describe-rls.js";
 import { seedTenantBaseline } from "./seed.js";
 import { TEST_ENV_A_ID, TEST_ORG_A_ID, TEST_PROJECT_A_ID } from "./test-ids.js";
 
-let runtimeUrl: string | undefined;
-try {
-  runtimeUrl = requireDatabaseUrl("DATABASE_URL_RUNTIME");
-} catch {
-  runtimeUrl = undefined;
-}
-
-const describeRls = runtimeUrl ? describe : describe.skip;
-
+const runtimeUrl = getRuntimeDatabaseUrl();
 const CONCURRENT_APPEND_COUNT = 12;
 
 function syntheticWrappedMaterial(suffix: number) {

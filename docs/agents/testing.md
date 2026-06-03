@@ -41,8 +41,25 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 ## CI
 
 The `postgres-integration` job in `.github/workflows/ci.yml` resets Docker Compose Postgres
-once, then runs `test:rls`, `test:e2e`, and the instance-bootstrap integration suite. The
-broad raw-SQL package integration run is not wired in yet — those queries are migrating to
-Drizzle, and one suite (`packages/access/.../resolve-machine-effective-access.integration.test.ts`)
-has a pre-existing `sql.array` bug that was hidden by green-by-skip; fixing it and wiring the
-rest belongs with the Drizzle conversion.
+17 once, runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ;
+runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
+`INSECUR_CI_RLS_GATE=1` and runs `test:rls` plus `test:e2e`. Turbo `envMode: strict` only
+forwards `INSECUR_CI_RLS_GATE` when it is listed on the `test:rls` / `test:e2e` tasks in
+`turbo.json`; a probe task (`assert:ci-rls-gate-env`) runs first so CI logs prove the var
+reached the task process. Vitest setup logs `[insecur] INSECUR_CI_RLS_GATE=1` when fail-closed
+mode is active. Turbo `test:rls` fans out to
+`@insecur/tenant-store` (forced-RLS suite: tenant isolation, data-key isolation, secret-version
+concurrency) and `@insecur/access` (`*.integration.test.ts`). The job then runs
+`@insecur/instance-bootstrap` integration tests. Other packages' `*.integration.test.ts` files
+still self-gate in `pnpm verify` until the Drizzle conversion wires them.
+
+### Verifying the gate fails closed
+
+After `pnpm dev:db:reset`, a broken policy or `BYPASSRLS` on the runtime role must make
+`INSECUR_CI_RLS_GATE=1 pnpm test:rls` fail. Manual drills:
+
+1. Temporarily change a tenant policy `USING` clause to `true` (or grant `BYPASSRLS` to
+   `insecur_runtime`), run `node scripts/ci/postgres-integration-tests.mjs`, and confirm red.
+2. Revert, re-run `pnpm dev:db:reset`, and confirm green.
+
+CI runs the same path via `postgres-integration-tests.mjs` after every compose reset.
