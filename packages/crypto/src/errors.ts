@@ -11,6 +11,19 @@ export class DecryptError extends Error {
   }
 }
 
+/** Free-form AAD field failed charset or control-character validation before seal/open. */
+export class InvalidAadFieldError extends Error {
+  readonly code: CryptoErrorCode = CRYPTO_ERROR_CODES.invalidAadField;
+  readonly retryable = false;
+  readonly field: string;
+
+  constructor(field: string) {
+    super("invalid aad field");
+    this.name = "InvalidAadFieldError";
+    this.field = field;
+  }
+}
+
 /** Root key material is not configured; encrypt and decrypt must fail closed. */
 export class RootKeyNotConfiguredError extends Error {
   readonly code: CryptoErrorCode = CRYPTO_ERROR_CODES.rootKeyNotConfigured;

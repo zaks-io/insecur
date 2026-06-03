@@ -1,3 +1,4 @@
+import { assertSensitiveMetadataIdentityForAad } from "./assert-ciphertext-identity.js";
 import {
   RECORD_TYPE_SENSITIVE_METADATA,
   SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL,
@@ -19,6 +20,7 @@ export function isOrganizationScopedSensitiveMetadata(
 export function serializeSensitiveMetadataCiphertextAad(
   identity: SensitiveMetadataCiphertextIdentity,
 ): Uint8Array {
+  assertSensitiveMetadataIdentityForAad(identity);
   return serializeAadFields([
     String(RECORD_TYPE_SENSITIVE_METADATA),
     identity.organizationId,
@@ -60,6 +62,7 @@ export async function encryptSensitiveMetadata(
   identity: SensitiveMetadataCiphertextIdentity,
   plaintextUtf8: Uint8Array,
 ): Promise<WrappedSensitiveMetadata> {
+  assertSensitiveMetadataIdentityForAad(identity);
   const keyring = getKeyring();
   if (isOrganizationScopedSensitiveMetadata(identity)) {
     const activeVersions = await keyring.getActiveOrganizationDataKeyVersions(
@@ -120,6 +123,7 @@ export async function decryptSensitiveMetadataForAuthorizedRead(
     throw new DecryptError();
   }
 
+  assertSensitiveMetadataIdentityForAad(identity);
   const keyring = getKeyring();
   if (isOrganizationScopedSensitiveMetadata(identity)) {
     if (wrapped.projectDataKeyVersion !== null) {

@@ -36,7 +36,7 @@ export class TenantSensitiveMetadataStore {
 
   async upsertField(input: UpsertSensitiveMetadataInput): Promise<void> {
     const storageRef = encodeInlineCiphertextStorageRef(toStoreFacingCiphertext(input.wrapped));
-    const scopeProjectId = input.scopeProjectId === "" ? null : input.scopeProjectId;
+    const scopeProjectId = input.scopeProjectId === "" ? "" : input.scopeProjectId;
     await this.sql`
       INSERT INTO sensitive_metadata_fields (
         org_id,
@@ -58,9 +58,8 @@ export class TenantSensitiveMetadataStore {
         ${input.wrapped.projectDataKeyVersion},
         ${storageRef}
       )
-      ON CONFLICT (org_id, metadata_type, record_resource_id, field_key) DO UPDATE
+      ON CONFLICT (org_id, scope_project_id, metadata_type, record_resource_id, field_key) DO UPDATE
       SET
-        scope_project_id = EXCLUDED.scope_project_id,
         organization_data_key_version = EXCLUDED.organization_data_key_version,
         project_data_key_version = EXCLUDED.project_data_key_version,
         ciphertext_storage_ref = EXCLUDED.ciphertext_storage_ref
@@ -95,7 +94,7 @@ export class TenantSensitiveMetadataStore {
     }
     return {
       organizationId,
-      scopeProjectId: row.scope_project_id as ProjectId | null,
+      scopeProjectId: row.scope_project_id === "" ? null : (row.scope_project_id as ProjectId),
       metadataType: row.metadata_type,
       recordResourceId: row.record_resource_id as OpaqueResourceId,
       fieldKey: row.field_key,

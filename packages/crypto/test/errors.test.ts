@@ -1,7 +1,7 @@
 import { CRYPTO_ERROR_CODES } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
-import { DecryptError, RootKeyNotConfiguredError } from "../src/errors.js";
+import { DecryptError, InvalidAadFieldError, RootKeyNotConfiguredError } from "../src/errors.js";
 
 describe("crypto ErrorBody-compatible failures", () => {
   it("DecryptError carries a known code and retryable flag", () => {
@@ -16,5 +16,12 @@ describe("crypto ErrorBody-compatible failures", () => {
     expect(error.code).toBe(CRYPTO_ERROR_CODES.rootKeyNotConfigured);
     expect(error.retryable).toBe(false);
     expect(error.message).toBe("instance root key is not configured");
+  });
+
+  it("InvalidAadFieldError carries a known code and field name", () => {
+    const error = new InvalidAadFieldError("metadataType");
+    expect(error.code).toBe(CRYPTO_ERROR_CODES.invalidAadField);
+    expect(error.retryable).toBe(false);
+    expect(error.field).toBe("metadataType");
   });
 });

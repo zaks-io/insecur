@@ -7,7 +7,9 @@ CREATE TABLE app_connections (
   provider text NOT NULL,
   display_name text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, id)
+  UNIQUE (org_id, id),
+  CONSTRAINT app_connections_provider_check
+    CHECK (provider ~ '^[a-z][a-z0-9_-]+$' AND char_length(provider) <= 64)
 );
 
 CREATE TABLE provider_credentials (
@@ -19,12 +21,14 @@ CREATE TABLE provider_credentials (
   ciphertext_storage_ref text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (org_id, id),
-  FOREIGN KEY (org_id, app_connection_id) REFERENCES app_connections (org_id, id)
+  FOREIGN KEY (org_id, app_connection_id) REFERENCES app_connections (org_id, id),
+  CONSTRAINT provider_credentials_provider_check
+    CHECK (provider ~ '^[a-z][a-z0-9_-]+$' AND char_length(provider) <= 64)
 );
 
 CREATE TABLE sensitive_metadata_fields (
   org_id text NOT NULL REFERENCES organizations (id),
-  scope_project_id text,
+  scope_project_id text NOT NULL DEFAULT '',
   metadata_type text NOT NULL,
   record_resource_id text NOT NULL,
   field_key text NOT NULL,
@@ -32,10 +36,16 @@ CREATE TABLE sensitive_metadata_fields (
   project_data_key_version integer,
   ciphertext_storage_ref text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (org_id, metadata_type, record_resource_id, field_key),
-  CONSTRAINT sensitive_metadata_fields_scope_project_fkey
-    FOREIGN KEY (org_id, scope_project_id) REFERENCES projects (org_id, id)
-    DEFERRABLE INITIALLY DEFERRED
+  PRIMARY KEY (org_id, scope_project_id, metadata_type, record_resource_id, field_key),
+  CONSTRAINT sensitive_metadata_fields_metadata_type_check
+    CHECK (
+      metadata_type ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'
+      AND char_length(metadata_type) <= 128
+    ),
+  CONSTRAINT sensitive_metadata_fields_field_key_check
+    CHECK (field_key ~ '^[a-z][a-z0-9_]+$' AND char_length(field_key) <= 64),
+  CONSTRAINT sensitive_metadata_fields_scope_project_id_check
+    CHECK (scope_project_id = '' OR scope_project_id ~ '^prj_[0-9A-Z]{26}$')
 );
 
 ALTER TABLE app_connections ENABLE ROW LEVEL SECURITY;

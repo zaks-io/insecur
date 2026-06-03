@@ -1,5 +1,3 @@
-import { DecryptError } from "./errors.js";
-
 export type {
   ProviderCredentialCiphertextIdentity,
   ProviderConnectionMethod,
@@ -35,4 +33,4 @@ export {
   type WrappedSensitiveMetadata,
 } from "./sensitive-metadata-envelope.js";
 
-export { DecryptError };
+export { DecryptError, InvalidAadFieldError } from "./errors.js";

@@ -21,6 +21,7 @@ export {
   serializeSecretCiphertextAad,
   serializeSensitiveMetadataCiphertextAad,
   DecryptError,
+  InvalidAadFieldError,
 } from "./encryption.js";
 export {
   RECORD_TYPE_PROVIDER_CREDENTIAL,

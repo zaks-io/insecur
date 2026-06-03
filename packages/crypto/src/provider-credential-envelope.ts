@@ -1,3 +1,4 @@
+import { assertProviderCredentialIdentityForAad } from "./assert-ciphertext-identity.js";
 import { RECORD_TYPE_PROVIDER_CREDENTIAL } from "./constants.js";
 import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
@@ -9,6 +10,7 @@ import type { ProviderCredentialCiphertextIdentity } from "./types.js";
 export function serializeProviderCredentialCiphertextAad(
   identity: ProviderCredentialCiphertextIdentity,
 ): Uint8Array {
+  assertProviderCredentialIdentityForAad(identity);
   return serializeAadFields([
     String(RECORD_TYPE_PROVIDER_CREDENTIAL),
     identity.organizationId,
@@ -40,6 +42,7 @@ export async function encryptProviderCredential(
   identity: ProviderCredentialCiphertextIdentity,
   plaintextUtf8: Uint8Array,
 ): Promise<WrappedProviderCredential> {
+  assertProviderCredentialIdentityForAad(identity);
   const keyring = getKeyring();
   const activeVersions = await keyring.getActiveOrganizationDataKeyVersions(
     identity.organizationId,
@@ -77,6 +80,7 @@ export async function decryptProviderCredentialForProviderUse(
     throw new DecryptError();
   }
 
+  assertProviderCredentialIdentityForAad(identity);
   const keyring = getKeyring();
   const versions = await keyring.resolveOrganizationDataKeyVersions(
     identity.organizationId,
