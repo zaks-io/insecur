@@ -12,7 +12,11 @@ import {
   assertInvitationRolePreset,
 } from "./assert-invitation-create-input.js";
 import { assertMembershipManageScope } from "./assert-membership-manage-scope.js";
-import type { BuiltInRolePreset } from "@insecur/access";
+import {
+  isInsufficientScopeAccessDenial,
+  recordAccessDenialOnInsufficientScope,
+  type BuiltInRolePreset,
+} from "@insecur/access";
 import {
   recordInvitationCreateDenied,
   recordInvitationCreated,
@@ -54,17 +58,17 @@ async function assertCanCreateInvitation(input: CreateInvitationInput): Promise<
   try {
     await assertMembershipManageScope(input.actor, input.organizationId, input.projectId);
   } catch (error) {
-    if (
-      error instanceof MembershipManagementError &&
-      error.code === AUTH_ERROR_CODES.insufficientScope
-    ) {
-      await recordInvitationCreateDenied({
-        actorUserId: input.actor.userId,
-        organizationId: input.organizationId,
-        reasonCode: error.code,
-        ...(input.request !== undefined ? { request: input.request } : {}),
-      });
-    }
+    await recordAccessDenialOnInsufficientScope(error, {
+      isAccessDenial: (candidate) =>
+        isInsufficientScopeAccessDenial(candidate, MembershipManagementError),
+      recordDenial: () =>
+        recordInvitationCreateDenied({
+          actorUserId: input.actor.userId,
+          organizationId: input.organizationId,
+          reasonCode: AUTH_ERROR_CODES.insufficientScope,
+          ...(input.request !== undefined ? { request: input.request } : {}),
+        }),
+    });
     throw error;
   }
 }

@@ -1,4 +1,9 @@
-import type { EffectiveAccessResult, ResourceCoordinate } from "@insecur/access";
+import {
+  isInsufficientScopeAccessDenial,
+  recordAccessDenialOnInsufficientScope,
+  type EffectiveAccessResult,
+  type ResourceCoordinate,
+} from "@insecur/access";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 
 import { assertSecretNonProtectedWriteAccess } from "./assert-secret-non-protected-write-access.js";
@@ -51,9 +56,10 @@ export async function writeAuthorizedNonProtectedSecret(
       input.accessCoordinate,
     );
   } catch (error) {
-    if (error instanceof SecretWriteError && error.code === AUTH_ERROR_CODES.insufficientScope) {
-      await recordDeniedAuthorizedWrite(input).catch(() => undefined);
-    }
+    await recordAccessDenialOnInsufficientScope(error, {
+      isAccessDenial: (candidate) => isInsufficientScopeAccessDenial(candidate, SecretWriteError),
+      recordDenial: () => recordDeniedAuthorizedWrite(input),
+    });
     throw error;
   }
 

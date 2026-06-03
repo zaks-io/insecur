@@ -1,3 +1,7 @@
+import {
+  isInsufficientScopeAccessDenial,
+  recordAccessDenialOnInsufficientScope,
+} from "@insecur/access";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
 import { INJECTION_ERROR_CODES, injectionGrantId, type InjectionGrantId } from "@insecur/domain";
 import {
@@ -127,7 +131,14 @@ export async function issueInjectionGrantWithAudit(
     return await executeIssueInjectionGrant(input);
   } catch (error) {
     if (error instanceof InjectionGrantError) {
-      await recordDeniedIssue(input, error.code).catch(() => undefined);
+      const isAccessDenial = isInsufficientScopeAccessDenial(error, InjectionGrantError);
+      await recordAccessDenialOnInsufficientScope(error, {
+        isAccessDenial: () => isAccessDenial,
+        recordDenial: () => recordDeniedIssue(input, error.code),
+      });
+      if (!isAccessDenial) {
+        await recordDeniedIssue(input, error.code).catch(() => undefined);
+      }
     } else if (error instanceof ProjectEnvironmentCoordinateError) {
       await recordDeniedIssue(input, INJECTION_ERROR_CODES.grantDenied).catch(() => undefined);
       throw new InjectionGrantError(
