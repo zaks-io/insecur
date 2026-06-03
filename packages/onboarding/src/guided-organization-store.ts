@@ -8,6 +8,8 @@ import type {
   UserId,
 } from "@insecur/domain";
 import { BUILT_IN_ROLE_PRESETS } from "@insecur/access";
+import { ENVIRONMENT_POSTURE_TIERS } from "@insecur/domain";
+import { createEnvironmentLifecycle } from "@insecur/environment-lifecycle";
 import { withTenantScope } from "@insecur/tenant-store";
 
 export interface GuidedOrganizationResourceIds {
@@ -60,16 +62,14 @@ export async function persistGuidedOrganization(
           ${BUILT_IN_ROLE_PRESETS.owner}
         )
       `;
-      await sql`
-        INSERT INTO environments (id, org_id, project_id, display_name, is_protected)
-        VALUES (
-          ${input.developmentEnvironmentId},
-          ${input.organizationId},
-          ${input.projectId},
-          ${input.environmentDisplayName},
-          false
-        )
-      `;
     },
   );
+
+  await createEnvironmentLifecycle({
+    environmentId: input.developmentEnvironmentId,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    displayName: input.environmentDisplayName,
+    postureTier: ENVIRONMENT_POSTURE_TIERS.development,
+  });
 }

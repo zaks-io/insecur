@@ -159,9 +159,30 @@ async function seedOrganizationCore(
     )
     ON CONFLICT (id) DO NOTHING
   `;
+  await seedSyntheticEnvironment(tx, input);
+}
+
+async function seedSyntheticEnvironment(
+  tx: postgres.TransactionSql,
+  input: Pick<SeedOrgInput, "organizationId" | "projectId" | "environmentId">,
+): Promise<void> {
   await tx`
-    INSERT INTO environments (id, org_id, project_id, display_name)
-    VALUES (${input.environmentId}, ${input.organizationId}, ${input.projectId}, ${"Synthetic env"})
+    INSERT INTO environments (
+      id,
+      org_id,
+      project_id,
+      display_name,
+      is_protected,
+      posture_tier
+    )
+    VALUES (
+      ${input.environmentId},
+      ${input.organizationId},
+      ${input.projectId},
+      ${"Synthetic env"},
+      false,
+      ${"development"}
+    )
     ON CONFLICT (id) DO NOTHING
   `;
 }

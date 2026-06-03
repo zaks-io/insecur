@@ -86,6 +86,18 @@ export const STORE_ERROR_CODES = {
 
 export type StoreErrorCode = (typeof STORE_ERROR_CODES)[keyof typeof STORE_ERROR_CODES];
 
+/** Environment lifecycle and posture metadata failures. */
+export const ENVIRONMENT_ERROR_CODES = {
+  notFound: "environment.not_found",
+  invalidPosture: "environment.invalid_posture",
+  invalidLifecycleTransition: "environment.invalid_lifecycle_transition",
+  previewOptDownNotAllowed: "environment.preview_opt_down_not_allowed",
+  previewAutomationNotAllowed: "environment.preview_automation_not_allowed",
+} as const;
+
+export type EnvironmentErrorCode =
+  (typeof ENVIRONMENT_ERROR_CODES)[keyof typeof ENVIRONMENT_ERROR_CODES];
+
 /** Audit event writer validation failures. */
 export const AUDIT_ERROR_CODES = {
   eventInvalid: "audit.event_invalid",
@@ -102,5 +114,6 @@ export type KnownErrorCode =
   | BootstrapErrorCode
   | CryptoErrorCode
   | StoreErrorCode
+  | EnvironmentErrorCode
   | AuditErrorCode
   | (string & {});

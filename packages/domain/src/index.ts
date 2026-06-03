@@ -58,6 +58,17 @@ export {
   parseDisplayName,
 } from "./display-name.js";
 export {
+  ENVIRONMENT_LIFECYCLE_STATES,
+  ENVIRONMENT_POSTURE_TIERS,
+  type EnvironmentLifecycleState,
+  type EnvironmentPostureTier,
+  type PreviewNonProtectedOptDownEvidence,
+  canSetPreviewAutomationOptIn,
+  isEnvironmentLifecycleState,
+  isEnvironmentPostureTier,
+  resolveIsProtectedFromPosture,
+} from "./environment-posture.js";
+export {
   type VariableKey,
   VARIABLE_KEY_PATTERN,
   type ParseVariableKeyResult,
@@ -72,6 +83,8 @@ export {
 export {
   AUDIT_ERROR_CODES,
   type AuditErrorCode,
+  ENVIRONMENT_ERROR_CODES,
+  type EnvironmentErrorCode,
   AUTH_ERROR_CODES,
   type AuthErrorCode,
   CRYPTO_ERROR_CODES,

@@ -41,6 +41,10 @@ export const PRODUCTION_AUDIT_EVENT_CODES = {
   approvalRequestApproved: "approval.request_approved",
   approvalRequestRejected: "approval.request_rejected",
   approvalActionDenied: "approval.action_denied",
+  environmentLifecycleRead: "environment.lifecycle_read",
+  environmentLifecycleReadDenied: "environment.lifecycle_read_denied",
+  environmentLifecycleUpdated: "environment.lifecycle_updated",
+  environmentLifecycleUpdateDenied: "environment.lifecycle_update_denied",
 } as const;
 
 /** All supported tenant-qualified audit event codes. */
@@ -82,6 +86,8 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.cryptoDataKeyDenied,
   PRODUCTION_AUDIT_EVENT_CODES.cryptoKeyRotationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.environmentLifecycleReadDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.environmentLifecycleUpdateDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([

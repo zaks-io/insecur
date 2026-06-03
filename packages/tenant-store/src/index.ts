@@ -37,6 +37,17 @@ export {
   assertProjectEnvironmentCoordinate,
 } from "./injection-grants/assert-project-environment-coordinate.js";
 export {
+  EnvironmentLifecycleStoreError,
+  mapEnvironmentLifecycleRow,
+} from "./environments/map-environment-lifecycle-row.js";
+export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
+export type {
+  EnvironmentLifecycleMetadata,
+  EnvironmentLifecycleRow,
+  InsertEnvironmentLifecycleInput,
+  UpdateEnvironmentLifecyclePatch,
+} from "./environments/types.js";
+export {
   TenantInjectionGrantStore,
   type ConsumedInjectionGrantRow,
   type InjectionGrantConsumeFailure,
