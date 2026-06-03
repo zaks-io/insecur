@@ -14,6 +14,8 @@ The resolver and the store split cleanly. The resolver (ADR-0034) decides what a
 
 Resolving access through a scoped handle makes the interface the test surface. Given a scope and stored rows, the store returns exactly that tenant's rows, one value to assert, and the cross-tenant isolation test runs against the store directly, the same way ADR-0034 targets the resolver and ADR-0031 the keyring. RLS policies ship in the same migration as the table they protect, because a table without its policy is a silent cross-tenant leak; Drizzle owns the schema and a raw, re-runnable SQL step owns the policies and the two database roles.
 
+> **Note (ARCH-2):** Current Drizzle can model RLS policies (`pgPolicy()`) and database roles (`pgRole()`). This repo deliberately does not use that capability: the raw, re-runnable SQL step remains the source of truth for all RLS policies and both database roles. That split is retained by choice, not by tooling limitation; the policy/schema division above is unchanged.
+
 ## Consequences
 
 A Postgres sequence, or a unique constraint on `(secret_id, version)` with `INSERT ... RETURNING`, removes the `MAX(n)+1` Secret Version race the D1 design carried, so version allocation is closed by the engine rather than by application locking.
