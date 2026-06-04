@@ -21,6 +21,7 @@ const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [AUTH_ERROR_CODES.invalid, 401],
   [AUTH_ERROR_CODES.reauthRequired, 401],
   [AUTH_ERROR_CODES.mfaEnrollmentRequired, 401],
+  [AUTH_ERROR_CODES.highAssuranceRequired, 401],
   [AUTH_ERROR_CODES.insufficientScope, 403],
   [INJECTION_ERROR_CODES.grantDenied, 404],
   [INJECTION_ERROR_CODES.grantExpired, 404],
