@@ -1,4 +1,4 @@
-import type { OpaqueResourceId, OrganizationId, ProjectId } from "@insecur/domain";
+import type { OpaqueResourceId, ProjectId } from "@insecur/domain";
 import { toStoreFacingCiphertext } from "@insecur/crypto";
 import { and, eq } from "drizzle-orm";
 
@@ -9,6 +9,7 @@ import {
 } from "../secrets/ciphertext-storage-ref.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import type {
+  GetSensitiveMetadataFieldInput,
   SensitiveMetadataFieldRow,
   StoredWrappedSensitiveMetadata,
   UpsertSensitiveMetadataInput,
@@ -31,12 +32,11 @@ export class TenantSensitiveMetadataStore {
 
   async upsertField(input: UpsertSensitiveMetadataInput): Promise<void> {
     const storageRef = encodeInlineCiphertextStorageRef(toStoreFacingCiphertext(input.wrapped));
-    const scopeProjectId = input.scopeProjectId === "" ? "" : input.scopeProjectId;
     await this.db
       .insert(sensitiveMetadataFields)
       .values({
         orgId: input.organizationId,
-        scopeProjectId,
+        scopeProjectId: input.scopeProjectId,
         metadataType: input.metadataType,
         recordResourceId: input.recordResourceId,
         fieldKey: input.fieldKey,
@@ -60,12 +60,7 @@ export class TenantSensitiveMetadataStore {
       });
   }
 
-  async getField(
-    organizationId: OrganizationId,
-    metadataType: string,
-    recordResourceId: OpaqueResourceId,
-    fieldKey: string,
-  ): Promise<SensitiveMetadataFieldRow | null> {
+  async getField(input: GetSensitiveMetadataFieldInput): Promise<SensitiveMetadataFieldRow | null> {
     const rows = await this.db
       .select({
         org_id: sensitiveMetadataFields.orgId,
@@ -80,18 +75,20 @@ export class TenantSensitiveMetadataStore {
       .from(sensitiveMetadataFields)
       .where(
         and(
-          eq(sensitiveMetadataFields.orgId, organizationId),
-          eq(sensitiveMetadataFields.metadataType, metadataType),
-          eq(sensitiveMetadataFields.recordResourceId, recordResourceId),
-          eq(sensitiveMetadataFields.fieldKey, fieldKey),
+          eq(sensitiveMetadataFields.orgId, input.organizationId),
+          eq(sensitiveMetadataFields.scopeProjectId, input.scopeProjectId),
+          eq(sensitiveMetadataFields.metadataType, input.metadataType),
+          eq(sensitiveMetadataFields.recordResourceId, input.recordResourceId),
+          eq(sensitiveMetadataFields.fieldKey, input.fieldKey),
         ),
-      );
+      )
+      .limit(1);
     const row = rows[0];
     if (!row) {
       return null;
     }
     return {
-      organizationId,
+      organizationId: input.organizationId,
       scopeProjectId: row.scope_project_id === "" ? null : (row.scope_project_id as ProjectId),
       metadataType: row.metadata_type,
       recordResourceId: row.record_resource_id as OpaqueResourceId,

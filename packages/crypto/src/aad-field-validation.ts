@@ -1,4 +1,8 @@
-import { isStableDottedCode, STABLE_DOTTED_CODE_MAX_LENGTH } from "@insecur/domain";
+import {
+  isStableDottedCode,
+  parseOpaqueResourceId,
+  STABLE_DOTTED_CODE_MAX_LENGTH,
+} from "@insecur/domain";
 
 import { InvalidAadFieldError } from "./errors.js";
 
@@ -29,7 +33,6 @@ function assertNoControlCharacters(value: string, field: string): void {
 export function assertProviderConnectionMethodForAad(value: string): void {
   assertNoControlCharacters(value, "provider");
   if (
-    value.length === 0 ||
     value.length > PROVIDER_CONNECTION_METHOD_MAX_LENGTH ||
     !PROVIDER_CONNECTION_METHOD_PATTERN.test(value)
   ) {
@@ -47,10 +50,15 @@ export function assertSensitiveMetadataTypeForAad(value: string): void {
 export function assertSensitiveMetadataFieldKeyForAad(value: string): void {
   assertNoControlCharacters(value, "fieldKey");
   if (
-    value.length === 0 ||
     value.length > SENSITIVE_METADATA_FIELD_KEY_MAX_LENGTH ||
     !SENSITIVE_METADATA_FIELD_KEY_PATTERN.test(value)
   ) {
     throw new InvalidAadFieldError("fieldKey");
+  }
+}
+
+export function assertOpaqueResourceIdForAad(value: string): void {
+  if (!parseOpaqueResourceId(value).ok) {
+    throw new InvalidAadFieldError("recordResourceId");
   }
 }

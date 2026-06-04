@@ -591,7 +591,13 @@ describe("metadata store reads (Drizzle)", () => {
     const { db } = createMockTenantDb({ selectResults: [[]] });
     const store = new TenantSensitiveMetadataStore(db);
     await expect(
-      store.getField(ORG, "approval.note", "rec_test" as never, "body"),
+      store.getField({
+        organizationId: ORG,
+        scopeProjectId: "",
+        metadataType: "approval.note",
+        recordResourceId: "rec_test" as never,
+        fieldKey: "body",
+      }),
     ).resolves.toBeNull();
   });
 });

@@ -47,8 +47,7 @@ function createResourceIdHelpers<TBrand extends string>(
       };
     },
     brand(raw: string): Brand<string, TBrand> {
-      brandOpaqueResourceIdForPrefix(prefix, raw);
-      return brandValue<string, TBrand>(raw);
+      return brandValue<string, TBrand>(brandOpaqueResourceIdForPrefix(prefix, raw));
     },
     generate(): Brand<string, TBrand> {
       const raw = generateOpaqueResourceIdForPrefix(prefix);

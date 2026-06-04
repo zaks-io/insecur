@@ -1,4 +1,5 @@
 import {
+  assertOpaqueResourceIdForAad,
   assertProviderConnectionMethodForAad,
   assertSensitiveMetadataFieldKeyForAad,
   assertSensitiveMetadataTypeForAad,
@@ -18,5 +19,6 @@ export function assertSensitiveMetadataIdentityForAad(
   identity: SensitiveMetadataCiphertextIdentity,
 ): void {
   assertSensitiveMetadataTypeForAad(identity.metadataType);
+  assertOpaqueResourceIdForAad(identity.recordResourceId);
   assertSensitiveMetadataFieldKeyForAad(identity.fieldKey);
 }
