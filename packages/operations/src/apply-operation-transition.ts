@@ -1,6 +1,5 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
-import type { TenantScopedSql } from "@insecur/tenant-store";
-import { bindOperationProgressJsonb } from "./bind-operation-progress-jsonb.js";
+import { bindJsonb, type TenantScopedSql } from "@insecur/tenant-store";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
 import {
@@ -89,7 +88,7 @@ export async function casApplyOperationTransition(
     UPDATE operations
     SET
       state = ${input.nextState},
-      progress = ${bindOperationProgressJsonb(sql, mergedProgress)},
+      progress = ${bindJsonb(sql, mergedProgress)},
       updated_at = now()
     WHERE id = ${input.operationId}
       AND org_id = ${input.organizationId}

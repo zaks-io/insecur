@@ -1,19 +1,4 @@
-import { defineConfig, mergeConfig } from "vitest/config";
 import rootConfig from "../../vitest.config.js";
-import { loadRepoEnvLocal } from "../tenant-store/scripts/lib/env-local.mjs";
+import { defineConsumerRlsVitestConfig } from "../tenant-store/test/rls/define-consumer-rls-vitest-config.js";
 
-loadRepoEnvLocal();
-
-export default mergeConfig(
-  rootConfig,
-  defineConfig({
-    test: {
-      setupFiles: ["../tenant-store/test/rls/load-env.ts"],
-      include: ["test/**/*.integration.test.ts"],
-      fileParallelism: false,
-      hookTimeout: 60_000,
-      testTimeout: 30_000,
-      passWithNoTests: false,
-    },
-  }),
-);
+export default defineConsumerRlsVitestConfig(import.meta.url, rootConfig);

@@ -1,5 +1,5 @@
 import type { OperationId, OrganizationId, ProjectId } from "@insecur/domain";
-import { toIsoTimestamp } from "./parse-db-timestamp.js";
+import { toIsoTimestamp } from "@insecur/tenant-store";
 import type { FencingToken, SyncProviderKind, SyncTargetKey } from "./sync-target-types.js";
 
 export interface SyncTargetLeaseRow {

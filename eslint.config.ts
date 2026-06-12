@@ -88,6 +88,7 @@ export default tseslint.config(
       "packages/runtime-injection/test/**/*.ts",
       "packages/runtime-injection/vitest.config.ts",
       "packages/audit/test/**/*.ts",
+      "packages/audit/vitest.rls.config.ts",
       "packages/operations/test/**/*.ts",
       "packages/operations/vitest.config.ts",
       "packages/operations/vitest.rls.config.ts",
