@@ -53,10 +53,13 @@ describe("intersectEffectiveAccessScopes", () => {
 });
 
 describe("machine forbidden scopes", () => {
-  it("identifies approval and protected configuration scopes as forbidden", () => {
+  it("identifies approval, metadata detail, and protected configuration scopes as forbidden", () => {
     expect(isMachineForbiddenAuthorizationScope(AUTHORIZATION_SCOPES.approvalApprove)).toBe(true);
     expect(isMachineForbiddenAuthorizationScope(AUTHORIZATION_SCOPES.approvalReject)).toBe(true);
     expect(isMachineForbiddenAuthorizationScope(AUTHORIZATION_SCOPES.projectConfigure)).toBe(true);
+    expect(isMachineForbiddenAuthorizationScope(AUTHORIZATION_SCOPES.metadataDetailRead)).toBe(
+      true,
+    );
     expect(isMachineForbiddenAuthorizationScope(AUTHORIZATION_SCOPES.runtimeInjectionRun)).toBe(
       false,
     );

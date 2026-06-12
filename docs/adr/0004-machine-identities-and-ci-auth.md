@@ -23,3 +23,7 @@ The attached Runtime Injection Policy owns the exact secret bindings, command sh
 Machine Identities cannot satisfy High-Assurance Challenges. They may create Blind Secret Writes that produce Draft Versions and may request Promotion if Organization Access allows it, and they may use exact Runtime Injection Policies or bounded operations already authorized by a User. They must not approve, complete Promotion, rollback, change retention, change Runtime Injection Policy, change Secret Sync, change App Connection, attach Shared Secret Sources, mutate Service Access, manage Signup Lockdown, or manage Tenant Suspension on their own.
 
 Non-expiring deploy keys are allowed only when explicitly configured and must be visible as higher-risk in status, plan, and audit output. Deploy key create, exchange, denial, rotation, expiration, and disable events must be audited.
+
+## Amendment (2026-06-12): `metadata:detail_read` is machine-forbidden in V1
+
+Product-spec section 4 and ADR-0003 record that the Metadata Viewer Role grants scoped metadata detail visibility to humans only: Machine Identities do not receive that Built-In Role in V1, and the role's sole scope atom is `metadata:detail_read`. The atom therefore belongs in `MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES` alongside the other ADR-0004-forbidden capabilities already encodable today, so machine credential bundles cannot grant metadata detail reads even if a future edit adds the atom to `CREDENTIAL_SCOPES`. The registry and this amendment land together.

@@ -50,7 +50,7 @@ The assertions:
   scopes, and the metadata-viewer preset is not machine-assignable.
 - `MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES` includes every existing atom corresponding to an
   ADR-0004-forbidden capability — today `approval:approve`, `approval:reject`, `membership:manage`,
-  `project:configure`, and `onboarding:guided_organization_provision`.
+  `project:configure`, `onboarding:guided_organization_provision`, and `metadata:detail_read`.
 
 The suite binds only over atoms that exist in `authorization-scopes.ts` today (thirteen). No Secret
 Delivery, Secret Sync, App Connection, Service Access, or protected-issuance atoms exist yet, so
