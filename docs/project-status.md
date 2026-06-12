@@ -65,11 +65,11 @@ ownership / single-statement / deterministic-conflict rules in
 yet built: the Plaintext Metadata Allowlist conformance
 gate (ADR-0070), the role-bundle registry conformance
 suite (ADR-0034) including the machine-only protected-issuance scope (ADR-0038), the
-`OPERATION_INTENT_CODES` catalog (ADR-0068), the `operation.idempotency_mismatch` check
-(ADR-0066), the non-lease execution-deadline liveness recovery (ADR-0073), and the exit/HTTP
+`OPERATION_INTENT_CODES` catalog (ADR-0068), the non-lease execution-deadline liveness recovery
+(ADR-0073), and the exit/HTTP
 lockstep test (ADR-0062). These contract-and-gate tickets should land before parallel feature
 workstreams start, so seam agreements are CI-time facts rather than prose. Review follow-ups are
-INS-167 (metadata-viewer role preset), INS-168 (intent-mismatch enforcement), and INS-169 (re-home
+INS-167 (metadata-viewer role preset) and INS-169 (re-home
 First Value routes under `/v1/orgs/:org`).
 
 ## Implemented In Code
@@ -271,9 +271,9 @@ release-gate evidence bundles.
 ## Recommended Next Steps
 
 1. Land the contract-and-gate code decided in ADRs 0066-0076 before parallel feature work: the
-   intent-code catalog and idempotency-mismatch check, the role-bundle conformance suite and
-   protected-issuance scope atom, the Plaintext Metadata Allowlist registry and gate, the
-   no-plaintext canary gate, and the exit/HTTP lockstep test.
+   intent-code catalog, the role-bundle conformance suite and
+   protected-issuance scope atom, the Plaintext Metadata Allowlist registry and gate, and the
+   exit/HTTP lockstep test.
    Each is a small ticket; together they turn the cross-workstream seam contracts into CI-time
    facts (see [roadmap.md](roadmap.md) M0).
 2. Wire the remaining package implementations into Worker routes: instance bootstrap,
