@@ -5,6 +5,7 @@ import {
   type AuditEventId,
   type KnownErrorCode,
 } from "@insecur/domain";
+import { isOperationIntentCode } from "./operation-intent-codes.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationProgress, OperationProgressInput } from "./operation-types.js";
 import {
@@ -179,6 +180,12 @@ export function validateOperationIntentCode(intentCode: string): void {
     throw new OperationStoreError(
       OPERATION_ERROR_CODES.invalidIntent,
       "intentCode must be a stable dotted code (e.g. sync.run)",
+    );
+  }
+  if (!isOperationIntentCode(intentCode)) {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.invalidIntent,
+      `unknown intentCode: ${intentCode}`,
     );
   }
 }

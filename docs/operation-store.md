@@ -86,12 +86,13 @@ returns the existing row for the same idempotency key regardless of `intent_code
 ## Intent Codes
 
 [ADR-0068](adr/0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md) pins operation intent
-codes to a canonical `OPERATION_INTENT_CODES` catalog in `packages/operations`. The catalog and
-registry-membership validation are decided but not wired yet; current code validates dotted shape
-only. Once implemented, `createOperation` validates registry membership, not just dotted shape, and one intent code names exactly one
-workflow because intent-code identity is the ADR-0066 idempotency check. The catalog module is the
-enforcing implementation and must change in lockstep with this section; this section, not the code
-file, is the spec, while the enumerated members stay canonical in the registry file.
+codes to a canonical `OPERATION_INTENT_CODES` catalog in
+`packages/operations/src/operation-intent-codes.ts`. The registry file is the registry of record for
+enumerated members. `createOperation` validates stable dotted shape first, then registry membership;
+unknown codes fail closed with `operation.invalid_intent`. One intent code names exactly one workflow
+because intent-code identity is the ADR-0066 idempotency check. The catalog module is the enforcing
+implementation and must change in lockstep with this section; this section, not the code file, is the
+spec for grammar and membership rules.
 
 ## State Model
 
