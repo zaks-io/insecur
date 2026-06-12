@@ -59,7 +59,12 @@ async function insertOrganizationDataKey(
       ${orgKey.wrappedStorageRef},
       ${orgKey.custodyEvidenceRef}
     )
-    ON CONFLICT (org_id, key_version) DO NOTHING
+    ON CONFLICT (org_id, key_version) DO UPDATE SET
+      status = EXCLUDED.status,
+      root_key_version = EXCLUDED.root_key_version,
+      wrapped_storage_ref = EXCLUDED.wrapped_storage_ref,
+      custody_evidence_ref = EXCLUDED.custody_evidence_ref,
+      updated_at = now()
   `;
 }
 
@@ -102,7 +107,11 @@ async function insertProjectDataKey(
       ${projectKey.organizationDataKeyVersion},
       ${projectKey.wrappedStorageRef}
     )
-    ON CONFLICT (project_id, key_version) DO NOTHING
+    ON CONFLICT (project_id, key_version) DO UPDATE SET
+      status = EXCLUDED.status,
+      organization_data_key_version = EXCLUDED.organization_data_key_version,
+      wrapped_storage_ref = EXCLUDED.wrapped_storage_ref,
+      updated_at = now()
   `;
 }
 

@@ -44,12 +44,14 @@ describeRls("tenant data key root rewrap (real Postgres)", () => {
     await closeRuntimeSql();
   });
 
-  it("does not rewrap another tenant's keys when scoped to organization A", async () => {
+  it("rewraps scoped tenant keys across root versions without touching other tenants", async () => {
     const orgA = organizationId.brand(TEST_ORG_A_ID);
     const orgB = organizationId.brand(TEST_ORG_B_ID);
+    const projectA = projectId.brand(TEST_PROJECT_A_ID);
     const rootProvider = versionedRootProvider({
       1: RLS_TEST_ROOT_KEY_BYTES,
       2: RLS_TEST_ROOT_V2_BYTES,
+      3: RLS_TEST_ROOT_V3_BYTES,
     });
 
     const orgBBefore = await withTenantScope(
@@ -60,14 +62,28 @@ describeRls("tenant data key root rewrap (real Postgres)", () => {
         if (!key?.wrappedStorageRef) {
           throw new Error("expected org B organization data key to be provisioned");
         }
+        expect(key.rootKeyVersion).toBe(1);
         return key;
       },
     );
-    expect(orgBBefore.rootKeyVersion).toBe(1);
     const orgBBytesBefore = await unwrapOrganizationDataKeyBytes(
       RLS_TEST_ROOT_KEY_BYTES,
       orgBBefore.wrappedStorageRef,
       { organizationId: orgB, keyVersion: orgBBefore.keyVersion },
+    );
+
+    const orgABeforeV2 = await withTenantScope(
+      { kind: "organization", organizationId: orgA },
+      async ({ db }) => {
+        const store = new TenantDataKeyMetadataStore(db);
+        const key = await store.getActiveOrganizationDataKey(orgA);
+        if (!key?.wrappedStorageRef) {
+          throw new Error("expected org A organization data key to be provisioned");
+        }
+        expect(key.rootKeyVersion).toBe(1);
+        expect(key.wrappedStorageRef).toMatch(/^inline:b64:/);
+        return key;
+      },
     );
 
     await withTenantScope({ kind: "organization", organizationId: orgA }, async ({ db }) => {
@@ -81,61 +97,47 @@ describeRls("tenant data key root rewrap (real Postgres)", () => {
       });
     });
 
-    const orgAAfter = await withTenantScope(
+    const orgAAfterV2 = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async ({ db }) => {
         const store = new TenantDataKeyMetadataStore(db);
         return store.getActiveOrganizationDataKey(orgA);
       },
     );
-    expect(orgAAfter?.rootKeyVersion).toBe(2);
+    expect(orgAAfterV2?.rootKeyVersion).toBe(2);
+    if (!orgAAfterV2?.wrappedStorageRef) {
+      throw new Error("expected org A wrapped ref after v1→v2 rewrap");
+    }
+    const orgABytesAfterV2 = await unwrapOrganizationDataKeyBytes(
+      RLS_TEST_ROOT_V2_BYTES,
+      orgAAfterV2.wrappedStorageRef,
+      { organizationId: orgA, keyVersion: orgAAfterV2.keyVersion },
+    );
+    const orgABytesBeforeV2 = await unwrapOrganizationDataKeyBytes(
+      RLS_TEST_ROOT_KEY_BYTES,
+      orgABeforeV2.wrappedStorageRef,
+      { organizationId: orgA, keyVersion: orgABeforeV2.keyVersion },
+    );
+    expect(orgABytesAfterV2).toEqual(orgABytesBeforeV2);
 
-    const orgBAfter = await withTenantScope(
+    const orgBAfterV2 = await withTenantScope(
       { kind: "organization", organizationId: orgB },
       async ({ db }) => {
         const store = new TenantDataKeyMetadataStore(db);
         return store.getActiveOrganizationDataKey(orgB);
       },
     );
-    expect(orgBAfter?.rootKeyVersion).toBe(1);
-    expect(orgBAfter?.wrappedStorageRef).toBe(orgBBefore.wrappedStorageRef);
-    if (!orgBAfter?.wrappedStorageRef) {
+    expect(orgBAfterV2?.rootKeyVersion).toBe(1);
+    expect(orgBAfterV2?.wrappedStorageRef).toBe(orgBBefore.wrappedStorageRef);
+    if (!orgBAfterV2?.wrappedStorageRef) {
       throw new Error("expected org B wrapped ref after org-A rewrap");
     }
-    const orgBBytesAfter = await unwrapOrganizationDataKeyBytes(
+    const orgBBytesAfterV2 = await unwrapOrganizationDataKeyBytes(
       RLS_TEST_ROOT_KEY_BYTES,
-      orgBAfter.wrappedStorageRef,
-      { organizationId: orgB, keyVersion: orgBAfter.keyVersion },
+      orgBAfterV2.wrappedStorageRef,
+      { organizationId: orgB, keyVersion: orgBAfterV2.keyVersion },
     );
-    expect(orgBBytesAfter).toEqual(orgBBytesBefore);
-  });
-
-  it("rewraps organization and project keys under a new root without changing data key bytes", async () => {
-    const orgA = organizationId.brand(TEST_ORG_A_ID);
-    const projectA = projectId.brand(TEST_PROJECT_A_ID);
-    const rootProvider = versionedRootProvider({
-      1: RLS_TEST_ROOT_KEY_BYTES,
-      2: RLS_TEST_ROOT_V2_BYTES,
-      3: RLS_TEST_ROOT_V3_BYTES,
-    });
-
-    const beforeOrgKey = await withTenantScope(
-      { kind: "organization", organizationId: orgA },
-      async ({ db }) => {
-        const store = new TenantDataKeyMetadataStore(db);
-        return store.getActiveOrganizationDataKey(orgA);
-      },
-    );
-    expect(beforeOrgKey?.wrappedStorageRef).toMatch(/^inline:b64:/);
-    expect(beforeOrgKey?.rootKeyVersion).toBe(2);
-    if (!beforeOrgKey?.wrappedStorageRef) {
-      throw new Error("expected seeded organization wrapped ref");
-    }
-    const beforeBytes = await unwrapOrganizationDataKeyBytes(
-      RLS_TEST_ROOT_V2_BYTES,
-      beforeOrgKey.wrappedStorageRef,
-      { organizationId: orgA, keyVersion: beforeOrgKey.keyVersion },
-    );
+    expect(orgBBytesAfterV2).toEqual(orgBBytesBefore);
 
     await withTenantScope({ kind: "organization", organizationId: orgA }, async ({ db }) => {
       const store = new TenantDataKeyMetadataStore(db);
@@ -148,32 +150,32 @@ describeRls("tenant data key root rewrap (real Postgres)", () => {
       });
     });
 
-    const afterOrgKey = await withTenantScope(
+    const orgAAfterV3 = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async ({ db }) => {
         const store = new TenantDataKeyMetadataStore(db);
         return store.getActiveOrganizationDataKey(orgA);
       },
     );
-    expect(afterOrgKey?.rootKeyVersion).toBe(3);
-    if (!afterOrgKey?.wrappedStorageRef) {
-      throw new Error("expected rewrapped organization wrapped ref");
+    expect(orgAAfterV3?.rootKeyVersion).toBe(3);
+    if (!orgAAfterV3?.wrappedStorageRef) {
+      throw new Error("expected org A wrapped ref after v2→v3 rewrap");
     }
-    const afterBytes = await unwrapOrganizationDataKeyBytes(
+    const orgABytesAfterV3 = await unwrapOrganizationDataKeyBytes(
       RLS_TEST_ROOT_V3_BYTES,
-      afterOrgKey.wrappedStorageRef,
-      { organizationId: orgA, keyVersion: afterOrgKey.keyVersion },
+      orgAAfterV3.wrappedStorageRef,
+      { organizationId: orgA, keyVersion: orgAAfterV3.keyVersion },
     );
-    expect(afterBytes).toEqual(beforeBytes);
+    expect(orgABytesAfterV3).toEqual(orgABytesBeforeV2);
 
-    const afterProjectKey = await withTenantScope(
+    const projectAAfterV3 = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async ({ db }) => {
         const store = new TenantDataKeyMetadataStore(db);
         return store.getActiveProjectDataKey(orgA, projectA);
       },
     );
-    expect(afterProjectKey?.id).toBe(TEST_PROJECT_KEY_A_ID);
-    expect(afterProjectKey?.wrappedStorageRef).toMatch(/^inline:b64:/);
+    expect(projectAAfterV3?.id).toBe(TEST_PROJECT_KEY_A_ID);
+    expect(projectAAfterV3?.wrappedStorageRef).toMatch(/^inline:b64:/);
   });
 });
