@@ -39,6 +39,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [BOOTSTRAP_ERROR_CODES.authenticatedActorRequired]: EXIT_AUTH_REQUIRED,
   [INJECTION_ERROR_CODES.grantDenied]: EXIT_FORBIDDEN,
   [INJECTION_ERROR_CODES.grantExpired]: EXIT_CONFLICT,
+  "operation.idempotency_mismatch": EXIT_CONFLICT,
   [INJECTION_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.rootKeyNotConfigured]: EXIT_UNEXPECTED,

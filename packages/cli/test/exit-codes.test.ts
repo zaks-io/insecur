@@ -15,6 +15,7 @@ describe("exitCodeForErrorCode", () => {
     expect(exitCodeForErrorCode(AUTH_ERROR_CODES.insufficientScope)).toBe(EXIT_FORBIDDEN);
     expect(exitCodeForErrorCode(AUTH_ERROR_CODES.highAssuranceRequired)).toBe(EXIT_STEP_UP);
     expect(exitCodeForErrorCode(ONBOARDING_ERROR_CODES.alreadyProvisioned)).toBe(EXIT_CONFLICT);
+    expect(exitCodeForErrorCode("operation.idempotency_mismatch")).toBe(EXIT_CONFLICT);
     expect(exitCodeForErrorCode(VALIDATION_ERROR_CODES.invalidDisplayName)).toBe(EXIT_VALIDATION);
     expect(exitCodeForErrorCode(AUTH_ERROR_CODES.expired)).toBe(EXIT_AUTH_REQUIRED);
     expect(exitCodeForErrorCode("unknown.error")).toBe(EXIT_UNEXPECTED);

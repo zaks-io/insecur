@@ -1,5 +1,6 @@
 export const OPERATION_ERROR_CODES = {
   notFound: "operation.not_found",
+  idempotencyMismatch: "operation.idempotency_mismatch",
   invalidIntent: "operation.invalid_intent",
   invalidMetadata: "operation.invalid_metadata",
   staleTransition: "operation.stale_transition",

@@ -1,8 +1,21 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
 import { isUniqueConstraintViolation, type TenantScopedSql } from "@insecur/tenant-store";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
+import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationPollResult, OperationProgress } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
+
+function assertIdempotentIntentMatch(
+  existingIntentCode: string,
+  requestedIntentCode: string,
+): void {
+  if (existingIntentCode !== requestedIntentCode) {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.idempotencyMismatch,
+      "idempotency key reused with a different intent code",
+    );
+  }
+}
 
 function progressToJson(progress: OperationProgress) {
   return JSON.parse(JSON.stringify(progress)) as Parameters<TenantScopedSql["json"]>[0];
@@ -76,6 +89,20 @@ async function insertOperationRow(
   return row;
 }
 
+function resolveIdempotentUpsertResult(
+  row: OperationRow,
+  input: { operationId: OperationId; intentCode: string },
+): { operation: OperationPollResult; created: boolean } {
+  const created = row.id === input.operationId;
+  if (!created) {
+    assertIdempotentIntentMatch(row.intent_code, input.intentCode);
+  }
+  return {
+    operation: toOperationPollResult(row),
+    created,
+  };
+}
+
 async function upsertOperationByIdempotencyKey(
   sql: TenantScopedSql,
   input: {
@@ -119,10 +146,7 @@ async function upsertOperationByIdempotencyKey(
   if (row === undefined) {
     throw new Error("insert operation idempotent upsert returned no row");
   }
-  return {
-    operation: toOperationPollResult(row),
-    created: row.id === input.operationId,
-  };
+  return resolveIdempotentUpsertResult(row, input);
 }
 
 async function insertWithIdempotencyKey(
@@ -145,6 +169,7 @@ async function insertWithIdempotencyKey(
     if (existing === null) {
       throw error;
     }
+    assertIdempotentIntentMatch(existing.intentCode, input.intentCode);
     return { operation: existing, created: false };
   }
 }
