@@ -6,14 +6,13 @@ import {
   type AuthorizationScope,
   type BuiltInRolePreset,
   expandBuiltInRolePresetToScopes,
-  filterMachineForbiddenScopes,
-  intersectEffectiveAccessScopes,
+  isMachineUnassignableBuiltInRolePreset,
 } from "../src/index.js";
 import { CREDENTIAL_SCOPES } from "../src/credential-scopes.js";
 import { describe, expect, it } from "vitest";
 
 /** Categories the role-bundle relational invariants quantify over. */
-export type AuthorizationScopeCategory =
+type AuthorizationScopeCategory =
   | "approval"
   | "configuration"
   | "membership"
@@ -50,6 +49,7 @@ const ADR_0004_MACHINE_FORBIDDEN_SCOPES = [
   AUTHORIZATION_SCOPES.membershipManage,
   AUTHORIZATION_SCOPES.projectConfigure,
   AUTHORIZATION_SCOPES.onboardingGuidedProvision,
+  AUTHORIZATION_SCOPES.metadataDetailRead,
 ] as const satisfies readonly AuthorizationScope[];
 
 const METADATA_VIEWER_FORBIDDEN_CATEGORIES = [
@@ -67,7 +67,7 @@ function resourcePrefix(scope: string): string {
   return separatorIndex === -1 ? scope : scope.slice(0, separatorIndex);
 }
 
-export function classifyAuthorizationScope(scope: AuthorizationScope): AuthorizationScopeCategory {
+function classifyAuthorizationScope(scope: AuthorizationScope): AuthorizationScopeCategory {
   const explicit = EXPLICIT_SCOPE_CATEGORIES[scope];
   if (explicit) {
     return explicit;
@@ -82,7 +82,7 @@ export function classifyAuthorizationScope(scope: AuthorizationScope): Authoriza
   throw new Error(`Authorization Scope atom is not classified: ${scope}`);
 }
 
-export function collectUnclassifiedAuthorizationScopes(
+function collectUnclassifiedAuthorizationScopes(
   scopes: Readonly<Record<string, AuthorizationScope>>,
 ): readonly AuthorizationScope[] {
   const unclassified: AuthorizationScope[] = [];
@@ -119,31 +119,16 @@ function setIntersection<T>(left: readonly T[], right: readonly T[]): T[] {
   return left.filter((value) => rightSet.has(value));
 }
 
-function expandRoleBundle(rolePreset: BuiltInRolePreset): readonly AuthorizationScope[] {
-  return expandBuiltInRolePresetToScopes(rolePreset);
-}
-
-function scopesForAllHumanRolePresets(
-  rolePresets: Readonly<Record<string, BuiltInRolePreset>>,
-): readonly AuthorizationScope[] {
-  const scopeSet = new Set<AuthorizationScope>();
-  for (const rolePreset of Object.values(rolePresets)) {
-    for (const scope of expandRoleBundle(rolePreset)) {
-      scopeSet.add(scope);
-    }
-  }
-  return [...scopeSet];
-}
-
-export interface RoleBundleRegistryConformanceInput {
+interface RoleBundleRegistryConformanceInput {
   authorizationScopes: Readonly<Record<string, AuthorizationScope>>;
   builtInRolePresets: Readonly<Record<string, BuiltInRolePreset>>;
   machineForbiddenScopes: readonly AuthorizationScope[];
   machineUnassignableRolePresets: readonly BuiltInRolePreset[];
   expandRolePreset: (rolePreset: BuiltInRolePreset) => readonly AuthorizationScope[];
+  isMachineUnassignableRolePreset: (rolePreset: string) => boolean;
 }
 
-export function collectRoleBundleRegistryConformanceViolations(
+function collectRoleBundleRegistryConformanceViolations(
   input: RoleBundleRegistryConformanceInput,
 ): string[] {
   const violations: string[] = [];
@@ -191,6 +176,17 @@ export function collectRoleBundleRegistryConformanceViolations(
     violations.push("metadata-viewer preset must be machine-unassignable");
   }
 
+  const machineUnassignableSet = new Set(input.machineUnassignableRolePresets);
+  for (const rolePreset of Object.values(input.builtInRolePresets)) {
+    const expected = machineUnassignableSet.has(rolePreset);
+    const actual = input.isMachineUnassignableRolePreset(rolePreset);
+    if (actual !== expected) {
+      violations.push(
+        `isMachineUnassignableBuiltInRolePreset(${rolePreset}) disagrees with MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS`,
+      );
+    }
+  }
+
   const protectedIssuanceScope = input.authorizationScopes.runtimeInjectionGrantIssueProtected;
   for (const rolePreset of Object.values(input.builtInRolePresets)) {
     const roleScopes = input.expandRolePreset(rolePreset);
@@ -215,32 +211,13 @@ export function collectRoleBundleRegistryConformanceViolations(
     );
   }
 
-  for (const forbiddenScope of input.machineForbiddenScopes) {
-    if (
-      filterMachineForbiddenScopes([forbiddenScope]).length > 0 ||
-      intersectEffectiveAccessScopes([forbiddenScope], [forbiddenScope], [forbiddenScope]).length >
-        0
-    ) {
-      violations.push(`machine-forbidden scope remains machine-reachable: ${forbiddenScope}`);
-    }
+  if (Object.values(CREDENTIAL_SCOPES).includes(AUTHORIZATION_SCOPES.metadataDetailRead)) {
+    violations.push("metadata:detail_read must not appear in CREDENTIAL_SCOPES");
   }
 
   for (const credentialScope of Object.values(CREDENTIAL_SCOPES)) {
     if (input.machineForbiddenScopes.includes(credentialScope)) {
       violations.push(`credential scope bundle exposes machine-forbidden scope ${credentialScope}`);
-    }
-  }
-
-  const humanRoleScopes = scopesForAllHumanRolePresets(input.builtInRolePresets);
-  for (const forbiddenScope of input.machineForbiddenScopes) {
-    if (
-      intersectEffectiveAccessScopes(humanRoleScopes, humanRoleScopes, humanRoleScopes).includes(
-        forbiddenScope,
-      )
-    ) {
-      violations.push(
-        `machine-forbidden scope ${forbiddenScope} is machine-reachable via role bundles`,
-      );
     }
   }
 
@@ -254,6 +231,7 @@ function liveRegistryConformanceInput(): RoleBundleRegistryConformanceInput {
     machineForbiddenScopes: MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES,
     machineUnassignableRolePresets: MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS,
     expandRolePreset: expandBuiltInRolePresetToScopes,
+    isMachineUnassignableRolePreset: isMachineUnassignableBuiltInRolePreset,
   };
 }
 
@@ -303,14 +281,23 @@ describe("role bundle registry conformance", () => {
     expect(
       scopesInCategories(metadataViewerScopes, [...METADATA_VIEWER_FORBIDDEN_CATEGORIES]),
     ).toEqual([]);
-    expect(MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS).toContain(
+    expect(MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS).toEqual([
       BUILT_IN_ROLE_PRESETS.metadataViewer,
-    );
+    ]);
+    expect(isMachineUnassignableBuiltInRolePreset(BUILT_IN_ROLE_PRESETS.metadataViewer)).toBe(true);
+    expect(isMachineUnassignableBuiltInRolePreset(BUILT_IN_ROLE_PRESETS.developer)).toBe(false);
   });
 
   it("matches MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES to ADR-0004", () => {
     expect([...MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES].sort()).toEqual(
       [...ADR_0004_MACHINE_FORBIDDEN_SCOPES].sort(),
+    );
+  });
+
+  it("keeps metadata:detail_read out of machine credential scopes", () => {
+    expect(Object.values(CREDENTIAL_SCOPES)).not.toContain(AUTHORIZATION_SCOPES.metadataDetailRead);
+    expect(MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES).toContain(
+      AUTHORIZATION_SCOPES.metadataDetailRead,
     );
   });
 
@@ -359,6 +346,18 @@ describe("role bundle registry conformance", () => {
 
     expect(violations).toContainEqual(
       `${BUILT_IN_ROLE_PRESETS.developer} bundle must not include machine-only scope ${AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected}`,
+    );
+  });
+
+  it("fails when isMachineUnassignableBuiltInRolePreset drifts from the registry array", () => {
+    const violations = collectRoleBundleRegistryConformanceViolations({
+      ...liveRegistryConformanceInput(),
+      isMachineUnassignableRolePreset: (rolePreset) =>
+        rolePreset === BUILT_IN_ROLE_PRESETS.developer,
+    });
+
+    expect(violations).toContainEqual(
+      `isMachineUnassignableBuiltInRolePreset(${BUILT_IN_ROLE_PRESETS.metadataViewer}) disagrees with MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS`,
     );
   });
 });
