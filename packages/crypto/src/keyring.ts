@@ -9,6 +9,7 @@ import {
 } from "./keyring-unwrap.js";
 
 export {
+  clearWrappedDefaultTenantDataKeySourceCacheForTests,
   unwrapOrganizationDataKey,
   unwrapProjectDataKey,
   WrappedDefaultTenantDataKeySource,
@@ -169,7 +170,6 @@ export class Keyring {
       readonly store: TenantDataKeyRewrapStore;
     },
   ): Promise<void> {
-    this.clearCacheForTests();
     await rewrapTenantDataKeys({
       ...input,
       rootKeyProvider: this.rootKeyProvider,
@@ -190,8 +190,7 @@ export class StaticRootKeyProvider implements RootKeyProvider {
   }
 }
 
-export const DefaultTenantDataKeySource = WrappedDefaultTenantDataKeySource;
-
+/** Test-only keyring using in-memory wrapped DEK minting; production uses `createTenantBackedKeyring`. */
 export function createKeyring(rootKeyBytes: Uint8Array): Keyring {
   const rootKeyProvider = new StaticRootKeyProvider(rootKeyBytes);
   return new Keyring(rootKeyProvider, new WrappedDefaultTenantDataKeySource(rootKeyProvider));

@@ -7,6 +7,7 @@ import {
   unwrapOrganizationDataKeyBytes,
 } from "../src/data-key-wrap.js";
 import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
+import { DecryptError } from "../src/errors.js";
 import {
   decryptSecretValueForRuntime,
   encryptSecretValue,
@@ -327,6 +328,6 @@ describe("rewrapTenantDataKeys", () => {
         newRootVersion: 2,
         store,
       }),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(DecryptError);
   });
 });

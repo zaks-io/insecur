@@ -34,13 +34,13 @@ export {
   DATA_KEY_VERSION_STATUSES,
   type DataKeyVersionStatus,
   isDataKeyVersionStatus,
-  assertDataKeyStatusTransition,
   canRetireRootKeyBinding,
   statusAfterRootRewrap,
 } from "./data-key-lifecycle.js";
 export {
   type OrganizationDataKeyMetadata,
   type ProjectDataKeyMetadata,
+  type TenantDataKeyMetadataProvisioner,
   type TenantDataKeyMetadataReader,
 } from "./data-key-metadata.js";
 export {
@@ -48,7 +48,7 @@ export {
   type DataKeyVersions,
   type OrganizationDataKeyVersions,
   createKeyring,
-  DefaultTenantDataKeySource,
+  clearWrappedDefaultTenantDataKeySourceCacheForTests,
   Keyring,
   type KeyVersion,
   type RootKeyProvider,
@@ -83,6 +83,7 @@ export {
   type KeyringReadinessInput,
 } from "./keyring-readiness.js";
 export { MetadataTenantDataKeySource } from "./metadata-tenant-data-key-source.js";
+export { PersistingMetadataTenantDataKeySource } from "./persisting-metadata-tenant-data-key-source.js";
 export {
   createKeyringFromRootKeyProvider,
   createKeyringFromSecretsStoreBinding,

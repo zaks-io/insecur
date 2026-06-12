@@ -110,10 +110,10 @@ export async function unwrapOrganizationDataKeyBytes(
   wrappedStorageRef: string,
   identity: OrganizationDataKeyWrapIdentity,
 ): Promise<Uint8Array> {
+  const rootKey = await importRootAesKey(rootKeyBytes);
+  const wrappedBytes = decodeInlineWrappedDataKeyStorageRef(wrappedStorageRef);
+  const { iv, ciphertext } = parseWrappedDataKeyBlob(wrappedBytes);
   try {
-    const rootKey = await importRootAesKey(rootKeyBytes);
-    const wrappedBytes = decodeInlineWrappedDataKeyStorageRef(wrappedStorageRef);
-    const { iv, ciphertext } = parseWrappedDataKeyBlob(wrappedBytes);
     const dataKeyBytes = await aesGcmDecrypt(
       rootKey,
       iv,
@@ -137,10 +137,10 @@ export async function unwrapProjectDataKeyBytes(
   wrappedStorageRef: string,
   identity: ProjectDataKeyWrapIdentity,
 ): Promise<Uint8Array> {
+  const rootKey = await importRootAesKey(rootKeyBytes);
+  const wrappedBytes = decodeInlineWrappedDataKeyStorageRef(wrappedStorageRef);
+  const { iv, ciphertext } = parseWrappedDataKeyBlob(wrappedBytes);
   try {
-    const rootKey = await importRootAesKey(rootKeyBytes);
-    const wrappedBytes = decodeInlineWrappedDataKeyStorageRef(wrappedStorageRef);
-    const { iv, ciphertext } = parseWrappedDataKeyBlob(wrappedBytes);
     const dataKeyBytes = await aesGcmDecrypt(
       rootKey,
       iv,

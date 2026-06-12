@@ -3,6 +3,26 @@ import type { OrganizationId, ProjectId } from "@insecur/domain";
 import type { DataKeyVersionStatus } from "./data-key-lifecycle.js";
 import type { KeyVersion } from "./keyring.js";
 
+/** Persists minted wrapped data keys into tenant-scoped metadata (no key material in audit). */
+export interface TenantDataKeyMetadataProvisioner {
+  persistOrganizationDataKey(input: {
+    readonly organizationId: OrganizationId;
+    readonly keyVersion: KeyVersion;
+    readonly rootKeyVersion: KeyVersion;
+    readonly wrappedStorageRef: string;
+    readonly rowId?: string;
+  }): Promise<void>;
+
+  persistProjectDataKey(input: {
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly keyVersion: KeyVersion;
+    readonly organizationDataKeyVersion: KeyVersion;
+    readonly wrappedStorageRef: string;
+    readonly rowId?: string;
+  }): Promise<void>;
+}
+
 /** Metadata for one organization data key version (no key material). */
 export interface OrganizationDataKeyMetadata {
   readonly id: string;

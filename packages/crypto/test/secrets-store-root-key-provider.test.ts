@@ -19,6 +19,7 @@ import {
   SecretsStoreRootKeyProvider,
   type SecretsStoreSecretBinding,
 } from "../src/secrets-store-root-key-provider.js";
+import { StaticRootKeyProvider, WrappedDefaultTenantDataKeySource } from "../src/keyring.js";
 
 const identity: SecretCiphertextIdentity = {
   organizationId: organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E"),
@@ -89,15 +90,22 @@ describe("SecretsStoreRootKeyProvider", () => {
 
 describe("createKeyringFromSecretsStoreBinding", () => {
   it("fails closed when the binding is missing", () => {
-    expect(() => createKeyringFromSecretsStoreBinding(undefined)).toThrow(
-      RootKeyNotConfiguredError,
-    );
+    expect(() =>
+      createKeyringFromSecretsStoreBinding(
+        undefined,
+        new WrappedDefaultTenantDataKeySource(new StaticRootKeyProvider(new Uint8Array(32))),
+      ),
+    ).toThrow(RootKeyNotConfiguredError);
   });
 
   it("encrypts and decrypts through the binding-backed keyring", async () => {
     resetKeyringForTests();
+    const rootKeyProvider = new SecretsStoreRootKeyProvider(
+      fakeBinding(() => Promise.resolve(durableTestRootKeyHex())),
+    );
     const keyring = createKeyringFromSecretsStoreBinding(
       fakeBinding(() => Promise.resolve(durableTestRootKeyHex())),
+      new WrappedDefaultTenantDataKeySource(rootKeyProvider),
     );
     configureKeyring(keyring);
 

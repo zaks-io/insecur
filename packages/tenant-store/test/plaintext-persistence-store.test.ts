@@ -7,6 +7,7 @@ import {
 } from "@insecur/domain";
 import {
   configureKeyring,
+  clearWrappedDefaultTenantDataKeySourceCacheForTests,
   encryptProviderCredential,
   encryptSensitiveMetadata,
   resetKeyringForTests,
@@ -68,6 +69,7 @@ function createCapturingDb(): { db: TenantScopedDb; storageRefs: string[] } {
 describe("tenant metadata stores avoid plaintext persistence", () => {
   beforeEach(() => {
     resetKeyringForTests();
+    clearWrappedDefaultTenantDataKeySourceCacheForTests();
     configureKeyring(createKeyring(createTestRootKey()));
   });
 

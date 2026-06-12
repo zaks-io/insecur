@@ -1,11 +1,7 @@
 import { DEFAULT_ROOT_KEY_VERSION } from "./constants.js";
 import { RootKeyNotConfiguredError } from "./errors.js";
-import {
-  DefaultTenantDataKeySource,
-  Keyring,
-  type KeyVersion,
-  type RootKeyProvider,
-} from "./keyring.js";
+import type { Keyring, KeyVersion, RootKeyProvider, TenantDataKeySource } from "./keyring.js";
+import { Keyring as KeyringImpl } from "./keyring.js";
 import { parseInstanceRootKeyHex } from "./root-key-material.js";
 
 /** Cloudflare Secrets Store secret binding shape (`get(): Promise<string>`). */
@@ -35,15 +31,19 @@ export class SecretsStoreRootKeyProvider implements RootKeyProvider {
   }
 }
 
-export function createKeyringFromRootKeyProvider(rootKeyProvider: RootKeyProvider): Keyring {
-  return new Keyring(rootKeyProvider, new DefaultTenantDataKeySource(rootKeyProvider));
+export function createKeyringFromRootKeyProvider(
+  rootKeyProvider: RootKeyProvider,
+  dataKeySource: TenantDataKeySource,
+): Keyring {
+  return new KeyringImpl(rootKeyProvider, dataKeySource);
 }
 
 export function createKeyringFromSecretsStoreBinding(
   binding: SecretsStoreSecretBinding | undefined,
+  dataKeySource: TenantDataKeySource,
 ): Keyring {
   if (!binding) {
     throw new RootKeyNotConfiguredError();
   }
-  return createKeyringFromRootKeyProvider(new SecretsStoreRootKeyProvider(binding));
+  return createKeyringFromRootKeyProvider(new SecretsStoreRootKeyProvider(binding), dataKeySource);
 }

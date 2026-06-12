@@ -25,6 +25,14 @@ export {
 } from "./data-keys/types.js";
 export { TenantDataKeyMetadataStore } from "./data-keys/tenant-data-key-metadata-store.js";
 export {
+  createTenantBackedKeyring,
+  createTenantBackedKeyringFromAccess,
+} from "./data-keys/create-tenant-backed-keyring.js";
+export {
+  createTenantDataKeyMetadataAccess,
+  TenantScopedDataKeyMetadataAccess,
+} from "./data-keys/tenant-scoped-data-key-metadata.js";
+export {
   decodeInlineCiphertextStorageRef,
   encodeInlineCiphertextStorageRef,
   INLINE_CIPHERTEXT_STORAGE_PREFIX,

@@ -1,4 +1,5 @@
-import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
+import { configureKeyring, resetKeyringForTests, StaticRootKeyProvider } from "@insecur/crypto";
+import { decryptSecretValueForRuntime, type WrappedSecretValue } from "@insecur/crypto";
 import {
   VALIDATION_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
@@ -11,6 +12,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import {
   TenantSecretVersionStore,
   closeRuntimeSql,
+  createTenantBackedKeyring,
   decodeInlineCiphertextStorageRef,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -22,6 +24,7 @@ import {
   TEST_PROJECT_A_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
+import { RLS_TEST_ROOT_KEY_BYTES } from "../../tenant-store/test/rls/test-root-key.js";
 
 import { testOrganization, uniqueVariableKey, writeTestSecret } from "./integration-helpers.js";
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
@@ -55,10 +58,8 @@ async function assertSuccessfulWritePersistedArtifacts(
   expect(JSON.stringify(auditRows)).not.toContain(new TextDecoder().decode(plaintext));
 }
 
-function createTestRootKey(): Uint8Array {
-  const root = new Uint8Array(32);
-  crypto.getRandomValues(root);
-  return root;
+function configureTenantBackedTestKeyring(): void {
+  configureKeyring(createTenantBackedKeyring(new StaticRootKeyProvider(RLS_TEST_ROOT_KEY_BYTES)));
 }
 
 describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
@@ -68,7 +69,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
 
   beforeEach(() => {
     resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
+    configureTenantBackedTestKeyring();
   });
 
   afterEach(() => {
@@ -101,6 +102,50 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     );
     expect(current?.secretVersionId).toBe(second.secretVersionId);
     expect(current?.versionNumber).toBe(2);
+  });
+
+  it("decrypts with a second keyring instance after write (DB-backed wrapped DEKs)", async () => {
+    const org = testOrganization();
+    const project = projectId.brand(TEST_PROJECT_A_ID);
+    const environment = environmentId.brand(TEST_ENV_A_ID);
+    const plaintext = new TextEncoder().encode(`durable-dek-${crypto.randomUUID()}`);
+    const variableKey = uniqueVariableKey("FV10_DURABLE");
+
+    const written = await writeTestSecret(variableKey, plaintext);
+
+    resetKeyringForTests();
+    configureTenantBackedTestKeyring();
+
+    const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
+      new TenantSecretVersionStore(db).getCurrentVersion(written.secretId),
+    );
+    if (!current) {
+      throw new Error("expected persisted secret version");
+    }
+
+    const storageRef = await loadStorageRef(org, current.secretVersionId);
+    if (!storageRef) {
+      throw new Error("expected ciphertext storage ref");
+    }
+    const ciphertext = decodeInlineCiphertextStorageRef(storageRef);
+    const wrapped: WrappedSecretValue = {
+      organizationDataKeyVersion: current.organizationDataKeyVersion,
+      projectDataKeyVersion: current.projectDataKeyVersion,
+      ciphertext,
+    };
+
+    const decrypted = await decryptSecretValueForRuntime(
+      {
+        organizationId: org,
+        projectId: project,
+        environmentId: environment,
+        secretId: written.secretId,
+      },
+      wrapped,
+    );
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
   });
 
   it("records denied audit for invalid Variable Key without creating a secret", async () => {

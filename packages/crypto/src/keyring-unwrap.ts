@@ -42,34 +42,42 @@ function assertWrappedRef(wrappedStorageRef: string | null): asserts wrappedStor
 const globalOrganizationWrappedRefs = new Map<string, string>();
 const globalProjectWrappedRefs = new Map<string, string>();
 
+export function clearWrappedDefaultTenantDataKeySourceCacheForTests(): void {
+  globalOrganizationWrappedRefs.clear();
+  globalProjectWrappedRefs.clear();
+}
+
+async function rootCachePrefix(
+  rootKeyProvider: RootKeyProvider,
+  rootKeyVersion: KeyVersion,
+): Promise<string> {
+  const rootBytes = await rootKeyProvider.getRootKeyBytes(rootKeyVersion);
+  const digest = await crypto.subtle.digest("SHA-256", toBufferSource(rootBytes));
+  const digestHex = Buffer.from(new Uint8Array(digest)).toString("hex");
+  return `${digestHex}:v${String(rootKeyVersion)}`;
+}
+
 /** Dev/test source that mints wrapped data keys in memory under the configured root provider. */
 export class WrappedDefaultTenantDataKeySource implements TenantDataKeySource {
   constructor(private readonly rootKeyProvider: RootKeyProvider) {}
 
-  private async rootCachePrefix(rootKeyVersion: KeyVersion): Promise<string> {
-    const rootBytes = await this.rootKeyProvider.getRootKeyBytes(rootKeyVersion);
-    return `${Buffer.from(rootBytes).toString("hex")}:${String(rootKeyVersion)}`;
-  }
-
-  private organizationRefKey(
+  private async organizationRefKey(
     rootKeyVersion: KeyVersion,
     organizationId: OrganizationId,
     keyVersion: KeyVersion,
   ): Promise<string> {
-    return this.rootCachePrefix(rootKeyVersion).then(
-      (prefix) => `${prefix}:org:${organizationId}:${String(keyVersion)}`,
-    );
+    const prefix = await rootCachePrefix(this.rootKeyProvider, rootKeyVersion);
+    return `${prefix}:org:${organizationId}:${String(keyVersion)}`;
   }
 
-  private projectRefKey(
+  private async projectRefKey(
     rootKeyVersion: KeyVersion,
     organizationId: OrganizationId,
     projectId: ProjectId,
     keyVersion: KeyVersion,
   ): Promise<string> {
-    return this.rootCachePrefix(rootKeyVersion).then(
-      (prefix) => `${prefix}:prj:${organizationId}:${projectId}:${String(keyVersion)}`,
-    );
+    const prefix = await rootCachePrefix(this.rootKeyProvider, rootKeyVersion);
+    return `${prefix}:prj:${organizationId}:${projectId}:${String(keyVersion)}`;
   }
 
   async getOrganizationWrappedStorageRef(

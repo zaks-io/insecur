@@ -169,8 +169,8 @@ export async function rewrapTenantDataKeys(input: RewrapTenantDataKeysInput): Pr
   const organizationKeys = await input.store.listOrganizationDataKeys(input.organizationId);
   const projectKeys = await input.store.listProjectDataKeys(input.organizationId);
 
-  await rewrapOrganizationKeys(input, organizationKeys, versions);
   await rewrapProjectKeys(input, projectKeys, versions);
+  await rewrapOrganizationKeys(input, organizationKeys, versions);
 
   const updatedOrganizationKeys = await input.store.listOrganizationDataKeys(input.organizationId);
   if (!canRetireRootKeyBinding(updatedOrganizationKeys, input.oldRootVersion)) {

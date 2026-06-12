@@ -3,6 +3,7 @@ import {
   Keyring,
   MetadataTenantDataKeySource,
   unwrapOrganizationDataKeyBytes,
+  unwrapProjectDataKeyBytes,
 } from "@insecur/crypto";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
@@ -177,5 +178,18 @@ describeRls("tenant data key root rewrap (real Postgres)", () => {
     );
     expect(projectAAfterV3?.id).toBe(TEST_PROJECT_KEY_A_ID);
     expect(projectAAfterV3?.wrappedStorageRef).toMatch(/^inline:b64:/);
+    if (!projectAAfterV3?.wrappedStorageRef) {
+      throw new Error("expected project A wrapped ref after v2→v3 rewrap");
+    }
+    const projectBytesAfterV3 = await unwrapProjectDataKeyBytes(
+      RLS_TEST_ROOT_V3_BYTES,
+      projectAAfterV3.wrappedStorageRef,
+      {
+        organizationId: orgA,
+        projectId: projectA,
+        keyVersion: projectAAfterV3.keyVersion,
+      },
+    );
+    expect(projectBytesAfterV3).toHaveLength(32);
   });
 });
