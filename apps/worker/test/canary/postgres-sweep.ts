@@ -33,6 +33,15 @@ function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/gu, '""')}"`;
 }
 
+function createMigrationSweepSql(migrationUrl: string): postgres.Sql {
+  return postgres(migrationUrl, { prepare: false, max: 1 });
+}
+
+/** Cross-tenant reads for the canary sweep (migration role is NOBYPASSRLS). */
+async function enableServiceAccessScope(sql: postgres.Sql): Promise<void> {
+  await sql`SELECT set_config('app.service', ${"true"}, ${false})`;
+}
+
 async function columnContainsPattern(
   sql: postgres.Sql,
   tableName: string,
@@ -104,8 +113,9 @@ export async function sweepAllSurfaces(
   sentinel: CanarySentinel,
   consoleOutput: string,
 ): Promise<SweepHit[]> {
-  const sql = postgres(migrationUrl, { prepare: false, max: 1 });
+  const sql = createMigrationSweepSql(migrationUrl);
   try {
+    await enableServiceAccessScope(sql);
     const columns = await listPublicSchemaColumns(sql);
     const postgresHits = await sweepPostgresColumns(sql, columns, sentinel);
     const consoleHits = sweepTextOutput(consoleOutput, sentinel);
@@ -142,18 +152,27 @@ export async function simulateEncryptionBypassLeak(
     restoreValue: string;
   },
 ): Promise<{ hits: SweepHit[]; rawHit: SweepHit | undefined }> {
-  const sql = postgres(migrationUrl, { prepare: false, max: 1 });
+  const sql = createMigrationSweepSql(migrationUrl);
   const rawVariant = variantForEncoding(sentinel, "raw");
 
   try {
-    await sql.unsafe(
+    await enableServiceAccessScope(sql);
+    const updated = await sql.unsafe(
       `UPDATE ${quoteIdentifier(target.tableName)} SET ${quoteIdentifier(target.columnName)} = $1 WHERE id = $2 AND org_id = $3 AND secret_id = $4`,
       [rawVariant.pattern, target.versionId, target.orgId, target.secretId],
     );
+    if (updated.count !== 1) {
+      throw new Error(
+        `negative-control UPDATE affected ${updated.count} rows in ${target.tableName}; expected 1`,
+      );
+    }
 
-    const hits = await sweepAllSurfaces(migrationUrl, sentinel, "");
+    const columns = await listPublicSchemaColumns(sql);
+    const postgresHits = await sweepPostgresColumns(sql, columns, sentinel);
+    const hits = postgresHits;
     return { hits, rawHit: findEncodingHit(hits, "raw") };
   } finally {
+    await enableServiceAccessScope(sql);
     await sql.unsafe(
       `UPDATE ${quoteIdentifier(target.tableName)} SET ${quoteIdentifier(target.columnName)} = $1 WHERE id = $2 AND org_id = $3 AND secret_id = $4`,
       [target.restoreValue, target.versionId, target.orgId, target.secretId],
