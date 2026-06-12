@@ -94,6 +94,10 @@ Cut work into thin, independently shippable, one-PR vertical slices.
 - Each slice is scoped to one PR.
 - Prefer a tracer-bullet first slice that proves the path end to end, then
   slices that widen it.
+- Do not make a `kind-slice` whose Done state requires multiple PRs. Split
+  scaffold, CI gate, data migration, preview flip, and final wiring into separate
+  slices or keep them under a `kind-epic` container so a first linked PR cannot
+  falsely close the whole scope.
 - Leave vague ideas un-ticketed until scope is clear; record them as open
   questions rather than guessing scope.
 
@@ -115,6 +119,16 @@ contract:
 If a required field is unknowable from the plan, add the heading, mark the ticket
 `needs-info`, leave the specific question, and do not mark it ready. Do not
 fabricate criteria to make a ticket look ready.
+
+Write acceptance criteria as proof obligations the implementer and reviewer can
+map one-for-one to evidence. If the requirement is structural, such as "derive,
+do not copy", "fail closed", "no production-path assertion", "real driver path",
+or "env var reaches the test process", name the exact behavior and regression
+test that must prove it.
+
+Record deploy prerequisites, runtime secrets, hosted gates, generated artifact
+updates, and CI env passthrough requirements as explicit acceptance criteria or
+required checks. Do not bury launch blockers only in background docs.
 
 Prefer slices that match known strong agent-fit work: docs, tests, build or CI
 updates, small refactors with clear checks, scoped bugs with reproduction, and
@@ -139,8 +153,8 @@ For each `kind-slice`:
 - apply `ready-for-agent` only when the slice is scoped to one PR, routed,
   type and risk labeled, and complete enough to verify
 - place ready `kind-slice` issues in the configured ready state, usually `Todo`,
-  unless config names a specific blocked-ready state; do not park
-  implementation-ready slices in `Backlog`
+  even when they are blocked by other tickets; do not park
+  implementation-ready slices in Linear `Backlog`
 - otherwise apply `needs-info` or `ready-for-human` with the exact gap
 
 `ready-for-agent` means no further human refinement is needed before agent
@@ -155,13 +169,15 @@ run safe work in parallel.
 - Encode dependencies with the tracker's relationship or blocker fields when the
   provider supports them; otherwise record them in the body in the configured
   shape.
+- Use the configured relationship direction. By default, if ticket A needs ticket
+  B first, A is blocked by B and B blocks A.
 - Order slices so each depends only on earlier ones. Break cycles and report
   them.
 - Serialize slices that must not run concurrently even without a direct data
   dependency, such as shared schema or migration ordering, using the configured
   dependency mechanism.
-- Encoding a dependency never removes `ready-for-agent` or a worker environment
-  label.
+- Encoding a dependency never removes `ready-for-agent`, the configured ready
+  state, or a worker environment label.
 
 ## File Footprint
 

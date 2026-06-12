@@ -42,11 +42,20 @@ Last updated: 2026-06-01
 - Read-only verification query: list_issues team:"Example" state:Todo
 - Status field names: status / statusType
 - Ready state: Todo
-- Intake states: Triage, Backlog
+- Intake states: Triage
+- Linear Backlog state: Backlog
+- Ready-state promotion source states: Triage, Backlog
+- Linear Backlog policy: not delegated to Cursor unless explicitly reviewed and
+  promoted to Todo; use for uncommitted, intentionally parked, or incorrectly
+  shaped work
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
+- Code-host issue sync policy: GitHub PR links and Linear tickets are synced when
+  both exist; Linear may auto-advance ticket state from PR status
 - Kind labels: kind-spec, kind-epic, kind-slice (single-select; only kind-slice dispatchable)
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
+- Readiness-label query policy: label queries for ready-for-agent or
+  ready-for-human exclude state:Done unless explicitly auditing Done cleanup
 - Worker environment labels: remote-cursor (approved to run in remote Cursor)
 - Repo-route label: <org>/example-app (REQUIRED before issue-assigned delegation;
   tells Cursor which GitHub repo to clone)
@@ -55,13 +64,23 @@ Last updated: 2026-06-01
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Startable work criteria: kind-slice, Todo, ready-for-agent, remote-cursor,
   repo-route label, complete body, no active blockers, no active claim, no open PR
+- Dependency policy: use Linear blocker relationships; if issue A needs issue B
+  first, A is blocked by B and B blocks A. Keep blocked-but-ready slices in Todo,
+  not Linear Backlog.
 - Done cleanup: remove ready-for-agent when moving a ticket to Done
 
 ## Work Coordination
 
 - Worker delegation paths: issue-assigned (Cursor), local-worktree
 - Default worker path: issue-assigned (Cursor)
-- Concurrency cap: 3 concurrent Cursor agents
+- Active PR/preview cap: 3 active delivery slots. Count repo-level open PRs,
+  active PR-scoped previews, and Cursor dispatches that have not yet returned a
+  PR
+- Cap count policy: count each open PR once, add active previews that are not
+  clearly linked to an already counted PR, then add unreturned Cursor
+  dispatches. Do not double-count a normal linked PR+preview
+- Capacity drain policy: when the cap is full, review, merge, close, or escalate
+  existing PRs/previews before assigning more Cursor work
 - Stuck-worker timeout: no branch/PR/agent-thread reply within <N> min -> direct
   thread nudge, then escalate or re-delegate only if the session cannot continue
 - Attempt cap: 3 implement+review cycles before the thrash breaker escalates
@@ -71,14 +90,19 @@ Last updated: 2026-06-01
 - Post-merge preparation: <install/build/generated-artifact refresh needed before
   local main checks, or none>
 - Post-merge check: <command/signal on main, or none>
-- Verified-ready backlog policy: repair routine label/status/route/review
+- Verified-ready ticket-set policy: repair routine label/status/route/review
   evidence mismatches and keep scoped ready tickets moving
 - Completely-blocked stop policy: stop the recurring orchestrator run for this
   scope and report blockers instead of waking forever
 - Authoritative issue state: Linear
 - Authoritative PR state: GitHub
 - Merge authority: orchestrator for LOW/MEDIUM green PRs; human for HIGH
+- Single-ticket one-off policy: a direct user request for one Linear issue grants
+  authority to orchestrate only that issue through configured states, including
+  Done when merge and verification evidence exists
 - Friction-log ticket: <parked Linear ticket id, out of the work queue>
+- Capacity metrics: open PRs, active previews, active delivery slots, and
+  remaining headroom at start and end of orchestration runs
 
 ## Agent Access
 
@@ -97,13 +121,25 @@ Last updated: 2026-06-01
 - Draft PR policy: Cursor opens a draft PR; orchestrator marks it ready-for-review
   after review is clean and required checks pass, then verifies non-draft
 - Ready-for-review owner: Agent Orchestrator
-- CodeRabbit: required for HIGH-risk diffs after local review is clean; skip for
-  LOW/MEDIUM unless the reviewer is uncertain or the user asks
+- CodeRabbit config source: root `.coderabbit.yaml`
+- CodeRabbit bot handle: @coderabbitai
+- CodeRabbit auto-review: enabled for non-draft PRs unless root config says
+  otherwise
+- CodeRabbit command policy: HIGH-risk diffs require CodeRabbit after local
+  review is clean; LOW/MEDIUM skip unless the reviewer is uncertain or the user
+  asks. Use top-level PR comments for `@coderabbitai review` or
+  `@coderabbitai full review`; add `@coderabbitai ignore` to the PR description
+  to skip optional auto-review when rate limits or credits matter.
 - Merge authority: see Work Coordination
 
 ## Environments
 
 - Local: self-contained unless this repo says otherwise
+- Preview: PR-scoped Cursor/GitHub preview environment
+- Preview provider cap: 3 active previews
+- Preview cleanup policy: close verified duplicate PRs or terminate orphan
+  previews before assigning more work; never close draft or in-progress PRs only
+  to free capacity
 - Production: explicit approval required
 - Hosted checks allowed without approval: <list or none>
 - Hosted checks requiring approval: <list>
