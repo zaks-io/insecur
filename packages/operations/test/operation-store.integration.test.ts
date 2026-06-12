@@ -6,7 +6,7 @@ import { OPERATION_ERROR_CODES } from "../src/operation-errors.js";
 import { TenantOperationStore } from "../src/tenant-operation-store.js";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
-import { TEST_ORG_A_ID } from "../../tenant-store/test/rls/test-ids.js";
+import { TEST_ORG_A_ID, TEST_ORG_B_ID } from "../../tenant-store/test/rls/test-ids.js";
 import {
   cancelOperation,
   createOperation,
@@ -65,6 +65,61 @@ describeIntegration("operation store (tenant-scoped)", () => {
     expect(second.created).toBe(false);
     expect(second.operation.operationId).toEqual(first.operation.operationId);
     expect(second.operation.progress).toEqual(first.operation.progress);
+  });
+
+  it("isolates idempotency keys across organizations with the same key value", async () => {
+    const orgA = organizationId.brand(TEST_ORG_A_ID);
+    const orgB = organizationId.brand(TEST_ORG_B_ID);
+    const sharedKey = "idem-cross-org-shared-key-1";
+
+    const orgACreate = await createOperation({
+      organizationId: orgA,
+      intentCode: "sync.run",
+      idempotencyKey: sharedKey,
+    });
+    expect(orgACreate.created).toBe(true);
+
+    const orgBCreate = await createOperation({
+      organizationId: orgB,
+      intentCode: "provider.reauth",
+      idempotencyKey: sharedKey,
+    });
+    expect(orgBCreate.created).toBe(true);
+    expect(orgBCreate.operation.operationId).not.toEqual(orgACreate.operation.operationId);
+    expect(orgBCreate.operation.intentCode).toBe("provider.reauth");
+
+    const orgBReplay = await createOperation({
+      organizationId: orgB,
+      intentCode: "provider.reauth",
+      idempotencyKey: sharedKey,
+    });
+    expect(orgBReplay.created).toBe(false);
+    expect(orgBReplay.operation.operationId).toEqual(orgBCreate.operation.operationId);
+    expect(orgBReplay.operation.operationId).not.toEqual(orgACreate.operation.operationId);
+
+    const orgAReplay = await createOperation({
+      organizationId: orgA,
+      intentCode: "sync.run",
+      idempotencyKey: sharedKey,
+    });
+    expect(orgAReplay.created).toBe(false);
+    expect(orgAReplay.operation.operationId).toEqual(orgACreate.operation.operationId);
+
+    await expect(
+      getOperation({
+        organizationId: orgB,
+        operationId: orgACreate.operation.operationId,
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.notFound,
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: orgB }, async ({ sql }) => {
+      const store = new TenantOperationStore(sql);
+      const byKey = await store.findByIdempotencyKey(orgB, sharedKey);
+      expect(byKey?.operationId).toEqual(orgBCreate.operation.operationId);
+      expect(byKey?.operationId).not.toEqual(orgACreate.operation.operationId);
+    });
   });
 
   it("rejects idempotency key reuse with a different intent code", async () => {
