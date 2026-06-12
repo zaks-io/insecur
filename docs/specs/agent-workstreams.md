@@ -26,21 +26,23 @@ seams is a dependency or a downstream consumer, not a place to improvise.
 
 These are the seams agents should integrate through instead of sharing internals:
 
-| Seam                            | Owner                   | Contract                                                                                                                                                 |
-| ------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| First Value Milestone Contract  | W2/W4/W5 with W1/W3/W10 | Provider-free non-protected development Secret Use through the real tenant, access, storage, crypto, Secret Version, Runtime Injection, and audit seams. |
-| Tenant-Scoped Store             | W1                      | Short scoped transaction, tenant-local RLS setting, no raw executor, audit-safe typed data access.                                                       |
-| Effective Access Resolver       | W2                      | Actor plus Organization/Project/Environment IDs in, coordinate-bound Authorization Scope set out.                                                        |
-| Keyring                         | W3                      | Resolve and rewrap key hierarchy without exposing tenant keys to callers.                                                                                |
-| Encryption Envelope             | W3                      | Domain identity plus plaintext in, wrapped material out; decrypt only into approved execution path.                                                      |
-| Storage Security Gate           | W3                      | Readiness verdict and evidence for production Secret Delivery and Secret Sync.                                                                           |
-| Secret Version Store            | W4                      | Wrapped material and exact IDs only; append, publish, rollback, discard; no approval knowledge.                                                          |
-| Operation Store                 | W1 with W8/W10          | Durable operation state, idempotency, wait/retry metadata, leases, fencing tokens, cancellation, and audit references.                                   |
-| Protected Change Orchestrator   | W6                      | Metadata-only exact-ID state machine for Promotion, rollback, approval, and policy gates.                                                                |
-| Provider Adapter Port           | W8                      | Metadata-only plan/lookup plus approved write execution; no provider value read-back.                                                                    |
-| Runtime Injection Grant Service | W5 with W7              | Short-lived one-use grant issue/consume for exact Runtime Injection Policy Version.                                                                      |
-| Audit Event Writer              | W10                     | Typed tenant-qualified event write with Sensitive Metadata handling and export compatibility.                                                            |
-| Human Approval Surface          | W9 with W6              | Web-mediated challenge and approval UI for bounded operation IDs and impact reviews.                                                                     |
+| Seam                            | Owner                   | Contract                                                                                                                                                                                                                                                        |
+| ------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First Value Milestone Contract  | W2/W4/W5 with W1/W3/W10 | Provider-free non-protected development Secret Use through the real tenant, access, storage, crypto, Secret Version, Runtime Injection, and audit seams.                                                                                                        |
+| Tenant-Scoped Store             | W1                      | Short scoped transaction, tenant-local RLS setting, no raw executor, audit-safe typed data access.                                                                                                                                                              |
+| Effective Access Resolver       | W2                      | Actor plus Organization/Project/Environment IDs in, coordinate-bound Authorization Scope set out.                                                                                                                                                               |
+| Keyring                         | W3                      | Resolve and rewrap key hierarchy without exposing tenant keys to callers.                                                                                                                                                                                       |
+| Encryption Envelope             | W3                      | Domain identity plus plaintext in, wrapped material out; decrypt only into an approved execution path, the modules on the decrypt-import allowlist decided by [ADR-0071](../adr/0071-decrypt-egress-import-boundary.md). The lint enforcement is not wired yet. |
+| Storage Security Gate           | W3                      | Readiness verdict and evidence for production Secret Delivery and Secret Sync.                                                                                                                                                                                  |
+| Secret Version Store            | W4                      | Wrapped material and exact IDs only; append, publish, rollback, discard; no approval knowledge.                                                                                                                                                                 |
+| Operation Store                 | W1 with W8/W10          | Durable operation state, idempotency, wait/retry metadata, leases, fencing tokens, cancellation, and audit references.                                                                                                                                          |
+| Protected Change Orchestrator   | W6                      | Metadata-only exact-ID state machine for Promotion, rollback, approval, and policy gates.                                                                                                                                                                       |
+| Provider Adapter Port           | W8                      | Metadata-only plan/lookup plus approved write execution; no provider value read-back.                                                                                                                                                                           |
+| Runtime Injection Grant Service | W5 with W7              | Short-lived one-use grant issue/consume for exact Runtime Injection Policy Versions or allowed non-protected one-command selections.                                                                                                                            |
+| Audit Event Writer              | W10                     | Typed tenant-qualified event write with Sensitive Metadata handling and export compatibility.                                                                                                                                                                   |
+| Human Approval Surface          | W9 with W6              | Web-mediated challenge and approval UI for bounded operation IDs and impact reviews.                                                                                                                                                                            |
+| Sensitive Detail Gate           | W2 with W9              | High-Assurance-Challenge-backed decision required before decrypted Sensitive Metadata appears in any User-facing surface or full-fidelity export.                                                                                                               |
+| Web-To-API Token                | W9 with W2              | Short-lived scoped token minted per request by the BFF and validated through the Effective Access Resolver; the browser never holds a bearer token.                                                                                                             |
 
 ## Integration Order
 
@@ -51,10 +53,17 @@ These are the seams agents should integrate through instead of sharing internals
 4. W2, W4, W5, and W10 build the First Value Milestone only through the contract in
    [first-value-milestone.md](../first-value-milestone.md).
 5. W5 builds CLI command framework and non-protected First Value Runtime Injection on W2/W4.
-6. W6 and W9 build Protected Change Orchestration and the Human Approval Surface on W2/W4.
+6. W6 and W9 build Protected Change Orchestration and the Human Approval Surface on W2/W4. W6
+   builds the core Promotion approval state machine and High-Assurance Challenge gates first;
+   Approval Impact Review ships without sync impact until W8 lands, consistent with
+   [product-spec.md](product-spec.md) section 8, which scopes that impact "where applicable".
 7. W7 adds Machine Identity, GitHub OIDC, and deploy credentials so protected runtime injection has
    a real credential boundary.
-8. W8 adds App Connections and Cloudflare/GitHub sync on W1/W3/W4/W6/W10.
+8. W8 adds App Connections and Cloudflare/GitHub sync on W1/W3/W4/W6/W10 and wires Provider Adapter
+   Port plan/lookup metadata into the Approval Impact Review. Protected Secret Sync enable/run and
+   Cloudflare Worker secret writes stay fail-closed until W6's approval gates exist, because the
+   accepted Approval Impact Review is the approval evidence for a Worker secret deploy
+   ([ADR-0039](../adr/0039-cloudflare-worker-secrets-sync-target.md)).
 9. W10 keeps audit, telemetry, backup, restore, incident response, and release-gate evidence wired
    throughout.
 
@@ -66,8 +75,10 @@ Owns:
 - ESLint flat config, type-aware rules, Prettier, and size/complexity budgets.
 - Turbo tasks and cache policy, including remote read for developers/agents and remote write only
   for CI.
-- GitHub Actions topology: validate, PR preview, staging deploy, production deploy, daily security
-  scan.
+- GitHub Actions topology: the `CI` workflow (its `Verify` job runs `pnpm verify`), `pr-preview`,
+  `pr-preview-cleanup`, and `security-daily` exist today; staging deploy and production deploy are
+  planned per [build-tooling.md](../build-tooling.md) and
+  [ADR-0029](../adr/0029-environments-and-cd-trust-model.md) but not yet created.
 - Secret scanning, dependency scanning, SBOM/vulnerability hooks, and fork isolation.
 
 Does not own product schema, auth flows, or runtime behavior.
@@ -78,9 +89,9 @@ Primary references: [ADR-0053](../adr/0053-remote-build-cache-trust-model.md),
 [ADR-0056](../adr/0056-supply-chain-hardening-posture.md),
 [build-tooling.md](../build-tooling.md).
 
-Done means `pnpm validate` is the local and CI truth, the required workflows exist, remote cache
-write is CI-only, forked PRs receive no secret-bearing jobs, and adding a dependency that wants a
-postinstall fails until reviewed.
+Done means `pnpm verify` is the local and CI truth, the `CI`, `pr-preview`, `pr-preview-cleanup`,
+and `security-daily` workflows exist, remote cache write is CI-only, forked PRs receive no
+secret-bearing jobs, and adding a dependency that wants a postinstall fails until reviewed.
 
 ## W1 - Persistence, Tenant Boundary, And Operations State
 
@@ -93,6 +104,9 @@ Owns:
 - Durable operation state, idempotency keys, lease rows, compare-and-set primitives, and partial
   unique indexes for one-use or single-pending invariants.
 - Real Postgres RLS test harness using the runtime `NOBYPASSRLS` role.
+- Plaintext Metadata Allowlist registry checked in beside the schema, and its full-enumeration
+  default-deny conformance gate, per
+  [ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md).
 
 Does not own authorization semantics, encryption, provider adapters, or CLI UX.
 
@@ -110,13 +124,19 @@ Interface commitments:
 - Store tests prove an unscoped query fails closed and cross-org reads are blocked by the database.
 - Operation Store tests prove idempotent start, compare-and-set transitions, safe polling output,
   lease fencing, and no Sensitive Values in operation metadata.
+- Every schema column is registered in the Plaintext Metadata Allowlist or the conformance gate
+  fails closed, so an unregistered plaintext column cannot merge green
+  ([ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)).
 
 ## W2 - Human Identity, Authorization, And Onboarding
 
 Owns:
 
-- WorkOS AuthKit integration, session cookies, CSRF, session rotation, MFA enrollment state, and
-  High-Assurance Challenge initiation.
+- WorkOS AuthKit integration, session validation primitives and CLI session exchange, CSRF helpers
+  consumed by W9, MFA enrollment state, and High-Assurance Challenge initiation.
+- Web-to-API token validation through the Effective Access Resolver for tokens W9 mints.
+- Sensitive Detail Gate decisions as a bounded High-Assurance Challenge purpose alongside the other
+  challenge-gated actions.
 - Instance Bootstrap, Bootstrap Secret validation, Bootstrap Operator Claim CAS, and initial owner
   Membership creation.
 - Guided Organization Provisioning, Personal Organization creation, Default Team creation,
@@ -126,8 +146,8 @@ Owns:
 - Agent session step-up contract: exit code `10`, `auth.high_assurance_required`, bounded
   operation IDs.
 
-Does not own web layout, protected approval state machine, machine credential exchange, or Service
-Access UI.
+Does not own web layout, browser-facing session cookie/CSRF/rotation behavior (W9 per ADR-0051),
+protected approval state machine, machine credential exchange, or Service Access UI.
 
 Primary references: [ADR-0003](../adr/0003-human-authentication-and-authorization.md),
 [ADR-0009](../adr/0009-workos-mfa-without-sms.md),
@@ -136,7 +156,11 @@ Primary references: [ADR-0003](../adr/0003-human-authentication-and-authorizatio
 [ADR-0032](../adr/0032-agent-session-execution-and-step-up.md),
 [ADR-0034](../adr/0034-effective-access-resolver.md),
 [ADR-0040](../adr/0040-guided-personal-organization-provisioning.md),
-[first-value-milestone.md](../first-value-milestone.md).
+[ADR-0051](../adr/0051-web-console-architecture.md),
+[ADR-0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md),
+[first-value-milestone.md](../first-value-milestone.md), and the canonical Authorization Scope and
+Role-preset registries in `packages/access/src/authorization-scopes.ts` and
+`packages/access/src/built-in-role-scopes.ts`.
 
 Interface commitments:
 
@@ -147,6 +171,9 @@ Interface commitments:
   authority.
 - Guided Organization Provisioning creates First Value objects through normal Organization,
   Membership, Project, Environment, and audit paths.
+- A registry conformance suite encodes the role-bundle relational invariants as set assertions over
+  the `packages/access` registries, so a violating bundle change fails `pnpm verify`
+  ([ADR-0034](../adr/0034-effective-access-resolver.md)).
 
 ## W3 - Key Custody, Keyring, Encryption, And Storage Security Gate
 
@@ -157,8 +184,8 @@ Owns:
 - Organization Data Keys, Project Data Keys, key versions, and the Keyring.
 - Domain-agnostic encryption envelope and wrappers for Secrets, Provider Credentials, and Sensitive
   Metadata.
-- Customer-Managed Key Custody mode and Custody-Locked state, if included in the implementation
-  slice.
+- Customer-Managed Key Custody mode and Custody-Locked state, deferred past V1; see the
+  [phasing.md](../phasing.md) deferred scope parking lot.
 - Storage Security Gate readiness checks and evidence.
 
 Does not own Secret Version lifecycle, protected approval, provider writes, or backup job
@@ -170,6 +197,7 @@ Primary references: [ADR-0005](../adr/0005-key-hierarchy-and-rotation.md),
 [ADR-0031](../adr/0031-keyring-below-the-encryption-engine.md),
 [ADR-0044](../adr/0044-no-reveal-custody-is-a-product-surface-guarantee.md),
 [ADR-0050](../adr/0050-customer-managed-key-custody.md),
+[ADR-0064](../adr/0064-minimize-secret-resident-surface.md),
 [storage-security-gate.md](../storage-security-gate.md).
 
 Interface commitments:
@@ -192,6 +220,7 @@ Owns:
 - Non-protected write path that can create or update current values.
 - Protected Blind Secret Write path that creates Draft Versions only.
 - Rollback as ciphertext copy, Draft Version Discard, tombstones, and retention metadata.
+- Shared Secret Source model and explicit Environment attachments.
 - Development-only Secret Import preflight and dry-run.
 
 Does not own encryption implementation, approval policy, CLI rendering, or provider delivery.
@@ -221,6 +250,8 @@ Owns:
 - Memory/session-only CLI auth shell behavior and agent-safe step-up polling.
 - `insecur run` and direct `run --variable-key` First Value path.
 - Runtime Injection Policy commands and immutable Runtime Injection Policy Versions.
+- Runtime Injection Grant Service server side: grant issue, CAS one-use consume, secret-version
+  binding at issue time, and the decrypt-for-runtime path.
 - Injection Grant retrieval, one-use consume, child process execution, and no stdout/stderr capture.
 
 Does not own WorkOS browser login implementation, machine credential exchange, or secret storage.
@@ -238,7 +269,10 @@ Interface commitments:
 - Human and JSON output are metadata-only by default.
 - First Value commands use ordinary `secrets set` and `run` paths, not onboarding-only commands.
 - Non-interactive destructive commands require exact Opaque Resource IDs.
-- Protected Environment injection refuses human session tokens and requires W7 machine credentials.
+- Protected Environment injection issuance requires the `runtime_injection:grant_issue_protected`
+  scope, which only W7 machine credential resolution contributes, per
+  [ADR-0038](../adr/0038-protected-delivery-requires-machine-credential.md); the grant service
+  checks the scope, never actor type.
 - Child process output is never captured by insecur.
 
 ## W6 - Protected Changes, Approval, And Delivery Risk Policy
@@ -246,14 +280,16 @@ Interface commitments:
 Owns:
 
 - Protected Change Orchestrator implementation.
-- Promotion Change Set, Approval Request, Approval Impact Review, Approval Impact Fingerprint,
-  Approval Impact Snapshot, terminal closure states, and rollback coordination.
+- Promotion Change Set, Approval Request, Approval Impact Review, Approval Impact Review
+  Fingerprint, Approval Impact Snapshot, terminal closure states, and rollback coordination.
 - Single-approver V1 policy behavior and threshold-generalizable data model.
 - Delivery Risk Policy Presets, Preview Automation Opt-In, and Risk-Broadening change gates.
+- Protected Shared Secret Source attachment gate.
 - High-Assurance Challenge evidence binding for approval and policy changes.
 
 Does not own web UI components, authentication provider integration, Secret Version Store internals,
-or provider writes.
+provider writes, or Approval Notification delivery adapters (W10); the orchestrator emits
+metadata-only events to those adapters.
 
 Primary references: [ADR-0017](../adr/0017-protected-environment-promotion-and-rollback.md),
 [ADR-0033](../adr/0033-staged-change-set-and-publish.md),
@@ -264,6 +300,9 @@ Primary references: [ADR-0017](../adr/0017-protected-environment-promotion-and-r
 Interface commitments:
 
 - Orchestrator interface is metadata-only and exact-ID based.
+- Orchestrator consumes Effective Access, High-Assurance Challenge evidence, Sensitive Detail Gate
+  decisions, Storage Security Gate status, and delivery adapter revalidation; it does not replace
+  them.
 - Approval cannot create or change protected delivery configuration.
 - Protected delivery configuration approval cannot promote Draft Versions.
 - Recomputed impact can stale an approval screen before live effects.
@@ -279,7 +318,10 @@ Owns:
 - Short-lived machine access token minting, Credential Scopes, trusted source constraints, reuse
   and denial audit events.
 - Deploy Key Rotation Policy, expiration, reminders, disable, and non-expiring risk visibility.
-- Protected Environment machine credential boundary for Runtime Injection.
+- Protected Environment machine credential boundary for Runtime Injection: machine effective-access
+  resolution is the only contributor of the `runtime_injection:grant_issue_protected` scope W5's
+  grant service requires, per
+  [ADR-0038](../adr/0038-protected-delivery-requires-machine-credential.md).
 
 Does not own provider App Connections, user Memberships, or approval authority.
 
@@ -337,14 +379,18 @@ Interface commitments:
 Owns:
 
 - TanStack Start tenant web console deployed on Cloudflare Workers.
-- BFF session cookie handling, CSRF integration, and Service Binding calls to the API Worker.
-- Short-lived scoped web-to-API token minting with no browser-held bearer token.
+- Browser-facing session cookie handling, CSRF enforcement, and session rotation per ADR-0051,
+  consuming W2's session validation and CSRF primitives, plus Service Binding calls to the API
+  Worker.
+- Short-lived scoped web-to-API token minting with no browser-held bearer token; W2 validates the
+  minted tokens through the Effective Access Resolver.
 - V1 metadata browsing pages needed for approval context.
 - Human Approval Surface for High-Assurance Challenges, Approval Requests, impact review, and
   policy-gated confirmations.
 - Structural no-reveal web token boundary.
 
-Does not own Effective Access semantics, protected state machine decisions, or CLI reveal paths.
+Does not own Effective Access semantics, W2's auth and session validation primitives, protected
+state machine decisions, or CLI reveal paths.
 
 Primary references: [ADR-0051](../adr/0051-web-console-architecture.md),
 [ADR-0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md),
@@ -355,6 +401,8 @@ Interface commitments:
 
 - Browser never receives an API bearer token.
 - Browser never receives stored Sensitive Values, including non-protected reveal.
+- Approval and impact-review pages fetch decrypted Sensitive Metadata only after a passed Sensitive
+  Detail Gate.
 - V1 web does not implement full management parity unless scope changes.
 - Service Access is a separate surface and not a role-gated tenant-console mode.
 
@@ -366,7 +414,13 @@ Owns:
   safety.
 - Tamper-evident and Ed25519-signed audit export plus `audit verify`.
 - Allowlisted telemetry emission, Cloudflare Logpush/R2 raw log posture, and external sink guard.
-- Metadata-safe Webhook Subscriptions and Event Notifications.
+- Metadata-safe Webhook Subscriptions, Event Notifications, and Approval Notification delivery
+  adapters: email and in-app event emission in V1; browser/mobile push via Push Device
+  Registrations is post-V1 per [open-questions.md](../open-questions.md).
+- Planned no-plaintext canary harness (`pnpm test:canary`), connecting directly with the
+  migration-role URL to sweep persisted surfaces for sentinel Sensitive Values, per
+  [ADR-0069](../adr/0069-no-plaintext-canary-gate.md). The script and CI task are decided but not
+  wired yet.
 - Minimal backup: Neon PITR assumptions, daily encrypted logical R2 export, recovery canary, and
   restore drill runbook.
 - Incident response runbooks, especially tenant-reported compromise triage and custody-material
@@ -378,6 +432,11 @@ Owns:
 Does not own product feature implementation except the audit/backup/telemetry hooks required to
 prove and operate those features.
 
+Whoever later implements Push Device Registrations inherits ADR-0017's requirements:
+High-Assurance Challenge on registration and lifecycle invalidation on logout-all, MFA reset, and
+offboarding. Registration lifecycle likely lands in W2 with the account security controls it owns;
+record that ownership decision in an ADR when push is scheduled.
+
 Primary references: [ADR-0008](../adr/0008-security-gates-and-runbooks.md),
 [ADR-0014](../adr/0014-tamper-evident-audit-exports.md),
 [ADR-0030](../adr/0030-hybrid-allowlisted-telemetry.md),
@@ -388,11 +447,16 @@ Primary references: [ADR-0008](../adr/0008-security-gates-and-runbooks.md),
 [ADR-0048](../adr/0048-breach-forensic-record-separate-from-audit-retention.md),
 [ADR-0058](../adr/0058-minimal-backup-and-tested-restore.md),
 [ADR-0059](../adr/0059-tenant-reported-secret-compromise-response.md),
-[security-runbooks-and-release-gates.md](../security-runbooks-and-release-gates.md).
+[ADR-0068](../adr/0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md),
+[security-runbooks-and-release-gates.md](../security-runbooks-and-release-gates.md), and the
+canonical audit event code registry in `packages/audit/src/audit-event-codes.ts`, the same way W2
+references the `packages/access` registries.
 
 Interface commitments:
 
 - Audit events are typed, tenant-qualified, and exclude Sensitive Values.
+- Full-fidelity audit exports and runbook output include decrypted Sensitive Metadata only after
+  Sensitive Detail Gate.
 - Telemetry is allowlist-by-construction, not scrub-after-capture.
 - Restore drill is a pre-production gate, not post-v1 polish.
 - Legal and marketing claims are checked against governing ADRs before publishing.

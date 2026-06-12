@@ -36,17 +36,6 @@ blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); 
 
 ## P2 — Build-time correctness
 
-- [ ] **#5 Atomic single-consumption on the Bootstrap Operator Claim** (CONTEXT.md:97-99).
-      Resolved 2026-05-25 grill: two mechanisms, different jobs. **CAS** consumes the single pending
-      claim in one statement — `UPDATE bootstrap_operator_claim SET status='consumed',
-consumed_by=$user, consumed_at=now() WHERE status='pending'`; rowcount 1 wins, rowcount 0 means
-      already claimed (pool/isolation-safe behind Hyperdrive, no advisory lock). The loser gets
-      `bootstrap.already_claimed` (exit 6), no operator granted, fail-closed. **Partial unique index**
-      is the caller-agnostic backstop making more than one bootstrap-origin Instance Operator
-      structurally impossible regardless of code path. On win, invalidate the one-time Bootstrap
-      Secret. Same CAS + partial-unique-index pattern now governs one-use Injection Grant consumption
-      and the single-pending-Approval-Request invariant (ADR-0027). _Effort: S._
-
 - [ ] **#9 Keep the deferred layers add-back-ready.** Hold the Approval Request data model
       batch-ready and the Protected Approval Policy threshold generalizable (count approvals,
       threshold = 1 now) so Staged Change Set and multi-approver drop in later without a migration.
@@ -54,10 +43,11 @@ consumed_by=$user, consumed_at=now() WHERE status='pending'`; rowcount 1 wins, r
 
 ## Business
 
-- [ ] **#10 Model unit economics against a realistic automation profile** before pricing is
+- [ ] **#10 Re-run unit economics against a measured automation profile** before pricing is
       load-bearing. The "robots free" promise (machines unmetered) sits against automation-driven
-      Cloudflare cost; no cut in this review addresses it, and `docs/research/unit-economics.md` is a
-      stub. _Effort: M. Depends on: a real automation usage sample (ideally from V1 dogfooding)._
+      Cloudflare cost. The rough model v0 exists (`docs/research/unit-economics.md`); what remains
+      is re-running it with real automation usage. _Effort: M. Depends on: a real automation usage
+      sample (ideally from V1 dogfooding)._
 
 ## Closed (landed in specs/ADRs)
 
@@ -67,6 +57,16 @@ consumed_by=$user, consumed_at=now() WHERE status='pending'`; rowcount 1 wins, r
       cross-references ADR-0033. The retired Queues/Durable-Objects sync runtime was swept to Inline
       Sync Execution (ADR-0057) across architecture.md, security-plan.md, cli-and-sync.md,
       protected-change-orchestration.md, project-status.md, phasing.md, and ADR-0016/0025/0027/0051.
+
+- [x] **#5 Atomic single-consumption on the Bootstrap Operator Claim.** Mechanism landed in
+      `@insecur/instance-bootstrap` via INS-47 (core CAS claim + partial unique indexes, #20),
+      hardened by INS-108 (authenticated actor) and INS-109 (rollback regression coverage, #40).
+      Covered by `packages/instance-bootstrap/test/bootstrap-operator-claim.integration.test.ts`
+      including the duplicate-claim `bootstrap.already_claimed` path; on-win Bootstrap Secret
+      invalidation lands in `apply-bootstrap-grants-in-transaction.ts`. Design record: ADR-0027's
+      CAS + partial-unique-index paragraph (stated there via Injection Grant consumption and the
+      single-pending-Approval-Request invariant) and the `@insecur/instance-bootstrap` entry in
+      [docs/project-status.md](docs/project-status.md) ("pending claim CAS").
 
 - [x] **#2 Inline-sync partial-failure state machine.** Design + reconciliation done. ADR-0057
       supersedes ADR-0012/0013 and amends ADR-0039; CONTEXT.md carries the four glossary terms

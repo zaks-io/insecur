@@ -52,9 +52,18 @@ This repo uses the default five-label triage vocabulary. See `docs/agents/triage
 
 This repo uses a multi-context domain doc layout rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
 
-### Project status
+### Specs and source of truth
 
-Current implementation status and next steps are tracked in `docs/project-status.md`.
+Content ownership, the single-statement rule, and deterministic doc-conflict resolution are
+defined in the Source Of Truth Rules in `docs/specs/README.md` (decision record: ADR-0067). When a
+non-owning doc disagrees with its owning doc, the non-owning doc is the defect: proceed on the
+owner's content and file the defect. Only owner-vs-owner conflicts (for example spec vs ADR) stop
+work and reopen the decision.
+
+### Project status and roadmap
+
+Current implementation status and next steps are tracked in `docs/project-status.md`. High-level
+milestone sequencing for the agent-fleet build-out is `docs/roadmap.md`.
 
 ### Testing
 
@@ -82,7 +91,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - **Duplicate scan:** `pnpm duplicates:check` (strict jscpd zero gate). CI/pre-push enforce `pnpm duplicates:ci` (ratchet, threshold 0.5%).
 - **Unused code/deps:** `pnpm knip` (blocking in CI, pre-push, and verify)
 - **Workflow lint:** `pnpm lint:actions` (actionlint; blocking in CI, optional-local in pre-push/verify)
-- **Typecheck:** `pnpm typecheck` (runs across all 10 workspace packages)
+- **Typecheck:** `pnpm typecheck` (runs across all 12 packages plus `apps/worker` — 13 workspace projects)
 - **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and scaffold file checks)
 - **Local Postgres:** `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
 - **Build:** `pnpm build` (includes the Worker dry-run deploy through `apps/worker/wrangler.jsonc`)
@@ -92,11 +101,10 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 ### Known caveats
 
 - `engine-strict=true` in `.npmrc` means `pnpm install` will hard-fail if Node is not on major 24. Always verify `node --version` first.
-- `@insecur/worker` has a scaffold-only `/healthz` route. It is not product behavior and does not prove storage, auth, encryption, audit, or Runtime Injection.
-- ESLint, Prettier, Vitest, and `pnpm verify` are wired up. Package tests currently use Vitest's no-test pass-through until product slices add real tests.
-- jscpd duplicate-code detection: `pnpm duplicates:check` is the strict local zero gate; the `CI` workflow and pre-push run `pnpm duplicates:warn` (annotations) then `pnpm duplicates:ci` (blocking ratchet at threshold 0.5%, just above the current ~0.42% backlog). knip (`pnpm knip`) is also blocking in CI, pre-push, and verify; its export/type dead-code rules are deferred off in `knip.json` until package indexes wire up (ADR-0018).
+- `@insecur/worker` serves `/healthz` liveness plus the `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/projects`, and `/v1/runtime-injection` product routes; `pnpm test:e2e` drives the First Value loop through these real routes.
+- jscpd duplicate-code detection: `pnpm duplicates:check` is the strict local zero gate; the `CI` workflow and pre-push run `pnpm duplicates:warn` (annotations) then `pnpm duplicates:ci` (blocking ratchet at threshold 0.5%, just above the current ~0.42% backlog). knip (`pnpm knip`) is also blocking in CI, pre-push, and verify; its export/type dead-code rules remain off in `knip.json` — package indexes are wired now, so enabling them is an eligible follow-up config change.
 - Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
 - `pnpm test:rls` runs the real forced-RLS tenant suite (requires `DATABASE_URL_RUNTIME`); it now executes in CI's `postgres-integration` job alongside `pnpm test:e2e` (the First Value loop through the real Worker routes). See `docs/agents/testing.md`.
 - Lefthook pre-commit runs staged Prettier/ESLint, optional local gitleaks (skipped when `gitleaks` is not on PATH), and `turbo typecheck`; pre-push runs `pnpm verify` + `pnpm test:coverage`, mirroring CI's `Verify` and `Coverage` jobs so lint/type/test/format/dup/knip/actionlint/coverage churn is caught before pushing. The `CI` (`ci.yml`) and `security-daily` workflows add the security scanners (gitleaks, semgrep, syft+grype) on Blacksmith runners; those stay CI-only and out of the push hot path (`docs/build-tooling.md`).
-- Package `src/index.ts` files export `export {};` — this is a deliberate empty skeleton per ADR-0018.
 - `pnpm-workspace.yaml` has `strictDepBuilds: true` and `onlyBuiltDependencies` allowlist. Adding a dependency that runs lifecycle scripts requires an explicit allowlist addition.
+- Several CI gates are decided but not yet built: `pnpm test:canary` (ADR-0069), the Plaintext Metadata Allowlist conformance gate (ADR-0070), the decrypt-import lint boundary (ADR-0071), the role-bundle registry conformance suite (ADR-0034 amendment), the `OPERATION_INTENT_CODES` catalog (ADR-0068), and the `operation.idempotency_mismatch` enforcement (ADR-0066). Do not claim or run them until their tickets land; do land them before feature work that depends on them.

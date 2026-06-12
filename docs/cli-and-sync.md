@@ -28,7 +28,7 @@ Production promise: agents and CI can cause approved deploy and runtime workflow
 
 1. Store and rotate the secret in insecur as the Secret Source of Truth.
 2. Use `insecur run <profile-slug-or-id> -- <command>` for local commands that should receive development secrets just in time without writing local secret files.
-3. Sync derived copies to direct Cloudflare Worker secrets, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary.
+3. Sync derived copies to direct Cloudflare Worker secrets, Vercel environment variables, and GitHub Actions secrets when native provider storage is the right delivery boundary. Cloudflare and GitHub are the V1 sync providers; the Vercel adapter is deferred past V1 with its contract kept add-back-ready, per the [V1 scope decisions (2026-05-25 scope review)](phasing.md#v1-scope-decisions-2026-05-25-scope-review) and [product-spec.md](specs/product-spec.md) section 9.
 4. Keep human, agent, and JSON output metadata-only so command runners can use secrets without putting values into model context, logs, or terminal scrollback.
 
 Production Secret Delivery and Secret Sync require the [Storage Security Gate](storage-security-gate.md): a metadata-only readiness verdict over root key placement, tenant data keys, key versions, Tenant-Scoped Store/RLS, encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, and no-plaintext persistence. Delivery commands fail closed for production use until that gate passes.
@@ -57,18 +57,11 @@ The sequence uses normal product primitives:
 4. Run the copyable verifier in `examples/first-value-proof/verify.mjs` through Runtime Injection with one exact non-protected secret selected by `run --variable-key`.
 5. Print metadata-only success or failure, including opaque IDs and operation IDs, but never the Sensitive Value, child-process environment, or raw digest.
 
-The verifier is intentionally ordinary application code:
-
-```js
-import { createHmac, timingSafeEqual } from "node:crypto";
-
-const value = process.env.INSECUR_PROOF_SECRET;
-const challenge = "insecur:first-value-proof:v1";
-const mac = createHmac("sha256", value).update(challenge).digest();
-const expected = createHmac("sha256", value).update(challenge).digest();
-
-console.log(timingSafeEqual(mac, expected) ? "secret proof: ok" : "secret proof: failed");
-```
+The verifier is intentionally ordinary application code. The single copy lives at
+`examples/first-value-proof/verify.mjs`: it reads `INSECUR_PROOF_SECRET` from its injected
+environment, proves possession with an HMAC challenge, prints metadata-only JSON
+(`{"ok":true,"checked":"INSECUR_PROOF_SECRET","proof":"hmac-challenge"}` on success), and exits 1
+with `{"ok":false,...}` on failure. It never prints the Sensitive Value or a raw digest.
 
 This gives the user a working example they can run immediately and then adapt into their own application code. It proves that the caller can create and use a generated non-protected development secret without seeing it in command output or local secret files. It does not prove that an arbitrary child process or active local malware cannot read an injected development value after Runtime Injection crosses the Runtime Trust Boundary.
 
@@ -160,6 +153,7 @@ Profile rules:
 V1 is configuration-driven and does not need general search over Sensitive Metadata.
 
 - Use Scoped Lists for discovery, such as project secrets, environment policies, app connections, and sync targets.
+- V1 list routes are unpaginated and return the complete scoped set in one response. Scoped Lists are bounded by Organization, Project, or Environment scope, which preserves the exact-match completeness that Display Name Resolution relies on to prove zero, one, or many matches; there is no cursor machinery in V1 (ADR-0035 as amended 2026-06-11).
 - Use Configured Selectors for durable repeated resource selection. Configured Selectors are opaque IDs, not plaintext names or slugs. Variable Keys remain the stable application keys injected into child process environments and provider destinations.
 - Display Names are ordinary metadata shown after authorization and may be used for scoped list filtering.
 - Use explicit name flags for ergonomic one-shot commands, such as `--project-name`, `--env-name`, and `--policy-name`. Name flags resolve through Display Name Resolution and then act on the resolved opaque ID. Secret create-or-update uses `--variable-key`, not `--secret-name`, because the value is the application-facing key delivered into runtime environments.
@@ -327,6 +321,67 @@ CLI command design should make safe management paths short and predictable while
 - `9`: operation incomplete
 - `10`: human step-up required (a High-Assurance Challenge the acting credential cannot satisfy)
 
+### Error Code To Exit Code Mapping
+
+This table is the target normative registry for both projections of every stable error code: its
+CLI exit code and its HTTP status. There is no second mapping table anywhere. Two implementations
+must change in lockstep with it: `exitCodeForErrorCode` in
+`packages/cli/src/output/exit-codes.ts` for exits, and `HTTP_STATUS_BY_CODE` in
+`apps/worker/src/http/domain-error-response.ts` for HTTP status. Exhaustive enforcement is decided
+but not wired yet: current code still uses partial maps plus fallback behavior, and the exhaustive
+both-direction verifying test has not landed. Codes that never cross HTTP get `n/a (client-side)`
+in the HTTP column; an explicit marker, never a blank, so a deliberate non-mapping stays
+distinguishable from a missing decision. The anti-silent-fallback rule applies to both projections:
+the exit map falls back to `EXIT_UNEXPECTED` (`1`) and the HTTP map to `500`, so when adding a new
+stable error code, extend both maps and this table instead of silently inheriting either default
+([ADR-0062](adr/0062-package-seam-failures-are-errorbody-compatible.md) as amended). HTTP status is
+not derivable from the exit column: resource-shaped denials map to HTTP `404` so they cannot act as
+a resource-existence oracle, even where their exit codes differ.
+
+| Stable error code                        | Exit | HTTP                | Notes                                                                                                                                                 |
+| ---------------------------------------- | ---- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.required`                          | `3`  | `401`               | Session expired or absent.                                                                                                                            |
+| `auth.expired`                           | `3`  | `401`               | Session expired.                                                                                                                                      |
+| `auth.invalid`                           | `3`  | `401`               | Session invalid.                                                                                                                                      |
+| `auth.reauth_required`                   | `3`  | `401`               | Fresh re-authentication required.                                                                                                                     |
+| `auth.mfa_enrollment_required`           | `3`  | `401`               | No eligible MFA factor enrolled (ADR-0032).                                                                                                           |
+| `auth.insufficient_scope`                | `4`  | `403`               | Missing Authorization Scope.                                                                                                                          |
+| `auth.high_assurance_required`           | `10` | `401`               | Step-up handoff, not a failure (ADR-0032).                                                                                                            |
+| `validation.invalid_opaque_resource_id`  | `2`  | `400`               | Server-side validation of an opaque resource ID.                                                                                                      |
+| `validation.invalid_variable_key`        | `2`  | `400`               | Server-side Variable Key format validation.                                                                                                           |
+| `validation.invalid_display_name`        | `2`  | `400`               | Server-side Display Name validation.                                                                                                                  |
+| `validation.display_name_empty`          | `2`  | `400`               | Server-side empty Display Name validation.                                                                                                            |
+| `secret.input_required`                  | `2`  | `400`               |                                                                                                                                                       |
+| `secret.invalid_encoding`                | `2`  | `400`               |                                                                                                                                                       |
+| `secret.value_too_large`                 | `2`  | `400`               |                                                                                                                                                       |
+| `secret.empty_value`                     | `2`  | `400`               |                                                                                                                                                       |
+| `onboarding.already_provisioned`         | `6`  | `409`               | Personal Organization already provisioned.                                                                                                            |
+| `onboarding.resource_conflict`           | `6`  | `409`               | Guided-provisioning resource conflict.                                                                                                                |
+| `store.runtime_config_missing`           | `1`  | `503`               | Runtime configuration unavailable; control-plane state, not caller input.                                                                             |
+| `crypto.decrypt_failed`                  | `1`  | `500`               | Opaque single failure; HTTP `500` must not differentiate by cause ([ADR-0062](adr/0062-package-seam-failures-are-errorbody-compatible.md) amendment). |
+| `import.unsupported_environment`         | `2`  | `n/a (client-side)` |                                                                                                                                                       |
+| `import.existing_secret`                 | `6`  | `n/a (client-side)` | Existing-secret conflict in the target Environment.                                                                                                   |
+| `injection.grant_denied`                 | `4`  | `404`               |                                                                                                                                                       |
+| `injection.command_fingerprint_mismatch` | `2`  | `n/a (client-side)` |                                                                                                                                                       |
+| `injection.decrypt_failed`               | `1`  | `n/a (client-side)` | Integrity failure; never silently retried.                                                                                                            |
+| `injection.grant_expired`                | `6`  | `404`               | Resource-shaped denial; HTTP `404` so it is not a resource-existence oracle, even though the exit differs.                                            |
+| `injection.unreachable`                  | `8`  | `n/a (client-side)` | Retryable.                                                                                                                                            |
+| `approval.review_stale`                  | `6`  | `n/a (client-side)` | Approval Request stays pending.                                                                                                                       |
+| `operation.idempotency_mismatch`         | `6`  | `n/a (client-side)` | Same idempotency key reused with a different intent code (ADR-0066).                                                                                  |
+| `provider.reauth_required`               | `7`  | `n/a (client-side)` |                                                                                                                                                       |
+| `provider.unavailable`                   | `7`  | `n/a (client-side)` |                                                                                                                                                       |
+| `provider.lookup_not_found`              | `7`  | `n/a (client-side)` |                                                                                                                                                       |
+| `provider.permission_denied`             | `7`  | `n/a (client-side)` |                                                                                                                                                       |
+| `provider.boundary_mismatch`             | `2`  | `n/a (client-side)` | The requested target falls outside the pinned Connection Boundary; fix the configuration, not the provider.                                           |
+| `sync.provider_value_too_large`          | `2`  | `n/a (client-side)` | Validation-side pre-write failure.                                                                                                                    |
+| `sync.source_value_missing`              | `2`  | `n/a (client-side)` | Validation-side pre-write failure.                                                                                                                    |
+| `sync.provider_drift`                    | `7`  | `n/a (client-side)` | Provider-side `action_required` failure; needs reauthorization or an approved configuration change.                                                   |
+| `sync.target_busy`                       | `8`  | `n/a (client-side)` | Retryable lease contention.                                                                                                                           |
+| `sync.overwrite_status_unknown`          | `2`  | `n/a (client-side)` | Warning code; exits `2` only when required operation-scoped confirmation is absent, otherwise the run proceeds.                                       |
+| `sync.provider_delete_incomplete`        | `0`  | `n/a (client-side)` | Warning code on a `completed_with_warnings` operation; not a failure.                                                                                 |
+
+Mappings without a dotted code: a client-minted resource ID that already exists in the tenant returns a conflict at exit `6` (see Identification Model), and Display Name Resolution returns exit `5` for zero matches and exit `2` for two or more matches (ADR-0035).
+
 ## Agent Execution And Human Step-Up
 
 A local coding agent has no identity of its own. It runs inside a human-initiated session, started with `insecur shell <profile-slug-or-id>` or `insecur run <profile-slug-or-id> --login -- <command>`, inherits the short-lived `INSECUR_SESSION_TOKEN` from the process environment, and acts with the human's Effective Access. Because a High-Assurance Challenge re-verifies the human freshly, the agent can do low-risk work autonomously but cannot clear high-risk gates on its own.
@@ -334,7 +389,12 @@ A local coding agent has no identity of its own. It runs inside a human-initiate
 - Any action requiring a High-Assurance Challenge that the acting credential cannot satisfy fails closed with exit code `10` and stable error code `auth.high_assurance_required`.
 - The `auth.high_assurance_required` error envelope carries a bounded operation ID in `meta.operationId` describing the exact pending action the human must authorize.
 - The human clears the High-Assurance Challenge out-of-band in the authenticated web app Human Approval Surface against that bounded operation ID. The challenge authorizes only that operation and creates no reusable authority for future actions.
-- The agent resumes by polling `insecur operations wait <operation-id>` and continuing against the same bounded operation ID once the human has cleared the challenge.
+- For an action evaluated under a human session, the challenge is cleared only by that same session User via fresh factor verification on the Human Approval Surface; exit `10` already implies the session User holds the required Authorization Scope and lacks only fresh assurance, since a missing scope is exit `4` (ADR-0032 Amendment 2026-06-11).
+- For an action attempted with a Machine Identity or deploy key credential, the challenge is cleared only by a User whose own Effective Access includes the Authorization Scope the pending action requires, so a low-privilege User cannot authorize a machine-executed protected change.
+- Clearing authorizes only the exact bounded operation as captured at creation. It imports none of the clearing User's wider access into the resumed execution and never extends the acting credential past its hard bounds: deploy key prohibitions remain unconditional, and an action outside a credential's hard bounds returns exit `4` authorization denial, not the exit `10` step-up path.
+- This clearing rule covers non-Approval-Request High-Assurance Challenge bounded operations; Approval Request approval and rejection authority is governed separately by the Protected Approval Policy (ADR-0017).
+- Audit records the clearing User on the bounded operation alongside the original acting credential.
+- Clearing records single-use evidence on the bounded operation and leaves it in `waiting_for_human`; `insecur operations wait <operation-id>` surfaces cleared-evidence presence as metadata-only progress so the polling loop knows to re-execute. Resume is re-execution through the original command path carrying the bounded operation ID, under the original acting credential; the resuming request atomically consumes the single-use cleared evidence in the same compare-and-set write as `waiting_for_human → running`, so concurrent resumes lose deterministically. Consumed, expired, or absent evidence fails closed with a fresh exit `10` / `auth.high_assurance_required` bounded operation. `insecur operations retry` stays scoped to sync `incomplete` resume ([ADR-0032](adr/0032-agent-session-execution-and-step-up.md) amendment).
 - A Machine Identity or deploy key credential receives the same `10` / `auth.high_assurance_required` result for high-risk gates and cannot self-clear; it must surface the step-up to a human.
 - Delivery Risk Policy Presets may allow configured non-protected development or preview delivery from agent-reachable CLI/API channels. V1 exposes Strict, Balanced, and Automation-Friendly presets instead of a custom policy editor; the server still stores versioned, scoped, auditable Delivery Risk Policy behind the preset. Balanced allows development automation by default, while preview automation requires Preview Automation Opt-In on the specific non-protected preview Environment. Automation-Friendly grants the same Preview Automation Authority by default for non-protected preview Environments in scope. Preview Automation Authority is execution-only for existing Runtime Injection Policies, existing Secret Syncs, and existing Secret Sync Bindings; it does not allow CLI/API callers to create or change App Connections, Connection Boundaries, Secret Syncs, Secret Sync Bindings, Runtime Injection Policies, provider targets, or the delivered Secret set. Protected Environment approval, protected Secret Sync enable/run, protected Runtime Injection Policy changes, and production Cloudflare Worker Secret Deploy approval evidence cannot be completed terminal-only in V1.
 - Risk-broadening Delivery Changes, including loosening presets, enabling Preview Automation Opt-In, adding preview Secret Sync Bindings, changing preview Runtime Injection Policies, or expanding the delivered preview Secret set, return the same `10` / `auth.high_assurance_required` path from CLI/API. Risk-tightening changes are authenticated web app settings actions and are not completed terminal-only in V1.
@@ -431,7 +491,7 @@ Rules:
 - Attaching a Shared Secret Source to a Protected Environment applies the Protected Environment egress policy to that source.
 - Attaching a Shared Secret Source to a Protected Environment requires a High-Assurance Challenge.
 - Detaching a Shared Secret Source does not copy its current value into the Environment.
-- Shared Secret Source selectors are opaque IDs. Display names are encrypted Sensitive Metadata.
+- Shared Secret Source selectors are opaque IDs. Display Names are ordinary plaintext metadata shown after authorization.
 
 ### Secrets
 
@@ -448,14 +508,15 @@ insecur secrets rm sec_01JZ8EDZ9S4V7X0C3F6H9K2M5P --comment "Remove unused key"
 insecur secrets versions sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --json
 insecur secrets rollback sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --to-version 12 --promote --comment "Emergency rollback"
 insecur approvals list --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A --json
-insecur approvals approve appr_01JZ8EKEY7G2K8M5N0P3R6T9V1 --comment "Approve generated admin key"
+# Approval itself happens only in the authenticated web app Human Approval Surface.
+# The CLI shows metadata-only status and polls with: insecur operations wait <operation-id>
 ```
 
 Rules:
 
 - Secret writes are Blind Secret Writes: output includes metadata only and never returns the Sensitive Value.
 - Blind Secret Write creates a normal Secret Version; service-side generation is an option on the normal write flow.
-- `set --generate` requests service-side generation and is preferred when an Agent needs a random credential without seeing it.
+- `set --generate` requests service-side generation and is preferred when an Agent needs a random credential without seeing it. `--generate` takes an optional mode argument defaulting to `random`, and `--length <bytes>` defaults to 32; bare `--generate` is therefore valid and equivalent to `--generate random --length 32`.
 - `set --value-stdin` accepts a caller-supplied value and avoids shell history leaks.
 - `set --value-stdin` preserves stdin exactly after UTF-8 decoding, including trailing newlines and multiline content. It must not trim the final newline, normalize line endings, or parse dotenv syntax.
 - V1 Secret values are valid UTF-8 text only. Invalid UTF-8 from stdin, masked prompt input, request bodies, or development Secret Import fails before any Blind Secret Write with stable error code `secret.invalid_encoding`; there is no binary mode, implicit base64 decoding, or replacement-character decoding.
@@ -470,6 +531,7 @@ Rules:
 - The application-facing key-value pair is Variable Key to selected Secret Version value. Secret resource selectors are opaque IDs; Display Names are readability labels and never durable plaintext selectors.
 - Mutations support `--comment`, `--json`, `--dry-run`, and `--idempotency-key`.
 - Secret Reveal is not supported for Protected Environment secrets.
+- There is no CLI Secret Reveal command in V1; it is deferred past V1, and implementing agents must not invent one. There is no time-boxed reveal elevation window. When a reveal command lands, each non-protected Secret Reveal requires its own per-reveal bounded-operation High-Assurance Challenge cleared on the Human Approval Surface, and clearing grants no reusable authority (ADR-0052 as amended, ADR-0032).
 - Setting a value in one Environment never copies that value to another Environment.
 - In a Protected Environment, `set` creates a Draft Version that is not eligible for Runtime Injection or Secret Sync.
 - A Protected Environment has a Draft Area where unpromoted Draft Versions wait for human review.
@@ -518,7 +580,7 @@ Rules:
 - Approval Requests have exactly one approval purpose in V1.
 - A promotion Approval Request contains one Promotion Change Set and cannot include protected delivery configuration changes.
 - Protected delivery configuration changes carry distinct authority and audit from secret Promotion and are never merged into a promotion Approval Request; this is a separation of approval purpose, not necessarily a separate human interruption.
-- A single Publish of a Staged Change Set may satisfy several such gates at once, clearing every gate the acting User is individually authorized to clear in one High-Assurance Challenge while still fanning out to a Distinct Approver wherever a multi-approval Protected Approval Policy requires one.
+- A single Publish of a Staged Change Set may satisfy several such gates at once, clearing every gate the acting User is individually authorized to clear in one High-Assurance Challenge while still fanning out to a Distinct Approver wherever a multi-approval Protected Approval Policy requires one. This single-Publish multi-gate rule activates only with the deferred-past-V1 Staged Change Set and batch Publish model (see Staged Change Set And Publish); the surrounding promotion rules remain V1-active.
 - Creating disabled Secret Syncs or disabled Secret Sync Bindings for a Protected Environment is a protected delivery configuration change, even though it does not sync yet.
 - Protected delivery configuration changes include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
 - `promote` cannot create, enable, or change Secret Sync destinations, Runtime Injection Policies, App Connections, Connection Boundaries, or other delivery targets.
@@ -531,6 +593,8 @@ Rules:
 - Rollback eligibility is controlled by a configurable Rollback Retention Window.
 
 ### Staged Change Set And Publish
+
+Deferred past V1. The Staged Change Set and batch Publish command shape below is a decided future contract, not a V1 surface; V1 live behavior is the narrower protected Promotion path via `promote` ([product-spec.md](specs/product-spec.md) section 8, ADR-0033, ADR-0017, and [protected-change-orchestration.md](protected-change-orchestration.md) "V1 Cut And Add-Back Shape").
 
 A Staged Change Set lets an agent or developer assemble a batch of not-yet-live changes in a non-protected development context, then make them live through one reviewed Publish. This is a plan-then-apply shape: stage everything, confirm the batch, and take a single human interruption at the end rather than one per change.
 
@@ -578,6 +642,7 @@ Rules:
 - `--json` reports delivery metadata only and never embeds Sensitive Values.
 - Human and JSON output should echo the resolved profile, policy, environment, and command target metadata so humans and agents can understand at a glance which workflow and secret set were used.
 - `--watch` is development-only and should restart the child process after changes.
+- Each `--watch` restart is a new Runtime Injection execution: the CLI fetches a fresh one-use Injection Grant before every fork/exec, must not retain decrypted Sensitive Values across restarts, and stops the watch loop fail-closed on a grant-issuance failure rather than reusing prior values.
 - Runtime injection is the preferred deploy and local command path because the caller receives metadata, not Sensitive Values.
 - Developers should use runtime injection instead of `.env` files whenever the command can read from environment variables.
 - An Environment may hold more secrets than the current command needs. Runtime Injection must inject only the exact secrets selected by the chosen policy or one-command non-protected selection, not every secret in the Environment.
@@ -620,8 +685,7 @@ insecur run-policies create \
   --display-name-stdin \
   --command "npm run deploy" \
   --command-fingerprint sha256:... \
-  --secret-ids sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A,sec_01JZ8ECW6Q1N4M7T0V3X9Z2C8D \
-  --require-mfa
+  --secret-ids sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A,sec_01JZ8ECW6Q1N4M7T0V3X9Z2C8D
 
 insecur run-policies show rp_01JZ8E9P8S3V6X0Z2C5D8F1G4H --json
 insecur run-policies disable rp_01JZ8E9P8S3V6X0Z2C5D8F1G4H --comment "Rotate deployment flow"
@@ -676,10 +740,10 @@ Rules:
 - `--variable-key-prefix`, when supplied, must match `^[A-Z_][A-Z0-9_]*$`. Prefixes are not a normalization feature; the CLI must not silently uppercase, replace separators, trim internal whitespace, or otherwise normalize either the prefix or parsed keys.
 - `import` applies the same final Variable Key format rule, `^[A-Z_][A-Z0-9_]*$`, after applying any Variable Key Prefix.
 - `import` is all-or-nothing. It performs a full preflight parse and validation pass before any Blind Secret Write is sent. If any final Variable Key is invalid, any final Variable Key is duplicated, any final Variable Key already exists in the target Environment, or any parse error occurs, the command writes nothing.
-- Import preflight error output may include line numbers, invalid parsed keys, invalid final Variable Keys, duplicate final Variable Keys, existing-secret conflicts, and stable error codes, but never parsed values or raw file contents.
+- Import preflight error output reports parse errors, lines that do not split into key=value, and any parsed or final key failing the final Variable Key format check `^[A-Z_][A-Z0-9_]*$` by line number and stable error code only; the offending token is never echoed. Key text may appear only for keys that pass the format check — duplicate final Variable Keys and existing-secret conflicts — which are env-var-shaped by construction. Output never includes parsed values or raw file contents (ADR-0016 as amended).
 - Duplicate final Variable Keys are invalid. V1 must not use first-one-wins, last-one-wins, parser-specific dotenv precedence, or automatic merge behavior.
 - `import --dry-run` performs Import Preflight and returns a Secret Import Plan without sending Blind Secret Writes or creating Secrets, Secret Shapes, or Secret Versions.
-- Secret Import Plan output is metadata-only. It may include target Organization, Project, Environment, parsed key count, final Variable Keys, Secret Shapes that would be created or matched, Secrets that would be created, invalid parsed keys, invalid final Variable Keys, duplicate final Variable Keys, existing-secret conflicts, line numbers, and stable error codes.
+- Secret Import Plan output is metadata-only. It may include target Organization, Project, Environment, parsed key count, format-valid final Variable Keys, Secret Shapes that would be created or matched, Secrets that would be created, duplicate final Variable Keys, existing-secret conflicts, line numbers, and stable error codes. Parse errors and format-invalid parsed or final keys appear as line numbers and stable error codes only; the offending token is never echoed.
 - `import` output is metadata-only and never includes parsed values, raw file contents, or generated child-process environments.
 - `import` must not rewrite, redact, truncate, rename, or automatically delete the source file.
 - After successful import, human output may warn that the source file still exists and suggest `insecur local-files rm <path>` as a separate cleanup step.
@@ -710,7 +774,7 @@ Rules:
 - Provider tokens are accepted through stdin or masked prompt only; `--token <value>` is not supported.
 - Production app connection credentials require the Storage Security Gate before they can be used for Secret Sync.
 - Provider credentials are encrypted organization data with key version metadata and authenticated-data binding to the organization, app connection, provider, credential, and key version identity.
-- App Connection selectors are opaque IDs. Display names and provider target names are encrypted Sensitive Metadata.
+- App Connection selectors are opaque IDs. Display Names are ordinary plaintext metadata; provider target names are encrypted Sensitive Metadata.
 - Cloudflare `create` requires an explicit connection boundary pinning the allowed account and allowed Worker script targets.
 - Provider authorization callbacks for OAuth or app-install methods use one-time tenant-bound state tied to the intended Organization, initiating User, pending App Connection operation, Connection Method, and Connection Boundary.
 - Callback completion re-checks the initiating User's current Organization Access and verifies provider account, installation, team, repository, project, worker, or resource identity before credentials are stored.
@@ -733,6 +797,7 @@ insecur syncs create github-actions \
   --target-repo-id repo_01JZ8EMW6Q1N4M7T0V3X9Z2C8D \
   --target-github-environment-id ghenv_01JZ8ENZ9S4V7X0C3F6H9K2M5P
 
+# Deferred past V1: the vercel-env sync kind ships post-V1; the contract is kept add-back-ready.
 insecur syncs create vercel-env \
   --sync-id sync_01JZ8EPB2R7V0X3Z6C9D1F4G5H \
   --connection-id conn_01JZ8EGK5Q2R7V0X3Z6C9D1F4H \
@@ -821,13 +886,14 @@ Audit export rules:
 
 - Exports are tenant-bounded.
 - Entry files are JSONL.
-- Each export includes a manifest with organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, and HMAC.
+- Each export includes a manifest with organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, signing key version, and HMAC.
+- Each export carries an Ed25519 signature computed over the canonicalized export, in addition to the hash chain and HMACed manifest (ADR-0045). The private signing key is managed like the root key per ADR-0028: generated offline, escrowed, write-only in Cloudflare Secrets Store, versioned, and rotated. Current and historical public keys are published so exports stay verifiable across rotation.
 - Full-fidelity exports may include Sensitive Metadata only after authorization and Sensitive Detail Gate for security review.
 - Full-fidelity exports may include Approval Context Notes only as Sensitive Metadata after authorization and Sensitive Detail Gate for security review.
 - Low-privilege exports use immutable IDs and hashes and exclude Sensitive Metadata such as provider target names and policy binding names. Historical Display Names may appear as ordinary audit metadata.
 - Low-privilege exports exclude Approval Context Note plaintext and may include only note IDs, hashes, lengths, or presence flags.
-- `audit verify` checks the entry hash chain and HMACed manifest.
-- HMAC verification proves integrity and authenticity to systems with the verification key; it is not public-key non-repudiation.
+- `audit verify` checks the entry hash chain, the HMACed manifest, and the Ed25519 signature against the published public key.
+- HMAC verification proves integrity and authenticity to systems with the verification key. The Ed25519 signature adds independent third-party verification against outside tampering without a shared secret. The claim ceiling stays "tamper-evident and independently verifiable", not non-repudiable against insecur: the signing key shares Cloudflare Secrets Store custody with the root key (ADR-0045).
 
 ## Secret Sync Model
 
@@ -838,8 +904,8 @@ Core fields:
 - `id`
 - `org_id`
 - `project_id`
-- `display_name_ciphertext`
-- `kind`: `github-actions`, `vercel-env`, or `cloudflare-worker-secret`
+- `display_name`
+- `kind`: `github-actions`, `vercel-env`, or `cloudflare-worker-secret`. `vercel-env` is deferred past V1 and kept add-back-ready ([product-spec.md](specs/product-spec.md) section 9).
 - `connection_id`
 - `source_env_id`
 - exact Secret Sync Bindings: source Secret ID plus provider-side secret or variable name
@@ -981,7 +1047,7 @@ Agents should be able to:
 
 Sync execution is inline and synchronous within the triggering request (ADR-0057); Cloudflare Queues and the Durable Object gate are deferred past V1:
 
-1. `syncs run` validates authorization and idempotency, and is rejected as a conflict (exit 6) when the sync already has an open `incomplete` operation.
+1. `syncs run` validates authorization and idempotency, and is rejected as a conflict (exit 6) when the sync already has an open `incomplete` operation. An open `running` Operation is evaluated against its execution claim: a live claim is rejected as the retryable `sync.target_busy` (exit 8), while an expired claim means the abandoned Operation is parked `incomplete` (cause `retryable`, progress flag `abandoned`), after which this existing open-`incomplete` conflict and same-ID resume contract applies unchanged ([ADR-0073](adr/0073-operation-execution-liveness-and-abandonment.md)).
 2. The request writes an Operation through the Operation Store and claims the Sync Target Serialization lease.
 3. The request runs Sync Execution Revalidation, then the All-Or-Nothing Sync Pre-Write Gate, then the provider writes, recording per-binding progress, all in the same request.
 4. The request returns an operation ID; `operations get` and `operations wait` report machine-readable state.
@@ -990,7 +1056,7 @@ Runtime rules:
 
 - The Operation Store, backed by Neon Postgres through the Tenant-Scoped Store, is the source of truth for operation state, per-binding write status, the serialization lease, fencing tokens, and audit references.
 - Sensitive Values are decrypted only inside the active request execution after Sync Execution Revalidation passes, and are never persisted.
-- All deterministic pre-write checks for the write set complete before the first provider write starts. A pre-write failure writes no bindings and the operation ends `blocked` (exit 7/2) with zero writes.
+- All deterministic pre-write checks for the write set complete before the first provider write starts. A pre-write failure writes no bindings and the operation ends `blocked` with zero writes; provider-side pre-write failures such as `provider.unavailable`, `provider.reauth_required`, and `sync.provider_drift` exit `7`, while validation-side pre-write failures such as `sync.provider_value_too_large` and `sync.source_value_missing` exit `2` (see Exit Codes).
 - After writes begin, a provider failure on binding k of n produces an Incomplete Sync Run, not a rollback: the operation ends `incomplete` (exit 9) with `cause` ∈ {`retryable`, `action_required`} and surfaces "N of M written, retry <op-id>". Per-binding write status is `pending` → `written` | `failed{code, retryable}`.
 - Provider Drift is a non-retryable `action_required` authorization/configuration failure until reauthorization or an approved configuration change occurs.
 - Decrypted values, raw provider request bodies, and raw provider response bodies are never logged.
@@ -1034,7 +1100,8 @@ Runtime rules:
 - After deletion completes, the Secret Sync is tombstoned for audit and cannot run again.
 - If some Managed Provider Deletes fail, deletion still tombstones the Secret Sync and completes with warnings.
 - Failed Managed Provider Deletes create Orphaned Managed Provider Copy records.
-- Orphaned Managed Provider Copy records are shown in status/audit output and can be retried after provider permission, connectivity, or reauthorization issues are fixed.
+- An Orphaned Managed Provider Copy record has the lifecycle `open → cleaned | acknowledged`, with both exit states terminal.
+- Orphaned Managed Provider Copy records are shown in status/audit output. Retry after provider permission, connectivity, or reauthorization issues are fixed is re-invoking `insecur syncs delete` on the tombstoned Secret Sync: with open Orphaned Managed Provider Copy records that creates an orphan-cleanup Operation (distinct intent code, Managed Provider Deletes only, deletion-grade authority) scoped to the open records, never a reopened deletion Operation and never a resurrected sync ([ADR-0075](adr/0075-orphan-cleanup-is-a-new-operation.md)).
 - `operations wait` for deletion returns success status with warning metadata when only provider cleanup remains.
 
 ### Conflict Behavior
@@ -1043,7 +1110,7 @@ If the provider target changed since the last sync:
 
 - Plan reports a conflict.
 - Run refuses by default.
-- `--force` may be allowed only for explicit Service Access action with a High-Assurance Challenge and audit reason.
+- `--force` lets a conflicted run proceed only when a tenant-side actor with Secret Sync run authority explicitly confirms via operation-scoped confirmation, with the Provider Overwrite Warning surfaced and an audit reason recorded. Protected Environment syncs additionally require a High-Assurance Challenge, so the protected override is human-only; Machine Identities cannot satisfy it. `--force` is never a Service Access action.
 
 ## Provider Targets
 
@@ -1075,6 +1142,8 @@ Notes:
 - Runtime Injection still crosses the Runtime Trust Boundary after the child command starts. A malicious workflow step or approved command can read or leak values it was intentionally given.
 
 ### Vercel Environment Variables
+
+Deferred past V1; the contract below is kept add-back-ready, per the [V1 scope decisions (2026-05-25 scope review)](phasing.md#v1-scope-decisions-2026-05-25-scope-review) and [product-spec.md](specs/product-spec.md) section 9.
 
 Kind: `vercel-env`
 
@@ -1124,7 +1193,7 @@ POST   /v1/orgs/:org/projects/:project/environments/:env/approvals/:approval/rej
 
 GET    /v1/orgs/:org/projects/:project/environments/:env/secrets
 POST   /v1/orgs/:org/projects/:project/environments/:env/secrets/:secret/versions
-POST   /v1/orgs/:org/projects/:project/environments/:env/secrets/:secret/promote
+POST   /v1/orgs/:org/projects/:project/environments/:env/promote
 POST   /v1/orgs/:org/projects/:project/environments/:env/secrets/:secret/rollback
 
 GET    /v1/orgs/:org/connections
@@ -1147,7 +1216,11 @@ GET    /v1/orgs/:org/operations/:operation
 POST   /v1/orgs/:org/operations/:operation/cancel
 ```
 
-All routes are organization-qualified. Sync routes also resolve the project under the organization.
+The approval `approve` and `reject` routes are Human Approval Surface channel only: they are reachable solely through the web BFF's private Cloudflare Service Binding channel, with the Protected Approval Policy's High-Assurance Challenge evidence bound to the approval. CLI session tokens, Machine Identities, and deploy keys calling these routes fail closed with exit code `10` and stable error code `auth.high_assurance_required` (see the [Error Code To Exit Code Mapping](#error-code-to-exit-code-mapping) table for its exit and HTTP status).
+
+The environment-scoped promote route carries exact Draft Version IDs in the request body; wildcard, query, tag, pattern, and all-staged selection are rejected (ADR-0017). One call creates one immutable Promotion Change Set plus Approval Request and supersedes any prior pending promotion Approval Request for that Protected Environment. There is no per-secret promote route. Rollback stays per-secret because the `rollback` command genuinely targets one Secret.
+
+Organization-qualified paths (`/v1/orgs/:org/...`) are required for all organization-scoped resource routes in production; the normative route-shape rule lives in [product-spec.md](specs/product-spec.md) section 3 (ADR-0003 as amended 2026-06-11). Sync routes also resolve the project under the organization. Two recorded exceptions: onboarding and guided-provisioning routes resolve the Organization from the authenticated session because the Organization does not exist yet, and the shipped First Value by-variable-key secret-write and runtime-injection grant routes ([first-value-ticket-plan.md](specs/first-value-ticket-plan.md)) are a recorded divergence that must be re-homed under `/v1/orgs/:org` before the Production MVP acceptance gate. Membership and Effective Access enforcement is unchanged either way.
 
 ## Tests To Plan
 
@@ -1169,7 +1242,8 @@ CLI:
 - Import does not support updating existing Secrets from local files; existing Secrets are changed through normal secret-write, generation, and rotation workflows.
 - Import never creates, changes, or binds Runtime Injection Policies, Secret Syncs, CLI Profiles, or other delivery configuration.
 - `secrets set --value-file <path>` and equivalent named local value-file inputs are invalid V1 command shapes.
-- Import preflight rejects any invalid final key, duplicate final key, existing-secret conflict, or parse error before creating Secrets or Secret Versions, reports line numbers and invalid, duplicate, or conflicting keys without values, and writes nothing on failure.
+- Import preflight rejects any invalid final key, duplicate final key, existing-secret conflict, or parse error before creating Secrets or Secret Versions, reports format-invalid keys and parse errors by line number and stable error code only, reports duplicate and conflicting format-valid keys without values, and writes nothing on failure.
+- Tokens from malformed or format-invalid lines never appear in preflight, error, or Secret Import Plan output, human or JSON, verified with an unquoted multi-line PEM fixture and a bare secret-on-its-own-line fixture.
 - `import .env --dry-run --json` returns a metadata-only Secret Import Plan with no Blind Secret Writes and no created Secrets, Secret Shapes, or Secret Versions.
 - `import .env` does not rewrite, redact, truncate, rename, or automatically delete the source file.
 - `local-files rm .env` deletes only after explicit confirmation and does not claim secure erasure.
@@ -1213,7 +1287,7 @@ CLI:
 - Protected Environment Promotion, rollback, Runtime Injection Policy changes, Secret Sync enable/run, App Connection changes, repository-scoped overrides, protected Shared Secret Source attachment, and Push Device Registration creation/replacement enforce High-Assurance Challenges.
 - Provider authorization callback tests cover one-time state, replay denial, post-callback Organization Access re-checks, provider identity verification, canceled/superseded operation denial, Tenant Suspension denial, and cross-tenant linkage denial.
 - `--json` output is stable.
-- Error code to exit code mapping.
+- Error code to exit code mapping matches the normative table in Exit Codes, verified against `exitCodeForErrorCode` in `packages/cli/src/output/exit-codes.ts`.
 - Idempotent retry behavior.
 
 Sync:

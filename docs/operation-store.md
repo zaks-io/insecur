@@ -53,31 +53,101 @@ The Interface should be small and state-oriented:
   pre-write failure, or incomplete parking.
 - `getOperation(operationId)` returns status and safe progress for polling.
 - `retryOperation(operationId)` re-enters a resumable Operation without creating a new Operation ID.
+  Per the [ADR-0032](adr/0032-agent-session-execution-and-step-up.md) 2026-06-12 amendment, this
+  extends to a `waiting_for_human` Operation carrying cleared High-Assurance Challenge evidence: the
+  resume atomically consumes the single-use evidence in the same compare-and-set as the
+  `waiting_for_human → running` transition, so concurrent resumes lose deterministically and
+  evidence is never consumed twice.
 - `cancelOperation(operationId)` closes a cancelable Operation through compare-and-set state.
 
 The exact function names can differ. The required Interface shape is one Operation ID, explicit
 state transitions, metadata-only progress, idempotent retries, and no access to private workflow
 implementation tables by callers.
 
+## Idempotency Key Contract
+
+ADR-0066 pins the target idempotency contract:
+
+- Idempotency keys are unique per Organization, matching the shipped
+  `operations_org_idempotency_key_idx` partial unique index on `(org_id, idempotency_key)`.
+- A retried `createOperation` with the same key and the same intent code returns the existing
+  Operation with `created=false`; no second Operation or live effect is created.
+- The same key with a different intent code fails with the stable error code
+  `operation.idempotency_mismatch` (part of `OPERATION_ERROR_CODES`; maps to CLI exit 6).
+- Payload or progress differences alone are not a mismatch in V1; intent-code identity is the
+  normative check.
+- Retention is explicit: V1 has no separate key expiry. A key stays claimed exactly as long as its
+  Operation row exists.
+
+Implementation note: this contract is not fully wired yet. The current `createOperation` path
+returns the existing row for the same idempotency key regardless of `intent_code`, and
+`operation.idempotency_mismatch` is not yet in `OPERATION_ERROR_CODES`.
+
+## Intent Codes
+
+[ADR-0068](adr/0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md) pins operation intent
+codes to a canonical `OPERATION_INTENT_CODES` catalog in `packages/operations`. The catalog and
+registry-membership validation are decided but not wired yet; current code validates dotted shape
+only. Once implemented, `createOperation` validates registry membership, not just dotted shape, and one intent code names exactly one
+workflow because intent-code identity is the ADR-0066 idempotency check. The catalog module is the
+enforcing implementation and must change in lockstep with this section; this section, not the code
+file, is the spec, while the enumerated members stay canonical in the registry file.
+
 ## State Model
 
-State names are documentation vocabulary, not a required database enum:
+The nine-state set and the transition matrix below are normative. No Postgres enum is required —
+the `operations` table `state` column is `text` — and validation is app-side: rows carrying an
+unknown state are rejected when read or written. `packages/operations/src/operation-states.ts` is
+the enforcing implementation and must change in lockstep with this section; this section, not the
+code file, is the spec.
 
-| State                     | Meaning                                                                                                          |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `pending`                 | Operation was created but has not begun live effects.                                                            |
-| `waiting_for_human`       | Operation is blocked on Human Approval Surface or High-Assurance Challenge evidence.                             |
-| `running`                 | Operation is actively performing work.                                                                           |
-| `blocked`                 | Deterministic pre-effect validation failed; no live effect was attempted.                                        |
-| `incomplete`              | Live effects started and the Operation parked with retryable or action-required remaining work.                  |
-| `succeeded`               | Operation finished with all intended effects complete.                                                           |
-| `completed_with_warnings` | Operation finished locally but left non-blocking warnings, such as Orphaned Managed Provider Copy cleanup state. |
-| `canceled`                | Operation was closed by an authorized actor without further live effects.                                        |
-| `failed`                  | Operation hit a terminal implementation or integrity failure that is not safe to retry automatically.            |
+| State                     | Meaning                                                                                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `pending`                 | Operation was created but has not begun live effects.                                                                |
+| `waiting_for_human`       | Operation is blocked on Human Approval Surface or High-Assurance Challenge evidence.                                 |
+| `running`                 | Operation is actively performing work.                                                                               |
+| `blocked`                 | Deterministic pre-effect validation failed; no live effect was attempted.                                            |
+| `incomplete`              | Live effects started or may have started, and the Operation parked with retryable or action-required remaining work. |
+| `succeeded`               | Operation finished with all intended effects complete.                                                               |
+| `completed_with_warnings` | Operation finished locally but left non-blocking warnings, such as Orphaned Managed Provider Copy cleanup state.     |
+| `canceled`                | Operation was closed by an authorized actor without further live effects.                                            |
+| `failed`                  | Operation hit a terminal implementation or integrity failure that is not safe to retry automatically.                |
 
-Terminal states do not return to `running`. `incomplete` is resumable by the same Operation ID, and
-`blocked` requires a new user action or configuration change unless the caller explicitly defines an
-idempotent retry that repeats pre-effect validation.
+Allowed transitions (a same-state write is always allowed):
+
+| From                                                         | May move to                                                                                                |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `pending`                                                    | `running`, `blocked`, `canceled`, `waiting_for_human`                                                      |
+| `waiting_for_human`                                          | `running`, `blocked`, `canceled`                                                                           |
+| `running`                                                    | `waiting_for_human`, `blocked`, `incomplete`, `succeeded`, `completed_with_warnings`, `failed`, `canceled` |
+| `blocked`                                                    | `running`, `canceled`                                                                                      |
+| `incomplete`                                                 | `running`, `canceled`                                                                                      |
+| `succeeded`, `completed_with_warnings`, `canceled`, `failed` | none; terminal states allow no transitions                                                                 |
+
+Derived sets:
+
+- Terminal: `succeeded`, `completed_with_warnings`, `canceled`, `failed`.
+- Cancelable: `pending`, `waiting_for_human`, `running`, `blocked`, `incomplete`.
+- Retryable: `blocked`, `incomplete`, and `waiting_for_human` once it carries cleared
+  High-Assurance Challenge evidence.
+
+`incomplete` is resumable by the same Operation ID, and `blocked` requires a new user action or
+configuration change unless the caller explicitly defines an idempotent retry that repeats
+pre-effect validation. A `waiting_for_human` Operation becomes resumable by the same Operation ID
+only once cleared evidence is recorded, per the
+[ADR-0032](adr/0032-agent-session-execution-and-step-up.md) 2026-06-12 amendment.
+
+[ADR-0073](adr/0073-operation-execution-liveness-and-abandonment.md) pins the execution-claim rule:
+every `running` Operation carries a claim — the Sync Target Serialization lease where one exists,
+otherwise an `execution_deadline` recorded at the transition into `running`. The claim applies only
+while `running`; a transition out of `running` sheds it. A `running` Operation whose claim has
+expired is abandoned, evaluated lazily at read and claim time. An abandoned Operation is parked via
+the compare-and-set `running → incomplete` arm with `cause` `retryable` and the progress flag
+`abandoned`, after which the normal same-ID resume contract applies. Parking an abandoned Operation
+requires the same authority as `cancelOperation`.
+
+Implementation note: the Sync Target Serialization lease path exists, but the non-lease
+`execution_deadline` claim and lazy abandonment parking are decided but not wired yet.
 
 ## Invariants
 
@@ -104,6 +174,8 @@ The Interface is the test surface:
   duplicating live effects.
 - Transition tests prove stale writers cannot move an Operation backward or overwrite terminal
   state.
+- Abandonment tests prove abandoned `running` Operations are reclaimable only after claim expiry
+  and only via the compare-and-set `running → incomplete` parking arm.
 - Metadata safety tests prove Operation records, polling output, JSON output, audit references, and
   retry hints exclude Sensitive Values, Provider Credentials, raw provider bodies, key material,
   decrypted Sensitive Metadata, and child-process environments.

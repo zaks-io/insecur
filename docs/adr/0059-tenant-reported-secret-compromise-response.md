@@ -46,3 +46,7 @@ Signal 2 is a manual judgment in V1. A built Leak Verification primitive, which 
 - Reach enumeration depends only on existing audit metadata (grant audit delivered version IDs, sync target metadata); it adds no new storage.
 - Leak Verification stays add-back-ready as a metadata-only, decrypt-on-demand operation. The stored-hash design is foreclosed here so a future builder does not reintroduce the oracle.
 - V1 stores no hash or other second representation of Secret values for leak detection.
+
+## Amendment (2026-06-12): The custody-material escalation target is a required runbook
+
+The custody-material compromise runbook this record hands off to is now a required pre-production document: [docs/runbooks/custody-material-compromise.md](../runbooks/custody-material-compromise.md) carries a Runbook Catalog row at the `small_group_production` profile, so the `runbook.catalog` gate can no longer pass while signal 4 — the only place root-key extraction is visible — escalates to an unwritten document. Only the minimal runbook is pulled forward: containment, manual three-source forensic log pull (product audit log, Cloudflare account and Secrets Store logs, escrow-access log), and the tenant notification that drives tenant-side rotation. The full detection, SIEM streaming, and defined-response-time program stays deferred exactly as ADR-0048 decided; the required-vs-deferred boundary is recorded in the matching ADR-0048 amendment.

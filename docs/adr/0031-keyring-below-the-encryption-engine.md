@@ -21,3 +21,11 @@ Because the keyring is the Sensitive Value boundary, a cross-tenant key-handoff 
 One uniform primitive means rotation correctness is established once. Re-introducing per-level rotation paths would re-open "never open the value" separately at each level.
 
 The remaining root-rotation detail, whether the root layer uses a versioned named secret or a dual-named window, stays the open infra question recorded for ADR-0028. The keyring consumes whichever the root layer presents, through the per-record key version.
+
+## Amendment (2026-06-11): Flat wrap topology under the root key
+
+The 2026-06-03 amendments to ADR-0005 and ADR-0028 decide a flat wrap topology: Organization Data Keys and Project Data Keys are each independent random keys stored AES-GCM wrapped directly under the instance root key, not chained through one another. Two sentences in the record above predate that decision and are corrected here. The single-rewrap-primitive framing stands; only the per-level "right set" definitions change.
+
+First, the resolution sentence ("the keyring resolves the chain from the root key through an Organization Data Key, a Project Data Key, and the per-record key") describes a four-level chain. The keyring instead resolves one of two flat paths: root key → Organization Data Key → per-record DEK for organization-level records, and root key → Project Data Key → per-record DEK for project records.
+
+Second, the rotation cascade ("an Organization Data Key re-locks the project keys under it, and the root re-locks the organization keys, which is the ADR-0028 master case") mis-cites ADR-0028, whose original record already rewrapped both the organization and project data keys under the root, so the chained reading was wrong even when this record was written. The corrected per-level sets are: root rotation rewraps both Organization Data Keys and Project Data Keys per ADR-0028's amendment; rotating an Organization Data Key re-locks organization-level per-record DEKs (matching architecture.md's Key Rotation surfaces), not project keys; rotating a Project Data Key re-locks secret-version DEKs, unchanged.

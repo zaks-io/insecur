@@ -15,3 +15,7 @@ We considered resolving names uniformly for every command, rejected because it l
 ## Consequences
 
 Display Names remain non-Sensitive-Metadata and safe for agent context, so an agent may resolve through a Scoped List, but should reuse the resolved Opaque Resource ID rather than re-resolve a mutable name on each call. Display Name Resolution is a glossary term distinct from Scoped List browsing and Configured Selector caching.
+
+## Amendment (2026-06-11): V1 Scoped Lists are complete and unpaginated
+
+V1 list routes are unpaginated and return the complete scoped set. A Scoped List is bounded by the already-resolved Organization, Project, or Environment scope, and that completeness is what the exact-match argument above relies on: zero, one, or many is decided over the full scoped set, never over a page. No cursor machinery exists in V1. If pagination is ever introduced, Display Name Resolution must exhaust all pages before declaring a zero, one, or many result, and any server-side exact-name filter stays a Scoped List filter parameter with client-side exact-match comparison remaining the resolution authority — never a durable server-side name selector, which this ADR already rejects.

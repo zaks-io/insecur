@@ -31,17 +31,54 @@ Read in this order:
 - If a workstream needs a new architectural decision, add or amend an ADR first, then update these
   specs so future agents continue to start from one place.
 
+### Content ownership
+
+Every class of normative content has exactly one owning location; every other doc points at the
+owner instead of restating it. This table is the normative owner-map, per
+[ADR-0067](../adr/0067-documentation-content-ownership-and-single-statement-rule.md).
+
+| Content type                                                | Owning location                                                          |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Shared cross-context domain vocabulary and term definitions | root [CONTEXT.md](../../CONTEXT.md)                                      |
+| Terms scoped to one bounded context                         | that package or app `CONTEXT.md`                                         |
+| Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](product-spec.md)                                       |
+| Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                      |
+| Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot               |
+| Workstream ownership, seams, and integration order          | [agent-workstreams.md](agent-workstreams.md)                             |
+| Live implementation status                                  | [project-status.md](../project-status.md)                                |
+| Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence |
+
+Root `CONTEXT.md` owns vocabulary shared across contexts; a package or app `CONTEXT.md` owns a term
+that exists only inside its bounded context. A term is defined in exactly one place, never both.
+
+### The single-statement rule
+
+A normative enumeration, table, constant, route shape, or list appears exactly once, in its owning
+location; every other doc links to the owner and must not restate it. Non-normative paraphrase
+written for narrative flow is not a violation. The rule is forward-binding — it governs new and
+repaired text, not an immediate corpus-wide de-duplication pass; pre-existing restatements are
+grandfathered defects removed when their doc is next touched or as the defect sweep reaches them.
+See [ADR-0067](../adr/0067-documentation-content-ownership-and-single-statement-rule.md).
+
+### Conflict resolution
+
+When a non-owning doc disagrees with the owning doc about content the owner owns, the non-owning
+doc is the defect: check the owner against the ADR trace it links, then proceed on the owner's
+content and file the defect against the non-owning doc without stopping. The spec-vs-ADR rule above
+is the owner-vs-owner case and is unchanged — if the owner itself disagrees with its governing ADR,
+stop, treat it as a documentation defect, reopen the decision, and update both the owner and the
+ADR trail. See
+[ADR-0067](../adr/0067-documentation-content-ownership-and-single-statement-rule.md).
+
 ## Current Implementation Status
 
-The repo is past pure planning: the accepted First Value app/package skeleton and Node 24/pnpm 10
-verification baseline are present, and `pnpm verify` is the local proof that the scaffold is
-executable.
+Live implementation status — what is built, what is verified, and what is not wired yet — lives in
+[project-status.md](../project-status.md). This entry point intentionally carries no capability
+snapshot so it cannot rot against that document.
 
-There is still no product-bearing implementation yet. The Worker has only a health-check route,
-package entrypoints are intentionally empty, and the Tenant-Scoped Store, authentication, keyring,
-Secret Version Store, Runtime Injection, provider sync, audit, and UI seams are not wired. The
-previous pre-V1 scaffold was removed as disposable learning code. New work should implement the
-target product described here, not preserve or compatibly emulate the removed scaffold.
+One ADR-0018 directive stays normative regardless of status: the previous pre-V1 scaffold was
+removed as disposable learning code. New work must implement the target product described here,
+not preserve or compatibly emulate the removed scaffold.
 
 Trace: [ADR-0018](../adr/0018-retire-unsafe-pre-v1-scaffold.md),
 [project-status.md](../project-status.md).

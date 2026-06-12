@@ -7,6 +7,8 @@ This is the implementation spec for insecur's monorepo build tooling and quality
 - ADR-0055: ESLint and Prettier type-aware toolchain
 - ADR-0056: supply-chain hardening posture (pnpm lifecycle blocking, release quarantine)
 - ADR-0060: Postgres 17 development baseline while Postgres 18 is preview on Neon
+- ADR-0065: three test layers — unit, integration+RLS on Docker Compose Postgres, gated Neon
+  preview smoke
 - ADR-0029: environments and CD trust model (staging auto, production gated, machine-identity deploy)
 - ADR-0008: security gates and runbooks (the gate contract these tools satisfy)
 - ADR-0036 / ADR-0037: Neon RLS and the Tenant-Scoped Bound Store these tests exercise
@@ -18,23 +20,22 @@ This is the implementation spec for insecur's monorepo build tooling and quality
 
 The load-bearing decision is the major version of each tool, not the patch. Pin the latest patch within each required major at implementation time and resolve shared versions through the pnpm catalog. The versions below are the known-good floor as of 2026-05-25.
 
-| Tool                            | Required major   | Known-good floor      |
-| ------------------------------- | ---------------- | --------------------- |
-| Node.js                         | 24               | 24 (active LTS)       |
-| pnpm                            | 10               | 10.19.0               |
-| Turborepo                       | 2                | 2.8.0                 |
-| TypeScript                      | 5                | 5.x latest            |
-| ESLint                          | 9 (flat config)  | 9.x latest            |
-| typescript-eslint               | 8                | 8.x latest            |
-| eslint-config-prettier          | 10               | 10.x latest           |
-| Prettier                        | 3                | 3.5.3                 |
-| Vitest                          | 3                | 3.x latest            |
-| jscpd                           | 4                | 4.2.4                 |
-| @cloudflare/vitest-pool-workers | matches wrangler | latest for wrangler 4 |
-| Wrangler                        | 4                | 4.x latest            |
-| Local Postgres                  | 17               | 17.x latest           |
-| lefthook                        | 2                | 2.1.8                 |
-| postgres (postgres.js)          | 3                | 3.x latest            |
+| Tool                   | Required major  | Known-good floor |
+| ---------------------- | --------------- | ---------------- |
+| Node.js                | 24              | 24 (active LTS)  |
+| pnpm                   | 10              | 10.19.0          |
+| Turborepo              | 2               | 2.8.0            |
+| TypeScript             | 5               | 5.x latest       |
+| ESLint                 | 9 (flat config) | 9.x latest       |
+| typescript-eslint      | 8               | 8.x latest       |
+| eslint-config-prettier | 10              | 10.x latest      |
+| Prettier               | 3               | 3.5.3            |
+| Vitest                 | 3               | 3.x latest       |
+| jscpd                  | 4               | 4.2.4            |
+| Wrangler               | 4               | 4.x latest       |
+| Local Postgres         | 17              | 17.x latest      |
+| lefthook               | 2               | 2.1.8            |
+| postgres (postgres.js) | 3               | 3.x latest       |
 
 pnpm 10 is mandatory, not a preference: `minimumReleaseAge` and `strictDepBuilds` (ADR-0056) are pnpm 10 features and the repo is currently pinned at `pnpm@9.0.0`. The 9 to 10 upgrade is a prerequisite.
 
@@ -160,7 +161,7 @@ Remote cache trust model is ADR-0053. Full file:
 Notes that an implementing agent must not change without understanding them:
 
 - The `topo` task is a transit node. `typecheck`, `lint`, `test`, and `test:rls` depend on `topo`, which depends on `^topo`. This forces a cache key to bust when an upstream package's source changes, so a stale cached `typecheck` pass cannot survive an upstream type error. This is the documented just-in-time-package correctness pattern and is load-bearing for "no type errors are ever committed."
-- `test:rls` has `cache: false` because it runs against live Neon branch state (ADR-0054) and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
+- `test:rls` has `cache: false` because it runs against live database state — Docker Compose Postgres locally and in CI's `postgres-integration` job (ADR-0065) — and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
 - `globalDependencies` includes the root `eslint.config.ts`, Prettier config, and `.prettierignore` so a rule change busts every cached `lint`.
 - `envMode: strict` means a task only sees environment variables it declares. Declare new inputs in the task `env` array, do not relax the mode.
 - `lint`, `typecheck`, `test`, and `test:rls` depend on `^build` so workspace packages that export `dist/**` types (for example `@insecur/domain`) are built before downstream checks run. `pnpm verify` must pass from a clean checkout without a separate prebuild.
@@ -176,25 +177,40 @@ Set the developer default by putting `--cache=local:rw,remote:r` into the root s
 
 ## Root package.json Scripts
 
+The root `package.json` is the authoritative script list; this is the load-bearing subset (cache
+flags, gates, and test layers). The dev conveniences (`dev`, `dev:worker`, `deploy:worker`, `cli`,
+`migrate:local`, the remaining `dev:db:*` commands, `dev:check`/`doctor`, `clean`) live there too
+and are not repeated here.
+
 ```jsonc
 {
   "scripts": {
     "build": "turbo run build --cache=local:rw,remote:r",
     "typecheck": "turbo run typecheck --cache=local:rw,remote:r",
     "lint": "turbo run lint --cache=local:rw,remote:r",
+    "lint:actions": "node scripts/ci/actionlint-local.mjs",
     "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
+    "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.5 apps packages scripts",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
+    "knip": "knip",
     "test": "turbo run test --cache=local:rw,remote:r",
+    "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
     "test:rls": "turbo run test:rls",
+    "test:e2e": "turbo run test:e2e",
+    "dev:db:reset": "node scripts/dev-db.mjs reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm duplicates:warn && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
-    "prepare": "lefthook install",
+    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "prepare": "node scripts/lefthook-install.mjs",
   },
 }
 ```
 
-`verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the steps that need secrets. A green `verify` should predict a green `CI`.
+`verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the
+security scanners and the DB-backed `postgres-integration` job: duplicate-warning annotations, the
+blocking duplicate ratchet, knip, actionlint (optional-local), the Prettier check, then the Turbo
+`lint typecheck test` fan-out. A green `verify` should predict a green `CI`. `prepare` installs the
+lefthook hooks via `scripts/lefthook-install.mjs` on every install.
 
 ## Duplicate Code Detection
 
@@ -400,16 +416,18 @@ pre-push:
 
 `gitleaks protect --staged` is the pre-commit form for gitleaks 8.x; on gitleaks 8.18 and later use the equivalent `gitleaks git --staged --redact`. The same gitleaks scan runs authoritatively in CI regardless, so a bypassed hook is still caught.
 
-## Test Tiers
+## Test Layers (ADR-0065)
 
-Two distinct tiers, separated because one can run anywhere and one needs a real database and secrets.
+Three layers, each defined by where its Postgres comes from and what failure class it catches.
+The agent-facing one-command loop is documented in [docs/agents/testing.md](agents/testing.md).
 
-1. **Worker and unit tests (`test`).** Run under Vitest with `@cloudflare/vitest-pool-workers` so code executes in `workerd` against real bindings. Runs locally, in pre-push, and in the `CI` workflow. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage and enforces the ratchet thresholds in `vitest.config.ts`; it excludes integration and RLS suites so it stays DB-less.
-2. **Tenant-isolation tests (`test:rls`).** Run under plain Vitest with `postgres.js` connecting to a per-PR Neon branch as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME` (ADR-0054). Never SQLite or PGlite, never the migration role. Runs only in CI on the preview job and never on forked pull requests. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
+1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage and enforces the ratchet thresholds in `vitest.config.ts`; it excludes integration and RLS suites so it stays DB-less. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
+2. **Integration and RLS tests (`test:rls`, `test:e2e`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060), connecting as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`. The ADR-0054 invariants stand: never SQLite or PGlite, never the migration role, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e` and in the `CI` workflow's `postgres-integration` job (INS-144) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
+3. **Preview smoke (gated).** The `pr-preview` workflow deploys a per-PR preview Worker backed by an ephemeral Neon branch through Hyperdrive and runs the First Value smoke over HTTP. It is the only layer that can catch a broken deploy, a missing binding, or a bad secret. Gated behind the repository variable `PREVIEW_ENV_ENABLED` until the preview infrastructure exists (INS-164); secret-bearing, so it never runs on forked pull requests.
 
-Local Postgres uses the same major version as the stable Neon target, currently Postgres 17
-(ADR-0060). It exists so agents can iterate on migrations and store code before a Neon branch is
-available; it is not the authoritative RLS gate.
+Docker Compose Postgres is the substrate for the authoritative integration+RLS gate and uses the
+same major version as the stable Neon target, currently Postgres 17 (ADR-0060), so the integration
+layer and the Neon-backed preview environment do not drift.
 
 ## CI Topology (ADR-0029)
 
@@ -423,6 +441,7 @@ Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no 
 turbo run lint typecheck build test --cache=local:rw,remote:rw
 prettier --check .
 test:coverage (unit coverage, enforces ratchet thresholds; DB-less)
+postgres-integration (Docker Compose Postgres 17: assert:rls-credentials, test:rls, test:e2e, instance-bootstrap integration)
 knip (unused files, deps, and unlisted deps)
 actionlint (workflow lint + run-block shellcheck)
 gitleaks (full working tree, authoritative)
@@ -433,16 +452,23 @@ jscpd duplicate-code: warning annotations + blocking ratchet (duplicates:ci, thr
 
 These jobs are required status checks on the protected branch. They run for forked pull requests too, because they touch no secrets.
 
-### Preview workflow: `pr-preview`
+### Preview workflow: `pr-preview` (gated)
 
-Trigger: `pull_request` from a non-fork branch. A guard step detects forks and skips every secret-bearing step (see Fork Isolation). Steps:
+Trigger: `pull_request`, but the deploy job runs only when the repository variable
+`PREVIEW_ENV_ENABLED` is `'true'` and the PR head is not a fork (see Fork Isolation). The workflow
+is built but inert until the preview infrastructure lands; standing it up and flipping the flag is
+INS-164. It runs the preview-smoke test layer, not `test:rls`. Steps:
 
 1. Create a Neon branch for the PR (`neondatabase/create-branch-action`).
-2. Run migrations against the branch under the elevated migration role.
-3. Run the guardrail assertions (below).
-4. `turbo run test:rls` as the `NOBYPASSRLS` role via `DATABASE_URL_RUNTIME`.
-5. Deploy the Worker to a preview environment using the CI machine token.
-6. HTTP smoke-check the preview deployment.
+2. Verify branch isolation: the PR branch id must exist and differ from the production branch id.
+3. Run migrations against the branch under the elevated migration role.
+4. Create or reuse the per-PR Hyperdrive (`scripts/ci/create-hyperdrive.mjs`).
+5. Build and deploy the preview Worker (`--env preview`, per-PR name, per-PR Hyperdrive binding)
+   using the CI machine token.
+6. Wait for `/healthz` readiness (three consecutive 200s).
+7. Run the First Value cloud smoke (`scripts/ci/smoke-first-value.mjs`, which hard-fails when
+   `SMOKE_BASE_URL` is unset — no green-by-skip once the job runs).
+8. Comment the preview Worker URL and Neon branch on the PR.
 
 ### Cleanup workflow: `pr-preview-cleanup`
 
@@ -469,20 +495,21 @@ Trigger: scheduled `cron`, once daily. Runs grype or trivy for new CVEs against 
 
 ## Two-Credential Model And Guardrail Assertions
 
-Two distinct database credentials exist as separate CI secrets:
+Two distinct database credentials exist:
 
 - `DATABASE_URL_RUNTIME`: the `NOBYPASSRLS` runtime role. This is what `test:rls` and the running product use.
-- The elevated migration URL: used only to apply migrations.
+- `DATABASE_URL_MIGRATION`: the elevated migration URL, used only to apply migrations.
 
-Connecting `test:rls` as the migration role silently disables RLS and turns the suite green while testing nothing (ADR-0054). CI must therefore run these assertions before trusting the preview job, failing the build if any does not hold:
+Locally and in CI's `postgres-integration` job, `pnpm dev:db:reset` provisions both roles on Docker Compose Postgres and writes both URLs to `.env.local`; in the gated `pr-preview` workflow the migration URL is the Neon branch connection string held as a CI secret.
 
-1. `DATABASE_URL_RUNTIME` and the migration URL are not equal.
+Connecting `test:rls` as the migration role silently disables RLS and turns the suite green while testing nothing (ADR-0054). The `postgres-integration` job must therefore run the `assert:rls-credentials` step before trusting `test:rls`, failing the build if either assertion does not hold:
+
+1. `DATABASE_URL_RUNTIME` and `DATABASE_URL_MIGRATION` are not equal.
 2. The runtime role does not bypass RLS. Connect as the runtime role and assert `SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user` returns `false`.
-3. The forked-PR guard skipped all secret-bearing steps when the PR head is a fork.
 
 ## Fork Isolation
 
-A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no `test:rls`. The `pr-preview` workflow guards every secret step on the PR not originating from a fork. An untrusted fork of a secrets manager must never touch a credential. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
+A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. The gated `pr-preview` workflow guards every secret step on the PR not originating from a fork. An untrusted fork of a secrets manager must never touch a credential. `test:rls` is no longer secret-bearing: it runs against Docker Compose Postgres in the secretless `postgres-integration` job (ADR-0065), so it runs for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
 
 ## Code Review Gate
 
@@ -494,7 +521,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 
 - `pnpm install` runs on pnpm 10 and Node 24, fails on a wrong Node major (`engine-strict`), and fails if any non-allowlisted dependency requests a lifecycle script (`strictDepBuilds`).
 - A dependency version published less than 3 days ago cannot be installed (`minimumReleaseAge: 4320`).
-- `pnpm verify` runs lint, typecheck, test, and `prettier --check` green locally, reading the remote cache but not writing it.
+- `pnpm verify` runs the duplicate annotations and ratchet, knip, actionlint (when installed), `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
 - A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `CI`; test files are exempt from the two length caps only.

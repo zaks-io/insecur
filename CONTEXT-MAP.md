@@ -11,8 +11,8 @@ context for a specific task.
 ## Global Context
 
 - `CONTEXT.md` - source of truth for domain language across the repo.
-- `docs/context-map.md` - package ownership, dependency direction, and First
-  Value package cut.
+- `docs/context-map.md` - package ownership, dependency direction, and the
+  scaffolded package cut.
 - `docs/specs/README.md` - current implementation entry point.
 - `docs/specs/product-spec.md` - consolidated product state and ADR links.
 - `docs/specs/agent-workstreams.md` - implementation workstream shape.
@@ -26,18 +26,21 @@ context for a specific task.
 | `apps/worker/CONTEXT.md`  | Working on Cloudflare Worker routes, request composition, bindings, or API transport.             |
 | `packages/cli/CONTEXT.md` | Working on CLI commands, local config, safe input, output formatting, or child process execution. |
 
-## First Value Package Contexts
+## Scaffolded Package Contexts
 
-| Path                                    | Module                                                         |
-| --------------------------------------- | -------------------------------------------------------------- |
-| `packages/domain/CONTEXT.md`            | Shared domain primitives and stable vocabulary shapes.         |
-| `packages/access/CONTEXT.md`            | Effective Access Resolver and scope-first authorization.       |
-| `packages/tenant-store/CONTEXT.md`      | Tenant-Scoped Store and metadata isolation.                    |
-| `packages/crypto/CONTEXT.md`            | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
-| `packages/audit/CONTEXT.md`             | Audit Event Writer and metadata-only audit records.            |
-| `packages/secret-store/CONTEXT.md`      | Secret Version Store and Blind Secret Write rules.             |
-| `packages/runtime-injection/CONTEXT.md` | Runtime Injection Grant Service.                               |
-| `packages/onboarding/CONTEXT.md`        | Guided Organization Provisioning.                              |
+| Path                                     | Module                                                         |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| `packages/domain/CONTEXT.md`             | Shared domain primitives and stable vocabulary shapes.         |
+| `packages/auth/CONTEXT.md`               | Human authentication sessions and User actor context.          |
+| `packages/access/CONTEXT.md`             | Effective Access Resolver and scope-first authorization.       |
+| `packages/tenant-store/CONTEXT.md`       | Tenant-Scoped Store and metadata isolation.                    |
+| `packages/crypto/CONTEXT.md`             | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
+| `packages/audit/CONTEXT.md`              | Audit Event Writer and metadata-only audit records.            |
+| `packages/secret-store/CONTEXT.md`       | Secret Version Store and Blind Secret Write rules.             |
+| `packages/runtime-injection/CONTEXT.md`  | Runtime Injection Grant Service.                               |
+| `packages/onboarding/CONTEXT.md`         | Guided Organization Provisioning.                              |
+| `packages/instance-bootstrap/CONTEXT.md` | Instance Bootstrap and Bootstrap Operator Claim.               |
+| `packages/operations/CONTEXT.md`         | Operation Store and Sync Target Serialization.                 |
 
 ## Reading Rules
 

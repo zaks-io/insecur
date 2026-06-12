@@ -3,11 +3,11 @@
 insecur's tests are organized into three layers by where Postgres comes from and what
 failure class each catches. The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 
-| Layer             | Postgres              | Runtime                                           | Command                                               | Runs where             |
-| ----------------- | --------------------- | ------------------------------------------------- | ----------------------------------------------------- | ---------------------- |
-| Unit              | none                  | Node Vitest                                       | `pnpm test`                                           | local, CI, agents      |
-| Integration + RLS | Docker Compose        | Node Vitest, real route stack + `postgres` driver | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e` | local, CI, agents      |
-| Preview smoke     | ephemeral Neon branch | deployed Worker + Hyperdrive                      | `pr-preview.yml` (gated)                              | per-PR CI once enabled |
+| Layer             | Postgres              | Runtime                                           | Command                                                                                                      | Runs where             |
+| ----------------- | --------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Unit              | none                  | Node Vitest                                       | `pnpm test`                                                                                                  | local, CI, agents      |
+| Integration + RLS | Docker Compose        | Node Vitest, real route stack + `postgres` driver | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e` today; `pnpm test:canary` is decided but not wired yet | local, CI, agents      |
+| Preview smoke     | ephemeral Neon branch | deployed Worker + Hyperdrive                      | `pr-preview.yml` (gated)                                                                                     | per-PR CI once enabled |
 
 ## For agents
 
@@ -43,7 +43,13 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 The `postgres-integration` job in `.github/workflows/ci.yml` resets Docker Compose Postgres
 17 once, runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ;
 runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
-`INSECUR_CI_RLS_GATE=1` and runs `test:rls` plus `test:e2e`. Turbo `envMode: strict` only
+`INSECUR_CI_RLS_GATE=1` and runs `test:rls` and `test:e2e`; each fails closed under that gate
+rather than skipping. The no-plaintext canary gate
+([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) and the Plaintext Metadata Allowlist
+conformance gate ([ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md))
+are decided but not wired yet: there is currently no root `test:canary` script, no canary task in
+`scripts/ci/postgres-integration-tests.mjs`, and no schema allowlist conformance task. Turbo
+`envMode: strict` only
 forwards `INSECUR_CI_RLS_GATE` when it is listed on the `test:rls` / `test:e2e` tasks in
 `turbo.json`; a probe task (`assert:ci-rls-gate-env`) runs first so CI logs prove the var
 reached the task process. Vitest setup logs `[insecur] INSECUR_CI_RLS_GATE=1` when fail-closed

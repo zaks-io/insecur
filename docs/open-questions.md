@@ -26,7 +26,6 @@ here.
 
 - **Secret rotation must be first-class and easy** (UX + runbook). SOC 2 likely depends on it.
 - **SOC 2:** plan for it from the start; pursue certification once customers arrive.
-- **Root-key rotation window mechanics:** see ADR "Open Questions To Grill".
 - **External telemetry sink vendor:** see ADR "Open Questions To Grill".
 - **Root-key custody operational controls (ADR-0044):** minimize Cloudflare account administrators,
   separate the deploy principal from day-to-day human access, and record escrow-key access and
@@ -70,16 +69,15 @@ ship. Full counsel punch list in [research/legal-liability.md](research/legal-li
 
 ## Product and UX
 
-- **CLI human login UX:** proposed OAuth device authorization flow, memory/session-only token.
-  Confirm.
-- **Approval notification channel:** email + web app now; a Capacitor-wrapped mobile app later
-  (reference: the founder's existing Capacitor project) for native push. "Push Device
-  Registration" maps to that future app. The web app is the single approval surface; mobile is a
-  wrapper, not a separate native approval path.
-- **Structured / multi-field secrets:** deferred. The core Secret value is a single UTF-8 string;
-  structured is a later additive type, not a v1 noun.
-- **Provider read-back bulk import:** rejected for now (conflicts with the no-readback
-  principle). Adoption is manual entry plus local `.env`/file import. Revisit only on real demand.
+- **CLI human login UX:** whether human browser login uses OAuth device authorization
+  (`insecur login --device`). No ADR decides it, and the implemented INS-31 login (a WorkOS
+  cookie-exchange bridge in `packages/cli/src/commands/login.ts`) does not realize it yet. The
+  memory/session-only token posture is decided (ADR-0007).
+- **Approval notification channels are decided in ADR-0017** (browser/mobile push primary,
+  in-app and email fallback, email alert-only). Open: timing of the Capacitor-wrapped mobile app
+  for native push (reference: the founder's existing Capacitor project). Push Device Registration
+  covers browser push as well as that future app. The web app is the single approval surface;
+  mobile is a wrapper, not a separate native approval path.
 - **Approval state-machine edge cases:** largely specified; keep grilling (Partial Approvals,
   staleness, supersession, draft discard) while building.
 
@@ -93,11 +91,17 @@ ship. Full counsel punch list in [research/legal-liability.md](research/legal-li
 ## Limits to finalize (proposed defaults, confirm)
 
 - **Rollback Retention Window:** 90 days of prior encrypted Published Versions.
+- **Injection Grant TTL default:** proposed 300 seconds for policy-less First Value runs; recorded
+  as the First Value default in [first-value-milestone.md](first-value-milestone.md) (Runtime
+  Injection Grant Service seam) and implemented in
+  `packages/runtime-injection/src/injection-grant-ttl.ts`. Open: confirm 300s as the final default.
+- **High-Assurance Challenge validity window:** no proposed value yet.
 - **Audit retention:** Free 7d, Team 90d, Enterprise custom (set in pricing-strategy.md).
 - **Free-tier caps:** 1 org / 3 projects / 3 members (set in pricing-strategy.md).
 - **Rate limits:** deferred to the public-onboarding abuse-control work.
 
 ## Phasing
 
-- **V1/V2 sequencing is explicitly NOT decided.** See [phasing.md](phasing.md). The product is
-  specified phase-free; sequencing is a separate, later pass.
+- **V1 scope and provider order are decided** (2026-05-25 scope review; see
+  [phasing.md](phasing.md)). Still open is only the finer cut inside V1: whether First Value ships
+  alone, and which hardening lands in a second release versus post-V1.

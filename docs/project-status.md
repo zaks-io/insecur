@@ -1,14 +1,15 @@
 # Project Status
 
-Last updated: 2026-06-03
+Last updated: 2026-06-12
 
 ## Current State
 
 insecur has moved well past the empty scaffold. The repo now has product-bearing package
-code for the First Value and Production Delivery foundation, plus a Worker auth/session
-surface. The main missing piece is composition into the full user-facing First Value
-flow: CLI commands, Worker routes for provisioning/secrets/runtime injection, and
-provider sync are not wired yet.
+code for the First Value and Production Delivery foundation, a Worker route surface for
+auth/session, onboarding, non-protected secret writes, and Runtime Injection grants, and
+the first CLI commands. The main missing pieces are the rest of the user-facing First
+Value composition (`insecur secrets set`, `insecur run`, the remaining Worker routes)
+and provider sync.
 
 The current workspace is Node 24 and pnpm 10, with Turbo, Prettier, ESLint, Vitest,
 package builds, local Postgres development scripts, RLS migrations, Blacksmith-backed
@@ -38,21 +39,38 @@ these block First Value wiring; they harden seams already in code.
 
 The same `ARCH-2` review opened the Drizzle restoration (INS-155): ADR-0037 says Drizzle owns the
 schema and a raw SQL step owns the RLS policies and roles, but the data layer was hand-written
-`postgres.js` with no Drizzle. Tooling (INS-156) and the ADR-0037 footnote (INS-157) have landed;
-the schema cutover (INS-158) and the query-builder rewrite (INS-159) are in flight.
+`postgres.js` with no Drizzle. The restoration is complete: tooling (INS-156), the ADR-0037
+footnote (INS-157), the schema cutover (INS-158), and the query-builder rewrite (INS-159) have all
+landed.
 
 A 2026-06-03 ADR-conformance audit then checked all 60 accepted ADRs against the code. Beyond the
-Drizzle drift above (already owned); the RLS CI gate (INS-144) is wired in `postgres-integration`,
-it produced
-four new tickets. The data-key model is HKDF-derived rather than wrapped, so ADR-0005 and ADR-0028
-were amended (2026-06-03) to make organization/project data keys random keys stored AES-GCM wrapped
-under the root in `wrapped_storage_ref`, with rotation rewrapping the blob and never decrypting a
-value; the keyring conversion plus the rewrap primitive is INS-160, blocked by the INS-159 query
-rewrite. The ESLint test-file override relaxing `complexity`/`max-statements` beyond ADR-0055 is
-INS-161 (ready-for-agent). Routing the runtime pool through Hyperdrive is INS-162 and the
-approval-gated production migration step is INS-163 (both ready-for-human). The audit found no other
-code-vs-ADR contradictions worth acting on; remaining gaps below are unbuilt pre-V1 work, not
-divergences.
+Drizzle drift above (since closed), it produced four new tickets; the RLS CI gate (INS-144) is
+wired in `postgres-integration`. The data-key model is HKDF-derived rather than wrapped, so
+ADR-0005 and ADR-0028 were amended (2026-06-03) to make organization/project data keys random keys
+stored AES-GCM wrapped under the root in `wrapped_storage_ref`, with rotation rewrapping the blob
+and never decrypting a value; the keyring conversion plus the rewrap primitive is INS-160, still
+open. The ESLint test-file override relaxing
+`complexity`/`max-statements` beyond ADR-0055 landed as INS-161. Routing the runtime pool through
+Hyperdrive is INS-162 and the approval-gated production migration step is INS-163 (both
+ready-for-human). The audit found no other code-vs-ADR contradictions worth acting on; remaining
+gaps below are unbuilt pre-V1 work, not divergences.
+
+A 2026-06-12 full spec-corpus review then prepared the docs for the agent-fleet hand-off: 77
+confirmed defects were fixed across the spec, ADR, and area-doc corpus (key model, role list,
+audit-export, route-shape, and deferral-language drift), and the architecture-improvement pass
+landed ADRs 0066 through 0076 plus dated amendments to ADR-0008/0028/0032/0034/0038/0062, the
+[custody-material compromise runbook](runbooks/custody-material-compromise.md), and the content
+ownership / single-statement / deterministic-conflict rules in
+[specs/README.md](specs/README.md) (ADR-0067). Several enforcement gates are now decided but not
+yet built: the no-plaintext canary gate (ADR-0069), the Plaintext Metadata Allowlist conformance
+gate (ADR-0070), the decrypt-import lint boundary (ADR-0071), the role-bundle registry conformance
+suite (ADR-0034) including the machine-only protected-issuance scope (ADR-0038), the
+`OPERATION_INTENT_CODES` catalog (ADR-0068), the `operation.idempotency_mismatch` check
+(ADR-0066), the non-lease execution-deadline liveness recovery (ADR-0073), and the exit/HTTP
+lockstep test (ADR-0062). These contract-and-gate tickets should land before parallel feature
+workstreams start, so seam agreements are CI-time facts rather than prose. Review follow-ups are
+INS-167 (metadata-viewer role preset), INS-168 (intent-mismatch enforcement), and INS-169 (re-home
+First Value routes under `/v1/orgs/:org`).
 
 ## Implemented In Code
 
@@ -65,7 +83,8 @@ divergences.
 - `apps/worker` exposes `GET /healthz`, `POST /v1/auth/cli/exchange`,
   `GET /v1/session/whoami`, guided-provisioning/onboarding routes, a non-protected
   Blind Secret Write route (`POST .../secrets/by-variable-key`), and Runtime Injection
-  Grant issue/consume routes (`POST .../runtime/grants`, `.../grants/:grantId/consume`).
+  Grant issue/consume routes (`POST /v1/runtime-injection/grants`,
+  `POST /v1/runtime-injection/grants/:grantId/consume`).
   The secret-write route encrypts through `@insecur/crypto` and the grant-consume route
   decrypts and delivers `valueUtf8`, so live encrypt/decrypt already runs on real
   routes. It validates auth configuration at construction, supports development fake
@@ -140,12 +159,16 @@ divergences.
   RLS tests) and `test:e2e` with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build.
   Package integration suites outside those tasks still self-gate in `pnpm verify` when
   `DATABASE_URL_RUNTIME` is unset.
+- The third test layer is the gated preview smoke (`pr-preview.yml`, INS-164): the First
+  Value smoke against a deployed preview Worker, off until `PREVIEW_ENV_ENABLED` flips.
 
 ## Not Yet Wired
 
-- The CLI package is still an empty entrypoint. No `insecur login`, `insecur secrets set`,
-  `insecur run`, local profile config, child process spawning, masked prompt, JSON output,
-  or first-value proof command path exists yet.
+- The CLI has its first commands (INS-31): `insecur login`, `insecur init`, and
+  `insecur shell` (which already spawns a child process with injected env), plus local
+  profile resolution, user/project config, and `--json` output. Still missing:
+  `insecur secrets set`, `insecur run <command>`, the masked prompt, and the first-value
+  proof command path.
 - The Worker now exposes auth/session, guided-provisioning/onboarding, non-protected
   secret-write, and runtime-injection grant issue/consume routes (the latter two already
   run live encrypt/decrypt, see above). Still missing: instance bootstrap, membership
@@ -169,8 +192,7 @@ divergences.
   also still HKDF-derived rather than wrapped: ADR-0005/0028 (2026-06-03 amendments) decide
   that organization/project data keys are random keys stored AES-GCM wrapped under the root in
   `wrapped_storage_ref`, so rotation can rewrap without decrypting values. Converting the keyring
-  off derivation and adding the rewrap primitive is tracked in INS-160, sequenced behind the
-  Drizzle restoration (INS-155) because it rewrites the data-key store.
+  off derivation and adding the rewrap primitive is tracked in INS-160.
 - Protected Environments, Draft/Published Version, Promotion, rollback, Protected Change
   Orchestrator, Human Approval Surface, Delivery Risk Policy Presets, and Storage Security
   Gate enforcement are not implemented.
@@ -201,8 +223,9 @@ audit, controlled Organization creation, and invitation-based Organization acces
 ## Build Order
 
 This is dependency order, not a release plan. Version boundaries are still governed by
-[phasing.md](phasing.md), and production readiness is governed by
-[production-mvp-acceptance.md](production-mvp-acceptance.md).
+[phasing.md](phasing.md), production readiness is governed by
+[production-mvp-acceptance.md](production-mvp-acceptance.md), and milestone sequencing for the
+fleet hand-off is [roadmap.md](roadmap.md).
 
 **First Value Completion**
 
@@ -222,17 +245,22 @@ environment modeling, route-level authorization, and tenant-qualified audit cove
 Add Machine Identities, GitHub Actions OIDC, environment-scoped deploy keys, rotation policy,
 and short-lived automation access for scoped Runtime Injection without broad long-lived tokens.
 
+**Promotion Approval And High-Assurance Challenges**
+
+Add the core Protected Environment Promotion approval state machine, High-Assurance Challenges,
+protected delivery configuration change approvals, and versioned Delivery Risk Policy Presets.
+This block lands before provider sync: protected Secret Sync enable/run and Cloudflare Worker
+secret writes stay fail-closed until these approval gates exist, because the accepted Approval
+Impact Review is the approval evidence for Cloudflare Worker Secret Deploys
+([ADR-0039](adr/0039-cloudflare-worker-secrets-sync-target.md)).
+
 **Provider Sync: GitHub And Cloudflare**
 
 Build App Connections and inline sync adapters on top of the Operation Store and sync target
-lease/fencing primitives. Cloudflare Worker secret writes remain production deploys for the
-affected script/environment and need approval and audit evidence.
-
-**Approval UX And Delivery Policy**
-
-Add Protected Environment approval, high-assurance challenges, protected delivery configuration
-change approvals, protected Secret Sync enable/run approvals, Cloudflare Worker Secret Deploy
-approval evidence, and versioned Delivery Risk Policy Presets.
+lease/fencing primitives. The sync-specific approval surfaces — Approval Impact Review sync
+impact, protected Secret Sync enable/run approvals, and Cloudflare Worker Secret Deploy approval
+evidence — land alongside this block. Cloudflare Worker secret writes remain production deploys
+for the affected script/environment and need approval and audit evidence (ADR-0039).
 
 **Audit, Runbooks, And Release Gates**
 
@@ -242,19 +270,27 @@ release-gate evidence bundles.
 
 ## Recommended Next Steps
 
-1. Wire the existing package implementations into Worker routes for instance bootstrap,
-   guided provisioning, non-protected secret write, and Runtime Injection Grant issue/consume.
-2. Implement the CLI First Value path: profile config, safe secret input, metadata-only
-   `secrets set`, one-command `run`, and child-process env injection without local secret files.
-3. Run `pnpm dev:db:reset && pnpm test:rls` before treating the DB-backed integration suites as
+1. Land the contract-and-gate code decided in ADRs 0066-0076 before parallel feature work: the
+   intent-code catalog and idempotency-mismatch check, the role-bundle conformance suite and
+   protected-issuance scope atom, the Plaintext Metadata Allowlist registry and gate, the
+   decrypt-import lint boundary, the no-plaintext canary gate, and the exit/HTTP lockstep test.
+   Each is a small ticket; together they turn the cross-workstream seam contracts into CI-time
+   facts (see [roadmap.md](roadmap.md) M0).
+2. Wire the remaining package implementations into Worker routes: instance bootstrap,
+   membership management, and operations (guided provisioning, non-protected secret write,
+   and Runtime Injection Grant issue/consume already serve).
+3. Finish the CLI First Value path on top of the landed `login`/`init`/`shell` commands
+   (INS-31): masked safe secret input, metadata-only `secrets set`, and one-command `run` with
+   child-process env injection without local secret files.
+4. Run `pnpm dev:db:reset && pnpm test:rls` before treating the DB-backed integration suites as
    current evidence.
-4. Convert the First Value Proof in `examples/first-value-proof` from standalone proof script to
+5. Convert the First Value Proof in `examples/first-value-proof` from standalone proof script to
    a real CLI/API integration proof once the CLI and routes exist.
-5. Add production identity persistence and replace the Worker development admitted-user JSON map.
-6. Add root-key custody through the intended Cloudflare Secrets Store path and enforce key
+6. Add production identity persistence and replace the Worker development admitted-user JSON map.
+7. Add root-key custody through the intended Cloudflare Secrets Store path and enforce key
    readiness before secret writes or runtime delivery.
-7. Keep provider sync and protected delivery behind the Storage Security Gate until tenant-bound
+8. Keep provider sync and protected delivery behind the Storage Security Gate until tenant-bound
    storage, authorization, audit, and key readiness are all composed through routes.
-8. Burn down the `ARCH-2` hardening backlog (epic INS-133) opportunistically alongside First
+9. Burn down the `ARCH-2` hardening backlog (epic INS-133) opportunistically alongside First
    Value wiring. The slices are scoped to one PR each, carry mutation-based acceptance checks,
    and are independent except INS-135/INS-136 (both touch `packages/auth`, different files).

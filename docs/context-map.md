@@ -50,6 +50,7 @@ packages/cli
   -> packages/onboarding
   -> packages/runtime-injection
   -> packages/secret-store
+  -> packages/operations
   -> packages/auth
   -> packages/access
   -> packages/audit
@@ -61,23 +62,27 @@ packages/cli
 This is a conceptual direction, not a requirement that every package imports
 every package below it. Add dependencies only when code crosses that Interface.
 
-## First Value Packages
+## Scaffolded Packages
 
-These packages are scaffolded now because the First Value Milestone must use the
-real seams even when the implementations are narrow.
+These packages are scaffolded now with real seams, even where the
+implementations are narrow. Every row except `@insecur/operations` is part of
+the First Value cut (the First Value Milestone must use the real seams);
+`@insecur/operations` is scaffolded for the Production Delivery foundation and
+is not in the First Value Slice below.
 
-| Package                       | Module                                | Owns                                                                                                                                              | Does not own                                                                 |
-| ----------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `@insecur/domain`             | Domain primitives                     | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                                                 | Persistence, encryption, authorization decisions, provider behavior          |
-| `@insecur/auth`               | Human authentication sessions         | WorkOS sealed session validation, User actor context, CLI ephemeral credentials, CSRF helpers for browser mutations                               | Effective Access, CLI commands, WorkOS hosted login UI, Machine Identity     |
-| `@insecur/access`             | Effective Access Resolver             | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests                              | Human authentication, Service Access, Protected Environment approval         |
-| `@insecur/tenant-store`       | Tenant-Scoped Store                   | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                                                | Business rules, authorization semantics, encryption                          |
-| `@insecur/crypto`             | Keyring and Encryption Envelope       | tenant-bound key resolution, key versions, ciphertext identity binding, wrapped material shapes                                                   | Secret lifecycle decisions, raw persistence, delivery policy                 |
-| `@insecur/audit`              | Audit Event Writer                    | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references                                                       | Audit export integrity, operation state, Sensitive Value storage             |
-| `@insecur/secret-store`       | Secret Version Store                  | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs                                 | Runtime Injection, Promotion approval, raw SQL, provider sync                |
-| `@insecur/runtime-injection`  | Runtime Injection Grant Service       | Injection Grants, one-use consume rules, variable-key scoped injection decisions, command output safety                                           | CLI process spawning, child process trust, provider sync                     |
-| `@insecur/onboarding`         | Guided Organization Provisioning      | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation                          | Public onboarding abuse controls, WorkOS authentication, production delivery |
-| `@insecur/instance-bootstrap` | Instance Bootstrap and operator claim | Instance posture, WorkOS-ready identity configuration, Bootstrap Operator Claim CAS, Instance Operator grant, first-Organization owner Membership | WorkOS login UI, public signup, CLI wiring                                   |
+| Package                       | Module                                | Owns                                                                                                                                                                               | Does not own                                                                                         |
+| ----------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `@insecur/domain`             | Domain primitives                     | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                                                                                  | Persistence, encryption, authorization decisions, provider behavior                                  |
+| `@insecur/auth`               | Human authentication sessions         | WorkOS sealed session validation, User actor context, CLI ephemeral credentials, CSRF helpers for browser mutations                                                                | Effective Access, CLI commands, WorkOS hosted login UI, Machine Identity                             |
+| `@insecur/access`             | Effective Access Resolver             | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests                                                               | Human authentication, Service Access, Protected Environment approval                                 |
+| `@insecur/tenant-store`       | Tenant-Scoped Store                   | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                                                                                 | Business rules, authorization semantics, encryption                                                  |
+| `@insecur/crypto`             | Keyring and Encryption Envelope       | tenant-bound key resolution, key versions, ciphertext identity binding, wrapped material shapes                                                                                    | Secret lifecycle decisions, raw persistence, delivery policy                                         |
+| `@insecur/audit`              | Audit Event Writer                    | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references                                                                                        | Audit export integrity, operation state, Sensitive Value storage                                     |
+| `@insecur/secret-store`       | Secret Version Store                  | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs                                                                  | Runtime Injection, Promotion approval, raw SQL, provider sync                                        |
+| `@insecur/runtime-injection`  | Runtime Injection Grant Service       | Injection Grants, one-use consume rules, variable-key scoped injection decisions, command output safety                                                                            | CLI process spawning, child process trust, provider sync                                             |
+| `@insecur/onboarding`         | Guided Organization Provisioning      | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation                                                           | Public onboarding abuse controls, WorkOS authentication, production delivery                         |
+| `@insecur/instance-bootstrap` | Instance Bootstrap and operator claim | Instance posture, WorkOS-ready identity configuration, Bootstrap Operator Claim CAS, Instance Operator grant, first-Organization owner Membership                                  | WorkOS login UI, public signup, CLI wiring                                                           |
+| `@insecur/operations`         | Operation Store                       | Operation IDs, idempotency keys, metadata-only status/progress/wait/retry/cancel state, CAS transitions, Sync Target Serialization lease rows and fencing tokens, audit references | Provider writes, authorization semantics, audit formatting/export, queue execution, Sensitive Values |
 
 ## Deferred Packages
 
@@ -86,7 +91,6 @@ package when its Interface is ready to be implemented and tested.
 
 | Future package                   | Module                                   | Trigger                                                                            |
 | -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
-| `@insecur/operations`            | Operation Store                          | First resumable, retryable, pollable, or human-waiting workflow                    |
 | `@insecur/protected-change`      | Protected Change Orchestrator            | Protected Environment Draft Version, Promotion, Approval Request, or rollback work |
 | `@insecur/sync`                  | Secret Sync                              | First provider sync lifecycle implementation                                       |
 | `@insecur/provider-github`       | GitHub provider adapter                  | GitHub App installation or GitHub Actions secret sync work                         |

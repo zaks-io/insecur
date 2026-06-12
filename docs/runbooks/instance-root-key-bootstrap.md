@@ -26,8 +26,9 @@ Secrets Store so the deployed Worker resolves it at runtime through the existing
   that has no instance root key yet; a Self-Hosted Instance operator bootstrapping
   their own root key.
 - **Non-triggers:** rotating an existing root key (use the Root Key Rotation
-  runbook — it rewraps data keys and re-escrows). Re-running this against an
-  Instance that already has a bound, escrowed root key.
+  runbook — it generates the new version offline, escrows it, loads it into
+  Secrets Store, rewraps data keys, then retires the old version). Re-running
+  this against an Instance that already has a bound, escrowed root key.
 
 ## scope
 
@@ -52,7 +53,9 @@ secrets.
   (1Password item/vault audit) serving as the out-of-band access record ADR-0028
   requires.
 - `apps/worker/wrangler.jsonc` is ready to declare a Secrets Store binding for
-  `INSTANCE_ROOT_KEY` (see `execute`).
+  `INSTANCE_ROOT_KEY_V1` (see `execute`). Each root key version is its own named
+  Secrets Store secret and binding
+  ([ADR-0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md) 2026-06-12 amendment).
 - The generating machine is trusted and can be taken offline during generation.
 
 ## safe_inputs
@@ -76,7 +79,10 @@ Preview without producing key material:
   (`packages/crypto/src/root-key-material.ts`). Anything else fails closed with
   `RootKeyNotConfiguredError`.
 - Confirm the root key version matches `DEFAULT_ROOT_KEY_VERSION`
-  (`packages/crypto/src/constants.js`); a version mismatch fails closed.
+  (`packages/crypto/src/constants.ts`) — now the current wrap version, not the
+  only valid version; unwrap resolves the binding named by the recorded
+  `root_key_version` and fails closed when it is unbound
+  ([ADR-0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md) 2026-06-12 amendment).
 - Run `pnpm build` to confirm the Worker dry-run deploy passes **before** adding
   the binding, so any later failure is attributable to the binding.
 
@@ -109,15 +115,19 @@ you cannot read the value back to escrow it (ADR-0028).
    `-dev` Instance and paste the same hex value. After creation it is write-only.
 
 5. **Declare the binding.** In `apps/worker/wrangler.jsonc`, add the Secrets Store
-   binding that populates `env.INSTANCE_ROOT_KEY` for `-dev`. Commit the binding
-   declaration (which contains no key material — only the store/secret reference).
+   binding that populates `env.INSTANCE_ROOT_KEY_V1` for `-dev` — one Secrets Store
+   secret per root key version per the
+   [ADR-0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md)
+   2026-06-12 amendment. Commit the binding declaration (which contains no key
+   material — only the store/secret reference).
 
 6. **Clear the terminal.** Close the scrollback / clear the screen so the key is
    not left resident in the terminal buffer.
 
 ## verify
 
-Verify against **cloud `-dev`, not localhost** (cloud-dev rule):
+Verify against **cloud `-dev`, not localhost** — localhost cannot exercise Secrets Store bindings,
+so binding and key-material verification must run against the deployed `-dev` Worker:
 
 - `wrangler --remote` confirms the deployed `-dev` Worker resolves the root key
   through `SecretsStoreRootKeyProvider` (a path that needs the root key succeeds;
@@ -146,9 +156,12 @@ Bootstrap predates most in-app audit, so evidence is operational, metadata-only:
   unreadable from Secrets Store. Treat as a failed ceremony — generate a fresh
   key and restart from step 1; do not try to recover the loaded value.
 - **Suspected exposure of the key (history, log, screen-share):** treat as
-  compromise. Rotate via the Root Key Rotation runbook (rewrap data keys,
-  re-escrow, retire the exposed version). For `-dev` pre-launch with no valuable
-  secrets, regenerate and re-bootstrap.
+  compromise. For exposure where extraction may have occurred, escalate to the
+  [Custody-Material Compromise runbook](custody-material-compromise.md) — rotation
+  alone is insufficient when the old root plus a database dump may be in an
+  attacker's hands, so containment also requires Cloudflare reset and
+  tenant-driven upstream rotation. For `-dev` pre-launch with no valuable secrets,
+  regenerate and re-bootstrap.
 - **Lost Cloudflare store / account:** restore from the 1Password escrow copy by
   loading it into a fresh Secrets Store secret. This is the single-point-of-loss
   protection escrow exists for.

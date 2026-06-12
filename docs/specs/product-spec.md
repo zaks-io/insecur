@@ -1,6 +1,6 @@
 # Canonical Product Spec
 
-Last updated: 2026-05-26.
+Last updated: 2026-06-11.
 
 This is the linear implementation-facing specification for the currently decided insecur product.
 It consolidates accepted ADRs, scope decisions, and operational constraints so agents can build from
@@ -70,16 +70,28 @@ truth. R2 stores encrypted backups and forensic/archive artifacts. Cloudflare Se
 instance key material and instance-level secrets. Workers KV is excluded for security-relevant
 state because eventual consistency is unsafe for revocation and authorization. Cloudflare Queues
 and Durable Objects are deferred past V1; their concerns are handled in Postgres by lease rows,
-compare-and-set updates, and partial unique indexes.
+compare-and-set updates, and partial unique indexes. Every V1 time-based runtime data-lifecycle
+edge is evaluated lazily at access or claim time; V1 ships no background sweeper, cron, or scheduled
+runtime data-lifecycle job, and scheduled operational jobs such as the backup export are out of that
+rule's scope ([ADR-0076](../adr/0076-lazy-lifecycle-expiry-and-retained-version-disposal.md)).
 
 Durable operation state goes through the Operation Store. Operation records, idempotency keys,
 wait/retry metadata, Sync Target Serialization leases, fencing tokens, and audit references are
 tenant-qualified metadata in Postgres, not queue payloads or provider-adapter private tables.
 
-Neon Postgres is reached through Cloudflare Hyperdrive. The database runtime role is
+Neon Postgres is reached through Cloudflare Hyperdrive. The Postgres connection string lives only
+in the Cloudflare Hyperdrive configuration, never as a Worker secret and never in Cloudflare
+Secrets Store; the Worker holds only the Hyperdrive binding. The Hyperdrive configuration disables
+query caching for the runtime path because revocation and authorization reads require Postgres
+strong consistency; there is no security-relevant read cache in V1. The database runtime role is
 `NOBYPASSRLS`; migrations use a distinct elevated role. Hyperdrive transaction-mode pooling means
 tenant scope is transaction-local, not session-global, and the driver must not rely on prepared
 statements.
+
+Package seams share one failure contract: failures surface an `ErrorBody`-compatible shape with a
+stable `KnownErrorCode` on `code` and a boolean `retryable`, so callers map any package failure to
+one error envelope without learning package-private dialects. The decrypt opacity carve-out below
+is the only exception to cause visibility.
 
 Staging and production run as `wrangler` environments inside one Cloudflare account for now.
 Production deploys require a GitHub Environment approval gate, but the executor is a CI-held
@@ -95,13 +107,20 @@ Trace: [ADR-0002](../adr/0002-cloudflare-native-focused-stack.md),
 [ADR-0037](../adr/0037-tenant-scoped-bound-store-over-rls.md),
 [ADR-0049](../adr/0049-vendor-ports-and-adapters.md),
 [ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md),
+[ADR-0062](../adr/0062-package-seam-failures-are-errorbody-compatible.md),
 [operation-store.md](../operation-store.md).
 
 ## 3. Tenant Model And Onboarding
 
 Organization is the tenant boundary. Project belongs to exactly one Organization. Every durable
-selector is an Opaque Resource ID. Routes and CLI commands either make Organization context
-explicit or derive it from checked local project config.
+selector is an Opaque Resource ID. Organization-scoped resource routes are organization-qualified
+(`/v1/orgs/:org/...`) in production, with two recorded exceptions: onboarding and Guided
+Organization Provisioning routes resolve the Organization from the authenticated session because
+the Organization does not exist yet, and the shipped First Value by-variable-key secret-write and
+runtime-injection grant routes are a recorded divergence that must be re-homed under
+`/v1/orgs/:org` before the Production MVP acceptance gate. Membership and Effective Access
+enforcement is identical either way. CLI commands either make Organization context explicit or
+derive it from checked local project config.
 
 V1 creates one non-authorizing Default Team per Organization. Invitation acceptance adds the User
 to that Default Team, but access still requires an explicit Membership. A V1 Invitation targets
@@ -116,7 +135,10 @@ claim completion separately grants an owner Membership in the first Organization
 Hosted solo users may receive a Personal Organization through Guided Organization Provisioning
 when the Instance admits the user and abuse controls are active. The flow creates a Default Team,
 owner Membership, first Project, and non-protected development Environment with default names so
-the user can reach First Value before provider setup.
+the user can reach First Value before provider setup. Guided provisioning is create-only: no
+reconcile, no identity-based idempotency, and no deny-when-already-owns check. A User may own many
+Organizations, and a reused client-minted resource ID fails with a clean
+`onboarding.resource_conflict` rather than resolving to the existing resource.
 
 Protected Environment is a property, not a name. Development is non-protected. Staging and
 production are Protected. Preview defaults to Protected and can be opted down to non-protected only
@@ -127,6 +149,7 @@ Trace: [ADR-0001](../adr/0001-tenant-first-control-plane.md),
 [ADR-0021](../adr/0021-small-group-production-first.md),
 [ADR-0038](../adr/0038-protected-delivery-requires-machine-credential.md),
 [ADR-0040](../adr/0040-guided-personal-organization-provisioning.md),
+[ADR-0063](../adr/0063-guided-provisioning-creates-does-not-reconcile.md),
 [TODOS.md #5](../../TODOS.md).
 
 ## 4. Identity, Authorization, And Step-Up
@@ -136,15 +159,32 @@ not a primary or recovery MFA factor. GitHub identity, if useful, must be routed
 rather than maintained as a separate first-party OAuth stack.
 
 Login establishes identity only. Authorization is scope-first. User and Team Memberships assign
-Role presets; Roles contribute Authorization Scopes. V1 built-in Role presets are owner, admin,
-developer, approval, and read-only. Owner includes approval scopes for solo-owner operation. Admin
-and developer do not. The Approval Role grants approval/rejection authority without project
+Role presets; Roles contribute Authorization Scopes. V1 Built-In Roles are owner, admin, developer,
+metadata viewer, approval, and read-only. Owner includes approval scopes for solo-owner operation.
+Admin and developer do not. The Approval Role grants approval/rejection authority without project
 configuration, App Connection, Secret Sync, Runtime Injection Policy, membership, or Service Access
-authority.
+authority. The Metadata Viewer Role grants scoped metadata detail visibility where Metadata
+Visibility Policy allows it; it grants no Sensitive Value access, Secret Reveal, Secret Delivery,
+Runtime Injection, Secret Sync, configuration mutation, or approval authority, does not bypass the
+Sensitive Detail Gate for decrypted Sensitive Metadata, and is not assignable to Machine Identities
+in V1.
+
+The Authorization Scope atom vocabulary and the Built-In Role scope bundles are enumerated in code:
+`packages/access/src/authorization-scopes.ts` and `packages/access/src/built-in-role-scopes.ts` are
+the canonical source for atom names and preset bundles. Atoms follow ADR-0034's shape rule:
+`resource:verb`, no wildcard form, with breadth structural rather than token-based. The relational
+constraints in this spec and CONTEXT.md remain normative invariants those bundles must satisfy:
+owner includes approval scopes, admin and developer do not, and the Approval Role carries no
+configuration or membership scopes. These relational constraints are enforced by the registry
+conformance suite in `packages/access`, and a violating bundle change fails `pnpm verify`
+([ADR-0034](../adr/0034-effective-access-resolver.md)).
 
 Every route and service asks the Effective Access Resolver for the actor's coordinate-bound
 Authorization Scope set, then checks the one scope an action requires. Routes never branch on
-actor type or Role name. The resolver decides only inside one Organization. Service Access is a
+actor type or Role name; where a denial is machine-only, the distinguishing scope is what the
+service checks, not the actor type (Protected Environment Injection Grant issuance, section 7,
+[ADR-0038](../adr/0038-protected-delivery-requires-machine-credential.md)). The resolver decides
+only inside one Organization. Service Access is a
 separate cross-organization gate with its own audit and no Secret Reveal or Secret Delivery scope.
 The Service Access surface is deferred past V1, but the boundary must not be collapsed into tenant
 authorization.
@@ -153,6 +193,16 @@ High-risk actions require a High-Assurance Challenge through the Human Approval 
 inside a human session and inherit the human's short-lived session token, but they cannot clear
 High-Assurance Challenges. High-risk CLI/API attempts return exit code `10` and
 `auth.high_assurance_required` with a bounded operation ID for the human to clear in the web app.
+A human-session bounded operation is cleared only by the same session User whose Effective Access
+the action was evaluated under, via fresh factor verification; a machine-credential bounded
+operation is cleared only by a User whose own Effective Access includes the Authorization Scope
+the pending action requires. Clearing authorizes only the exact bounded operation captured at
+creation, imports none of the clearing User's wider access, never extends the original credential
+past its hard bounds, and records the clearing User in audit alongside the original credential.
+Approval Request approval and rejection authority is governed separately by the Protected Approval
+Policy. There is no time-boxed elevation window in V1; every step-up, including each CLI-side
+non-protected Secret Reveal, is a fresh per-action High-Assurance Challenge that grants no
+reusable authority.
 
 Machine Identities are Organization-owned actors that exchange auth methods for short-lived access
 tokens. V1 Machine Identity Memberships are project-scoped only. GitHub Actions OIDC is preferred
@@ -183,6 +233,13 @@ The key hierarchy is layered:
 - Instance root key material lives outside Postgres.
 - Organization Data Keys protect organization-level encrypted data and Sensitive Metadata.
 - Project Data Keys protect project secrets and project-scoped sensitive data where available.
+- Organization and Project Data Keys are independent random keys generated at provisioning, stored
+  AES-GCM wrapped under the instance root key inline in `wrapped_storage_ref`, with AAD binding the
+  key's tenant identity and data-key version. The read path unwraps under the recorded root key
+  version; derivation is forbidden in the production keyring.
+- Root rotation rewraps wrapped key blobs only. Rotation and rewrap must not decrypt Sensitive
+  Values, Provider Credentials, or Sensitive Metadata, and never rewrite record ciphertext. The
+  rotation scheduler stays deferred past V1.
 - Per-record or per-version Data Encryption Keys protect values inside the encryption envelope.
 - Encrypted records store key version metadata needed to decrypt or rewrap.
 
@@ -190,7 +247,22 @@ The Keyring module sits below the encryption engine. It resolves root, organizat
 per-record key material, exposes a uniform rewrap primitive, and owns tenant-scoped in-memory cache
 boundaries. The encryption engine is domain-agnostic and sits below thin wrappers for Secrets,
 Provider Credentials, and Sensitive Metadata. It returns wrapped material only; callers never hold
-keys, and decrypt output may enter only an approved execution path.
+keys, and decrypt output may enter only an approved execution path. Approved execution paths are the
+modules on the decrypt-import allowlist decided by ADR-0071. The lint boundary and
+`eslint.config.ts` restricted-import block are not wired yet; until they land, the ADR's enumeration
+is the planned allowlist, and adding a path remains an ADR-traced boundary change, not a code-only
+change ([ADR-0071](../adr/0071-decrypt-egress-import-boundary.md)). Decrypt failure
+is a single opaque fail-closed error: every cause surfaces as wire code `crypto.decrypt_failed` with
+`retryable` false and no cause discriminant.
+
+Key material is request-scoped only: the instance root key, Organization and Project Data Keys,
+per-record DEKs, and unlocked Sensitive Values are reachable in the Worker only for the span of
+the single request that needs them, never as module-global state and never resident in
+`process.env` in production. The production root key resolves on demand through the Cloudflare
+Secrets Store binding only; `INSECUR_INSTANCE_ROOT_KEY_HEX` is a development-only convenience, and
+production refuses it fail-closed with `RootKeyNotConfiguredError`. This is window-narrowing, not
+in-process secrecy: during an active decrypt the keys and resulting plaintext are necessarily in
+memory.
 
 Ciphertext identity binding is reconstructed from trusted Opaque Resource IDs at decrypt time, not
 stored beside ciphertext. The ciphertext layer binds immutable identity and no Secret content
@@ -203,25 +275,37 @@ read the root key at runtime in V1, so customer-facing language must say no-reve
 product read path, not "we cannot decrypt." External KMS is the migration trigger when a Hosted
 Instance has multiple Service Access operators.
 
-Customer-Managed Key Custody is an Organization-scoped Hosted Instance mode. The customer supplies
-a wrapping authority and can revoke the grant outside insecur. While active, insecur runtime can
-decrypt only through the customer-granted path for approved operations; after revocation,
-decrypting operations fail closed and the Organization becomes Custody-Locked.
+Customer-Managed Key Custody is a decided future Organization-scoped Hosted Instance mode, deferred
+past V1 in the [phasing.md deferred-scope parking lot](../phasing.md#deferred-scope-parking-lot).
+V1 is single instance root with no Bring Your Own Key; ADR-0064's per-request, on-demand
+key-resolution seam is what keeps the mode additive. The customer supplies a wrapping authority and
+can revoke the grant outside insecur. Enabling or replacing the mode rewraps both Organization Data
+Keys and Project Data Keys onto the customer custody authority, so after revocation the instance
+root can unwrap no key in the Organization's scope. While active, insecur runtime can decrypt only
+through the customer-granted path for approved operations; after revocation, decrypting operations
+fail closed and the Organization becomes Custody-Locked.
+
+A schema column not on the Plaintext Metadata Allowlist registry is presumed Sensitive Metadata and
+must be stored through the Sensitive Metadata envelope; the conformance gate fails closed on any
+unregistered column, so registering a column under a plaintext category is the explicit act that
+allows plaintext. See [ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md).
 
 Production Secret Delivery and Secret Sync must fail closed until the Storage Security Gate
 verifies root key placement, tenant data keys, key versions, Tenant-Scoped Store/RLS readiness,
 encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, and
 no-plaintext persistence.
 
-Trace: [ADR-0005](../adr/0005-key-hierarchy-and-rotation.md),
-[ADR-0026](../adr/0026-encryption-envelope-below-per-domain-wrappers.md),
-[ADR-0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md),
-[ADR-0031](../adr/0031-keyring-below-the-encryption-engine.md),
+Trace: [ADR-0005](../adr/0005-key-hierarchy-and-rotation.md) (incl. 2026-06-03 wrapped-data-keys
+amendment), [ADR-0026](../adr/0026-encryption-envelope-below-per-domain-wrappers.md),
+[ADR-0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md) (incl. 2026-06-03 rewrap
+amendment), [ADR-0031](../adr/0031-keyring-below-the-encryption-engine.md),
 [ADR-0036](../adr/0036-neon-postgres-over-hyperdrive-with-rls.md),
 [ADR-0037](../adr/0037-tenant-scoped-bound-store-over-rls.md),
 [ADR-0044](../adr/0044-no-reveal-custody-is-a-product-surface-guarantee.md),
 [ADR-0049](../adr/0049-vendor-ports-and-adapters.md),
 [ADR-0050](../adr/0050-customer-managed-key-custody.md),
+[ADR-0062](../adr/0062-package-seam-failures-are-errorbody-compatible.md),
+[ADR-0064](../adr/0064-minimize-secret-resident-surface.md),
 [storage-security-gate.md](../storage-security-gate.md).
 
 ## 6. Secret Lifecycle And No-Reveal Egress
@@ -230,10 +314,16 @@ insecur is the Secret Source of Truth. Provider secret stores and child process 
 derived delivery destinations.
 
 The product distinguishes Secret Use, Secret Delivery, and Secret Reveal. Protected Environment
-secrets never support Secret Reveal, including for owners and Service Access. Break-glass may allow
-additional delivery, rotation, replacement, provider reauthorization, or rollback, but not plaintext
-disclosure. Sensitive Values must not appear in default API output, CLI output, UI, JSON, logs,
-audit metadata, operation payloads, queue payloads, telemetry, or agent-facing output.
+secrets never support Secret Reveal, including for owners and Service Access. Secret Reveal in a
+non-protected Environment is a CLI-side egress that requires a per-reveal bounded-operation
+High-Assurance Challenge cleared on the Human Approval Surface; clearing grants no reusable
+authority, and there is no time-boxed reveal elevation window in V1. The CLI reveal command itself
+is deferred past V1. Break-glass may allow additional delivery, rotation, replacement, provider
+reauthorization, or rollback, but not plaintext disclosure. Sensitive Values must not appear in
+default API output, CLI output, UI, JSON, logs, audit metadata, operation payloads, queue payloads,
+telemetry, or agent-facing output; only the modules on the decrypt-import allowlist may produce
+decrypt plaintext at all. The lint boundary that enforces this is decided but not wired yet
+(section 5, [ADR-0071](../adr/0071-decrypt-egress-import-boundary.md)).
 
 Sensitive Values enter only through safe input paths: request bodies over TLS, CLI stdin, masked
 TTY prompts, service generation, provider authorization flows, or development-only Secret Import.
@@ -254,7 +344,11 @@ regime-ignorant. Non-protected writes can append and make live immediately. Prot
 Draft Versions in the Draft Area. Promotion atomically makes exact Draft Version IDs live as
 Published Versions. Rollback is a no-decrypt ciphertext copy from a retained prior Published
 Version into a new live version. Rollback eligibility is controlled by a configurable Rollback
-Retention Window; the default is still an open product limit.
+Retention Window, evaluated lazily at rollback request time; the default is still an open product
+limit. A Retained Published Version outside the window is rollback-ineligible, but its wrapped
+ciphertext is retained, not crypto-erased, in V1; crypto-erasure-on-expiry is parked in
+[phasing.md](../phasing.md#deferred-scope-parking-lot)
+([ADR-0076](../adr/0076-lazy-lifecycle-expiry-and-retained-version-disposal.md)).
 
 Shared Secret Sources are explicit named attachments. Environments do not inherit secret values
 from other Environments. Non-protected Environments may copy Secret Shapes from Protected
@@ -298,10 +392,21 @@ Values only in memory, fork/exec the approved child with environment variables, 
 JSON, logs, shell history, or disk. insecur must not capture or store stdout/stderr from injected
 child processes.
 
+An Injection Grant moves `issued -> consumed | expired | revoked`, with the three non-issued states
+terminal. Secret bindings and the delivered secret version ID pin at issue and are never re-resolved
+at consume; clock expiry is evaluated lazily inside the consume compare-and-set. V1 revocation verbs
+are exactly two: Tenant Suspension and compromise-response version invalidation; ordinary policy
+edits do not revoke in-flight grants, and revocation survives tenant reinstatement. See
+[ADR-0074](../adr/0074-injection-grant-lifecycle-and-revocation.md).
+
 Protected Environment Runtime Injection requires a Machine Identity credential bound to the
 Environment. A human session token, including one inherited by a local agent, cannot obtain a
 Protected Environment Injection Grant. This is the boundary that keeps local agents away from
-production-grade plaintext.
+production-grade plaintext. Protected Environment Injection Grant issuance requires
+`runtime_injection:grant_issue_protected`, which no Built-In Role bundle contains and which only
+machine credential resolution can contribute; the grant service maps the Environment's protection
+property to the required scope and does not inspect actor type. See
+[ADR-0038](../adr/0038-protected-delivery-requires-machine-credential.md).
 
 Trace: [ADR-0007](../adr/0007-developer-first-cli-contract.md),
 [ADR-0016](../adr/0016-delivery-first-secret-egress.md),
@@ -331,7 +436,11 @@ and Partial Approval workflows are deferred past V1.
 Approval Impact Review is recomputed before approval or final apply. It includes enabled affected
 Secret Syncs, Provider Value Size Limit eligibility, and Cloudflare Worker Secret Deploy impact
 where applicable. The accepted Approval Impact Snapshot is the historical metadata-only evidence
-for the delivery and sync impact the final approver acted on.
+for the delivery and sync impact the final approver acted on. Promotion approval authorizes
+Immediate Sync After Promotion for already-enabled affected Secret Syncs, run inline in the
+triggering request, only when that impact appeared in the accepted Approval Impact Review. The
+Cloudflare Worker Secret Deploy needs no second approval, while creating, enabling, or changing a
+sync stays a separate protected delivery configuration action.
 
 Delivery Risk Policy uses simple presets backed by versioned policy infrastructure. Balanced is the
 default for newly provisioned Organizations and Projects. Strict requires human review or
@@ -410,10 +519,10 @@ background sweeper, Durable Object, or Postgres advisory lock in V1.
 
 Trace: [ADR-0006](../adr/0006-app-connections-and-secret-syncs.md),
 [ADR-0011](../adr/0011-provider-connection-method-matrix.md),
-[ADR-0012](../adr/0012-queue-backed-sync-execution.md),
-[ADR-0013](../adr/0013-durable-object-sync-target-serialization.md),
+[ADR-0012](../adr/0012-queue-backed-sync-execution.md) (superseded by 0057),
+[ADR-0013](../adr/0013-durable-object-sync-target-serialization.md) (superseded by 0057),
 [ADR-0022](../adr/0022-per-instance-provider-app-registration.md),
-[ADR-0023](../adr/0023-cloudflare-secrets-store-sync-target.md),
+[ADR-0023](../adr/0023-cloudflare-secrets-store-sync-target.md) (superseded by 0039),
 [ADR-0024](../adr/0024-libsodium-wasm-for-github-sealed-box.md),
 [ADR-0039](../adr/0039-cloudflare-worker-secrets-sync-target.md),
 [ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md),
@@ -460,12 +569,21 @@ security-relevant actions, including auth/session transitions, Membership and sc
 and credential operations, Secret writes, Promotion, rollback, Runtime Injection, Secret Sync,
 provider drift, Storage Security Gate transitions, and runbook actions.
 
+Audit event codes live only in `packages/audit/src/audit-event-codes.ts`, the canonical registry;
+the grammar is `domain.action` with snake_case segments, and the writer rejects unregistered codes.
+Every security-relevant action family has denied coverage, where denied codes end in `_denied` or
+are domain-level denial codes; the pairing is per action family, not a mechanical suffix pair. See
+[ADR-0068](../adr/0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md).
+
 Audit exports are tenant-bounded JSONL with a canonical per-export hash chain, HMACed manifest,
-and Ed25519 signature in V1. The private signing key is an instance secret managed like the root
-key: generated offline, escrowed, stored in Cloudflare Secrets Store, versioned, and rotated. The
-public key and historical versions are published so exports remain independently verifiable after
-rotation. The honest claim is "tamper-evident and independently verifiable," not tamper-proof,
-immutable, or non-repudiable against insecur.
+and Ed25519 signature in V1. Exports are tiered: low-privilege exports carry immutable IDs and
+hashes and exclude Sensitive Metadata; full-fidelity exports may include decrypted Sensitive
+Metadata only for authorized security review after the Sensitive Detail Gate. The private signing
+key is an instance secret managed like the root key: generated offline, escrowed, stored in
+Cloudflare Secrets Store, versioned, and rotated. The public key and historical versions are
+published so exports remain independently verifiable after rotation. The honest claim is
+"tamper-evident and independently verifiable," not tamper-proof, immutable, or non-repudiable
+against insecur.
 
 Operational telemetry is separate from audit. Raw logs stay Cloudflare-native, with Logpush to the
 operator's R2. A separate allowlist-emit metadata-only stream may go to an external sink such as
@@ -495,7 +613,10 @@ V1 backup and restore covers three loss scenarios:
 - Neon corruption, bad migration, or accidental delete with the Neon account intact: recover with
   Neon point-in-time restore, with 7-day history retention.
 - Loss of Neon account or project: recover from one daily independent encrypted logical export in
-  R2, encrypted under the existing instance custody chain.
+  R2, encrypted under the existing instance custody chain. The export pipeline (Worker cron venue,
+  per-organization scoped reads, JSONL envelope) and the continuously evaluated
+  `backup_restore.export_fresh` freshness control are decided in
+  [ADR-0072](../adr/0072-backup-export-pipeline-and-freshness.md).
 - Root-key custody loss: recover from ADR-0028 offline sealed escrow.
 
 Before any valuable production secret is stored, one end-to-end restore drill must pass: provision
@@ -508,7 +629,9 @@ tenant-side rotation: publish a new value, re-sync delivery targets, invalidate 
 Injection Grants for the old version, and enumerate reach from audit metadata. The tenant must
 still revoke the leaked credential at its upstream issuer; insecur cannot do that unless it owns
 that issuer. Escalation to custody-material compromise and forensic collection is signal-driven.
-V1 stores no hash index or second representation of Secret values for leak detection.
+V1 stores no hash index or second representation of Secret values for leak detection; the
+stored-hash design is rejected as the eventual design too, and Leak Verification, if built,
+computes on demand and never persists a hash index (ADR-0059).
 
 External claims are bounded:
 
@@ -534,10 +657,22 @@ project needs threat model review, cross-tenant authorization tests, auth/sessio
 rotation and restore drills, app connection revocation tests, audit export tests, CLI
 non-interactive flow tests, dependency scanning, secret scanning, and evidence bundles.
 
-Cross-tenant and RLS regression tests run against real Postgres, specifically per-PR Neon branches,
-with `DATABASE_URL_RUNTIME` as the `NOBYPASSRLS` runtime role. They never run against SQLite,
-PGlite, mocks, or the elevated migration role. CI asserts runtime and migration credentials are
-distinct.
+Automated tests are three layers: unit tests with no database, integration plus RLS tests against
+real Postgres, and a preview-environment smoke. Cross-tenant and RLS regression suites run against
+real Postgres as the `NOBYPASSRLS` runtime role via `DATABASE_URL_RUNTIME`, on Docker Compose
+Postgres 17 locally and in CI's `postgres-integration` job. The no-plaintext canary gate is decided
+but not wired yet: once implemented, `pnpm test:canary` runs there as a fourth named command inside
+the integration layer (not a new layer) and sweeps every column of every user table plus in-process
+console output for sentinel Sensitive Values; see
+[ADR-0069](../adr/0069-no-plaintext-canary-gate.md). They never run against SQLite, PGlite,
+mocks, or the elevated migration role. CI asserts runtime and migration credentials are distinct.
+A per-PR Neon branch backs only the gated preview smoke layer, which deploys a preview Worker and
+runs the First Value loop over HTTP; it stays inert behind `PREVIEW_ENV_ENABLED` until INS-164
+lands the preview infrastructure. The secret-bearing preview smoke never runs on forked PRs, while
+the Docker Compose integration/RLS gate carries no secrets and is fork-safe by design, so it runs
+on all PRs. Postgres 17 is the development and CI database baseline until Postgres 18 is no longer
+preview on Neon. CI runs on Blacksmith runners as a compute-only substitution: workflow logic,
+trust boundaries, and fork isolation are unchanged.
 
 Tooling is ESLint with type-aware `typescript-eslint` and Prettier for formatting. Complexity and
 size budgets are required gates because agents are expected to write much of the code. A justified
@@ -557,20 +692,23 @@ Trace: [ADR-0008](../adr/0008-security-gates-and-runbooks.md),
 [ADR-0054](../adr/0054-tenant-isolation-tests-real-postgres.md),
 [ADR-0055](../adr/0055-eslint-prettier-type-aware-toolchain.md),
 [ADR-0056](../adr/0056-supply-chain-hardening-posture.md),
+[ADR-0060](../adr/0060-postgres-17-development-baseline.md),
+[ADR-0061](../adr/0061-blacksmith-github-actions-runners.md),
+[ADR-0065](../adr/0065-test-layers-and-preview-smoke.md),
 [build-tooling.md](../build-tooling.md),
 [security-runbooks-and-release-gates.md](../security-runbooks-and-release-gates.md).
 
 ## 14. ADR Coverage Map
 
-| Spec area                                              | ADRs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Product posture and milestones                         | [0001](../adr/0001-tenant-first-control-plane.md), [0015](../adr/0015-production-v1-security-baseline.md), [0018](../adr/0018-retire-unsafe-pre-v1-scaffold.md), [0021](../adr/0021-small-group-production-first.md), [0040](../adr/0040-guided-personal-organization-provisioning.md), [0041](../adr/0041-first-value-before-production-delivery.md)                                                                                                                                                                                    |
-| Topology, deployment, and vendor ports                 | [0002](../adr/0002-cloudflare-native-focused-stack.md), [0020](../adr/0020-instance-and-deployment-posture.md), [0022](../adr/0022-per-instance-provider-app-registration.md), [0027](../adr/0027-shared-instance-topology-and-binding-map.md), [0029](../adr/0029-environments-and-cd-trust-model.md), [0036](../adr/0036-neon-postgres-over-hyperdrive-with-rls.md), [0049](../adr/0049-vendor-ports-and-adapters.md)                                                                                                                  |
-| Human and machine access                               | [0003](../adr/0003-human-authentication-and-authorization.md), [0004](../adr/0004-machine-identities-and-ci-auth.md), [0009](../adr/0009-workos-mfa-without-sms.md), [0010](../adr/0010-workos-authkit-for-human-authentication.md), [0019](../adr/0019-service-access-without-secret-reveal.md), [0032](../adr/0032-agent-session-execution-and-step-up.md), [0034](../adr/0034-effective-access-resolver.md), [0038](../adr/0038-protected-delivery-requires-machine-credential.md)                                                    |
-| Crypto, storage, and custody                           | [0005](../adr/0005-key-hierarchy-and-rotation.md), [0025](../adr/0025-secret-version-store.md), [0026](../adr/0026-encryption-envelope-below-per-domain-wrappers.md), [0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md), [0031](../adr/0031-keyring-below-the-encryption-engine.md), [0037](../adr/0037-tenant-scoped-bound-store-over-rls.md), [0044](../adr/0044-no-reveal-custody-is-a-product-surface-guarantee.md), [0050](../adr/0050-customer-managed-key-custody.md)                                          |
-| CLI, runtime injection, and secret egress              | [0007](../adr/0007-developer-first-cli-contract.md), [0016](../adr/0016-delivery-first-secret-egress.md), [0035](../adr/0035-display-name-resolution.md), [0038](../adr/0038-protected-delivery-requires-machine-credential.md), [0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)                                                                                                                                                                                                                                     |
-| Protected changes and policy                           | [0017](../adr/0017-protected-environment-promotion-and-rollback.md), [0033](../adr/0033-staged-change-set-and-publish.md), [0042](../adr/0042-policy-gated-delivery-channels.md), [0043](../adr/0043-delivery-risk-policy-presets.md)                                                                                                                                                                                                                                                                                                    |
-| Provider sync                                          | [0006](../adr/0006-app-connections-and-secret-syncs.md), [0011](../adr/0011-provider-connection-method-matrix.md), [0012](../adr/0012-queue-backed-sync-execution.md), [0013](../adr/0013-durable-object-sync-target-serialization.md), [0023](../adr/0023-cloudflare-secrets-store-sync-target.md), [0024](../adr/0024-libsodium-wasm-for-github-sealed-box.md), [0039](../adr/0039-cloudflare-worker-secrets-sync-target.md), [0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md)                                   |
-| Web and approval surfaces                              | [0051](../adr/0051-web-console-architecture.md), [0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Audit, telemetry, backup, legal, and incident response | [0014](../adr/0014-tamper-evident-audit-exports.md), [0030](../adr/0030-hybrid-allowlisted-telemetry.md), [0045](../adr/0045-asymmetric-signing-for-audit-exports-in-v1.md), [0046](../adr/0046-us-residency-claim-scoped-to-data-at-rest.md), [0047](../adr/0047-regulated-industry-exclusion-by-contract-and-attestation.md), [0048](../adr/0048-breach-forensic-record-separate-from-audit-retention.md), [0058](../adr/0058-minimal-backup-and-tested-restore.md), [0059](../adr/0059-tenant-reported-secret-compromise-response.md) |
-| Build, tests, and supply chain                         | [0008](../adr/0008-security-gates-and-runbooks.md), [0053](../adr/0053-remote-build-cache-trust-model.md), [0054](../adr/0054-tenant-isolation-tests-real-postgres.md), [0055](../adr/0055-eslint-prettier-type-aware-toolchain.md), [0056](../adr/0056-supply-chain-hardening-posture.md)                                                                                                                                                                                                                                               |
+| Spec area                                              | ADRs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product posture and milestones                         | [0001](../adr/0001-tenant-first-control-plane.md), [0015](../adr/0015-production-v1-security-baseline.md), [0018](../adr/0018-retire-unsafe-pre-v1-scaffold.md), [0021](../adr/0021-small-group-production-first.md), [0040](../adr/0040-guided-personal-organization-provisioning.md), [0041](../adr/0041-first-value-before-production-delivery.md), [0063](../adr/0063-guided-provisioning-creates-does-not-reconcile.md)                                                                                                                                          |
+| Topology, deployment, and vendor ports                 | [0002](../adr/0002-cloudflare-native-focused-stack.md), [0020](../adr/0020-instance-and-deployment-posture.md), [0022](../adr/0022-per-instance-provider-app-registration.md), [0027](../adr/0027-shared-instance-topology-and-binding-map.md), [0029](../adr/0029-environments-and-cd-trust-model.md), [0036](../adr/0036-neon-postgres-over-hyperdrive-with-rls.md), [0049](../adr/0049-vendor-ports-and-adapters.md), [0062](../adr/0062-package-seam-failures-are-errorbody-compatible.md)                                                                        |
+| Human and machine access                               | [0003](../adr/0003-human-authentication-and-authorization.md), [0004](../adr/0004-machine-identities-and-ci-auth.md), [0009](../adr/0009-workos-mfa-without-sms.md), [0010](../adr/0010-workos-authkit-for-human-authentication.md), [0019](../adr/0019-service-access-without-secret-reveal.md), [0032](../adr/0032-agent-session-execution-and-step-up.md), [0034](../adr/0034-effective-access-resolver.md), [0038](../adr/0038-protected-delivery-requires-machine-credential.md)                                                                                 |
+| Crypto, storage, and custody                           | [0005](../adr/0005-key-hierarchy-and-rotation.md), [0025](../adr/0025-secret-version-store.md), [0026](../adr/0026-encryption-envelope-below-per-domain-wrappers.md), [0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md), [0031](../adr/0031-keyring-below-the-encryption-engine.md), [0037](../adr/0037-tenant-scoped-bound-store-over-rls.md), [0044](../adr/0044-no-reveal-custody-is-a-product-surface-guarantee.md), [0050](../adr/0050-customer-managed-key-custody.md), [0064](../adr/0064-minimize-secret-resident-surface.md)              |
+| CLI, runtime injection, and secret egress              | [0007](../adr/0007-developer-first-cli-contract.md), [0016](../adr/0016-delivery-first-secret-egress.md), [0035](../adr/0035-display-name-resolution.md), [0038](../adr/0038-protected-delivery-requires-machine-credential.md), [0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)                                                                                                                                                                                                                                                                  |
+| Protected changes and policy                           | [0017](../adr/0017-protected-environment-promotion-and-rollback.md), [0033](../adr/0033-staged-change-set-and-publish.md), [0042](../adr/0042-policy-gated-delivery-channels.md), [0043](../adr/0043-delivery-risk-policy-presets.md)                                                                                                                                                                                                                                                                                                                                 |
+| Provider sync                                          | [0006](../adr/0006-app-connections-and-secret-syncs.md), [0011](../adr/0011-provider-connection-method-matrix.md), [0012](../adr/0012-queue-backed-sync-execution.md) (superseded by 0057), [0013](../adr/0013-durable-object-sync-target-serialization.md) (superseded by 0057), [0023](../adr/0023-cloudflare-secrets-store-sync-target.md) (superseded by 0039), [0024](../adr/0024-libsodium-wasm-for-github-sealed-box.md), [0039](../adr/0039-cloudflare-worker-secrets-sync-target.md), [0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md) |
+| Web and approval surfaces                              | [0051](../adr/0051-web-console-architecture.md), [0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Audit, telemetry, backup, legal, and incident response | [0014](../adr/0014-tamper-evident-audit-exports.md), [0030](../adr/0030-hybrid-allowlisted-telemetry.md), [0045](../adr/0045-asymmetric-signing-for-audit-exports-in-v1.md), [0046](../adr/0046-us-residency-claim-scoped-to-data-at-rest.md), [0047](../adr/0047-regulated-industry-exclusion-by-contract-and-attestation.md), [0048](../adr/0048-breach-forensic-record-separate-from-audit-retention.md), [0058](../adr/0058-minimal-backup-and-tested-restore.md), [0059](../adr/0059-tenant-reported-secret-compromise-response.md)                              |
+| Build, tests, and supply chain                         | [0008](../adr/0008-security-gates-and-runbooks.md), [0053](../adr/0053-remote-build-cache-trust-model.md), [0054](../adr/0054-tenant-isolation-tests-real-postgres.md), [0055](../adr/0055-eslint-prettier-type-aware-toolchain.md), [0056](../adr/0056-supply-chain-hardening-posture.md), [0060](../adr/0060-postgres-17-development-baseline.md), [0061](../adr/0061-blacksmith-github-actions-runners.md), [0065](../adr/0065-test-layers-and-preview-smoke.md)                                                                                                   |

@@ -28,7 +28,7 @@ external systems (Linear, GitHub, CI), not here.
 - Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploy via apps/worker/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
-- Preview checks: none wired; hosted `validate` and `security-daily` workflows exist, but no preview deploy exists yet
+- Preview checks: `PR Preview` / `PR Preview Cleanup` workflows exist but stay gated behind `PREVIEW_ENV_ENABLED` (INS-164); hosted `CI` and `security-daily` workflows run unconditionally
 - Production deploy path: `pnpm deploy:worker` (Cloudflare Worker `insecur-worker`); approval required
 - Production approval required: yes
 
@@ -116,7 +116,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 - Authoritative issue state: Linear team `INS`
 - Authoritative PR state: GitHub `zaks-io/insecur`
-- Authoritative check state: local `pnpm verify` plus hosted GitHub `validate`; duplicate-code CI annotations are warning-only for now
+- Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow (its `Verify` job runs `pnpm verify`); duplicate-code CI annotations are warning-only for now
 - Authoritative deploy state: Cloudflare (Worker `insecur-worker`)
 - Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)

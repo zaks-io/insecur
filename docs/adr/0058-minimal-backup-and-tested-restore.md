@@ -32,3 +32,7 @@ Tested restore is a hard pre-production gate, not post-v1 hardening. Before any 
 - The restore drill is a release gate. Storing valuable production secrets is blocked until the drill passes once and the RTO is recorded. The model is decided now; the drill executes once the storage baseline exists, since there is no product code yet.
 - Re-adding a separate backup key, tighter RPO, cross-region copies, or the broader recovery-drill set (data key corruption, accidental secret deletion beyond the point-in-time window) later is additive and high-reversibility, consistent with the 2026-05-25 scope-reduction posture.
 - The loss limit stays documented: if both the escrow and the live root key are lost, encrypted data is unrecoverable by design (ADR-0044, ADR-0028).
+
+## Amendment (2026-06-12): Export pipeline and freshness are decided in ADR-0072
+
+This record decides the recovery model and the one-time restore-drill gate. The export pipeline's execution venue, its encryption envelope, and the continuous `backup_restore.export_fresh` freshness control that keeps the latest export trustworthy after the drill passes are decided in [ADR-0072](0072-backup-export-pipeline-and-freshness.md). The envelope decided there stays inside this record's single-custody-chain decision: restoring the export still requires the escrowed root key, and no separate backup key is introduced.

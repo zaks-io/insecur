@@ -67,7 +67,7 @@ Out of scope unless the product direction changes:
 - A V1 invitation targets exactly one membership grant: either one organization-scoped role or one project-scoped role.
 - Memberships attach users and teams to organization or project scopes, and V1 Machine Identities to project scopes only.
 - Authorization is scope-first: Effective Access authorization scopes are evaluated for decisions, and roles are assignment presets that contribute scopes.
-- V1 exposes built-in role presets only for User and Team assignment: owner, admin, developer, approval, and read-only. It does not expose arbitrary human/team scope editing.
+- V1 exposes built-in role presets only for User and Team assignment: owner, admin, developer, metadata viewer, approval, and read-only. It does not expose arbitrary human/team scope editing.
 - Built-in roles are authorization-scope bundles, so custom roles or explicit human/team scope assignments can be added later without changing authorization checks.
 - The owner preset includes approval scopes for solo-owner operation. Admin and developer presets do not include approval scopes. The Approval Role is the additive preset for granting approval scopes to non-owners without project configuration, App Connection, Secret Sync configuration, Runtime Injection Policy, membership management, or Approval Request Cancellation authority.
 - Organization-scope User and Team memberships contribute authorization scopes that apply across projects in the organization; project-scope memberships contribute narrower project-scoped authorization scopes.
@@ -196,7 +196,7 @@ The target runtime isolation boundary is the organization. Every tenant-owned ro
 
 The metadata store is Neon Postgres reached through Cloudflare Hyperdrive. Every metadata read and write goes through the Tenant-Scoped Store: it opens one short transaction, sets tenant scope transaction-local, and runs callers against a scoped handle. Postgres Row-Level Security is the engine backstop for metadata isolation; the Keyring remains the value boundary for Sensitive Values.
 
-The preferred route shape is organization-qualified:
+Organization-scoped resource routes are organization-qualified (`/v1/orgs/:org/...`) in production (ADR-0003):
 
 ```text
 /v1/orgs/:org/projects
@@ -206,17 +206,19 @@ The preferred route shape is organization-qualified:
 /v1/orgs/:org/projects/:project/secret-syncs
 ```
 
+Two recorded exceptions exist. Onboarding and Guided Organization Provisioning routes resolve the Organization from the authenticated session because the Organization does not exist yet. The shipped First Value by-variable-key secret-write and Runtime Injection grant routes are a recorded divergence and must be re-homed under `/v1/orgs/:org` before the [Production MVP acceptance](production-mvp-acceptance.md) gate. Membership and Effective Access enforcement is unchanged either way.
+
 The CLI may hide repeated organization/project flags through a committed local project config that stores opaque IDs only. The API should never infer tenant context from an untrusted header, local cache, or client-provided ID without membership checks.
 
 Before storing valuable secrets or treating `insecur.cloud` as production, add organization, membership, role, machine identity, app connection, secret sync, and tenant-qualified audit tables in Postgres with Row-Level Security policies. Add regression tests that attempt cross-tenant reads and writes by ID through both the Effective Access Resolver and the Tenant-Scoped Store.
 
 ## Audit Export Integrity
 
-Audit exports are tenant-bounded JSONL artifacts with a simple tamper-evident proof. Each export should hash-chain canonicalized audit entries and include an HMACed manifest with organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, and HMAC.
+Audit exports are tenant-bounded JSONL artifacts with a simple tamper-evident proof. Each export should hash-chain canonicalized audit entries and include an HMACed manifest with organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, signing key version, and HMAC.
 
 Audit export formats must distinguish full-fidelity security-review exports from low-privilege exports. Full-fidelity exports may include Sensitive Metadata such as Approval Context Notes, provider target names, policy binding names, and exact Protected Environment Secret value byte lengths only after authorization and Sensitive Detail Gate; low-privilege exports use immutable IDs, hashes, non-sensitive lengths, provider caps, over-limit flags, and presence flags and exclude that plaintext metadata. Historical Display Names may appear as ordinary audit metadata.
 
-This is intentionally not a full compliance ledger. The HMAC verifies integrity and authenticity for systems that can access the verification key. If public third-party verification becomes a requirement, asymmetric signing should be added as a separate decision.
+This is intentionally not a full compliance ledger. The HMAC verifies integrity and authenticity for systems that can access the verification key. In addition, V1 audit exports carry an Ed25519 signature computed over the canonicalized export (ADR-0045), so any holder of the published public key can verify an export without a shared secret and without trusting insecur to run the check. The private signing key is an instance secret managed exactly like the root key under ADR-0028: generated offline, escrowed, write-only in Cloudflare Secrets Store, versioned, and rotated, with current and historical public keys published so exports stay verifiable across rotation. `audit verify` checks the signature against the published public key in addition to recomputing the hash chain and verifying the HMACed manifest. The honest claim ceiling is "tamper-evident and independently verifiable," not "tamper-proof," "immutable," or non-repudiable against insecur: the signing key shares Cloudflare Secrets Store custody with the root key, so signing delivers public verifiability against outside tampering, not non-repudiation against the operator.
 
 ## CLI And Agent Ergonomics
 
@@ -237,11 +239,11 @@ The CLI should remain easy for agents:
 - Local Secret File Migration is one-way in V1: local `.env` files may be imported into insecur, but stored Secrets must not be exported back to `.env`, dotenv, JSON, or other local plaintext secret files.
 - Local Secret File Migration is an adoption helper, not a normal recurring operation or steady-state refresh path.
 - Local Secret File Migration targets only non-protected development Environments. Protected, preview, staging, production, and other non-development Environments reject import before values are parsed or written.
-- Local Secret File Migration is create-only and all-or-nothing: preflight validation must pass for the whole source before any Secrets or Secret Versions are created, and failures show invalid keys, duplicate keys, existing-secret conflicts, and line numbers without values.
+- Local Secret File Migration is create-only and all-or-nothing: preflight validation must pass for the whole source before any Secrets or Secret Versions are created. Parse errors, lines that do not split into key=value, and any parsed or final key failing the `^[A-Z_][A-Z0-9_]*$` format check are reported by line number and stable error code only; the offending token is never echoed. Key text appears in preflight or error output only for keys that pass the format check, such as duplicate final Variable Keys and existing-secret conflicts, and never with values.
 - Local Secret File Migration does not update existing Secrets from local files; existing Secrets are changed through normal secret-write, generation, and rotation workflows.
 - Ordinary secret-write commands do not support named local value-file input such as `--value-file`; local file ingress exists only through non-protected development Local Secret File Migration.
 - Variable Key Prefixes are applied before Local Secret File Migration validation, duplicate detection, planning, matching, and writes; final Variable Keys must be valid without normalization.
-- Local Secret File Migration supports metadata-only Secret Import Plans for dry-run review: target scope, parsed key count, final Variable Keys, planned creates, existing-secret conflicts, invalid or duplicate final keys, and stable error codes without values or raw source contents.
+- Local Secret File Migration supports metadata-only Secret Import Plans for dry-run review: target scope, parsed key count, format-passing final Variable Keys, planned creates, existing-secret conflicts, duplicate final keys, and stable error codes without values or raw source contents; format-invalid entries appear by line number and stable error code only, never as echoed key text.
 - Local Secret File Migration has no delivery side effects: it never creates, changes, or binds Runtime Injection Policies, Secret Syncs, CLI Profiles, or other delivery configuration.
 - Local Secret File Migration must not rewrite or automatically delete the source file. Optional cleanup is a separate explicit local deletion command and not a secure-erasure promise.
 - Runtime Injection Policies are the least-privilege delivery boundary for local workflows. CLI Profiles may select a default policy, but the policy owns the exact secret set delivered to the child process.

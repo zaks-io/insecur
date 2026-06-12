@@ -19,16 +19,16 @@ This is the private source record for future customer-facing security and privac
 - **Protected Environments** do not support Secret Reveal. Delivery for protected values is controlled through approved delivery paths and machine-held credentials.
 - **Runtime Injection** avoids plaintext local secret files, but the approved destination process receives plaintext and can read it.
 - **Secret Sync** is one-way delivery to an external provider secret store. It intentionally creates a provider-side copy and verification must not read provider-side values back.
-- **Service Access** supports support, abuse, and incident work without Secret Reveal, Secret Delivery, or Sensitive Values.
-- **Customer-Managed Key Custody** lets an Organization make future decrypting operations depend on a customer-controlled active custody grant.
-- **Self-Hosted Instances** let the customer operate the Instance and hold infrastructure and Key Custody themselves.
+- **Service Access** supports support, abuse, and incident work without Secret Reveal, Secret Delivery, or Sensitive Values. (Deferred past V1; see the docs/phasing.md parking lot and the ADR-0019 deferral amendment.)
+- **Customer-Managed Key Custody** lets an Organization make future decrypting operations depend on a customer-controlled active custody grant. (Deferred past V1; see the docs/phasing.md parking lot and ADR-0050.)
+- **Self-Hosted Instances** let the customer operate the Instance and hold infrastructure and Key Custody themselves. (Deferred past V1; see the docs/phasing.md parking lot.)
 - **Audit Export** is tamper-evident and independently verifiable where ADR-0045 applies, not tamper-proof or non-repudiable against insecur under default hosted custody.
 
 ## Limits We Must Say Plainly
 
-- Hosted Default Custody is not zero-knowledge. insecur-controlled infrastructure can technically decrypt under the accepted V1 custody model, even though the product surface removes casual and unsupported read paths.
-- Customer-Managed Key Custody is not zero-knowledge while the customer grant is active. It means future decrypting operations fail after the customer revokes or disables the grant.
-- If Customer-Managed Key Custody is unavailable or revoked, the Organization becomes **Custody-Locked**: decrypting operations fail closed while non-decrypting navigation, status, audit, and recovery surfaces remain available.
+- The default Hosted Instance custody posture (ADR-0044) is not zero-knowledge. insecur-controlled infrastructure can technically decrypt under the accepted V1 custody model, even though the product surface removes casual and unsupported read paths.
+- Customer-Managed Key Custody (deferred past V1) is not zero-knowledge while the customer grant is active. It means future decrypting operations fail after the customer revokes or disables the grant.
+- If Customer-Managed Key Custody is unavailable or revoked, the Organization becomes **Custody-Locked** (deferred with that mode): decrypting operations fail closed while non-decrypting navigation, status, audit, and recovery surfaces remain available.
 - Runtime Injection is a read boundary: any approved child process can inspect its delivered environment after delivery.
 - Secret Sync creates a persistent provider-side copy until overwritten, rotated, disabled with copies left in place, or deleted through the managed cleanup flow.
 - Display Names and other plaintext-allowlisted fields can reveal hints. They exist because making every workflow ID-only is error-prone; customers can tighten visibility through Metadata Visibility Policy.
@@ -38,8 +38,8 @@ This is the private source record for future customer-facing security and privac
 - **Metadata Visibility Policy** can reduce what lower-assurance surfaces and Agent-Reachable Channels see without per-field sensitivity classification.
 - **Metadata Viewer Role** grants scoped metadata visibility to humans or teams without granting Sensitive Values, delivery, mutation, or approval authority.
 - **Delivery Risk Policy Presets** control how much non-protected automation is allowed through Agent-Reachable Channels.
-- **Customer-Managed Key Custody** moves the custody grant for one Organization to customer-controlled infrastructure and makes revocation an effective future-decrypt boundary.
-- **Self-Hosted Instance** moves Instance operation and Key Custody to the customer.
+- **Customer-Managed Key Custody** (deferred past V1) moves the custody grant for one Organization to customer-controlled infrastructure and makes revocation an effective future-decrypt boundary.
+- **Self-Hosted Instance** (deferred past V1) moves Instance operation and Key Custody to the customer.
 
 ## Review Rules For External Copy
 
@@ -49,4 +49,7 @@ This is the private source record for future customer-facing security and privac
 - Check audit-integrity language against ADR-0045.
 - Check residency language against ADR-0046.
 - Check regulated-data language against ADR-0047.
+- Check Service Access language against ADR-0019, including its deferral amendment.
+- Check every capability claim against the docs/phasing.md deferred-scope parking lot before
+  publishing; deferred capabilities must not appear in external copy as available.
 - Check public implementation details against this document's disclosure principles before publishing.

@@ -87,6 +87,7 @@ State names are documentation vocabulary, not a required database enum. The requ
 - A Staged Change Set is scoped to one Protected Environment in V1 and carries exactly one Promotion Change Set for that environment's Draft Versions.
 - Publish may coordinate Promotion and protected delivery configuration changes in one reviewed action, but the underlying promotion Approval Request still has exactly one purpose.
 - Protected delivery configuration changes remain distinct from Promotion in authority and audit, even when one Publish clears several gates in one interruption.
+- Protected delivery configuration items include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
 - A High-Assurance Challenge for Publish is single-use, time-limited, and bound to the exact Staged Change Set review fingerprint.
 - A batch whose contents, target state, approval policy, requester authority, or delivery impact changes after review must be reviewed again.
 - Approval Impact Review is recomputed immediately before approval or final apply and includes enabled Secret Syncs that Promotion will run.

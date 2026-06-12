@@ -68,6 +68,18 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0062: Package-Seam Failures Are ErrorBody-Compatible](0062-package-seam-failures-are-errorbody-compatible.md)
 - [ADR-0063: Guided Provisioning Creates, Does Not Reconcile](0063-guided-provisioning-creates-does-not-reconcile.md)
 - [ADR-0064: Minimize The Secret-Resident Surface In The Worker Process](0064-minimize-secret-resident-surface.md)
+- [ADR-0065: Test Layers And Preview-Env Smoke](0065-test-layers-and-preview-smoke.md)
+- [ADR-0066: Operation Idempotency Key Contract](0066-operation-idempotency-key-contract.md)
+- [ADR-0067: Documentation Content Ownership And The Single-Statement Rule](0067-documentation-content-ownership-and-single-statement-rule.md)
+- [ADR-0068: Stable Dotted-Code Vocabularies Live In Canonical Catalogs](0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md)
+- [ADR-0069: No-Plaintext Canary Gate](0069-no-plaintext-canary-gate.md)
+- [ADR-0070: Plaintext Metadata Allowlist Registry And Conformance Gate](0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)
+- [ADR-0071: Decrypt-Egress Import Boundary](0071-decrypt-egress-import-boundary.md)
+- [ADR-0072: Backup Export Pipeline And Freshness Contract](0072-backup-export-pipeline-and-freshness.md)
+- [ADR-0073: Operation Execution Liveness And Abandonment](0073-operation-execution-liveness-and-abandonment.md)
+- [ADR-0074: Injection Grant Lifecycle And Revocation](0074-injection-grant-lifecycle-and-revocation.md)
+- [ADR-0075: Orphan Cleanup Is A New Operation](0075-orphan-cleanup-is-a-new-operation.md)
+- [ADR-0076: Lazy Lifecycle Expiry And Retained Published Version Disposal](0076-lazy-lifecycle-expiry-and-retained-version-disposal.md)
 
 ## Superseded
 
@@ -79,6 +91,5 @@ Use this index for traceability and rationale after locating the relevant spec s
 
 These surfaced while grilling infrastructure (ADR-0027 through ADR-0030) and were deferred, not decided.
 
-- **Root-key rotation window mechanics.** ADR-0028 rotates by creating a new versioned, named root secret and rewrapping data keys from old to new, with encrypted records carrying the key version to select the right root during the window. Open is whether the implementation leans on Secrets Store's own secret versioning or a dual-named-secret window, and how the old version is retired once rewrap completes. Confirm at implementation against ADR-0005's rotation workflow.
 - **Rate-limit primitive.** Deferred with public onboarding. Postgres counter rows suffice for V1's few unauthenticated endpoints; a dedicated primitive (Durable Object or external) is only forced when broad public signup and its abuse controls land.
 - **External telemetry sink specifics.** ADR-0030 fixes the hybrid shape and the allowlist contract but not the vendor. Axiom is the lean choice for the metadata-only stream; Sentry is permitted only with default PII, request-data, breadcrumb, and local-variable capture disabled. Final sink selection and its subprocessor review are open.

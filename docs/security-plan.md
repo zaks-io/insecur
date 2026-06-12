@@ -23,7 +23,7 @@ V1 is split into First Value and Production Delivery milestones. First Value is 
 
 There is no supported unsafe pre-v1 product mode. Existing scaffold surfaces are deletion or replacement candidates, not compatibility constraints or product decisions.
 
-The v1 security focus is secure storage plus controlled delivery: insecur is the Secret Source of Truth, provider syncs are derived delivery targets for Cloudflare, Vercel, and GitHub, and runtime injection delivers values just in time for deploys and local commands without writing local secret files.
+The v1 security focus is secure storage plus controlled delivery: insecur is the Secret Source of Truth, provider syncs are derived delivery targets for Cloudflare, Vercel, and GitHub, and runtime injection delivers values just in time for deploys and local commands without writing local secret files. V1 ships the Cloudflare and GitHub sync adapters; the Vercel sync adapter is deferred past V1 with its contract kept add-back-ready, per the [V1 scope decisions (2026-05-25 scope review)](phasing.md#v1-scope-decisions-2026-05-25-scope-review) and [product-spec.md](specs/product-spec.md) section 9.
 
 Production Secret Delivery and Secret Sync are blocked until the [Storage Security Gate](storage-security-gate.md) passes. The gate is the metadata-only readiness contract for root key placement, tenant data keys, key versions, Tenant-Scoped Store/RLS, encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, and no-plaintext persistence.
 
@@ -106,12 +106,12 @@ Plan for:
 - Idle and absolute session lifetime limits.
 - Session rotation after login, privilege changes, MFA changes, and recovery events.
 - WorkOS-backed MFA is required before v1 production use.
-- High-risk human actions require a High-Assurance Challenge: a fresh WorkOS passkey/TOTP challenge or equivalent high-assurance session.
+- High-risk human actions require a High-Assurance Challenge: a fresh WorkOS passkey/TOTP factor verification at challenge time. Login-time MFA, session age, and session attributes never satisfy a High-Assurance Challenge (ADR-0009, ADR-0032).
 - High-Assurance Challenge is required for Sensitive Detail Gate, Protected Environment Approval Request approval or rejection, Promotion, protected rollback, Runtime Injection Policy create/update/publish/disable for a Protected Environment, App Connection create/reauthorization/credential replacement/scope or Connection Boundary change, Protected Environment Secret Sync create/enable/manual run, protected Secret Sync Binding changes, repository-scoped GitHub Actions override from a Protected Environment, Shared Secret Source attachment to a Protected Environment, Push Device Registration creation/replacement, Risk-Broadening Delivery Changes, Protected Approval Policy changes, and mutating Service Access controls such as signup lockdown, tenant suspension, allowlists, reinstatement, or deletion escalation.
 - Protected Environment approval and High-Assurance Challenge completion require the Human Approval Surface in V1; terminal-only approval is not supported for production protected gates.
 - Protected Environment Promotion is blocked before publish when the accepted Approval Impact Review shows an enabled affected Secret Sync would exceed its Provider Value Size Limit; no Published Version changes or Immediate Sync After Promotion run occurs for that request.
 - Delivery Risk Policy Presets default secure and may relax only non-protected development or preview delivery channels; Balanced preview relaxation requires environment-scoped Preview Automation Opt-In.
-- Machine Identities cannot satisfy High-Assurance Challenges. They may create Blind Secret Writes, request Promotion, and cancel their own pending Approval Requests if Organization Access allows it, and otherwise may use only exact policies or operations already authorized by a User through a High-Assurance Challenge.
+- Machine Identities cannot satisfy High-Assurance Challenges. They may create Blind Secret Writes, request Promotion, and cancel their own pending Approval Requests if Organization Access allows it, and otherwise may use only exact policies or operations already authorized through a High-Assurance Challenge by a User whose own Effective Access includes the Authorization Scopes the pending action requires (ADR-0032).
 - A High-Assurance Challenge may authorize a bounded Operation ID for asynchronous execution, but it must not create reusable authority for future unrelated operations.
 - Sensitive Detail Gate requires a fresh High-Assurance Challenge before any User-facing surface or full-fidelity export displays decrypted Sensitive Metadata. Normal authenticated sessions may see Display Names, opaque IDs, counts, status, hashes, non-sensitive lengths, presence flags, provider caps, over-limit flags, and generic pending states until the gate passes.
 - Push Device Registrations are user-owned browser/mobile push registrations for Approval Notifications. They are Sensitive Metadata, scoped to one User and one device/browser/app installation, and never become authentication factors by themselves.
@@ -187,8 +187,9 @@ Plan for:
 - Scoped list/detail endpoints may show Display Names according to Metadata Visibility Policy after authorization without Sensitive Detail Gate.
 - Membership checks for every list, read, write, rollback, token, audit, app connection, and sync operation.
 - Scope-first authorization checks at organization and project scope.
-- Built-in role preset assignment for V1: owner, admin, developer, approval, and read-only.
+- Built-in role preset assignment for V1: owner, admin, developer, metadata viewer, approval, and read-only.
 - Built-in roles are evaluated as Authorization Scope bundles; arbitrary human/team scope editing and custom role management are deferred until after V1.
+- The role-bundle relational invariants (owner includes every approval scope; admin and developer exclude them; the Approval and Metadata Viewer Role bundles stay narrow; `MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES` covers the ADR-0004-forbidden atoms) are enforced by the `packages/access` registry conformance suite, so a bundle change that violates them fails `pnpm verify` ([ADR-0034](adr/0034-effective-access-resolver.md)).
 - The owner preset includes approval scopes. Admin and developer presets do not.
 - The Approval Role contributes approval scopes to non-owners where Protected Approval Policy allows them, without contributing project configuration, App Connection, Secret Sync configuration, Runtime Injection Policy, membership management, or Approval Request Cancellation authority.
 - Approval attempts evaluate Effective Access for the Project and Protected Environment affected by the Approval Request; notification receipt and membership in another Project do not grant approval authority.
@@ -476,10 +477,10 @@ Plan for:
 - Secret Sync Deletion may tombstone the Secret Sync even when some Managed Provider Deletes fail, because deletion is the user's explicit cleanup/start-over action.
 - Failed Managed Provider Deletes create Orphaned Managed Provider Copy records with provider target metadata, failure reason, retry state, and audit links, but no Sensitive Values.
 - Orphaned Managed Provider Copy means the provider cleanup state is unknown; the provider-side copy may or may not still exist.
-- Orphaned Managed Provider Copy records must trigger user-visible warnings or notifications and remain visible in tombstone/status/audit output until cleaned up or explicitly acknowledged.
+- Orphaned Managed Provider Copy records must trigger user-visible warnings or notifications and remain visible in tombstone/status/audit output until cleaned up or explicitly acknowledged. The record lifecycle is `open → cleaned | acknowledged`, with both exit states terminal ([ADR-0075](adr/0075-orphan-cleanup-is-a-new-operation.md)).
 - Orphaned Managed Provider Copy warnings use stable warning code `sync.provider_delete_incomplete`.
 - Orphaned Managed Provider Copy warnings are not critical platform failures; they represent provider-side cleanup work still needed.
-- Orphaned Managed Provider Copy cleanup must be retryable after provider permission, connectivity, or reauthorization problems are fixed.
+- Orphaned Managed Provider Copy cleanup must be retryable after provider permission, connectivity, or reauthorization problems are fixed. Retry re-invokes `syncs delete` on the tombstoned sync, creating a new orphan-cleanup Operation rather than reopening the terminal deletion Operation or rerunning the sync ([ADR-0075](adr/0075-orphan-cleanup-is-a-new-operation.md)).
 - Secret Sync Deletion for a Protected Environment is a Protected Delivery Configuration Change.
 - Secret Sync is one-way delivery from insecur to the provider. Sync plan, run, status, and verification commands must not read Sensitive Values back from providers.
 
@@ -528,7 +529,7 @@ Agent/DX requirements:
 - Agent-facing output reports delivery metadata only and must not contain Sensitive Values.
 - Break-glass workflows for Protected Environment secrets may permit additional Secret Delivery, rotation, replacement, provider reauthorization, or rollback, but must not reveal Sensitive Values to a caller.
 - Shared Secret Source create/update/attach/detach operations are audited and require a High-Assurance Challenge when any attached Environment is protected.
-- Machine Identities may create Protected Environment Blind Secret Writes that produce Draft Versions, request Promotion, and cancel their own pending Approval Requests, but must not approve or reject Approval Requests, cancel Approval Requests created by other actors, complete Promotion, rollback, change retention, change Runtime Injection Policy, change Secret Sync, change App Connection, attach Shared Secret Sources, mutate Service Access, manage Signup Lockdown, or manage Tenant Suspension unless the exact bounded operation was pre-authorized by a User through a High-Assurance Challenge.
+- Machine Identities may create Protected Environment Blind Secret Writes that produce Draft Versions, request Promotion, and cancel their own pending Approval Requests, but must not approve or reject Approval Requests, cancel Approval Requests created by other actors, complete Promotion, rollback, change retention, change Runtime Injection Policy, change Secret Sync, change App Connection, attach Shared Secret Sources, mutate Service Access, manage Signup Lockdown, or manage Tenant Suspension unless the exact bounded operation, as captured at creation, was pre-authorized through a High-Assurance Challenge by a User whose own Effective Access includes the Authorization Scopes that operation requires (ADR-0032).
 - Runtime Injection Policy create/update/disable, Runtime Injection Policy Version publish/disable, and Injection Grant issue/use/deny events are audited.
 - Injection Grant issue/use/deny/reuse-deny audit events record actor, auth method, Runtime Policy Key, Runtime Injection Policy ID, Runtime Injection Policy Version ID/hash, exact secret binding IDs, delivered secret version IDs, Command Fingerprint, whether the fingerprint matched policy, request ID, result, and denial reason where applicable.
 - Deploy key exchange audit events record the requested Runtime Policy Key, Runtime Injection Policy ID, Runtime Injection Policy Version ID/hash, deploy key ID, and whether that policy was attached to that deploy key.
@@ -595,18 +596,18 @@ Plan for:
 - Secret metadata read, write, promotion, rollback, retention policy, Secret Import, egress, runtime injection, and sync events.
 - App connection create/update/delete/use/reauth events.
 - Key rotation and restore events.
-- Tamper-evident audit exports using tenant-bounded JSONL entries, a per-export hash chain, and an HMACed manifest.
-- Audit export manifests that include organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, and HMAC.
+- Tamper-evident audit exports using tenant-bounded JSONL entries, a per-export hash chain, an HMACed manifest, and an Ed25519 signature computed over the canonicalized export (ADR-0045).
+- Audit export manifests that include organization, time range, entry count, first hash, last hash, hash algorithm, HMAC key version, signing key version, and HMAC.
 - Full-fidelity audit exports may include Sensitive Metadata such as Approval Context Notes, Approval Rejection Notes, provider target names, policy binding names, and exact Protected Environment Secret value byte lengths only after authorization and Sensitive Detail Gate for security review. Historical Display Names may appear as ordinary audit metadata.
 - Low-privilege audit exports use immutable IDs, hashes, non-sensitive lengths, provider caps, over-limit flags, and presence flags and exclude Sensitive Metadata plaintext that reveals security-relevant structure.
-- HMAC verification for export integrity and authenticity, with asymmetric signing deferred unless third-party verification becomes a product requirement.
+- HMAC verification for export integrity stays, and V1 adds the Ed25519 signature over the canonicalized export so any holder of the published public key can verify an export without a shared secret. The private signing key is an instance secret managed like the root key per ADR-0028: generated offline, escrowed, write-only in Cloudflare Secrets Store, versioned, and rotated. Current and historical public keys are published so exports stay verifiable across signing key rotation (ADR-0045).
 - Basic anomaly detection later: unusual source IP, high-volume reads, repeated denied access, sync failures.
 
 Agent/DX requirements:
 
 - `insecur audit tail --json` for local diagnosis.
 - `insecur audit export --org-id <id> --from <time> --to <time>` with tenant-bounded scope.
-- `insecur audit verify <export>` for checking the hash chain and HMACed manifest.
+- `insecur audit verify <export>` for checking the hash chain, the HMACed manifest, and the Ed25519 signature against the published public key.
 - Stable event names that tests and agents can assert against.
 - Canary leak tests that prove secret-shaped values do not appear in logs, audit metadata, errors, traces, analytics, or operation records.
 
@@ -659,7 +660,7 @@ Backup and restore are security features for availability and recovery. The V1 m
 Three loss scenarios, three mechanisms:
 
 - **Corruption, bad migration, or accidental delete with the Neon account intact** — Neon native point-in-time restore. History retention is set to 7 days. RPO near-zero, RTO minutes.
-- **Loss of the Neon account or project** — one scheduled daily independent encrypted logical export to R2, encrypted under the existing instance custody chain (no separate backup key in V1). RPO 24h, RTO same business day, manual.
+- **Loss of the Neon account or project** — one scheduled daily independent encrypted logical export to R2, encrypted under the existing instance custody chain (no separate backup key in V1). RPO 24h, RTO same business day, manual. The export venue (Worker cron over the Hyperdrive binding), envelope (per-export DEK wrapped under the current root key version), and the always-on `backup_restore.export_fresh` freshness control are decided in [ADR-0072](adr/0072-backup-export-pipeline-and-freshness.md).
 - **Root-key custody loss** — recover the key from the ADR-0028 offline escrow. RPO zero by the escrow-before-load invariant, RTO a few hours, manual.
 
 Recovery targets are internal best-effort goals, not customer-facing SLAs.
@@ -704,29 +705,36 @@ Agent/DX requirements:
 
 The canonical runbook template and grouped catalog live in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md). This list remains the required V1 runbook inventory.
 
-Write these before relying on insecur for valuable production secrets:
+Rows are tiered by the gate profile that first requires them, derived from the [phasing.md](phasing.md) parking lot ([ADR-0008](adr/0008-security-gates-and-runbooks.md)); this mirrors the tiered Runbook Catalog in [security-runbooks-and-release-gates.md](security-runbooks-and-release-gates.md).
+
+Required by `small_group_production` (write these before relying on insecur for valuable production secrets):
 
 - First tenant bootstrap.
-- Public onboarding abuse response.
-- Signup lockdown enable, verify, and disable.
-- Tenant suspension and reinstatement.
-- Service Access review.
 - User invitation and offboarding.
 - Lost or compromised human session.
 - Machine identity credential compromise.
 - App connection compromise or provider disconnect.
+- Tenant-reported secret compromise: triage, escalation routing, and tenant-value containment (ADR-0059).
+- Custody-material compromise: containment, manual three-source forensic log-pull, and tenant notification (ADR-0059, ADR-0048).
 - Secret value rotation.
 - Root key rotation.
 - Organization data key rotation.
 - Project data key rotation.
 - Failed or interrupted rotation job.
 - Neon Postgres restore from encrypted backup.
-- Tenant export and deletion.
+- Owner-initiated tenant export and deletion.
 - Tamper-evident audit export and verification.
 - Suspicious audit activity investigation.
 - Emergency break-glass recovery without Protected Environment Secret Reveal.
 - Protected Environment secret replacement without reveal.
 - Protected Environment emergency rollback from retained encrypted version.
+
+Tiered to `broad_public_signup` (parked surfaces in [phasing.md](phasing.md); pre-production evidence is add-back-readiness and negative evidence that no deferred surface is exposed, becoming blocking when that profile's gate is exercised):
+
+- Public onboarding abuse response.
+- Signup lockdown enable, verify, and disable.
+- Tenant suspension and reinstatement, including escalation from suspension to deletion.
+- Service Access review.
 
 Each runbook should include:
 
@@ -798,9 +806,9 @@ Before v1 production use, require:
 - Protected Approval Policy tests cover one-approver solo-owner mode through owner approval scopes, one-approval requester self-approval with approval scopes and High-Assurance Challenge, explicit approval-scope authorization for non-owners, organization-scoped approval, project-scoped approval, cross-project approval denial, admin/developer-without-approval-scope denial, optional two-person approval with distinct User counting, duplicate approval non-counting, overlapping Membership/Team grants counting one User only, requester self-approval denial when multiple approvals are required, policy change requiring owner/admin configuration scopes plus High-Assurance Challenge, approval-scope-only policy change denial, policy change audit contents, policy change making pending requests policy-stale, policy-stale requests blocking approval/rejection/cancellation, policy-stale Partial Approvals becoming audit-only, requester access loss or Tenant Suspension making pending requests requester-access-stale, requester-access-stale requests blocking approval/rejection/cancellation, requester-access-stale Partial Approvals becoming audit-only, reinstatement not restoring requester-access-stale requests, Approval Request Rejection closing without Promotion while leaving Draft Versions available, optional Approval Rejection Note handling, approval-only cancellation denial, User requester Approval Request Cancellation without High-Assurance Challenge, Machine Identity own-request cancellation with valid credential and matching Effective Access, Machine Identity own-request cancellation without recorded User instruction, Machine Identity own-request cancellation after human Partial Approval, Machine Identity cancellation audit correlation when user/task/run context is available, Machine Identity cross-request cancellation denial, scoped owner/admin cleanup cancellation, cancellation after Partial Approval, Partial Approval non-reuse after cancellation/rejection/supersession/policy-staleness/requester-access-staleness, Machine Identity approval/rejection denial, and Service Access approval/rejection denial.
 - Protected Environment Secret Reveal prohibition tests prove UI, API, CLI, export, debug, and Service Access paths deny before value decrypt.
 - Provider Readback prohibition tests prove Secret Sync verification does not request, receive, log, persist, or return provider-side Sensitive Values.
-- No Plaintext Persistence and Secret-Free Logging tests pass with canary Sensitive Values across API, CLI, sync, runtime injection, errors, audit events, operation records, and worker logs.
+- No Plaintext Persistence and Secret-Free Logging tests pass with canary Sensitive Values. The `pnpm test:canary` gate ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)) is decided but not wired yet; once implemented, it proves the structurally enumerated surfaces it sweeps: Postgres columns (including operation records and audit rows) and in-process console capture. Non-enumerable surfaces (R2 exports, Queue payloads, Durable Object state, KV, traces, analytics, local CLI config) and deployed worker logs are pending sweep adapters or preview-layer coverage, never claimed as proven by the gate.
 - Display Name tests prove user-authored product names are ordinary metadata, visible after authorization without Sensitive Detail Gate, and excluded from out-of-band Approval Notifications.
-- Sensitive Metadata Encryption tests prove Approval Context Notes, Approval Rejection Notes, Push Device Registrations, provider-side binding/lookup names, provider target names, policy binding names, exact Protected Environment Secret value byte lengths, and security-relevant relationships are encrypted at rest, absent from plaintext indexes, and only decrypted for authorized Scoped Lists, detail responses, or full-fidelity exports after Sensitive Detail Gate.
+- Sensitive Metadata Encryption tests prove Approval Context Notes, Approval Rejection Notes, Push Device Registrations, provider-side binding/lookup names, provider target names, policy binding names, exact Protected Environment Secret value byte lengths, and security-relevant relationships are encrypted at rest and only decrypted for authorized Scoped Lists, detail responses, or full-fidelity exports after Sensitive Detail Gate. The Plaintext Metadata Allowlist conformance gate ([ADR-0070](adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)) is decided but not wired yet; once implemented, it proves column placement: every schema column is registered under an allowlist category or fails closed as unregistered plaintext. Encryption tests still prove envelope correctness.
 - Safe Sensitive Input Path tests prove Sensitive Values are rejected from URLs, query strings, route params, CLI arguments, named local value files for ordinary secret writes, and GET requests, that invalid UTF-8 fails with `secret.invalid_encoding` before any write without replacement characters, implicit base64 decoding, or binary mode, that managed Secret value size is counted in encoded UTF-8 bytes and values over 64 KiB fail with `secret.value_too_large`, that provider-specific sync caps fail the whole sync with `sync.provider_value_too_large` before any provider write and block protected Promotion before publish for enabled affected syncs, that provider sync does not auto-compress, truncate, chunk, or implicitly encode too-large values, that exact Protected Environment Secret value byte length is gated as Sensitive Metadata while low-privilege output shows only `over_limit` plus provider cap and opaque IDs, that `--value-stdin` preserves trailing newlines and multiline content without trimming or normalization, that zero-length values fail by default with `secret.empty_value` unless explicitly allowed, and that non-interactive secret writes fail with `secret.input_required` unless service generation or stdin input is selected.
 - Auth/session behavior reviewed against RFC 9700 and OWASP auth/session guidance.
 - MFA, High-Assurance Challenge, and Sensitive Detail Gate behavior tested for organization owners, administrators, Service Access users, normal-session hijack resistance, and machine-identity denial paths.

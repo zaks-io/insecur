@@ -22,7 +22,7 @@ insecur will adopt an organization-first control plane before v1 production use.
 - `Project` belongs to exactly one organization, and durable selectors use opaque resource IDs.
 - `User` access is granted by organization and project memberships, not by global allowlist.
 - Authorization is scope-first: Effective Access authorization scopes are evaluated for decisions, and Roles are assignment bundles that contribute scopes.
-- V1 exposes built-in `Role` presets only for User and Team assignment: owner, admin, developer, approval, and read-only. Arbitrary human/team scope editing is deferred.
+- V1 exposes built-in `Role` presets only for User and Team assignment: owner, admin, developer, metadata viewer, approval, and read-only. Arbitrary human/team scope editing is deferred.
 - Built-in Role presets are backed by granular authorization scopes so custom role management or explicit human/team scope assignment can be added later without changing authorization checks.
 - The owner preset includes approval scopes for solo-owner operation. Admin and developer presets do not include approval scopes.
 - The Approval Role is the additive preset for granting approval scopes to non-owners without granting project configuration, App Connection, Secret Sync configuration, Runtime Injection Policy, or membership management scopes.
@@ -63,6 +63,10 @@ Provider app connections add setup work per provider, but they improve user cont
 Some provider APIs may not expose a suitable OAuth/app installation path for the exact resource operation insecur needs. In those cases, the app connection still owns and encrypts the credential, the method is visible, the credential must be least-privileged and provider-revocable, and global API keys are not accepted.
 
 Key rotation adds schema and job complexity, but it is necessary operational hygiene for a secrets manager. The implementation should prefer rewrapping key material over decrypting Sensitive Values, and every rotation path must be scriptable by the CLI.
+
+## Amendment (2026-06-11): Built-In Role presets are six, including the Metadata Viewer Role
+
+The Decision bullet above originally listed five Built-In Role presets: owner, admin, developer, approval, and read-only. CONTEXT.md's Built-In Roles list is canonical and includes a sixth preset, the Metadata Viewer Role, so the bullet has been edited in place to the six-role list. ADR-0003's matching amendment defines what the Metadata Viewer Role grants and withholds and records the current five-preset code divergence in `packages/access/src/built-in-role-scopes.ts`.
 
 ## References
 

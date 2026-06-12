@@ -36,3 +36,11 @@ Tenant-Scoped Store work.
   `compose.yaml`, CI branch provisioning, and any version-specific docs in the same change.
 - The local guard still proves only role posture, not complete tenant isolation. Authoritative RLS
   tests remain Neon-backed and run through `DATABASE_URL_RUNTIME`.
+
+## Amendment (2026-06-11)
+
+[ADR-0065](0065-test-layers-and-preview-smoke.md) moved `test:rls` execution onto Docker Compose
+Postgres 17, locally and in CI's `postgres-integration` job, so the Neon-backed framing above no
+longer describes the CI RLS substrate. ADR-0054's `NOBYPASSRLS` runtime-role and
+distinct-credential invariants are unchanged, and Neon's remaining test role is the gated preview
+smoke only.

@@ -16,6 +16,10 @@ ADRs linked by the relevant section.
 
 ## Where Things Live
 
+This table is a navigational pointer that routes you to a starting doc; the normative owner-map is
+the content-ownership table in the Source Of Truth Rules of
+[../specs/README.md](../specs/README.md). Where the two disagree, this table is the defect.
+
 | Need                                             | Start here                                |
 | ------------------------------------------------ | ----------------------------------------- |
 | Current state, next steps, and not-yet-done list | `docs/project-status.md`                  |
@@ -80,7 +84,9 @@ security, and domain source of truth.
   references.
 - Prefer local `CONTEXT.md` files and specs over broad searches through `docs/adr`.
 - When a term appears ambiguous, check root `CONTEXT.md` before inventing synonyms.
-- When docs conflict, stop and surface the conflict instead of choosing the more convenient source.
+- When docs conflict, resolve it with the deterministic resolution in the Source Of Truth Rules of
+  [../specs/README.md](../specs/README.md): the non-owning doc loses and you proceed on the owner;
+  only owner-vs-owner conflicts stop and reopen the decision.
 
 ## Current Shape To Remember
 

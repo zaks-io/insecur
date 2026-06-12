@@ -325,7 +325,7 @@ The secret version selected for delivery from a protected environment.
 _Avoid_: current when protected delivery status is meant
 
 **Retained Published Version**:
-A prior **Published Version** kept encrypted and **Rollback**-eligible within the **Rollback Retention Window**.
+A prior **Published Version** kept encrypted and **Rollback**-eligible within the **Rollback Retention Window**. Eligibility is evaluated lazily at rollback request; an expired version is ineligible but its ciphertext is retained, not crypto-erased, in V1, per [ADR-0076](docs/adr/0076-lazy-lifecycle-expiry-and-retained-version-disposal.md).
 _Avoid_: backup when no plaintext copy is kept, current version or published version when it is no longer the live version
 
 **Current Version**:
@@ -489,7 +489,7 @@ The rule that Sensitive Metadata is encrypted at rest under tenant-bound data ke
 _Avoid_: metadata-only when storage protection is meant
 
 **Plaintext Metadata Allowlist**:
-The narrow set of ordinary metadata fields allowed to remain plaintext because hiding them would make safe operation and review harder.
+The narrow set of ordinary metadata fields allowed to remain plaintext because hiding them would make safe operation and review harder. Its canonical artifact is the checked-in registry in `packages/tenant-store` per [ADR-0070](docs/adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md).
 _Avoid_: safe metadata, non-sensitive metadata when the field is merely allowed by exception
 
 **Metadata Visibility Policy**:
@@ -615,7 +615,7 @@ A stable opaque key that resolves to exactly one runtime injection policy.
 _Avoid_: profile when the policy selector is meant
 
 **Injection Grant**:
-A short-lived authorization to perform one runtime injection under a runtime injection policy.
+A short-lived authorization to perform one runtime injection under an exact **Runtime Injection Policy Version** or an allowed non-protected one-command selection. It has the lifecycle `issued -> consumed | expired | revoked` (the three non-issued states terminal), and its secret bindings and delivered secret version ID pin at issue, per [ADR-0074](docs/adr/0074-injection-grant-lifecycle-and-revocation.md).
 _Avoid_: token, reusable approval
 
 **Runtime Injection Grant Service**:
@@ -823,7 +823,7 @@ A Secret Sync operation that deletes a provider-side secret or variable previous
 _Avoid_: cleanup when provider-side deletion is meant
 
 **Orphaned Managed Provider Copy**:
-A provider-side secret or variable whose cleanup state is unknown after insecur could not complete Managed Provider Delete.
+A provider-side secret or variable whose cleanup state is unknown after insecur could not complete Managed Provider Delete. Each record has the lifecycle `open -> cleaned | acknowledged` (both exits terminal), and cleanup is retried by re-invoking `syncs delete`, which creates an orphan-cleanup Operation, per [ADR-0075](docs/adr/0075-orphan-cleanup-is-a-new-operation.md).
 _Avoid_: deleted when provider cleanup failed
 
 **Immediate Sync After Promotion**:
@@ -917,11 +917,11 @@ An Organization whose configured Key Custody root is unavailable or revoked, so 
 _Avoid_: deleted organization, suspended organization when the cause is key custody availability
 
 **Keyring**:
-The component that resolves the key hierarchy from the configured Key Custody root through an Organization Data Key, a Project Data Key, and a per-record key, holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared-database Instance it bounds the Sensitive Values, while Row-Level Security under the **Tenant-Scoped Store** bounds the metadata rows; together they form the tenant-isolation boundary.
+The component that resolves the key hierarchy from the configured Key Custody root through the relevant Organization or Project Data Key to the per-record key, holds unlocked keys briefly in a tenant-scoped cache, and exposes the single rewrap primitive that Key Rotation drives at every level. In the shared-database Instance it bounds the Sensitive Values, while Row-Level Security under the **Tenant-Scoped Store** bounds the metadata rows; together they form the tenant-isolation boundary.
 _Avoid_: key store when the resolving and rewrapping component is meant
 
 **Encryption Envelope**:
-The domain-agnostic cryptographic Module that wraps and unwraps Sensitive Values, Provider Credentials, and Sensitive Metadata using trusted Opaque Resource IDs for identity binding, returning wrapped material to callers and allowing decrypt output only into approved execution paths.
+The domain-agnostic cryptographic Module that wraps and unwraps Sensitive Values, Provider Credentials, and Sensitive Metadata using trusted Opaque Resource IDs for identity binding, returning wrapped material to callers and allowing decrypt output only into approved execution paths, which are the modules on the decrypt-import allowlist enforced by the lint boundary per [ADR-0071](docs/adr/0071-decrypt-egress-import-boundary.md).
 _Avoid_: per-domain secret wrapper when the shared cryptographic Interface is meant
 
 **Tenant-Scoped Store**:
@@ -1050,7 +1050,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - An **Organization** owns **Audit Log** entries for actions within its boundary.
 - **Customer-Managed Key Custody** applies to exactly one **Organization**.
 - Enabling, replacing, or disabling **Customer-Managed Key Custody** through insecur requires **Organization Configuration** authority, the **Human Approval Surface**, and a **High-Assurance Challenge**.
-- Replacing **Customer-Managed Key Custody** rewraps **Organization Data Keys** to the new custody root before retiring the prior custody root.
+- Replacing **Customer-Managed Key Custody** rewraps **Organization Data Keys** and **Project Data Keys** to the new custody root before retiring the prior custody root.
 - **Customer-Managed Key Custody** supports the claim that insecur cannot perform future decrypting operations for that **Organization** after the customer revokes or disables the custody grant.
 - **Customer-Managed Key Custody** does not support a zero-knowledge claim because insecur runtime can still decrypt through the active customer grant for approved delivery paths.
 - A **Custody-Locked Organization** cannot perform decrypting operations such as **Secret Delivery**, **Runtime Injection**, **Secret Sync**, Key Rotation rewrap, or decrypted **Sensitive Metadata** detail.
@@ -1484,7 +1484,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 - A **Runtime Injection Policy Version** stores immutable secret IDs and historical **Display Names** as ordinary metadata, while provider-side names, policy binding names, and security-relevant relationships remain **Sensitive Metadata**.
 - An **Injection Grant** is issued from exactly one **Runtime Injection Policy Version**.
 - An **Injection Grant** is fresh, one-use, and non-reusable.
-- A **Protected Environment** issues an **Injection Grant** only to a **Machine Identity** credential, such as a deploy key or OIDC identity; a human session token, including one an agent inherits, cannot obtain a **Protected Environment** **Injection Grant**, so a local agent has no path to a **Protected Environment** **Sensitive Value**.
+- A **Protected Environment** issues an **Injection Grant** only to a **Machine Identity** credential, such as a deploy key or OIDC identity; a human session token, including one an agent inherits, cannot obtain a **Protected Environment** **Injection Grant**, so a local agent has no path to a **Protected Environment** **Sensitive Value**. Enforced by the machine-only `runtime_injection:grant_issue_protected` scope per [ADR-0038](docs/adr/0038-protected-delivery-requires-machine-credential.md).
 - A **Runtime Injection Policy Version** may require a **Command Fingerprint**.
 - **Runtime Injection** crosses the **Runtime Trust Boundary** when the child process starts.
 - **Runtime Injection** obeys the **Command Output Boundary**.
@@ -1774,7 +1774,7 @@ _Avoid_: artifact bundle when it might imply Sensitive Values or raw logs are in
 > **Domain expert:** "No. **Environment Deploy Keys** get a tight **Token Scope** for one org/project/env and **Credential Scopes** such as `runtime.inject` only. The **Machine Identity** is the actor; the deploy key is an **Auth Method** for that actor."
 >
 > **Dev:** "Are roles just hard-coded strings?"
-> **Domain expert:** "No. **Authorization Scopes** are the source of truth. V1 exposes **Built-In Roles** only: owner, admin, developer, approval, and read-only. Each **Built-In Role** is a preset **Authorization Scope** bundle, so custom **Roles** or explicit scope assignments can be added later without changing authorization checks."
+> **Domain expert:** "No. **Authorization Scopes** are the source of truth. V1 exposes **Built-In Roles** only: owner, admin, developer, metadata viewer, approval, and read-only. Each **Built-In Role** is a preset **Authorization Scope** bundle, so custom **Roles** or explicit scope assignments can be added later without changing authorization checks."
 >
 > **Dev:** "Can I make a developer an approver without letting them edit project configuration?"
 > **Domain expert:** "Yes. Assign the **Approval Role** separately from developer/admin. Behind the scenes, approval checks look for approval **Authorization Scopes** in **Effective Access**; the **Approval Role** contributes those scopes without contributing project configuration, **App Connection**, **Secret Sync** configuration, **Runtime Injection Policy**, or membership management scopes."

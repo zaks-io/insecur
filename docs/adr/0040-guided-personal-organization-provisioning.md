@@ -2,7 +2,7 @@
 
 Date: 2026-05-25
 
-Status: Accepted
+Status: Accepted, refined by [ADR-0063](0063-guided-provisioning-creates-does-not-reconcile.md)
 
 V1 will create a Personal Organization automatically for an admitted user during Public Onboarding, instead of requiring an Instance Operator to create every customer Organization manually. The first experience should center on product value: the flow creates a Default Team, first Project, and non-protected development Environment with default names, then helps the user complete a provider-free First Value Proof using the normal secret-write and runtime-injection commands: generate or write a blind secret, select it explicitly for one local command, and use it through local Runtime Injection without exposing the Sensitive Value to shell history, local files, CLI JSON, or an agent transcript. The Organization remains the tenant boundary, and the created User receives an owner Membership in that Personal Organization.
 
