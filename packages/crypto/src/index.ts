@@ -23,6 +23,7 @@ export {
   DecryptError,
   InvalidAadFieldError,
 } from "./encryption.js";
+export { PlaintextHandle } from "./plaintext-handle.js";
 export {
   RECORD_TYPE_PROVIDER_CREDENTIAL,
   RECORD_TYPE_SECRET,

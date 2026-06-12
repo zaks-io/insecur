@@ -249,9 +249,9 @@ boundaries. The encryption engine is domain-agnostic and sits below thin wrapper
 Provider Credentials, and Sensitive Metadata. It returns wrapped material only; callers never hold
 keys, and decrypt output may enter only an approved execution path. Approved execution paths are the
 modules on the decrypt-import allowlist decided by ADR-0071. The lint boundary and
-`eslint.config.ts` restricted-import block are not wired yet; until they land, the ADR's enumeration
-is the planned allowlist, and adding a path remains an ADR-traced boundary change, not a code-only
-change ([ADR-0071](../adr/0071-decrypt-egress-import-boundary.md)). Decrypt failure
+`eslint.config.ts` restricted-import block enforce the allowlist; adding a path remains an
+ADR-traced boundary change, not a code-only change
+([ADR-0071](../adr/0071-decrypt-egress-import-boundary.md)). Decrypt failure
 is a single opaque fail-closed error: every cause surfaces as wire code `crypto.decrypt_failed` with
 `retryable` false and no cause discriminant.
 
@@ -322,7 +322,7 @@ is deferred past V1. Break-glass may allow additional delivery, rotation, replac
 reauthorization, or rollback, but not plaintext disclosure. Sensitive Values must not appear in
 default API output, CLI output, UI, JSON, logs, audit metadata, operation payloads, queue payloads,
 telemetry, or agent-facing output; only the modules on the decrypt-import allowlist may produce
-decrypt plaintext at all. The lint boundary that enforces this is decided but not wired yet
+decrypt plaintext at all. The lint boundary that enforces this lives in `eslint.config.ts`
 (section 5, [ADR-0071](../adr/0071-decrypt-egress-import-boundary.md)).
 
 Sensitive Values enter only through safe input paths: request bodies over TLS, CLI stdin, masked

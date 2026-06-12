@@ -1,3 +1,4 @@
+import type { PlaintextHandle } from "@insecur/crypto";
 import { bytesToBase64Url, type MetadataEnvelopeMeta } from "@insecur/domain";
 import type { InjectionGrantId, SecretId, SecretVersionId, VariableKey } from "@insecur/domain";
 
@@ -19,7 +20,7 @@ export interface RuntimeDeliveryEnvelope {
 }
 
 export function runtimeDeliveryEnvelope(
-  input: Omit<RuntimeDeliveryPayload, "encodedValueUtf8"> & { valueUtf8: Uint8Array },
+  input: Omit<RuntimeDeliveryPayload, "encodedValueUtf8"> & { valueUtf8: PlaintextHandle },
   meta?: MetadataEnvelopeMeta,
 ): RuntimeDeliveryEnvelope {
   const { valueUtf8, ...metadata } = input;
@@ -27,7 +28,7 @@ export function runtimeDeliveryEnvelope(
     ok: true,
     delivery: {
       ...metadata,
-      encodedValueUtf8: bytesToBase64Url(valueUtf8),
+      encodedValueUtf8: bytesToBase64Url(valueUtf8.unwrapUtf8()),
     },
     ...(meta !== undefined ? { meta } : {}),
   };

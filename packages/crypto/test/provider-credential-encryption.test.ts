@@ -60,7 +60,9 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
     const wrapped = await encryptProviderCredential(identity(), plaintext);
     const decrypted = await decryptProviderCredentialForProviderUse(identity(), wrapped);
 
-    expect(new TextDecoder().decode(decrypted)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
     expect(wrapped.organizationDataKeyVersion).toBe(1);
     expect(wrapped).not.toHaveProperty("organizationDataKey");
     expect(wrapped).not.toHaveProperty("dek");

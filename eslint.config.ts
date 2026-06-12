@@ -3,6 +3,47 @@ import eslintConfigPrettier from "eslint-config-prettier";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+/** ADR-0071 decrypt-import allowlist of record. */
+const DECRYPT_IMPORT_ALLOWLIST = [
+  "packages/runtime-injection/src/decrypt-grant-secret.ts",
+] as const;
+
+const DECRYPT_ENTRY_POINT_NAMES = [
+  "decryptSecretValueForRuntime",
+  "decryptProviderCredentialForProviderUse",
+  "decryptSensitiveMetadataForAuthorizedRead",
+] as const;
+
+const DECRYPT_IMPORT_BOUNDARY_MESSAGE =
+  "Decrypt entry points may only be imported from allowlisted egress modules (ADR-0071). Add an allowlist entry in eslint.config.ts.";
+
+const decryptImportBoundaryOptions = {
+  paths: [
+    {
+      name: "@insecur/crypto",
+      importNames: [...DECRYPT_ENTRY_POINT_NAMES],
+      message: DECRYPT_IMPORT_BOUNDARY_MESSAGE,
+    },
+  ],
+  patterns: [
+    {
+      group: [
+        "**/crypto/src/envelope",
+        "**/crypto/src/envelope.js",
+        "**/crypto/src/encryption",
+        "**/crypto/src/encryption.js",
+        "**/crypto/src/provider-credential-envelope",
+        "**/crypto/src/provider-credential-envelope.js",
+        "**/crypto/src/sensitive-metadata-envelope",
+        "**/crypto/src/sensitive-metadata-envelope.js",
+      ],
+      importNamePattern:
+        "^decrypt(SecretValueForRuntime|ProviderCredentialForProviderUse|SensitiveMetadataForAuthorizedRead)$",
+      message: DECRYPT_IMPORT_BOUNDARY_MESSAGE,
+    },
+  ],
+};
+
 export default tseslint.config(
   {
     ignores: ["**/dist/**", "**/.wrangler/**", "**/coverage/**", "**/*.gen.ts"],
@@ -60,6 +101,10 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
+    files: ["scripts/lint-fixtures/**/*.ts"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
     rules: {
       complexity: ["error", 8],
       "max-depth": ["error", 3],
@@ -100,6 +145,20 @@ export default tseslint.config(
       complexity: "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
       "@typescript-eslint/non-nullable-type-assertion-style": "off",
+    },
+  },
+  {
+    files: ["**/*.ts"],
+    ignores: [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.e2e.test.ts",
+      "**/*.integration.test.ts",
+      "packages/crypto/src/**",
+      ...DECRYPT_IMPORT_ALLOWLIST,
+    ],
+    rules: {
+      "no-restricted-imports": ["error", decryptImportBoundaryOptions],
     },
   },
   eslintConfigPrettier,

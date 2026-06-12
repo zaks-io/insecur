@@ -1,4 +1,5 @@
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { PlaintextHandle } from "@insecur/crypto";
 import type {
   EnvironmentId,
   InjectionGrantId,
@@ -57,7 +58,7 @@ export interface ConsumeInjectionGrantResult {
   secretVersionId: SecretVersionId;
   variableKey: VariableKey;
   /** Process-environment delivery only; never serialize to metadata envelopes. */
-  valueUtf8: Uint8Array;
+  valueUtf8: PlaintextHandle;
   auditEventId?: string;
 }
 

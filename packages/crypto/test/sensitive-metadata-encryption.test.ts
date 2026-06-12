@@ -82,7 +82,9 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
     const wrapped = await encryptSensitiveMetadata(orgScopedIdentity(), plaintext);
     const decrypted = await decryptSensitiveMetadataForAuthorizedRead(orgScopedIdentity(), wrapped);
 
-    expect(new TextDecoder().decode(decrypted)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
     expect(wrapped.projectDataKeyVersion).toBeNull();
     expect(wrapped.organizationDataKeyVersion).toBe(1);
   });
@@ -95,7 +97,9 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
       wrapped,
     );
 
-    expect(new TextDecoder().decode(decrypted)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
     expect(wrapped.projectDataKeyVersion).toBe(1);
   });
 

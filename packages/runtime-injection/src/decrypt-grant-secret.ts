@@ -1,4 +1,4 @@
-import { decryptSecretValueForRuntime } from "@insecur/crypto";
+import { decryptSecretValueForRuntime, type PlaintextHandle } from "@insecur/crypto";
 import {
   INJECTION_ERROR_CODES,
   type EnvironmentId,
@@ -21,7 +21,7 @@ export async function decryptBoundGrantSecretVersion(input: {
   environmentId: EnvironmentId;
   secretId: SecretId;
   secretVersionId: SecretVersionId;
-}): Promise<Uint8Array> {
+}): Promise<PlaintextHandle> {
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db }) => decryptResolvedVersion(input, db),
@@ -37,7 +37,7 @@ async function decryptResolvedVersion(
     secretVersionId: SecretVersionId;
   },
   db: TenantScopedDb,
-): Promise<Uint8Array> {
+): Promise<PlaintextHandle> {
   const version = await new TenantSecretVersionStore(db).getVersionById(
     input.secretId,
     input.secretVersionId,

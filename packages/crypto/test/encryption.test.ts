@@ -81,7 +81,9 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
     const wrapped = await encryptSecretValue(identity(), plaintext);
     const decrypted = await decryptSecretValueForRuntime(identity(), wrapped);
 
-    expect(new TextDecoder().decode(decrypted)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
     expect(wrapped).not.toHaveProperty("dek");
     expect(wrapped).not.toHaveProperty("projectDataKey");
     expect(wrapped).not.toHaveProperty("organizationDataKey");

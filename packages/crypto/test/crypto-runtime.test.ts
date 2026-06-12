@@ -73,7 +73,9 @@ describe("crypto runtime root key readiness", () => {
     configureKeyring(createKeyring(durableRoot));
 
     const decrypted = await decryptSecretValueForRuntime(identity, wrapped);
-    expect(new TextDecoder().decode(decrypted)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
   });
 
   it("uses a durable env root across keyring reset", async () => {
@@ -88,6 +90,8 @@ describe("crypto runtime root key readiness", () => {
     resetKeyringForTests();
 
     const decrypted = await decryptSecretValueForRuntime(identity, wrapped);
-    expect(new TextDecoder().decode(decrypted)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
   });
 });

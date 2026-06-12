@@ -5,6 +5,7 @@ import {
 } from "./constants.js";
 import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
+import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
 import { toStoreFacingCiphertext } from "./envelope-storage.js";
@@ -115,7 +116,7 @@ export async function encryptSensitiveMetadata(
 export async function decryptSensitiveMetadataForAuthorizedRead(
   identity: SensitiveMetadataCiphertextIdentity,
   wrapped: WrappedSensitiveMetadata,
-): Promise<Uint8Array> {
+): Promise<PlaintextHandle> {
   if (
     wrapped.identity !== undefined &&
     !sensitiveMetadataIdentityMatches(identity, wrapped.identity)
@@ -137,12 +138,14 @@ export async function decryptSensitiveMetadataForAuthorizedRead(
       identity.organizationId,
       versions,
     );
-    return openTenantBoundEnvelope({
-      recordType: RECORD_TYPE_SENSITIVE_METADATA,
-      envelopeBytes: wrapped.ciphertext,
-      tenantDataKey: organizationDataKey,
-      ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
-    });
+    return new PlaintextHandle(
+      await openTenantBoundEnvelope({
+        recordType: RECORD_TYPE_SENSITIVE_METADATA,
+        envelopeBytes: wrapped.ciphertext,
+        tenantDataKey: organizationDataKey,
+        ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
+      }),
+    );
   }
 
   const projectId = requireProjectScope(identity);
@@ -153,12 +156,14 @@ export async function decryptSensitiveMetadataForAuthorizedRead(
     organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
     projectDataKeyVersion: wrapped.projectDataKeyVersion,
   });
-  return openTenantBoundEnvelope({
-    recordType: RECORD_TYPE_SENSITIVE_METADATA,
-    envelopeBytes: wrapped.ciphertext,
-    tenantDataKey: projectDataKey,
-    ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
-  });
+  return new PlaintextHandle(
+    await openTenantBoundEnvelope({
+      recordType: RECORD_TYPE_SENSITIVE_METADATA,
+      envelopeBytes: wrapped.ciphertext,
+      tenantDataKey: projectDataKey,
+      ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
+    }),
+  );
 }
 
 export { toStoreFacingCiphertext };

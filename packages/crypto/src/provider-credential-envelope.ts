@@ -2,6 +2,7 @@ import { assertProviderCredentialIdentityForAad } from "./assert-ciphertext-iden
 import { RECORD_TYPE_PROVIDER_CREDENTIAL } from "./constants.js";
 import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
+import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
 import { toStoreFacingCiphertext } from "./envelope-storage.js";
@@ -72,7 +73,7 @@ export async function encryptProviderCredential(
 export async function decryptProviderCredentialForProviderUse(
   identity: ProviderCredentialCiphertextIdentity,
   wrapped: WrappedProviderCredential,
-): Promise<Uint8Array> {
+): Promise<PlaintextHandle> {
   if (
     wrapped.identity !== undefined &&
     !providerCredentialIdentityMatches(identity, wrapped.identity)
@@ -91,12 +92,13 @@ export async function decryptProviderCredentialForProviderUse(
     versions,
   );
 
-  return openTenantBoundEnvelope({
+  const plaintext = await openTenantBoundEnvelope({
     recordType: RECORD_TYPE_PROVIDER_CREDENTIAL,
     envelopeBytes: wrapped.ciphertext,
     tenantDataKey: organizationDataKey,
     ciphertextAad: serializeProviderCredentialCiphertextAad(identity),
   });
+  return new PlaintextHandle(plaintext);
 }
 
 export { toStoreFacingCiphertext };

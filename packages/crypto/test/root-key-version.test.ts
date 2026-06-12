@@ -134,6 +134,6 @@ describe("root key version metadata", () => {
 
     const { decryptSecretValueForRuntime } = await import("../src/encryption.js");
     const decrypted = await decryptSecretValueForRuntime(identity(), wrapped);
-    expect(new TextDecoder().decode(decrypted)).toBe("payload");
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe("payload");
   });
 });

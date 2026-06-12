@@ -104,7 +104,9 @@ describe("createKeyringFromSecretsStoreBinding", () => {
     const plaintext = new TextEncoder().encode("binding-backed");
     const wrapped = await encryptSecretValue(identity, plaintext);
     const decrypted = await decryptSecretValueForRuntime(identity, wrapped);
-    expect(new TextDecoder().decode(decrypted)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
 
     resetKeyringForTests();
   });
