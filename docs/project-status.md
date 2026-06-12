@@ -63,7 +63,7 @@ landed ADRs 0066 through 0076 plus dated amendments to ADR-0008/0028/0032/0034/0
 ownership / single-statement / deterministic-conflict rules in
 [specs/README.md](specs/README.md) (ADR-0067). Several enforcement gates are now decided but not
 yet built: the no-plaintext canary gate (ADR-0069), the Plaintext Metadata Allowlist conformance
-gate (ADR-0070), the decrypt-import lint boundary (ADR-0071), the role-bundle registry conformance
+gate (ADR-0070), the role-bundle registry conformance
 suite (ADR-0034) including the machine-only protected-issuance scope (ADR-0038), the
 `OPERATION_INTENT_CODES` catalog (ADR-0068), the `operation.idempotency_mismatch` check
 (ADR-0066), the non-lease execution-deadline liveness recovery (ADR-0073), and the exit/HTTP
@@ -273,7 +273,7 @@ release-gate evidence bundles.
 1. Land the contract-and-gate code decided in ADRs 0066-0076 before parallel feature work: the
    intent-code catalog and idempotency-mismatch check, the role-bundle conformance suite and
    protected-issuance scope atom, the Plaintext Metadata Allowlist registry and gate, the
-   decrypt-import lint boundary, the no-plaintext canary gate, and the exit/HTTP lockstep test.
+   no-plaintext canary gate, and the exit/HTTP lockstep test.
    Each is a small ticket; together they turn the cross-workstream seam contracts into CI-time
    facts (see [roadmap.md](roadmap.md) M0).
 2. Wire the remaining package implementations into Worker routes: instance bootstrap,

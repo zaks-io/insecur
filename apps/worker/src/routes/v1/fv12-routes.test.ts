@@ -1,5 +1,5 @@
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
-import { DecryptError } from "@insecur/crypto";
+import { DecryptError, PlaintextHandle } from "@insecur/crypto";
 import {
   AUTH_ERROR_CODES,
   CRYPTO_ERROR_CODES,
@@ -454,7 +454,7 @@ describe("FV-12 worker routes", () => {
         secretId: secretId.brand("sec_00000000000000000000000001"),
         secretVersionId: secretVersionId.brand("sv_00000000000000000000000001"),
         variableKey: "API_KEY",
-        valueUtf8: new TextEncoder().encode(sensitive),
+        valueUtf8: new PlaintextHandle(new TextEncoder().encode(sensitive)),
         auditEventId: "aud_00000000000000000000000003",
       });
 

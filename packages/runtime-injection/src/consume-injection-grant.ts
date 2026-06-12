@@ -1,4 +1,5 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
+import type { PlaintextHandle } from "@insecur/crypto";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
@@ -40,7 +41,7 @@ export interface ConsumeInjectionGrantCoreResult {
   secretId: SecretId;
   secretVersionId: SecretVersionId;
   variableKey: VariableKey;
-  valueUtf8: Uint8Array;
+  valueUtf8: PlaintextHandle;
   auditEventId?: string;
 }
 
@@ -150,7 +151,7 @@ async function buildConsumeSuccessResult(
       variableKey: VariableKey;
     };
   },
-  plaintext: Uint8Array,
+  plaintext: PlaintextHandle,
 ): Promise<ConsumeInjectionGrantCoreResult> {
   const audit = await recordRuntimeInjectionAudit({
     phase: "consume",

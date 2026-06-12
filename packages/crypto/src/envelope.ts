@@ -1,6 +1,7 @@
 import { RECORD_TYPE_SECRET } from "./constants.js";
 import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
+import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import {
   openTenantBoundEnvelope,
@@ -95,7 +96,7 @@ export async function encryptSecretValue(
 export async function decryptSecretValueForRuntime(
   identity: SecretCiphertextIdentity,
   wrapped: WrappedSecretValue,
-): Promise<Uint8Array> {
+): Promise<PlaintextHandle> {
   if (wrapped.identity !== undefined && !identityMatches(identity, wrapped.identity)) {
     throw new DecryptError();
   }
@@ -110,12 +111,13 @@ export async function decryptSecretValueForRuntime(
     },
   );
 
-  return openTenantBoundEnvelope({
+  const plaintext = await openTenantBoundEnvelope({
     recordType: RECORD_TYPE_SECRET,
     envelopeBytes: wrapped.ciphertext,
     tenantDataKey: projectDataKey,
     ciphertextAad: serializeSecretCiphertextAad(identity),
   });
+  return new PlaintextHandle(plaintext);
 }
 
 export { toStoreFacingCiphertext };

@@ -32,9 +32,8 @@ task inside `pnpm verify`, CI, and pre-push. Per
 test layer. The restricted-import block in `eslint.config.ts` is the allowlist of record. Adding an
 approved execution path is an allowlist diff plus an ADR trace, never a code-only change.
 
-Implementation note: this ADR decides the boundary, but the lint enforcement is not wired in the
-current repo state. `eslint.config.ts` still carries only the existing complexity and size gates;
-the restricted-import block and the plaintext handle are follow-up implementation.
+Implementation note: the restricted-import block in `eslint.config.ts` and the
+`PlaintextHandle` secondary tripwire enforce this contract in `pnpm verify`.
 
 Today the allowlist has exactly one entry: runtime-injection's decrypt-for-grant path,
 `packages/runtime-injection/src/decrypt-grant-secret.ts`, which imports
@@ -104,9 +103,8 @@ TLS to that CLI consumption point for immediate process injection.
   allowlist diff plus ADR trace, not a code-only change.
 - [docs/storage-security-gate.md](../storage-security-gate.md) gains a single cross-reference line
   to this ADR. The gate remains storage-readiness evidence; egress-path enumeration lives here.
-- `eslint.config.ts` currently carries complexity and size budgets only; the restricted-import
-  block and the throwing-`toJSON` handle are follow-up implementation of this contract. Until the
-  block lands, the enumeration in this ADR is the allowlist.
+- `eslint.config.ts` carries the restricted-import allowlist and complexity/size budgets; the
+  `PlaintextHandle` secondary tripwire is enforced in unit tests.
 - [ADR-0059](0059-tenant-reported-secret-compromise-response.md)'s deferred Leak Verification
   primitive decrypts candidate Secrets in an approved execution path; if promoted from deferred
   scope it becomes an allowlist diff plus ADR trace like any other entry.

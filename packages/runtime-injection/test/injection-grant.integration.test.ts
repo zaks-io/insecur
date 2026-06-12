@@ -167,7 +167,9 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(consumed.secretId).toBe(written.secretId);
     expect(consumed.secretVersionId).toBe(written.secretVersionId);
     expect(consumed.variableKey).toBe(variableKey);
-    expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
     expect(
       JSON.stringify({
         variableKey: consumed.variableKey,
@@ -244,8 +246,10 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(consumed.secretId).toBe(written.secretId);
     expect(consumed.secretVersionId).toBe(written.secretVersionId);
     expect(consumed.variableKey).toBe(variableKey);
-    expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(plaintext));
-    expect(JSON.stringify(consumed)).not.toContain(new TextDecoder().decode(plaintext));
+    expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
+    expect(() => JSON.stringify(consumed)).toThrow(/PlaintextHandle must not be serialized/);
   });
 
   it("delivers the secret version bound at issue after rotation", async () => {
@@ -277,8 +281,10 @@ describeIntegration("Runtime Injection Grant Service", () => {
     });
 
     expect(consumed.secretVersionId).toBe(firstWrite.secretVersionId);
-    expect(new TextDecoder().decode(consumed.valueUtf8)).toBe(new TextDecoder().decode(firstValue));
-    expect(new TextDecoder().decode(consumed.valueUtf8)).not.toBe(
+    expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).toBe(
+      new TextDecoder().decode(firstValue),
+    );
+    expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).not.toBe(
       new TextDecoder().decode(secondValue),
     );
 

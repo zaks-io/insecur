@@ -19,8 +19,7 @@ feature work starts, so seam divergence is caught by gates instead of review.
   catalog and membership validation (ADR-0068), the `operation.idempotency_mismatch` check
   (ADR-0066, INS-168), the role-bundle registry conformance suite (ADR-0034) including the
   machine-only `runtime_injection:grant_issue_protected` atom (ADR-0038), the Plaintext Metadata
-  Allowlist registry and conformance gate (ADR-0070), the decrypt-import lint boundary
-  (ADR-0071), the no-plaintext canary gate `pnpm test:canary` (ADR-0069), and the exit/HTTP
+  Allowlist registry and conformance gate (ADR-0070), the no-plaintext canary gate `pnpm test:canary` (ADR-0069), and the exit/HTTP
   lockstep test (ADR-0062).
 - Close the custody and persistence gaps already ticketed: Cloudflare Secrets Store keyring
   wiring (INS-145/147/149/150), wrapped data keys plus the rewrap primitive (INS-160), and the
