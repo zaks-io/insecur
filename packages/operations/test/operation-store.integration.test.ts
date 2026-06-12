@@ -47,6 +47,53 @@ describeIntegration("operation store (tenant-scoped)", () => {
     expect(second.operation.operationId).toEqual(first.operation.operationId);
   });
 
+  it("returns the existing operation when progress differs but idempotency key and intent match", async () => {
+    const first = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+      idempotencyKey: "idem-create-sync-run-progress",
+      progress: { counters: { step: 1 } },
+    });
+    expect(first.created).toBe(true);
+
+    const second = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+      idempotencyKey: "idem-create-sync-run-progress",
+      progress: { counters: { step: 99 } },
+    });
+    expect(second.created).toBe(false);
+    expect(second.operation.operationId).toEqual(first.operation.operationId);
+    expect(second.operation.progress).toEqual(first.operation.progress);
+  });
+
+  it("rejects idempotency key reuse with a different intent code", async () => {
+    const first = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+      idempotencyKey: "idem-intent-mismatch-1",
+    });
+
+    await expect(
+      createOperation({
+        organizationId: org,
+        intentCode: "provider.reauth",
+        idempotencyKey: "idem-intent-mismatch-1",
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.idempotencyMismatch,
+    });
+
+    const replay = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+      idempotencyKey: "idem-intent-mismatch-1",
+    });
+    expect(replay.created).toBe(false);
+    expect(replay.operation.operationId).toEqual(first.operation.operationId);
+    expect(replay.operation.intentCode).toBe("sync.run");
+  });
+
   it("rejects stale compare-and-set transitions and terminal overwrites", async () => {
     const created = await createOperation({
       organizationId: org,

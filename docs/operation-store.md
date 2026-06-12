@@ -79,10 +79,6 @@ ADR-0066 pins the target idempotency contract:
 - Retention is explicit: V1 has no separate key expiry. A key stays claimed exactly as long as its
   Operation row exists.
 
-Implementation note: this contract is not fully wired yet. The current `createOperation` path
-returns the existing row for the same idempotency key regardless of `intent_code`, and
-`operation.idempotency_mismatch` is not yet in `OPERATION_ERROR_CODES`.
-
 ## Intent Codes
 
 [ADR-0068](adr/0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md) pins operation intent
