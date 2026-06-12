@@ -45,10 +45,14 @@ The `postgres-integration` job in `.github/workflows/ci.yml` resets Docker Compo
 runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
 `INSECUR_CI_RLS_GATE=1` and runs `test:rls` and `test:e2e`; each fails closed under that gate
 rather than skipping. The no-plaintext canary gate
-([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) and the Plaintext Metadata Allowlist
-conformance gate ([ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md))
-are decided but not wired yet: there is currently no root `test:canary` script, no canary task in
-`scripts/ci/postgres-integration-tests.mjs`, and no schema allowlist conformance task. Turbo
+([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) is decided but not wired yet: there is
+currently no root `test:canary` script and no canary task in
+`scripts/ci/postgres-integration-tests.mjs`. The Plaintext Metadata Allowlist conformance gate
+([ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)) runs in
+the unit layer via `packages/tenant-store/test/plaintext-metadata-conformance.test.ts` inside
+`pnpm verify`, and in the integration layer via
+`packages/tenant-store/test/rls/plaintext-metadata-conformance.integration.test.ts` inside
+`test:rls`. Turbo
 `envMode: strict` only
 forwards `INSECUR_CI_RLS_GATE` when it is listed on the `test:rls` / `test:e2e` tasks in
 `turbo.json`; a probe task (`assert:ci-rls-gate-env`) runs first so CI logs prove the var

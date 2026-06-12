@@ -40,6 +40,7 @@ transactions, tenant scope setting, and the Row-Level Security adapter contract.
 - Organization Access and Service Access store scope shapes.
 - RLS-backed metadata isolation contract.
 - Cross-tenant store tests.
+- Plaintext Metadata Allowlist registry (`src/db/schema/plaintext-metadata-allowlist.ts`) and its Drizzle/`information_schema` conformance gates ([ADR-0070](../../docs/adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)).
 
 ## Does Not Own
 
