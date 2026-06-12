@@ -90,6 +90,15 @@ export {
   VALIDATION_ERROR_CODES,
   type ValidationErrorCode,
 } from "./error-codes.js";
+export { isKnownErrorCodeInCatalog, listKnownErrorCodes } from "./known-error-code-catalog.js";
+export {
+  CLIENT_SIDE_HTTP_MARKER,
+  assertKnownErrorCodeRegistryCoverage,
+  assertRegistryHttpLockstep,
+  parseErrorCodeRegistryTable,
+  registryRowsByCode,
+  type ErrorCodeRegistryRow,
+} from "./error-code-registry.js";
 export {
   type ErrorBody,
   type ErrorEnvelope,

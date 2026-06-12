@@ -327,9 +327,10 @@ This table is the target normative registry for both projections of every stable
 CLI exit code and its HTTP status. There is no second mapping table anywhere. Two implementations
 must change in lockstep with it: `exitCodeForErrorCode` in
 `packages/cli/src/output/exit-codes.ts` for exits, and `HTTP_STATUS_BY_CODE` in
-`apps/worker/src/http/domain-error-response.ts` for HTTP status. Exhaustive enforcement is decided
-but not wired yet: current code still uses partial maps plus fallback behavior, and the exhaustive
-both-direction verifying test has not landed. Codes that never cross HTTP get `n/a (client-side)`
+`apps/worker/src/http/http-status-by-code.ts` for HTTP status. Exhaustive enforcement is wired in
+`apps/worker/src/http/error-code-registry.test.ts`: every `KnownErrorCode` must have a registry row,
+every HTTP-mapped row must match `HTTP_STATUS_BY_CODE`, and catalog codes marked `n/a (client-side)`
+must not reach the HTTP map. Codes that never cross HTTP get `n/a (client-side)`
 in the HTTP column; an explicit marker, never a blank, so a deliberate non-mapping stays
 distinguishable from a missing decision. The anti-silent-fallback rule applies to both projections:
 the exit map falls back to `EXIT_UNEXPECTED` (`1`) and the HTTP map to `500`, so when adding a new
@@ -357,8 +358,22 @@ a resource-existence oracle, even where their exit codes differ.
 | `secret.empty_value`                     | `2`  | `400`               |                                                                                                                                                       |
 | `onboarding.already_provisioned`         | `6`  | `409`               | Personal Organization already provisioned.                                                                                                            |
 | `onboarding.resource_conflict`           | `6`  | `409`               | Guided-provisioning resource conflict.                                                                                                                |
+| `onboarding.not_instance_operator`       | `6`  | `403`               | Acting user is not the Instance Operator for the requested action.                                                                                    |
+| `onboarding.invitation_invalid`          | `6`  | `400`               | Invitation input or role preset is invalid.                                                                                                           |
+| `onboarding.invitation_not_pending`      | `6`  | `409`               | Invitation is not pending or lost a compare-and-set race.                                                                                             |
+| `onboarding.invitation_invitee_mismatch` | `6`  | `403`               | Accepting user does not match the invitation invitee.                                                                                                 |
+| `onboarding.membership_already_exists`   | `6`  | `409`               | Invitee already holds membership for the invitation scope.                                                                                            |
+| `bootstrap.already_bootstrapped`         | `6`  | `409`               | Instance bootstrap already completed.                                                                                                                 |
+| `bootstrap.not_bootstrapped`             | `5`  | `404`               | Instance is not bootstrapped.                                                                                                                         |
+| `bootstrap.claim_not_available`          | `5`  | `404`               | No pending Bootstrap Operator Claim or default team is missing.                                                                                       |
+| `bootstrap.already_claimed`              | `6`  | `409`               | Bootstrap Operator Claim is already consumed.                                                                                                         |
+| `bootstrap.invalid_secret`               | `3`  | `401`               | Bootstrap Secret verification failed.                                                                                                                 |
+| `bootstrap.authenticated_actor_required` | `3`  | `401`               | Bootstrap claim requires a WorkOS-resolved human actor.                                                                                               |
 | `store.runtime_config_missing`           | `1`  | `503`               | Runtime configuration unavailable; control-plane state, not caller input.                                                                             |
 | `crypto.decrypt_failed`                  | `1`  | `500`               | Opaque single failure; HTTP `500` must not differentiate by cause ([ADR-0062](adr/0062-package-seam-failures-are-errorbody-compatible.md) amendment). |
+| `crypto.root_key_not_configured`         | `1`  | `503`               | Instance root key material is not configured.                                                                                                         |
+| `crypto.invalid_aad_field`               | `2`  | `400`               | Additional authenticated data field failed charset validation.                                                                                        |
+| `audit.event_invalid`                    | `2`  | `400`               | Audit event payload failed metadata validation.                                                                                                       |
 | `import.unsupported_environment`         | `2`  | `n/a (client-side)` |                                                                                                                                                       |
 | `import.existing_secret`                 | `6`  | `n/a (client-side)` | Existing-secret conflict in the target Environment.                                                                                                   |
 | `injection.grant_denied`                 | `4`  | `404`               |                                                                                                                                                       |

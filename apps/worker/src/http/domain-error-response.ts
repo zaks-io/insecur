@@ -1,10 +1,7 @@
 import {
-  AUTH_ERROR_CODES,
-  INJECTION_ERROR_CODES,
-  ONBOARDING_ERROR_CODES,
-  SECRET_ERROR_CODES,
   STORE_ERROR_CODES,
   VALIDATION_ERROR_CODES,
+  isKnownErrorCodeInCatalog,
   type KnownErrorCode,
   errorEnvelope,
   type ErrorEnvelope,
@@ -14,29 +11,7 @@ import { GuidedOrganizationProvisionError } from "@insecur/onboarding";
 import { InjectionGrantError } from "@insecur/runtime-injection";
 import { SecretWriteError } from "@insecur/secret-store";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
-
-const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
-  [AUTH_ERROR_CODES.required, 401],
-  [AUTH_ERROR_CODES.expired, 401],
-  [AUTH_ERROR_CODES.invalid, 401],
-  [AUTH_ERROR_CODES.reauthRequired, 401],
-  [AUTH_ERROR_CODES.mfaEnrollmentRequired, 401],
-  [AUTH_ERROR_CODES.highAssuranceRequired, 401],
-  [AUTH_ERROR_CODES.insufficientScope, 403],
-  [INJECTION_ERROR_CODES.grantDenied, 404],
-  [INJECTION_ERROR_CODES.grantExpired, 404],
-  [ONBOARDING_ERROR_CODES.alreadyProvisioned, 409],
-  [ONBOARDING_ERROR_CODES.resourceConflict, 409],
-  [STORE_ERROR_CODES.runtimeConfigMissing, 503],
-  [VALIDATION_ERROR_CODES.invalidOpaqueResourceId, 400],
-  [VALIDATION_ERROR_CODES.invalidVariableKey, 400],
-  [VALIDATION_ERROR_CODES.invalidDisplayName, 400],
-  [VALIDATION_ERROR_CODES.displayNameEmpty, 400],
-  [SECRET_ERROR_CODES.invalidEncoding, 400],
-  [SECRET_ERROR_CODES.emptyValue, 400],
-  [SECRET_ERROR_CODES.inputRequired, 400],
-  [SECRET_ERROR_CODES.valueTooLarge, 400],
-]);
+import { HTTP_STATUS_BY_CODE } from "./http-status-by-code.js";
 
 function messageForError(error: unknown): string {
   if (error instanceof Error) {
@@ -81,7 +56,16 @@ export function knownErrorCodeFromUnknown(error: unknown): KnownErrorCode {
 }
 
 export function httpStatusForKnownErrorCode(code: KnownErrorCode): number {
-  return HTTP_STATUS_BY_CODE.get(code) ?? 500;
+  const mapped = HTTP_STATUS_BY_CODE.get(code);
+  if (mapped !== undefined) {
+    return mapped;
+  }
+  if (isKnownErrorCodeInCatalog(code)) {
+    throw new Error(
+      `Known error code "${code}" is client-side-only or missing an HTTP status registry row.`,
+    );
+  }
+  return 500;
 }
 
 export function domainErrorEnvelope(
@@ -100,3 +84,5 @@ export function domainErrorEnvelope(
   );
   return { status, body };
 }
+
+export { HTTP_STATUS_BY_CODE };
