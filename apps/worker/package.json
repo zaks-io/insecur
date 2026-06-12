@@ -11,6 +11,7 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run --passWithNoTests --config vitest.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:canary": "vitest run --config vitest.canary.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .wrangler"
   },
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
     "eslint": "catalog:",
+    "postgres": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "wrangler": "catalog:"

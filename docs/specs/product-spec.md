@@ -660,11 +660,10 @@ non-interactive flow tests, dependency scanning, secret scanning, and evidence b
 Automated tests are three layers: unit tests with no database, integration plus RLS tests against
 real Postgres, and a preview-environment smoke. Cross-tenant and RLS regression suites run against
 real Postgres as the `NOBYPASSRLS` runtime role via `DATABASE_URL_RUNTIME`, on Docker Compose
-Postgres 17 locally and in CI's `postgres-integration` job. The no-plaintext canary gate is decided
-but not wired yet: once implemented, `pnpm test:canary` runs there as a fourth named command inside
-the integration layer (not a new layer) and sweeps every column of every user table plus in-process
-console output for sentinel Sensitive Values; see
-[ADR-0069](../adr/0069-no-plaintext-canary-gate.md). They never run against SQLite, PGlite,
+Postgres 17 locally and in CI's `postgres-integration` job. The no-plaintext canary gate
+`pnpm test:canary` runs there as a fourth named command inside the integration layer (not a new
+layer) and sweeps every column of every user table plus in-process console output for sentinel
+Sensitive Values; see [ADR-0069](../adr/0069-no-plaintext-canary-gate.md). They never run against SQLite, PGlite,
 mocks, or the elevated migration role. CI asserts runtime and migration credentials are distinct.
 A per-PR Neon branch backs only the gated preview smoke layer, which deploys a preview Worker and
 runs the First Value loop over HTTP; it stays inert behind `PREVIEW_ENV_ENABLED` until INS-164

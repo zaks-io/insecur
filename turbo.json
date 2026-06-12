@@ -67,6 +67,16 @@
         "INSECUR_CI_RLS_GATE"
       ]
     },
+    "test:canary": {
+      "dependsOn": ["topo", "^build"],
+      "cache": false,
+      "env": [
+        "DATABASE_URL",
+        "DATABASE_URL_MIGRATION",
+        "DATABASE_URL_RUNTIME",
+        "INSECUR_CI_RLS_GATE"
+      ]
+    },
     "typegen": {
       "cache": false,
       "outputs": []

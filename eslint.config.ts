@@ -102,6 +102,7 @@ export default tseslint.config(
       "apps/worker/test/**/*.ts",
       "apps/worker/vitest.config.ts",
       "apps/worker/vitest.e2e.config.ts",
+      "apps/worker/vitest.canary.config.ts",
     ],
     extends: [tseslint.configs.disableTypeChecked],
   },

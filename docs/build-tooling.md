@@ -197,6 +197,7 @@ and are not repeated here.
     "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
     "test:rls": "turbo run test:rls",
     "test:e2e": "turbo run test:e2e",
+    "test:canary": "turbo run test:canary",
     "dev:db:reset": "node scripts/dev-db.mjs reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -422,7 +423,7 @@ Three layers, each defined by where its Postgres comes from and what failure cla
 The agent-facing one-command loop is documented in [docs/agents/testing.md](agents/testing.md).
 
 1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage and enforces the ratchet thresholds in `vitest.config.ts`; it excludes integration and RLS suites so it stays DB-less. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
-2. **Integration and RLS tests (`test:rls`, `test:e2e`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060), connecting as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`. The ADR-0054 invariants stand: never SQLite or PGlite, never the migration role, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e` and in the `CI` workflow's `postgres-integration` job (INS-144) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
+2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `postgres-integration` job (INS-144) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
 3. **Preview smoke (gated).** The `pr-preview` workflow deploys a per-PR preview Worker backed by an ephemeral Neon branch through Hyperdrive and runs the First Value smoke over HTTP. It is the only layer that can catch a broken deploy, a missing binding, or a bad secret. Gated behind the repository variable `PREVIEW_ENV_ENABLED` until the preview infrastructure exists (INS-164); secret-bearing, so it never runs on forked pull requests.
 
 Docker Compose Postgres is the substrate for the authoritative integration+RLS gate and uses the
@@ -441,7 +442,7 @@ Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no 
 turbo run lint typecheck build test --cache=local:rw,remote:rw
 prettier --check .
 test:coverage (unit coverage, enforces ratchet thresholds; DB-less)
-postgres-integration (Docker Compose Postgres 17: assert:rls-credentials, test:rls, test:e2e, instance-bootstrap integration)
+postgres-integration (Docker Compose Postgres 17: assert:rls-credentials, test:rls, test:e2e, test:canary, instance-bootstrap integration)
 knip (unused files, deps, and unlisted deps)
 actionlint (workflow lint + run-block shellcheck)
 gitleaks (full working tree, authoritative)

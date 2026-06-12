@@ -417,10 +417,9 @@ Owns:
 - Metadata-safe Webhook Subscriptions, Event Notifications, and Approval Notification delivery
   adapters: email and in-app event emission in V1; browser/mobile push via Push Device
   Registrations is post-V1 per [open-questions.md](../open-questions.md).
-- Planned no-plaintext canary harness (`pnpm test:canary`), connecting directly with the
-  migration-role URL to sweep persisted surfaces for sentinel Sensitive Values, per
-  [ADR-0069](../adr/0069-no-plaintext-canary-gate.md). The script and CI task are decided but not
-  wired yet.
+- No-plaintext canary harness (`pnpm test:canary`), connecting directly with the migration-role
+  URL to sweep persisted surfaces for sentinel Sensitive Values, per
+  [ADR-0069](../adr/0069-no-plaintext-canary-gate.md).
 - Minimal backup: Neon PITR assumptions, daily encrypted logical R2 export, recovery canary, and
   restore drill runbook.
 - Incident response runbooks, especially tenant-reported compromise triage and custody-material

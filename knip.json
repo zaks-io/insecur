@@ -15,7 +15,8 @@
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     "apps/worker": {
-      "project": ["src/**/*.ts"]
+      "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts"],
