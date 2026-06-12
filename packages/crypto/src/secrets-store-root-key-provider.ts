@@ -36,7 +36,7 @@ export class SecretsStoreRootKeyProvider implements RootKeyProvider {
 }
 
 export function createKeyringFromRootKeyProvider(rootKeyProvider: RootKeyProvider): Keyring {
-  return new Keyring(rootKeyProvider, new DefaultTenantDataKeySource());
+  return new Keyring(rootKeyProvider, new DefaultTenantDataKeySource(rootKeyProvider));
 }
 
 export function createKeyringFromSecretsStoreBinding(

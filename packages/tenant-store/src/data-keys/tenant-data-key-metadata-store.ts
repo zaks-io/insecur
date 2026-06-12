@@ -1,73 +1,29 @@
-import { organizationId, projectId, type OrganizationId, type ProjectId } from "@insecur/domain";
+import type { OrganizationId, ProjectId } from "@insecur/domain";
+import type {
+  OrganizationDataKeyMetadata,
+  ProjectDataKeyMetadata,
+  TenantDataKeyRewrapStore,
+} from "@insecur/crypto";
 import { and, desc, eq } from "drizzle-orm";
 
+import {
+  listOrganizationDataKeys as listOrganizationDataKeysForRewrap,
+  listProjectDataKeys as listProjectDataKeysForRewrap,
+  updateOrganizationDataKeyWrap as persistOrganizationDataKeyWrap,
+  updateProjectDataKeyWrap as persistProjectDataKeyWrap,
+} from "./data-key-rewrap-store.js";
+import {
+  organizationDataKeySelect,
+  projectDataKeySelect,
+  toOrganizationMetadata,
+  toProjectMetadata,
+} from "./data-key-store-mappers.js";
 import { organizationDataKeys, projectDataKeys } from "../db/schema/tenant-hierarchy.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
-import {
-  type DataKeyVersionStatus,
-  type OrganizationDataKeyRow,
-  type ProjectDataKeyRow,
-  type SeedOrganizationDataKeyInput,
-  type SeedProjectDataKeyInput,
-} from "./types.js";
-
-function parseStatus(raw: string): DataKeyVersionStatus {
-  if (raw === "active" || raw === "retired" || raw === "revoked") {
-    return raw;
-  }
-  throw new Error("invalid data key status in store");
-}
-
-function toOrganizationMetadata(row: OrganizationDataKeyRow) {
-  return {
-    id: row.id,
-    organizationId: organizationId.brand(row.org_id),
-    keyVersion: row.key_version,
-    status: parseStatus(row.status),
-    rootKeyVersion: row.root_key_version,
-    wrappedStorageRef: row.wrapped_storage_ref,
-    custodyEvidenceRef: row.custody_evidence_ref,
-  };
-}
-
-function toProjectMetadata(row: ProjectDataKeyRow) {
-  return {
-    id: row.id,
-    organizationId: organizationId.brand(row.org_id),
-    projectId: projectId.brand(row.project_id),
-    keyVersion: row.key_version,
-    status: parseStatus(row.status),
-    organizationDataKeyVersion: row.organization_data_key_version,
-    wrappedStorageRef: row.wrapped_storage_ref,
-  };
-}
-
-const organizationDataKeySelect = {
-  id: organizationDataKeys.id,
-  org_id: organizationDataKeys.orgId,
-  key_version: organizationDataKeys.keyVersion,
-  status: organizationDataKeys.status,
-  root_key_version: organizationDataKeys.rootKeyVersion,
-  wrapped_storage_ref: organizationDataKeys.wrappedStorageRef,
-  custody_evidence_ref: organizationDataKeys.custodyEvidenceRef,
-  created_at: organizationDataKeys.createdAt,
-  updated_at: organizationDataKeys.updatedAt,
-} as const;
-
-const projectDataKeySelect = {
-  id: projectDataKeys.id,
-  org_id: projectDataKeys.orgId,
-  project_id: projectDataKeys.projectId,
-  key_version: projectDataKeys.keyVersion,
-  status: projectDataKeys.status,
-  organization_data_key_version: projectDataKeys.organizationDataKeyVersion,
-  wrapped_storage_ref: projectDataKeys.wrappedStorageRef,
-  created_at: projectDataKeys.createdAt,
-  updated_at: projectDataKeys.updatedAt,
-} as const;
+import type { SeedOrganizationDataKeyInput, SeedProjectDataKeyInput } from "./types.js";
 
 /** Tenant-scoped reads and writes for organization and project data key metadata. */
-export class TenantDataKeyMetadataStore {
+export class TenantDataKeyMetadataStore implements TenantDataKeyRewrapStore {
   constructor(private readonly db: TenantScopedDb) {}
 
   async getOrganizationDataKeyForReadiness(organizationId: OrganizationId) {
@@ -98,7 +54,7 @@ export class TenantDataKeyMetadataStore {
       )
       .limit(1);
     const row = rows[0];
-    return row ? toOrganizationMetadata(row as OrganizationDataKeyRow) : null;
+    return row ? toOrganizationMetadata(row) : null;
   }
 
   async getOrganizationDataKeyVersion(organizationId: OrganizationId, keyVersion: number) {
@@ -113,7 +69,7 @@ export class TenantDataKeyMetadataStore {
       )
       .limit(1);
     const row = rows[0];
-    return row ? toOrganizationMetadata(row as OrganizationDataKeyRow) : null;
+    return row ? toOrganizationMetadata(row) : null;
   }
 
   async getActiveProjectDataKey(organizationId: OrganizationId, projectId: ProjectId) {
@@ -129,7 +85,7 @@ export class TenantDataKeyMetadataStore {
       )
       .limit(1);
     const row = rows[0];
-    return row ? toProjectMetadata(row as ProjectDataKeyRow) : null;
+    return row ? toProjectMetadata(row) : null;
   }
 
   async getProjectDataKeyVersion(
@@ -149,7 +105,7 @@ export class TenantDataKeyMetadataStore {
       )
       .limit(1);
     const row = rows[0];
-    return row ? toProjectMetadata(row as ProjectDataKeyRow) : null;
+    return row ? toProjectMetadata(row) : null;
   }
 
   private async getLatestOrganizationDataKey(organizationId: OrganizationId) {
@@ -160,7 +116,7 @@ export class TenantDataKeyMetadataStore {
       .orderBy(desc(organizationDataKeys.keyVersion))
       .limit(1);
     const row = rows[0];
-    return row ? toOrganizationMetadata(row as OrganizationDataKeyRow) : null;
+    return row ? toOrganizationMetadata(row) : null;
   }
 
   private async getLatestProjectDataKey(organizationId: OrganizationId, projectId: ProjectId) {
@@ -173,7 +129,7 @@ export class TenantDataKeyMetadataStore {
       .orderBy(desc(projectDataKeys.keyVersion))
       .limit(1);
     const row = rows[0];
-    return row ? toProjectMetadata(row as ProjectDataKeyRow) : null;
+    return row ? toProjectMetadata(row) : null;
   }
 
   async insertOrganizationDataKey(input: SeedOrganizationDataKeyInput): Promise<void> {
@@ -208,5 +164,43 @@ export class TenantDataKeyMetadataStore {
       .onConflictDoNothing({
         target: [projectDataKeys.projectId, projectDataKeys.keyVersion],
       });
+  }
+
+  listOrganizationDataKeys(organizationId: OrganizationId) {
+    return listOrganizationDataKeysForRewrap(this.db, organizationId);
+  }
+
+  listProjectDataKeys(organizationId: OrganizationId) {
+    return listProjectDataKeysForRewrap(this.db, organizationId);
+  }
+
+  updateOrganizationDataKeyWrap(
+    organizationId: OrganizationId,
+    keyVersion: number,
+    input: {
+      readonly wrappedStorageRef: string;
+      readonly rootKeyVersion: number;
+      readonly status: OrganizationDataKeyMetadata["status"];
+    },
+  ): Promise<void> {
+    return persistOrganizationDataKeyWrap(this.db, organizationId, keyVersion, input);
+  }
+
+  updateProjectDataKeyWrap(
+    organizationId: OrganizationId,
+    projectId: ProjectId,
+    keyVersion: number,
+    input: {
+      readonly wrappedStorageRef: string;
+      readonly status: ProjectDataKeyMetadata["status"];
+    },
+  ): Promise<void> {
+    return persistProjectDataKeyWrap(this.db, {
+      organizationId,
+      projectId,
+      keyVersion,
+      wrappedStorageRef: input.wrappedStorageRef,
+      status: input.status,
+    });
   }
 }

@@ -55,7 +55,8 @@ describe("createKeyringFromWorkerEnv", () => {
 
     await first.getProjectDataKey(org, project, versions);
     await second.getProjectDataKey(org, project, versions);
-    expect(getCalls).toBe(2);
+    // Wrapped data keys resolve the root per mint/unwrap step; two keyrings still fetch independently.
+    expect(getCalls).toBe(5);
   });
 
   it("surfaces ErrorBody-compatible failures for rejected binding reads", async () => {
