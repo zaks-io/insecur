@@ -1,6 +1,7 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
 import {
+  AUTH_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
   brandValue,
   environmentId,
@@ -415,6 +416,45 @@ describeIntegration("Runtime Injection Grant Service", () => {
       resource_id: brandOpaqueResourceIdForPrefix("igr", missingGrantId),
     });
     expect(JSON.stringify(deniedRows)).not.toContain(new TextDecoder().decode(plaintext));
+  });
+
+  it("denies protected-environment issue with insufficient scope when grant_issue_protected is absent", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV11_PROTECTED");
+    await writeTestSecret(variableKey, new TextEncoder().encode("protected-env"));
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      await sql`
+        UPDATE environments
+        SET is_protected = true
+        WHERE id = ${testEnvironment()}
+      `;
+    });
+
+    try {
+      await expect(
+        issueInjectionGrant({
+          organizationId: org,
+          projectId: testProject(),
+          environmentId: testEnvironment(),
+          selector: { kind: "variable_key", variableKey },
+          actor: testActor(),
+        }),
+      ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+      const deniedAudit = await loadLatestIssueDeniedAudit(org);
+      expect(deniedAudit?.event_code).toBe(FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied);
+      expect(deniedAudit?.outcome).toBe("denied");
+      expect(deniedAudit?.result_code).toBe(AUTH_ERROR_CODES.insufficientScope);
+    } finally {
+      await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+        await sql`
+          UPDATE environments
+          SET is_protected = false
+          WHERE id = ${testEnvironment()}
+        `;
+      });
+    }
   });
 
   it("denies issue with audit when variable key selector does not exist", async () => {

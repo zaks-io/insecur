@@ -6,6 +6,7 @@ export const AUTHORIZATION_SCOPES = {
   onboardingGuidedProvision: "onboarding:guided_organization_provision",
   secretNonProtectedWrite: "secret:non_protected_write",
   runtimeInjectionGrantIssue: "runtime_injection:grant_issue",
+  runtimeInjectionGrantIssueProtected: "runtime_injection:grant_issue_protected",
   runtimeInjectionGrantConsume: "runtime_injection:grant_consume",
   runtimeInjectionRun: "runtime_injection:run",
   organizationRead: "organization:read",

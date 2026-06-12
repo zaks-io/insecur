@@ -21,7 +21,7 @@ export async function assertProjectEnvironmentCoordinate(
     projectId: ProjectId;
     environmentId: EnvironmentId;
   },
-): Promise<{ isProtected: false }> {
+): Promise<{ isProtected: boolean }> {
   const rows = await db
     .select({
       projectId: environments.projectId,
@@ -39,8 +39,5 @@ export async function assertProjectEnvironmentCoordinate(
   if (environment.projectId !== input.projectId) {
     throw new ProjectEnvironmentCoordinateError("environment does not belong to project");
   }
-  if (environment.isProtected) {
-    throw new ProjectEnvironmentCoordinateError("environment is protected");
-  }
-  return { isProtected: false };
+  return { isProtected: environment.isProtected };
 }

@@ -375,7 +375,7 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
         projectId: PROJECT,
         environmentId: ENV,
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ isProtected: false });
   });
 
   it("loads a grant row by id", async () => {
@@ -429,7 +429,7 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
 });
 
 describe("assertProjectEnvironmentCoordinate (Drizzle)", () => {
-  it("throws when environment is protected", async () => {
+  it("returns isProtected true when environment is protected", async () => {
     const { db } = createMockTenantDb({
       selectResults: [[{ projectId: PROJECT, isProtected: true }]],
     });
@@ -439,7 +439,7 @@ describe("assertProjectEnvironmentCoordinate (Drizzle)", () => {
         projectId: PROJECT,
         environmentId: ENV,
       }),
-    ).rejects.toBeInstanceOf(ProjectEnvironmentCoordinateError);
+    ).resolves.toEqual({ isProtected: true });
   });
 
   it("returns when environment belongs to the project", async () => {

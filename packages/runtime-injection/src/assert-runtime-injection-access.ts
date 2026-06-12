@@ -27,4 +27,10 @@ export async function assertRuntimeInjectionAccess(
 }
 
 export const ISSUE_SCOPE = AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue;
+export const ISSUE_PROTECTED_SCOPE = AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected;
 export const CONSUME_SCOPE = AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume;
+
+/** Maps environment protection to the one issuance scope the grant service requires. */
+export function resolveIssueGrantRequiredScope(isProtected: boolean): AuthorizationScope {
+  return isProtected ? ISSUE_PROTECTED_SCOPE : ISSUE_SCOPE;
+}
