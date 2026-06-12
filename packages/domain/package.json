@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./error-code-registry": {
+      "types": "./dist/error-code-registry.d.ts",
+      "default": "./dist/error-code-registry.js"
     }
   },
   "types": "./dist/index.d.ts",

@@ -1,6 +1,8 @@
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
+import { DecryptError } from "@insecur/crypto";
 import {
   AUTH_ERROR_CODES,
+  CRYPTO_ERROR_CODES,
   INJECTION_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
   SECRET_ERROR_CODES,
@@ -547,6 +549,32 @@ describe("FV-12 worker routes", () => {
         ok: false,
         error: { code: INJECTION_ERROR_CODES.grantExpired },
       });
+    });
+
+    it("maps runtime decrypt failures to opaque crypto.decrypt_failed", async () => {
+      consumeInjectionGrant.mockRejectedValue(new DecryptError());
+
+      const response = await app.request(
+        `/v1/runtime-injection/grants/${grantIdValue}/consume`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            organizationId: orgId,
+            variableKey: "API_KEY",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(500);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: CRYPTO_ERROR_CODES.decryptFailed, retryable: false },
+      });
+      expect((body as { meta?: { requestId?: string } }).meta?.requestId).toMatch(/^req_/);
+      expect(JSON.stringify(body)).not.toMatch(/valueUtf8|plaintext/i);
     });
   });
 

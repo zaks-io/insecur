@@ -1,6 +1,5 @@
-import { decryptSecretValueForRuntime, DecryptError } from "@insecur/crypto";
+import { decryptSecretValueForRuntime } from "@insecur/crypto";
 import {
-  CRYPTO_ERROR_CODES,
   INJECTION_ERROR_CODES,
   type EnvironmentId,
   type OrganizationId,
@@ -50,26 +49,13 @@ async function decryptResolvedVersion(
     );
   }
 
-  try {
-    return await decryptSecretValueForRuntime(
-      {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        secretId: input.secretId,
-      },
-      version.wrapped,
-    );
-  } catch (error) {
-    if (error instanceof DecryptError) {
-      throw new InjectionGrantError(INJECTION_ERROR_CODES.decryptFailed, "runtime decrypt failed");
-    }
-    if (error instanceof Error && error.message.includes("root key")) {
-      throw new InjectionGrantError(
-        CRYPTO_ERROR_CODES.rootKeyNotConfigured,
-        "keyring not configured",
-      );
-    }
-    throw error;
-  }
+  return await decryptSecretValueForRuntime(
+    {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      secretId: input.secretId,
+    },
+    version.wrapped,
+  );
 }

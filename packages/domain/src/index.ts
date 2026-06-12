@@ -90,6 +90,7 @@ export {
   VALIDATION_ERROR_CODES,
   type ValidationErrorCode,
 } from "./error-codes.js";
+export { isKnownErrorCodeInCatalog, listKnownErrorCodes } from "./known-error-code-catalog.js";
 export {
   type ErrorBody,
   type ErrorEnvelope,
