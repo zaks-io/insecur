@@ -4,6 +4,11 @@ export {
   type OperationErrorCode,
 } from "./operation-errors.js";
 export {
+  OPERATION_INTENT_CODES,
+  isOperationIntentCode,
+  type OperationIntentCode,
+} from "./operation-intent-codes.js";
+export {
   CANCELABLE_OPERATION_STATES,
   OPERATION_STATES,
   RETRYABLE_OPERATION_STATES,
