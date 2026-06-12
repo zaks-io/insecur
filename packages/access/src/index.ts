@@ -9,6 +9,8 @@ export {
   type BuiltInRolePreset,
   expandBuiltInRolePresetToScopes,
   isBuiltInRolePreset,
+  isMachineUnassignableBuiltInRolePreset,
+  MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS,
 } from "./built-in-role-scopes.js";
 export { buildMachineEffectiveAccessScopes } from "./build-machine-effective-access.js";
 export {

@@ -46,7 +46,7 @@ export const invitations = pgTable(
     check("invitations_status_check", sql`${table.status} IN ('pending', 'accepted', 'revoked')`),
     check(
       "invitations_role_preset_check",
-      sql`${table.rolePreset} IN ('owner', 'admin', 'developer', 'approval', 'read-only')`,
+      sql`${table.rolePreset} IN ('owner', 'admin', 'developer', 'metadata-viewer', 'approval', 'read-only')`,
     ),
     uniqueIndex("invitations_one_pending_per_invitee_org_project")
       .on(table.orgId, table.inviteeUserId, table.projectId)
