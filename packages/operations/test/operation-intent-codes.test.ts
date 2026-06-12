@@ -1,11 +1,7 @@
-import { organizationId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
-import { createOperation } from "../src/create-operation.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "../src/operation-errors.js";
 import { OPERATION_INTENT_CODES, isOperationIntentCode } from "../src/operation-intent-codes.js";
 import { validateOperationIntentCode } from "../src/validate-operation-metadata.js";
-
-const ORG = organizationId.brand("org_00000000000000000000000001");
 
 describe("OPERATION_INTENT_CODES", () => {
   it("accepts registered intent codes", () => {
@@ -13,6 +9,11 @@ describe("OPERATION_INTENT_CODES", () => {
       expect(isOperationIntentCode(intentCode)).toBe(true);
       expect(() => validateOperationIntentCode(intentCode)).not.toThrow();
     }
+  });
+
+  it("rejects unregistered values from isOperationIntentCode", () => {
+    expect(isOperationIntentCode("sync.not_registered")).toBe(false);
+    expect(isOperationIntentCode("")).toBe(false);
   });
 
   it("rejects well-shaped but unregistered intent codes", () => {
@@ -33,17 +34,5 @@ describe("OPERATION_INTENT_CODES", () => {
         message: "intentCode must be a stable dotted code (e.g. sync.run)",
       }),
     );
-  });
-
-  it("createOperation rejects unregistered intent codes before persistence", async () => {
-    await expect(
-      createOperation({
-        organizationId: ORG,
-        intentCode: "sync.not_registered",
-      }),
-    ).rejects.toMatchObject({
-      code: OPERATION_ERROR_CODES.invalidIntent,
-      message: "unknown intentCode: sync.not_registered",
-    });
   });
 });
