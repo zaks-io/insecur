@@ -20,7 +20,7 @@ export {
   type InformationSchemaColumnRow,
   type SchemaColumnMap,
 } from "./plaintext-metadata-conformance.js";
-export { USER_SCHEMA_TABLES } from "./schema-tables.js";
+export { loadUserSchemaTables } from "./schema-tables.js";
 export * from "./tenant-collaboration.js";
 export * from "./tenant-hierarchy.js";
 export * from "./tenant-integrations.js";

@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { IndexBuilder } from "drizzle-orm/pg-core";
+import type { PgTable } from "drizzle-orm/pg-core";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { PLAINTEXT_METADATA_ALLOWLIST } from "../src/db/schema/plaintext-metadata-allowlist.js";
 import {
@@ -11,15 +13,23 @@ import {
   formatPlaintextMetadataConformanceViolations,
   PlaintextMetadataConformanceError,
 } from "../src/db/schema/plaintext-metadata-conformance.js";
-import { USER_SCHEMA_TABLES } from "../src/db/schema/schema-tables.js";
+import { loadUserSchemaTables } from "../src/db/schema/schema-tables.js";
+import { materializePgTableExtraConfigs } from "./helpers/materialize-pg-table-extra-config.js";
+
+let userSchemaTables: readonly PgTable[];
 
 describe("plaintext metadata allowlist (unit layer)", () => {
+  beforeAll(async () => {
+    userSchemaTables = await loadUserSchemaTables();
+    materializePgTableExtraConfigs(userSchemaTables);
+  });
+
   it("conforms to the exported Drizzle schema with zero drift in either direction", () => {
-    expect(() => assertDrizzleSchemaPlaintextMetadataConformance()).not.toThrow();
+    expect(() => assertDrizzleSchemaPlaintextMetadataConformance(userSchemaTables)).not.toThrow();
   });
 
   it("covers every user table in the schema surface", () => {
-    const schemaTables = [...enumerateDrizzleSchemaColumns(USER_SCHEMA_TABLES).keys()].sort();
+    const schemaTables = [...enumerateDrizzleSchemaColumns(userSchemaTables).keys()].sort();
     const registryTables = Object.keys(PLAINTEXT_METADATA_ALLOWLIST).sort();
     expect(schemaTables).toEqual(registryTables);
     expect(schemaTables).toHaveLength(25);
@@ -49,7 +59,7 @@ describe("plaintext metadata allowlist (unit layer)", () => {
   });
 
   it("fails closed on an unregistered schema column", () => {
-    const actualColumns = enumerateDrizzleSchemaColumns(USER_SCHEMA_TABLES);
+    const actualColumns = enumerateDrizzleSchemaColumns(userSchemaTables);
     const driftedColumns = new Map(actualColumns);
     const secretsColumns = new Set(driftedColumns.get("secrets"));
     secretsColumns?.add("unregistered_column");
@@ -64,7 +74,7 @@ describe("plaintext metadata allowlist (unit layer)", () => {
   });
 
   it("fails closed on a schema table missing from the registry", () => {
-    const actualColumns = enumerateDrizzleSchemaColumns(USER_SCHEMA_TABLES);
+    const actualColumns = enumerateDrizzleSchemaColumns(userSchemaTables);
     const driftedColumns = new Map(actualColumns);
     driftedColumns.set("unregistered_table", new Set(["id"]));
 
@@ -74,7 +84,7 @@ describe("plaintext metadata allowlist (unit layer)", () => {
   });
 
   it("fails closed on an orphaned registry entry", () => {
-    const actualColumns = enumerateDrizzleSchemaColumns(USER_SCHEMA_TABLES);
+    const actualColumns = enumerateDrizzleSchemaColumns(userSchemaTables);
     const driftedRegistry = {
       ...PLAINTEXT_METADATA_ALLOWLIST,
       orphaned_table: {
@@ -93,7 +103,7 @@ describe("plaintext metadata allowlist (unit layer)", () => {
   });
 
   it("fails closed on an orphaned registry column within an existing table", () => {
-    const actualColumns = enumerateDrizzleSchemaColumns(USER_SCHEMA_TABLES);
+    const actualColumns = enumerateDrizzleSchemaColumns(userSchemaTables);
     const driftedRegistry = {
       ...PLAINTEXT_METADATA_ALLOWLIST,
       secrets: {
@@ -105,5 +115,17 @@ describe("plaintext metadata allowlist (unit layer)", () => {
     expect(
       collectPlaintextMetadataConformanceViolations(actualColumns, driftedRegistry),
     ).toContainEqual("registry entry secrets.orphaned_column has no matching schema column");
+  });
+
+  it("supports nullsNotDistinct on pg-core index builders", async () => {
+    await import("../src/db/schema/pg-core.js");
+
+    const builder = Object.create(IndexBuilder.prototype) as IndexBuilder & {
+      config: { nullsNotDistinct?: boolean };
+    };
+    builder.config = {};
+
+    expect(builder.nullsNotDistinct()).toBe(builder);
+    expect(builder.config.nullsNotDistinct).toBe(true);
   });
 });

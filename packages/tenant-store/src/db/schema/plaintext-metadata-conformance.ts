@@ -5,7 +5,6 @@ import {
   PLAINTEXT_METADATA_ALLOWLIST,
   type PlaintextMetadataAllowlist,
 } from "./plaintext-metadata-allowlist.js";
-import { USER_SCHEMA_TABLES } from "./schema-tables.js";
 
 export type SchemaColumnMap = ReadonlyMap<string, ReadonlySet<string>>;
 
@@ -111,7 +110,7 @@ export function assertPlaintextMetadataConformance(
 }
 
 export function assertDrizzleSchemaPlaintextMetadataConformance(
-  tables: readonly PgTable[] = USER_SCHEMA_TABLES,
+  tables: readonly PgTable[],
   registry: PlaintextMetadataAllowlist = PLAINTEXT_METADATA_ALLOWLIST,
 ): void {
   assertPlaintextMetadataConformance(enumerateDrizzleSchemaColumns(tables), registry);
