@@ -1,14 +1,16 @@
 import {
   AUTH_ERROR_CODES,
-  CLIENT_SIDE_HTTP_MARKER,
   CRYPTO_ERROR_CODES,
   INJECTION_ERROR_CODES,
+  listKnownErrorCodes,
+} from "@insecur/domain";
+import {
+  CLIENT_SIDE_HTTP_MARKER,
   assertKnownErrorCodeRegistryCoverage,
   assertRegistryHttpLockstep,
-  listKnownErrorCodes,
   parseErrorCodeRegistryTable,
   registryRowsByCode,
-} from "@insecur/domain";
+} from "@insecur/domain/error-code-registry";
 import { describe, expect, it } from "vitest";
 import { httpStatusForKnownErrorCode } from "./domain-error-response.js";
 import { HTTP_STATUS_BY_CODE } from "./http-status-by-code.js";

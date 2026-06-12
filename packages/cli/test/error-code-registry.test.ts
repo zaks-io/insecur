@@ -1,9 +1,9 @@
+import { listKnownErrorCodes } from "@insecur/domain";
 import {
   assertKnownErrorCodeRegistryCoverage,
-  listKnownErrorCodes,
   parseErrorCodeRegistryTable,
   registryRowsByCode,
-} from "@insecur/domain";
+} from "@insecur/domain/error-code-registry";
 import { describe, expect, it } from "vitest";
 import { exitCodeForErrorCode } from "../src/output/exit-codes.js";
 

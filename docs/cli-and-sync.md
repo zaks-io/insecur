@@ -333,8 +333,11 @@ every HTTP-mapped row must match `HTTP_STATUS_BY_CODE`, and catalog codes marked
 must not reach the HTTP map. Codes that never cross HTTP get `n/a (client-side)`
 in the HTTP column; an explicit marker, never a blank, so a deliberate non-mapping stays
 distinguishable from a missing decision. The anti-silent-fallback rule applies to both projections:
-the exit map falls back to `EXIT_UNEXPECTED` (`1`) and the HTTP map to `500`, so when adding a new
-stable error code, extend both maps and this table instead of silently inheriting either default
+catalog codes must not inherit defaults — extend both maps and this table when adding a code.
+`exitCodeForErrorCode` falls back to `EXIT_UNEXPECTED` (`1`) only for non-catalog codes; catalog
+codes are lockstep-tested against this table. `httpStatusForKnownErrorCode` throws for catalog codes
+marked `n/a (client-side)` or missing from `HTTP_STATUS_BY_CODE`; only unknown non-catalog codes
+may fall back to HTTP `500`
 ([ADR-0062](adr/0062-package-seam-failures-are-errorbody-compatible.md) as amended). HTTP status is
 not derivable from the exit column: resource-shaped denials map to HTTP `404` so they cannot act as
 a resource-existence oracle, even where their exit codes differ.

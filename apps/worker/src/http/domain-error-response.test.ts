@@ -1,12 +1,14 @@
+import { DecryptError } from "@insecur/crypto";
 import {
   AUTH_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   INJECTION_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
+  requestId,
 } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
-import { httpStatusForKnownErrorCode } from "./domain-error-response.js";
+import { domainErrorEnvelope, httpStatusForKnownErrorCode } from "./domain-error-response.js";
 
 describe("httpStatusForKnownErrorCode", () => {
   it("maps reauth, MFA enrollment, and high-assurance auth codes to 401", () => {
@@ -20,5 +22,20 @@ describe("httpStatusForKnownErrorCode", () => {
     expect(httpStatusForKnownErrorCode(ONBOARDING_ERROR_CODES.notInstanceOperator)).toBe(403);
     expect(httpStatusForKnownErrorCode(INJECTION_ERROR_CODES.grantDenied)).toBe(404);
     expect(httpStatusForKnownErrorCode(CRYPTO_ERROR_CODES.decryptFailed)).toBe(500);
+  });
+
+  it("maps runtime decrypt failures to opaque crypto.decrypt_failed ErrorEnvelope", () => {
+    const reqId = requestId.generate();
+    const { status, body } = domainErrorEnvelope(new DecryptError(), reqId);
+
+    expect(status).toBe(500);
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: CRYPTO_ERROR_CODES.decryptFailed,
+        retryable: false,
+      },
+      meta: { requestId: reqId },
+    });
   });
 });

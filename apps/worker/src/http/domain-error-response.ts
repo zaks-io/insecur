@@ -1,3 +1,4 @@
+import { DecryptError, RootKeyNotConfiguredError } from "@insecur/crypto";
 import {
   STORE_ERROR_CODES,
   VALIDATION_ERROR_CODES,
@@ -21,7 +22,12 @@ function messageForError(error: unknown): string {
 }
 
 function retryableForError(error: unknown): boolean {
-  if (error instanceof SecretWriteError || error instanceof InjectionGrantError) {
+  if (
+    error instanceof SecretWriteError ||
+    error instanceof InjectionGrantError ||
+    error instanceof DecryptError ||
+    error instanceof RootKeyNotConfiguredError
+  ) {
     return error.retryable;
   }
   return false;
@@ -44,6 +50,9 @@ export function knownErrorCodeFromUnknown(error: unknown): KnownErrorCode {
     return error.code;
   }
   if (error instanceof InjectionGrantError) {
+    return error.code;
+  }
+  if (error instanceof DecryptError || error instanceof RootKeyNotConfiguredError) {
     return error.code;
   }
   if (error instanceof GuidedOrganizationProvisionError) {

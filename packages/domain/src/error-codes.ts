@@ -93,6 +93,22 @@ export const AUDIT_ERROR_CODES = {
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[keyof typeof AUDIT_ERROR_CODES];
 
+/**
+ * Every `*_ERROR_CODES` catalog in this module. Append new catalogs here and to
+ * `KnownErrorCode` so `known-error-code-catalog.ts` lockstep coverage cannot miss them.
+ */
+export const ALL_ERROR_CODE_CATALOGS = [
+  VALIDATION_ERROR_CODES,
+  AUTH_ERROR_CODES,
+  SECRET_ERROR_CODES,
+  INJECTION_ERROR_CODES,
+  ONBOARDING_ERROR_CODES,
+  BOOTSTRAP_ERROR_CODES,
+  CRYPTO_ERROR_CODES,
+  STORE_ERROR_CODES,
+  AUDIT_ERROR_CODES,
+] as const;
+
 export type KnownErrorCode =
   | ValidationErrorCode
   | AuthErrorCode
