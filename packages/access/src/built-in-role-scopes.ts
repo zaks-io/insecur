@@ -5,6 +5,7 @@ export const BUILT_IN_ROLE_PRESETS = {
   owner: "owner",
   admin: "admin",
   developer: "developer",
+  metadataViewer: "metadata-viewer",
   approval: "approval",
   readOnly: "read-only",
 } as const;
@@ -52,6 +53,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume,
     AUTHORIZATION_SCOPES.runtimeInjectionRun,
   ],
+  [BUILT_IN_ROLE_PRESETS.metadataViewer]: [AUTHORIZATION_SCOPES.metadataDetailRead],
   [BUILT_IN_ROLE_PRESETS.approval]: [
     AUTHORIZATION_SCOPES.approvalApprove,
     AUTHORIZATION_SCOPES.approvalReject,
@@ -66,8 +68,21 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
 
 const BUILT_IN_ROLE_PRESET_SET = new Set<string>(Object.values(BUILT_IN_ROLE_PRESETS));
 
+/** Built-In Role presets that V1 Machine Identities must never receive. */
+export const MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS = [
+  BUILT_IN_ROLE_PRESETS.metadataViewer,
+] as const satisfies readonly BuiltInRolePreset[];
+
+const MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESET_SET = new Set<string>(
+  MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS,
+);
+
 export function isBuiltInRolePreset(value: string): value is BuiltInRolePreset {
   return BUILT_IN_ROLE_PRESET_SET.has(value);
+}
+
+export function isMachineUnassignableBuiltInRolePreset(value: string): boolean {
+  return MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESET_SET.has(value);
 }
 
 /**

@@ -12,6 +12,7 @@ export const AUTHORIZATION_SCOPES = {
   projectRead: "project:read",
   environmentRead: "environment:read",
   secretRead: "secret:read",
+  metadataDetailRead: "metadata:detail_read",
   approvalApprove: "approval:approve",
   approvalReject: "approval:reject",
   membershipManage: "membership:manage",
