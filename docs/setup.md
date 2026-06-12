@@ -36,8 +36,8 @@ Value loop test (`pnpm test:e2e`) drives those real routes against local Postgre
 The local database uses Docker Compose with Postgres 17, matching the stable Neon target while
 Postgres 18 remains preview on Neon ([ADR-0060](adr/0060-postgres-17-development-baseline.md)).
 It is the substrate for the authoritative integration+RLS test layer:
-`pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e` runs the forced-RLS tenant suite and the
-First Value loop locally, and CI's `postgres-integration` job enforces the same layer with
+`pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` runs the forced-RLS tenant suite, the
+First Value loop, and the no-plaintext canary gate locally, and CI's `postgres-integration` job enforces the same layer with
 `INSECUR_CI_RLS_GATE=1`. Neon appears only in the gated preview smoke layer, which runs the First
 Value smoke against a deployed preview Worker — not `test:rls`. See
 [docs/agents/testing.md](agents/testing.md) and

@@ -167,7 +167,8 @@ jobs:
 
       # Single Postgres reset feeds the DB-backed layers: assert-rls-credentials,
       # test:rls (tenant-store forced-RLS + access integration, INS-144),
-      # test:e2e (First Value loop), then instance-bootstrap integration.
+      # test:e2e (First Value loop), test:canary (no-plaintext gate, ADR-0069),
+      # then instance-bootstrap integration.
       - name: Run RLS guardrails and DB-backed tests
         run: node scripts/ci/postgres-integration-tests.mjs
 

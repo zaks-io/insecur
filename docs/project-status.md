@@ -62,7 +62,7 @@ landed ADRs 0066 through 0076 plus dated amendments to ADR-0008/0028/0032/0034/0
 [custody-material compromise runbook](runbooks/custody-material-compromise.md), and the content
 ownership / single-statement / deterministic-conflict rules in
 [specs/README.md](specs/README.md) (ADR-0067). Several enforcement gates are now decided but not
-yet built: the no-plaintext canary gate (ADR-0069), the Plaintext Metadata Allowlist conformance
+yet built: the Plaintext Metadata Allowlist conformance
 gate (ADR-0070), the role-bundle registry conformance
 suite (ADR-0034) including the machine-only protected-issuance scope (ADR-0038), the
 `OPERATION_INTENT_CODES` catalog (ADR-0068), the `operation.idempotency_mismatch` check
@@ -156,7 +156,7 @@ First Value routes under `/v1/orgs/:org`).
   `NOBYPASSRLS` runtime role). The `postgres-integration` CI job resets Docker Compose
   Postgres 17, asserts migration vs runtime credentials and `NOBYPASSRLS`, then runs
   `test:rls` (`@insecur/tenant-store` forced-RLS suite plus `@insecur/access` integration
-  RLS tests) and `test:e2e` with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build.
+  RLS tests), `test:e2e`, and `test:canary` with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build.
   Package integration suites outside those tasks still self-gate in `pnpm verify` when
   `DATABASE_URL_RUNTIME` is unset.
 - The third test layer is the gated preview smoke (`pr-preview.yml`, INS-164): the First

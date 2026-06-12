@@ -3,11 +3,11 @@
 insecur's tests are organized into three layers by where Postgres comes from and what
 failure class each catches. The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 
-| Layer             | Postgres              | Runtime                                           | Command                                                                                                      | Runs where             |
-| ----------------- | --------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------- |
-| Unit              | none                  | Node Vitest                                       | `pnpm test`                                                                                                  | local, CI, agents      |
-| Integration + RLS | Docker Compose        | Node Vitest, real route stack + `postgres` driver | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e` today; `pnpm test:canary` is decided but not wired yet | local, CI, agents      |
-| Preview smoke     | ephemeral Neon branch | deployed Worker + Hyperdrive                      | `pr-preview.yml` (gated)                                                                                     | per-PR CI once enabled |
+| Layer             | Postgres              | Runtime                                           | Command                                                                   | Runs where             |
+| ----------------- | --------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------- |
+| Unit              | none                  | Node Vitest                                       | `pnpm test`                                                               | local, CI, agents      |
+| Integration + RLS | Docker Compose        | Node Vitest, real route stack + `postgres` driver | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` | local, CI, agents      |
+| Preview smoke     | ephemeral Neon branch | deployed Worker + Hyperdrive                      | `pr-preview.yml` (gated)                                                  | per-PR CI once enabled |
 
 ## For agents
 
@@ -17,6 +17,7 @@ To run the full DB-backed loop with no cloud credentials, only Docker:
 pnpm dev:db:reset   # Docker Compose Postgres 17, migrated
 pnpm test:e2e       # First Value loop through the real Worker routes
 pnpm test:rls       # forced-RLS tenant isolation suite
+pnpm test:canary    # no-plaintext canary gate (Postgres columns + console output)
 ```
 
 `pnpm test:e2e` runs `apps/worker/test/e2e/first-value-loop.e2e.test.ts`, which drives the
@@ -43,18 +44,23 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 The `postgres-integration` job in `.github/workflows/ci.yml` resets Docker Compose Postgres
 17 once, runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ;
 runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
-`INSECUR_CI_RLS_GATE=1` and runs `test:rls` and `test:e2e`; each fails closed under that gate
+`INSECUR_CI_RLS_GATE=1` and runs `test:rls`, `test:e2e`, and `test:canary`; each fails closed under that gate
 rather than skipping. The no-plaintext canary gate
-([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) is decided but not wired yet: there is
-currently no root `test:canary` script and no canary task in
-`scripts/ci/postgres-integration-tests.mjs`. The Plaintext Metadata Allowlist conformance gate
+([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) runs after `test:e2e` via
+`apps/worker/test/canary/no-plaintext-canary.test.ts`: it drives the real route stack with a
+fresh high-entropy sentinel, then sweeps every `public` schema column from live
+`information_schema` (migration-role connection) and captured in-process console output for
+raw, base64, base64url, and hex encodings. Deployed worker logs, R2, KV, Queues, Durable
+Objects, traces, and analytics are not swept until their sweep adapters land (see sweep-adapter
+rule below). The Plaintext Metadata Allowlist conformance gate
 ([ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)) runs in
 the unit layer via `packages/tenant-store/test/plaintext-metadata-conformance.test.ts` inside
 `pnpm verify`, and in the integration layer via
 `packages/tenant-store/test/rls/plaintext-metadata-conformance.integration.test.ts` inside
 `test:rls`. Turbo
 `envMode: strict` only
-forwards `INSECUR_CI_RLS_GATE` when it is listed on the `test:rls` / `test:e2e` tasks in
+forwards `INSECUR_CI_RLS_GATE` when it is listed on the `test:rls` / `test:e2e` / `test:canary`
+tasks in
 `turbo.json`; a probe task (`assert:ci-rls-gate-env`) runs first so CI logs prove the var
 reached the task process. Vitest setup logs `[insecur] INSECUR_CI_RLS_GATE=1` when fail-closed
 mode is active. Turbo `test:rls` fans out to
@@ -73,3 +79,11 @@ After `pnpm dev:db:reset`, a broken policy or `BYPASSRLS` on the runtime role mu
 2. Revert, re-run `pnpm dev:db:reset`, and confirm green.
 
 CI runs the same path via `postgres-integration-tests.mjs` after every compose reset.
+
+### Sweep-adapter rule (ADR-0069)
+
+Surfaces the canary gate cannot enumerate structurally — R2 export files, Queue payloads,
+Durable Object state, KV, traces, analytics sinks, local CLI config — must register a checked-in
+sweep adapter when they land. A non-enumerable surface landing without an adapter is a
+review-blocking violation from that point on. The registry mechanism is built with the first
+such surface; today the gate sweeps Postgres columns and in-process console output only.

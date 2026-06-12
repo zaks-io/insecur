@@ -31,9 +31,9 @@ A no-plaintext canary gate exists as `pnpm test:canary`, a fourth named command 
 existing integration layer. It is a command, not a new layer; ADR-0065's three-layer vocabulary
 stands unchanged.
 
-Implementation note: this ADR decides the gate contract, but the gate is not wired in the current
-repo state. There is no root `test:canary` script and `scripts/ci/postgres-integration-tests.mjs`
-does not run a canary task yet.
+Implementation note: the gate contract is defined here; the harness lives in
+`apps/worker/test/canary/` and runs via `pnpm test:canary` in the `postgres-integration` job after
+`test:e2e`.
 
 - **Where it runs.** `test:canary` runs in CI's existing `postgres-integration` job, after
   `test:e2e`, via `scripts/ci/postgres-integration-tests.mjs`. It fails closed under the same env
