@@ -90,6 +90,7 @@ export default tseslint.config(
       "packages/audit/test/**/*.ts",
       "packages/operations/test/**/*.ts",
       "packages/operations/vitest.config.ts",
+      "packages/operations/vitest.rls.config.ts",
       "packages/onboarding/test/**/*.ts",
       "packages/onboarding/vitest.config.ts",
       "packages/instance-bootstrap/test/**/*.ts",

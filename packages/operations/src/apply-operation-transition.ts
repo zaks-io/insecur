@@ -1,5 +1,6 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
+import { bindOperationProgressJsonb } from "./bind-operation-progress-jsonb.js";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
 import {
@@ -12,16 +13,8 @@ import {
   isTransitionAllowed,
   type OperationState,
 } from "./operation-states.js";
-import type {
-  OperationPollResult,
-  OperationProgress,
-  OperationProgressPatch,
-} from "./operation-types.js";
+import type { OperationPollResult, OperationProgressPatch } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
-
-function progressToJson(progress: OperationProgress) {
-  return JSON.parse(JSON.stringify(progress)) as Parameters<TenantScopedSql["json"]>[0];
-}
 
 export interface ApplyTransitionInput {
   organizationId: OrganizationId;
@@ -96,7 +89,7 @@ export async function casApplyOperationTransition(
     UPDATE operations
     SET
       state = ${input.nextState},
-      progress = ${sql.json(progressToJson(mergedProgress))},
+      progress = ${bindOperationProgressJsonb(sql, mergedProgress)},
       updated_at = now()
     WHERE id = ${input.operationId}
       AND org_id = ${input.organizationId}

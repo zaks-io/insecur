@@ -43,7 +43,7 @@
       "outputs": []
     },
     "test:rls": {
-      "dependsOn": ["topo", "^build"],
+      "dependsOn": ["topo", "^build", "build"],
       "cache": false,
       "env": [
         "DATABASE_URL",
