@@ -1,4 +1,5 @@
 import type { OperationId, OrganizationId, ProjectId } from "@insecur/domain";
+import { toIsoTimestamp } from "./parse-db-timestamp.js";
 import type { FencingToken, SyncProviderKind, SyncTargetKey } from "./sync-target-types.js";
 
 export interface SyncTargetLeaseRow {
@@ -8,7 +9,7 @@ export interface SyncTargetLeaseRow {
   readonly target_identity: string;
   readonly held_by_operation_id: OperationId;
   readonly fencing_token: string;
-  readonly expires_at: Date;
+  readonly expires_at: Date | string;
 }
 
 export interface SyncTargetLeaseSnapshot {
@@ -29,6 +30,6 @@ export function toSyncTargetLeaseSnapshot(row: SyncTargetLeaseRow): SyncTargetLe
     },
     heldByOperationId: row.held_by_operation_id,
     fencingToken,
-    expiresAt: row.expires_at.toISOString(),
+    expiresAt: toIsoTimestamp(row.expires_at),
   };
 }

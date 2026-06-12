@@ -1,6 +1,7 @@
 import { operationId, type OrganizationId } from "@insecur/domain";
 import { isOperationState } from "./operation-states.js";
 import type { OperationPollResult, OperationProgress } from "./operation-types.js";
+import { toIsoTimestamp } from "./parse-db-timestamp.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 
 export interface OperationRow {
@@ -10,8 +11,8 @@ export interface OperationRow {
   intent_code: string;
   idempotency_key: string | null;
   progress: unknown;
-  created_at: Date;
-  updated_at: Date;
+  created_at: Date | string;
+  updated_at: Date | string;
 }
 
 function parseProgress(value: unknown): OperationProgress {
@@ -35,7 +36,7 @@ export function toOperationPollResult(row: OperationRow): OperationPollResult {
     state,
     intentCode: row.intent_code,
     progress: parseProgress(row.progress),
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
+    createdAt: toIsoTimestamp(row.created_at),
+    updatedAt: toIsoTimestamp(row.updated_at),
   };
 }
