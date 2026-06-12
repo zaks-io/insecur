@@ -249,7 +249,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).toBe(
       new TextDecoder().decode(plaintext),
     );
-    expect(JSON.stringify(consumed)).not.toContain(new TextDecoder().decode(plaintext));
+    expect(() => JSON.stringify(consumed)).toThrow(/PlaintextHandle must not be serialized/);
   });
 
   it("delivers the secret version bound at issue after rotation", async () => {

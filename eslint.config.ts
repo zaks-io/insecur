@@ -44,6 +44,23 @@ const decryptImportBoundaryOptions = {
   ],
 };
 
+const decryptDynamicImportSyntaxRules = [
+  {
+    selector: 'ImportExpression[source.value="@insecur/crypto"]',
+    message: DECRYPT_IMPORT_BOUNDARY_MESSAGE,
+  },
+  {
+    selector:
+      "ImportExpression[source.value=/\\/crypto\\/src\\/(envelope|encryption|provider-credential-envelope|sensitive-metadata-envelope)\\.js$/]",
+    message: DECRYPT_IMPORT_BOUNDARY_MESSAGE,
+  },
+  {
+    selector:
+      "ImportExpression[source.value=/\\/crypto\\/src\\/(envelope|encryption|provider-credential-envelope|sensitive-metadata-envelope)$/]",
+    message: DECRYPT_IMPORT_BOUNDARY_MESSAGE,
+  },
+] as const;
+
 export default tseslint.config(
   {
     ignores: ["**/dist/**", "**/.wrangler/**", "**/coverage/**", "**/*.gen.ts"],
@@ -159,6 +176,7 @@ export default tseslint.config(
     ],
     rules: {
       "no-restricted-imports": ["error", decryptImportBoundaryOptions],
+      "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],
     },
   },
   eslintConfigPrettier,

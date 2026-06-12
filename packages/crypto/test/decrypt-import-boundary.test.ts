@@ -10,6 +10,14 @@ const negativeFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/decrypt-import-boundary-negative.fixture.ts",
 );
+const negativeDynamicFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/decrypt-import-boundary-negative-dynamic.fixture.ts",
+);
+const negativeDeepPathFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/decrypt-import-boundary-negative-deep-path.fixture.ts",
+);
 const allowlistedModule = path.join(
   repoRoot,
   "packages/runtime-injection/src/decrypt-grant-secret.ts",
@@ -54,6 +62,18 @@ function readDecryptImportAllowlist(): string[] {
 describe("decrypt-import lint boundary (ADR-0071)", () => {
   it("fails lint for unallowlisted decrypt imports", () => {
     const output = runEslintExpectFailure(negativeFixture);
+    expect(output).toMatch(/no-restricted-imports/);
+    expect(output).toMatch(/decryptSecretValueForRuntime/);
+  });
+
+  it("fails lint for unallowlisted dynamic decrypt module imports", () => {
+    const output = runEslintExpectFailure(negativeDynamicFixture);
+    expect(output).toMatch(/no-restricted-syntax/);
+    expect(output).toMatch(/Decrypt entry points may only be imported/);
+  });
+
+  it("fails lint for unallowlisted deep-path decrypt imports", () => {
+    const output = runEslintExpectFailure(negativeDeepPathFixture);
     expect(output).toMatch(/no-restricted-imports/);
     expect(output).toMatch(/decryptSecretValueForRuntime/);
   });
