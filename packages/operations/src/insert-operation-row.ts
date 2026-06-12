@@ -1,5 +1,6 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
 import { isUniqueConstraintViolation, type TenantScopedSql } from "@insecur/tenant-store";
+import { bindOperationProgressJsonb } from "./bind-operation-progress-jsonb.js";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationPollResult, OperationProgress } from "./operation-types.js";
@@ -15,10 +16,6 @@ function assertIdempotentIntentMatch(
       "idempotency key reused with a different intent code",
     );
   }
-}
-
-function progressToJson(progress: OperationProgress) {
-  return JSON.parse(JSON.stringify(progress)) as Parameters<TenantScopedSql["json"]>[0];
 }
 
 async function selectByIdempotencyKey(
@@ -70,7 +67,7 @@ async function insertOperationRow(
       ${"pending"},
       ${input.intentCode},
       ${input.idempotencyKey ?? null},
-      ${sql.json(progressToJson(input.progress))}
+      ${bindOperationProgressJsonb(sql, input.progress)}
     )
     RETURNING
       id,
@@ -128,7 +125,7 @@ async function upsertOperationByIdempotencyKey(
       ${"pending"},
       ${input.intentCode},
       ${input.idempotencyKey},
-      ${sql.json(progressToJson(input.progress))}
+      ${bindOperationProgressJsonb(sql, input.progress)}
     )
     ON CONFLICT (org_id, idempotency_key) WHERE idempotency_key IS NOT NULL
     DO UPDATE SET updated_at = operations.updated_at

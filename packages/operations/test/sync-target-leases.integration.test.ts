@@ -16,9 +16,9 @@ import {
   retryOperation,
   transitionOperation,
   cancelOperation,
-} from "../dist/index.js";
-import type { OperationProgressInput } from "../dist/operation-types.js";
-import type { SyncTargetKey } from "../dist/sync-target-types.js";
+} from "../src/index.js";
+import type { OperationProgressInput } from "../src/operation-types.js";
+import type { SyncTargetKey } from "../src/sync-target-types.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
