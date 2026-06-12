@@ -1,9 +1,9 @@
 import { auditEventId, organizationId } from "@insecur/domain";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { casApplyOperationTransition } from "../src/apply-operation-transition.js";
-import { OPERATION_ERROR_CODES } from "../src/operation-errors.js";
-import { TenantOperationStore } from "../src/tenant-operation-store.js";
+import { casApplyOperationTransition } from "../dist/apply-operation-transition.js";
+import { OPERATION_ERROR_CODES } from "../dist/operation-errors.js";
+import { TenantOperationStore } from "../dist/tenant-operation-store.js";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import { TEST_ORG_A_ID, TEST_ORG_B_ID } from "../../tenant-store/test/rls/test-ids.js";
@@ -15,7 +15,7 @@ import {
   recordOperationProgress,
   retryOperation,
   transitionOperation,
-} from "../src/index.js";
+} from "../dist/index.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
