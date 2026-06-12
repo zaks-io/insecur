@@ -23,9 +23,9 @@ inventory the evidence column points at.
 
 ## Decision
 
-Implementation note: this ADR decides the registry and conformance gates, but they are not wired
-in the current repo state. The checked-in schema registry, static unit check, and
-`information_schema` CI check still need to land.
+Implementation note: this ADR decides the registry and conformance gates. The checked-in schema
+registry, static unit check, and `information_schema` CI check are wired in
+`packages/tenant-store`.
 
 - The Plaintext Metadata Allowlist becomes a machine-readable registry checked in next to the
   Drizzle schema source of truth in `packages/tenant-store/src/db/schema/` (for example

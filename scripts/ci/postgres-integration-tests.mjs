@@ -32,6 +32,6 @@ run("pnpm", ["--filter", "@insecur/tenant-store", "assert:rls-credentials"]);
 // Probe turbo strict env forwarding before DB-backed suites run.
 run("pnpm", ["exec", "turbo", "run", "assert:ci-rls-gate-env", "--filter=@insecur/tenant-store"]);
 console.log(
-  "OK postgres-integration: INSECUR_CI_RLS_GATE will be forwarded to test:rls and test:e2e",
+  "OK postgres-integration: INSECUR_CI_RLS_GATE will be forwarded to test:rls (RLS + Plaintext Metadata Allowlist information_schema conformance) and test:e2e",
 );
 run("pnpm", ["exec", "turbo", "run", "test:rls", "test:e2e"]);
