@@ -68,7 +68,7 @@
       ]
     },
     "test:canary": {
-      "dependsOn": ["topo", "^build"],
+      "dependsOn": ["topo", "^build", "test:e2e"],
       "cache": false,
       "env": [
         "DATABASE_URL",

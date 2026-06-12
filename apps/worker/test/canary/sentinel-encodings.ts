@@ -1,4 +1,12 @@
-/** High-entropy canary sentinel and its common transport encodings for persistence sweeps. */
+import { bytesToBase64Url } from "@insecur/domain";
+
+/**
+ * High-entropy canary sentinel and its common transport encodings for persistence sweeps.
+ *
+ * The raw/base64/base64url/hex variant set is the ADR-0069 contract. Adding a new
+ * transport encoding (for example base32, gzip, or chunked storage) requires an
+ * ADR-0069 amendment and review-visible encoding drift check.
+ */
 
 export type SentinelEncoding = "raw" | "base64" | "base64url" | "hex";
 
@@ -17,10 +25,6 @@ export interface CanarySentinel {
 
 function bytesToStandardBase64(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes));
-}
-
-function bytesToBase64Url(bytes: Uint8Array): string {
-  return bytesToStandardBase64(bytes).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
 }
 
 function bytesToHex(bytes: Uint8Array): string {

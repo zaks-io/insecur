@@ -1,3 +1,5 @@
+import { inspect } from "node:util";
+
 type ConsoleMethod = "log" | "info" | "warn" | "error" | "debug";
 
 const CAPTURED_METHODS: ConsoleMethod[] = ["log", "info", "warn", "error", "debug"];
@@ -5,6 +7,20 @@ const CAPTURED_METHODS: ConsoleMethod[] = ["log", "info", "warn", "error", "debu
 export interface ConsoleCapture {
   readonly output: string;
   stop(): void;
+}
+
+function serializeCapturedArg(arg: unknown): string {
+  if (typeof arg === "string") {
+    return arg;
+  }
+  if (arg instanceof Error) {
+    return String(arg);
+  }
+  try {
+    return inspect(arg, { depth: null, maxStringLength: null });
+  } catch {
+    return String(arg);
+  }
 }
 
 /**
@@ -19,15 +35,7 @@ export function startConsoleCapture(): ConsoleCapture {
     originals.set(method, original);
     console[method] = (...args: unknown[]) => {
       for (const arg of args) {
-        if (typeof arg === "string") {
-          chunks.push(arg);
-        } else {
-          try {
-            chunks.push(JSON.stringify(arg));
-          } catch {
-            chunks.push(String(arg));
-          }
-        }
+        chunks.push(serializeCapturedArg(arg));
       }
       original(...args);
     };
