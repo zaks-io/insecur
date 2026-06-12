@@ -109,6 +109,15 @@ describe("expandBuiltInRolePresetToScopes", () => {
   });
 });
 
+describe("protected issuance scope invariants", () => {
+  it("keeps runtime_injection:grant_issue_protected out of every human built-in role bundle", () => {
+    for (const rolePreset of Object.values(BUILT_IN_ROLE_PRESETS)) {
+      const scopes = expandBuiltInRolePresetToScopes(rolePreset);
+      expect(scopes).not.toContain(AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected);
+    }
+  });
+});
+
 describe("built-in role relational invariants", () => {
   it("keeps admin and developer bundles disjoint from approval scopes", () => {
     for (const rolePreset of [BUILT_IN_ROLE_PRESETS.admin, BUILT_IN_ROLE_PRESETS.developer]) {

@@ -44,8 +44,8 @@ export class TenantInjectionGrantStore {
     organizationId: OrganizationId;
     projectId: ProjectId;
     environmentId: EnvironmentId;
-  }): Promise<void> {
-    await assertProjectEnvironmentCoordinate(this.db, input);
+  }): Promise<{ isProtected: boolean }> {
+    return assertProjectEnvironmentCoordinate(this.db, input);
   }
 
   async insertGrant(input: InsertInjectionGrantInput): Promise<void> {

@@ -19,7 +19,10 @@ import {
   withTenantScope,
 } from "@insecur/tenant-store";
 
-import { assertRuntimeInjectionAccess, ISSUE_SCOPE } from "./assert-runtime-injection-access.js";
+import {
+  assertRuntimeInjectionAccess,
+  resolveIssueGrantRequiredScope,
+} from "./assert-runtime-injection-access.js";
 import { computeInjectionGrantExpiresAt } from "./injection-grant-ttl.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import {
@@ -60,14 +63,15 @@ export async function executeIssueInjectionGrant(
 ): Promise<IssueInjectionGrantCoreResult> {
   const coordinate = toGrantCoordinate(input);
 
+  const { isProtected } = await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    ({ db }) => new TenantInjectionGrantStore(db).assertIssueCoordinate(coordinate),
+  );
+
   await assertRuntimeInjectionAccess(
     { type: "user", userId: input.actor.userId },
     coordinate,
-    ISSUE_SCOPE,
-  );
-
-  await withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
-    new TenantInjectionGrantStore(db).assertIssueCoordinate(coordinate),
+    resolveIssueGrantRequiredScope(isProtected),
   );
 
   assertSingleIssueSelectorCount(1);
