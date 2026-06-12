@@ -3,8 +3,9 @@ import {
   resolveEffectiveAccess,
   type LoadMembershipsFn,
 } from "@insecur/access";
-import { AUTH_ERROR_CODES } from "@insecur/domain";
+import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES } from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
+import { ProjectEnvironmentCoordinateError } from "@insecur/tenant-store";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,7 +13,10 @@ import {
   ISSUE_SCOPE,
   resolveIssueGrantRequiredScope,
 } from "../src/assert-runtime-injection-access.js";
-import { executeIssueInjectionGrant } from "../src/issue-injection-grant.js";
+import {
+  executeIssueInjectionGrant,
+  issueInjectionGrantWithAudit,
+} from "../src/issue-injection-grant.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -20,11 +24,17 @@ const ENV = environmentId.brand("env_00000000000000000000000001");
 const ACTOR_USER = userId.brand("usr_00000000000000000000000001");
 
 let protectedEnvironment = true;
+let coordinateError: ProjectEnvironmentCoordinateError | undefined;
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
   class MockTenantInjectionGrantStore {
-    assertIssueCoordinate = vi.fn(async () => ({ isProtected: protectedEnvironment }));
+    assertIssueCoordinate = vi.fn(async () => {
+      if (coordinateError !== undefined) {
+        throw coordinateError;
+      }
+      return { isProtected: protectedEnvironment };
+    });
     insertGrant = vi.fn().mockResolvedValue(undefined);
   }
   return {
@@ -33,6 +43,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
       async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => fn({ db: {} }),
     ),
     TenantInjectionGrantStore: MockTenantInjectionGrantStore,
+    ProjectEnvironmentCoordinateError: actual.ProjectEnvironmentCoordinateError,
   };
 });
 
@@ -132,6 +143,41 @@ describe("executeIssueInjectionGrant protected issuance", () => {
 
     await expect(executeIssueInjectionGrant(baseInput)).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.insufficientScope,
+    });
+  });
+
+  it("allows non-protected issuance when effective access includes grant_issue", async () => {
+    protectedEnvironment = false;
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue],
+    });
+
+    const result = await executeIssueInjectionGrant(baseInput);
+    expect(result.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
+    expect(result.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(result.auditEventId).toBe("aud_test");
+  });
+
+  it("records insufficient_scope denial through issueInjectionGrantWithAudit", async () => {
+    protectedEnvironment = true;
+    coordinateError = undefined;
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue],
+    });
+
+    await expect(issueInjectionGrantWithAudit(baseInput)).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.insufficientScope,
+    });
+  });
+
+  it("maps coordinate validation failures to grant_denied through issueInjectionGrantWithAudit", async () => {
+    coordinateError = new ProjectEnvironmentCoordinateError("environment not found");
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue],
+    });
+
+    await expect(issueInjectionGrantWithAudit(baseInput)).rejects.toMatchObject({
+      code: INJECTION_ERROR_CODES.grantDenied,
     });
   });
 });
