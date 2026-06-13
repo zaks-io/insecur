@@ -8,6 +8,8 @@ export {
   withTenantScope,
 } from "./with-tenant-scope.js";
 export type { TenantScopedSql } from "./tenant-scoped-sql.js";
+export { bindJsonb } from "./bind-jsonb.js";
+export { toIsoTimestamp } from "./parse-db-timestamp.js";
 export {
   getRuntimeTenantDb,
   resetRuntimeTenantDb,

@@ -1,11 +1,12 @@
-import type { TenantScopedSql } from "@insecur/tenant-store";
+import { bindJsonb, type TenantScopedSql } from "@insecur/tenant-store";
 import { auditDetailsToJson } from "./audit-details-json.js";
 import { toAuditEventInsertRow, type AuditEventInsertRow } from "./audit-event-row.js";
 import type { AuditEventInput } from "./audit-types.js";
 import type { AuditEventId, KnownErrorCode } from "@insecur/domain";
 
 async function insertRow(sql: TenantScopedSql, row: AuditEventInsertRow): Promise<void> {
-  const detailsValue = row.details === null ? null : sql.json(auditDetailsToJson(row.details));
+  const detailsValue =
+    row.details === null ? null : bindJsonb(sql, auditDetailsToJson(row.details));
 
   await sql`
     INSERT INTO audit_events (

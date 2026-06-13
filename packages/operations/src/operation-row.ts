@@ -1,7 +1,7 @@
 import { operationId, type OrganizationId } from "@insecur/domain";
 import { isOperationState } from "./operation-states.js";
 import type { OperationPollResult, OperationProgress } from "./operation-types.js";
-import { toIsoTimestamp } from "./parse-db-timestamp.js";
+import { toIsoTimestamp } from "@insecur/tenant-store";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 
 export interface OperationRow {

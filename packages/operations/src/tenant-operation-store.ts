@@ -1,6 +1,5 @@
 import { operationId, type OperationId, type OrganizationId } from "@insecur/domain";
-import type { TenantScopedSql } from "@insecur/tenant-store";
-import { bindOperationProgressJsonb } from "./bind-operation-progress-jsonb.js";
+import { bindJsonb, type TenantScopedSql } from "@insecur/tenant-store";
 import {
   insertOperation as persistOperationRow,
   insertOperationStart as persistOperationStart,
@@ -127,7 +126,7 @@ export class TenantOperationStore {
     const rows = await this.sql<OperationRow[]>`
       UPDATE operations
       SET
-        progress = ${bindOperationProgressJsonb(this.sql, mergedProgress)},
+        progress = ${bindJsonb(this.sql, mergedProgress)},
         updated_at = now()
       WHERE id = ${input.operationId}
         AND org_id = ${input.organizationId}
@@ -174,7 +173,7 @@ export class TenantOperationStore {
     const rows = await this.sql<OperationRow[]>`
       UPDATE operations
       SET
-        progress = ${bindOperationProgressJsonb(this.sql, mergedProgress)},
+        progress = ${bindJsonb(this.sql, mergedProgress)},
         updated_at = now()
       WHERE id = ${input.operationId}
         AND org_id = ${input.organizationId}
