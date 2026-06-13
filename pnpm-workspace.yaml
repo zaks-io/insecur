@@ -9,6 +9,8 @@ onlyBuiltDependencies:
   - workerd
 strictDepBuilds: true
 minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - esbuild
 nodeLinker: isolated
 
 catalog:
