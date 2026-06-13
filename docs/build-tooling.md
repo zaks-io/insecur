@@ -178,7 +178,7 @@ Set the developer default by putting `--cache=local:rw,remote:r` into the root s
 ## Root package.json Scripts
 
 The root `package.json` is the authoritative script list; this is the load-bearing subset (cache
-flags, gates, and test layers). The dev conveniences (`dev`, `dev:worker`, `deploy:worker`, `cli`,
+flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `deploy:workers`, `cli`,
 `migrate:local`, the remaining `dev:db:*` commands, `dev:check`/`doctor`, `clean`) live there too
 and are not repeated here.
 
@@ -189,6 +189,7 @@ and are not repeated here.
     "typecheck": "turbo run typecheck --cache=local:rw,remote:r",
     "lint": "turbo run lint --cache=local:rw,remote:r",
     "lint:actions": "node scripts/ci/actionlint-local.mjs",
+    "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
     "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
     "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.5 apps packages scripts",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
@@ -201,7 +202,7 @@ and are not repeated here.
     "dev:db:reset": "node scripts/dev-db.mjs reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:topology && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
   },
 }
@@ -209,9 +210,11 @@ and are not repeated here.
 
 `verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the
 security scanners and the DB-backed `postgres-integration` job: duplicate-warning annotations, the
-blocking duplicate ratchet, knip, actionlint (optional-local), the Prettier check, then the Turbo
-`lint typecheck test` fan-out. A green `verify` should predict a green `CI`. `prepare` installs the
-lefthook hooks via `scripts/lefthook-install.mjs` on every install.
+blocking duplicate ratchet, knip, actionlint (optional-local), the deploy-topology conformance gate
+(`conformance:topology`, ADR-0077/INS-199 — asserts capability isolation against the wrangler configs
+and composition roots), the Prettier check, then the Turbo `lint typecheck test` fan-out. A green
+`verify` should predict a green `CI`. `prepare` installs the lefthook hooks via
+`scripts/lefthook-install.mjs` on every install.
 
 ## Duplicate Code Detection
 

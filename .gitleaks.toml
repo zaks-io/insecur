@@ -45,6 +45,12 @@ condition = "and"
 paths = ['''(?i)^docs/setup\.md$''']
 regexes = ['''^sk_live_abc123$''']
 
+[[rules.allowlists]]
+description = "Root-key BINDING NAME (not a secret value) asserted by the deploy-topology conformance gate"
+condition = "and"
+paths = ['''(?i)^scripts/ci/deploy-topology-conformance\.mjs$''']
+regexes = ['''^INSTANCE_ROOT_KEY_V1$''']
+
 [[rules]]
 id = "curl-auth-header"
 

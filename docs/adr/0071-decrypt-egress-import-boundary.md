@@ -67,12 +67,15 @@ index-keyed object today — into a loud failure the integration and e2e suites 
 allowlist is the load-bearing mechanism. The handle is unwrapped at a single named egress
 consumption point: child-process environment construction in the CLI injection path, ADR-0016's v1
 Runtime Injection wrapper that fork/execs the approved child with environment variables.
-Reconciling with today's code, where grant consume runs in the Worker and the wrapper runs in the
-CLI process: the handle slots into `consumeInjectionGrant`'s `valueUtf8` result field in
-`packages/runtime-injection/src/consume-injection-grant.ts`, and the Worker-side handle is consumed
-exactly once, at the runtime delivery envelope's base64url encoding in
-`apps/worker/src/http/runtime-delivery-envelope.ts`, whose sole purpose is to carry the value over
-TLS to that CLI consumption point for immediate process injection.
+Reconciling with today's code, where grant consume runs in the private Runtime Worker (ADR-0077) and
+the wrapper runs in the CLI process: the handle slots into `consumeInjectionGrant`'s `valueUtf8`
+result field in `packages/runtime-injection/src/consume-injection-grant.ts`, and the Runtime-side
+handle is consumed exactly once, at the runtime delivery envelope's base64url encoding in
+`apps/runtime/src/runtime-delivery-envelope.ts`, whose sole purpose is to carry the value across the
+private Service Binding to the API Worker and on over TLS to that CLI consumption point for immediate
+process injection. The deploy-level expression of this boundary is that keyring construction and this
+egress encoding live only in `apps/runtime/src/**`, enforced by the lint keyring boundary and the
+deploy-topology conformance gate.
 
 ## Options Considered
 

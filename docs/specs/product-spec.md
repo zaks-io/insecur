@@ -65,8 +65,34 @@ Instances use the same runtime, codebase, Instance Configuration, Organization m
 port contracts. Self-hosting means deploying into customer-controlled Cloudflare infrastructure, not
 running a separate non-Cloudflare product.
 
-V1 topology is one Cloudflare Worker API plus Hyperdrive-backed Neon Postgres as the source of
-truth. R2 stores encrypted backups and forensic/archive artifacts. Cloudflare Secrets Store holds
+V1 runs **multiple capability-isolated Cloudflare Worker deploys**, not one worker, plus
+Hyperdrive-backed Neon Postgres as the source of truth. The deploys are:
+
+- **API** (`apps/api`, script `insecur-api`): the public, caller-agnostic edge. It serves the
+  public/human-facing routes and holds **no** keyring or root-key binding.
+- **Runtime** (`apps/runtime`, script `insecur-runtime`): the only deploy that holds the instance
+  root key (`INSTANCE_ROOT_KEY_V1`) and the only place ciphertext becomes plaintext. It serves **no
+  public routes**; it is reachable only over a private Cloudflare Service Binding through a
+  `WorkerEntrypoint` RPC seam with a short-TTL scoped token, and the Effective Access Resolver runs
+  inside it so authorization and decryption are one indivisible call.
+- **Web** (`apps/web`, script `insecur-web`): the Backend-for-Frontend; it owns the human session
+  cookie, CSRF, and rotation, and calls the API over a private Service Binding
+  ([ADR-0051](../adr/0051-web-console-architecture.md),
+  [ADR-0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)).
+- **Service Access**: a separate deploy with its own auth audience, deferred past V1
+  ([ADR-0019](../adr/0019-service-access-without-secret-reveal.md)) but never collapsed into another
+  deploy when built.
+
+**Topology invariant (normative): no deploy may hold both a public route group and the root-key
+binding. Exactly one deploy declares `INSTANCE_ROOT_KEY_V1`, and that deploy serves zero public
+routes.** This is the deploy-level expression of the decrypt-egress boundary
+([ADR-0071](../adr/0071-decrypt-egress-import-boundary.md)) and the minimize-secret-resident-surface
+rule ([ADR-0064](../adr/0064-minimize-secret-resident-surface.md)): the surface that can decrypt
+is structurally isolated, not gated by a code conditional. Secret Sync executes inline inside the
+Runtime deploy ([ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md)); there is
+no separate sync worker. A monolith that mixes public routes with decrypt authority is forbidden.
+
+R2 stores encrypted backups and forensic/archive artifacts. Cloudflare Secrets Store holds
 instance key material and instance-level secrets. Workers KV is excluded for security-relevant
 state because eventual consistency is unsafe for revocation and authorization. Cloudflare Queues
 and Durable Objects are deferred past V1; their concerns are handled in Postgres by lease rows,
@@ -100,14 +126,20 @@ must not contain real customer secrets, and Secrets Store account roles must sta
 operator.
 
 Trace: [ADR-0002](../adr/0002-cloudflare-native-focused-stack.md),
+[ADR-0019](../adr/0019-service-access-without-secret-reveal.md),
 [ADR-0020](../adr/0020-instance-and-deployment-posture.md),
 [ADR-0027](../adr/0027-shared-instance-topology-and-binding-map.md),
 [ADR-0029](../adr/0029-environments-and-cd-trust-model.md),
 [ADR-0036](../adr/0036-neon-postgres-over-hyperdrive-with-rls.md),
 [ADR-0037](../adr/0037-tenant-scoped-bound-store-over-rls.md),
 [ADR-0049](../adr/0049-vendor-ports-and-adapters.md),
+[ADR-0051](../adr/0051-web-console-architecture.md),
+[ADR-0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md),
 [ADR-0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md),
 [ADR-0062](../adr/0062-package-seam-failures-are-errorbody-compatible.md),
+[ADR-0064](../adr/0064-minimize-secret-resident-surface.md),
+[ADR-0071](../adr/0071-decrypt-egress-import-boundary.md),
+[ADR-0077](../adr/0077-capability-isolated-worker-deploys.md),
 [operation-store.md](../operation-store.md).
 
 ## 3. Tenant Model And Onboarding

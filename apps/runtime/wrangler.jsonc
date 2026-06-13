@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "insecur-runtime",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-27",
+  "compatibility_flags": ["nodejs_compat"],
+  // The Runtime Worker holds no public route (ADR-0077): it is reachable only over the private
+  // Service Binding from the API Worker via the RuntimeService RPC entrypoint. The deploy-topology
+  // conformance gate (INS-199) asserts this deploy declares zero `/v1/*` routes.
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "destinations": ["axiom-logs"],
+    },
+    "traces": {
+      "enabled": true,
+      "destinations": ["axiom-traces"],
+    },
+  },
+  // `-dev` instance root key (ADR-0028). This is the ONLY deploy that declares the root-key binding
+  // (moved here verbatim from the former monolith). Secret material lives in Cloudflare Secrets
+  // Store — never as a wrangler secret or in git. store_id is the 32-hex store ID.
+  "secrets_store_secrets": [
+    {
+      "binding": "INSTANCE_ROOT_KEY_V1",
+      "store_id": "eb5941d60ebe470c95af9c8eb26cf874",
+      "secret_name": "INSECUR_NONPROD_INSTANCE_ROOT_KEY_V1",
+    },
+  ],
+  // Preview environment scaffold for the gated pr-preview workflow. The Hyperdrive binding is a
+  // placeholder: the per-PR Hyperdrive id is created at deploy time and patched into this env, and
+  // the Worker must read its Postgres connection from env.DB. Part of the preview-env stand-up
+  // ticket; until then PREVIEW_ENV_ENABLED is unset and this env is never deployed.
+  "env": {
+    "preview": {
+      "hyperdrive": [
+        {
+          "binding": "DB",
+          "id": "0000000000000000000000000000000a",
+        },
+      ],
+    },
+  },
+}

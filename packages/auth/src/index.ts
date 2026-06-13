@@ -2,9 +2,12 @@ export type { AdmittedUserResolver } from "./admitted-user.js";
 export { authFailureForReason, type AuthFailure, type AuthFailureReason } from "./auth-failure.js";
 export {
   CLI_SESSION_TTL_SECONDS,
+  INSECUR_API_TOKEN_AUDIENCE,
   INSECUR_CSRF_COOKIE,
   INSECUR_CSRF_HEADER,
+  INSECUR_RUNTIME_TOKEN_AUDIENCE,
   INSECUR_SESSION_CREDENTIAL_HEADER,
+  SCOPED_ACCESS_TOKEN_TTL_SECONDS,
   WORKOS_SESSION_COOKIE,
 } from "./constants.js";
 export {
@@ -53,6 +56,14 @@ export {
   type VerifyEphemeralSessionResult,
   verifyEphemeralSessionCredential,
 } from "./ephemeral-session.js";
+export {
+  type MintScopedAccessTokenInput,
+  type MintScopedAccessTokenResult,
+  mintScopedAccessToken,
+  type VerifyScopedAccessTokenInput,
+  type VerifyScopedAccessTokenResult,
+  verifyScopedAccessToken,
+} from "./scoped-access-token.js";
 export {
   exchangeCliSession,
   type CliSessionExchangeInput,

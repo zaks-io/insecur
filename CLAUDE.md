@@ -12,6 +12,25 @@ During this build-out period:
 
 This stays true until the project actually ships.
 
+## Architecture invariants (non-negotiable)
+
+The only value of this project is a system that is actually secure in production. A half-built or
+insecure version is worthless. Hold these invariants on every change; they are owned by
+`docs/specs/product-spec.md` §2 and enforced by the deploy-topology conformance gate
+(`pnpm conformance:topology`, `scripts/ci/deploy-topology-conformance.mjs`) plus the lint keyring
+boundary in `eslint.config.ts`, both inside `pnpm verify` (INS-199). The authoritative route → deploy
+table is `docs/specs/deploy-route-inventory.md`.
+
+- **Worker deploys are capability-isolated. Never a monolith.** V1 runs separate Cloudflare Worker
+  deploys: `apps/api` (public edge, no keyring), `apps/runtime` (sole holder of `INSTANCE_ROOT_KEY_V1`,
+  the only place decrypt happens, no public routes, reached only over a private Service Binding via a
+  `WorkerEntrypoint` RPC seam), and `apps/web` (BFF). Service Access is a separate deploy, deferred.
+- **No deploy holds both a public route and the root-key binding.** Exactly one deploy declares
+  `INSTANCE_ROOT_KEY_V1` and it serves zero public routes. A new route belongs to a specific deploy by
+  capability — never pile routes into a single worker.
+- Capability isolation is structural (separate deploys + token audiences + private Service Binding),
+  not a code conditional. See ADR-0051/0064/0071/0077; decomposition tracked in epic INS-194.
+
 ## Agent skills
 
 This repo has repo-local skills in `skills/*/SKILL.md`. If a task names one of those skills or
@@ -91,17 +110,17 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - **Duplicate scan:** `pnpm duplicates:check` (strict jscpd zero gate). CI/pre-push enforce `pnpm duplicates:ci` (ratchet, threshold 0.5%).
 - **Unused code/deps:** `pnpm knip` (blocking in CI, pre-push, and verify)
 - **Workflow lint:** `pnpm lint:actions` (actionlint; blocking in CI, optional-local in pre-push/verify)
-- **Typecheck:** `pnpm typecheck` (runs across all 12 packages plus `apps/worker` — 13 workspace projects)
+- **Typecheck:** `pnpm typecheck` (runs across all 13 packages plus `apps/api` and `apps/runtime` — 15 workspace projects)
 - **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and scaffold file checks)
 - **Local Postgres:** `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
-- **Build:** `pnpm build` (includes the Worker dry-run deploy through `apps/worker/wrangler.jsonc`)
-- **Worker dev:** `pnpm dev:worker` then check `http://localhost:8787/healthz`
+- **Build:** `pnpm build` (includes the Worker dry-run deploys through `apps/api/wrangler.jsonc` and `apps/runtime/wrangler.jsonc`)
+- **Worker dev:** `pnpm dev:workers` (runs `insecur-api` + `insecur-runtime`) then check `http://localhost:8787/healthz`
 - **Hello-world proof:** `INSECUR_PROOF_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") node examples/first-value-proof/verify.mjs`
 
 ### Known caveats
 
 - `engine-strict=true` in `.npmrc` means `pnpm install` will hard-fail if Node is not on major 24. Always verify `node --version` first.
-- `@insecur/worker` serves `/healthz` liveness plus the `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/projects`, and `/v1/runtime-injection` product routes; `pnpm test:e2e` drives the First Value loop through these real routes.
+- `@insecur/api` (the public API Worker, `insecur-api`) serves `/healthz` liveness plus the `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/orgs/:organizationId/projects`, and `/v1/orgs/:organizationId/runtime-injection` product routes. Keyring-bound work (secret write = encrypt, grant consume = decrypt) is forwarded over the private `RUNTIME` Service Binding to `@insecur/runtime` (`insecur-runtime`), the sole holder of `INSTANCE_ROOT_KEY_V1` and the only deploy that decrypts; it serves zero public routes. `pnpm test:e2e` drives the First Value loop through these real routes against the multi-deploy shape. The authoritative route → deploy table is `docs/specs/deploy-route-inventory.md`, enforced by `pnpm conformance:topology`.
 - jscpd duplicate-code detection: `pnpm duplicates:check` is the strict local zero gate; the `CI` workflow and pre-push run `pnpm duplicates:warn` (annotations) then `pnpm duplicates:ci` (blocking ratchet at threshold 0.5%, just above the current ~0.42% backlog). knip (`pnpm knip`) is also blocking in CI, pre-push, and verify; its export/type dead-code rules remain off in `knip.json` — package indexes are wired now, so enabling them is an eligible follow-up config change.
 - Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
 - `pnpm test:rls` runs the real forced-RLS tenant suite (requires `DATABASE_URL_RUNTIME`); it now executes in CI's `postgres-integration` job alongside `pnpm test:e2e` (the First Value loop through the real Worker routes). See `docs/agents/testing.md`.

@@ -21,10 +21,11 @@ context for a specific task.
 
 ## App Contexts
 
-| Path                      | Load when                                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------------------------- |
-| `apps/worker/CONTEXT.md`  | Working on Cloudflare Worker routes, request composition, bindings, or API transport.             |
-| `packages/cli/CONTEXT.md` | Working on CLI commands, local config, safe input, output formatting, or child process execution. |
+| Path                      | Load when                                                                                          |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| `apps/api/CONTEXT.md`     | Working on the public API Worker: routes, request composition, bindings, API transport, hop token. |
+| `apps/runtime/CONTEXT.md` | Working on the private Runtime Worker: the keyring/decrypt-egress deploy and `RuntimeService` RPC. |
+| `packages/cli/CONTEXT.md` | Working on CLI commands, local config, safe input, output formatting, or child process execution.  |
 
 ## Scaffolded Package Contexts
 

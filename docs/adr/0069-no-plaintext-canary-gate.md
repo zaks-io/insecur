@@ -19,7 +19,7 @@ the root `package.json` has no canary script, and no workstream in
 [docs/specs/agent-workstreams.md](../specs/agent-workstreams.md) owns the harness. The only
 enforcement today is hand-written vigilance: the
 `expect(JSON.stringify(...)).not.toContain(plaintext)` assertions in
-`apps/worker/test/e2e/first-value-loop.e2e.test.ts` covering the write response body, the
+`apps/api/test/e2e/first-value-loop.e2e.test.ts` covering the write response body, the
 grant-issue response body, the consume audit rows, and the replay-denial error body. Those four
 assertions are the pattern this ADR generalizes: at fleet scale, agents will keep adding tables,
 operation payloads, audit event types, and log lines, and nothing fails when one of them persists
@@ -32,7 +32,7 @@ existing integration layer. It is a command, not a new layer; ADR-0065's three-l
 stands unchanged.
 
 Implementation note: the gate contract is defined here; the harness lives in
-`apps/worker/test/canary/` and runs via `pnpm test:canary` in the `postgres-integration` job after
+`apps/api/test/canary/` and runs via `pnpm test:canary` in the `postgres-integration` job after
 `test:e2e`.
 
 - **Where it runs.** `test:canary` runs in CI's existing `postgres-integration` job, after

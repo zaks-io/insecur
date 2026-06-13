@@ -44,6 +44,41 @@ const decryptImportBoundaryOptions = {
   ],
 };
 
+/**
+ * INS-199 keyring-construction boundary (ADR-0064/0077). The root key may only be turned into a
+ * keyring inside the Runtime Worker. Fencing the constructors here makes "no public route can build
+ * a keyring" an author-time failure, not just a structural one (the absent binding is the other half).
+ */
+const KEYRING_BOUNDARY_MESSAGE =
+  "Keyring construction is confined to apps/runtime/src/** (ADR-0064/0077). The public API Worker must reach the keyring only over the RUNTIME Service Binding.";
+
+const keyringBoundaryOptions = {
+  paths: [
+    {
+      name: "@insecur/crypto",
+      importNames: ["SecretsStoreRootKeyProvider"],
+      message: KEYRING_BOUNDARY_MESSAGE,
+    },
+  ],
+  patterns: [
+    {
+      group: ["**/crypto/keyring-context", "**/crypto/keyring-context.js"],
+      message: KEYRING_BOUNDARY_MESSAGE,
+    },
+  ],
+};
+
+const keyringBoundarySyntaxRules = [
+  {
+    selector: 'ImportSpecifier[imported.name="createKeyringFromRuntimeEnv"]',
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+  {
+    selector: 'ImportSpecifier[imported.name="RuntimeEnvRootKeyProvider"]',
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+] as const;
+
 const decryptDynamicImportSyntaxRules = [
   {
     selector: 'ImportExpression[source.value="@insecur/crypto"]',
@@ -101,10 +136,14 @@ export default tseslint.config(
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
       "packages/tenant-store/drizzle.config.ts",
-      "apps/worker/test/**/*.ts",
-      "apps/worker/vitest.config.ts",
-      "apps/worker/vitest.e2e.config.ts",
-      "apps/worker/vitest.canary.config.ts",
+      "packages/worker-kit/src/**/*.test.ts",
+      "packages/worker-kit/vitest.config.ts",
+      "apps/api/test/**/*.ts",
+      "apps/api/vitest.config.ts",
+      "apps/api/vitest.e2e.config.ts",
+      "apps/api/vitest.canary.config.ts",
+      "apps/runtime/src/**/*.test.ts",
+      "apps/runtime/vitest.config.ts",
     ],
     extends: [tseslint.configs.disableTypeChecked],
   },
@@ -167,6 +206,9 @@ export default tseslint.config(
       "@typescript-eslint/non-nullable-type-assertion-style": "off",
     },
   },
+  // Decrypt-egress boundary (ADR-0071) AND keyring-construction boundary (ADR-0064/0077) together,
+  // for every non-test source file OUTSIDE the Runtime Worker. Runtime source is the one place
+  // allowed to build a keyring, so it is excluded here and gets the decrypt-only rules below.
   {
     files: ["**/*.ts"],
     ignores: [
@@ -175,8 +217,28 @@ export default tseslint.config(
       "**/*.e2e.test.ts",
       "**/*.integration.test.ts",
       "packages/crypto/src/**",
+      "apps/runtime/src/**",
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...decryptImportBoundaryOptions.paths, ...keyringBoundaryOptions.paths],
+          patterns: [...decryptImportBoundaryOptions.patterns, ...keyringBoundaryOptions.patterns],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        ...decryptDynamicImportSyntaxRules,
+        ...keyringBoundarySyntaxRules,
+      ],
+    },
+  },
+  // Runtime Worker source: decrypt-egress boundary only. Keyring construction is permitted here.
+  {
+    files: ["apps/runtime/src/**/*.ts"],
+    ignores: ["**/*.test.ts", "**/*.spec.ts", "**/*.e2e.test.ts", "**/*.integration.test.ts"],
     rules: {
       "no-restricted-imports": ["error", decryptImportBoundaryOptions],
       "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],

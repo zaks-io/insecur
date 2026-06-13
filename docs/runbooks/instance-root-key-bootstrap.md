@@ -52,8 +52,10 @@ secrets.
 - A 1Password vault exists for instance custody material, with its own access log
   (1Password item/vault audit) serving as the out-of-band access record ADR-0028
   requires.
-- `apps/worker/wrangler.jsonc` is ready to declare a Secrets Store binding for
-  `INSTANCE_ROOT_KEY_V1` (see `execute`). Each root key version is its own named
+- `apps/runtime/wrangler.jsonc` is ready to declare a Secrets Store binding for
+  `INSTANCE_ROOT_KEY_V1` (see `execute`). The binding lives ONLY on the private Runtime
+  Worker (`insecur-runtime`); the public API Worker (`apps/api`) must never declare it
+  (ADR-0077; enforced by `pnpm conformance:topology`). Each root key version is its own named
   Secrets Store secret and binding
   ([ADR-0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md) 2026-06-12 amendment).
 - The generating machine is trusted and can be taken offline during generation.
@@ -114,8 +116,9 @@ you cannot read the value back to escrow it (ADR-0028).
 4. **Load into Cloudflare Secrets Store.** Create the Secrets Store secret for the
    `-dev` Instance and paste the same hex value. After creation it is write-only.
 
-5. **Declare the binding.** In `apps/worker/wrangler.jsonc`, add the Secrets Store
-   binding that populates `env.INSTANCE_ROOT_KEY_V1` for `-dev` — one Secrets Store
+5. **Declare the binding.** In `apps/runtime/wrangler.jsonc` (the private Runtime Worker —
+   NOT the public API Worker), add the Secrets Store binding that populates
+   `env.INSTANCE_ROOT_KEY_V1` for `-dev` — one Secrets Store
    secret per root key version per the
    [ADR-0028](../adr/0028-instance-secrets-in-secrets-store-with-escrow.md)
    2026-06-12 amendment. Commit the binding declaration (which contains no key

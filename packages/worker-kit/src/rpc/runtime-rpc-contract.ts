@@ -1,0 +1,95 @@
+import type {
+  EnvironmentId,
+  InjectionGrantId,
+  KnownErrorCode,
+  MetadataEnvelopeMeta,
+  OrganizationId,
+  ProjectId,
+  RequestId,
+  SecretId,
+  SecretVersionId,
+  VariableKey,
+} from "@insecur/domain";
+
+/**
+ * The RPC contract between the public API Worker and the private Runtime Worker (ADR-0077).
+ * Everything here is structured-clone safe: Cloudflare RPC serializes args and returns, so no
+ * class instances, methods, or `PlaintextHandle` may cross this seam. The plaintext secret value
+ * is encoded to base64url inside the Runtime (see `encodedValueUtf8`) before it crosses back.
+ *
+ * RPC does NOT propagate custom error properties (only `name`/`message` survive), so the methods
+ * return a discriminated result instead of throwing: the API re-throws a structurally-typed error
+ * the worker-kit error responder reads. This keeps `code`/`retryable` honest across the binding.
+ */
+
+/** Metadata-only secret write outcome (no secret value), mirrors WriteNonProtectedSecretResult. */
+export interface RuntimeSecretWritePayload {
+  secretId: SecretId;
+  secretVersionId: SecretVersionId;
+  variableKey: VariableKey;
+  createdSecretShape: boolean;
+  auditEventId?: string;
+}
+
+/** Encoded grant delivery payload. The value is base64url UTF-8 for immediate injection only. */
+export interface RuntimeDeliveryPayload {
+  secretId: SecretId;
+  secretVersionId: SecretVersionId;
+  variableKey: VariableKey;
+  grantId: InjectionGrantId;
+  /** Base64url-encoded UTF-8 bytes for immediate process injection only; never log or persist. */
+  encodedValueUtf8: string;
+  auditEventId?: string;
+}
+
+export interface RuntimeDeliveryEnvelope {
+  readonly ok: true;
+  readonly delivery: RuntimeDeliveryPayload;
+  readonly meta?: MetadataEnvelopeMeta;
+}
+
+/** A failure crossing the RPC seam; the API re-throws a `{ code, retryable }`-shaped error. */
+export interface RuntimeRpcError {
+  readonly code: KnownErrorCode;
+  readonly message: string;
+  readonly retryable: boolean;
+}
+
+export type RuntimeRpcResult<TPayload> =
+  | { readonly ok: true; readonly value: TPayload }
+  | { readonly ok: false; readonly error: RuntimeRpcError };
+
+export interface ConsumeGrantRpcInput {
+  readonly organizationId: OrganizationId;
+  readonly grantId: InjectionGrantId;
+  readonly variableKey?: VariableKey;
+  readonly secretId?: SecretId;
+  /** Scoped, audience-bound hop token authenticating the forwarded actor (ADR-0077). */
+  readonly actorToken: string;
+  /** API-minted request id, threaded into the Runtime audit row and the delivery envelope meta. */
+  readonly requestId: RequestId;
+}
+
+export interface WriteSecretRpcInput {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly variableKey: VariableKey;
+  /** UTF-8 secret bytes; structured-clone safe across the binding, never logged. */
+  readonly valueUtf8: Uint8Array;
+  readonly secretId?: SecretId;
+  readonly allowEmpty?: boolean;
+  readonly actorToken: string;
+  /** API-minted request id, threaded into the Runtime audit row for the write. */
+  readonly requestId: RequestId;
+}
+
+/**
+ * The interface the API Worker binds against. The implementation
+ * (`RuntimeService extends WorkerEntrypoint`) lives in `apps/runtime`; the API never imports it,
+ * it only calls `c.env.RUNTIME.consumeGrant(...)` / `.writeSecret(...)` typed by this contract.
+ */
+export interface RuntimeRpc {
+  consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>>;
+  writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>>;
+}

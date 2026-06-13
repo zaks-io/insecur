@@ -6,7 +6,6 @@
     },
     "packages/tenant-store": {
       "entry": [
-        "drizzle.config.ts",
         "scripts/**/*.mjs",
         "src/db/schema/**/*.ts",
         "vitest*.config.ts",
@@ -14,14 +13,22 @@
       ],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
-    "apps/worker": {
-      "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
+    "packages/worker-kit": {
+      "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/api": {
+      "entry": ["vitest*.config.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "apps/runtime": {
+      "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["cloudflare"]
     },
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreDependencies": ["lefthook"],
       "ignoreBinaries": ["wrangler"]
     }
   },

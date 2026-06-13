@@ -26,10 +26,10 @@ external systems (Linear, GitHub, CI), not here.
 - Install: `pnpm install --frozen-lockfile`
 - Full local gate: `pnpm verify` (duplicate warnings + format:check + turbo lint typecheck test)
 - Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm dev:check`; `pnpm duplicates:check`
-- Build: `pnpm build` (includes Worker dry-run deploy via apps/worker/wrangler.jsonc)
+- Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
 - Preview checks: `PR Preview` / `PR Preview Cleanup` workflows exist but stay gated behind `PREVIEW_ENV_ENABLED` (INS-164); hosted `CI` and `security-daily` workflows run unconditionally
-- Production deploy path: `pnpm deploy:worker` (Cloudflare Worker `insecur-worker`); approval required
+- Production deploy path: `pnpm deploy:workers` (Cloudflare Workers `insecur-runtime` then `insecur-api`); approval required
 - Production approval required: yes
 
 ## Issue Tracker
@@ -117,7 +117,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Authoritative issue state: Linear team `INS`
 - Authoritative PR state: GitHub `zaks-io/insecur`
 - Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow (its `Verify` job runs `pnpm verify`); duplicate-code CI annotations are warning-only for now
-- Authoritative deploy state: Cloudflare (Worker `insecur-worker`)
+- Authoritative deploy state: Cloudflare (Workers `insecur-api` public edge + `insecur-runtime` private decrypt-egress)
 - Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)
 - Review authority: Agent Review (clean context / disposable worktree)
@@ -154,14 +154,14 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 ## Environments
 
 - Local: self-contained
-- Local commands: `pnpm dev:worker` (http://localhost:8787/healthz, scaffold only); `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
+- Local commands: `pnpm dev:workers` (runs `insecur-api` + `insecur-runtime`; API at http://localhost:8787/healthz); `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
 - Local services: local Postgres 17 (iteration aid only; ADR-0060 pins 17 until Neon supports 18)
 - Development: may use cloud backing services while app runs locally
 - Development backing services: Neon Postgres (real RLS tests need `DATABASE_URL_RUNTIME`, start at FV-04); Cloudflare Workers
 - Preview: none (no preview deploy wired)
 - Preview purpose: n/a until FV-02
 - Production: explicit approval required
-- Production forbidden without approval: `pnpm deploy:worker`, any Cloudflare/Neon production mutation, secret/key material changes
+- Production forbidden without approval: `pnpm deploy:workers`, any Cloudflare/Neon production mutation, secret/key material changes
 - Hosted checks allowed without approval: read-only Linear MCP, read-only GitHub, local `pnpm verify`, Worker dry-run via `pnpm build`
 - Hosted checks requiring approval: any production deploy, any write to Cloudflare or Neon production
 

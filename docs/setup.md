@@ -12,21 +12,28 @@ setup path today is contributor and agent verification of the scaffold.
 7. Optionally run the copyable proof:
    `INSECUR_PROOF_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") node examples/first-value-proof/verify.mjs`.
 
-The local Worker can be started with:
+The local Workers can be started with:
 
 ```sh
-pnpm dev:worker
+pnpm dev:workers
 ```
 
-Then check `http://localhost:8787/healthz` for liveness. The Worker also serves the `/v1` product
-routes (auth/session, onboarding, non-protected secret write, Runtime Injection grants); the First
-Value loop test (`pnpm test:e2e`) drives those real routes against local Postgres.
+This runs both deploys: the public API Worker (`insecur-api`) and the private Runtime Worker
+(`insecur-runtime`). Check `http://localhost:8787/healthz` for API liveness. The API Worker serves the
+`/v1` product routes (auth/session, onboarding, non-protected secret write under
+`/v1/orgs/:organizationId/projects`, Runtime Injection grants under
+`/v1/orgs/:organizationId/runtime-injection`) and forwards keyring-bound work to the Runtime Worker
+over the private `RUNTIME` Service Binding; the Runtime Worker is the sole holder of
+`INSTANCE_ROOT_KEY_V1` and serves no public routes. The First Value loop test (`pnpm test:e2e`) drives
+those real routes against local Postgres. See `docs/specs/deploy-route-inventory.md` for the
+authoritative route → deploy table.
 
 ## Local Configuration
 
 - `.env.example` documents optional service keys for future product slices.
 - Copy keys into `.env.local` only when a task explicitly needs real service access.
-- `apps/worker/.dev.vars.example` documents local Worker variable placement.
+- `apps/api/.dev.vars.example` and `apps/runtime/.dev.vars.example` document local Worker variable
+  placement for each deploy (the shared `RUNTIME_TOKEN_SIGNING_SECRET` must match between them).
 - `.env.local`, `.env.production`, and `.dev.vars` are ignored and must not be committed.
 
 `pnpm dev:check` reports missing optional service keys by name and never prints values.
