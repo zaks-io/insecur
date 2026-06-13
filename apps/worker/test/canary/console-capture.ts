@@ -23,10 +23,16 @@ function serializeCapturedArg(arg: unknown): string {
   }
 }
 
+export interface ConsoleCaptureOptions {
+  /** When false, captured args are not forwarded to the real console (for unit tests). */
+  forward?: boolean;
+}
+
 /**
  * Capture in-process console output for the no-plaintext sweep.
  */
-export function startConsoleCapture(): ConsoleCapture {
+export function startConsoleCapture(options: ConsoleCaptureOptions = {}): ConsoleCapture {
+  const forward = options.forward ?? true;
   const chunks: string[] = [];
   const originals = new Map<ConsoleMethod, (...args: unknown[]) => void>();
 
@@ -37,7 +43,9 @@ export function startConsoleCapture(): ConsoleCapture {
       for (const arg of args) {
         chunks.push(serializeCapturedArg(arg));
       }
-      original(...args);
+      if (forward) {
+        original(...args);
+      }
     };
   }
 

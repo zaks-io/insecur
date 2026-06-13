@@ -6,7 +6,7 @@ import { sweepTextOutput } from "./postgres-sweep.js";
 describe("console capture", () => {
   it("detects a sentinel embedded in console.error(new Error(...))", () => {
     const sentinel = mintCanarySentinel();
-    const capture = startConsoleCapture();
+    const capture = startConsoleCapture({ forward: false });
 
     try {
       console.error(new Error(`wrapped leak: ${sentinel.value}`));

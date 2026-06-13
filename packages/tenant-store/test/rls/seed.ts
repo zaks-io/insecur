@@ -35,6 +35,9 @@ import { seedDataKeys } from "./seed-data-keys.js";
 const packageRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
 function runLocalMigrate(): void {
+  if (process.env.INSECUR_TEST_SKIP_MIGRATE === "1") {
+    return;
+  }
   const migrate = spawnSync("node", ["scripts/migrate.mjs"], {
     cwd: packageRoot,
     env: process.env,
