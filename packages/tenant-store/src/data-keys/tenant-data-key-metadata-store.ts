@@ -208,7 +208,11 @@ export class TenantDataKeyMetadataStore implements TenantDataKeyRewrapStore {
       readonly status: OrganizationDataKeyMetadata["status"];
     },
   ): Promise<void> {
-    return persistOrganizationDataKeyWrap(this.db, organizationId, keyVersion, input);
+    return persistOrganizationDataKeyWrap(this.db, {
+      organizationId,
+      keyVersion,
+      ...input,
+    });
   }
 
   updateProjectDataKeyWrap(

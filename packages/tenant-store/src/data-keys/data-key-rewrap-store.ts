@@ -27,14 +27,43 @@ export async function listProjectDataKeys(db: TenantScopedDb, organizationId: Or
   return rows.map((row) => toProjectMetadata(row));
 }
 
-export async function updateOrganizationDataKeyWrap(
-  db: TenantScopedDb,
+function organizationKeyVersionWhere(
   organizationId: OrganizationId,
   keyVersion: number,
+  onlyIfWrappedRefNull: boolean,
+) {
+  const predicates = [
+    eq(organizationDataKeys.orgId, organizationId),
+    eq(organizationDataKeys.keyVersion, keyVersion),
+    ...(onlyIfWrappedRefNull ? [isNull(organizationDataKeys.wrappedStorageRef)] : []),
+  ];
+  return and(...predicates);
+}
+
+function projectKeyVersionWhere(
+  organizationId: OrganizationId,
+  projectId: ProjectId,
+  keyVersion: number,
+  onlyIfWrappedRefNull: boolean,
+) {
+  const predicates = [
+    eq(projectDataKeys.orgId, organizationId),
+    eq(projectDataKeys.projectId, projectId),
+    eq(projectDataKeys.keyVersion, keyVersion),
+    ...(onlyIfWrappedRefNull ? [isNull(projectDataKeys.wrappedStorageRef)] : []),
+  ];
+  return and(...predicates);
+}
+
+export async function updateOrganizationDataKeyWrap(
+  db: TenantScopedDb,
   input: {
+    readonly organizationId: OrganizationId;
+    readonly keyVersion: number;
     readonly wrappedStorageRef: string;
     readonly rootKeyVersion: number;
     readonly status: OrganizationDataKeyMetadata["status"];
+    readonly onlyIfWrappedRefNull?: boolean;
   },
 ): Promise<void> {
   await db
@@ -46,9 +75,10 @@ export async function updateOrganizationDataKeyWrap(
       updatedAt: new Date(),
     })
     .where(
-      and(
-        eq(organizationDataKeys.orgId, organizationId),
-        eq(organizationDataKeys.keyVersion, keyVersion),
+      organizationKeyVersionWhere(
+        input.organizationId,
+        input.keyVersion,
+        input.onlyIfWrappedRefNull ?? false,
       ),
     );
 }
@@ -63,19 +93,42 @@ export async function updateOrganizationDataKeyWrapIfNull(
     readonly status: OrganizationDataKeyMetadata["status"];
   },
 ): Promise<void> {
+  return updateOrganizationDataKeyWrap(db, {
+    organizationId,
+    keyVersion,
+    ...input,
+    onlyIfWrappedRefNull: true,
+  });
+}
+
+export async function updateProjectDataKeyWrap(
+  db: TenantScopedDb,
+  input: {
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly keyVersion: number;
+    readonly wrappedStorageRef: string;
+    readonly status: ProjectDataKeyMetadata["status"];
+    readonly organizationDataKeyVersion?: number;
+    readonly onlyIfWrappedRefNull?: boolean;
+  },
+): Promise<void> {
   await db
-    .update(organizationDataKeys)
+    .update(projectDataKeys)
     .set({
       wrappedStorageRef: input.wrappedStorageRef,
-      rootKeyVersion: input.rootKeyVersion,
+      ...(input.organizationDataKeyVersion !== undefined
+        ? { organizationDataKeyVersion: input.organizationDataKeyVersion }
+        : {}),
       status: input.status,
       updatedAt: new Date(),
     })
     .where(
-      and(
-        eq(organizationDataKeys.orgId, organizationId),
-        eq(organizationDataKeys.keyVersion, keyVersion),
-        isNull(organizationDataKeys.wrappedStorageRef),
+      projectKeyVersionWhere(
+        input.organizationId,
+        input.projectId,
+        input.keyVersion,
+        input.onlyIfWrappedRefNull ?? false,
       ),
     );
 }
@@ -91,46 +144,5 @@ export async function updateProjectDataKeyWrapIfNull(
     readonly status: ProjectDataKeyMetadata["status"];
   },
 ): Promise<void> {
-  await db
-    .update(projectDataKeys)
-    .set({
-      wrappedStorageRef: input.wrappedStorageRef,
-      organizationDataKeyVersion: input.organizationDataKeyVersion,
-      status: input.status,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(projectDataKeys.orgId, input.organizationId),
-        eq(projectDataKeys.projectId, input.projectId),
-        eq(projectDataKeys.keyVersion, input.keyVersion),
-        isNull(projectDataKeys.wrappedStorageRef),
-      ),
-    );
-}
-
-export async function updateProjectDataKeyWrap(
-  db: TenantScopedDb,
-  input: {
-    readonly organizationId: OrganizationId;
-    readonly projectId: ProjectId;
-    readonly keyVersion: number;
-    readonly wrappedStorageRef: string;
-    readonly status: ProjectDataKeyMetadata["status"];
-  },
-): Promise<void> {
-  await db
-    .update(projectDataKeys)
-    .set({
-      wrappedStorageRef: input.wrappedStorageRef,
-      status: input.status,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(projectDataKeys.orgId, input.organizationId),
-        eq(projectDataKeys.projectId, input.projectId),
-        eq(projectDataKeys.keyVersion, input.keyVersion),
-      ),
-    );
+  return updateProjectDataKeyWrap(db, { ...input, onlyIfWrappedRefNull: true });
 }

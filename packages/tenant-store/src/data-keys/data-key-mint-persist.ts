@@ -43,6 +43,16 @@ interface ProjectMintPersistInput {
   readonly rowId: string;
 }
 
+async function readCommittedWrappedRef(
+  readRow: () => Promise<{ wrappedStorageRef: string | null } | null>,
+): Promise<string> {
+  const committed = await readRow();
+  if (!committed?.wrappedStorageRef) {
+    throw new TenantDataKeyNotReadyError();
+  }
+  return committed.wrappedStorageRef;
+}
+
 export async function persistOrganizationDataKeyAuthoritative(
   db: TenantScopedDb,
   store: OrganizationMintStore,
@@ -73,14 +83,9 @@ export async function persistOrganizationDataKeyAuthoritative(
     });
   }
 
-  const committed = await store.getOrganizationDataKeyVersion(
-    input.organizationId,
-    input.keyVersion,
+  return readCommittedWrappedRef(() =>
+    store.getOrganizationDataKeyVersion(input.organizationId, input.keyVersion),
   );
-  if (!committed?.wrappedStorageRef) {
-    throw new TenantDataKeyNotReadyError();
-  }
-  return committed.wrappedStorageRef;
 }
 
 export async function persistProjectDataKeyAuthoritative(
@@ -118,13 +123,7 @@ export async function persistProjectDataKeyAuthoritative(
     });
   }
 
-  const committed = await store.getProjectDataKeyVersion(
-    input.organizationId,
-    input.projectId,
-    input.keyVersion,
+  return readCommittedWrappedRef(() =>
+    store.getProjectDataKeyVersion(input.organizationId, input.projectId, input.keyVersion),
   );
-  if (!committed?.wrappedStorageRef) {
-    throw new TenantDataKeyNotReadyError();
-  }
-  return committed.wrappedStorageRef;
 }
