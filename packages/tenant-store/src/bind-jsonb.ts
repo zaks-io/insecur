@@ -11,5 +11,9 @@ export function bindJsonb(
   sql: TenantScopedSql,
   value: unknown,
 ): ReturnType<TenantScopedSql["typed"]> {
+  if (value === undefined) {
+    throw new Error("bindJsonb: value must not be undefined");
+  }
+
   return sql.typed(JSON.stringify(value), JSONB_OID);
 }
