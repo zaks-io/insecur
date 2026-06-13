@@ -13,9 +13,6 @@ function serializeCapturedArg(arg: unknown): string {
   if (typeof arg === "string") {
     return arg;
   }
-  if (arg instanceof Error) {
-    return String(arg);
-  }
   try {
     return inspect(arg, { depth: null, maxStringLength: null });
   } catch {

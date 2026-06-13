@@ -31,11 +31,23 @@ import {
   TEST_PROJECT_KEY_B_ID,
 } from "./test-ids.js";
 import { seedDataKeys } from "./seed-data-keys.js";
+import { isTenantStoreSchemaCurrent } from "../../scripts/lib/migration-current.mjs";
 
 const packageRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
-function runLocalMigrate(): void {
+function throwMigrateFailure(migrate: ReturnType<typeof spawnSync>): never {
+  const stderr = migrate.stderr?.toString("utf8") ?? "";
+  const stdout = migrate.stdout?.toString("utf8") ?? "";
+  const detail = redactDatabaseUrlsInText([stderr, stdout].filter(Boolean).join("\n").trim());
+  throw new Error(detail === "" ? "migrate.mjs failed" : `migrate.mjs failed: ${detail}`);
+}
+
+async function runLocalMigrate(): Promise<void> {
   if (process.env.INSECUR_TEST_SKIP_MIGRATE === "1") {
+    return;
+  }
+  const url = requireDatabaseUrl("DATABASE_URL_MIGRATION", "DATABASE_URL");
+  if (await isTenantStoreSchemaCurrent(url)) {
     return;
   }
   const migrate = spawnSync("node", ["scripts/migrate.mjs"], {
@@ -43,14 +55,9 @@ function runLocalMigrate(): void {
     env: process.env,
     stdio: ["inherit", "pipe", "pipe"],
   });
-  if (migrate.status === 0) {
-    return;
+  if (migrate.status !== 0) {
+    throwMigrateFailure(migrate);
   }
-
-  const stderr = migrate.stderr?.toString("utf8") ?? "";
-  const stdout = migrate.stdout?.toString("utf8") ?? "";
-  const detail = redactDatabaseUrlsInText([stderr, stdout].filter(Boolean).join("\n").trim());
-  throw new Error(detail === "" ? "migrate.mjs failed" : `migrate.mjs failed: ${detail}`);
 }
 
 function createMigrationSql(url: string): postgres.Sql {
@@ -63,7 +70,7 @@ function createMigrationSql(url: string): postgres.Sql {
 
 export async function seedTenantBaseline(): Promise<void> {
   const url = requireDatabaseUrl("DATABASE_URL_MIGRATION", "DATABASE_URL");
-  runLocalMigrate();
+  await runLocalMigrate();
   const sql = createMigrationSql(url);
   try {
     await sql`SELECT pg_advisory_lock(${TENANT_STORE_SEED_LOCK_KEY})`;

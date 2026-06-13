@@ -247,7 +247,6 @@ async function cleanupNegativeControlRow(
 ): Promise<void> {
   await enableServiceAccessScope(sql);
   await deleteNegativeControlRow(sql, target, versionId);
-  await sql.end({ timeout: 5 });
 }
 
 export async function simulateEncryptionBypassLeak(
@@ -270,6 +269,8 @@ export async function simulateEncryptionBypassLeak(
       await cleanupNegativeControlRow(sql, target, dedicatedVersionId);
     } catch (error) {
       cleanupError = error instanceof Error ? error : new Error(String(error));
+    } finally {
+      await sql.end({ timeout: 5 });
     }
   }
 
