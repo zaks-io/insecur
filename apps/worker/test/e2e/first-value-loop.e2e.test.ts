@@ -1,6 +1,7 @@
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
 import {
   bytesToBase64Url,
+  CRYPTO_ERROR_CODES,
   environmentId,
   organizationId,
   projectId,
@@ -69,6 +70,30 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 function uniqueVariableKey(prefix: string): string {
   return `${prefix}_${Date.now()}`;
+}
+
+async function swapSecretVersionCiphertext(
+  organizationId: typeof ORG_A,
+  secretVersionIdA: string,
+  secretVersionIdB: string,
+): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
+    const rows = await sql<{ id: string; ciphertext_storage_ref: string }[]>`
+      SELECT id, ciphertext_storage_ref
+      FROM secret_versions
+      WHERE id IN (${secretVersionIdA}, ${secretVersionIdB})
+    `;
+    const refA = rows.find((row) => row.id === secretVersionIdA)?.ciphertext_storage_ref;
+    const refB = rows.find((row) => row.id === secretVersionIdB)?.ciphertext_storage_ref;
+    if (!refA || !refB) {
+      throw new Error("expected both secret versions for ciphertext swap");
+    }
+    await sql`
+      UPDATE secret_versions
+      SET ciphertext_storage_ref = ${refB}
+      WHERE id = ${secretVersionIdA}
+    `;
+  });
 }
 
 describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () => {
@@ -217,5 +242,120 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
     const replayBody = (await replay.json()) as { ok: boolean; error: { code: string } };
     expect(replayBody.ok).toBe(false);
     expect(JSON.stringify(replayBody)).not.toContain(plaintext);
+  });
+
+  it("fails closed when INSTANCE_ROOT_KEY_V1 is missing on the write route", async () => {
+    const headers = await authHeaders();
+    const envWithoutRootKey = {
+      WORKOS_API_KEY: "sk_test",
+      WORKOS_CLIENT_ID: "client_test",
+      WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+      SESSION_SIGNING_SECRET: env.SESSION_SIGNING_SECRET,
+      INSTANCE_ID: "inst_LOCAL_DEV",
+      ADMITTED_USER_MAP_JSON: env.ADMITTED_USER_MAP_JSON,
+    };
+
+    const response = await app.request(
+      `/v1/projects/${PROJECT_A}/environments/${ENV_A}/secrets/by-variable-key`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          organizationId: ORG_A,
+          variableKey: uniqueVariableKey("FV_E2E_NO_ROOT"),
+          value: "should-not-persist",
+        }),
+      },
+      envWithoutRootKey,
+    );
+
+    expect(response.status).toBe(503);
+    const body = (await response.json()) as { ok: boolean; error: { code: string } };
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe(CRYPTO_ERROR_CODES.rootKeyNotConfigured);
+  });
+
+  it("fails closed on ciphertext identity mismatch through the consume route", async () => {
+    const headers = await authHeaders();
+    const variableKeyA = uniqueVariableKey("FV_E2E_BIND_A");
+    const variableKeyB = uniqueVariableKey("FV_E2E_BIND_B");
+    const plaintextA = `fv-e2e-bind-a-${crypto.randomUUID()}`;
+    const plaintextB = `fv-e2e-bind-b-${crypto.randomUUID()}`;
+
+    const writeA = await app.request(
+      `/v1/projects/${PROJECT_A}/environments/${ENV_A}/secrets/by-variable-key`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          organizationId: ORG_A,
+          variableKey: variableKeyA,
+          value: plaintextA,
+        }),
+      },
+      env,
+    );
+    expect(writeA.status).toBe(200);
+    const writeABody = (await writeA.json()) as {
+      data: { secretId: string; secretVersionId: string };
+    };
+
+    const writeB = await app.request(
+      `/v1/projects/${PROJECT_A}/environments/${ENV_A}/secrets/by-variable-key`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          organizationId: ORG_A,
+          variableKey: variableKeyB,
+          value: plaintextB,
+        }),
+      },
+      env,
+    );
+    expect(writeB.status).toBe(200);
+    const writeBBody = (await writeB.json()) as {
+      data: { secretId: string; secretVersionId: string };
+    };
+
+    await swapSecretVersionCiphertext(
+      ORG_A,
+      writeABody.data.secretVersionId,
+      writeBBody.data.secretVersionId,
+    );
+
+    const issueResponse = await app.request(
+      "/v1/runtime-injection/grants",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          organizationId: ORG_A,
+          projectId: PROJECT_A,
+          environmentId: ENV_A,
+          variableKey: variableKeyA,
+        }),
+      },
+      env,
+    );
+    expect(issueResponse.status).toBe(200);
+    const grantId = ((await issueResponse.json()) as { data: { grantId: string } }).data.grantId;
+
+    const consumeResponse = await app.request(
+      `/v1/runtime-injection/grants/${grantId}/consume`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ organizationId: ORG_A, variableKey: variableKeyA }),
+      },
+      env,
+    );
+
+    expect(consumeResponse.status).toBe(500);
+    const consumeBody = (await consumeResponse.json()) as { ok: boolean; error: { code: string } };
+    expect(consumeBody.ok).toBe(false);
+    expect(consumeBody.error.code).toBe(CRYPTO_ERROR_CODES.decryptFailed);
+    expect(JSON.stringify(consumeBody)).not.toContain(plaintextA);
+    expect(JSON.stringify(consumeBody)).not.toContain(plaintextB);
   });
 });

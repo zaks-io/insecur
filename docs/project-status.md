@@ -90,10 +90,10 @@ First Value routes under `/v1/orgs/:org`).
   routes. It validates auth configuration at construction, supports development fake
   sessions, requires CSRF for browser-to-CLI exchange, and returns metadata-only
   success/error envelopes.
-  - Custody caveat: live write/decrypt routes now create an ADR-0064 request-scoped
-    Keyring from the `INSTANCE_ROOT_KEY_V{n}` Secrets Store bindings and pass it through the
-    crypto boundary explicitly. Production root-key bootstrap, escrow evidence, and
-    Storage Security Gate sign-off remain pending. Tracked in INS-145/147/149.
+  - Custody: live write/decrypt routes create an ADR-0064 request-scoped Keyring from the
+    `INSTANCE_ROOT_KEY_V{n}` Secrets Store bindings and pass it through the crypto boundary
+    explicitly. Production root-key bootstrap, escrow evidence, and Storage Security Gate
+    sign-off remain pending (INS-149 and follow-on custody tickets).
 - `@insecur/tenant-store` owns the Postgres persistence seam: scoped transactions,
   transaction-local tenant scope, runtime connection handling, local migration scripts,
   runtime-role grants, and RLS helper scripts/tests.
@@ -168,11 +168,12 @@ First Value routes under `/v1/orgs/:org`).
   `insecur secrets set`, `insecur run <command>`, the masked prompt, and the first-value
   proof command path.
 - The Worker now exposes auth/session, guided-provisioning/onboarding, non-protected
-  secret-write, and runtime-injection grant issue/consume routes (the latter two already
-  run live encrypt/decrypt, see above). Still missing: instance bootstrap, membership
+  secret-write, and runtime-injection grant issue/consume routes. The live encrypt/decrypt
+  routes are fed by the Cloudflare Secrets Store keyring (`INSTANCE_ROOT_KEY_V{n}` via
+  `createKeyringFromWorkerEnv`); the plaintext `INSECUR_INSTANCE_ROOT_KEY_HEX` ambient
+  fallback is not used on the Worker path. Still missing: instance bootstrap, membership
   management, operations, provider sync, Storage Security Gate enforcement, and audit
-  export routes. The custody gap is that the live crypto routes are not yet fed by the
-  Cloudflare Secrets Store keyring (INS-145/147/149).
+  export routes.
 - WorkOS AuthKit is represented through session validation and config composition, but
   hosted login/logout/callback UI, MFA enrollment, and high-risk action challenges are not
   implemented.
@@ -182,9 +183,9 @@ First Value routes under `/v1/orgs/:org`).
   Postgres and the tenant-store connection package are the current persistence path. The
   runtime pool opens directly from `DATABASE_URL_RUNTIME` with no Hyperdrive binding, which
   diverges from ADR-0002/0036; routing it through Hyperdrive is tracked in INS-162.
-- Root key custody is partially wired through request-scoped Cloudflare Secrets Store
-  keyring construction. Production bootstrap, escrow evidence, and Storage Security Gate
-  sign-off are still pending.
+- Root key custody is wired for the `-dev` Worker through request-scoped Cloudflare
+  Secrets Store keyring construction on the live encrypt/decrypt routes. Production
+  bootstrap, escrow evidence, and Storage Security Gate sign-off are still pending.
 - Key rotation workflows are not implemented. Version metadata and readiness checks exist,
   but rotation operations, rewrap workflows, and operator UX do not. The data-key model is
   also still HKDF-derived rather than wrapped: ADR-0005/0028 (2026-06-03 amendments) decide

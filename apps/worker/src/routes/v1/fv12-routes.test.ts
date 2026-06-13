@@ -259,6 +259,10 @@ describe("FV-12 worker routes", () => {
 
       expect(response.status).toBe(200);
       expect(resolveEffectiveAccess).toHaveBeenCalled();
+      const writeInput = writeNonProtectedSecret.mock.calls[0]?.[0] as
+        | { keyring?: unknown }
+        | undefined;
+      expect(writeInput?.keyring).toBeDefined();
       expect(writeNonProtectedSecret).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: orgId,
@@ -270,6 +274,39 @@ describe("FV-12 worker routes", () => {
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: true, data: { variableKey: "API_KEY" } });
       expect(JSON.stringify(body)).not.toContain("metadata-only-test-value");
+    });
+
+    it("fails closed when INSTANCE_ROOT_KEY_V1 is missing", async () => {
+      const envWithoutRootKey = {
+        WORKOS_API_KEY: "sk_test",
+        WORKOS_CLIENT_ID: "client_test",
+        WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+        SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+        INSTANCE_ID: "inst_LOCAL_DEV",
+        ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
+      };
+
+      const response = await app.request(
+        path,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            organizationId: orgId,
+            variableKey: "API_KEY",
+            value: "metadata-only-test-value",
+          }),
+        },
+        envWithoutRootKey,
+      );
+
+      expect(response.status).toBe(503);
+      expect(writeNonProtectedSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: CRYPTO_ERROR_CODES.rootKeyNotConfigured, retryable: false },
+      });
     });
 
     it("maps secret validation failures without leaking values", async () => {
@@ -476,6 +513,10 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
+      const consumeInput = consumeInjectionGrant.mock.calls[0]?.[0] as
+        | { keyring?: unknown }
+        | undefined;
+      expect(consumeInput?.keyring).toBeDefined();
       expect(consumeInjectionGrant).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: orgId,
@@ -552,6 +593,38 @@ describe("FV-12 worker routes", () => {
       expect(body).toMatchObject({
         ok: false,
         error: { code: INJECTION_ERROR_CODES.grantExpired },
+      });
+    });
+
+    it("fails closed when INSTANCE_ROOT_KEY_V1 is missing", async () => {
+      const envWithoutRootKey = {
+        WORKOS_API_KEY: "sk_test",
+        WORKOS_CLIENT_ID: "client_test",
+        WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+        SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+        INSTANCE_ID: "inst_LOCAL_DEV",
+        ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
+      };
+
+      const response = await app.request(
+        `/v1/runtime-injection/grants/${grantIdValue}/consume`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            organizationId: orgId,
+            variableKey: "API_KEY",
+          }),
+        },
+        envWithoutRootKey,
+      );
+
+      expect(response.status).toBe(503);
+      expect(consumeInjectionGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: CRYPTO_ERROR_CODES.rootKeyNotConfigured, retryable: false },
       });
     });
 
