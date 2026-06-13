@@ -19,7 +19,7 @@ function fakeBinding(get: SecretsStoreSecretBinding["get"]): SecretsStoreSecretB
 }
 
 describe("createKeyringFromWorkerEnv", () => {
-  it("fails closed when INSTANCE_ROOT_KEY is missing", () => {
+  it("fails closed when INSTANCE_ROOT_KEY_V1 is missing", () => {
     expect(() =>
       createKeyringFromWorkerEnv({
         WORKOS_API_KEY: "sk_test",
@@ -37,7 +37,7 @@ describe("createKeyringFromWorkerEnv", () => {
       WORKOS_CLIENT_ID: "client_test",
       WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
       SESSION_SIGNING_SECRET: "session-signing-secret-at-least-32-chars",
-      INSTANCE_ROOT_KEY: binding,
+      INSTANCE_ROOT_KEY_V1: binding,
     };
 
     const first = createKeyringFromWorkerEnv(env);

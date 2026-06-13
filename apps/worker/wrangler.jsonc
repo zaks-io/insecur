@@ -15,6 +15,16 @@
       "destinations": ["axiom-traces"],
     },
   },
+  // `-dev` instance root key (ADR-0028). Secret material is provisioned offline and loaded into
+  // Cloudflare Secrets Store by the bootstrap runbook — never as a wrangler secret or in git.
+  // store_id/secret_name must match the Secrets Store objects created in execute step 4.
+  "secrets_store_secrets": [
+    {
+      "binding": "INSTANCE_ROOT_KEY_V1",
+      "store_id": "insecur",
+      "secret_name": "instance-root-key-v1",
+    },
+  ],
   // Preview environment scaffold for the gated pr-preview workflow. The Hyperdrive
   // binding below is a placeholder: the per-PR Hyperdrive id is created at deploy
   // time and must be patched into this env (as agent-paste's deploy script does),

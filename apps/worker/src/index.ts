@@ -13,7 +13,7 @@ import type { WorkerEnv } from "./env.js";
 const app = new Hono<{ Bindings: WorkerEnv }>();
 
 app.use("*", async (context, next) => {
-  if (context.env.INSTANCE_ROOT_KEY !== undefined && !isKeyringConfigured()) {
+  if (context.env.INSTANCE_ROOT_KEY_V1 !== undefined && !isKeyringConfigured()) {
     configureKeyring(createKeyringFromWorkerEnv(context.env));
   }
   await next();
