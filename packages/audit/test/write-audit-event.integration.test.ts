@@ -83,7 +83,8 @@ describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
           resource_type,
           resource_id,
           request_id,
-          operation_id
+          operation_id,
+          details
         FROM audit_events
         WHERE id = ${result.auditEventId}
       `;
