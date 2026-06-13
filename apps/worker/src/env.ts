@@ -11,6 +11,6 @@ export interface WorkerEnv {
   readonly ADMITTED_USER_MAP_JSON?: string;
   /** JSON array of fake sealed sessions for local/testing (development only). */
   readonly WORKOS_FAKE_SESSIONS_JSON?: string;
-  /** Instance root key from Cloudflare Secrets Store (production path). */
-  readonly INSTANCE_ROOT_KEY?: SecretsStoreSecretBinding;
+  /** Instance root key version 1 from Cloudflare Secrets Store (ADR-0028). */
+  readonly INSTANCE_ROOT_KEY_V1?: SecretsStoreSecretBinding;
 }

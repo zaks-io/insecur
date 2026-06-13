@@ -47,7 +47,7 @@ const env = {
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   INSTANCE_ID: "inst_LOCAL_DEV",
   ADMITTED_USER_MAP_JSON: JSON.stringify({ [WORKOS_USER_ID]: ADMITTED_USER_ID }),
-  INSTANCE_ROOT_KEY: {
+  INSTANCE_ROOT_KEY_V1: {
     get: (): Promise<string> => Promise.resolve(RLS_TEST_ROOT_KEY_HEX),
   },
 };
