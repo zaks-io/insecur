@@ -98,5 +98,13 @@ export {
   tryParseInstanceRootKeyHex,
 } from "./root-key-material.js";
 export { RootKeyNotConfiguredError, TenantDataKeyNotReadyError } from "./errors.js";
-export { requireKeyring } from "./crypto-runtime.js";
+export {
+  createKeyringFromDevEnvRootKey,
+  EnvRootKeyProvider,
+  INSTANCE_ROOT_KEY_HEX_ENV,
+  readInstanceRootKeyHexFromProcessEnv,
+  requireKeyring,
+  resolveInstanceRootKeyFromEnv,
+} from "./crypto-runtime.js";
+export type { CryptoRuntimeMode } from "./crypto-runtime.js";
 export { toStoreFacingCiphertext } from "./envelope-storage.js";
