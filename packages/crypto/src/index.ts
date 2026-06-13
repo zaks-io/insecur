@@ -34,10 +34,13 @@ export {
   DATA_KEY_VERSION_STATUSES,
   type DataKeyVersionStatus,
   isDataKeyVersionStatus,
+  canRetireRootKeyBinding,
+  statusAfterRootRewrap,
 } from "./data-key-lifecycle.js";
 export {
   type OrganizationDataKeyMetadata,
   type ProjectDataKeyMetadata,
+  type TenantDataKeyMetadataProvisioner,
   type TenantDataKeyMetadataReader,
 } from "./data-key-metadata.js";
 export {
@@ -45,13 +48,31 @@ export {
   type DataKeyVersions,
   type OrganizationDataKeyVersions,
   createKeyring,
-  DefaultTenantDataKeySource,
+  clearWrappedDefaultTenantDataKeySourceCacheForTests,
   Keyring,
   type KeyVersion,
   type RootKeyProvider,
   StaticRootKeyProvider,
+  type TenantDataKeyRewrapStore,
   type TenantDataKeySource,
+  WrappedDefaultTenantDataKeySource,
 } from "./keyring.js";
+export {
+  mintOrganizationDataKey,
+  mintProjectDataKey,
+  rewrapOrganizationDataKeyStorageRef,
+  rewrapProjectDataKeyStorageRef,
+  unwrapOrganizationDataKeyBytes,
+  unwrapProjectDataKeyBytes,
+  wrapOrganizationDataKeyBytes,
+  wrapProjectDataKeyBytes,
+} from "./data-key-wrap.js";
+export { rewrapTenantDataKeys, type RewrapTenantDataKeysInput } from "./data-key-rewrap.js";
+export {
+  decodeInlineWrappedDataKeyStorageRef,
+  encodeInlineWrappedDataKeyStorageRef,
+  INLINE_WRAPPED_DATA_KEY_STORAGE_PREFIX,
+} from "./wrapped-data-key-storage-ref.js";
 export {
   assertTenantDataKeyReadiness,
   checkTenantDataKeyReadiness,
@@ -62,6 +83,7 @@ export {
   type KeyringReadinessInput,
 } from "./keyring-readiness.js";
 export { MetadataTenantDataKeySource } from "./metadata-tenant-data-key-source.js";
+export { PersistingMetadataTenantDataKeySource } from "./persisting-metadata-tenant-data-key-source.js";
 export {
   createKeyringFromRootKeyProvider,
   createKeyringFromSecretsStoreBinding,
@@ -75,5 +97,10 @@ export {
   tryParseInstanceRootKeyHex,
 } from "./root-key-material.js";
 export { RootKeyNotConfiguredError, TenantDataKeyNotReadyError } from "./errors.js";
-export { configureKeyring, getKeyring, resetKeyringForTests } from "./crypto-runtime.js";
+export {
+  configureKeyring,
+  getKeyring,
+  isKeyringConfigured,
+  resetKeyringForTests,
+} from "./crypto-runtime.js";
 export { toStoreFacingCiphertext } from "./envelope-storage.js";

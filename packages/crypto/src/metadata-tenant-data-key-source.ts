@@ -103,4 +103,38 @@ export class MetadataTenantDataKeySource implements TenantDataKeySource {
       projectDataKeyVersion: projectKey.keyVersion,
     };
   }
+
+  async getOrganizationWrappedStorageRef(
+    organizationId: OrganizationId,
+    organizationDataKeyVersion: KeyVersion,
+    _rootKeyVersion: KeyVersion,
+  ): Promise<string> {
+    void _rootKeyVersion;
+    const organizationKey = await this.metadata.getOrganizationDataKeyVersion(
+      organizationId,
+      organizationDataKeyVersion,
+    );
+    if (!organizationKey?.wrappedStorageRef) {
+      throw new TenantDataKeyNotReadyError();
+    }
+    return organizationKey.wrappedStorageRef;
+  }
+
+  async getProjectWrappedStorageRef(
+    organizationId: OrganizationId,
+    projectId: ProjectId,
+    projectDataKeyVersion: KeyVersion,
+    _rootKeyVersion: KeyVersion,
+  ): Promise<string> {
+    void _rootKeyVersion;
+    const projectKey = await this.metadata.getProjectDataKeyVersion(
+      organizationId,
+      projectId,
+      projectDataKeyVersion,
+    );
+    if (!projectKey?.wrappedStorageRef) {
+      throw new TenantDataKeyNotReadyError();
+    }
+    return projectKey.wrappedStorageRef;
+  }
 }

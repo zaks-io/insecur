@@ -1,12 +1,19 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
 
-import { toBufferSource } from "./buffer.js";
+import type { RewrapTenantDataKeysInput, TenantDataKeyRewrapStore } from "./data-key-rewrap.js";
+import { rewrapTenantDataKeys } from "./data-key-rewrap.js";
 import {
-  DATA_KEY_LENGTH,
-  DEFAULT_ORGANIZATION_DATA_KEY_VERSION,
-  DEFAULT_PROJECT_DATA_KEY_VERSION,
-  DEFAULT_ROOT_KEY_VERSION,
-} from "./constants.js";
+  unwrapOrganizationDataKey,
+  unwrapProjectDataKey,
+  WrappedDefaultTenantDataKeySource,
+} from "./keyring-unwrap.js";
+
+export {
+  clearWrappedDefaultTenantDataKeySourceCacheForTests,
+  unwrapOrganizationDataKey,
+  unwrapProjectDataKey,
+  WrappedDefaultTenantDataKeySource,
+} from "./keyring-unwrap.js";
 
 export type KeyVersion = number;
 
@@ -32,7 +39,7 @@ export interface ActiveDataKeyVersions extends DataKeyVersions {
 
 /**
  * Resolves wrapped organization and project data keys from tenant-scoped storage.
- * First Value uses an in-memory or derived implementation until metadata rows carry material.
+ * Production reads unwrap inline blobs from `wrapped_storage_ref`.
  */
 export interface TenantDataKeySource {
   getActiveOrganizationVersions(
@@ -55,40 +62,22 @@ export interface TenantDataKeySource {
     projectId: ProjectId,
     versions: DataKeyVersions,
   ): Promise<ActiveDataKeyVersions>;
+
+  getOrganizationWrappedStorageRef(
+    organizationId: OrganizationId,
+    organizationDataKeyVersion: KeyVersion,
+    rootKeyVersion: KeyVersion,
+  ): Promise<string>;
+
+  getProjectWrappedStorageRef(
+    organizationId: OrganizationId,
+    projectId: ProjectId,
+    projectDataKeyVersion: KeyVersion,
+    rootKeyVersion: KeyVersion,
+  ): Promise<string>;
 }
 
-async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
-  if (raw.byteLength !== DATA_KEY_LENGTH) {
-    throw new Error("invalid data key length");
-  }
-  return crypto.subtle.importKey("raw", toBufferSource(raw), "AES-GCM", false, [
-    "encrypt",
-    "decrypt",
-  ]);
-}
-
-async function deriveKeyMaterial(
-  parent: Uint8Array,
-  salt: string,
-  info: string,
-): Promise<Uint8Array> {
-  const baseKey = await crypto.subtle.importKey("raw", toBufferSource(parent), "HKDF", false, [
-    "deriveBits",
-  ]);
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: new TextEncoder().encode(salt),
-      info: new TextEncoder().encode(info),
-    },
-    baseKey,
-    DATA_KEY_LENGTH * 8,
-  );
-  return new Uint8Array(bits);
-}
-
-/** Development and test keyring: derives tenant keys from a root without exposing them to callers. */
+/** Unwraps tenant data keys from root-wrapped blobs stored in tenant-scoped metadata. */
 export class Keyring {
   private readonly cache = new Map<string, CryptoKey>();
 
@@ -135,13 +124,12 @@ export class Keyring {
       return cached;
     }
 
-    const rootBytes = await this.rootKeyProvider.getRootKeyBytes(versions.rootKeyVersion);
-    const orgBytes = await deriveKeyMaterial(
-      rootBytes,
+    const organizationKey = await unwrapOrganizationDataKey(
+      this.rootKeyProvider,
+      this.dataKeySource,
       organizationId,
-      `insecur:organization-data-key:v${String(versions.organizationDataKeyVersion)}`,
+      versions,
     );
-    const organizationKey = await importAesKey(orgBytes);
     this.cache.set(cacheKey, organizationKey);
     return organizationKey;
   }
@@ -165,20 +153,27 @@ export class Keyring {
       return cached;
     }
 
-    const rootBytes = await this.rootKeyProvider.getRootKeyBytes(resolved.rootKeyVersion);
-    const orgBytes = await deriveKeyMaterial(
-      rootBytes,
+    const projectKey = await unwrapProjectDataKey({
+      rootKeyProvider: this.rootKeyProvider,
+      dataKeySource: this.dataKeySource,
       organizationId,
-      `insecur:organization-data-key:v${String(resolved.organizationDataKeyVersion)}`,
-    );
-    const projectBytes = await deriveKeyMaterial(
-      orgBytes,
       projectId,
-      `insecur:project-data-key:v${String(resolved.projectDataKeyVersion)}`,
-    );
-    const projectKey = await importAesKey(projectBytes);
+      resolved,
+      projectDataKeyVersion: resolved.projectDataKeyVersion,
+    });
     this.cache.set(cacheKey, projectKey);
     return projectKey;
+  }
+
+  async rewrapTenantDataKeys(
+    input: Omit<RewrapTenantDataKeysInput, "rootKeyProvider" | "store"> & {
+      readonly store: TenantDataKeyRewrapStore;
+    },
+  ): Promise<void> {
+    await rewrapTenantDataKeys({
+      ...input,
+      rootKeyProvider: this.rootKeyProvider,
+    });
   }
 
   clearCacheForTests(): void {
@@ -195,56 +190,10 @@ export class StaticRootKeyProvider implements RootKeyProvider {
   }
 }
 
-export class DefaultTenantDataKeySource implements TenantDataKeySource {
-  getActiveOrganizationVersions(
-    _organizationId: OrganizationId,
-  ): Promise<OrganizationDataKeyVersions> {
-    void _organizationId;
-    return Promise.resolve({
-      rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
-      organizationDataKeyVersion: DEFAULT_ORGANIZATION_DATA_KEY_VERSION,
-    });
-  }
-
-  resolveOrganizationVersions(
-    _organizationId: OrganizationId,
-    organizationDataKeyVersion: KeyVersion,
-  ): Promise<OrganizationDataKeyVersions> {
-    void _organizationId;
-    return Promise.resolve({
-      rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
-      organizationDataKeyVersion,
-    });
-  }
-
-  getActiveVersions(
-    organizationId: OrganizationId,
-    projectId: ProjectId,
-  ): Promise<ActiveDataKeyVersions> {
-    return Promise.resolve({
-      organizationId,
-      projectId,
-      rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
-      organizationDataKeyVersion: DEFAULT_ORGANIZATION_DATA_KEY_VERSION,
-      projectDataKeyVersion: DEFAULT_PROJECT_DATA_KEY_VERSION,
-    });
-  }
-
-  resolveVersions(
-    organizationId: OrganizationId,
-    projectId: ProjectId,
-    versions: DataKeyVersions,
-  ): Promise<ActiveDataKeyVersions> {
-    return Promise.resolve({
-      organizationId,
-      projectId,
-      rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
-      organizationDataKeyVersion: versions.organizationDataKeyVersion,
-      projectDataKeyVersion: versions.projectDataKeyVersion,
-    });
-  }
-}
-
+/** Test-only keyring using in-memory wrapped DEK minting; production uses `createTenantBackedKeyring`. */
 export function createKeyring(rootKeyBytes: Uint8Array): Keyring {
-  return new Keyring(new StaticRootKeyProvider(rootKeyBytes), new DefaultTenantDataKeySource());
+  const rootKeyProvider = new StaticRootKeyProvider(rootKeyBytes);
+  return new Keyring(rootKeyProvider, new WrappedDefaultTenantDataKeySource(rootKeyProvider));
 }
+
+export type { TenantDataKeyRewrapStore };

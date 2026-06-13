@@ -2,6 +2,7 @@ import { environmentId, organizationId, projectId, secretId } from "@insecur/dom
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
+import { mintOrganizationDataKey, mintProjectDataKey } from "../src/data-key-wrap.js";
 import { encryptSecretValue, type SecretCiphertextIdentity } from "../src/encryption.js";
 import {
   MetadataTenantDataKeySource,
@@ -14,7 +15,7 @@ import { Keyring, type KeyVersion, type RootKeyProvider } from "../src/keyring.j
 const ORG_A = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const PROJECT_A = projectId.brand("prj_01JZ8E4X5D9N3J7P2Q4R6S8T0W");
 const ENV_A = environmentId.brand("env_01JZ8E6Z7F1P5L9R4T6U8V0W2Y");
-const SECRET_A = secretId.brand("sec_01JZ8E8B9H3R3N1T6V8W0X2Y4A");
+const SECRET_A = secretId.brand("sec_01JZ8E8B9H3R7N1T6V8W0X2Y4A");
 
 class VersionedRootKeyProvider implements RootKeyProvider {
   constructor(private readonly roots: ReadonlyMap<KeyVersion, Uint8Array>) {}
@@ -29,25 +30,38 @@ class VersionedRootKeyProvider implements RootKeyProvider {
 }
 
 class RootV2MetadataReader implements TenantDataKeyMetadataReader {
-  private readonly organizationKey: OrganizationDataKeyMetadata = {
-    id: "odk_root_v2",
-    organizationId: ORG_A,
-    keyVersion: 1,
-    status: "active",
-    rootKeyVersion: 2,
-    wrappedStorageRef: null,
-    custodyEvidenceRef: null,
-  };
+  private organizationKey!: OrganizationDataKeyMetadata;
+  private projectKey!: ProjectDataKeyMetadata;
 
-  private readonly projectKey: ProjectDataKeyMetadata = {
-    id: "pdk_root_v2",
-    organizationId: ORG_A,
-    projectId: PROJECT_A,
-    keyVersion: 1,
-    status: "active",
-    organizationDataKeyVersion: 1,
-    wrappedStorageRef: null,
-  };
+  async initialize(rootProvider: RootKeyProvider): Promise<void> {
+    const orgMinted = await mintOrganizationDataKey(rootProvider, 2, {
+      organizationId: ORG_A,
+      keyVersion: 1,
+    });
+    const projectMinted = await mintProjectDataKey(rootProvider, 2, {
+      organizationId: ORG_A,
+      projectId: PROJECT_A,
+      keyVersion: 1,
+    });
+    this.organizationKey = {
+      id: "odk_root_v2",
+      organizationId: ORG_A,
+      keyVersion: 1,
+      status: "active",
+      rootKeyVersion: 2,
+      wrappedStorageRef: orgMinted.wrappedStorageRef,
+      custodyEvidenceRef: null,
+    };
+    this.projectKey = {
+      id: "pdk_root_v2",
+      organizationId: ORG_A,
+      projectId: PROJECT_A,
+      keyVersion: 1,
+      status: "active",
+      organizationDataKeyVersion: 1,
+      wrappedStorageRef: projectMinted.wrappedStorageRef,
+    };
+  }
 
   getActiveOrganizationDataKey(): Promise<OrganizationDataKeyMetadata> {
     return Promise.resolve(this.organizationKey);
@@ -86,11 +100,21 @@ function identity(): SecretCiphertextIdentity {
 describe("root key version metadata", () => {
   const rootV1 = new Uint8Array(32);
   const rootV2 = new Uint8Array(32);
+  let metadataReader: RootV2MetadataReader;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     crypto.getRandomValues(rootV1);
     crypto.getRandomValues(rootV2);
     resetKeyringForTests();
+    metadataReader = new RootV2MetadataReader();
+    await metadataReader.initialize(
+      new VersionedRootKeyProvider(
+        new Map([
+          [1, rootV1],
+          [2, rootV2],
+        ]),
+      ),
+    );
   });
 
   it("resolves active versions with the organization root key version", async () => {
@@ -101,15 +125,14 @@ describe("root key version metadata", () => {
           [2, rootV2],
         ]),
       ),
-      new MetadataTenantDataKeySource(new RootV2MetadataReader()),
+      new MetadataTenantDataKeySource(metadataReader),
     );
 
     const versions = await keyring.getActiveDataKeyVersions(ORG_A, PROJECT_A);
     expect(versions.rootKeyVersion).toBe(2);
   });
 
-  it("derives project keys from the metadata root version, not a hardcoded v1", async () => {
-    const metadataReader = new RootV2MetadataReader();
+  it("unwraps project keys from the metadata root version, not a hardcoded v1", async () => {
     const correctRootKeyring = new Keyring(
       new VersionedRootKeyProvider(new Map([[2, rootV2]])),
       new MetadataTenantDataKeySource(metadataReader),
