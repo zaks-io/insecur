@@ -56,7 +56,12 @@ const keyringBoundaryOptions = {
   paths: [
     {
       name: "@insecur/crypto",
-      importNames: ["SecretsStoreRootKeyProvider"],
+      importNames: [
+        "SecretsStoreRootKeyProvider",
+        "EnvRootKeyProvider",
+        "createKeyringFromDevEnvRootKey",
+        "resolveInstanceRootKeyFromEnv",
+      ],
       message: KEYRING_BOUNDARY_MESSAGE,
     },
   ],
@@ -75,6 +80,18 @@ const keyringBoundarySyntaxRules = [
   },
   {
     selector: 'ImportSpecifier[imported.name="RuntimeEnvRootKeyProvider"]',
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+  {
+    selector: 'ImportSpecifier[imported.name="EnvRootKeyProvider"]',
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+  {
+    selector: 'ImportSpecifier[imported.name="createKeyringFromDevEnvRootKey"]',
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+  {
+    selector: 'ImportSpecifier[imported.name="resolveInstanceRootKeyFromEnv"]',
     message: KEYRING_BOUNDARY_MESSAGE,
   },
 ] as const;
