@@ -157,9 +157,7 @@ async function hasRuntimeTablePrivileges(sql, runtimeRole) {
   const [functionPrivilege] = await sql`
     SELECT has_function_privilege(${runtimeRole}, 'app.tenant_visible(text)', 'EXECUTE') AS ok
   `;
-  return Boolean(
-    publicSchemaPrivilege?.ok && appSchemaPrivilege?.ok && functionPrivilege?.ok,
-  );
+  return Boolean(publicSchemaPrivilege?.ok && appSchemaPrivilege?.ok && functionPrivilege?.ok);
 }
 
 /**
