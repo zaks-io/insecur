@@ -4,6 +4,7 @@ import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   encryptSecretValue,
   toStoreFacingCiphertext,
+  type Keyring,
   type WrappedSecretValue,
 } from "@insecur/crypto";
 import type {
@@ -28,6 +29,7 @@ import { validateTextSecretValue } from "./validate-text-secret-value.js";
 import { validateVariableKeyForWrite } from "./validate-variable-key-for-write.js";
 
 export interface WriteNonProtectedSecretInput {
+  keyring: Keyring;
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId: EnvironmentId;
@@ -105,6 +107,7 @@ async function appendEncryptedVersionForWrite(
       });
 
       const wrapped = await encryptSecretValue(
+        validatedInput.keyring,
         {
           organizationId: validatedInput.organizationId,
           projectId: validatedInput.projectId,

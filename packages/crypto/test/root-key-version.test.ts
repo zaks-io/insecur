@@ -1,7 +1,6 @@
 import { environmentId, organizationId, projectId, secretId } from "@insecur/domain";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
 import { mintOrganizationDataKey, mintProjectDataKey } from "../src/data-key-wrap.js";
 import { encryptSecretValue, type SecretCiphertextIdentity } from "../src/encryption.js";
 import {
@@ -105,7 +104,6 @@ describe("root key version metadata", () => {
   beforeEach(async () => {
     crypto.getRandomValues(rootV1);
     crypto.getRandomValues(rootV2);
-    resetKeyringForTests();
     metadataReader = new RootV2MetadataReader();
     await metadataReader.initialize(
       new VersionedRootKeyProvider(
@@ -142,21 +140,18 @@ describe("root key version metadata", () => {
       new MetadataTenantDataKeySource(metadataReader),
     );
 
-    configureKeyring(correctRootKeyring);
-    const wrapped = await encryptSecretValue(identity(), new TextEncoder().encode("payload"));
-
-    resetKeyringForTests();
-    configureKeyring(wrongRootKeyring);
+    const wrapped = await encryptSecretValue(
+      correctRootKeyring,
+      identity(),
+      new TextEncoder().encode("payload"),
+    );
 
     await expect(
-      encryptSecretValue(identity(), new TextEncoder().encode("payload")),
+      encryptSecretValue(wrongRootKeyring, identity(), new TextEncoder().encode("payload")),
     ).rejects.toThrow();
 
-    resetKeyringForTests();
-    configureKeyring(correctRootKeyring);
-
     const { decryptSecretValueForRuntime } = await import("../src/encryption.js");
-    const decrypted = await decryptSecretValueForRuntime(identity(), wrapped);
+    const decrypted = await decryptSecretValueForRuntime(correctRootKeyring, identity(), wrapped);
     expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe("payload");
   });
 });

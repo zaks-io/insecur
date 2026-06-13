@@ -1,23 +1,13 @@
 import { RootKeyNotConfiguredError } from "./errors.js";
 import type { Keyring } from "./keyring.js";
 
-let configuredKeyring: Keyring | undefined;
-
-export function configureKeyring(keyring: Keyring): void {
-  configuredKeyring = keyring;
-}
-
-export function isKeyringConfigured(): boolean {
-  return configuredKeyring !== undefined;
-}
-
-export function resetKeyringForTests(): void {
-  configuredKeyring = undefined;
-}
-
-export function getKeyring(): Keyring {
-  if (configuredKeyring) {
-    return configuredKeyring;
+/**
+ * ADR-0064 guard for request-owned crypto calls.
+ * This module validates caller-supplied keyrings only; it must not retain key material.
+ */
+export function requireKeyring(keyring: Keyring | undefined): Keyring {
+  if (keyring) {
+    return keyring;
   }
 
   throw new RootKeyNotConfiguredError();

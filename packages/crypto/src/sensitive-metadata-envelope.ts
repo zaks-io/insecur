@@ -3,12 +3,12 @@ import {
   RECORD_TYPE_SENSITIVE_METADATA,
   SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL,
 } from "./constants.js";
-import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
 import { toStoreFacingCiphertext } from "./envelope-storage.js";
+import type { Keyring } from "./keyring.js";
 import type { ProjectId } from "@insecur/domain";
 import type { SensitiveMetadataCiphertextIdentity } from "./types.js";
 
@@ -60,11 +60,11 @@ function requireProjectScope(identity: SensitiveMetadataCiphertextIdentity): Pro
 }
 
 export async function encryptSensitiveMetadata(
+  keyring: Keyring,
   identity: SensitiveMetadataCiphertextIdentity,
   plaintextUtf8: Uint8Array,
 ): Promise<WrappedSensitiveMetadata> {
   assertSensitiveMetadataIdentityForAad(identity);
-  const keyring = getKeyring();
   if (isOrganizationScopedSensitiveMetadata(identity)) {
     const activeVersions = await keyring.getActiveOrganizationDataKeyVersions(
       identity.organizationId,
@@ -114,6 +114,7 @@ export async function encryptSensitiveMetadata(
  * Decrypt for authorized Sensitive Detail Gate surfaces only.
  */
 export async function decryptSensitiveMetadataForAuthorizedRead(
+  keyring: Keyring,
   identity: SensitiveMetadataCiphertextIdentity,
   wrapped: WrappedSensitiveMetadata,
 ): Promise<PlaintextHandle> {
@@ -125,7 +126,6 @@ export async function decryptSensitiveMetadataForAuthorizedRead(
   }
 
   assertSensitiveMetadataIdentityForAad(identity);
-  const keyring = getKeyring();
   if (isOrganizationScopedSensitiveMetadata(identity)) {
     if (wrapped.projectDataKeyVersion !== null) {
       throw new DecryptError();

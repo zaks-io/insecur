@@ -42,6 +42,7 @@ shortcuts.
 ## Owns
 
 - Keyring Interface.
+- ADR-0064 request-scoped keyring resolution.
 - Encryption Envelope behavior.
 - Key Version and key lifecycle shapes.
 - Ciphertext identity binding.

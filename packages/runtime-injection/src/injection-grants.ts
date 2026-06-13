@@ -1,5 +1,5 @@
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
-import type { PlaintextHandle } from "@insecur/crypto";
+import type { Keyring, PlaintextHandle } from "@insecur/crypto";
 import type {
   EnvironmentId,
   InjectionGrantId,
@@ -38,6 +38,7 @@ export interface IssueInjectionGrantResult {
 }
 
 export interface ConsumeInjectionGrantInput {
+  keyring: Keyring;
   organizationId: OrganizationId;
   grantId: InjectionGrantId;
   /** Deliver by exact Variable Key when the grant was issued for that binding. */
@@ -78,6 +79,7 @@ export function consumeInjectionGrant(
   input: ConsumeInjectionGrantInput,
 ): Promise<ConsumeInjectionGrantResult> {
   return consumeInjectionGrantWithAudit({
+    keyring: input.keyring,
     organizationId: input.organizationId,
     grantId: input.grantId,
     selector: normalizeConsumeSelector({

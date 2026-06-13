@@ -17,6 +17,7 @@ import {
 } from "../../http/parse-route-input.js";
 import { toAccessActor, toAuditActor } from "../../http/request-actor.js";
 import type { WorkerEnv } from "../../env.js";
+import { createKeyringFromWorkerEnv } from "../../crypto/keyring-context.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
 export const secretsRoutes = new Hono<{ Bindings: WorkerEnv; Variables: AuthVariables }>();
@@ -51,6 +52,7 @@ async function executeSecretWriteByVariableKey(
   });
 
   return writeNonProtectedSecret({
+    keyring: createKeyringFromWorkerEnv(context.env),
     organizationId: parsed.organizationId,
     projectId,
     environmentId,

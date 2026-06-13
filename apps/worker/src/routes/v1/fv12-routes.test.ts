@@ -88,6 +88,10 @@ const env = {
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   INSTANCE_ID: "inst_LOCAL_DEV",
   ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
+  INSTANCE_ROOT_KEY_V1: {
+    get: (): Promise<string> =>
+      Promise.resolve("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"),
+  },
 };
 
 const orgId = organizationId.brand("org_00000000000000000000000001");

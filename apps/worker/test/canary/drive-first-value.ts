@@ -1,5 +1,4 @@
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
-import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
 import {
   bytesToBase64Url,
   environmentId,
@@ -13,6 +12,7 @@ import {
   TEST_PROJECT_A_ID,
   TEST_USER_ID,
 } from "../../../../packages/tenant-store/test/rls/test-ids.js";
+import { RLS_TEST_ROOT_KEY_HEX } from "../../../../packages/tenant-store/test/rls/test-root-key.js";
 import app from "../../src/index.js";
 
 const ADMITTED_USER_ID = TEST_USER_ID;
@@ -29,13 +29,10 @@ const workerEnv = {
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   INSTANCE_ID: "inst_LOCAL_DEV",
   ADMITTED_USER_MAP_JSON: JSON.stringify({ [WORKOS_USER_ID]: ADMITTED_USER_ID }),
+  INSTANCE_ROOT_KEY_V1: {
+    get: (): Promise<string> => Promise.resolve(RLS_TEST_ROOT_KEY_HEX),
+  },
 };
-
-function createTestRootKey(): Uint8Array {
-  const root = new Uint8Array(32);
-  crypto.getRandomValues(root);
-  return root;
-}
 
 async function authHeaders(): Promise<Record<string, string>> {
   const minted = await mintEphemeralSessionCredential({
@@ -133,16 +130,9 @@ async function consumeRuntimeInjectionGrant(
  * through the real Worker route stack.
  */
 export async function driveFirstValueWithSentinel(sentinelValue: string): Promise<void> {
-  resetKeyringForTests();
-  configureKeyring(createKeyring(createTestRootKey()));
-
-  try {
-    const headers = await authHeaders();
-    const variableKey = uniqueVariableKey("CANARY");
-    await writeSecretByVariableKey(headers, variableKey, sentinelValue);
-    const grantId = await issueRuntimeInjectionGrant(headers, variableKey);
-    await consumeRuntimeInjectionGrant(headers, grantId, variableKey, sentinelValue);
-  } finally {
-    resetKeyringForTests();
-  }
+  const headers = await authHeaders();
+  const variableKey = uniqueVariableKey("CANARY");
+  await writeSecretByVariableKey(headers, variableKey, sentinelValue);
+  const grantId = await issueRuntimeInjectionGrant(headers, variableKey);
+  await consumeRuntimeInjectionGrant(headers, grantId, variableKey, sentinelValue);
 }

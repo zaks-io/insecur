@@ -6,15 +6,14 @@ import {
   providerCredentialId,
 } from "@insecur/domain";
 import {
-  configureKeyring,
   clearWrappedDefaultTenantDataKeySourceCacheForTests,
   encryptProviderCredential,
   encryptSensitiveMetadata,
-  resetKeyringForTests,
   SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL,
+  type Keyring,
 } from "@insecur/crypto";
 import { createKeyring } from "@insecur/crypto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { encodeInlineCiphertextStorageRef } from "../src/secrets/ciphertext-storage-ref.js";
 import { TenantProviderCredentialStore } from "../src/provider-credentials/tenant-provider-credential-store.js";
@@ -67,20 +66,18 @@ function createCapturingDb(): { db: TenantScopedDb; storageRefs: string[] } {
 }
 
 describe("tenant metadata stores avoid plaintext persistence", () => {
-  beforeEach(() => {
-    resetKeyringForTests();
-    clearWrappedDefaultTenantDataKeySourceCacheForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
-  });
+  let keyring: Keyring;
 
-  afterEach(() => {
-    resetKeyringForTests();
+  beforeEach(() => {
+    clearWrappedDefaultTenantDataKeySourceCacheForTests();
+    keyring = createKeyring(createTestRootKey());
   });
 
   it("stores provider credentials only as inline ciphertext refs", async () => {
     const plaintext = new TextEncoder().encode("oauth-access-token-value");
     const plaintextText = new TextDecoder().decode(plaintext);
     const wrapped = await encryptProviderCredential(
+      keyring,
       {
         organizationId: ORG,
         appConnectionId: CONN,
@@ -112,6 +109,7 @@ describe("tenant metadata stores avoid plaintext persistence", () => {
     const plaintext = new TextEncoder().encode("approval-context-note-body");
     const plaintextText = new TextDecoder().decode(plaintext);
     const wrapped = await encryptSensitiveMetadata(
+      keyring,
       {
         organizationId: ORG,
         scopeProjectId: SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL,
@@ -143,6 +141,7 @@ describe("tenant metadata stores avoid plaintext persistence", () => {
   it("stores project-scoped sensitive metadata with project key version metadata", async () => {
     const plaintext = new TextEncoder().encode("provider-target-name");
     const wrapped = await encryptSensitiveMetadata(
+      keyring,
       {
         organizationId: ORG,
         scopeProjectId: PROJECT,

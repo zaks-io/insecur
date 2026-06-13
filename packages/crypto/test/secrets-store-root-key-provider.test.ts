@@ -13,7 +13,6 @@ import {
   encryptSecretValue,
   type SecretCiphertextIdentity,
 } from "../src/encryption.js";
-import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
 import {
   createKeyringFromSecretsStoreBinding,
   SecretsStoreRootKeyProvider,
@@ -99,7 +98,6 @@ describe("createKeyringFromSecretsStoreBinding", () => {
   });
 
   it("encrypts and decrypts through the binding-backed keyring", async () => {
-    resetKeyringForTests();
     const rootKeyProvider = new SecretsStoreRootKeyProvider(
       fakeBinding(() => Promise.resolve(durableTestRootKeyHex())),
     );
@@ -107,15 +105,12 @@ describe("createKeyringFromSecretsStoreBinding", () => {
       fakeBinding(() => Promise.resolve(durableTestRootKeyHex())),
       new WrappedDefaultTenantDataKeySource(rootKeyProvider),
     );
-    configureKeyring(keyring);
 
     const plaintext = new TextEncoder().encode("binding-backed");
-    const wrapped = await encryptSecretValue(identity, plaintext);
-    const decrypted = await decryptSecretValueForRuntime(identity, wrapped);
+    const wrapped = await encryptSecretValue(keyring, identity, plaintext);
+    const decrypted = await decryptSecretValueForRuntime(keyring, identity, wrapped);
     expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
       new TextDecoder().decode(plaintext),
     );
-
-    resetKeyringForTests();
   });
 });

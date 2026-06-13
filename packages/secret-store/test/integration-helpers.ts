@@ -7,6 +7,8 @@ import {
   type OrganizationId,
   type VariableKey,
 } from "@insecur/domain";
+import { StaticRootKeyProvider } from "@insecur/crypto";
+import { createTenantBackedKeyring } from "@insecur/tenant-store";
 import type { WriteNonProtectedSecretResult } from "../src/write-non-protected-secret.js";
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
 import {
@@ -15,6 +17,7 @@ import {
   TEST_PROJECT_A_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
+import { RLS_TEST_ROOT_KEY_BYTES } from "../../tenant-store/test/rls/test-root-key.js";
 
 export function testOrganization(): OrganizationId {
   return organizationId.brand(TEST_ORG_A_ID);
@@ -28,11 +31,16 @@ export function uniqueVariableKey(prefix: string): VariableKey {
   return parsed.value;
 }
 
+export function createTestKeyring() {
+  return createTenantBackedKeyring(new StaticRootKeyProvider(RLS_TEST_ROOT_KEY_BYTES));
+}
+
 export function writeTestSecret(
   variableKey: VariableKey,
   valueUtf8: Uint8Array,
 ): Promise<WriteNonProtectedSecretResult> {
   return writeNonProtectedSecret({
+    keyring: createTestKeyring(),
     organizationId: testOrganization(),
     projectId: projectId.brand(TEST_PROJECT_A_ID),
     environmentId: environmentId.brand(TEST_ENV_A_ID),

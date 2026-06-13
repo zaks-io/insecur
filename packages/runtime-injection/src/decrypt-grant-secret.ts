@@ -1,4 +1,4 @@
-import { decryptSecretValueForRuntime, type PlaintextHandle } from "@insecur/crypto";
+import { decryptSecretValueForRuntime, type Keyring, type PlaintextHandle } from "@insecur/crypto";
 import {
   INJECTION_ERROR_CODES,
   type EnvironmentId,
@@ -16,6 +16,7 @@ import {
 import { InjectionGrantError } from "./injection-grant-error.js";
 
 export async function decryptBoundGrantSecretVersion(input: {
+  keyring: Keyring;
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId: EnvironmentId;
@@ -30,6 +31,7 @@ export async function decryptBoundGrantSecretVersion(input: {
 
 async function decryptResolvedVersion(
   input: {
+    keyring: Keyring;
     organizationId: OrganizationId;
     projectId: ProjectId;
     environmentId: EnvironmentId;
@@ -50,6 +52,7 @@ async function decryptResolvedVersion(
   }
 
   return await decryptSecretValueForRuntime(
+    input.keyring,
     {
       organizationId: input.organizationId,
       projectId: input.projectId,

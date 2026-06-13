@@ -1,5 +1,4 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
-import { configureKeyring, resetKeyringForTests, StaticRootKeyProvider } from "@insecur/crypto";
 import {
   AUTH_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
@@ -11,8 +10,8 @@ import {
   secretId,
   type VariableKey,
 } from "@insecur/domain";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { closeRuntimeSql, createTenantBackedKeyring, withTenantScope } from "@insecur/tenant-store";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
@@ -20,8 +19,11 @@ import {
   TEST_PROJECT_B_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
-import { RLS_TEST_ROOT_KEY_BYTES } from "../../tenant-store/test/rls/test-root-key.js";
-import { uniqueVariableKey, writeTestSecret } from "../../secret-store/test/integration-helpers.js";
+import {
+  createTestKeyring,
+  uniqueVariableKey,
+  writeTestSecret,
+} from "../../secret-store/test/integration-helpers.js";
 
 import { InjectionGrantError } from "../src/injection-grant-error.js";
 import { consumeInjectionGrant, issueInjectionGrant } from "../src/injection-grants.js";
@@ -107,15 +109,6 @@ describeIntegration("Runtime Injection Grant Service", () => {
     await seedTenantBaseline();
   });
 
-  beforeEach(() => {
-    resetKeyringForTests();
-    configureKeyring(createTenantBackedKeyring(new StaticRootKeyProvider(RLS_TEST_ROOT_KEY_BYTES)));
-  });
-
-  afterEach(() => {
-    resetKeyringForTests();
-  });
-
   afterAll(async () => {
     await closeRuntimeSql();
   });
@@ -153,6 +146,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(JSON.stringify(issueAudit)).not.toContain(new TextDecoder().decode(plaintext));
 
     const consumed = await consumeInjectionGrant({
+      keyring: createTestKeyring(),
       organizationId: org,
       grantId: issued.grantId,
       variableKey,
@@ -189,6 +183,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId: issued.grantId,
         variableKey,
@@ -232,6 +227,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(stored?.secret_version_id).toBe(written.secretVersionId);
 
     const consumed = await consumeInjectionGrant({
+      keyring: createTestKeyring(),
       organizationId: org,
       grantId: issued.grantId,
       secretId: written.secretId,
@@ -269,6 +265,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(secondWrite.secretVersionId).not.toBe(firstWrite.secretVersionId);
 
     const consumed = await consumeInjectionGrant({
+      keyring: createTestKeyring(),
       organizationId: org,
       grantId: issued.grantId,
       variableKey,
@@ -306,6 +303,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId: malformedGrantId,
         variableKey,
@@ -370,6 +368,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId: missingGrantId,
         variableKey,
@@ -541,6 +540,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId: issued.grantId,
         secretId: other.secretId,
@@ -566,6 +566,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId: issued.grantId,
         variableKey: otherKey,
@@ -611,6 +612,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId,
         variableKey: firstKey,
@@ -634,6 +636,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId,
         variableKey: secondKey,
@@ -665,6 +668,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
 
     await expect(
       consumeInjectionGrant({
+        keyring: createTestKeyring(),
         organizationId: org,
         grantId: issued.grantId,
         variableKey,

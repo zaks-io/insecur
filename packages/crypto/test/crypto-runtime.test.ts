@@ -1,20 +1,14 @@
 import { environmentId, organizationId, projectId, secretId } from "@insecur/domain";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import {
-  configureKeyring,
-  isKeyringConfigured,
-  resetKeyringForTests,
-} from "../src/crypto-runtime.js";
-import { RootKeyNotConfiguredError } from "../src/errors.js";
+import { requireKeyring } from "../src/crypto-runtime.js";
+import { DecryptError, RootKeyNotConfiguredError } from "../src/errors.js";
 import {
   decryptSecretValueForRuntime,
   encryptSecretValue,
   type SecretCiphertextIdentity,
 } from "../src/encryption.js";
 import { createKeyring } from "../src/keyring.js";
-
-const ENV_ROOT_KEY = "INSECUR_INSTANCE_ROOT_KEY_HEX";
 
 const identity: SecretCiphertextIdentity = {
   organizationId: organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E"),
@@ -31,77 +25,61 @@ function durableTestRootKey(): Uint8Array {
   return root;
 }
 
-describe("crypto runtime root key readiness", () => {
-  let previousEnvRoot: string | undefined;
+function differentTestRootKey(): Uint8Array {
+  const root = new Uint8Array(32);
+  for (let index = 0; index < root.byteLength; index += 1) {
+    root[index] = 255 - index;
+  }
+  return root;
+}
 
-  beforeEach(() => {
-    previousEnvRoot = process.env[ENV_ROOT_KEY];
-    resetKeyringForTests();
-    process.env[ENV_ROOT_KEY] = "";
+describe("crypto runtime keyring resolution", () => {
+  it("fails closed when a request does not supply a keyring", () => {
+    expect(() => requireKeyring(undefined)).toThrow(RootKeyNotConfiguredError);
   });
 
-  afterEach(() => {
-    resetKeyringForTests();
-    if (previousEnvRoot === undefined) {
-      process.env[ENV_ROOT_KEY] = "";
-    } else {
-      process.env[ENV_ROOT_KEY] = previousEnvRoot;
-    }
+  it("returns only the caller-supplied keyring without retaining prior requests", () => {
+    const first = createKeyring(durableTestRootKey());
+    const second = createKeyring(differentTestRootKey());
+
+    expect(requireKeyring(first)).toBe(first);
+    expect(requireKeyring(second)).toBe(second);
   });
 
-  it("rejects encrypt when no root key is configured", async () => {
-    expect(isKeyringConfigured()).toBe(false);
-    await expect(
-      encryptSecretValue(identity, new TextEncoder().encode("value")),
-    ).rejects.toBeInstanceOf(RootKeyNotConfiguredError);
-  });
-
-  it("rejects decrypt when no root key is configured", async () => {
-    const durableRoot = durableTestRootKey();
-    configureKeyring(createKeyring(durableRoot));
-    const wrapped = await encryptSecretValue(identity, new TextEncoder().encode("value"));
-
-    resetKeyringForTests();
-
-    await expect(decryptSecretValueForRuntime(identity, wrapped)).rejects.toBeInstanceOf(
-      RootKeyNotConfiguredError,
-    );
-  });
-
-  it("decrypts after keyring reset when the same durable root is reconfigured", async () => {
-    const durableRoot = durableTestRootKey();
-    configureKeyring(createKeyring(durableRoot));
-    const plaintext = new TextEncoder().encode("survives-reset");
-    const wrapped = await encryptSecretValue(identity, plaintext);
-
-    resetKeyringForTests();
-    configureKeyring(createKeyring(durableRoot));
-
-    const decrypted = await decryptSecretValueForRuntime(identity, wrapped);
-    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
-      new TextDecoder().decode(plaintext),
-    );
-  });
-
-  it("reports configured state after configureKeyring", () => {
-    const durableRoot = durableTestRootKey();
-    configureKeyring(createKeyring(durableRoot));
-    expect(isKeyringConfigured()).toBe(true);
-  });
-
-  it("rejects decrypt after keyring reset even when env root hex is set", async () => {
-    const durableRoot = durableTestRootKey();
-    process.env[ENV_ROOT_KEY] = Array.from(durableRoot, (byte) =>
+  it("does not fall back to the environment root key", () => {
+    const previous = process.env.INSECUR_INSTANCE_ROOT_KEY_HEX;
+    process.env.INSECUR_INSTANCE_ROOT_KEY_HEX = Array.from(durableTestRootKey(), (byte) =>
       byte.toString(16).padStart(2, "0"),
     ).join("");
 
-    configureKeyring(createKeyring(durableRoot));
-    const wrapped = await encryptSecretValue(identity, new TextEncoder().encode("env-root"));
+    try {
+      expect(() => requireKeyring(undefined)).toThrow(RootKeyNotConfiguredError);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.INSECUR_INSTANCE_ROOT_KEY_HEX;
+      } else {
+        process.env.INSECUR_INSTANCE_ROOT_KEY_HEX = previous;
+      }
+    }
+  });
 
-    resetKeyringForTests();
-
-    await expect(decryptSecretValueForRuntime(identity, wrapped)).rejects.toBeInstanceOf(
-      RootKeyNotConfiguredError,
+  it("keeps key material scoped to explicit keyring instances", async () => {
+    const requestRoot = durableTestRootKey();
+    const wrapped = await encryptSecretValue(
+      createKeyring(requestRoot),
+      identity,
+      new TextEncoder().encode("value"),
     );
+
+    await expect(
+      decryptSecretValueForRuntime(createKeyring(differentTestRootKey()), identity, wrapped),
+    ).rejects.toBeInstanceOf(DecryptError);
+
+    const decrypted = await decryptSecretValueForRuntime(
+      createKeyring(requestRoot),
+      identity,
+      wrapped,
+    );
+    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe("value");
   });
 });

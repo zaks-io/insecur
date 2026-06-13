@@ -1,5 +1,4 @@
 import { RECORD_TYPE_SECRET } from "./constants.js";
-import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
@@ -9,6 +8,7 @@ import {
   serializeDekWrapAad,
 } from "./envelope-engine.js";
 import { toStoreFacingCiphertext } from "./envelope-storage.js";
+import type { Keyring } from "./keyring.js";
 import type { SecretCiphertextIdentity } from "./types.js";
 
 export { serializeDekWrapAad };
@@ -61,10 +61,10 @@ export interface WrappedSecretValue {
  * Accepts plaintext only at the encryption boundary; callers must not log input.
  */
 export async function encryptSecretValue(
+  keyring: Keyring,
   identity: SecretCiphertextIdentity,
   plaintextUtf8: Uint8Array,
 ): Promise<WrappedSecretValue> {
-  const keyring = getKeyring();
   const activeVersions = await keyring.getActiveDataKeyVersions(
     identity.organizationId,
     identity.projectId,
@@ -94,6 +94,7 @@ export async function encryptSecretValue(
  * Must not be used for reveal, export, or CLI/API read paths.
  */
 export async function decryptSecretValueForRuntime(
+  keyring: Keyring,
   identity: SecretCiphertextIdentity,
   wrapped: WrappedSecretValue,
 ): Promise<PlaintextHandle> {
@@ -101,7 +102,6 @@ export async function decryptSecretValueForRuntime(
     throw new DecryptError();
   }
 
-  const keyring = getKeyring();
   const projectDataKey = await keyring.getProjectDataKey(
     identity.organizationId,
     identity.projectId,

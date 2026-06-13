@@ -1,4 +1,3 @@
-import { configureKeyring, resetKeyringForTests, StaticRootKeyProvider } from "@insecur/crypto";
 import { decryptSecretValueForRuntime, type WrappedSecretValue } from "@insecur/crypto";
 import {
   VALIDATION_ERROR_CODES,
@@ -8,11 +7,10 @@ import {
   userId,
   type VariableKey,
 } from "@insecur/domain";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   TenantSecretVersionStore,
   closeRuntimeSql,
-  createTenantBackedKeyring,
   decodeInlineCiphertextStorageRef,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -25,9 +23,13 @@ import {
   TEST_PROJECT_A_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
-import { RLS_TEST_ROOT_KEY_BYTES } from "../../tenant-store/test/rls/test-root-key.js";
 
-import { testOrganization, uniqueVariableKey, writeTestSecret } from "./integration-helpers.js";
+import {
+  createTestKeyring,
+  testOrganization,
+  uniqueVariableKey,
+  writeTestSecret,
+} from "./integration-helpers.js";
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
@@ -59,22 +61,9 @@ async function assertSuccessfulWritePersistedArtifacts(
   expect(JSON.stringify(auditRows)).not.toContain(new TextDecoder().decode(plaintext));
 }
 
-function configureTenantBackedTestKeyring(): void {
-  configureKeyring(createTenantBackedKeyring(new StaticRootKeyProvider(RLS_TEST_ROOT_KEY_BYTES)));
-}
-
 describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
   beforeAll(async () => {
     await seedTenantBaseline();
-  });
-
-  beforeEach(() => {
-    resetKeyringForTests();
-    configureTenantBackedTestKeyring();
-  });
-
-  afterEach(() => {
-    resetKeyringForTests();
   });
 
   afterAll(async () => {
@@ -114,9 +103,6 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
 
     const written = await writeTestSecret(variableKey, plaintext);
 
-    resetKeyringForTests();
-    configureTenantBackedTestKeyring();
-
     const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
       new TenantSecretVersionStore(db).getCurrentVersion(written.secretId),
     );
@@ -136,6 +122,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     };
 
     const decrypted = await decryptSecretValueForRuntime(
+      createTestKeyring(),
       {
         organizationId: org,
         projectId: project,
@@ -220,6 +207,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
         }
 
         const decrypted = await decryptSecretValueForRuntime(
+          createTestKeyring(),
           {
             organizationId: org,
             projectId: project,
@@ -265,6 +253,7 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
 
     await expect(
       writeNonProtectedSecret({
+        keyring: createTestKeyring(),
         organizationId: org,
         projectId: projectId.brand(TEST_PROJECT_A_ID),
         environmentId: environmentId.brand(TEST_ENV_A_ID),

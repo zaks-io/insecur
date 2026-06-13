@@ -22,6 +22,7 @@ const allowlistedModule = path.join(
   repoRoot,
   "packages/runtime-injection/src/decrypt-grant-secret.ts",
 );
+const ESLINT_BOUNDARY_TIMEOUT_MS = 15_000;
 
 function runEslint(filePath: string): string {
   return execFileSync("pnpm", ["exec", "eslint", filePath, "--max-warnings=0"], {
@@ -60,23 +61,35 @@ function readDecryptImportAllowlist(): string[] {
 }
 
 describe("decrypt-import lint boundary (ADR-0071)", () => {
-  it("fails lint for unallowlisted decrypt imports", () => {
-    const output = runEslintExpectFailure(negativeFixture);
-    expect(output).toMatch(/no-restricted-imports/);
-    expect(output).toMatch(/decryptSecretValueForRuntime/);
-  });
+  it(
+    "fails lint for unallowlisted decrypt imports",
+    () => {
+      const output = runEslintExpectFailure(negativeFixture);
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toMatch(/decryptSecretValueForRuntime/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
 
-  it("fails lint for unallowlisted dynamic decrypt module imports", () => {
-    const output = runEslintExpectFailure(negativeDynamicFixture);
-    expect(output).toMatch(/no-restricted-syntax/);
-    expect(output).toMatch(/Decrypt entry points may only be imported/);
-  });
+  it(
+    "fails lint for unallowlisted dynamic decrypt module imports",
+    () => {
+      const output = runEslintExpectFailure(negativeDynamicFixture);
+      expect(output).toMatch(/no-restricted-syntax/);
+      expect(output).toMatch(/Decrypt entry points may only be imported/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
 
-  it("fails lint for unallowlisted deep-path decrypt imports", () => {
-    const output = runEslintExpectFailure(negativeDeepPathFixture);
-    expect(output).toMatch(/no-restricted-imports/);
-    expect(output).toMatch(/decryptSecretValueForRuntime/);
-  });
+  it(
+    "fails lint for unallowlisted deep-path decrypt imports",
+    () => {
+      const output = runEslintExpectFailure(negativeDeepPathFixture);
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toMatch(/decryptSecretValueForRuntime/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
 
   it("keeps exactly one allowlisted decrypt egress module", () => {
     expect(readDecryptImportAllowlist()).toEqual([
@@ -84,7 +97,11 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
     ]);
   });
 
-  it("passes lint for the sole allowlisted decrypt egress module", () => {
-    expect(() => runEslint(allowlistedModule)).not.toThrow();
-  }, 15_000);
+  it(
+    "passes lint for the sole allowlisted decrypt egress module",
+    () => {
+      expect(() => runEslint(allowlistedModule)).not.toThrow();
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
 });

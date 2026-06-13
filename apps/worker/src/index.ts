@@ -1,8 +1,6 @@
 import { errorEnvelope, requestId } from "@insecur/domain";
-import { configureKeyring, isKeyringConfigured } from "@insecur/crypto";
 import { Hono } from "hono";
 import { AuthFailureError } from "./auth/auth-failure-error.js";
-import { createKeyringFromWorkerEnv } from "./crypto/keyring-context.js";
 import { authRoutes } from "./routes/v1/auth.js";
 import { onboardingRoutes } from "./routes/v1/onboarding.js";
 import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
@@ -11,13 +9,6 @@ import { sessionRoutes } from "./routes/v1/session.js";
 import type { WorkerEnv } from "./env.js";
 
 const app = new Hono<{ Bindings: WorkerEnv }>();
-
-app.use("*", async (context, next) => {
-  if (context.env.INSTANCE_ROOT_KEY_V1 !== undefined && !isKeyringConfigured()) {
-    configureKeyring(createKeyringFromWorkerEnv(context.env));
-  }
-  await next();
-});
 
 app.onError((err, context) => {
   if (err instanceof AuthFailureError) {
