@@ -1,6 +1,6 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
 import type { OrganizationDataKeyMetadata, ProjectDataKeyMetadata } from "@insecur/crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { organizationDataKeys, projectDataKeys } from "../db/schema/tenant-hierarchy.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
@@ -49,6 +49,62 @@ export async function updateOrganizationDataKeyWrap(
       and(
         eq(organizationDataKeys.orgId, organizationId),
         eq(organizationDataKeys.keyVersion, keyVersion),
+      ),
+    );
+}
+
+export async function updateOrganizationDataKeyWrapIfNull(
+  db: TenantScopedDb,
+  organizationId: OrganizationId,
+  keyVersion: number,
+  input: {
+    readonly wrappedStorageRef: string;
+    readonly rootKeyVersion: number;
+    readonly status: OrganizationDataKeyMetadata["status"];
+  },
+): Promise<void> {
+  await db
+    .update(organizationDataKeys)
+    .set({
+      wrappedStorageRef: input.wrappedStorageRef,
+      rootKeyVersion: input.rootKeyVersion,
+      status: input.status,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(organizationDataKeys.orgId, organizationId),
+        eq(organizationDataKeys.keyVersion, keyVersion),
+        isNull(organizationDataKeys.wrappedStorageRef),
+      ),
+    );
+}
+
+export async function updateProjectDataKeyWrapIfNull(
+  db: TenantScopedDb,
+  input: {
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly keyVersion: number;
+    readonly wrappedStorageRef: string;
+    readonly organizationDataKeyVersion: number;
+    readonly status: ProjectDataKeyMetadata["status"];
+  },
+): Promise<void> {
+  await db
+    .update(projectDataKeys)
+    .set({
+      wrappedStorageRef: input.wrappedStorageRef,
+      organizationDataKeyVersion: input.organizationDataKeyVersion,
+      status: input.status,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(projectDataKeys.orgId, input.organizationId),
+        eq(projectDataKeys.projectId, input.projectId),
+        eq(projectDataKeys.keyVersion, input.keyVersion),
+        isNull(projectDataKeys.wrappedStorageRef),
       ),
     );
 }

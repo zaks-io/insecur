@@ -67,18 +67,36 @@ class InMemoryMetadata implements TenantDataKeyMetadataReader, TenantDataKeyMeta
     rootKeyVersion: number;
     wrappedStorageRef: string;
     rowId?: string;
-  }): Promise<void> {
+  }): Promise<string> {
     const key = `${input.organizationId}:${String(input.keyVersion)}`;
-    this.organizationRows.set(key, {
-      id: input.rowId ?? "odk_test",
-      organizationId: input.organizationId,
-      keyVersion: input.keyVersion,
-      status: "active",
-      rootKeyVersion: input.rootKeyVersion,
-      wrappedStorageRef: input.wrappedStorageRef,
-      custodyEvidenceRef: null,
-    });
-    return Promise.resolve();
+    const existing = this.organizationRows.get(key);
+    if (existing?.wrappedStorageRef) {
+      return Promise.resolve(existing.wrappedStorageRef);
+    }
+
+    if (!existing) {
+      this.organizationRows.set(key, {
+        id: input.rowId ?? "odk_test",
+        organizationId: input.organizationId,
+        keyVersion: input.keyVersion,
+        status: "active",
+        rootKeyVersion: input.rootKeyVersion,
+        wrappedStorageRef: input.wrappedStorageRef,
+        custodyEvidenceRef: null,
+      });
+    } else if (!existing.wrappedStorageRef) {
+      this.organizationRows.set(key, {
+        ...existing,
+        wrappedStorageRef: input.wrappedStorageRef,
+        rootKeyVersion: input.rootKeyVersion,
+      });
+    }
+
+    const committed = this.organizationRows.get(key);
+    if (!committed?.wrappedStorageRef) {
+      throw new Error("expected committed organization wrapped ref");
+    }
+    return Promise.resolve(committed.wrappedStorageRef);
   }
 
   persistProjectDataKey(input: {
@@ -88,18 +106,36 @@ class InMemoryMetadata implements TenantDataKeyMetadataReader, TenantDataKeyMeta
     organizationDataKeyVersion: number;
     wrappedStorageRef: string;
     rowId?: string;
-  }): Promise<void> {
+  }): Promise<string> {
     const key = `${input.organizationId}:${input.projectId}:${String(input.keyVersion)}`;
-    this.projectRows.set(key, {
-      id: input.rowId ?? "pdk_test",
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      keyVersion: input.keyVersion,
-      status: "active",
-      organizationDataKeyVersion: input.organizationDataKeyVersion,
-      wrappedStorageRef: input.wrappedStorageRef,
-    });
-    return Promise.resolve();
+    const existing = this.projectRows.get(key);
+    if (existing?.wrappedStorageRef) {
+      return Promise.resolve(existing.wrappedStorageRef);
+    }
+
+    if (!existing) {
+      this.projectRows.set(key, {
+        id: input.rowId ?? "pdk_test",
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        keyVersion: input.keyVersion,
+        status: "active",
+        organizationDataKeyVersion: input.organizationDataKeyVersion,
+        wrappedStorageRef: input.wrappedStorageRef,
+      });
+    } else if (!existing.wrappedStorageRef) {
+      this.projectRows.set(key, {
+        ...existing,
+        wrappedStorageRef: input.wrappedStorageRef,
+        organizationDataKeyVersion: input.organizationDataKeyVersion,
+      });
+    }
+
+    const committed = this.projectRows.get(key);
+    if (!committed?.wrappedStorageRef) {
+      throw new Error("expected committed project wrapped ref");
+    }
+    return Promise.resolve(committed.wrappedStorageRef);
   }
 }
 
@@ -119,5 +155,20 @@ describe("PersistingMetadataTenantDataKeySource", () => {
     await first.getActiveVersions(ORG, PROJECT);
     const projectRef = await second.getProjectWrappedStorageRef(ORG, PROJECT, 1, 1);
     expect(projectRef).toMatch(/^inline:b64:/);
+  });
+
+  it("returns the persisted ref when concurrent mints race on first use", async () => {
+    const metadata = new InMemoryMetadata();
+    const rootProvider = new StaticRootKeyProvider(ROOT);
+    const left = new PersistingMetadataTenantDataKeySource(rootProvider, metadata, metadata);
+    const right = new PersistingMetadataTenantDataKeySource(rootProvider, metadata, metadata);
+
+    const [leftRef, rightRef] = await Promise.all([
+      left.getOrganizationWrappedStorageRef(ORG, 1, 1),
+      right.getOrganizationWrappedStorageRef(ORG, 1, 1),
+    ]);
+
+    expect(leftRef).toBe(rightRef);
+    expect(leftRef).toMatch(/^inline:b64:/);
   });
 });

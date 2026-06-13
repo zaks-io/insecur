@@ -21,6 +21,7 @@ import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 
 import {
   TEST_ENV_A_ID,
+  TEST_ORG_A_ID,
   TEST_PROJECT_A_ID,
   TEST_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
@@ -146,6 +147,115 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
       new TextDecoder().decode(plaintext),
     );
+  });
+
+  it("concurrent first-use mints share one persisted DEK and both writers decrypt", async () => {
+    const org = testOrganization();
+    const project = projectId.brand(TEST_PROJECT_A_ID);
+    const environment = environmentId.brand(TEST_ENV_A_ID);
+
+    const savedOrgRef = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      ({ sql }) =>
+        sql<{ wrapped_storage_ref: string | null }[]>`
+          SELECT wrapped_storage_ref
+          FROM organization_data_keys
+          WHERE org_id = ${TEST_ORG_A_ID}
+          LIMIT 1
+        `,
+    );
+    const savedProjectRef = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      ({ sql }) =>
+        sql<{ wrapped_storage_ref: string | null }[]>`
+          SELECT wrapped_storage_ref
+          FROM project_data_keys
+          WHERE project_id = ${TEST_PROJECT_A_ID}
+          LIMIT 1
+        `,
+    );
+
+    await withTenantScope(
+      { kind: "organization", organizationId: org },
+      ({ sql }) =>
+        sql`
+        UPDATE organization_data_keys
+        SET wrapped_storage_ref = NULL
+        WHERE org_id = ${TEST_ORG_A_ID}
+      `,
+    );
+    await withTenantScope(
+      { kind: "organization", organizationId: org },
+      ({ sql }) =>
+        sql`
+        UPDATE project_data_keys
+        SET wrapped_storage_ref = NULL
+        WHERE project_id = ${TEST_PROJECT_A_ID}
+      `,
+    );
+
+    try {
+      const plain1 = new TextEncoder().encode(`concurrent-a-${crypto.randomUUID()}`);
+      const plain2 = new TextEncoder().encode(`concurrent-b-${crypto.randomUUID()}`);
+      const [firstWrite, secondWrite] = await Promise.all([
+        writeTestSecret(uniqueVariableKey("FV10_CONCURRENT_A"), plain1),
+        writeTestSecret(uniqueVariableKey("FV10_CONCURRENT_B"), plain2),
+      ]);
+
+      for (const [written, plaintext] of [
+        [firstWrite, plain1],
+        [secondWrite, plain2],
+      ] as const) {
+        const current = await withTenantScope(
+          { kind: "organization", organizationId: org },
+          ({ db }) => new TenantSecretVersionStore(db).getCurrentVersion(written.secretId),
+        );
+        if (!current) {
+          throw new Error("expected persisted secret version");
+        }
+
+        const storageRef = await loadStorageRef(org, current.secretVersionId);
+        if (!storageRef) {
+          throw new Error("expected ciphertext storage ref");
+        }
+
+        const decrypted = await decryptSecretValueForRuntime(
+          {
+            organizationId: org,
+            projectId: project,
+            environmentId: environment,
+            secretId: written.secretId,
+          },
+          {
+            organizationDataKeyVersion: current.organizationDataKeyVersion,
+            projectDataKeyVersion: current.projectDataKeyVersion,
+            ciphertext: decodeInlineCiphertextStorageRef(storageRef),
+          },
+        );
+        expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
+          new TextDecoder().decode(plaintext),
+        );
+      }
+    } finally {
+      await withTenantScope(
+        { kind: "organization", organizationId: org },
+        ({ sql }) =>
+          sql`
+          UPDATE organization_data_keys
+          SET wrapped_storage_ref = ${savedOrgRef[0]?.wrapped_storage_ref ?? null}
+          WHERE org_id = ${TEST_ORG_A_ID}
+        `,
+      );
+      await withTenantScope(
+        { kind: "organization", organizationId: org },
+        ({ sql }) =>
+          sql`
+          UPDATE project_data_keys
+          SET wrapped_storage_ref = ${savedProjectRef[0]?.wrapped_storage_ref ?? null}
+          WHERE project_id = ${TEST_PROJECT_A_ID}
+        `,
+      );
+    }
   });
 
   it("records denied audit for invalid Variable Key without creating a secret", async () => {

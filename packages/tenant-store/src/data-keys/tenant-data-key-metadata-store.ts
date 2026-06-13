@@ -13,6 +13,10 @@ import {
   updateProjectDataKeyWrap as persistProjectDataKeyWrap,
 } from "./data-key-rewrap-store.js";
 import {
+  persistOrganizationDataKeyAuthoritative as persistOrganizationDataKeyAuthoritativeInTx,
+  persistProjectDataKeyAuthoritative as persistProjectDataKeyAuthoritativeInTx,
+} from "./data-key-mint-persist.js";
+import {
   organizationDataKeySelect,
   projectDataKeySelect,
   toOrganizationMetadata,
@@ -164,6 +168,27 @@ export class TenantDataKeyMetadataStore implements TenantDataKeyRewrapStore {
       .onConflictDoNothing({
         target: [projectDataKeys.projectId, projectDataKeys.keyVersion],
       });
+  }
+
+  persistOrganizationDataKeyAuthoritative(input: {
+    readonly organizationId: OrganizationId;
+    readonly keyVersion: number;
+    readonly rootKeyVersion: number;
+    readonly wrappedStorageRef: string;
+    readonly rowId: string;
+  }): Promise<string> {
+    return persistOrganizationDataKeyAuthoritativeInTx(this.db, this, input);
+  }
+
+  persistProjectDataKeyAuthoritative(input: {
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly keyVersion: number;
+    readonly organizationDataKeyVersion: number;
+    readonly wrappedStorageRef: string;
+    readonly rowId: string;
+  }): Promise<string> {
+    return persistProjectDataKeyAuthoritativeInTx(this.db, this, input);
   }
 
   listOrganizationDataKeys(organizationId: OrganizationId) {

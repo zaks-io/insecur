@@ -5,7 +5,6 @@ import type {
 import type { OrganizationId, ProjectId } from "@insecur/domain";
 
 import { TenantDataKeyMetadataStore } from "./tenant-data-key-metadata-store.js";
-import type { SeedOrganizationDataKeyInput, SeedProjectDataKeyInput } from "./types.js";
 import { withTenantScope } from "../with-tenant-scope.js";
 
 function generateDataKeyRowId(prefix: "odk" | "pdk"): string {
@@ -72,30 +71,16 @@ export class TenantScopedDataKeyMetadataAccess
     readonly rootKeyVersion: number;
     readonly wrappedStorageRef: string;
     readonly rowId?: string;
-  }): Promise<void> {
-    await withOrganizationMetadataStore(input.organizationId, async (store) => {
-      const existing = await store.getOrganizationDataKeyVersion(
-        input.organizationId,
-        input.keyVersion,
-      );
-      if (existing) {
-        await store.updateOrganizationDataKeyWrap(input.organizationId, input.keyVersion, {
-          wrappedStorageRef: input.wrappedStorageRef,
-          rootKeyVersion: input.rootKeyVersion,
-          status: existing.status,
-        });
-        return;
-      }
-      const seed: SeedOrganizationDataKeyInput = {
-        id: input.rowId ?? generateDataKeyRowId("odk"),
+  }): Promise<string> {
+    return withOrganizationMetadataStore(input.organizationId, (store) =>
+      store.persistOrganizationDataKeyAuthoritative({
         organizationId: input.organizationId,
         keyVersion: input.keyVersion,
-        status: "active",
         rootKeyVersion: input.rootKeyVersion,
         wrappedStorageRef: input.wrappedStorageRef,
-      };
-      await store.insertOrganizationDataKey(seed);
-    });
+        rowId: input.rowId ?? generateDataKeyRowId("odk"),
+      }),
+    );
   }
 
   async persistProjectDataKey(input: {
@@ -105,36 +90,17 @@ export class TenantScopedDataKeyMetadataAccess
     readonly organizationDataKeyVersion: number;
     readonly wrappedStorageRef: string;
     readonly rowId?: string;
-  }): Promise<void> {
-    await withOrganizationMetadataStore(input.organizationId, async (store) => {
-      const existing = await store.getProjectDataKeyVersion(
-        input.organizationId,
-        input.projectId,
-        input.keyVersion,
-      );
-      if (existing) {
-        await store.updateProjectDataKeyWrap(
-          input.organizationId,
-          input.projectId,
-          input.keyVersion,
-          {
-            wrappedStorageRef: input.wrappedStorageRef,
-            status: existing.status,
-          },
-        );
-        return;
-      }
-      const seed: SeedProjectDataKeyInput = {
-        id: input.rowId ?? generateDataKeyRowId("pdk"),
+  }): Promise<string> {
+    return withOrganizationMetadataStore(input.organizationId, (store) =>
+      store.persistProjectDataKeyAuthoritative({
         organizationId: input.organizationId,
         projectId: input.projectId,
         keyVersion: input.keyVersion,
         organizationDataKeyVersion: input.organizationDataKeyVersion,
-        status: "active",
         wrappedStorageRef: input.wrappedStorageRef,
-      };
-      await store.insertProjectDataKey(seed);
-    });
+        rowId: input.rowId ?? generateDataKeyRowId("pdk"),
+      }),
+    );
   }
 }
 

@@ -1,7 +1,11 @@
 import { environmentId, organizationId, projectId, secretId } from "@insecur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
+import {
+  configureKeyring,
+  isKeyringConfigured,
+  resetKeyringForTests,
+} from "../src/crypto-runtime.js";
 import { RootKeyNotConfiguredError } from "../src/errors.js";
 import {
   decryptSecretValueForRuntime,
@@ -46,6 +50,7 @@ describe("crypto runtime root key readiness", () => {
   });
 
   it("rejects encrypt when no root key is configured", async () => {
+    expect(isKeyringConfigured()).toBe(false);
     await expect(
       encryptSecretValue(identity, new TextEncoder().encode("value")),
     ).rejects.toBeInstanceOf(RootKeyNotConfiguredError);
@@ -78,20 +83,25 @@ describe("crypto runtime root key readiness", () => {
     );
   });
 
-  it("uses a durable env root across keyring reset", async () => {
+  it("reports configured state after configureKeyring", () => {
+    const durableRoot = durableTestRootKey();
+    configureKeyring(createKeyring(durableRoot));
+    expect(isKeyringConfigured()).toBe(true);
+  });
+
+  it("rejects decrypt after keyring reset even when env root hex is set", async () => {
     const durableRoot = durableTestRootKey();
     process.env[ENV_ROOT_KEY] = Array.from(durableRoot, (byte) =>
       byte.toString(16).padStart(2, "0"),
     ).join("");
 
-    const plaintext = new TextEncoder().encode("env-root");
-    const wrapped = await encryptSecretValue(identity, plaintext);
+    configureKeyring(createKeyring(durableRoot));
+    const wrapped = await encryptSecretValue(identity, new TextEncoder().encode("env-root"));
 
     resetKeyringForTests();
 
-    const decrypted = await decryptSecretValueForRuntime(identity, wrapped);
-    expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
-      new TextDecoder().decode(plaintext),
+    await expect(decryptSecretValueForRuntime(identity, wrapped)).rejects.toBeInstanceOf(
+      RootKeyNotConfiguredError,
     );
   });
 });

@@ -83,14 +83,13 @@ export class PersistingMetadataTenantDataKeySource implements TenantDataKeySourc
       organizationId,
       keyVersion: organizationDataKeyVersion,
     });
-    await this.provisioner.persistOrganizationDataKey({
+    return this.provisioner.persistOrganizationDataKey({
       organizationId,
       keyVersion: organizationDataKeyVersion,
       rootKeyVersion,
       wrappedStorageRef: minted.wrappedStorageRef,
       ...(existing?.id !== undefined ? { rowId: existing.id } : {}),
     });
-    return minted.wrappedStorageRef;
   }
 
   async getProjectWrappedStorageRef(
@@ -107,21 +106,39 @@ export class PersistingMetadataTenantDataKeySource implements TenantDataKeySourc
     if (existing?.wrappedStorageRef) {
       return existing.wrappedStorageRef;
     }
+
+    const organizationDataKeyVersion = await this.resolveOrganizationDataKeyVersionForProject(
+      organizationId,
+      existing?.organizationDataKeyVersion,
+    );
+
     const minted = await mintProjectDataKey(this.rootKeyProvider, rootKeyVersion, {
       organizationId,
       projectId,
       keyVersion: projectDataKeyVersion,
     });
-    await this.provisioner.persistProjectDataKey({
+    return this.provisioner.persistProjectDataKey({
       organizationId,
       projectId,
       keyVersion: projectDataKeyVersion,
-      organizationDataKeyVersion:
-        existing?.organizationDataKeyVersion ?? DEFAULT_ORGANIZATION_DATA_KEY_VERSION,
+      organizationDataKeyVersion,
       wrappedStorageRef: minted.wrappedStorageRef,
       ...(existing?.id !== undefined ? { rowId: existing.id } : {}),
     });
-    return minted.wrappedStorageRef;
+  }
+
+  private async resolveOrganizationDataKeyVersionForProject(
+    organizationId: OrganizationId,
+    fromExistingRow: KeyVersion | undefined,
+  ): Promise<KeyVersion> {
+    if (fromExistingRow !== undefined) {
+      return fromExistingRow;
+    }
+    const activeOrganizationKey = await this.reader.getActiveOrganizationDataKey(organizationId);
+    if (activeOrganizationKey?.status !== "active") {
+      throw new TenantDataKeyNotReadyError();
+    }
+    return activeOrganizationKey.keyVersion;
   }
 
   private async ensureActiveOrganizationKey(organizationId: OrganizationId): Promise<void> {

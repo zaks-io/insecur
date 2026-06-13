@@ -169,6 +169,9 @@ export async function rewrapTenantDataKeys(input: RewrapTenantDataKeysInput): Pr
   const organizationKeys = await input.store.listOrganizationDataKeys(input.organizationId);
   const projectKeys = await input.store.listProjectDataKeys(input.organizationId);
 
+  // Rewrap project keys before flipping org root_key_version. If rewrap fails mid-flight,
+  // readers may see project blobs under the new root while org rows still cite the old root
+  // (DecryptError until retry); the ordering avoids the worse case of new root + stale wraps.
   await rewrapProjectKeys(input, projectKeys, versions);
   await rewrapOrganizationKeys(input, organizationKeys, versions);
 

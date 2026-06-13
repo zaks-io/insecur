@@ -11,7 +11,7 @@ export interface TenantDataKeyMetadataProvisioner {
     readonly rootKeyVersion: KeyVersion;
     readonly wrappedStorageRef: string;
     readonly rowId?: string;
-  }): Promise<void>;
+  }): Promise<string>;
 
   persistProjectDataKey(input: {
     readonly organizationId: OrganizationId;
@@ -20,7 +20,7 @@ export interface TenantDataKeyMetadataProvisioner {
     readonly organizationDataKeyVersion: KeyVersion;
     readonly wrappedStorageRef: string;
     readonly rowId?: string;
-  }): Promise<void>;
+  }): Promise<string>;
 }
 
 /** Metadata for one organization data key version (no key material). */
