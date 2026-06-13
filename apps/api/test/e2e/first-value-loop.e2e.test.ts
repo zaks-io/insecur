@@ -1,6 +1,7 @@
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
 import {
   bytesToBase64Url,
+  CRYPTO_ERROR_CODES,
   environmentId,
   organizationId,
   projectId,
@@ -228,5 +229,81 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
     const replayBody = (await replay.json()) as { ok: boolean; error: { code: string } };
     expect(replayBody.ok).toBe(false);
     expect(JSON.stringify(replayBody)).not.toContain(plaintext);
+  });
+
+  it("fails closed with crypto.decrypt_failed when the stored ciphertext is corrupted", async () => {
+    const headers = await authHeaders();
+    const variableKey = uniqueVariableKey("FV_E2E_TAMPER");
+    const plaintext = `fv-e2e-tamper-${crypto.randomUUID()}`;
+
+    const writeResponse = await app.request(
+      `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${ENV_A}/secrets/by-variable-key`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ organizationId: ORG_A, variableKey, value: plaintext }),
+      },
+      env,
+    );
+    expect(writeResponse.status).toBe(200);
+    const secretVersionId = ((await writeResponse.json()) as { data: { secretVersionId: string } })
+      .data.secretVersionId;
+
+    const issueResponse = await app.request(
+      `/v1/orgs/${ORG_A}/runtime-injection/grants`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          organizationId: ORG_A,
+          projectId: PROJECT_A,
+          environmentId: ENV_A,
+          variableKey,
+        }),
+      },
+      env,
+    );
+    const grantId = ((await issueResponse.json()) as { data: { grantId: string } }).data.grantId;
+
+    // Corrupt the persisted ciphertext (flip the last AEAD byte) so decrypt must fail closed.
+    // The storage-ref prefix stays intact, so this exercises the decrypt path, not ref parsing.
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+      const [row] = await sql<{ ciphertext_storage_ref: string }[]>`
+        SELECT ciphertext_storage_ref
+        FROM secret_versions
+        WHERE org_id = ${ORG_A} AND id = ${secretVersionId}
+      `;
+      const prefix = "inline:b64:";
+      const ciphertext = Buffer.from(row.ciphertext_storage_ref.slice(prefix.length), "base64");
+      ciphertext[ciphertext.length - 1] ^= 0xff;
+      const tampered = `${prefix}${ciphertext.toString("base64")}`;
+      await sql`
+        UPDATE secret_versions
+        SET ciphertext_storage_ref = ${tampered}
+        WHERE org_id = ${ORG_A} AND id = ${secretVersionId}
+      `;
+    });
+
+    const consumeResponse = await app.request(
+      `/v1/orgs/${ORG_A}/runtime-injection/grants/${grantId}/consume`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ organizationId: ORG_A, variableKey }),
+      },
+      env,
+    );
+    expect(consumeResponse.status).toBe(500);
+    const consumeBody = (await consumeResponse.json()) as {
+      ok: boolean;
+      error: { code: string; retryable: boolean };
+      meta: { requestId: string };
+    };
+    expect(consumeBody.ok).toBe(false);
+    expect(consumeBody.error.code).toBe(CRYPTO_ERROR_CODES.decryptFailed);
+    expect(consumeBody.error.retryable).toBe(false);
+    expect(consumeBody.meta.requestId).toMatch(/^req_/);
+    expect(JSON.stringify(consumeBody)).not.toContain(plaintext);
+    expect(JSON.stringify(consumeBody)).not.toMatch(/valueUtf8|plaintext/i);
   });
 });
