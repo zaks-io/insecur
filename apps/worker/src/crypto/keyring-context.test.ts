@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { RootKeyNotConfiguredError, SecretsStoreRootKeyProvider } from "@insecur/crypto";
 import type { SecretsStoreSecretBinding } from "@insecur/crypto";
 
-import { createKeyringFromWorkerEnv } from "./keyring-context.js";
+import { createKeyringFromWorkerEnv, WorkerEnvRootKeyProvider } from "./keyring-context.js";
 
 function durableTestRootKeyHex(): string {
   const root = new Uint8Array(32);
@@ -53,5 +53,16 @@ describe("createKeyringFromWorkerEnv", () => {
       code: CRYPTO_ERROR_CODES.rootKeyNotConfigured,
       retryable: false,
     });
+  });
+
+  it("fails closed on root key version mismatch when only INSTANCE_ROOT_KEY_V1 is bound", async () => {
+    const provider = new WorkerEnvRootKeyProvider({
+      WORKOS_API_KEY: "sk_test",
+      WORKOS_CLIENT_ID: "client_test",
+      WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+      SESSION_SIGNING_SECRET: "session-signing-secret-at-least-32-chars",
+      INSTANCE_ROOT_KEY_V1: fakeBinding(() => Promise.resolve(durableTestRootKeyHex())),
+    });
+    await expect(provider.getRootKeyBytes(2)).rejects.toBeInstanceOf(RootKeyNotConfiguredError);
   });
 });

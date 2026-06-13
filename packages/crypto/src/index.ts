@@ -25,6 +25,7 @@ export {
 } from "./encryption.js";
 export { PlaintextHandle } from "./plaintext-handle.js";
 export {
+  DEFAULT_ROOT_KEY_VERSION,
   RECORD_TYPE_PROVIDER_CREDENTIAL,
   RECORD_TYPE_SECRET,
   RECORD_TYPE_SENSITIVE_METADATA,

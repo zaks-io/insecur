@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ROOT_KEY_VERSION,
   RootKeyNotConfiguredError,
   SecretsStoreRootKeyProvider,
   type KeyVersion,
@@ -9,9 +10,6 @@ import {
 import { createTenantBackedKeyring } from "@insecur/tenant-store";
 
 import type { WorkerEnv } from "../env.js";
-
-/** Wrap version for steady-state bootstrap; must match `DEFAULT_ROOT_KEY_VERSION` in @insecur/crypto. */
-const CURRENT_WRAP_ROOT_KEY_VERSION = 1 satisfies KeyVersion;
 
 function bindingForRootKeyVersion(
   env: WorkerEnv,
@@ -26,7 +24,7 @@ function bindingForRootKeyVersion(
 }
 
 /** Dispatches unwrap to the per-version Secrets Store binding recorded on data-key rows. */
-class WorkerEnvRootKeyProvider implements RootKeyProvider {
+export class WorkerEnvRootKeyProvider implements RootKeyProvider {
   constructor(private readonly env: WorkerEnv) {}
 
   async getRootKeyBytes(version: KeyVersion): Promise<Uint8Array> {
@@ -40,7 +38,7 @@ class WorkerEnvRootKeyProvider implements RootKeyProvider {
 
 /** Builds a request-scoped keyring from Worker bindings; does not cache binding material. */
 export function createKeyringFromWorkerEnv(env: WorkerEnv): Keyring {
-  if (!bindingForRootKeyVersion(env, CURRENT_WRAP_ROOT_KEY_VERSION)) {
+  if (!bindingForRootKeyVersion(env, DEFAULT_ROOT_KEY_VERSION)) {
     throw new RootKeyNotConfiguredError();
   }
   return createTenantBackedKeyring(new WorkerEnvRootKeyProvider(env));
