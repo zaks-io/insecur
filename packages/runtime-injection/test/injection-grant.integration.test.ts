@@ -605,7 +605,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
           ${[firstKey, secondKey]},
           ${[first.secretId, second.secretId]},
           ${first.secretVersionId},
-          ${expiresAt}
+          ${expiresAt.toISOString()}
         )
       `;
     });

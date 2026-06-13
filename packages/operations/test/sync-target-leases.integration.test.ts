@@ -22,12 +22,15 @@ import type { SyncTargetKey } from "../src/sync-target-types.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
+// Per-run token so fixed target identities do not collide across reruns against a shared/polluted DB.
+const RUN = crypto.randomUUID().slice(0, 8);
+
 function testTarget(suffix: string): SyncTargetKey {
   return {
     organizationId: organizationId.brand(TEST_ORG_A_ID),
     projectId: projectId.brand(TEST_PROJECT_A_ID),
     providerKind: "github-actions",
-    targetIdentity: `acme/widget-${suffix}`,
+    targetIdentity: `acme/widget-${suffix}-${RUN}`,
   };
 }
 

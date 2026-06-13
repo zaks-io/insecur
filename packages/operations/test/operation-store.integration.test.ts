@@ -19,6 +19,10 @@ import {
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
+// Per-run token so fixed idempotency keys do not collide across reruns against a shared/polluted DB.
+const RUN = crypto.randomUUID().slice(0, 8);
+const idem = (name: string): string => `idem-${name}-${RUN}`;
+
 describeIntegration("operation store (tenant-scoped)", () => {
   const org = organizationId.brand(TEST_ORG_A_ID);
 
@@ -34,14 +38,14 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const first = await createOperation({
       organizationId: org,
       intentCode: "sync.run",
-      idempotencyKey: "idem-create-sync-run-1",
+      idempotencyKey: idem("create-sync-run-1"),
     });
     expect(first.created).toBe(true);
 
     const second = await createOperation({
       organizationId: org,
       intentCode: "sync.run",
-      idempotencyKey: "idem-create-sync-run-1",
+      idempotencyKey: idem("create-sync-run-1"),
     });
     expect(second.created).toBe(false);
     expect(second.operation.operationId).toEqual(first.operation.operationId);
@@ -51,7 +55,7 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const first = await createOperation({
       organizationId: org,
       intentCode: "sync.run",
-      idempotencyKey: "idem-create-sync-run-progress",
+      idempotencyKey: idem("create-sync-run-progress"),
       progress: { counters: { step: 1 } },
     });
     expect(first.created).toBe(true);
@@ -59,7 +63,7 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const second = await createOperation({
       organizationId: org,
       intentCode: "sync.run",
-      idempotencyKey: "idem-create-sync-run-progress",
+      idempotencyKey: idem("create-sync-run-progress"),
       progress: { counters: { step: 99 } },
     });
     expect(second.created).toBe(false);
@@ -70,7 +74,7 @@ describeIntegration("operation store (tenant-scoped)", () => {
   it("isolates idempotency keys across organizations with the same key value", async () => {
     const orgA = organizationId.brand(TEST_ORG_A_ID);
     const orgB = organizationId.brand(TEST_ORG_B_ID);
-    const sharedKey = "idem-cross-org-shared-key-1";
+    const sharedKey = idem("cross-org-shared-key-1");
 
     const orgACreate = await createOperation({
       organizationId: orgA,
@@ -126,14 +130,14 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const first = await createOperation({
       organizationId: org,
       intentCode: "sync.run",
-      idempotencyKey: "idem-intent-mismatch-1",
+      idempotencyKey: idem("intent-mismatch-1"),
     });
 
     await expect(
       createOperation({
         organizationId: org,
         intentCode: "provider.reauth",
-        idempotencyKey: "idem-intent-mismatch-1",
+        idempotencyKey: idem("intent-mismatch-1"),
       }),
     ).rejects.toMatchObject({
       code: OPERATION_ERROR_CODES.idempotencyMismatch,
@@ -142,7 +146,7 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const replay = await createOperation({
       organizationId: org,
       intentCode: "sync.run",
-      idempotencyKey: "idem-intent-mismatch-1",
+      idempotencyKey: idem("intent-mismatch-1"),
     });
     expect(replay.created).toBe(false);
     expect(replay.operation.operationId).toEqual(first.operation.operationId);
@@ -268,14 +272,14 @@ describeIntegration("operation store (tenant-scoped)", () => {
     const resumed = await retryOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      idempotencyKey: "idem-retry-1",
+      idempotencyKey: idem("retry-1"),
     });
     expect(resumed.operation.state).toBe("running");
 
     const replay = await retryOperation({
       organizationId: org,
       operationId: created.operation.operationId,
-      idempotencyKey: "idem-retry-1",
+      idempotencyKey: idem("retry-1"),
     });
     expect(replay.operation.operationId).toEqual(resumed.operation.operationId);
     expect(replay.operation.state).toBe("running");
