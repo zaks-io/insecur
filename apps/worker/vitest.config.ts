@@ -8,7 +8,7 @@ export default mergeConfig(
   rootConfig,
   defineConfig({
     test: {
-      include: ["src/**/*.test.ts"],
+      include: ["src/**/*.test.ts", "test/canary/console-capture.test.ts"],
     },
   }),
 );

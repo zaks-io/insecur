@@ -6,7 +6,6 @@ import { seedTenantBaseline } from "../../../../packages/tenant-store/test/rls/s
 import {
   TEST_ORG_A_ID,
   TEST_SECRET_A_ID,
-  TEST_VERSION_A_ID,
 } from "../../../../packages/tenant-store/test/rls/test-ids.js";
 import { startConsoleCapture } from "./console-capture.js";
 import { driveFirstValueWithSentinel } from "./drive-first-value.js";
@@ -59,8 +58,6 @@ describeIntegration("no-plaintext canary (real DB, real crypto, HTTP routes)", (
       columnName: "ciphertext_storage_ref",
       orgId: TEST_ORG_A_ID,
       secretId: TEST_SECRET_A_ID,
-      versionId: TEST_VERSION_A_ID,
-      restoreValue: "synthetic-ciphertext-ref",
     });
 
     expect(rawHit).toBeDefined();

@@ -1,3 +1,5 @@
+import { inspect } from "node:util";
+
 type ConsoleMethod = "log" | "info" | "warn" | "error" | "debug";
 
 const CAPTURED_METHODS: ConsoleMethod[] = ["log", "info", "warn", "error", "debug"];
@@ -7,10 +9,30 @@ export interface ConsoleCapture {
   stop(): void;
 }
 
+function serializeCapturedArg(arg: unknown): string {
+  if (typeof arg === "string") {
+    return arg;
+  }
+  if (arg instanceof Error) {
+    return String(arg);
+  }
+  try {
+    return inspect(arg, { depth: null, maxStringLength: null });
+  } catch {
+    return String(arg);
+  }
+}
+
+export interface ConsoleCaptureOptions {
+  /** When false, captured args are not forwarded to the real console (for unit tests). */
+  forward?: boolean;
+}
+
 /**
  * Capture in-process console output for the no-plaintext sweep.
  */
-export function startConsoleCapture(): ConsoleCapture {
+export function startConsoleCapture(options: ConsoleCaptureOptions = {}): ConsoleCapture {
+  const forward = options.forward ?? true;
   const chunks: string[] = [];
   const originals = new Map<ConsoleMethod, (...args: unknown[]) => void>();
 
@@ -19,17 +41,11 @@ export function startConsoleCapture(): ConsoleCapture {
     originals.set(method, original);
     console[method] = (...args: unknown[]) => {
       for (const arg of args) {
-        if (typeof arg === "string") {
-          chunks.push(arg);
-        } else {
-          try {
-            chunks.push(JSON.stringify(arg));
-          } catch {
-            chunks.push(String(arg));
-          }
-        }
+        chunks.push(serializeCapturedArg(arg));
       }
-      original(...args);
+      if (forward) {
+        original(...args);
+      }
     };
   }
 

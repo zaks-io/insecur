@@ -49,7 +49,8 @@
         "DATABASE_URL",
         "DATABASE_URL_MIGRATION",
         "DATABASE_URL_RUNTIME",
-        "INSECUR_CI_RLS_GATE"
+        "INSECUR_CI_RLS_GATE",
+        "INSECUR_TEST_SKIP_MIGRATE"
       ]
     },
     "test:integration": {
@@ -64,7 +65,8 @@
         "DATABASE_URL",
         "DATABASE_URL_MIGRATION",
         "DATABASE_URL_RUNTIME",
-        "INSECUR_CI_RLS_GATE"
+        "INSECUR_CI_RLS_GATE",
+        "INSECUR_TEST_SKIP_MIGRATE"
       ]
     },
     "test:canary": {
@@ -74,7 +76,8 @@
         "DATABASE_URL",
         "DATABASE_URL_MIGRATION",
         "DATABASE_URL_RUNTIME",
-        "INSECUR_CI_RLS_GATE"
+        "INSECUR_CI_RLS_GATE",
+        "INSECUR_TEST_SKIP_MIGRATE"
       ]
     },
     "typegen": {

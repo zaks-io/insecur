@@ -1,3 +1,4 @@
+import { secretVersionId } from "@insecur/domain";
 import postgres from "postgres";
 import {
   escapeLikePattern,
@@ -140,43 +141,137 @@ function variantForEncoding(sentinel: CanarySentinel, encoding: SentinelEncoding
   return variant;
 }
 
+/** Isolated version number for negative-control rows (outside seeded baseline versions). */
+const NEGATIVE_CONTROL_VERSION_NUMBER = 999_999;
+
+interface NegativeControlTarget {
+  tableName: string;
+  columnName: string;
+  orgId: string;
+  secretId: string;
+}
+
+function assertSingleRowMutation(
+  count: number,
+  operation: "INSERT" | "UPDATE" | "DELETE",
+  tableName: string,
+): void {
+  if (count !== 1) {
+    throw new Error(
+      `negative-control ${operation} affected ${count} rows in ${tableName}; expected 1`,
+    );
+  }
+}
+
+async function insertNegativeControlRow(
+  sql: postgres.Sql,
+  target: NegativeControlTarget,
+  versionId: string,
+): Promise<void> {
+  const inserted = await sql.unsafe(
+    `INSERT INTO ${quoteIdentifier(target.tableName)} (id, org_id, secret_id, version_number, organization_data_key_version, project_data_key_version, ciphertext_storage_ref) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      versionId,
+      target.orgId,
+      target.secretId,
+      NEGATIVE_CONTROL_VERSION_NUMBER,
+      1,
+      1,
+      "canary-negative-control-placeholder",
+    ],
+  );
+  assertSingleRowMutation(inserted.count, "INSERT", target.tableName);
+}
+
+async function plantNegativeControlSentinel(
+  sql: postgres.Sql,
+  target: NegativeControlTarget,
+  versionId: string,
+  sentinelPattern: string,
+): Promise<void> {
+  const updated = await sql.unsafe(
+    `UPDATE ${quoteIdentifier(target.tableName)} SET ${quoteIdentifier(target.columnName)} = $1 WHERE id = $2 AND org_id = $3 AND secret_id = $4`,
+    [sentinelPattern, versionId, target.orgId, target.secretId],
+  );
+  assertSingleRowMutation(updated.count, "UPDATE", target.tableName);
+}
+
+async function deleteNegativeControlRow(
+  sql: postgres.Sql,
+  target: NegativeControlTarget,
+  versionId: string,
+): Promise<void> {
+  const deleted = await sql.unsafe(
+    `DELETE FROM ${quoteIdentifier(target.tableName)} WHERE id = $1 AND org_id = $2 AND secret_id = $3`,
+    [versionId, target.orgId, target.secretId],
+  );
+  assertSingleRowMutation(deleted.count, "DELETE", target.tableName);
+}
+
+async function runNegativeControlSweep(
+  sql: postgres.Sql,
+  sentinel: CanarySentinel,
+  target: NegativeControlTarget,
+  versionId: string,
+): Promise<{ hits: SweepHit[]; rawHit: SweepHit | undefined }> {
+  await enableServiceAccessScope(sql);
+  await insertNegativeControlRow(sql, target, versionId);
+  const rawVariant = variantForEncoding(sentinel, "raw");
+  await plantNegativeControlSentinel(sql, target, versionId, rawVariant.pattern);
+  const columns = await listPublicSchemaColumns(sql);
+  const postgresHits = await sweepPostgresColumns(sql, columns, sentinel);
+  return { hits: postgresHits, rawHit: findEncodingHit(postgresHits, "raw") };
+}
+
+function finalizeNegativeControlResult(
+  mainError: unknown,
+  cleanupError: Error | undefined,
+  result: { hits: SweepHit[]; rawHit: SweepHit | undefined } | undefined,
+): { hits: SweepHit[]; rawHit: SweepHit | undefined } {
+  if (mainError) {
+    throw mainError;
+  }
+  if (cleanupError) {
+    throw cleanupError;
+  }
+  if (!result) {
+    throw new Error("negative-control sweep did not produce a result");
+  }
+  return result;
+}
+
+async function cleanupNegativeControlRow(
+  sql: postgres.Sql,
+  target: NegativeControlTarget,
+  versionId: string,
+): Promise<void> {
+  await enableServiceAccessScope(sql);
+  await deleteNegativeControlRow(sql, target, versionId);
+  await sql.end({ timeout: 5 });
+}
+
 export async function simulateEncryptionBypassLeak(
   migrationUrl: string,
   sentinel: CanarySentinel,
-  target: {
-    tableName: string;
-    columnName: string;
-    orgId: string;
-    secretId: string;
-    versionId: string;
-    restoreValue: string;
-  },
+  target: NegativeControlTarget,
 ): Promise<{ hits: SweepHit[]; rawHit: SweepHit | undefined }> {
   const sql = createMigrationSweepSql(migrationUrl);
-  const rawVariant = variantForEncoding(sentinel, "raw");
+  const dedicatedVersionId = secretVersionId.generate();
+  let mainError: unknown;
+  let cleanupError: Error | undefined;
+  let result: { hits: SweepHit[]; rawHit: SweepHit | undefined } | undefined;
 
   try {
-    await enableServiceAccessScope(sql);
-    const updated = await sql.unsafe(
-      `UPDATE ${quoteIdentifier(target.tableName)} SET ${quoteIdentifier(target.columnName)} = $1 WHERE id = $2 AND org_id = $3 AND secret_id = $4`,
-      [rawVariant.pattern, target.versionId, target.orgId, target.secretId],
-    );
-    if (updated.count !== 1) {
-      throw new Error(
-        `negative-control UPDATE affected ${updated.count} rows in ${target.tableName}; expected 1`,
-      );
-    }
-
-    const columns = await listPublicSchemaColumns(sql);
-    const postgresHits = await sweepPostgresColumns(sql, columns, sentinel);
-    const hits = postgresHits;
-    return { hits, rawHit: findEncodingHit(hits, "raw") };
+    result = await runNegativeControlSweep(sql, sentinel, target, dedicatedVersionId);
+  } catch (error) {
+    mainError = error;
   } finally {
-    await enableServiceAccessScope(sql);
-    await sql.unsafe(
-      `UPDATE ${quoteIdentifier(target.tableName)} SET ${quoteIdentifier(target.columnName)} = $1 WHERE id = $2 AND org_id = $3 AND secret_id = $4`,
-      [target.restoreValue, target.versionId, target.orgId, target.secretId],
-    );
-    await sql.end({ timeout: 5 });
+    try {
+      await cleanupNegativeControlRow(sql, target, dedicatedVersionId);
+    } catch (error) {
+      cleanupError = error instanceof Error ? error : new Error(String(error));
+    }
   }
+
+  return finalizeNegativeControlResult(mainError, cleanupError, result);
 }
