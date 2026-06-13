@@ -17,6 +17,7 @@ import {
 import { runtimeDeliveryEnvelope } from "../../http/runtime-delivery-envelope.js";
 import { toAuditActor } from "../../http/request-actor.js";
 import type { WorkerEnv } from "../../env.js";
+import { createKeyringFromWorkerEnv } from "../../crypto/keyring-context.js";
 
 export const runtimeInjectionRoutes = new Hono<{
   Bindings: WorkerEnv;
@@ -53,6 +54,7 @@ runtimeInjectionRoutes.post("/grants/:grantId/consume", requireUserActor, async 
     const secretId = parseOptionalSecretId(readOptionalString(body, "secretId"));
 
     const result = await consumeInjectionGrant({
+      keyring: createKeyringFromWorkerEnv(context.env),
       organizationId,
       grantId,
       ...(variableKeyRaw !== undefined

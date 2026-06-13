@@ -1,4 +1,4 @@
-import { configureKeyring, createKeyring, resetKeyringForTests } from "@insecur/crypto";
+import { createKeyring } from "@insecur/crypto";
 import {
   VALIDATION_ERROR_CODES,
   brandValue,
@@ -9,7 +9,7 @@ import {
   type VariableKey,
 } from "@insecur/domain";
 import { encryptSecretValue } from "@insecur/crypto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SecretWriteError } from "../src/secret-write-error.js";
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
@@ -32,13 +32,7 @@ function createTestRootKey(): Uint8Array {
 
 describe("writeNonProtectedSecret variable key validation", () => {
   beforeEach(() => {
-    resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
     encryptMock.mockReset();
-  });
-
-  afterEach(() => {
-    resetKeyringForTests();
   });
 
   it("rejects cast invalid Variable Keys before persistence", async () => {
@@ -46,6 +40,7 @@ describe("writeNonProtectedSecret variable key validation", () => {
 
     await expect(
       writeNonProtectedSecret({
+        keyring: createKeyring(createTestRootKey()),
         organizationId: organizationId.brand("org_00000000000000000000000001"),
         projectId: projectId.brand("prj_00000000000000000000000001"),
         environmentId: environmentId.brand("env_00000000000000000000000001"),
@@ -66,6 +61,7 @@ describe("writeNonProtectedSecret variable key validation", () => {
 
     try {
       await writeNonProtectedSecret({
+        keyring: createKeyring(createTestRootKey()),
         organizationId: organizationId.brand("org_00000000000000000000000001"),
         projectId: projectId.brand("prj_00000000000000000000000001"),
         environmentId: environmentId.brand("env_00000000000000000000000001"),

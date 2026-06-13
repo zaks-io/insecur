@@ -1,5 +1,5 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
-import type { PlaintextHandle } from "@insecur/crypto";
+import type { Keyring, PlaintextHandle } from "@insecur/crypto";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
@@ -29,6 +29,7 @@ import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
 
 export interface ConsumeInjectionGrantCoreInput {
+  keyring: Keyring;
   organizationId: OrganizationId;
   grantId: InjectionGrantId;
   selector: InjectionGrantConsumeSelector;
@@ -130,6 +131,7 @@ export async function executeConsumeInjectionGrant(
   }
 
   const plaintext = await decryptBoundGrantSecretVersion({
+    keyring: input.keyring,
     organizationId: input.organizationId,
     projectId: loaded.projectId,
     environmentId: loaded.environmentId,

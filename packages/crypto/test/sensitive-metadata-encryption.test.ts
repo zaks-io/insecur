@@ -5,10 +5,9 @@ import {
   projectId,
   type OpaqueResourceId,
 } from "@insecur/domain";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL } from "../src/constants.js";
-import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
 import { DecryptError } from "../src/errors.js";
 import {
   decryptSensitiveMetadataForAuthorizedRead,
@@ -16,7 +15,7 @@ import {
   type SensitiveMetadataCiphertextIdentity,
 } from "../src/encryption.js";
 import { toStoreFacingCiphertext } from "../src/envelope-storage.js";
-import { createKeyring } from "../src/keyring.js";
+import { createKeyring, type Keyring } from "../src/keyring.js";
 
 const ORG_A = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const ORG_B = organizationId.brand("org_01JZ8E3W4C8M2H6N9P1Q3R5T7U");
@@ -68,19 +67,20 @@ function createTestRootKey(): Uint8Array {
 }
 
 describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead", () => {
-  beforeEach(() => {
-    resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
-  });
+  let keyring: Keyring;
 
-  afterEach(() => {
-    resetKeyringForTests();
+  beforeEach(() => {
+    keyring = createKeyring(createTestRootKey());
   });
 
   it("round-trips organization-scoped metadata", async () => {
     const plaintext = samplePlaintext();
-    const wrapped = await encryptSensitiveMetadata(orgScopedIdentity(), plaintext);
-    const decrypted = await decryptSensitiveMetadataForAuthorizedRead(orgScopedIdentity(), wrapped);
+    const wrapped = await encryptSensitiveMetadata(keyring, orgScopedIdentity(), plaintext);
+    const decrypted = await decryptSensitiveMetadataForAuthorizedRead(
+      keyring,
+      orgScopedIdentity(),
+      wrapped,
+    );
 
     expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
       new TextDecoder().decode(plaintext),
@@ -91,8 +91,9 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
 
   it("round-trips project-scoped metadata", async () => {
     const plaintext = samplePlaintext();
-    const wrapped = await encryptSensitiveMetadata(projectScopedIdentity(), plaintext);
+    const wrapped = await encryptSensitiveMetadata(keyring, projectScopedIdentity(), plaintext);
     const decrypted = await decryptSensitiveMetadataForAuthorizedRead(
+      keyring,
       projectScopedIdentity(),
       wrapped,
     );
@@ -104,10 +105,11 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
   });
 
   it("fails closed on identity mismatch for organization-scoped metadata", async () => {
-    const wrapped = await encryptSensitiveMetadata(orgScopedIdentity(), samplePlaintext());
+    const wrapped = await encryptSensitiveMetadata(keyring, orgScopedIdentity(), samplePlaintext());
 
     await expect(
       decryptSensitiveMetadataForAuthorizedRead(
+        keyring,
         orgScopedIdentity({ organizationId: ORG_B, recordResourceId: RECORD_B }),
         wrapped,
       ),
@@ -115,10 +117,15 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
   });
 
   it("fails closed on identity mismatch for project-scoped metadata", async () => {
-    const wrapped = await encryptSensitiveMetadata(projectScopedIdentity(), samplePlaintext());
+    const wrapped = await encryptSensitiveMetadata(
+      keyring,
+      projectScopedIdentity(),
+      samplePlaintext(),
+    );
 
     await expect(
       decryptSensitiveMetadataForAuthorizedRead(
+        keyring,
         projectScopedIdentity({ scopeProjectId: PROJECT_B }),
         wrapped,
       ),
@@ -126,15 +133,19 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
   });
 
   it("fails closed when project-scoped ciphertext is opened as organization-scoped", async () => {
-    const wrapped = await encryptSensitiveMetadata(projectScopedIdentity(), samplePlaintext());
+    const wrapped = await encryptSensitiveMetadata(
+      keyring,
+      projectScopedIdentity(),
+      samplePlaintext(),
+    );
 
     await expect(
-      decryptSensitiveMetadataForAuthorizedRead(orgScopedIdentity(), wrapped),
+      decryptSensitiveMetadataForAuthorizedRead(keyring, orgScopedIdentity(), wrapped),
     ).rejects.toBeInstanceOf(DecryptError);
   });
 
   it("returns opaque decrypt errors", async () => {
-    const wrapped = await encryptSensitiveMetadata(orgScopedIdentity(), samplePlaintext());
+    const wrapped = await encryptSensitiveMetadata(keyring, orgScopedIdentity(), samplePlaintext());
     const tampered = new Uint8Array(wrapped.ciphertext);
     const lastIndex = tampered.byteLength - 1;
     const lastByte = tampered[lastIndex];
@@ -143,7 +154,7 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
     }
 
     await expect(
-      decryptSensitiveMetadataForAuthorizedRead(orgScopedIdentity(), {
+      decryptSensitiveMetadataForAuthorizedRead(keyring, orgScopedIdentity(), {
         ...wrapped,
         ciphertext: tampered,
       }),
@@ -157,7 +168,7 @@ describe("encryptSensitiveMetadata / decryptSensitiveMetadataForAuthorizedRead",
   it("does not persist plaintext or identity strings in store-facing ciphertext bytes", async () => {
     const plaintext = samplePlaintext();
     const bound = projectScopedIdentity();
-    const wrapped = await encryptSensitiveMetadata(bound, plaintext);
+    const wrapped = await encryptSensitiveMetadata(keyring, bound, plaintext);
     const storedText = new TextDecoder().decode(toStoreFacingCiphertext(wrapped));
 
     expect(storedText).not.toContain(new TextDecoder().decode(plaintext));

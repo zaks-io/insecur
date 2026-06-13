@@ -4,9 +4,8 @@ import {
   organizationId,
   providerCredentialId,
 } from "@insecur/domain";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
 import { DecryptError } from "../src/errors.js";
 import {
   decryptProviderCredentialForProviderUse,
@@ -14,7 +13,7 @@ import {
   type ProviderCredentialCiphertextIdentity,
 } from "../src/encryption.js";
 import { toStoreFacingCiphertext } from "../src/envelope-storage.js";
-import { createKeyring } from "../src/keyring.js";
+import { createKeyring, type Keyring } from "../src/keyring.js";
 
 const ORG_A = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const ORG_B = organizationId.brand("org_01JZ8E3W4C8M2H6N9P1Q3R5T7U");
@@ -46,19 +45,16 @@ function createTestRootKey(): Uint8Array {
 }
 
 describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", () => {
-  beforeEach(() => {
-    resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
-  });
+  let keyring: Keyring;
 
-  afterEach(() => {
-    resetKeyringForTests();
+  beforeEach(() => {
+    keyring = createKeyring(createTestRootKey());
   });
 
   it("round-trips without returning key material", async () => {
     const plaintext = samplePlaintext();
-    const wrapped = await encryptProviderCredential(identity(), plaintext);
-    const decrypted = await decryptProviderCredentialForProviderUse(identity(), wrapped);
+    const wrapped = await encryptProviderCredential(keyring, identity(), plaintext);
+    const decrypted = await decryptProviderCredentialForProviderUse(keyring, identity(), wrapped);
 
     expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
       new TextDecoder().decode(plaintext),
@@ -69,7 +65,7 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
   });
 
   it("fails closed when ciphertext is used under a different identity", async () => {
-    const wrapped = await encryptProviderCredential(identity(), samplePlaintext());
+    const wrapped = await encryptProviderCredential(keyring, identity(), samplePlaintext());
     const storeFacing = {
       organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
       ciphertext: toStoreFacingCiphertext(wrapped),
@@ -77,6 +73,7 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
 
     await expect(
       decryptProviderCredentialForProviderUse(
+        keyring,
         identity({ organizationId: ORG_B, appConnectionId: CONN_B, credentialId: CRED_B }),
         storeFacing,
       ),
@@ -84,7 +81,7 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
   });
 
   it("returns opaque decrypt errors", async () => {
-    const wrapped = await encryptProviderCredential(identity(), samplePlaintext());
+    const wrapped = await encryptProviderCredential(keyring, identity(), samplePlaintext());
     const tampered = new Uint8Array(wrapped.ciphertext);
     const lastIndex = tampered.byteLength - 1;
     const lastByte = tampered[lastIndex];
@@ -93,7 +90,7 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
     }
 
     await expect(
-      decryptProviderCredentialForProviderUse(identity(), {
+      decryptProviderCredentialForProviderUse(keyring, identity(), {
         ...wrapped,
         ciphertext: tampered,
       }),
@@ -107,7 +104,7 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
   it("does not persist plaintext or identity strings in store-facing ciphertext bytes", async () => {
     const plaintext = samplePlaintext();
     const bound = identity();
-    const wrapped = await encryptProviderCredential(bound, plaintext);
+    const wrapped = await encryptProviderCredential(keyring, bound, plaintext);
     const stored = toStoreFacingCiphertext(wrapped);
     const storedText = new TextDecoder().decode(stored);
 
@@ -119,13 +116,12 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
   });
 
   it("isolates tenants when keyrings use different root keys", async () => {
-    const wrapped = await encryptProviderCredential(identity(), samplePlaintext());
+    const wrapped = await encryptProviderCredential(keyring, identity(), samplePlaintext());
 
-    resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
+    const wrongKeyring = createKeyring(createTestRootKey());
 
     await expect(
-      decryptProviderCredentialForProviderUse(identity(), wrapped),
+      decryptProviderCredentialForProviderUse(wrongKeyring, identity(), wrapped),
     ).rejects.toBeInstanceOf(DecryptError);
   });
 });

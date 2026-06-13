@@ -1,11 +1,11 @@
 import { assertProviderCredentialIdentityForAad } from "./assert-ciphertext-identity.js";
 import { RECORD_TYPE_PROVIDER_CREDENTIAL } from "./constants.js";
-import { getKeyring } from "./crypto-runtime.js";
 import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
 import { toStoreFacingCiphertext } from "./envelope-storage.js";
+import type { Keyring } from "./keyring.js";
 import type { ProviderCredentialCiphertextIdentity } from "./types.js";
 
 export function serializeProviderCredentialCiphertextAad(
@@ -40,11 +40,11 @@ export interface WrappedProviderCredential {
 }
 
 export async function encryptProviderCredential(
+  keyring: Keyring,
   identity: ProviderCredentialCiphertextIdentity,
   plaintextUtf8: Uint8Array,
 ): Promise<WrappedProviderCredential> {
   assertProviderCredentialIdentityForAad(identity);
-  const keyring = getKeyring();
   const activeVersions = await keyring.getActiveOrganizationDataKeyVersions(
     identity.organizationId,
   );
@@ -71,6 +71,7 @@ export async function encryptProviderCredential(
  * Must not be used for reveal, export, or CLI/API read paths.
  */
 export async function decryptProviderCredentialForProviderUse(
+  keyring: Keyring,
   identity: ProviderCredentialCiphertextIdentity,
   wrapped: WrappedProviderCredential,
 ): Promise<PlaintextHandle> {
@@ -82,7 +83,6 @@ export async function decryptProviderCredentialForProviderUse(
   }
 
   assertProviderCredentialIdentityForAad(identity);
-  const keyring = getKeyring();
   const versions = await keyring.resolveOrganizationDataKeyVersions(
     identity.organizationId,
     wrapped.organizationDataKeyVersion,

@@ -36,7 +36,7 @@ export class WorkerEnvRootKeyProvider implements RootKeyProvider {
   }
 }
 
-/** Builds a request-scoped keyring from Worker bindings; does not cache binding material. */
+/** Builds an ADR-0064 request-scoped keyring from Worker bindings; does not cache material. */
 export function createKeyringFromWorkerEnv(env: WorkerEnv): Keyring {
   if (!bindingForRootKeyVersion(env, DEFAULT_ROOT_KEY_VERSION)) {
     throw new RootKeyNotConfiguredError();

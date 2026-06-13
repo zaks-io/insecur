@@ -6,7 +6,6 @@ import {
   mintProjectDataKey,
   unwrapOrganizationDataKeyBytes,
 } from "../src/data-key-wrap.js";
-import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
 import { DecryptError } from "../src/errors.js";
 import {
   decryptSecretValueForRuntime,
@@ -132,7 +131,6 @@ describe("rewrapTenantDataKeys", () => {
   beforeEach(() => {
     crypto.getRandomValues(rootV1);
     crypto.getRandomValues(rootV2);
-    resetKeyringForTests();
   });
 
   it("keeps record ciphertext decryptable after root rewrap", async () => {
@@ -172,9 +170,12 @@ describe("rewrapTenantDataKeys", () => {
 
     const reader = new MetadataReader(organizationKey, projectKey);
     const keyring = new Keyring(rootProvider, new MetadataTenantDataKeySource(reader));
-    configureKeyring(keyring);
 
-    const wrapped = await encryptSecretValue(identity(), new TextEncoder().encode("payload"));
+    const wrapped = await encryptSecretValue(
+      keyring,
+      identity(),
+      new TextEncoder().encode("payload"),
+    );
 
     const store = new InMemoryRewrapStore([organizationKey], [projectKey]);
     await keyring.rewrapTenantDataKeys({
@@ -197,7 +198,7 @@ describe("rewrapTenantDataKeys", () => {
     ).toEqual(orgMinted.dataKeyBytes);
 
     keyring.clearCacheForTests();
-    const decrypted = await decryptSecretValueForRuntime(identity(), wrapped);
+    const decrypted = await decryptSecretValueForRuntime(keyring, identity(), wrapped);
     expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe("payload");
   });
 

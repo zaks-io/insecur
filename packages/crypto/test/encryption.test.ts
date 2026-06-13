@@ -5,9 +5,8 @@ import {
   projectId,
   secretId,
 } from "@insecur/domain";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { configureKeyring, resetKeyringForTests } from "../src/crypto-runtime.js";
 import { DecryptError } from "../src/errors.js";
 import {
   decryptSecretValueForRuntime,
@@ -15,7 +14,7 @@ import {
   type SecretCiphertextIdentity,
 } from "../src/encryption.js";
 import { toStoreFacingCiphertext } from "../src/envelope-storage.js";
-import { createKeyring } from "../src/keyring.js";
+import { createKeyring, type Keyring } from "../src/keyring.js";
 
 const ORG_A = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const ORG_B = organizationId.brand("org_01JZ8E3W4C8M2H6N9P1Q3R5T7U");
@@ -67,19 +66,16 @@ async function decryptFailureCode(run: () => Promise<unknown>): Promise<string> 
 }
 
 describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
-  beforeEach(() => {
-    resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
-  });
+  let keyring: Keyring;
 
-  afterEach(() => {
-    resetKeyringForTests();
+  beforeEach(() => {
+    keyring = createKeyring(createTestRootKey());
   });
 
   it("round-trips plaintext without returning key material", async () => {
     const plaintext = samplePlaintext();
-    const wrapped = await encryptSecretValue(identity(), plaintext);
-    const decrypted = await decryptSecretValueForRuntime(identity(), wrapped);
+    const wrapped = await encryptSecretValue(keyring, identity(), plaintext);
+    const decrypted = await decryptSecretValueForRuntime(keyring, identity(), wrapped);
 
     expect(new TextDecoder().decode(decrypted.unwrapUtf8())).toBe(
       new TextDecoder().decode(plaintext),
@@ -91,7 +87,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
   });
 
   it("includes project and organization data-key version metadata", async () => {
-    const wrapped = await encryptSecretValue(identity(), samplePlaintext());
+    const wrapped = await encryptSecretValue(keyring, identity(), samplePlaintext());
 
     expect(wrapped.organizationDataKeyVersion).toBe(1);
     expect(wrapped.projectDataKeyVersion).toBe(1);
@@ -99,7 +95,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
   });
 
   it("fails closed when ciphertext is used under a different tenant identity", async () => {
-    const wrapped = await encryptSecretValue(identity(), samplePlaintext());
+    const wrapped = await encryptSecretValue(keyring, identity(), samplePlaintext());
     const storeFacing = {
       organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
       projectDataKeyVersion: wrapped.projectDataKeyVersion,
@@ -108,6 +104,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
 
     await expect(
       decryptSecretValueForRuntime(
+        keyring,
         identity({ organizationId: ORG_B, projectId: PROJECT_B }),
         storeFacing,
       ),
@@ -115,6 +112,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
 
     await expect(
       decryptSecretValueForRuntime(
+        keyring,
         identity({ environmentId: ENV_B, secretId: SECRET_B }),
         storeFacing,
       ),
@@ -122,7 +120,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
   });
 
   it("returns opaque decrypt errors without distinguishing failure modes", async () => {
-    const wrapped = await encryptSecretValue(identity(), samplePlaintext());
+    const wrapped = await encryptSecretValue(keyring, identity(), samplePlaintext());
     const tampered = new Uint8Array(wrapped.ciphertext);
     const lastIndex = tampered.byteLength - 1;
     const lastByte = tampered[lastIndex];
@@ -131,7 +129,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
     }
 
     await expect(
-      decryptSecretValueForRuntime(identity(), {
+      decryptSecretValueForRuntime(keyring, identity(), {
         ...wrapped,
         ciphertext: tampered,
       }),
@@ -143,7 +141,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
     });
 
     try {
-      await decryptSecretValueForRuntime(identity(), {
+      await decryptSecretValueForRuntime(keyring, identity(), {
         ...wrapped,
         ciphertext: tampered,
       });
@@ -155,7 +153,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
   });
 
   it("uses the same decrypt failure code for wrong key, tampering, and identity mismatch", async () => {
-    const wrapped = await encryptSecretValue(identity(), samplePlaintext());
+    const wrapped = await encryptSecretValue(keyring, identity(), samplePlaintext());
     const storeFacing = {
       organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
       projectDataKeyVersion: wrapped.projectDataKeyVersion,
@@ -165,23 +163,23 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
 
     const identityMismatchCode = await decryptFailureCode(() =>
       decryptSecretValueForRuntime(
+        keyring,
         identity({ organizationId: ORG_B, projectId: PROJECT_B }),
         storeFacing,
       ),
     );
 
     const tamperedCiphertextCode = await decryptFailureCode(() =>
-      decryptSecretValueForRuntime(identity(), {
+      decryptSecretValueForRuntime(keyring, identity(), {
         ...wrapped,
         ciphertext: tampered,
       }),
     );
 
-    resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
+    const wrongKeyring = createKeyring(createTestRootKey());
 
     const wrongKeyCode = await decryptFailureCode(() =>
-      decryptSecretValueForRuntime(identity(), wrapped),
+      decryptSecretValueForRuntime(wrongKeyring, identity(), wrapped),
     );
 
     expect(identityMismatchCode).toBe(CRYPTO_ERROR_CODES.decryptFailed);
@@ -193,7 +191,7 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
   it("does not persist plaintext or identity strings in store-facing ciphertext bytes", async () => {
     const plaintext = samplePlaintext();
     const bound = identity();
-    const wrapped = await encryptSecretValue(bound, plaintext);
+    const wrapped = await encryptSecretValue(keyring, bound, plaintext);
     const stored = toStoreFacingCiphertext(wrapped);
     const storedText = new TextDecoder().decode(stored);
 
@@ -205,13 +203,12 @@ describe("encryptSecretValue / decryptSecretValueForRuntime", () => {
   });
 
   it("isolates tenants when keyrings use different root keys", async () => {
-    const wrapped = await encryptSecretValue(identity(), samplePlaintext());
+    const wrapped = await encryptSecretValue(keyring, identity(), samplePlaintext());
 
-    resetKeyringForTests();
-    configureKeyring(createKeyring(createTestRootKey()));
+    const wrongKeyring = createKeyring(createTestRootKey());
 
-    await expect(decryptSecretValueForRuntime(identity(), wrapped)).rejects.toBeInstanceOf(
-      DecryptError,
-    );
+    await expect(
+      decryptSecretValueForRuntime(wrongKeyring, identity(), wrapped),
+    ).rejects.toBeInstanceOf(DecryptError);
   });
 });

@@ -90,12 +90,10 @@ First Value routes under `/v1/orgs/:org`).
   routes. It validates auth configuration at construction, supports development fake
   sessions, requires CSRF for browser-to-CLI exchange, and returns metadata-only
   success/error envelopes.
-  - Custody caveat: today the keyring backing those routes resolves from
-    `@insecur/crypto`'s ambient `getKeyring()`, which falls back to a plaintext
-    `INSECUR_INSTANCE_ROOT_KEY_HEX` dev env var. The built `SecretsStoreRootKeyProvider`
-    /`createKeyringFromWorkerEnv` Cloudflare Secrets Store path is not yet wired into
-    `configureKeyring()`, so the live crypto runs on a dev root key, not custodied root
-    material. Tracked in INS-145/147/149/150.
+  - Custody caveat: live write/decrypt routes now create an ADR-0064 request-scoped
+    Keyring from the `INSTANCE_ROOT_KEY_V{n}` Secrets Store bindings and pass it through the
+    crypto boundary explicitly. Production root-key bootstrap, escrow evidence, and
+    Storage Security Gate sign-off remain pending. Tracked in INS-145/147/149.
 - `@insecur/tenant-store` owns the Postgres persistence seam: scoped transactions,
   transaction-local tenant scope, runtime connection handling, local migration scripts,
   runtime-role grants, and RLS helper scripts/tests.
@@ -184,9 +182,9 @@ First Value routes under `/v1/orgs/:org`).
   Postgres and the tenant-store connection package are the current persistence path. The
   runtime pool opens directly from `DATABASE_URL_RUNTIME` with no Hyperdrive binding, which
   diverges from ADR-0002/0036; routing it through Hyperdrive is tracked in INS-162.
-- Root key custody and Cloudflare Secrets Store integration are not implemented. Crypto
-  has root-key runtime configuration and tenant data-key metadata behavior, but production
-  custody/escrow wiring is still pending.
+- Root key custody is partially wired through request-scoped Cloudflare Secrets Store
+  keyring construction. Production bootstrap, escrow evidence, and Storage Security Gate
+  sign-off are still pending.
 - Key rotation workflows are not implemented. Version metadata and readiness checks exist,
   but rotation operations, rewrap workflows, and operator UX do not. The data-key model is
   also still HKDF-derived rather than wrapped: ADR-0005/0028 (2026-06-03 amendments) decide

@@ -1,5 +1,4 @@
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
-import { resetKeyringForTests } from "@insecur/crypto";
 import {
   bytesToBase64Url,
   environmentId,
@@ -79,7 +78,6 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
 
   afterAll(async () => {
     await closeRuntimeSql();
-    resetKeyringForTests();
   });
 
   it("round-trips a secret value through write → grant issue → grant consume", async () => {
