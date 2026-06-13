@@ -31,4 +31,20 @@ describe("console capture", () => {
     const hits = sweepTextOutput(capture.output, sentinel);
     expect(hits.some((hit) => hit.surface === "console" && hit.encoding === "raw")).toBe(true);
   });
+
+  it("detects a sentinel beyond inspect default maxArrayLength (index 140 of 150)", () => {
+    const sentinel = mintCanarySentinel();
+    const capture = startConsoleCapture({ forward: false });
+    const values = Array.from({ length: 150 }, (_, index) => `item-${index}`);
+    values[140] = sentinel.value;
+
+    try {
+      console.log(values);
+    } finally {
+      capture.stop();
+    }
+
+    const hits = sweepTextOutput(capture.output, sentinel);
+    expect(hits.some((hit) => hit.surface === "console" && hit.encoding === "raw")).toBe(true);
+  });
 });

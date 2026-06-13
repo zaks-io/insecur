@@ -14,7 +14,12 @@ function serializeCapturedArg(arg: unknown): string {
     return arg;
   }
   try {
-    return inspect(arg, { depth: null, maxStringLength: null });
+    return inspect(arg, {
+      depth: null,
+      maxStringLength: null,
+      maxArrayLength: null,
+      breakLength: Infinity,
+    });
   } catch {
     return String(arg);
   }
