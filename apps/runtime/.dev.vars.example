@@ -1,0 +1,10 @@
+# Local-only variables for the private Runtime Worker (`insecur-runtime`), loaded by `wrangler dev`.
+# Copy to apps/runtime/.dev.vars and fill in. Never commit real secrets.
+#
+# The Runtime Worker is the ONLY deploy that holds the root key (INSTANCE_ROOT_KEY_V1, bound from
+# Secrets Store, not set here). It has no public routes and no WorkOS bindings. It verifies the
+# scoped hop token the API Worker forwards (ADR-0077).
+
+# HMAC secret shared with the API Worker to verify the scoped hop token. Must match the value in
+# apps/api/.dev.vars (RUNTIME_TOKEN_SIGNING_SECRET).
+RUNTIME_TOKEN_SIGNING_SECRET=

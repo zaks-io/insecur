@@ -2,7 +2,14 @@
 
 Date: 2026-05-24
 
-Status: Accepted, amended by [ADR-0036](0036-neon-postgres-over-hyperdrive-with-rls.md), [ADR-0037](0037-tenant-scoped-bound-store-over-rls.md), and [ADR-0057](0057-inline-sync-execution-and-partial-failure-model.md)
+Status: Accepted, amended by [ADR-0036](0036-neon-postgres-over-hyperdrive-with-rls.md), [ADR-0037](0037-tenant-scoped-bound-store-over-rls.md), [ADR-0057](0057-inline-sync-execution-and-partial-failure-model.md), and [ADR-0077](0077-capability-isolated-worker-deploys.md)
+
+> **Amendment note (ADR-0077):** "one Cloudflare Worker" below is a _data-plane_ statement — one
+> shared Instance, no per-Organization database, no per-customer Worker. It does **not** mean a single
+> monolithic deploy. The control plane is split into capability-isolated Worker deploys (API, Runtime,
+> Web; Service Access deferred) per [ADR-0051](0051-web-console-architecture.md) and ADR-0077, with the
+> root key isolated to the Runtime deploy. See `docs/specs/product-spec.md` §2 for the normative
+> topology and invariant.
 
 A V1 Instance is one Cloudflare Worker plus one Hyperdrive-backed Neon Postgres database. Every customer is an Organization inside that single Instance, and tenant isolation is logical plus engine-enforced: every tenant-owned row carries `org_id` directly or is reachable only through an organization-owned parent, and Postgres Row-Level Security backs the application filter. There is no per-Organization database and no per-customer Worker. This makes the concrete deployment shape behind ADR-0001 (tenant-first control plane) and ADR-0020 (instance posture) explicit, since neither pinned it.
 

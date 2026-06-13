@@ -46,7 +46,9 @@ seams instead of route or CLI shortcuts.
 
 | Area                                                           | Files                         |
 | -------------------------------------------------------------- | ----------------------------- |
-| Worker/API transport and Cloudflare bindings                   | `apps/worker/`                |
+| Public API Worker: transport, routes, bindings, hop token      | `apps/api/`                   |
+| Private Runtime Worker: keyring/decrypt-egress, RuntimeService | `apps/runtime/`               |
+| Shared Worker composition glue (http/auth)                     | `packages/worker-kit/`        |
 | CLI parsing, local config, output, and child process execution | `packages/cli/`               |
 | Shared branded primitives and result vocabulary                | `packages/domain/`            |
 | Authorization and Effective Access                             | `packages/access/`            |

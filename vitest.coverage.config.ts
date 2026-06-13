@@ -31,7 +31,9 @@ const projectRoots = [
   "packages/runtime-injection",
   "packages/secret-store",
   "packages/tenant-store",
-  "apps/worker",
+  "packages/worker-kit",
+  "apps/api",
+  "apps/runtime",
 ];
 
 export default mergeConfig(

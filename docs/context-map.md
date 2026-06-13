@@ -44,7 +44,9 @@ Do not redefine terms in package context files.
 Packages depend toward more primitive concepts:
 
 ```text
-apps/worker
+apps/api
+apps/runtime
+  -> packages/worker-kit
 packages/cli
   -> packages/instance-bootstrap
   -> packages/onboarding
@@ -100,11 +102,16 @@ package when its Interface is ready to be implemented and tested.
 
 ## App Composition
 
-`apps/worker` owns transport, route shape, Cloudflare bindings, and request
-composition. It should call package Interfaces with resolved actor, tenant, and
-request metadata. It should not contain authorization branching, raw tenant data
-queries, encryption rules, Secret Version append rules, or Runtime Injection
-Grant state machines.
+The Worker tier is two capability-isolated deploys (ADR-0077). `apps/api` (the public **API Worker**)
+owns transport, public route shape, Cloudflare bindings, caller authentication, and request
+composition; it holds no keyring and forwards keyring-bound work to `apps/runtime` (the private
+**Runtime Worker**) over the private `RUNTIME` Service Binding. `apps/runtime` is the sole holder of
+`INSTANCE_ROOT_KEY_V1` and the only place decryption happens, exposed via the `RuntimeService` RPC
+seam with no public routes. Both compose package Interfaces with resolved actor, tenant, and request
+metadata; the shared composition glue (`http/*`, `auth/*`) lives in `packages/worker-kit`. Neither
+deploy contains authorization branching, raw tenant data queries, encryption rules, Secret Version
+append rules, or Runtime Injection Grant state machines in routes. The route → deploy table is
+`docs/specs/deploy-route-inventory.md`, enforced by `pnpm conformance:topology`.
 
 `packages/cli` owns local command parsing, safe input collection, local project
 configuration, process spawning, human and JSON output formatting, and HTTP

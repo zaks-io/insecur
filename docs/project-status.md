@@ -80,20 +80,25 @@ First Value routes under `/v1/orgs/:org`).
 - `@insecur/auth` owns WorkOS-backed human session composition, admitted User actor
   resolution, CSRF helpers, HMAC-signed ephemeral CLI session credentials, request
   credential parsing, auth failure envelopes, and fake WorkOS sessions for tests.
-- `apps/worker` exposes `GET /healthz`, `POST /v1/auth/cli/exchange`,
-  `GET /v1/session/whoami`, guided-provisioning/onboarding routes, a non-protected
-  Blind Secret Write route (`POST .../secrets/by-variable-key`), and Runtime Injection
-  Grant issue/consume routes (`POST /v1/runtime-injection/grants`,
-  `POST /v1/runtime-injection/grants/:grantId/consume`).
-  The secret-write route encrypts through `@insecur/crypto` and the grant-consume route
-  decrypts and delivers `valueUtf8`, so live encrypt/decrypt already runs on real
-  routes. It validates auth configuration at construction, supports development fake
-  sessions, requires CSRF for browser-to-CLI exchange, and returns metadata-only
-  success/error envelopes.
-  - Custody caveat: live write/decrypt routes now create an ADR-0064 request-scoped
-    Keyring from the `INSTANCE_ROOT_KEY_V{n}` Secrets Store bindings and pass it through the
-    crypto boundary explicitly. Production root-key bootstrap, escrow evidence, and
-    Storage Security Gate sign-off remain pending. Tracked in INS-145/147/149.
+- `apps/api` (public API Worker, `insecur-api`) exposes `GET /healthz`,
+  `POST /v1/auth/cli/exchange`, `GET /v1/session/whoami`, guided-provisioning/onboarding
+  routes, a non-protected Blind Secret Write route
+  (`POST /v1/orgs/:organizationId/projects/.../secrets/by-variable-key`), and Runtime
+  Injection Grant issue/consume routes under `/v1/orgs/:organizationId/runtime-injection`.
+  It holds no keyring: the secret-write route forwards to `RUNTIME.writeSecret` (encrypt) and
+  the grant-consume route forwards to `RUNTIME.consumeGrant` (decrypt) over the private
+  Service Binding, so live encrypt/decrypt runs in the Runtime Worker, not here. It validates
+  auth configuration at construction, supports development fake sessions, requires CSRF for
+  browser-to-CLI exchange, and returns metadata-only success/error envelopes.
+- `apps/runtime` (private Runtime Worker, `insecur-runtime`) is the sole holder of
+  `INSTANCE_ROOT_KEY_V1` and the only place decryption happens. It serves no public routes;
+  its `RuntimeService` RPC entrypoint (`consumeGrant`, `writeSecret`) is reachable only over
+  the private `RUNTIME` Service Binding. Authorization and decryption are one indivisible
+  call inside it (ADR-0034).
+  - Custody caveat: the Runtime Worker creates an ADR-0064 request-scoped Keyring from the
+    `INSTANCE_ROOT_KEY_V{n}` Secrets Store bindings and passes it through the crypto boundary
+    explicitly. Production root-key bootstrap, escrow evidence, and Storage Security Gate
+    sign-off remain pending. Tracked in INS-145/147/149.
 - `@insecur/tenant-store` owns the Postgres persistence seam: scoped transactions,
   transaction-local tenant scope, runtime connection handling, local migration scripts,
   runtime-role grants, and RLS helper scripts/tests.
@@ -178,10 +183,22 @@ First Value routes under `/v1/orgs/:org`).
   implemented.
 - Admitted User resolution in the Worker is still a development JSON map, not persisted
   User admission or production identity configuration.
+- **Worker topology is capability-isolated (INS-194 Cut 1 landed).** The former monolith
+  `apps/worker` is split into `apps/api` (public API Worker, `insecur-api`, no keyring) and
+  `apps/runtime` (private Runtime Worker, `insecur-runtime`, sole `INSTANCE_ROOT_KEY_V1` holder, no
+  public routes, reached only over a private Service Binding via the `RuntimeService`
+  `WorkerEntrypoint` RPC seam). Shared composition glue lives in `packages/worker-kit`. **No deploy
+  holds both a public route and the root-key binding**, enforced by `pnpm conformance:topology`
+  (`scripts/ci/deploy-topology-conformance.mjs`) plus the lint keyring boundary, both in `pnpm
+verify`. Do not compose new routes into a single worker; every route belongs to a specific deploy
+  by capability per `docs/specs/deploy-route-inventory.md`. `apps/web` (Web Console BFF) is Cut 2
+  (INS-201, deferred); Service Access stays a deferred deploy with a negative conformance assertion
+  (ADR-0019). Epic: INS-194 (slices INS-195..201).
 - Neon/Hyperdrive production bindings are not composed through the Worker yet. Local
   Postgres and the tenant-store connection package are the current persistence path. The
   runtime pool opens directly from `DATABASE_URL_RUNTIME` with no Hyperdrive binding, which
-  diverges from ADR-0002/0036; routing it through Hyperdrive is tracked in INS-162.
+  diverges from ADR-0002/0036; routing it through Hyperdrive is tracked in INS-162. Post-split,
+  both `apps/api` and `apps/runtime` bind Hyperdrive (the resolver runs in each); RLS is the wall.
 - Root key custody is partially wired through request-scoped Cloudflare Secrets Store
   keyring construction. Production bootstrap, escrow evidence, and Storage Security Gate
   sign-off are still pending.
@@ -274,9 +291,13 @@ release-gate evidence bundles.
    exit/HTTP lockstep test.
    Each is a small ticket; together they turn the cross-workstream seam contracts into CI-time
    facts (see [roadmap.md](roadmap.md) M0).
-2. Wire the remaining package implementations into Worker routes: instance bootstrap,
-   membership management, and operations (guided provisioning, non-protected secret write,
-   and Runtime Injection Grant issue/consume already serve).
+2. Split the monolith first (INS-194), then wire remaining package implementations into the
+   correct deploy. The decided topology is `apps/api` (public edge, no keyring), `apps/runtime`
+   (sole `INSTANCE_ROOT_KEY_V1` holder, decrypt-egress behind a `WorkerEntrypoint` RPC seam, no
+   public routes), and `apps/web` (BFF). Instance bootstrap, membership management, and operations
+   routes are public/non-keyring and land on `apps/api` (NOT a single worker); secret write and
+   grant consume are the keyring routes and live on `apps/runtime`. No deploy may hold both a public
+   route and the root key (CI gate INS-199).
 3. Finish the CLI First Value path on top of the landed `login`/`init`/`shell` commands
    (INS-31): masked safe secret input, metadata-only `secrets set`, and one-command `run` with
    child-process env injection without local secret files.

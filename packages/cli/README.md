@@ -17,7 +17,7 @@ helpers. It does not own server-side domain invariants.
 
 ## Consumes
 
-- Server-side Interfaces exposed by `apps/worker`.
+- Server-side Interfaces exposed by the public API Worker (`apps/api`).
 - Shared result and output vocabulary from `@insecur/domain` when implementation
   begins.
 

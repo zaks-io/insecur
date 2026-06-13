@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Cloud smoke for the First Value loop. Drives write -> grant issue -> grant
-// consume over HTTP against a DEPLOYED preview/-dev Worker and asserts the secret
-// value round-trips. This is the post-deploy tripwire the local e2e test
-// (apps/worker/test/e2e/first-value-loop.e2e.test.ts) cannot be: it catches broken
-// deploys, missing bindings, and bad secrets that only surface in the real runtime.
+// consume over HTTP against a DEPLOYED preview/-dev API Worker and asserts the secret
+// value round-trips through the real Runtime Worker Service Binding. This is the
+// post-deploy tripwire the local e2e test (apps/api/test/e2e/first-value-loop.e2e.test.ts)
+// cannot be: it catches broken deploys, missing bindings, and bad secrets that only
+// surface in the real multi-deploy runtime.
 //
 // HARD-FAILS when unconfigured (no SMOKE_BASE_URL) — a smoke that silently skips is
 // theater. This script is wired into the gated pr-preview workflow, which itself
@@ -29,14 +30,14 @@ async function main() {
   await assertHealthz();
 
   await post(
-    `/v1/projects/${projectId}/environments/${environmentId}/secrets/by-variable-key`,
-    { organizationId, variableKey, value: plaintext },
+    `/v1/orgs/${organizationId}/projects/${projectId}/environments/${environmentId}/secrets/by-variable-key`,
+    { variableKey, value: plaintext },
     "secret write",
   );
 
   const issued = await post(
-    "/v1/runtime-injection/grants",
-    { organizationId, projectId, environmentId, variableKey },
+    `/v1/orgs/${organizationId}/runtime-injection/grants`,
+    { projectId, environmentId, variableKey },
     "grant issue",
   );
   const grantId = issued.data?.grantId;
@@ -45,8 +46,8 @@ async function main() {
   }
 
   const consumed = await post(
-    `/v1/runtime-injection/grants/${grantId}/consume`,
-    { organizationId, variableKey },
+    `/v1/orgs/${organizationId}/runtime-injection/grants/${grantId}/consume`,
+    { variableKey },
     "grant consume",
   );
   const encoded = consumed.delivery?.encodedValueUtf8;

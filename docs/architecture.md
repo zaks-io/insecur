@@ -90,7 +90,12 @@ The accepted architectural decisions are indexed in [adr/README.md](adr/README.m
 
 The repository follows Turborepo conventions:
 
-- `apps/worker` is the deployable Cloudflare Worker service.
+- `apps/api` is the public API Worker deploy (`insecur-api`): the public edge, holds no keyring.
+- `apps/runtime` is the private Runtime Worker deploy (`insecur-runtime`): the sole holder of
+  `INSTANCE_ROOT_KEY_V1` and the only place decryption happens, reached only over a private Service
+  Binding via the `RuntimeService` RPC seam, serving zero public routes (ADR-0077). The
+  capability-isolation invariant is enforced by `pnpm conformance:topology` and the lint keyring
+  boundary; the route → deploy table is `docs/specs/deploy-route-inventory.md`.
 - `packages/cli` is the distributable Node CLI.
 - Root scripts call `turbo run ...` so builds and typechecks use the package graph and cache correctly.
 - Package scripts stay local to each workspace. The root only orchestrates.

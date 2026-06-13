@@ -30,7 +30,7 @@ checkNode();
 checkCommand("pnpm", ["--version"], (value) => value === "10.19.0", "pnpm 10.19.0");
 checkCommand(
   "pnpm",
-  ["--filter", "@insecur/worker", "exec", "wrangler", "--version"],
+  ["--filter", "@insecur/api", "exec", "wrangler", "--version"],
   (value) => /^4\./u.test(value),
   "Wrangler 4",
 );
@@ -52,12 +52,14 @@ checkOptionalCommand(
   (value) => value.length > 0,
   "Docker daemon",
 );
-checkPath("apps/worker/wrangler.jsonc");
+checkPath("apps/api/wrangler.jsonc");
+checkPath("apps/runtime/wrangler.jsonc");
 checkPath("compose.yaml");
 checkPath("infra/postgres/init/001-local-roles.sh");
 checkPath("infra/postgres/check-runtime-role.sh");
 checkPath(".env.example");
-checkPath("apps/worker/.dev.vars.example");
+checkPath("apps/api/.dev.vars.example");
+checkPath("apps/runtime/.dev.vars.example");
 checkLocalPostgresEnv();
 checkOptionalEnv();
 

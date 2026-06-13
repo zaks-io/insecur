@@ -37,7 +37,7 @@ Useful scaffold commands:
 pnpm dev:check
 pnpm dev:db:up
 pnpm dev:db:reset
-pnpm dev:worker
+pnpm dev:workers
 ```
 
 `pnpm dev:db:reset` rebuilds the local Postgres 17 Docker Compose database and runs the

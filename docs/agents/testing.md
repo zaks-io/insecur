@@ -20,9 +20,12 @@ pnpm test:rls       # forced-RLS tenant isolation suite
 pnpm test:canary    # no-plaintext canary gate (Postgres columns + console output)
 ```
 
-`pnpm test:e2e` runs `apps/worker/test/e2e/first-value-loop.e2e.test.ts`, which drives the
-actual Worker routes (`app.request`) against real Postgres and real crypto — no package
-mocks — and asserts a secret value round-trips through write → grant issue → grant consume.
+`pnpm test:e2e` runs `apps/api/test/e2e/first-value-loop.e2e.test.ts`, which drives the actual
+API Worker routes (`app.request`) against real Postgres and real crypto — no package mocks —
+composing the API Worker with the Runtime Worker's `RuntimeService` behind an in-process `RUNTIME`
+binding (the fast unit layer of the multi-deploy shape; the preview smoke drives the real Service
+Binding over HTTP per ADR-0065). It asserts a secret value round-trips through write → grant issue
+→ grant consume.
 It self-gates on `integrationDatabaseReady`, so it skips cleanly when no runtime DB is
 configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 
@@ -47,7 +50,7 @@ runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which s
 `INSECUR_CI_RLS_GATE=1` and runs `test:rls`, `test:e2e`, and `test:canary`; each fails closed under that gate
 rather than skipping. The no-plaintext canary gate
 ([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) runs after `test:e2e` via
-`apps/worker/test/canary/no-plaintext-canary.test.ts`: it drives the real route stack with a
+`apps/api/test/canary/no-plaintext-canary.test.ts`: it drives the real route stack with a
 fresh high-entropy sentinel, then sweeps every `public` schema column from live
 `information_schema` (migration-role connection) and captured in-process console output for
 raw, base64, base64url, and hex encodings. Deployed worker logs, R2, KV, Queues, Durable

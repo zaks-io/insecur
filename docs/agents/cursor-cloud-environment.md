@@ -33,6 +33,14 @@ Cursor's repo-level environment config should be treated as reviewable infrastru
   Cursor Cloud Agent environments.
 - Do not add long-running `terminals` unless a task specifically needs an always-on remote Worker
   session.
+- Worker deploys are capability-isolated, never a monolith. The decided topology is `apps/api`
+  (public edge, no keyring), `apps/runtime` (sole `INSTANCE_ROOT_KEY_V1` holder, decrypt-egress
+  behind a `WorkerEntrypoint` RPC seam, no public routes), and `apps/web` (BFF), per
+  ADR-0051/0064/0071 and tracked by INS-194. Remote agents must never compose multiple capabilities
+  (public routes + decrypt authority) into one deploy, and must never add the root-key binding to a
+  deploy that serves public routes. A new route belongs to a specific deploy by capability; the CI
+  deploy-topology conformance gate (INS-199) fails any deploy that holds both a public route and the
+  root key. See `docs/project-status.md` (Worker topology) and the decomposition epic INS-194.
 - Do not `COPY` the repository into `.cursor/Dockerfile`; Cursor manages checkout and branch state.
 - Do not add secrets to `.cursor/environment.json` or `.cursor/Dockerfile`.
 - Any package added to `onlyBuiltDependencies` is a supply-chain decision and should be reviewed as such.

@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "insecur-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "destinations": ["axiom-logs"],
+    },
+    "traces": {
+      "enabled": true,
+      "destinations": ["axiom-traces"],
+    },
+  },
+  // The public API Worker holds NO root-key binding (ADR-0064/0077): all keyring-bound work is
+  // forwarded to the private Runtime Worker over this Service Binding, which targets the
+  // `RuntimeService` RPC entrypoint. The deploy-topology conformance gate (INS-199) asserts this
+  // deploy declares no `secrets_store_secrets`.
+  "services": [
+    {
+      "binding": "RUNTIME",
+      "service": "insecur-runtime",
+      "entrypoint": "RuntimeService",
+    },
+  ],
+  // Preview environment scaffold for the gated pr-preview workflow. The Hyperdrive binding is a
+  // placeholder: the per-PR Hyperdrive id is created at deploy time and patched into this env, and
+  // the Worker must read its Postgres connection from env.DB. Part of the preview-env stand-up
+  // ticket; until then PREVIEW_ENV_ENABLED is unset and this env is never deployed.
+  "env": {
+    "preview": {
+      "hyperdrive": [
+        {
+          "binding": "DB",
+          "id": "0000000000000000000000000000000a",
+        },
+      ],
+    },
+  },
+}

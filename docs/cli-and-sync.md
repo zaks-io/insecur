@@ -327,8 +327,8 @@ This table is the target normative registry for both projections of every stable
 CLI exit code and its HTTP status. There is no second mapping table anywhere. Two implementations
 must change in lockstep with it: `exitCodeForErrorCode` in
 `packages/cli/src/output/exit-codes.ts` for exits, and `HTTP_STATUS_BY_CODE` in
-`apps/worker/src/http/http-status-by-code.ts` for HTTP status. Exhaustive enforcement is wired in
-`apps/worker/src/http/error-code-registry.test.ts`: every `KnownErrorCode` must have a registry row,
+`packages/worker-kit/src/http/http-status-by-code.ts` for HTTP status. Exhaustive enforcement is wired in
+`packages/worker-kit/src/http/error-code-registry.test.ts`: every `KnownErrorCode` must have a registry row,
 every HTTP-mapped row must match `HTTP_STATUS_BY_CODE`, and catalog codes marked `n/a (client-side)`
 must not reach the HTTP map. Codes that never cross HTTP get `n/a (client-side)`
 in the HTTP column; an explicit marker, never a blank, so a deliberate non-mapping stays
