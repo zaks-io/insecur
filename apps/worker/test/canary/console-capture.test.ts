@@ -17,4 +17,18 @@ describe("console capture", () => {
     const hits = sweepTextOutput(capture.output, sentinel);
     expect(hits.some((hit) => hit.surface === "console" && hit.encoding === "raw")).toBe(true);
   });
+
+  it("detects a sentinel reachable only via error.cause", () => {
+    const sentinel = mintCanarySentinel();
+    const capture = startConsoleCapture({ forward: false });
+
+    try {
+      console.error(new Error("outer", { cause: new Error(sentinel.value) }));
+    } finally {
+      capture.stop();
+    }
+
+    const hits = sweepTextOutput(capture.output, sentinel);
+    expect(hits.some((hit) => hit.surface === "console" && hit.encoding === "raw")).toBe(true);
+  });
 });

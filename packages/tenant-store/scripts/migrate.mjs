@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { grantRuntimeTablePrivileges, resolveRuntimeRole } from "./grant-runtime.mjs";
 import { loadRepoEnvLocal, redactLoggableError, requireDatabaseUrl } from "./lib/env-local.mjs";
+import { isTenantStoreSchemaCurrent } from "./lib/migration-current.mjs";
 import { TENANT_STORE_MIGRATION_LOCK_KEY } from "./lib/test-advisory-locks.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -18,6 +19,11 @@ try {
 } catch (error) {
   console.error(redactLoggableError(error));
   process.exit(1);
+}
+
+if (await isTenantStoreSchemaCurrent(databaseUrl)) {
+  console.log("Migrations already current; skipping migrate.mjs");
+  process.exit(0);
 }
 
 const sql = postgres(databaseUrl, { prepare: false, max: 1 });
