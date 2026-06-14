@@ -11,7 +11,8 @@ Read in this order:
    and handoff contracts for autonomous agents.
 3. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
    proof loop, design-partner loop, and success signals that should constrain First Value scope.
-4. [CONTEXT.md](../../CONTEXT.md) - domain vocabulary and exact term definitions.
+4. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
+   under [docs/context/glossary/](../context/glossary/).
 5. Area docs only when the workstream calls for them, such as
    [First Value Milestone](../first-value-milestone.md),
    [Storage Security Gate](../storage-security-gate.md),
@@ -37,19 +38,20 @@ Every class of normative content has exactly one owning location; every other do
 owner instead of restating it. This table is the normative owner-map, per
 [ADR-0067](../adr/0067-documentation-content-ownership-and-single-statement-rule.md).
 
-| Content type                                                | Owning location                                                          |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Shared cross-context domain vocabulary and term definitions | root [CONTEXT.md](../../CONTEXT.md)                                      |
-| Terms scoped to one bounded context                         | that package or app `CONTEXT.md`                                         |
-| Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](product-spec.md)                                       |
-| Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                      |
-| Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot               |
-| Workstream ownership, seams, and integration order          | [agent-workstreams.md](agent-workstreams.md)                             |
-| Live implementation status                                  | [project-status.md](../project-status.md)                                |
-| Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence |
+| Content type                                                | Owning location                                                                                                            |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Shared cross-context domain vocabulary and term definitions | the per-domain slices under [docs/context/glossary/](../context/glossary/), indexed by root [CONTEXT.md](../../CONTEXT.md) |
+| Terms scoped to one bounded context                         | that package or app `CONTEXT.md`                                                                                           |
+| Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](product-spec.md)                                                                                         |
+| Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                                                                        |
+| Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
+| Workstream ownership, seams, and integration order          | [agent-workstreams.md](agent-workstreams.md)                                                                               |
+| Live implementation status                                  | [project-status.md](../project-status.md)                                                                                  |
+| Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence                                                   |
 
-Root `CONTEXT.md` owns vocabulary shared across contexts; a package or app `CONTEXT.md` owns a term
-that exists only inside its bounded context. A term is defined in exactly one place, never both.
+The per-domain glossary slices under `docs/context/glossary/` (indexed by root `CONTEXT.md`) own
+vocabulary shared across contexts; a package or app `CONTEXT.md` owns a term that exists only inside
+its bounded context. A term is defined in exactly one place, never both.
 
 ### The single-statement rule
 

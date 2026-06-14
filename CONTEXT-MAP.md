@@ -1,8 +1,9 @@
 # insecur Context Map
 
 Use this file first when deciding which domain context to load. It is a routing
-map for agents, not a glossary. Authoritative term definitions live in
-`CONTEXT.md`; package context files point to the relevant slices.
+map for agents, not a glossary. `CONTEXT.md` is the glossary index; authoritative
+term definitions live in per-domain slices under `docs/context/glossary/`, and
+package context files point to the relevant slice.
 
 For general repo orientation, start with `docs/agents/repo-navigation.md`.
 Return here when you need to choose the right domain, app, package, or spec
@@ -10,7 +11,8 @@ context for a specific task.
 
 ## Global Context
 
-- `CONTEXT.md` - source of truth for domain language across the repo.
+- `CONTEXT.md` - glossary index: routes to the per-domain definition slices under
+  `docs/context/glossary/`, which are the source of truth for domain language.
 - `docs/context-map.md` - package ownership, dependency direction, and the
   scaffolded package cut.
 - `docs/specs/README.md` - current implementation entry point.
@@ -46,10 +48,13 @@ context for a specific task.
 ## Reading Rules
 
 1. Start with the most local `CONTEXT.md` for the files you are touching.
-2. Load only the named terms from root `CONTEXT.md`, unless the task spans
-   multiple contexts.
+2. From `CONTEXT.md`, load only the glossary slice(s) your task names, unless the
+   task spans multiple contexts. Load `docs/context/relationships.md`,
+   `docs/context/glossary/terminology-rules.md`, or `docs/context/dialogue.md`
+   only when you need cross-term structure, disambiguation, or usage examples.
 3. Load ADRs only when the local context or spec names them, or when your change
    would contradict an accepted decision.
-4. Do not redefine glossary terms in package context files. Edit root
-   `CONTEXT.md` when domain language changes.
+4. Do not redefine glossary terms in package context files. Each term is defined
+   in exactly one slice under `docs/context/glossary/`; edit that slice when
+   domain language changes.
 5. Keep package context files small enough for routine agent navigation.

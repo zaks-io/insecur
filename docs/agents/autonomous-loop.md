@@ -99,7 +99,7 @@ Agents must:
 
 - Read `AGENTS.md`, `CONTEXT-MAP.md`, the issue description, and the local context docs before
   editing.
-- Use the terms in root `CONTEXT.md` exactly.
+- Use the terms in the `docs/context/glossary/` slices (indexed by `CONTEXT.md`) exactly.
 - Keep each PR scoped to one Linear issue.
 - Prefer existing repo patterns and package ownership boundaries.
 - Add or update tests proportional to the risk and blast radius.

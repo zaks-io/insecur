@@ -35,7 +35,7 @@ registry, static unit check, and `information_schema` CI check are wired in
 - Full enumeration, default deny. Every column of every user table — every table in the
   application's `public` schema; drizzle-kit's bookkeeping table lives in the separate `drizzle`
   schema and is out of scope — must appear in the registry with a category drawn from the
-  normative allowlist vocabulary in CONTEXT.md's Relationships section: `opaque-id`,
+  normative allowlist vocabulary in [docs/context/relationships.md](../context/relationships.md): `opaque-id`,
   `display-name`, `type-code`, `status-code`, `timestamp`, `actor-id`, `count`, `flag`, plus
   envelope categories such as `ciphertext-ref` and `key-version` for columns that carry the
   encrypted form itself. A column with no registry entry fails the conformance test closed. The

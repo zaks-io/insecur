@@ -14,7 +14,7 @@ This is the implementation spec for insecur's monorepo build tooling and quality
 - ADR-0036 / ADR-0037: Neon RLS and the Tenant-Scoped Bound Store these tests exercise
 - ADR-0004: machine identities and CI auth
 
-`CONTEXT.md` is the domain glossary and must not carry any of this tooling. Build configuration lives in the config files described here and in this spec.
+`CONTEXT.md` and the `docs/context/glossary/` slices are the domain glossary and must not carry any of this tooling. Build configuration lives in the config files described here and in this spec.
 
 ## Version Policy
 

@@ -20,24 +20,24 @@ This table is a navigational pointer that routes you to a starting doc; the norm
 the content-ownership table in the Source Of Truth Rules of
 [../specs/README.md](../specs/README.md). Where the two disagree, this table is the defect.
 
-| Need                                             | Start here                                |
-| ------------------------------------------------ | ----------------------------------------- |
-| Current state, next steps, and not-yet-done list | `docs/project-status.md`                  |
-| Product north star and non-goals                 | `docs/vision.md`                          |
-| Authoritative domain vocabulary                  | `CONTEXT.md`                              |
-| Which context file to load                       | `CONTEXT-MAP.md`                          |
-| Package ownership and dependency direction       | `docs/context-map.md`                     |
-| Current product shape and ADR trace links        | `docs/specs/product-spec.md`              |
-| Implementation workstream boundaries             | `docs/specs/agent-workstreams.md`         |
-| Production MVP acceptance contract               | `docs/production-mvp-acceptance.md`       |
-| First Value build contract                       | `docs/first-value-milestone.md`           |
-| First Value Linear ticket graph                  | `docs/specs/first-value-ticket-plan.md`   |
-| CLI and provider sync behavior                   | `docs/cli-and-sync.md`                    |
-| Storage readiness gate                           | `docs/storage-security-gate.md`           |
-| Protected change flow                            | `docs/protected-change-orchestration.md`  |
-| Operation retry, resume, and leases              | `docs/operation-store.md`                 |
-| Agent workflow and Linear rules                  | `docs/agents/workflow.md`                 |
-| Cursor Cloud setup                               | `docs/agents/cursor-cloud-environment.md` |
+| Need                                             | Start here                                               |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| Current state, next steps, and not-yet-done list | `docs/project-status.md`                                 |
+| Product north star and non-goals                 | `docs/vision.md`                                         |
+| Authoritative domain vocabulary                  | `docs/context/glossary/` slices, indexed by `CONTEXT.md` |
+| Which context file to load                       | `CONTEXT-MAP.md`                                         |
+| Package ownership and dependency direction       | `docs/context-map.md`                                    |
+| Current product shape and ADR trace links        | `docs/specs/product-spec.md`                             |
+| Implementation workstream boundaries             | `docs/specs/agent-workstreams.md`                        |
+| Production MVP acceptance contract               | `docs/production-mvp-acceptance.md`                      |
+| First Value build contract                       | `docs/first-value-milestone.md`                          |
+| First Value Linear ticket graph                  | `docs/specs/first-value-ticket-plan.md`                  |
+| CLI and provider sync behavior                   | `docs/cli-and-sync.md`                                   |
+| Storage readiness gate                           | `docs/storage-security-gate.md`                          |
+| Protected change flow                            | `docs/protected-change-orchestration.md`                 |
+| Operation retry, resume, and leases              | `docs/operation-store.md`                                |
+| Agent workflow and Linear rules                  | `docs/agents/workflow.md`                                |
+| Cursor Cloud setup                               | `docs/agents/cursor-cloud-environment.md`                |
 
 ## Code Routing
 
@@ -60,7 +60,7 @@ seams instead of route or CLI shortcuts.
 | Guided Organization Provisioning                               | `packages/onboarding/`        |
 | Copyable First Value proof                                     | `examples/first-value-proof/` |
 
-For package work, read the package `CONTEXT.md` first, then load only the root glossary terms and
+For package work, read the package `CONTEXT.md` first, then load only the glossary slice and
 ADRs named by that local context.
 
 ## Linear And Workflow Routing
@@ -82,10 +82,11 @@ security, and domain source of truth.
 ## Search Habits
 
 - Use `rg --files` to list files by area.
-- Use `rg "<term>" CONTEXT.md docs packages apps` to find domain language or implementation
-  references.
+- Use `rg "<term>" docs/context/glossary docs packages apps` to find domain language or
+  implementation references.
 - Prefer local `CONTEXT.md` files and specs over broad searches through `docs/adr`.
-- When a term appears ambiguous, check root `CONTEXT.md` before inventing synonyms.
+- When a term appears ambiguous, check its `docs/context/glossary/` slice (and
+  `docs/context/glossary/terminology-rules.md`) before inventing synonyms.
 - When docs conflict, resolve it with the deterministic resolution in the Source Of Truth Rules of
   [../specs/README.md](../specs/README.md): the non-owning doc loses and you proceed on the owner;
   only owner-vs-owner conflicts stop and reopen the decision.
