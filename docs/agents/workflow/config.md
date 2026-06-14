@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-06-01
+Last updated: 2026-06-14
 
 Workflow lookup table for the shared `workflow-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
@@ -8,8 +8,8 @@ external systems (Linear, GitHub, CI), not here.
 
 ## Verification
 
-- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names.
-- Last verified: 2026-05-28.
+- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note.
+- Last verified: 2026-06-14 (Linear labels re-listed live; statuses/projects unchanged since 2026-05-28).
 - Evidence sources: `package.json`, `.npmrc`, git remote/branch, `AGENTS.md`/`CLAUDE.md` symlinks, `.agents/skills/*` + `.claude/skills/*` + root `skills/*` symlinks, live Linear `list_teams`/`list_issue_statuses`/`list_issue_labels`.
 - Safe commands run: `git remote get-url origin`, `git symbolic-ref --short HEAD`, `jq` over `package.json`, `ls -la`/`-ef` symlink checks, `git log`/`diff`/`wc` over skills.
 - Read-only tool calls: Linear `list_teams (INS)`, `list_issue_statuses (INS)`, `list_issue_labels (INS, 100)` — all IDs below confirmed unchanged.
@@ -24,8 +24,8 @@ external systems (Linear, GitHub, CI), not here.
 - Branch prefix: `ins-<number>-<short-slug>` (one Linear issue per branch)
 - Package manager: pnpm@10.19.0 (corepack), Node `>=24 <25` (`engine-strict=true`)
 - Install: `pnpm install --frozen-lockfile`
-- Full local gate: `pnpm verify` (duplicate warnings + format:check + turbo lint typecheck test)
-- Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm dev:check`; `pnpm duplicates:check`
+- Full local gate: `pnpm verify` (duplicate warnings + format:check + turbo lint typecheck test). `verify` does NOT include the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds lines 80 / fns 82 / stmts 80 / branches 62 in `vitest.config.ts`). Any PR touching covered packages must also pass `pnpm test:coverage`; CI runs it as its own `Coverage` job, and pre-push runs it locally, but the Cursor cloud worker skips push hooks, so run it explicitly before opening a PR.
+- Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
 - Preview checks: `PR Preview` / `PR Preview Cleanup` workflows exist but stay gated behind `PREVIEW_ENV_ENABLED` (INS-164); hosted `CI` and `security-daily` workflows run unconditionally
@@ -69,6 +69,10 @@ Readiness (parent `Readiness`):
 - wontfix `d219cd4b-27a2-4a20-960d-b9b1ff43fa49`
 - remote worker: `remote-cursor` `7ca081c9-f1fb-45ba-a6a4-751e3dc30fec` (no `Readiness` parent; this repo uses Cursor as the remote worker)
 
+Review gate (no parent):
+
+- `code-review-passed` `094ebaff-9aa1-4d86-9207-28f02b34a32e` — "Code review has passed and all feedback has been resolved". The merge-gate marker. Use this exact kebab-case slug; the display name is title-case ("Code review passed") and searching by the display string returns empty. Apply it to the issue when Agent Review is clean for the current PR head; the supporting evidence (head SHA + both reviewer verdicts) goes in an issue comment.
+
 ### Label Policies
 
 - `ready-for-agent`: no further human refinement is needed before agent handoff; does not mean unblocked or startable.
@@ -111,6 +115,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Agent-ready issue body: contract in `docs/agents/linear-ticketing.md#issue-body-contract` and `docs/agents/autonomous-loop.md` (Outcome, Context, In scope, Out of scope, Acceptance criteria, Required checks, Security invariants, Dependencies)
 - Status transition owner: Agent Orchestrator (`workflow-agent-orchestrator`)
 - Labels are signals, not authority: Linear status is the workflow source of truth; Agent Orchestrator owns transitions
+- `save_issue` quirk: a partial-payload `save_issue` (e.g. state/delegate only) can return unchanged state or fail with "title is required". Send an explicit payload with `id` + the fields being changed (`state`, `labels`, etc.) rather than a minimal diff; that path is reliable. Do not retry the minimal payload 2-3 times before switching.
 
 ## Work Coordination
 
@@ -121,7 +126,9 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)
 - Review authority: Agent Review (clean context / disposable worktree)
-- Merge authority: human (no auto-merge; Agent Orchestrator may move to Ready to Merge only)
+- Merge method: squash only. `gh pr merge <n> --squash --delete-branch`. Merge commits are disabled on the repo, so `--merge` is rejected; do not retry with it.
+- Merge authority: Agent Orchestrator may squash-merge a PR once both reviews (code-reviewer + security-auditor where applicable) PASS at the exact current head SHA and CI is green. This includes `risk-security-sensitive` PRs that are test-only or docs-only. Reserve human merge for: production crypto/credential/schema runtime behavior changes (not tests/docs about them), any review that is not clean, and PRs that are stale and need a rebase. The orchestrator still moves status to Ready to Merge; it no longer has to park there waiting on a human when the gate is satisfied.
+- Worktree hygiene: review/agent worktrees (`agent-*`, `pr-*-review`) are ephemeral. Prune orphaned ones at tick start (`git worktree prune`, then force-remove leftover `agent-*`/`pr-*` paths) before any checkout-sensitive action; a stale worktree holding the `main` ref will break `gh pr merge`. Reviewers must remove their disposable worktree on completion, even on failure.
 - Claim record: Linear assignment/delegation + claim comment + In Progress status
 - Orchestrator local state: non-authoritative scratch/checkpoints only; refresh Linear/GitHub before acting
 - Friction log: Linear issue `INS-99` (`Agent Orchestrator friction log`), parked in `Canceled`; append metadata-only comments
@@ -145,11 +152,11 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 - PR title: Conventional Commits; reference issue (e.g. `feat(cli): ... (INS-NN)`)
 - PR body: Summary, Changes, Risk, Test plan; metadata-only (no Sensitive Values)
-- Required checks: `pnpm verify` locally; run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
+- Required checks: `pnpm verify` locally, plus `pnpm test:coverage` when the PR touches covered packages (the coverage ratchet is NOT part of `verify`; it is CI's separate `Coverage` job and the most common first-pass CI failure); run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
 - Code review: `workflow-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
 - CodeRabbit: not wired; escalate to `/code-review ultra` or human for high-risk PRs
 - Issue update: Agent Orchestrator moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
-- Merge authority: human
+- Merge authority: see Work Coordination — Agent Orchestrator squash-merges on dual-reviewer PASS at the pinned head SHA with CI green; human merge reserved for production crypto/credential/schema runtime changes, unclean reviews, and stale PRs needing rebase
 
 ## Environments
 
@@ -173,4 +180,4 @@ Linear prose, PR bodies, comments, and tests. No reveal/plaintext-export/debug-d
 
 ## Unknowns
 
-- [ ] No hosted CI / preview / secret+dependency scanning (FV-02 owns). Required-check enforcement is local-only until then.
+- [ ] Preview deploys stay gated behind `PREVIEW_ENV_ENABLED` (INS-164). Hosted `CI` and `security-daily` workflows run unconditionally on PRs (Verify, Coverage, postgres-integration, gitleaks/semgrep/syft+grype); CI branch protection is the real enforcement boundary, not local hooks.

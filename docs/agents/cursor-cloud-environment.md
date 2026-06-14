@@ -56,8 +56,17 @@ pnpm install --frozen-lockfile
 pnpm dev:check
 pnpm dev:db:reset
 pnpm verify
+pnpm test:coverage
 pnpm typecheck
 pnpm build
 docker build -f .cursor/Dockerfile .cursor -t insecur-cursor-env-test
 docker run --rm insecur-cursor-env-test sh -lc 'node --version && pnpm --version && docker --version && docker compose version'
 ```
+
+## Pre-PR gate for remote agents
+
+`pnpm verify` does NOT run the coverage ratchet — that is the separate `pnpm test:coverage` job
+(thresholds in `vitest.config.ts`). Cursor Cloud agents do not run git push hooks, so the pre-push
+`test:coverage` safety net does not fire here. Before opening a PR that touches covered packages,
+run `pnpm test:coverage` explicitly in addition to `pnpm verify`. Skipping it is the most common
+first-pass CI failure in this repo (the `Coverage` job reds out while `verify` was green locally).
