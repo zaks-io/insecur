@@ -1,38 +1,39 @@
 # Package Context Map
 
-This map turns the glossary in `../CONTEXT.md` into package ownership.
-`../CONTEXT-MAP.md` is the root agent routing map. `../CONTEXT.md` keeps the
-source-of-truth vocabulary; packages own the implementation seams that make that
-vocabulary executable and testable.
+This map turns the glossary into package ownership. `../CONTEXT-MAP.md` is the root
+agent routing map and `../CONTEXT.md` is the glossary index; the source-of-truth
+vocabulary lives in per-domain slices under `../docs/context/glossary/`. Packages
+own the implementation seams that make that vocabulary executable and testable.
 
-The goal is not one package per glossary section. A package exists when it gives
+The goal is not one package per glossary slice. A package exists when it gives
 callers leverage through a small Interface and gives maintainers locality for a
 set of invariants, tests, and error modes.
 
 ## Package Rules
 
 - Each package owns one deep domain module or a tightly related module family.
-- Each package has a local `CONTEXT.md` reading map that names the root glossary
-  terms and deeper docs an agent should load for that package.
+- Each package has a local `CONTEXT.md` reading map that names the glossary slice,
+  terms, and deeper docs an agent should load for that package.
 - Each package README names what the package owns, consumes, and must not own.
 - Package `CONTEXT.md` files are scoped reading maps, not independent
-  glossaries. Edit term definitions in root `CONTEXT.md`.
+  glossaries. Each term is defined in exactly one slice under
+  `../docs/context/glossary/`; edit term definitions there.
 - Tests live with the package whose Interface they exercise.
 - Stable error codes and result shapes live with the package that owns the
   invariant behind them.
 - The worker and CLI compose packages; they should not reimplement package
   invariants in routes, command handlers, or adapters.
-- `CONTEXT.md` remains global language. Package context files route agents to
-  terms instead of copying glossary definitions.
+- The glossary slices remain global language. Package context files route agents
+  to terms instead of copying glossary definitions.
 
 ## Context File Contract
 
-Use package `CONTEXT.md` files to avoid loading the entire root glossary for
+Use package `CONTEXT.md` files to avoid loading the entire glossary for
 routine package work. A package context file should stay small and contain:
 
 - the package role
 - the local read-first docs
-- root glossary terms to load
+- the glossary slice and terms to load
 - terms to load only for adjacent work
 - what the package owns
 - what the package must not own

@@ -1,8 +1,7 @@
 # @insecur/cli Context
 
 Scoped context for agents working in `packages/cli`. This file is a reading map,
-not an independent glossary. Authoritative term definitions live in
-`../../CONTEXT.md`.
+not an independent glossary. Authoritative term definitions live in the per-domain slices under `../../docs/context/glossary/`, indexed by `../../CONTEXT.md`. Load only the slice your task needs.
 
 ## Role
 

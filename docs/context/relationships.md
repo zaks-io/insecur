@@ -1,0 +1,681 @@
+# Term Relationships
+
+How insecur domain terms relate. Load on demand when you need cross-term structure,
+not just a single definition. Term definitions live in [`glossary/`](glossary/) and are
+indexed by [`../../CONTEXT.md`](../../CONTEXT.md). Terminology disambiguation rules:
+[`glossary/terminology-rules.md`](glossary/terminology-rules.md).
+
+## Relationships
+
+- An **Instance** contains one or more **Organizations**.
+- **Instance Bootstrap** requires a **Bootstrap Secret**.
+- **Instance Bootstrap** creates an **Instance**, its **Instance Configuration**, the first **Organization**, and a **Bootstrap Operator Claim**.
+- **Instance Bootstrap** installs enough **Instance Identity Configuration** for the configured **Human Identity Provider** before **Bootstrap Operator Claim** completion.
+- A **Bootstrap Operator Claim** becomes the first **Instance Operator** only when a **Human Identity Provider**-authenticated **User** presents the **Bootstrap Secret** through a **Safe Sensitive Input Path**.
+- Completing the first **Bootstrap Operator Claim** also creates an owner **Membership** for that **User** in the first **Organization**.
+- Completing the first **Bootstrap Operator Claim** creates separate audit entries for the **Instance Operator** grant and the first **Organization** owner **Membership**.
+- No **User** receives **Instance Operator** solely by being the first successful authentication.
+- No temporary local-admin authentication path exists for **Instance Bootstrap**.
+- A **Bootstrap Secret** is consumed or rotated immediately after successful **Bootstrap Operator Claim** completion.
+- A **Bootstrap Secret** is a **Sensitive Value** and must enter through a **Safe Sensitive Input Path**.
+- V1 is split into **First Value Milestone** and **Production Delivery Milestone**.
+- **First Value Milestone** precedes **Production Delivery Milestone**.
+- **Bounded Onboarding** is the V1 onboarding posture for **Small-Group Production**.
+- **Guided Organization Provisioning** is allowed under **Bounded Onboarding** only when **Public Onboarding** admits the **User** and required abuse controls are active for that posture.
+- A **Self-Hosted Instance** typically begins with locked onboarding until **Instance Bootstrap** completes.
+- Self-hosting does not require a separate product codebase or deployment refactor.
+- **Instance Bootstrap** is the one-time initialization flow for a new **Instance**; do not describe it as first login or signup.
+- A **Hosted Instance** and a **Self-Hosted Instance** use the same **Instance** capabilities and product shape; they differ in who holds **Instance Operator**, who owns the Cloudflare infrastructure, and default onboarding posture.
+- On a **Hosted Instance**, normal customer work happens at the **Organization** layer through **Organization Access**.
+- On a **Hosted Instance**, **Instance Operator** defaults to insecur administration and is not part of the normal customer experience.
+- On a **Self-Hosted Instance**, the customer holds **Instance Operator** and may configure **Instance Configuration** freely, including rate limits.
+- A **Self-Hosted Instance** supports one or more **Organizations**; the customer decides whether to create additional **Organizations** after bootstrap.
+- Additional **Organizations** on a **Hosted Instance** for one enterprise customer may be added later without changing the **Instance** model.
+- **Small-Group Production** uses the **Enterprise-Ready Model** without requiring every enterprise feature to exist first.
+- **First Value Milestone** uses the **Enterprise-Ready Model** tenant, membership, authorization, audit, and key boundaries where they are part of first-run behavior.
+- **First Value Milestone** uses the real **Tenant-Scoped Store**, **Effective Access Resolver**, **Keyring**, **Secret Version Store**, **Runtime Injection**, and **Audit Event Writer** seams where the first-run behavior touches those concerns.
+- **First Value Milestone** is not permission to store production-grade **Sensitive Values** in non-protected **Environments**.
+- **First Value Milestone** does not require provider **App Connections**, provider **Secret Sync**, **Protected Environments**, machine credentials, OIDC, approval workflows, or the **Storage Security Gate**.
+- **Production Delivery Milestone** requires the **Storage Security Gate** before production **Secret Delivery** or provider **Secret Sync**.
+- **Production Delivery Milestone** is the milestone that may handle production-grade **Sensitive Values**.
+- Under **Bounded Onboarding**, **Organizations** are created either by an **Instance Operator** or by **Guided Organization Provisioning**.
+- Under **Guided Organization Provisioning**, **Public Onboarding** creates a **Personal Organization**, a **Default Team**, and an owner **Membership** for the admitted **User**.
+- Under **Guided Organization Provisioning**, **Public Onboarding** creates a first **Project** and non-protected development **Environment** with default **Display Names** so the **User** can reach product value before naming or configuring every object.
+- Under **Bounded Onboarding**, normal **Users** join existing **Organizations** through **Invitations** and **Memberships**.
+- An **Instance** has one **Instance Configuration**.
+- **Instance Identity Configuration** designates one **Human Identity Provider**.
+- WorkOS AuthKit is the default **Human Identity Provider** configuration.
+- Who may authenticate is configured in the **Human Identity Provider**, not through insecur **Public Onboarding**.
+- First successful authentication may create a **User** bound to an **External Subject**.
+- Authentication does not grant **Organization Access**; **Memberships** still do.
+- **Membership** and **Organization Access** are owned by insecur, not by the **Human Identity Provider**.
+- Directory or SCIM sync may create or update **Teams** or **Memberships** later, but insecur remains the source of truth for **Organization Access**.
+- An **Instance** has one **Instance Identity Configuration**.
+- **Instance Identity Configuration** applies to every **Organization** inside the **Instance**.
+- **Organization**-scoped identity configuration is separate from **Instance Identity Configuration**.
+- An **Organization** has one **Organization Configuration**.
+- **Instance Configuration** controls how the **Instance** runs and who can authenticate.
+- **Organization Configuration** controls how secrets are governed inside one **Organization**.
+- Metadata fields default to **Sensitive Metadata** unless they are on the **Plaintext Metadata Allowlist**.
+- The **Plaintext Metadata Allowlist** includes **Opaque Resource IDs**, **Display Names**, stable type and status codes, timestamps, actor IDs and types, counts, and non-secret readiness flags.
+- A **Metadata Visibility Policy** may hide **Display Names** or other **Plaintext Metadata Allowlist** fields from lower-assurance surfaces without turning those fields into **Sensitive Metadata**.
+- A **Metadata Visibility Policy** does not classify privacy sensitivity field by field.
+- A **Metadata Visibility Policy** must not reveal **Sensitive Values** or bypass the **Sensitive Detail Gate** for decrypted **Sensitive Metadata**.
+- A **Webhook Subscription** includes one or more selected **Webhook Event Types**.
+- A **Webhook Subscription** delivers an **Event Notification** only when a selected **Webhook Event Type** occurs.
+- An **Event Notification** identifies its **Webhook Event Type** with a stable event code.
+- An **Event Notification** never contains **Sensitive Values**.
+- An **Event Notification** excludes **Sensitive Metadata**.
+- An **Event Notification** may contain opaque IDs, **Display Names**, stable event codes, timestamps, actors, and generic result status.
+- Each **Webhook Subscription** has one **Webhook Signing Secret**.
+- An **Event Notification** includes a **Webhook Signature** and timestamp.
+- An **Event Notification** never contains the **Webhook Signing Secret**.
+- **Webhook Signing Secret** rotation creates a new secret and retires the prior secret on a defined schedule or on demand.
+- An **Instance** may have zero or more instance-scoped **Webhook Subscriptions**.
+- An **Organization** may have zero or more organization-scoped **Webhook Subscriptions**.
+- **Instance Operator** administers **Instance Configuration** and instance-scoped **Webhook Subscriptions**.
+- **Organization Access** with sufficient permission administers **Organization Configuration** and organization-scoped **Webhook Subscriptions**.
+- An **Instance Operator** administers one **Instance** through **Instance Configuration**.
+- A **User** may be an **Instance Operator** for an Instance without having **Organization Access** in every **Organization** inside it.
+- A **User** may be an **Organization Owner** without being an **Instance Operator**.
+- **Instance Operator** and **Service Access** are separate boundaries. **Instance Operator** is customer-side Instance administration; **Service Access** is insecur platform operations on a **Hosted Instance**.
+- **Signup Lockdown** restricts **Public Onboarding** and public **Organization** creation; **Instance Operators** may still create **Organizations**.
+- A **Self-Hosted Instance Operator** may set **Instance Configuration** rate limits without insecur-imposed caps.
+- An **Organization** belongs to exactly one **Instance**.
+- An **Organization** owns zero or more **Projects**.
+- An **Organization** owns zero or more **Machine Identities**.
+- An **Organization** owns zero or more **App Connections**.
+- An **Organization** owns **Audit Log** entries for actions within its boundary.
+- **Customer-Managed Key Custody** applies to exactly one **Organization**.
+- Enabling, replacing, or disabling **Customer-Managed Key Custody** through insecur requires **Organization Configuration** authority, the **Human Approval Surface**, and a **High-Assurance Challenge**.
+- Replacing **Customer-Managed Key Custody** rewraps **Organization Data Keys** and **Project Data Keys** to the new custody root before retiring the prior custody root.
+- **Customer-Managed Key Custody** supports the claim that insecur cannot perform future decrypting operations for that **Organization** after the customer revokes or disables the custody grant.
+- **Customer-Managed Key Custody** does not support a zero-knowledge claim because insecur runtime can still decrypt through the active customer grant for approved delivery paths.
+- A **Custody-Locked Organization** cannot perform decrypting operations such as **Secret Delivery**, **Runtime Injection**, **Secret Sync**, Key Rotation rewrap, or decrypted **Sensitive Metadata** detail.
+- A **Custody-Locked Organization** still permits non-decrypting navigation, status, audit, and recovery surfaces according to **Metadata Visibility Policy**.
+- A **User** can have **Memberships** in many **Organizations** and **Projects**.
+- A **User** or **Machine Identity** receives **Organization Access** through **Memberships**.
+- A **User** or **Machine Identity** may receive **Service Access** outside any customer **Organization**.
+- **Public Onboarding** can create a **User** and, through **Guided Organization Provisioning**, may create a **Personal Organization** for that **User**.
+- A **Personal Organization** starts with a **Default Team**.
+- A **Personal Organization** starts with exactly one owner **Membership** for its creating **User**.
+- A **Personal Organization** starts with a first **Project** and a non-protected development **Environment**.
+- A **Personal Organization** can add more **Users** later through **Invitations** and **Memberships**.
+- An **Invitation** can create a **Membership** for an existing **User**.
+- An **Invitation** can create a **User** only through **Public Onboarding**.
+- An **Invitation** targets exactly one **Membership** grant.
+- An **Invitation** may target an **Organization**-scoped **Role** or a **Project**-scoped **Role**, but not both.
+- An **Invitation** cannot bundle multiple **Memberships**.
+- **Signup Lockdown** restricts **Public Onboarding**, new **User** creation, public **Organization** creation, and unauthenticated **Invitation** acceptance.
+- **Signup Lockdown** does not restrict existing **User** login or existing **Membership** use.
+- **Tenant Suspension** applies to one **Organization**.
+- **Tenant Suspension** restricts high-risk **Secret Egress**, **Secret Sync**, **Runtime Injection**, **App Connection**, **Invitation**, and **Machine Identity** actions.
+- **Tenant Suspension** preserves **Audit Log** history and limited owner remediation access.
+- **Tenant Suspension** performs **Requester Access Staleness** for pending **Approval Requests** in the suspended **Organization**.
+- **Tenant Suspension** does not pause pending **Approval Requests** for automatic resumption after reinstatement.
+- After **Tenant Suspension** is lifted, protected changes still require fresh **Approval Requests** from currently authorized **Users** or **Machine Identities**.
+- **Service Access** can include decrypted **Sensitive Metadata**.
+- **Service Access** excludes **Secret Reveal**, **Secret Delivery**, and **Sensitive Values**.
+- An **Agent** acts through one **Actor** at a time.
+- A **Machine Identity** is owned by one **Organization**.
+- V1 **Machine Identity** **Memberships** are **Project**-scoped only.
+- Organization-scoped **Machine Identity** **Memberships** may be added later for organization-wide automation.
+- **Membership** is the normalized grant concept for **Users**, **Teams**, and **Machine Identities**.
+- Each **Organization** has one **Default Team** in V1.
+- V1 creates the **Default Team** automatically when an **Organization** is created.
+- The **Default Team** has no **Membership** or **Role** grant by default.
+- Joining the **Default Team** does not grant **Organization Access** by itself.
+- V1 treats **Team** as schema-ready but avoids rich team management, nested teams, directory sync, and SCIM workflows.
+- A **Membership** links one **User**, **Team**, or **Machine Identity** to one **Organization** or **Project** scope.
+- A V1 **Membership** for a **User** or **Team** carries one or more **Built-In Roles** for assignment UX.
+- The **User** and **Team** **Membership** model is compatible with future explicit **Authorization Scope** grants, but V1 does not expose them for human/team assignment.
+- A **Membership** for a **Machine Identity** carries explicit **Authorization Scopes**, not **Roles**.
+- A **Membership** answers who may act in which **Organization** or **Project** scope.
+- **Machine Identity** execution uses exact opaque selectors or preconfigured policy keys, not **Scoped Lists** or **Display Name Resolution**.
+- A **User** or **Team** **Membership** at **Organization** scope contributes **Authorization Scopes** that apply to **Projects** in that **Organization**.
+- A **User** or **Team** **Membership** at **Project** scope contributes narrower project-scoped **Authorization Scopes**.
+- V1 **Effective Access** for **Users** and **Teams** is additive; there are no deny rules or negative overrides.
+- An **Organization Owner** has an owner **Role** **Membership** in exactly the **Organization** they own.
+- **Organization Access** uses **Scope-First Authorization**.
+- **Organization Access** authorization evaluates **Effective Access** **Authorization Scopes**, not **Role** names.
+- A **Role** bundles **Authorization Scopes** for **User** and **Team** access assignments.
+- V1 exposes **Built-In Roles** only for **User** and **Team** assignment: owner, admin, developer, metadata viewer, approval, and read-only.
+- V1 does not expose arbitrary human or team **Authorization Scope** editing.
+- **Built-In Roles** are implemented as **Authorization Scope** bundles and should not be special-cased in authorization checks.
+- The owner **Built-In Role** contributes approval **Authorization Scopes** for solo-owner operation.
+- The admin and developer **Built-In Roles** do not contribute approval **Authorization Scopes**.
+- The **Approval Role** is the additive **Built-In Role** for granting approval **Authorization Scopes** to non-owners where the **Protected Approval Policy** allows them, without contributing project configuration, **App Connection**, **Secret Sync**, **Runtime Injection Policy**, or membership management **Authorization Scopes**.
+- The **Approval Role** does not authorize **Approval Request Cancellation** by itself.
+- The **Metadata Viewer Role** is the additive **Built-In Role** for granting scoped metadata detail visibility to non-owners where **Metadata Visibility Policy** allows it.
+- The **Metadata Viewer Role** must not authorize **Sensitive Values**, **Secret Reveal**, **Secret Delivery**, **Runtime Injection**, **Secret Sync**, configuration mutation, or approval authority.
+- The **Metadata Viewer Role** does not bypass the **Sensitive Detail Gate** for decrypted **Sensitive Metadata**.
+- **Machine Identities** do not receive the **Metadata Viewer Role** in V1.
+- Approval **Authorization Scopes** may be contributed by **Organization**-scoped or **Project**-scoped **User** and **Team** **Memberships**.
+- **Organization**-scoped approval **Authorization Scopes** apply to **Approval Requests** for **Protected Environments** in any **Project** in that **Organization**.
+- **Project**-scoped approval **Authorization Scopes** apply only to **Approval Requests** for **Protected Environments** in that **Project**.
+- The developer **Built-In Role** may contribute protected-change request **Authorization Scopes**, but **Approval Request** approval requires approval **Authorization Scopes** in the **User**'s **Effective Access**.
+- A **User** may hold multiple **Roles** through **Memberships**, such as developer and approval for solo or small-group operation.
+- Custom **Roles** or explicit human/team **Authorization Scope** assignments may be added later through **Organization Configuration** without changing how **Organization Access** is evaluated.
+- A **Machine Identity** may receive **Organization Access** through project-scoped **Memberships** carrying explicit **Authorization Scopes**, without a **Role**.
+- A V1 **Machine Identity** cannot receive **Organization Access** through an organization-scoped **Membership**.
+- **Credential Scopes** attach directly to a machine credential and should be minimal for deploy automation.
+- An **Environment Deploy Key** is an **Auth Method** for a **Machine Identity**, not the **Membership** actor itself.
+- A short-lived access token issued from an **Environment Deploy Key** carries **Credential Scopes** that are no broader than one **Organization**, **Project**, and **Environment**.
+- **Token Scope** limits where a machine credential may act; **Credential Scopes** limit what it may do there.
+- **Effective Access** for a machine credential is the intersection of the **Machine Identity**'s **Memberships**, the credential's **Token Scope**, and the credential's **Credential Scopes**.
+- A machine credential cannot use broader **Machine Identity** access than its own **Token Scope** and **Credential Scopes** allow.
+- A machine credential cannot use **Credential Scopes** that exceed the **Machine Identity**'s **Memberships**.
+- A **User** may belong to zero or more **Teams**.
+- A **User** accepting an **Invitation** in V1 joins the **Default Team** unless the **Invitation** explicitly targets another **Team** in a later workflow.
+- **Invitation** acceptance may create a **User**, a **Default Team** association, and the explicit **Membership** described by the **Invitation**.
+- **Organization Access** for a **User** comes from direct **Memberships** and from **Memberships** assigned to a **Team** the **User** belongs to.
+- **Effective Access** for machine credentials uses the same **Authorization Scope** vocabulary as **Roles**, but the credential-level assignment carrier is **Credential Scopes** rather than a **Role**.
+- A **Project** belongs to exactly one **Organization**.
+- A **Project** contains zero or more **Environments**.
+- A **Project** owns zero or more **Secret Shapes**.
+- A **Secret Shape** has one **Variable Key**.
+- A **Variable Key** is unique within one **Project** in V1.
+- A **Variable Key** must match `^[A-Z_][A-Z0-9_]*$` in V1.
+- An **Environment** belongs to exactly one **Project**.
+- An **Environment** has a freeform **Display Name** chosen at creation; insecur does not enforce a fixed set of environment names.
+- An **Environment**'s protected status is fixed at creation and is not togglable; changing protection means creating a new **Environment** and migrating **Secret Shapes** to it, not flipping a flag on the existing one.
+- A **Protected Environment** cannot be demoted to non-protected, and a non-protected **Environment** cannot be promoted to **Protected Environment** in place.
+- An **Environment** contains zero or more **Secrets**.
+- An **Environment** can share **Secret Shapes** with another **Environment**.
+- An **Environment** has at most one **Secret** for each **Secret Shape**.
+- The logical application key-value store for one **Environment** is its **Secret** set: **Variable Key** to selected **Secret Version** **Sensitive Value**.
+- An **Environment** never copies a **Sensitive Value** to or from another **Environment**; only **Secret Shapes** propagate across **Environments**, and a value shared across **Environments** must come from an explicit **Shared Secret Source**.
+- An **Environment Default** belongs to exactly one non-protected **Environment**.
+- A **Shared Secret Source** belongs to one **Project** and is explicitly attached to one or more **Environments**.
+- A **Secret** has one or more **Secret Versions**.
+- A **Secret Version** holds exactly one **Text Secret Value**.
+- insecur does not model structured or multi-field **Secret** values in V1; a structured value is a later additive type, not a V1 shape.
+- A **Secret Version**'s **Text Secret Value** is subject to the **Secret Value Size Limit**; values over 64 KiB fail before write with `secret.value_too_large`.
+- The **Secret Value Size Limit** is measured in encoded UTF-8 bytes after validation, not characters.
+- **Secret Sync** validates each value against the destination **Provider Value Size Limit** at plan time rather than capping every **Text Secret Value** at the smallest provider limit.
+- A value may be valid for insecur storage and invalid for a specific **Secret Sync** target; that sync plan or run fails with `sync.provider_value_too_large` before provider write, and a protected **Promotion** that would enqueue that sync is blocked before publish.
+- **Secret Sync** does not perform **Automatic Provider Value Transform**; a too-large value must be fixed by explicit user action such as choosing **Runtime Injection**, writing a smaller value, using provider-supported external storage, or storing caller-managed encoded text.
+- A **Blind Secret Write** creates one **Secret Version**.
+- A **Blind Secret Write** is not a separate kind of **Secret**.
+- A **Blind Secret Write** may use service-side generation so the caller never learns the **Sensitive Value**.
+- In a non-protected **Environment**, a normal secret-write command may create a missing **Secret Shape** from a **Variable Key**, client-mint the underlying **Opaque Resource ID**, and then perform the **Blind Secret Write**.
+- A local `.env` import targets only a non-protected development **Environment**.
+- A local `.env` import must be rejected for **Protected Environments** and for non-development **Environments**.
+- A local `.env` import is create-only: it creates missing **Secret Shapes** and **Secrets** by final **Variable Key**, then creates one **Secret Version** per imported key-value pair without returning the **Sensitive Value**.
+- A local `.env` import must not create a new **Secret Version** for an existing **Secret**.
+- If a final **Variable Key** already maps to a **Secret** in the target **Environment**, **Import Preflight** fails with an **Import Existing Secret Conflict** before any **Blind Secret Writes** are created.
+- **Secret Import Delivery Separation** means **Local Secret File Migration** must not create, change, or bind **Runtime Injection Policies**, **Secret Syncs**, **CLI Profiles**, or other delivery configuration.
+- Imported **Secrets** are not delivered to child processes until selected by an explicit **Runtime Injection Policy** or by one-command non-protected direct selection.
+- **Secret Import** and **Local Secret File Migration** are adoption helpers, not normal recurring operations.
+- Existing **Secret** changes use ordinary secret-write, generation, rotation, **Runtime Injection**, and **Secret Sync** workflows rather than repeated **Local Secret File Migration**.
+- Protected **Environment** values enter through protected secret-write, generation, draft, **Promotion**, and rollback workflows, not through **Local Secret File Migration**.
+- A **Variable Key Prefix** is applied before **Import Preflight** validation and duplicate detection.
+- A **Variable Key Prefix** must be ASCII uppercase env-var-safe, and every final prefixed key must still match the **Variable Key** format.
+- **Local Secret File Migration** must not silently normalize parsed keys; without an explicit **Variable Key Prefix**, invalid or lowercase parsed keys fail **Import Preflight**.
+- **Local Secret File Migration** requires **Import Preflight** before any **Blind Secret Writes**.
+- **Import Preflight** failure is all-or-nothing: invalid final **Variable Keys**, duplicate final **Variable Keys**, **Import Existing Secret Conflicts**, or parse errors stop the import before any **Secrets** or **Secret Versions** are created.
+- **Import Preflight** error output may show line numbers, invalid parsed keys, invalid final **Variable Keys**, duplicate final **Variable Keys**, and existing-secret conflicts, but must not show parsed **Sensitive Values**.
+- **Import Preflight** may produce a **Secret Import Plan** instead of creating **Blind Secret Writes**.
+- A **Secret Import Plan** may show target scope, final **Variable Keys**, planned **Secret Shape** creation or matching, planned **Secret** creation, planned **Secret Version** writes, invalid parsed keys, invalid final **Variable Keys**, duplicate final **Variable Keys**, **Import Existing Secret Conflicts**, line numbers, and stable error codes, but must not show parsed **Sensitive Values** or raw source contents.
+- A **Secret Version** may be a **Draft Version** before **Promotion**.
+- A **Blind Secret Write** in a **Protected Environment** creates a **Draft Version**.
+- A **Protected Environment** has a **Draft Area** for unpromoted **Draft Versions**.
+- A **Draft Version Discard** applies only to unpromoted **Draft Versions**.
+- The **User** or **Machine Identity** that created a **Draft Version** may perform **Draft Version Discard** for that **Draft Version** while it remains unpromoted and current **Effective Access** still covers the affected **Project** and **Protected Environment**.
+- A **User** with scoped owner/admin cleanup **Authorization Scopes** for the affected **Project** and **Protected Environment** may perform **Draft Version Discard** for cleanup.
+- **Draft Version Discard** does not reveal **Sensitive Values**.
+- **Draft Version Discard** is audited.
+- **Draft Version Discard** does not require an **Approval Request** or **High-Assurance Challenge** in V1 because it cannot cause **Promotion**, **Secret Delivery**, **Secret Sync**, or delivery configuration changes.
+- Human UI and CLI **Draft Version Discard** require **Destructive Confirmation**.
+- **Destructive Confirmation** for **Draft Version Discard** is operation-scoped, discard-specific, and not reusable for later operations.
+- Human **Destructive Confirmation** for **Draft Version Discard** must show metadata-only discard impact before execution.
+- **Draft Version Discard** impact shown during **Destructive Confirmation** includes exact **Draft Version** IDs, affected pending **Approval Request** IDs, that affected **Approval Requests** close without **Promotion**, that existing **Partial Approvals** become audit-only, and that encrypted **Sensitive Value** material will be crypto-erased.
+- **Draft Version Discard** **Destructive Confirmation** must not show **Sensitive Values**, decrypted **Sensitive Metadata**, **Approval Context Notes**, or **Approval Rejection Notes**.
+- The service computes the metadata-only **Draft Version Discard** impact and binds human **Destructive Confirmation** to that exact impact.
+- The service revalidates the confirmed **Draft Version Discard** impact and actor **Effective Access** immediately before execution.
+- If any selected **Draft Version** was promoted, already discarded, removed from the actor's authorized scope, or has a changed affected pending **Approval Request** set before execution, the stale **Destructive Confirmation** must not execute.
+- Human UI and CLI flows require refreshed metadata-only impact and fresh **Destructive Confirmation** after **Draft Version Discard** impact revalidation fails.
+- API and **Machine Identity** **Draft Version Discard** require exact **Draft Version** IDs; wildcard, query, tag, pattern, or "all drafts" selection is not supported.
+- **Draft Version Discard** is idempotent for exact discarded **Draft Version** IDs: a repeated request observes the terminal discarded state and must not restore value material, reopen closed **Approval Requests**, or create **Promotion**.
+- **Draft Version Discard** is terminal for the discarded **Draft Version**.
+- A discarded **Draft Version** cannot return to the **Draft Area** or become promotable again.
+- If the same **Sensitive Value** is still wanted after **Draft Version Discard**, the actor must create a new **Blind Secret Write** and a new **Draft Version**.
+- **Draft Version Discard** crypto-erases the discarded **Draft Version**'s encrypted **Sensitive Value** material immediately in V1.
+- **Draft Version Discard** retains tombstone and audit metadata needed for immutable approval facts, pending-request closure, audit export integrity, and investigation.
+- After **Draft Version Discard** crypto-erasure, the discarded **Sensitive Value** is unrecoverable by product, admin, support, or restore flows.
+- **Draft Version Reuse** is allowed only while the **Draft Version** still exists in the **Draft Area** and the affected **Project** and **Protected Environment** still accept protected **Promotion**.
+- **Draft Version Reuse** requires a fresh **Promotion Change Set** and **Approval Request**.
+- **Draft Version Reuse** cannot reuse the earlier **Approval Request**, **Partial Approvals**, **Approval Impact Review**, **Approval Impact Review Fingerprint**, **Approval Impact Snapshot**, or approval screen state.
+- A discarded **Draft Version** cannot participate in **Draft Version Reuse**.
+- Future retention/delete policy may decide how long **Draft Version Discard** tombstone metadata remains user-visible or exportable, but it must not restore value material, restore the discarded **Draft Version**, or make an old **Approval Request** approvable.
+- A **Blind Secret Write** in a non-protected **Environment** may update the **Current Version** immediately.
+- A **Protected Environment** has one **Protected Approval Policy**.
+- A **Protected Approval Policy** may require one or more approving **Users**.
+- A **Protected Approval Policy Change** requires a **User** with sufficient owner/admin configuration **Authorization Scopes** for the affected **Project** and **Protected Environment**.
+- A **Protected Approval Policy Change** requires a **High-Assurance Challenge** in V1.
+- A **Protected Approval Policy Change** is not an **Approval Request** in V1.
+- A **Protected Approval Policy Change** cannot be authorized by the **Approval Role** or approval **Authorization Scopes** alone.
+- A **Protected Approval Policy Change** is audited with actor, affected **Organization**, **Project**, **Protected Environment**, prior policy version or hash, new policy version or hash, and any pending **Approval Requests** made policy-stale.
+- Future enterprise support may add approval for **Protected Approval Policy Changes** as a separate **Approval Request** purpose without changing promotion **Approval Request** semantics.
+- Changing the **Protected Approval Policy** for a **Protected Environment** performs **Approval Policy Staleness** for any pending **Approval Request** in that **Protected Environment**.
+- **Approval Policy Staleness** closes the pending **Approval Request** without **Promotion**, **Secret Delivery**, **Secret Sync**, or delivery configuration changes from that request.
+- **Approval Policy Staleness** preserves existing **Partial Approvals** in audit history but makes them audit-only and unusable for delivery or future **Approval Requests**.
+- **Approval Policy Staleness** leaves the request's **Draft Versions** in the **Draft Area** so the requester can create a fresh **Promotion Change Set** and **Approval Request** under the new **Protected Approval Policy**.
+- A multi-approval **Protected Approval Policy** counts **Distinct Approvers**.
+- One **User** can count at most once for one **Approval Request**, even if their **Effective Access** includes approval **Authorization Scopes** through multiple **Memberships**, **Roles**, or **Teams**.
+- A **Team** may contribute approval **Authorization Scopes** through **Membership**, but a **Team** is not a **Distinct Approver** and cannot approve an **Approval Request** directly.
+- A one-approval **Protected Approval Policy** permits **Requester Self-Approval** in V1 when the **User** has approval **Authorization Scopes** and completes the **High-Assurance Challenge**.
+- A multi-approval **Protected Approval Policy** denies **Requester Self-Approval**.
+- Requesting **Promotion** in a **Protected Environment** creates a **Promotion Change Set** and an **Approval Request**.
+- An **Approval Request** has a requesting **User** or requesting **Machine Identity**.
+- A **Promotion Change Set** belongs to one **Protected Environment**.
+- A **Promotion Change Set** contains one or more exact **Draft Versions**.
+- A **Promotion Change Set** cannot use wildcards or "all staged" selection.
+- A **Promotion Change Set** is immutable after the **Approval Request** is created.
+- **Draft Versions** created after an **Approval Request** are outside that request's **Promotion Change Set**.
+- A fresh **Promotion Change Set** may include **Draft Versions** that were part of a rejected, canceled, superseded, policy-stale, requester-access-stale, or target-lifecycle-closed **Approval Request** when **Draft Version Reuse** is allowed.
+- A **Staged Change Set** contains zero or more **Draft Versions** and zero or more pending configuration changes such as disabled **Secret Syncs**, **Secret Sync Bindings**, **Shared Secret Source** attachments, and **Protected Approval Policy** changes.
+- A **Staged Change Set** assembled for a **Protected Environment** carries exactly one **Promotion Change Set** for that environment's **Draft Versions**.
+- **Publish** makes a **Staged Change Set** live by performing **Promotion** of its **Promotion Change Set** and activating its configuration changes in one reviewed action.
+- **Publish** clears every gate the acting **User** is individually authorized to clear in a single interruption and fans out to a **Distinct Approver** only where the **Protected Approval Policy** requires one.
+- Protected **Draft Versions** in a **Staged Change Set** remain subject to their **Protected Approval Policy** at **Publish**; batching does not bypass approval.
+- The **Protected Change Orchestrator** owns the state machine for **Staged Change Sets**, **Promotion Change Sets**, **Approval Requests**, **Publish**, **Partial Approvals**, stale closures, and final apply.
+- The **Protected Change Orchestrator** consumes **Effective Access**, **High-Assurance Challenge**, **Sensitive Detail Gate**, **Storage Security Gate**, **Approval Notification**, and delivery Adapter Interfaces; it does not replace them.
+- If a pending **Approval Request** includes a discarded **Draft Version** in its **Promotion Change Set**, the request closes without **Promotion**, **Secret Delivery**, **Secret Sync**, or protected delivery configuration changes.
+- Existing **Partial Approvals** on an **Approval Request** closed by **Draft Version Discard** become audit-only and unusable for delivery or future **Approval Requests**.
+- A draft-discard-closed **Approval Request** cannot be approved, rejected, or canceled.
+- A draft-discard-closed **Approval Request** remains in the audit trail.
+- An **Approval Request** does not expire by age in V1.
+- An **Approval Request** remains pending until approved, rejected through **Approval Request Rejection**, canceled through **Approval Request Cancellation**, superseded, made policy-stale through **Approval Policy Staleness**, made requester-access-stale through **Requester Access Staleness**, or closed because **Draft Version Discard** removed a **Draft Version** in its **Promotion Change Set**.
+- An **Approval Request** may create **Approval Notifications**.
+- An **Approval Notification** is not an approval review surface.
+- An **Approval Notification** contains low-privilege server-generated metadata only, such as **Approval Request** ID, generic purpose, created time, and a non-authorizing link to the authenticated approval view.
+- A push **Approval Notification** payload is lock-screen safe: generic approval-pending text, opaque request reference, created time, and a non-authorizing deep link only.
+- An **Approval Notification** must not include **Approval Context Note** plaintext.
+- An **Approval Notification** must not include **Sensitive Values**, **Variable Keys**, **Display Names** such as organization/project/environment labels, or decrypted **Sensitive Metadata** such as provider target names, provider-side names, policy binding names, or security-relevant relationships.
+- **Approval Notification** channels may include in-app notifications, browser push, mobile push through a wrapped web app, email, or future channels.
+- Browser push and mobile push through **Push Device Registrations** are the **Primary Approval Notification Channel** when available.
+- In-app notifications and email are fallback **Approval Notification** channels.
+- Browser push and mobile push may deep-link to the authenticated approval view, but the link is not an approval action and not a bearer approval token.
+- Browser push and mobile push deep-links open an authenticated approval shell that may show **Display Names** and low-detail state, but not decrypted **Sensitive Metadata**, until the **Sensitive Detail Gate** is satisfied.
+- Email **Approval Notifications** must not contain approve, reject, or other approval action links.
+- **Approval Notification** deep links for approved, rejected, canceled, superseded, policy-stale, requester-access-stale, or draft-discard-closed **Approval Requests** resolve to the authenticated approval view and show closed or stale state.
+- A closed or stale approval view reached from an **Approval Notification** must not expose approve, reject, cancel, **Promotion**, or delivery-changing actions for that **Approval Request**.
+- A closed or stale approval view may show the original immutable **Approval Request** facts to currently authorized **Users**, including the **Promotion Change Set**, exact **Draft Version** IDs, status, actor IDs, timestamps, **Partial Approvals**, and closure, supersession, policy-stale, requester-access-stale, or draft-discard-closed state.
+- A closed or stale approval view may show **Approval Context Notes** and **Approval Rejection Notes** only after authorization and **Sensitive Detail Gate**.
+- Inspecting a closed or stale approval view must not satisfy a **Protected Approval Policy**, create or reuse **Partial Approvals**, create **Promotion**, change **Secret Delivery**, change **Secret Sync**, or change protected delivery configuration.
+- In-app **Approval Notifications** should coalesce or update when an **Approval Request** is approved, rejected, canceled, superseded, made policy-stale, made requester-access-stale, or closed after **Draft Version Discard**.
+- Optional closure **Approval Notifications** for approved, rejected, canceled, superseded, policy-stale, requester-access-stale, or draft-discard-closed **Approval Requests** must follow the same metadata-safe payload rules and must not include approval, rejection, cancellation, **Promotion**, or delivery action links.
+- A **User** may have zero or more **Push Device Registrations**.
+- A **Push Device Registration** belongs to exactly one **User** and one device, browser, or app installation.
+- A **Push Device Registration** is **Sensitive Metadata**.
+- Creating a new **Push Device Registration** or replacing its device, browser, app installation, or delivery endpoint requires a **High-Assurance Challenge**.
+- A **Push Device Registration** can be revoked by the owning **User** from account security controls.
+- **Push Device Registrations** are invalidated on logout-all, MFA reset, suspicious activity response, lost-device response, **User** offboarding, and membership removal where appropriate.
+- A **Protected Environment** may have only one pending promotion **Approval Request**.
+- Requesting **Promotion** again for the same **Protected Environment** creates a new immutable **Promotion Change Set** and **Approval Request**.
+- Requesting **Promotion** again performs **Approval Request Supersession** for the prior pending promotion **Approval Request** in that **Protected Environment**, regardless of requester.
+- **Approval Request Supersession** should coalesce **Approval Notifications** so approvers are pointed to the latest pending request.
+- Deep links for superseded **Approval Requests** show stale/superseded state and may point an authorized **User** to the latest pending **Approval Request** without becoming an approval action.
+- A superseded **Approval Request** cannot be approved, rejected, or canceled.
+- A superseded **Approval Request** remains in the audit trail.
+- A policy-stale **Approval Request** cannot be approved, rejected, or canceled.
+- A policy-stale **Approval Request** remains in the audit trail.
+- If the requesting **User** loses **Organization Access**, is suspended, or is offboarded before the **Approval Request** completes, **Requester Access Staleness** closes that pending **Approval Request**.
+- If the requesting **Machine Identity** is disabled, loses **Organization Access**, or no longer has authorization for the affected **Project** and **Protected Environment** before the **Approval Request** completes, **Requester Access Staleness** closes that pending **Approval Request**.
+- If the **Organization** enters **Tenant Suspension** before the **Approval Request** completes, **Requester Access Staleness** closes pending **Approval Requests** in that **Organization**.
+- Short-lived machine credential expiry does not cause **Requester Access Staleness** by itself.
+- For a **Machine Identity**-created **Approval Request**, **Requester Access Staleness** is caused by durable authority changes such as **Machine Identity** disablement, relevant **Membership** or **Authorization Scope** removal, **Tenant Suspension**, or revocation or disablement of the **Auth Method** used for the request.
+- Normal **Environment Deploy Key** rotation that preserves the same active **Auth Method** does not cause **Requester Access Staleness** by itself.
+- **Environment Deploy Key** rotation caused by compromise response causes **Requester Access Staleness** when it revokes, disables, or marks untrusted the **Auth Method** used for the pending **Approval Request**.
+- **Requester Access Staleness** closes the pending **Approval Request** without **Promotion**, **Secret Delivery**, **Secret Sync**, or delivery configuration changes from that request.
+- **Requester Access Staleness** preserves existing **Partial Approvals** in audit history but makes them audit-only and unusable for delivery or future **Approval Requests**.
+- **Requester Access Staleness** leaves the request's **Draft Versions** in the **Draft Area** so a currently authorized **User** or **Machine Identity** may create a fresh **Promotion Change Set** and **Approval Request**.
+- A requester-access-stale **Approval Request** cannot be approved, rejected, or canceled.
+- A requester-access-stale **Approval Request** cannot become pending or approvable again if the requesting **User** or **Machine Identity** later regains access.
+- A requester-access-stale **Approval Request** cannot become pending or approvable again after **Tenant Suspension** is lifted.
+- A requesting **User** or **Machine Identity** that regains access may create a fresh **Approval Request** with current authority and a fresh **Approval Impact Review** if the change is still wanted.
+- A requester-access-stale **Approval Request** remains in the audit trail.
+- If the affected **Project** or **Protected Environment** is archived, deleted, or otherwise no longer accepts protected **Promotion** before the **Approval Request** completes, the pending **Approval Request** closes without **Promotion**, **Secret Delivery**, **Secret Sync**, or delivery configuration changes.
+- An **Approval Request** closed because its affected **Project** or **Protected Environment** no longer accepts protected **Promotion** preserves audit history and makes existing **Partial Approvals** audit-only.
+- Restoring or recreating an affected **Project** or **Protected Environment** must not make the old **Approval Request** pending or approvable again.
+- Future **Project** or **Protected Environment** archive/delete behavior may name this closing condition, but the invariant is that a target-lifecycle change cannot silently preserve approval authority.
+- Approval screens warn, but do not block, when newer **Draft Versions** exist outside the request's **Promotion Change Set**.
+- The newer-draft warning should encourage the requester to request **Promotion** again if those **Draft Versions** should be included.
+- A **Promotion Change Set** freezes **Draft Version** identity only.
+- A **Promotion Change Set** does not freeze **Secret Sync**, **Runtime Injection Policy**, **App Connection**, or other delivery target configuration.
+- An **Approval Impact Review** is recomputed before **Approval Request** approval.
+- An **Approval Impact Review** contains metadata only and excludes **Sensitive Values**.
+- An **Approval Impact Review** includes the enabled **Secret Syncs** that **Promotion** will enqueue through **Immediate Sync After Promotion**.
+- A **Protected Promotion Sync Preflight** validates the **Provider Value Size Limit** for every enabled **Secret Sync** that would be affected by a protected **Promotion**.
+- A **Protected Promotion Sync Preflight** is part of the **Approval Impact Review** and must pass before final approval can perform **Promotion**.
+- If **Protected Promotion Sync Preflight** would return `sync.provider_value_too_large`, the **Approval Request** cannot perform **Promotion**; no **Published Version** changes and no **Immediate Sync After Promotion** enqueue occurs.
+- An **Approval Impact Review** for a `cloudflare` **Secret Sync** includes **Cloudflare Worker Secret Deploy** impact for exact **Cloudflare Worker Scripts** and binding names.
+- An **Approval Impact Review** has an **Approval Impact Review Fingerprint** derived from the server-generated delivery and sync impact facts being reviewed.
+- An **Approval Impact Review Fingerprint** must not be derived from **Sensitive Values**.
+- An **Approval Impact Snapshot** is persisted when an approval satisfies the **Protected Approval Policy** and causes **Promotion**.
+- An **Approval Impact Snapshot** records the metadata-only delivery and sync impact from the accepted **Approval Impact Review** used for the final approval decision.
+- An **Approval Impact Snapshot** is the historical source of truth for what delivery and sync impact the final approver acted on.
+- An **Approval Impact Snapshot** excludes **Sensitive Values**.
+- Decrypted **Sensitive Metadata** inside an **Approval Impact Snapshot** remains gated by **Sensitive Detail Gate**.
+- Rejected, canceled, superseded, policy-stale, requester-access-stale, or draft-discard-closed **Approval Requests** do not require an **Approval Impact Snapshot** in V1.
+- Closed or stale approval views for rejected, canceled, superseded, policy-stale, requester-access-stale, or draft-discard-closed **Approval Requests** may show a clearly labeled **Current Impact Preview**.
+- A **Current Impact Preview** must not be treated as historical source of truth, used to satisfy approval requirements, used to create or reuse **Partial Approvals**, or used to perform **Promotion**.
+- An **Approval Request** may include one **Approval Context Note**.
+- An **Approval Context Note** may be written by a **User** or **Agent**.
+- An **Approval Context Note** is untrusted text.
+- An **Approval Context Note** is **Sensitive Metadata**.
+- An **Approval Context Note** is length-limited, escaped for display, and visually separated from server-generated approval facts.
+- An **Approval Context Note** is encrypted at rest and excluded from plaintext search indexes, logs, analytics events, durable queue payloads, unscoped caches, and low-privilege audit exports.
+- Low-privilege references to an **Approval Context Note** use immutable IDs, hashes, lengths, or presence flags.
+- An **Approval Context Note** must not be rendered as HTML, used as markdown with active links, used to suppress warnings, used to choose **Draft Versions**, used to choose delivery targets, or used to satisfy approval requirements.
+- Approval screens use server-generated **Promotion Change Set** and **Approval Impact Review** facts as the approval source of truth.
+- If delivery or sync impact changed after an approval screen loaded, approval must return `approval.review_stale` and require a fresh **Approval Impact Review**.
+- A stale **Approval Impact Review** does not cancel or supersede the **Approval Request**.
+- An **Approval Request** has exactly one approval purpose in V1.
+- A promotion **Approval Request** contains one **Promotion Change Set** and no **Protected Delivery Configuration Changes**.
+- A **Protected Delivery Configuration Change** requires a separate **Approval Request** or separate **High-Assurance Challenge**.
+- **Protected Delivery Configuration Changes** include protected **Secret Sync** create/enable/binding changes, protected **Runtime Injection Policy** changes, protected **App Connection** changes, **Connection Boundary** changes, protected **Shared Secret Source** attachment, and repository-scoped provider sync overrides.
+- Approving **Promotion** must not create, enable, or change a delivery target.
+- An **Approval Request** can be approved by a **User** through a **High-Assurance Challenge**.
+- **Approval Request** approval evaluates the approving **User**'s **Effective Access** for the **Project** and **Protected Environment** affected by the request.
+- An **Approval Request** approval can perform **Promotion** of its **Promotion Change Set** when the **Protected Approval Policy** is satisfied.
+- An **Approval Request** approval creates a **Partial Approval** when the **Protected Approval Policy** is not yet satisfied.
+- A **Partial Approval** belongs to exactly one **Approval Request** and one **Promotion Change Set**.
+- A **Partial Approval** records the **Approval Impact Review Fingerprint** it approved.
+- A **Partial Approval** counts toward a **Protected Approval Policy** only while the current **Approval Impact Review Fingerprint** matches the fingerprint recorded on that **Partial Approval**.
+- If **Secret Delivery** or **Secret Sync** impact changes after a **Partial Approval** and before the **Protected Approval Policy** is satisfied, that **Partial Approval** becomes audit-only and fresh approval is required against the new **Approval Impact Review**.
+- A **Partial Approval** counts toward a **Protected Approval Policy** only if its approving **User** passes **Approver Access Revalidation** when the approval threshold is evaluated.
+- **Approver Access Revalidation** requires the approving **User** to be active, not suspended or offboarded, and to have current approval **Authorization Scopes** for the affected **Project** and **Protected Environment**.
+- If the approving **User** loses approval access before the **Protected Approval Policy** threshold is satisfied, that **Partial Approval** remains in audit history but becomes audit-only and fresh approval is required.
+- A **Partial Approval** that becomes audit-only because **Approver Access Revalidation** failed cannot become countable again if the approving **User** later regains approval access.
+- A **User** who regains approval access may approve the same pending **Approval Request** again only through a fresh **Approval Impact Review**, current **Effective Access**, and a new **High-Assurance Challenge**.
+- A **Partial Approval** cannot be reused by any later **Approval Request**.
+- An **Approval Request** can be rejected by a **User** through a **High-Assurance Challenge** when the **User** has approval **Authorization Scopes** for the affected **Project** and **Protected Environment**.
+- **Approval Request Rejection** closes the **Approval Request** without **Promotion**, **Secret Delivery**, **Secret Sync**, or protected delivery configuration changes.
+- **Approval Request Rejection** leaves the request's **Draft Versions** in the **Draft Area** so a requester may create a later **Promotion Change Set** and **Approval Request**.
+- **Approval Request Rejection** may include one **Approval Rejection Note**.
+- An **Approval Rejection Note** is optional in V1.
+- A V1 **Protected Approval Policy** does not require an **Approval Rejection Note**.
+- An **Approval Rejection Note** may be written by the rejecting **User**.
+- An **Approval Rejection Note** is untrusted text.
+- An **Approval Rejection Note** is **Sensitive Metadata**.
+- An **Approval Rejection Note** is length-limited, escaped for display, and visually separated from server-generated rejection facts.
+- An **Approval Rejection Note** is encrypted at rest and excluded from plaintext search indexes, logs, analytics events, durable queue payloads, unscoped caches, and low-privilege audit exports.
+- Low-privilege references to an **Approval Rejection Note** use immutable IDs, hashes, lengths, or presence flags.
+- An **Approval Rejection Note** must not be rendered as HTML, used as markdown with active links, used to choose **Draft Versions**, used to choose delivery targets, suppress warnings, or drive policy decisions.
+- An **Approval Request** can be canceled while it is pending.
+- A pending **Approval Request** may be canceled after one or more **Partial Approvals** exist, as long as the **Protected Approval Policy** has not been satisfied and **Promotion** has not happened.
+- The requesting **User** may perform **Approval Request Cancellation** for their own pending **Approval Request** with a normal authenticated session.
+- The requesting **Machine Identity** may perform **Approval Request Cancellation** only for its own pending **Approval Request** with a currently valid machine credential whose **Effective Access** still covers the affected **Project** and **Protected Environment**.
+- The requesting **Machine Identity** may perform **Approval Request Cancellation** for its own pending **Approval Request** after one or more human **Partial Approvals** exist, as long as the **Protected Approval Policy** has not been satisfied and **Promotion** has not happened.
+- **Machine Identity** **Approval Request Cancellation** does not require a recorded **User** instruction in V1; authorization comes from the current machine credential and current **Effective Access**.
+- When **Machine Identity** **Approval Request Cancellation** is caused by an **Agent** run, task, or **User** instruction, available correlation IDs should be recorded in audit history without becoming authorization source of truth.
+- A **Machine Identity** cannot cancel an **Approval Request** created by a **User** or another **Machine Identity**.
+- **Approval Request Cancellation** does not require a **High-Assurance Challenge** in V1.
+- A **User** with sufficient owner/admin configuration **Authorization Scopes** for the affected **Project** and **Protected Environment** may perform **Approval Request Cancellation** for cleanup.
+- Approval **Authorization Scopes** alone do not authorize **Approval Request Cancellation**.
+- A **User** with approval **Authorization Scopes** who is neither the requester nor a scoped owner/admin cleanup actor must use **Approval Request Rejection**, not **Approval Request Cancellation**, to close an **Approval Request** as a review outcome.
+- **Approval Request Cancellation** closes the **Approval Request** without **Promotion**, **Secret Delivery**, **Secret Sync**, or protected delivery configuration changes.
+- **Machine Identity** **Approval Request Cancellation** does not approve, reject, satisfy a **Protected Approval Policy**, or change delivery.
+- **Approval Request Cancellation** invalidates **Partial Approvals** for delivery and future **Approval Requests** while preserving them in audit history.
+- **Approval Request Cancellation** leaves the request's **Draft Versions** in the **Draft Area** so a requester may create a later **Promotion Change Set** and **Approval Request**.
+- A **Machine Identity** cannot approve or reject an **Approval Request**.
+- **Service Access** cannot approve or reject customer **Approval Requests**.
+- A **Protected Environment** delivers only **Published Versions**.
+- A **Secret** has exactly one **Current Version** once it has a value.
+- A **Current Version** is the default **Secret Source of Truth** for non-protected delivery.
+- A **Published Version** is the **Secret Source of Truth** for protected delivery.
+- A **Promotion** makes every **Draft Version** in its **Promotion Change Set** a **Published Version** for protected delivery.
+- **Promotion** triggers **Immediate Sync After Promotion** for enabled **Secret Syncs** affected by any promoted version in the **Promotion Change Set**.
+- **Promotion** approval authorizes **Immediate Sync After Promotion** only for enabled **Secret Syncs** and delivery impact shown in the accepted **Approval Impact Review**.
+- **Promotion** does not publish a value that an already-enabled **Secret Sync** is known to reject for **Provider Value Size Limit**.
+- **Promotion** approval does not create, enable, or change a **Secret Sync**, **Secret Sync Binding**, **App Connection**, **Connection Boundary**, **Runtime Injection Policy**, or other protected delivery configuration.
+- Environment-based **Secret Delivery** is for **Startup Configuration**.
+- Rapidly changing values are not **Startup Configuration** and should not be modeled as repeated protected **Promotion** requests.
+- A **Rollback** creates a new **Secret Version** from an older retained encrypted **Secret Version** and promotes it.
+- A **Rollback Retention Window** controls how long older **Published Versions** remain rollback-eligible.
+- **No Plaintext Persistence** applies to **Sensitive Values**.
+- **Secret-Free Logging** applies to every **Secret Egress**, **Secret Sync**, **Runtime Injection**, and **Operation**.
+- A **Sensitive Value** may be a **Secret** value, **Provider Credential**, machine auth credential, deploy key, bootstrap secret, OIDC token, data key, DEK, or root key material.
+- **Sensitive Metadata** requires **Sensitive Metadata Encryption** before durable storage.
+- **Opaque Resource IDs** are the only plaintext durable selectors for server-side resources.
+- **Sensitive Detail Gate** is required before any User-facing surface or full-fidelity export displays decrypted **Sensitive Metadata**.
+- **Display Names** are ordinary metadata and can appear in authorized app surfaces, **Scoped Lists**, approval review, and **Display Name Resolution** without a **Sensitive Detail Gate**.
+- Low-detail surfaces may show **Opaque Resource IDs**, **Display Names**, counts, status, hashes, non-sensitive lengths, presence flags, and generic pending states without a **Sensitive Detail Gate**.
+- Exact **Value Length Metadata** for **Protected Environment** **Secrets** requires **Sensitive Detail Gate** before User-facing display or full-fidelity export.
+- A **Scoped-Unique Display Name** is still a normal **Display Name**; uniqueness improves command ergonomics and does not make the name a durable selector.
+- A **Default Display Name** is an editable suggestion, not a reserved word or hidden system identifier.
+- A **Variable Key** is the key in the application-facing key-value pair; **Opaque Resource IDs**, **Display Names**, **CLI Profile Slugs**, and **Runtime Policy Keys** are selectors or labels around delivery.
+- A **Variable Key** is not a **CLI Profile Slug**: **Variable Keys** use uppercase underscore env-var format, while **CLI Profile Slugs** use lower-kebab local aliases.
+- **Display Name Resolution** resolves a **Display Name** to exactly one **Opaque Resource ID** within one already-authorized scope, or fails with a not-found or ambiguity result; it never auto-selects among multiple matches.
+- **Display Name Resolution** is client-side, so a **Display Name** is never a durable or server-side selector; only **Opaque Resource IDs** are cached or stored in committed config.
+- A **Resolved Target Echo** makes name-based commands readable while preserving **Opaque Resource IDs** as the durable authority.
+- A name-based command should show a **Resolved Target Echo** for the resolved target in human and JSON output when that helps humans or **Agents** understand what will happen.
+- An irreversible or destructive action requires an **Opaque Resource ID** for non-interactive and **Machine Identity** callers and does not accept **Display Name Resolution**.
+- **Sensitive Values** enter insecur only through **Safe Sensitive Input Paths**.
+- Ordinary **Secret** writes do not accept named local file inputs for **Sensitive Values**; use stdin, masked prompt, service generation, request body, or provider authorization flow.
+- Stdin input for an ordinary **Secret** write is **Exact Stdin Value Input**: after UTF-8 decoding, trailing newlines and multiline content are part of the **Sensitive Value** and are not trimmed or normalized.
+- Ordinary **Secret** writes and **Secret Import** create **Text Secret Values** only; invalid UTF-8 fails with `secret.invalid_encoding`, and insecur does not provide binary mode, implicit base64 decoding, or replacement-character decoding in V1.
+- Ordinary **Secret** writes and **Secret Import** enforce the **Secret Value Size Limit** in encoded UTF-8 bytes after validation and before any write.
+- A zero-length **Sensitive Value** is valid only through an **Explicit Empty Value Write**; empty stdin, a blank masked prompt, or an empty imported value fails by default with `secret.empty_value`.
+- If a human TTY runs an ordinary **Secret** write without service generation or stdin input, the CLI uses a **Masked Secret Prompt**.
+- Non-interactive **Secret** writes must not prompt; they fail with stable error code `secret.input_required` unless the caller explicitly selects service generation or stdin input.
+- **Misuse-Resistant Defaults** make **Secret Use** easier than **Secret Reveal**.
+- A **Secret Egress** moves a **Secret** value through either **Secret Delivery** or **Secret Reveal**.
+- **Runtime Injection** is a kind of **Secret Delivery**.
+- **Diskless Development Secret Use** uses **Runtime Injection** to avoid steady-state **Local Secret Files**.
+- A **Local Secret File** may be an adoption source through **Local Secret File Migration** and **Secret Import**, but is not the steady-state runtime path for development secrets.
+- V1 does not write **Local Secret Files** from stored **Secrets**; `pull`, `export`, dotenv generation, and similar file-output flows are not supported.
+- **Local Secret File Migration** must not rewrite, redact, or automatically delete the source **Local Secret File**.
+- **Local Secret File Removal** is a separate explicit local command after migration; it uses ordinary filesystem deletion and must not claim to remove backups, snapshots, editor copies, or prior disk blocks.
+- **Diskless Development Secret Use** reduces exposure to agents, shell history, repository scans, backups, and disk-scanning credential theft; it does not prevent the injected child process or active local malware from reading values after the **Runtime Trust Boundary**.
+- A **First Value Proof** runs against a non-protected development **Environment**.
+- A **First Value Proof** uses a service-generated **Blind Secret Write**, explicit one-command secret selection, and local **Runtime Injection** to demonstrate **Diskless Development Secret Use**.
+- A **First Value Proof** is not a dedicated CLI command; it composes the normal secret-write and runtime-injection commands that users will keep using.
+- A **First Value Proof** returns metadata-only success or failure and never returns the **Sensitive Value**, child-process environment, raw digest, or provider state.
+- A **First Value Proof** demonstrates that insecur can create and deliver a **Sensitive Value** without revealing it to the caller; it does not prove that an arbitrary child process cannot read a value after the **Runtime Trust Boundary**.
+- An **Agent-Reachable Channel** can request, plan, stage, and poll high-risk operations, but cannot satisfy a **High-Assurance Challenge** by itself.
+- A **Human Approval Surface** is required for **Protected Environment** approval, **Promotion**, protected delivery configuration changes, protected **Secret Sync** enable/run, protected **Runtime Injection Policy** changes, and Cloudflare Worker Secret Deploy approval evidence.
+- A **Delivery Risk Policy** may allow **Agent-Reachable Channels** to perform configured non-protected preview or development delivery actions.
+- A **Delivery Risk Policy** must not make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
+- A **Delivery Risk Policy Preset** is the V1 user-facing control for **Delivery Risk Policy**.
+- A **Delivery Risk Policy Preset** applies a versioned policy template with auditable scope, version, actor, and before/after effective policy.
+- Balanced is the default **Delivery Risk Policy Preset** for a new **Organization** and **Project** created through **Guided Organization Provisioning**.
+- **Guided Organization Provisioning** applies Balanced without showing a **Delivery Risk Policy Preset** picker during first onboarding.
+- Strict, Balanced, and Automation-Friendly are the V1 **Delivery Risk Policy Presets**.
+- No **Delivery Risk Policy Preset** may make a **Protected Environment** production approval or **High-Assurance Challenge** clearable solely through an **Agent-Reachable Channel** in V1.
+- The Balanced **Delivery Risk Policy Preset** allows non-protected development automation by default.
+- The Balanced **Delivery Risk Policy Preset** requires a **Preview Automation Opt-In** before **Agent-Reachable Channels** can perform delivery actions for a non-protected preview **Environment**.
+- The Automation-Friendly **Delivery Risk Policy Preset** grants **Preview Automation Authority** by default for non-protected preview **Environments** in its scope.
+- A **Preview Automation Opt-In** is scoped to one non-protected preview **Environment** and does not enable automation for other preview **Environments** in the same **Project**.
+- A **Preview Automation Opt-In** grants only **Preview Automation Authority**.
+- **Preview Automation Authority** can execute existing **Runtime Injection Policies**, existing **Secret Syncs**, and existing **Secret Sync Bindings** for the non-protected preview **Environment** where it applies.
+- **Preview Automation Authority** must not create or change **App Connections**, **Connection Boundaries**, **Secret Syncs**, **Secret Sync Bindings**, **Runtime Injection Policies**, provider targets, or the delivered **Secret** set.
+- Enabling a **Preview Automation Opt-In** or expanding **Preview Automation Authority** is a **Risk-Broadening Delivery Change**.
+- A **Risk-Broadening Delivery Change** requires the **Human Approval Surface** and a **High-Assurance Challenge**.
+- An **Agent-Reachable Channel** may request, plan, stage, or poll a **Risk-Broadening Delivery Change**, but cannot complete it.
+- A **Risk-Tightening Delivery Change** may be completed by an authorized **User** in the authenticated web app without a **High-Assurance Challenge**, but is still audited.
+- A **Delivery Risk Policy Preset** change is not completed solely through an **Agent-Reachable Channel** in V1.
+- Selecting Automation-Friendly after onboarding is a **Risk-Broadening Delivery Change**.
+- A **CLI Profile** can select defaults for **Runtime Injection**.
+- A **CLI Profile** may reference one **Runtime Policy Key** by opaque ID.
+- A **CLI Profile** is not a **Secret** set; it can choose a default **Runtime Injection Policy**, but the policy owns exact delivery bindings.
+- A **CLI Profile** has one **CLI Profile Slug** inside the User's local CLI configuration.
+- A **CLI Profile** may have a freeform **Display Name** for readability, but that Display Name is not the command selector.
+- A **Runtime Policy Key** is a **Configured Selector**.
+- A **Runtime Policy Key** resolves to exactly one **Runtime Injection Policy**.
+- A **Runtime Injection Policy** has one or more immutable **Runtime Injection Policy Versions**.
+- A **Runtime Injection Policy** has a **Scoped-Unique Display Name** inside its **Environment**.
+- A **Runtime Injection Policy** may start with a **Default Display Name**, such as `dev-web`, `test-integration`, `migration`, or `preview-deploy`, and the **User** may rename it.
+- A **Runtime Injection Policy** is the saved switching boundary for repeatable local workflows such as development, testing, migration, and preview delivery.
+- An **Environment** may contain more **Secrets** than any one **Runtime Injection Policy** injects.
+- A **Runtime Injection Policy** must inject only its exact bound **Secrets**, not every **Secret** in the selected **Environment**.
+- A **Runtime Injection Policy** binding selects exact **Secrets** by **Opaque Resource ID**; runtime injection delivers each bound **Secret** under its **Variable Key** in the child process environment.
+- Runtime injection does not support per-policy **Variable Key** aliases in V1.
+- A non-protected **Runtime Injection** may use exact one-command **Secret** selection through **Opaque Resource IDs** or **Variable Keys**.
+- Exact one-command **Secret** selection is for first value, one-off debugging, and other ad hoc non-protected use; repeatable workflows should use a **Runtime Injection Policy**.
+- A **Runtime Injection Policy** may be selected by **Display Name Resolution** in a fully resolved parent scope for human and **Agent** ergonomics, but the resolved **Opaque Resource ID** is what authorizes, audits, and persists.
+- A **Protected Environment** **Runtime Injection** requires a **Runtime Injection Policy**.
+- The active **Runtime Injection Policy Version** authorizes **Runtime Injection** for exact **Secret** bindings.
+- **Runtime Policy Version Retention** preserves **Runtime Injection Policy Versions** independently of **Rollback Retention Window**.
+- A **Runtime Injection Policy Version** stores immutable secret IDs and historical **Display Names** as ordinary metadata, while provider-side names, policy binding names, and security-relevant relationships remain **Sensitive Metadata**.
+- An **Injection Grant** is issued from exactly one **Runtime Injection Policy Version**.
+- An **Injection Grant** is fresh, one-use, and non-reusable.
+- A **Protected Environment** issues an **Injection Grant** only to a **Machine Identity** credential, such as a deploy key or OIDC identity; a human session token, including one an agent inherits, cannot obtain a **Protected Environment** **Injection Grant**, so a local agent has no path to a **Protected Environment** **Sensitive Value**. Enforced by the machine-only `runtime_injection:grant_issue_protected` scope per [ADR-0038](../adr/0038-protected-delivery-requires-machine-credential.md).
+- A **Runtime Injection Policy Version** may require a **Command Fingerprint**.
+- **Runtime Injection** crosses the **Runtime Trust Boundary** when the child process starts.
+- **Runtime Injection** obeys the **Command Output Boundary**.
+- **Secret Use** allows **Secret Delivery** without **Secret Reveal**.
+- A **Protected Environment** contains zero or more non-revealable **Secrets**.
+- **Secret Reveal** can apply only outside **Protected Environments**.
+- **Protected Environment** break-glass may use **Secret Delivery**, replacement, reauthorization, or **Rollback**, but not **Secret Reveal**.
+- A **High-Assurance Challenge** gates **Sensitive Detail Gate**, protected **Approval Request** approval or rejection, protected **Promotion**, protected **Rollback**, protected **Secret Sync** enable/run, **Protected Approval Policy Changes**, protected **Runtime Injection Policy** changes, protected **App Connection** changes, protected **Shared Secret Source** attachment, **Push Device Registration** creation/replacement, and mutating **Service Access** controls.
+- A **Machine Identity** cannot satisfy a **High-Assurance Challenge**.
+- A **Machine Identity** may create **Blind Secret Writes** and request **Promotion** if **Organization Access** allows it.
+- A **Machine Identity** may cancel its own pending **Approval Request** when its current machine credential and **Effective Access** still authorize the affected **Project** and **Protected Environment**.
+- A recorded **User** instruction is audit correlation for **Machine Identity** **Approval Request Cancellation**, not required authorization in V1.
+- A **Machine Identity** may use exact policies or operations previously authorized by a **User** through a **High-Assurance Challenge**.
+- A **Machine Identity** proves itself through an **Auth Method**.
+- A **Machine Identity** may use an **Environment Deploy Key** as an **Auth Method**.
+- A **Machine Token** is constrained by a **Token Scope**.
+- Short-lived **Machine Token** or access token expiry does not revoke the **Machine Identity** or its **Auth Method**.
+- An **Ephemeral CLI Credential** belongs to one CLI session and is not persisted to disk.
+- An **Environment Deploy Key** can exchange for short-lived access within one **Environment**.
+- An **Environment Deploy Key** has one **Deploy Key Rotation Policy**.
+- Normal **Environment Deploy Key** rotation may replace credential material while preserving the same active **Auth Method**.
+- Revoking, disabling, or marking an **Environment Deploy Key** **Auth Method** untrusted is a durable authority change.
+- An **Environment Deploy Key** can authorize only allowlisted **Runtime Policy Keys**, not arbitrary **Runtime Injection**.
+- An **Environment Deploy Key** cannot choose its own secret set, command shape, or **Command Fingerprint**.
+- An **Environment Deploy Key** can authorize **Runtime Injection**, not **Secret Sync**.
+- Exact **Runtime Injection Policy** bindings support **Forensic Traceability**.
+- An **App Connection** uses one **Connection Method**.
+- A **Connection Method** that uses a provider app-install or OAuth flow resolves its client identity and callback from a **Provider App Registration** on the **Instance**.
+- A **Provider App Registration** belongs to one **Instance** and one app-install or OAuth **Connection Method**.
+- A scoped-token **Connection Method** such as Cloudflare `scoped-api-token` has no **Provider App Registration**.
+- Both a **Hosted Instance** and a **Self-Hosted Instance** use **Provider App Registrations**; only the registrant and credential owner differ.
+- A **Provider Authorization Callback** for an app-install or OAuth **Connection Method** returns to the callback of the **Instance**'s **Provider App Registration**.
+- An **App Connection** may store one or more **Provider Credentials**.
+- An **App Connection** has one **Connection Boundary**.
+- insecur does not reject a broad provider scope; it raises a **Connection Boundary Warning** at connect time and in **Secret Sync** plans and audits the accepted breadth.
+- A **Connection Boundary Warning** is metadata-only and excludes **Sensitive Values** and provider inventory.
+- An **App Connection** has one verified **Provider Account Linkage**.
+- An **App Connection** is owned by its **Organization**, records the **User** who performed its setup, and survives that **User's** offboarding or loss of **Organization Access**.
+- **App Connection** setup is a live **User**-performed action requiring the provider OAuth or app-install flow and a **High-Assurance Challenge**; it is never part of a **Staged Change Set** and cannot be performed by a **Machine Identity**.
+- A **Provider Authorization Callback** can create or replace **Provider Credentials** only for one pending **App Connection** operation.
+- A **Provider Authorization Callback** is bound to exactly one **Organization**, initiating **User**, pending **App Connection** or reauthorization operation, **Connection Method**, and intended **Connection Boundary**.
+- A **Provider Authorization Callback** must re-check the initiating **User's** **Organization Access** before persisting **Provider Credentials** or changing **Provider Account Linkage**.
+- A **Provider Authorization Callback** must verify the external provider account, installation, team, repository, project, worker, or resource identity before persisting **Provider Account Linkage**.
+- A **Provider Authorization Callback** must not allow one **Organization** to link provider resources into another **Organization**.
+- A **Provider Credential** must pass the **Storage Security Gate** before production **Secret Sync** can use it.
+- A **Scoped Provider Token** is a **Provider Credential**.
+- A `github-app` **App Connection** stores only its installation reference, **Provider Account Linkage**, and **Connection Boundary**, not an organization-level **Provider Credential**; installation access tokens are minted on demand from the **Instance**'s **Provider App Registration** and held in memory only.
+- A `vercel-integration-oauth` **App Connection** stores a per-connection **Provider Credential**, the integration access token and its refresh token, as encrypted organization data.
+- A `cloudflare` `scoped-api-token` **App Connection** stores a per-connection **Scoped Provider Token** as encrypted organization data.
+- A `github-app` **App Connection** renews access through **Credential Refresh** only and never needs a stored long-lived secret; **Credential Reauthorization** is the install or repo-selection change.
+- A `vercel-integration-oauth` **App Connection** renews access through **Credential Refresh** using its refresh token; **Credential Reauthorization** re-runs OAuth when the refresh token is revoked or scope changes.
+- A `cloudflare` `scoped-api-token` **App Connection** has no **Credential Refresh**; replacing the token is always a manual **Credential Reauthorization**, so it carries recurring rotation burden and the highest **Provider Drift** risk.
+- A failed **Credential Refresh** surfaces as **Provider Drift** and requires **Credential Reauthorization**; production **Secret Sync** fails closed until it succeeds.
+- A **Secret Sync** belongs to one **Project**.
+- A **Secret Sync** uses one **App Connection** to write to one **Sync Target**.
+- A **Secret Sync** has one or more exact **Secret Sync Bindings**.
+- A **Secret Sync** performs **Sync Execution Revalidation** before decrypting **Sensitive Values** or writing provider-side values.
+- A **Secret Sync** plan may use cached provider metadata, but cached planning metadata does not authorize decrypt or provider writes.
+- A **Secret Sync** validates every bound **Text Secret Value** against the destination **Provider Value Size Limit** during planning and revalidates immediately before provider write.
+- **Provider Value Size Limit** failure uses the **All-Or-Nothing Sync Pre-Write Gate**: if any bound value exceeds its destination limit, the run fails with `sync.provider_value_too_large` and writes none of the bindings.
+- Non-protected manual **Secret Sync** reports `sync.provider_value_too_large` as a **Secret Sync** run failure, not a secret-write failure.
+- `sync.provider_value_too_large` low-detail and **Agent-Reachable Channel** output may show `over_limit`, destination **Provider Value Size Limit**, **Opaque Resource IDs**, and destination type, but not exact **Value Length Metadata** for **Protected Environment** **Secrets**.
+- Authorized full-fidelity plan, status, approval, and security-review surfaces may show exact **Value Length Metadata** after **Sensitive Detail Gate** when that helps a User fix a provider-size failure.
+- **Secret Sync** must not compress, truncate, split, chunk, implicitly base64-encode, or otherwise transform a **Text Secret Value** to satisfy a **Provider Value Size Limit**.
+- The **All-Or-Nothing Sync Pre-Write Gate** applies to deterministic pre-write failures; it is not a cross-provider transaction or rollback guarantee after provider writes have begun.
+- **Sync Execution Revalidation** checks **Provider Account Linkage**, **Connection Boundary**, provider credential scope, **Sync Target** identity, provider-side resource identity, required provider protection state, and eligible source version.
+- **Sync Execution Revalidation** fails closed on **Provider Drift**.
+- **Provider Drift** during **Sync Execution Revalidation** returns stable code `sync.provider_drift`.
+- **Provider Drift** blocks **Sensitive Value** decrypt and provider writes.
+- Resolving **Provider Drift** requires **Credential Reauthorization** or a configuration change; if a **Protected Environment** is involved, that configuration change is a **Protected Delivery Configuration Change**.
+- A **Secret Sync Binding** references one **Secret** in the **Secret Sync** source **Environment**.
+- A **Secret Sync Binding** names one provider-side destination secret or variable.
+- **Secret Sync** does not support all-secrets, tag, prefix, suffix, regex, folder, or pattern-based selection.
+- Adding a **Secret** to an **Environment** does not add it to an existing **Secret Sync**.
+- Changing **Secret Sync Bindings** for a **Protected Environment** is a **Protected Delivery Configuration Change**.
+- A **Secret Sync Binding** is authoritative for its provider-side destination.
+- A **Secret Sync** run performs **Provider Sync Overwrite** for every bound destination it writes.
+- **Provider Sync Overwrite** does not perform **Provider Readback**.
+- Existing provider-side **Sensitive Values** are not imported, compared, preserved, or shown during **Provider Sync Overwrite**.
+- **Explicit Provider Lookup** can check whether an exact **Secret Sync Binding** destination already exists before sync approval or execution.
+- Existing exact bound destinations produce a **Provider Overwrite Warning**.
+- A **Provider Overwrite Warning** tells the **User** that approval or execution will replace the provider-side value without reading, comparing, preserving, or showing it.
+- Approving protected **Secret Sync** creation, enablement, or binding changes authorizes **Provider Sync Overwrite** for the exact bound destinations shown in the approval.
+- Removing a **Secret Sync Binding** creates a **Managed Provider Delete** for the provider-side secret or variable previously managed by that binding.
+- **Managed Provider Delete** uses provider metadata and tracked managed-key identity, not **Sensitive Values**.
+- **Secret Sync Disable** does not create a **Managed Provider Delete**.
+- Disabled **Secret Sync** status and plan output must warn when provider-side managed copies still exist.
+- **Secret Sync Deletion** removes every **Secret Sync Binding** and creates a **Managed Provider Delete** for each provider-side managed copy.
+- **Secret Sync Deletion** is destructive and must show every planned **Managed Provider Delete** before confirmation.
+- **Secret Sync Deletion** tombstones the **Secret Sync** for audit instead of erasing its history.
+- **Secret Sync Deletion** can tombstone the **Secret Sync** even when some **Managed Provider Deletes** fail.
+- Failed **Managed Provider Deletes** create **Orphaned Managed Provider Copies**.
+- An **Orphaned Managed Provider Copy** may or may not still exist in the provider.
+- An **Orphaned Managed Provider Copy** does not mean insecur knows or stores the provider-side **Sensitive Value**.
+- **Orphaned Managed Provider Copies** must be shown to the **User** as warnings and preserved for retry cleanup.
+- **Orphaned Managed Provider Copy** warnings use stable warning code `sync.provider_delete_incomplete`.
+- **Orphaned Managed Provider Copy** warnings are not critical platform failures.
+- **Secret Sync Deletion** for a **Protected Environment** is a **Protected Delivery Configuration Change**.
+- A **Secret Sync** may be enabled or disabled.
+- A **Secret Sync** does not perform **Provider Readback**.
+- **Secret Import** uses **Safe Sensitive Input Paths**.
+- The V1 development adoption paths into insecur are manual entry through a **Safe Sensitive Input Path** (stdin, masked prompt, or request body) and **Secret Import** of a local `.env` file or other local file from the **User**'s own machine.
+- A local `.env` or file **Secret Import** targets only a non-protected development **Environment**, runs client-side, performs **Import Preflight**, creates one **Blind Secret Write** per parsed **Variable Key** only after the whole source is valid, and never writes the parsed **Sensitive Values** to a durable plaintext file or to logs.
+- **Local Secret File Migration** is the only V1 local-file ingress path for **Sensitive Values** and is limited to non-protected development adoption.
+- **Local Secret File Migration** is one-way: values may enter insecur from a **Local Secret File**, but stored **Secrets** are not written back to `.env`, dotenv, JSON, or other local plaintext secret files.
+- **Local Secret File Migration** leaves the source **Local Secret File** unchanged and may warn that it still exists.
+- **Local Secret File Removal** may delete the source file only through a separate explicit user command and confirmation.
+- **Secret Import** is separate from **Secret Sync** verification.
+- **Secret Import** does not read **Sensitive Values** from provider secret stores in V1; there is no provider read-back adoption path, consistent with **Provider Readback** being prohibited.
+- Existing provider-side destinations can be detected during **Secret Sync** setup and planning to produce **Provider Overwrite Warnings** for exact bindings.
+- **Explicit Provider Lookup** is not a standalone UI, API, or CLI probe in V1.
+- **Explicit Provider Lookup** is scoped to one **App Connection**, **Connection Boundary**, provider target, and exact provider-side name or binding.
+- **Explicit Provider Lookup** does not list provider inventories, enumerate provider-side secret or variable names, or return unrelated provider objects.
+- **Explicit Provider Lookup** returns only minimal existence/status metadata, **Provider Lookup Status**, safe hashes or opaque IDs where needed, and no raw provider bodies or **Sensitive Values**.
+- **Provider Lookup Status** uses stable codes such as `provider.lookup_not_found`, `provider.permission_denied`, `provider.boundary_mismatch`, and `provider.unavailable`.
+- **Provider Lookup Status** must not include provider-native error text, raw provider bodies, raw provider headers, stack traces, unrelated provider object names, or **Sensitive Values**.
+- **Explicit Provider Lookup** is audited with actor, organization, project/environment when applicable, app connection, exact target/name/binding, provider response class, request ID, and operation ID.
+- **Protected Environment** **Secret Sync** setup, approval, enablement, and manual run require a completed **Explicit Provider Lookup** for every exact **Secret Sync Binding** destination.
+- If **Explicit Provider Lookup** cannot determine the safe status for any exact **Protected Environment** binding, the protected setup, approval, enablement, or run fails closed with `provider.unavailable`.
+- If **Explicit Provider Lookup** cannot determine the safe status for any exact non-protected **Environment** binding, the non-protected setup, enablement, or run may continue only after a user-visible warning, explicit confirmation for that operation, and an audit event.
+- The warning tells the **User** that provider overwrite status is unknown and the sync may replace a provider-side value without reading, comparing, preserving, or showing it.
+- Unknown provider overwrite warning output must not include provider-native error text, raw provider bodies, provider inventories, unrelated provider object names, or **Sensitive Values**.
+- Generic confirmation, stored defaults, previous confirmation, and unrelated **Approval Requests** cannot authorize an unknown provider overwrite.
+- Enabling or running a **Secret Sync** requires every binding to have an insecur-managed value: **Current Version** for non-protected **Environments** and **Published Version** for **Protected Environments**.
+- Enabling or running a **Secret Sync** fails with `sync.source_value_missing` when a binding has no eligible version.
+- An **Orphaned Managed Provider Copy** is cleanup metadata and is not a **Secret Import** source.
+- The **Sync Target** for a `github-app` **Secret Sync** is either a **GitHub Repository Secret** scope or a **GitHub Environment** inside a repository, chosen explicitly on the **Secret Sync** within the installation **Connection Boundary**; insecur does not infer it from the source **Environment** name.
+- A protected **Environment** `github-app` **Secret Sync** must target a **GitHub Environment** with **GitHub Environment Protection** and cannot target a **GitHub Repository Secret**.
+- **GitHub Environment Protection** is satisfied at minimum by a deployment branch policy restricting the **GitHub Environment** to selected or protected branches; a wait timer alone does not satisfy it, and required reviewers are recommended.
+- A non-protected **Environment** `github-app` **Secret Sync** may target either a **GitHub Repository Secret** or a **GitHub Environment**.
+- insecur does not write organization-level GitHub Actions secrets; organization-wide scope lies outside the **Project** **Connection Boundary**.
+- The **Sync Target** for a `cloudflare` **Secret Sync** is a **Cloudflare Worker Secret** on an exact **Cloudflare Worker Script** inside the **Connection Boundary**.
+- A **Cloudflare Worker Script** may represent a Wrangler environment deployment, so different insecur **Environments** can map to different script names.
+- insecur writes and overwrites **Cloudflare Worker Secrets** directly and does not edit `wrangler` configuration.
+- Adding, updating, or deleting a **Cloudflare Worker Secret** causes a **Cloudflare Worker Secret Deploy** for the affected **Cloudflare Worker Script**.
+- Protected **Environment** `cloudflare` **Secret Sync** plan, approval, and audit output must describe the **Cloudflare Worker Secret Deploy** as production deploy impact.
+- When **Promotion** enqueues an already-enabled `cloudflare` **Secret Sync**, the accepted **Approval Impact Review** is the approval evidence for the resulting **Cloudflare Worker Secret Deploy**.
+- A **Managed Provider Delete** for a `cloudflare` binding deletes the **Cloudflare Worker Secret** from the exact **Cloudflare Worker Script** that the binding managed.
+- The **Sync Target** for a `vercel` **Secret Sync** is one **Vercel Project** in the **Connection Boundary** plus an explicit **Vercel Deployment Target** scope; insecur does not infer the scope from the source **Environment** name.
+- A `vercel` **Vercel Deployment Target** scope is one or more of `production` and `preview`, and a `gitBranch` may narrow a `preview` scope.
+- insecur writes every `vercel` synced variable as a write-only sensitive variable, so a **Vercel Deployment Target** scope cannot include `development`, where sensitive variables are unavailable.
+- insecur does not sync to Vercel `development`; local development values come from **Runtime Injection**, not synced provider variables.
+- A `vercel` **Secret Sync Binding** stays a pure source **Secret** to provider variable-name mapping; the **Vercel Deployment Target** scope lives on the **Sync Target**, not the binding.
+- A **Secret Sync** run creates one **Operation**.
+- The **Operation Store** owns the durable metadata state of an **Operation**; provider writes, decrypt, approval decisions, and audit event formatting stay in their own Modules.
+- An **Operation** produces one or more **Audit Log** entries.
+- An **Audit Export** contains one or more **Audit Log** entries.
+- An **Organization Data Key** protects organization-owned sensitive data and is the baseline key boundary for **Sensitive Metadata**.
+- A **Project Data Key** protects project secret data.
+- **Key Rotation** creates or activates a new **Key Version**.
+- The **Storage Security Gate** blocks **Secret Sync** and production **Secret Delivery** until tenant-bound encryption for **Secrets**, **Provider Credentials**, and **Sensitive Metadata** is implemented and verified.
+- The **Storage Security Gate** reports metadata-only readiness and must not decrypt **Sensitive Values**, **Provider Credentials**, key material, or **Sensitive Metadata** to decide whether delivery may run.
+- The local development **Runtime Injection** loop, a non-protected **Environment** **Current Version** injected into a local child process, is not gated by the **Storage Security Gate** and depends only on tenant-bound encryption of stored **Secrets**, since it uses no **Provider Credential** and no **Secret Sync**.
+- A **Security Runbook** produces metadata-only evidence for a **Security Evidence Bundle**.
+- A **Security Release Gate** consumes a **Security Evidence Bundle** and returns a metadata-only readiness decision.
+- A **Security Evidence Bundle** must not include **Sensitive Values**, raw provider bodies, child-process environments, key material, or plaintext logs.

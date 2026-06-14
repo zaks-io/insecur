@@ -17,23 +17,25 @@ the product spec's "canonical" are both true, each for the content type it owns.
 
 ### Content ownership
 
-| Content type                                                | Owning location                                                          |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Shared cross-context domain vocabulary and term definitions | root [CONTEXT.md](../../CONTEXT.md)                                      |
-| Terms scoped to one bounded context                         | that package or app `CONTEXT.md`                                         |
-| Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](../specs/product-spec.md)                              |
-| Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                      |
-| Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot               |
-| Workstream ownership, seams, and integration order          | [agent-workstreams.md](../specs/agent-workstreams.md)                    |
-| Live implementation status                                  | [project-status.md](../project-status.md)                                |
-| Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence |
+| Content type                                                | Owning location                                                                                                            |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Shared cross-context domain vocabulary and term definitions | the per-domain slices under [docs/context/glossary/](../context/glossary/), indexed by root [CONTEXT.md](../../CONTEXT.md) |
+| Terms scoped to one bounded context                         | that package or app `CONTEXT.md`                                                                                           |
+| Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](../specs/product-spec.md)                                                                                |
+| Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                                                                        |
+| Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
+| Workstream ownership, seams, and integration order          | [agent-workstreams.md](../specs/agent-workstreams.md)                                                                      |
+| Live implementation status                                  | [project-status.md](../project-status.md)                                                                                  |
+| Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence                                                   |
 
 Vocabulary splits along the multi-context layout described in
-[docs/agents/domain.md](../agents/domain.md): root `CONTEXT.md` owns vocabulary shared across
-contexts, and a package or app `CONTEXT.md` owns a term that exists only inside its bounded
-context. A term is defined in exactly one place, never both. Today every local context file is a
-reading map and all definitions live at root; a local definition is added only for a genuinely
-context-local term, and it moves to root the moment a second context needs it.
+[docs/agents/domain.md](../agents/domain.md): the per-domain glossary slices under
+`docs/context/glossary/` own vocabulary shared across contexts, and a package or app `CONTEXT.md`
+owns a term that exists only inside its bounded context. A term is defined in exactly one place,
+never both. Every local context file is a reading map and shared definitions live in the glossary
+slices; a local definition is added only for a genuinely context-local term, and it moves to the
+owning slice the moment a second context needs it. See the 2026-06-14 amendment for why the shared
+glossary is split into slices rather than one file.
 
 For code-enforced registries the owner is the doc-plus-code pair, and the pair's lockstep sentence
 states which side is the spec. The shipped examples: the error-code-to-exit-code table in
@@ -123,3 +125,26 @@ reference to the deterministic resolution above.
 - A new normative enumeration must land in its owner's row before other docs reference it, which
   occasionally forces a small owner edit ahead of an area-doc edit. That ordering cost is the
   price of one statement per fact.
+
+## Amendment 2026-06-14: Shared glossary split into per-domain slices
+
+The shared glossary moved from a single 2,287-line `CONTEXT.md` into per-domain definition slices
+under [docs/context/glossary/](../context/glossary/), with root `CONTEXT.md` reduced to a routing
+index. Relationships, worked dialogue, and cross-cutting disambiguation rules moved to
+[docs/context/relationships.md](../context/relationships.md),
+[docs/context/dialogue.md](../context/dialogue.md), and
+[docs/context/glossary/terminology-rules.md](../context/glossary/terminology-rules.md).
+
+Why: a single file forced every agent that touched domain language to load the whole vocabulary and
+needle-search it for the handful of terms it cared about. Tiered slices let an agent load the
+index plus only the slice its task names — a crypto change loads the ~15-term crypto slice, not all
+231 terms.
+
+What is unchanged: the single-statement rule and one-term-one-place ownership hold exactly as
+before. A term is still defined in exactly one location; that location is now the owning slice
+instead of one monolithic file. Package and app context files remain reading maps that route to the
+owning slice and never copy definitions. The discouraged-synonym guidance that previously lived in
+the "Flagged Ambiguities" section is now folded onto each term's `_Avoid_:` line (single-term
+rules) or into `terminology-rules.md` (cross-cutting "X is ambiguous between A, B, C" rules), so no
+guidance was dropped in the move. This is an owner-location change, not a reopening of the
+single-statement decision.
