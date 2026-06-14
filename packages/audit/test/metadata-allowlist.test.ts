@@ -66,6 +66,7 @@ describe("audit metadata allowlist", () => {
     const validReasonCodes = [
       AUTH_ERROR_CODES.insufficientScope,
       SECRET_ERROR_CODES.invalidEncoding,
+      SECRET_ERROR_CODES.coordinateInvalid,
       INJECTION_ERROR_CODES.grantDenied,
       VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     ];

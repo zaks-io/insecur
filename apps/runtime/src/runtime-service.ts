@@ -90,17 +90,21 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
         projectId: input.projectId,
         environmentId: input.environmentId,
       };
-      await assertSecretWriteCoordinate({
-        ...coordinate,
-        actor: auditActor,
-        request: { requestId: input.requestId },
-      });
+      // Authorization first, coordinate check second: a caller lacking write scope must get the
+      // same insufficient_scope denial whether or not the URL environment exists, so the coordinate
+      // check (which reads the environments table) cannot become a cross-project existence oracle.
+      // The coordinate check then runs only for callers already entitled to write at this project.
       await authorizeScopeOrThrow({
         actor: toAccessActor(actor),
         auditActor,
         coordinate,
         requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
         requestId: input.requestId,
+      });
+      await assertSecretWriteCoordinate({
+        ...coordinate,
+        actor: auditActor,
+        request: { requestId: input.requestId },
       });
       const result = await writeNonProtectedSecret({
         keyring: createKeyringFromRuntimeEnv(this.env),
