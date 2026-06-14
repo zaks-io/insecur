@@ -31,6 +31,12 @@ export const SECRET_ERROR_CODES = {
   emptyValue: "secret.empty_value",
   inputRequired: "secret.input_required",
   valueTooLarge: "secret.value_too_large",
+  /**
+   * The URL environment does not belong to the URL project (or does not exist). Collapses
+   * not-found and not-owned into one 404 so the write path cannot reveal whether a foreign
+   * environment exists, mirroring `injection.grant_denied`.
+   */
+  coordinateInvalid: "secret.coordinate_invalid",
 } as const;
 
 export type SecretErrorCode = (typeof SECRET_ERROR_CODES)[keyof typeof SECRET_ERROR_CODES];

@@ -2,7 +2,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 
 import { AUTHORIZATION_SCOPES } from "@insecur/access";
 import { consumeInjectionGrant } from "@insecur/runtime-injection";
-import { writeNonProtectedSecret } from "@insecur/secret-store";
+import { assertSecretWriteCoordinate, writeNonProtectedSecret } from "@insecur/secret-store";
 import { configureRuntimeConnection } from "@insecur/tenant-store";
 import { authorizeScopeOrThrow, toAccessActor, toAuditActor } from "@insecur/worker-kit";
 import type {
@@ -85,14 +85,16 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
       this.#configureDb();
       const actor = await actorFromHopToken(this.env, input.actorToken);
       const auditActor = toAuditActor(actor);
+      const coordinate = {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+      };
+      await assertSecretWriteCoordinate(coordinate);
       await authorizeScopeOrThrow({
         actor: toAccessActor(actor),
         auditActor,
-        coordinate: {
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          environmentId: input.environmentId,
-        },
+        coordinate,
         requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
         requestId: input.requestId,
       });

@@ -5,6 +5,7 @@ import {
   CRYPTO_ERROR_CODES,
   INJECTION_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
+  SECRET_ERROR_CODES,
   type KnownErrorCode,
 } from "@insecur/domain";
 
@@ -37,6 +38,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [BOOTSTRAP_ERROR_CODES.alreadyClaimed]: EXIT_CONFLICT,
   [BOOTSTRAP_ERROR_CODES.invalidSecret]: EXIT_AUTH_REQUIRED,
   [BOOTSTRAP_ERROR_CODES.authenticatedActorRequired]: EXIT_AUTH_REQUIRED,
+  [SECRET_ERROR_CODES.coordinateInvalid]: EXIT_NOT_FOUND,
   [INJECTION_ERROR_CODES.grantDenied]: EXIT_FORBIDDEN,
   [INJECTION_ERROR_CODES.grantExpired]: EXIT_CONFLICT,
   "operation.idempotency_mismatch": EXIT_CONFLICT,

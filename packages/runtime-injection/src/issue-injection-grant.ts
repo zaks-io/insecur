@@ -20,6 +20,7 @@ import {
 } from "@insecur/tenant-store";
 
 import {
+  assertHoldsAnyIssuanceScope,
   assertRuntimeInjectionAccess,
   resolveIssueGrantRequiredScope,
 } from "./assert-runtime-injection-access.js";
@@ -62,6 +63,12 @@ export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
   const coordinate = toGrantCoordinate(input);
+  const actor = { type: "user" as const, userId: input.actor.userId };
+
+  // Fail closed before the tenant coordinate read: an actor holding neither issuance atom must not
+  // be able to distinguish a valid foreign coordinate (grant_denied) from an invalid one
+  // (insufficient_scope) (INS-181).
+  await assertHoldsAnyIssuanceScope(actor, coordinate);
 
   const { isProtected } = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
@@ -69,7 +76,7 @@ export async function executeIssueInjectionGrant(
   );
 
   await assertRuntimeInjectionAccess(
-    { type: "user", userId: input.actor.userId },
+    actor,
     coordinate,
     resolveIssueGrantRequiredScope(isProtected),
   );
