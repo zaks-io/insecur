@@ -37,6 +37,13 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 const ADMITTED_USER_ID = TEST_USER_ID;
 const WORKOS_USER_ID = "user_01workos_fv_e2e";
 
+// A second admitted human with NO membership anywhere: resolves to empty Effective Access, so every
+// write is denied for insufficient scope. Used to prove the secret-write path is not an
+// existence oracle (INS-154): authorization runs before the coordinate read, so this actor gets the
+// same insufficient_scope denial whether the URL environment exists or not.
+const NO_SCOPE_ADMITTED_USER_ID = "usr_00000000000000000000000NS1";
+const NO_SCOPE_WORKOS_USER_ID = "user_01workos_no_scope";
+
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
 const ENV_A = environmentId.brand(TEST_ENV_A_ID);
@@ -58,18 +65,25 @@ const env = {
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   INSTANCE_ID: "inst_LOCAL_DEV",
-  ADMITTED_USER_MAP_JSON: JSON.stringify({ [WORKOS_USER_ID]: ADMITTED_USER_ID }),
+  ADMITTED_USER_MAP_JSON: JSON.stringify({
+    [WORKOS_USER_ID]: ADMITTED_USER_ID,
+    [NO_SCOPE_WORKOS_USER_ID]: NO_SCOPE_ADMITTED_USER_ID,
+  }),
   RUNTIME_TOKEN_SIGNING_SECRET,
   RUNTIME: createFakeRuntimeBinding(runtimeEnv),
 };
 
-async function authHeaders(): Promise<Record<string, string>> {
+async function authHeadersFor(
+  admittedUserId: string,
+  workosUserId: string,
+  sessionId: string,
+): Promise<Record<string, string>> {
   const minted = await mintEphemeralSessionCredential({
     actor: {
       type: "user",
-      userId: userId.brand(ADMITTED_USER_ID),
-      workosUserId: WORKOS_USER_ID,
-      sessionId: "session_fv_e2e",
+      userId: userId.brand(admittedUserId),
+      workosUserId,
+      sessionId,
     },
     signingSecret: env.SESSION_SIGNING_SECRET,
   });
@@ -77,6 +91,10 @@ async function authHeaders(): Promise<Record<string, string>> {
     Authorization: `Bearer ${minted.credential}`,
     "Content-Type": "application/json",
   };
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  return authHeadersFor(ADMITTED_USER_ID, WORKOS_USER_ID, "session_fv_e2e");
 }
 
 function uniqueVariableKey(prefix: string): string {
@@ -229,6 +247,41 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
     const replayBody = (await replay.json()) as { ok: boolean; error: { code: string } };
     expect(replayBody.ok).toBe(false);
     expect(JSON.stringify(replayBody)).not.toContain(plaintext);
+  });
+
+  it("secret write is not a coordinate existence oracle: no-scope actor gets insufficient_scope for valid, foreign, and nonexistent environments alike (INS-154)", async () => {
+    // This actor has no membership anywhere, so it lacks secretNonProtectedWrite at every coordinate.
+    // Because authorization runs before the coordinate read, the denial code must be identical
+    // whether the URL environment exists and is owned by the project, exists elsewhere, or does not
+    // exist at all. Any divergence would leak environment existence across projects.
+    const headers = await authHeadersFor(
+      NO_SCOPE_ADMITTED_USER_ID,
+      NO_SCOPE_WORKOS_USER_ID,
+      "session_no_scope",
+    );
+    const body = JSON.stringify({ variableKey: "PROBE_KEY", value: "x" });
+
+    const validCoordinate = `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${ENV_A}/secrets/by-variable-key`;
+    // A syntactically valid environment ID that does not exist in org A.
+    const nonexistentEnv = environmentId.brand("env_00000000000000000000NEXST9");
+    const nonexistentCoordinate = `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${nonexistentEnv}/secrets/by-variable-key`;
+
+    const responses = await Promise.all(
+      [validCoordinate, nonexistentCoordinate].map((path) =>
+        app.request(path, { method: "POST", headers, body }, env),
+      ),
+    );
+
+    for (const response of responses) {
+      expect(response.status).toBe(403);
+      const json = (await response.json()) as { ok: boolean; error: { code: string } };
+      expect(json.ok).toBe(false);
+      expect(json.error.code).toBe("auth.insufficient_scope");
+    }
+
+    // The two responses must be indistinguishable: same status and same stable error code.
+    const [validStatus, missingStatus] = responses.map((r) => r.status);
+    expect(validStatus).toBe(missingStatus);
   });
 
   it("fails closed with crypto.decrypt_failed when the stored ciphertext is corrupted", async () => {

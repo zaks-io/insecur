@@ -6,7 +6,7 @@ import {
 import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES } from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
 import { ProjectEnvironmentCoordinateError } from "@insecur/tenant-store";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ISSUE_PROTECTED_SCOPE,
@@ -25,6 +25,12 @@ const ACTOR_USER = userId.brand("usr_00000000000000000000000001");
 
 let protectedEnvironment = true;
 let coordinateError: ProjectEnvironmentCoordinateError | undefined;
+
+beforeEach(() => {
+  protectedEnvironment = true;
+  coordinateError = undefined;
+  vi.mocked(resolveEffectiveAccess).mockReset();
+});
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
@@ -131,7 +137,7 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     expect(resolveEffectiveAccess).toHaveBeenCalledWith(
       { type: "user", userId: ACTOR_USER },
       { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
-      undefined,
+      expect.objectContaining({ memo: expect.anything() }),
     );
   });
 
@@ -178,6 +184,39 @@ describe("executeIssueInjectionGrant protected issuance", () => {
 
     await expect(issueInjectionGrantWithAudit(baseInput)).rejects.toMatchObject({
       code: INJECTION_ERROR_CODES.grantDenied,
+    });
+  });
+
+  describe("coordinate-validity oracle (INS-181)", () => {
+    // An actor holding neither issuance atom must get the SAME stable denial code whether the
+    // foreign coordinate is valid or invalid, so the error surface cannot reveal env existence.
+    it("returns insufficient_scope for a valid foreign coordinate when the actor holds no issuance atom", async () => {
+      coordinateError = undefined;
+      vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
+
+      await expect(executeIssueInjectionGrant(baseInput)).rejects.toMatchObject({
+        code: AUTH_ERROR_CODES.insufficientScope,
+      });
+    });
+
+    it("returns insufficient_scope for an invalid foreign coordinate when the actor holds no issuance atom", async () => {
+      coordinateError = new ProjectEnvironmentCoordinateError("environment not found");
+      vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
+
+      await expect(executeIssueInjectionGrant(baseInput)).rejects.toMatchObject({
+        code: AUTH_ERROR_CODES.insufficientScope,
+      });
+    });
+
+    it("does not read the tenant coordinate when the actor holds no issuance atom", async () => {
+      // If the coordinate read ran, this invalid coordinate would surface grant_denied; proving the
+      // denial stays insufficient_scope proves authorization precedes (and short-circuits) the read.
+      coordinateError = new ProjectEnvironmentCoordinateError("environment not found");
+      vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
+
+      await expect(executeIssueInjectionGrant(baseInput)).rejects.not.toMatchObject({
+        code: INJECTION_ERROR_CODES.grantDenied,
+      });
     });
   });
 });

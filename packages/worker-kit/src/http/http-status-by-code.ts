@@ -28,6 +28,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [SECRET_ERROR_CODES.emptyValue, 400],
   [SECRET_ERROR_CODES.inputRequired, 400],
   [SECRET_ERROR_CODES.valueTooLarge, 400],
+  [SECRET_ERROR_CODES.coordinateInvalid, 404],
   [ONBOARDING_ERROR_CODES.alreadyProvisioned, 409],
   [ONBOARDING_ERROR_CODES.resourceConflict, 409],
   [ONBOARDING_ERROR_CODES.notInstanceOperator, 403],

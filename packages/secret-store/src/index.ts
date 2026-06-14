@@ -1,4 +1,9 @@
 export { assertSecretNonProtectedWriteAccess } from "./assert-secret-non-protected-write-access.js";
+export {
+  type AssertSecretWriteCoordinateInput,
+  type SecretWriteCoordinate,
+  assertSecretWriteCoordinate,
+} from "./assert-secret-write-coordinate.js";
 export { SECRET_VALUE_SIZE_LIMIT_BYTES } from "./constants.js";
 export {
   type RecordSecretWriteAuditInput,

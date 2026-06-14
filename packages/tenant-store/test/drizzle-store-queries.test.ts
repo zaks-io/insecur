@@ -31,6 +31,7 @@ import {
   TEST_ENV_A_ID,
   TEST_ORG_A_ID,
   TEST_PROJECT_A_ID,
+  TEST_PROJECT_B_ID,
   TEST_ORG_KEY_A_ID,
   TEST_PROJECT_KEY_A_ID,
   TEST_SECRET_A_ID,
@@ -457,6 +458,21 @@ describe("assertProjectEnvironmentCoordinate (Drizzle)", () => {
 
   it("throws when environment is missing", async () => {
     const { db } = createMockTenantDb({ selectResults: [[]] });
+    await expect(
+      assertProjectEnvironmentCoordinate(db, {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+      }),
+    ).rejects.toBeInstanceOf(ProjectEnvironmentCoordinateError);
+  });
+
+  // INS-154 attack vector: the environment exists in the org but is owned by a different project
+  // than the URL project. Must reject so a project-scoped principal cannot write across projects.
+  it("throws when the environment belongs to a different project in the same org", async () => {
+    const { db } = createMockTenantDb({
+      selectResults: [[{ projectId: projectId.brand(TEST_PROJECT_B_ID), isProtected: false }]],
+    });
     await expect(
       assertProjectEnvironmentCoordinate(db, {
         organizationId: ORG,

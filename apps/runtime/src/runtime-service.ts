@@ -2,7 +2,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 
 import { AUTHORIZATION_SCOPES } from "@insecur/access";
 import { consumeInjectionGrant } from "@insecur/runtime-injection";
-import { writeNonProtectedSecret } from "@insecur/secret-store";
+import { assertSecretWriteCoordinate, writeNonProtectedSecret } from "@insecur/secret-store";
 import { configureRuntimeConnection } from "@insecur/tenant-store";
 import { authorizeScopeOrThrow, toAccessActor, toAuditActor } from "@insecur/worker-kit";
 import type {
@@ -85,16 +85,26 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
       this.#configureDb();
       const actor = await actorFromHopToken(this.env, input.actorToken);
       const auditActor = toAuditActor(actor);
+      const coordinate = {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+      };
+      // Authorization first, coordinate check second: a caller lacking write scope must get the
+      // same insufficient_scope denial whether or not the URL environment exists, so the coordinate
+      // check (which reads the environments table) cannot become a cross-project existence oracle.
+      // The coordinate check then runs only for callers already entitled to write at this project.
       await authorizeScopeOrThrow({
         actor: toAccessActor(actor),
         auditActor,
-        coordinate: {
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          environmentId: input.environmentId,
-        },
+        coordinate,
         requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
         requestId: input.requestId,
+      });
+      await assertSecretWriteCoordinate({
+        ...coordinate,
+        actor: auditActor,
+        request: { requestId: input.requestId },
       });
       const result = await writeNonProtectedSecret({
         keyring: createKeyringFromRuntimeEnv(this.env),
