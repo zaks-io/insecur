@@ -137,7 +137,7 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     expect(resolveEffectiveAccess).toHaveBeenCalledWith(
       { type: "user", userId: ACTOR_USER },
       { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
-      undefined,
+      expect.objectContaining({ memo: expect.anything() }),
     );
   });
 

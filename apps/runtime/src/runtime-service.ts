@@ -90,7 +90,11 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
         projectId: input.projectId,
         environmentId: input.environmentId,
       };
-      await assertSecretWriteCoordinate(coordinate);
+      await assertSecretWriteCoordinate({
+        ...coordinate,
+        actor: auditActor,
+        request: { requestId: input.requestId },
+      });
       await authorizeScopeOrThrow({
         actor: toAccessActor(actor),
         auditActor,

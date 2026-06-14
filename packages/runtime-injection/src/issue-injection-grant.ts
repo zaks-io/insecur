@@ -1,4 +1,4 @@
-import { auditAccessDenialOnFailure } from "@insecur/access";
+import { EffectiveAccessMemo, auditAccessDenialOnFailure } from "@insecur/access";
 import {
   recordRuntimeInjectionAudit,
   type AuditActorRef,
@@ -64,11 +64,14 @@ export async function executeIssueInjectionGrant(
 ): Promise<IssueInjectionGrantCoreResult> {
   const coordinate = toGrantCoordinate(input);
   const actor = { type: "user" as const, userId: input.actor.userId };
+  // One request-scoped memo so the pre-check and the precise-atom check share a single membership
+  // read instead of issuing two identical queries on this hot path.
+  const accessDeps = { memo: new EffectiveAccessMemo() };
 
   // Fail closed before the tenant coordinate read: an actor holding neither issuance atom must not
   // be able to distinguish a valid foreign coordinate (grant_denied) from an invalid one
   // (insufficient_scope) (INS-181).
-  await assertHoldsAnyIssuanceScope(actor, coordinate);
+  await assertHoldsAnyIssuanceScope(actor, coordinate, accessDeps);
 
   const { isProtected } = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
@@ -79,6 +82,7 @@ export async function executeIssueInjectionGrant(
     actor,
     coordinate,
     resolveIssueGrantRequiredScope(isProtected),
+    accessDeps,
   );
 
   assertSingleIssueSelectorCount(1);
