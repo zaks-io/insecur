@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Cloud smoke for the First Value loop. Drives write -> grant issue -> grant
+// Cloud smoke for the First Value loop. Drives onboard -> write -> grant issue -> grant
 // consume over HTTP against a DEPLOYED preview/-dev API Worker and asserts the secret
 // value round-trips through the real Runtime Worker Service Binding. This is the
 // post-deploy tripwire the local e2e test (apps/api/test/e2e/first-value-loop.e2e.test.ts)
@@ -8,36 +8,85 @@
 //
 // HARD-FAILS when unconfigured (no SMOKE_BASE_URL) — a smoke that silently skips is
 // theater. This script is wired into the gated pr-preview workflow, which itself
-// stays opt-in until the -dev/preview Worker + Hyperdrive binding exist.
+// stays opt-in until the preview Workers + Hyperdrive binding exist.
+//
+// Auth is SELF-MINTED, not a pasted bearer: a static token expires and turns the smoke
+// falsely red. We mint a short-TTL ephemeral session credential at run time exactly as the
+// e2e does, signed with the SAME SESSION_SIGNING_SECRET the deployed Worker holds. The minted
+// actor must be admitted by the Worker's ADMITTED_USER_MAP_JSON. The smoke then provisions a
+// fresh personal org through the real onboarding route, so it needs no pre-seeded coordinates.
+import { mintEphemeralSessionCredential } from "@insecur/auth";
+import { userId } from "@insecur/domain";
 
 const baseUrl = requireEnv("SMOKE_BASE_URL").replace(/\/$/, "");
-const authHeader = requireEnv("SMOKE_AUTH_BEARER");
-const organizationId = requireEnv("SMOKE_ORGANIZATION_ID");
-const projectId = requireEnv("SMOKE_PROJECT_ID");
-const environmentId = requireEnv("SMOKE_ENVIRONMENT_ID");
-
-const headers = {
-  Authorization: authHeader.startsWith("Bearer ") ? authHeader : `Bearer ${authHeader}`,
-  "Content-Type": "application/json",
-};
+const signingSecret = requireEnv("SMOKE_SESSION_SIGNING_SECRET");
+const admittedUserId = requireEnv("SMOKE_ADMITTED_USER_ID");
+const workosUserId = requireEnv("SMOKE_WORKOS_USER_ID");
 
 const variableKey = `SMOKE_FV_${Date.now()}`;
 const plaintext = `smoke-fv-${crypto.randomUUID()}`;
 
+const headers = {
+  Authorization: `Bearer ${await mintBearer()}`,
+  "Content-Type": "application/json",
+};
+
 await main();
+
+async function mintBearer() {
+  const minted = await mintEphemeralSessionCredential({
+    actor: {
+      type: "user",
+      userId: userId.brand(admittedUserId),
+      workosUserId,
+      sessionId: "session_fv_smoke",
+    },
+    signingSecret,
+  });
+  return minted.credential;
+}
 
 async function main() {
   await assertHealthz();
+  const coords = await onboardPersonalOrg();
+  const grantId = await runFirstValueLoop(coords);
+  process.stdout.write(
+    JSON.stringify({
+      ok: true,
+      smoke: "first-value-loop",
+      baseUrl,
+      organizationId: coords.organizationId,
+      grantId,
+    }) + "\n",
+  );
+}
 
+// Provision a fresh personal org so the smoke owns its own coordinates (no seeded fixtures).
+async function onboardPersonalOrg() {
+  const onboarded = await post("/v1/onboarding/personal-organization", {}, "onboarding");
+  const organizationId = onboarded.data?.organizationId;
+  const projectId = onboarded.data?.projectId;
+  const environmentId = onboarded.data?.developmentEnvironmentId;
+  if (
+    typeof organizationId !== "string" ||
+    typeof projectId !== "string" ||
+    typeof environmentId !== "string"
+  ) {
+    throw new Error("onboarding did not return organizationId/projectId/developmentEnvironmentId");
+  }
+  return { organizationId, projectId, environmentId };
+}
+
+async function runFirstValueLoop({ organizationId, projectId, environmentId }) {
   await post(
     `/v1/orgs/${organizationId}/projects/${projectId}/environments/${environmentId}/secrets/by-variable-key`,
-    { variableKey, value: plaintext },
+    { organizationId, variableKey, value: plaintext },
     "secret write",
   );
 
   const issued = await post(
     `/v1/orgs/${organizationId}/runtime-injection/grants`,
-    { projectId, environmentId, variableKey },
+    { organizationId, projectId, environmentId, variableKey },
     "grant issue",
   );
   const grantId = issued.data?.grantId;
@@ -47,7 +96,7 @@ async function main() {
 
   const consumed = await post(
     `/v1/orgs/${organizationId}/runtime-injection/grants/${grantId}/consume`,
-    { variableKey },
+    { organizationId, variableKey },
     "grant consume",
   );
   const encoded = consumed.delivery?.encodedValueUtf8;
@@ -59,10 +108,7 @@ async function main() {
   if (decoded !== plaintext) {
     throw new Error("First Value loop did not round-trip the secret value");
   }
-
-  process.stdout.write(
-    JSON.stringify({ ok: true, smoke: "first-value-loop", baseUrl, grantId }) + "\n",
-  );
+  return grantId;
 }
 
 async function assertHealthz() {

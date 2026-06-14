@@ -28,10 +28,19 @@
       "secret_name": "INSECUR_NONPROD_INSTANCE_ROOT_KEY_V1",
     },
   ],
-  // Preview environment scaffold for the gated pr-preview workflow. The Hyperdrive binding is a
-  // placeholder: the per-PR Hyperdrive id is created at deploy time and patched into this env, and
-  // the Worker must read its Postgres connection from env.DB. Part of the preview-env stand-up
-  // ticket; until then PREVIEW_ENV_ENABLED is unset and this env is never deployed.
+  // Hyperdrive binding to the Instance's Postgres (ADR-0036). This is the provisioned `insecur-nonprod`
+  // config (role `insecur_runtime_rls`, Neon pooler, caching disabled). The Worker reads its Postgres
+  // connection only from env.DB.connectionString — never a wrangler secret or process.env. The
+  // production id is supplied via an env override at prod deploy time.
+  "hyperdrive": [
+    {
+      "binding": "DB",
+      "id": "b44845027d2e40328efcbdd20bb9ea21",
+    },
+  ],
+  // Preview environment override for the gated pr-preview workflow. The per-PR Hyperdrive id is
+  // created at deploy time and patched into this placeholder by scripts/ci/patch-preview-wrangler.mjs;
+  // until PREVIEW_ENV_ENABLED is set this env is never deployed.
   "env": {
     "preview": {
       "hyperdrive": [

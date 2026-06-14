@@ -9,6 +9,7 @@ import {
   TEST_MEM_CROSS_ORG_ID,
   TEST_ORG_A_ID,
   TEST_ORG_B_ID,
+  TEST_ORG_C_ID,
   TEST_PROJECT_A_ID,
   TEST_PROJECT_B_ID,
   TEST_SECRET_A_ID,
@@ -84,7 +85,12 @@ describeRls("tenant row-level security (real Postgres)", () => {
       { kind: "service" },
       async ({ sql }) => await sql<IdRow[]>`SELECT id FROM organizations ORDER BY id`,
     );
-    expect(rows.map((row) => row.id)).toEqual([TEST_ORG_A_ID, TEST_ORG_B_ID]);
+    // Service scope is not org-restricted: it sees every baseline tenant, unlike org scope which sees
+    // exactly one. Assert containment, not an exact list — the mutation tenants (D/E) other RLS
+    // suites seed on this shared local Postgres may also be present depending on run order.
+    const ids = rows.map((row) => row.id);
+    expect(ids).toEqual(expect.arrayContaining([TEST_ORG_A_ID, TEST_ORG_B_ID, TEST_ORG_C_ID]));
+    expect(ids.length).toBeGreaterThan(1);
   });
 
   it("scopes project reads to the current organization", async () => {

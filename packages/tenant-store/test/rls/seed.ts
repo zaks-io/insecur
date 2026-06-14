@@ -22,15 +22,20 @@ import {
   TEST_SECRET_B_ID,
   TEST_TEAM_A_ID,
   TEST_TEAM_B_ID,
-  TEST_USER_ID,
   TEST_VERSION_A_ID,
   TEST_VERSION_B_ID,
   TEST_ORG_KEY_A_ID,
   TEST_ORG_KEY_B_ID,
   TEST_PROJECT_KEY_A_ID,
   TEST_PROJECT_KEY_B_ID,
+  TEST_ORG_C_ID,
+  TEST_PROJECT_C_ID,
+  TEST_ENV_C_ID,
+  TEST_TEAM_C_ID,
+  TEST_MEM_C_ID,
 } from "./test-ids.js";
 import { seedDataKeys } from "./seed-data-keys.js";
+import { seedOrganizationCore, seedSecretWithVersion, type SeedOrgInput } from "./seed-rows.js";
 import { isTenantStoreSchemaCurrent } from "../../scripts/lib/migration-current.mjs";
 
 const packageRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
@@ -103,6 +108,13 @@ export async function seedTenantBaseline(): Promise<void> {
         organizationDataKeyId: TEST_ORG_KEY_B_ID,
         projectDataKeyId: TEST_PROJECT_KEY_B_ID,
       });
+      await seedTenantWithoutDataKeys(sql, {
+        organizationId: TEST_ORG_C_ID,
+        projectId: TEST_PROJECT_C_ID,
+        environmentId: TEST_ENV_C_ID,
+        teamId: TEST_TEAM_C_ID,
+        membershipId: TEST_MEM_C_ID,
+      });
     } finally {
       await sql`SELECT pg_advisory_unlock(${TENANT_STORE_SEED_LOCK_KEY})`;
     }
@@ -111,18 +123,6 @@ export async function seedTenantBaseline(): Promise<void> {
   } finally {
     await sql.end({ timeout: 5 });
   }
-}
-
-interface SeedOrgInput {
-  organizationId: string;
-  projectId: string;
-  environmentId: string;
-  teamId: string;
-  membershipId: string;
-  secretId: string;
-  secretVersionId: string;
-  organizationDataKeyId: string;
-  projectDataKeyId: string;
 }
 
 async function seedOrganization(sql: postgres.Sql, input: SeedOrgInput): Promise<void> {
@@ -138,91 +138,64 @@ async function seedOrganization(sql: postgres.Sql, input: SeedOrgInput): Promise
   });
 }
 
-async function seedOrganizationCore(
-  tx: postgres.TransactionSql,
-  input: SeedOrgInput,
-): Promise<void> {
-  await tx`SELECT set_config('app.current_org', ${input.organizationId}, true)`;
-  await tx`
-    INSERT INTO organizations (id, instance_id, display_name)
-    VALUES (${input.organizationId}, ${TEST_INSTANCE_ID}, ${"Synthetic org"})
-    ON CONFLICT (id) DO NOTHING
-  `;
-  await tx`
-    INSERT INTO projects (id, org_id, display_name)
-    VALUES (${input.projectId}, ${input.organizationId}, ${"Synthetic project"})
-    ON CONFLICT (id) DO NOTHING
-  `;
-  await tx`
-    INSERT INTO teams (id, org_id, display_name, is_default)
-    VALUES (${input.teamId}, ${input.organizationId}, ${"Default team"}, true)
-    ON CONFLICT (id) DO NOTHING
-  `;
-  await tx`
-    INSERT INTO memberships (id, org_id, team_id, user_id, role_preset)
-    VALUES (
-      ${input.membershipId},
-      ${input.organizationId},
-      ${input.teamId},
-      ${TEST_USER_ID},
-      ${"owner"}
-    )
-    ON CONFLICT (id) DO NOTHING
-  `;
-  await tx`
-    INSERT INTO environments (id, org_id, project_id, display_name)
-    VALUES (${input.environmentId}, ${input.organizationId}, ${input.projectId}, ${"Synthetic env"})
-    ON CONFLICT (id) DO NOTHING
-  `;
+interface SeedTenantWithoutDataKeysInput {
+  organizationId: string;
+  projectId: string;
+  environmentId: string;
+  teamId: string;
+  membershipId: string;
 }
 
-async function seedSecretWithVersion(
-  tx: postgres.TransactionSql,
-  input: SeedOrgInput,
+// Tenant C: org/project/team/membership/environment with NO data keys and NO seeded secret. The
+// first-use-mint suite writes here so its destructive DEK minting never touches the shared A/B
+// baseline rows other suites read concurrently on the same local Postgres.
+async function seedTenantWithoutDataKeys(
+  sql: postgres.Sql,
+  input: SeedTenantWithoutDataKeysInput,
 ): Promise<void> {
-  await tx`
-    INSERT INTO secrets (
-      id,
-      org_id,
-      project_id,
-      environment_id,
-      variable_key,
-      current_version_id
-    )
-    VALUES (
-      ${input.secretId},
-      ${input.organizationId},
-      ${input.projectId},
-      ${input.environmentId},
-      ${"SYNTHETIC_TEST_KEY"},
-      NULL
-    )
-    ON CONFLICT (id) DO NOTHING
-  `;
-  await tx`
-    INSERT INTO secret_versions (
-      id,
-      org_id,
-      secret_id,
-      version_number,
-      organization_data_key_version,
-      project_data_key_version,
-      ciphertext_storage_ref
-    )
-    VALUES (
-      ${input.secretVersionId},
-      ${input.organizationId},
-      ${input.secretId},
-      ${1},
-      ${1},
-      ${1},
-      ${"synthetic-ciphertext-ref"}
-    )
-    ON CONFLICT (id) DO NOTHING
-  `;
-  await tx`
-    UPDATE secrets
-    SET current_version_id = ${input.secretVersionId}
-    WHERE id = ${input.secretId}
-  `;
+  await sql.begin(async (tx) => {
+    await seedOrganizationCore(tx, {
+      ...input,
+      secretId: "",
+      secretVersionId: "",
+      organizationDataKeyId: "",
+      projectDataKeyId: "",
+    });
+  });
+}
+
+interface SeedMutationTenantInput extends SeedTenantWithoutDataKeysInput {
+  organizationDataKeyId: string;
+  projectDataKeyId: string;
+}
+
+// Seeds a dedicated MUTATION tenant (D/E): core org rows plus active v1 org+project data keys, on a
+// private connection in one transaction. The rewrap and readiness suites call this in setup, then
+// destructively mutate the seeded data keys (root_key_version bump; status -> retired/revoked).
+// `seedTenantBaseline` deliberately never seeds D/E, so concurrent cross-package re-seeds (run by
+// access/audit/operations against the same local Postgres) can never flip a mutation back mid-test.
+// Self-contained: opens and closes its own connection so the destructive suites need no postgres
+// bookkeeping and never nest this inside a tenant-scoped transaction.
+export async function seedMutationTenant(input: SeedMutationTenantInput): Promise<void> {
+  const url = requireDatabaseUrl("DATABASE_URL_MIGRATION", "DATABASE_URL");
+  const sql = createMigrationSql(url);
+  try {
+    await sql.begin(async (tx) => {
+      await seedOrganizationCore(tx, {
+        ...input,
+        secretId: "",
+        secretVersionId: "",
+      });
+      await seedDataKeys(tx, {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        organizationDataKeyId: input.organizationDataKeyId,
+        projectDataKeyId: input.projectDataKeyId,
+      });
+    });
+  } catch (error) {
+    throw new Error(redactLoggableError(error), { cause: error });
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
 }

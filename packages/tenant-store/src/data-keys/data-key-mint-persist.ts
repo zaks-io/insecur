@@ -1,5 +1,6 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
 import { TenantDataKeyNotReadyError } from "@insecur/crypto";
+import { sql } from "drizzle-orm";
 
 import {
   updateOrganizationDataKeyWrapIfNull,
@@ -8,6 +9,21 @@ import {
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import type { SeedOrganizationDataKeyInput, SeedProjectDataKeyInput } from "./types.js";
 import type { OrganizationDataKeyMetadata, ProjectDataKeyMetadata } from "@insecur/crypto";
+
+// First-use minting is mint-once-per-(scope, version): two concurrent first writers both read "no
+// key", and a bare INSERT would have both pass the (id, key_version) arbiter only to collide on the
+// `one_active_per_org`/`one_active_per_project` partial-unique index (23505). A transaction-scoped
+// advisory lock serializes the two: the loser blocks until the winner commits, then the early
+// `existing.wrappedStorageRef` read returns the winner's ref. The lock releases automatically at
+// commit/rollback (xact-scoped), so no unlock bookkeeping. Keyed on a stable namespace + version so
+// it never collides with an unrelated org's mint.
+async function lockDataKeyMint(
+  db: TenantScopedDb,
+  namespace: string,
+  keyVersion: number,
+): Promise<void> {
+  await db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${namespace}), ${keyVersion})`);
+}
 
 interface OrganizationMintStore {
   getOrganizationDataKeyVersion(
@@ -58,6 +74,7 @@ export async function persistOrganizationDataKeyAuthoritative(
   store: OrganizationMintStore,
   input: OrganizationMintPersistInput,
 ): Promise<string> {
+  await lockDataKeyMint(db, `odk:${input.organizationId}`, input.keyVersion);
   const existing = await store.getOrganizationDataKeyVersion(
     input.organizationId,
     input.keyVersion,
@@ -93,6 +110,7 @@ export async function persistProjectDataKeyAuthoritative(
   store: ProjectMintStore,
   input: ProjectMintPersistInput,
 ): Promise<string> {
+  await lockDataKeyMint(db, `pdk:${input.organizationId}:${input.projectId}`, input.keyVersion);
   const existing = await store.getProjectDataKeyVersion(
     input.organizationId,
     input.projectId,

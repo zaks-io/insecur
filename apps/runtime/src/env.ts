@@ -11,4 +11,11 @@ export interface RuntimeEnv {
   readonly INSTANCE_ROOT_KEY_V1?: SecretsStoreSecretBinding;
   /** HMAC secret shared with the API Worker to verify the scoped hop token (ADR-0077). */
   readonly RUNTIME_TOKEN_SIGNING_SECRET: string;
+  /**
+   * Hyperdrive binding to the Instance's Postgres (ADR-0036). The connection string lives only on
+   * this binding (`env.DB.connectionString`), never on `process.env`. Optional so the in-process
+   * fake RUNTIME binding and Node typecheck compile without it; absent → the runtime falls back to
+   * `DATABASE_URL_RUNTIME` for local/CI.
+   */
+  readonly DB?: Hyperdrive;
 }

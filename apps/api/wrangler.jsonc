@@ -26,16 +26,17 @@
       "entrypoint": "RuntimeService",
     },
   ],
-  // Preview environment scaffold for the gated pr-preview workflow. The Hyperdrive binding is a
-  // placeholder: the per-PR Hyperdrive id is created at deploy time and patched into this env, and
-  // the Worker must read its Postgres connection from env.DB. Part of the preview-env stand-up
-  // ticket; until then PREVIEW_ENV_ENABLED is unset and this env is never deployed.
+  // Preview environment override for the gated pr-preview workflow. The API Worker does no DB I/O
+  // (everything keyring- and DB-bound is forwarded over the RUNTIME Service Binding), so it binds no
+  // Hyperdrive. scripts/ci/patch-preview-wrangler.mjs repoints the RUNTIME service at the per-PR
+  // runtime worker name; until PREVIEW_ENV_ENABLED is set this env is never deployed.
   "env": {
     "preview": {
-      "hyperdrive": [
+      "services": [
         {
-          "binding": "DB",
-          "id": "0000000000000000000000000000000a",
+          "binding": "RUNTIME",
+          "service": "insecur-runtime",
+          "entrypoint": "RuntimeService",
         },
       ],
     },

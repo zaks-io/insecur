@@ -5,21 +5,31 @@ import {
   unwrapOrganizationDataKeyBytes,
   unwrapProjectDataKeyBytes,
 } from "@insecur/crypto";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 
 import { TenantDataKeyMetadataStore, closeRuntimeSql, withTenantScope } from "../../src/index.js";
 import { describeRls } from "./describe-rls.js";
-import { seedTenantBaseline } from "./seed.js";
+import { seedMutationTenant, seedTenantBaseline } from "./seed.js";
 import {
   RLS_TEST_ROOT_KEY_BYTES,
   RLS_TEST_ROOT_V2_BYTES,
   RLS_TEST_ROOT_V3_BYTES,
 } from "./test-root-key.js";
 import {
-  TEST_ORG_A_ID,
-  TEST_ORG_B_ID,
-  TEST_PROJECT_A_ID,
-  TEST_PROJECT_KEY_A_ID,
+  TEST_ENV_D_ID,
+  TEST_ENV_E_ID,
+  TEST_MEM_D_ID,
+  TEST_MEM_E_ID,
+  TEST_ORG_D_ID,
+  TEST_ORG_E_ID,
+  TEST_ORG_KEY_D_ID,
+  TEST_ORG_KEY_E_ID,
+  TEST_PROJECT_D_ID,
+  TEST_PROJECT_E_ID,
+  TEST_PROJECT_KEY_D_ID,
+  TEST_PROJECT_KEY_E_ID,
+  TEST_TEAM_D_ID,
+  TEST_TEAM_E_ID,
 } from "./test-ids.js";
 
 function versionedRootProvider(versions: Readonly<Record<number, Uint8Array>>): {
@@ -37,8 +47,33 @@ function versionedRootProvider(versions: Readonly<Record<number, Uint8Array>>): 
 }
 
 describeRls("tenant data key root rewrap (real Postgres)", () => {
+  // org D rewraps; org E must stay untouched (proves rewrap is org-scoped). Both are dedicated
+  // mutation tenants `seedTenantBaseline` never seeds, so a concurrent cross-package re-seed cannot
+  // reset org D back to v1 mid-rewrap. `beforeEach` re-seeds active v1 keys so the destructive
+  // root-version bumps below start clean every run.
   beforeAll(async () => {
     await seedTenantBaseline();
+  });
+
+  beforeEach(async () => {
+    await seedMutationTenant({
+      organizationId: TEST_ORG_D_ID,
+      projectId: TEST_PROJECT_D_ID,
+      environmentId: TEST_ENV_D_ID,
+      teamId: TEST_TEAM_D_ID,
+      membershipId: TEST_MEM_D_ID,
+      organizationDataKeyId: TEST_ORG_KEY_D_ID,
+      projectDataKeyId: TEST_PROJECT_KEY_D_ID,
+    });
+    await seedMutationTenant({
+      organizationId: TEST_ORG_E_ID,
+      projectId: TEST_PROJECT_E_ID,
+      environmentId: TEST_ENV_E_ID,
+      teamId: TEST_TEAM_E_ID,
+      membershipId: TEST_MEM_E_ID,
+      organizationDataKeyId: TEST_ORG_KEY_E_ID,
+      projectDataKeyId: TEST_PROJECT_KEY_E_ID,
+    });
   });
 
   afterAll(async () => {
@@ -46,9 +81,9 @@ describeRls("tenant data key root rewrap (real Postgres)", () => {
   });
 
   it("rewraps scoped tenant keys across root versions without touching other tenants", async () => {
-    const orgA = organizationId.brand(TEST_ORG_A_ID);
-    const orgB = organizationId.brand(TEST_ORG_B_ID);
-    const projectA = projectId.brand(TEST_PROJECT_A_ID);
+    const orgA = organizationId.brand(TEST_ORG_D_ID);
+    const orgB = organizationId.brand(TEST_ORG_E_ID);
+    const projectA = projectId.brand(TEST_PROJECT_D_ID);
     const rootProvider = versionedRootProvider({
       1: RLS_TEST_ROOT_KEY_BYTES,
       2: RLS_TEST_ROOT_V2_BYTES,
@@ -176,7 +211,7 @@ describeRls("tenant data key root rewrap (real Postgres)", () => {
         return store.getActiveProjectDataKey(orgA, projectA);
       },
     );
-    expect(projectAAfterV3?.id).toBe(TEST_PROJECT_KEY_A_ID);
+    expect(projectAAfterV3?.id).toBe(TEST_PROJECT_KEY_D_ID);
     expect(projectAAfterV3?.wrappedStorageRef).toMatch(/^inline:b64:/);
     if (!projectAAfterV3?.wrappedStorageRef) {
       throw new Error("expected project A wrapped ref after v2→v3 rewrap");
