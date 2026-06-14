@@ -13,7 +13,20 @@ import type {
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
-const DB = {} as TenantScopedDb;
+
+// Records every `db.execute` so a test can assert the mint-once advisory lock fired before any read.
+class RecordingDb {
+  readonly executed: unknown[] = [];
+  execute(query: unknown): Promise<void> {
+    this.executed.push(query);
+    return Promise.resolve();
+  }
+}
+
+function recordingDb(): { db: TenantScopedDb; executed: unknown[] } {
+  const recorder = new RecordingDb();
+  return { db: recorder as unknown as TenantScopedDb, executed: recorder.executed };
+}
 
 class InMemoryMintStore {
   private organizationRows = new Map<string, SeedOrganizationDataKeyInput & { status: "active" }>();
@@ -82,8 +95,9 @@ describe("data-key mint persist", () => {
       wrappedStorageRef: "inline:b64:existing-org",
       rootKeyVersion: 1,
     });
+    const { db, executed } = recordingDb();
 
-    const ref = await persistOrganizationDataKeyAuthoritative(DB, store, {
+    const ref = await persistOrganizationDataKeyAuthoritative(db, store, {
       organizationId: ORG,
       keyVersion: 1,
       rootKeyVersion: 1,
@@ -92,11 +106,13 @@ describe("data-key mint persist", () => {
     });
 
     expect(ref).toBe("inline:b64:existing-org");
+    expect(executed).toHaveLength(1);
   });
 
   it("returns the committed project wrapped ref after insert", async () => {
     const store = new InMemoryMintStore();
-    const ref = await persistProjectDataKeyAuthoritative(DB, store, {
+    const { db, executed } = recordingDb();
+    const ref = await persistProjectDataKeyAuthoritative(db, store, {
       organizationId: ORG,
       projectId: PROJECT,
       keyVersion: 1,
@@ -106,6 +122,7 @@ describe("data-key mint persist", () => {
     });
 
     expect(ref).toBe("inline:b64:new-project");
+    expect(executed).toHaveLength(1);
     const row = await store.getProjectDataKeyVersion(ORG, PROJECT, 1);
     expect(row?.organizationDataKeyVersion).toBe(2);
   });

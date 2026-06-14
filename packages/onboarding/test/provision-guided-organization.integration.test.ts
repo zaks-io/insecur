@@ -188,16 +188,21 @@ describeIntegration("provisionGuidedOrganization", () => {
     const outsider = userId.brand("usr_00000000000000000000000097");
     const collidingOrg = organizationId.brand(TEST_ORG_A_ID);
 
-    const auditCountBefore = await withTenantScope(
-      { kind: "organization", organizationId: collidingOrg },
-      async ({ sql }) => {
+    // Count only rows attributable to THIS failed attempt (the outsider actor), not a global
+    // audit_events delta: other suites write audit events into the shared org-A baseline concurrently
+    // on the same local Postgres, so a whole-table count would flake. The invariant is that the
+    // cross-tenant collision writes no audit row for the outsider.
+    const outsiderAuditCount = (): Promise<number> =>
+      withTenantScope({ kind: "organization", organizationId: collidingOrg }, async ({ sql }) => {
         const rows = await sql<{ count: string }[]>`
-          SELECT COUNT(*)::text AS count
-          FROM audit_events
-        `;
+            SELECT COUNT(*)::text AS count
+            FROM audit_events
+            WHERE actor_user_id = ${outsider}
+          `;
         return Number(rows[0]?.count ?? "0");
-      },
-    );
+      });
+
+    expect(await outsiderAuditCount()).toBe(0);
 
     await expect(
       provisionGuidedOrganization({
@@ -216,18 +221,7 @@ describeIntegration("provisionGuidedOrganization", () => {
       code: ONBOARDING_ERROR_CODES.resourceConflict,
     } satisfies Partial<GuidedOrganizationProvisionError>);
 
-    const auditCountAfter = await withTenantScope(
-      { kind: "organization", organizationId: collidingOrg },
-      async ({ sql }) => {
-        const rows = await sql<{ count: string }[]>`
-          SELECT COUNT(*)::text AS count
-          FROM audit_events
-        `;
-        return Number(rows[0]?.count ?? "0");
-      },
-    );
-
-    expect(auditCountAfter).toBe(auditCountBefore);
+    expect(await outsiderAuditCount()).toBe(0);
   });
 
   it("denies provisioning for a user who is not admitted", async () => {

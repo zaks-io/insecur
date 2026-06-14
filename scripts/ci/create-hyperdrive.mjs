@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 // Create or update a Cloudflare Hyperdrive config that pools a per-PR Neon branch.
 // Pass the app_role (runtime) connection string — never a migration/owner URL.
-// Ported from the agent-paste preview-env pattern (ADR-0005/0007 there); insecur
-// uses a single Worker, so callers create one Hyperdrive per PR.
-import { spawn } from "node:child_process";
+// Each PR gets one Hyperdrive (only the Runtime Worker binds it); name-matched
+// lookup (lib/hyperdrive.mjs) keeps create/refresh from ever touching a shared config.
 import { appendFileSync } from "node:fs";
 
-const HYPERDRIVE_NAME_PREFIX = "insecur-db-";
+import { findHyperdriveByName, run, stringOption } from "./lib/hyperdrive.mjs";
 
 const options = parseArgs(process.argv.slice(2));
 const connectionString = process.env[options.connectionStringEnv];
@@ -16,20 +15,10 @@ if (!connectionString) {
 
 const existing = await findHyperdriveByName(options.name);
 const id = existing
-  ? await refreshHyperdrive(existing.id, options.name, connectionString)
+  ? await refreshHyperdrive(existing.id, connectionString)
   : await createHyperdrive(options.name, connectionString);
 emitOutput(options.githubOutput, id);
 process.stdout.write(`Hyperdrive ${options.name}: ${id}\n`);
-
-async function findHyperdriveByName(name) {
-  const result = await run("pnpm", ["exec", "wrangler", "hyperdrive", "list"], {
-    allowFailure: true,
-  });
-  if (result.code !== 0) {
-    return null;
-  }
-  return parseHyperdriveList(result.stdout).find((config) => config.name === name) ?? null;
-}
 
 async function createHyperdrive(name, connectionString) {
   const result = await run("pnpm", [
@@ -50,7 +39,7 @@ async function createHyperdrive(name, connectionString) {
   return match[1];
 }
 
-async function refreshHyperdrive(id, name, connectionString) {
+async function refreshHyperdrive(id, connectionString) {
   await run("pnpm", [
     "exec",
     "wrangler",
@@ -63,21 +52,6 @@ async function refreshHyperdrive(id, name, connectionString) {
   return id;
 }
 
-function parseHyperdriveList(output) {
-  const configs = [];
-  for (const line of output.split(/\r?\n/)) {
-    const id = line.match(/[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/i)?.[0];
-    if (!id || !line.includes(HYPERDRIVE_NAME_PREFIX)) {
-      continue;
-    }
-    const name = line.match(new RegExp(`${HYPERDRIVE_NAME_PREFIX}[A-Za-z0-9/_-]+`))?.[0];
-    if (name) {
-      configs.push({ id, name });
-    }
-  }
-  return configs;
-}
-
 function emitOutput(name, value) {
   if (!name) {
     return;
@@ -88,33 +62,6 @@ function emitOutput(name, value) {
   }
 }
 
-function run(command, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      const result = { code: code ?? 1, stdout, stderr };
-      if (result.code === 0 || options.allowFailure) {
-        resolve(result);
-      } else {
-        reject(
-          new Error(
-            `${command} ${args.slice(0, 3).join(" ")} exited ${result.code}\n${stderr || stdout}`,
-          ),
-        );
-      }
-    });
-  });
-}
-
 function parseArgs(argv) {
   const name = stringOption(argv, "--name");
   const connectionStringEnv = stringOption(argv, "--connection-string-env") ?? "DATABASE_URL";
@@ -123,13 +70,4 @@ function parseArgs(argv) {
     throw new Error("Set --name.");
   }
   return { name, connectionStringEnv, githubOutput };
-}
-
-function stringOption(argv, name) {
-  const inline = argv.find((arg) => arg.startsWith(`${name}=`));
-  if (inline) {
-    return inline.slice(name.length + 1);
-  }
-  const index = argv.indexOf(name);
-  return index === -1 ? undefined : argv[index + 1];
 }

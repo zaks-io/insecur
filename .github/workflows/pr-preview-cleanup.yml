@@ -1,7 +1,8 @@
 # Tear down per-PR preview resources on PR close, plus a scheduled janitor for
 # orphans. GATED to match pr-preview.yml: only runs when PREVIEW_ENV_ENABLED == 'true'.
-# Ported from the agent-paste preview-env teardown pattern, reduced to insecur's
-# single Worker + Neon branch + per-PR Hyperdrive.
+#
+# Deletes BOTH split Workers (insecur-api-pr-N + insecur-runtime-pr-N), the per-PR
+# Hyperdrive (BY EXACT NAME — never by position), and the Neon branch.
 name: PR Preview Cleanup
 
 on:
@@ -66,26 +67,25 @@ jobs:
           fi
           echo "number=$RESOLVED_PR_NUMBER" >> "$GITHUB_OUTPUT"
 
-      - name: Delete preview Worker
+      # Delete BOTH split Workers. The runtime is reached only via the API's Service Binding, but
+      # both are independent deploys and must be torn down.
+      - name: Delete preview Workers
         if: ${{ always() && steps.pr.outputs.number != '' }}
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
-          worker_name="insecur-worker-pr-${PR_NUMBER}"
-          pnpm exec wrangler delete --name "$worker_name" || echo "Worker $worker_name already removed"
+          for worker_name in "insecur-api-pr-${PR_NUMBER}" "insecur-runtime-pr-${PR_NUMBER}"; do
+            pnpm exec wrangler delete --name "$worker_name" || echo "Worker $worker_name already removed"
+          done
 
+      # Delete the per-PR Hyperdrive BY EXACT NAME. delete-hyperdrive.mjs resolves
+      # insecur-db-pr-N by name and deletes only that id — it can never select a shared/production
+      # config by position (the landmine the old `list | grep | head -1` carried).
       - name: Delete preview Hyperdrive
         if: ${{ always() && steps.pr.outputs.number != '' }}
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
-        run: |
-          hd_name="insecur-db-pr-${PR_NUMBER}"
-          hd_id=$(pnpm exec wrangler hyperdrive list 2>/dev/null | grep -oE "[0-9a-f]{32}" | head -1 || true)
-          if [ -n "$hd_id" ]; then
-            pnpm exec wrangler hyperdrive delete "$hd_id" || echo "Hyperdrive $hd_name already removed"
-          else
-            echo "No Hyperdrive matching $hd_name found"
-          fi
+        run: node scripts/ci/delete-hyperdrive.mjs --name "insecur-db-pr-${PR_NUMBER}"
 
       - name: Delete Neon PR branch
         if: ${{ always() && steps.pr.outputs.number != '' }}
@@ -106,5 +106,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Explain
-        run: echo "Stale-preview reconciliation runs here once the preview env is live; see the smoke/test-layers ticket."
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Reconcile orphaned preview resources for PRs that are already closed. Resolves each
+      # per-PR resource BY NAME against the set of open PRs, so it never touches shared/production
+      # Workers or Hyperdrive configs. Reuses delete-hyperdrive.mjs (name-matched) for safety.
+      - name: Reconcile orphaned previews
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: node scripts/ci/reconcile-stale-previews.mjs

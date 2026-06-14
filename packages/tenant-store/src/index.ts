@@ -16,7 +16,11 @@ export {
   tenantScopedSql,
   type TenantScopedDb,
 } from "./tenant-scoped-db.js";
-export { closeRuntimeSql, RuntimeConfigMissingError } from "./db/connection.js";
+export {
+  closeRuntimeSql,
+  configureRuntimeConnection,
+  RuntimeConfigMissingError,
+} from "./db/connection.js";
 export {
   DATA_KEY_VERSION_STATUSES,
   type DataKeyVersionStatus,

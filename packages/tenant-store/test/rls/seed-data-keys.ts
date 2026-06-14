@@ -1,9 +1,5 @@
 import { organizationId, projectId } from "@insecur/domain";
-import {
-  mintOrganizationDataKey,
-  mintProjectDataKey,
-  StaticRootKeyProvider,
-} from "@insecur/crypto";
+import { wrapOrganizationDataKeyBytes, wrapProjectDataKeyBytes } from "@insecur/crypto";
 import type postgres from "postgres";
 
 import type {
@@ -20,24 +16,51 @@ interface SeedDataKeysInput {
   projectDataKeyId: string;
 }
 
-const rootKeyProvider = new StaticRootKeyProvider(RLS_TEST_ROOT_KEY_BYTES);
+const DATA_KEY_LENGTH = 32;
+
+// Seed DEKs are DETERMINISTIC, unlike production mintOrganizationDataKey/mintProjectDataKey which
+// generate random DEK bytes. seedTenantBaseline() runs in every DB-backed suite's beforeAll and
+// ON CONFLICT DO UPDATEs wrapped_storage_ref. The suites share one local Postgres and turbo runs
+// them concurrently, so a random re-mint would swap the DEK out from under a secret another suite
+// already wrote -> DecryptError mid-run. Deriving the DEK bytes from the fixed test root key + the
+// key identity makes every re-seed byte-identical, so concurrent seeds can never invalidate
+// in-flight ciphertext. The wrap IV is still random per call (the wrapped ref bytes differ), but
+// the unwrapped DEK is stable, which is all decrypt depends on.
+async function deriveSeedDataKeyBytes(label: string): Promise<Uint8Array> {
+  const baseKey = await crypto.subtle.importKey("raw", RLS_TEST_ROOT_KEY_BYTES, "HKDF", false, [
+    "deriveBits",
+  ]);
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new TextEncoder().encode("insecur:seed-data-key:v1"),
+      info: new TextEncoder().encode(label),
+    },
+    baseKey,
+    DATA_KEY_LENGTH * 8,
+  );
+  return new Uint8Array(bits);
+}
 
 async function insertOrganizationDataKey(
   tx: postgres.TransactionSql,
   input: SeedDataKeysInput,
 ): Promise<void> {
   const brandedOrgId = organizationId.brand(input.organizationId);
-  const minted = await mintOrganizationDataKey(rootKeyProvider, 1, {
-    organizationId: brandedOrgId,
-    keyVersion: 1,
-  });
+  const dataKeyBytes = await deriveSeedDataKeyBytes(`org:${input.organizationId}:v1`);
+  const wrappedStorageRef = await wrapOrganizationDataKeyBytes(
+    RLS_TEST_ROOT_KEY_BYTES,
+    dataKeyBytes,
+    { organizationId: brandedOrgId, keyVersion: 1 },
+  );
   const orgKey: SeedOrganizationDataKeyInput = {
     id: input.organizationDataKeyId,
     organizationId: brandedOrgId,
     keyVersion: 1,
     status: "active",
     rootKeyVersion: 1,
-    wrappedStorageRef: minted.wrappedStorageRef,
+    wrappedStorageRef,
     custodyEvidenceRef: `escrow-record://instance/${TEST_INSTANCE_ID}/root/v1`,
   };
   await tx`
@@ -74,7 +97,10 @@ async function insertProjectDataKey(
 ): Promise<void> {
   const brandedOrgId = organizationId.brand(input.organizationId);
   const brandedProjectId = projectId.brand(input.projectId);
-  const minted = await mintProjectDataKey(rootKeyProvider, 1, {
+  const dataKeyBytes = await deriveSeedDataKeyBytes(
+    `project:${input.organizationId}:${input.projectId}:v1`,
+  );
+  const wrappedStorageRef = await wrapProjectDataKeyBytes(RLS_TEST_ROOT_KEY_BYTES, dataKeyBytes, {
     organizationId: brandedOrgId,
     projectId: brandedProjectId,
     keyVersion: 1,
@@ -86,7 +112,7 @@ async function insertProjectDataKey(
     keyVersion: 1,
     organizationDataKeyVersion: 1,
     status: "active",
-    wrappedStorageRef: minted.wrappedStorageRef,
+    wrappedStorageRef,
   };
   await tx`
     INSERT INTO project_data_keys (
@@ -123,4 +149,5 @@ export async function seedDataKeys(
   await insertProjectDataKey(tx, input);
 }
 
+export type { SeedDataKeysInput };
 export { RLS_TEST_ROOT_KEY_BYTES };

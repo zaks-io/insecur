@@ -3,6 +3,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import { AUTHORIZATION_SCOPES } from "@insecur/access";
 import { consumeInjectionGrant } from "@insecur/runtime-injection";
 import { writeNonProtectedSecret } from "@insecur/secret-store";
+import { configureRuntimeConnection } from "@insecur/tenant-store";
 import { authorizeScopeOrThrow, toAccessActor, toAuditActor } from "@insecur/worker-kit";
 import type {
   ConsumeGrantRpcInput,
@@ -30,10 +31,24 @@ import { runtimeDeliveryEnvelope } from "./runtime-delivery-envelope.js";
  * propagate custom error properties (`code`/`retryable`) - the API re-throws a shaped error.
  */
 export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
+  /**
+   * Hand the Hyperdrive connection string to the tenant store before any DB I/O. The string lives
+   * only on `env.DB.connectionString`, so it cannot be read from `process.env` inside the Worker.
+   * Called per RPC method (not the constructor) because the in-process fake binding builds this
+   * service with a `DB`-less env; absent binding → the store falls back to `DATABASE_URL_RUNTIME`.
+   */
+  #configureDb(): void {
+    const connStr = this.env.DB?.connectionString;
+    if (connStr) {
+      configureRuntimeConnection(connStr);
+    }
+  }
+
   async consumeGrant(
     input: ConsumeGrantRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
     try {
+      this.#configureDb();
       const actor = await actorFromHopToken(this.env, input.actorToken);
       const result = await consumeInjectionGrant({
         keyring: createKeyringFromRuntimeEnv(this.env),
@@ -67,6 +82,7 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
     input: WriteSecretRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
     try {
+      this.#configureDb();
       const actor = await actorFromHopToken(this.env, input.actorToken);
       const auditActor = toAuditActor(actor);
       await authorizeScopeOrThrow({

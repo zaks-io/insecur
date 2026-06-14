@@ -1,8 +1,10 @@
 # Per-PR preview deploy + First Value cloud smoke. GATED OFF until the preview
 # infrastructure exists: it only runs when repo variable PREVIEW_ENV_ENABLED == 'true'.
-# Standing up env.preview + the Worker->Hyperdrive binding + Neon/Cloudflare secrets
-# is tracked in the smoke/test-layers Linear ticket (see docs/adr). Ported from the
-# agent-paste preview-env pattern, reduced to insecur's single Worker.
+#
+# Deploys the SPLIT topology (ADR-0077): the private Runtime Worker (sole keyring +
+# Hyperdrive holder) first, then the public API Worker whose RUNTIME Service Binding
+# targets that per-PR runtime. Previews mirror production: two capability-isolated
+# Workers reached over a private Service Binding, never a collapsed single worker.
 #
 # Security: every step uses only static commands or env-quoted values; no untrusted
 # github.event.* input flows into run: shell. Forked PRs are skipped (secret-bearing).
@@ -41,7 +43,7 @@ jobs:
     if: ${{ vars.PREVIEW_ENV_ENABLED == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     environment:
       name: Preview
-      url: ${{ steps.deploy.outputs.base_url }}
+      url: ${{ steps.deploy_api.outputs.base_url }}
 
     steps:
       - name: Checkout
@@ -95,30 +97,62 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: node scripts/ci/create-hyperdrive.mjs --name "insecur-db-pr-${PR_NUMBER}" --connection-string-env PR_DATABASE_URL --github-output hyperdrive_id
 
-      - name: Build Worker
-        run: pnpm build
-
-      # Deploy the single Worker to a per-PR preview name, binding the per-PR
-      # Hyperdrive. Emits base_url for the smoke + readiness steps.
-      - name: Deploy preview Worker
-        id: deploy
+      - name: Patch preview wrangler configs
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HYPERDRIVE_ID: ${{ steps.hyperdrive.outputs.hyperdrive_id }}
-          CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
+        run: node scripts/ci/patch-preview-wrangler.mjs --pr "${PR_NUMBER}" --hyperdrive-id "${PR_HYPERDRIVE_ID}"
+
+      - name: Build Workers
+        run: pnpm build
+
+      # Deploy the private Runtime Worker FIRST: it holds the keyring + the per-PR Hyperdrive
+      # binding, and the API's Service Binding resolves by deployed script name, so the runtime
+      # script must already exist. It serves no public route.
+      - name: Deploy preview Runtime Worker
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
         run: |
-          worker_name="insecur-worker-pr-${PR_NUMBER}"
+          runtime_name="insecur-runtime-pr-${PR_NUMBER}"
           pnpm exec wrangler deploy \
-            --config apps/worker/wrangler.jsonc \
+            --config apps/runtime/wrangler.jsonc \
             --env preview \
-            --name "$worker_name" \
-            --var "PR_HYPERDRIVE_ID:${PR_HYPERDRIVE_ID}"
-          base_url="https://${worker_name}.${CLOUDFLARE_WORKERS_SUBDOMAIN}.workers.dev"
+            --name "$runtime_name" \
+            --var "RUNTIME_TOKEN_SIGNING_SECRET:${RUNTIME_TOKEN_SIGNING_SECRET}"
+
+      # Deploy the public API Worker SECOND, with its RUNTIME Service Binding pointed (by the patch
+      # step) at insecur-runtime-pr-N. WorkOS values are dummies: the smoke authenticates with a
+      # self-minted ephemeral bearer (no WorkOS round-trip), and ADMITTED_USER_MAP_JSON admits it.
+      - name: Deploy preview API Worker
+        id: deploy_api
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
+          SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.SMOKE_SESSION_SIGNING_SECRET }}
+          RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
+          SMOKE_WORKOS_USER_ID: ${{ vars.SMOKE_WORKOS_USER_ID }}
+          SMOKE_ADMITTED_USER_ID: ${{ vars.SMOKE_ADMITTED_USER_ID }}
+        run: |
+          api_name="insecur-api-pr-${PR_NUMBER}"
+          admitted_map="{\"${SMOKE_WORKOS_USER_ID}\":\"${SMOKE_ADMITTED_USER_ID}\"}"
+          pnpm exec wrangler deploy \
+            --config apps/api/wrangler.jsonc \
+            --env preview \
+            --name "$api_name" \
+            --var "SESSION_SIGNING_SECRET:${SMOKE_SESSION_SIGNING_SECRET}" \
+            --var "RUNTIME_TOKEN_SIGNING_SECRET:${RUNTIME_TOKEN_SIGNING_SECRET}" \
+            --var "ADMITTED_USER_MAP_JSON:${admitted_map}" \
+            --var "INSTANCE_ID:inst_LOCAL_DEV" \
+            --var "WORKOS_API_KEY:sk_test" \
+            --var "WORKOS_CLIENT_ID:client_test" \
+            --var "WORKOS_COOKIE_PASSWORD:preview-cookie-password-at-least-32-characters"
+          base_url="https://${api_name}.${CLOUDFLARE_WORKERS_SUBDOMAIN}.workers.dev"
           echo "base_url=${base_url}" >> "$GITHUB_OUTPUT"
 
       - name: Wait for /healthz readiness
         env:
-          BASE_URL: ${{ steps.deploy.outputs.base_url }}
+          BASE_URL: ${{ steps.deploy_api.outputs.base_url }}
         run: |
           # Require 3 consecutive 200s before declaring ready. 404/530 are
           # expected-transient during route propagation and reset the counter.
@@ -147,19 +181,20 @@ jobs:
           echo "::error::$BASE_URL/healthz never got $CONSECUTIVE_REQUIRED consecutive healthy responses"
           exit 1
 
+      # Run from the @insecur/api package context so the script's @insecur/auth and @insecur/domain
+      # imports resolve through that package's workspace symlinks (there is no @insecur/* at root).
       - name: First Value cloud smoke
         env:
-          SMOKE_BASE_URL: ${{ steps.deploy.outputs.base_url }}
-          SMOKE_AUTH_BEARER: ${{ secrets.SMOKE_AUTH_BEARER }}
-          SMOKE_ORGANIZATION_ID: ${{ vars.SMOKE_ORGANIZATION_ID }}
-          SMOKE_PROJECT_ID: ${{ vars.SMOKE_PROJECT_ID }}
-          SMOKE_ENVIRONMENT_ID: ${{ vars.SMOKE_ENVIRONMENT_ID }}
-        run: node scripts/ci/smoke-first-value.mjs
+          SMOKE_BASE_URL: ${{ steps.deploy_api.outputs.base_url }}
+          SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.SMOKE_SESSION_SIGNING_SECRET }}
+          SMOKE_WORKOS_USER_ID: ${{ vars.SMOKE_WORKOS_USER_ID }}
+          SMOKE_ADMITTED_USER_ID: ${{ vars.SMOKE_ADMITTED_USER_ID }}
+        run: pnpm --filter @insecur/api exec node "$GITHUB_WORKSPACE/scripts/ci/smoke-first-value.mjs"
 
       - name: Comment PR preview link
         uses: actions/github-script@v7
         env:
-          BASE_URL: ${{ steps.deploy.outputs.base_url }}
+          BASE_URL: ${{ steps.deploy_api.outputs.base_url }}
           NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
           NEON_BRANCH_ID: ${{ steps.neon.outputs.branch_id }}
         with:
@@ -167,7 +202,7 @@ jobs:
             const body = [
               "insecur PR preview is ready and passed the First Value smoke.",
               "",
-              `Worker: ${process.env.BASE_URL}`,
+              `API Worker: ${process.env.BASE_URL}`,
               `Neon branch: https://console.neon.tech/app/projects/${process.env.NEON_PROJECT_ID}/branches/${process.env.NEON_BRANCH_ID}`,
             ].join("\n");
             await github.rest.issues.createComment({
