@@ -45,9 +45,6 @@ terminal states, leases serialize one writer per Sync Target with stale
 fencing tokens rejected, and no Sensitive Value appears in Operation metadata,
 progress, or error shapes.
 
-ADR-0066's same-key/different-intent mismatch error and ADR-0068's intent-code
-registry are decided but not wired yet.
-
 ## Dependency Rule
 
 This package may consume lower packages. It must not import provider
