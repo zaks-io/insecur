@@ -2,6 +2,7 @@ import {
   AUTH_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   INJECTION_ERROR_CODES,
+  OPERATION_ERROR_CODES,
   listKnownErrorCodes,
 } from "@insecur/domain";
 import {
@@ -42,6 +43,12 @@ describe("error code registry lockstep", () => {
   it("preserves the opaque crypto decrypt failure mapping", () => {
     expect(HTTP_STATUS_BY_CODE.get(CRYPTO_ERROR_CODES.decryptFailed)).toBe(500);
     expect(rowsByCode.get(CRYPTO_ERROR_CODES.decryptFailed)?.httpStatus).toBe(500);
+  });
+
+  it("preserves the deliberate operation idempotency mismatch mapping", () => {
+    expect(HTTP_STATUS_BY_CODE.get(OPERATION_ERROR_CODES.idempotencyMismatch)).toBe(409);
+    expect(rowsByCode.get(OPERATION_ERROR_CODES.idempotencyMismatch)?.httpStatus).toBe(409);
+    expect(rowsByCode.get(OPERATION_ERROR_CODES.idempotencyMismatch)?.exitCode).toBe(6);
   });
 
   it("does not silently fall back to HTTP 500 for catalog codes", () => {

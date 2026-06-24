@@ -4,6 +4,7 @@ import {
   CRYPTO_ERROR_CODES,
   INJECTION_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
+  OPERATION_ERROR_CODES,
   requestId,
 } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
@@ -42,6 +43,31 @@ describe("httpStatusForKnownErrorCode", () => {
       ok: false,
       error: {
         code: CRYPTO_ERROR_CODES.decryptFailed,
+        retryable: false,
+      },
+      meta: { requestId: reqId },
+    });
+  });
+
+  it("maps operation.idempotency_mismatch through structural OperationStoreError shape", () => {
+    const reqId = requestId.generate();
+    const operationStoreError = Object.assign(
+      new Error("idempotency key reused with a different intent code"),
+      {
+        name: "OperationStoreError",
+        code: OPERATION_ERROR_CODES.idempotencyMismatch,
+        retryable: false,
+      },
+    );
+    const { status, body } = domainErrorEnvelope(operationStoreError, reqId);
+
+    expect(status).toBe(409);
+    expect(httpStatusForKnownErrorCode(OPERATION_ERROR_CODES.idempotencyMismatch)).toBe(409);
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: OPERATION_ERROR_CODES.idempotencyMismatch,
+        message: "idempotency key reused with a different intent code",
         retryable: false,
       },
       meta: { requestId: reqId },
