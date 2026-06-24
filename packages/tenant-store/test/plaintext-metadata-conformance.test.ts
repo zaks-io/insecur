@@ -1,3 +1,8 @@
+import { readdir } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { isTable } from "drizzle-orm";
 import { IndexBuilder } from "drizzle-orm/pg-core";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -13,8 +18,24 @@ import {
   formatPlaintextMetadataConformanceViolations,
   PlaintextMetadataConformanceError,
 } from "../src/db/schema/plaintext-metadata-conformance.js";
-import { loadUserSchemaTables } from "../src/db/schema/schema-tables.js";
+import {
+  collectPgTableExportsFromModule,
+  loadUserSchemaTables,
+  USER_SCHEMA_TABLE_MODULE_PATHS,
+} from "../src/db/schema/schema-tables.js";
 import { materializePgTableExtraConfigs } from "./helpers/materialize-pg-table-extra-config.js";
+
+const SCHEMA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/db/schema");
+
+/** Schema modules that never export user `pgTable` definitions. */
+const EXCLUDED_SCHEMA_FILES = new Set([
+  "app.ts",
+  "index.ts",
+  "pg-core.ts",
+  "plaintext-metadata-allowlist.ts",
+  "plaintext-metadata-conformance.ts",
+  "schema-tables.ts",
+]);
 
 let userSchemaTables: readonly PgTable[];
 
@@ -32,7 +53,40 @@ describe("plaintext metadata allowlist (unit layer)", () => {
     const schemaTables = [...enumerateDrizzleSchemaColumns(userSchemaTables).keys()].sort();
     const registryTables = Object.keys(PLAINTEXT_METADATA_ALLOWLIST).sort();
     expect(schemaTables).toEqual(registryTables);
-    expect(schemaTables).toHaveLength(25);
+  });
+
+  it("includes every schema module that exports pgTable definitions", async () => {
+    const schemaFiles = (await readdir(SCHEMA_DIR)).filter(
+      (file) => file.endsWith(".ts") && !EXCLUDED_SCHEMA_FILES.has(file),
+    );
+
+    const modulesWithTables: string[] = [];
+    for (const file of schemaFiles) {
+      const modulePath = `../src/db/schema/${file.replace(/\.ts$/, ".js")}`;
+      const moduleExports = await import(modulePath);
+      if (Object.values(moduleExports).some((exported) => isTable(exported))) {
+        modulesWithTables.push(`./${file.replace(/\.ts$/, ".js")}`);
+      }
+    }
+
+    expect([...USER_SCHEMA_TABLE_MODULE_PATHS].sort()).toEqual(modulesWithTables.sort());
+  });
+
+  it("fails closed when a schema module exports a pgTable missing from the allowlist registry", async () => {
+    const fixtureModule = await import("./fixtures/unregistered-schema-table.js");
+    const fixtureTables = collectPgTableExportsFromModule(fixtureModule);
+    materializePgTableExtraConfigs(fixtureTables);
+
+    expect(() =>
+      assertDrizzleSchemaPlaintextMetadataConformance([...userSchemaTables, ...fixtureTables]),
+    ).toThrow(PlaintextMetadataConformanceError);
+    expect(
+      collectPlaintextMetadataConformanceViolations(
+        enumerateDrizzleSchemaColumns([...userSchemaTables, ...fixtureTables]),
+      ),
+    ).toContainEqual(
+      "table conformance_gate_fixture_table is missing from the Plaintext Metadata Allowlist",
+    );
   });
 
   it("enumerates information_schema rows into the same table/column map shape", () => {

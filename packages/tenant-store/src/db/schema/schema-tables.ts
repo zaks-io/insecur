@@ -1,50 +1,49 @@
+import { getTableName, isTable } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 
 /**
- * Loads every `public` schema user table for conformance checks under active coverage.
+ * Schema modules whose `pgTable` exports participate in the unit-layer plaintext
+ * metadata conformance surface. Every module that exports user tables must appear
+ * here; `plaintext-metadata-conformance.test.ts` asserts full coverage.
+ */
+export const USER_SCHEMA_TABLE_MODULE_PATHS = [
+  "./tenant-hierarchy.js",
+  "./instance-bootstrap.js",
+  "./tenant-collaboration.js",
+  "./tenant-integrations.js",
+  "./tenant-secrets.js",
+] as const;
+
+/**
+ * Collects every Drizzle table export from a loaded schema module.
  * Dynamic imports keep pgTable constraint builders off the static module graph so their
  * function coverage is attributed during unit tests.
  */
-export async function loadUserSchemaTables(): Promise<readonly PgTable[]> {
-  const [
-    tenantHierarchy,
-    instanceBootstrap,
-    tenantCollaboration,
-    tenantIntegrations,
-    tenantSecrets,
-  ] = await Promise.all([
-    import("./tenant-hierarchy.js"),
-    import("./instance-bootstrap.js"),
-    import("./tenant-collaboration.js"),
-    import("./tenant-integrations.js"),
-    import("./tenant-secrets.js"),
-  ]);
+export function collectPgTableExportsFromModule(
+  moduleExports: Record<string, unknown>,
+): readonly PgTable[] {
+  const tables: PgTable[] = [];
 
-  return [
-    tenantHierarchy.instances,
-    tenantHierarchy.organizations,
-    tenantHierarchy.projects,
-    tenantHierarchy.environments,
-    tenantHierarchy.teams,
-    tenantHierarchy.memberships,
-    tenantHierarchy.organizationDataKeys,
-    tenantHierarchy.projectDataKeys,
-    instanceBootstrap.instanceConfigurations,
-    instanceBootstrap.instanceIdentityConfigurations,
-    instanceBootstrap.bootstrapOperatorClaims,
-    instanceBootstrap.instanceOperators,
-    instanceBootstrap.bootstrapSecretVerifiers,
-    tenantCollaboration.invitations,
-    tenantCollaboration.syncTargetLeases,
-    tenantCollaboration.machineIdentities,
-    tenantCollaboration.machineIdentityMemberships,
-    tenantIntegrations.appConnections,
-    tenantIntegrations.providerCredentials,
-    tenantIntegrations.sensitiveMetadataFields,
-    tenantSecrets.secrets,
-    tenantSecrets.secretVersions,
-    tenantSecrets.injectionGrants,
-    tenantSecrets.auditEvents,
-    tenantSecrets.operations,
-  ];
+  for (const exported of Object.values(moduleExports)) {
+    if (isTable(exported)) {
+      tables.push(exported as PgTable);
+    }
+  }
+
+  return tables;
+}
+
+/**
+ * Loads every `public` schema user table for conformance checks under active coverage.
+ */
+export async function loadUserSchemaTables(
+  modulePaths: readonly string[] = USER_SCHEMA_TABLE_MODULE_PATHS,
+): Promise<readonly PgTable[]> {
+  const modules = await Promise.all(
+    modulePaths.map((modulePath) => import(modulePath) as Promise<Record<string, unknown>>),
+  );
+
+  const tables = modules.flatMap((moduleExports) => collectPgTableExportsFromModule(moduleExports));
+
+  return [...tables].sort((left, right) => getTableName(left).localeCompare(getTableName(right)));
 }
