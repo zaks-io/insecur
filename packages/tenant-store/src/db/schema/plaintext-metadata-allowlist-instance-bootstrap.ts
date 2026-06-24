@@ -1,0 +1,54 @@
+import type { PlaintextMetadataAllowlist } from "./plaintext-metadata-allowlist.js";
+
+/** Instance-scoped bootstrap tables (ADR-0070 fragment). */
+export const PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP = {
+  bootstrap_operator_claims: {
+    consumed_at: { category: "timestamp" },
+    consumed_by_user_id: { category: "actor-id" },
+    created_at: { category: "timestamp" },
+    first_organization_id: { category: "opaque-id" },
+    id: { category: "opaque-id" },
+    instance_id: { category: "opaque-id" },
+    status: { category: "status-code" },
+  },
+  bootstrap_secret_verifiers: {
+    algorithm: { category: "type-code" },
+    consumed_at: { category: "timestamp" },
+    created_at: { category: "timestamp" },
+    hash_b64: { category: "ciphertext-ref" },
+    instance_id: { category: "opaque-id" },
+    salt_b64: { category: "ciphertext-ref" },
+    secret_version: { category: "count" },
+  },
+  instance_configurations: {
+    created_at: { category: "timestamp" },
+    instance_id: { category: "opaque-id" },
+    public_onboarding_enabled: { category: "flag" },
+    signup_lockdown_enabled: { category: "flag" },
+    updated_at: { category: "timestamp" },
+  },
+  instance_identity_configurations: {
+    created_at: { category: "timestamp" },
+    human_identity_provider: { category: "type-code" },
+    instance_id: { category: "opaque-id" },
+    workos_client_id: { category: "opaque-id" },
+  },
+  instance_operators: {
+    created_at: { category: "timestamp" },
+    grant_origin: { category: "type-code" },
+    id: { category: "opaque-id" },
+    instance_id: { category: "opaque-id" },
+    user_id: { category: "actor-id" },
+  },
+  user_admissions: {
+    created_at: { category: "timestamp" },
+    display_name: { category: "display-name" },
+    id: { category: "opaque-id" },
+    instance_id: { category: "opaque-id" },
+    revoked_at: { category: "timestamp" },
+    status: { category: "status-code" },
+    updated_at: { category: "timestamp" },
+    user_id: { category: "actor-id" },
+    workos_user_id: { category: "opaque-id" },
+  },
+} as const satisfies PlaintextMetadataAllowlist;

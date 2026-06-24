@@ -10,9 +10,10 @@ import { describe, expect, it } from "vitest";
 import {
   AuthConfigError,
   createAuthContext,
+  createFakeAdmittedUserResolver,
   validateAuthContext,
   type AuthConfigField,
-} from "./auth-context.js";
+} from "../index.js";
 
 const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const workosUserId = "user_01workos";
@@ -23,7 +24,6 @@ const env = {
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
     {
       sessionData: sealedSession,
@@ -138,7 +138,9 @@ describe("createAuthContext", () => {
   });
 
   it("composes config, workos, and admitted-user resolution for auth entry points", async () => {
-    const { config, workos, resolveAdmittedUser } = createAuthContext(env);
+    const { config, workos, resolveAdmittedUser } = createAuthContext(env, {
+      resolveAdmittedUser: createFakeAdmittedUserResolver({ [workosUserId]: admittedUserId }),
+    });
     expect(config.sessionSigningSecret).toBe(env.SESSION_SIGNING_SECRET);
     await expect(resolveAdmittedUser(workosUserId)).resolves.toBe(admittedUserId);
 

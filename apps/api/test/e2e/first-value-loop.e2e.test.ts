@@ -12,10 +12,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseReady } from "../../../../packages/tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../../../packages/tenant-store/test/rls/seed.js";
 import {
-  TEST_ENV_A_ID,
+  TEST_INSTANCE_ID,
+  TEST_NO_SCOPE_USER_ID,
+  TEST_NO_SCOPE_WORKOS_USER_ID,
   TEST_ORG_A_ID,
   TEST_PROJECT_A_ID,
   TEST_USER_ID,
+  TEST_WORKOS_USER_ID,
+  TEST_ENV_A_ID,
 } from "../../../../packages/tenant-store/test/rls/test-ids.js";
 import { RLS_TEST_ROOT_KEY_HEX } from "../../../../packages/tenant-store/test/rls/test-root-key.js";
 import app from "../../src/index.js";
@@ -35,14 +39,14 @@ import { createFakeRuntimeBinding } from "../support/fake-runtime-binding.js";
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
 const ADMITTED_USER_ID = TEST_USER_ID;
-const WORKOS_USER_ID = "user_01workos_fv_e2e";
+const WORKOS_USER_ID = TEST_WORKOS_USER_ID;
 
 // A second admitted human with NO membership anywhere: resolves to empty Effective Access, so every
 // write is denied for insufficient scope. Used to prove the secret-write path is not an
 // existence oracle (INS-154): authorization runs before the coordinate read, so this actor gets the
 // same insufficient_scope denial whether the URL environment exists or not.
-const NO_SCOPE_ADMITTED_USER_ID = "usr_00000000000000000000000NS1";
-const NO_SCOPE_WORKOS_USER_ID = "user_01workos_no_scope";
+const NO_SCOPE_ADMITTED_USER_ID = TEST_NO_SCOPE_USER_ID;
+const NO_SCOPE_WORKOS_USER_ID = TEST_NO_SCOPE_WORKOS_USER_ID;
 
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
@@ -64,11 +68,7 @@ const env = {
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  INSTANCE_ID: "inst_LOCAL_DEV",
-  ADMITTED_USER_MAP_JSON: JSON.stringify({
-    [WORKOS_USER_ID]: ADMITTED_USER_ID,
-    [NO_SCOPE_WORKOS_USER_ID]: NO_SCOPE_ADMITTED_USER_ID,
-  }),
+  INSTANCE_ID: TEST_INSTANCE_ID,
   RUNTIME_TOKEN_SIGNING_SECRET,
   RUNTIME: createFakeRuntimeBinding(runtimeEnv),
 };

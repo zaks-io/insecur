@@ -2,6 +2,8 @@
  * Plaintext Metadata Allowlist registry (ADR-0070).
  * Every column of every user table must appear here with an explicit category.
  */
+import { PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP } from "./plaintext-metadata-allowlist-instance-bootstrap.js";
+
 export const PLAINTEXT_METADATA_CATEGORIES = [
   "opaque-id",
   "display-name",
@@ -56,24 +58,6 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     resource_type: { category: "type-code" },
     result_code: { category: "type-code" },
   },
-  bootstrap_operator_claims: {
-    consumed_at: { category: "timestamp" },
-    consumed_by_user_id: { category: "actor-id" },
-    created_at: { category: "timestamp" },
-    first_organization_id: { category: "opaque-id" },
-    id: { category: "opaque-id" },
-    instance_id: { category: "opaque-id" },
-    status: { category: "status-code" },
-  },
-  bootstrap_secret_verifiers: {
-    algorithm: { category: "type-code" },
-    consumed_at: { category: "timestamp" },
-    created_at: { category: "timestamp" },
-    hash_b64: { category: "ciphertext-ref" },
-    instance_id: { category: "opaque-id" },
-    salt_b64: { category: "ciphertext-ref" },
-    secret_version: { category: "count" },
-  },
   environments: {
     created_at: { category: "timestamp" },
     display_name: { category: "display-name" },
@@ -93,26 +77,6 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     secret_ids: { category: "opaque-id" },
     secret_version_id: { category: "opaque-id" },
     variable_keys: { category: "type-code" },
-  },
-  instance_configurations: {
-    created_at: { category: "timestamp" },
-    instance_id: { category: "opaque-id" },
-    public_onboarding_enabled: { category: "flag" },
-    signup_lockdown_enabled: { category: "flag" },
-    updated_at: { category: "timestamp" },
-  },
-  instance_identity_configurations: {
-    created_at: { category: "timestamp" },
-    human_identity_provider: { category: "type-code" },
-    instance_id: { category: "opaque-id" },
-    workos_client_id: { category: "opaque-id" },
-  },
-  instance_operators: {
-    created_at: { category: "timestamp" },
-    grant_origin: { category: "type-code" },
-    id: { category: "opaque-id" },
-    instance_id: { category: "opaque-id" },
-    user_id: { category: "actor-id" },
   },
   instances: {
     created_at: { category: "timestamp" },
@@ -256,4 +220,5 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     is_default: { category: "flag" },
     org_id: { category: "opaque-id" },
   },
+  ...PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP,
 } as const satisfies PlaintextMetadataAllowlist;

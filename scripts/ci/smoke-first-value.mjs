@@ -13,7 +13,7 @@
 // Auth is SELF-MINTED, not a pasted bearer: a static token expires and turns the smoke
 // falsely red. We mint a short-TTL ephemeral session credential at run time exactly as the
 // e2e does, signed with the SAME SESSION_SIGNING_SECRET the deployed Worker holds. The minted
-// actor must be admitted by the Worker's ADMITTED_USER_MAP_JSON. The smoke then provisions a
+// actor must be admitted by a persisted user_admissions row on the preview database. The smoke then provisions a
 // fresh personal org through the real onboarding route, so it needs no pre-seeded coordinates.
 import { mintEphemeralSessionCredential } from "@insecur/auth";
 import { userId } from "@insecur/domain";

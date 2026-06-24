@@ -23,3 +23,4 @@ export {
 } from "./accept-invitation.js";
 export { MembershipManagementError } from "./membership-management-error.js";
 export { isInstanceOperator } from "./assert-instance-operator.js";
+export { loadInstanceAnchorOrganizationId } from "./load-instance-anchor-organization-id.js";

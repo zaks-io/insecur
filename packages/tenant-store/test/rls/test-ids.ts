@@ -10,6 +10,12 @@ export const TEST_MEM_A_ID = "mem_00000000000000000000000001";
 export const TEST_MEM_B_ID = "mem_00000000000000000000000002";
 export const TEST_MEM_CROSS_ORG_ID = "mem_00000000000000000000000099";
 export const TEST_USER_ID = "usr_00000000000000000000000001";
+/** WorkOS External Subject paired with TEST_USER_ID in baseline admission seed rows. */
+export const TEST_WORKOS_USER_ID = "user_01workos_rls_baseline";
+export const TEST_NO_SCOPE_USER_ID = "usr_00000000000000000000000NS1";
+export const TEST_NO_SCOPE_WORKOS_USER_ID = "user_01workos_no_scope";
+export const TEST_USER_ADMISSION_A_ID = "uad_00000000000000000000000001";
+export const TEST_USER_ADMISSION_NS_ID = "uad_00000000000000000000000NS1";
 export const TEST_ENV_A_ID = "env_00000000000000000000000001";
 export const TEST_ENV_B_ID = "env_00000000000000000000000002";
 export const TEST_SECRET_A_ID = "sec_00000000000000000000000001";

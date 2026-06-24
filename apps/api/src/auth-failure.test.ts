@@ -4,6 +4,7 @@ import {
   testSessionSigningSecret,
 } from "@insecur/auth";
 import { describe, expect, it } from "vitest";
+import { WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
 import app from "./index.js";
 
 const env = {
@@ -11,7 +12,6 @@ const env = {
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  ADMITTED_USER_MAP_JSON: "{}",
   WORKOS_FAKE_SESSIONS_JSON: "[]",
 };
 
@@ -32,18 +32,13 @@ function expectAuthFailureEnvelope(body: unknown): void {
   expect(envelope.meta?.requestId).toMatch(/^req_/);
 }
 
-function cliExchangeSuccessEnv(
-  sealedSession: string,
-  workosUserId: string,
-  admittedUserId: string,
-): typeof env {
+function cliExchangeSuccessEnv(sealedSession: string): typeof env {
   return {
     ...env,
-    ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
     WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
       {
         sessionData: sealedSession,
-        userId: workosUserId,
+        userId: WORKOS_USER_ID,
         sessionId: "session_success_test",
         authenticationMethod: "Passkey",
       },
@@ -108,8 +103,6 @@ describe("centralized AuthFailure HTTP mapping", () => {
   });
 
   it("keeps /cli/exchange success path unchanged", async () => {
-    const workosUserId = "user_01workos";
-    const admittedUserId = "usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
     const sealedSession = "sealed_auth_failure_success_test";
     const csrf = generateCsrfToken();
     const response = await app.request(
@@ -121,7 +114,7 @@ describe("centralized AuthFailure HTTP mapping", () => {
           "x-insecur-csrf": csrf,
         },
       },
-      cliExchangeSuccessEnv(sealedSession, workosUserId, admittedUserId),
+      cliExchangeSuccessEnv(sealedSession),
     );
     expect(response.status).toBe(200);
     expect(response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER)).toBeTruthy();
