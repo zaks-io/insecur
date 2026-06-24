@@ -19,17 +19,19 @@
     },
     "apps/api": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
-      "project": ["src/**/*.ts", "test/**/*.ts"]
+      "project": ["src/**/*.ts", "test/**/*.ts"],
+      "ignoreDependencies": ["wrangler"]
     },
     "apps/runtime": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
       "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["cloudflare"]
+      "ignoreDependencies": ["cloudflare", "wrangler"]
     },
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreBinaries": ["wrangler"]
+      "ignoreBinaries": ["wrangler"],
+      "ignoreDependencies": ["lefthook"]
     }
   },
   "rules": {
