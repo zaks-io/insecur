@@ -58,6 +58,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [INJECTION_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.rootKeyNotConfigured]: EXIT_UNEXPECTED,
+  [CRYPTO_ERROR_CODES.tenantDataKeyNotReady]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.invalidAadField]: EXIT_VALIDATION,
   [AUDIT_ERROR_CODES.eventInvalid]: EXIT_VALIDATION,
 };

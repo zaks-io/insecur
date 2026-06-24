@@ -80,6 +80,7 @@ export type OnboardingErrorCode =
 export const CRYPTO_ERROR_CODES = {
   decryptFailed: "crypto.decrypt_failed",
   rootKeyNotConfigured: "crypto.root_key_not_configured",
+  tenantDataKeyNotReady: "crypto.tenant_data_key_not_ready",
   invalidAadField: "crypto.invalid_aad_field",
 } as const;
 

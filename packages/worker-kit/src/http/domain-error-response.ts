@@ -1,4 +1,5 @@
 import {
+  CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
   VALIDATION_ERROR_CODES,
   isKnownErrorCodeInCatalog,
@@ -20,11 +21,44 @@ import { HTTP_STATUS_BY_CODE } from "./http-status-by-code.js";
 // error code and retryability are read structurally below, and the crypto-code → HTTP
 // status mapping lives in HTTP_STATUS_BY_CODE via @insecur/domain (no crypto import).
 
-function messageForError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
+const GENERIC_ERROR_MESSAGE = "Request failed." as const;
+
+/** Error classes whose constructor always sets the same message. */
+const STATIC_MESSAGE_BY_ERROR_NAME: Readonly<Record<string, string>> = {
+  RuntimeConfigMissingError: "runtime database configuration is required",
+  DecryptError: "decrypt failed",
+  RootKeyNotConfiguredError: "instance root key is not configured",
+  TenantDataKeyNotReadyError: "tenant data keys are not ready",
+  InvalidAadFieldError: "invalid aad field",
+};
+
+/** KnownErrorCode values with fixed HTTP-facing copy (including seam-crossed crypto codes). */
+const STATIC_MESSAGE_BY_CODE: Readonly<Partial<Record<KnownErrorCode, string>>> = {
+  [CRYPTO_ERROR_CODES.decryptFailed]: "decrypt failed",
+  [CRYPTO_ERROR_CODES.rootKeyNotConfigured]: "instance root key is not configured",
+  [CRYPTO_ERROR_CODES.tenantDataKeyNotReady]: "tenant data keys are not ready",
+  [CRYPTO_ERROR_CODES.invalidAadField]: "invalid aad field",
+  [STORE_ERROR_CODES.runtimeConfigMissing]: "runtime database configuration is required",
+};
+
+function messageForError(error: unknown, code: KnownErrorCode): string {
+  if (error instanceof RuntimeConfigMissingError) {
+    return STATIC_MESSAGE_BY_ERROR_NAME.RuntimeConfigMissingError ?? GENERIC_ERROR_MESSAGE;
   }
-  return "Request failed.";
+
+  if (error instanceof Error) {
+    const expectedByName = STATIC_MESSAGE_BY_ERROR_NAME[error.name];
+    if (expectedByName !== undefined && error.message === expectedByName) {
+      return expectedByName;
+    }
+  }
+
+  const codeMessage = STATIC_MESSAGE_BY_CODE[code];
+  if (codeMessage !== undefined) {
+    return codeMessage;
+  }
+
+  return GENERIC_ERROR_MESSAGE;
 }
 
 function readErrorCode(error: unknown): KnownErrorCode | undefined {
@@ -71,6 +105,9 @@ export function knownErrorCodeFromUnknown(error: unknown): KnownErrorCode {
   if (error instanceof RuntimeConfigMissingError) {
     return STORE_ERROR_CODES.runtimeConfigMissing;
   }
+  if (error instanceof Error && error.name === "TenantDataKeyNotReadyError") {
+    return CRYPTO_ERROR_CODES.tenantDataKeyNotReady;
+  }
   return readErrorCode(error) ?? VALIDATION_ERROR_CODES.invalidOpaqueResourceId;
 }
 
@@ -96,7 +133,7 @@ export function domainErrorEnvelope(
   const body = errorEnvelope(
     {
       code,
-      message: messageForError(error),
+      message: messageForError(error, code),
       retryable: retryableForError(error),
     },
     { requestId },
@@ -104,4 +141,4 @@ export function domainErrorEnvelope(
   return { status, body };
 }
 
-export { HTTP_STATUS_BY_CODE };
+export { GENERIC_ERROR_MESSAGE, HTTP_STATUS_BY_CODE };

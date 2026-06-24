@@ -24,4 +24,12 @@ describe("crypto ErrorBody-compatible failures", () => {
     expect(error.retryable).toBe(false);
     expect(error.field).toBe("metadataType");
   });
+
+  it("TenantDataKeyNotReadyError carries a known code and retryable flag", async () => {
+    const { TenantDataKeyNotReadyError } = await import("../src/keyring-readiness.js");
+    const error = new TenantDataKeyNotReadyError();
+    expect(error.code).toBe(CRYPTO_ERROR_CODES.tenantDataKeyNotReady);
+    expect(error.retryable).toBe(false);
+    expect(error.message).toBe("tenant data keys are not ready");
+  });
 });
