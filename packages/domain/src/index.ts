@@ -82,6 +82,8 @@ export {
   type OnboardingErrorCode,
   BOOTSTRAP_ERROR_CODES,
   type BootstrapErrorCode,
+  OPERATION_ERROR_CODES,
+  type OperationErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,

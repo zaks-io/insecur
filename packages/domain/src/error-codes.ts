@@ -99,6 +99,25 @@ export const AUDIT_ERROR_CODES = {
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[keyof typeof AUDIT_ERROR_CODES];
 
+/** Operation Store metadata-only workflow failures. */
+export const OPERATION_ERROR_CODES = {
+  notFound: "operation.not_found",
+  idempotencyMismatch: "operation.idempotency_mismatch",
+  invalidIntent: "operation.invalid_intent",
+  invalidMetadata: "operation.invalid_metadata",
+  staleTransition: "operation.stale_transition",
+  invalidTransition: "operation.invalid_transition",
+  terminalState: "operation.terminal_state",
+  notCancelable: "operation.not_cancelable",
+  notRetryable: "operation.not_retryable",
+  targetBusy: "sync.target_busy",
+  staleFencingToken: "operation.stale_fencing_token",
+  leaseNotHeld: "operation.lease_not_held",
+  leaseRequired: "operation.lease_required",
+} as const;
+
+export type OperationErrorCode = (typeof OPERATION_ERROR_CODES)[keyof typeof OPERATION_ERROR_CODES];
+
 /**
  * Every `*_ERROR_CODES` catalog in this module. Append new catalogs here and to
  * `KnownErrorCode` so `known-error-code-catalog.ts` lockstep coverage cannot miss them.
@@ -113,6 +132,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
   AUDIT_ERROR_CODES,
+  OPERATION_ERROR_CODES,
 ] as const;
 
 export type KnownErrorCode =
@@ -125,4 +145,5 @@ export type KnownErrorCode =
   | CryptoErrorCode
   | StoreErrorCode
   | AuditErrorCode
+  | OperationErrorCode
   | (string & {});

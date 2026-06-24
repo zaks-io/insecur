@@ -73,7 +73,8 @@ ADR-0066 pins the target idempotency contract:
 - A retried `createOperation` with the same key and the same intent code returns the existing
   Operation with `created=false`; no second Operation or live effect is created.
 - The same key with a different intent code fails with the stable error code
-  `operation.idempotency_mismatch` (part of `OPERATION_ERROR_CODES`; maps to CLI exit 6).
+  `operation.idempotency_mismatch` (part of `OPERATION_ERROR_CODES` in
+  `packages/domain/src/error-codes.ts`; maps to CLI exit 6 and HTTP `409`).
 - Payload or progress differences alone are not a mismatch in V1; intent-code identity is the
   normative check.
 - Retention is explicit: V1 has no separate key expiry. A key stays claimed exactly as long as its
