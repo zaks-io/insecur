@@ -2,6 +2,7 @@ import { errorEnvelope, requestId } from "@insecur/domain";
 import { AuthFailureError } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
+import { instanceBootstrapRoutes } from "./routes/v1/instance-bootstrap.js";
 import { onboardingRoutes } from "./routes/v1/onboarding.js";
 import { operationsRoutes } from "./routes/v1/operations.js";
 import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
@@ -45,6 +46,7 @@ app.get("/healthz", (context) =>
 app.route("/v1/auth", authRoutes);
 app.route("/v1/session", sessionRoutes);
 app.route("/v1/onboarding", onboardingRoutes);
+app.route("/v1/instance/bootstrap", instanceBootstrapRoutes);
 // Tenant-scoped routes are re-homed under /v1/orgs/:organizationId (ADR-0003, tenant.isolation gate).
 app.route("/v1/orgs/:organizationId/projects", secretsRoutes);
 app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
