@@ -9,6 +9,7 @@ import {
   type RequestId,
 } from "@insecur/domain";
 import { GuidedOrganizationProvisionError } from "@insecur/onboarding";
+import { OperationStoreError } from "@insecur/operations";
 import { InjectionGrantError } from "@insecur/runtime-injection";
 import { SecretWriteError } from "@insecur/secret-store";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
@@ -86,7 +87,11 @@ function readRetryable(error: unknown): boolean {
 }
 
 function retryableForError(error: unknown): boolean {
-  if (error instanceof SecretWriteError || error instanceof InjectionGrantError) {
+  if (
+    error instanceof SecretWriteError ||
+    error instanceof InjectionGrantError ||
+    error instanceof OperationStoreError
+  ) {
     return error.retryable;
   }
   return readRetryable(error);

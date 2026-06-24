@@ -4,6 +4,7 @@ import {
   environmentId,
   injectionGrantId,
   membershipId,
+  operationId,
   organizationId,
   parseDisplayName,
   parseVariableKey,
@@ -13,6 +14,7 @@ import {
   type DisplayName,
   type EnvironmentId,
   type InjectionGrantId,
+  type OperationId,
   type OrganizationId,
   type ProjectId,
   type SecretId,
@@ -59,6 +61,14 @@ export function parseGrantIdParam(raw: string): InjectionGrantId {
   const parsed = injectionGrantId.parse(raw);
   if (!parsed.ok) {
     throwParseError("Invalid injection grant id.", parsed.code);
+  }
+  return parsed.value;
+}
+
+export function parseOperationIdParam(raw: string): OperationId {
+  const parsed = operationId.parse(raw);
+  if (!parsed.ok) {
+    throwParseError("Invalid operation id.", parsed.code);
   }
   return parsed.value;
 }

@@ -3,6 +3,7 @@ import { AuthFailureError } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
 import { onboardingRoutes } from "./routes/v1/onboarding.js";
+import { operationsRoutes } from "./routes/v1/operations.js";
 import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
 import { secretsRoutes } from "./routes/v1/secrets.js";
 import { sessionRoutes } from "./routes/v1/session.js";
@@ -46,6 +47,7 @@ app.route("/v1/session", sessionRoutes);
 app.route("/v1/onboarding", onboardingRoutes);
 // Tenant-scoped routes are re-homed under /v1/orgs/:organizationId (ADR-0003, tenant.isolation gate).
 app.route("/v1/orgs/:organizationId/projects", secretsRoutes);
+app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
 app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
 
 export default app;
