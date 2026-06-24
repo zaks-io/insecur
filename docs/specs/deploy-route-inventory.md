@@ -24,6 +24,7 @@ Public edge. Authenticates humans/agents, forwards keyring-bound work to the Run
 | \*     | `/v1/session`                                |
 | \*     | `/v1/onboarding`                             |
 | \*     | `/v1/orgs/:organizationId/projects`          |
+| \*     | `/v1/orgs/:organizationId/operations`        |
 | \*     | `/v1/orgs/:organizationId/runtime-injection` |
 
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)

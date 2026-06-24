@@ -12,6 +12,7 @@ export {
   parseGuidedOrganizationResourceIds,
   parseInjectionGrantIssueSelector,
   parseJsonBody,
+  parseOperationIdParam,
   parseOptionalDisplayName,
   parseOptionalSecretId,
   parseOrganizationIdParam,

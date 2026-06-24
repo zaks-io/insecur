@@ -147,6 +147,9 @@ importers:
       '@insecur/onboarding':
         specifier: workspace:*
         version: link:../../packages/onboarding
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../../packages/operations
       '@insecur/runtime-injection':
         specifier: workspace:*
         version: link:../../packages/runtime-injection
@@ -544,6 +547,9 @@ importers:
       '@insecur/onboarding':
         specifier: workspace:*
         version: link:../onboarding
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../operations
       '@insecur/runtime-injection':
         specifier: workspace:*
         version: link:../runtime-injection
