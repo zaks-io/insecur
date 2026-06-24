@@ -52,10 +52,10 @@ fencing tokens that serialize provider writes per Sync Target.
 - Bounded operation references for High-Assurance Challenge step-up flows.
 - Audit references that correlate events to one Operation.
 - Sync Target Serialization lease claims for sync-target operations.
-- Decided but not wired yet: the non-lease `execution_deadline` claim on every other `running`
-  Operation and lazy abandonment recovery via the `running → incomplete` parking arm, per ADR-0073.
 - Canonical `OPERATION_INTENT_CODES` catalog and registry-membership validation in
   `createOperation`, per ADR-0068.
+- Decided but not wired yet: the non-lease `execution_deadline` claim on every other `running`
+  Operation and lazy abandonment recovery via the `running → incomplete` parking arm, per ADR-0073.
 
 ## Does Not Own
 

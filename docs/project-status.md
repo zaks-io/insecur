@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-12
+Last updated: 2026-06-24
 
 ## Current State
 
@@ -61,14 +61,14 @@ audit-export, route-shape, and deferral-language drift), and the architecture-im
 landed ADRs 0066 through 0076 plus dated amendments to ADR-0008/0028/0032/0034/0038/0062, the
 [custody-material compromise runbook](runbooks/custody-material-compromise.md), and the content
 ownership / single-statement / deterministic-conflict rules in
-[specs/README.md](specs/README.md) (ADR-0067). Several enforcement gates are now decided but not
-yet built: the Plaintext Metadata Allowlist conformance
-gate (ADR-0070), the role-bundle registry conformance
-suite (ADR-0034) including the machine-only protected-issuance scope (ADR-0038), the
-`OPERATION_INTENT_CODES` catalog (ADR-0068), the non-lease execution-deadline liveness recovery
-(ADR-0073), and the exit/HTTP
-lockstep test (ADR-0062). These contract-and-gate tickets should land before parallel feature
-workstreams start, so seam agreements are CI-time facts rather than prose. Review follow-ups are
+[specs/README.md](specs/README.md) (ADR-0067). The M0 contract-and-gate batch from ADRs 0062 and
+0066–0071 is largely blocking in CI: the Plaintext Metadata Allowlist conformance gate (ADR-0070),
+the role-bundle registry conformance suite (ADR-0034) including the machine-only
+protected-issuance scope (ADR-0038), the `OPERATION_INTENT_CODES` catalog (ADR-0068), the
+`operation.idempotency_mismatch` check (ADR-0066), the no-plaintext canary gate `pnpm test:canary`
+(ADR-0069), the exit/HTTP lockstep test (ADR-0062), and the decrypt-import lint boundary
+(ADR-0071). One M0 contract gate remains open: non-lease execution-deadline liveness recovery
+(ADR-0073). Review follow-ups are
 INS-167 (metadata-viewer role preset) and INS-169 (re-home
 First Value routes under `/v1/orgs/:org`).
 
@@ -285,14 +285,11 @@ release-gate evidence bundles.
 
 ## Recommended Next Steps
 
-1. Land the contract-and-gate code decided in ADRs 0066-0076 before parallel feature work: the
-   intent-code catalog, the role-bundle conformance suite and
-   protected-issuance scope atom, the Plaintext Metadata Allowlist registry and gate, and the
-   exit/HTTP lockstep test.
-   Each is a small ticket; together they turn the cross-workstream seam contracts into CI-time
-   facts (see [roadmap.md](roadmap.md) M0).
-2. Split the monolith first (INS-194), then wire remaining package implementations into the
-   correct deploy. The decided topology is `apps/api` (public edge, no keyring), `apps/runtime`
+1. Close the remaining M0 contract gate (ADR-0073 execution-deadline liveness recovery) and the
+   custody/persistence gaps ticketed in [roadmap.md](roadmap.md) M0 before parallel feature work
+   depends on them.
+2. Wire remaining package implementations into the correct deploy (INS-194 Cut 1 landed). The
+   decided topology is `apps/api` (public edge, no keyring), `apps/runtime`
    (sole `INSTANCE_ROOT_KEY_V1` holder, decrypt-egress behind a `WorkerEntrypoint` RPC seam, no
    public routes), and `apps/web` (BFF). Instance bootstrap, membership management, and operations
    routes are public/non-keyring and land on `apps/api` (NOT a single worker); secret write and
