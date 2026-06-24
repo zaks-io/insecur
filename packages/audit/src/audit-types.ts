@@ -19,6 +19,12 @@ export interface AuditActorRef {
   userId: UserId;
 }
 
+/** Persisted audit actor for denied attempts when the insecur user id is unknown. */
+export interface AuditEventActorRef {
+  type: AuditActorType;
+  userId: UserId | null;
+}
+
 export type AuditResourceType =
   | "organization"
   | "project"
@@ -78,7 +84,7 @@ export interface AuditTenantScope {
 
 interface AuditEventInputBase extends AuditTenantScope {
   eventCode: AuditEventCode;
-  actor: AuditActorRef;
+  actor: AuditEventActorRef;
   resource?: AuditResourceRef;
   /** Secondary metadata-only resource (e.g. delivered Secret Version on grant consume). */
   relatedResource?: AuditResourceRef;

@@ -57,7 +57,10 @@ export {
   type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
 export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
-export { recordAdmissionDeniedAuditIfKnown } from "./auth/record-admission-denied-audit.js";
+export {
+  recordAdmissionDeniedAudit,
+  recordAdmissionDeniedAuditForAuthFailure,
+} from "./auth/record-admission-denied-audit.js";
 export {
   createFakeAdmittedUserResolver,
   createTestAuthContext,

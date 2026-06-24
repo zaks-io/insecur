@@ -8,14 +8,31 @@ export type AuthFailureReason =
   | "mfa_enrollment"
   | "insufficient_assurance";
 
+export interface AuthFailureAdmissionDenial {
+  readonly workosUserId: string;
+}
+
 export interface AuthFailure {
   readonly code: AuthErrorCode;
   readonly message: string;
   readonly retryable: boolean;
   readonly reason: AuthFailureReason;
+  /** Present when a valid WorkOS identity failed persisted admission resolution. */
+  readonly admissionDenial?: AuthFailureAdmissionDenial;
 }
 
-export function authFailureForReason(reason: AuthFailureReason): AuthFailure {
+export function authFailureForReason(
+  reason: AuthFailureReason,
+  options?: { readonly admissionDenial?: AuthFailureAdmissionDenial },
+): AuthFailure {
+  const failure = authFailureBodyForReason(reason);
+  if (options?.admissionDenial === undefined) {
+    return failure;
+  }
+  return { ...failure, admissionDenial: options.admissionDenial };
+}
+
+function authFailureBodyForReason(reason: AuthFailureReason): AuthFailure {
   switch (reason) {
     case "missing":
       return {
@@ -60,4 +77,9 @@ export function authFailureForReason(reason: AuthFailureReason): AuthFailure {
         reason,
       };
   }
+}
+
+/** Stable auth.required failure when a WorkOS identity is not actively admitted. */
+export function authFailureForAdmissionDenial(workosUserId: string): AuthFailure {
+  return authFailureForReason("not_admitted", { admissionDenial: { workosUserId } });
 }

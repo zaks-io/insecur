@@ -1,7 +1,10 @@
+import type { AuthFailure } from "@insecur/auth";
 import { recordAccessDeniedAudit } from "@insecur/audit";
 import { AUTH_ERROR_CODES, userId, type RequestId } from "@insecur/domain";
 import { loadInstanceAnchorOrganizationId } from "@insecur/onboarding";
 import { resolveActiveUserAdmission, withTenantScope } from "@insecur/tenant-store";
+import type { AuthWorkerEnv } from "./auth-worker-env.js";
+import { resolveInstanceId } from "./admitted-user-resolver.js";
 
 interface RevokedAdmissionRow {
   user_id: string;
@@ -25,10 +28,10 @@ async function loadRevokedAdmissionUserId(
 }
 
 /**
- * Records a metadata-only denied-attempt audit when admission fails for a known revoked User.
- * Unknown or never-admitted WorkOS subjects have no insecur User id and are not audited here.
+ * Records a metadata-only denied-attempt audit when persisted admission resolution fails.
+ * Revoked Users are attributed by insecur user id; unknown WorkOS subjects use a null actor.
  */
-export async function recordAdmissionDeniedAuditIfKnown(input: {
+export async function recordAdmissionDeniedAudit(input: {
   instanceId: string;
   workosUserId: string;
   requestId: RequestId;
@@ -38,16 +41,31 @@ export async function recordAdmissionDeniedAuditIfKnown(input: {
     return;
   }
 
-  const revokedUserId = await loadRevokedAdmissionUserId(input.instanceId, input.workosUserId);
-  if (revokedUserId === null) {
-    return;
-  }
-
   const organizationId = await loadInstanceAnchorOrganizationId(input.instanceId);
+  const revokedUserId = await loadRevokedAdmissionUserId(input.instanceId, input.workosUserId);
+
   await recordAccessDeniedAudit({
-    actor: { type: "user", userId: userId.brand(revokedUserId) },
+    actor:
+      revokedUserId === null
+        ? { type: "user", userId: null }
+        : { type: "user", userId: userId.brand(revokedUserId) },
     organizationId,
     reasonCode: AUTH_ERROR_CODES.required,
     request: { requestId: input.requestId },
+  });
+}
+
+export async function recordAdmissionDeniedAuditForAuthFailure(
+  env: AuthWorkerEnv,
+  failure: AuthFailure,
+  requestId: RequestId,
+): Promise<void> {
+  if (failure.reason !== "not_admitted" || failure.admissionDenial === undefined) {
+    return;
+  }
+  await recordAdmissionDeniedAudit({
+    instanceId: resolveInstanceId(env),
+    workosUserId: failure.admissionDenial.workosUserId,
+    requestId,
   });
 }

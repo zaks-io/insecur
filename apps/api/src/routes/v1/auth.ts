@@ -6,7 +6,11 @@ import {
   workosSessionCookieAttributes,
 } from "@insecur/auth";
 import { requestId, successEnvelope } from "@insecur/domain";
-import { AuthFailureError, createAuthContext } from "@insecur/worker-kit";
+import {
+  AuthFailureError,
+  createAuthContext,
+  recordAdmissionDeniedAuditForAuthFailure,
+} from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
 
@@ -28,6 +32,7 @@ authRoutes.post("/cli/exchange", async (context) => {
     requestId: reqId,
   });
   if (!exchanged.ok) {
+    await recordAdmissionDeniedAuditForAuthFailure(context.env, exchanged.failure, reqId);
     throw new AuthFailureError(exchanged.failure);
   }
   const headers: Record<string, string> = {

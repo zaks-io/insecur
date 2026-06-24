@@ -19,6 +19,7 @@ export { auditCorrelationRefs, auditOperationRef, auditRequestRef } from "./audi
 export {
   type AuditActorRef,
   type AuditActorType,
+  type AuditEventActorRef,
   type AuditCorrelationRefs,
   type AuditDenialMetadata,
   type AuditEventDetailValue,

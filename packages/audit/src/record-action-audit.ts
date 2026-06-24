@@ -8,7 +8,7 @@ import {
 
 import type { AuditEventCode } from "./audit-event-codes.js";
 import type {
-  AuditActorRef,
+  AuditEventActorRef,
   AuditOperationRef,
   AuditRequestRef,
   AuditResourceRef,
@@ -18,7 +18,7 @@ import { type AuditEventResult, writeAuditEvent } from "./write-audit-event.js";
 export interface RecordActionAuditInput {
   outcome: "success" | "denied";
   eventCode: AuditEventCode;
-  actor: AuditActorRef;
+  actor: AuditEventActorRef;
   organizationId: OrganizationId;
   projectId?: ProjectId;
   environmentId?: EnvironmentId;

@@ -1,5 +1,9 @@
 import type { AdmittedUserResolver } from "./admitted-user.js";
-import { authFailureForReason, type AuthFailure } from "./auth-failure.js";
+import {
+  authFailureForAdmissionDenial,
+  authFailureForReason,
+  type AuthFailure,
+} from "./auth-failure.js";
 import type { ParsedRequestCredentials } from "./credentials.js";
 import { verifyEphemeralSessionCredential } from "./ephemeral-session.js";
 import { authenticateWorkOSSession } from "./resolve-workos-session.js";
@@ -31,7 +35,7 @@ async function resolveFromWorkOSSession(
   }
   const userId = await resolveAdmittedUser(workosResult.context.user.id);
   if (userId === null) {
-    return { ok: false, failure: authFailureForReason("not_admitted") };
+    return { ok: false, failure: authFailureForAdmissionDenial(workosResult.context.user.id) };
   }
   return {
     ok: true,
@@ -62,7 +66,7 @@ export async function resolveUserActor(
     }
     const admitted = await input.resolveAdmittedUser(verified.actor.workosUserId);
     if (admitted === null) {
-      return { ok: false, failure: authFailureForReason("not_admitted") };
+      return { ok: false, failure: authFailureForAdmissionDenial(verified.actor.workosUserId) };
     }
     if (admitted !== verified.actor.userId) {
       return { ok: false, failure: authFailureForReason("invalid") };

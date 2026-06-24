@@ -2,7 +2,7 @@ import { AUTH_ERROR_CODES, type KnownErrorCode } from "@insecur/domain";
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "./audit-event-codes.js";
 import { recordActionAudit } from "./record-action-audit.js";
 import type {
-  AuditActorRef,
+  AuditEventActorRef,
   AuditOperationRef,
   AuditRequestRef,
   AuditResourceRef,
@@ -11,7 +11,7 @@ import type { AuditEventResult } from "./write-audit-event.js";
 import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 
 export interface RecordAccessDeniedAuditInput {
-  actor: AuditActorRef;
+  actor: AuditEventActorRef;
   organizationId: OrganizationId;
   projectId?: ProjectId;
   environmentId?: EnvironmentId;
