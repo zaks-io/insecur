@@ -46,6 +46,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [STORE_ERROR_CODES.runtimeConfigMissing, 503],
   [CRYPTO_ERROR_CODES.decryptFailed, 500],
   [CRYPTO_ERROR_CODES.rootKeyNotConfigured, 503],
+  [CRYPTO_ERROR_CODES.tenantDataKeyNotReady, 503],
   [CRYPTO_ERROR_CODES.invalidAadField, 400],
   [AUDIT_ERROR_CODES.eventInvalid, 400],
   [INJECTION_ERROR_CODES.grantDenied, 404],

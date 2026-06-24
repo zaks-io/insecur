@@ -8,7 +8,11 @@ import {
   requestId,
 } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
-import { domainErrorEnvelope, httpStatusForKnownErrorCode } from "./domain-error-response.js";
+import {
+  GENERIC_ERROR_MESSAGE,
+  domainErrorEnvelope,
+  httpStatusForKnownErrorCode,
+} from "./domain-error-response.js";
 
 // A runtime decrypt failure (DecryptError) is thrown inside the Runtime Worker, behind
 // the RPC seam. By the time it reaches this public-edge handler it is a structurally-typed
@@ -34,6 +38,10 @@ describe("httpStatusForKnownErrorCode", () => {
     expect(httpStatusForKnownErrorCode(CRYPTO_ERROR_CODES.decryptFailed)).toBe(500);
   });
 
+  it("maps tenant data key readiness failures to HTTP 503", () => {
+    expect(httpStatusForKnownErrorCode(CRYPTO_ERROR_CODES.tenantDataKeyNotReady)).toBe(503);
+  });
+
   it("maps a seam-crossed runtime decrypt failure to opaque crypto.decrypt_failed ErrorEnvelope", () => {
     const reqId = requestId.generate();
     const { status, body } = domainErrorEnvelope(seamCrossedDecryptError, reqId);
@@ -43,13 +51,67 @@ describe("httpStatusForKnownErrorCode", () => {
       ok: false,
       error: {
         code: CRYPTO_ERROR_CODES.decryptFailed,
+        message: "decrypt failed",
         retryable: false,
       },
       meta: { requestId: reqId },
     });
   });
 
-  it("maps operation.idempotency_mismatch through structural OperationStoreError shape", () => {
+  it("maps a seam-crossed tenant data key readiness failure to crypto.tenant_data_key_not_ready", () => {
+    const reqId = requestId.generate();
+    const seamCrossedTenantKeyError = {
+      code: CRYPTO_ERROR_CODES.tenantDataKeyNotReady,
+      message: "tenant data keys are not ready",
+      retryable: false,
+    };
+    const { status, body } = domainErrorEnvelope(seamCrossedTenantKeyError, reqId);
+
+    expect(status).toBe(503);
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: CRYPTO_ERROR_CODES.tenantDataKeyNotReady,
+        message: "tenant data keys are not ready",
+        retryable: false,
+      },
+      meta: { requestId: reqId },
+    });
+  });
+
+  it("maps TenantDataKeyNotReadyError by error name without falling back to validation.invalid_opaque_resource_id", () => {
+    const reqId = requestId.generate();
+    const tenantKeyError = Object.assign(new Error("tenant data keys are not ready"), {
+      name: "TenantDataKeyNotReadyError",
+    });
+    const { status, body } = domainErrorEnvelope(tenantKeyError, reqId);
+
+    expect(status).toBe(503);
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: CRYPTO_ERROR_CODES.tenantDataKeyNotReady,
+        message: "tenant data keys are not ready",
+      },
+      meta: { requestId: reqId },
+    });
+  });
+
+  it("does not echo dynamic messages from unknown Error instances", () => {
+    const reqId = requestId.generate();
+    const dynamicError = new Error("super-secret-adjacent diagnostic detail");
+    const { body } = domainErrorEnvelope(dynamicError, reqId);
+
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        message: GENERIC_ERROR_MESSAGE,
+      },
+    });
+    expect(body.error.message).not.toContain("super-secret-adjacent");
+  });
+
+  it("does not echo dynamic messages from known typed errors with caller-supplied copy", () => {
     const reqId = requestId.generate();
     const operationStoreError = Object.assign(
       new Error("idempotency key reused with a different intent code"),
@@ -67,7 +129,7 @@ describe("httpStatusForKnownErrorCode", () => {
       ok: false,
       error: {
         code: OPERATION_ERROR_CODES.idempotencyMismatch,
-        message: "idempotency key reused with a different intent code",
+        message: GENERIC_ERROR_MESSAGE,
         retryable: false,
       },
       meta: { requestId: reqId },

@@ -1,7 +1,12 @@
-import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
+import {
+  AUTH_ERROR_CODES,
+  CRYPTO_ERROR_CODES,
+  INJECTION_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
+} from "@insecur/domain";
 import { InjectionGrantError } from "@insecur/runtime-injection";
 import { SecretWriteError } from "@insecur/secret-store";
-import { RootKeyNotConfiguredError } from "@insecur/crypto";
+import { RootKeyNotConfiguredError, TenantDataKeyNotReadyError } from "@insecur/crypto";
 import { describe, expect, it } from "vitest";
 
 import { RuntimeActorTokenError, toRuntimeRpcError } from "./runtime-rpc-error.js";
@@ -37,6 +42,12 @@ describe("toRuntimeRpcError", () => {
     const mapped = toRuntimeRpcError(new RootKeyNotConfiguredError());
     expect(mapped.code).toBe(VALIDATION_ERROR_CODES.invalidOpaqueResourceId);
     expect(mapped.message).not.toContain("root");
+  });
+
+  it("carries tenant data key readiness failures with a dedicated crypto code", () => {
+    const mapped = toRuntimeRpcError(new TenantDataKeyNotReadyError());
+    expect(mapped.code).toBe(CRYPTO_ERROR_CODES.tenantDataKeyNotReady);
+    expect(mapped.retryable).toBe(false);
   });
 
   it("collapses an unknown error to a non-retryable auth failure", () => {
