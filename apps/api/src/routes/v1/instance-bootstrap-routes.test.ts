@@ -1,0 +1,241 @@
+import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
+import {
+  AUTH_ERROR_CODES,
+  BOOTSTRAP_ERROR_CODES,
+  membershipId,
+  organizationId,
+  userId,
+} from "@insecur/domain";
+import {
+  BootstrapError,
+  type CompleteBootstrapOperatorClaimInput,
+} from "@insecur/instance-bootstrap";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { completeBootstrapOperatorClaim, getBootstrapStatus } = vi.hoisted(() => ({
+  completeBootstrapOperatorClaim: vi.fn(),
+  getBootstrapStatus: vi.fn(),
+}));
+
+vi.mock("@insecur/instance-bootstrap", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/instance-bootstrap")>();
+  return {
+    ...actual,
+    completeBootstrapOperatorClaim,
+    getBootstrapStatus,
+  };
+});
+
+import app from "../../index.js";
+
+const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
+const workosUserId = "user_01workos";
+const orgId = organizationId.brand("org_00000000000000000000000001");
+const operatorGrantId = "iop_00000000000000000000000001";
+const ownerMembershipIdValue = membershipId.brand("mem_00000000000000000000000001");
+
+const statusPath = "/v1/instance/bootstrap/status";
+const claimPath = "/v1/instance/bootstrap/operator-claim";
+
+const env = {
+  WORKOS_API_KEY: "sk_test",
+  WORKOS_CLIENT_ID: "client_test",
+  WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+  SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+  INSTANCE_ID: "inst_LOCAL_DEV",
+  ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
+  RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
+  RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
+};
+
+const awaitingClaimStatus = {
+  phase: "awaiting_operator_claim" as const,
+  instanceId: env.INSTANCE_ID,
+  organizationId: orgId,
+};
+
+const completeStatus = {
+  phase: "complete" as const,
+  instanceId: env.INSTANCE_ID,
+  organizationId: orgId,
+  operatorUserId: admittedUserId,
+};
+
+const claimSuccess = {
+  instanceId: env.INSTANCE_ID,
+  organizationId: orgId,
+  operatorGrantId,
+  ownerMembershipId: ownerMembershipIdValue,
+  status: completeStatus,
+};
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const minted = await mintEphemeralSessionCredential({
+    actor: {
+      type: "user",
+      userId: admittedUserId,
+      workosUserId,
+      sessionId: "session_bootstrap_test",
+    },
+    signingSecret: env.SESSION_SIGNING_SECRET,
+  });
+  return {
+    Authorization: `Bearer ${minted.credential}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function claimBody(bootstrapSecret: string): string {
+  return JSON.stringify({
+    bootstrapSecret,
+    operatorGrantId,
+    ownerMembershipId: ownerMembershipIdValue,
+  });
+}
+
+describe("instance bootstrap worker routes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getBootstrapStatus.mockResolvedValue(awaitingClaimStatus);
+    completeBootstrapOperatorClaim.mockResolvedValue(claimSuccess);
+  });
+
+  describe("GET /v1/instance/bootstrap/status", () => {
+    it("returns metadata-only bootstrap status from the package", async () => {
+      const response = await app.request(statusPath, { method: "GET" }, env);
+
+      expect(response.status).toBe(200);
+      expect(getBootstrapStatus).toHaveBeenCalledWith(env.INSTANCE_ID);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          phase: "awaiting_operator_claim",
+          instanceId: env.INSTANCE_ID,
+          organizationId: orgId,
+        },
+      });
+    });
+  });
+
+  describe("POST /v1/instance/bootstrap/operator-claim", () => {
+    it("returns auth.required when unauthenticated", async () => {
+      const response = await app.request(
+        claimPath,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: claimBody("bootstrap-secret-material"),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: false, error: { code: AUTH_ERROR_CODES.required } });
+      expect(completeBootstrapOperatorClaim).not.toHaveBeenCalled();
+    });
+
+    it("completes the bootstrap operator claim through the package seam", async () => {
+      const bootstrapSecret = "bootstrap-secret-material";
+      const response = await app.request(
+        claimPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: claimBody(bootstrapSecret),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      const claimCall = completeBootstrapOperatorClaim.mock.calls[0]?.[0] as
+        | CompleteBootstrapOperatorClaimInput
+        | undefined;
+      expect(claimCall).toMatchObject({
+        instanceId: env.INSTANCE_ID,
+        actor: {
+          type: "user",
+          userId: admittedUserId,
+          workosUserId,
+        },
+        bootstrapSecret,
+        operatorGrantId,
+        ownerMembershipId: ownerMembershipIdValue,
+      });
+      expect(claimCall?.request?.requestId).toEqual(expect.stringMatching(/^req_/));
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          instanceId: env.INSTANCE_ID,
+          organizationId: orgId,
+          operatorGrantId,
+          ownerMembershipId: ownerMembershipIdValue,
+          status: {
+            phase: "complete",
+            operatorUserId: admittedUserId,
+          },
+        },
+      });
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toContain(bootstrapSecret);
+    });
+
+    it("denies duplicate claim attempts with bootstrap.already_claimed", async () => {
+      completeBootstrapOperatorClaim.mockRejectedValue(
+        new BootstrapError(
+          BOOTSTRAP_ERROR_CODES.alreadyClaimed,
+          "bootstrap operator claim is already consumed",
+          orgId,
+        ),
+      );
+
+      const response = await app.request(
+        claimPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: claimBody("bootstrap-secret-material"),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(409);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: BOOTSTRAP_ERROR_CODES.alreadyClaimed },
+      });
+    });
+
+    it("denies claim completion with bootstrap.invalid_secret", async () => {
+      completeBootstrapOperatorClaim.mockRejectedValue(
+        new BootstrapError(
+          BOOTSTRAP_ERROR_CODES.invalidSecret,
+          "bootstrap secret verification failed",
+          orgId,
+        ),
+      );
+
+      const response = await app.request(
+        claimPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: claimBody("wrong-bootstrap-secret"),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: BOOTSTRAP_ERROR_CODES.invalidSecret },
+      });
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toContain("wrong-bootstrap-secret");
+    });
+  });
+});

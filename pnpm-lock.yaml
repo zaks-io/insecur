@@ -144,6 +144,9 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@insecur/instance-bootstrap':
+        specifier: workspace:*
+        version: link:../../packages/instance-bootstrap
       '@insecur/onboarding':
         specifier: workspace:*
         version: link:../../packages/onboarding
