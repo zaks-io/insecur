@@ -1,15 +1,23 @@
 # Project Status
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
+
+This document is a **status snapshot** — what was built, verified, and still open when it was last
+edited. It is not normative product truth. When this prose disagrees with an owning spec, ADR, or
+verified code, follow the owner and treat this file as the defect (see the Source Of Truth Rules in
+[specs/README.md](specs/README.md)). For the authoritative route → deploy table, use
+[specs/deploy-route-inventory.md](specs/deploy-route-inventory.md) instead of restating routes here.
 
 ## Current State
 
 insecur has moved well past the empty scaffold. The repo now has product-bearing package
-code for the First Value and Production Delivery foundation, a Worker route surface for
-auth/session, onboarding, non-protected secret writes, and Runtime Injection grants, and
-the first CLI commands. The main missing pieces are the rest of the user-facing First
-Value composition (`insecur secrets set`, `insecur run`, the remaining Worker routes)
-and provider sync.
+code for the First Value and Production Delivery foundation, capability-isolated Worker deploys
+(`apps/api` + `apps/runtime`), a public route surface for auth/session, onboarding, instance
+bootstrap, membership/invitations, operations, non-protected secret writes, and Runtime Injection
+grants, plus the first CLI commands. The main missing pieces are the rest of the user-facing First
+Value composition (`insecur secrets set`, `insecur run`, the remaining CLI/proof path), the
+`apps/web` BFF deploy (INS-201), production Hyperdrive on the API Worker for its DB-backed public
+routes (INS-212), and provider sync.
 
 The current workspace is Node 24 and pnpm 10, with Turbo, Prettier, ESLint, Vitest,
 package builds, local Postgres development scripts, RLS migrations, Blacksmith-backed
@@ -51,8 +59,8 @@ stored AES-GCM wrapped under the root in `wrapped_storage_ref`, with rotation re
 and never decrypting a value; the keyring conversion plus the rewrap primitive is INS-160, still
 open. The ESLint test-file override relaxing
 `complexity`/`max-statements` beyond ADR-0055 landed as INS-161. Routing the runtime pool through
-Hyperdrive is INS-162 and the approval-gated production migration step is INS-163 (both
-ready-for-human). The audit found no other code-vs-ADR contradictions worth acting on; remaining
+Hyperdrive was INS-162 (now composed on `apps/runtime`; API Worker adapter is INS-212) and the
+approval-gated production migration step is INS-163 (ready-for-human). The audit found no other code-vs-ADR contradictions worth acting on; remaining
 gaps below are unbuilt pre-V1 work, not divergences.
 
 A 2026-06-12 full spec-corpus review then prepared the docs for the agent-fleet hand-off: 77
@@ -80,16 +88,15 @@ First Value routes under `/v1/orgs/:org`).
 - `@insecur/auth` owns WorkOS-backed human session composition, admitted User actor
   resolution, CSRF helpers, HMAC-signed ephemeral CLI session credentials, request
   credential parsing, auth failure envelopes, and fake WorkOS sessions for tests.
-- `apps/api` (public API Worker, `insecur-api`) exposes `GET /healthz`,
-  `POST /v1/auth/cli/exchange`, `GET /v1/session/whoami`, guided-provisioning/onboarding
-  routes, a non-protected Blind Secret Write route
-  (`POST /v1/orgs/:organizationId/projects/.../secrets/by-variable-key`), and Runtime
-  Injection Grant issue/consume routes under `/v1/orgs/:organizationId/runtime-injection`.
-  It holds no keyring: the secret-write route forwards to `RUNTIME.writeSecret` (encrypt) and
-  the grant-consume route forwards to `RUNTIME.consumeGrant` (decrypt) over the private
-  Service Binding, so live encrypt/decrypt runs in the Runtime Worker, not here. It validates
-  auth configuration at construction, supports development fake sessions, requires CSRF for
-  browser-to-CLI exchange, and returns metadata-only success/error envelopes.
+- `apps/api` (public API Worker, `insecur-api`) exposes the public `/v1/*` route groups listed in
+  [deploy-route-inventory.md](specs/deploy-route-inventory.md): `GET /healthz`, auth/session,
+  onboarding, instance bootstrap, org-scoped invitations/organizations/projects/operations, and
+  runtime-injection grant issue/consume. It holds no keyring: secret-write and grant-consume forward
+  to `RUNTIME.writeSecret` / `RUNTIME.consumeGrant` over the private Service Binding, so live
+  encrypt/decrypt runs in the Runtime Worker. It deliberately binds no Hyperdrive (DB I/O for
+  keyring-bound work is Runtime-side; see Hyperdrive notes below). It validates auth configuration
+  at construction, supports development fake sessions, requires CSRF for browser-to-CLI exchange, and
+  returns metadata-only success/error envelopes.
 - `apps/runtime` (private Runtime Worker, `insecur-runtime`) is the sole holder of
   `INSTANCE_ROOT_KEY_V1` and the only place decryption happens. It serves no public routes;
   its `RuntimeService` RPC entrypoint (`consumeGrant`, `writeSecret`) is reachable only over
@@ -172,12 +179,11 @@ First Value routes under `/v1/orgs/:org`).
   profile resolution, user/project config, and `--json` output. Still missing:
   `insecur secrets set`, `insecur run <command>`, the masked prompt, and the first-value
   proof command path.
-- The Worker now exposes auth/session, guided-provisioning/onboarding, non-protected
-  secret-write, and runtime-injection grant issue/consume routes (the latter two already
-  run live encrypt/decrypt, see above). Still missing: instance bootstrap, membership
-  management, operations, provider sync, Storage Security Gate enforcement, and audit
-  export routes. The custody gap is that the live crypto routes are not yet fed by the
-  Cloudflare Secrets Store keyring (INS-145/147/149).
+- The API Worker now exposes the public route groups in
+  [deploy-route-inventory.md](specs/deploy-route-inventory.md). Still missing at the product
+  layer: provider sync, Storage Security Gate enforcement, audit export routes, and the
+  `apps/web` BFF (INS-201). The custody gap is that production root-key bootstrap, escrow
+  evidence, and Storage Security Gate sign-off remain pending (INS-145/147/149).
 - WorkOS AuthKit is represented through session validation and config composition, but
   hosted login/logout/callback UI, MFA enrollment, and high-risk action challenges are not
   implemented.
@@ -191,14 +197,16 @@ First Value routes under `/v1/orgs/:org`).
   holds both a public route and the root-key binding**, enforced by `pnpm conformance:topology`
   (`scripts/ci/deploy-topology-conformance.mjs`) plus the lint keyring boundary, both in `pnpm
 verify`. Do not compose new routes into a single worker; every route belongs to a specific deploy
-  by capability per `docs/specs/deploy-route-inventory.md`. `apps/web` (Web Console BFF) is Cut 2
-  (INS-201, deferred); Service Access stays a deferred deploy with a negative conformance assertion
-  (ADR-0019). Epic: INS-194 (slices INS-195..201).
-- Neon/Hyperdrive production bindings are not composed through the Worker yet. Local
-  Postgres and the tenant-store connection package are the current persistence path. The
-  runtime pool opens directly from `DATABASE_URL_RUNTIME` with no Hyperdrive binding, which
-  diverges from ADR-0002/0036; routing it through Hyperdrive is tracked in INS-162. Post-split,
-  both `apps/api` and `apps/runtime` bind Hyperdrive (the resolver runs in each); RLS is the wall.
+  by capability per [deploy-route-inventory.md](specs/deploy-route-inventory.md). `apps/web` (Web
+  Console BFF, `insecur-web`) is Cut 2 (INS-201) and is not scaffolded yet; Service Access stays a
+  deferred deploy with a negative conformance assertion (ADR-0019). Epic: INS-194 (slices INS-195..201).
+- **Hyperdrive bindings (partial).** `apps/runtime` composes a Hyperdrive `DB` binding in
+  `wrangler.jsonc` and reads Postgres via `env.DB.connectionString` at RPC entry (with
+  `DATABASE_URL_RUNTIME` fallback for local/CI/tests). `apps/api` deliberately binds no Hyperdrive:
+  keyring-bound persistence is Runtime-side over the `RUNTIME` Service Binding. DB-backed public
+  routes on the API Worker still rely on the `DATABASE_URL_RUNTIME` fallback path in tests and need a
+  production Hyperdrive adapter on the API deploy (INS-212). Preview `env.preview` Hyperdrive
+  scaffolds exist on the Runtime deploy for the gated `pr-preview` workflow (INS-164).
 - Root key custody is partially wired through request-scoped Cloudflare Secrets Store
   keyring construction. Production bootstrap, escrow evidence, and Storage Security Gate
   sign-off are still pending.
@@ -291,10 +299,10 @@ release-gate evidence bundles.
 2. Wire remaining package implementations into the correct deploy (INS-194 Cut 1 landed). The
    decided topology is `apps/api` (public edge, no keyring), `apps/runtime`
    (sole `INSTANCE_ROOT_KEY_V1` holder, decrypt-egress behind a `WorkerEntrypoint` RPC seam, no
-   public routes), and `apps/web` (BFF). Instance bootstrap, membership management, and operations
-   routes are public/non-keyring and land on `apps/api` (NOT a single worker); secret write and
-   grant consume are the keyring routes and live on `apps/runtime`. No deploy may hold both a public
-   route and the root key (CI gate INS-199).
+   public routes), and `apps/web` (BFF, INS-201, not scaffolded yet). Route mounts are owned by
+   [deploy-route-inventory.md](specs/deploy-route-inventory.md). Secret write and grant consume are
+   keyring routes executed Runtime-side; other public routes land on `apps/api`. No deploy may hold
+   both a public route and the root key (CI gate INS-199).
 3. Finish the CLI First Value path on top of the landed `login`/`init`/`shell` commands
    (INS-31): masked safe secret input, metadata-only `secrets set`, and one-command `run` with
    child-process env injection without local secret files.
