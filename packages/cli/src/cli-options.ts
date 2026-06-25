@@ -1,4 +1,10 @@
 import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import {
+  parseOptionalCliProfileId,
+  parseOptionalEnvironmentId,
+  parseOptionalOrganizationId,
+  parseOptionalProjectId,
+} from "./config/parse-resource-id.js";
 
 export interface GlobalCliFlags {
   readonly host: string | undefined;
@@ -32,11 +38,11 @@ export function parseGlobalOptions(options: {
   return {
     flags: {
       host: options.host,
-      orgId: options.orgId as OrganizationId | undefined,
-      projectId: options.projectId as ProjectId | undefined,
-      envId: options.envId as EnvironmentId | undefined,
+      orgId: parseOptionalOrganizationId(options.orgId, "--org-id"),
+      projectId: parseOptionalProjectId(options.projectId, "--project-id"),
+      envId: parseOptionalEnvironmentId(options.envId, "--env-id"),
       profile: options.profile,
-      profileId: options.profileId as CliProfileId | undefined,
+      profileId: parseOptionalCliProfileId(options.profileId, "--profile-id"),
       configDir: options.configDir,
       json: options.json === true,
       quiet: options.quiet === true,

@@ -1,5 +1,6 @@
 import type { CliProfileId } from "@insecur/domain";
 import type { CliUserConfig, CliUserProfile } from "../user-config.js";
+import { parseCliProfileId } from "../parse-resource-id.js";
 import { CliError } from "../../output/cli-error.js";
 import { EXIT_NOT_FOUND } from "../../output/exit-codes.js";
 
@@ -52,7 +53,7 @@ function lookupBySlugOrSelector(
   slugOrSelector: string,
 ): ResolvedProfile | undefined {
   if (slugOrSelector.startsWith("prof_")) {
-    return lookupById(userConfig, slugOrSelector as CliProfileId);
+    return lookupById(userConfig, parseCliProfileId(slugOrSelector, "--profile"));
   }
   const match = Object.entries(userConfig.profiles).find(
     ([, profile]) => profile.slug === slugOrSelector,
@@ -60,7 +61,7 @@ function lookupBySlugOrSelector(
   if (match === undefined) {
     return undefined;
   }
-  return { profileId: match[0] as CliProfileId, profile: match[1] };
+  return { profileId: parseCliProfileId(match[0], "--profile"), profile: match[1] };
 }
 
 function resolveProfileOptional(
