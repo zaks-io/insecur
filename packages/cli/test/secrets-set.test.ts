@@ -395,6 +395,29 @@ describe("secret value validation", () => {
     expect(() => validateSecretValueUtf8(new Uint8Array(0), { allowEmpty: true })).not.toThrow();
   });
 
+  it("rejects malformed --length values before calling the API", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const api = createMockApi();
+
+    await expect(
+      runSecretsSetCommand(flags, api, mockContext, {
+        variableKey: "API_KEY",
+        generateMode: "random",
+        generateLength: "16abc",
+        valueStdin: false,
+        allowEmpty: false,
+      }),
+    ).rejects.toMatchObject({
+      code: SECRET_ERROR_CODES.invalidInputMode,
+      exitCode: EXIT_VALIDATION,
+    } satisfies Partial<CliError>);
+    expect(api.writeSecretByVariableKey).not.toHaveBeenCalled();
+  });
+
   it("rejects oversized generated random lengths before calling the API", async () => {
     setMemorySession({
       credential: "credential_test",
