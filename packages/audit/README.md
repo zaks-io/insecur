@@ -1,7 +1,7 @@
 # @insecur/audit
 
-Audit Event Writer for tenant-qualified, metadata-only product events. Tamper-evident
-Audit Export is a later module.
+Audit Event Writer for tenant-qualified, metadata-only product events, plus tamper-evident
+Audit Export with hash chains, HMACed manifests, and Ed25519 signatures.
 
 ## Audit event contract
 
@@ -52,9 +52,15 @@ Prefer domain helpers (`recordStorageAudit`, `recordSyncAudit`, `recordAccessDen
 - `@insecur/domain` for identity, result, and error-code shapes.
 - Tenant-Scoped Store adapter when audit rows are persisted.
 
+## Audit export
+
+Tenant-bounded JSONL exports include per-entry hash chains, an HMACed manifest with key
+custody evidence refs, and an Ed25519 signature over the canonicalized export bundle.
+`verifyAuditExport` recomputes the chain, checks the manifest HMAC, validates the signature,
+and returns metadata-only integrity results suitable for release-gate evidence.
+
 ## Does Not Own
 
-- Tamper-evident Audit Export hash chains or manifests.
 - Operation Store state transitions.
 - Authorization decisions.
 - Secret Version lifecycle.
