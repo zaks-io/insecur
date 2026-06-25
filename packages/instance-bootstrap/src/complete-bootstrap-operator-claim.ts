@@ -4,7 +4,6 @@ import {
   toClaimCompletionResult,
 } from "./atomically-complete-bootstrap-claim.js";
 import { assertAuthenticatedBootstrapActor } from "./assert-authenticated-bootstrap-actor.js";
-import { recordBootstrapOperatorClaimDenied } from "./bootstrap-audit.js";
 import { BootstrapError } from "./bootstrap-error.js";
 import type {
   CompleteBootstrapOperatorClaimInput,
@@ -22,12 +21,6 @@ export async function completeBootstrapOperatorClaim(
   const completed = await atomicallyCompleteBootstrapOperatorClaim(input, claimContext);
 
   if (completed === null) {
-    await recordBootstrapOperatorClaimDenied(
-      claimContext.organizationId,
-      input.actor,
-      BOOTSTRAP_ERROR_CODES.alreadyClaimed,
-      input.request,
-    );
     throw new BootstrapError(
       BOOTSTRAP_ERROR_CODES.alreadyClaimed,
       "bootstrap operator claim is already consumed",
