@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { successEnvelope } from "@insecur/domain";
 import { runLoginCommand } from "../src/commands/login.js";
 import { runInitCommand } from "../src/commands/init.js";
+import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { PROJECT_CONFIG_FILE, USER_CONFIG_FILE } from "../src/config/paths.js";
 import { clearMemorySession, getMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";
@@ -23,6 +24,22 @@ const flags = {
 };
 
 const sensitiveCredential = "insecur-session-credential-test-value";
+
+function mockContext(host = flags.host): ResolvedCliContext {
+  return {
+    projectConfig: null,
+    userConfig: { profiles: {} },
+    scope: {
+      host,
+      orgId: undefined,
+      projectId: undefined,
+      envId: undefined,
+      profileId: undefined,
+      profileSlug: undefined,
+      profile: undefined,
+    },
+  };
+}
 
 function createMockApi(): ApiClient {
   return {
@@ -69,7 +86,7 @@ describe("no credential persistence", () => {
 
   it("stores login credentials in memory only", async () => {
     process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), {
+    await runLoginCommand(flags, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
@@ -83,7 +100,7 @@ describe("no credential persistence", () => {
 
   it("writes only opaque ids to project and user config during init", async () => {
     process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), {
+    await runLoginCommand(flags, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
@@ -91,7 +108,7 @@ describe("no credential persistence", () => {
     const homeDir = path.join(projectDir, "home");
     const originalHome = process.env.HOME;
     process.env.HOME = homeDir;
-    await runInitCommand({ ...flags, configDir: projectDir }, createMockApi(), {
+    await runInitCommand({ ...flags, configDir: projectDir }, createMockApi(), mockContext(), {
       profileSlug: "local-dev",
     });
     const projectConfig = await readFile(path.join(projectDir, PROJECT_CONFIG_FILE), "utf8");

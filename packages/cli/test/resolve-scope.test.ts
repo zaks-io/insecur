@@ -19,52 +19,71 @@ const baseFlags: GlobalCliFlags = {
   verbose: false,
 };
 
+const project: InsecurProjectConfig = {
+  host: "https://from-project.example",
+  orgId: "org_project" as never,
+  projectId: "prj_project" as never,
+  defaultEnvId: "env_project" as never,
+  profileId: "prof_project" as never,
+};
+
+const user: CliUserConfig = {
+  profiles: {
+    prof_test: {
+      slug: "local-dev",
+      displayName: "Local development" as never,
+      host: "https://profile.example",
+      orgId: "org_profile" as never,
+      projectId: "prj_profile" as never,
+      envId: "env_profile" as never,
+    },
+  },
+};
+
 describe("resolveCliScope precedence", () => {
-  it("prefers explicit flags over environment variables", () => {
+  it("applies source priority: flag > env > project config > user profile", () => {
+    const scopeFromProfile = resolveCliScope({ ...baseFlags, profile: "local-dev" }, null, user);
+    expect(scopeFromProfile.host).toBe("https://profile.example");
+    expect(scopeFromProfile.orgId).toBe("org_profile");
+    expect(scopeFromProfile.projectId).toBe("prj_profile");
+    expect(scopeFromProfile.envId).toBe("env_profile");
+    expect(scopeFromProfile.profile?.slug).toBe("local-dev");
+
+    const scopeFromProject = resolveCliScope(baseFlags, project, emptyUser);
+    expect(scopeFromProject.host).toBe("https://from-project.example");
+    expect(scopeFromProject.orgId).toBe("org_project");
+    expect(scopeFromProject.projectId).toBe("prj_project");
+    expect(scopeFromProject.envId).toBe("env_project");
+
     process.env.INSECUR_HOST = "https://from-env.example";
     process.env.INSECUR_ORG = "org_from_env";
-    const scope = resolveCliScope(
-      { ...baseFlags, host: "https://from-flag.example", orgId: "org_from_flag" as never },
-      null,
-      emptyUser,
+    process.env.INSECUR_PROJECT = "prj_from_env";
+    process.env.INSECUR_ENV = "env_from_env";
+    const scopeFromEnv = resolveCliScope(baseFlags, project, user);
+    expect(scopeFromEnv.host).toBe("https://from-env.example");
+    expect(scopeFromEnv.orgId).toBe("org_from_env");
+    expect(scopeFromEnv.projectId).toBe("prj_from_env");
+    expect(scopeFromEnv.envId).toBe("env_from_env");
+
+    const scopeFromFlags = resolveCliScope(
+      {
+        ...baseFlags,
+        host: "https://from-flag.example",
+        orgId: "org_from_flag" as never,
+        projectId: "prj_from_flag" as never,
+        envId: "env_from_flag" as never,
+      },
+      project,
+      user,
     );
-    expect(scope.host).toBe("https://from-flag.example");
-    expect(scope.orgId).toBe("org_from_flag");
+    expect(scopeFromFlags.host).toBe("https://from-flag.example");
+    expect(scopeFromFlags.orgId).toBe("org_from_flag");
+    expect(scopeFromFlags.projectId).toBe("prj_from_flag");
+    expect(scopeFromFlags.envId).toBe("env_from_flag");
+
     delete process.env.INSECUR_HOST;
     delete process.env.INSECUR_ORG;
-  });
-
-  it("falls back to .insecur.json after environment variables", () => {
-    process.env.INSECUR_HOST = "https://from-env.example";
-    const project: InsecurProjectConfig = {
-      host: "https://from-project.example",
-      orgId: "org_project" as never,
-      projectId: "prj_project" as never,
-      defaultEnvId: "env_project" as never,
-      profileId: "prof_project" as never,
-    };
-    const scope = resolveCliScope(baseFlags, project, emptyUser);
-    expect(scope.host).toBe("https://from-env.example");
-    expect(scope.orgId).toBe("org_project");
-    delete process.env.INSECUR_HOST;
-  });
-
-  it("uses profile defaults when project config is absent", () => {
-    const user: CliUserConfig = {
-      profiles: {
-        prof_test: {
-          slug: "local-dev",
-          displayName: "Local development" as never,
-          host: "https://profile.example",
-          orgId: "org_profile" as never,
-          projectId: "prj_profile" as never,
-          envId: "env_profile" as never,
-        },
-      },
-    };
-    const scope = resolveCliScope({ ...baseFlags, profile: "local-dev" }, null, user);
-    expect(scope.host).toBe("https://profile.example");
-    expect(scope.orgId).toBe("org_profile");
-    expect(scope.profile?.slug).toBe("local-dev");
+    delete process.env.INSECUR_PROJECT;
+    delete process.env.INSECUR_ENV;
   });
 });

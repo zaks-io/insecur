@@ -1,9 +1,7 @@
 import { AUTH_ERROR_CODES, successEnvelope, type ResolvedTargetEcho } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
-import { resolveCliScope } from "../config/resolve-scope.js";
-import { loadProjectConfig } from "../config/project-config.js";
-import { loadUserConfig } from "../config/user-config.js";
+import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
@@ -33,17 +31,14 @@ function readCookieHeader(cookieEnv: string): string {
 export async function runLoginCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
+  context: ResolvedCliContext,
   commandOptions: LoginCommandOptions,
 ): Promise<number> {
-  const scope = resolveCliScope(
-    flags,
-    await loadProjectConfig(flags.configDir),
-    await loadUserConfig(),
-  );
+  const { host } = context.scope;
   const cookieHeader = readCookieHeader(commandOptions.cookieEnv);
   const csrfHeader = process.env[commandOptions.csrfEnv];
   const exchanged = await api.exchangeCliSession({
-    host: scope.host,
+    host,
     cookieHeader,
     ...(csrfHeader === undefined || csrfHeader === "" ? {} : { csrfHeader }),
   });
@@ -63,7 +58,7 @@ export async function runLoginCommand(
     },
   ];
   const output = successEnvelope(
-    { sessionId, expiresAt, host: scope.host },
+    { sessionId, expiresAt, host },
     buildEnvelopeMeta({
       requestId: exchanged.envelope.meta?.requestId,
       resolvedTargets,
