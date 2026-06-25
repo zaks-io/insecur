@@ -9,6 +9,8 @@ export function isEnvironmentLifecycleImmutableViolation(error: unknown): boolea
   return (
     typeof error === "object" &&
     error !== null &&
+    "code" in error &&
+    (error as { code: string }).code === "23514" &&
     "message" in error &&
     typeof (error as { message: string }).message === "string" &&
     (error as { message: string }).message.includes(ENVIRONMENT_LIFECYCLE_IMMUTABLE_DB_MESSAGE)
