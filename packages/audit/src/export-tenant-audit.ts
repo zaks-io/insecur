@@ -2,6 +2,7 @@ import type {
   AuditEventId,
   EnvironmentId,
   KnownErrorCode,
+  MachineIdentityId,
   OpaqueResourceId,
   OperationId,
   OrganizationId,
@@ -13,7 +14,7 @@ import { withTenantScope, type TenantScopedSql } from "@insecur/tenant-store";
 import { buildAuditExport } from "./build-audit-export.js";
 import { toAuditExportEventPayload } from "./audit-export-event.js";
 import type { AuditEventCode } from "./audit-event-codes.js";
-import type { AuditResourceType } from "./audit-types.js";
+import type { AuditActorType, AuditResourceType } from "./audit-types.js";
 import type {
   AuditExportBundle,
   AuditExportEventPayload,
@@ -30,6 +31,7 @@ interface AuditEventRow {
   result_code: KnownErrorCode;
   actor_type: string;
   actor_user_id: string | null;
+  actor_machine_identity_id: string | null;
   project_id: string | null;
   environment_id: string | null;
   resource_type: string | null;
@@ -49,8 +51,9 @@ function mapAuditEventRow(row: AuditEventRow): AuditExportEventPayload {
     eventCode: row.event_code,
     outcome: row.outcome,
     resultCode: row.result_code,
-    actorType: "user",
+    actorType: row.actor_type as AuditActorType,
     actorUserId: row.actor_user_id as UserId | null,
+    actorMachineIdentityId: row.actor_machine_identity_id as MachineIdentityId | null,
     projectId: row.project_id as ProjectId | null,
     environmentId: row.environment_id as EnvironmentId | null,
     resourceType: row.resource_type as AuditResourceType | null,
@@ -80,6 +83,7 @@ async function queryAuditExportEvents(
           result_code,
           actor_type,
           actor_user_id,
+          actor_machine_identity_id,
           project_id,
           environment_id,
           resource_type,

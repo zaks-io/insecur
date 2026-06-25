@@ -43,6 +43,13 @@
       "when": 1782408974067,
       "tag": "0005_blue_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782421405945,
+      "tag": "0006_gifted_ozymandias",
+      "breakpoints": true
     }
   ]
 }

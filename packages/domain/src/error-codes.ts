@@ -21,6 +21,10 @@ export const AUTH_ERROR_CODES = {
   reauthRequired: "auth.reauth_required",
   highAssuranceRequired: "auth.high_assurance_required",
   mfaEnrollmentRequired: "auth.mfa_enrollment_required",
+  oidcWrongAudience: "auth.oidc_wrong_audience",
+  oidcWrongRepository: "auth.oidc_wrong_repository",
+  oidcWrongEnvironment: "auth.oidc_wrong_environment",
+  oidcUntrustedSource: "auth.oidc_untrusted_source",
 } as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];

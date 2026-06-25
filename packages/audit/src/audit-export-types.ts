@@ -30,6 +30,7 @@ export interface AuditExportEventPayload {
   readonly result_code: string;
   readonly actor_type: string;
   readonly actor_user_id: string | null;
+  readonly actor_machine_identity_id: string | null;
   readonly project_id: string | null;
   readonly environment_id: string | null;
   readonly resource_type: string | null;

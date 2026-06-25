@@ -17,6 +17,7 @@ export function toAuditExportEventPayload(
     result_code: row.resultCode,
     actor_type: row.actorType,
     actor_user_id: row.actorUserId,
+    actor_machine_identity_id: row.actorMachineIdentityId,
     project_id: row.projectId,
     environment_id: row.environmentId,
     resource_type: row.resourceType,

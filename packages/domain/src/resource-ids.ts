@@ -24,6 +24,7 @@ export type UserId = Brand<string, "UserId">;
 export type StagedChangeId = Brand<string, "StagedChangeId">;
 export type InvitationId = Brand<string, "InvitationId">;
 export type MachineIdentityId = Brand<string, "MachineIdentityId">;
+export type MachineAuthMethodId = Brand<string, "MachineAuthMethodId">;
 export type AppConnectionId = Brand<string, "AppConnectionId">;
 export type ProviderCredentialId = Brand<string, "ProviderCredentialId">;
 
@@ -75,5 +76,6 @@ export const userId = createResourceIdHelpers("usr", "UserId");
 export const stagedChangeId = createResourceIdHelpers("stg", "StagedChangeId");
 export const invitationId = createResourceIdHelpers("inv", "InvitationId");
 export const machineIdentityId = createResourceIdHelpers("mach", "MachineIdentityId");
+export const machineAuthMethodId = createResourceIdHelpers("mauth", "MachineAuthMethodId");
 export const appConnectionId = createResourceIdHelpers("conn", "AppConnectionId");
 export const providerCredentialId = createResourceIdHelpers("pcred", "ProviderCredentialId");

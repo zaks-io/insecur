@@ -112,6 +112,12 @@ CREATE POLICY machine_identity_memberships_tenant_isolation ON machine_identity_
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS machine_identity_github_actions_oidc_tenant_isolation ON machine_identity_github_actions_oidc;
+CREATE POLICY machine_identity_github_actions_oidc_tenant_isolation ON machine_identity_github_actions_oidc
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS app_connections_tenant_isolation ON app_connections;
 CREATE POLICY app_connections_tenant_isolation ON app_connections
   FOR ALL
@@ -155,6 +161,7 @@ BEGIN
         'sync_target_leases',
         'machine_identities',
         'machine_identity_memberships',
+        'machine_identity_github_actions_oidc',
         'app_connections',
         'provider_credentials',
         'sensitive_metadata_fields'

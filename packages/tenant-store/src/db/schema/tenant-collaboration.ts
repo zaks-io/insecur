@@ -14,7 +14,7 @@ import {
   unique,
   uniqueIndex,
 } from "./pg-core.js";
-import { organizations, projects, teams } from "./tenant-hierarchy.js";
+import { organizations, projects, teams, environments } from "./tenant-hierarchy.js";
 import { operations } from "./tenant-secrets.js";
 export const invitations = pgTable(
   "invitations",
@@ -129,6 +129,52 @@ export const machineIdentityMemberships = pgTable(
     check(
       "machine_identity_memberships_scopes_nonempty",
       sql`cardinality(${table.authorizationScopes}) > 0`,
+    ),
+  ],
+);
+
+export const machineIdentityGitHubActionsOidc = pgTable(
+  "machine_identity_github_actions_oidc",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    machineIdentityId: text("machine_identity_id").notNull(),
+    projectId: text("project_id").notNull(),
+    environmentId: text("environment_id"),
+    githubRepository: text("github_repository").notNull(),
+    githubEnvironment: text("github_environment"),
+    oidcAudience: text("oidc_audience").notNull(),
+    credentialScopes: text("credential_scopes").array().notNull(),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("machine_identity_github_actions_oidc_org_id_id_key").on(table.orgId, table.id),
+    foreignKey({
+      columns: [table.orgId, table.machineIdentityId],
+      foreignColumns: [machineIdentities.orgId, machineIdentities.id],
+    }),
+    foreignKey({
+      columns: [table.orgId, table.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }),
+    foreignKey({
+      columns: [table.orgId, table.environmentId],
+      foreignColumns: [environments.orgId, environments.id],
+    }),
+    check(
+      "machine_identity_github_actions_oidc_repository_lowercase",
+      sql`lower(${table.githubRepository}) = ${table.githubRepository}`,
+    ),
+    check(
+      "machine_identity_github_actions_oidc_scopes_nonempty",
+      sql`cardinality(${table.credentialScopes}) > 0`,
+    ),
+    check(
+      "machine_identity_github_actions_oidc_status",
+      sql`${table.status} IN ('active', 'disabled')`,
     ),
   ],
 );

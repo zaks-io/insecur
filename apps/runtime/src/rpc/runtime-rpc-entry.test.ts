@@ -35,7 +35,12 @@ describe("withRuntimeRpcEntry", () => {
     const configureDb = vi.fn();
     const result = await withRuntimeRpcEntry(
       { env, actorToken: await mintRuntimeToken(), configureDb },
-      async ({ auditActor }) => ({ echoedUserId: auditActor.userId }),
+      async ({ auditActor }) => {
+        if (auditActor.type !== "user") {
+          throw new Error("expected user audit actor");
+        }
+        return { echoedUserId: auditActor.userId };
+      },
     );
     expect(configureDb).toHaveBeenCalledOnce();
     expect(result).toEqual({
