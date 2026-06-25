@@ -14,6 +14,7 @@ import { membershipId, organizationId, projectId, userId } from "@insecur/domain
 import { describe, expect, it, vi } from "vitest";
 
 const ORG_A = organizationId.brand("org_00000000000000000000000001");
+const ORG_B = organizationId.brand("org_00000000000000000000000002");
 const PROJECT_A = projectId.brand("prj_00000000000000000000000001");
 const ACTOR = { type: "user" as const, userId: userId.brand("usr_00000000000000000000000001") };
 const OUTSIDER = {
@@ -118,6 +119,46 @@ describe("resolveEffectiveAccess", () => {
   it("does not treat unknown role presets as authorization shortcuts", () => {
     expect(expandBuiltInRolePresetToScopes("owner")).not.toEqual([]);
     expect(expandBuiltInRolePresetToScopes("custom-role")).toEqual([]);
+  });
+
+  it("returns no scopes when a fake loader injects another organization owner membership", async () => {
+    const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
+      {
+        membershipId: MEMBERSHIP_A,
+        organizationId: ORG_B,
+        projectId: null,
+        userId: ACTOR.userId,
+        rolePreset: "owner",
+      },
+    ]);
+
+    const result = await resolveEffectiveAccess(
+      ACTOR,
+      { organizationId: ORG_A, projectId: PROJECT_A },
+      { loadMemberships },
+    );
+
+    expect(result.scopes).toEqual([]);
+  });
+
+  it("returns no scopes when a fake loader injects another organization project membership", async () => {
+    const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
+      {
+        membershipId: MEMBERSHIP_A,
+        organizationId: ORG_B,
+        projectId: PROJECT_A,
+        userId: ACTOR.userId,
+        rolePreset: "developer",
+      },
+    ]);
+
+    const result = await resolveEffectiveAccess(
+      ACTOR,
+      { organizationId: ORG_A, projectId: PROJECT_A },
+      { loadMemberships },
+    );
+
+    expect(result.scopes).toEqual([]);
   });
 });
 

@@ -7,6 +7,9 @@ export function filterMembershipsForCoordinate(
   coordinate: ResourceCoordinate,
 ): readonly MembershipRow[] {
   return memberships.filter((membership) => {
+    if (membership.organizationId !== coordinate.organizationId) {
+      return false;
+    }
     if (membership.projectId === null) {
       return true;
     }
