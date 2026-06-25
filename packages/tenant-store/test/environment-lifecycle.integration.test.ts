@@ -1,4 +1,5 @@
 import {
+  ENVIRONMENT_ERROR_CODES,
   ENVIRONMENT_LIFECYCLE_STAGES,
   environmentId,
   organizationId,
@@ -9,7 +10,12 @@ import {
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { TenantEnvironmentLifecycleStore, closeRuntimeSql, withTenantScope } from "../src/index.js";
+import {
+  TenantEnvironmentLifecycleStore,
+  closeRuntimeSql,
+  rethrowEnvironmentLifecycleDbError,
+  withTenantScope,
+} from "../src/index.js";
 import { integrationDatabaseReady } from "./rls/integration-database-ready.js";
 import { seedTenantBaseline } from "./rls/seed.js";
 import { TEST_ENV_A_ID, TEST_ORG_A_ID, TEST_ORG_B_ID, TEST_PROJECT_A_ID } from "./rls/test-ids.js";
@@ -145,12 +151,19 @@ describeIntegration("environment lifecycle (PDF-04)", () => {
   it("rejects lifecycle stage changes after creation", async () => {
     await expect(
       withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
-        await sql`
-          UPDATE environments
-          SET lifecycle_stage = ${ENVIRONMENT_LIFECYCLE_STAGES.development}
-          WHERE id = ${STAGING_ID}
-        `;
+        try {
+          await sql`
+            UPDATE environments
+            SET lifecycle_stage = ${ENVIRONMENT_LIFECYCLE_STAGES.development}
+            WHERE id = ${STAGING_ID}
+          `;
+        } catch (error) {
+          rethrowEnvironmentLifecycleDbError(error);
+        }
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      name: "EnvironmentLifecycleStoreError",
+      code: ENVIRONMENT_ERROR_CODES.lifecycleImmutable,
+    });
   });
 });
