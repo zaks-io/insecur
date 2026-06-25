@@ -1,6 +1,7 @@
 import {
   AUTHORIZATION_SCOPES,
   BUILT_IN_ROLE_PRESETS,
+  FIRST_VALUE_OWNER_SCOPES,
   MACHINE_UNASSIGNABLE_BUILT_IN_ROLE_PRESETS,
   expandBuiltInRolePresetToScopes,
   isMachineUnassignableBuiltInRolePreset,
@@ -34,6 +35,16 @@ const FORBIDDEN_METADATA_VIEWER_SCOPES = [
   ...CONFIGURATION_SCOPES,
   ...INJECTION_SCOPES,
 ] as const;
+
+describe("FIRST_VALUE_OWNER_SCOPES preset conformance", () => {
+  it("grants every First Value owner scope via the owner built-in role preset", () => {
+    const ownerScopes = new Set(expandBuiltInRolePresetToScopes(BUILT_IN_ROLE_PRESETS.owner));
+
+    for (const scope of FIRST_VALUE_OWNER_SCOPES) {
+      expect(ownerScopes).toContain(scope);
+    }
+  });
+});
 
 describe("BUILT_IN_ROLE_PRESETS", () => {
   it("exports all six V1 built-in role presets", () => {

@@ -1,6 +1,5 @@
 import { AUTH_ERROR_CODES, ONBOARDING_ERROR_CODES } from "@insecur/domain";
 import { isUniqueConstraintViolation } from "@insecur/tenant-store";
-import { assertOwnerFirstValueScopes } from "./assert-owner-first-value-scopes.js";
 import {
   persistGuidedOrganization,
   type GuidedOrganizationResourceIds,
@@ -62,7 +61,6 @@ export async function provisionGuidedOrganization(
     );
   }
 
-  await assertOwnerFirstValueScopes(input.userId, ids);
   await recordProvisionSuccess(input, ids);
   return toProvisionResult(ids);
 }
