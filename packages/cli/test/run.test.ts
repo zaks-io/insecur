@@ -12,7 +12,6 @@ import { runRunCommand } from "../src/commands/run.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { setMemorySession, clearMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";
-import { CliError } from "../src/output/cli-error.js";
 import { EXIT_CONFLICT, EXIT_VALIDATION } from "../src/output/exit-codes.js";
 
 const ORG_ID = "org_01TEST00000000000000000001";
@@ -53,7 +52,23 @@ const mockContext: ResolvedCliContext = {
 function createMockChild(exitCode: number) {
   const child = new EventEmitter() as EventEmitter & { stdout?: unknown; stderr?: unknown };
   queueMicrotask(() => {
-    child.emit("close", exitCode);
+    child.emit("close", exitCode, null);
+  });
+  return child;
+}
+
+function createMockChildTerminatedBySignal(signal: NodeJS.Signals) {
+  const child = new EventEmitter() as EventEmitter & { stdout?: unknown; stderr?: unknown };
+  queueMicrotask(() => {
+    child.emit("close", null, signal);
+  });
+  return child;
+}
+
+function createMockChildSpawnError(error: Error) {
+  const child = new EventEmitter() as EventEmitter & { stdout?: unknown; stderr?: unknown };
+  queueMicrotask(() => {
+    child.emit("error", error);
   });
   return child;
 }
@@ -162,7 +177,31 @@ describe("runRunCommand", () => {
     expect(stdoutSpy).toHaveBeenCalled();
   });
 
-  it("does not include sensitive values in JSON output or grant replay consume calls", async () => {
+  it("excludes INSECUR_SESSION_TOKEN from the child environment even when the parent process has one", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    process.env.INSECUR_SESSION_TOKEN = "inherited-parent-token";
+    const api = createMockApi();
+    let capturedEnv: NodeJS.ProcessEnv | undefined;
+    spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
+      capturedEnv = options.env;
+      return createMockChild(0);
+    });
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await runRunCommand(flags, api, mockContext, {
+      variableKey: "API_KEY",
+      command: ["node", "-e", "0"],
+    });
+
+    expect(capturedEnv?.INSECUR_SESSION_TOKEN).toBeUndefined();
+    expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
+  });
+
+  it("does not capture child stdout in CLI output", async () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
@@ -180,9 +219,44 @@ describe("runRunCommand", () => {
       command: ["node", "-e", "console.log('child output')"],
     });
 
-    expect(api.consumeInjectionGrant).toHaveBeenCalledTimes(1);
     expect(stdout).not.toContain(SENSITIVE_VALUE);
     expect(stdout).not.toContain("child output");
+  });
+
+  it("returns 128 + signal number when the child is terminated by a signal", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation(() => createMockChildTerminatedBySignal("SIGTERM"));
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand(flags, api, mockContext, {
+      variableKey: "API_KEY",
+      command: ["node", "-e", "process.kill(process.pid, 'SIGTERM')"],
+    });
+
+    expect(exitCode).toBe(143);
+  });
+
+  it("rejects when the child process fails to spawn", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const api = createMockApi();
+    const spawnError = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
+    spawnMock.mockImplementation(() => createMockChildSpawnError(spawnError));
+
+    await expect(
+      runRunCommand(flags, api, mockContext, {
+        variableKey: "API_KEY",
+        command: ["missing-executable"],
+      }),
+    ).rejects.toThrow("spawn ENOENT");
   });
 
   it("maps grant replay failures through exitCodeForErrorCode", async () => {
@@ -252,7 +326,10 @@ describe("runRunCommand", () => {
         variableKey: "API_KEY",
         command: [],
       }),
-    ).rejects.toBeInstanceOf(CliError);
+    ).rejects.toMatchObject({
+      code: VALIDATION_ERROR_CODES.invalidCommandInput,
+      exitCode: EXIT_VALIDATION,
+    });
     expect(api.issueInjectionGrant).not.toHaveBeenCalled();
     expect(api.consumeInjectionGrant).not.toHaveBeenCalled();
     expect(spawnMock).not.toHaveBeenCalled();

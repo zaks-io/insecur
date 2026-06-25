@@ -7,6 +7,7 @@ export const VALIDATION_ERROR_CODES = {
   invalidDisplayName: "validation.invalid_display_name",
   displayNameEmpty: "validation.display_name_empty",
   invalidVariableKey: "validation.invalid_variable_key",
+  invalidCommandInput: "validation.invalid_command_input",
 } as const;
 
 export type ValidationErrorCode =
