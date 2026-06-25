@@ -1,4 +1,4 @@
-import { issueInjectionGrant } from "@insecur/runtime-injection";
+import { issueInjectionGrant } from "@insecur/runtime-injection-issue";
 import {
   handleDeliveryRoute,
   handleRoute,

@@ -8,7 +8,7 @@ import {
   type VariableKey,
 } from "@insecur/domain";
 import { StaticRootKeyProvider } from "@insecur/crypto";
-import { createTenantBackedKeyring } from "@insecur/tenant-store";
+import { createTenantBackedKeyring } from "@insecur/tenant-keyring";
 import type { WriteNonProtectedSecretResult } from "../src/write-non-protected-secret.js";
 import { writeNonProtectedSecret } from "../src/write-non-protected-secret.js";
 import {

@@ -1,5 +1,5 @@
 import type { OpaqueResourceId, ProjectId } from "@insecur/domain";
-import { toStoreFacingCiphertext } from "@insecur/crypto";
+import { toStoreFacingCiphertext } from "@insecur/custody-contracts";
 import { and, eq } from "drizzle-orm";
 
 import { sensitiveMetadataFields } from "../db/schema/tenant-integrations.js";

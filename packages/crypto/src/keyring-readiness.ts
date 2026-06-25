@@ -1,9 +1,5 @@
-import {
-  CRYPTO_ERROR_CODES,
-  type CryptoErrorCode,
-  type OrganizationId,
-  type ProjectId,
-} from "@insecur/domain";
+import { type OrganizationId, type ProjectId } from "@insecur/domain";
+import { TenantDataKeyNotReadyError } from "@insecur/custody-contracts";
 
 import type {
   OrganizationDataKeyMetadata,
@@ -132,13 +128,4 @@ export function assertTenantDataKeyReadiness(report: DataKeyReadinessReport): vo
   throw new TenantDataKeyNotReadyError();
 }
 
-/** Active tenant data keys are missing or not usable for decrypt paths. */
-export class TenantDataKeyNotReadyError extends Error {
-  readonly code: CryptoErrorCode = CRYPTO_ERROR_CODES.tenantDataKeyNotReady;
-  readonly retryable = false;
-
-  constructor() {
-    super("tenant data keys are not ready");
-    this.name = "TenantDataKeyNotReadyError";
-  }
-}
+export { TenantDataKeyNotReadyError } from "@insecur/custody-contracts";

@@ -7,6 +7,9 @@ import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-eng
 import { toStoreFacingCiphertext } from "./envelope-storage.js";
 import type { Keyring } from "./keyring.js";
 import type { ProviderCredentialCiphertextIdentity } from "./types.js";
+import type { WrappedProviderCredential } from "@insecur/custody-contracts";
+
+export type { WrappedProviderCredential } from "@insecur/custody-contracts";
 
 export function serializeProviderCredentialCiphertextAad(
   identity: ProviderCredentialCiphertextIdentity,
@@ -31,12 +34,6 @@ export function providerCredentialIdentityMatches(
     left.provider === right.provider &&
     left.credentialId === right.credentialId
   );
-}
-
-export interface WrappedProviderCredential {
-  organizationDataKeyVersion: number;
-  ciphertext: Uint8Array;
-  identity?: ProviderCredentialCiphertextIdentity;
 }
 
 export async function encryptProviderCredential(

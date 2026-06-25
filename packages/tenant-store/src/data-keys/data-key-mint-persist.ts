@@ -1,5 +1,5 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
-import { TenantDataKeyNotReadyError } from "@insecur/crypto";
+import { TenantDataKeyNotReadyError } from "@insecur/custody-contracts";
 import { sql } from "drizzle-orm";
 
 import {
@@ -8,7 +8,10 @@ import {
 } from "./data-key-rewrap-store.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import type { SeedOrganizationDataKeyInput, SeedProjectDataKeyInput } from "./types.js";
-import type { OrganizationDataKeyMetadata, ProjectDataKeyMetadata } from "@insecur/crypto";
+import type {
+  OrganizationDataKeyMetadata,
+  ProjectDataKeyMetadata,
+} from "@insecur/custody-contracts";
 
 // First-use minting is mint-once-per-(scope, version): two concurrent first writers both read "no
 // key", and a bare INSERT would have both pass the (id, key_version) arbiter only to collide on the

@@ -1,5 +1,8 @@
 import type { AppConnectionId, OrganizationId, ProviderCredentialId } from "@insecur/domain";
-import type { ProviderConnectionMethod, WrappedProviderCredential } from "@insecur/crypto";
+import type {
+  ProviderConnectionMethod,
+  WrappedProviderCredential,
+} from "@insecur/custody-contracts";
 
 export interface UpsertProviderCredentialInput {
   readonly organizationId: OrganizationId;

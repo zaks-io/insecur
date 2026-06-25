@@ -23,6 +23,7 @@
     "@insecur/domain": "workspace:*",
     "@insecur/runtime-injection": "workspace:*",
     "@insecur/secret-store": "workspace:*",
+    "@insecur/tenant-keyring": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "@insecur/worker-kit": "workspace:*"
   },
