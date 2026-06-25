@@ -28,6 +28,7 @@ const projectRoots = [
   "packages/instance-bootstrap",
   "packages/onboarding",
   "packages/operations",
+  "packages/release-gate",
   "packages/runtime-injection",
   "packages/secret-store",
   "packages/tenant-store",

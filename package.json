@@ -36,7 +36,9 @@
     "dev:workers": "turbo run dev --filter @insecur/api --filter @insecur/runtime",
     "deploy:workers": "turbo run deploy --filter @insecur/runtime --filter @insecur/api",
     "cli": "pnpm --filter @insecur/cli start",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "release-gate:bundle": "pnpm --filter @insecur/release-gate bundle",
+    "security:check": "pnpm release-gate:bundle"
   },
   "engines": {
     "node": ">=24 <25"

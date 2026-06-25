@@ -42,6 +42,7 @@ context for a specific task.
 | `packages/secret-store/CONTEXT.md`       | Secret Version Store and Blind Secret Write rules.             |
 | `packages/runtime-injection/CONTEXT.md`  | Runtime Injection Grant Service.                               |
 | `packages/onboarding/CONTEXT.md`         | Guided Organization Provisioning.                              |
+| `packages/release-gate/CONTEXT.md`       | Security Evidence Bundle assembly and release-gate skeleton.   |
 | `packages/instance-bootstrap/CONTEXT.md` | Instance Bootstrap and Bootstrap Operator Claim.               |
 | `packages/operations/CONTEXT.md`         | Operation Store and Sync Target Serialization.                 |
 

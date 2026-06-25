@@ -17,6 +17,7 @@ reading map before loading slices of the root `../CONTEXT.md`.
 - `@insecur/tenant-store` - Tenant-Scoped Store and RLS adapter contract
 - `@insecur/crypto` - Keyring and Encryption Envelope
 - `@insecur/audit` - Audit Event Writer
+- `@insecur/release-gate` - Security Evidence Bundle assembly and release-gate skeleton
 - `@insecur/secret-store` - Secret Version Store and Blind Secret Write rules
 - `@insecur/runtime-injection` - Runtime Injection Grant Service
 - `@insecur/onboarding` - Guided Organization Provisioning
