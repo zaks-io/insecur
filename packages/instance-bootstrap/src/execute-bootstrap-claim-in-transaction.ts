@@ -1,5 +1,6 @@
 import type { UserActor } from "@insecur/auth";
 import {
+  BOOTSTRAP_ERROR_CODES,
   organizationId,
   type MembershipId,
   type OrganizationId,
@@ -9,11 +10,15 @@ import {
 import type { TenantScopedSql } from "@insecur/tenant-store";
 import { applyBootstrapGrantsInTransaction } from "./apply-bootstrap-grants-in-transaction.js";
 import { assertOwnerEffectiveAccessInTransaction } from "./assert-owner-effective-access-in-transaction.js";
-import { recordBootstrapSuccessAuditsInTransaction } from "./bootstrap-audit.js";
+import {
+  recordBootstrapOperatorClaimDeniedInTransaction,
+  recordBootstrapSuccessAuditsInTransaction,
+} from "./bootstrap-audit.js";
 import type { BootstrapStatusComplete } from "./bootstrap-types.js";
 
 export interface ExecuteBootstrapClaimInTransactionInput {
   instanceId: string;
+  organizationId: OrganizationId;
   actor: UserActor;
   operatorGrantId: string;
   ownerMembershipId: MembershipId;
@@ -25,6 +30,19 @@ export interface ExecuteBootstrapClaimInTransactionResult {
   claimId: string;
   organizationId: OrganizationId;
   status: BootstrapStatusComplete;
+}
+
+async function recordAlreadyClaimedDenialAndReturnNull(
+  sql: TenantScopedSql,
+  input: ExecuteBootstrapClaimInTransactionInput,
+): Promise<null> {
+  await recordBootstrapOperatorClaimDeniedInTransaction(sql, {
+    organizationId: input.organizationId,
+    actor: input.actor,
+    reasonCode: BOOTSTRAP_ERROR_CODES.alreadyClaimed,
+    ...(input.request !== undefined ? { request: input.request } : {}),
+  });
+  return null;
 }
 
 export async function executeBootstrapClaimInTransaction(
@@ -46,7 +64,7 @@ export async function executeBootstrapClaimInTransaction(
 
   const consumed = consumedClaims[0];
   if (consumed === undefined) {
-    return null;
+    return recordAlreadyClaimedDenialAndReturnNull(sql, input);
   }
 
   const claimedOrganizationId = organizationId.brand(consumed.first_organization_id);

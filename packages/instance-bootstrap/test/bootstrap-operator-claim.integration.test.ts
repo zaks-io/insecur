@@ -6,6 +6,7 @@ import {
 } from "@insecur/access";
 import * as assertOwnerEffectiveAccess from "../src/assert-owner-effective-access-in-transaction.js";
 import * as bootstrapAudit from "../src/bootstrap-audit.js";
+import { executeBootstrapClaimInTransaction } from "../src/execute-bootstrap-claim-in-transaction.js";
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
   BOOTSTRAP_ERROR_CODES,
@@ -58,6 +59,23 @@ const FK_INSTANCE_B = "inst_BOOTSTRAP_FK_TEST_B";
 const FK_ORG_A = "org_00000000000000000000000075";
 const FK_ORG_B = "org_00000000000000000000000074";
 
+const DENIAL_AUDIT_INSTANCE_ID = "inst_BOOTSTRAP_DENIAL_AUDIT_TEST";
+const DENIAL_AUDIT_ORG_ID = "org_00000000000000000000000072";
+const DENIAL_AUDIT_TEAM_ID = "team_00000000000000000000000072";
+const DENIAL_AUDIT_CLAIM_ID = "boc_00000000000000000000000006";
+const DENIAL_AUDIT_OPERATOR_GRANT_ID = "iop_00000000000000000000000006";
+const DENIAL_AUDIT_MEM_ID = "mem_00000000000000000000000072";
+const DENIAL_AUDIT_USER_ID = "usr_00000000000000000000000072";
+const DENIAL_AUDIT_OTHER_USER_ID = "usr_00000000000000000000000071";
+
+const DENIAL_AUDIT_ROLLBACK_INSTANCE_ID = "inst_BOOTSTRAP_DENIAL_AUDIT_ROLLBACK";
+const DENIAL_AUDIT_ROLLBACK_ORG_ID = "org_00000000000000000000000071";
+const DENIAL_AUDIT_ROLLBACK_TEAM_ID = "team_00000000000000000000000071";
+const DENIAL_AUDIT_ROLLBACK_CLAIM_ID = "boc_00000000000000000000000007";
+const DENIAL_AUDIT_ROLLBACK_OPERATOR_GRANT_ID = "iop_00000000000000000000000007";
+const DENIAL_AUDIT_ROLLBACK_MEM_ID = "mem_00000000000000000000000071";
+const DENIAL_AUDIT_ROLLBACK_USER_ID = "usr_00000000000000000000000070";
+
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
 function testDisplayName(raw: string): DisplayName {
@@ -71,6 +89,7 @@ function testDisplayName(raw: string): DisplayName {
 interface AuditRow {
   event_code: string;
   outcome: string;
+  result_code: string;
 }
 
 interface ClaimRow {
@@ -84,6 +103,21 @@ async function loadClaimStatus(instanceId: string): Promise<string | null> {
     `;
     return rows[0]?.status ?? null;
   });
+}
+
+async function loadBootstrapDenialAuditRows(orgId: string): Promise<AuditRow[]> {
+  return withTenantScope(
+    { kind: "organization", organizationId: organizationId.brand(orgId) },
+    async ({ sql }) => {
+      return await sql<AuditRow[]>`
+        SELECT event_code, outcome, result_code
+        FROM audit_events
+        WHERE org_id = ${orgId}
+          AND event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.bootstrapOperatorClaimDenied}
+        ORDER BY created_at ASC
+      `;
+    },
+  );
 }
 
 async function loadBootstrapGrantUserIds(
@@ -114,6 +148,8 @@ describeIntegration("bootstrap operator claim", () => {
     await cleanupBootstrapFixture(ASSERTION_ROLLBACK_INSTANCE_ID);
     await cleanupBootstrapFixture(FK_INSTANCE_A);
     await cleanupBootstrapFixture(FK_INSTANCE_B);
+    await cleanupBootstrapFixture(DENIAL_AUDIT_INSTANCE_ID);
+    await cleanupBootstrapFixture(DENIAL_AUDIT_ROLLBACK_INSTANCE_ID);
     bootstrapSecret = randomBytes(32).toString("base64url");
 
     await runInstanceBootstrap({
@@ -137,6 +173,8 @@ describeIntegration("bootstrap operator claim", () => {
     await cleanupBootstrapFixture(ASSERTION_ROLLBACK_INSTANCE_ID);
     await cleanupBootstrapFixture(FK_INSTANCE_A);
     await cleanupBootstrapFixture(FK_INSTANCE_B);
+    await cleanupBootstrapFixture(DENIAL_AUDIT_INSTANCE_ID);
+    await cleanupBootstrapFixture(DENIAL_AUDIT_ROLLBACK_INSTANCE_ID);
     await closeRuntimeSql();
   });
 
@@ -268,6 +306,103 @@ describeIntegration("bootstrap operator claim", () => {
     expect(grantUserIds.membershipUserIds).toEqual([CLAIM_USER_ID]);
     expect(grantUserIds.operatorUserIds).not.toContain(OTHER_USER_ID);
     expect(grantUserIds.membershipUserIds).not.toContain(OTHER_USER_ID);
+  });
+
+  it("records already-claimed denial audit inside the CAS transaction", async () => {
+    const denialAuditSecret = randomBytes(32).toString("base64url");
+
+    await runInstanceBootstrap({
+      instanceId: DENIAL_AUDIT_INSTANCE_ID,
+      instanceDisplayName: testDisplayName("Denial audit bootstrap instance"),
+      organizationDisplayName: testDisplayName("Denial audit bootstrap org"),
+      defaultTeamDisplayName: testDisplayName("Default"),
+      resourceIds: {
+        organizationId: organizationId.brand(DENIAL_AUDIT_ORG_ID),
+        defaultTeamId: teamId.brand(DENIAL_AUDIT_TEAM_ID),
+        claimId: DENIAL_AUDIT_CLAIM_ID,
+      },
+      bootstrapSecret: denialAuditSecret,
+      workosClientId: "client_test_bootstrap",
+    });
+
+    await completeBootstrapOperatorClaim({
+      instanceId: DENIAL_AUDIT_INSTANCE_ID,
+      actor: testUserActor(DENIAL_AUDIT_USER_ID),
+      bootstrapSecret: denialAuditSecret,
+      operatorGrantId: DENIAL_AUDIT_OPERATOR_GRANT_ID,
+      ownerMembershipId: membershipId.brand(DENIAL_AUDIT_MEM_ID),
+    });
+
+    expect(await loadClaimStatus(DENIAL_AUDIT_INSTANCE_ID)).toBe("consumed");
+    expect(await loadBootstrapDenialAuditRows(DENIAL_AUDIT_ORG_ID)).toEqual([]);
+
+    const deniedResult = await withTenantScope({ kind: "service" }, async ({ sql }) =>
+      executeBootstrapClaimInTransaction(sql, {
+        instanceId: DENIAL_AUDIT_INSTANCE_ID,
+        organizationId: organizationId.brand(DENIAL_AUDIT_ORG_ID),
+        actor: testUserActor(DENIAL_AUDIT_OTHER_USER_ID),
+        operatorGrantId: "iop_00000000000000000000000007",
+        ownerMembershipId: membershipId.brand("mem_00000000000000000000000070"),
+        defaultTeamId: teamId.brand(DENIAL_AUDIT_TEAM_ID),
+      }),
+    );
+
+    expect(deniedResult).toBeNull();
+    expect(await loadBootstrapDenialAuditRows(DENIAL_AUDIT_ORG_ID)).toEqual([
+      {
+        event_code: FIRST_VALUE_AUDIT_EVENT_CODES.bootstrapOperatorClaimDenied,
+        outcome: "denied",
+        result_code: BOOTSTRAP_ERROR_CODES.alreadyClaimed,
+      },
+    ]);
+  });
+
+  it("rolls back already-claimed denial audit when in-transaction audit write fails", async () => {
+    const denialAuditSecret = randomBytes(32).toString("base64url");
+
+    await runInstanceBootstrap({
+      instanceId: DENIAL_AUDIT_ROLLBACK_INSTANCE_ID,
+      instanceDisplayName: testDisplayName("Denial audit rollback bootstrap instance"),
+      organizationDisplayName: testDisplayName("Denial audit rollback bootstrap org"),
+      defaultTeamDisplayName: testDisplayName("Default"),
+      resourceIds: {
+        organizationId: organizationId.brand(DENIAL_AUDIT_ROLLBACK_ORG_ID),
+        defaultTeamId: teamId.brand(DENIAL_AUDIT_ROLLBACK_TEAM_ID),
+        claimId: DENIAL_AUDIT_ROLLBACK_CLAIM_ID,
+      },
+      bootstrapSecret: denialAuditSecret,
+      workosClientId: "client_test_bootstrap",
+    });
+
+    await completeBootstrapOperatorClaim({
+      instanceId: DENIAL_AUDIT_ROLLBACK_INSTANCE_ID,
+      actor: testUserActor(DENIAL_AUDIT_ROLLBACK_USER_ID),
+      bootstrapSecret: denialAuditSecret,
+      operatorGrantId: DENIAL_AUDIT_ROLLBACK_OPERATOR_GRANT_ID,
+      ownerMembershipId: membershipId.brand(DENIAL_AUDIT_ROLLBACK_MEM_ID),
+    });
+
+    const auditSpy = vi
+      .spyOn(bootstrapAudit, "recordBootstrapOperatorClaimDeniedInTransaction")
+      .mockRejectedValue(new Error("simulated denial audit write failure"));
+
+    await expect(
+      withTenantScope({ kind: "service" }, async ({ sql }) =>
+        executeBootstrapClaimInTransaction(sql, {
+          instanceId: DENIAL_AUDIT_ROLLBACK_INSTANCE_ID,
+          organizationId: organizationId.brand(DENIAL_AUDIT_ROLLBACK_ORG_ID),
+          actor: testUserActor(DENIAL_AUDIT_OTHER_USER_ID),
+          operatorGrantId: "iop_00000000000000000000000008",
+          ownerMembershipId: membershipId.brand("mem_00000000000000000000000069"),
+          defaultTeamId: teamId.brand(DENIAL_AUDIT_ROLLBACK_TEAM_ID),
+        }),
+      ),
+    ).rejects.toThrow("simulated denial audit write failure");
+
+    auditSpy.mockRestore();
+
+    expect(await loadBootstrapDenialAuditRows(DENIAL_AUDIT_ROLLBACK_ORG_ID)).toEqual([]);
+    expect(await loadClaimStatus(DENIAL_AUDIT_ROLLBACK_INSTANCE_ID)).toBe("consumed");
   });
 
   it("rolls back claim consumption when post-grant audit write fails", async () => {

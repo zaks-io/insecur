@@ -32,6 +32,27 @@ export async function recordBootstrapOperatorClaimDenied(
   });
 }
 
+export async function recordBootstrapOperatorClaimDeniedInTransaction(
+  sql: TenantScopedSql,
+  input: {
+    organizationId: OrganizationId;
+    actor: UserActor;
+    reasonCode: KnownErrorCode;
+    request?: { requestId: RequestId };
+  },
+): Promise<void> {
+  const requestRef = input.request !== undefined ? { request: input.request } : {};
+
+  await insertValidatedAuditEvent(sql, {
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.bootstrapOperatorClaimDenied,
+    outcome: "denied",
+    actor: { type: "user", userId: input.actor.userId },
+    organizationId: input.organizationId,
+    denial: { reasonCode: input.reasonCode },
+    ...requestRef,
+  });
+}
+
 async function insertValidatedAuditEvent(
   sql: TenantScopedSql,
   event: Parameters<typeof validateAuditEventInput>[0],

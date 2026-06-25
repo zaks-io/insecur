@@ -23,6 +23,7 @@ export async function atomicallyCompleteBootstrapOperatorClaim(
   return withTenantScope({ kind: "service" }, async ({ sql }) =>
     executeBootstrapClaimInTransaction(sql, {
       instanceId: input.instanceId,
+      organizationId: claimContext.organizationId,
       actor: input.actor,
       operatorGrantId: input.operatorGrantId,
       ownerMembershipId: input.ownerMembershipId,
