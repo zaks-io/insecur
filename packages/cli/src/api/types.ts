@@ -1,5 +1,6 @@
 import type {
   EnvironmentId,
+  InjectionGrantId,
   MembershipId,
   OrganizationId,
   ProjectId,
@@ -29,6 +30,28 @@ export interface SecretWriteByVariableKeyData {
   readonly variableKey: VariableKey;
   readonly createdSecretShape: boolean;
   readonly auditEventId?: string;
+}
+
+export interface IssueInjectionGrantData {
+  readonly grantId: InjectionGrantId;
+  readonly expiresAt: string;
+  readonly auditEventId?: string;
+}
+
+/** Delivery payload from grant consume; encodedValueUtf8 must never appear in CLI metadata output. */
+export interface InjectionGrantDeliveryData {
+  readonly secretId: SecretId;
+  readonly secretVersionId: SecretVersionId;
+  readonly variableKey: VariableKey;
+  readonly grantId: InjectionGrantId;
+  readonly encodedValueUtf8: string;
+  readonly auditEventId?: string;
+}
+
+export interface InjectionGrantDeliveryEnvelope {
+  readonly ok: true;
+  readonly delivery: InjectionGrantDeliveryData;
+  readonly meta?: SuccessEnvelope<unknown>["meta"];
 }
 
 export interface SecretGenerationRequest {
@@ -79,6 +102,27 @@ export interface ApiClient {
     ),
   ): Promise<
     | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  issueInjectionGrant(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly environmentId: EnvironmentId;
+    readonly variableKey: VariableKey;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<IssueInjectionGrantData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  consumeInjectionGrant(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly grantId: InjectionGrantId;
+    readonly variableKey: VariableKey;
+  }): Promise<
+    | { ok: true; envelope: InjectionGrantDeliveryEnvelope }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }

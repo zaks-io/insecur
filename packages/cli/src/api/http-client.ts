@@ -5,6 +5,8 @@ import type {
   ApiClient,
   CliSessionExchangeData,
   GuidedOrganizationProvisionData,
+  InjectionGrantDeliveryEnvelope,
+  IssueInjectionGrantData,
   SecretWriteByVariableKeyData,
 } from "./types.js";
 
@@ -26,6 +28,20 @@ function parseEnvelope<T>(body: unknown): SuccessEnvelope<T> | ErrorEnvelope {
   throw new Error("API response missing ok field");
 }
 
+function parseDeliveryEnvelope(body: unknown): InjectionGrantDeliveryEnvelope | ErrorEnvelope {
+  if (body === null || typeof body !== "object") {
+    throw new Error("API response is not a JSON object");
+  }
+  const record = body as Record<string, unknown>;
+  if (record.ok === true && record.delivery !== undefined) {
+    return body as InjectionGrantDeliveryEnvelope;
+  }
+  if (record.ok === false) {
+    return body as ErrorEnvelope;
+  }
+  throw new Error("API delivery response missing ok/delivery fields");
+}
+
 async function postJson(
   url: URL,
   init: RequestInit,
@@ -40,6 +56,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     exchangeCliSession: (input) => exchangeCliSession(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
+    issueInjectionGrant: (input) => issueInjectionGrant(base, input),
+    consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
   };
 }
 
@@ -123,6 +141,56 @@ async function writeSecretByVariableKey(
     body: JSON.stringify(body),
   });
   const envelope = parseEnvelope<SecretWriteByVariableKeyData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+async function issueInjectionGrant(
+  base: string,
+  input: Parameters<ApiClient["issueInjectionGrant"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants`;
+  const { response, body: responseBody } = await postJson(new URL(path, base), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${input.bearerCredential}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      variableKey: input.variableKey,
+    }),
+  });
+  const envelope = parseEnvelope<IssueInjectionGrantData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+async function consumeInjectionGrant(
+  base: string,
+  input: Parameters<ApiClient["consumeInjectionGrant"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume`;
+  const { response, body: responseBody } = await postJson(new URL(path, base), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${input.bearerCredential}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      organizationId: input.organizationId,
+      variableKey: input.variableKey,
+    }),
+  });
+  const envelope = parseDeliveryEnvelope(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
   }

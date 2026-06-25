@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { INSECUR_SESSION_CREDENTIAL_HEADER } from "@insecur/auth";
+import { bytesToBase64Url } from "@insecur/domain";
 import { createHttpApiClientForHost } from "../src/api/http-client.js";
 
 describe("createHttpApiClientForHost", () => {
@@ -175,5 +176,86 @@ describe("createHttpApiClientForHost", () => {
       generate: { mode: "random", lengthBytes: 32 },
     });
     expect(body.value).toBeUndefined();
+  });
+
+  it("issues an injection grant without returning sensitive values", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            grantId: "igr_01TEST00000000000000000001",
+            expiresAt: "2026-01-01T00:05:00.000Z",
+          },
+          meta: { requestId: "req_grant_issue" },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.issueInjectionGrant({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_01TEST00000000000000000001" as never,
+      projectId: "prj_01TEST00000000000000000001" as never,
+      environmentId: "env_01TEST0000000000000000001" as never,
+      variableKey: "API_KEY" as never,
+    });
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      "https://insecur.test/v1/orgs/org_01TEST00000000000000000001/runtime-injection/grants",
+    );
+    const body = JSON.parse((init as RequestInit).body as string) as {
+      organizationId: string;
+      projectId: string;
+      environmentId: string;
+      variableKey: string;
+    };
+    expect(body).toEqual({
+      organizationId: "org_01TEST00000000000000000001",
+      projectId: "prj_01TEST00000000000000000001",
+      environmentId: "env_01TEST0000000000000000001",
+      variableKey: "API_KEY",
+    });
+    expect(JSON.stringify(result)).not.toContain("secret-value");
+  });
+
+  it("consumes an injection grant and parses the delivery envelope", async () => {
+    const sensitive = "runtime-secret-value";
+    const encodedValueUtf8 = bytesToBase64Url(new TextEncoder().encode(sensitive));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          delivery: {
+            grantId: "igr_01TEST00000000000000000001",
+            variableKey: "API_KEY",
+            secretId: "sec_01TEST00000000000000000001",
+            secretVersionId: "sv_01TEST00000000000000000001",
+            encodedValueUtf8,
+          },
+          meta: { requestId: "req_grant_consume" },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.consumeInjectionGrant({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_01TEST00000000000000000001" as never,
+      grantId: "igr_01TEST00000000000000000001" as never,
+      variableKey: "API_KEY" as never,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.envelope.delivery.encodedValueUtf8).toBe(encodedValueUtf8);
+    }
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      "https://insecur.test/v1/orgs/org_01TEST00000000000000000001/runtime-injection/grants/igr_01TEST00000000000000000001/consume",
+    );
+    expect(JSON.stringify(result)).not.toContain(sensitive);
   });
 });
