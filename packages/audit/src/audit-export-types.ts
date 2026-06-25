@@ -141,3 +141,24 @@ export interface VerifyAuditExportInput {
   readonly expectedOrganizationId?: OrganizationId;
   readonly keys: AuditExportVerificationKeys;
 }
+
+export interface AuditExportManifestPartial {
+  readonly organization_id: string | null;
+  readonly entry_count: number;
+  readonly time_range: AuditExportTimeRange | null;
+  readonly hmac_key_version: number | null;
+  readonly signing_key_version: number | null;
+  readonly custody_evidence_refs: {
+    readonly hmac: string | null;
+    readonly signing: string | null;
+  } | null;
+}
+
+export interface AuditExportManifestValidationFailure {
+  readonly message: string;
+  readonly partial: AuditExportManifestPartial;
+}
+
+export type AuditExportManifestValidationResult =
+  | { readonly ok: true; readonly manifest: AuditExportManifest }
+  | { readonly ok: false; readonly failure: AuditExportManifestValidationFailure };

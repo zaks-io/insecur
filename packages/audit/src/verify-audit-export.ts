@@ -8,13 +8,13 @@ import {
   type AuditExportVerificationResult,
   type VerifyAuditExportInput,
 } from "./audit-export-types.js";
-import { AUDIT_EXPORT_SCHEMA_VERSION } from "./audit-export-constants.js";
 import {
   collectSensitiveValueFailures,
   verifyExportSignature,
   verifyManifestHmac,
   verifyTenantScope,
 } from "./verify-audit-export-helpers.js";
+import { validateAuditExportManifest } from "./audit-export-manifest-validation.js";
 import { verifyHashChain } from "./verify-audit-export-hash-chain.js";
 
 function invalidResult(
@@ -82,10 +82,6 @@ function finalizeVerificationResult(
   return result;
 }
 
-function isSupportedManifestSchema(schemaVersion: string): boolean {
-  return schemaVersion === AUDIT_EXPORT_SCHEMA_VERSION;
-}
-
 function collectCustodyEvidenceFailures(manifest: AuditExportManifest): AuditExportFailureCode[] {
   if (
     manifest.custody_evidence_refs.hmac === null ||
@@ -149,36 +145,33 @@ export async function verifyAuditExport(
     tenant_scope: "missing",
   };
 
-  if (!isSupportedManifestSchema(input.manifest.schema_version)) {
-    return finalizeVerificationResult(
-      input.manifest,
-      { ...baseIntegrity, manifest_hmac: "invalid" },
-      [AUDIT_EXPORT_FAILURE_CODES.manifestInvalid],
-    );
+  const validation = validateAuditExportManifest(input.manifest);
+  if (!validation.ok) {
+    const { partial } = validation.failure;
+    return invalidResult({
+      organization_id: partial.organization_id,
+      entry_count: partial.entry_count,
+      time_range: partial.time_range,
+      integrity: baseIntegrity,
+      hmac_key_version: partial.hmac_key_version,
+      signing_key_version: partial.signing_key_version,
+      custody_evidence_refs: partial.custody_evidence_refs,
+      failure_codes: [AUDIT_EXPORT_FAILURE_CODES.manifestInvalid],
+    });
   }
 
-  const failureCodes = collectCustodyEvidenceFailures(input.manifest);
+  const manifest = validation.manifest;
+  const failureCodes = collectCustodyEvidenceFailures(manifest);
   try {
-    const verified = await verifyParsedExport(input);
-    return finalizeVerificationResult(input.manifest, verified.integrity, [
+    const verified = await verifyParsedExport({ ...input, manifest });
+    return finalizeVerificationResult(manifest, verified.integrity, [
       ...failureCodes,
       ...verified.failureCodes,
     ]);
   } catch {
-    return finalizeVerificationResult(input.manifest, baseIntegrity, [
+    return finalizeVerificationResult(manifest, baseIntegrity, [
       ...failureCodes,
       AUDIT_EXPORT_FAILURE_CODES.manifestInvalid,
     ]);
   }
-}
-
-export function parseAuditExportManifest(raw: unknown): AuditExportManifest {
-  if (typeof raw !== "object" || raw === null) {
-    throw new Error("audit export manifest must be a JSON object");
-  }
-  const manifest = raw as Record<string, unknown>;
-  if (!isSupportedManifestSchema(String(manifest.schema_version))) {
-    throw new Error("unsupported audit export manifest schema version");
-  }
-  return manifest as unknown as AuditExportManifest;
 }

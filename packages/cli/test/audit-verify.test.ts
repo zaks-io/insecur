@@ -8,6 +8,8 @@ import {
   StaticAuditExportSigningKeyProvider,
 } from "@insecur/audit";
 import { describe, expect, it, beforeAll } from "vitest";
+import { CliError } from "../src/output/cli-error.js";
+import { EXIT_VALIDATION } from "../src/output/exit-codes.js";
 import { runAuditVerifyCommand } from "../src/commands/audit-verify.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -77,5 +79,41 @@ describe("audit verify CLI", () => {
 
   it("registered signing public key env for verify command", () => {
     expect(publicKey.length).toBeGreaterThan(0);
+  });
+
+  it("returns a stable validation failure for malformed manifests", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "insecur-audit-verify-bad-manifest-"));
+    const jsonlPath = join(dir, "audit-export.jsonl");
+    const manifestPath = join(dir, "audit-export.manifest.json");
+    await writeFile(jsonlPath, "", "utf8");
+    await writeFile(
+      manifestPath,
+      `${JSON.stringify({
+        schema_version: "1",
+        organization_id: ORG,
+        time_range: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-02T00:00:00.000Z" },
+        entry_count: 1,
+        first_hash: "hash",
+        last_hash: "hash",
+        hash_algorithm: "SHA-256",
+        hmac_key_version: 1,
+        signing_key_version: 1,
+        hmac: "hmac",
+        signature: "signature",
+        signature_algorithm: "Ed25519",
+      })}\n`,
+      "utf8",
+    );
+
+    await expect(
+      runAuditVerifyCommand({ json: true, quiet: true, verbose: false, orgId: ORG }, jsonlPath, {
+        manifestPath,
+      }),
+    ).rejects.toMatchObject({
+      name: "CliError",
+      code: "validation.invalid_opaque_resource_id",
+      message: "audit export manifest custody_evidence_refs is missing or invalid",
+      exitCode: EXIT_VALIDATION,
+    } satisfies Partial<CliError>);
   });
 });
