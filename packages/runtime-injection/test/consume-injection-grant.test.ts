@@ -1,3 +1,5 @@
+import { resolveEffectiveAccess } from "@insecur/access";
+import { auditActorUserId } from "@insecur/audit";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   environmentId,
@@ -7,7 +9,7 @@ import {
   userId,
   machineIdentityId,
 } from "@insecur/domain";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { executeConsumeInjectionGrant } from "../src/consume-injection-grant.js";
 
@@ -45,11 +47,16 @@ vi.mock("@insecur/access", async (importOriginal) => {
 });
 
 vi.mock("@insecur/audit", () => ({
-  auditActorUserId: (actor: { userId: string }) => actor.userId,
+  auditActorUserId: vi.fn(),
   recordRuntimeInjectionAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 
 describe("executeConsumeInjectionGrant actor guard", () => {
+  beforeEach(() => {
+    vi.mocked(auditActorUserId).mockReset();
+    vi.mocked(resolveEffectiveAccess).mockReset();
+  });
+
   it("returns insufficient_scope for machine actors before access resolution", async () => {
     await expect(
       executeConsumeInjectionGrant(
@@ -62,6 +69,9 @@ describe("executeConsumeInjectionGrant actor guard", () => {
     ).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.insufficientScope,
     });
+
+    expect(auditActorUserId).not.toHaveBeenCalled();
+    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
   });
 
   it("returns insufficient_scope for ci_exchange actors before access resolution", async () => {
@@ -76,5 +86,8 @@ describe("executeConsumeInjectionGrant actor guard", () => {
     ).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.insufficientScope,
     });
+
+    expect(auditActorUserId).not.toHaveBeenCalled();
+    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
   });
 });
