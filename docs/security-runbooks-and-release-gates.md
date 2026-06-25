@@ -134,6 +134,33 @@ Stable control ID prefixes:
 
 The local check may combine automated tests with required manual evidence placeholders. Placeholders are `blocked` until filled by a runbook drill, review, or explicit accepted decision.
 
+## Release Gate Evidence Bundle (ARG-05)
+
+`pnpm release-gate:bundle` (alias `pnpm security:check`) assembles a metadata-only
+Security Evidence Bundle for local release gating. The command reads evidence
+artifacts from `evidence/` by default and exits non-zero when any blocking control
+is not `passed`. Missing evidence is `missing_evidence` and blocks the gate.
+
+### Skeleton control IDs
+
+| Control ID                        | Evidence artifact (relative to evidence dir) | Source                                      |
+| --------------------------------- | -------------------------------------------- | ------------------------------------------- |
+| `supply_chain.verify`             | `verify.json`                                | `pnpm verify` CI job or local verify run    |
+| `supply_chain.dependency_scan`    | `supply-chain/dependency-scan.json`          | Dependency scan job / lockfile gate         |
+| `supply_chain.secret_scan`        | `supply-chain/secret-scan.json`              | gitleaks summary (counts and rule IDs only) |
+| `supply_chain.sbom_vulnerability` | `supply-chain/sbom-vulnerability.json`       | syft + grype summary                        |
+| `auth.asvs_checklist`             | `security/asvs-checklist.json`               | OWASP ASVS checklist status                 |
+| `auth.api_top10_checklist`        | `security/api-top10-checklist.json`          | OWASP API Security Top 10 checklist status  |
+
+Evidence files are JSON metadata only. Secret-scan artifacts must record
+`finding_count` and optional `rule_ids`; they must not include Sensitive Values,
+matched secret substrings, line content, or other reveal-bearing fields. The
+bundle assembler rejects evidence that includes forbidden reveal keys.
+
+The assembled bundle records `schema_version`, `profile`, per-control
+`status` (`passed`, `blocked`, `missing_evidence`), artifact references, and an
+overall `ok` verdict. It does not replace human production readiness signoff.
+
 ## Invariants
 
 - Security gates fail closed: missing evidence is `blocked`, not `passed`.
