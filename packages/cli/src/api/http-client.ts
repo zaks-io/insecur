@@ -50,6 +50,23 @@ async function postJson(
   return { response, body: await readJsonResponse(response) };
 }
 
+async function postAuthorizedJson(
+  base: string,
+  path: string,
+  bearerCredential: string,
+  body: unknown,
+): Promise<{ response: Response; body: unknown }> {
+  return postJson(new URL(path, base), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${bearerCredential}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 export function createHttpApiClientForHost(host: string): ApiClient {
   const base = host.endsWith("/") ? host.slice(0, -1) : host;
   return {
@@ -96,17 +113,11 @@ async function provisionPersonalOrganization(
     ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
     ...(input.environmentId === undefined ? {} : { environmentId: input.environmentId }),
   });
-  const { response, body: responseBody } = await postJson(
-    new URL("/v1/onboarding/personal-organization", base),
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${input.bearerCredential}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    },
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    "/v1/onboarding/personal-organization",
+    input.bearerCredential,
+    body,
   );
   const envelope = parseEnvelope<GuidedOrganizationProvisionData>(responseBody);
   if (!envelope.ok) {
@@ -131,15 +142,12 @@ async function writeSecretByVariableKey(
   if (input.allowEmpty === true) {
     body.allowEmpty = true;
   }
-  const { response, body: responseBody } = await postJson(new URL(path, base), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.bearerCredential}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    body,
+  );
   const envelope = parseEnvelope<SecretWriteByVariableKeyData>(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
@@ -152,20 +160,17 @@ async function issueInjectionGrant(
   input: Parameters<ApiClient["issueInjectionGrant"]>[0],
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants`;
-  const { response, body: responseBody } = await postJson(new URL(path, base), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.bearerCredential}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    {
       organizationId: input.organizationId,
       projectId: input.projectId,
       environmentId: input.environmentId,
       variableKey: input.variableKey,
-    }),
-  });
+    },
+  );
   const envelope = parseEnvelope<IssueInjectionGrantData>(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
@@ -178,18 +183,15 @@ async function consumeInjectionGrant(
   input: Parameters<ApiClient["consumeInjectionGrant"]>[0],
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume`;
-  const { response, body: responseBody } = await postJson(new URL(path, base), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.bearerCredential}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    {
       organizationId: input.organizationId,
       variableKey: input.variableKey,
-    }),
-  });
+    },
+  );
   const envelope = parseDeliveryEnvelope(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
