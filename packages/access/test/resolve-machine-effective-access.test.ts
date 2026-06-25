@@ -18,6 +18,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 const ORG_A = organizationId.brand("org_00000000000000000000000001");
+const ORG_B = organizationId.brand("org_00000000000000000000000002");
 const PROJECT_A = projectId.brand("prj_00000000000000000000000001");
 const PROJECT_B = projectId.brand("prj_00000000000000000000000002");
 const ENV_A = environmentId.brand("env_00000000000000000000000001");
@@ -127,6 +128,26 @@ describe("resolveEffectiveAccess for machine actors", () => {
     const result = await resolveEffectiveAccess(
       machineActor(),
       { organizationId: ORG_A, projectId: PROJECT_B },
+      { loadMachineMemberships },
+    );
+
+    expect(result.scopes).toEqual([]);
+  });
+
+  it("returns empty scopes when a fake loader injects another organization project membership", async () => {
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(async () => [
+      {
+        membershipId: MEMBERSHIP_A,
+        organizationId: ORG_B,
+        projectId: PROJECT_A,
+        machineIdentityId: MACHINE,
+        authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionRun],
+      },
+    ]);
+
+    const result = await resolveEffectiveAccess(
+      machineActor(),
+      { organizationId: ORG_A, projectId: PROJECT_A },
       { loadMachineMemberships },
     );
 
