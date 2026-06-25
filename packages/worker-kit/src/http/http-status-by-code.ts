@@ -39,7 +39,6 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [ENVIRONMENT_ERROR_CODES.invalidLifecycleStage, 400],
   [ENVIRONMENT_ERROR_CODES.protectedEnvironment, 403],
   [ENVIRONMENT_ERROR_CODES.lifecycleImmutable, 400],
-  [ENVIRONMENT_ERROR_CODES.previewOptDownRequired, 400],
   [ENVIRONMENT_ERROR_CODES.previewOptDownInvalid, 400],
   [ENVIRONMENT_ERROR_CODES.notFound, 404],
   [ONBOARDING_ERROR_CODES.alreadyProvisioned, 409],

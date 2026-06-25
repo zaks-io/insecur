@@ -86,7 +86,6 @@ export const ENVIRONMENT_ERROR_CODES = {
   invalidLifecycleStage: "environment.invalid_lifecycle_stage",
   protectedEnvironment: "environment.protected_environment",
   lifecycleImmutable: "environment.lifecycle_immutable",
-  previewOptDownRequired: "environment.preview_opt_down_required",
   previewOptDownInvalid: "environment.preview_opt_down_invalid",
   notFound: "environment.not_found",
 } as const;

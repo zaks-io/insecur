@@ -58,25 +58,3 @@ export function resolveEnvironmentProtection(
     }
   }
 }
-
-export function assertPreviewOptDownEvidence(
-  lifecycleStage: EnvironmentLifecycleStage,
-  previewNonProductionOptDown?: PreviewNonProductionOptDown,
-): void {
-  if (
-    lifecycleStage === ENVIRONMENT_LIFECYCLE_STAGES.preview &&
-    previewNonProductionOptDown === undefined
-  ) {
-    return;
-  }
-
-  if (
-    lifecycleStage !== ENVIRONMENT_LIFECYCLE_STAGES.preview &&
-    previewNonProductionOptDown !== undefined
-  ) {
-    throw new EnvironmentLifecycleStoreError(
-      ENVIRONMENT_ERROR_CODES.previewOptDownInvalid,
-      "preview opt-down evidence applies only to preview environments",
-    );
-  }
-}

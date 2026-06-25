@@ -106,6 +106,11 @@ export type {
 export { USER_ADMISSION_STATUSES } from "./user-admissions/types.js";
 export { EnvironmentLifecycleStoreError } from "./environments/errors.js";
 export { resolveEnvironmentProtection } from "./environments/resolve-environment-protection.js";
+export {
+  ENVIRONMENT_LIFECYCLE_IMMUTABLE_DB_MESSAGE,
+  isEnvironmentLifecycleImmutableViolation,
+  rethrowEnvironmentLifecycleDbError,
+} from "./environments/rethrow-environment-lifecycle-db-error.js";
 export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
 export type {
   CreateEnvironmentLifecycleInput,

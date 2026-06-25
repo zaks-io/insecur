@@ -16,6 +16,32 @@ AS $$
   END;
 $$;
 
+-- Lifecycle stage and protected posture are immutable after creation (PDF-04 / INS-152).
+-- CHECK constraints keep posture consistent; this trigger blocks mutators from changing
+-- lifecycle columns even when a future code path adds an UPDATE handler.
+CREATE OR REPLACE FUNCTION app.enforce_environment_lifecycle_immutable()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.lifecycle_stage IS DISTINCT FROM OLD.lifecycle_stage
+     OR NEW.is_protected IS DISTINCT FROM OLD.is_protected
+     OR NEW.preview_non_production_confirmed_at IS DISTINCT FROM OLD.preview_non_production_confirmed_at
+     OR NEW.preview_non_production_confirmed_by_user_id IS DISTINCT FROM OLD.preview_non_production_confirmed_by_user_id
+  THEN
+    RAISE EXCEPTION 'lifecycle stage and protected posture cannot change after creation'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS environments_lifecycle_immutable ON environments;
+CREATE TRIGGER environments_lifecycle_immutable
+  BEFORE UPDATE ON environments
+  FOR EACH ROW
+  EXECUTE FUNCTION app.enforce_environment_lifecycle_immutable();
+
 DROP POLICY IF EXISTS organizations_tenant_isolation ON organizations;
 CREATE POLICY organizations_tenant_isolation ON organizations
   FOR ALL
@@ -175,3 +201,4 @@ $$;
 
 GRANT USAGE ON SCHEMA app TO PUBLIC;
 GRANT EXECUTE ON FUNCTION app.tenant_visible(text) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION app.enforce_environment_lifecycle_immutable() TO PUBLIC;

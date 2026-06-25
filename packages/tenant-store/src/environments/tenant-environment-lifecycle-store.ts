@@ -13,6 +13,7 @@ import { environments } from "../db/schema/tenant-hierarchy.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { EnvironmentLifecycleStoreError } from "./errors.js";
 import { resolveEnvironmentProtection } from "./resolve-environment-protection.js";
+import { rethrowEnvironmentLifecycleDbError } from "./rethrow-environment-lifecycle-db-error.js";
 import type {
   CreateEnvironmentLifecycleInput,
   EnvironmentLifecycleRow,
@@ -129,16 +130,20 @@ export class TenantEnvironmentLifecycleStore {
       );
     }
 
-    await this.db
-      .update(environments)
-      .set({ displayName: input.displayName })
-      .where(
-        and(
-          eq(environments.orgId, input.organizationId),
-          eq(environments.id, input.environmentId),
-          eq(environments.projectId, input.projectId),
-        ),
-      );
+    try {
+      await this.db
+        .update(environments)
+        .set({ displayName: input.displayName })
+        .where(
+          and(
+            eq(environments.orgId, input.organizationId),
+            eq(environments.id, input.environmentId),
+            eq(environments.projectId, input.projectId),
+          ),
+        );
+    } catch (error) {
+      rethrowEnvironmentLifecycleDbError(error);
+    }
 
     const updated = await this.getById(input.organizationId, input.environmentId);
     if (!updated) {
