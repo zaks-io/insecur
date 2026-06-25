@@ -1,5 +1,8 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
-import type { OrganizationDataKeyMetadata, ProjectDataKeyMetadata } from "@insecur/crypto";
+import type {
+  OrganizationDataKeyMetadata,
+  ProjectDataKeyMetadata,
+} from "@insecur/custody-contracts";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { organizationDataKeys, projectDataKeys } from "../db/schema/tenant-hierarchy.js";

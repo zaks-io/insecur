@@ -49,16 +49,20 @@ apps/api
 apps/runtime
   -> packages/worker-kit
 packages/cli
+  -> packages/tenant-keyring
   -> packages/instance-bootstrap
   -> packages/onboarding
   -> packages/runtime-injection
+  -> packages/runtime-injection-issue
   -> packages/secret-store
+  -> packages/secret-store-contracts
   -> packages/operations
   -> packages/auth
   -> packages/access
   -> packages/audit
   -> packages/tenant-store
   -> packages/crypto
+  -> packages/custody-contracts
   -> packages/domain
 ```
 
@@ -73,20 +77,24 @@ the First Value cut (the First Value Milestone must use the real seams);
 `@insecur/operations` is scaffolded for the Production Delivery foundation and
 is not in the First Value Slice below.
 
-| Package                       | Module                                | Owns                                                                                                                                                                               | Does not own                                                                                         |
-| ----------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `@insecur/domain`             | Domain primitives                     | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                                                                                  | Persistence, encryption, authorization decisions, provider behavior                                  |
-| `@insecur/auth`               | Human authentication sessions         | WorkOS sealed session validation, User actor context, CLI ephemeral credentials, CSRF helpers for browser mutations                                                                | Effective Access, CLI commands, WorkOS hosted login UI, Machine Identity                             |
-| `@insecur/access`             | Effective Access Resolver             | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests                                                               | Human authentication, Service Access, Protected Environment approval                                 |
-| `@insecur/tenant-store`       | Tenant-Scoped Store                   | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                                                                                 | Business rules, authorization semantics, encryption                                                  |
-| `@insecur/crypto`             | Keyring and Encryption Envelope       | tenant-bound key resolution, key versions, ciphertext identity binding, wrapped material shapes                                                                                    | Secret lifecycle decisions, raw persistence, delivery policy                                         |
-| `@insecur/audit`              | Audit Event Writer                    | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references                                                                                        | Audit export integrity, operation state, Sensitive Value storage                                     |
-| `@insecur/release-gate`       | Security Evidence Bundle              | metadata-only release-gate bundle assembly, security check skeleton control IDs, fail-closed verdict derivation                                                                    | Scanner execution, human production signoff, hosted evidence portals                                 |
-| `@insecur/secret-store`       | Secret Version Store                  | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs                                                                  | Runtime Injection, Promotion approval, raw SQL, provider sync                                        |
-| `@insecur/runtime-injection`  | Runtime Injection Grant Service       | Injection Grants, one-use consume rules, variable-key scoped injection decisions, command output safety                                                                            | CLI process spawning, child process trust, provider sync                                             |
-| `@insecur/onboarding`         | Guided Organization Provisioning      | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation                                                           | Public onboarding abuse controls, WorkOS authentication, production delivery                         |
-| `@insecur/instance-bootstrap` | Instance Bootstrap and operator claim | Instance posture, WorkOS-ready identity configuration, Bootstrap Operator Claim CAS, Instance Operator grant, first-Organization owner Membership                                  | WorkOS login UI, public signup, CLI wiring                                                           |
-| `@insecur/operations`         | Operation Store                       | Operation IDs, idempotency keys, metadata-only status/progress/wait/retry/cancel state, CAS transitions, Sync Target Serialization lease rows and fencing tokens, audit references | Provider writes, authorization semantics, audit formatting/export, queue execution, Sensitive Values |
+| Package                            | Module                                | Owns                                                                                                                                                                               | Does not own                                                                                         |
+| ---------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `@insecur/domain`                  | Domain primitives                     | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                                                                                  | Persistence, encryption, authorization decisions, provider behavior                                  |
+| `@insecur/auth`                    | Human authentication sessions         | WorkOS sealed session validation, User actor context, CLI ephemeral credentials, CSRF helpers for browser mutations                                                                | Effective Access, CLI commands, WorkOS hosted login UI, Machine Identity                             |
+| `@insecur/access`                  | Effective Access Resolver             | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests                                                               | Human authentication, Service Access, Protected Environment approval                                 |
+| `@insecur/tenant-store`            | Tenant-Scoped Store                   | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                                                                                 | Business rules, authorization semantics, encryption, keyring construction                            |
+| `@insecur/custody-contracts`       | Custody Contracts                     | plaintext-free data-key metadata, wrapped material shapes, tenant data-key readiness error                                                                                         | Encryption, decrypt, root-key access, persistence                                                    |
+| `@insecur/crypto`                  | Keyring and Encryption Envelope       | tenant-bound key resolution, key versions, ciphertext identity binding, encrypt/decrypt entry points                                                                               | Secret lifecycle decisions, raw persistence, delivery policy, tenant-scoped DB access                |
+| `@insecur/tenant-keyring`          | Runtime Tenant Keyring                | Runtime-only composition of tenant-scoped data-key metadata access with the crypto Keyring                                                                                         | Public routes, Secret Write, Injection Grant authorization, storage tables                           |
+| `@insecur/audit`                   | Audit Event Writer                    | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references                                                                                        | Audit export integrity, operation state, Sensitive Value storage                                     |
+| `@insecur/release-gate`            | Security Evidence Bundle              | metadata-only release-gate bundle assembly, security check skeleton control IDs, fail-closed verdict derivation                                                                    | Scanner execution, human production signoff, hosted evidence portals                                 |
+| `@insecur/secret-store-contracts`  | Secret Store Contracts                | public-safe Secret Write error class, ingress validation, text value validation, variable-key write validation                                                                     | Encryption, Secret Version append/current persistence, keyring access                                |
+| `@insecur/secret-store`            | Secret Version Store                  | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs                                                                  | Runtime Injection, Promotion approval, raw SQL, provider sync                                        |
+| `@insecur/runtime-injection-issue` | Runtime Injection Grant Issue         | public-safe grant issue path, issue/consume selector contracts, Injection Grant error class                                                                                        | Decrypt, Runtime delivery, keyring access                                                            |
+| `@insecur/runtime-injection`       | Runtime Injection Grant Service       | one-use consume rules, variable-key scoped injection decisions, command output safety, Runtime-only decrypt delivery                                                               | CLI process spawning, child process trust, provider sync                                             |
+| `@insecur/onboarding`              | Guided Organization Provisioning      | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation                                                           | Public onboarding abuse controls, WorkOS authentication, production delivery                         |
+| `@insecur/instance-bootstrap`      | Instance Bootstrap and operator claim | Instance posture, WorkOS-ready identity configuration, Bootstrap Operator Claim CAS, Instance Operator grant, first-Organization owner Membership                                  | WorkOS login UI, public signup, CLI wiring                                                           |
+| `@insecur/operations`              | Operation Store                       | Operation IDs, idempotency keys, metadata-only status/progress/wait/retry/cancel state, CAS transitions, Sync Target Serialization lease rows and fencing tokens, audit references | Provider writes, authorization semantics, audit formatting/export, queue execution, Sensitive Values |
 
 ## Deferred Packages
 
@@ -130,10 +138,14 @@ The First Value Milestone should pass through these package Interfaces:
    Access through Membership and Role.
 3. `@insecur/tenant-store` persists tenant metadata through scoped
    transactions.
-4. `@insecur/crypto` wraps stored Sensitive Values with tenant/resource identity
+4. `@insecur/custody-contracts` carries plaintext-free wrapped material and data-key metadata shapes.
+5. `@insecur/crypto` wraps stored Sensitive Values with tenant/resource identity
    binding.
-5. `@insecur/secret-store` creates a Blind Secret Write and appends the Secret
+6. `@insecur/secret-store-contracts` keeps public-safe write validation off the crypto graph.
+7. `@insecur/secret-store` creates a Blind Secret Write and appends the Secret
    Version.
-6. `@insecur/runtime-injection` issues and consumes a one-use Injection Grant.
-7. `@insecur/audit` records metadata-only events for successful and denied
-   attempts.
+8. `@insecur/runtime-injection-issue` issues a one-use Injection Grant without keyring access.
+9. `@insecur/runtime-injection` consumes a one-use Injection Grant in Runtime.
+10. `@insecur/tenant-keyring` composes tenant data-key metadata with the Runtime keyring.
+11. `@insecur/audit` records metadata-only events for successful and denied
+    attempts.

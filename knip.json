@@ -13,6 +13,10 @@
       ],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "packages/secret-store": {
+      "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
     "packages/worker-kit": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
       "project": ["src/**/*.ts"]
@@ -31,7 +35,7 @@
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts"],
       "project": ["scripts/**/*.mjs"],
       "ignoreBinaries": ["wrangler"],
-      "ignoreDependencies": ["lefthook"]
+      "ignoreDependencies": ["dependency-cruiser", "lefthook"]
     }
   },
   "rules": {

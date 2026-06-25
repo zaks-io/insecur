@@ -15,10 +15,14 @@ reading map before loading slices of the root `../CONTEXT.md`.
 - `@insecur/auth` - WorkOS session composition, User actor context, and CLI exchange contract
 - `@insecur/access` - Effective Access Resolver and scope-first authorization
 - `@insecur/tenant-store` - Tenant-Scoped Store and RLS adapter contract
+- `@insecur/custody-contracts` - plaintext-free custody metadata and wrapped material contracts
 - `@insecur/crypto` - Keyring and Encryption Envelope
+- `@insecur/tenant-keyring` - Runtime-only tenant-backed keyring composition
 - `@insecur/audit` - Audit Event Writer
 - `@insecur/release-gate` - Security Evidence Bundle assembly and release-gate skeleton
+- `@insecur/secret-store-contracts` - public-safe Secret Write validation and error contracts
 - `@insecur/secret-store` - Secret Version Store and Blind Secret Write rules
+- `@insecur/runtime-injection-issue` - public-safe Injection Grant issue path and contracts
 - `@insecur/runtime-injection` - Runtime Injection Grant Service
 - `@insecur/onboarding` - Guided Organization Provisioning
 - `@insecur/cli` - local CLI composition and command execution

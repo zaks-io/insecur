@@ -194,7 +194,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/secret-store/src/is-valid-utf8.ts"],
+    files: ["packages/secret-store-contracts/src/is-valid-utf8.ts"],
     rules: {
       complexity: "off",
       "max-lines-per-function": "off",

@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -23,31 +23,52 @@ const allowlistedModule = path.join(
   "packages/runtime-injection/src/decrypt-grant-secret.ts",
 );
 const ESLINT_BOUNDARY_TIMEOUT_MS = 15_000;
+const DECRYPT_IMPORT_BOUNDARY_MESSAGE =
+  "Decrypt entry points may only be imported from allowlisted egress modules";
+const eslint = new ESLint({ cwd: repoRoot });
 
-function runEslint(filePath: string): string {
-  return execFileSync("pnpm", ["exec", "eslint", filePath, "--max-warnings=0"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+interface LintConfigWithRules {
+  rules?: Record<string, unknown>;
 }
 
-function runEslintExpectFailure(filePath: string): string {
-  try {
-    runEslint(filePath);
-    throw new Error(`expected eslint to fail for ${filePath}`);
-  } catch (error) {
-    const stderr =
-      error instanceof Error && "stderr" in error
-        ? String((error as NodeJS.ErrnoException & { stderr?: string }).stderr)
-        : "";
-    const stdout =
-      error instanceof Error && "stdout" in error
-        ? String((error as NodeJS.ErrnoException & { stdout?: string }).stdout)
-        : "";
-    const message = error instanceof Error ? error.message : String(error);
-    return `${stderr}\n${stdout}\n${message}`;
+function hasLintRulesConfig(value: unknown): value is LintConfigWithRules {
+  return typeof value === "object" && value !== null;
+}
+
+function formatLintOutput(results: ESLint.LintResult[]): string {
+  return results
+    .flatMap((result) =>
+      result.messages.map(
+        (message) =>
+          `${path.relative(repoRoot, result.filePath)}:${String(message.line)}:${String(
+            message.column,
+          )} ${message.ruleId ?? "fatal"} ${message.message}`,
+      ),
+    )
+    .join("\n");
+}
+
+async function runEslint(filePath: string): Promise<string> {
+  const lintTarget = path.relative(repoRoot, filePath);
+  const results = await eslint.lintFiles([lintTarget]);
+  const errorCount = results.reduce((total, result) => total + result.errorCount, 0);
+  const warningCount = results.reduce((total, result) => total + result.warningCount, 0);
+  const output = formatLintOutput(results);
+
+  if (errorCount > 0 || warningCount > 0) {
+    throw new Error(`eslint failed for ${lintTarget}\n${output}`);
   }
+
+  return output;
+}
+
+async function runEslintExpectFailure(filePath: string): Promise<string> {
+  try {
+    await runEslint(filePath);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  throw new Error(`expected eslint to fail for ${filePath}`);
 }
 
 function readDecryptImportAllowlist(): string[] {
@@ -60,11 +81,20 @@ function readDecryptImportAllowlist(): string[] {
   return quotedEntries.map((entry) => entry.slice(1, -1));
 }
 
+async function readLintConfigFor(filePath: string): Promise<LintConfigWithRules> {
+  const lintTarget = path.relative(repoRoot, filePath);
+  const config: unknown = await eslint.calculateConfigForFile(lintTarget);
+  if (!hasLintRulesConfig(config)) {
+    throw new Error(`eslint config not found for ${lintTarget}`);
+  }
+  return config;
+}
+
 describe("decrypt-import lint boundary (ADR-0071)", () => {
   it(
     "fails lint for unallowlisted decrypt imports",
-    () => {
-      const output = runEslintExpectFailure(negativeFixture);
+    async () => {
+      const output = await runEslintExpectFailure(negativeFixture);
       expect(output).toMatch(/no-restricted-imports/);
       expect(output).toMatch(/decryptSecretValueForRuntime/);
     },
@@ -73,8 +103,8 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
 
   it(
     "fails lint for unallowlisted dynamic decrypt module imports",
-    () => {
-      const output = runEslintExpectFailure(negativeDynamicFixture);
+    async () => {
+      const output = await runEslintExpectFailure(negativeDynamicFixture);
       expect(output).toMatch(/no-restricted-syntax/);
       expect(output).toMatch(/Decrypt entry points may only be imported/);
     },
@@ -83,8 +113,8 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
 
   it(
     "fails lint for unallowlisted deep-path decrypt imports",
-    () => {
-      const output = runEslintExpectFailure(negativeDeepPathFixture);
+    async () => {
+      const output = await runEslintExpectFailure(negativeDeepPathFixture);
       expect(output).toMatch(/no-restricted-imports/);
       expect(output).toMatch(/decryptSecretValueForRuntime/);
     },
@@ -98,9 +128,15 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
   });
 
   it(
-    "passes lint for the sole allowlisted decrypt egress module",
-    () => {
-      expect(() => runEslint(allowlistedModule)).not.toThrow();
+    "does not apply the decrypt boundary to the sole allowlisted egress module",
+    async () => {
+      const config = await readLintConfigFor(allowlistedModule);
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).not.toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );

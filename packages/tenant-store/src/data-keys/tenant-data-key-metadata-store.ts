@@ -3,7 +3,7 @@ import type {
   OrganizationDataKeyMetadata,
   ProjectDataKeyMetadata,
   TenantDataKeyRewrapStore,
-} from "@insecur/crypto";
+} from "@insecur/custody-contracts";
 import { and, desc, eq } from "drizzle-orm";
 
 import {

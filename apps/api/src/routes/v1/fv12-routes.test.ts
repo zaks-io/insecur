@@ -53,7 +53,7 @@ vi.mock("@insecur/onboarding", () => ({
 }));
 
 // Grant issue is metadata-only and stays on the API Worker (no keyring), so it is still mocked here.
-vi.mock("@insecur/runtime-injection", () => ({
+vi.mock("@insecur/runtime-injection-issue", () => ({
   issueInjectionGrant,
   InjectionGrantError: class InjectionGrantError extends Error {
     readonly code: string;
@@ -488,7 +488,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps grant issue denials to metadata-only errors", async () => {
-      const { InjectionGrantError } = await import("@insecur/runtime-injection");
+      const { InjectionGrantError } = await import("@insecur/runtime-injection-issue");
       issueInjectionGrant.mockRejectedValue(
         new InjectionGrantError(INJECTION_ERROR_CODES.grantDenied, "injection grant issue denied"),
       );

@@ -23,6 +23,7 @@
     "@insecur/audit": "workspace:*",
     "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/runtime-injection-issue": "workspace:*",
     "@insecur/tenant-store": "workspace:*"
   },
   "devDependencies": {

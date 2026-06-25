@@ -1,4 +1,5 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
+import type { TenantDataKeyRewrapStore } from "@insecur/custody-contracts";
 
 import { canRetireRootKeyBinding, statusAfterRootRewrap } from "./data-key-lifecycle.js";
 import type { OrganizationDataKeyMetadata, ProjectDataKeyMetadata } from "./data-key-metadata.js";
@@ -11,32 +12,6 @@ import {
 import { DecryptError } from "./errors.js";
 import { TenantDataKeyNotReadyError } from "./keyring-readiness.js";
 import type { KeyVersion, RootKeyProvider } from "./keyring.js";
-
-export interface TenantDataKeyRewrapStore {
-  listOrganizationDataKeys(organizationId: OrganizationId): Promise<OrganizationDataKeyMetadata[]>;
-
-  listProjectDataKeys(organizationId: OrganizationId): Promise<ProjectDataKeyMetadata[]>;
-
-  updateOrganizationDataKeyWrap(
-    organizationId: OrganizationId,
-    keyVersion: KeyVersion,
-    input: {
-      readonly wrappedStorageRef: string;
-      readonly rootKeyVersion: KeyVersion;
-      readonly status: OrganizationDataKeyMetadata["status"];
-    },
-  ): Promise<void>;
-
-  updateProjectDataKeyWrap(
-    organizationId: OrganizationId,
-    projectId: ProjectId,
-    keyVersion: KeyVersion,
-    input: {
-      readonly wrappedStorageRef: string;
-      readonly status: ProjectDataKeyMetadata["status"];
-    },
-  ): Promise<void>;
-}
 
 export interface RewrapTenantDataKeysInput {
   readonly organizationId: OrganizationId;
@@ -182,3 +157,4 @@ export async function rewrapTenantDataKeys(input: RewrapTenantDataKeysInput): Pr
 }
 
 export { canRetireRootKeyBinding };
+export type { TenantDataKeyRewrapStore } from "@insecur/custody-contracts";

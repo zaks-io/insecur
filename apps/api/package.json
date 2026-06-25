@@ -22,8 +22,8 @@
     "@insecur/instance-bootstrap": "workspace:*",
     "@insecur/onboarding": "workspace:*",
     "@insecur/operations": "workspace:*",
-    "@insecur/runtime-injection": "workspace:*",
-    "@insecur/secret-store": "workspace:*",
+    "@insecur/runtime-injection-issue": "workspace:*",
+    "@insecur/secret-store-contracts": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "@insecur/worker-kit": "workspace:*",
     "hono": "catalog:"
