@@ -12,7 +12,7 @@ import {
   type InjectionGrantId,
 } from "@insecur/domain";
 import {
-  ProjectEnvironmentCoordinateError,
+  assertProjectEnvironmentCoordinateWithScope,
   SecretVersionStoreConflictError,
   SecretVersionStoreNotFoundError,
   TenantInjectionGrantStore,
@@ -59,6 +59,19 @@ function toGrantCoordinate(input: IssueInjectionGrantCoreInput): GrantCoordinate
   };
 }
 
+async function assertIssueGrantCoordinate(
+  coordinate: GrantCoordinate,
+): Promise<{ isProtected: boolean }> {
+  return assertProjectEnvironmentCoordinateWithScope({
+    coordinate,
+    createCoordinateError: () =>
+      new InjectionGrantError(
+        INJECTION_ERROR_CODES.grantDenied,
+        "project environment coordinate invalid",
+      ),
+  });
+}
+
 export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
@@ -73,10 +86,7 @@ export async function executeIssueInjectionGrant(
   // (insufficient_scope) (INS-181).
   await assertHoldsAnyIssuanceScope(actor, coordinate, accessDeps);
 
-  const { isProtected } = await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    ({ db }) => new TenantInjectionGrantStore(db).assertIssueCoordinate(coordinate),
-  );
+  const { isProtected } = await assertIssueGrantCoordinate(coordinate);
 
   await assertRuntimeInjectionAccess(
     actor,
@@ -155,12 +165,6 @@ export async function issueInjectionGrantWithAudit(
       if (error.code !== AUTH_ERROR_CODES.insufficientScope) {
         await recordDeniedIssue(input, error.code).catch(() => undefined);
       }
-    } else if (error instanceof ProjectEnvironmentCoordinateError) {
-      await recordDeniedIssue(input, INJECTION_ERROR_CODES.grantDenied).catch(() => undefined);
-      throw new InjectionGrantError(
-        INJECTION_ERROR_CODES.grantDenied,
-        "project environment coordinate invalid",
-      );
     } else if (
       error instanceof SecretVersionStoreNotFoundError ||
       error instanceof SecretVersionStoreConflictError

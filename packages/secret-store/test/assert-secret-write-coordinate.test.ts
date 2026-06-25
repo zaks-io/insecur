@@ -17,10 +17,26 @@ import { SecretWriteError } from "../src/secret-write-error.js";
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
+  const withTenantScope = vi.fn(async (_scope, fn) => fn({ db: {} }));
+  const assertProjectEnvironmentCoordinate = vi.fn();
   return {
     ...actual,
-    withTenantScope: vi.fn(async (_scope, fn) => fn({ db: {} })),
-    assertProjectEnvironmentCoordinate: vi.fn(),
+    withTenantScope,
+    assertProjectEnvironmentCoordinate,
+    assertProjectEnvironmentCoordinateWithScope: vi.fn(async (options) => {
+      try {
+        return await withTenantScope(
+          { kind: "organization", organizationId: options.coordinate.organizationId },
+          ({ db }) => assertProjectEnvironmentCoordinate(db, options.coordinate),
+        );
+      } catch (error) {
+        if (error instanceof actual.ProjectEnvironmentCoordinateError) {
+          await options.onCoordinateDenied?.().catch(() => undefined);
+          throw options.createCoordinateError();
+        }
+        throw error;
+      }
+    }),
   };
 });
 

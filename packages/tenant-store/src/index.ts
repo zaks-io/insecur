@@ -58,6 +58,11 @@ export {
   assertProjectEnvironmentCoordinate,
 } from "./injection-grants/assert-project-environment-coordinate.js";
 export {
+  assertProjectEnvironmentCoordinateWithScope,
+  type AssertProjectEnvironmentCoordinateWithScopeOptions,
+  type ProjectEnvironmentCoordinate,
+} from "./injection-grants/assert-project-environment-coordinate-with-scope.js";
+export {
   TenantInjectionGrantStore,
   type ConsumedInjectionGrantRow,
   type InjectionGrantConsumeFailure,

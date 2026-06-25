@@ -5,7 +5,10 @@ import {
 } from "@insecur/access";
 import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES } from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
-import { ProjectEnvironmentCoordinateError } from "@insecur/tenant-store";
+import {
+  ProjectEnvironmentCoordinateError,
+  assertProjectEnvironmentCoordinate,
+} from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -30,24 +33,41 @@ beforeEach(() => {
   protectedEnvironment = true;
   coordinateError = undefined;
   vi.mocked(resolveEffectiveAccess).mockReset();
+  vi.mocked(assertProjectEnvironmentCoordinate).mockClear();
 });
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
   class MockTenantInjectionGrantStore {
-    assertIssueCoordinate = vi.fn(async () => {
-      if (coordinateError !== undefined) {
-        throw coordinateError;
-      }
-      return { isProtected: protectedEnvironment };
-    });
     insertGrant = vi.fn().mockResolvedValue(undefined);
   }
+  const withTenantScope = vi.fn(
+    async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => fn({ db: {} }),
+  );
+  const assertProjectEnvironmentCoordinate = vi.fn(async () => {
+    if (coordinateError !== undefined) {
+      throw coordinateError;
+    }
+    return { isProtected: protectedEnvironment };
+  });
   return {
     ...actual,
-    withTenantScope: vi.fn(
-      async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => fn({ db: {} }),
-    ),
+    withTenantScope,
+    assertProjectEnvironmentCoordinate,
+    assertProjectEnvironmentCoordinateWithScope: vi.fn(async (options) => {
+      try {
+        return await withTenantScope(
+          { kind: "organization", organizationId: options.coordinate.organizationId },
+          ({ db }) => assertProjectEnvironmentCoordinate(db, options.coordinate),
+        );
+      } catch (error) {
+        if (error instanceof actual.ProjectEnvironmentCoordinateError) {
+          await options.onCoordinateDenied?.().catch(() => undefined);
+          throw options.createCoordinateError();
+        }
+        throw error;
+      }
+    }),
     TenantInjectionGrantStore: MockTenantInjectionGrantStore,
     ProjectEnvironmentCoordinateError: actual.ProjectEnvironmentCoordinateError,
   };
@@ -217,6 +237,7 @@ describe("executeIssueInjectionGrant protected issuance", () => {
       await expect(executeIssueInjectionGrant(baseInput)).rejects.not.toMatchObject({
         code: INJECTION_ERROR_CODES.grantDenied,
       });
+      expect(assertProjectEnvironmentCoordinate).not.toHaveBeenCalled();
     });
   });
 });
