@@ -3,26 +3,10 @@ import { toStoreFacingCiphertext } from "@insecur/crypto";
 import { and, eq } from "drizzle-orm";
 
 import { providerCredentials } from "../db/schema/tenant-integrations.js";
-import {
-  decodeInlineCiphertextStorageRef,
-  encodeInlineCiphertextStorageRef,
-} from "../secrets/ciphertext-storage-ref.js";
+import { decodeStoredWrappedMaterial } from "../decode-stored-wrapped-material.js";
+import { encodeInlineCiphertextStorageRef } from "../secrets/ciphertext-storage-ref.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
-import type {
-  ProviderCredentialRow,
-  StoredWrappedProviderCredential,
-  UpsertProviderCredentialInput,
-} from "./types.js";
-
-function toStoredWrappedMaterial(row: {
-  organizationDataKeyVersion: number;
-  ciphertextStorageRef: string;
-}): StoredWrappedProviderCredential {
-  return {
-    organizationDataKeyVersion: row.organizationDataKeyVersion,
-    ciphertext: decodeInlineCiphertextStorageRef(row.ciphertextStorageRef),
-  };
-}
+import type { ProviderCredentialRow, UpsertProviderCredentialInput } from "./types.js";
 
 export class TenantProviderCredentialStore {
   constructor(private readonly db: TenantScopedDb) {}
@@ -79,10 +63,13 @@ export class TenantProviderCredentialStore {
       organizationId,
       appConnectionId: row.app_connection_id as AppConnectionId,
       provider: row.provider,
-      wrapped: toStoredWrappedMaterial({
-        organizationDataKeyVersion: row.organization_data_key_version,
-        ciphertextStorageRef: row.ciphertext_storage_ref,
-      }),
+      wrapped: decodeStoredWrappedMaterial(
+        {
+          organizationDataKeyVersion: row.organization_data_key_version,
+          ciphertextStorageRef: row.ciphertext_storage_ref,
+        },
+        { material: "provider-credential" },
+      ),
     };
   }
 }

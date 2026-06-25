@@ -3,29 +3,14 @@ import { toStoreFacingCiphertext } from "@insecur/crypto";
 import { and, eq } from "drizzle-orm";
 
 import { sensitiveMetadataFields } from "../db/schema/tenant-integrations.js";
-import {
-  decodeInlineCiphertextStorageRef,
-  encodeInlineCiphertextStorageRef,
-} from "../secrets/ciphertext-storage-ref.js";
+import { decodeStoredWrappedMaterial } from "../decode-stored-wrapped-material.js";
+import { encodeInlineCiphertextStorageRef } from "../secrets/ciphertext-storage-ref.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import type {
   GetSensitiveMetadataFieldInput,
   SensitiveMetadataFieldRow,
-  StoredWrappedSensitiveMetadata,
   UpsertSensitiveMetadataInput,
 } from "./types.js";
-
-function toStoredWrappedMaterial(row: {
-  organizationDataKeyVersion: number;
-  projectDataKeyVersion: number | null;
-  ciphertextStorageRef: string;
-}): StoredWrappedSensitiveMetadata {
-  return {
-    organizationDataKeyVersion: row.organizationDataKeyVersion,
-    projectDataKeyVersion: row.projectDataKeyVersion,
-    ciphertext: decodeInlineCiphertextStorageRef(row.ciphertextStorageRef),
-  };
-}
 
 export class TenantSensitiveMetadataStore {
   constructor(private readonly db: TenantScopedDb) {}
@@ -93,11 +78,14 @@ export class TenantSensitiveMetadataStore {
       metadataType: row.metadata_type,
       recordResourceId: row.record_resource_id as OpaqueResourceId,
       fieldKey: row.field_key,
-      wrapped: toStoredWrappedMaterial({
-        organizationDataKeyVersion: row.organization_data_key_version,
-        projectDataKeyVersion: row.project_data_key_version,
-        ciphertextStorageRef: row.ciphertext_storage_ref,
-      }),
+      wrapped: decodeStoredWrappedMaterial(
+        {
+          organizationDataKeyVersion: row.organization_data_key_version,
+          projectDataKeyVersion: row.project_data_key_version,
+          ciphertextStorageRef: row.ciphertext_storage_ref,
+        },
+        { material: "sensitive-metadata" },
+      ),
     };
   }
 }
