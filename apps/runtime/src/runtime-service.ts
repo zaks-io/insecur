@@ -4,7 +4,7 @@ import { AUTHORIZATION_SCOPES } from "@insecur/access";
 import { consumeInjectionGrant } from "@insecur/runtime-injection";
 import { assertSecretWriteCoordinate, writeNonProtectedSecret } from "@insecur/secret-store";
 import { configureRuntimeConnection } from "@insecur/tenant-store";
-import { authorizeScopeOrThrow, toAccessActor, toAuditActor } from "@insecur/worker-kit";
+import { authorizeScopeOrThrow } from "@insecur/worker-kit";
 import type {
   ConsumeGrantRpcInput,
   RuntimeDeliveryEnvelope,
@@ -14,8 +14,7 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "./env.js";
-import { actorFromHopToken } from "./rpc/actor-from-token.js";
-import { toRuntimeRpcError } from "./rpc/runtime-rpc-error.js";
+import { withRuntimeRpcEntry } from "./rpc/runtime-rpc-entry.js";
 import { createKeyringFromRuntimeEnv } from "./crypto/keyring-context.js";
 import { runtimeDeliveryEnvelope } from "./runtime-delivery-envelope.js";
 
@@ -44,92 +43,90 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
     }
   }
 
+  #rpcEntryOptions(actorToken: string) {
+    return {
+      env: this.env,
+      actorToken,
+      configureDb: () => {
+        this.#configureDb();
+      },
+    };
+  }
+
   async consumeGrant(
     input: ConsumeGrantRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-    try {
-      this.#configureDb();
-      const actor = await actorFromHopToken(this.env, input.actorToken);
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) => {
       const result = await consumeInjectionGrant({
         keyring: createKeyringFromRuntimeEnv(this.env),
         organizationId: input.organizationId,
         grantId: input.grantId,
         ...(input.variableKey !== undefined ? { variableKey: input.variableKey } : {}),
         ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
-        actor: toAuditActor(actor),
+        actor: auditActor,
         request: { requestId: input.requestId },
       });
-      return {
-        ok: true,
-        value: runtimeDeliveryEnvelope(
-          {
-            grantId: input.grantId,
-            secretId: result.secretId,
-            secretVersionId: result.secretVersionId,
-            variableKey: result.variableKey,
-            valueUtf8: result.valueUtf8,
-            ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
-          },
-          { requestId: input.requestId },
-        ),
-      };
-    } catch (error) {
-      return { ok: false, error: toRuntimeRpcError(error) };
-    }
+      return runtimeDeliveryEnvelope(
+        {
+          grantId: input.grantId,
+          secretId: result.secretId,
+          secretVersionId: result.secretVersionId,
+          variableKey: result.variableKey,
+          valueUtf8: result.valueUtf8,
+          ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
+        },
+        { requestId: input.requestId },
+      );
+    });
   }
 
   async writeSecret(
     input: WriteSecretRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
-    try {
-      this.#configureDb();
-      const actor = await actorFromHopToken(this.env, input.actorToken);
-      const auditActor = toAuditActor(actor);
-      const coordinate = {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-      };
-      // Authorization first, coordinate check second: a caller lacking write scope must get the
-      // same insufficient_scope denial whether or not the URL environment exists, so the coordinate
-      // check (which reads the environments table) cannot become a cross-project existence oracle.
-      // The coordinate check then runs only for callers already entitled to write at this project.
-      await authorizeScopeOrThrow({
-        actor: toAccessActor(actor),
-        auditActor,
-        coordinate,
-        requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
-        requestId: input.requestId,
-      });
-      await assertSecretWriteCoordinate({
-        ...coordinate,
-        actor: auditActor,
-        request: { requestId: input.requestId },
-      });
-      const result = await writeNonProtectedSecret({
-        keyring: createKeyringFromRuntimeEnv(this.env),
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        variableKey: input.variableKey,
-        actor: auditActor,
-        valueUtf8: input.valueUtf8,
-        ...(input.allowEmpty !== undefined ? { allowEmpty: input.allowEmpty } : {}),
-        ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
-        request: { requestId: input.requestId },
-      });
-      return {
-        ok: true,
-        value: {
+    return withRuntimeRpcEntry(
+      this.#rpcEntryOptions(input.actorToken),
+      async ({ auditActor, accessActor }) => {
+        const coordinate = {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          environmentId: input.environmentId,
+        };
+        // Authorization first, coordinate check second: a caller lacking write scope must get the
+        // same insufficient_scope denial whether or not the URL environment exists, so the coordinate
+        // check (which reads the environments table) cannot become a cross-project existence oracle.
+        // The coordinate check then runs only for callers already entitled to write at this project.
+        await authorizeScopeOrThrow({
+          actor: accessActor,
+          auditActor,
+          coordinate,
+          requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
+          requestId: input.requestId,
+        });
+        await assertSecretWriteCoordinate({
+          ...coordinate,
+          actor: auditActor,
+          request: { requestId: input.requestId },
+        });
+        const result = await writeNonProtectedSecret({
+          keyring: createKeyringFromRuntimeEnv(this.env),
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          environmentId: input.environmentId,
+          variableKey: input.variableKey,
+          actor: auditActor,
+          valueUtf8: input.valueUtf8,
+          ...(input.allowEmpty !== undefined ? { allowEmpty: input.allowEmpty } : {}),
+          ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
+          request: { requestId: input.requestId },
+        });
+        return {
           secretId: result.secretId,
           secretVersionId: result.secretVersionId,
           variableKey: result.variableKey,
           createdSecretShape: result.createdSecretShape,
           ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
-        },
-      };
-    } catch (error) {
-      return { ok: false, error: toRuntimeRpcError(error) };
-    }
+        };
+      },
+    );
   }
 }

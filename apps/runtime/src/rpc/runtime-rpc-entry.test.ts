@@ -1,0 +1,75 @@
+import { INJECTION_ERROR_CODES, userId } from "@insecur/domain";
+import {
+  INSECUR_RUNTIME_TOKEN_AUDIENCE,
+  mintScopedAccessToken,
+  type UserActor,
+} from "@insecur/auth";
+import { InjectionGrantError } from "@insecur/runtime-injection";
+import { describe, expect, it, vi } from "vitest";
+
+import type { RuntimeEnv } from "../env.js";
+import { withRuntimeRpcEntry } from "./runtime-rpc-entry.js";
+
+const RUNTIME_TOKEN_SIGNING_SECRET = "runtime-entry-secret-000000000000000000000000000";
+
+const env: RuntimeEnv = { RUNTIME_TOKEN_SIGNING_SECRET };
+
+const actor: UserActor = {
+  type: "user",
+  userId: userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E"),
+  workosUserId: "user_01workos",
+  sessionId: "session_01test",
+};
+
+async function mintRuntimeToken(): Promise<string> {
+  const minted = await mintScopedAccessToken({
+    actor,
+    audience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+    signingSecret: RUNTIME_TOKEN_SIGNING_SECRET,
+  });
+  return minted.token;
+}
+
+describe("withRuntimeRpcEntry", () => {
+  it("runs configureDb, verifies the hop token, and returns handler success as data", async () => {
+    const configureDb = vi.fn();
+    const result = await withRuntimeRpcEntry(
+      { env, actorToken: await mintRuntimeToken(), configureDb },
+      async ({ auditActor }) => ({ echoedUserId: auditActor.userId }),
+    );
+    expect(configureDb).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      ok: true,
+      value: { echoedUserId: actor.userId },
+    });
+  });
+
+  it("maps handler failures through toRuntimeRpcError instead of throwing", async () => {
+    const result = await withRuntimeRpcEntry(
+      { env, actorToken: await mintRuntimeToken(), configureDb: vi.fn() },
+      async () => {
+        throw new InjectionGrantError(INJECTION_ERROR_CODES.grantExpired, "grant gone");
+      },
+    );
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: INJECTION_ERROR_CODES.grantExpired,
+        message: "grant gone",
+        retryable: false,
+      },
+    });
+  });
+
+  it("maps hop-token verification failures through the same envelope", async () => {
+    const result = await withRuntimeRpcEntry(
+      { env, actorToken: "not-a-valid-token", configureDb: vi.fn() },
+      async () => ({ shouldNotRun: true }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.retryable).toBe(false);
+      expect(result.error.message).toContain("scoped hop token");
+    }
+  });
+});
