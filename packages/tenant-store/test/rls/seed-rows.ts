@@ -48,9 +48,30 @@ export async function seedOrganizationCore(
     )
     ON CONFLICT (id) DO NOTHING
   `;
+  await seedDevelopmentEnvironment(tx, input);
+}
+
+async function seedDevelopmentEnvironment(
+  tx: postgres.TransactionSql,
+  input: SeedOrgInput,
+): Promise<void> {
   await tx`
-    INSERT INTO environments (id, org_id, project_id, display_name)
-    VALUES (${input.environmentId}, ${input.organizationId}, ${input.projectId}, ${"Synthetic env"})
+    INSERT INTO environments (
+      id,
+      org_id,
+      project_id,
+      display_name,
+      is_protected,
+      lifecycle_stage
+    )
+    VALUES (
+      ${input.environmentId},
+      ${input.organizationId},
+      ${input.projectId},
+      ${"Synthetic env"},
+      false,
+      ${"development"}
+    )
     ON CONFLICT (id) DO NOTHING
   `;
 }

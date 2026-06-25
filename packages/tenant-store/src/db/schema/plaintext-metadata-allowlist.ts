@@ -63,7 +63,10 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     display_name: { category: "display-name" },
     id: { category: "opaque-id" },
     is_protected: { category: "flag" },
+    lifecycle_stage: { category: "type-code" },
     org_id: { category: "opaque-id" },
+    preview_non_production_confirmed_at: { category: "timestamp" },
+    preview_non_production_confirmed_by_user_id: { category: "actor-id" },
     project_id: { category: "opaque-id" },
   },
   injection_grants: {

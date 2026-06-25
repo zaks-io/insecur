@@ -42,6 +42,11 @@ export {
   runWithAccessDenialAudit,
   type AccessDenialAuditOptions,
 } from "./assert-access-or-audit.js";
+export {
+  assertEnvironmentLifecycleUpdateAccess,
+  EnvironmentLifecycleAccessError,
+  type EnvironmentLifecycleAccessCoordinate,
+} from "./assert-environment-lifecycle-update-access.js";
 export { recordAccessDenial, type RecordAccessDenialInput } from "./record-access-denial.js";
 export {
   type ActorRef,

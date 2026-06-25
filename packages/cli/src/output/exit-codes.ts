@@ -3,6 +3,7 @@ import {
   AUTH_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
   CRYPTO_ERROR_CODES,
+  ENVIRONMENT_ERROR_CODES,
   INJECTION_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
   OPERATION_ERROR_CODES,
@@ -40,6 +41,8 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [BOOTSTRAP_ERROR_CODES.invalidSecret]: EXIT_AUTH_REQUIRED,
   [BOOTSTRAP_ERROR_CODES.authenticatedActorRequired]: EXIT_AUTH_REQUIRED,
   [SECRET_ERROR_CODES.coordinateInvalid]: EXIT_NOT_FOUND,
+  [ENVIRONMENT_ERROR_CODES.notFound]: EXIT_NOT_FOUND,
+  [ENVIRONMENT_ERROR_CODES.protectedEnvironment]: EXIT_FORBIDDEN,
   [INJECTION_ERROR_CODES.grantDenied]: EXIT_FORBIDDEN,
   [INJECTION_ERROR_CODES.grantExpired]: EXIT_CONFLICT,
   [OPERATION_ERROR_CODES.notFound]: EXIT_NOT_FOUND,
@@ -68,6 +71,9 @@ function exitCodeForPrefix(code: KnownErrorCode): number | undefined {
     return EXIT_VALIDATION;
   }
   if (code.startsWith("secret.")) {
+    return EXIT_VALIDATION;
+  }
+  if (code.startsWith("environment.")) {
     return EXIT_VALIDATION;
   }
   if (code.startsWith("onboarding.")) {

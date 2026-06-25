@@ -7,8 +7,9 @@ import type {
   TeamId,
   UserId,
 } from "@insecur/domain";
+import { ENVIRONMENT_LIFECYCLE_STAGES } from "@insecur/domain";
 import { BUILT_IN_ROLE_PRESETS } from "@insecur/access";
-import { withTenantScope } from "@insecur/tenant-store";
+import { TenantEnvironmentLifecycleStore, withTenantScope } from "@insecur/tenant-store";
 
 export interface GuidedOrganizationResourceIds {
   organizationId: OrganizationId;
@@ -32,7 +33,7 @@ export async function persistGuidedOrganization(
 ): Promise<void> {
   await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async ({ sql }) => {
+    async ({ db, sql }) => {
       await sql`
         INSERT INTO organizations (id, instance_id, display_name)
         VALUES (${input.organizationId}, ${input.instanceId}, ${input.organizationDisplayName})
@@ -60,16 +61,14 @@ export async function persistGuidedOrganization(
           ${BUILT_IN_ROLE_PRESETS.owner}
         )
       `;
-      await sql`
-        INSERT INTO environments (id, org_id, project_id, display_name, is_protected)
-        VALUES (
-          ${input.developmentEnvironmentId},
-          ${input.organizationId},
-          ${input.projectId},
-          ${input.environmentDisplayName},
-          false
-        )
-      `;
+      const environmentStore = new TenantEnvironmentLifecycleStore(db);
+      await environmentStore.create({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.developmentEnvironmentId,
+        displayName: input.environmentDisplayName,
+        lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.development,
+      });
     },
   );
 }

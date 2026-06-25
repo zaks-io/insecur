@@ -104,3 +104,12 @@ export type {
   UserAdmissionStatus,
 } from "./user-admissions/types.js";
 export { USER_ADMISSION_STATUSES } from "./user-admissions/types.js";
+export { EnvironmentLifecycleStoreError } from "./environments/errors.js";
+export { resolveEnvironmentProtection } from "./environments/resolve-environment-protection.js";
+export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
+export type {
+  CreateEnvironmentLifecycleInput,
+  EnvironmentLifecycleRow,
+  PreviewNonProductionOptDown,
+  UpdateEnvironmentLifecycleMetadataInput,
+} from "./environments/types.js";
