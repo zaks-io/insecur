@@ -62,8 +62,8 @@ audit evidence.
 
 ## Storage notes
 
-Bootstrap tables (`instance_configurations`, `instance_identity_configurations`,
+Bootstrap/instance-scoped infrastructure tables (`instance_configurations`, `instance_identity_configurations`,
 `bootstrap_operator_claims`, `instance_operators`, `bootstrap_secret_verifiers`, `user_admissions`) intentionally
-have no Row-Level Security policies. They are instance-level infrastructure reached only through
-service-scoped Tenant-Scoped Store access during bootstrap; organization tenant isolation begins
+have no Row-Level Security policies. They are reached only through
+service-scoped Tenant-Scoped Store access; organization tenant isolation begins
 at `organizations` and below.

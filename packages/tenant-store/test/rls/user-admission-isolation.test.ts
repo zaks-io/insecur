@@ -60,7 +60,11 @@ describeIntegration("user admissions (persisted admitted-user resolution)", () =
           ${"active"}
         )
         ON CONFLICT (instance_id, workos_user_id) DO UPDATE
-        SET status = ${"active"}, revoked_at = NULL, user_id = EXCLUDED.user_id
+        SET
+          id = EXCLUDED.id,
+          status = ${"active"},
+          revoked_at = NULL,
+          user_id = EXCLUDED.user_id
       `;
     });
 

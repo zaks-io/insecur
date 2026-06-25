@@ -495,6 +495,10 @@
         "user_admissions_status_check": {
           "name": "user_admissions_status_check",
           "value": "\"user_admissions\".\"status\" IN ('active', 'revoked')"
+        },
+        "user_admissions_revocation_check": {
+          "name": "user_admissions_revocation_check",
+          "value": "(\"user_admissions\".\"status\" = 'active' AND \"user_admissions\".\"revoked_at\" IS NULL) OR (\"user_admissions\".\"status\" = 'revoked' AND \"user_admissions\".\"revoked_at\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false

@@ -55,6 +55,10 @@ export async function recordAdmissionDeniedAudit(input: {
   });
 }
 
+/**
+ * Best-effort denied-admission audit for auth middleware and CLI exchange paths.
+ * Failures are swallowed so the original {@link AuthFailureError} contract is preserved.
+ */
 export async function recordAdmissionDeniedAuditForAuthFailure(
   env: AuthWorkerEnv,
   failure: AuthFailure,
@@ -63,9 +67,13 @@ export async function recordAdmissionDeniedAuditForAuthFailure(
   if (failure.reason !== "not_admitted" || failure.admissionDenial === undefined) {
     return;
   }
-  await recordAdmissionDeniedAudit({
-    instanceId: resolveInstanceId(env),
-    workosUserId: failure.admissionDenial.workosUserId,
-    requestId,
-  });
+  try {
+    await recordAdmissionDeniedAudit({
+      instanceId: resolveInstanceId(env),
+      workosUserId: failure.admissionDenial.workosUserId,
+      requestId,
+    });
+  } catch {
+    // Best-effort: preserve the original AuthFailureError response contract.
+  }
 }

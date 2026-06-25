@@ -136,4 +136,19 @@ describe("recordAdmissionDeniedAuditForAuthFailure", () => {
       request: { requestId: reqId },
     });
   });
+
+  it("does not throw when audit persistence fails", async () => {
+    mockedResolveActive.mockResolvedValueOnce(null);
+    mockedLoadAnchorOrg.mockRejectedValueOnce(new Error("anchor org unavailable"));
+
+    await expect(
+      recordAdmissionDeniedAuditForAuthFailure(
+        env,
+        authFailureForAdmissionDenial(workosUserId),
+        reqId,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(mockedRecordDenied).not.toHaveBeenCalled();
+  });
 });

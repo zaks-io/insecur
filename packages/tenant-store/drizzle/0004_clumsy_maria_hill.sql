@@ -8,7 +8,11 @@ CREATE TABLE "user_admissions" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"revoked_at" timestamp with time zone,
-	CONSTRAINT "user_admissions_status_check" CHECK ("user_admissions"."status" IN ('active', 'revoked'))
+	CONSTRAINT "user_admissions_status_check" CHECK ("user_admissions"."status" IN ('active', 'revoked')),
+	CONSTRAINT "user_admissions_revocation_check" CHECK (
+		("user_admissions"."status" = 'active' AND "user_admissions"."revoked_at" IS NULL) OR
+		("user_admissions"."status" = 'revoked' AND "user_admissions"."revoked_at" IS NOT NULL)
+	)
 );
 --> statement-breakpoint
 ALTER TABLE "user_admissions" ADD CONSTRAINT "user_admissions_instance_id_instances_id_fk" FOREIGN KEY ("instance_id") REFERENCES "public"."instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

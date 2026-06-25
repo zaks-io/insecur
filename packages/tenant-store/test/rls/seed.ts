@@ -166,6 +166,7 @@ async function seedBaselineUserAdmissions(sql: postgres.Sql): Promise<void> {
       )
     ON CONFLICT (instance_id, workos_user_id) DO UPDATE
     SET
+      id = EXCLUDED.id,
       user_id = EXCLUDED.user_id,
       display_name = EXCLUDED.display_name,
       status = ${"active"},

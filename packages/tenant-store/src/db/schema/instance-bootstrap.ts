@@ -129,6 +129,10 @@ export const userAdmissions = pgTable(
   },
   (table) => [
     check("user_admissions_status_check", sql`${table.status} IN ('active', 'revoked')`),
+    check(
+      "user_admissions_revocation_check",
+      sql`(${table.status} = 'active' AND ${table.revokedAt} IS NULL) OR (${table.status} = 'revoked' AND ${table.revokedAt} IS NOT NULL)`,
+    ),
     uniqueIndex("user_admissions_one_workos_subject_per_instance").on(
       table.instanceId,
       table.workosUserId,
