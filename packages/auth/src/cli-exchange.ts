@@ -1,6 +1,10 @@
 import type { RequestId } from "@insecur/domain";
 import type { AdmittedUserResolver } from "./admitted-user.js";
-import { authFailureForReason, type AuthFailure } from "./auth-failure.js";
+import {
+  authFailureForAdmissionDenial,
+  authFailureForReason,
+  type AuthFailure,
+} from "./auth-failure.js";
 import { validateCsrfToken } from "./csrf.js";
 import type { ParsedRequestCredentials } from "./credentials.js";
 import { mintEphemeralSessionCredential } from "./ephemeral-session.js";
@@ -82,7 +86,7 @@ export async function exchangeCliSession(
 
   const userId = await input.resolveAdmittedUser(rotated.rotated.context.user.id);
   if (userId === null) {
-    return { ok: false, failure: authFailureForReason("not_admitted") };
+    return { ok: false, failure: authFailureForAdmissionDenial(rotated.rotated.context.user.id) };
   }
 
   return mintCliExchangeResult(

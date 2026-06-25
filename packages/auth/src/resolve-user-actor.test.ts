@@ -110,6 +110,8 @@ describe("resolveUserActor", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.failure.code).toBe(AUTH_ERROR_CODES.required);
+      expect(result.failure.reason).toBe("not_admitted");
+      expect(result.failure.admissionDenial?.workosUserId).toBe("user_not_admitted");
     }
   });
 
@@ -161,6 +163,7 @@ describe("resolveUserActor", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.failure.reason).toBe("not_admitted");
+      expect(result.failure.admissionDenial?.workosUserId).toBe(workosUserId);
     }
   });
 

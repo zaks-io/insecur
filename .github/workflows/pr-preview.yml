@@ -90,6 +90,14 @@ jobs:
           DATABASE_URL_MIGRATION: ${{ steps.neon.outputs.db_url }}
         run: pnpm --filter @insecur/tenant-store migrate:local
 
+      - name: Seed preview smoke admission
+        env:
+          DATABASE_URL_MIGRATION: ${{ steps.neon.outputs.db_url }}
+          INSTANCE_ID: inst_LOCAL_DEV
+          SMOKE_WORKOS_USER_ID: ${{ vars.SMOKE_WORKOS_USER_ID }}
+          SMOKE_ADMITTED_USER_ID: ${{ vars.SMOKE_ADMITTED_USER_ID }}
+        run: pnpm --filter @insecur/tenant-store exec node scripts/seed-preview-smoke-admission.mjs
+
       - name: Create or reuse PR Hyperdrive
         id: hyperdrive
         env:
@@ -123,7 +131,8 @@ jobs:
 
       # Deploy the public API Worker SECOND, with its RUNTIME Service Binding pointed (by the patch
       # step) at insecur-runtime-pr-N. WorkOS values are dummies: the smoke authenticates with a
-      # self-minted ephemeral bearer (no WorkOS round-trip), and ADMITTED_USER_MAP_JSON admits it.
+      # self-minted ephemeral bearer (no WorkOS round-trip), and a persisted user_admissions row
+      # seeded on the preview Neon branch admits it.
       - name: Deploy preview API Worker
         id: deploy_api
         env:
@@ -135,14 +144,12 @@ jobs:
           SMOKE_ADMITTED_USER_ID: ${{ vars.SMOKE_ADMITTED_USER_ID }}
         run: |
           api_name="insecur-api-pr-${PR_NUMBER}"
-          admitted_map="{\"${SMOKE_WORKOS_USER_ID}\":\"${SMOKE_ADMITTED_USER_ID}\"}"
           pnpm exec wrangler deploy \
             --config apps/api/wrangler.jsonc \
             --env preview \
             --name "$api_name" \
             --var "SESSION_SIGNING_SECRET:${SMOKE_SESSION_SIGNING_SECRET}" \
             --var "RUNTIME_TOKEN_SIGNING_SECRET:${RUNTIME_TOKEN_SIGNING_SECRET}" \
-            --var "ADMITTED_USER_MAP_JSON:${admitted_map}" \
             --var "INSTANCE_ID:inst_LOCAL_DEV" \
             --var "WORKOS_API_KEY:sk_test" \
             --var "WORKOS_CLIENT_ID:client_test" \

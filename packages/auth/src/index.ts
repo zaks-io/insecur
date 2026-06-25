@@ -1,5 +1,11 @@
 export type { AdmittedUserResolver } from "./admitted-user.js";
-export { authFailureForReason, type AuthFailure, type AuthFailureReason } from "./auth-failure.js";
+export {
+  authFailureForAdmissionDenial,
+  authFailureForReason,
+  type AuthFailure,
+  type AuthFailureAdmissionDenial,
+  type AuthFailureReason,
+} from "./auth-failure.js";
 export {
   CLI_SESSION_TTL_SECONDS,
   INSECUR_API_TOKEN_AUDIENCE,

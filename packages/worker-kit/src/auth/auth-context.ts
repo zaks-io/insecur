@@ -1,6 +1,7 @@
 import type { AdmittedUserResolver, InsecurAuthConfig, WorkOSSessionPort } from "@insecur/auth";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
-import { createAdmittedUserResolver, createAuthConfig } from "./config.js";
+import { createAdmittedUserResolver } from "./admitted-user-resolver.js";
+import { createAuthConfig } from "./config.js";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
 
 export type AuthConfigField =
@@ -60,12 +61,19 @@ export interface AuthContext {
   readonly resolveAdmittedUser: AdmittedUserResolver;
 }
 
-export function createAuthContext(env: AuthWorkerEnv): AuthContext {
+export interface CreateAuthContextOptions {
+  readonly resolveAdmittedUser?: AdmittedUserResolver;
+}
+
+export function createAuthContext(
+  env: AuthWorkerEnv,
+  options?: CreateAuthContextOptions,
+): AuthContext {
   const config = createAuthConfig(env);
   validateAuthContext(config);
   return {
     config,
     workos: createWorkOSSessionPortFromEnv(env),
-    resolveAdmittedUser: createAdmittedUserResolver(env),
+    resolveAdmittedUser: options?.resolveAdmittedUser ?? createAdmittedUserResolver(env),
   };
 }

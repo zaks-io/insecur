@@ -33,6 +33,7 @@ const EXCLUDED_SCHEMA_FILES = new Set([
   "index.ts",
   "pg-core.ts",
   "plaintext-metadata-allowlist.ts",
+  "plaintext-metadata-allowlist-instance-bootstrap.ts",
   "plaintext-metadata-conformance.ts",
   "schema-tables.ts",
 ]);

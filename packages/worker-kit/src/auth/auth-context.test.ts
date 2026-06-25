@@ -5,14 +5,30 @@ import {
   testSessionSigningSecret,
   type InsecurAuthConfig,
 } from "@insecur/auth";
-import { userId } from "@insecur/domain";
-import { describe, expect, it } from "vitest";
+import { userId, type UserId } from "@insecur/domain";
+import { describe, expect, it, vi } from "vitest";
 import {
   AuthConfigError,
   createAuthContext,
   validateAuthContext,
   type AuthConfigField,
-} from "./auth-context.js";
+} from "../index.js";
+import type { AdmittedUserResolver } from "@insecur/auth";
+
+vi.mock("@insecur/tenant-store", () => ({
+  resolveAdmittedUserId: vi.fn(),
+}));
+
+import { resolveAdmittedUserId } from "@insecur/tenant-store";
+
+const mockedResolveAdmittedUserId = vi.mocked(resolveAdmittedUserId);
+
+function createFakeAdmittedUserResolver(
+  admissions: Readonly<Record<string, UserId>>,
+): AdmittedUserResolver {
+  const admitted = new Map(Object.entries(admissions));
+  return (workosUserId: string) => Promise.resolve(admitted.get(workosUserId) ?? null);
+}
 
 const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const workosUserId = "user_01workos";
@@ -23,7 +39,6 @@ const env = {
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
     {
       sessionData: sealedSession,
@@ -104,6 +119,20 @@ describe("validateAuthContext", () => {
 });
 
 describe("createAuthContext", () => {
+  it("defaults to store-backed admission resolution", async () => {
+    mockedResolveAdmittedUserId.mockResolvedValueOnce(admittedUserId);
+    const { resolveAdmittedUser } = createAuthContext(env);
+    await expect(resolveAdmittedUser(workosUserId)).resolves.toBe(admittedUserId);
+    expect(mockedResolveAdmittedUserId).toHaveBeenCalledWith("inst_LOCAL_DEV", workosUserId);
+  });
+
+  it("uses a custom admitted-user resolver when provided", async () => {
+    const context = createAuthContext(env, {
+      resolveAdmittedUser: createFakeAdmittedUserResolver({ [workosUserId]: admittedUserId }),
+    });
+    await expect(context.resolveAdmittedUser(workosUserId)).resolves.toBe(admittedUserId);
+  });
+
   it("throws before returning when workos.clientId is empty", () => {
     expectAuthConfigError(
       () => createAuthContext({ ...env, WORKOS_CLIENT_ID: "" }),
@@ -138,7 +167,9 @@ describe("createAuthContext", () => {
   });
 
   it("composes config, workos, and admitted-user resolution for auth entry points", async () => {
-    const { config, workos, resolveAdmittedUser } = createAuthContext(env);
+    const { config, workos, resolveAdmittedUser } = createAuthContext(env, {
+      resolveAdmittedUser: createFakeAdmittedUserResolver({ [workosUserId]: admittedUserId }),
+    });
     expect(config.sessionSigningSecret).toBe(env.SESSION_SIGNING_SECRET);
     await expect(resolveAdmittedUser(workosUserId)).resolves.toBe(admittedUserId);
 

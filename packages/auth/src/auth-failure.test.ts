@@ -1,7 +1,7 @@
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
-import { authFailureForReason } from "./auth-failure.js";
+import { authFailureForAdmissionDenial, authFailureForReason } from "./auth-failure.js";
 
 describe("auth ErrorBody-compatible failures", () => {
   it("authFailureForReason returns code and retryable for each reason", () => {
@@ -19,5 +19,12 @@ describe("auth ErrorBody-compatible failures", () => {
   it("maps insufficient assurance to auth.reauth_required", () => {
     const failure = authFailureForReason("insufficient_assurance");
     expect(failure.code).toBe(AUTH_ERROR_CODES.reauthRequired);
+  });
+
+  it("authFailureForAdmissionDenial attaches workosUserId for denied-attempt audit", () => {
+    const failure = authFailureForAdmissionDenial("user_01workos");
+    expect(failure.reason).toBe("not_admitted");
+    expect(failure.code).toBe(AUTH_ERROR_CODES.required);
+    expect(failure.admissionDenial?.workosUserId).toBe("user_01workos");
   });
 });

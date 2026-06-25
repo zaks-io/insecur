@@ -33,6 +33,12 @@ import {
   TEST_ENV_C_ID,
   TEST_TEAM_C_ID,
   TEST_MEM_C_ID,
+  TEST_USER_ID,
+  TEST_WORKOS_USER_ID,
+  TEST_NO_SCOPE_USER_ID,
+  TEST_NO_SCOPE_WORKOS_USER_ID,
+  TEST_USER_ADMISSION_A_ID,
+  TEST_USER_ADMISSION_NS_ID,
 } from "./test-ids.js";
 import { seedDataKeys } from "./seed-data-keys.js";
 import { seedOrganizationCore, seedSecretWithVersion, type SeedOrgInput } from "./seed-rows.js";
@@ -73,6 +79,46 @@ function createMigrationSql(url: string): postgres.Sql {
   }
 }
 
+async function seedTenantBaselineLocked(sql: postgres.Sql): Promise<void> {
+  await sql`
+    INSERT INTO instances (id, display_name)
+    VALUES (${TEST_INSTANCE_ID}, ${"Synthetic test instance"})
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await seedBaselineUserAdmissions(sql);
+
+  await seedOrganization(sql, {
+    organizationId: TEST_ORG_A_ID,
+    projectId: TEST_PROJECT_A_ID,
+    environmentId: TEST_ENV_A_ID,
+    teamId: TEST_TEAM_A_ID,
+    membershipId: TEST_MEM_A_ID,
+    secretId: TEST_SECRET_A_ID,
+    secretVersionId: TEST_VERSION_A_ID,
+    organizationDataKeyId: TEST_ORG_KEY_A_ID,
+    projectDataKeyId: TEST_PROJECT_KEY_A_ID,
+  });
+  await seedOrganization(sql, {
+    organizationId: TEST_ORG_B_ID,
+    projectId: TEST_PROJECT_B_ID,
+    environmentId: TEST_ENV_B_ID,
+    teamId: TEST_TEAM_B_ID,
+    membershipId: TEST_MEM_B_ID,
+    secretId: TEST_SECRET_B_ID,
+    secretVersionId: TEST_VERSION_B_ID,
+    organizationDataKeyId: TEST_ORG_KEY_B_ID,
+    projectDataKeyId: TEST_PROJECT_KEY_B_ID,
+  });
+  await seedTenantWithoutDataKeys(sql, {
+    organizationId: TEST_ORG_C_ID,
+    projectId: TEST_PROJECT_C_ID,
+    environmentId: TEST_ENV_C_ID,
+    teamId: TEST_TEAM_C_ID,
+    membershipId: TEST_MEM_C_ID,
+  });
+}
+
 export async function seedTenantBaseline(): Promise<void> {
   const url = requireDatabaseUrl("DATABASE_URL_MIGRATION", "DATABASE_URL");
   await runLocalMigrate();
@@ -80,41 +126,7 @@ export async function seedTenantBaseline(): Promise<void> {
   try {
     await sql`SELECT pg_advisory_lock(${TENANT_STORE_SEED_LOCK_KEY})`;
     try {
-      await sql`
-        INSERT INTO instances (id, display_name)
-        VALUES (${TEST_INSTANCE_ID}, ${"Synthetic test instance"})
-        ON CONFLICT (id) DO NOTHING
-      `;
-
-      await seedOrganization(sql, {
-        organizationId: TEST_ORG_A_ID,
-        projectId: TEST_PROJECT_A_ID,
-        environmentId: TEST_ENV_A_ID,
-        teamId: TEST_TEAM_A_ID,
-        membershipId: TEST_MEM_A_ID,
-        secretId: TEST_SECRET_A_ID,
-        secretVersionId: TEST_VERSION_A_ID,
-        organizationDataKeyId: TEST_ORG_KEY_A_ID,
-        projectDataKeyId: TEST_PROJECT_KEY_A_ID,
-      });
-      await seedOrganization(sql, {
-        organizationId: TEST_ORG_B_ID,
-        projectId: TEST_PROJECT_B_ID,
-        environmentId: TEST_ENV_B_ID,
-        teamId: TEST_TEAM_B_ID,
-        membershipId: TEST_MEM_B_ID,
-        secretId: TEST_SECRET_B_ID,
-        secretVersionId: TEST_VERSION_B_ID,
-        organizationDataKeyId: TEST_ORG_KEY_B_ID,
-        projectDataKeyId: TEST_PROJECT_KEY_B_ID,
-      });
-      await seedTenantWithoutDataKeys(sql, {
-        organizationId: TEST_ORG_C_ID,
-        projectId: TEST_PROJECT_C_ID,
-        environmentId: TEST_ENV_C_ID,
-        teamId: TEST_TEAM_C_ID,
-        membershipId: TEST_MEM_C_ID,
-      });
+      await seedTenantBaselineLocked(sql);
     } finally {
       await sql`SELECT pg_advisory_unlock(${TENANT_STORE_SEED_LOCK_KEY})`;
     }
@@ -123,6 +135,44 @@ export async function seedTenantBaseline(): Promise<void> {
   } finally {
     await sql.end({ timeout: 5 });
   }
+}
+
+async function seedBaselineUserAdmissions(sql: postgres.Sql): Promise<void> {
+  await sql`
+    INSERT INTO user_admissions (
+      id,
+      instance_id,
+      user_id,
+      workos_user_id,
+      display_name,
+      status
+    )
+    VALUES
+      (
+        ${TEST_USER_ADMISSION_A_ID},
+        ${TEST_INSTANCE_ID},
+        ${TEST_USER_ID},
+        ${TEST_WORKOS_USER_ID},
+        ${"Synthetic baseline user"},
+        ${"active"}
+      ),
+      (
+        ${TEST_USER_ADMISSION_NS_ID},
+        ${TEST_INSTANCE_ID},
+        ${TEST_NO_SCOPE_USER_ID},
+        ${TEST_NO_SCOPE_WORKOS_USER_ID},
+        ${"Synthetic no-scope user"},
+        ${"active"}
+      )
+    ON CONFLICT (instance_id, workos_user_id) DO UPDATE
+    SET
+      id = EXCLUDED.id,
+      user_id = EXCLUDED.user_id,
+      display_name = EXCLUDED.display_name,
+      status = ${"active"},
+      revoked_at = NULL,
+      updated_at = now()
+  `;
 }
 
 async function seedOrganization(sql: postgres.Sql, input: SeedOrgInput): Promise<void> {

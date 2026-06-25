@@ -2,6 +2,7 @@ import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insec
 import { AUTH_ERROR_CODES, OPERATION_ERROR_CODES, organizationId, userId } from "@insecur/domain";
 import { OperationStoreError } from "@insecur/operations";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../../../test/support/setup-unit-auth.js";
 
 const { getOperation, resolveEffectiveAccess, recordAccessDenial } = vi.hoisted(() => ({
   getOperation: vi.fn(),
@@ -28,8 +29,8 @@ vi.mock("@insecur/access", async (importOriginal) => {
 
 import app from "../../index.js";
 
-const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
-const workosUserId = "user_01workos";
+const admittedUserId = userId.brand(ADMITTED_USER_ID_RAW);
+const workosUserId = WORKOS_USER_ID;
 
 const orgId = organizationId.brand("org_00000000000000000000000001");
 const otherOrgId = organizationId.brand("org_00000000000000000000000002");
@@ -41,7 +42,6 @@ const env = {
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   INSTANCE_ID: "inst_LOCAL_DEV",
-  ADMITTED_USER_MAP_JSON: JSON.stringify({ [workosUserId]: admittedUserId }),
   RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
   RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
 };

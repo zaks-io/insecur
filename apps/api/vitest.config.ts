@@ -9,6 +9,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       include: ["src/**/*.test.ts", "test/canary/console-capture.test.ts"],
+      setupFiles: ["test/support/setup-unit-auth.ts"],
     },
   }),
 );

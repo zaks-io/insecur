@@ -9,10 +9,8 @@ export interface AuthWorkerEnv {
   readonly WORKOS_CLIENT_ID: string;
   readonly WORKOS_COOKIE_PASSWORD: string;
   readonly SESSION_SIGNING_SECRET: string;
-  /** Instance identifier for guided organization provisioning. */
+  /** Instance identifier for guided organization provisioning and admission resolution. */
   readonly INSTANCE_ID?: string;
-  /** JSON map of WorkOS user id to admitted insecur User id (development only). */
-  readonly ADMITTED_USER_MAP_JSON?: string;
   /** JSON array of fake sealed sessions for local/testing (development only). */
   readonly WORKOS_FAKE_SESSIONS_JSON?: string;
 }

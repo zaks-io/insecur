@@ -111,3 +111,32 @@ export const bootstrapSecretVerifiers = pgTable(
     check("bootstrap_secret_verifiers_algorithm_check", sql`${table.algorithm} IN ('scrypt_v1')`),
   ],
 );
+
+export const userAdmissions = pgTable(
+  "user_admissions",
+  {
+    id: text("id").primaryKey(),
+    instanceId: text("instance_id")
+      .notNull()
+      .references(() => instances.id),
+    userId: text("user_id").notNull(),
+    workosUserId: text("workos_user_id").notNull(),
+    displayName: text("display_name"),
+    status: text("status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    check("user_admissions_status_check", sql`${table.status} IN ('active', 'revoked')`),
+    check(
+      "user_admissions_revocation_check",
+      sql`(${table.status} = 'active' AND ${table.revokedAt} IS NULL) OR (${table.status} = 'revoked' AND ${table.revokedAt} IS NOT NULL)`,
+    ),
+    uniqueIndex("user_admissions_one_workos_subject_per_instance").on(
+      table.instanceId,
+      table.workosUserId,
+    ),
+    uniqueIndex("user_admissions_one_user_per_instance").on(table.instanceId, table.userId),
+  ],
+);

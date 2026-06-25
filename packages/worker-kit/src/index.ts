@@ -41,7 +41,12 @@ export type {
 
 export type { AuthWorkerEnv } from "./auth/auth-worker-env.js";
 export { AuthFailureError } from "./auth/auth-failure-error.js";
-export { createAdmittedUserResolver, createAuthConfig } from "./auth/config.js";
+export {
+  createAdmittedUserResolver,
+  createStoreAdmittedUserResolver,
+  resolveInstanceId,
+} from "./auth/admitted-user-resolver.js";
+export { createAuthConfig } from "./auth/config.js";
 export { createWorkOSSessionPortFromEnv } from "./auth/workos-port.js";
 export {
   AuthConfigError,
@@ -49,5 +54,14 @@ export {
   validateAuthContext,
   type AuthConfigField,
   type AuthContext,
+  type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
 export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
+export {
+  recordAdmissionDeniedAudit,
+  recordAdmissionDeniedAuditForAuthFailure,
+} from "./auth/record-admission-denied-audit.js";
+export {
+  createFakeAdmittedUserResolver,
+  createTestAuthContext,
+} from "./auth/testing/create-test-auth-context.js";

@@ -23,7 +23,7 @@ export interface AuditEventInsertRow {
   outcome: AuditEventInput["outcome"];
   resultCode: KnownErrorCode;
   actorType: AuditActorType;
-  actorUserId: UserId;
+  actorUserId: UserId | null;
   projectId: ProjectId | null;
   environmentId: EnvironmentId | null;
   resourceType: AuditResourceType | null;

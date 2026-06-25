@@ -86,3 +86,16 @@ export type {
   StoredWrappedSensitiveMetadata,
   UpsertSensitiveMetadataInput,
 } from "./sensitive-metadata/types.js";
+export {
+  insertActiveUserAdmissionInTransaction,
+  resolveActiveUserAdmission,
+  resolveAdmittedUserId,
+  revokeUserAdmission,
+  seedActiveUserAdmission,
+} from "./user-admissions/tenant-user-admission-store.js";
+export type {
+  ActiveUserAdmissionRow,
+  SeedUserAdmissionInput,
+  UserAdmissionStatus,
+} from "./user-admissions/types.js";
+export { USER_ADMISSION_STATUSES } from "./user-admissions/types.js";
