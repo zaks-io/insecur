@@ -6,6 +6,7 @@ import { runInitCommand, DEFAULT_INIT_PROFILE_SLUG } from "./commands/init.js";
 import { runLoginCommand } from "./commands/login.js";
 import { registerAuditCommands } from "./audit-commands.js";
 import { runShellCommand } from "./commands/shell.js";
+import { registerRunCommand } from "./register-run-command.js";
 import { loadAndResolveCliContext } from "./config/load-cli-context.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 import { CliError } from "./output/cli-error.js";
@@ -70,6 +71,8 @@ export function buildProgram(): Command {
       const context = await loadAndResolveCliContext(flags);
       process.exitCode = await runShellCommand(flags, profile, context);
     });
+
+  registerRunCommand(program, { globalFlags, resolveApi });
 
   program
     .command("init")
