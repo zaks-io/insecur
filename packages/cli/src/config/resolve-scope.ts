@@ -1,5 +1,6 @@
 import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
+import { resolveProfile } from "./profiles/resolve-profile.js";
 import type { InsecurProjectConfig } from "./project-config.js";
 import type { CliUserConfig, CliUserProfile } from "./user-config.js";
 
@@ -29,26 +30,17 @@ function firstDefined<T>(...values: readonly (T | undefined)[]): T | undefined {
   return undefined;
 }
 
-function resolveProfileFromUserConfig(
-  userConfig: CliUserConfig,
-  flags: GlobalCliFlags,
-): CliUserProfile | undefined {
-  if (flags.profileId !== undefined) {
-    return userConfig.profiles[flags.profileId];
-  }
-  const slug = flags.profile ?? readEnv("INSECUR_PROFILE");
-  if (slug === undefined) {
-    return undefined;
-  }
-  return Object.values(userConfig.profiles).find((profile) => profile.slug === slug);
-}
-
 export function resolveCliScope(
   flags: GlobalCliFlags,
   projectConfig: InsecurProjectConfig | null,
   userConfig: CliUserConfig,
 ): ResolvedCliScope {
-  const profile = resolveProfileFromUserConfig(userConfig, flags);
+  const profileSlugInput = flags.profile ?? readEnv("INSECUR_PROFILE");
+  const resolvedProfile = resolveProfile(userConfig, {
+    ...(flags.profileId === undefined ? {} : { profileId: flags.profileId }),
+    ...(profileSlugInput === undefined ? {} : { profileSlug: profileSlugInput }),
+  });
+  const profile = resolvedProfile?.profile;
   const host =
     firstDefined(flags.host, readEnv("INSECUR_HOST"), projectConfig?.host, profile?.host) ??
     DEFAULT_HOST;

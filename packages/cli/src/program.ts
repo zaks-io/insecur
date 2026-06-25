@@ -5,9 +5,7 @@ import { parseGlobalOptions } from "./cli-options.js";
 import { runInitCommand, DEFAULT_INIT_PROFILE_SLUG } from "./commands/init.js";
 import { runLoginCommand } from "./commands/login.js";
 import { runShellCommand } from "./commands/shell.js";
-import { resolveCliScope } from "./config/resolve-scope.js";
-import { loadProjectConfig } from "./config/project-config.js";
-import { loadUserConfig } from "./config/user-config.js";
+import { loadAndResolveCliContext } from "./config/load-cli-context.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 import { CliError } from "./output/cli-error.js";
 import { EXIT_UNEXPECTED } from "./output/exit-codes.js";
@@ -35,12 +33,8 @@ function globalFlags(command: CommanderCommand): GlobalCliFlags {
 }
 
 async function resolveApi(flags: GlobalCliFlags) {
-  const scope = resolveCliScope(
-    flags,
-    await loadProjectConfig(flags.configDir),
-    await loadUserConfig(),
-  );
-  return createHttpApiClientForHost(scope.host);
+  const context = await loadAndResolveCliContext(flags);
+  return { api: createHttpApiClientForHost(context.scope.host), context };
 }
 
 export function buildProgram(): Command {
@@ -57,9 +51,9 @@ export function buildProgram(): Command {
     .option("--csrf-env <name>", "env var with CSRF header", DEFAULT_CSRF_ENV)
     .action(async function loginAction(_args, command: CommanderCommand) {
       const flags = globalFlags(command);
-      const api = await resolveApi(flags);
+      const { api, context } = await resolveApi(flags);
       const options = command.opts<{ cookieEnv: string; csrfEnv: string }>();
-      process.exitCode = await runLoginCommand(flags, api, {
+      process.exitCode = await runLoginCommand(flags, api, context, {
         cookieEnv: options.cookieEnv,
         csrfEnv: options.csrfEnv,
       });
@@ -70,7 +64,9 @@ export function buildProgram(): Command {
     .description("Start a subshell with INSECUR_SESSION_TOKEN in the environment")
     .argument("<profile>", "CLI profile slug or opaque id")
     .action(async function shellAction(profile: string, command: CommanderCommand) {
-      process.exitCode = await runShellCommand(globalFlags(command), profile);
+      const flags = globalFlags(command);
+      const context = await loadAndResolveCliContext(flags);
+      process.exitCode = await runShellCommand(flags, profile, context);
     });
 
   program
@@ -80,8 +76,8 @@ export function buildProgram(): Command {
     .action(async function initAction(_args, command: CommanderCommand) {
       const flags = globalFlags(command);
       const options = command.opts<{ profileSlug: string }>();
-      const api = await resolveApi(flags);
-      process.exitCode = await runInitCommand(flags, api, {
+      const { api, context } = await resolveApi(flags);
+      process.exitCode = await runInitCommand(flags, api, context, {
         profileSlug: options.profileSlug,
       });
     });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import { runInitCommand } from "../src/commands/init.js";
+import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { clearMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";
 import { CliError } from "../src/output/cli-error.js";
@@ -19,6 +20,20 @@ const flags = {
   verbose: false,
 };
 
+const mockContext: ResolvedCliContext = {
+  projectConfig: null,
+  userConfig: { profiles: {} },
+  scope: {
+    host: flags.host,
+    orgId: undefined,
+    projectId: undefined,
+    envId: undefined,
+    profileId: undefined,
+    profileSlug: undefined,
+    profile: undefined,
+  },
+};
+
 const noopApi: ApiClient = {
   exchangeCliSession: async () => {
     throw new Error("not used");
@@ -33,7 +48,7 @@ describe("auth-required errors", () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
     await expect(
-      runInitCommand(flags, noopApi, { profileSlug: "local-dev" }),
+      runInitCommand(flags, noopApi, mockContext, { profileSlug: "local-dev" }),
     ).rejects.toMatchObject({
       exitCode: EXIT_AUTH_REQUIRED,
       code: AUTH_ERROR_CODES.required,

@@ -2,9 +2,7 @@ import { parseDisplayName, successEnvelope, type DisplayName } from "@insecur/do
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
-import { loadProjectConfig } from "../config/project-config.js";
-import { resolveCliScope } from "../config/resolve-scope.js";
-import { loadUserConfig } from "../config/user-config.js";
+import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { persistInitConfig } from "./init-persist.js";
 import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
@@ -33,20 +31,17 @@ export interface InitCommandOptions {
 export async function runInitCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
+  context: ResolvedCliContext,
   commandOptions: InitCommandOptions,
 ): Promise<number> {
   const credential = requireSessionCredential();
-  const scope = resolveCliScope(
-    flags,
-    await loadProjectConfig(flags.configDir),
-    await loadUserConfig(),
-  );
+  const { host, orgId, projectId, envId } = context.scope;
   const provisioned = await api.provisionPersonalOrganization({
-    host: scope.host,
+    host,
     bearerCredential: credential,
-    ...(scope.orgId === undefined ? {} : { organizationId: scope.orgId }),
-    ...(scope.projectId === undefined ? {} : { projectId: scope.projectId }),
-    ...(scope.envId === undefined ? {} : { environmentId: scope.envId }),
+    ...(orgId === undefined ? {} : { organizationId: orgId }),
+    ...(projectId === undefined ? {} : { projectId }),
+    ...(envId === undefined ? {} : { environmentId: envId }),
   });
   if (!provisioned.ok) {
     throw new CliError(provisioned.envelope.error);
@@ -54,7 +49,7 @@ export async function runInitCommand(
   const data = provisioned.envelope.data;
   const { configPath, profileId } = await persistInitConfig({
     configDir: flags.configDir,
-    host: scope.host,
+    host,
     profileSlug: commandOptions.profileSlug,
     profileDisplayName: INIT_LABELS.profile,
     data,
