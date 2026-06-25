@@ -35,4 +35,22 @@ describe("rethrowEnvironmentLifecycleDbError", () => {
     expect(isEnvironmentLifecycleImmutableViolation(otherError)).toBe(false);
     expect(() => rethrowEnvironmentLifecycleDbError(otherError)).toThrow(otherError);
   });
+
+  it("rethrows same-message errors with a non-check-violation Postgres code unchanged", () => {
+    const wrongCodeError = {
+      code: "23505",
+      message:
+        "lifecycle stage and protected posture cannot change after creation (SQLSTATE 23505)",
+    };
+    expect(isEnvironmentLifecycleImmutableViolation(wrongCodeError)).toBe(false);
+    expect(() => rethrowEnvironmentLifecycleDbError(wrongCodeError)).toThrow(wrongCodeError);
+  });
+
+  it("rethrows same-message errors without a Postgres code unchanged", () => {
+    const noCodeError = new Error(
+      "lifecycle stage and protected posture cannot change after creation",
+    );
+    expect(isEnvironmentLifecycleImmutableViolation(noCodeError)).toBe(false);
+    expect(() => rethrowEnvironmentLifecycleDbError(noCodeError)).toThrow(noCodeError);
+  });
 });

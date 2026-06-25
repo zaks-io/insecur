@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { constants as osConstants } from "node:os";
 import {
   base64UrlToBytes,
   INJECTION_ERROR_CODES,
@@ -42,7 +43,7 @@ function requireRunCommand(command: readonly string[]): readonly string[] {
   const [executable] = command;
   if (executable === undefined || executable === "") {
     throw new CliError({
-      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      code: VALIDATION_ERROR_CODES.invalidCommandInput,
       message: "Command is required after --.",
       retryable: false,
     });
@@ -63,10 +64,25 @@ function decodeDeliveryValue(encodedValueUtf8: string): string {
 }
 
 function buildRunChildEnv(variableKey: VariableKey, valueUtf8: string): NodeJS.ProcessEnv {
-  return {
+  const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
     [variableKey]: valueUtf8,
   };
+  delete childEnv.INSECUR_SESSION_TOKEN;
+  delete childEnv.INSECUR_DEPLOY_KEY;
+  delete childEnv.INSECUR_OIDC_TOKEN;
+  return childEnv;
+}
+
+function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | null): number {
+  if (code !== null) {
+    return code;
+  }
+  if (signal === null) {
+    return 0;
+  }
+  const signalNumber = osConstants.signals[signal];
+  return 128 + signalNumber;
 }
 
 function spawnCommand(command: readonly string[], childEnv: NodeJS.ProcessEnv): Promise<number> {
@@ -78,8 +94,8 @@ function spawnCommand(command: readonly string[], childEnv: NodeJS.ProcessEnv): 
   return new Promise<number>((resolve, reject) => {
     const child = spawn(executable, args, { env: childEnv, stdio: "inherit", shell: false });
     child.on("error", reject);
-    child.on("close", (code) => {
-      resolve(code ?? 0);
+    child.on("close", (code, signal) => {
+      resolve(exitCodeForChildClose(code, signal));
     });
   });
 }
