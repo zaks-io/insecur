@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
     "commander": "^12.1.0"

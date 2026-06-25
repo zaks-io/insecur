@@ -4,6 +4,7 @@ import { createHttpApiClientForHost } from "./api/http-client.js";
 import { parseGlobalOptions } from "./cli-options.js";
 import { runInitCommand, DEFAULT_INIT_PROFILE_SLUG } from "./commands/init.js";
 import { runLoginCommand } from "./commands/login.js";
+import { registerAuditCommands } from "./audit-commands.js";
 import { runShellCommand } from "./commands/shell.js";
 import { loadAndResolveCliContext } from "./config/load-cli-context.js";
 import type { GlobalCliFlags } from "./cli-options.js";
@@ -81,6 +82,8 @@ export function buildProgram(): Command {
         profileSlug: options.profileSlug,
       });
     });
+
+  registerAuditCommands(program, globalFlags);
 
   return program;
 }

@@ -70,3 +70,57 @@ export {
   validateAuditEventInput,
 } from "./validate-audit-event.js";
 export { type AuditEventResult, writeAuditEvent } from "./write-audit-event.js";
+export {
+  AUDIT_EXPORT_CHAIN_GENESIS,
+  AUDIT_EXPORT_HASH_ALGORITHM,
+  AUDIT_EXPORT_SCHEMA_VERSION,
+  AUDIT_EXPORT_SIGNATURE_ALGORITHM,
+} from "./audit-export-constants.js";
+export { canonicalJsonStringify } from "./canonical-json.js";
+export {
+  assertAuditExportPayloadIsMetadataOnly,
+  scanAuditExportForForbiddenSensitiveValues,
+  toAuditExportEventPayload,
+} from "./audit-export-event.js";
+export { auditExportGenesisHash, sha256Base64Url } from "./audit-export-hash.js";
+export {
+  buildAuditExportJsonlEntries,
+  hashAuditExportEventPayload,
+  parseAuditExportJsonl,
+  serializeAuditExportJsonl,
+} from "./audit-export-hash-chain.js";
+export {
+  StaticAuditExportHmacKeyProvider,
+  StaticAuditExportSigningKeyProvider,
+  StaticAuditExportVerificationKeys,
+  verifyEd25519Signature,
+} from "./audit-export-keys.js";
+export {
+  buildSigningPayload,
+  buildUnsignedAuditExportManifest,
+  canonicalManifestSigningBytes,
+  finalizeAuditExportManifest,
+  signAuditExportManifest,
+  type UnsignedAuditExportManifest,
+} from "./audit-export-manifest.js";
+export {
+  AUDIT_EXPORT_FAILURE_CODES,
+  type AuditExportBundle,
+  type AuditExportEventPayload,
+  type AuditExportFailureCode,
+  type AuditExportHmacKeyProvider,
+  type AuditExportIntegrityChecks,
+  type AuditExportIntegrityStatus,
+  type AuditExportJsonlEntry,
+  type AuditExportKeyCustodyMetadata,
+  type AuditExportManifest,
+  type AuditExportSigningKeyProvider,
+  type AuditExportTimeRange,
+  type AuditExportVerificationKeys,
+  type AuditExportVerificationResult,
+  type BuildAuditExportInput,
+  type VerifyAuditExportInput,
+} from "./audit-export-types.js";
+export { buildAuditExport } from "./build-audit-export.js";
+export { exportTenantAuditEvents, listAuditExportEvents } from "./export-tenant-audit.js";
+export { parseAuditExportManifest, verifyAuditExport } from "./verify-audit-export.js";

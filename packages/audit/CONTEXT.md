@@ -6,7 +6,7 @@ map, not an independent glossary. Authoritative term definitions live in the per
 ## Role
 
 This package owns the Audit Event Writer for tenant-qualified, metadata-only
-product events. Tamper-evident Audit Export is a later module.
+product events and tamper-evident Audit Export (hash chains, manifests, verify).
 
 ## Read First
 
@@ -36,14 +36,14 @@ product events. Tamper-evident Audit Export is a later module.
 
 ## Owns
 
-- Audit event input and result shapes.
+- Audit event input and insert-row shapes.
 - Tenant-qualified actor, resource, request, and operation references.
 - Denied-attempt audit coverage.
 - Audit metadata allowlist tests.
+- Tamper-evident audit export, hash chains, HMACed manifests, and `verifyAuditExport`.
 
 ## Does Not Own
 
-- Audit Export hash chains or manifests.
 - Operation Store state.
 - Authorization decisions.
 - Secret Version lifecycle.
