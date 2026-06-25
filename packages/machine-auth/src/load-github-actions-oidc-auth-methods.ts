@@ -90,7 +90,7 @@ export async function loadActiveGitHubActionsOidcAuthMethods(
   const authMethods: GitHubActionsOidcAuthMethodRow[] = [];
   for (const row of rows) {
     const parsed = toAuthMethodRow(row);
-    if (parsed !== null && parsed.status === "active") {
+    if (parsed !== null) {
       authMethods.push(parsed);
     }
   }

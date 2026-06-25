@@ -11,7 +11,7 @@ import {
 
 export type VerifyGitHubActionsOidcTokenResult =
   | { ok: true; claims: GitHubActionsOidcClaims }
-  | { ok: false; reason: "malformed" | "invalid" };
+  | { ok: false; reason: "malformed" | "invalid" | "expired" };
 
 export interface GitHubActionsOidcJwksPort {
   getVerificationKeys(): Promise<readonly JwkPublicKey[]>;
@@ -32,6 +32,7 @@ function verificationFailure(
 export async function verifyGitHubActionsOidcToken(
   token: string,
   jwks: GitHubActionsOidcJwksPort,
+  nowEpoch?: number,
 ): Promise<VerifyGitHubActionsOidcTokenResult> {
   const keys = await jwks.getVerificationKeys();
   if (keys.length === 0) {
@@ -46,6 +47,11 @@ export async function verifyGitHubActionsOidcToken(
   const claims = parseGitHubActionsOidcClaims(verified.payload);
   if (claims === null) {
     return { ok: false, reason: "invalid" };
+  }
+
+  const now = nowEpoch ?? Math.floor(Date.now() / 1000);
+  if (claims.expiresAtEpoch <= now) {
+    return { ok: false, reason: "expired" };
   }
 
   return { ok: true, claims };

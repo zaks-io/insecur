@@ -32,7 +32,7 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
     await seedTenantBaseline();
     const org = organizationId.brand(TEST_ORG_A_ID);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async (sql) => {
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
         INSERT INTO machine_identities (id, org_id, display_name)
         VALUES (${TEST_MACHINE_ID}, ${TEST_ORG_A_ID}, ${"GitHub Actions deploy"})
@@ -114,7 +114,7 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
 
     const result = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         exchangeGitHubActionsOidc({
           organizationId: org,
           oidcToken: token,
@@ -152,7 +152,7 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
 
     const result = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         exchangeGitHubActionsOidc({
           organizationId: org,
           oidcToken: token,
@@ -185,7 +185,7 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
 
     const result = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         exchangeGitHubActionsOidc({
           organizationId: org,
           oidcToken: token,
@@ -218,7 +218,7 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
 
     const result = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         exchangeGitHubActionsOidc({
           organizationId: org,
           oidcToken: token,
@@ -251,7 +251,7 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
 
     const result = await withTenantScope(
       { kind: "organization", organizationId: org },
-      async (sql) =>
+      async ({ sql }) =>
         exchangeGitHubActionsOidc({
           organizationId: org,
           oidcToken: token,

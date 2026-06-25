@@ -153,7 +153,7 @@ async function denyTrustMatch(
 export async function exchangeGitHubActionsOidc(
   input: ExchangeGitHubActionsOidcInput,
 ): Promise<ExchangeGitHubActionsOidcResult> {
-  const verified = await verifyGitHubActionsOidcToken(input.oidcToken, input.jwks);
+  const verified = await verifyGitHubActionsOidcToken(input.oidcToken, input.jwks, input.nowEpoch);
   if (!verified.ok) {
     return denyExchange({
       organizationId: input.organizationId,
