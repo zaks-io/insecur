@@ -29,6 +29,27 @@ describe("verifyGitHubActionsOidcToken", () => {
     }
   });
 
+  it("rejects expired tokens before returning success", async () => {
+    const signer = await createTestGitHubActionsOidcSigner();
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const token = await signer.sign(
+      buildGitHubActionsOidcClaims({
+        audience: "insecur://oidc/github-actions",
+        repository: "insecur-ci/example",
+        repositoryOwner: "insecur-ci",
+        subject: "repo:insecur-ci/example:environment:production",
+        environment: "production",
+        expiresAtEpoch: nowEpoch - 60,
+      }),
+    );
+
+    const verified = await verifyGitHubActionsOidcToken(token, signer.jwks, nowEpoch);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("expired");
+    }
+  });
+
   it("rejects tampered tokens", async () => {
     const signer = await createTestGitHubActionsOidcSigner();
     const token = await signer.sign(

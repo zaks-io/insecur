@@ -65,6 +65,15 @@ export interface LoadedGrantBinding {
   };
 }
 
+function assertUserActorForConsume(actor: AuditActorRef): void {
+  if (actor.type !== "user") {
+    throw new InjectionGrantError(
+      AUTH_ERROR_CODES.insufficientScope,
+      "runtime injection scope required",
+    );
+  }
+}
+
 async function loadGrantBinding(
   organizationId: OrganizationId,
   grantId: InjectionGrantId,
@@ -104,6 +113,8 @@ export async function executeConsumeInjectionGrant(
     projectId: loaded.projectId,
     environmentId: loaded.environmentId,
   };
+
+  assertUserActorForConsume(input.actor);
 
   await assertRuntimeInjectionAccess(
     { type: "user", userId: auditActorUserId(input.actor) },
