@@ -30,6 +30,7 @@ export { toAccessActor, toAuditActor } from "./http/request-actor.js";
 
 export type {
   ConsumeGrantRpcInput,
+  RuntimeGeneratedSecretInput,
   RuntimeDeliveryEnvelope,
   RuntimeDeliveryPayload,
   RuntimeRpc,

@@ -41,6 +41,9 @@ const noopApi: ApiClient = {
   provisionPersonalOrganization: async () => {
     throw new Error("not used");
   },
+  writeSecretByVariableKey: async () => {
+    throw new Error("not used");
+  },
 };
 
 describe("auth-required errors", () => {

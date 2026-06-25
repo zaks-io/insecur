@@ -1,0 +1,35 @@
+import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import { VALIDATION_ERROR_CODES } from "@insecur/domain";
+import type { ResolvedCliScope } from "../config/resolve-scope.js";
+import { CliError } from "../output/cli-error.js";
+
+export interface ResolvedSecretWriteScope {
+  readonly orgId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly envId: EnvironmentId;
+}
+
+export function requireSecretWriteScope(scope: ResolvedCliScope): ResolvedSecretWriteScope {
+  if (scope.orgId === undefined || scope.projectId === undefined || scope.envId === undefined) {
+    const missing: string[] = [];
+    if (scope.orgId === undefined) {
+      missing.push("organization");
+    }
+    if (scope.projectId === undefined) {
+      missing.push("project");
+    }
+    if (scope.envId === undefined) {
+      missing.push("environment");
+    }
+    throw new CliError({
+      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      message: `Missing ${missing.join(", ")} scope. Run insecur init or pass --org-id, --project-id, and --env-id.`,
+      retryable: false,
+    });
+  }
+  return {
+    orgId: scope.orgId,
+    projectId: scope.projectId,
+    envId: scope.envId,
+  };
+}

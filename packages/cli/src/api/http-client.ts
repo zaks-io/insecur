@@ -5,6 +5,7 @@ import type {
   ApiClient,
   CliSessionExchangeData,
   GuidedOrganizationProvisionData,
+  SecretWriteByVariableKeyData,
 } from "./types.js";
 
 async function readJsonResponse(response: Response): Promise<unknown> {
@@ -38,6 +39,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
   return {
     exchangeCliSession: (input) => exchangeCliSession(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
+    writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
   };
 }
 
@@ -89,6 +91,38 @@ async function provisionPersonalOrganization(
     },
   );
   const envelope = parseEnvelope<GuidedOrganizationProvisionData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+async function writeSecretByVariableKey(
+  base: string,
+  input: Parameters<ApiClient["writeSecretByVariableKey"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets/by-variable-key`;
+  const body: Record<string, unknown> = {
+    variableKey: input.variableKey,
+  };
+  if ("valueUtf8" in input) {
+    body.value = new TextDecoder("utf-8", { fatal: true }).decode(input.valueUtf8);
+  } else {
+    body.generate = input.generate;
+  }
+  if (input.allowEmpty === true) {
+    body.allowEmpty = true;
+  }
+  const { response, body: responseBody } = await postJson(new URL(path, base), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${input.bearerCredential}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const envelope = parseEnvelope<SecretWriteByVariableKeyData>(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
   }

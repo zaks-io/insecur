@@ -75,6 +75,11 @@ export {
   isStableDottedCode,
 } from "./stable-dotted-code.js";
 export {
+  DEFAULT_GENERATED_SECRET_RANDOM_BYTES,
+  MAX_GENERATED_SECRET_RANDOM_BYTES,
+  SECRET_VALUE_SIZE_LIMIT_BYTES,
+} from "./secret-value-limits.js";
+export {
   AUDIT_ERROR_CODES,
   type AuditErrorCode,
   AUTH_ERROR_CODES,

@@ -11,6 +11,7 @@ import type { GlobalCliFlags } from "./cli-options.js";
 import { CliError } from "./output/cli-error.js";
 import { EXIT_UNEXPECTED } from "./output/exit-codes.js";
 import { renderEnvelope } from "./output/render.js";
+import { registerSecretsCommands } from "./register-secrets-commands.js";
 
 const DEFAULT_COOKIE_ENV = "INSECUR_WORKOS_COOKIE";
 const DEFAULT_CSRF_ENV = "INSECUR_WORKOS_CSRF";
@@ -84,6 +85,7 @@ export function buildProgram(): Command {
     });
 
   registerAuditCommands(program, globalFlags);
+  registerSecretsCommands(program, { globalFlags, resolveApi });
 
   return program;
 }

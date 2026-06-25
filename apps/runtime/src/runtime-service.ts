@@ -16,6 +16,7 @@ import type {
 import type { RuntimeEnv } from "./env.js";
 import { withRuntimeRpcEntry } from "./rpc/runtime-rpc-entry.js";
 import { createKeyringFromRuntimeEnv } from "./crypto/keyring-context.js";
+import { generateSecretValueUtf8 } from "./secret-generation.js";
 import { runtimeDeliveryEnvelope } from "./runtime-delivery-envelope.js";
 
 /**
@@ -114,7 +115,8 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
           environmentId: input.environmentId,
           variableKey: input.variableKey,
           actor: auditActor,
-          valueUtf8: input.valueUtf8,
+          valueUtf8:
+            "valueUtf8" in input ? input.valueUtf8 : generateSecretValueUtf8(input.generate),
           ...(input.allowEmpty !== undefined ? { allowEmpty: input.allowEmpty } : {}),
           ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
           request: { requestId: input.requestId },

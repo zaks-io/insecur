@@ -289,6 +289,35 @@ describe("FV-12 worker routes", () => {
       expect(JSON.stringify(body)).not.toContain("metadata-only-test-value");
     });
 
+    it("forwards generated writes to Runtime without accepting a request-body value", async () => {
+      const response = await app.request(
+        secretsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            generate: { mode: "random", lengthBytes: 32 },
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      const forwarded = writeSecret.mock.calls[0]?.[0];
+      expect(forwarded).toMatchObject({
+        organizationId: orgId,
+        projectId: projectIdValue,
+        environmentId: environmentIdValue,
+        variableKey: "API_KEY",
+        generate: { mode: "random", lengthBytes: 32 },
+      });
+      expect(forwarded).not.toHaveProperty("valueUtf8");
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: true, data: { variableKey: "API_KEY" } });
+      expect(JSON.stringify(body)).not.toMatch(/valueUtf8|plaintext|secret-value/i);
+    });
+
     it("maps a Runtime insufficient-scope failure to a 403 envelope", async () => {
       writeSecret.mockResolvedValue(
         rpcFailure(AUTH_ERROR_CODES.insufficientScope, "actor lacks secret:non_protected_write"),
