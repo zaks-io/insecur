@@ -113,4 +113,25 @@ describe("resolveCliScope precedence", () => {
     expect(scopeFromFlags.projectId).toBe(VALID_PROJECT_FLAG);
     expect(scopeFromFlags.envId).toBe(VALID_ENV_FLAG);
   });
+
+  it("ignores malformed env scope when valid flags are set", () => {
+    process.env.INSECUR_ORG = "org_invalid";
+    process.env.INSECUR_PROJECT = "prj_invalid";
+    process.env.INSECUR_ENV = "env_invalid";
+
+    const scope = resolveCliScope(
+      {
+        ...baseFlags,
+        orgId: VALID_ORG_FLAG as never,
+        projectId: VALID_PROJECT_FLAG as never,
+        envId: VALID_ENV_FLAG as never,
+      },
+      project,
+      user,
+    );
+
+    expect(scope.orgId).toBe(VALID_ORG_FLAG);
+    expect(scope.projectId).toBe(VALID_PROJECT_FLAG);
+    expect(scope.envId).toBe(VALID_ENV_FLAG);
+  });
 });

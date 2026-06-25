@@ -6,6 +6,7 @@ import {
   parseOrganizationId,
   parseProjectId,
 } from "./parse-resource-id.js";
+import { requireNonEmptyString } from "./require-non-empty-string.js";
 import { projectConfigPath, readJsonFile, resolveProjectRoot, writeJsonFile } from "./paths.js";
 
 export interface InsecurProjectConfig {
@@ -15,13 +16,6 @@ export interface InsecurProjectConfig {
   readonly defaultEnvId: EnvironmentId;
   readonly profileId: CliProfileId;
   readonly gitBranchToEnvironment?: Readonly<Record<string, EnvironmentId>>;
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== "string" || value === "") {
-    throw new Error(`${label} must be a non-empty string`);
-  }
-  return value;
 }
 
 function parseProjectConfig(record: Record<string, unknown>): InsecurProjectConfig {

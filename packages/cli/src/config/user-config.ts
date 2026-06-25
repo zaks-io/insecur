@@ -12,6 +12,7 @@ import {
   parseOrganizationId,
   parseProjectId,
 } from "./parse-resource-id.js";
+import { requireNonEmptyString } from "./require-non-empty-string.js";
 import { readJsonFile, userConfigPath, writeJsonFile } from "./paths.js";
 
 export interface CliUserProfile {
@@ -47,13 +48,6 @@ function parseProfile(profileId: string, record: Record<string, unknown>): CliUs
     projectId: parseProjectId(projectId, `${profileContext}.projectId`),
     envId: parseEnvironmentId(envId, `${profileContext}.envId`),
   };
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== "string" || value === "") {
-    throw new Error(`${label} must be a non-empty string`);
-  }
-  return value;
 }
 
 function parseProfileRecord(profileId: string, profileRecord: unknown): CliUserProfile {
