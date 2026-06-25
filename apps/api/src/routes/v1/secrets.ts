@@ -34,10 +34,12 @@ async function executeSecretWriteByVariableKey(
   );
   const parsed = await parseSecretWriteBody(context.req);
 
-  assertSafeSecretValueIngress("request_body");
+  assertSafeSecretValueIngress("valueUtf8" in parsed ? "request_body" : "generated");
   rejectNamedLocalValueFile(parsed.localValueFile);
 
   const actorToken = await mintRuntimeHopToken(context.env, userActor);
+  const writeInput =
+    "valueUtf8" in parsed ? { valueUtf8: parsed.valueUtf8 } : { generate: parsed.generate };
 
   return unwrapRuntimeResult(
     await context.env.RUNTIME.writeSecret({
@@ -45,7 +47,7 @@ async function executeSecretWriteByVariableKey(
       projectId,
       environmentId,
       variableKey: parsed.variableKey,
-      valueUtf8: parsed.valueUtf8,
+      ...writeInput,
       requestId: reqId,
       actorToken,
       ...(parsed.allowEmpty !== undefined ? { allowEmpty: parsed.allowEmpty } : {}),

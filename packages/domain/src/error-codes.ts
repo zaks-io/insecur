@@ -28,6 +28,7 @@ export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CO
 /** Scaffolding for secret-write error codes (implementation in secrets slice). */
 export const SECRET_ERROR_CODES = {
   invalidEncoding: "secret.invalid_encoding",
+  invalidInputMode: "secret.invalid_input_mode",
   emptyValue: "secret.empty_value",
   inputRequired: "secret.input_required",
   valueTooLarge: "secret.value_too_large",

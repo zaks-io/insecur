@@ -65,6 +65,9 @@ function createMockApi(): ApiClient {
         }),
       };
     },
+    async writeSecretByVariableKey() {
+      throw new Error("not used");
+    },
   };
 }
 
