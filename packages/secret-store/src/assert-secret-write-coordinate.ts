@@ -1,11 +1,7 @@
 import type { AuditActorRef, AuditRequestRef } from "@insecur/audit";
 import { SECRET_ERROR_CODES } from "@insecur/domain";
 import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
-import {
-  ProjectEnvironmentCoordinateError,
-  assertProjectEnvironmentCoordinate,
-  withTenantScope,
-} from "@insecur/tenant-store";
+import { assertProjectEnvironmentCoordinateWithScope } from "@insecur/tenant-store";
 
 import { recordSecretWriteAudit } from "./record-secret-write-audit.js";
 import { SecretWriteError } from "./secret-write-error.js";
@@ -35,19 +31,10 @@ export interface AssertSecretWriteCoordinateInput extends SecretWriteCoordinate 
 export async function assertSecretWriteCoordinate(
   input: AssertSecretWriteCoordinateInput,
 ): Promise<{ isProtected: boolean }> {
-  try {
-    return await withTenantScope(
-      { kind: "organization", organizationId: input.organizationId },
-      ({ db }) =>
-        assertProjectEnvironmentCoordinate(db, {
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          environmentId: input.environmentId,
-        }),
-    );
-  } catch (error) {
-    if (error instanceof ProjectEnvironmentCoordinateError) {
-      await recordSecretWriteAudit({
+  return assertProjectEnvironmentCoordinateWithScope({
+    coordinate: input,
+    onCoordinateDenied: () =>
+      recordSecretWriteAudit({
         outcome: "denied",
         actor: input.actor,
         organizationId: input.organizationId,
@@ -55,12 +42,11 @@ export async function assertSecretWriteCoordinate(
         environmentId: input.environmentId,
         reasonCode: SECRET_ERROR_CODES.coordinateInvalid,
         ...(input.request !== undefined ? { request: input.request } : {}),
-      }).catch(() => undefined);
-      throw new SecretWriteError(
+      }),
+    createCoordinateError: () =>
+      new SecretWriteError(
         SECRET_ERROR_CODES.coordinateInvalid,
         "project environment coordinate invalid",
-      );
-    }
-    throw error;
-  }
+      ),
+  });
 }
