@@ -3,10 +3,8 @@ import { and, eq, max } from "drizzle-orm";
 
 import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
-import {
-  decodeInlineCiphertextStorageRef,
-  encodeInlineCiphertextStorageRef,
-} from "./ciphertext-storage-ref.js";
+import { decodeStoredWrappedMaterial } from "../decode-stored-wrapped-material.js";
+import { encodeInlineCiphertextStorageRef } from "./ciphertext-storage-ref.js";
 import { resolveSecretForWrite as resolveSecretForWriteRow } from "./resolve-secret-for-write.js";
 import { SecretVersionStoreNotFoundError } from "./errors.js";
 export { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
@@ -15,7 +13,6 @@ import type {
   AppendSecretVersionAndMakeLiveResult,
   ResolveSecretForWriteInput,
   SecretVersionStoreRow,
-  StoredWrappedSecretMaterial,
 } from "./types.js";
 
 const secretVersionRowSelect = {
@@ -45,22 +42,7 @@ function toSecretVersionStoreRow(
     versionNumber: version.versionNumber,
     organizationDataKeyVersion: version.organizationDataKeyVersion ?? 0,
     projectDataKeyVersion: version.projectDataKeyVersion ?? 0,
-    wrapped: toStoredWrappedMaterial(version),
-  };
-}
-
-function toStoredWrappedMaterial(row: {
-  organizationDataKeyVersion: number | null;
-  projectDataKeyVersion: number | null;
-  ciphertextStorageRef: string;
-}): StoredWrappedSecretMaterial {
-  if (row.organizationDataKeyVersion === null || row.projectDataKeyVersion === null) {
-    throw new Error("secret version missing data key version metadata");
-  }
-  return {
-    organizationDataKeyVersion: row.organizationDataKeyVersion,
-    projectDataKeyVersion: row.projectDataKeyVersion,
-    ciphertext: decodeInlineCiphertextStorageRef(row.ciphertextStorageRef),
+    wrapped: decodeStoredWrappedMaterial(version, { material: "secret-version" }),
   };
 }
 
