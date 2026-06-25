@@ -10,18 +10,32 @@ export interface GeneratedSecretRequest {
   readonly lengthBytes: number;
 }
 
-export function parseGenerateLength(raw: string | undefined): number {
-  if (raw === undefined) {
-    return DEFAULT_GENERATE_LENGTH_BYTES;
-  }
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isInteger(parsed) || parsed < 1) {
+const POSITIVE_BASE10_INTEGER_PATTERN = /^\d+$/;
+
+function parsePositiveBase10Integer(raw: string): number {
+  if (!POSITIVE_BASE10_INTEGER_PATTERN.test(raw)) {
     throw new CliError({
       code: SECRET_ERROR_CODES.invalidInputMode,
       message: "--length must be a positive integer.",
       retryable: false,
     });
   }
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new CliError({
+      code: SECRET_ERROR_CODES.invalidInputMode,
+      message: "--length must be a positive integer.",
+      retryable: false,
+    });
+  }
+  return parsed;
+}
+
+export function parseGenerateLength(raw: string | undefined): number {
+  if (raw === undefined) {
+    return DEFAULT_GENERATE_LENGTH_BYTES;
+  }
+  const parsed = parsePositiveBase10Integer(raw);
   if (parsed > MAX_GENERATED_SECRET_RANDOM_BYTES) {
     throw new CliError({
       code: SECRET_ERROR_CODES.valueTooLarge,
