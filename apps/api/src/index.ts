@@ -1,4 +1,4 @@
-import { errorEnvelope, requestId } from "@insecur/domain";
+import { errorEnvelope } from "@insecur/domain";
 import { AuthFailureError } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
@@ -16,8 +16,7 @@ const app = new Hono<{ Bindings: ApiEnv }>();
 
 app.onError((err, context) => {
   if (err instanceof AuthFailureError) {
-    const reqId = requestId.generate();
-    const { failure } = err;
+    const { failure, requestId: reqId } = err;
     return context.json(
       errorEnvelope(
         {

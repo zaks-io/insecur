@@ -3,9 +3,25 @@ import {
   INSECUR_SESSION_CREDENTIAL_HEADER,
   testSessionSigningSecret,
 } from "@insecur/auth";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
+
+const { recordAdmissionDeniedAuditForAuthFailureMock } = vi.hoisted(() => ({
+  recordAdmissionDeniedAuditForAuthFailureMock: vi.fn(),
+}));
+
+vi.mock("@insecur/worker-kit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/worker-kit")>();
+  return {
+    ...actual,
+    recordAdmissionDeniedAuditForAuthFailure: recordAdmissionDeniedAuditForAuthFailureMock,
+  };
+});
+
 import app from "./index.js";
+
+const notAdmittedWorkosUserId = "user_not_admitted";
+const notAdmittedSealedSession = "sealed_not_admitted";
 
 const env = {
   WORKOS_API_KEY: "sk_test",
@@ -119,5 +135,52 @@ describe("centralized AuthFailure HTTP mapping", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER)).toBeTruthy();
     expectCliExchangeSuccessBody(await response.json());
+  });
+
+  describe("admission-denied request id correlation", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    const notAdmittedEnv = {
+      ...env,
+      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+        {
+          sessionData: notAdmittedSealedSession,
+          userId: notAdmittedWorkosUserId,
+          sessionId: "session_not_admitted",
+          authenticationMethod: "Passkey",
+        },
+      ]),
+    };
+
+    it("uses one request id for /cli/exchange admission-denied audit and HTTP envelope", async () => {
+      const csrf = generateCsrfToken();
+      const response = await app.request(
+        "/v1/auth/cli/exchange",
+        {
+          method: "POST",
+          headers: {
+            Cookie: `wos-session=${notAdmittedSealedSession}; insecur_csrf=${csrf}`,
+            "x-insecur-csrf": csrf,
+          },
+        },
+        notAdmittedEnv,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expectAuthFailureEnvelope(body);
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "auth.required", retryable: false },
+      });
+
+      const responseRequestId = (body as { meta?: { requestId?: string } }).meta?.requestId;
+      expect(recordAdmissionDeniedAuditForAuthFailureMock).toHaveBeenCalledTimes(1);
+      expect(recordAdmissionDeniedAuditForAuthFailureMock.mock.calls[0]?.[2]).toBe(
+        responseRequestId,
+      );
+    });
   });
 });

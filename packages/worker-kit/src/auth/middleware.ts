@@ -29,7 +29,7 @@ export const requireUserActor = createMiddleware<{
   if (!resolved.ok) {
     const reqId = createRequestId();
     await recordAdmissionDeniedAuditForAuthFailure(context.env, resolved.failure, reqId);
-    throw new AuthFailureError(resolved.failure);
+    throw new AuthFailureError(resolved.failure, reqId);
   }
   context.set("userActor", resolved.actor);
   await next();
