@@ -1,4 +1,5 @@
 export { assertSecretNonProtectedWriteAccess } from "./assert-secret-non-protected-write-access.js";
+export { assertEnvironmentAllowsNonProtectedWrite } from "./assert-environment-allows-non-protected-write.js";
 export {
   type AssertSecretWriteCoordinateInput,
   type SecretWriteCoordinate,
@@ -30,3 +31,9 @@ export {
   type WriteNonProtectedSecretResult,
   writeNonProtectedSecret,
 } from "./write-non-protected-secret.js";
+export {
+  getEnvironmentLifecycle,
+  updateAuthorizedEnvironmentLifecycle,
+  type GetEnvironmentLifecycleInput,
+  type UpdateAuthorizedEnvironmentLifecycleInput,
+} from "./environment-lifecycle.js";

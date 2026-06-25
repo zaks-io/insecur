@@ -55,6 +55,11 @@ export const environments = pgTable(
     projectId: text("project_id").notNull(),
     displayName: text("display_name").notNull(),
     isProtected: boolean("is_protected").notNull().default(false),
+    lifecycleStage: text("lifecycle_stage").notNull(),
+    previewNonProductionConfirmedAt: timestamp("preview_non_production_confirmed_at", {
+      withTimezone: true,
+    }),
+    previewNonProductionConfirmedByUserId: text("preview_non_production_confirmed_by_user_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -63,6 +68,26 @@ export const environments = pgTable(
       columns: [table.orgId, table.projectId],
       foreignColumns: [projects.orgId, projects.id],
     }),
+    check(
+      "environments_lifecycle_stage_check",
+      sql`${table.lifecycleStage} IN ('development', 'preview', 'staging', 'production')`,
+    ),
+    check(
+      "environments_development_non_protected_check",
+      sql`${table.lifecycleStage} <> 'development' OR ${table.isProtected} = false`,
+    ),
+    check(
+      "environments_staging_production_protected_check",
+      sql`${table.lifecycleStage} NOT IN ('staging', 'production') OR ${table.isProtected} = true`,
+    ),
+    check(
+      "environments_preview_opt_down_evidence_check",
+      sql`${table.lifecycleStage} <> 'preview' OR ${table.isProtected} = true OR (${table.previewNonProductionConfirmedAt} IS NOT NULL AND ${table.previewNonProductionConfirmedByUserId} IS NOT NULL)`,
+    ),
+    check(
+      "environments_preview_opt_down_fields_scope_check",
+      sql`(${table.previewNonProductionConfirmedAt} IS NULL AND ${table.previewNonProductionConfirmedByUserId} IS NULL) OR ${table.lifecycleStage} = 'preview'`,
+    ),
   ],
 );
 

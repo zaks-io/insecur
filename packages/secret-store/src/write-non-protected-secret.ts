@@ -17,12 +17,14 @@ import type {
 } from "@insecur/domain";
 import { secretVersionId } from "@insecur/domain";
 import {
+  TenantEnvironmentLifecycleStore,
   TenantSecretVersionStore,
   withTenantScope,
   type AppendSecretVersionAndMakeLiveResult,
   type StoredWrappedSecretMaterial,
 } from "@insecur/tenant-store";
 
+import { assertEnvironmentAllowsNonProtectedWrite } from "./assert-environment-allows-non-protected-write.js";
 import { recordSecretWriteAudit } from "./record-secret-write-audit.js";
 import { SecretWriteError } from "./secret-write-error.js";
 import { validateTextSecretValue } from "./validate-text-secret-value.js";
@@ -97,6 +99,13 @@ async function appendEncryptedVersionForWrite(
   return withTenantScope(
     { kind: "organization", organizationId: validatedInput.organizationId },
     async ({ db }) => {
+      const environmentStore = new TenantEnvironmentLifecycleStore(db);
+      const environment = await environmentStore.getById(
+        validatedInput.organizationId,
+        validatedInput.environmentId,
+      );
+      assertEnvironmentAllowsNonProtectedWrite(environment);
+
       const store = new TenantSecretVersionStore(db);
       const resolved = await store.resolveSecretForWrite({
         organizationId: validatedInput.organizationId,

@@ -58,6 +58,11 @@ export {
   parseDisplayName,
 } from "./display-name.js";
 export {
+  ENVIRONMENT_LIFECYCLE_STAGES,
+  type EnvironmentLifecycleStage,
+  isEnvironmentLifecycleStage,
+} from "./environment-lifecycle-stage.js";
+export {
   type VariableKey,
   VARIABLE_KEY_PATTERN,
   type ParseVariableKeyResult,
@@ -82,6 +87,8 @@ export {
   type OnboardingErrorCode,
   BOOTSTRAP_ERROR_CODES,
   type BootstrapErrorCode,
+  ENVIRONMENT_ERROR_CODES,
+  type EnvironmentErrorCode,
   OPERATION_ERROR_CODES,
   type OperationErrorCode,
   type KnownErrorCode,

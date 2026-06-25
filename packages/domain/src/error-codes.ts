@@ -76,6 +76,19 @@ export type BootstrapErrorCode = (typeof BOOTSTRAP_ERROR_CODES)[keyof typeof BOO
 export type OnboardingErrorCode =
   (typeof ONBOARDING_ERROR_CODES)[keyof typeof ONBOARDING_ERROR_CODES];
 
+/** Environment lifecycle and posture validation failures. */
+export const ENVIRONMENT_ERROR_CODES = {
+  invalidLifecycleStage: "environment.invalid_lifecycle_stage",
+  protectedEnvironment: "environment.protected_environment",
+  lifecycleImmutable: "environment.lifecycle_immutable",
+  previewOptDownRequired: "environment.preview_opt_down_required",
+  previewOptDownInvalid: "environment.preview_opt_down_invalid",
+  notFound: "environment.not_found",
+} as const;
+
+export type EnvironmentErrorCode =
+  (typeof ENVIRONMENT_ERROR_CODES)[keyof typeof ENVIRONMENT_ERROR_CODES];
+
 /** Crypto package failures surfaced to callers (decrypt remains opaque). */
 export const CRYPTO_ERROR_CODES = {
   decryptFailed: "crypto.decrypt_failed",
@@ -130,6 +143,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   INJECTION_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
+  ENVIRONMENT_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
   AUDIT_ERROR_CODES,
@@ -143,6 +157,7 @@ export type KnownErrorCode =
   | InjectionErrorCode
   | OnboardingErrorCode
   | BootstrapErrorCode
+  | EnvironmentErrorCode
   | CryptoErrorCode
   | StoreErrorCode
   | AuditErrorCode
