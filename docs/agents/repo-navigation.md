@@ -41,13 +41,16 @@ the content-ownership table in the Source Of Truth Rules of
 
 ## Code Routing
 
-The current source tree is intentionally thin. Product behavior should be added through package
-seams instead of route or CLI shortcuts.
+Product behavior is composed through package seams and capability-isolated Worker deploys. The
+authoritative route → deploy table is
+[`docs/specs/deploy-route-inventory.md`](../specs/deploy-route-inventory.md); do not restate it
+here.
 
 | Area                                                           | Files                         |
 | -------------------------------------------------------------- | ----------------------------- |
 | Public API Worker: transport, routes, bindings, hop token      | `apps/api/`                   |
 | Private Runtime Worker: keyring/decrypt-egress, RuntimeService | `apps/runtime/`               |
+| Web Console BFF (deferred; not scaffolded yet, INS-201)        | `apps/web/` (planned)         |
 | Shared Worker composition glue (http/auth)                     | `packages/worker-kit/`        |
 | CLI parsing, local config, output, and child process execution | `packages/cli/`               |
 | Shared branded primitives and result vocabulary                | `packages/domain/`            |
@@ -94,9 +97,14 @@ security, and domain source of truth.
 ## Current Shape To Remember
 
 The repo is documentation-led, but it is no longer planning-only. Build on the accepted executable
-scaffold: the First Value app/package stubs, Node 24/pnpm 10 workspace baseline, Turbo task graph,
+scaffold: the First Value app/package code, Node 24/pnpm 10 workspace baseline, Turbo task graph,
 Prettier/ESLint/Vitest wiring, and `pnpm verify`.
 
-Product behavior is still pre-implementation. The Worker exposes only a health-check route, package
-entrypoints are empty, and the removed unsafe scaffold is not a compatibility target. New code
-should implement the target product described by the specs and the First Value package seams.
+The Worker topology is capability-isolated: `apps/api` (`insecur-api`) is the public edge with no
+root-key binding; `apps/runtime` (`insecur-runtime`) is the sole `INSTANCE_ROOT_KEY_V1` holder with
+no public `/v1/*` routes, reached only over the private `RUNTIME` Service Binding;
+`apps/web` (BFF) is deferred (INS-201). See
+[`docs/specs/deploy-route-inventory.md`](../specs/deploy-route-inventory.md) for the live route
+mounts and [`docs/project-status.md`](../project-status.md) for a status snapshot — but treat that
+snapshot as lower authority than owning specs/ADRs and verified code when they disagree (per the
+Source Of Truth Rules in [`docs/specs/README.md`](../specs/README.md)).
