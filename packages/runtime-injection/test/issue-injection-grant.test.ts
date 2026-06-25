@@ -93,6 +93,7 @@ vi.mock("../src/resolve-injection-grant-bindings.js", () => ({
 }));
 
 vi.mock("@insecur/audit", () => ({
+  auditActorUserId: (actor: { userId: string }) => actor.userId,
   recordRuntimeInjectionAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 

@@ -24,6 +24,7 @@ function sampleEvent(overrides: Partial<AuditExportEventPayload> = {}): AuditExp
     result_code: "audit.succeeded",
     actor_type: "user",
     actor_user_id: "usr_00000000000000000000000001",
+    actor_machine_identity_id: null,
     project_id: "prj_00000000000000000000000001",
     environment_id: "env_00000000000000000000000001",
     resource_type: "organization",

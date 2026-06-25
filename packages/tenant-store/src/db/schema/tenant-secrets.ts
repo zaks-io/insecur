@@ -119,6 +119,7 @@ export const auditEvents = pgTable("audit_events", {
   resultCode: text("result_code").notNull(),
   actorType: text("actor_type").notNull(),
   actorUserId: text("actor_user_id"),
+  actorMachineIdentityId: text("actor_machine_identity_id"),
   projectId: text("project_id"),
   environmentId: text("environment_id"),
   resourceType: text("resource_type"),

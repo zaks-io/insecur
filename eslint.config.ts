@@ -150,6 +150,8 @@ export default tseslint.config(
       "packages/instance-bootstrap/vitest.config.ts",
       "packages/cli/test/**/*.ts",
       "packages/cli/vitest.config.ts",
+      "packages/machine-auth/test/**/*.ts",
+      "packages/machine-auth/vitest.config.ts",
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
       "packages/tenant-store/drizzle.config.ts",

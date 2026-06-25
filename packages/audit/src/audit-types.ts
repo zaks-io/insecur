@@ -1,6 +1,7 @@
 import type {
   EnvironmentId,
   KnownErrorCode,
+  MachineIdentityId,
   OpaqueResourceId,
   OperationId,
   OrganizationId,
@@ -12,18 +13,35 @@ import type { AuditEventCode } from "./audit-event-codes.js";
 
 export type AuditEventOutcome = "success" | "denied";
 
-export type AuditActorType = "user";
+export type AuditActorType = "user" | "machine" | "ci_exchange";
 
-export interface AuditActorRef {
-  type: AuditActorType;
+export interface AuditUserActorRef {
+  type: "user";
   userId: UserId;
 }
 
-/** Persisted audit actor for denied attempts when the insecur user id is unknown. */
-export interface AuditEventActorRef {
-  type: AuditActorType;
+/** User actor on persisted audit events when the insecur user id is unknown. */
+export interface AuditEventUserActorRef {
+  type: "user";
   userId: UserId | null;
 }
+
+export interface AuditMachineActorRef {
+  type: "machine";
+  machineIdentityId: MachineIdentityId;
+}
+
+/** Unauthenticated GitHub Actions OIDC exchange attempt (no matched Machine Identity). */
+export interface AuditCiExchangeActorRef {
+  type: "ci_exchange";
+}
+
+export type AuditActorRef = AuditUserActorRef | AuditMachineActorRef | AuditCiExchangeActorRef;
+
+export type AuditEventActorRef =
+  | AuditEventUserActorRef
+  | AuditMachineActorRef
+  | AuditCiExchangeActorRef;
 
 export type AuditResourceType =
   | "organization"
@@ -40,7 +58,9 @@ export type AuditResourceType =
   | "secret_sync"
   | "approval_request"
   | "organization_data_key"
-  | "project_data_key";
+  | "project_data_key"
+  | "machine_identity"
+  | "machine_auth_method";
 
 export interface AuditResourceRef {
   type: AuditResourceType;

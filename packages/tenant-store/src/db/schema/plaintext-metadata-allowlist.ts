@@ -40,6 +40,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     provider: { category: "type-code" },
   },
   audit_events: {
+    actor_machine_identity_id: { category: "actor-id" },
     actor_type: { category: "type-code" },
     actor_user_id: { category: "actor-id" },
     created_at: { category: "timestamp" },
@@ -112,6 +113,19 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     machine_identity_id: { category: "opaque-id" },
     org_id: { category: "opaque-id" },
     project_id: { category: "opaque-id" },
+  },
+  machine_identity_github_actions_oidc: {
+    created_at: { category: "timestamp" },
+    credential_scopes: { category: "type-code" },
+    environment_id: { category: "opaque-id" },
+    github_environment: { category: "type-code" },
+    github_repository: { category: "type-code" },
+    id: { category: "opaque-id" },
+    machine_identity_id: { category: "opaque-id" },
+    oidc_audience: { category: "type-code" },
+    org_id: { category: "opaque-id" },
+    project_id: { category: "opaque-id" },
+    status: { category: "status-code" },
   },
   memberships: {
     created_at: { category: "timestamp" },

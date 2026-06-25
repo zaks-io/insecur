@@ -2,6 +2,7 @@ import type {
   AuditEventId,
   EnvironmentId,
   KnownErrorCode,
+  MachineIdentityId,
   OpaqueResourceId,
   OperationId,
   OrganizationId,
@@ -11,6 +12,7 @@ import type {
 } from "@insecur/domain";
 import type {
   AuditActorType,
+  AuditEventActorRef,
   AuditEventDetails,
   AuditEventInput,
   AuditResourceType,
@@ -24,6 +26,7 @@ export interface AuditEventInsertRow {
   resultCode: KnownErrorCode;
   actorType: AuditActorType;
   actorUserId: UserId | null;
+  actorMachineIdentityId: MachineIdentityId | null;
   projectId: ProjectId | null;
   environmentId: EnvironmentId | null;
   resourceType: AuditResourceType | null;
@@ -63,6 +66,19 @@ function optionalRelatedResource(
   };
 }
 
+function actorIdsFromRef(
+  actor: AuditEventActorRef,
+): Pick<AuditEventInsertRow, "actorUserId" | "actorMachineIdentityId"> {
+  switch (actor.type) {
+    case "user":
+      return { actorUserId: actor.userId, actorMachineIdentityId: null };
+    case "machine":
+      return { actorUserId: null, actorMachineIdentityId: actor.machineIdentityId };
+    case "ci_exchange":
+      return { actorUserId: null, actorMachineIdentityId: null };
+  }
+}
+
 export function toAuditEventInsertRow(
   event: AuditEventInput,
   auditEventId: AuditEventId,
@@ -75,7 +91,7 @@ export function toAuditEventInsertRow(
     outcome: event.outcome,
     resultCode,
     actorType: event.actor.type,
-    actorUserId: event.actor.userId,
+    ...actorIdsFromRef(event.actor),
     projectId: event.projectId ?? null,
     environmentId: event.environmentId ?? null,
     ...optionalResource(event),

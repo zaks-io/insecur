@@ -1,6 +1,7 @@
 import { EffectiveAccessMemo, auditAccessDenialOnFailure } from "@insecur/access";
 import {
   recordRuntimeInjectionAudit,
+  auditActorUserId,
   type AuditActorRef,
   type AuditOperationRef,
   type AuditRequestRef,
@@ -76,7 +77,7 @@ export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
   const coordinate = toGrantCoordinate(input);
-  const actor = { type: "user" as const, userId: input.actor.userId };
+  const actor = { type: "user" as const, userId: auditActorUserId(input.actor) };
   // One request-scoped memo so the pre-check and the precise-atom check share a single membership
   // read instead of issuing two identical queries on this hot path.
   const accessDeps = { memo: new EffectiveAccessMemo() };
