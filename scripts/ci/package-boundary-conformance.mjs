@@ -24,6 +24,14 @@ const CRYPTO_FORBIDDEN_PRODUCTION_STARTS = [
   "@insecur/custody-contracts",
 ];
 
+function normalizeWorkspacePackageName(specifier) {
+  if (!specifier.startsWith("@insecur/")) {
+    return specifier;
+  }
+  const match = specifier.match(/^(@insecur\/[^/]+)/);
+  return match?.[1] ?? specifier;
+}
+
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
@@ -75,7 +83,7 @@ function collectWorkspaceImportSpecifiers(source) {
     while ((match = pattern.exec(source)) !== null) {
       const specifier = match[1];
       if (specifier) {
-        specifiers.add(specifier);
+        specifiers.add(normalizeWorkspacePackageName(specifier));
       }
     }
   }

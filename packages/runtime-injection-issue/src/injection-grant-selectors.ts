@@ -11,6 +11,13 @@ export type InjectionGrantConsumeSelector =
   | { kind: "variable_key"; variableKey: VariableKey }
   | { kind: "secret_id"; secretId: SecretId };
 
+function invalidConsumeSelectorError(): InjectionGrantError {
+  return new InjectionGrantError(
+    INJECTION_ERROR_CODES.grantDenied,
+    "exactly one of variableKey or secretId is required to consume",
+  );
+}
+
 export function normalizeConsumeSelector(input: {
   variableKey?: VariableKey;
   secretId?: SecretId;
@@ -18,20 +25,28 @@ export function normalizeConsumeSelector(input: {
   const hasVariableKey = input.variableKey !== undefined;
   const hasSecretId = input.secretId !== undefined;
   if (hasVariableKey === hasSecretId) {
-    throw new Error("exactly one of variableKey or secretId is required to consume");
+    throw invalidConsumeSelectorError();
   }
   if (input.secretId !== undefined) {
     return { kind: "secret_id", secretId: input.secretId };
   }
   if (input.variableKey === undefined) {
-    throw new Error("exactly one of variableKey or secretId is required to consume");
+    throw invalidConsumeSelectorError();
   }
   return { kind: "variable_key", variableKey: input.variableKey };
 }
 
+/** Counts secret bindings represented by one issue selector. */
+export function issueSelectorBindingCount(selector: InjectionGrantIssueSelector): number {
+  if (selector.kind === "variable_key") {
+    return selector.variableKey === "" ? 0 : 1;
+  }
+  return 1;
+}
+
 /** First Value grants bind exactly one Secret per issue/consume cycle. */
-export function assertSingleIssueSelectorCount(selectorCount: number): void {
-  if (selectorCount !== 1) {
+export function assertSingleIssueSelectorCount(selector: InjectionGrantIssueSelector): void {
+  if (issueSelectorBindingCount(selector) !== 1) {
     throw new InjectionGrantError(
       INJECTION_ERROR_CODES.grantDenied,
       "injection grant allows exactly one secret binding",

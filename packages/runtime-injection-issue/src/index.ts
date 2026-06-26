@@ -20,6 +20,7 @@ export {
   type InjectionGrantConsumeSelector,
   type InjectionGrantIssueSelector,
   assertSingleIssueSelectorCount,
+  issueSelectorBindingCount,
   normalizeConsumeSelector,
 } from "./injection-grant-selectors.js";
 export { matchConsumeSelectorToBinding } from "./match-consume-selector.js";

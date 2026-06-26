@@ -3,7 +3,7 @@ import {
   resolveEffectiveAccess,
   type LoadMembershipsFn,
 } from "@insecur/access";
-import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES } from "@insecur/domain";
+import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES, machineIdentityId } from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
 import {
   ProjectEnvironmentCoordinateError,
@@ -183,6 +183,19 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     expect(result.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
     expect(result.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(result.auditEventId).toBe("aud_test");
+  });
+
+  it("rejects non-user actors before access checks", async () => {
+    await expect(
+      executeIssueInjectionGrant({
+        ...baseInput,
+        actor: {
+          type: "machine",
+          machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+        },
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
   });
 
   it("records insufficient_scope denial through issueInjectionGrantWithAudit", async () => {

@@ -1,6 +1,5 @@
-import { EffectiveAccessMemo, auditAccessDenialOnFailure } from "@insecur/access";
+import { EffectiveAccessMemo, auditAccessDenialOnFailure, type ActorRef } from "@insecur/access";
 import {
-  auditActorUserId,
   recordRuntimeInjectionAudit,
   type AuditActorRef,
   type AuditOperationRef,
@@ -73,11 +72,21 @@ async function assertIssueGrantCoordinate(
   });
 }
 
+function assertUserActorForIssue(actor: AuditActorRef): ActorRef {
+  if (actor.type !== "user") {
+    throw new InjectionGrantError(
+      AUTH_ERROR_CODES.insufficientScope,
+      "runtime injection scope required",
+    );
+  }
+  return { type: "user", userId: actor.userId };
+}
+
 export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
   const coordinate = toGrantCoordinate(input);
-  const actor = { type: "user" as const, userId: auditActorUserId(input.actor) };
+  const actor = assertUserActorForIssue(input.actor);
   // One request-scoped memo so the pre-check and the precise-atom check share a single membership
   // read instead of issuing two identical queries on this hot path.
   const accessDeps = { memo: new EffectiveAccessMemo() };
@@ -96,7 +105,7 @@ export async function executeIssueInjectionGrant(
     accessDeps,
   );
 
-  assertSingleIssueSelectorCount(1);
+  assertSingleIssueSelectorCount(input.selector);
 
   const binding = await resolveInjectionGrantBinding(coordinate, input.selector);
 

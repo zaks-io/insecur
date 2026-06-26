@@ -5,17 +5,19 @@ import { SecretWriteError } from "./secret-write-error.js";
 /** Safe ingress paths that may supply a Sensitive Value for Blind Secret Write. */
 export type SafeSecretValueIngress = "stdin" | "generated" | "request_body" | "masked_prompt";
 
-const UNSAFE_INGRESS = new Set([
-  "argv",
-  "query",
-  "route_param",
-  "file",
-  "named_local_value_file",
-  "get_request",
-] as const);
+const SAFE_INGRESS = new Set<SafeSecretValueIngress>([
+  "stdin",
+  "generated",
+  "request_body",
+  "masked_prompt",
+]);
+
+function isSafeSecretValueIngress(ingress: string): ingress is SafeSecretValueIngress {
+  return (SAFE_INGRESS as ReadonlySet<string>).has(ingress);
+}
 
 export function assertSafeSecretValueIngress(ingress: string): void {
-  if ((UNSAFE_INGRESS as ReadonlySet<string>).has(ingress)) {
+  if (!isSafeSecretValueIngress(ingress)) {
     throw new SecretWriteError(
       SECRET_ERROR_CODES.inputRequired,
       "Secret values must use a safe input path (stdin, generation, or request body).",
