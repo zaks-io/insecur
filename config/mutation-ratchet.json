@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-06-26T21:35:55.941Z",
+  "updatedAt": "2026-06-26T23:36:29.812Z",
   "source": "reports/mutation/mutation.json",
   "scope": {
     "excluded": [],
     "note": "Manual Stryker baseline including CLI after INS-261 HOME/config isolation."
   },
   "overall": {
-    "mutants": 11487,
-    "killed": 4508,
-    "survived": 2743,
-    "noCoverage": 4224,
-    "timeout": 12,
-    "ignored": 0,
-    "other": 0,
-    "score": 39.24
+    "score": 48.18,
+    "mutants": 11594,
+    "killed": 5587,
+    "survived": 2327,
+    "noCoverage": 3573,
+    "timeout": 14,
+    "ignored": 93,
+    "other": 0
   },
   "areas": {
     "apps/api": {
@@ -67,6 +67,16 @@
       "ignored": 0,
       "other": 0
     },
+    "packages/cli": {
+      "score": 47.72,
+      "mutants": 1387,
+      "killed": 662,
+      "survived": 334,
+      "noCoverage": 386,
+      "timeout": 5,
+      "ignored": 0,
+      "other": 0
+    },
     "packages/crypto": {
       "score": 62.81,
       "mutants": 823,
@@ -98,12 +108,12 @@
       "other": 0
     },
     "packages/machine-auth": {
-      "score": 0,
-      "mutants": 688,
-      "killed": 0,
-      "survived": 0,
-      "noCoverage": 688,
-      "timeout": 0,
+      "score": 82.15,
+      "mutants": 650,
+      "killed": 534,
+      "survived": 84,
+      "noCoverage": 30,
+      "timeout": 2,
       "ignored": 0,
       "other": 0
     },
@@ -184,16 +194,6 @@
       "survived": 133,
       "noCoverage": 270,
       "timeout": 0,
-      "ignored": 0,
-      "other": 0
-    },
-    "packages/cli": {
-      "score": 47.72,
-      "mutants": 1387,
-      "killed": 662,
-      "survived": 334,
-      "noCoverage": 386,
-      "timeout": 5,
       "ignored": 0,
       "other": 0
     }
