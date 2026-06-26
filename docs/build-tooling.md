@@ -495,7 +495,19 @@ The identity that executes this deploy is the CI machine token, distinct from th
 
 ### Daily security scan: `security-daily`
 
-Trigger: scheduled `cron`, once daily. Runs grype or trivy for new CVEs against current dependencies, semgrep full scan, and gitleaks over history. Criticals open a Linear issue in project INS- and may trigger an automated remediation PR. Renovate runs on its own schedule honoring `minimumReleaseAge: "3 days"` and `internalChecksFilter: "strict"` so it will not open an update branch before the quarantine floor elapses.
+Trigger: scheduled `cron` (daily at 06:00 UTC) or `workflow_dispatch`. Runs the same scanner families as `CI` on a schedule. Findings are reported in the workflow log; the jobs do not fail the repository on severity by default.
+
+Jobs:
+
+- **Vulnerability scan:** syft SBOM + grype via `scripts/ci/sbom-grype.sh none` (report only, no `--fail-on`).
+- **SAST full scan:** semgrep with `config: auto`.
+- **Secret scan history:** gitleaks over full git history (`gitleaks-detect.sh git`).
+- **Dependency scan:** placeholder gated behind repository variable `DEPENDENCY_SCAN_ENABLED`; skipped by default and fails closed if enabled without a wired scanner.
+- **Report criticals:** placeholder gated behind repository variable `LINEAR_SECURITY_REPORTING_ENABLED`. **Automated Linear filing is not wired yet.** When the variable is unset or not `true`, the job exits successfully with a notice and performs no filing. When `LINEAR_SECURITY_REPORTING_ENABLED=true` but `LINEAR_API_KEY` and filing logic are not configured, the job fails closed with an error.
+
+Future opt-in filing (skeleton tracked in INS-17 and INS-94) will be metadata-only: scanner name, finding category/severity, artifact reference, and remediation pointer. No raw scanner output, secrets, or tokens in Linear. Issues will land in team `INS` with label `zaks-io/insecur`. Automated remediation PRs are not built.
+
+Renovate runs on its own schedule honoring `minimumReleaseAge: "3 days"` and `internalChecksFilter: "strict"` so it will not open an update branch before the quarantine floor elapses.
 
 ## Two-Credential Model And Guardrail Assertions
 
@@ -535,5 +547,5 @@ The build-tooling layer is complete when all of the following are verifiable:
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.
 - A forked pull request runs the `CI` workflow only and reaches no secret-bearing step.
 - A merge to `main` auto-deploys staging; a production deploy waits on a GitHub Environment required reviewer and runs under a machine identity distinct from the approver.
-- The daily security scan runs and files criticals to Linear project INS-.
+- The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated Linear filing for critical findings is not built yet; `report-criticals` skips unless `LINEAR_SECURITY_REPORTING_ENABLED=true` and fails closed when enabled without configuration.
 - Branch protection has administrator bypass disabled and requires the `CI` workflow's checks plus review approval.
