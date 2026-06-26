@@ -37,4 +37,18 @@ describe("validateTextSecretValue", () => {
     expect(() => validateTextSecretValue(empty)).toThrow(SecretWriteError);
     expect(() => validateTextSecretValue(empty, { allowEmpty: true })).not.toThrow();
   });
+
+  it("accepts values exactly at the 64 KiB UTF-8 size limit", () => {
+    const atLimit = new Uint8Array(SECRET_VALUE_SIZE_LIMIT_BYTES);
+    atLimit.fill("a".charCodeAt(0));
+    expect(() => validateTextSecretValue(atLimit)).not.toThrow();
+  });
+
+  it("rejects surrogate UTF-8 encodings and overlong sequences", () => {
+    const surrogate = Uint8Array.from([0xed, 0xa0, 0x80]);
+    expect(() => validateTextSecretValue(surrogate)).toThrow(SecretWriteError);
+
+    const overlong = Uint8Array.from([0xc0, 0xaf]);
+    expect(() => validateTextSecretValue(overlong)).toThrow(SecretWriteError);
+  });
 });
