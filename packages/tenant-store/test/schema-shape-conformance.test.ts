@@ -30,7 +30,10 @@ const USER_SCHEMA_MODULES = {
   "./tenant-collaboration.js": tenantCollaborationSchema,
   "./tenant-integrations.js": tenantIntegrationsSchema,
   "./tenant-secrets.js": tenantSecretsSchema,
-} as const satisfies Record<(typeof USER_SCHEMA_TABLE_MODULE_PATHS)[number], Record<string, unknown>>;
+} as const satisfies Record<
+  (typeof USER_SCHEMA_TABLE_MODULE_PATHS)[number],
+  Record<string, unknown>
+>;
 
 let userSchemaTables: readonly PgTable[];
 

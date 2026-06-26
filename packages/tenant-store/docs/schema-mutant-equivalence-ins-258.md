@@ -35,14 +35,14 @@ directives in schema modules, not by ignoring whole files or the package.
 After schema-shape conformance, export stability tests, `vitest.related=false` for the
 tenant-store runner, and targeted `/* Stryker disable ObjectLiteral */` on Drizzle column maps:
 
-| Scope                                                        | Before  | After (ratchet score) | After (covered score) |
-| ------------------------------------------------------------ | ------- | --------------------- | --------------------- |
-| `packages/tenant-store/src/**/*.ts`                          | 33.02%  | **65.03%**            | **80.60%**            |
-| `tenant-hierarchy.ts`                                        | hotspot | **90.48%**            |                       |
-| `tenant-collaboration.ts`                                    | hotspot | **91.38%**            |                       |
-| `tenant-secrets.ts`                                          | hotspot | **90.10%**            |                       |
-| `instance-bootstrap.ts`                                      | hotspot | **91.49%**            |                       |
-| `tenant-integrations.ts`                                     | hotspot | **90.38%**            |                       |
+| Scope                               | Before  | After (ratchet score) | After (covered score) |
+| ----------------------------------- | ------- | --------------------- | --------------------- |
+| `packages/tenant-store/src/**/*.ts` | 33.02%  | **65.03%**            | **80.60%**            |
+| `tenant-hierarchy.ts`               | hotspot | **90.48%**            |                       |
+| `tenant-collaboration.ts`           | hotspot | **91.38%**            |                       |
+| `tenant-secrets.ts`                 | hotspot | **90.10%**            |                       |
+| `instance-bootstrap.ts`             | hotspot | **91.49%**            |                       |
+| `tenant-integrations.ts`            | hotspot | **90.38%**            |                       |
 
 Ratchet score uses `killed / total mutants` from `config/mutation-ratchet.json`. Covered score excludes
 `NoCoverage`, `Ignored`, and `Timeout` mutants.
