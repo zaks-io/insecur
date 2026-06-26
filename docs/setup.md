@@ -19,14 +19,18 @@ pnpm dev:workers
 ```
 
 This runs both deploys: the public API Worker (`insecur-api`) and the private Runtime Worker
-(`insecur-runtime`). Check `http://localhost:8787/healthz` for API liveness. The API Worker serves the
+(`insecur-runtime`). The script generates missing local Postgres connection values in ignored
+`.env.local` and maps the runtime URL into Wrangler's local Hyperdrive variable. Check
+`http://localhost:8787/healthz` for API liveness; the Runtime Worker listens on port `8788` and
+returns 404 to direct HTTP requests. The API Worker serves the
 `/v1` product routes (auth/session, onboarding, non-protected secret write under
 `/v1/orgs/:organizationId/projects`, Runtime Injection grants under
 `/v1/orgs/:organizationId/runtime-injection`) and forwards keyring-bound work to the Runtime Worker
 over the private `RUNTIME` Service Binding; the Runtime Worker is the sole holder of
-`INSTANCE_ROOT_KEY_V1` and serves no public routes. The First Value loop test (`pnpm test:e2e`) drives
-those real routes against local Postgres. See `docs/specs/deploy-route-inventory.md` for the
-authoritative route → deploy table.
+`INSTANCE_ROOT_KEY_V1` and serves no public routes. Until the API Worker DB adapter lands, local
+Wrangler dev is a Worker liveness/service-binding smoke; the First Value loop test (`pnpm test:e2e`)
+drives the composed routes against local Postgres. See `docs/specs/deploy-route-inventory.md` for
+the authoritative route → deploy table.
 
 ## Local Configuration
 
@@ -34,6 +38,8 @@ authoritative route → deploy table.
 - Copy keys into `.env.local` only when a task explicitly needs real service access.
 - `apps/api/.dev.vars.example` and `apps/runtime/.dev.vars.example` document local Worker variable
   placement for each deploy (the shared `RUNTIME_TOKEN_SIGNING_SECRET` must match between them).
+- `pnpm dev:workers` does not put WorkOS or hop-token values in `.dev.vars`; create local ignored
+  `.dev.vars` files when authenticated route smoke needs those Worker bindings.
 - `.env.local`, `.env.production`, and `.dev.vars` are ignored and must not be committed.
 
 `pnpm dev:check` reports missing optional service keys by name and never prints values.

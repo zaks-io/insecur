@@ -175,11 +175,12 @@ First Value routes under `/v1/orgs/:org`).
 
 ## Not Yet Wired
 
-- The CLI has its first commands (INS-31): `insecur login`, `insecur init`, and
-  `insecur shell` (which already spawns a child process with injected env), plus local
-  profile resolution, user/project config, and `--json` output. Still missing:
-  `insecur secrets set`, `insecur run <command>`, the masked prompt, and the first-value
-  proof command path.
+- The CLI now has `insecur login`, `insecur init`, `insecur shell`, `insecur secrets set`,
+  `insecur run`, and audit verification commands, plus local profile resolution,
+  user/project config, metadata-only JSON output, service-generated non-protected secret
+  writes, and exact Variable Key injection into a child process. Still missing at the
+  copyable First Value UX layer: durable auth handoff across separate CLI processes and the
+  final live proof path through local/deployed Workers.
 - The API Worker now exposes the public route groups in
   [deploy-route-inventory.md](specs/deploy-route-inventory.md). Still missing at the product
   layer: provider sync, Storage Security Gate enforcement, audit export routes, and the

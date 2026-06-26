@@ -45,9 +45,13 @@ Preferred command sequence:
 
 ```bash
 insecur init
-insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32 --comment "First value proof"
+insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
+
+The sequence assumes the CLI session credential is available to each command. The current CLI can
+read `INSECUR_SESSION_TOKEN`; durable `insecur login` handoff across separate command processes is a
+remaining First Value UX gap.
 
 The sequence uses normal product primitives:
 
