@@ -59,6 +59,7 @@ packages/cli
   -> packages/audit
   -> packages/tenant-store
   -> packages/crypto
+  -> packages/token-signing
   -> packages/domain
 ```
 
@@ -76,6 +77,7 @@ is not in the First Value Slice below.
 | Package                       | Module                                | Owns                                                                                                                                                                               | Does not own                                                                                         |
 | ----------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `@insecur/domain`             | Domain primitives                     | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                                                                                  | Persistence, encryption, authorization decisions, provider behavior                                  |
+| `@insecur/token-signing`      | HS256 signed-token codec              | HS256/HMAC token encoding, signature verification, safe JSON object payload decoding                                                                                               | Claim validation, session composition, machine token semantics, root-key custody                     |
 | `@insecur/auth`               | Human authentication sessions         | WorkOS sealed session validation, User actor context, CLI ephemeral credentials, CSRF helpers for browser mutations                                                                | Effective Access, CLI commands, WorkOS hosted login UI, Machine Identity                             |
 | `@insecur/access`             | Effective Access Resolver             | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests                                                               | Human authentication, Service Access, Protected Environment approval                                 |
 | `@insecur/tenant-store`       | Tenant-Scoped Store                   | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                                                                                 | Business rules, authorization semantics, encryption                                                  |

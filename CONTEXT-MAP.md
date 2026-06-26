@@ -34,6 +34,7 @@ context for a specific task.
 | Path                                     | Module                                                         |
 | ---------------------------------------- | -------------------------------------------------------------- |
 | `packages/domain/CONTEXT.md`             | Shared domain primitives and stable vocabulary shapes.         |
+| `packages/token-signing/CONTEXT.md`      | Shared HS256/HMAC signed-token codec for auth modules.         |
 | `packages/auth/CONTEXT.md`               | Human authentication sessions and User actor context.          |
 | `packages/access/CONTEXT.md`             | Effective Access Resolver and scope-first authorization.       |
 | `packages/tenant-store/CONTEXT.md`       | Tenant-Scoped Store and metadata isolation.                    |

@@ -286,6 +286,9 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/token-signing':
+        specifier: workspace:*
+        version: link:../token-signing
       '@workos-inc/node':
         specifier: ^10.0.0
         version: 10.0.0
@@ -413,6 +416,9 @@ importers:
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store
+      '@insecur/token-signing':
+        specifier: workspace:*
+        version: link:../token-signing
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -569,6 +575,25 @@ importers:
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.10(patch_hash=de26d0d0ca4011fa4b7ce02d23cb28dcafa6684cd7bf56bef734f425410754d4)
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.7(@types/node@24.12.4)(@vitest/coverage-v8@4.1.7)(vite@7.3.5(@types/node@24.12.4)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+
+  packages/token-signing:
+    dependencies:
+      '@insecur/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
       eslint:
         specifier: 'catalog:'
         version: 9.39.4(jiti@2.7.0)
