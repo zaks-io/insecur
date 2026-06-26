@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-24.
+Last updated: 2026-06-26.
 
 High-level milestone sequencing for handing implementation to a fleet of agents. This document
 owns the milestone order and each milestone's exit gate, nothing else: scope boundaries are owned
@@ -15,14 +15,14 @@ Build Order in [project-status.md](project-status.md), and live status by
 Goal: every cross-workstream agreement becomes a compile-time or CI-time fact before parallel
 feature work starts, so seam divergence is caught by gates instead of review.
 
-- The enforcement code from the 2026-06-12 ADR batch is largely landed and blocking in CI: the
+- The enforcement code from the 2026-06-12 ADR batch is landed and blocking in CI: the
   `OPERATION_INTENT_CODES` catalog and membership validation (ADR-0068), the
   `operation.idempotency_mismatch` check (ADR-0066), the role-bundle registry conformance suite
   (ADR-0034) including the machine-only `runtime_injection:grant_issue_protected` atom
   (ADR-0038), the Plaintext Metadata Allowlist registry and conformance gate (ADR-0070), the
   no-plaintext canary gate `pnpm test:canary` (ADR-0069), the exit/HTTP lockstep test
-  (ADR-0062), and the decrypt-import lint boundary (ADR-0071). Remaining M0 contract gate:
-  non-lease execution-deadline liveness recovery (ADR-0073).
+  (ADR-0062), the decrypt-import lint boundary (ADR-0071), and non-lease `execution_deadline`
+  claims with lazy abandonment recovery (ADR-0073, INS-219).
 - Close the custody and persistence gaps already ticketed: Cloudflare Secrets Store keyring
   wiring (INS-145/147/149/150), wrapped data keys plus the rewrap primitive (INS-160), and the
   Hyperdrive runtime pool (INS-162).
