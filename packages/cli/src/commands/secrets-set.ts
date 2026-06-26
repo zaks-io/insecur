@@ -1,9 +1,4 @@
-import {
-  parseVariableKey,
-  successEnvelope,
-  VALIDATION_ERROR_CODES,
-  type VariableKey,
-} from "@insecur/domain";
+import { successEnvelope, type VariableKey } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
@@ -12,6 +7,7 @@ import { collectSecretValue, type CollectedSecretValue } from "../input/collect-
 import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
+import { parseVariableKeyOrThrow } from "./parse-variable-key.js";
 import { buildSecretsSetResolvedTargets } from "./secrets-set-result.js";
 import { requireSecretWriteScope } from "./secrets-set-scope.js";
 
@@ -24,18 +20,6 @@ export interface SecretsSetCommandOptions {
   readonly generateLength: string | undefined;
   readonly valueStdin: boolean;
   readonly allowEmpty: boolean;
-}
-
-function parseVariableKeyOrThrow(raw: string): VariableKey {
-  const parsed = parseVariableKey(raw);
-  if (!parsed.ok) {
-    throw new CliError({
-      code: VALIDATION_ERROR_CODES.invalidVariableKey,
-      message: `Invalid variable key: ${raw}. Keys must match ^[A-Z_][A-Z0-9_]*$.`,
-      retryable: false,
-    });
-  }
-  return parsed.value;
 }
 
 function buildSecretWriteByVariableKeyInput(input: {
