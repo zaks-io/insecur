@@ -73,11 +73,13 @@ Delivery risk is exposed through simple presets backed by versioned policy infra
 
 Hosted onboarding creates a Personal Organization, owner Membership, first Project, and non-protected development Environment for an admitted user so the first session can focus on replacing local secret files: creating and using a development secret through local Runtime Injection without provider setup. The copyable verifier lives in [examples/first-value-proof](examples/first-value-proof). That Personal Organization can grow into a small-team Organization through Invitations and Memberships.
 
-The current repo scaffold is the accepted implementation baseline: Node 24/pnpm 10 workspace
-tooling, First Value app/package stubs, `pnpm verify`, and the copyable First Value Proof. It is
-real scaffolding, not product behavior. The Worker has only a health-check route, and package
-entrypoints are still empty. The repo does not yet implement secrets custody, runtime injection,
-provider sync, authorization, audit, or UI features.
+The current repo scaffold has moved into product-bearing First Value code: Node 24/pnpm 10
+workspace tooling, capability-isolated API and Runtime Workers, tenant-store migrations and RLS
+tests, metadata-only audit primitives, non-protected Blind Secret Write, Runtime Injection grant
+issue/consume, CLI `init`/`secrets set`/`run`, and the copyable First Value verifier. It is still
+not production-ready: provider sync, protected delivery policy, hosted auth/UI, Storage Security
+Gate enforcement, production root-key custody evidence, and the final copyable end-to-end proof
+remain open.
 
 The removed unsafe scaffold was disposable learning code, not a supported product mode or evidence
 of intended product behavior. V1 work should replace or delete any remaining references to those

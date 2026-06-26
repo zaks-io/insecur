@@ -33,7 +33,7 @@
     "migrate:local": "pnpm --filter @insecur/tenant-store migrate:local",
     "doctor": "pnpm dev:check",
     "dev": "turbo run dev --cache=local:rw,remote:r",
-    "dev:workers": "turbo run dev --filter @insecur/api --filter @insecur/runtime",
+    "dev:workers": "node scripts/dev-workers.mjs",
     "deploy:workers": "turbo run deploy --filter @insecur/runtime --filter @insecur/api",
     "cli": "pnpm --filter @insecur/cli start",
     "clean": "turbo run clean",

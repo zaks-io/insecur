@@ -188,8 +188,8 @@ jobs:
           echo "::error::$BASE_URL/healthz never got $CONSECUTIVE_REQUIRED consecutive healthy responses"
           exit 1
 
-      # Run from the @insecur/api package context so the script's @insecur/auth and @insecur/domain
-      # imports resolve through that package's workspace symlinks (there is no @insecur/* at root).
+      # The root script is a stable wrapper around the API package implementation, so workspace
+      # imports resolve through the package that declares them.
       - name: First Value cloud smoke
         env:
           SMOKE_BASE_URL: ${{ steps.deploy_api.outputs.base_url }}

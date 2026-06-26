@@ -86,6 +86,7 @@
     },
     "dev": {
       "cache": false,
+      "env": ["CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB"],
       "persistent": true
     },
     "deploy": {
