@@ -44,18 +44,22 @@ The beachhead workflow is a First Value Proof for Diskless Development Secret Us
 Preferred command sequence:
 
 ```bash
-insecur login
+eval "$(insecur login --print-export)"
 insecur init
 insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
-`insecur login` writes the exchanged CLI credential to `~/.insecur/session.json` with mode `0600`.
-Later commands read that cache when `INSECUR_SESSION_TOKEN` is unset, so the copyable sequence works
-across separate shell invocations. The cache is bound to the login host; if a later command resolves a
-different `--host` / config host, the CLI clears the cache and requires login again. `insecur logout`
-clears the cache. For automation that should not touch disk, set `INSECUR_SESSION_TOKEN` explicitly
-or use `insecur shell <profile-slug-or-id>`.
+`insecur login --print-export` writes shell `export` assignments to stdout for `eval`, keeping the
+exchanged CLI credential in the current shell environment only. Later commands in that shell read
+`INSECUR_SESSION_TOKEN` when process memory from a same-process login is unavailable. Alternatives:
+
+- set `INSECUR_SESSION_TOKEN` explicitly for one-shot automation, or
+- run follow-on commands inside `insecur shell <profile-slug-or-id>`.
+
+`insecur logout` clears the in-process session only; exported environment variables remain until the
+shell exits or the user unsets them. Login JSON output stays metadata-only and never prints the
+credential unless `--print-export` is used for intentional shell handoff.
 
 The sequence uses normal product primitives:
 
@@ -219,9 +223,9 @@ Session-only credential environment variables:
 
 Rules:
 
-- Session-only credential environment variables (`INSECUR_SESSION_TOKEN`, `INSECUR_DEPLOY_KEY`, `INSECUR_OIDC_TOKEN`) are never written by insecur to committed config or dotenv files.
-- `insecur login` caches the exchanged CLI credential in `~/.insecur/session.json` (mode `0600`) for separate command invocations. The cache records the login host and is cleared when a later command resolves a different host. `insecur logout` also clears the cache. The cache is not committed project config and is not printed by default.
-- Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive or uses the login session cache.
+- Session-only credential environment variables (`INSECUR_SESSION_TOKEN`, `INSECUR_DEPLOY_KEY`, `INSECUR_OIDC_TOKEN`) are never written by insecur to committed config, dotenv files, or disk.
+- Human CLI login is memory/session-only. Use `eval "$(insecur login --print-export)"`, `insecur shell <profile-slug-or-id>`, or an explicit `INSECUR_SESSION_TOKEN` for separate command invocations in the same shell. No access token, refresh token, or session token is written to disk.
+- Human CLI login should require login for each shell session unless the user explicitly exports the credential into that shell or uses `insecur shell`.
 - `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
 - Prefer `insecur shell <profile-slug-or-id>` or one-shot `insecur run <profile-slug-or-id> --login -- <command>` when credentials should live only in a child process environment without touching disk.
 - Do not accept Sensitive Values through CLI arguments or named local value files. Use stdin, masked prompts, service generation, or provider authorization flows.
@@ -230,7 +234,6 @@ Session credential resolution order for authenticated commands:
 
 1. Process memory from a same-process `insecur login`.
 2. `INSECUR_SESSION_TOKEN` when set in the environment.
-3. `~/.insecur/session.json` when present, unexpired, and the cached host matches the resolved command host.
 
 Precedence:
 
@@ -475,7 +478,7 @@ insecur whoami --json
 Notes:
 
 - Browser/device login is for humans.
-- Human CLI auth uses an explicit session cache at `~/.insecur/session.json` (mode `0600`) after `insecur login`, or memory/env-only paths through `insecur shell` and `INSECUR_SESSION_TOKEN`. No session token, refresh token, or access token is saved to committed project or user config.
+- Human CLI auth is memory/session-only: `eval "$(insecur login --print-export)"`, `insecur shell <profile-slug-or-id>`, or an explicit `INSECUR_SESSION_TOKEN`. No session token, refresh token, or access token is saved to committed project or user config or written to disk.
 - `insecur shell <profile-slug-or-id>` launches a subshell with a short-lived session token in that child environment and clears it when the shell exits.
 - OIDC is preferred for CI and agents running in supported platforms.
 - Bootstrap credentials are a narrow fallback and should exchange for short-lived access tokens.

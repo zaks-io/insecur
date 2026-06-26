@@ -41,7 +41,7 @@ export function buildProgram(): Command {
   const program = attachGlobalOptions(new Command());
   program
     .name("insecur")
-    .description("insecur CLI — metadata-only output; session handoff via login cache or env")
+    .description("insecur CLI — metadata-only output; session handoff via env or subshell")
     .version("0.0.0");
 
   registerAuthCommands(program, { globalFlags, resolveApi });

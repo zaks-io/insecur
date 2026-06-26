@@ -18,26 +18,29 @@ interface AuthCommandDeps {
 export function registerAuthCommands(program: Command, deps: AuthCommandDeps): void {
   program
     .command("login")
-    .description(
-      "Exchange a WorkOS browser session for a CLI credential cached for separate commands",
-    )
+    .description("Exchange a WorkOS browser session for a CLI credential (memory/env handoff only)")
     .option("--cookie-env <name>", "env var with WorkOS Cookie header", DEFAULT_COOKIE_ENV)
     .option("--csrf-env <name>", "env var with CSRF header", DEFAULT_CSRF_ENV)
+    .option(
+      "--print-export",
+      "print shell export assignments to stdout for eval (no disk persistence)",
+    )
     .action(async function loginAction(_args, command: CommanderCommand) {
       const flags = deps.globalFlags(command);
       const { api, context } = await deps.resolveApi(flags);
-      const options = command.opts<{ cookieEnv: string; csrfEnv: string }>();
+      const options = command.opts<{ cookieEnv: string; csrfEnv: string; printExport?: boolean }>();
       process.exitCode = await runLoginCommand(flags, api, context, {
         cookieEnv: options.cookieEnv,
         csrfEnv: options.csrfEnv,
+        ...(options.printExport === true ? { printExport: true } : {}),
       });
     });
 
   program
     .command("logout")
-    .description("Clear the cached CLI session credential")
-    .action(async function logoutAction(_args, command: CommanderCommand) {
+    .description("Clear the in-process CLI session credential from memory")
+    .action(function logoutAction(_args, command: CommanderCommand) {
       const flags = deps.globalFlags(command);
-      process.exitCode = await runLogoutCommand(flags);
+      process.exitCode = runLogoutCommand(flags);
     });
 }

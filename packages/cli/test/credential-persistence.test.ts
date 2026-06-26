@@ -8,11 +8,7 @@ import { runInitCommand } from "../src/commands/init.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { PROJECT_CONFIG_FILE, USER_CONFIG_FILE } from "../src/config/paths.js";
 import { clearMemorySession } from "../src/session/memory-session.js";
-import { readCachedSession } from "../src/session/session-cache.js";
-import {
-  clearSessionCredentialHandoff,
-  resetSessionCredentialCacheForTests,
-} from "../src/session/resolve-session.js";
+import { clearSessionCredentialHandoff } from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
 import { createIsolatedHome } from "./helpers/isolated-home.js";
 
@@ -65,13 +61,19 @@ function createMockApi(): ApiClient {
         envelope: successEnvelope({
           organizationId: "org_01TEST00000000000000000001",
           defaultTeamId: "team_01TEST0000000000000000001",
-          ownerMembershipId: "mem_01TEST0000000000000000001",
+          ownerMembershipId: "mem_01TEST00000000000000000001",
           projectId: "prj_01TEST00000000000000000001",
           developmentEnvironmentId: "env_01TEST0000000000000000001",
         }),
       };
     },
     async writeSecretByVariableKey() {
+      throw new Error("not used");
+    },
+    async issueInjectionGrant() {
+      throw new Error("not used");
+    },
+    async consumeInjectionGrant() {
       throw new Error("not used");
     },
   };
@@ -86,51 +88,37 @@ function assertNoCredentialMaterial(contents: string): void {
 
 describe("credential persistence boundaries", () => {
   let projectDir: string;
-  let cacheDir: string;
-  let originalCacheFile: string | undefined;
 
-  afterEach(async () => {
+  afterEach(() => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
     delete process.env.INSECUR_WORKOS_COOKIE;
-    await clearSessionCredentialHandoff();
-    if (originalCacheFile === undefined) {
-      delete process.env.INSECUR_SESSION_CACHE_FILE;
-    } else {
-      process.env.INSECUR_SESSION_CACHE_FILE = originalCacheFile;
+    clearSessionCredentialHandoff();
+  });
+
+  it("does not write login credentials to disk under the user config directory", async () => {
+    const isolatedHome = await createIsolatedHome("insecur-cli-login-home-");
+    try {
+      process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
+      await runLoginCommand(flags, createMockApi(), mockContext(), {
+        cookieEnv: "INSECUR_WORKOS_COOKIE",
+        csrfEnv: "INSECUR_WORKOS_CSRF",
+      });
+      projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
+      const configPath = path.join(projectDir, PROJECT_CONFIG_FILE);
+      const userConfigPath = path.join(isolatedHome.homeDir, ".insecur", USER_CONFIG_FILE);
+      await expect(readFile(configPath)).rejects.toThrow();
+      await expect(readFile(userConfigPath)).rejects.toThrow();
+      await expect(
+        readFile(path.join(isolatedHome.homeDir, ".insecur", "session.json")),
+      ).rejects.toThrow();
+    } finally {
+      isolatedHome.restore();
     }
   });
 
-  async function useIsolatedSessionCache(): Promise<void> {
-    cacheDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-session-"));
-    originalCacheFile = process.env.INSECUR_SESSION_CACHE_FILE;
-    process.env.INSECUR_SESSION_CACHE_FILE = path.join(cacheDir, "session.json");
-    resetSessionCredentialCacheForTests();
-  }
-
-  it("stores login credentials in the session cache, not committed config", async () => {
-    await useIsolatedSessionCache();
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
-    const cached = await readCachedSession();
-    expect(cached?.credential).toBe(mockCredential);
-    projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
-    const configPath = path.join(projectDir, PROJECT_CONFIG_FILE);
-    const userConfigPath = path.join(projectDir, "home", USER_CONFIG_FILE);
-    await expect(readFile(configPath)).rejects.toThrow();
-    await expect(readFile(userConfigPath)).rejects.toThrow();
-  });
-
   it("writes only opaque ids to project and user config during init", async () => {
-    await useIsolatedSessionCache();
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
+    process.env.INSECUR_SESSION_TOKEN = mockCredential;
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
     const isolatedHome = await createIsolatedHome("insecur-cli-init-home-");
     try {

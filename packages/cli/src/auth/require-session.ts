@@ -7,10 +7,9 @@ export interface RequireSessionCredentialOptions {
   readonly host: string;
 }
 
-export async function requireSessionCredential(
-  options: RequireSessionCredentialOptions,
-): Promise<string> {
-  const credential = await resolveSessionCredential(options.host);
+export function requireSessionCredential(options: RequireSessionCredentialOptions): string {
+  void options.host;
+  const credential = resolveSessionCredential();
   if (credential === undefined) {
     throw new CliError(
       {

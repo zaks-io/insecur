@@ -1,17 +1,24 @@
-import { AUTH_ERROR_CODES, successEnvelope, type ResolvedTargetEcho } from "@insecur/domain";
+import {
+  AUTH_ERROR_CODES,
+  successEnvelope,
+  VALIDATION_ERROR_CODES,
+  type ResolvedTargetEcho,
+} from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CliError } from "../output/cli-error.js";
-import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
+import { EXIT_AUTH_REQUIRED, EXIT_VALIDATION } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 import { asEchoId, buildEnvelopeMeta } from "../output/target-echo.js";
+import type { MemorySession } from "../session/memory-session.js";
 import { setMemorySession } from "../session/memory-session.js";
-import { writeCachedSession } from "../session/session-cache.js";
+import { buildSessionShellExport } from "../session/shell-export.js";
 
 export interface LoginCommandOptions {
   readonly cookieEnv: string;
   readonly csrfEnv: string;
+  readonly printExport?: boolean;
 }
 
 function readCookieHeader(cookieEnv: string): string {
@@ -29,37 +36,60 @@ function readCookieHeader(cookieEnv: string): string {
   return cookieHeader;
 }
 
+function assertLoginOutputMode(flags: GlobalCliFlags, printExport: boolean | undefined): void {
+  if (printExport === true && flags.json) {
+    throw new CliError(
+      {
+        code: VALIDATION_ERROR_CODES.invalidCommandInput,
+        message: "insecur login --print-export cannot be combined with --json.",
+        retryable: false,
+      },
+      EXIT_VALIDATION,
+    );
+  }
+}
+
+function renderLoginShellExport(
+  session: MemorySession,
+  host: string,
+  flags: GlobalCliFlags,
+): number {
+  process.stdout.write(`${buildSessionShellExport(session.credential, host)}\n`);
+  if (!flags.quiet) {
+    process.stderr.write(
+      `Logged in (session ${session.sessionId}, expires ${session.expiresAt}).\n`,
+    );
+    process.stderr.write(
+      "Credential exported for this shell only; eval this output or use insecur shell.\n",
+    );
+  }
+  return 0;
+}
+
 export async function runLoginCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
   context: ResolvedCliContext,
   commandOptions: LoginCommandOptions,
 ): Promise<number> {
+  assertLoginOutputMode(flags, commandOptions.printExport);
   const { host } = context.scope;
-  const cookieHeader = readCookieHeader(commandOptions.cookieEnv);
   const csrfHeader = process.env[commandOptions.csrfEnv];
   const exchanged = await api.exchangeCliSession({
     host,
-    cookieHeader,
+    cookieHeader: readCookieHeader(commandOptions.cookieEnv),
     ...(csrfHeader === undefined || csrfHeader === "" ? {} : { csrfHeader }),
   });
   if (!exchanged.ok) {
     throw new CliError(exchanged.envelope.error);
   }
   const { sessionId, expiresAt } = exchanged.envelope.data;
-  const session = {
-    credential: exchanged.credential,
-    sessionId,
-    expiresAt,
-  };
+  const session = { credential: exchanged.credential, sessionId, expiresAt };
   setMemorySession(session);
-  await writeCachedSession({ ...session, host });
-  const resolvedTargets: ResolvedTargetEcho[] = [
-    {
-      type: "session",
-      id: asEchoId(sessionId),
-    },
-  ];
+  if (commandOptions.printExport === true) {
+    return renderLoginShellExport(session, host, flags);
+  }
+  const resolvedTargets: ResolvedTargetEcho[] = [{ type: "session", id: asEchoId(sessionId) }];
   const output = successEnvelope(
     { sessionId, expiresAt, host },
     buildEnvelopeMeta({

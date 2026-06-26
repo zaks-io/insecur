@@ -1,21 +1,18 @@
-import { chmod, mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { successEnvelope } from "@insecur/domain";
 import { runInitCommand } from "../src/commands/init.js";
 import { runLoginCommand } from "../src/commands/login.js";
 import { runLogoutCommand } from "../src/commands/logout.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { PROJECT_CONFIG_FILE } from "../src/config/paths.js";
-import { clearMemorySession } from "../src/session/memory-session.js";
 import { requireSessionCredential } from "../src/auth/require-session.js";
-import { readCachedSession, sessionCachePath } from "../src/session/session-cache.js";
-import {
-  clearSessionCredentialHandoff,
-  resetSessionCredentialCacheForTests,
-} from "../src/session/resolve-session.js";
+import { clearMemorySession, getMemorySession } from "../src/session/memory-session.js";
+import { clearSessionCredentialHandoff } from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
+import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const flags = {
   host: "https://insecur.test",
@@ -85,69 +82,56 @@ function createMockApi(): ApiClient {
 }
 
 describe("CLI session handoff across separate commands", () => {
-  let cacheDir: string;
-  let originalCacheFile: string | undefined;
-
-  afterEach(async () => {
-    clearMemorySession();
+  afterEach(() => {
+    clearSessionCredentialHandoff();
     delete process.env.INSECUR_SESSION_TOKEN;
+    delete process.env.INSECUR_HOST;
     delete process.env.INSECUR_WORKOS_COOKIE;
-    await clearSessionCredentialHandoff();
-    if (originalCacheFile === undefined) {
-      delete process.env.INSECUR_SESSION_CACHE_FILE;
-    } else {
-      process.env.INSECUR_SESSION_CACHE_FILE = originalCacheFile;
+    vi.restoreAllMocks();
+  });
+
+  it("stores login in process memory without writing a session cache file", async () => {
+    const isolatedHome = await createIsolatedHome("insecur-cli-session-home-");
+    try {
+      process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
+      await runLoginCommand(flags, createMockApi(), mockContext(), {
+        cookieEnv: "INSECUR_WORKOS_COOKIE",
+        csrfEnv: "INSECUR_WORKOS_CSRF",
+      });
+      expect(getMemorySession()?.credential).toBe(mockCredential);
+      await expect(
+        readFile(path.join(isolatedHome.homeDir, ".insecur", "session.json")),
+      ).rejects.toThrow();
+    } finally {
+      isolatedHome.restore();
     }
   });
 
-  async function useIsolatedSessionCache(): Promise<void> {
-    cacheDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-session-"));
-    originalCacheFile = process.env.INSECUR_SESSION_CACHE_FILE;
-    process.env.INSECUR_SESSION_CACHE_FILE = path.join(cacheDir, "session.json");
-    resetSessionCredentialCacheForTests();
-  }
-
-  it("persists login to the session cache with mode 0600", async () => {
-    await useIsolatedSessionCache();
+  it("prints shell export assignments with --print-export", async () => {
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext(), {
+    await runLoginCommand({ ...flags, json: false, quiet: true }, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
+      printExport: true,
     });
-    const cacheFile = sessionCachePath();
-    const contents = await readFile(cacheFile, "utf8");
-    expect(contents).toContain("sess_handoff_test");
-    const cached = await readCachedSession();
-    expect(cached?.credential).toBe(mockCredential);
-    const fileStat = await stat(cacheFile);
-    expect(fileStat.mode & 0o777).toBe(0o600);
+    const output = stdout.mock.calls.map(([chunk]) => String(chunk)).join("");
+    expect(output).toContain("export INSECUR_SESSION_TOKEN=");
+    expect(output).toContain("export INSECUR_HOST=");
+    expect(output).toContain(mockCredential);
   });
 
-  it("resolves credentials from the session cache in a fresh process context", async () => {
-    await useIsolatedSessionCache();
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
+  it("resolves credentials from INSECUR_SESSION_TOKEN in a fresh process context", async () => {
+    process.env.INSECUR_SESSION_TOKEN = mockCredential;
     clearMemorySession();
-    resetSessionCredentialCacheForTests();
     await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(mockCredential);
   });
 
-  it("lets init run after login when only the session cache survives", async () => {
-    await useIsolatedSessionCache();
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
+  it("lets init run after login when only INSECUR_SESSION_TOKEN survives", async () => {
+    process.env.INSECUR_SESSION_TOKEN = mockCredential;
     clearMemorySession();
-    resetSessionCredentialCacheForTests();
     const projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-init-"));
-    const homeDir = path.join(projectDir, "home");
-    const originalHome = process.env.HOME;
-    process.env.HOME = homeDir;
+    const isolatedHome = await createIsolatedHome("insecur-cli-init-home-");
     try {
       const exitCode = await runInitCommand(
         { ...flags, configDir: projectDir },
@@ -160,125 +144,43 @@ describe("CLI session handoff across separate commands", () => {
         "org_01TEST00000000000000000001",
       );
     } finally {
-      if (originalHome === undefined) {
-        delete process.env.HOME;
-      } else {
-        process.env.HOME = originalHome;
-      }
+      isolatedHome.restore();
     }
   });
 
-  it("prefers INSECUR_SESSION_TOKEN over the session cache", async () => {
-    await useIsolatedSessionCache();
+  it("prefers process memory over INSECUR_SESSION_TOKEN", async () => {
     process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     await runLoginCommand(flags, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
     process.env.INSECUR_SESSION_TOKEN = "env-override-token";
-    clearMemorySession();
-    resetSessionCredentialCacheForTests();
-    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(
-      "env-override-token",
-    );
-  });
-
-  it("clears the session cache on logout", async () => {
-    await useIsolatedSessionCache();
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
-    await requireSessionCredential({ host: flags.host });
-    await runLogoutCommand(flags);
-    await expect(readCachedSession()).resolves.toBeUndefined();
-    clearMemorySession();
-    await expect(requireSessionCredential({ host: flags.host })).rejects.toMatchObject({
-      message: "Authentication is required. Run insecur login first.",
-    });
-  });
-
-  it("does not reuse a fulfilled credential lookup after logout", async () => {
-    await useIsolatedSessionCache();
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
-    clearMemorySession();
-    resetSessionCredentialCacheForTests();
     await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(mockCredential);
+  });
+
+  it("clears process memory on logout", async () => {
+    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
+    await runLoginCommand(flags, createMockApi(), mockContext(), {
+      cookieEnv: "INSECUR_WORKOS_COOKIE",
+      csrfEnv: "INSECUR_WORKOS_CSRF",
+    });
     await runLogoutCommand(flags);
-    clearMemorySession();
+    expect(getMemorySession()).toBeUndefined();
     await expect(requireSessionCredential({ host: flags.host })).rejects.toMatchObject({
       message: "Authentication is required. Run insecur login first.",
     });
   });
 
-  it("clears the session cache when the resolved host does not match the cached login host", async () => {
-    await useIsolatedSessionCache();
+  it("rejects --print-export combined with --json", async () => {
     process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext("https://insecur-a.test"), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
-    clearMemorySession();
-    resetSessionCredentialCacheForTests();
     await expect(
-      requireSessionCredential({ host: "https://insecur-b.test" }),
+      runLoginCommand(flags, createMockApi(), mockContext(), {
+        cookieEnv: "INSECUR_WORKOS_COOKIE",
+        csrfEnv: "INSECUR_WORKOS_CSRF",
+        printExport: true,
+      }),
     ).rejects.toMatchObject({
-      message: "Authentication is required. Run insecur login first.",
+      message: "insecur login --print-export cannot be combined with --json.",
     });
-    await expect(readCachedSession()).resolves.toBeUndefined();
-  });
-
-  it("rejects init when the session cache host does not match the command host", async () => {
-    await useIsolatedSessionCache();
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-    await runLoginCommand(flags, createMockApi(), mockContext("https://insecur-a.test"), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
-    });
-    clearMemorySession();
-    resetSessionCredentialCacheForTests();
-    await expect(
-      runInitCommand(
-        { ...flags, host: "https://insecur-b.test" },
-        createMockApi(),
-        mockContext("https://insecur-b.test"),
-        { profileSlug: "local-dev" },
-      ),
-    ).rejects.toMatchObject({
-      message: "Authentication is required. Run insecur login first.",
-    });
-  });
-
-  it("drops expired session cache entries", async () => {
-    await useIsolatedSessionCache();
-    const cacheFile = sessionCachePath();
-    await chmod(path.dirname(cacheFile), 0o700);
-    const expiredPayload = {
-      version: 1,
-      host: flags.host,
-      sessionId: "sess_expired",
-      expiresAt: new Date(Date.now() - 1_000).toISOString(),
-      credential: mockCredential,
-    };
-    await mkdir(path.dirname(cacheFile), { recursive: true });
-    await writeFile(cacheFile, `${JSON.stringify(expiredPayload)}\n`, { mode: 0o600 });
-    resetSessionCredentialCacheForTests();
-    await expect(readCachedSession()).resolves.toBeUndefined();
-    await expect(stat(cacheFile)).rejects.toThrow();
-  });
-
-  it("clears malformed session cache JSON instead of throwing", async () => {
-    await useIsolatedSessionCache();
-    const cacheFile = sessionCachePath();
-    await mkdir(path.dirname(cacheFile), { recursive: true });
-    await writeFile(cacheFile, "{not-json", { mode: 0o600 });
-    resetSessionCredentialCacheForTests();
-    await expect(readCachedSession()).resolves.toBeUndefined();
-    await expect(stat(cacheFile)).rejects.toThrow();
   });
 });

@@ -51,13 +51,13 @@ describe("auth-required errors", () => {
   afterEach(async () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
-    await clearSessionCredentialHandoff();
+    clearSessionCredentialHandoff();
   });
 
   it("fails init without a session credential", async () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
-    await clearSessionCredentialHandoff();
+    clearSessionCredentialHandoff();
     await expect(
       runInitCommand(flags, noopApi, mockContext, { profileSlug: "local-dev" }),
     ).rejects.toMatchObject({
