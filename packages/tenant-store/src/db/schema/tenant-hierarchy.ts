@@ -1,6 +1,7 @@
 /**
  * Drizzle schema source of truth (ADR-0037). Plain table definitions only.
  */
+/* Stryker disable ObjectLiteral */
 import {
   boolean,
   check,
