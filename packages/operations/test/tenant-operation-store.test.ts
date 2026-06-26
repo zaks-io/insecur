@@ -295,11 +295,13 @@ describe("TenantOperationStore", () => {
         counters: { bindingsTotal: 2 },
       },
     });
+    let terminalUpdateRan = false;
     const sql = createFakeTenantSql((query, values) => {
       if (queryIncludes(query, "from operations", "limit 1")) {
         return [operationRowFromPoll(operation)];
       }
       if (queryIncludes(query, "update operations", "returning id")) {
+        terminalUpdateRan = true;
         expect(values).toContain(OP);
         expect(values).toContain(ORG);
         expect(values).toContain("succeeded");
@@ -317,6 +319,8 @@ describe("TenantOperationStore", () => {
       organizationId: ORG,
       operationId: OP,
     });
+
+    expect(terminalUpdateRan).toBe(true);
   });
 
   it("clearSyncTargetLeaseBinding rejects missing operations", async () => {
