@@ -26,11 +26,60 @@ async function signPayload(payloadJson: string, secret: string): Promise<string>
   return bytesToBase64Url(new Uint8Array(signature));
 }
 
+function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  if (prototype !== Object.prototype && prototype !== null) {
+    return false;
+  }
+  return Object.values(value).every(isPlainJsonValue);
+}
+
+function isJsonPrimitive(value: unknown): boolean {
+  return (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
+}
+
+function isUnsupportedJsonValue(value: unknown): boolean {
+  return (
+    typeof value === "function" ||
+    typeof value === "symbol" ||
+    typeof value === "bigint" ||
+    typeof value === "undefined"
+  );
+}
+
+function isPlainJsonValue(value: unknown): boolean {
+  if (isJsonPrimitive(value)) {
+    return true;
+  }
+  if (isUnsupportedJsonValue(value)) {
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.every(isPlainJsonValue);
+  }
+  return typeof value === "object" && isPlainJsonObject(value);
+}
+
+function assertPlainJsonObjectPayload(payload: object): asserts payload is Record<string, unknown> {
+  if (!isPlainJsonObject(payload)) {
+    throw new Error("Invalid signed HS256 payload");
+  }
+}
+
 /** Encode a payload object as a signed `header.body.signature` HS256-shaped token. */
 export async function encodeSignedHs256Token(
   payload: object,
   signingSecret: string,
 ): Promise<string> {
+  assertPlainJsonObjectPayload(payload);
   const header = bytesToBase64Url(
     new TextEncoder().encode(JSON.stringify({ alg: "HS256", typ: "JWT" })),
   );

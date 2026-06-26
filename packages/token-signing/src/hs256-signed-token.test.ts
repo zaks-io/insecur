@@ -45,4 +45,32 @@ describe("signed HS256 token codec", () => {
     const token = await encodeSignedHs256Token({ sub: "actor" }, SECRET);
     expect(await decodeSignedHs256Token(token, `${SECRET}x`)).toBeNull();
   });
+
+  it("rejects array payloads before signing", async () => {
+    await expect(encodeSignedHs256Token(["not", "an", "object"], SECRET)).rejects.toThrow(
+      "Invalid signed HS256 payload",
+    );
+  });
+
+  it("rejects Date payloads before signing", async () => {
+    await expect(encodeSignedHs256Token(new Date(), SECRET)).rejects.toThrow(
+      "Invalid signed HS256 payload",
+    );
+  });
+
+  it("rejects callable object payloads before signing", async () => {
+    const callable = Object.assign(() => undefined, { sub: "actor" });
+    await expect(encodeSignedHs256Token(callable, SECRET)).rejects.toThrow(
+      "Invalid signed HS256 payload",
+    );
+  });
+
+  it("rejects object payloads with non-round-trippable values before signing", async () => {
+    await expect(
+      encodeSignedHs256Token({ sub: "actor", issuedAt: new Date() }, SECRET),
+    ).rejects.toThrow("Invalid signed HS256 payload");
+    await expect(
+      encodeSignedHs256Token({ sub: "actor", handler: () => undefined }, SECRET),
+    ).rejects.toThrow("Invalid signed HS256 payload");
+  });
 });
