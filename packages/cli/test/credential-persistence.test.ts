@@ -8,8 +8,11 @@ import { runInitCommand } from "../src/commands/init.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { PROJECT_CONFIG_FILE, USER_CONFIG_FILE } from "../src/config/paths.js";
 import { clearMemorySession } from "../src/session/memory-session.js";
-import { clearCachedSession, readCachedSession } from "../src/session/session-cache.js";
-import { resetSessionCredentialCacheForTests } from "../src/session/resolve-session.js";
+import { readCachedSession } from "../src/session/session-cache.js";
+import {
+  clearSessionCredentialHandoff,
+  resetSessionCredentialCacheForTests,
+} from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
 
 const flags = {
@@ -89,8 +92,7 @@ describe("credential persistence boundaries", () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
     delete process.env.INSECUR_WORKOS_COOKIE;
-    resetSessionCredentialCacheForTests();
-    await clearCachedSession();
+    await clearSessionCredentialHandoff();
     if (originalCacheFile === undefined) {
       delete process.env.INSECUR_SESSION_CACHE_FILE;
     } else {

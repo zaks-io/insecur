@@ -10,12 +10,11 @@ import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { PROJECT_CONFIG_FILE } from "../src/config/paths.js";
 import { clearMemorySession } from "../src/session/memory-session.js";
 import { requireSessionCredential } from "../src/auth/require-session.js";
+import { readCachedSession, sessionCachePath } from "../src/session/session-cache.js";
 import {
-  clearCachedSession,
-  readCachedSession,
-  sessionCachePath,
-} from "../src/session/session-cache.js";
-import { resetSessionCredentialCacheForTests } from "../src/session/resolve-session.js";
+  clearSessionCredentialHandoff,
+  resetSessionCredentialCacheForTests,
+} from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
 
 const flags = {
@@ -76,6 +75,12 @@ function createMockApi(): ApiClient {
     async writeSecretByVariableKey() {
       throw new Error("not used");
     },
+    async issueInjectionGrant() {
+      throw new Error("not used");
+    },
+    async consumeInjectionGrant() {
+      throw new Error("not used");
+    },
   };
 }
 
@@ -87,8 +92,7 @@ describe("CLI session handoff across separate commands", () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
     delete process.env.INSECUR_WORKOS_COOKIE;
-    resetSessionCredentialCacheForTests();
-    await clearCachedSession();
+    await clearSessionCredentialHandoff();
     if (originalCacheFile === undefined) {
       delete process.env.INSECUR_SESSION_CACHE_FILE;
     } else {
@@ -144,20 +148,23 @@ describe("CLI session handoff across separate commands", () => {
     const homeDir = path.join(projectDir, "home");
     const originalHome = process.env.HOME;
     process.env.HOME = homeDir;
-    const exitCode = await runInitCommand(
-      { ...flags, configDir: projectDir },
-      createMockApi(),
-      mockContext(),
-      { profileSlug: "local-dev" },
-    );
-    expect(exitCode).toBe(0);
-    await expect(readFile(path.join(projectDir, PROJECT_CONFIG_FILE), "utf8")).resolves.toContain(
-      "org_01TEST00000000000000000001",
-    );
-    if (originalHome === undefined) {
-      delete process.env.HOME;
-    } else {
-      process.env.HOME = originalHome;
+    try {
+      const exitCode = await runInitCommand(
+        { ...flags, configDir: projectDir },
+        createMockApi(),
+        mockContext(),
+        { profileSlug: "local-dev" },
+      );
+      expect(exitCode).toBe(0);
+      await expect(readFile(path.join(projectDir, PROJECT_CONFIG_FILE), "utf8")).resolves.toContain(
+        "org_01TEST00000000000000000001",
+      );
+    } finally {
+      if (originalHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = originalHome;
+      }
     }
   });
 
@@ -183,10 +190,27 @@ describe("CLI session handoff across separate commands", () => {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
+    await requireSessionCredential({ host: flags.host });
     await runLogoutCommand(flags);
     await expect(readCachedSession()).resolves.toBeUndefined();
     clearMemorySession();
+    await expect(requireSessionCredential({ host: flags.host })).rejects.toMatchObject({
+      message: "Authentication is required. Run insecur login first.",
+    });
+  });
+
+  it("does not reuse a fulfilled credential lookup after logout", async () => {
+    await useIsolatedSessionCache();
+    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
+    await runLoginCommand(flags, createMockApi(), mockContext(), {
+      cookieEnv: "INSECUR_WORKOS_COOKIE",
+      csrfEnv: "INSECUR_WORKOS_CSRF",
+    });
+    clearMemorySession();
     resetSessionCredentialCacheForTests();
+    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(mockCredential);
+    await runLogoutCommand(flags);
+    clearMemorySession();
     await expect(requireSessionCredential({ host: flags.host })).rejects.toMatchObject({
       message: "Authentication is required. Run insecur login first.",
     });
@@ -243,6 +267,16 @@ describe("CLI session handoff across separate commands", () => {
     };
     await mkdir(path.dirname(cacheFile), { recursive: true });
     await writeFile(cacheFile, `${JSON.stringify(expiredPayload)}\n`, { mode: 0o600 });
+    resetSessionCredentialCacheForTests();
+    await expect(readCachedSession()).resolves.toBeUndefined();
+    await expect(stat(cacheFile)).rejects.toThrow();
+  });
+
+  it("clears malformed session cache JSON instead of throwing", async () => {
+    await useIsolatedSessionCache();
+    const cacheFile = sessionCachePath();
+    await mkdir(path.dirname(cacheFile), { recursive: true });
+    await writeFile(cacheFile, "{not-json", { mode: 0o600 });
     resetSessionCredentialCacheForTests();
     await expect(readCachedSession()).resolves.toBeUndefined();
     await expect(stat(cacheFile)).rejects.toThrow();

@@ -3,8 +3,7 @@ import { AUTH_ERROR_CODES } from "@insecur/domain";
 import { runInitCommand } from "../src/commands/init.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { clearMemorySession } from "../src/session/memory-session.js";
-import { clearCachedSession } from "../src/session/session-cache.js";
-import { resetSessionCredentialCacheForTests } from "../src/session/resolve-session.js";
+import { clearSessionCredentialHandoff } from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
 import { CliError } from "../src/output/cli-error.js";
 import { EXIT_AUTH_REQUIRED } from "../src/output/exit-codes.js";
@@ -52,15 +51,13 @@ describe("auth-required errors", () => {
   afterEach(async () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
-    resetSessionCredentialCacheForTests();
-    await clearCachedSession();
+    await clearSessionCredentialHandoff();
   });
 
   it("fails init without a session credential", async () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
-    resetSessionCredentialCacheForTests();
-    await clearCachedSession();
+    await clearSessionCredentialHandoff();
     await expect(
       runInitCommand(flags, noopApi, mockContext, { profileSlug: "local-dev" }),
     ).rejects.toMatchObject({

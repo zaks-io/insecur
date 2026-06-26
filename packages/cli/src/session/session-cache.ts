@@ -5,7 +5,8 @@ import { SESSION_CACHE_FILE, USER_CONFIG_DIR } from "../config/paths.js";
 import type { MemorySession } from "./memory-session.js";
 
 const SESSION_CACHE_VERSION = 1 as const;
-const SESSION_CACHE_MODE = 0o600;
+const SESSION_CACHE_DIR_MODE = 0o700;
+const SESSION_CACHE_FILE_MODE = 0o600;
 
 export interface CachedCliSession extends MemorySession {
   readonly host: string;
@@ -75,11 +76,15 @@ function parseSessionCacheRecord(record: Record<string, unknown>): CachedCliSess
 }
 
 function parseSessionCachePayload(raw: string): CachedCliSession | undefined {
-  const parsed: unknown = JSON.parse(raw);
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return undefined;
+    }
+    return parseSessionCacheRecord(parsed as Record<string, unknown>);
+  } catch {
     return undefined;
   }
-  return parseSessionCacheRecord(parsed as Record<string, unknown>);
 }
 
 export async function readCachedSession(): Promise<CachedCliSession | undefined> {
@@ -95,7 +100,8 @@ export async function readCachedSession(): Promise<CachedCliSession | undefined>
     if (isENOENT(error)) {
       return undefined;
     }
-    throw error;
+    await clearCachedSession();
+    return undefined;
   }
 }
 
@@ -108,12 +114,12 @@ export async function writeCachedSession(session: CachedCliSession): Promise<voi
     expiresAt: session.expiresAt,
     credential: session.credential,
   };
-  await mkdir(path.dirname(filePath), { recursive: true, mode: SESSION_CACHE_MODE });
+  await mkdir(path.dirname(filePath), { recursive: true, mode: SESSION_CACHE_DIR_MODE });
   await writeFile(filePath, `${JSON.stringify(payload)}\n`, {
     encoding: "utf8",
-    mode: SESSION_CACHE_MODE,
+    mode: SESSION_CACHE_FILE_MODE,
   });
-  await chmod(filePath, SESSION_CACHE_MODE);
+  await chmod(filePath, SESSION_CACHE_FILE_MODE);
 }
 
 export async function clearCachedSession(): Promise<void> {
