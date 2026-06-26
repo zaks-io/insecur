@@ -34,7 +34,9 @@ function checkBaseline(onlyArea) {
   }
 
   const areasToCheck =
-    onlyArea === undefined ? Object.entries(baseline.areas ?? {}) : [[onlyArea, baseline.areas?.[onlyArea]]];
+    onlyArea === undefined
+      ? Object.entries(baseline.areas ?? {})
+      : [[onlyArea, baseline.areas?.[onlyArea]]];
 
   for (const [area, expected] of areasToCheck) {
     if (expected === undefined) {
