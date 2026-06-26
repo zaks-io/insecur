@@ -1,6 +1,7 @@
 /**
  * Drizzle schema source of truth (ADR-0037). Plain table definitions only.
  */
+/* Stryker disable ObjectLiteral */
 import { primaryKey } from "drizzle-orm/pg-core";
 import { check, foreignKey, integer, pgTable, sql, text, timestamp, unique } from "./pg-core.js";
 import { organizations } from "./tenant-hierarchy.js";

@@ -1,0 +1,2339 @@
+{
+  "app_connections": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "provider": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "app_connections_provider_check",
+        "sql": "\"app_connections\".\"provider\" ~ '^[a-z][a-z0-9_-]+$' AND char_length(\"app_connections\".\"provider\") <= 64"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "app_connections_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "app_connections_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "audit_events": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "event_code": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "outcome": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "result_code": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "actor_type": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "actor_user_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "actor_machine_identity_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "resource_type": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "resource_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "related_resource_type": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "related_resource_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "details": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgJsonb",
+        "sqlType": "jsonb"
+      },
+      "request_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "operation_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "audit_events_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "bootstrap_operator_claims": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "first_organization_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "consumed_by_user_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "consumed_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "bootstrap_operator_claims_status_check",
+        "sql": "\"bootstrap_operator_claims\".\"status\" IN ('pending', 'consumed')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "bootstrap_operator_claim_one_pending_per_instance",
+        "columns": ["instance_id"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"bootstrap_operator_claims\".\"status\" = 'pending'"
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "bootstrap_operator_claims_first_organization_id_organizations_id_fk",
+        "columns": ["first_organization_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "bootstrap_operator_claims_instance_id_first_organization_id_fkey",
+        "columns": ["instance_id", "first_organization_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["instance_id", "id"]
+      },
+      {
+        "name": "bootstrap_operator_claims_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "bootstrap_secret_verifiers": {
+    "columns": {
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "algorithm": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "salt_b64": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "hash_b64": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "consumed_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "bootstrap_secret_verifiers_algorithm_check",
+        "sql": "\"bootstrap_secret_verifiers\".\"algorithm\" IN ('scrypt_v1')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "bootstrap_secret_verifiers_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "environments": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "is_protected": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "lifecycle_stage": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "preview_non_production_confirmed_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "preview_non_production_confirmed_by_user_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "environments_development_non_protected_check",
+        "sql": "\"environments\".\"lifecycle_stage\" <> 'development' OR \"environments\".\"is_protected\" = false"
+      },
+      {
+        "name": "environments_lifecycle_stage_check",
+        "sql": "\"environments\".\"lifecycle_stage\" IN ('development', 'preview', 'staging', 'production')"
+      },
+      {
+        "name": "environments_preview_opt_down_evidence_check",
+        "sql": "\"environments\".\"lifecycle_stage\" <> 'preview' OR \"environments\".\"is_protected\" = true OR (\"environments\".\"preview_non_production_confirmed_at\" IS NOT NULL AND \"environments\".\"preview_non_production_confirmed_by_user_id\" IS NOT NULL)"
+      },
+      {
+        "name": "environments_preview_opt_down_fields_scope_check",
+        "sql": "(\"environments\".\"preview_non_production_confirmed_at\" IS NULL AND \"environments\".\"preview_non_production_confirmed_by_user_id\" IS NULL) OR \"environments\".\"lifecycle_stage\" = 'preview'"
+      },
+      {
+        "name": "environments_staging_production_protected_check",
+        "sql": "\"environments\".\"lifecycle_stage\" NOT IN ('staging', 'production') OR \"environments\".\"is_protected\" = true"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "environments_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "environments_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "environments_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "injection_grants": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "variable_keys": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgArray",
+        "sqlType": "text[]"
+      },
+      "secret_ids": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgArray",
+        "sqlType": "text[]",
+        "defaultSql": "'{}'::text[]"
+      },
+      "secret_version_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "expires_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "consumed_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "injection_grants_org_id_environment_id_environments_org_id_id_fk",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "injection_grants_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "injection_grants_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "instance_configurations": {
+    "columns": {
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "signup_lockdown_enabled": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "public_onboarding_enabled": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "instance_configurations_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "instance_identity_configurations": {
+    "columns": {
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "human_identity_provider": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "workos_client_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "instance_identity_configurations_provider_check",
+        "sql": "\"instance_identity_configurations\".\"human_identity_provider\" IN ('workos_authkit')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "instance_identity_configurations_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "instance_operators": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "grant_origin": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "instance_operators_grant_origin_check",
+        "sql": "\"instance_operators\".\"grant_origin\" IN ('bootstrap', 'admin')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "instance_operators_one_bootstrap_per_instance",
+        "columns": ["instance_id"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"instance_operators\".\"grant_origin\" = 'bootstrap'"
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "instance_operators_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "instances": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [],
+    "primaryKeys": []
+  },
+  "invitations": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "team_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "invitee_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "role_preset": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "membership_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "accepted_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "invitations_role_preset_check",
+        "sql": "\"invitations\".\"role_preset\" IN ('owner', 'admin', 'developer', 'metadata-viewer', 'approval', 'read-only')"
+      },
+      {
+        "name": "invitations_status_check",
+        "sql": "\"invitations\".\"status\" IN ('pending', 'accepted', 'revoked')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "invitations_one_pending_per_invitee_org_project",
+        "columns": ["org_id", "invitee_user_id", "project_id"],
+        "unique": true,
+        "nullsNotDistinct": true,
+        "whereSql": "\"invitations\".\"status\" = 'pending'"
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "invitations_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "invitations_org_project_fkey",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "invitations_org_team_fkey",
+        "columns": ["org_id", "team_id"],
+        "foreignTable": "teams",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "machine_identities": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "machine_identities_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "machine_identities_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "machine_identity_github_actions_oidc": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "machine_identity_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "github_repository": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "github_environment": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "oidc_audience": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "credential_scopes": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgArray",
+        "sqlType": "text[]"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "machine_identity_github_actions_oidc_repository_lowercase",
+        "sql": "lower(\"machine_identity_github_actions_oidc\".\"github_repository\") = \"machine_identity_github_actions_oidc\".\"github_repository\""
+      },
+      {
+        "name": "machine_identity_github_actions_oidc_scopes_nonempty",
+        "sql": "cardinality(\"machine_identity_github_actions_oidc\".\"credential_scopes\") > 0"
+      },
+      {
+        "name": "machine_identity_github_actions_oidc_status",
+        "sql": "\"machine_identity_github_actions_oidc\".\"status\" IN ('active', 'disabled')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "machine_identity_github_actions_oidc_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "machine_identity_github_actions_oidc_org_id_environment_id_environments_org_id_id_fk",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "machine_identity_github_actions_oidc_org_id_machine_identity_id_machine_identities_org_id_id_fk",
+        "columns": ["org_id", "machine_identity_id"],
+        "foreignTable": "machine_identities",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "machine_identity_github_actions_oidc_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "machine_identity_github_actions_oidc_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "machine_identity_memberships": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "machine_identity_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "authorization_scopes": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgArray",
+        "sqlType": "text[]"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "machine_identity_memberships_project_scoped",
+        "sql": "\"machine_identity_memberships\".\"project_id\" IS NOT NULL"
+      },
+      {
+        "name": "machine_identity_memberships_scopes_nonempty",
+        "sql": "cardinality(\"machine_identity_memberships\".\"authorization_scopes\") > 0"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "machine_identity_memberships_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "machine_identity_memberships_org_id_machine_identity_id_project_id_key",
+        "columns": ["org_id", "machine_identity_id", "project_id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "machine_identity_memberships_org_id_machine_identity_id_machine_identities_org_id_id_fk",
+        "columns": ["org_id", "machine_identity_id"],
+        "foreignTable": "machine_identities",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "machine_identity_memberships_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "machine_identity_memberships_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "memberships": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "team_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "role_preset": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "memberships_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "memberships_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "memberships_org_id_team_id_teams_org_id_id_fk",
+        "columns": ["org_id", "team_id"],
+        "foreignTable": "teams",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "operations": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "state": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "intent_code": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "idempotency_key": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "progress": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgJsonb",
+        "sqlType": "jsonb",
+        "defaultSql": "'{}'::jsonb"
+      },
+      "execution_deadline": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "operations_org_idempotency_key_idx",
+        "columns": ["org_id", "idempotency_key"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"operations\".\"idempotency_key\" IS NOT NULL"
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "operations_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "organization_data_keys": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "key_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "root_key_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "wrapped_storage_ref": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "custody_evidence_ref": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "organization_data_keys_status_check",
+        "sql": "\"organization_data_keys\".\"status\" IN ('active', 'retired', 'revoked')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "organization_data_keys_org_id_key_version_key",
+        "columns": ["org_id", "key_version"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [
+      {
+        "name": "organization_data_keys_one_active_per_org",
+        "columns": ["org_id"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"organization_data_keys\".\"status\" = 'active'"
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "organization_data_keys_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "organizations": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "organizations_instance_id_id_key",
+        "columns": ["instance_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "organizations_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "project_data_keys": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "key_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "organization_data_key_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "wrapped_storage_ref": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "project_data_keys_status_check",
+        "sql": "\"project_data_keys\".\"status\" IN ('active', 'retired', 'revoked')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "project_data_keys_project_id_key_version_key",
+        "columns": ["project_id", "key_version"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [
+      {
+        "name": "project_data_keys_one_active_per_project",
+        "columns": ["org_id", "project_id"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"project_data_keys\".\"status\" = 'active'"
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "project_data_keys_org_id_organization_data_key_version_organization_data_keys_org_id_key_version_fk",
+        "columns": ["org_id", "organization_data_key_version"],
+        "foreignTable": "organization_data_keys",
+        "foreignColumns": ["org_id", "key_version"]
+      },
+      {
+        "name": "project_data_keys_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "project_data_keys_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "projects": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "projects_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "projects_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "provider_credentials": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "app_connection_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "provider": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "organization_data_key_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "ciphertext_storage_ref": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "provider_credentials_provider_check",
+        "sql": "\"provider_credentials\".\"provider\" ~ '^[a-z][a-z0-9_-]+$' AND char_length(\"provider_credentials\".\"provider\") <= 64"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "provider_credentials_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "provider_credentials_org_id_app_connection_id_app_connections_org_id_id_fk",
+        "columns": ["org_id", "app_connection_id"],
+        "foreignTable": "app_connections",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "provider_credentials_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "secret_versions": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "version_number": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "organization_data_key_version": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "project_data_key_version": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "ciphertext_storage_ref": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "secret_versions_org_id_secret_id_id_key",
+        "columns": ["org_id", "secret_id", "id"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "secret_versions_secret_id_version_number_key",
+        "columns": ["secret_id", "version_number"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "secret_versions_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "secret_versions_org_id_secret_id_secrets_org_id_id_fk",
+        "columns": ["org_id", "secret_id"],
+        "foreignTable": "secrets",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "secrets": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "variable_key": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "current_version_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "secrets_environment_id_variable_key_key",
+        "columns": ["environment_id", "variable_key"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "secrets_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "secrets_org_id_environment_id_environments_org_id_id_fk",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "secrets_org_id_id_current_version_id_fkey",
+        "columns": ["org_id", "id", "current_version_id"],
+        "foreignTable": "secret_versions",
+        "foreignColumns": ["org_id", "secret_id", "id"]
+      },
+      {
+        "name": "secrets_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "secrets_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "sensitive_metadata_fields": {
+    "columns": {
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "scope_project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "metadata_type": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "record_resource_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "field_key": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "organization_data_key_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "project_data_key_version": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "ciphertext_storage_ref": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "sensitive_metadata_fields_field_key_check",
+        "sql": "\"sensitive_metadata_fields\".\"field_key\" ~ '^[a-z][a-z0-9_]+$' AND char_length(\"sensitive_metadata_fields\".\"field_key\") <= 64"
+      },
+      {
+        "name": "sensitive_metadata_fields_metadata_type_check",
+        "sql": "\"sensitive_metadata_fields\".\"metadata_type\" ~ '^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$' AND char_length(\"sensitive_metadata_fields\".\"metadata_type\") <= 128"
+      },
+      {
+        "name": "sensitive_metadata_fields_scope_project_id_check",
+        "sql": "\"sensitive_metadata_fields\".\"scope_project_id\" = '' OR \"sensitive_metadata_fields\".\"scope_project_id\" ~ '^prj_[0-9A-Z]{26}$'"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "sensitive_metadata_fields_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": [
+      {
+        "columns": [
+          "org_id",
+          "scope_project_id",
+          "metadata_type",
+          "record_resource_id",
+          "field_key"
+        ],
+        "name": "sensitive_metadata_fields_org_id_scope_project_id_metadata_type_record_resource_id_field_key_pk"
+      }
+    ]
+  },
+  "sync_target_leases": {
+    "columns": {
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "provider_kind": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "target_identity": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "held_by_operation_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "fencing_token": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBigInt53",
+        "sqlType": "bigint"
+      },
+      "expires_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "sync_target_leases_fencing_token_positive",
+        "sql": "\"sync_target_leases\".\"fencing_token\" > 0"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "sync_target_leases_held_by_operation_id_idx",
+        "columns": ["org_id", "held_by_operation_id"],
+        "unique": false,
+        "nullsNotDistinct": false
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "sync_target_leases_held_by_operation_id_operations_id_fk",
+        "columns": ["held_by_operation_id"],
+        "foreignTable": "operations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "sync_target_leases_org_id_project_id_fkey",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": [
+      {
+        "columns": ["org_id", "project_id", "provider_kind", "target_identity"],
+        "name": "sync_target_leases_org_id_project_id_provider_kind_target_identity_pk"
+      }
+    ]
+  },
+  "teams": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "is_default": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "teams_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "teams_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "user_admissions": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "workos_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "revoked_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      }
+    },
+    "checks": [
+      {
+        "name": "user_admissions_revocation_check",
+        "sql": "(\"user_admissions\".\"status\" = 'active' AND \"user_admissions\".\"revoked_at\" IS NULL) OR (\"user_admissions\".\"status\" = 'revoked' AND \"user_admissions\".\"revoked_at\" IS NOT NULL)"
+      },
+      {
+        "name": "user_admissions_status_check",
+        "sql": "\"user_admissions\".\"status\" IN ('active', 'revoked')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "user_admissions_one_user_per_instance",
+        "columns": ["instance_id", "user_id"],
+        "unique": true,
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "user_admissions_one_workos_subject_per_instance",
+        "columns": ["instance_id", "workos_user_id"],
+        "unique": true,
+        "nullsNotDistinct": false
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "user_admissions_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  }
+}

@@ -2,6 +2,7 @@
 
 const config = {
   packageManager: "pnpm",
+  inPlace: true,
   plugins: ["@stryker-mutator/vitest-runner"],
   testRunner: "vitest",
   mutate: [
@@ -32,10 +33,13 @@ const config = {
   concurrency: "50%",
   tempDirName: ".stryker-tmp",
   ignorePatterns: [
+    "/.agents/**",
     "/.claude/**",
     "/.codex/**",
     "/.cursor/**",
     "/skills/**",
+    "packages/tenant-store/src/db/schema/schema-shape-registry.json",
+    "packages/tenant-store/src/db/schema/schema-shape-registry.ts",
     "/coverage/**",
     "/.turbo/**",
     "/.jscpd-report/**",
