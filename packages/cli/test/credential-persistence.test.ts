@@ -25,7 +25,7 @@ const flags = {
   verbose: false,
 };
 
-const sensitiveCredential = "insecur-session-credential-test-value";
+const mockCredential = "credential_test";
 
 function mockContext(host = flags.host): ResolvedCliContext {
   return {
@@ -48,7 +48,7 @@ function createMockApi(): ApiClient {
     async exchangeCliSession() {
       return {
         ok: true,
-        credential: sensitiveCredential,
+        credential: mockCredential,
         envelope: successEnvelope({
           sessionId: "sess_cli_test",
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -74,7 +74,7 @@ function createMockApi(): ApiClient {
 }
 
 function assertNoCredentialMaterial(contents: string): void {
-  expect(contents).not.toContain(sensitiveCredential);
+  expect(contents).not.toContain(mockCredential);
   expect(contents).not.toMatch(/"sessionToken"/);
   expect(contents).not.toMatch(/"refreshToken"/);
   expect(contents).not.toMatch(/"accessToken"/);
@@ -113,7 +113,7 @@ describe("credential persistence boundaries", () => {
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
     const cached = await readCachedSession();
-    expect(cached?.credential).toBe(sensitiveCredential);
+    expect(cached?.credential).toBe(mockCredential);
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
     const configPath = path.join(projectDir, PROJECT_CONFIG_FILE);
     const userConfigPath = path.join(projectDir, "home", USER_CONFIG_FILE);

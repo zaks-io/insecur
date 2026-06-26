@@ -31,7 +31,7 @@ const flags = {
   verbose: false,
 };
 
-const sensitiveCredential = "insecur-session-credential-handoff-test";
+const mockCredential = "credential_test";
 
 function mockContext(host = flags.host): ResolvedCliContext {
   return {
@@ -54,7 +54,7 @@ function createMockApi(): ApiClient {
     async exchangeCliSession() {
       return {
         ok: true,
-        credential: sensitiveCredential,
+        credential: mockCredential,
         envelope: successEnvelope({
           sessionId: "sess_handoff_test",
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -113,7 +113,8 @@ describe("CLI session handoff across separate commands", () => {
     const cacheFile = sessionCachePath();
     const contents = await readFile(cacheFile, "utf8");
     expect(contents).toContain("sess_handoff_test");
-    expect(contents).toContain(sensitiveCredential);
+    const cached = await readCachedSession();
+    expect(cached?.credential).toBe(mockCredential);
     const fileStat = await stat(cacheFile);
     expect(fileStat.mode & 0o777).toBe(0o600);
   });
@@ -127,7 +128,7 @@ describe("CLI session handoff across separate commands", () => {
     });
     clearMemorySession();
     resetSessionCredentialCacheForTests();
-    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(sensitiveCredential);
+    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(mockCredential);
   });
 
   it("lets init run after login when only the session cache survives", async () => {
@@ -238,7 +239,7 @@ describe("CLI session handoff across separate commands", () => {
       host: flags.host,
       sessionId: "sess_expired",
       expiresAt: new Date(Date.now() - 1_000).toISOString(),
-      credential: sensitiveCredential,
+      credential: mockCredential,
     };
     await mkdir(path.dirname(cacheFile), { recursive: true });
     await writeFile(cacheFile, `${JSON.stringify(expiredPayload)}\n`, { mode: 0o600 });
