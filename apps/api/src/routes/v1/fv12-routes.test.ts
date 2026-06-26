@@ -258,6 +258,94 @@ describe("FV-12 worker routes", () => {
   });
 
   describe("POST /v1/orgs/:org/projects/.../secrets/by-variable-key", () => {
+    it("returns auth.required when unauthenticated", async () => {
+      const response = await app.request(
+        secretsPath,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            value: "metadata-only-test-value",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
+      expect(writeSecret).not.toHaveBeenCalled();
+    });
+
+    it("rejects missing secret input before forwarding to Runtime", async () => {
+      const response = await app.request(
+        secretsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({ variableKey: "API_KEY" }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(writeSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: SECRET_ERROR_CODES.inputRequired },
+      });
+    });
+
+    it("rejects both value and generate in the request body", async () => {
+      const response = await app.request(
+        secretsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            value: "x",
+            generate: { mode: "random", lengthBytes: 32 },
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(writeSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: SECRET_ERROR_CODES.invalidInputMode },
+      });
+    });
+
+    it("rejects named local value files before forwarding to Runtime", async () => {
+      const response = await app.request(
+        secretsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            value: "x",
+            localValueFile: ".env",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(writeSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: SECRET_ERROR_CODES.inputRequired },
+      });
+    });
+
     it("forwards the write to the Runtime Worker and returns the metadata envelope", async () => {
       const response = await app.request(
         secretsPath,
@@ -372,6 +460,69 @@ describe("FV-12 worker routes", () => {
   });
 
   describe("POST /v1/orgs/:org/runtime-injection/grants", () => {
+    it("returns auth.required when unauthenticated", async () => {
+      const response = await app.request(
+        grantsPath,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: projectIdValue,
+            environmentId: environmentIdValue,
+            variableKey: "API_KEY",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
+      expect(issueInjectionGrant).not.toHaveBeenCalled();
+    });
+
+    it("rejects missing projectId before delegating grant issue", async () => {
+      const response = await app.request(
+        grantsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            environmentId: environmentIdValue,
+            variableKey: "API_KEY",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
+    it("rejects invalid projectId and environmentId combinations in the body", async () => {
+      const response = await app.request(
+        grantsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            projectId: "not-a-project",
+            environmentId: environmentIdValue,
+            variableKey: "API_KEY",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(issueInjectionGrant).not.toHaveBeenCalled();
+    });
+
     it("delegates grant issue by variable key to the runtime-injection package", async () => {
       issueInjectionGrant.mockResolvedValue({
         grantId: grantIdValue,
@@ -517,6 +668,43 @@ describe("FV-12 worker routes", () => {
   });
 
   describe("POST /v1/orgs/:org/runtime-injection/grants/:grantId/consume", () => {
+    it("returns auth.required when unauthenticated", async () => {
+      const response = await app.request(
+        consumePath,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ variableKey: "API_KEY" }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
+      expect(consumeGrant).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid grant id path params before forwarding consume", async () => {
+      const response = await app.request(
+        `/v1/orgs/${orgId}/runtime-injection/grants/not-a-grant/consume`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({ variableKey: "API_KEY" }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(consumeGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
     it("returns runtime delivery material from the Runtime Worker only on the consume route", async () => {
       const response = await app.request(
         consumePath,
@@ -624,7 +812,7 @@ describe("FV-12 worker routes", () => {
   });
 
   describe("validation", () => {
-    it("rejects invalid path params before forwarding to the Runtime Worker", async () => {
+    it("rejects invalid project path params before forwarding to the Runtime Worker", async () => {
       const response = await app.request(
         `/v1/orgs/${orgId}/projects/not-a-project/environments/${environmentIdValue}/secrets/by-variable-key`,
         {
@@ -640,6 +828,65 @@ describe("FV-12 worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(writeSecret).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid environment path params before forwarding to the Runtime Worker", async () => {
+      const response = await app.request(
+        `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/not-an-environment/secrets/by-variable-key`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            value: "x",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(writeSecret).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid organization path params before forwarding to the Runtime Worker", async () => {
+      const response = await app.request(
+        `/v1/orgs/not-an-org/projects/${projectIdValue}/environments/${environmentIdValue}/secrets/by-variable-key`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            value: "x",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(writeSecret).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid variable keys before forwarding to the Runtime Worker", async () => {
+      const response = await app.request(
+        secretsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "bad key",
+            value: "x",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(writeSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_variable_key" },
+      });
     });
   });
 });
