@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-25
+Last updated: 2026-06-26
 
 This document is a **status snapshot** — what was built, verified, and still open when it was last
 edited. It is not normative product truth. When this prose disagrees with an owning spec, ADR, or
@@ -70,13 +70,13 @@ landed ADRs 0066 through 0076 plus dated amendments to ADR-0008/0028/0032/0034/0
 [custody-material compromise runbook](runbooks/custody-material-compromise.md), and the content
 ownership / single-statement / deterministic-conflict rules in
 [specs/README.md](specs/README.md) (ADR-0067). The M0 contract-and-gate batch from ADRs 0062 and
-0066–0071 is largely blocking in CI: the Plaintext Metadata Allowlist conformance gate (ADR-0070),
+0066–0073 is blocking in CI: the Plaintext Metadata Allowlist conformance gate (ADR-0070),
 the role-bundle registry conformance suite (ADR-0034) including the machine-only
 protected-issuance scope (ADR-0038), the `OPERATION_INTENT_CODES` catalog (ADR-0068), the
 `operation.idempotency_mismatch` check (ADR-0066), the no-plaintext canary gate `pnpm test:canary`
-(ADR-0069), the exit/HTTP lockstep test (ADR-0062), and the decrypt-import lint boundary
-(ADR-0071). One M0 contract gate remains open: non-lease execution-deadline liveness recovery
-(ADR-0073). Review follow-ups are
+(ADR-0069), the exit/HTTP lockstep test (ADR-0062), the decrypt-import lint boundary
+(ADR-0071), and non-lease `execution_deadline` claims with lazy abandonment recovery
+(ADR-0073, landed INS-219). Review follow-ups are
 INS-167 (metadata-viewer role preset) and INS-169 (re-home
 First Value routes under `/v1/orgs/:org`).
 
@@ -143,7 +143,8 @@ First Value routes under `/v1/orgs/:org`).
 - `@insecur/operations` owns the Operation Store and sync target serialization core:
   operation create/transition/progress/retry/cancel/poll, metadata-safe operation
   progress, `blocked` and `incomplete` resume semantics, sync target key validation,
-  leases, renew/release, fencing tokens, stale-token rejection, and target-busy errors.
+  leases, renew/release, fencing tokens, stale-token rejection, target-busy errors,
+  non-lease `execution_deadline` claims, and lazy abandonment recovery (ADR-0073).
 - Package failures have been aligned around ErrorBody-compatible stable codes where the
   package surface exposes failures to Worker/API callers.
 
@@ -293,9 +294,10 @@ release-gate evidence bundles.
 
 ## Recommended Next Steps
 
-1. Close the remaining M0 contract gate (ADR-0073 execution-deadline liveness recovery) and the
-   custody/persistence gaps ticketed in [roadmap.md](roadmap.md) M0 before parallel feature work
-   depends on them.
+1. Close the custody/persistence gaps ticketed in [roadmap.md](roadmap.md) M0 before parallel
+   feature work depends on them. The ADR-0073 non-lease execution-deadline/lazy-abandonment gate
+   landed in INS-219; see [operation-store.md](operation-store.md) and
+   `packages/operations/CONTEXT.md` for the owner contract.
 2. Wire remaining package implementations into the correct deploy (INS-194 Cut 1 landed). The
    decided topology is `apps/api` (public edge, no keyring), `apps/runtime`
    (sole `INSTANCE_ROOT_KEY_V1` holder, decrypt-egress behind a `WorkerEntrypoint` RPC seam, no
