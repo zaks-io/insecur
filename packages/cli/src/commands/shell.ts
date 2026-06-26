@@ -24,7 +24,7 @@ export async function runShellCommand(
   context: ResolvedCliContext,
 ): Promise<number> {
   const { host } = context.scope;
-  const credential = await requireSessionCredential({ host });
+  const credential = requireSessionCredential({ host });
   const { profileId, profile } = resolveProfile(
     context.userConfig,
     { selector: profileSelector },

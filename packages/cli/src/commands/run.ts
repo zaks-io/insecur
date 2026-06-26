@@ -130,7 +130,7 @@ export async function runRunCommand(
   context: ResolvedCliContext,
   commandOptions: RunCommandOptions,
 ): Promise<number> {
-  const credential = await requireSessionCredential({ host: context.scope.host });
+  const credential = requireSessionCredential({ host: context.scope.host });
   const runScope = requireSecretWriteScope(context.scope);
   const variableKey = parseVariableKeyOrThrow(commandOptions.variableKey);
   const command = requireRunCommand(commandOptions.command);

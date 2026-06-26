@@ -54,7 +54,7 @@ export async function runSecretsSetCommand(
   context: ResolvedCliContext,
   commandOptions: SecretsSetCommandOptions,
 ): Promise<number> {
-  const credential = await requireSessionCredential({ host: context.scope.host });
+  const credential = requireSessionCredential({ host: context.scope.host });
   const writeScope = requireSecretWriteScope(context.scope);
   const variableKey = parseVariableKeyOrThrow(commandOptions.variableKey);
   const collected = await collectSecretValue({
