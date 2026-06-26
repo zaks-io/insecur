@@ -3,7 +3,6 @@ import { constants as osConstants } from "node:os";
 import {
   base64UrlToBytes,
   INJECTION_ERROR_CODES,
-  parseVariableKey,
   successEnvelope,
   VALIDATION_ERROR_CODES,
   type VariableKey,
@@ -19,24 +18,13 @@ import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
+import { parseVariableKeyOrThrow } from "./parse-variable-key.js";
 import { buildRunResolvedTargets } from "./run-result.js";
 import { requireSecretWriteScope, type ResolvedSecretWriteScope } from "./secrets-set-scope.js";
 
 export interface RunCommandOptions {
   readonly variableKey: string;
   readonly command: readonly string[];
-}
-
-function parseVariableKeyOrThrow(raw: string): VariableKey {
-  const parsed = parseVariableKey(raw);
-  if (!parsed.ok) {
-    throw new CliError({
-      code: VALIDATION_ERROR_CODES.invalidVariableKey,
-      message: `Invalid variable key: ${raw}. Keys must match ^[A-Z_][A-Z0-9_]*$.`,
-      retryable: false,
-    });
-  }
-  return parsed.value;
 }
 
 function requireRunCommand(command: readonly string[]): readonly string[] {
