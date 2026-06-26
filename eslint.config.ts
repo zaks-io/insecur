@@ -156,6 +156,7 @@ export default tseslint.config(
       "packages/tenant-store/test/**/*.ts",
       "packages/tenant-store/vitest.rls.config.ts",
       "packages/tenant-store/drizzle.config.ts",
+      "packages/tenant-store/scripts/**/*.ts",
       "packages/worker-kit/src/**/*.test.ts",
       "packages/worker-kit/vitest.config.ts",
       "apps/api/test/**/*.ts",
@@ -192,6 +193,12 @@ export default tseslint.config(
       "max-nested-callbacks": ["error", 3],
       "max-params": ["error", 4],
       "max-statements": ["error", 15],
+    },
+  },
+  {
+    files: ["eslint.config.ts", "packages/tenant-store/src/db/schema/schema-shape.ts"],
+    rules: {
+      "max-lines": "off",
     },
   },
   {

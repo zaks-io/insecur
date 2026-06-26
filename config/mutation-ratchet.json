@@ -158,13 +158,13 @@
       "other": 0
     },
     "packages/tenant-store": {
-      "score": 33.02,
-      "mutants": 1408,
-      "killed": 465,
-      "survived": 743,
-      "noCoverage": 200,
+      "score": 65.03,
+      "mutants": 1553,
+      "killed": 1010,
+      "survived": 243,
+      "noCoverage": 207,
       "timeout": 0,
-      "ignored": 0,
+      "ignored": 93,
       "other": 0
     },
     "packages/token-signing": {

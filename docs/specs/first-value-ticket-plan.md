@@ -80,9 +80,9 @@ The tickets add these public surfaces:
   `insecur secrets set --variable-key`, and `insecur run --variable-key -- <command>`.
 - Worker routes:
   - `POST /v1/onboarding/personal-organization`
-  - `POST /v1/projects/:projectId/environments/:environmentId/secrets/by-variable-key`
-  - `POST /v1/runtime-injection/grants`
-  - `POST /v1/runtime-injection/grants/:grantId/consume`
+  - `POST /v1/orgs/:organizationId/projects/:projectId/environments/:environmentId/secrets/by-variable-key`
+  - `POST /v1/orgs/:organizationId/runtime-injection/grants`
+  - `POST /v1/orgs/:organizationId/runtime-injection/grants/:grantId/consume`
 - Package exports:
   - `withTenantScope(scope, callback)`
   - `resolveEffectiveAccess(actor, coordinate)`

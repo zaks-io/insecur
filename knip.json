@@ -7,11 +7,12 @@
     "packages/tenant-store": {
       "entry": [
         "scripts/**/*.mjs",
+        "scripts/**/*.ts",
         "src/db/schema/**/*.ts",
         "vitest*.config.ts",
         "test/**/*.test.ts"
       ],
-      "project": ["src/**/*.ts", "test/**/*.ts"]
+      "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]
     },
     "packages/worker-kit": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
@@ -27,9 +28,10 @@
       "ignoreDependencies": ["cloudflare"]
     },
     ".": {
-      "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts"],
+      "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts", "*.config.mjs"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreBinaries": ["wrangler"]
+      "ignoreBinaries": ["wrangler"],
+      "ignoreDependencies": ["lefthook"]
     }
   },
   "rules": {
