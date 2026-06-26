@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-06-26T20:40:51.842Z",
+  "updatedAt": "2026-06-26T21:35:55.941Z",
   "source": "reports/mutation/mutation.json",
   "scope": {
-    "excluded": ["packages/cli"],
-    "note": "Manual Stryker baseline. CLI is excluded until its HOME-dependent tests are Stryker-runner-safe."
+    "excluded": [],
+    "note": "Manual Stryker baseline including CLI after INS-261 HOME/config isolation."
   },
   "overall": {
-    "score": 38.07,
-    "mutants": 10100,
-    "killed": 3846,
-    "survived": 2409,
-    "noCoverage": 3838,
-    "timeout": 7,
+    "mutants": 11487,
+    "killed": 4508,
+    "survived": 2743,
+    "noCoverage": 4224,
+    "timeout": 12,
     "ignored": 0,
-    "other": 0
+    "other": 0,
+    "score": 39.24
   },
   "areas": {
     "apps/api": {
@@ -184,6 +184,16 @@
       "survived": 133,
       "noCoverage": 270,
       "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/cli": {
+      "score": 47.72,
+      "mutants": 1387,
+      "killed": 662,
+      "survived": 334,
+      "noCoverage": 386,
+      "timeout": 5,
       "ignored": 0,
       "other": 0
     }

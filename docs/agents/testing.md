@@ -35,14 +35,13 @@ Reports are written under `reports/mutation/`. Open `reports/mutation/index.html
 human review and use `reports/mutation/mutation.json` for scripting. The command uses
 Stryker's Vitest runner against the DB-less unit-test project list from
 `vitest.mutation.config.ts`; integration, RLS, e2e, and canary suites stay in their dedicated
-commands.
+commands. CLI tests use per-worker `INSECUR_CONFIG_HOME` isolation via `packages/cli/test/setup.ts`
+so Stryker's Vitest runner does not depend on the developer machine home directory.
 
-The default mutation target excludes `packages/cli`. Stryker's Vitest runner exercises the CLI
-HOME-dependent config tests differently than normal Vitest, so keep CLI mutation review as a
-focused follow-up after that harness is made Stryker-safe. `vitest.mutation.config.ts` also disables
-file-level test parallelism because Stryker already controls worker parallelism. The default run is
-incremental and advisory: it reuses previous results when possible and never fails solely because
-the mutation score is low. To rebuild the mutation cache:
+`vitest.mutation.config.ts` also disables file-level test parallelism because Stryker already
+controls worker parallelism. The default run is incremental and advisory: it reuses previous
+results when possible and never fails solely because the mutation score is low. To rebuild the
+mutation cache:
 
 ```
 pnpm mutation:force
@@ -64,6 +63,7 @@ pnpm mutation:baseline:update
 To review a focused area, pass Stryker's `--mutate` override through pnpm:
 
 ```
+pnpm mutation:review -- --mutate "packages/cli/src/**/*.ts"
 pnpm mutation:review -- --mutate "packages/crypto/src/**/*.ts"
 pnpm mutation:review -- --mutate "apps/api/src/routes/v1/secrets.ts"
 pnpm mutation:review -- --mutate "packages/worker-kit/src/http/handle-route.ts:1-80"

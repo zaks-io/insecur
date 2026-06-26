@@ -64,8 +64,8 @@ function updateBaseline() {
     updatedAt: new Date().toISOString(),
     source: relative(root, reportPath),
     scope: {
-      excluded: ["packages/cli"],
-      note: "Manual Stryker baseline. CLI is excluded until its HOME-dependent tests are Stryker-runner-safe.",
+      excluded: [],
+      note: "Manual Stryker baseline including CLI after INS-261 HOME/config isolation.",
     },
     overall: current.overall,
     areas: current.areas,

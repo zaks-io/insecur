@@ -7,7 +7,6 @@ const config = {
   mutate: [
     "apps/*/src/**/*.ts",
     "packages/*/src/**/*.ts",
-    "!packages/cli/src/**/*.ts",
     "!**/*.test.ts",
     "!**/*.d.ts",
     "!**/index.ts",
