@@ -52,8 +52,10 @@ insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-pro
 
 `insecur login` writes the exchanged CLI credential to `~/.insecur/session.json` with mode `0600`.
 Later commands read that cache when `INSECUR_SESSION_TOKEN` is unset, so the copyable sequence works
-across separate shell invocations. `insecur logout` clears the cache. For automation that should not
-touch disk, set `INSECUR_SESSION_TOKEN` explicitly or use `insecur shell <profile-slug-or-id>`.
+across separate shell invocations. The cache is bound to the login host; if a later command resolves a
+different `--host` / config host, the CLI clears the cache and requires login again. `insecur logout`
+clears the cache. For automation that should not touch disk, set `INSECUR_SESSION_TOKEN` explicitly
+or use `insecur shell <profile-slug-or-id>`.
 
 The sequence uses normal product primitives:
 
@@ -218,7 +220,7 @@ Session-only credential environment variables:
 Rules:
 
 - Session-only credential environment variables (`INSECUR_SESSION_TOKEN`, `INSECUR_DEPLOY_KEY`, `INSECUR_OIDC_TOKEN`) are never written by insecur to committed config or dotenv files.
-- `insecur login` caches the exchanged CLI credential in `~/.insecur/session.json` (mode `0600`) for separate command invocations. `insecur logout` clears that cache. The cache is not committed project config and is not printed by default.
+- `insecur login` caches the exchanged CLI credential in `~/.insecur/session.json` (mode `0600`) for separate command invocations. The cache records the login host and is cleared when a later command resolves a different host. `insecur logout` also clears the cache. The cache is not committed project config and is not printed by default.
 - Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive or uses the login session cache.
 - `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
 - Prefer `insecur shell <profile-slug-or-id>` or one-shot `insecur run <profile-slug-or-id> --login -- <command>` when credentials should live only in a child process environment without touching disk.
@@ -228,7 +230,7 @@ Session credential resolution order for authenticated commands:
 
 1. Process memory from a same-process `insecur login`.
 2. `INSECUR_SESSION_TOKEN` when set in the environment.
-3. `~/.insecur/session.json` when present and unexpired.
+3. `~/.insecur/session.json` when present, unexpired, and the cached host matches the resolved command host.
 
 Precedence:
 

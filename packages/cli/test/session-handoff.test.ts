@@ -127,7 +127,7 @@ describe("CLI session handoff across separate commands", () => {
     });
     clearMemorySession();
     resetSessionCredentialCacheForTests();
-    await expect(requireSessionCredential()).resolves.toBe(sensitiveCredential);
+    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(sensitiveCredential);
   });
 
   it("lets init run after login when only the session cache survives", async () => {
@@ -170,7 +170,9 @@ describe("CLI session handoff across separate commands", () => {
     process.env.INSECUR_SESSION_TOKEN = "env-override-token";
     clearMemorySession();
     resetSessionCredentialCacheForTests();
-    await expect(requireSessionCredential()).resolves.toBe("env-override-token");
+    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(
+      "env-override-token",
+    );
   });
 
   it("clears the session cache on logout", async () => {
@@ -184,7 +186,45 @@ describe("CLI session handoff across separate commands", () => {
     await expect(readCachedSession()).resolves.toBeUndefined();
     clearMemorySession();
     resetSessionCredentialCacheForTests();
-    await expect(requireSessionCredential()).rejects.toMatchObject({
+    await expect(requireSessionCredential({ host: flags.host })).rejects.toMatchObject({
+      message: "Authentication is required. Run insecur login first.",
+    });
+  });
+
+  it("clears the session cache when the resolved host does not match the cached login host", async () => {
+    await useIsolatedSessionCache();
+    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
+    await runLoginCommand(flags, createMockApi(), mockContext("https://insecur-a.test"), {
+      cookieEnv: "INSECUR_WORKOS_COOKIE",
+      csrfEnv: "INSECUR_WORKOS_CSRF",
+    });
+    clearMemorySession();
+    resetSessionCredentialCacheForTests();
+    await expect(
+      requireSessionCredential({ host: "https://insecur-b.test" }),
+    ).rejects.toMatchObject({
+      message: "Authentication is required. Run insecur login first.",
+    });
+    await expect(readCachedSession()).resolves.toBeUndefined();
+  });
+
+  it("rejects init when the session cache host does not match the command host", async () => {
+    await useIsolatedSessionCache();
+    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
+    await runLoginCommand(flags, createMockApi(), mockContext("https://insecur-a.test"), {
+      cookieEnv: "INSECUR_WORKOS_COOKIE",
+      csrfEnv: "INSECUR_WORKOS_CSRF",
+    });
+    clearMemorySession();
+    resetSessionCredentialCacheForTests();
+    await expect(
+      runInitCommand(
+        { ...flags, host: "https://insecur-b.test" },
+        createMockApi(),
+        mockContext("https://insecur-b.test"),
+        { profileSlug: "local-dev" },
+      ),
+    ).rejects.toMatchObject({
       message: "Authentication is required. Run insecur login first.",
     });
   });

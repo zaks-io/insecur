@@ -3,8 +3,14 @@ import { CliError } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { resolveSessionCredential } from "../session/resolve-session.js";
 
-export async function requireSessionCredential(): Promise<string> {
-  const credential = await resolveSessionCredential();
+export interface RequireSessionCredentialOptions {
+  readonly host: string;
+}
+
+export async function requireSessionCredential(
+  options: RequireSessionCredentialOptions,
+): Promise<string> {
+  const credential = await resolveSessionCredential(options.host);
   if (credential === undefined) {
     throw new CliError(
       {
