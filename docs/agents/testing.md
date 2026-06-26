@@ -9,6 +9,69 @@ failure class each catches. The decision record is [ADR-0065](../adr/0065-test-l
 | Integration + RLS | Docker Compose        | Node Vitest, real route stack + `postgres` driver | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` | local, CI, agents      |
 | Preview smoke     | ephemeral Neon branch | deployed Worker + Hyperdrive                      | `pr-preview.yml` (gated)                                                  | per-PR CI once enabled |
 
+## Manual Mutation Review
+
+Mutation testing is advisory only. It is not part of `pnpm verify`, CI, or pre-push.
+
+Run a setup check first:
+
+```
+pnpm mutation:dry-run
+```
+
+Run a review:
+
+```
+pnpm mutation:review
+```
+
+Run the manual ratchet:
+
+```
+pnpm mutation:ratchet
+```
+
+Reports are written under `reports/mutation/`. Open `reports/mutation/index.html` for the
+human review and use `reports/mutation/mutation.json` for scripting. The command uses
+Stryker's Vitest runner against the DB-less unit-test project list from
+`vitest.mutation.config.ts`; integration, RLS, e2e, and canary suites stay in their dedicated
+commands.
+
+The default mutation target excludes `packages/cli`. Stryker's Vitest runner exercises the CLI
+HOME-dependent config tests differently than normal Vitest, so keep CLI mutation review as a
+focused follow-up after that harness is made Stryker-safe. `vitest.mutation.config.ts` also disables
+file-level test parallelism because Stryker already controls worker parallelism. The default run is
+incremental and advisory: it reuses previous results when possible and never fails solely because
+the mutation score is low. To rebuild the mutation cache:
+
+```
+pnpm mutation:force
+```
+
+The ratchet baseline lives in `config/mutation-ratchet.json`. To check the latest report without
+rerunning Stryker:
+
+```
+pnpm mutation:ratchet:check
+```
+
+After intentionally accepting an improved or otherwise changed baseline:
+
+```
+pnpm mutation:baseline:update
+```
+
+To review a focused area, pass Stryker's `--mutate` override through pnpm:
+
+```
+pnpm mutation:review -- --mutate "packages/crypto/src/**/*.ts"
+pnpm mutation:review -- --mutate "apps/api/src/routes/v1/secrets.ts"
+pnpm mutation:review -- --mutate "packages/worker-kit/src/http/handle-route.ts:1-80"
+```
+
+Use Stryker disable comments sparingly and only after deciding a surviving mutant is equivalent
+or intentionally outside this test layer. Prefer adding or tightening tests for real survivors.
+
 ## For agents
 
 To run the full DB-backed loop with no cloud credentials, only Docker:

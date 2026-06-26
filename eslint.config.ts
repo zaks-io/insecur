@@ -114,9 +114,7 @@ const decryptDynamicImportSyntaxRules = [
 ] as const;
 
 export default tseslint.config(
-  {
-    ignores: ["**/dist/**", "**/.wrangler/**", "**/coverage/**", "**/*.gen.ts"],
-  },
+  { ignores: ["**/dist/**", "**/.wrangler/**", "**/coverage/**", "**/*.gen.ts"] },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
@@ -132,6 +130,7 @@ export default tseslint.config(
     files: [
       "vitest.config.ts",
       "vitest.coverage.config.ts",
+      "vitest.mutation.config.ts",
       "packages/access/test/**/*.ts",
       "packages/access/vitest.config.ts",
       "packages/access/vitest.rls.config.ts",
