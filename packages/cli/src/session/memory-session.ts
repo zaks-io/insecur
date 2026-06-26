@@ -1,4 +1,4 @@
-/** Process-memory session store; never persisted to disk by the CLI. */
+/** Process-memory session store for the current CLI process. */
 export interface MemorySession {
   readonly credential: string;
   readonly sessionId: string;
