@@ -14,6 +14,8 @@ export interface OperationRetryMetadata {
   readonly reasonCode?: KnownErrorCode;
 }
 
+export type OperationIncompleteCause = "retryable" | "action_required";
+
 /** Caller-writable metadata-only progress; must never carry Sensitive Values. */
 export interface OperationProgressInput {
   readonly auditEventIds?: readonly AuditEventId[];
@@ -23,16 +25,20 @@ export interface OperationProgressInput {
   readonly providerStatusCode?: KnownErrorCode;
   readonly resultCode?: KnownErrorCode;
   readonly mutationIdempotencyKey?: string;
+  readonly cause?: OperationIncompleteCause;
 }
 
 /** Stored operation progress, including lease binding owned by claim/release APIs. */
 export interface OperationProgress extends OperationProgressInput {
   readonly syncTargetLease?: OperationSyncTargetLeaseProgress;
+  /** Set by abandonment parking when a dead executor's claim expires (ADR-0073). */
+  readonly abandoned?: boolean;
 }
 
 /** Internal patch shape; `syncTargetLease: null` clears the binding. */
 export type OperationProgressPatch = OperationProgressInput & {
   readonly syncTargetLease?: OperationSyncTargetLeaseProgress | null;
+  readonly abandoned?: boolean;
 };
 
 export interface CreateOperationInput {
@@ -82,6 +88,7 @@ export interface OperationPollResult {
   readonly state: OperationState;
   readonly intentCode: string;
   readonly progress: OperationProgress;
+  readonly executionDeadline?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

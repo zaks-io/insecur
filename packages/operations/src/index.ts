@@ -24,6 +24,7 @@ export {
   type ClaimSyncTargetLeaseInput,
   type CreateOperationInput,
   type GetOperationInput,
+  type OperationIncompleteCause,
   type OperationMutationResult,
   type OperationPollResult,
   type OperationProgress,
@@ -53,6 +54,14 @@ export { claimSyncTargetLease } from "./claim-sync-target-lease.js";
 export { renewSyncTargetLease } from "./renew-sync-target-lease.js";
 export { releaseSyncTargetLease } from "./release-sync-target-lease.js";
 export { mergeOperationProgress } from "./merge-operation-progress.js";
+export {
+  DEFAULT_NON_LEASE_EXECUTION_DEADLINE_SECONDS,
+  computeNonLeaseExecutionDeadline,
+} from "./operation-execution-deadline.js";
+export {
+  isOperationExecutionClaimExpired,
+  resolveOperationLiveness,
+} from "./resolve-operation-liveness.js";
 export {
   validateOperationIntentCode,
   validateOperationProgress,

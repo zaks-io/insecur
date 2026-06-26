@@ -7,13 +7,23 @@ import {
 } from "@insecur/domain";
 import { isOperationIntentCode } from "./operation-intent-codes.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
-import type { OperationProgress, OperationProgressInput } from "./operation-types.js";
+import type {
+  OperationIncompleteCause,
+  OperationProgress,
+  OperationProgressInput,
+} from "./operation-types.js";
 import {
   assertFencingToken,
   isSyncProviderKind,
   validateSyncTargetKey,
 } from "./sync-target-types.js";
 import type { SyncTargetKey } from "./sync-target-types.js";
+
+const OPERATION_INCOMPLETE_CAUSES = new Set<OperationIncompleteCause>([
+  "retryable",
+  "action_required",
+]);
+
 function assertKnownErrorCode(value: string, field: string): asserts value is KnownErrorCode {
   if (!isStableDottedCode(value)) {
     throw new OperationStoreError(
@@ -125,10 +135,26 @@ function assertMutationIdempotencyKey(key: string): void {
 }
 
 function assertCallerProgressInput(progress: OperationProgressInput): void {
-  if ("syncTargetLease" in (progress as Record<string, unknown>)) {
+  const record = progress as Record<string, unknown>;
+  if ("syncTargetLease" in record) {
     throw new OperationStoreError(
       OPERATION_ERROR_CODES.invalidMetadata,
       "syncTargetLease is owned by sync target lease claim and release APIs",
+    );
+  }
+  if ("abandoned" in record) {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.invalidMetadata,
+      "abandoned is owned by operation liveness recovery",
+    );
+  }
+}
+
+function assertIncompleteCause(cause: OperationIncompleteCause): void {
+  if (!OPERATION_INCOMPLETE_CAUSES.has(cause)) {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.invalidMetadata,
+      "cause must be retryable or action_required",
     );
   }
 }
@@ -142,6 +168,27 @@ export function validateOperationProgressInput(
 ): void {
   assertCallerProgressInput(progress);
   validateOperationProgress(progress, organizationId);
+}
+
+function assertOptionalKnownErrorCodes(progress: OperationProgress): void {
+  if (progress.providerStatusCode !== undefined) {
+    assertKnownErrorCode(progress.providerStatusCode, "providerStatusCode");
+  }
+  if (progress.resultCode !== undefined) {
+    assertKnownErrorCode(progress.resultCode, "resultCode");
+  }
+}
+
+function assertIncompleteMetadata(progress: OperationProgress): void {
+  if (progress.cause !== undefined) {
+    assertIncompleteCause(progress.cause);
+  }
+  if (progress.abandoned !== undefined && typeof progress.abandoned !== "boolean") {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.invalidMetadata,
+      "abandoned must be a boolean",
+    );
+  }
 }
 
 /**
@@ -164,15 +211,11 @@ export function validateOperationProgress(
   if (progress.counters !== undefined) {
     assertCounters(progress.counters);
   }
-  if (progress.providerStatusCode !== undefined) {
-    assertKnownErrorCode(progress.providerStatusCode, "providerStatusCode");
-  }
-  if (progress.resultCode !== undefined) {
-    assertKnownErrorCode(progress.resultCode, "resultCode");
-  }
+  assertOptionalKnownErrorCodes(progress);
   if (progress.mutationIdempotencyKey !== undefined) {
     assertMutationIdempotencyKey(progress.mutationIdempotencyKey);
   }
+  assertIncompleteMetadata(progress);
 }
 
 export function validateOperationIntentCode(intentCode: string): void {

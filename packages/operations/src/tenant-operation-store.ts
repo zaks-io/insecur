@@ -17,6 +17,7 @@ import type {
   OperationProgress,
   OperationProgressPatch,
 } from "./operation-types.js";
+import { resolveOperationLiveness } from "./resolve-operation-liveness.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 
 export type { ApplyTransitionInput } from "./apply-operation-transition.js";
@@ -24,30 +25,7 @@ export type { ApplyTransitionInput } from "./apply-operation-transition.js";
 export class TenantOperationStore {
   constructor(private readonly sql: TenantScopedSql) {}
 
-  async findByIdempotencyKey(
-    organizationId: OrganizationId,
-    idempotencyKey: string,
-  ): Promise<OperationPollResult | null> {
-    const rows = await this.sql<OperationRow[]>`
-      SELECT
-        id,
-        org_id,
-        state,
-        intent_code,
-        idempotency_key,
-        progress,
-        created_at,
-        updated_at
-      FROM operations
-      WHERE org_id = ${organizationId}
-        AND idempotency_key = ${idempotencyKey}
-      LIMIT 1
-    `;
-    const row = rows[0];
-    return row === undefined ? null : toOperationPollResult(row);
-  }
-
-  async getById(
+  private async readById(
     organizationId: OrganizationId,
     operationIdValue: OperationId,
   ): Promise<OperationPollResult | null> {
@@ -59,6 +37,7 @@ export class TenantOperationStore {
         intent_code,
         idempotency_key,
         progress,
+        execution_deadline,
         created_at,
         updated_at
       FROM operations
@@ -68,6 +47,52 @@ export class TenantOperationStore {
     `;
     const row = rows[0];
     return row === undefined ? null : toOperationPollResult(row);
+  }
+
+  private async readByIdempotencyKey(
+    organizationId: OrganizationId,
+    idempotencyKey: string,
+  ): Promise<OperationPollResult | null> {
+    const rows = await this.sql<OperationRow[]>`
+      SELECT
+        id,
+        org_id,
+        state,
+        intent_code,
+        idempotency_key,
+        progress,
+        execution_deadline,
+        created_at,
+        updated_at
+      FROM operations
+      WHERE org_id = ${organizationId}
+        AND idempotency_key = ${idempotencyKey}
+      LIMIT 1
+    `;
+    const row = rows[0];
+    return row === undefined ? null : toOperationPollResult(row);
+  }
+
+  async findByIdempotencyKey(
+    organizationId: OrganizationId,
+    idempotencyKey: string,
+  ): Promise<OperationPollResult | null> {
+    const operation = await this.readByIdempotencyKey(organizationId, idempotencyKey);
+    if (operation === null) {
+      return null;
+    }
+    return await resolveOperationLiveness(this.sql, operation);
+  }
+
+  async getById(
+    organizationId: OrganizationId,
+    operationIdValue: OperationId,
+  ): Promise<OperationPollResult | null> {
+    const operation = await this.readById(organizationId, operationIdValue);
+    if (operation === null) {
+      return null;
+    }
+    return await resolveOperationLiveness(this.sql, operation);
   }
 
   insertOperation(input: {
@@ -138,6 +163,7 @@ export class TenantOperationStore {
         intent_code,
         idempotency_key,
         progress,
+        execution_deadline,
         created_at,
         updated_at
     `;
@@ -159,7 +185,7 @@ export class TenantOperationStore {
     organizationId: OrganizationId;
     operationId: OperationId;
   }): Promise<void> {
-    const existing = await this.getById(input.organizationId, input.operationId);
+    const existing = await this.readById(input.organizationId, input.operationId);
     if (existing === null) {
       throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
     }
@@ -187,6 +213,20 @@ export class TenantOperationStore {
         true,
       );
     }
+  }
+
+  async clearExecutionDeadline(input: {
+    organizationId: OrganizationId;
+    operationId: OperationId;
+  }): Promise<void> {
+    await this.sql`
+      UPDATE operations
+      SET
+        execution_deadline = NULL,
+        updated_at = now()
+      WHERE id = ${input.operationId}
+        AND org_id = ${input.organizationId}
+    `;
   }
 }
 

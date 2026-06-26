@@ -138,6 +138,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
   },
   operations: {
     created_at: { category: "timestamp" },
+    execution_deadline: { category: "timestamp" },
     id: { category: "opaque-id" },
     idempotency_key: { category: "opaque-id" },
     intent_code: { category: "type-code" },

@@ -144,8 +144,9 @@ the compare-and-set `running → incomplete` arm with `cause` `retryable` and th
 `abandoned`, after which the normal same-ID resume contract applies. Parking an abandoned Operation
 requires the same authority as `cancelOperation`.
 
-Implementation note: the Sync Target Serialization lease path exists, but the non-lease
-`execution_deadline` claim and lazy abandonment parking are decided but not wired yet.
+Implementation note: non-lease `execution_deadline` claims and lazy abandonment parking are
+implemented in `@insecur/operations` (`resolve-operation-liveness.ts`, migration
+`0007_operation_execution_deadline.sql`).
 
 ## Invariants
 

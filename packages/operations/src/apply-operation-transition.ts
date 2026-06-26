@@ -2,6 +2,7 @@ import type { OperationId, OrganizationId } from "@insecur/domain";
 import { bindJsonb, type TenantScopedSql } from "@insecur/tenant-store";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
 import { type OperationRow, toOperationPollResult } from "./operation-row.js";
+import { computeNonLeaseExecutionDeadline } from "./operation-execution-deadline.js";
 import {
   OPERATION_ERROR_CODES,
   OperationStoreError,
@@ -13,6 +14,7 @@ import {
   type OperationState,
 } from "./operation-states.js";
 import type { OperationPollResult, OperationProgressPatch } from "./operation-types.js";
+import { findActiveLeaseForOperation } from "./resolve-operation-liveness.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 
 export interface ApplyTransitionInput {
@@ -31,6 +33,8 @@ export interface ApplyTransitionInput {
   };
   /** Runs after the single operation read and before transition gates or CAS. */
   beforeTransition?: (current: OperationPollResult) => Promise<void>;
+  /** When set, overrides automatic execution-claim deadline handling for this transition. */
+  executionDeadline?: string | null;
 }
 
 function assertApplyTransitionAllowed(
@@ -70,6 +74,34 @@ function isIdempotentTransitionReplay(
   );
 }
 
+async function resolveExecutionDeadlineForTransition(
+  sql: TenantScopedSql,
+  current: OperationPollResult,
+  input: ApplyTransitionInput,
+): Promise<string | null> {
+  if (input.executionDeadline !== undefined) {
+    return input.executionDeadline;
+  }
+
+  if (input.nextState === "running") {
+    const activeLease = await findActiveLeaseForOperation(
+      sql,
+      input.organizationId,
+      input.operationId,
+    );
+    if (activeLease !== null || current.progress.syncTargetLease !== undefined) {
+      return null;
+    }
+    return computeNonLeaseExecutionDeadline();
+  }
+
+  if (current.state === "running") {
+    return null;
+  }
+
+  return current.executionDeadline ?? null;
+}
+
 export async function casApplyOperationTransition(
   sql: TenantScopedSql,
   current: OperationPollResult,
@@ -84,11 +116,14 @@ export async function casApplyOperationTransition(
   const mergedProgress = mergeOperationProgress(current.progress, input.progressPatch);
   validateOperationProgress(mergedProgress, input.organizationId);
 
+  const executionDeadline = await resolveExecutionDeadlineForTransition(sql, current, input);
+
   const rows = await sql<OperationRow[]>`
     UPDATE operations
     SET
       state = ${input.nextState},
       progress = ${bindJsonb(sql, mergedProgress)},
+      execution_deadline = ${executionDeadline},
       updated_at = now()
     WHERE id = ${input.operationId}
       AND org_id = ${input.organizationId}
@@ -100,6 +135,7 @@ export async function casApplyOperationTransition(
       intent_code,
       idempotency_key,
       progress,
+      execution_deadline,
       created_at,
       updated_at
   `;

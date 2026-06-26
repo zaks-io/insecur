@@ -54,8 +54,8 @@ fencing tokens that serialize provider writes per Sync Target.
 - Sync Target Serialization lease claims for sync-target operations.
 - Canonical `OPERATION_INTENT_CODES` catalog and registry-membership validation in
   `createOperation`, per ADR-0068.
-- Decided but not wired yet: the non-lease `execution_deadline` claim on every other `running`
-  Operation and lazy abandonment recovery via the `running → incomplete` parking arm, per ADR-0073.
+- Non-lease `execution_deadline` claims on `running` Operations and lazy abandonment recovery via
+  the `running → incomplete` parking arm, per ADR-0073.
 
 ## Does Not Own
 

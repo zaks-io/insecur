@@ -1,0 +1,1 @@
+ALTER TABLE "operations" ADD COLUMN "execution_deadline" timestamp with time zone;

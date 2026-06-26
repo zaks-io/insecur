@@ -11,6 +11,7 @@ export interface OperationRow {
   intent_code: string;
   idempotency_key: string | null;
   progress: unknown;
+  execution_deadline: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -36,6 +37,9 @@ export function toOperationPollResult(row: OperationRow): OperationPollResult {
     state,
     intentCode: row.intent_code,
     progress: parseProgress(row.progress),
+    ...(row.execution_deadline === null
+      ? {}
+      : { executionDeadline: toIsoTimestamp(row.execution_deadline) }),
     createdAt: toIsoTimestamp(row.created_at),
     updatedAt: toIsoTimestamp(row.updated_at),
   };

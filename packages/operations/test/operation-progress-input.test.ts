@@ -26,7 +26,14 @@ describe("operation progress input", () => {
       validateOperationProgressInput({
         counters: { bindingsWritten: 1 },
         resultCode: "sync.target_busy",
+        cause: "retryable",
       });
     }).not.toThrow();
+  });
+
+  it("rejects caller-supplied abandoned progress flags", () => {
+    expect(() =>
+      validateOperationProgressInput({ abandoned: true } as OperationProgressInput),
+    ).toThrow(/abandoned is owned by operation liveness recovery/);
   });
 });
