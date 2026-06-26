@@ -64,6 +64,19 @@ function assertApplyTransitionAllowed(
   }
 }
 
+function assertIdempotentMutationKeyMatch(
+  current: OperationPollResult,
+  idempotency: NonNullable<ApplyTransitionInput["idempotency"]>,
+): void {
+  const storedKey = current.progress.mutationIdempotencyKey;
+  if (storedKey !== undefined && storedKey !== idempotency.key) {
+    throw new OperationStoreError(
+      OPERATION_ERROR_CODES.idempotencyMismatch,
+      "mutation idempotency key reused with a different request key",
+    );
+  }
+}
+
 function isIdempotentTransitionReplay(
   current: OperationPollResult,
   idempotency: NonNullable<ApplyTransitionInput["idempotency"]>,
@@ -107,8 +120,11 @@ export async function casApplyOperationTransition(
   current: OperationPollResult,
   input: ApplyTransitionInput,
 ): Promise<OperationPollResult> {
-  if (input.idempotency !== undefined && isIdempotentTransitionReplay(current, input.idempotency)) {
-    return current;
+  if (input.idempotency !== undefined) {
+    assertIdempotentMutationKeyMatch(current, input.idempotency);
+    if (isIdempotentTransitionReplay(current, input.idempotency)) {
+      return current;
+    }
   }
 
   assertApplyTransitionAllowed(current, input);
