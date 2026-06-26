@@ -38,12 +38,13 @@ function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isJsonPrimitive(value: unknown): boolean {
-  return (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  );
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return true;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+  return false;
 }
 
 function isUnsupportedJsonValue(value: unknown): boolean {

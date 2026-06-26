@@ -73,4 +73,13 @@ describe("signed HS256 token codec", () => {
       encodeSignedHs256Token({ sub: "actor", handler: () => undefined }, SECRET),
     ).rejects.toThrow("Invalid signed HS256 payload");
   });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "rejects non-finite number payload values before signing (%s)",
+    async (value) => {
+      await expect(encodeSignedHs256Token({ sub: "actor", exp: value }, SECRET)).rejects.toThrow(
+        "Invalid signed HS256 payload",
+      );
+    },
+  );
 });
