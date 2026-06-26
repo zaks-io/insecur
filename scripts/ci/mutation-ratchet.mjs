@@ -6,25 +6,41 @@ const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const baselinePath = join(root, "config", "mutation-ratchet.json");
 const reportPath = join(root, "reports", "mutation", "mutation.json");
 const command = process.argv[2] ?? "check";
+const areaFilter = process.argv[3];
 const scoreTolerance = 0.01;
 
 if (command === "check") {
-  checkBaseline();
+  checkBaseline(areaFilter);
 } else if (command === "update") {
   updateBaseline();
+} else if (command === "update-area") {
+  if (areaFilter === undefined) {
+    console.error("Usage: node scripts/ci/mutation-ratchet.mjs update-area <area>");
+    process.exit(2);
+  }
+  updateAreaBaseline(areaFilter);
 } else {
-  console.error("Usage: node scripts/ci/mutation-ratchet.mjs <check|update>");
+  console.error("Usage: node scripts/ci/mutation-ratchet.mjs <check|update|update-area> [area]");
   process.exit(2);
 }
 
-function checkBaseline() {
+function checkBaseline(onlyArea) {
   const baseline = readBaseline();
-  const current = readCurrentMetrics();
+  const current = readCurrentMetrics({ area: onlyArea, productionSourceOnly: true });
   const failures = [];
 
-  compareMetric("overall", current.overall, baseline.overall, failures);
+  if (onlyArea === undefined) {
+    compareMetric("overall", current.overall, baseline.overall, failures);
+  }
 
-  for (const [area, expected] of Object.entries(baseline.areas ?? {})) {
+  const areasToCheck =
+    onlyArea === undefined ? Object.entries(baseline.areas ?? {}) : [[onlyArea, baseline.areas?.[onlyArea]]];
+
+  for (const [area, expected] of areasToCheck) {
+    if (expected === undefined) {
+      failures.push(`${area}: missing from mutation baseline`);
+      continue;
+    }
     const actual = current.areas[area];
     if (actual === undefined) {
       failures.push(`${area}: missing from current mutation report`);
@@ -33,9 +49,11 @@ function checkBaseline() {
     compareMetric(area, actual, expected, failures);
   }
 
-  for (const area of Object.keys(current.areas)) {
-    if (baseline.areas?.[area] === undefined) {
-      failures.push(`${area}: missing from mutation baseline`);
+  if (onlyArea === undefined) {
+    for (const area of Object.keys(current.areas)) {
+      if (baseline.areas?.[area] === undefined) {
+        failures.push(`${area}: missing from mutation baseline`);
+      }
     }
   }
 
@@ -50,10 +68,52 @@ function checkBaseline() {
     process.exit(1);
   }
 
+  if (onlyArea !== undefined) {
+    console.log(
+      `Mutation ratchet passed for ${onlyArea}: ${formatScore(current.areas[onlyArea].score)} >= ${formatScore(
+        baseline.areas[onlyArea].score,
+      )}.`,
+    );
+    return;
+  }
+
   console.log(
     `Mutation ratchet passed: overall ${formatScore(current.overall.score)} >= ${formatScore(
       baseline.overall.score,
     )}, ${Object.keys(baseline.areas ?? {}).length} area floor(s) checked.`,
+  );
+}
+
+function updateAreaBaseline(area) {
+  const baseline = readBaseline();
+  const current = readCurrentMetrics({ area, productionSourceOnly: true });
+  const nextMetric = current.areas[area];
+  if (nextMetric === undefined) {
+    console.error(`${area}: missing from current mutation report`);
+    process.exit(1);
+  }
+
+  const nextAreas = {
+    ...(baseline.areas ?? {}),
+    [area]: nextMetric,
+  };
+  const overallCounters = emptyCounters();
+  for (const counters of Object.values(nextAreas).map(areaMetricToCounters)) {
+    mergeCounters(overallCounters, counters);
+  }
+
+  const nextBaseline = {
+    ...baseline,
+    updatedAt: new Date().toISOString(),
+    source: relative(root, reportPath),
+    overall: toMetric(overallCounters),
+    areas: nextAreas,
+  };
+
+  mkdirSync(dirname(baselinePath), { recursive: true });
+  writeFileSync(baselinePath, `${JSON.stringify(nextBaseline, null, 2)}\n`, "utf8");
+  console.log(
+    `Updated ${relative(root, baselinePath)} area ${area}: ${formatScore(nextMetric.score)} across ${nextMetric.mutants} mutant(s); overall ${formatScore(nextBaseline.overall.score)}.`,
   );
 }
 
@@ -87,7 +147,8 @@ function readBaseline() {
   return readJson(baselinePath);
 }
 
-function readCurrentMetrics() {
+function readCurrentMetrics(options = {}) {
+  const { area: areaFilter, productionSourceOnly = false } = options;
   if (!existsSync(reportPath)) {
     console.error(`Missing Stryker report: ${relative(root, reportPath)}`);
     console.error("Run pnpm mutation:review first.");
@@ -100,7 +161,13 @@ function readCurrentMetrics() {
   const areaCounters = new Map();
 
   for (const [filePath, fileReport] of fileEntries) {
+    if (productionSourceOnly && isTestFile(filePath)) {
+      continue;
+    }
     const area = areaName(filePath);
+    if (areaFilter !== undefined && area !== areaFilter) {
+      continue;
+    }
     const counters = areaCounters.get(area) ?? emptyCounters();
 
     for (const mutant of fileReport.mutants ?? []) {
@@ -158,6 +225,32 @@ function areaName(filePath) {
     return `${parts[0]}/${parts[1]}`;
   }
   return parts[0] ?? filePath;
+}
+
+function isTestFile(filePath) {
+  return filePath.includes(".test.");
+}
+
+function areaMetricToCounters(metric) {
+  return {
+    mutants: metric.mutants,
+    killed: metric.killed,
+    survived: metric.survived,
+    noCoverage: metric.noCoverage,
+    timeout: metric.timeout,
+    ignored: metric.ignored,
+    other: metric.other,
+  };
+}
+
+function mergeCounters(target, source) {
+  target.mutants += source.mutants;
+  target.killed += source.killed;
+  target.survived += source.survived;
+  target.noCoverage += source.noCoverage;
+  target.timeout += source.timeout;
+  target.ignored += source.ignored;
+  target.other += source.other;
 }
 
 function emptyCounters() {

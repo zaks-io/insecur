@@ -23,6 +23,7 @@
     "mutation:ratchet": "pnpm mutation:review && node scripts/ci/mutation-ratchet.mjs check",
     "mutation:ratchet:check": "node scripts/ci/mutation-ratchet.mjs check",
     "mutation:baseline:update": "node scripts/ci/mutation-ratchet.mjs update",
+    "mutation:baseline:update-area": "node scripts/ci/mutation-ratchet.mjs update-area",
     "test:rls": "turbo run test:rls",
     "test:e2e": "turbo run test:e2e",
     "test:canary": "turbo run test:canary",
