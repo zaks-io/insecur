@@ -5,6 +5,7 @@ import { OPERATION_ERROR_CODES, OperationStoreError } from "../src/operation-err
 import {
   validateOperationIntentCode,
   validateOperationProgress,
+  validateOperationProgressInput,
 } from "../src/validate-operation-metadata.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -17,6 +18,20 @@ describe("validateOperationProgress branches", () => {
         auditEventIds: ["not-an-audit-id"],
       }),
     ).toThrow(/auditEventIds must contain audit event opaque IDs/);
+
+    expect(() =>
+      validateOperationProgress({
+        auditEventIds: [123 as never],
+      }),
+    ).toThrow(/auditEventIds must contain audit event opaque IDs/);
+  });
+
+  it("rejects non-integer counter values", () => {
+    expect(() =>
+      validateOperationProgress({
+        counters: { step: 1.5 },
+      }),
+    ).toThrow(/counters.step must be a non-negative integer/);
   });
 
   it("rejects invalid wait metadata", () => {
@@ -167,7 +182,40 @@ describe("validateOperationProgress branches", () => {
   });
 });
 
+describe("validateOperationProgressInput", () => {
+  it("rejects caller-owned syncTargetLease and abandoned fields", () => {
+    expect(() =>
+      validateOperationProgressInput({
+        syncTargetLease: {
+          projectId: PRJ,
+          providerKind: "github-actions",
+          targetIdentity: "acme/widget",
+          fencingToken: 1,
+        },
+      }),
+    ).toThrow(/syncTargetLease is owned by sync target lease claim and release APIs/);
+
+    expect(() =>
+      validateOperationProgressInput({
+        abandoned: true,
+      }),
+    ).toThrow(/abandoned is owned by operation liveness recovery/);
+  });
+});
+
 describe("validateOperationIntentCode branches", () => {
+  it("rejects intent codes that are not stable dotted codes", () => {
+    expect(() => validateOperationIntentCode("SYNC_RUN")).toThrow(OperationStoreError);
+    try {
+      validateOperationIntentCode("SYNC_RUN");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: OPERATION_ERROR_CODES.invalidIntent,
+        message: "intentCode must be a stable dotted code (e.g. sync.run)",
+      });
+    }
+  });
+
   it("accepts every registered intent code from OPERATION_INTENT_CODES", () => {
     for (const intentCode of Object.values(OPERATION_INTENT_CODES)) {
       expect(() => validateOperationIntentCode(intentCode)).not.toThrow();

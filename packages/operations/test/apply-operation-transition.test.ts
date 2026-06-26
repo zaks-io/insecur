@@ -430,6 +430,66 @@ describe("casApplyOperationTransition", () => {
     expect(result.executionDeadline).toBe(deadline);
   });
 
+  it("continues the transition when idempotency keys match but replay predicate is false", async () => {
+    const current = sampleOperation({
+      state: "pending",
+      progress: {
+        mutationIdempotencyKey: "idem-continue",
+      },
+    });
+    const sql = createLegalTransitionSql(current);
+
+    const result = await casApplyOperationTransition(sql, current, {
+      organizationId: ORG,
+      operationId: OP,
+      nextState: "running",
+      progressPatch: { counters: { step: 1 } },
+      legalFromStates: "by-transition-table",
+      notAllowedError: {
+        code: OPERATION_ERROR_CODES.invalidTransition,
+        message: () => "not allowed",
+      },
+      idempotency: {
+        key: "idem-continue",
+        alreadyAppliedWhen: () => false,
+      },
+    });
+
+    expect(result.state).toBe("running");
+  });
+
+  it("allows transitions when the current state is listed in legalFromStates", async () => {
+    const current = sampleOperation({ state: "incomplete" });
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from sync_target_leases", "held_by_operation_id")) {
+        return [];
+      }
+      if (queryIncludes(query, "update operations", "returning")) {
+        return [
+          operationRowFromPoll(current, {
+            state: "running",
+            execution_deadline: null,
+          }),
+        ];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+
+    const result = await casApplyOperationTransition(sql, current, {
+      organizationId: ORG,
+      operationId: OP,
+      nextState: "running",
+      progressPatch: {},
+      legalFromStates: new Set(["incomplete"]),
+      notAllowedError: {
+        code: OPERATION_ERROR_CODES.invalidTransition,
+        message: () => "retry only allowed from incomplete",
+      },
+    });
+
+    expect(result.state).toBe("running");
+  });
+
   it("rejects invalid metadata before attempting compare-and-set", async () => {
     const current = sampleOperation({ state: "running" });
     const sql = createFakeTenantSql(() => {
