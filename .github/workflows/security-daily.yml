@@ -1,4 +1,5 @@
-# Daily supply-chain and security scan skeleton. See docs/build-tooling.md.
+# Daily supply-chain and security scan. Scanners run on schedule; Linear filing is a
+# gated placeholder (see report-criticals). See docs/build-tooling.md#daily-security-scan-security-daily.
 name: security-daily
 
 on:
