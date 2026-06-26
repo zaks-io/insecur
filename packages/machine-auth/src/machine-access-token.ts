@@ -2,11 +2,11 @@ import type { EnvironmentId, MachineIdentityId, OrganizationId, ProjectId } from
 import type { CredentialScope } from "@insecur/access";
 import { MACHINE_ACCESS_TOKEN_TTL_SECONDS, MACHINE_ACCESS_TOKEN_TYP } from "./constants.js";
 import {
-  decodeHs256JwtBody,
-  encodeHs256Jwt,
-  parseHs256JwtParts,
-  verifyHs256JwtSignature,
-} from "./hs256-jwt.js";
+  decodeSignedHs256PayloadBody,
+  encodeSignedHs256Token,
+  parseSignedHs256TokenParts,
+  verifySignedHs256Signature,
+} from "@insecur/token-signing";
 
 interface MachineAccessTokenPayload {
   readonly sub: string;
@@ -64,7 +64,7 @@ export async function mintMachineAccessToken(
     typ: MACHINE_ACCESS_TOKEN_TYP,
   };
 
-  const accessToken = await encodeHs256Jwt({ ...payload }, input.signingSecret);
+  const accessToken = await encodeSignedHs256Token({ ...payload }, input.signingSecret);
   return {
     accessToken,
     expiresAt: new Date(expiresAtEpoch * 1000).toISOString(),
@@ -139,12 +139,12 @@ export async function verifyMachineAccessToken(
   accessToken: string,
   signingSecret: string,
 ): Promise<VerifyMachineAccessTokenResult> {
-  const parts = parseHs256JwtParts(accessToken);
+  const parts = parseSignedHs256TokenParts(accessToken);
   if (parts === null) {
     return { ok: false, reason: "invalid" };
   }
 
-  const signatureValid = await verifyHs256JwtSignature(
+  const signatureValid = await verifySignedHs256Signature(
     parts.signingInput,
     parts.signature,
     signingSecret,
@@ -153,7 +153,7 @@ export async function verifyMachineAccessToken(
     return { ok: false, reason: "invalid" };
   }
 
-  const payloadRecord = decodeHs256JwtBody(parts.body);
+  const payloadRecord = decodeSignedHs256PayloadBody(parts.body);
   if (payloadRecord === null) {
     return { ok: false, reason: "invalid" };
   }

@@ -1,5 +1,5 @@
 {
-  "name": "@insecur/machine-auth",
+  "name": "@insecur/token-signing",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,16 +14,12 @@
     "topo": "node -e \"\"",
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@insecur/access": "workspace:*",
-    "@insecur/audit": "workspace:*",
-    "@insecur/domain": "workspace:*",
-    "@insecur/tenant-store": "workspace:*",
-    "@insecur/token-signing": "workspace:*"
+    "@insecur/domain": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

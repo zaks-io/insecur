@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@insecur/domain": "workspace:*",
+    "@insecur/token-signing": "workspace:*",
     "@workos-inc/node": "^10.0.0"
   },
   "devDependencies": {

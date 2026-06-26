@@ -32,6 +32,7 @@ const projectRoots = [
   "packages/runtime-injection",
   "packages/secret-store",
   "packages/tenant-store",
+  "packages/token-signing",
   "packages/worker-kit",
   "apps/api",
   "apps/runtime",

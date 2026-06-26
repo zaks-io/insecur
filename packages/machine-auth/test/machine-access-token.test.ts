@@ -29,4 +29,68 @@ describe("machine access token", () => {
       expect(verified.token.credentialScopes).toEqual([CREDENTIAL_SCOPES.runtimeInjectionRun]);
     }
   });
+
+  it("rejects malformed token structure", async () => {
+    const verified = await verifyMachineAccessToken("header.body", SECRET);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("invalid");
+    }
+  });
+
+  it("rejects invalid base64url signature", async () => {
+    const verified = await verifyMachineAccessToken("a.b.!", SECRET);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("invalid");
+    }
+  });
+
+  it("rejects tampered tokens", async () => {
+    const minted = await mintMachineAccessToken({
+      machineIdentityId: MACHINE,
+      organizationId: ORG,
+      projectId: PROJECT,
+      credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
+      signingSecret: SECRET,
+      ttlSeconds: 60,
+    });
+    const verified = await verifyMachineAccessToken(`${minted.accessToken}x`, SECRET);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("invalid");
+    }
+  });
+
+  it("rejects tokens signed with a different secret", async () => {
+    const minted = await mintMachineAccessToken({
+      machineIdentityId: MACHINE,
+      organizationId: ORG,
+      projectId: PROJECT,
+      credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
+      signingSecret: SECRET,
+      ttlSeconds: 60,
+    });
+    const verified = await verifyMachineAccessToken(minted.accessToken, `${SECRET}x`);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("invalid");
+    }
+  });
+
+  it("rejects expired tokens", async () => {
+    const minted = await mintMachineAccessToken({
+      machineIdentityId: MACHINE,
+      organizationId: ORG,
+      projectId: PROJECT,
+      credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
+      signingSecret: SECRET,
+      ttlSeconds: -10,
+    });
+    const verified = await verifyMachineAccessToken(minted.accessToken, SECRET);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("expired");
+    }
+  });
 });
