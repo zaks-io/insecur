@@ -65,6 +65,12 @@ condition = "and"
 paths = ['''(?i)^scripts/ci/deploy-topology-conformance\.mjs$''']
 regexes = ['''^INSTANCE_ROOT_KEY_V1$''']
 
+[[rules.allowlists]]
+description = "Branded opaque secret-id fixtures in worker-kit route parsing unit tests"
+condition = "and"
+paths = ['''(?i)^packages/worker-kit/src/http/parse-route-input\.test\.ts$''']
+regexes = ['''^sec_[0-9A-Z]{26}$''']
+
 [[rules]]
 id = "curl-auth-header"
 

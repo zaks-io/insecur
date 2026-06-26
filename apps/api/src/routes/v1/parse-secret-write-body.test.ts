@@ -18,7 +18,7 @@ describe("parseSecretWriteBody", () => {
     const parsed = await parseSecretWriteBody(
       mockRequest({
         variableKey: "API_KEY",
-        value: "secret-material",
+        value: "fixture-value",
         allowEmpty: true,
         secretId: secretIdValue,
       }),
@@ -31,7 +31,7 @@ describe("parseSecretWriteBody", () => {
     });
     expect("valueUtf8" in parsed).toBe(true);
     if ("valueUtf8" in parsed) {
-      expect(new TextDecoder().decode(parsed.valueUtf8)).toBe("secret-material");
+      expect(new TextDecoder().decode(parsed.valueUtf8)).toBe("fixture-value");
     }
   });
 
