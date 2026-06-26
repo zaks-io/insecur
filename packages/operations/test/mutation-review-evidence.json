@@ -1,7 +1,7 @@
 {
   "issue": "INS-259",
   "reviewedAt": "2026-06-26T23:10:00.000Z",
-  "gitHead": "68e5e25b9511306c608e2d09c376bf878a5bc9d8",
+  "gitHead": "e2dc47d8a6eaba5d19c34e8abe2e550647fe71a9",
   "command": "pnpm mutation:review --mutate \"packages/operations/src/**/*.ts\" --force",
   "area": "packages/operations",
   "mutationScore": {
