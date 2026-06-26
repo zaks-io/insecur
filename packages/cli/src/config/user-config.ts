@@ -6,6 +6,13 @@ import type {
   ProjectId,
 } from "@insecur/domain";
 import { assertNoForbiddenConfigKeys } from "./forbidden-config-keys.js";
+import {
+  parseCliProfileId,
+  parseEnvironmentId,
+  parseOrganizationId,
+  parseProjectId,
+} from "./parse-resource-id.js";
+import { requireNonEmptyString } from "./require-non-empty-string.js";
 import { readJsonFile, userConfigPath, writeJsonFile } from "./paths.js";
 
 export interface CliUserProfile {
@@ -23,31 +30,23 @@ export interface CliUserConfig {
 
 function parseProfile(profileId: string, record: Record<string, unknown>): CliUserProfile {
   assertNoForbiddenConfigKeys(record, `profiles.${profileId}`);
-  const slug = record.slug;
-  const displayName = record.displayName;
-  const host = record.host;
-  const orgId = record.orgId;
-  const projectId = record.projectId;
-  const envId = record.envId;
-  for (const [field, value] of [
-    ["slug", slug],
-    ["displayName", displayName],
-    ["host", host],
-    ["orgId", orgId],
-    ["projectId", projectId],
-    ["envId", envId],
-  ] as const) {
-    if (typeof value !== "string" || value === "") {
-      throw new Error(`profiles.${profileId}.${field} must be a non-empty string`);
-    }
-  }
+  const slug = requireNonEmptyString(record.slug, `profiles.${profileId}.slug`);
+  const displayName = requireNonEmptyString(
+    record.displayName,
+    `profiles.${profileId}.displayName`,
+  );
+  const host = requireNonEmptyString(record.host, `profiles.${profileId}.host`);
+  const orgId = requireNonEmptyString(record.orgId, `profiles.${profileId}.orgId`);
+  const projectId = requireNonEmptyString(record.projectId, `profiles.${profileId}.projectId`);
+  const envId = requireNonEmptyString(record.envId, `profiles.${profileId}.envId`);
+  const profileContext = `profiles.${profileId}`;
   return {
-    slug: slug as string,
+    slug,
     displayName: displayName as DisplayName,
-    host: host as string,
-    orgId: orgId as OrganizationId,
-    projectId: projectId as ProjectId,
-    envId: envId as EnvironmentId,
+    host,
+    orgId: parseOrganizationId(orgId, `${profileContext}.orgId`),
+    projectId: parseProjectId(projectId, `${profileContext}.projectId`),
+    envId: parseEnvironmentId(envId, `${profileContext}.envId`),
   };
 }
 
@@ -69,7 +68,8 @@ function parseProfilesRecord(profilesRaw: unknown): Record<CliProfileId, CliUser
   }
   const profiles: Record<CliProfileId, CliUserProfile> = {};
   for (const [profileId, profileRecord] of Object.entries(profilesRaw as Record<string, unknown>)) {
-    profiles[profileId as CliProfileId] = parseProfileRecord(profileId, profileRecord);
+    const parsedProfileId = parseCliProfileId(profileId, `profiles.${profileId}`);
+    profiles[parsedProfileId] = parseProfileRecord(profileId, profileRecord);
   }
   return profiles;
 }

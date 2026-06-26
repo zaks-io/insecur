@@ -1,5 +1,10 @@
 import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
+import {
+  parseOptionalEnvironmentId,
+  parseOptionalOrganizationId,
+  parseOptionalProjectId,
+} from "./parse-resource-id.js";
 import { resolveProfile } from "./profiles/resolve-profile.js";
 import type { InsecurProjectConfig } from "./project-config.js";
 import type { CliUserConfig, CliUserProfile } from "./user-config.js";
@@ -44,24 +49,21 @@ export function resolveCliScope(
   const host =
     firstDefined(flags.host, readEnv("INSECUR_HOST"), projectConfig?.host, profile?.host) ??
     DEFAULT_HOST;
-  const orgId = firstDefined(
-    flags.orgId,
-    readEnv("INSECUR_ORG") as OrganizationId | undefined,
-    projectConfig?.orgId,
-    profile?.orgId,
-  );
-  const projectId = firstDefined(
-    flags.projectId,
-    readEnv("INSECUR_PROJECT") as ProjectId | undefined,
-    projectConfig?.projectId,
-    profile?.projectId,
-  );
-  const envId = firstDefined(
-    flags.envId,
-    readEnv("INSECUR_ENV") as EnvironmentId | undefined,
-    projectConfig?.defaultEnvId,
-    profile?.envId,
-  );
+  const orgId =
+    flags.orgId ??
+    parseOptionalOrganizationId(readEnv("INSECUR_ORG"), "INSECUR_ORG") ??
+    projectConfig?.orgId ??
+    profile?.orgId;
+  const projectId =
+    flags.projectId ??
+    parseOptionalProjectId(readEnv("INSECUR_PROJECT"), "INSECUR_PROJECT") ??
+    projectConfig?.projectId ??
+    profile?.projectId;
+  const envId =
+    flags.envId ??
+    parseOptionalEnvironmentId(readEnv("INSECUR_ENV"), "INSECUR_ENV") ??
+    projectConfig?.defaultEnvId ??
+    profile?.envId;
   const profileId = firstDefined(flags.profileId, projectConfig?.profileId);
   const profileSlug = firstDefined(flags.profile, profile?.slug);
   return {

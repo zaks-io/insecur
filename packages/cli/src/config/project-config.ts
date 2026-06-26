@@ -1,5 +1,12 @@
 import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 import { assertNoForbiddenConfigKeys } from "./forbidden-config-keys.js";
+import {
+  parseCliProfileId,
+  parseEnvironmentId,
+  parseOrganizationId,
+  parseProjectId,
+} from "./parse-resource-id.js";
+import { requireNonEmptyString } from "./require-non-empty-string.js";
 import { projectConfigPath, readJsonFile, resolveProjectRoot, writeJsonFile } from "./paths.js";
 
 export interface InsecurProjectConfig {
@@ -13,31 +20,21 @@ export interface InsecurProjectConfig {
 
 function parseProjectConfig(record: Record<string, unknown>): InsecurProjectConfig {
   assertNoForbiddenConfigKeys(record, PROJECT_CONFIG_LABEL);
-  const host = record.host;
-  const orgId = record.orgId;
-  const projectId = record.projectId;
-  const defaultEnvId = record.defaultEnvId;
-  const profileId = record.profileId;
-  if (typeof host !== "string" || host === "") {
-    throw new Error(`${PROJECT_CONFIG_LABEL} host must be a non-empty string`);
-  }
-  for (const [field, value] of [
-    ["orgId", orgId],
-    ["projectId", projectId],
-    ["defaultEnvId", defaultEnvId],
-    ["profileId", profileId],
-  ] as const) {
-    if (typeof value !== "string" || value === "") {
-      throw new Error(`${PROJECT_CONFIG_LABEL} ${field} must be a non-empty string`);
-    }
-  }
+  const host = requireNonEmptyString(record.host, `${PROJECT_CONFIG_LABEL} host`);
+  const orgId = requireNonEmptyString(record.orgId, `${PROJECT_CONFIG_LABEL} orgId`);
+  const projectId = requireNonEmptyString(record.projectId, `${PROJECT_CONFIG_LABEL} projectId`);
+  const defaultEnvId = requireNonEmptyString(
+    record.defaultEnvId,
+    `${PROJECT_CONFIG_LABEL} defaultEnvId`,
+  );
+  const profileId = requireNonEmptyString(record.profileId, `${PROJECT_CONFIG_LABEL} profileId`);
   const gitBranchToEnvironment = parseGitBranchMap(record.gitBranchToEnvironment);
   return {
     host,
-    orgId: orgId as OrganizationId,
-    projectId: projectId as ProjectId,
-    defaultEnvId: defaultEnvId as EnvironmentId,
-    profileId: profileId as CliProfileId,
+    orgId: parseOrganizationId(orgId, `${PROJECT_CONFIG_LABEL} orgId`),
+    projectId: parseProjectId(projectId, `${PROJECT_CONFIG_LABEL} projectId`),
+    defaultEnvId: parseEnvironmentId(defaultEnvId, `${PROJECT_CONFIG_LABEL} defaultEnvId`),
+    profileId: parseCliProfileId(profileId, `${PROJECT_CONFIG_LABEL} profileId`),
     ...(gitBranchToEnvironment === undefined ? {} : { gitBranchToEnvironment }),
   };
 }
@@ -56,7 +53,10 @@ function parseGitBranchMap(value: unknown): Readonly<Record<string, EnvironmentI
     if (typeof envId !== "string" || envId === "") {
       throw new Error(`${PROJECT_CONFIG_LABEL} gitBranchToEnvironment.${branch} must be a string`);
     }
-    result[branch] = envId as EnvironmentId;
+    result[branch] = parseEnvironmentId(
+      envId,
+      `${PROJECT_CONFIG_LABEL} gitBranchToEnvironment.${branch}`,
+    );
   }
   return result;
 }

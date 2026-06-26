@@ -17,7 +17,7 @@ describe("project config", () => {
       host: "https://insecur.test",
       orgId: "org_01TEST00000000000000000001" as never,
       projectId: "prj_01TEST00000000000000000001" as never,
-      defaultEnvId: "env_01TEST0000000000000000001" as never,
+      defaultEnvId: "env_01TEST00000000000000000001" as never,
       profileId: "prof_01TEST00000000000000000001" as never,
     });
     const loaded = await loadProjectConfig(dir);
