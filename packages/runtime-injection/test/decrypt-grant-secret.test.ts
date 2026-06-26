@@ -8,9 +8,12 @@ import {
 } from "@insecur/domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getVersionById, decryptSecretValueForRuntime } = vi.hoisted(() => ({
+const { getVersionById, decryptSecretValueForRuntime, withTenantScope } = vi.hoisted(() => ({
   getVersionById: vi.fn(),
   decryptSecretValueForRuntime: vi.fn(),
+  withTenantScope: vi.fn(async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) =>
+    fn({ db: {} }),
+  ),
 }));
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
@@ -18,9 +21,6 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   class MockTenantSecretVersionStore {
     getVersionById = getVersionById;
   }
-  const withTenantScope = vi.fn(
-    async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => fn({ db: {} }),
-  );
   return {
     ...actual,
     withTenantScope,
@@ -45,6 +45,8 @@ const ENV = environmentId.brand("env_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const SECRET_VERSION = secretVersionId.brand("sv_00000000000000000000000001");
 
+const ORG_TENANT_SCOPE = { kind: "organization" as const, organizationId: ORG };
+
 const baseInput = {
   keyring: {} as never,
   organizationId: ORG,
@@ -57,6 +59,7 @@ const baseInput = {
 beforeEach(() => {
   getVersionById.mockReset();
   decryptSecretValueForRuntime.mockReset();
+  withTenantScope.mockClear();
 });
 
 describe("decryptBoundGrantSecretVersion", () => {
@@ -68,6 +71,7 @@ describe("decryptBoundGrantSecretVersion", () => {
       message: "bound secret version not found",
     });
 
+    expect(withTenantScope).toHaveBeenCalledWith(ORG_TENANT_SCOPE, expect.any(Function));
     expect(decryptSecretValueForRuntime).not.toHaveBeenCalled();
   });
 
@@ -79,6 +83,7 @@ describe("decryptBoundGrantSecretVersion", () => {
 
     const result = await decryptBoundGrantSecretVersion(baseInput);
 
+    expect(withTenantScope).toHaveBeenCalledWith(ORG_TENANT_SCOPE, expect.any(Function));
     expect(getVersionById).toHaveBeenCalledWith(SECRET, SECRET_VERSION);
     expect(decryptSecretValueForRuntime).toHaveBeenCalledWith(
       baseInput.keyring,

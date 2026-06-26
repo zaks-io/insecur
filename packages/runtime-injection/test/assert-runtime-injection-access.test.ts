@@ -1,3 +1,4 @@
+import * as access from "@insecur/access";
 import { AUTHORIZATION_SCOPES, type LoadMembershipsFn } from "@insecur/access";
 import {
   AUTH_ERROR_CODES,
@@ -78,7 +79,7 @@ describe("assertRuntimeInjectionAccess", () => {
 describe("assertHoldsAnyIssuanceScope", () => {
   const coordinate = { organizationId: ORG, projectId: PROJECT, environmentId: ENV };
 
-  it("passes when effective access includes either issuance atom", async () => {
+  it("passes when effective access includes only the non-protected issuance atom", async () => {
     await expect(
       assertHoldsAnyIssuanceScope({ type: "user", userId: ACTOR_USER }, coordinate, {
         loadMemberships: vi.fn(async () => [
@@ -92,6 +93,20 @@ describe("assertHoldsAnyIssuanceScope", () => {
         ]),
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("passes when effective access includes only the protected issuance atom", async () => {
+    const resolveSpy = vi.spyOn(access, "resolveEffectiveAccess").mockResolvedValueOnce({
+      scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+    });
+
+    try {
+      await expect(
+        assertHoldsAnyIssuanceScope({ type: "user", userId: ACTOR_USER }, coordinate),
+      ).resolves.toBeUndefined();
+    } finally {
+      resolveSpy.mockRestore();
+    }
   });
 
   it("fails closed when effective access includes neither issuance atom", async () => {

@@ -57,9 +57,16 @@ const baseInput = {
 
 const plaintextHandle = new PlaintextHandle(new TextEncoder().encode("runtime-secret"));
 
-const tryConsumeGrant = vi.fn();
-const getGrant = vi.fn();
-const getBoundGrant = vi.fn();
+const { tryConsumeGrant, getGrant, getBoundGrant, withTenantScope } = vi.hoisted(() => ({
+  tryConsumeGrant: vi.fn(),
+  getGrant: vi.fn(),
+  getBoundGrant: vi.fn(),
+  withTenantScope: vi.fn(async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) =>
+    fn({ db: {} }),
+  ),
+}));
+
+const ORG_TENANT_SCOPE = { kind: "organization" as const, organizationId: ORG };
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
@@ -68,9 +75,6 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
     getBoundGrant = getBoundGrant;
     tryConsumeGrant = tryConsumeGrant;
   }
-  const withTenantScope = vi.fn(
-    async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => fn({ db: {} }),
-  );
   return {
     ...actual,
     withTenantScope,
@@ -133,6 +137,7 @@ beforeEach(() => {
   tryConsumeGrant.mockReset();
   getGrant.mockReset();
   getBoundGrant.mockReset();
+  withTenantScope.mockClear();
 
   vi.mocked(resolveEffectiveAccess).mockResolvedValue({
     scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume],
@@ -271,6 +276,7 @@ describe("executeConsumeInjectionGrant", () => {
     );
 
     expect(tryConsumeGrant).toHaveBeenCalledWith(ORG, GRANT, SECRET, VARIABLE_KEY);
+    expect(withTenantScope).toHaveBeenCalledWith(ORG_TENANT_SCOPE, expect.any(Function));
     expect(decryptBoundGrantSecretVersion).toHaveBeenCalledWith({
       keyring: baseInput.keyring,
       organizationId: ORG,
@@ -400,8 +406,24 @@ describe("consumeInjectionGrantWithAudit", () => {
     const result = await consumeInjectionGrantWithAudit(baseInput);
 
     expect(getGrant).toHaveBeenCalledWith(ORG, GRANT);
+    expect(withTenantScope).toHaveBeenCalledWith(ORG_TENANT_SCOPE, expect.any(Function));
+    expect(withTenantScope.mock.calls.map(([scope]) => scope)).toEqual([
+      ORG_TENANT_SCOPE,
+      ORG_TENANT_SCOPE,
+    ]);
     expect(result.secretId).toBe(SECRET);
     expect(result.valueUtf8).toBe(plaintextHandle);
+  });
+
+  it("scopes loadGrantBinding and tryConsumeGrant to the organization tenant", async () => {
+    getGrant.mockResolvedValue(grantRow());
+    getBoundGrant.mockReturnValue(boundGrantFromRow());
+
+    await consumeInjectionGrantWithAudit(baseInput);
+
+    expect(withTenantScope).toHaveBeenCalledTimes(2);
+    expect(withTenantScope.mock.calls[0]?.[0]).toEqual(ORG_TENANT_SCOPE);
+    expect(withTenantScope.mock.calls[1]?.[0]).toEqual(ORG_TENANT_SCOPE);
   });
 
   it("records insufficient_scope denial through auditAccessDenialOnFailure", async () => {
