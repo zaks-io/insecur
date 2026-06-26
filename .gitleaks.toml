@@ -5,6 +5,14 @@ title = "insecur gitleaks"
 [extend]
 useDefault = true
 
+[[allowlists]]
+description = "Generated local mutation testing output"
+paths = [
+  '''(?i)^reports/mutation/''',
+  '''(?i)^\.stryker-tmp/''',
+  '''(?i)^stryker\.log$''',
+]
+
 [[rules]]
 id = "generic-api-key"
 

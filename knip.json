@@ -29,8 +29,7 @@
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreBinaries": ["wrangler"],
-      "ignoreDependencies": ["lefthook"]
+      "ignoreBinaries": ["wrangler"]
     }
   },
   "rules": {

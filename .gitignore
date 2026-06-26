@@ -8,6 +8,9 @@ dist/
 *.log
 .DS_Store
 coverage/
+reports/mutation/
+.stryker-tmp/
+stryker.log
 .turbo/
 .jscpd-report/
 .claude/scheduled_tasks.lock

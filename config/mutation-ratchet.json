@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-06-26T20:40:51.842Z",
+  "source": "reports/mutation/mutation.json",
+  "scope": {
+    "excluded": ["packages/cli"],
+    "note": "Manual Stryker baseline. CLI is excluded until its HOME-dependent tests are Stryker-runner-safe."
+  },
+  "overall": {
+    "score": 38.07,
+    "mutants": 10100,
+    "killed": 3846,
+    "survived": 2409,
+    "noCoverage": 3838,
+    "timeout": 7,
+    "ignored": 0,
+    "other": 0
+  },
+  "areas": {
+    "apps/api": {
+      "score": 48.42,
+      "mutants": 382,
+      "killed": 185,
+      "survived": 116,
+      "noCoverage": 81,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "apps/runtime": {
+      "score": 38.81,
+      "mutants": 152,
+      "killed": 59,
+      "survived": 23,
+      "noCoverage": 70,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/access": {
+      "score": 59.88,
+      "mutants": 359,
+      "killed": 215,
+      "survived": 69,
+      "noCoverage": 75,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/audit": {
+      "score": 59.25,
+      "mutants": 1259,
+      "killed": 746,
+      "survived": 277,
+      "noCoverage": 235,
+      "timeout": 1,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/auth": {
+      "score": 57.99,
+      "mutants": 707,
+      "killed": 410,
+      "survived": 118,
+      "noCoverage": 178,
+      "timeout": 1,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/crypto": {
+      "score": 62.81,
+      "mutants": 823,
+      "killed": 517,
+      "survived": 193,
+      "noCoverage": 111,
+      "timeout": 2,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/domain": {
+      "score": 40.44,
+      "mutants": 534,
+      "killed": 216,
+      "survived": 82,
+      "noCoverage": 234,
+      "timeout": 2,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/instance-bootstrap": {
+      "score": 11.42,
+      "mutants": 280,
+      "killed": 32,
+      "survived": 9,
+      "noCoverage": 239,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/machine-auth": {
+      "score": 0,
+      "mutants": 688,
+      "killed": 0,
+      "survived": 0,
+      "noCoverage": 688,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/onboarding": {
+      "score": 0,
+      "mutants": 406,
+      "killed": 0,
+      "survived": 0,
+      "noCoverage": 406,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/operations": {
+      "score": 14.87,
+      "mutants": 894,
+      "killed": 133,
+      "survived": 127,
+      "noCoverage": 634,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/release-gate": {
+      "score": 42.81,
+      "mutants": 654,
+      "killed": 280,
+      "survived": 257,
+      "noCoverage": 117,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/runtime-injection": {
+      "score": 29.5,
+      "mutants": 305,
+      "killed": 90,
+      "survived": 44,
+      "noCoverage": 171,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/secret-store": {
+      "score": 31.98,
+      "mutants": 419,
+      "killed": 134,
+      "survived": 159,
+      "noCoverage": 125,
+      "timeout": 1,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/tenant-store": {
+      "score": 33.02,
+      "mutants": 1408,
+      "killed": 465,
+      "survived": 743,
+      "noCoverage": 200,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/token-signing": {
+      "score": 60.86,
+      "mutants": 161,
+      "killed": 98,
+      "survived": 59,
+      "noCoverage": 4,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    },
+    "packages/worker-kit": {
+      "score": 39.76,
+      "mutants": 669,
+      "killed": 266,
+      "survived": 133,
+      "noCoverage": 270,
+      "timeout": 0,
+      "ignored": 0,
+      "other": 0
+    }
+  }
+}
