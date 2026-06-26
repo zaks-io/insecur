@@ -5,14 +5,22 @@ This is the copyable non-protected development example for the first insecur ses
 It uses the real product flow:
 
 ```bash
+insecur login
 insecur init
 insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
-The CLI session credential must be available to each command. The current CLI supports
-`INSECUR_SESSION_TOKEN` or a same-process session; durable `insecur login` handoff across separate
-commands is not complete yet.
+Before the secret commands, authenticate once with `insecur login`. The CLI caches the exchanged
+session credential in `~/.insecur/session.json` (mode `0600`) so later commands in the same shell
+session can run as separate processes. Alternatives:
+
+- set `INSECUR_SESSION_TOKEN` explicitly for one-shot automation, or
+- run follow-on commands inside `insecur shell <profile-slug-or-id>` so the token lives only in that
+  subshell environment.
+
+`insecur logout` clears the cached session. Login output stays metadata-only and never prints the
+credential.
 
 The verifier expects `INSECUR_PROOF_SECRET` in its environment, uses it as an HMAC key for an internal challenge, and prints only success or failure. It does not print the secret, the child-process environment, or a digest.
 

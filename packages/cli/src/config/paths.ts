@@ -5,6 +5,8 @@ import path from "node:path";
 export const PROJECT_CONFIG_FILE = ".insecur.json";
 export const USER_CONFIG_DIR = ".insecur";
 export const USER_CONFIG_FILE = "config.json";
+/** Local CLI session handoff file; never committed; mode 0600. */
+export const SESSION_CACHE_FILE = "session.json";
 
 export function resolveProjectRoot(configDir: string | undefined): string {
   return path.resolve(configDir ?? process.cwd());

@@ -1,10 +1,10 @@
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
-import { resolveSessionCredential } from "../session/memory-session.js";
+import { resolveSessionCredential } from "../session/resolve-session.js";
 
-export function requireSessionCredential(): string {
-  const credential = resolveSessionCredential();
+export async function requireSessionCredential(): Promise<string> {
+  const credential = await resolveSessionCredential();
   if (credential === undefined) {
     throw new CliError(
       {

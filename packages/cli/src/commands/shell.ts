@@ -23,7 +23,7 @@ export async function runShellCommand(
   profileSelector: string,
   context: ResolvedCliContext,
 ): Promise<number> {
-  const credential = requireSessionCredential();
+  const credential = await requireSessionCredential();
   const { profileId, profile } = resolveProfile(
     context.userConfig,
     { selector: profileSelector },

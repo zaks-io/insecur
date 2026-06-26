@@ -7,7 +7,9 @@ import { runLoginCommand } from "../src/commands/login.js";
 import { runInitCommand } from "../src/commands/init.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { PROJECT_CONFIG_FILE, USER_CONFIG_FILE } from "../src/config/paths.js";
-import { clearMemorySession, getMemorySession } from "../src/session/memory-session.js";
+import { clearMemorySession } from "../src/session/memory-session.js";
+import { clearCachedSession, readCachedSession } from "../src/session/session-cache.js";
+import { resetSessionCredentialCacheForTests } from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
 
 const flags = {
@@ -78,22 +80,40 @@ function assertNoCredentialMaterial(contents: string): void {
   expect(contents).not.toMatch(/"accessToken"/);
 }
 
-describe("no credential persistence", () => {
+describe("credential persistence boundaries", () => {
   let projectDir: string;
+  let cacheDir: string;
+  let originalCacheFile: string | undefined;
 
-  afterEach(() => {
+  afterEach(async () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
     delete process.env.INSECUR_WORKOS_COOKIE;
+    resetSessionCredentialCacheForTests();
+    await clearCachedSession();
+    if (originalCacheFile === undefined) {
+      delete process.env.INSECUR_SESSION_CACHE_FILE;
+    } else {
+      process.env.INSECUR_SESSION_CACHE_FILE = originalCacheFile;
+    }
   });
 
-  it("stores login credentials in memory only", async () => {
+  async function useIsolatedSessionCache(): Promise<void> {
+    cacheDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-session-"));
+    originalCacheFile = process.env.INSECUR_SESSION_CACHE_FILE;
+    process.env.INSECUR_SESSION_CACHE_FILE = path.join(cacheDir, "session.json");
+    resetSessionCredentialCacheForTests();
+  }
+
+  it("stores login credentials in the session cache, not committed config", async () => {
+    await useIsolatedSessionCache();
     process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     await runLoginCommand(flags, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
-    expect(getMemorySession()?.credential).toBe(sensitiveCredential);
+    const cached = await readCachedSession();
+    expect(cached?.credential).toBe(sensitiveCredential);
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
     const configPath = path.join(projectDir, PROJECT_CONFIG_FILE);
     const userConfigPath = path.join(projectDir, "home", USER_CONFIG_FILE);
@@ -102,6 +122,7 @@ describe("no credential persistence", () => {
   });
 
   it("writes only opaque ids to project and user config during init", async () => {
+    await useIsolatedSessionCache();
     process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     await runLoginCommand(flags, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",

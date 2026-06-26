@@ -18,12 +18,3 @@ export function setMemorySession(session: MemorySession): void {
 export function clearMemorySession(): void {
   activeSession = undefined;
 }
-
-export function resolveSessionCredential(): string | undefined {
-  return activeSession?.credential ?? readSessionFromEnv();
-}
-
-function readSessionFromEnv(): string | undefined {
-  const value = process.env.INSECUR_SESSION_TOKEN;
-  return value === "" ? undefined : value;
-}

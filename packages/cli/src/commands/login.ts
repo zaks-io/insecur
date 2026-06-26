@@ -7,6 +7,7 @@ import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 import { asEchoId, buildEnvelopeMeta } from "../output/target-echo.js";
 import { setMemorySession } from "../session/memory-session.js";
+import { writeCachedSession } from "../session/session-cache.js";
 
 export interface LoginCommandOptions {
   readonly cookieEnv: string;
@@ -46,11 +47,13 @@ export async function runLoginCommand(
     throw new CliError(exchanged.envelope.error);
   }
   const { sessionId, expiresAt } = exchanged.envelope.data;
-  setMemorySession({
+  const session = {
     credential: exchanged.credential,
     sessionId,
     expiresAt,
-  });
+  };
+  setMemorySession(session);
+  await writeCachedSession({ ...session, host });
   const resolvedTargets: ResolvedTargetEcho[] = [
     {
       type: "session",

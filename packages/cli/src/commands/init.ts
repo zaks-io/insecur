@@ -34,7 +34,7 @@ export async function runInitCommand(
   context: ResolvedCliContext,
   commandOptions: InitCommandOptions,
 ): Promise<number> {
-  const credential = requireSessionCredential();
+  const credential = await requireSessionCredential();
   const { host, orgId, projectId, envId } = context.scope;
   const provisioned = await api.provisionPersonalOrganization({
     host,
