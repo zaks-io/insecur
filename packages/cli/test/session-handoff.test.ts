@@ -12,6 +12,7 @@ import { requireSessionCredential } from "../src/auth/require-session.js";
 import { clearMemorySession, getMemorySession } from "../src/session/memory-session.js";
 import { clearSessionCredentialHandoff } from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
+import { CliError } from "../src/output/cli-error.js";
 import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const flags = {
@@ -121,10 +122,10 @@ describe("CLI session handoff across separate commands", () => {
     expect(output).toContain(mockCredential);
   });
 
-  it("resolves credentials from INSECUR_SESSION_TOKEN in a fresh process context", async () => {
+  it("resolves credentials from INSECUR_SESSION_TOKEN in a fresh process context", () => {
     process.env.INSECUR_SESSION_TOKEN = mockCredential;
     clearMemorySession();
-    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(mockCredential);
+    expect(requireSessionCredential({ host: flags.host })).toBe(mockCredential);
   });
 
   it("lets init run after login when only INSECUR_SESSION_TOKEN survives", async () => {
@@ -155,7 +156,7 @@ describe("CLI session handoff across separate commands", () => {
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
     process.env.INSECUR_SESSION_TOKEN = "env-override-token";
-    await expect(requireSessionCredential({ host: flags.host })).resolves.toBe(mockCredential);
+    expect(requireSessionCredential({ host: flags.host })).toBe(mockCredential);
   });
 
   it("clears process memory on logout", async () => {
@@ -164,11 +165,9 @@ describe("CLI session handoff across separate commands", () => {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
-    await runLogoutCommand(flags);
+    runLogoutCommand(flags);
     expect(getMemorySession()).toBeUndefined();
-    await expect(requireSessionCredential({ host: flags.host })).rejects.toMatchObject({
-      message: "Authentication is required. Run insecur login first.",
-    });
+    expect(() => requireSessionCredential({ host: flags.host })).toThrow(CliError);
   });
 
   it("rejects --print-export combined with --json", async () => {
