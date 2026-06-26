@@ -5,9 +5,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 config="${repo_root}/.gitleaks.toml"
 source_setup="${repo_root}/docs/setup.md"
-# Base64 fixture (metadata-only regression line, not a committed credential).
-probe_b64="Y3VybCAtSCAiYXV0aG9yaXphdGlvbjogQmVhcmVyIGluc19saXZlX3N1cGVyc2VjcmV0dG9rZW4xMjM0NTY3ODkwIg=="
-probe_line="$(printf '%s' "${probe_b64}" | base64 -d)"
+probe_line="$(printf '%s%s%s' \
+  'curl -H "authorization: Bearer ' \
+  'ins_live_' \
+  'supersecrettoken1234567890"')"
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT

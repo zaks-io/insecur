@@ -5,9 +5,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 config="${repo_root}/.gitleaks.toml"
 source_config="${repo_root}/docs/agents/workflow/config.md"
-# Base64 fixture (metadata-only regression line, not a committed credential).
-probe_b64="LSBnaXRsZWFrcy1wcm9iZSBgNTYxNzQ0NWEtMzg5MS00YzQ0LTg4OWQtMjk2YWVlNmU0ODI4YCBjb25zdCBhcGlfa2V5ID0gInNrLXByb2JlLWFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6MTIzNDU2Nzg5MCI7"
-probe_line="$(printf '%s' "${probe_b64}" | base64 -d)"
+probe_line="$(printf '%s%s%s' \
+  '- [gitleaks-probe `5617445a-3891-4c44-889d-296aee6e4828` const api_key = "' \
+  'sk-probe-' \
+  'abcdefghijklmnopqrstuvwxyz1234567890";')"
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
