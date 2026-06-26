@@ -92,6 +92,26 @@ describe("resolveProfile", () => {
     expect(resolved.profile.slug).toBe("local-dev");
   });
 
+  it("ignores a malformed selector when profileId is present", () => {
+    const resolved = resolveProfile(
+      userConfig,
+      { profileId: VALID_PROFILE_A as never, selector: "prof_invalid" },
+      { required: true },
+    );
+    expect(resolved.profileId).toBe(VALID_PROFILE_A);
+    expect(resolved.profile.slug).toBe("local-dev");
+  });
+
+  it("ignores a malformed selector when profileSlug is present", () => {
+    const resolved = resolveProfile(
+      userConfig,
+      { profileSlug: "staging", selector: "prof_invalid" },
+      { required: true },
+    );
+    expect(resolved.profileId).toBe(VALID_PROFILE_B);
+    expect(resolved.profile.slug).toBe("staging");
+  });
+
   it("returns undefined when no selector is provided and required is false", () => {
     expect(resolveProfile(userConfig, {})).toBeUndefined();
     expect(resolveProfile(userConfig, {}, { required: false })).toBeUndefined();
@@ -152,6 +172,7 @@ describe("resolveProfile", () => {
       expect(cliError.code).toBe(VALIDATION_ERROR_CODES.invalidOpaqueResourceId);
       expect(cliError.exitCode).toBe(EXIT_VALIDATION);
       expect(cliError.message).toBe("Invalid CLI profile id (--profile).");
+      expect(cliError.retryable).toBe(false);
     }
   });
 });
