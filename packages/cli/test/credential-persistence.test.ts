@@ -14,6 +14,7 @@ import {
   resetSessionCredentialCacheForTests,
 } from "../src/session/resolve-session.js";
 import type { ApiClient } from "../src/api/types.js";
+import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const flags = {
   host: "https://insecur.test",
@@ -131,22 +132,22 @@ describe("credential persistence boundaries", () => {
       csrfEnv: "INSECUR_WORKOS_CSRF",
     });
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
-    const homeDir = path.join(projectDir, "home");
-    const originalHome = process.env.HOME;
-    process.env.HOME = homeDir;
-    await runInitCommand({ ...flags, configDir: projectDir }, createMockApi(), mockContext(), {
-      profileSlug: "local-dev",
-    });
-    const projectConfig = await readFile(path.join(projectDir, PROJECT_CONFIG_FILE), "utf8");
-    const userConfig = await readFile(path.join(homeDir, ".insecur", USER_CONFIG_FILE), "utf8");
-    assertNoCredentialMaterial(projectConfig);
-    assertNoCredentialMaterial(userConfig);
-    expect(projectConfig).toContain("org_01TEST00000000000000000001");
-    expect(userConfig).toContain("local-dev");
-    if (originalHome === undefined) {
-      delete process.env.HOME;
-    } else {
-      process.env.HOME = originalHome;
+    const isolatedHome = await createIsolatedHome("insecur-cli-init-home-");
+    try {
+      await runInitCommand({ ...flags, configDir: projectDir }, createMockApi(), mockContext(), {
+        profileSlug: "local-dev",
+      });
+      const projectConfig = await readFile(path.join(projectDir, PROJECT_CONFIG_FILE), "utf8");
+      const userConfig = await readFile(
+        path.join(isolatedHome.homeDir, ".insecur", USER_CONFIG_FILE),
+        "utf8",
+      );
+      assertNoCredentialMaterial(projectConfig);
+      assertNoCredentialMaterial(userConfig);
+      expect(projectConfig).toContain("org_01TEST00000000000000000001");
+      expect(userConfig).toContain("local-dev");
+    } finally {
+      isolatedHome.restore();
     }
   });
 });

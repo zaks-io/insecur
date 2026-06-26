@@ -16,8 +16,24 @@ export function projectConfigPath(projectRoot: string): string {
   return path.join(projectRoot, PROJECT_CONFIG_FILE);
 }
 
+export function resolveUserConfigHome(): string {
+  const override = process.env.INSECUR_CONFIG_HOME;
+  if (override !== undefined && override !== "") {
+    return override;
+  }
+  const home = process.env.HOME;
+  if (home !== undefined && home !== "") {
+    return home;
+  }
+  const userProfile = process.env.USERPROFILE;
+  if (userProfile !== undefined && userProfile !== "") {
+    return userProfile;
+  }
+  return homedir();
+}
+
 export function userConfigPath(): string {
-  return path.join(homedir(), USER_CONFIG_DIR, USER_CONFIG_FILE);
+  return path.join(resolveUserConfigHome(), USER_CONFIG_DIR, USER_CONFIG_FILE);
 }
 
 function isENOENT(error: unknown): boolean {
