@@ -8,6 +8,7 @@ import { type OperationRow, toOperationPollResult } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationPollResult, OperationProgress } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
+import { resolveOperationLiveness } from "./resolve-operation-liveness.js";
 
 function assertIdempotentIntentMatch(
   existingIntentCode: string,
@@ -34,6 +35,7 @@ async function selectByIdempotencyKey(
       intent_code,
       idempotency_key,
       progress,
+      execution_deadline,
       created_at,
       updated_at
     FROM operations
@@ -79,6 +81,7 @@ async function insertOperationRow(
       intent_code,
       idempotency_key,
       progress,
+      execution_deadline,
       created_at,
       updated_at
   `;
@@ -139,6 +142,7 @@ async function upsertOperationByIdempotencyKey(
       intent_code,
       idempotency_key,
       progress,
+      execution_deadline,
       created_at,
       updated_at
   `;
@@ -170,7 +174,10 @@ async function insertWithIdempotencyKey(
       throw error;
     }
     assertIdempotentIntentMatch(existing.intentCode, input.intentCode);
-    return { operation: existing, created: false };
+    return {
+      operation: await resolveOperationLiveness(sql, existing),
+      created: false,
+    };
   }
 }
 
@@ -194,10 +201,17 @@ export async function insertOperationStart(
     return { operation: toOperationPollResult(row), created: true };
   }
 
-  return await insertWithIdempotencyKey(sql, {
+  const result = await insertWithIdempotencyKey(sql, {
     ...input,
     idempotencyKey: input.idempotencyKey,
   });
+  if (result.created) {
+    return result;
+  }
+  return {
+    operation: await resolveOperationLiveness(sql, result.operation),
+    created: false,
+  };
 }
 
 export async function insertOperation(

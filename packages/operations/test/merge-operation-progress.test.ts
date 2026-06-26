@@ -17,4 +17,10 @@ describe("mergeOperationProgress", () => {
     );
     expect(merged).not.toHaveProperty("syncTargetLease");
   });
+
+  it("merges incomplete cause and abandoned flags from patches", () => {
+    const merged = mergeOperationProgress({}, { cause: "action_required", abandoned: true });
+    expect(merged.cause).toBe("action_required");
+    expect(merged.abandoned).toBe(true);
+  });
 });

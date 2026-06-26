@@ -145,6 +145,7 @@ export const operations = pgTable(
     progress: jsonb("progress")
       .notNull()
       .default(sql`'{}'::jsonb`),
+    executionDeadline: timestamp("execution_deadline", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
