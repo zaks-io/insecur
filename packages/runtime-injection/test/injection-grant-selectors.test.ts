@@ -34,6 +34,13 @@ describe("normalizeConsumeSelector", () => {
 });
 
 describe("injection grant selector rules", () => {
+  it("rejects issue when zero secret bindings are requested", () => {
+    expect(() => assertSingleIssueSelectorCount(0)).toThrow(InjectionGrantError);
+    expect(() => assertSingleIssueSelectorCount(0)).toThrow(
+      expect.objectContaining({ code: INJECTION_ERROR_CODES.grantDenied }),
+    );
+  });
+
   it("rejects issue when more than one secret binding is requested", () => {
     expect(() => assertSingleIssueSelectorCount(2)).toThrow(InjectionGrantError);
     expect(() => assertSingleIssueSelectorCount(2)).toThrow(
