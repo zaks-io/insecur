@@ -11,143 +11,190 @@ import {
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PRJ = projectId.brand("prj_00000000000000000000000001");
 
+function expectInvalidMetadata(run: () => void, message: RegExp): void {
+  try {
+    run();
+    expect.fail("Expected invalid metadata validation to throw");
+  } catch (error) {
+    expect(error).toBeInstanceOf(OperationStoreError);
+    expect(error).toMatchObject({
+      code: OPERATION_ERROR_CODES.invalidMetadata,
+    });
+    expect(error).toMatchObject({ message: expect.stringMatching(message) });
+  }
+}
+
 describe("validateOperationProgress branches", () => {
   it("rejects malformed audit event ids", () => {
-    expect(() =>
-      validateOperationProgress({
-        auditEventIds: ["not-an-audit-id"],
-      }),
-    ).toThrow(/auditEventIds must contain audit event opaque IDs/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          auditEventIds: ["not-an-audit-id"],
+        }),
+      /auditEventIds must contain audit event opaque IDs/,
+    );
 
-    expect(() =>
-      validateOperationProgress({
-        auditEventIds: [123 as never],
-      }),
-    ).toThrow(/auditEventIds must contain audit event opaque IDs/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          auditEventIds: [123 as never],
+        }),
+      /auditEventIds must contain audit event opaque IDs/,
+    );
   });
 
   it("rejects non-integer counter values", () => {
-    expect(() =>
-      validateOperationProgress({
-        counters: { step: 1.5 },
-      }),
-    ).toThrow(/counters.step must be a non-negative integer/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          counters: { step: 1.5 },
+        }),
+      /counters.step must be a non-negative integer/,
+    );
   });
 
   it("rejects invalid wait metadata", () => {
-    expect(() =>
-      validateOperationProgress({
-        wait: { reasonCode: "NOT_DOTTED" as never },
-      }),
-    ).toThrow(/wait.reasonCode must be a stable dotted code/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          wait: { reasonCode: "NOT_DOTTED" as never },
+        }),
+      /wait.reasonCode must be a stable dotted code/,
+    );
 
-    expect(() =>
-      validateOperationProgress({
-        wait: { reasonCode: "auth.reauth_required", until: "not-a-date" },
-      }),
-    ).toThrow(/wait.until must be an ISO-8601 timestamp/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          wait: { reasonCode: "auth.reauth_required", until: "not-a-date" },
+        }),
+      /wait.until must be an ISO-8601 timestamp/,
+    );
   });
 
   it("rejects invalid retry metadata", () => {
-    expect(() =>
-      validateOperationProgress({
-        retry: { attempt: -1 },
-      }),
-    ).toThrow(/retry.attempt must be a non-negative integer/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          retry: { attempt: -1 },
+        }),
+      /retry.attempt must be a non-negative integer/,
+    );
 
-    expect(() =>
-      validateOperationProgress({
-        retry: { attempt: 1, reasonCode: "BAD" as never },
-      }),
-    ).toThrow(/retry.reasonCode must be a stable dotted code/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          retry: { attempt: 1, reasonCode: "BAD" as never },
+        }),
+      /retry.reasonCode must be a stable dotted code/,
+    );
 
-    expect(() =>
-      validateOperationProgress({
-        retry: { attempt: 1, nextRetryAt: "soon" },
-      }),
-    ).toThrow(/retry.nextRetryAt must be an ISO-8601 timestamp/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          retry: { attempt: 1, nextRetryAt: "soon" },
+        }),
+      /retry.nextRetryAt must be an ISO-8601 timestamp/,
+    );
   });
 
   it("rejects invalid optional result and provider codes", () => {
-    expect(() =>
-      validateOperationProgress({
-        providerStatusCode: "SYNC_BUSY" as never,
-      }),
-    ).toThrow(/providerStatusCode must be a stable dotted code/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          providerStatusCode: "SYNC_BUSY" as never,
+        }),
+      /providerStatusCode must be a stable dotted code/,
+    );
 
-    expect(() =>
-      validateOperationProgress({
-        resultCode: "FAILED" as never,
-      }),
-    ).toThrow(/resultCode must be a stable dotted code/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          resultCode: "FAILED" as never,
+        }),
+      /resultCode must be a stable dotted code/,
+    );
   });
 
   it("rejects invalid mutation idempotency keys", () => {
-    expect(() =>
-      validateOperationProgress({
-        mutationIdempotencyKey: "",
-      }),
-    ).toThrow(/mutationIdempotencyKey must be 1-256 characters/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          mutationIdempotencyKey: "",
+        }),
+      /mutationIdempotencyKey must be 1-256 characters/,
+    );
 
-    expect(() =>
-      validateOperationProgress({
-        mutationIdempotencyKey: "x".repeat(257),
-      }),
-    ).toThrow(/mutationIdempotencyKey must be 1-256 characters/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          mutationIdempotencyKey: "x".repeat(257),
+        }),
+      /mutationIdempotencyKey must be 1-256 characters/,
+    );
   });
 
   it("rejects unknown incomplete causes and non-boolean abandoned flags", () => {
-    expect(() =>
-      validateOperationProgress({
-        cause: "unknown" as never,
-      }),
-    ).toThrow(/cause must be retryable or action_required/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          cause: "unknown" as never,
+        }),
+      /cause must be retryable or action_required/,
+    );
 
-    expect(() =>
-      validateOperationProgress({
-        abandoned: "yes" as never,
-      }),
-    ).toThrow(/abandoned must be a boolean/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          abandoned: "yes" as never,
+        }),
+      /abandoned must be a boolean/,
+    );
   });
 
   it("validates syncTargetLease fencing tokens and provider kinds", () => {
-    expect(() =>
-      validateOperationProgress({
-        syncTargetLease: {
-          projectId: PRJ,
-          providerKind: "github-actions",
-          targetIdentity: "acme/widget",
-          fencingToken: 0,
-        },
-      }),
-    ).toThrow(/fencingToken must be a positive integer/);
-
-    expect(() =>
-      validateOperationProgress({
-        syncTargetLease: {
-          projectId: PRJ,
-          providerKind: "unknown-provider" as never,
-          targetIdentity: "acme/widget",
-          fencingToken: 1,
-        },
-      }),
-    ).toThrow(/syncTargetLease.providerKind must be a supported sync provider kind/);
-  });
-
-  it("validates syncTargetLease target identity when organizationId is provided", () => {
-    expect(() =>
-      validateOperationProgress(
-        {
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
           syncTargetLease: {
             projectId: PRJ,
             providerKind: "github-actions",
-            targetIdentity: "",
+            targetIdentity: "acme/widget",
+            fencingToken: 0,
+          },
+        }),
+      /fencingToken must be a positive integer/,
+    );
+
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          syncTargetLease: {
+            projectId: PRJ,
+            providerKind: "unknown-provider" as never,
+            targetIdentity: "acme/widget",
             fencingToken: 1,
           },
-        },
-        ORG,
-      ),
-    ).toThrow(/targetIdentity must be 1-512 non-empty characters/);
+        }),
+      /syncTargetLease.providerKind must be a supported sync provider kind/,
+    );
+  });
+
+  it("validates syncTargetLease target identity when organizationId is provided", () => {
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress(
+          {
+            syncTargetLease: {
+              projectId: PRJ,
+              providerKind: "github-actions",
+              targetIdentity: "",
+              fencingToken: 1,
+            },
+          },
+          ORG,
+        ),
+      /targetIdentity must be 1-512 non-empty characters/,
+    );
   });
 
   it("accepts a fully populated metadata-safe progress payload", () => {
@@ -184,22 +231,26 @@ describe("validateOperationProgress branches", () => {
 
 describe("validateOperationProgressInput", () => {
   it("rejects caller-owned syncTargetLease and abandoned fields", () => {
-    expect(() =>
-      validateOperationProgressInput({
-        syncTargetLease: {
-          projectId: PRJ,
-          providerKind: "github-actions",
-          targetIdentity: "acme/widget",
-          fencingToken: 1,
-        },
-      }),
-    ).toThrow(/syncTargetLease is owned by sync target lease claim and release APIs/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgressInput({
+          syncTargetLease: {
+            projectId: PRJ,
+            providerKind: "github-actions",
+            targetIdentity: "acme/widget",
+            fencingToken: 1,
+          },
+        }),
+      /syncTargetLease is owned by sync target lease claim and release APIs/,
+    );
 
-    expect(() =>
-      validateOperationProgressInput({
-        abandoned: true,
-      }),
-    ).toThrow(/abandoned is owned by operation liveness recovery/);
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgressInput({
+          abandoned: true,
+        }),
+      /abandoned is owned by operation liveness recovery/,
+    );
   });
 });
 

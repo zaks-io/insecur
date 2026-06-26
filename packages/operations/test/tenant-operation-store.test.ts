@@ -168,6 +168,45 @@ describe("TenantOperationStore", () => {
     });
   });
 
+  it("recordProgress merges counters while preserving unrelated persisted progress fields", async () => {
+    const operation = sampleOperation({
+      state: "running",
+      progress: {
+        counters: { step: 1 },
+        resultCode: "sync.partial_failure",
+      },
+    });
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from operations", "limit 1")) {
+        return [operationRowFromPoll(operation)];
+      }
+      if (queryIncludes(query, "from sync_target_leases")) {
+        return [];
+      }
+      if (queryIncludes(query, "update operations", "returning")) {
+        return [
+          operationRowFromPoll(operation, {
+            progress: {
+              counters: { step: 2, attempt: 1 },
+              resultCode: "sync.partial_failure",
+            },
+          }),
+        ];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantOperationStore(sql);
+
+    const result = await store.recordProgress({
+      organizationId: ORG,
+      operationId: OP,
+      progressPatch: { counters: { step: 2, attempt: 1 } },
+    });
+
+    expect(result.progress.counters).toEqual({ step: 2, attempt: 1 });
+    expect(result.progress.resultCode).toBe("sync.partial_failure");
+  });
+
   it("recordProgress merges and persists metadata-safe progress", async () => {
     const operation = sampleOperation({ state: "running", progress: { counters: { step: 1 } } });
     const sql = createFakeTenantSql((query) => {
@@ -253,13 +292,21 @@ describe("TenantOperationStore", () => {
           targetIdentity: "acme/widget",
           fencingToken: 1,
         },
+        counters: { bindingsTotal: 2 },
       },
     });
-    const sql = createFakeTenantSql((query) => {
+    const sql = createFakeTenantSql((query, values) => {
       if (queryIncludes(query, "from operations", "limit 1")) {
         return [operationRowFromPoll(operation)];
       }
       if (queryIncludes(query, "update operations", "returning id")) {
+        expect(values).toContain(OP);
+        expect(values).toContain(ORG);
+        expect(values).toContain("succeeded");
+        const progressJson = values.find(
+          (value) => typeof value === "string" && value.includes("bindingsTotal"),
+        );
+        expect(progressJson).toBe(JSON.stringify({ counters: { bindingsTotal: 2 } }));
         return [{ id: OP }];
       }
       throw new Error(`unexpected query: ${query}`);
@@ -291,11 +338,13 @@ describe("TenantOperationStore", () => {
     });
   });
 
-  it("clearExecutionDeadline updates the operation row", async () => {
-    let updated = false;
-    const sql = createFakeTenantSql((query) => {
+  it("clearExecutionDeadline scopes the update by operation id and organization id", async () => {
+    const otherOrg = organizationId.brand("org_00000000000000000000000002");
+    const sql = createFakeTenantSql((query, values) => {
       if (queryIncludes(query, "update operations", "execution_deadline")) {
-        updated = true;
+        expect(values).toContain(OP);
+        expect(values).toContain(ORG);
+        expect(values).not.toContain(otherOrg);
         return [];
       }
       throw new Error(`unexpected query: ${query}`);
@@ -306,6 +355,5 @@ describe("TenantOperationStore", () => {
       organizationId: ORG,
       operationId: OP,
     });
-    expect(updated).toBe(true);
   });
 });
