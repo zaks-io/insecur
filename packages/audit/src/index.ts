@@ -127,4 +127,5 @@ export {
 } from "./audit-export-types.js";
 export { buildAuditExport } from "./build-audit-export.js";
 export { exportTenantAuditEvents, listAuditExportEvents } from "./export-tenant-audit.js";
-export { parseAuditExportManifest, verifyAuditExport } from "./verify-audit-export.js";
+export { parseAuditExportManifest } from "./parse-audit-export-manifest.js";
+export { verifyAuditExport } from "./verify-audit-export.js";

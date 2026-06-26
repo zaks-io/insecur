@@ -33,7 +33,7 @@ authRoutes.post("/cli/exchange", async (context) => {
   });
   if (!exchanged.ok) {
     await recordAdmissionDeniedAuditForAuthFailure(context.env, exchanged.failure, reqId);
-    throw new AuthFailureError(exchanged.failure);
+    throw new AuthFailureError(exchanged.failure, reqId);
   }
   const headers: Record<string, string> = {
     [INSECUR_SESSION_CREDENTIAL_HEADER]: exchanged.credential,

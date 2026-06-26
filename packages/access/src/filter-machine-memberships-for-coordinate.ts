@@ -9,5 +9,9 @@ export function filterMachineMembershipsForCoordinate(
   if (coordinate.projectId === undefined) {
     return [];
   }
-  return memberships.filter((membership) => membership.projectId === coordinate.projectId);
+  return memberships.filter(
+    (membership) =>
+      membership.organizationId === coordinate.organizationId &&
+      membership.projectId === coordinate.projectId,
+  );
 }

@@ -32,4 +32,21 @@ describe("filterMembershipsForCoordinate", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.rolePreset).toBe("owner");
   });
+
+  it("excludes memberships from another organization at the same project coordinate", () => {
+    const rows = filterMembershipsForCoordinate(
+      [
+        {
+          membershipId: membershipId.brand("mem_00000000000000000000000001"),
+          organizationId: organizationId.brand("org_00000000000000000000000002"),
+          projectId: null,
+          userId: USER,
+          rolePreset: "owner",
+        },
+      ],
+      { organizationId: ORG, projectId: PROJECT_A },
+    );
+
+    expect(rows).toEqual([]);
+  });
 });

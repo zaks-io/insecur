@@ -11,5 +11,10 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
     resolveAdmittedUserId: vi.fn((_instanceId: string, workosSubject: string) =>
       Promise.resolve(workosSubject === WORKOS_USER_ID ? userId.brand(ADMITTED_USER_ID_RAW) : null),
     ),
+    resolveActiveUserAdmission: vi.fn().mockResolvedValue(null),
+    withTenantScope: vi.fn(async (_scope, run) => {
+      const sql = vi.fn().mockResolvedValue([]);
+      return await run({ sql } as never);
+    }),
   };
 });

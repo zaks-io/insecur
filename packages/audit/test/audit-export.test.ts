@@ -4,12 +4,14 @@ import {
   AUDIT_EXPORT_FAILURE_CODES,
   buildAuditExport,
   parseAuditExportJsonl,
+  parseAuditExportManifest,
   StaticAuditExportHmacKeyProvider,
   StaticAuditExportSigningKeyProvider,
   StaticAuditExportVerificationKeys,
   verifyAuditExport,
   type AuditExportEventPayload,
   type AuditExportHmacKeyProvider,
+  type AuditExportManifest,
   type AuditExportSigningKeyProvider,
 } from "../src/index.js";
 
@@ -245,5 +247,134 @@ describe("audit export and verify", () => {
         signingKey,
       }),
     ).rejects.toThrow(/forbidden key: password/);
+  });
+
+  it("rejects malformed manifests during parse", () => {
+    expect(() => parseAuditExportManifest(null)).toThrow(
+      "audit export manifest must be a JSON object",
+    );
+    expect(() => parseAuditExportManifest({ schema_version: "99" })).toThrow(
+      "unsupported audit export manifest schema version",
+    );
+    expect(() =>
+      parseAuditExportManifest({
+        schema_version: "1",
+        organization_id: "not-an-org-id",
+        time_range: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-02T00:00:00.000Z" },
+        entry_count: 1,
+        first_hash: "hash",
+        last_hash: "hash",
+        hash_algorithm: "SHA-256",
+        hmac_key_version: 1,
+        signing_key_version: 1,
+        hmac: "hmac",
+        signature: "signature",
+        signature_algorithm: "Ed25519",
+        custody_evidence_refs: { hmac: null, signing: null },
+      }),
+    ).toThrow("audit export manifest organization_id is missing or invalid");
+    expect(() =>
+      parseAuditExportManifest({
+        schema_version: "1",
+        organization_id: ORG,
+        time_range: { from: "2026-05-01T00:00:00.000Z" },
+        entry_count: 1,
+        first_hash: "hash",
+        last_hash: "hash",
+        hash_algorithm: "SHA-256",
+        hmac_key_version: 1,
+        signing_key_version: 1,
+        hmac: "hmac",
+        signature: "signature",
+        signature_algorithm: "Ed25519",
+        custody_evidence_refs: { hmac: null, signing: null },
+      }),
+    ).toThrow("audit export manifest time_range is missing or invalid");
+    expect(() =>
+      parseAuditExportManifest({
+        schema_version: "1",
+        organization_id: ORG,
+        time_range: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-02T00:00:00.000Z" },
+        entry_count: "1",
+        first_hash: "hash",
+        last_hash: "hash",
+        hash_algorithm: "SHA-256",
+        hmac_key_version: 1,
+        signing_key_version: 1,
+        hmac: "hmac",
+        signature: "signature",
+        signature_algorithm: "Ed25519",
+        custody_evidence_refs: { hmac: null, signing: null },
+      }),
+    ).toThrow("audit export manifest entry_count is missing or invalid");
+    expect(() =>
+      parseAuditExportManifest({
+        schema_version: "1",
+        organization_id: ORG,
+        time_range: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-02T00:00:00.000Z" },
+        entry_count: 1,
+        first_hash: "hash",
+        last_hash: "hash",
+        hash_algorithm: "SHA-256",
+        hmac_key_version: 0,
+        signing_key_version: 1,
+        hmac: "hmac",
+        signature: "signature",
+        signature_algorithm: "Ed25519",
+        custody_evidence_refs: { hmac: null, signing: null },
+      }),
+    ).toThrow("audit export manifest hmac_key_version is missing or invalid");
+    expect(() =>
+      parseAuditExportManifest({
+        schema_version: "1",
+        organization_id: ORG,
+        time_range: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-02T00:00:00.000Z" },
+        entry_count: 1,
+        first_hash: "hash",
+        last_hash: "hash",
+        hash_algorithm: "SHA-256",
+        hmac_key_version: 1,
+        signing_key_version: 1,
+        hmac: "hmac",
+        signature: "signature",
+        signature_algorithm: "Ed25519",
+      }),
+    ).toThrow("audit export manifest custody_evidence_refs is missing or invalid");
+  });
+
+  it("returns stable invalid evidence for malformed verification manifests", async () => {
+    const malformedManifest = {
+      schema_version: "1",
+      organization_id: ORG,
+      time_range: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-02T00:00:00.000Z" },
+      entry_count: 1,
+      first_hash: "hash",
+      last_hash: "hash",
+      hash_algorithm: "SHA-256",
+      hmac_key_version: 1,
+      signing_key_version: 1,
+      hmac: "hmac",
+      signature: "signature",
+      signature_algorithm: "Ed25519",
+    } as unknown as AuditExportManifest;
+
+    const result = await verifyAuditExport({
+      jsonl: "",
+      manifest: malformedManifest,
+      keys: verificationKeys,
+    });
+
+    expect(result.status).toBe("invalid");
+    expect(result.failure_codes).toEqual([AUDIT_EXPORT_FAILURE_CODES.manifestInvalid]);
+    expect(result.integrity).toEqual({
+      hash_chain: "missing",
+      manifest_hmac: "missing",
+      signature: "missing",
+      tenant_scope: "missing",
+    });
+    expect(result.organization_id).toBe(ORG);
+    expect(result.entry_count).toBe(1);
+    expect(result.custody_evidence_refs).toBeNull();
+    expect(JSON.stringify(result)).not.toMatch(/password|plaintext|secret/i);
   });
 });
