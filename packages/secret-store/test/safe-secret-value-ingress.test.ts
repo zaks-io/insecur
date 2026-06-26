@@ -16,7 +16,14 @@ describe("safe secret value ingress", () => {
   });
 
   it("rejects argv, query, file, and named local value file ingress", () => {
-    for (const ingress of ["argv", "query", "file", "named_local_value_file", "get_request"]) {
+    for (const ingress of [
+      "argv",
+      "query",
+      "file",
+      "named_local_value_file",
+      "get_request",
+      "route_param",
+    ]) {
       expect(() => assertSafeSecretValueIngress(ingress)).toThrow(SecretWriteError);
       try {
         assertSafeSecretValueIngress(ingress);
@@ -26,8 +33,10 @@ describe("safe secret value ingress", () => {
     }
   });
 
-  it("rejects named local value file paths", () => {
+  it("rejects named local value file paths but allows blank or undefined paths", () => {
     expect(() => rejectNamedLocalValueFile(".env")).toThrow(SecretWriteError);
     expect(() => rejectNamedLocalValueFile(undefined)).not.toThrow();
+    expect(() => rejectNamedLocalValueFile("")).not.toThrow();
+    expect(() => rejectNamedLocalValueFile("   ")).not.toThrow();
   });
 });

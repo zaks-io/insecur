@@ -165,6 +165,48 @@ describe("assertSecretNonProtectedWriteAccess", () => {
       }),
     );
   });
+
+  it("rejects access evidence resolved at a different environment", () => {
+    const otherEnvironment = environmentId.brand("env_00000000000000000000000002");
+
+    expect(() =>
+      assertSecretNonProtectedWriteAccess(
+        { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+        effectiveAccessWithWriteScope(),
+        { organizationId: ORG, projectId: PROJECT, environmentId: otherEnvironment },
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        code: AUTH_ERROR_CODES.insufficientScope,
+      }),
+    );
+  });
+
+  it("rejects access coordinates missing project or environment scope", () => {
+    expect(() =>
+      assertSecretNonProtectedWriteAccess(
+        { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+        effectiveAccessWithWriteScope(),
+        { organizationId: ORG },
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        code: AUTH_ERROR_CODES.insufficientScope,
+      }),
+    );
+
+    expect(() =>
+      assertSecretNonProtectedWriteAccess(
+        { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+        effectiveAccessWithWriteScope(),
+        { organizationId: ORG, projectId: PROJECT },
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        code: AUTH_ERROR_CODES.insufficientScope,
+      }),
+    );
+  });
 });
 
 describe("writeAuthorizedNonProtectedSecret", () => {
@@ -215,6 +257,27 @@ describe("writeAuthorizedNonProtectedSecret", () => {
 
     expect(validateValueMock).not.toHaveBeenCalled();
     expect(encryptMock).not.toHaveBeenCalled();
+  });
+
+  it("fails with auth.insufficient_scope before validation when the access coordinate environment differs", async () => {
+    const otherEnvironment = environmentId.brand("env_00000000000000000000000002");
+    const sensitive = new TextEncoder().encode("must-not-validate");
+
+    await expect(
+      writeAuthorizedNonProtectedSecret({
+        ...baseWriteInput(sensitive),
+        effectiveAccess: effectiveAccessWithWriteScope(),
+        accessCoordinate: {
+          organizationId: ORG,
+          projectId: PROJECT,
+          environmentId: otherEnvironment,
+        },
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    expect(validateValueMock).not.toHaveBeenCalled();
+    expect(encryptMock).not.toHaveBeenCalled();
+    expect(JSON.stringify(auditMock.mock.calls)).not.toContain("must-not-validate");
   });
 
   it("rejects forged invalid Variable Keys only after authorization succeeds", async () => {
