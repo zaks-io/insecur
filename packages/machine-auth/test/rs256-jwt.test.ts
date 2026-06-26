@@ -142,7 +142,27 @@ describe("importRs256PublicKeyFromJwk", () => {
     >;
 
     const imported = await importRs256PublicKeyFromJwk({ ...exported, kid: "test-kid" });
-    expect(imported).toEqual({ kid: "test-kid", alg: "RS256", publicKey: keyPair.publicKey });
+    expect(imported).not.toBeNull();
+    if (imported === null) {
+      throw new Error("expected imported RSA public key");
+    }
+    expect(imported.kid).toBe("test-kid");
+    expect(imported.alg).toBe("RS256");
+
+    const claims = { sub: "imported-key-check", exp: 9_999_999_999 };
+    const header = bytesToBase64Url(
+      new TextEncoder().encode(JSON.stringify({ alg: "RS256", typ: "JWT", kid: "test-kid" })),
+    );
+    const body = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(claims)));
+    const signingInput = `${header}.${body}`;
+    const signature = await crypto.subtle.sign(
+      { name: "RSASSA-PKCS1-v1_5" },
+      keyPair.privateKey,
+      new TextEncoder().encode(signingInput),
+    );
+    const token = `${signingInput}.${bytesToBase64Url(new Uint8Array(signature))}`;
+
+    expect(await verifyRs256Jwt(token, [imported])).toEqual({ ok: true, payload: claims });
   });
 
   it("rejects JWK documents missing required RSA fields", async () => {

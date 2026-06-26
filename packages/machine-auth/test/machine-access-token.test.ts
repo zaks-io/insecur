@@ -1,5 +1,16 @@
 import { CREDENTIAL_SCOPES } from "@insecur/access";
-import { environmentId, machineIdentityId, organizationId, projectId } from "@insecur/domain";
+import {
+  bytesToBase64Url,
+  environmentId,
+  machineIdentityId,
+  organizationId,
+  projectId,
+} from "@insecur/domain";
+import {
+  decodeSignedHs256PayloadBody,
+  encodeSignedHs256Token,
+  parseSignedHs256TokenParts,
+} from "@insecur/token-signing";
 import { describe, expect, it } from "vitest";
 import { mintMachineAccessToken, verifyMachineAccessToken } from "../src/machine-access-token.js";
 
@@ -8,6 +19,44 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const SECRET = "test-machine-access-signing-secret";
+
+function decodeMachineAccessPayload(accessToken: string): Record<string, unknown> {
+  const parts = parseSignedHs256TokenParts(accessToken);
+  if (parts === null) {
+    throw new Error("expected signed token with three segments");
+  }
+  const payload = decodeSignedHs256PayloadBody(parts.body);
+  if (payload === null) {
+    throw new Error("expected object payload body");
+  }
+  return payload;
+}
+
+async function signMachineAccessPayload(
+  payload: Record<string, unknown>,
+  signingSecret: string,
+): Promise<string> {
+  return encodeSignedHs256Token(payload, signingSecret);
+}
+
+async function signNonObjectMachineAccessBody(
+  bodySegment: string,
+  signingSecret: string,
+): Promise<string> {
+  const header = bytesToBase64Url(
+    new TextEncoder().encode(JSON.stringify({ alg: "HS256", typ: "JWT" })),
+  );
+  const signingInput = `${header}.${bodySegment}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(signingSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signingInput));
+  return `${signingInput}.${bytesToBase64Url(new Uint8Array(signature))}`;
+}
 
 describe("machine access token", () => {
   it("mints and verifies environment-scoped credentials", async () => {
@@ -127,23 +176,9 @@ describe("machine access token", () => {
       signingSecret: SECRET,
       ttlSeconds: 60,
     });
-    const parts = minted.accessToken.split(".");
-    const header = parts[0];
-    const body = parts[1];
-    const signature = parts[2];
-    if (header === undefined || body === undefined || signature === undefined) {
-      throw new Error("expected signed token with three segments");
-    }
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Record<
-      string,
-      unknown
-    >;
-    payload.typ = "wrong_typ";
-    const tamperedBody = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    const verified = await verifyMachineAccessToken(
-      `${header}.${tamperedBody}.${signature}`,
-      SECRET,
-    );
+    const payload = decodeMachineAccessPayload(minted.accessToken);
+    const resigned = await signMachineAccessPayload({ ...payload, typ: "wrong_typ" }, SECRET);
+    const verified = await verifyMachineAccessToken(resigned, SECRET);
     expect(verified).toEqual({ ok: false, reason: "invalid" });
   });
 
@@ -164,39 +199,16 @@ describe("machine access token", () => {
       signingSecret: SECRET,
       ttlSeconds: 60,
     });
-    const parts = minted.accessToken.split(".");
-    const header = parts[0];
-    const body = parts[1];
-    const signature = parts[2];
-    if (header === undefined || body === undefined || signature === undefined) {
-      throw new Error("expected signed token with three segments");
-    }
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Record<
-      string,
-      unknown
-    >;
-    const tamperedBody = Buffer.from(JSON.stringify({ ...payload, ...override })).toString(
-      "base64url",
-    );
-    const verified = await verifyMachineAccessToken(
-      `${header}.${tamperedBody}.${signature}`,
-      SECRET,
-    );
+    const payload = decodeMachineAccessPayload(minted.accessToken);
+    const resigned = await signMachineAccessPayload({ ...payload, ...override }, SECRET);
+    const verified = await verifyMachineAccessToken(resigned, SECRET);
     expect(verified).toEqual({ ok: false, reason: "invalid" });
   });
 
   it("rejects non-object payload bodies", async () => {
-    const minted = await mintMachineAccessToken({
-      machineIdentityId: MACHINE,
-      organizationId: ORG,
-      projectId: PROJECT,
-      credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
-      signingSecret: SECRET,
-      ttlSeconds: 60,
-    });
-    const [header, , signature] = minted.accessToken.split(".");
-    const arrayBody = Buffer.from(JSON.stringify(["not", "object"])).toString("base64url");
-    const verified = await verifyMachineAccessToken(`${header}.${arrayBody}.${signature}`, SECRET);
+    const arrayBody = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(["not", "object"])));
+    const resigned = await signNonObjectMachineAccessBody(arrayBody, SECRET);
+    const verified = await verifyMachineAccessToken(resigned, SECRET);
     expect(verified).toEqual({ ok: false, reason: "invalid" });
   });
 });
