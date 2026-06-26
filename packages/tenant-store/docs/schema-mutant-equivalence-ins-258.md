@@ -68,5 +68,5 @@ run `pnpm mutation:review` without `--mutate`.
 Regenerate the checked-in schema-shape registry after intentional DDL edits:
 
 ```bash
-pnpm dlx tsx packages/tenant-store/scripts/generate-schema-shape-registry.ts
+pnpm --filter @insecur/tenant-store schema-shape:generate
 ```

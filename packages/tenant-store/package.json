@@ -21,7 +21,7 @@
     "assert:ci-rls-gate-env": "node ./scripts/assert-ci-rls-gate-env.mjs",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
-    "schema-shape:generate": "tsx scripts/generate-schema-shape-registry.ts",
+    "schema-shape:generate": "node --import tsx/esm scripts/generate-schema-shape-registry.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
