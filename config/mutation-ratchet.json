@@ -128,7 +128,7 @@
       "other": 0
     },
     "packages/operations": {
-      "score": 59,
+      "score": 59.01,
       "mutants": 905,
       "killed": 534,
       "survived": 116,
