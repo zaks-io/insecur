@@ -214,13 +214,67 @@ describe("TenantSyncTargetLeaseStore", () => {
     });
   });
 
-  it("assertLeaseOwnership rejects stale operation, token, or expired leases", async () => {
+  it("assertLeaseOwnership rejects leases held by a different operation", async () => {
     const sql = createFakeTenantSql((query) => {
       if (queryIncludes(query, "from sync_target_leases", "limit 1")) {
         return [
           leaseRow({
             held_by_operation_id: OTHER_OP,
+            fencing_token: "3",
+            expires_at: "2099-01-01T00:00:00.000Z",
+          }),
+        ];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantSyncTargetLeaseStore(sql);
+
+    await expect(
+      store.assertLeaseOwnership({
+        target: testTarget(),
+        operationId: OP,
+        fencingToken: 3,
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.staleFencingToken,
+      message: "sync target lease is not owned by the provided operation and fencing token",
+    });
+  });
+
+  it("assertLeaseOwnership rejects stale fencing tokens for the same operation", async () => {
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from sync_target_leases", "limit 1")) {
+        return [
+          leaseRow({
+            held_by_operation_id: OP,
             fencing_token: "9",
+            expires_at: "2099-01-01T00:00:00.000Z",
+          }),
+        ];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantSyncTargetLeaseStore(sql);
+
+    await expect(
+      store.assertLeaseOwnership({
+        target: testTarget(),
+        operationId: OP,
+        fencingToken: 3,
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.staleFencingToken,
+      message: "sync target lease is not owned by the provided operation and fencing token",
+    });
+  });
+
+  it("assertLeaseOwnership rejects expired leases", async () => {
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from sync_target_leases", "limit 1")) {
+        return [
+          leaseRow({
+            held_by_operation_id: OP,
+            fencing_token: "3",
             expires_at: "2000-01-01T00:00:00.000Z",
           }),
         ];

@@ -1,5 +1,6 @@
 import { auditEventId, organizationId, projectId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
+import { OPERATION_INTENT_CODES } from "../src/operation-intent-codes.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "../src/operation-errors.js";
 import {
   validateOperationIntentCode,
@@ -167,8 +168,10 @@ describe("validateOperationProgress branches", () => {
 });
 
 describe("validateOperationIntentCode branches", () => {
-  it("accepts registered intent codes", () => {
-    expect(() => validateOperationIntentCode("sync.run")).not.toThrow();
+  it("accepts every registered intent code from OPERATION_INTENT_CODES", () => {
+    for (const intentCode of Object.values(OPERATION_INTENT_CODES)) {
+      expect(() => validateOperationIntentCode(intentCode)).not.toThrow();
+    }
   });
 
   it("rejects unknown registered-shape intent codes", () => {

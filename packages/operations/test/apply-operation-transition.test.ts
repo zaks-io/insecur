@@ -1,6 +1,7 @@
 import { organizationId, operationId, projectId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import { casApplyOperationTransition } from "../src/apply-operation-transition.js";
+import { OPERATION_INTENT_CODES } from "../src/operation-intent-codes.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "../src/operation-errors.js";
 import type { OperationRow } from "../src/operation-row.js";
 import type { OperationPollResult } from "../src/operation-types.js";
@@ -15,7 +16,7 @@ function sampleOperation(overrides: Partial<OperationPollResult> = {}): Operatio
     operationId: OP,
     organizationId: ORG,
     state: "pending",
-    intentCode: "sync.run",
+    intentCode: OPERATION_INTENT_CODES.syncRun,
     progress: {},
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -184,6 +185,39 @@ describe("casApplyOperationTransition", () => {
     });
 
     expect(result).toBe(current);
+  });
+
+  it("rejects mismatched mutation idempotency keys with operation.idempotency_mismatch", async () => {
+    const current = sampleOperation({
+      state: "running",
+      progress: {
+        mutationIdempotencyKey: "idem-stored",
+        counters: { attempt: 1 },
+      },
+    });
+    const sql = createFakeTenantSql(() => {
+      throw new Error("sql should not run when mutation idempotency keys mismatch");
+    });
+
+    await expect(
+      casApplyOperationTransition(sql, current, {
+        organizationId: ORG,
+        operationId: OP,
+        nextState: "running",
+        progressPatch: { mutationIdempotencyKey: "idem-request" },
+        legalFromStates: "by-transition-table",
+        notAllowedError: {
+          code: OPERATION_ERROR_CODES.invalidTransition,
+          message: () => "not allowed",
+        },
+        idempotency: {
+          key: "idem-request",
+          alreadyAppliedWhen: (operation) => operation.state === "running",
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.idempotencyMismatch,
+    });
   });
 
   it("throws stale_transition when compare-and-set loses a concurrent write", async () => {

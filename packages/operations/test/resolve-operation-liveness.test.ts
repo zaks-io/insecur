@@ -1,5 +1,6 @@
 import { organizationId, operationId, projectId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
+import { OPERATION_INTENT_CODES } from "../src/operation-intent-codes.js";
 import { OPERATION_ERROR_CODES } from "../src/operation-errors.js";
 import type { OperationRow } from "../src/operation-row.js";
 import type { OperationPollResult } from "../src/operation-types.js";
@@ -21,7 +22,7 @@ function sampleOperation(overrides: Partial<OperationPollResult> = {}): Operatio
     operationId: OP,
     organizationId: ORG,
     state: "running",
-    intentCode: "sync.run",
+    intentCode: OPERATION_INTENT_CODES.syncRun,
     progress: {},
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
