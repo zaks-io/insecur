@@ -175,6 +175,15 @@ None for the `-dev` Instance (no tenants, pre-launch). For a future Instance tha
 holds tenant secrets, root-key bootstrap is internal custody and is not a
 tenant-facing notification event on its own.
 
+## no_reveal_handling
+
+- The root key hex is a Sensitive Value: it must never appear in git, logs, CI
+  output, agent transcripts, or this runbook's execution notes.
+- Evidence references 1Password item IDs, Cloudflare event IDs, and commit SHAs
+  only — never key bytes.
+- Verification uses `wrangler --remote` success/failure metadata, not echoed key
+  material.
+
 ## evidence
 
 Attach to the Security Evidence Bundle (`storage.*` / `backup_restore.*` control

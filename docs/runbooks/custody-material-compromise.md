@@ -196,6 +196,14 @@ issuer and to treat pre-incident values as exposed. Scoping comes from the produ
 collected in `execute`. Timing and content are coordinated with counsel and the insurer, the same
 relationship ADR-0048 names for the forensic retention floor.
 
+## no_reveal_handling
+
+- Triage and forensic collection are metadata-only; do not paste suspected leaked values into
+  any transcript or tool (ADR-0059).
+- The replacement root key follows the Root Key Rotation ceremony's safe-input rules only.
+- Forensic evidence references locations, hashes, and time ranges by ID — never values.
+- Tenant notifications describe containment actions, not secret or credential contents.
+
 ## evidence
 
 Attach to the Security Evidence Bundle, all metadata-only:
