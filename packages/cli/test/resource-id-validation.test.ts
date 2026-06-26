@@ -9,6 +9,7 @@ import { resolveCliScope } from "../src/config/resolve-scope.js";
 import { loadUserConfig } from "../src/config/user-config.js";
 import { CliError } from "../src/output/cli-error.js";
 import { EXIT_VALIDATION } from "../src/output/exit-codes.js";
+import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const VALID_ORG = "org_01TEST00000000000000000001";
 const VALID_PROJECT = "prj_01TEST00000000000000000001";
@@ -40,19 +41,14 @@ function isInvalidOpaqueResourceId(error: unknown): boolean {
 
 describe("CLI opaque resource id validation", () => {
   let projectDir: string;
-  let homeDir: string;
-  let originalHome: string | undefined;
+  let isolatedHome: Awaited<ReturnType<typeof createIsolatedHome>> | undefined;
 
   afterEach(() => {
     delete process.env.INSECUR_ORG;
     delete process.env.INSECUR_PROJECT;
     delete process.env.INSECUR_ENV;
-    delete process.env.HOME;
-    if (originalHome === undefined) {
-      delete process.env.HOME;
-    } else {
-      process.env.HOME = originalHome;
-    }
+    isolatedHome?.restore();
+    isolatedHome = undefined;
     vi.restoreAllMocks();
   });
 
@@ -110,10 +106,8 @@ describe("CLI opaque resource id validation", () => {
   });
 
   it("rejects malformed ids in user config during config load", async () => {
-    homeDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-home-"));
-    originalHome = process.env.HOME;
-    process.env.HOME = homeDir;
-    const configDir = path.join(homeDir, ".insecur");
+    isolatedHome = await createIsolatedHome("insecur-cli-user-config-");
+    const configDir = path.join(isolatedHome.homeDir, ".insecur");
     await mkdir(configDir, { recursive: true });
     await writeFile(
       path.join(configDir, "config.json"),
