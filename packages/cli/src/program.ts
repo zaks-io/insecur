@@ -66,7 +66,11 @@ export function buildProgram(): Command {
     .command("shell")
     .description("Start a subshell with INSECUR_SESSION_TOKEN in the environment")
     .argument("<profile>", "CLI profile slug or opaque id")
-    .action(async function shellAction(profile: string, command: CommanderCommand) {
+    .action(async function shellAction(
+      profile: string,
+      _options: unknown,
+      command: CommanderCommand,
+    ) {
       const flags = globalFlags(command);
       const context = await loadAndResolveCliContext(flags);
       process.exitCode = await runShellCommand(flags, profile, context);
