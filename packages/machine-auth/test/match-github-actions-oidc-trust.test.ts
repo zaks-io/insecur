@@ -60,6 +60,28 @@ describe("matchGitHubActionsOidcTrust", () => {
     }
   });
 
+  it("denies wrong issuer", () => {
+    const result = matchGitHubActionsOidcTrust(
+      {
+        issuer: "https://evil.example",
+        subject: "repo:insecur-ci/example:environment:production",
+        audience: ["insecur://oidc/github-actions"],
+        expiresAtEpoch: NOW + 600,
+        repository: "insecur-ci/example",
+        repositoryOwner: "insecur-ci",
+        environment: "production",
+      },
+      [authMethod()],
+      NOW,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "invalid",
+      reasonCode: AUTH_ERROR_CODES.invalid,
+    });
+  });
+
   it("denies expired tokens before minting", () => {
     const result = matchGitHubActionsOidcTrust(
       {
@@ -147,6 +169,24 @@ describe("matchGitHubActionsOidcTrust", () => {
       expect(result.reasonCode).toBe(AUTH_ERROR_CODES.oidcWrongEnvironment);
       expect(result.authMethod?.githubEnvironment).toBe("production");
     }
+  });
+
+  it("matches repositories case-insensitively", () => {
+    const result = matchGitHubActionsOidcTrust(
+      {
+        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
+        subject: "repo:InSecur-CI/Example:environment:production",
+        audience: ["insecur://oidc/github-actions"],
+        expiresAtEpoch: NOW + 600,
+        repository: "InSecur-CI/Example",
+        repositoryOwner: "insecur-ci",
+        environment: "production",
+      },
+      [authMethod({ githubRepository: "insecur-ci/example" })],
+      NOW,
+    );
+
+    expect(result.ok).toBe(true);
   });
 
   it("denies ambiguous duplicate trusted sources", () => {
