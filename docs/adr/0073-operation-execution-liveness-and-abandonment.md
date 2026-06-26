@@ -21,9 +21,10 @@ workstreams encode incompatible ones.
 
 ## Decision
 
-Implementation note: this ADR decides the liveness contract, but the non-lease
-`execution_deadline` claim and lazy abandonment parking are not wired in the current repo state.
-The existing shipped claim path is the Sync Target Serialization lease.
+Implementation note: non-lease `execution_deadline` claims and lazy abandonment parking landed in
+INS-219 in `@insecur/operations` (`resolve-operation-liveness.ts`, migration
+`0007_operation_execution_deadline.sql`). Where a Sync Target Serialization lease exists, the lease
+remains the claim.
 
 - **Every `running` Operation carries an execution claim.** The claim is established at every
   compare-and-set transition into `running`, including resume from `incomplete` or `blocked`.
