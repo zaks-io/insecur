@@ -154,7 +154,7 @@ describe("parseJsonBody", () => {
   });
 
   it("rejects non-object bodies", () => {
-    for (const raw of [null, [], "string", 42] as const) {
+    for (const raw of [null, [], "string", 42, true] as const) {
       expectValidationError(
         () => parseJsonBody(raw),
         "Request body must be a JSON object.",
@@ -209,6 +209,7 @@ describe("readOptionalString", () => {
 describe("readSecretValueField", () => {
   it("returns the value field when it is a string", () => {
     expect(readSecretValueField({ value: "test-field-value" })).toBe("test-field-value");
+    expect(readSecretValueField({ value: "" })).toBe("");
   });
 
   it("rejects missing or non-string value fields", () => {
@@ -286,6 +287,14 @@ describe("parseInjectionGrantIssueSelector", () => {
     );
   });
 
+  it("rejects empty selectors", () => {
+    expectValidationError(
+      () => parseInjectionGrantIssueSelector({ variableKey: "", secretId: "" }),
+      "Exactly one of variableKey or secretId is required.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+
   it("rejects invalid secretId values", () => {
     expectValidationError(
       () => parseInjectionGrantIssueSelector({ secretId: "not-a-secret" }),
@@ -323,11 +332,13 @@ describe("parseGuidedOrganizationResourceIds", () => {
   });
 
   it("rejects non-object resourceIds", () => {
-    expectValidationError(
-      () => parseGuidedOrganizationResourceIds({ resourceIds: "bad" }),
-      "Invalid resourceIds.",
-      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
-    );
+    for (const raw of [null, "bad", []] as const) {
+      expectValidationError(
+        () => parseGuidedOrganizationResourceIds({ resourceIds: raw }),
+        "Invalid resourceIds.",
+        VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      );
+    }
   });
 
   it("rejects malformed nested ids and missing required fields", () => {
