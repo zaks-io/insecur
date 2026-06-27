@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-26.
+Last updated: 2026-06-27.
 
 High-level milestone sequencing for handing implementation to a fleet of agents. This document
 owns the milestone order and each milestone's exit gate, nothing else: scope boundaries are owned
@@ -35,8 +35,9 @@ green with the new gates enabled.
 Goal: the copyable diskless development secret loop works end to end through ordinary commands.
 
 Owned by [specs/first-value-ticket-plan.md](specs/first-value-ticket-plan.md) and
-[first-value-milestone.md](first-value-milestone.md): remaining Worker route composition, CLI
-`secrets set` and `run`, the proof (INS-1), and validation telemetry (INS-4).
+[first-value-milestone.md](first-value-milestone.md): remaining Worker route/profile hardening,
+the copyable proof (INS-1), and validation telemetry (INS-4). Baseline CLI `secrets set`, `run`,
+and masked secret input are landed (INS-32, INS-33, INS-226).
 
 Exit gate: the First Value Proof passes end to end through `insecur secrets set --generate` plus
 `insecur run`; `pnpm test:e2e` and, once enabled, the preview smoke are green.
