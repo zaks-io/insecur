@@ -1,6 +1,6 @@
 # Packages
 
-This directory contains domain packages for insecur. The package map lives in
+This directory contains the 20 workspace packages for insecur. The package map lives in
 `../docs/context-map.md`; the glossary lives in `../CONTEXT.md`.
 
 Packages are cut around deep modules with explicit Interfaces, not around
@@ -12,7 +12,9 @@ reading map before loading slices of the root `../CONTEXT.md`.
 ## Current Scaffold
 
 - `@insecur/domain` - shared domain primitives and stable vocabulary shapes
+- `@insecur/token-signing` - shared HS256/HMAC signed-token codec
 - `@insecur/auth` - WorkOS session composition, User actor context, and CLI exchange contract
+- `@insecur/machine-auth` - Machine Identity auth method exchange and OIDC trust matching
 - `@insecur/access` - Effective Access Resolver and scope-first authorization
 - `@insecur/tenant-store` - Tenant-Scoped Store and RLS adapter contract
 - `@insecur/custody-contracts` - plaintext-free custody metadata and wrapped material contracts
@@ -25,6 +27,9 @@ reading map before loading slices of the root `../CONTEXT.md`.
 - `@insecur/runtime-injection-issue` - public-safe Injection Grant issue path and contracts
 - `@insecur/runtime-injection` - Runtime Injection Grant Service
 - `@insecur/onboarding` - Guided Organization Provisioning
+- `@insecur/instance-bootstrap` - Instance Bootstrap and Bootstrap Operator Claim completion
+- `@insecur/operations` - Operation Store and Sync Target Serialization
+- `@insecur/worker-kit` - shared Worker HTTP/auth/RPC composition glue
 - `@insecur/cli` - local CLI composition and command execution
 
 ## Package README Checklist

@@ -41,6 +41,9 @@ Cursor's repo-level environment config should be treated as reviewable infrastru
   deploy that serves public routes. A new route belongs to a specific deploy by capability; the CI
   deploy-topology conformance gate (INS-199) fails any deploy that holds both a public route and the
   root key. See `docs/project-status.md` (Worker topology) and the decomposition epic INS-194.
+- Public/API-facing and contract packages must not grow a production dependency path to
+  `@insecur/crypto`; `pnpm conformance:packages` is included in `pnpm verify` and enforces that
+  package-boundary split.
 - Do not `COPY` the repository into `.cursor/Dockerfile`; Cursor manages checkout and branch state.
 - Do not add secrets to `.cursor/environment.json` or `.cursor/Dockerfile`.
 - Any package added to `onlyBuiltDependencies` is a supply-chain decision and should be reviewed as such.
@@ -65,8 +68,9 @@ docker run --rm insecur-cursor-env-test sh -lc 'node --version && pnpm --version
 
 ## Pre-PR gate for remote agents
 
-`pnpm verify` does NOT run the coverage ratchet — that is the separate `pnpm test:coverage` job
-(thresholds in `vitest.config.ts`). Cursor Cloud agents do not run git push hooks, so the pre-push
+`pnpm verify` runs the deploy-topology and package-boundary conformance gates, but it does NOT run
+the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds in
+`vitest.config.ts`). Cursor Cloud agents do not run git push hooks, so the pre-push
 `test:coverage` safety net does not fire here. Before opening a PR that touches covered packages,
 run `pnpm test:coverage` explicitly in addition to `pnpm verify`. Skipping it is the most common
 first-pass CI failure in this repo (the `Coverage` job reds out while `verify` was green locally).

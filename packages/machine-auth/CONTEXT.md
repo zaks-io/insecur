@@ -37,5 +37,5 @@ exchange audit events.
 
 - Human authentication (`@insecur/auth`).
 - Effective Access resolution (`@insecur/access`).
-- HTTP routes (`apps/worker`).
+- HTTP routes (`apps/api`) or decrypt-egress RPC (`apps/runtime`).
 - Environment Deploy Keys (later MAC slice).
