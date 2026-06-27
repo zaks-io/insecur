@@ -398,18 +398,71 @@ while doing this work; each step should be one PR and should leave `pnpm verify`
 3. **Finish the knip export/type ratchet in smallest-first order.**
    - `nsExports`, `nsTypes`, `enumMembers`, and `duplicates` are already enabled by removing their
      `knip.json` off switches.
-   - Next candidate is `exports`. A probe with those rules enabled reported value exports in files
-     including `apps/api/src/rpc/unwrap-runtime-result.ts`,
-     `apps/api/test/canary/postgres-sweep.ts`, `packages/crypto/src/keyring.ts`,
-     `packages/runtime-injection/src/issue-injection-grant.ts`, and
-     `packages/tenant-store/test/rls/seed-data-keys.ts`. Resolve or intentionally internalize those
-     value exports, then delete `"exports": "off"` from `knip.json`.
-   - After `exports` is green, enable `types`. The current probe reports type exports in files
-     including `apps/api/src/routes/v1/parse-secret-write-body.ts`,
-     `apps/api/test/canary/postgres-sweep.ts`, `packages/audit/src/audit-export-types.ts`,
-     `packages/auth/src/cli-exchange.ts`, `packages/crypto/src/data-key-metadata.ts`,
-     `packages/machine-auth/src/exchange-github-actions-oidc.ts`, and
-     `packages/runtime-injection/src/injection-grants.ts`.
+
+   - Next candidate is `exports`. Resolve or intentionally internalize these exact current value
+     export findings, then delete `"exports": "off"` from `knip.json`:
+
+     ```text
+     apps/api/src/rpc/unwrap-runtime-result.ts: RuntimeRpcResultError
+     apps/api/test/canary/postgres-sweep.ts: listPublicSchemaColumns, sweepPostgresColumns, findEncodingHit
+     apps/runtime/src/crypto/keyring-context.ts: RuntimeEnvRootKeyProvider
+     packages/audit/src/audit-export-constants.ts: AUDIT_EXPORT_MANIFEST_SEPARATOR
+     packages/audit/src/parse-audit-export-manifest-helpers.ts: buildPartial
+     packages/audit/src/verify-audit-export-helpers.ts: unsignedManifestFromSigned
+     packages/cli/src/config/forbidden-config-keys.ts: FORBIDDEN_CONFIG_KEYS
+     packages/cli/src/config/paths.ts: USER_CONFIG_DIR
+     packages/cli/src/input/generate-random-secret.ts: assertSupportedGenerateMode
+     packages/cli/src/output/exit-codes.ts: EXIT_SUCCESS, EXIT_PROVIDER, EXIT_RETRYABLE, EXIT_INCOMPLETE
+     packages/cli/src/output/render.ts: renderError
+     packages/cli/src/program.ts: buildProgram
+     packages/crypto/src/data-key-lifecycle.ts: assertDataKeyStatusTransition
+     packages/crypto/src/data-key-rewrap.ts: canRetireRootKeyBinding
+     packages/crypto/src/data-key-wrap.ts: serializeOrganizationDataKeyWrapAad, serializeProjectDataKeyWrapAad
+     packages/crypto/src/encryption.ts: identityMatches, serializeSecretDekWrapAad
+     packages/crypto/src/envelope-engine.ts: ENVELOPE_HEADER_LENGTH
+     packages/crypto/src/envelope.ts: serializeDekWrapAad, toStoreFacingCiphertext
+     packages/crypto/src/keyring.ts: unwrapOrganizationDataKey, unwrapProjectDataKey
+     packages/crypto/src/provider-credential-envelope.ts: toStoreFacingCiphertext
+     packages/crypto/src/sensitive-metadata-envelope.ts: toStoreFacingCiphertext
+     packages/instance-bootstrap/src/bootstrap-error.ts: asKnownBootstrapCode
+     packages/onboarding/src/invitation-store.ts: BUILT_IN_ROLE_PRESETS
+     packages/operations/src/sync-target-lease-operation-progress.ts: operationProgressWithoutSyncTargetLease
+     packages/operations/src/sync-target-lease-persistence.ts: selectSyncTargetLeaseForUpdate
+     packages/release-gate/src/collect-controls.ts: collectChecklistControls
+     packages/runtime-injection/src/injection-grant-ttl.ts: computeInjectionGrantExpiresAt
+     packages/runtime-injection/src/issue-injection-grant.ts: recordDeniedIssue
+     packages/runtime-injection/src/resolve-injection-grant-bindings.ts: resolveInjectionGrantBinding
+     packages/secret-store/test/test-display-name.ts: forgedDisplayName
+     packages/tenant-store/src/data-keys/data-key-store-mappers.ts: parseStatus
+     packages/tenant-store/test/fixtures/unregistered-schema-table.ts: conformanceGateFixtureTable
+     packages/tenant-store/test/rls/seed-data-keys.ts: RLS_TEST_ROOT_KEY_BYTES
+     ```
+
+   - `types` can be cleaned independently while `exports` remains disabled. Resolve or
+     intentionally internalize these exact current type export findings, then delete
+     `"types": "off"` from `knip.json`:
+
+     ```text
+     apps/api/src/routes/v1/parse-secret-write-body.ts: ParsedSecretWriteBody, SecretWritePathParams
+     apps/api/test/canary/postgres-sweep.ts: SchemaColumn
+     packages/audit/src/audit-export-types.ts: AuditExportChainLink
+     packages/audit/src/audit-types.ts: AuditCiExchangeActorRef
+     packages/audit/src/build-audit-event.ts: BuildAuditEventBaseInput
+     packages/audit/src/parse-audit-export-manifest-helpers.ts: AuditExportManifestPartial
+     packages/audit/src/parse-audit-export-manifest.ts: AuditExportManifestPartial, AuditExportManifestValidationFailure
+     packages/auth/src/cli-exchange.ts: CliSessionExchangeRotation
+     packages/cli/src/api/provision-request-body.ts: GuidedOrganizationResourceIdsBody
+     packages/cli/src/api/types.ts: SecretGenerationRequest, ApiSuccess, ApiFailure
+     packages/cli/src/input/collect-secret-value.ts: SecretValueInputMode
+     packages/crypto/src/data-key-metadata.ts: KeyVersion
+     packages/crypto/src/data-key-rewrap.ts: TenantDataKeyRewrapStore
+     packages/instance-bootstrap/src/bootstrap-types.ts: BootstrapStatusBase
+     packages/machine-auth/src/exchange-github-actions-oidc.ts: ExchangeGitHubActionsOidcSuccess, ExchangeGitHubActionsOidcFailure
+     packages/machine-auth/src/match-github-actions-oidc-trust.ts: OidcTrustMatchSuccess, OidcTrustMatchFailure
+     packages/machine-auth/src/rs256-jwt.ts: JwtHeader
+     packages/runtime-injection/src/injection-grants.ts: InjectionGrantConsumeSelector, InjectionGrantIssueSelector
+     packages/runtime-injection/src/issue-injection-grant.ts: IssueInjectionGrantCoreInput, IssueInjectionGrantCoreResult
+     ```
 
 Follow-up issue drafts if Linear is available:
 
@@ -420,12 +473,11 @@ Follow-up issue drafts if Linear is available:
 - **Split runtime-injection grant integration tests.** Scope:
   `packages/runtime-injection/test/injection-grant.integration.test.ts` only; split along the seams
   above without changing product behavior. Verify with the package test command and `pnpm verify`.
-- **Enable knip `exports`.** Scope: resolve only value-export findings from
-  `pnpm exec knip --include exports` with `exports` enabled, then remove `"exports": "off"`.
-  Verify with `pnpm knip` and `pnpm verify`.
-- **Enable knip `types`.** Depends on the `exports` issue. Scope: resolve type-export findings from
-  `pnpm exec knip --include types` with `types` enabled, then remove `"types": "off"`. Verify with
-  `pnpm knip` and `pnpm verify`.
+- **Enable knip `exports`.** Scope: resolve only the value-export findings listed above, then remove
+  `"exports": "off"`. Verify with `pnpm knip` and `pnpm verify`.
+- **Enable knip `types`.** Scope: resolve only the type-export findings listed above while keeping
+  `"exports": "off"` unchanged, then remove `"types": "off"`. Verify with `pnpm knip` and
+  `pnpm verify`.
 
 ## Prettier
 
