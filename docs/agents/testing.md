@@ -60,13 +60,20 @@ After intentionally accepting an improved or otherwise changed baseline:
 pnpm mutation:baseline:update
 ```
 
-To review a focused area, pass Stryker's `--mutate` override through pnpm:
+To review a focused area, pass Stryker's `--mutate` override after `pnpm build`:
 
+```shell
+pnpm build && pnpm exec stryker run --mutate "packages/worker-kit/src/**/*.ts"
+pnpm mutation:baseline:update-area packages/worker-kit
+node scripts/ci/mutation-ratchet.mjs check packages/worker-kit
 ```
-pnpm mutation:review -- --mutate "packages/cli/src/**/*.ts"
-pnpm mutation:review -- --mutate "packages/crypto/src/**/*.ts"
-pnpm mutation:review -- --mutate "apps/api/src/routes/v1/secrets.ts"
-pnpm mutation:review -- --mutate "packages/worker-kit/src/http/handle-route.ts:1-80"
+
+Other focused examples:
+
+```shell
+pnpm build && pnpm exec stryker run --mutate "packages/crypto/src/**/*.ts"
+pnpm build && pnpm exec stryker run --mutate "apps/api/src/routes/v1/secrets.ts"
+pnpm build && pnpm exec stryker run --mutate "packages/worker-kit/src/http/handle-route.ts:1-80"
 ```
 
 Use Stryker disable comments sparingly and only after deciding a surviving mutant is equivalent
