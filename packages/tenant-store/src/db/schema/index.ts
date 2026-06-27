@@ -20,6 +20,15 @@ export {
   type InformationSchemaColumnRow,
   type SchemaColumnMap,
 } from "./plaintext-metadata-conformance.js";
+export {
+  assertOrgIdRlsConformance,
+  findOrgIdRlsViolations,
+  isTenantOwnedTable,
+  tenantOwnedTableNames,
+  type OrgIdRlsViolation,
+  type TablePolicyRow,
+  type TableRlsRow,
+} from "./org-id-rls-conformance.js";
 export { loadUserSchemaTables } from "./schema-tables.js";
 export * from "./tenant-collaboration.js";
 export * from "./tenant-hierarchy.js";

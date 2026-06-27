@@ -11,10 +11,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const withTenantScopeMock = vi.hoisted(() => vi.fn());
 const recordInvitationCreateDeniedMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const resolveEffectiveAccessMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@insecur/tenant-store", () => ({
   withTenantScope: withTenantScopeMock,
 }));
+
+vi.mock("@insecur/access", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/access")>();
+  return {
+    ...actual,
+    resolveEffectiveAccess: resolveEffectiveAccessMock,
+  };
+});
 
 vi.mock("../src/membership-management-audit.js", () => ({
   recordInvitationCreateDenied: recordInvitationCreateDeniedMock,
@@ -22,8 +31,10 @@ vi.mock("../src/membership-management-audit.js", () => ({
 
 import {
   assertInvitationProjectCoordinate,
+  assertInvitationRoleGrantEntitlement,
   assertInvitationRolePreset,
 } from "../src/assert-invitation-create-input.js";
+import { expandBuiltInRolePresetToScopes } from "@insecur/access";
 import { MembershipManagementError } from "../src/membership-management-error.js";
 import {
   TEST_ORG_A_ID,
@@ -123,5 +134,63 @@ describe("assertInvitationProjectCoordinate", () => {
       organizationId: ORG,
       reasonCode: AUTH_ERROR_CODES.insufficientScope,
     });
+  });
+});
+
+describe("assertInvitationRoleGrantEntitlement", () => {
+  beforeEach(() => {
+    resolveEffectiveAccessMock.mockReset();
+    recordInvitationCreateDeniedMock.mockClear();
+  });
+
+  it("allows granting a role whose scopes are a subset of the inviter's access", async () => {
+    // An owner holds every scope, so it may grant the developer preset.
+    resolveEffectiveAccessMock.mockResolvedValue({
+      organizationId: ORG,
+      scopes: expandBuiltInRolePresetToScopes(BUILT_IN_ROLE_PRESETS.owner),
+    });
+
+    await expect(
+      assertInvitationRoleGrantEntitlement(
+        createInvitationInput({ rolePreset: BUILT_IN_ROLE_PRESETS.developer }),
+      ),
+    ).resolves.toBeUndefined();
+    expect(recordInvitationCreateDeniedMock).not.toHaveBeenCalled();
+  });
+
+  it("denies an admin granting the owner preset (owner carries approval scopes admin lacks)", async () => {
+    // admin holds membership:manage but not approval scopes; owner confers them -> escalation.
+    resolveEffectiveAccessMock.mockResolvedValue({
+      organizationId: ORG,
+      scopes: expandBuiltInRolePresetToScopes(BUILT_IN_ROLE_PRESETS.admin),
+    });
+
+    await expect(
+      assertInvitationRoleGrantEntitlement(
+        createInvitationInput({ rolePreset: BUILT_IN_ROLE_PRESETS.owner }),
+      ),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    expect(recordInvitationCreateDeniedMock).toHaveBeenCalledWith({
+      actorUserId: OWNER,
+      organizationId: ORG,
+      reasonCode: AUTH_ERROR_CODES.insufficientScope,
+    });
+  });
+
+  it("resolves Effective Access at the project coordinate for project-scoped invitations", async () => {
+    resolveEffectiveAccessMock.mockResolvedValue({
+      organizationId: ORG,
+      scopes: expandBuiltInRolePresetToScopes(BUILT_IN_ROLE_PRESETS.owner),
+    });
+
+    await assertInvitationRoleGrantEntitlement(
+      createInvitationInput({ rolePreset: BUILT_IN_ROLE_PRESETS.developer, projectId: PROJECT_A }),
+    );
+
+    expect(resolveEffectiveAccessMock).toHaveBeenCalledWith(
+      { type: "user", userId: OWNER },
+      { organizationId: ORG, projectId: PROJECT_A },
+    );
   });
 });

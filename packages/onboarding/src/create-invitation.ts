@@ -9,6 +9,7 @@ import {
 import { isUniqueConstraintViolation } from "@insecur/tenant-store";
 import {
   assertInvitationProjectCoordinate,
+  assertInvitationRoleGrantEntitlement,
   assertInvitationRolePreset,
 } from "./assert-invitation-create-input.js";
 import { assertMembershipManageScope } from "./assert-membership-manage-scope.js";
@@ -88,15 +89,25 @@ async function assertInviteeHasNoMembership(input: CreateInvitationInput): Promi
 }
 
 /**
+ * Validates an invitation before any persistence: the preset is a known role, its project
+ * coordinate resolves, the inviter holds membership-management scope, the inviter is not granting a
+ * role exceeding their own access, and the invitee has no existing membership for the scope.
+ */
+async function assertInvitationPreconditions(input: CreateInvitationInput): Promise<void> {
+  await assertInvitationRolePreset(input);
+  await assertInvitationProjectCoordinate(input);
+  await assertCanCreateInvitation(input);
+  await assertInvitationRoleGrantEntitlement(input);
+  await assertInviteeHasNoMembership(input);
+}
+
+/**
  * Creates a pending Invitation for exactly one organization- or project-scoped Membership grant.
  */
 export async function createInvitation(
   input: CreateInvitationInput,
 ): Promise<CreateInvitationResult> {
-  await assertInvitationRolePreset(input);
-  await assertInvitationProjectCoordinate(input);
-  await assertCanCreateInvitation(input);
-  await assertInviteeHasNoMembership(input);
+  await assertInvitationPreconditions(input);
 
   const rolePreset = input.rolePreset as BuiltInRolePreset;
   const projectScope = input.projectId ?? null;

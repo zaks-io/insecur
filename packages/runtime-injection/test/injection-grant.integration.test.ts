@@ -309,7 +309,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
         variableKey,
         actor: testActor(),
       }),
-    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
     const deniedRows = await withTenantScope(
       { kind: "organization", organizationId: org },
@@ -349,7 +349,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(deniedRows[0]).toMatchObject({
       event_code: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
       outcome: "denied",
-      result_code: INJECTION_ERROR_CODES.grantDenied,
+      result_code: AUTH_ERROR_CODES.insufficientScope,
       project_id: null,
       environment_id: null,
       resource_type: null,
@@ -374,7 +374,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
         variableKey,
         actor: testActor(),
       }),
-    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
     const deniedRows = await withTenantScope(
       { kind: "organization", organizationId: org },
@@ -409,7 +409,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
     expect(deniedRows[0]).toMatchObject({
       event_code: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
       outcome: "denied",
-      result_code: INJECTION_ERROR_CODES.grantDenied,
+      result_code: AUTH_ERROR_CODES.insufficientScope,
       project_id: null,
       environment_id: null,
       resource_type: "injection_grant",
@@ -618,7 +618,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
         variableKey: firstKey,
         actor: testActor(),
       }),
-    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
     const afterFirstAttempt = await withTenantScope(
       { kind: "organization", organizationId: org },
@@ -642,7 +642,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
         variableKey: secondKey,
         actor: testActor(),
       }),
-    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
   });
 
   it("records grant_expired when consuming after TTL", async () => {

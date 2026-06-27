@@ -147,10 +147,12 @@ beforeEach(() => {
 });
 
 describe("executeConsumeInjectionGrant", () => {
-  it("denies when the grant binding was not loaded", async () => {
+  it("returns insufficient_scope (not grant_denied) when the grant binding was not loaded", async () => {
+    // A not-found grant has no coordinate to authorize against, so it collapses to the same code an
+    // unauthorized caller gets at the per-coordinate check below — the consume path must not be a
+    // grant-existence oracle (INS-181).
     await expect(executeConsumeInjectionGrant(baseInput, undefined)).rejects.toMatchObject({
-      code: INJECTION_ERROR_CODES.grantDenied,
-      message: "injection grant not found",
+      code: AUTH_ERROR_CODES.insufficientScope,
     });
 
     expect(resolveEffectiveAccess).not.toHaveBeenCalled();
@@ -360,13 +362,15 @@ describe("recordDeniedConsume", () => {
 });
 
 describe("consumeInjectionGrantWithAudit", () => {
-  it("denies with org-only audit when grant id does not resolve to a binding", async () => {
+  it("denies insufficient_scope with org-only audit when grant id does not resolve to a binding", async () => {
     getGrant.mockResolvedValue(null);
 
     await expect(consumeInjectionGrantWithAudit(baseInput)).rejects.toMatchObject({
-      code: INJECTION_ERROR_CODES.grantDenied,
+      code: AUTH_ERROR_CODES.insufficientScope,
     });
 
+    // No grant => no coordinate to authorize against; the denial collapses to insufficient_scope
+    // (oracle closure) and the audit carries no project/environment coordinate.
     expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
       expect.not.objectContaining({
         projectId: expect.anything(),
@@ -377,24 +381,25 @@ describe("consumeInjectionGrantWithAudit", () => {
       expect.objectContaining({
         phase: "consume",
         outcome: "denied",
-        reasonCode: INJECTION_ERROR_CODES.grantDenied,
+        reasonCode: AUTH_ERROR_CODES.insufficientScope,
       }),
     );
+    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
     expect(tryConsumeGrant).not.toHaveBeenCalled();
   });
 
-  it("denies with org-only audit when grant row has no single binding", async () => {
+  it("denies insufficient_scope when grant row has no single binding", async () => {
     getGrant.mockResolvedValue(grantRow());
     getBoundGrant.mockReturnValue(null);
 
     await expect(consumeInjectionGrantWithAudit(baseInput)).rejects.toMatchObject({
-      code: INJECTION_ERROR_CODES.grantDenied,
+      code: AUTH_ERROR_CODES.insufficientScope,
     });
 
     expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "denied",
-        reasonCode: INJECTION_ERROR_CODES.grantDenied,
+        reasonCode: AUTH_ERROR_CODES.insufficientScope,
       }),
     );
   });
@@ -426,7 +431,7 @@ describe("consumeInjectionGrantWithAudit", () => {
     expect(withTenantScope.mock.calls[1]?.[0]).toEqual(ORG_TENANT_SCOPE);
   });
 
-  it("records insufficient_scope denial through auditAccessDenialOnFailure", async () => {
+  it("denies insufficient_scope when access lacks consume scope at the grant's coordinate", async () => {
     getGrant.mockResolvedValue(grantRow());
     getBoundGrant.mockReturnValue(boundGrantFromRow());
     vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
@@ -435,7 +440,13 @@ describe("consumeInjectionGrantWithAudit", () => {
       code: AUTH_ERROR_CODES.insufficientScope,
     });
 
-    expect(auditAccessDenialOnFailure).toHaveBeenCalled();
+    // Authorization happens at the grant's real project/environment coordinate, never an org-only
+    // coordinate (which would drop project-scoped memberships and over-deny — see the next test).
+    expect(resolveEffectiveAccess).toHaveBeenCalledWith(
+      { type: "user", userId: ACTOR_USER },
+      { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+      undefined,
+    );
     expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "denied",
@@ -444,6 +455,43 @@ describe("consumeInjectionGrantWithAudit", () => {
         environmentId: ENV,
       }),
     );
+  });
+
+  it("allows a consumer holding consume scope ONLY at the grant's project coordinate", async () => {
+    // Regression for the over-deny bug: a project-scoped consumer (e.g. the developer preset) holds
+    // runtime_injection:grant_consume only at {org, project, env}, not org-wide. Authorizing at the
+    // grant's real coordinate must let them consume a valid grant in their own project. A
+    // coordinate-aware mock returns the consume scope at the project coordinate but NOT org-wide.
+    getGrant.mockResolvedValue(grantRow());
+    getBoundGrant.mockReturnValue(boundGrantFromRow());
+    vi.mocked(resolveEffectiveAccess).mockImplementation(async (_actor, coordinate) =>
+      coordinate.projectId === PROJECT && coordinate.environmentId === ENV
+        ? { scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume] }
+        : { scopes: [] },
+    );
+
+    const result = await consumeInjectionGrantWithAudit(baseInput);
+
+    expect(result.secretId).toBe(SECRET);
+    expect(result.valueUtf8).toBe(plaintextHandle);
+    expect(tryConsumeGrant).toHaveBeenCalled();
+  });
+
+  it("returns the SAME code for a missing grant and a no-scope caller (closes the existence oracle)", async () => {
+    // No-scope caller against a present grant: denied at the per-coordinate check.
+    getGrant.mockResolvedValue(grantRow());
+    getBoundGrant.mockReturnValue(boundGrantFromRow());
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
+    const presentNoScope = await consumeInjectionGrantWithAudit(baseInput).catch((e) => e.code);
+
+    // Any caller hitting a grant id that does not exist (or is not in their RLS-scoped tenant).
+    getGrant.mockResolvedValue(null);
+    const missing = await consumeInjectionGrantWithAudit(baseInput).catch((e) => e.code);
+
+    // Both surface insufficient_scope, so the error code cannot distinguish "grant absent" from
+    // "grant present but you lack consume scope" — the existence oracle is closed.
+    expect(presentNoScope).toBe(AUTH_ERROR_CODES.insufficientScope);
+    expect(missing).toBe(AUTH_ERROR_CODES.insufficientScope);
   });
 
   it("records grant_denied with coordinate when selector mismatches loaded binding", async () => {
