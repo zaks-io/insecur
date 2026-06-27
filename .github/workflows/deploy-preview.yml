@@ -1,0 +1,70 @@
+# Deploy the bounded shared Preview environment. This is intentionally not a
+# pull_request workflow: PRs use Docker Compose Postgres in CI, while this job
+# targets the live Neon preview branch through the shared Hyperdrive config.
+name: Deploy Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      smoke:
+        description: Run First Value smoke after deploy
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Preview
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 25
+    environment:
+      name: Preview
+      url: ${{ steps.deploy.outputs.base_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy shared preview
+        id: deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
+          PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
+          PREVIEW_HYPERDRIVE_ID: ${{ vars.PREVIEW_HYPERDRIVE_ID }}
+          PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
+          RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
+          SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          SMOKE_ADMITTED_USER_ID: ${{ vars.SMOKE_ADMITTED_USER_ID }}
+          SMOKE_WORKOS_USER_ID: ${{ vars.SMOKE_WORKOS_USER_ID }}
+          WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
+          WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
+          WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
+        run: |
+          if [ "${{ inputs.smoke }}" = "false" ]; then
+            pnpm deploy:preview --skip-smoke
+          else
+            pnpm deploy:preview
+          fi

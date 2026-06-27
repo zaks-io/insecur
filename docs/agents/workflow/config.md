@@ -28,7 +28,7 @@ external systems (Linear, GitHub, CI), not here.
 - Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
-- Preview checks: `PR Preview` / `PR Preview Cleanup` workflows exist but stay gated behind `PREVIEW_ENV_ENABLED` (INS-164); hosted `CI` and `security-daily` workflows run unconditionally
+- Preview checks: no per-PR preview workflow; PR database validation is `CI` → `Postgres tests (integration + RLS + e2e)` using Docker Compose Postgres. Shared preview deploy is `Deploy Preview` / `pnpm deploy:preview`.
 - Production deploy path: `pnpm deploy:workers` (Cloudflare Workers `insecur-runtime` then `insecur-api`); approval required
 - Production approval required: yes
 
@@ -165,7 +165,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Local services: local Postgres 17 (iteration aid only; ADR-0060 pins 17 until Neon supports 18)
 - Development: may use cloud backing services while app runs locally
 - Development backing services: Neon Postgres (real RLS tests need `DATABASE_URL_RUNTIME`, start at FV-04); Cloudflare Workers
-- Preview: none (no preview deploy wired)
+- Preview: `Deploy Preview` workflow or local `pnpm deploy:preview`
 - Preview purpose: n/a until FV-02
 - Production: explicit approval required
 - Production forbidden without approval: `pnpm deploy:workers`, any Cloudflare/Neon production mutation, secret/key material changes
@@ -180,4 +180,4 @@ Linear prose, PR bodies, comments, and tests. No reveal/plaintext-export/debug-d
 
 ## Unknowns
 
-- [ ] Preview deploys stay gated behind `PREVIEW_ENV_ENABLED` (INS-164). Hosted `CI` and `security-daily` workflows run unconditionally on PRs (Verify, Coverage, postgres-integration, gitleaks/semgrep/syft+grype); CI branch protection is the real enforcement boundary, not local hooks.
+- [ ] Hosted `CI` and `security-daily` workflows run unconditionally on PRs (Verify, Coverage, postgres-integration, gitleaks/semgrep/syft+grype); CI branch protection is the real enforcement boundary, not local hooks. PRs must not provision Neon branches or per-PR Workers.

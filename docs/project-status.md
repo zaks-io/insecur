@@ -170,8 +170,9 @@ First Value routes under `/v1/orgs/:org`).
   RLS tests), `test:e2e`, and `test:canary` with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build.
   Package integration suites outside those tasks still self-gate in `pnpm verify` when
   `DATABASE_URL_RUNTIME` is unset.
-- The third test layer is the gated preview smoke (`pr-preview.yml`, INS-164): the First
-  Value smoke against a deployed preview Worker, off until `PREVIEW_ENV_ENABLED` flips.
+- PRs use Docker Compose Postgres in the `postgres-integration` CI job for RLS, e2e, and canary.
+  The deployed First Value smoke runs through `pnpm deploy:preview` / `Deploy Preview` against the
+  bounded shared preview environment, not per-PR Neon branches or Workers.
 
 ## Not Yet Wired
 
@@ -207,8 +208,9 @@ verify`. Do not compose new routes into a single worker; every route belongs to 
   `DATABASE_URL_RUNTIME` fallback for local/CI/tests). `apps/api` deliberately binds no Hyperdrive:
   keyring-bound persistence is Runtime-side over the `RUNTIME` Service Binding. DB-backed public
   routes on the API Worker still rely on the `DATABASE_URL_RUNTIME` fallback path in tests and need a
-  production Hyperdrive adapter on the API deploy (INS-212). Preview `env.preview` Hyperdrive
-  scaffolds exist on the Runtime deploy for the gated `pr-preview` workflow (INS-164).
+  production Hyperdrive adapter on the API deploy (INS-212). Preview `env.preview` binds the
+  Runtime deploy to the shared live Neon preview Hyperdrive; PRs must keep using Docker Compose
+  Postgres in CI.
 - Root key custody is partially wired through request-scoped Cloudflare Secrets Store
   keyring construction. Production bootstrap, escrow evidence, and Storage Security Gate
   sign-off are still pending.

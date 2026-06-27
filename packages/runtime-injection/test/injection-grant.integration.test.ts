@@ -35,6 +35,7 @@ import {
 } from "./integration-helpers.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
+const TEST_PROTECTED_ENV_ID = "env_00000000000000000000000099";
 
 async function loadLatestIssueDeniedAudit(organizationId: ReturnType<typeof testOrganization>) {
   return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
@@ -421,40 +422,53 @@ describeIntegration("Runtime Injection Grant Service", () => {
   it("denies protected-environment issue with insufficient scope when grant_issue_protected is absent", async () => {
     const org = testOrganization();
     const variableKey = uniqueVariableKey("FV11_PROTECTED");
-    await writeTestSecret(variableKey, new TextEncoder().encode("protected-env"));
 
     await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
-        UPDATE environments
-        SET is_protected = true
-        WHERE id = ${testEnvironment()}
+        INSERT INTO environments (
+          id,
+          org_id,
+          project_id,
+          display_name,
+          is_protected,
+          lifecycle_stage
+        )
+        VALUES (
+          ${TEST_PROTECTED_ENV_ID},
+          ${org},
+          ${testProject()},
+          ${"Synthetic protected env"},
+          true,
+          ${"production"}
+        )
+        ON CONFLICT (id) DO NOTHING
       `;
     });
 
-    try {
-      await expect(
-        issueInjectionGrant({
-          organizationId: org,
-          projectId: testProject(),
-          environmentId: testEnvironment(),
-          selector: { kind: "variable_key", variableKey },
-          actor: testActor(),
-        }),
-      ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+    await writeTestSecret(variableKey, new TextEncoder().encode("protected-env"));
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      await sql`
+        UPDATE secrets
+        SET environment_id = ${TEST_PROTECTED_ENV_ID}
+        WHERE org_id = ${org}
+          AND variable_key = ${variableKey}
+      `;
+    });
 
-      const deniedAudit = await loadLatestIssueDeniedAudit(org);
-      expect(deniedAudit?.event_code).toBe(FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied);
-      expect(deniedAudit?.outcome).toBe("denied");
-      expect(deniedAudit?.result_code).toBe(AUTH_ERROR_CODES.insufficientScope);
-    } finally {
-      await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
-        await sql`
-          UPDATE environments
-          SET is_protected = false
-          WHERE id = ${testEnvironment()}
-        `;
-      });
-    }
+    await expect(
+      issueInjectionGrant({
+        organizationId: org,
+        projectId: testProject(),
+        environmentId: environmentId.brand(TEST_PROTECTED_ENV_ID),
+        selector: { kind: "variable_key", variableKey },
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    const deniedAudit = await loadLatestIssueDeniedAudit(org);
+    expect(deniedAudit?.event_code).toBe(FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied);
+    expect(deniedAudit?.outcome).toBe("denied");
+    expect(deniedAudit?.result_code).toBe(AUTH_ERROR_CODES.insufficientScope);
   });
 
   it("denies issue with audit when variable key selector does not exist", async () => {

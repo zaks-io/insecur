@@ -75,8 +75,8 @@ Owns:
 - ESLint flat config, type-aware rules, Prettier, and size/complexity budgets.
 - Turbo tasks and cache policy, including remote read for developers/agents and remote write only
   for CI.
-- GitHub Actions topology: the `CI` workflow (its `Verify` job runs `pnpm verify`), `pr-preview`,
-  `pr-preview-cleanup`, and `security-daily` exist today; staging deploy and production deploy are
+- GitHub Actions topology: the `CI` workflow (its `Verify` job runs `pnpm verify`),
+  `deploy-preview`, and `security-daily` exist today; staging deploy and production deploy are
   planned per [build-tooling.md](../build-tooling.md) and
   [ADR-0029](../adr/0029-environments-and-cd-trust-model.md) but not yet created.
 - Secret scanning, dependency scanning, SBOM/vulnerability hooks, and fork isolation.
@@ -89,9 +89,10 @@ Primary references: [ADR-0053](../adr/0053-remote-build-cache-trust-model.md),
 [ADR-0056](../adr/0056-supply-chain-hardening-posture.md),
 [build-tooling.md](../build-tooling.md).
 
-Done means `pnpm verify` is the local and CI truth, the `CI`, `pr-preview`, `pr-preview-cleanup`,
-and `security-daily` workflows exist, remote cache write is CI-only, forked PRs receive no
-secret-bearing jobs, and adding a dependency that wants a postinstall fails until reviewed.
+Done means `pnpm verify` is the local and CI truth, the `CI`, `deploy-preview`, and
+`security-daily` workflows exist, remote cache write is CI-only, forked PRs receive no
+secret-bearing jobs, PRs use Docker Compose Postgres instead of Neon branches, and adding a
+dependency that wants a postinstall fails until reviewed.
 
 ## W1 - Persistence, Tenant Boundary, And Operations State
 

@@ -15,13 +15,13 @@ The encryption thesis is unchanged. The root key stays in Cloudflare Secrets Sto
 ## Considered Options
 
 - **Keep D1 with application-only isolation.** Rejected: it leaves the metadata boundary resting on application discipline with no engine backstop, the exact gap that prompted this change.
-- **Postgres on another host.** Rejected for V1: Neon's serverless Postgres and database branching fit Cloudflare and the PR-preview flow in ADR-0029, and Neon region selection at project creation resolves the Data residency open question without a separate residency mechanism.
+- **Postgres on another host.** Rejected for V1: Neon's serverless Postgres fits Cloudflare, Hyperdrive, and a bounded shared preview environment, and Neon region selection at project creation resolves the Data residency open question without a separate residency mechanism.
 
 ## Consequences
 
 ADR-0002 is amended: Postgres is now in the stack and Neon is a subprocessor, adding one vendor to the Cloudflare-native footprint and to the subprocessor list.
 
-ADR-0029's CD model changes. D1 migrations are replaced by Neon migrations run under an elevated database role, the runtime role is `NOBYPASSRLS`, PR previews use Neon database branching, and the pre-apply R2 backup now snapshots Neon. The stored Cloudflare deploy token no longer needs D1 edit; the Hyperdrive configuration holds the database credential instead.
+ADR-0029's CD model changes. D1 migrations are replaced by Neon migrations run under an elevated database role, the runtime role is `NOBYPASSRLS`, the shared preview environment may use a Neon preview branch, and the pre-apply R2 backup now snapshots Neon. PR validation uses Docker Compose Postgres, not Neon branching. The stored Cloudflare deploy token no longer needs D1 edit; the Hyperdrive configuration holds the database credential instead.
 
 The Data residency open question is resolved: the Neon region is fixed at project creation and chosen per residency need; revisit only for a multi-region Instance.
 

@@ -43,6 +43,7 @@
     "dev": "turbo run dev --cache=local:rw,remote:r",
     "dev:workers": "node scripts/dev-workers.mjs",
     "deploy:workers": "turbo run deploy --filter @insecur/runtime --filter @insecur/api",
+    "deploy:preview": "node scripts/deploy-preview.mjs",
     "cli": "pnpm --filter @insecur/cli start",
     "clean": "turbo run clean",
     "release-gate:bundle": "pnpm --filter @insecur/release-gate bundle",

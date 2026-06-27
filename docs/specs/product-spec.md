@@ -697,13 +697,13 @@ Postgres 17 locally and in CI's `postgres-integration` job. The no-plaintext can
 layer) and sweeps every column of every user table plus in-process console output for sentinel
 Sensitive Values; see [ADR-0069](../adr/0069-no-plaintext-canary-gate.md). They never run against SQLite, PGlite,
 mocks, or the elevated migration role. CI asserts runtime and migration credentials are distinct.
-A per-PR Neon branch backs only the gated preview smoke layer, which deploys a preview Worker and
-runs the First Value loop over HTTP; it stays inert behind `PREVIEW_ENV_ENABLED` until INS-164
-lands the preview infrastructure. The secret-bearing preview smoke never runs on forked PRs, while
-the Docker Compose integration/RLS gate carries no secrets and is fork-safe by design, so it runs
-on all PRs. Postgres 17 is the development and CI database baseline until Postgres 18 is no longer
-preview on Neon. CI runs on Blacksmith runners as a compute-only substitution: workflow logic,
-trust boundaries, and fork isolation are unchanged.
+PRs never allocate Neon branches, Hyperdrive configs, or per-PR Workers. The Docker Compose
+integration/RLS gate carries no secrets and is fork-safe by design, so it runs on all PRs. The
+separate shared preview environment uses a shared Neon preview branch and Hyperdrive binding to run
+the First Value loop over HTTP, but that environment is bounded and not created per PR. Postgres 17
+is the development and CI database baseline until Postgres 18 is no longer preview on Neon. CI runs
+on Blacksmith runners as a compute-only substitution: workflow logic, trust boundaries, and fork
+isolation are unchanged.
 
 Tooling is ESLint with type-aware `typescript-eslint` and Prettier for formatting. Complexity and
 size budgets are required gates because agents are expected to write much of the code. A justified

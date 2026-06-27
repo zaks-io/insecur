@@ -26,16 +26,16 @@
       "entrypoint": "RuntimeService",
     },
   ],
-  // Preview environment override for the gated pr-preview workflow. The API Worker does no DB I/O
+  // Preview environment override for the shared preview deploy. The API Worker does no DB I/O
   // (everything keyring- and DB-bound is forwarded over the RUNTIME Service Binding), so it binds no
-  // Hyperdrive. scripts/ci/patch-preview-wrangler.mjs repoints the RUNTIME service at the per-PR
-  // runtime worker name; until PREVIEW_ENV_ENABLED is set this env is never deployed.
+  // Hyperdrive. PR workflows must not patch this config or create per-PR preview deploys.
   "env": {
     "preview": {
+      "name": "insecur-api-preview",
       "services": [
         {
           "binding": "RUNTIME",
-          "service": "insecur-runtime",
+          "service": "insecur-runtime-preview",
           "entrypoint": "RuntimeService",
         },
       ],
