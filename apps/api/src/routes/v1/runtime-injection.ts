@@ -19,8 +19,7 @@ import {
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
-import { mintRuntimeHopToken } from "../../rpc/mint-hop-token.js";
-import { unwrapRuntimeResult } from "../../rpc/unwrap-runtime-result.js";
+import { consumeRuntimeGrant } from "../../rpc/runtime-caller.js";
 
 export const runtimeInjectionRoutes = new Hono<{
   Bindings: ApiEnv;
@@ -59,20 +58,16 @@ runtimeInjectionRoutes.post("/grants/:grantId/consume", requireUserActor, async 
     const body = parseJsonBody(await context.req.json());
     const variableKeyRaw = readOptionalString(body, "variableKey");
     const secretId = parseOptionalSecretId(readOptionalString(body, "secretId"));
-    const actorToken = await mintRuntimeHopToken(context.env, userActor);
 
-    const envelope = unwrapRuntimeResult(
-      await context.env.RUNTIME.consumeGrant({
-        organizationId,
-        grantId,
-        requestId: reqId,
-        ...(variableKeyRaw !== undefined
-          ? { variableKey: parseVariableKeyField(variableKeyRaw) }
-          : {}),
-        ...(secretId !== undefined ? { secretId } : {}),
-        actorToken,
-      }),
-    );
+    const envelope = await consumeRuntimeGrant(context.env, userActor, {
+      organizationId,
+      grantId,
+      requestId: reqId,
+      ...(variableKeyRaw !== undefined
+        ? { variableKey: parseVariableKeyField(variableKeyRaw) }
+        : {}),
+      ...(secretId !== undefined ? { secretId } : {}),
+    });
 
     return context.json(envelope);
   });
