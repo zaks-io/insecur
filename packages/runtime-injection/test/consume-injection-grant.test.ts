@@ -426,7 +426,7 @@ describe("consumeInjectionGrantWithAudit", () => {
     expect(withTenantScope.mock.calls[1]?.[0]).toEqual(ORG_TENANT_SCOPE);
   });
 
-  it("records insufficient_scope denial through auditAccessDenialOnFailure", async () => {
+  it("denies insufficient_scope at the org level before the grant is loaded (no coordinate leak)", async () => {
     getGrant.mockResolvedValue(grantRow());
     getBoundGrant.mockReturnValue(boundGrantFromRow());
     vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
@@ -435,15 +435,48 @@ describe("consumeInjectionGrantWithAudit", () => {
       code: AUTH_ERROR_CODES.insufficientScope,
     });
 
-    expect(auditAccessDenialOnFailure).toHaveBeenCalled();
+    // The coarse org-level consume gate fails closed before loadGrantBinding runs, so the grant
+    // is never read and the denied audit carries no project/environment coordinate.
+    expect(getGrant).not.toHaveBeenCalled();
+    expect(resolveEffectiveAccess).toHaveBeenCalledWith(
+      { type: "user", userId: ACTOR_USER },
+      { organizationId: ORG },
+      undefined,
+    );
+    expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        projectId: expect.anything(),
+        environmentId: expect.anything(),
+      }),
+    );
     expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "denied",
         reasonCode: AUTH_ERROR_CODES.insufficientScope,
-        projectId: PROJECT,
-        environmentId: ENV,
       }),
     );
+  });
+
+  it("returns the SAME code for a missing grant and a no-scope caller (closes the existence oracle)", async () => {
+    // No-scope caller: denied before load.
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
+    const noScope = await consumeInjectionGrantWithAudit(baseInput).catch((error) => error.code);
+
+    // Authorized-at-org caller hitting a grant id that does not exist in their tenant.
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume],
+    });
+    getGrant.mockResolvedValue(null);
+    const missingForAuthorized = await consumeInjectionGrantWithAudit(baseInput).catch(
+      (error) => error.code,
+    );
+
+    // A caller who lacks consume scope cannot distinguish "grant absent" from "grant present":
+    // both surface insufficient_scope, never grant_denied, before any grant read.
+    expect(noScope).toBe(AUTH_ERROR_CODES.insufficientScope);
+    // The authorized caller may still receive grant_denied for a genuinely absent grant, matching
+    // the issuance threat model (INS-181): only the unauthorized differential is the leak.
+    expect(missingForAuthorized).toBe(INJECTION_ERROR_CODES.grantDenied);
   });
 
   it("records grant_denied with coordinate when selector mismatches loaded binding", async () => {

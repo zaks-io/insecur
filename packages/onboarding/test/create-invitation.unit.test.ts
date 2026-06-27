@@ -14,6 +14,9 @@ const assertInvitationRolePresetMock = vi.hoisted(() => vi.fn().mockResolvedValu
 const assertInvitationProjectCoordinateMock = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
+const assertInvitationRoleGrantEntitlementMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
 const assertMembershipManageScopeMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const membershipExistsForGrantMock = vi.hoisted(() => vi.fn().mockResolvedValue(false));
 const loadDefaultTeamIdMock = vi.hoisted(() =>
@@ -33,6 +36,7 @@ const auditAccessDenialOnFailureMock = vi.hoisted(() =>
 vi.mock("../src/assert-invitation-create-input.js", () => ({
   assertInvitationRolePreset: assertInvitationRolePresetMock,
   assertInvitationProjectCoordinate: assertInvitationProjectCoordinateMock,
+  assertInvitationRoleGrantEntitlement: assertInvitationRoleGrantEntitlementMock,
 }));
 
 vi.mock("../src/assert-membership-manage-scope.js", () => ({
@@ -88,6 +92,8 @@ describe("createInvitation (unit)", () => {
   beforeEach(() => {
     assertInvitationRolePresetMock.mockClear();
     assertInvitationProjectCoordinateMock.mockClear();
+    assertInvitationRoleGrantEntitlementMock.mockReset();
+    assertInvitationRoleGrantEntitlementMock.mockResolvedValue(undefined);
     assertMembershipManageScopeMock.mockReset();
     assertMembershipManageScopeMock.mockResolvedValue(undefined);
     membershipExistsForGrantMock.mockReset();

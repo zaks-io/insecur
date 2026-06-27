@@ -20,7 +20,11 @@ import {
   withTenantScope,
 } from "@insecur/tenant-store";
 
-import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-injection-access.js";
+import {
+  assertHoldsConsumeScope,
+  assertRuntimeInjectionAccess,
+  CONSUME_SCOPE,
+} from "./assert-runtime-injection-access.js";
 import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
@@ -211,6 +215,24 @@ export async function recordDeniedConsume(
 export async function consumeInjectionGrantWithAudit(
   input: ConsumeInjectionGrantCoreInput,
 ): Promise<ConsumeInjectionGrantCoreResult> {
+  try {
+    // Fail closed before the grant is read: an actor lacking consume scope at the organization must
+    // not be able to distinguish a present grant (insufficient_scope after load) from an absent one
+    // (grant_denied). The coarse org-level gate collapses both to insufficient_scope so the consume
+    // path is not a grant-existence oracle, mirroring the issuance pre-check (INS-181). The precise
+    // per-coordinate consume check still runs inside executeConsumeInjectionGrant.
+    assertUserActorForConsume(input.actor);
+    await assertHoldsConsumeScope(
+      { type: "user", userId: auditActorUserId(input.actor) },
+      { organizationId: input.organizationId },
+    );
+  } catch (error) {
+    if (error instanceof InjectionGrantError) {
+      await recordDeniedConsume(input, error.code).catch(() => undefined);
+    }
+    throw error;
+  }
+
   const loaded = await loadGrantBinding(input.organizationId, input.grantId);
   const coordinate = loaded
     ? { projectId: loaded.projectId, environmentId: loaded.environmentId }

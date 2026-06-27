@@ -74,6 +74,27 @@ export async function assertHoldsAnyIssuanceScope(
   });
 }
 
+/**
+ * Coarse org-level consume gate run before the grant is loaded, so an actor lacking consume scope
+ * gets `insufficient_scope` before the grant existence is ever read. This prevents the consume path
+ * from becoming a grant-existence oracle: a not-found grant and a no-scope caller both fail closed
+ * with the same code, mirroring the issuance pre-check (INS-181). The precise per-coordinate consume
+ * check still runs afterward against the grant's own project/environment.
+ */
+export async function assertHoldsConsumeScope(
+  actor: ActorRef,
+  coordinate: ResourceCoordinate,
+  deps?: ResolveEffectiveAccessDeps,
+): Promise<void> {
+  await assertRuntimeInjectionScopes({
+    actor,
+    coordinate,
+    requiredScopes: [CONSUME_SCOPE],
+    mode: "all",
+    ...(deps !== undefined ? { deps } : {}),
+  });
+}
+
 export const ISSUE_SCOPE = AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue;
 export const ISSUE_PROTECTED_SCOPE = AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected;
 export const CONSUME_SCOPE = AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume;

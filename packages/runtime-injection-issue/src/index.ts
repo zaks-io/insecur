@@ -8,6 +8,7 @@ export {
   ISSUE_PROTECTED_SCOPE,
   ISSUE_SCOPE,
   assertHoldsAnyIssuanceScope,
+  assertHoldsConsumeScope,
   assertRuntimeInjectionAccess,
   resolveIssueGrantRequiredScope,
 } from "./assert-runtime-injection-access.js";
