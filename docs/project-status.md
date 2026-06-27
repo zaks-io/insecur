@@ -22,9 +22,11 @@ production Hyperdrive on the API Worker for its DB-backed public routes (INS-212
 sync.
 
 The current workspace is Node 24 and pnpm 10, with Turbo, Prettier, ESLint, Vitest,
-package builds, local Postgres development scripts, RLS migrations, Blacksmith-backed
-CI workflows, gitleaks config, and daily security scan workflow files. `pnpm verify`
-passes on this worktree across the current app/package graph.
+20 workspace packages, two Worker app deploy packages (`@insecur/api` and `@insecur/runtime`),
+local Postgres development scripts, RLS migrations, Blacksmith-backed CI workflows, gitleaks config,
+and daily security scan workflow files. `pnpm verify` includes the deploy-topology conformance gate
+and the package-boundary conformance gate (`pnpm conformance:packages`), which fails forbidden
+production dependency paths from public/API and contract packages into `@insecur/crypto`.
 
 The accepted implementation direction is still Diskless Development Secret Use first:
 developers and agents should use non-protected development secrets through Runtime
@@ -110,6 +112,9 @@ First Value routes under `/v1/orgs/:org`).
     `INSTANCE_ROOT_KEY_V{n}` Secrets Store bindings and passes it through the crypto boundary
     explicitly. Production root-key bootstrap, escrow evidence, and Storage Security Gate
     sign-off remain pending. Tracked in INS-145/147/149.
+- `@insecur/worker-kit` owns shared Worker HTTP/auth/RPC composition glue: route helpers,
+  domain-error-to-HTTP mapping, public route input parsing, admitted-user/auth context helpers, and
+  the Runtime RPC contract shared across the private Service Binding seam.
 - `@insecur/tenant-store` owns the Postgres persistence seam: scoped transactions,
   transaction-local tenant scope, runtime connection handling, local migration scripts,
   runtime-role grants, and RLS helper scripts/tests.
@@ -124,18 +129,28 @@ First Value routes under `/v1/orgs/:org`).
 - `@insecur/audit` owns tenant-qualified, metadata-only audit event validation and
   writing, including stable denied-result codes and payload allowlist checks that fail
   closed on sensitive-looking keys or binary payloads.
+- `@insecur/custody-contracts` owns plaintext-free custody and wrapped-material contract shapes:
+  data-key metadata access interfaces, lifecycle/rewrap status shapes, wrapped Secret/Provider
+  Credential/Sensitive Metadata material shapes, and the tenant data-key readiness error shared
+  across package seams.
 - `@insecur/crypto` owns the keyring and encryption envelope below domain workflows:
-  root-key runtime configuration, organization/project data key metadata resolution,
-  inline wrapped data-key mint/unwrap/rewrap behavior, key readiness reports, AES-GCM
-  envelope behavior, ciphertext identity binding, DEK wrap AAD, and opaque decrypt failures.
+  root-key runtime configuration, organization/project data-key mint/unwrap/rewrap behavior,
+  key readiness reports, AES-GCM envelope behavior, ciphertext identity binding, DEK wrap AAD, and
+  opaque decrypt failures. Public/API and contract packages must not depend on it; the
+  package-boundary conformance gate enforces that split.
+- `@insecur/tenant-keyring` owns Runtime-only composition of tenant-scoped data-key metadata access
+  with the crypto Keyring, keeping the crypto dependency behind the Runtime Worker boundary.
+- `@insecur/secret-store-contracts` owns public-safe Secret Write validation and error contracts:
+  safe value ingress policy, UTF-8 and 64 KiB value validation, and Variable Key write validation.
 - `@insecur/secret-store` owns non-protected Blind Secret Write and Secret Version Store
-  behavior: safe value ingress policy, UTF-8 and 64 KiB value validation, Variable Key
-  validation, append/current-version persistence, wrapped-material storage, metadata-only
-  write results, and denied write audit.
+  behavior: append/current-version persistence, wrapped-material storage, metadata-only write
+  results, and denied write audit, composed with the contracts package for public-safe validation.
+- `@insecur/runtime-injection-issue` owns the public-safe Injection Grant issue path: selector
+  contracts, issuance authorization, binding resolution, grant TTL, and metadata-only issue/denial
+  audit without keyring access.
 - `@insecur/runtime-injection` owns server-side one-use Injection Grant behavior:
-  exact secret selectors, issue/consume flows, grant TTL, secret-version binding at issue
-  time, decrypt-for-runtime path, denied issue/consume audit, and metadata-only grant
-  results.
+  consume rules, decrypt-for-runtime path, command output safety, denied consume audit, and
+  metadata-only consume results.
 - `@insecur/onboarding` owns Guided Organization Provisioning and early membership
   management: Personal Organization, Default Team, owner Membership, first Project,
   non-protected development Environment, operator-created Organizations, invitations,
@@ -154,8 +169,13 @@ First Value routes under `/v1/orgs/:org`).
 
 ## Verified Locally
 
-- `pnpm verify` passes as of 2026-06-02. It ran `pnpm format:check` and Turbo
-  `lint`, `typecheck`, and `test` across 59 tasks.
+- `pnpm verify` is the local deterministic gate for the current package/deploy graph. It includes
+  duplicate warnings and the blocking duplicate ratchet, knip, actionlint, deploy topology
+  conformance, package-boundary conformance, `pnpm format:check`, and Turbo `lint`, `typecheck`, and
+  `test`.
+- The package-boundary conformance gate (`pnpm conformance:packages`) uses dependency-cruiser to
+  fail forbidden production dependency paths from public/API and contract packages into
+  `@insecur/crypto`; this is the code-backed status for the split crypto-facing packages.
 - Worker auth/session tests pass, including unauthenticated/invalid/expired credential
   responses, valid bearer `whoami`, and WorkOS-browser-session-to-CLI credential exchange.
 - Package unit tests pass for domain primitives, auth, access role/scope logic, audit
@@ -196,9 +216,9 @@ First Value routes under `/v1/orgs/:org`).
   implemented.
 - Admitted User resolution in the Worker is still a development JSON map, not persisted
   User admission or production identity configuration.
-- **Worker topology is capability-isolated (INS-194 Cut 1 landed).** The former monolith
-  `apps/worker` is split into `apps/api` (public API Worker, `insecur-api`, no keyring) and
-  `apps/runtime` (private Runtime Worker, `insecur-runtime`, sole `INSTANCE_ROOT_KEY_V1` holder, no
+- **Worker topology is capability-isolated (INS-194 Cut 1 landed).** The former single Worker deploy
+  is split into `apps/api` (public API Worker, `insecur-api`, no keyring) and `apps/runtime`
+  (private Runtime Worker, `insecur-runtime`, sole `INSTANCE_ROOT_KEY_V1` holder, no
   public routes, reached only over a private Service Binding via the `RuntimeService`
   `WorkerEntrypoint` RPC seam). Shared composition glue lives in `packages/worker-kit`. **No deploy
   holds both a public route and the root-key binding**, enforced by `pnpm conformance:topology`

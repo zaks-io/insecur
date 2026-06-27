@@ -49,6 +49,7 @@ apps/api
 apps/runtime
   -> packages/worker-kit
 packages/cli
+  -> packages/machine-auth
   -> packages/tenant-keyring
   -> packages/instance-bootstrap
   -> packages/onboarding
@@ -57,6 +58,7 @@ packages/cli
   -> packages/secret-store
   -> packages/secret-store-contracts
   -> packages/operations
+  -> packages/release-gate
   -> packages/auth
   -> packages/access
   -> packages/audit
@@ -72,17 +74,17 @@ every package below it. Add dependencies only when code crosses that Interface.
 
 ## Scaffolded Packages
 
-These packages are scaffolded now with real seams, even where the
-implementations are narrow. Every row except `@insecur/operations` is part of
-the First Value cut (the First Value Milestone must use the real seams);
-`@insecur/operations` is scaffolded for the Production Delivery foundation and
-is not in the First Value Slice below.
+These packages are scaffolded now with real seams, even where the implementations are narrow. The
+First Value Slice below names the package Interfaces the First Value Milestone must pass through;
+packages outside that slice are scaffolded for Production Delivery foundation, deploy composition,
+machine access, or release-gate work.
 
 | Package                            | Module                                | Owns                                                                                                                                                                               | Does not own                                                                                         |
 | ---------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `@insecur/domain`                  | Domain primitives                     | Opaque Resource IDs, Display Names, Variable Keys, stable result vocabulary, shared branded types                                                                                  | Persistence, encryption, authorization decisions, provider behavior                                  |
 | `@insecur/token-signing`           | HS256 signed-token codec              | HS256/HMAC token encoding, signature verification, safe JSON object payload decoding                                                                                               | Claim validation, session composition, machine token semantics, root-key custody                     |
 | `@insecur/auth`                    | Human authentication sessions         | WorkOS sealed session validation, User actor context, CLI ephemeral credentials, CSRF helpers for browser mutations                                                                | Effective Access, CLI commands, WorkOS hosted login UI, Machine Identity                             |
+| `@insecur/machine-auth`            | Machine Identity auth method exchange | GitHub Actions OIDC federation, short-lived machine access token minting, trusted-source matching, exchange audit events                                                           | Human authentication, Effective Access expansion, HTTP routes, Environment Deploy Keys               |
 | `@insecur/access`                  | Effective Access Resolver             | Membership and Role expansion into Effective Access, Authorization Scope evaluation, scope-first authorization tests                                                               | Human authentication, Service Access, Protected Environment approval                                 |
 | `@insecur/tenant-store`            | Tenant-Scoped Store                   | Scoped transaction Interface, tenant scope setting, RLS adapter contract, cross-tenant store tests                                                                                 | Business rules, authorization semantics, encryption, keyring construction                            |
 | `@insecur/custody-contracts`       | Custody Contracts                     | plaintext-free data-key metadata, wrapped material shapes, tenant data-key readiness error                                                                                         | Encryption, decrypt, root-key access, persistence                                                    |
@@ -97,6 +99,8 @@ is not in the First Value Slice below.
 | `@insecur/onboarding`              | Guided Organization Provisioning      | Personal Organization, Default Team, owner Membership, first Project, and non-protected development Environment creation                                                           | Public onboarding abuse controls, WorkOS authentication, production delivery                         |
 | `@insecur/instance-bootstrap`      | Instance Bootstrap and operator claim | Instance posture, WorkOS-ready identity configuration, Bootstrap Operator Claim CAS, Instance Operator grant, first-Organization owner Membership                                  | WorkOS login UI, public signup, CLI wiring                                                           |
 | `@insecur/operations`              | Operation Store                       | Operation IDs, idempotency keys, metadata-only status/progress/wait/retry/cancel state, CAS transitions, Sync Target Serialization lease rows and fencing tokens, audit references | Provider writes, authorization semantics, audit formatting/export, queue execution, Sensitive Values |
+| `@insecur/worker-kit`              | Worker composition kit                | shared Worker HTTP/auth helpers, public route input parsing, domain error-to-HTTP mapping, Runtime RPC contract                                                                    | Deploy placement, keyring construction, package domain invariants, CLI behavior                      |
+| `@insecur/cli`                     | CLI composition                       | local command parsing, safe input collection, local project config, child process execution, human/JSON output formatting, HTTP client behavior                                    | Server-side authorization, Secret Version storage, encryption, provider delivery                     |
 
 ## Deferred Packages
 
