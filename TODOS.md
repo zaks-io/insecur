@@ -71,8 +71,8 @@ blockers, #1 and #2 are now closed (see [Closed](#closed-landed-in-specsadrs)); 
 - [x] **#2 Inline-sync partial-failure state machine.** Design + reconciliation done. ADR-0057
       supersedes ADR-0012/0013 and amends ADR-0039; CONTEXT.md carries the four glossary terms
       (Inline Sync Execution, Incomplete Sync Run, Sync Run Resume, Sync Target Serialization); the
-      queue-backed Sync Execution Runtime in cli-and-sync.md and architecture.md is rewritten to the
-      inline model (lease-row serialization with a fencing token, `blocked`/`incomplete` operation
+      old queue/Durable Object sync runtime prose in cli-and-sync.md and architecture.md is rewritten
+      to the inline model (lease-row serialization with a fencing token, `blocked`/`incomplete` operation
       states, same-op resume, no dead-letter).
 
 - [x] **#6 Enumerate `injection.*` error codes** — written into cli-and-sync.md Runtime Injection:
