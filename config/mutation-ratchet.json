@@ -4,7 +4,7 @@
   "source": "reports/mutation/mutation.json",
   "scope": {
     "excluded": [],
-    "note": "Manual Stryker baseline including CLI after INS-261 HOME/config isolation."
+    "note": "INS-256: raised packages/runtime-injection floor after focused mutation review."
   },
   "overall": {
     "mutants": 11594,
@@ -128,11 +128,11 @@
       "other": 0
     },
     "packages/operations": {
-      "score": 14.87,
-      "mutants": 894,
-      "killed": 133,
-      "survived": 127,
-      "noCoverage": 634,
+      "score": 59.01,
+      "mutants": 905,
+      "killed": 534,
+      "survived": 116,
+      "noCoverage": 255,
       "timeout": 0,
       "ignored": 0,
       "other": 0
@@ -148,11 +148,11 @@
       "other": 0
     },
     "packages/runtime-injection": {
-      "score": 29.5,
+      "score": 58.36,
       "mutants": 305,
-      "killed": 90,
-      "survived": 44,
-      "noCoverage": 171,
+      "killed": 178,
+      "survived": 51,
+      "noCoverage": 76,
       "timeout": 0,
       "ignored": 0,
       "other": 0

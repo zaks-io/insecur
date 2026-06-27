@@ -1,0 +1,25 @@
+{
+  "issue": "INS-259",
+  "reviewedAt": "2026-06-26T23:10:00.000Z",
+  "gitHead": "e2dc47d8a6eaba5d19c34e8abe2e550647fe71a9",
+  "command": "pnpm mutation:review --mutate \"packages/operations/src/**/*.ts\" --force",
+  "area": "packages/operations",
+  "mutationScore": {
+    "total": 59.01,
+    "covered": 82.15
+  },
+  "mutants": {
+    "total": 905,
+    "killed": 534,
+    "survived": 116,
+    "noCoverage": 255,
+    "timeout": 0
+  },
+  "priorBaselineScore": 59.01,
+  "ratchet": {
+    "baselineUpdated": false,
+    "ratchetCheck": "pnpm mutation:ratchet:check",
+    "ratchetResult": "passed"
+  },
+  "notes": "Post-CodeRabbit test hardening. Score held at 59%; no ratchet floor change."
+}

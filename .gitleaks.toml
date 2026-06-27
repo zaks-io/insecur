@@ -17,6 +17,12 @@ paths = [
 id = "generic-api-key"
 
 [[rules.allowlists]]
+description = "Branded secret opaque id fixtures in package unit tests (metadata ids, not secret values)"
+condition = "and"
+paths = ['''(?i)^packages/.+\.test\.ts$''']
+regexes = ['''^sec_[0-9A-Z]{26}$''']
+
+[[rules.allowlists]]
 description = "Linear tracker UUID false positives in workflow agent config (secret must be UUID only)"
 condition = "and"
 paths = ['''(?i)^docs/agents/workflow/config\.md$''']
