@@ -1,0 +1,35 @@
+{
+  "issue": "INS-260",
+  "reviewedAt": "2026-06-27T21:15:00.000Z",
+  "gitHead": "7de4f3b7f5a694c107c5febeaa7da5bcd1d1ff55",
+  "prHead": "7de4f3b7f5a694c107c5febeaa7da5bcd1d1ff55",
+  "evidenceRecordsCommit": "7de4f3b7f5a694c107c5febeaa7da5bcd1d1ff55",
+  "command": "pnpm build && pnpm exec stryker run --mutate \"apps/api/src/**/*.ts\" --force",
+  "area": "apps/api",
+  "scope": "production sources under apps/api/src (focused --mutate override per INS-260)",
+  "mutationScore": {
+    "productionOnly": 61.07,
+    "priorBaselineProductionOnly": 48.42
+  },
+  "mutants": {
+    "productionOnly": {
+      "total": 411,
+      "killed": 251,
+      "survived": 106,
+      "noCoverage": 54,
+      "timeout": 0
+    }
+  },
+  "ratchet": {
+    "baselineUpdated": true,
+    "baselineCommand": "manual apps/api area floor update in config/mutation-ratchet.json (update-area blocked by node_modules walk under apps/api)",
+    "ratchetCheck": "node scripts/ci/mutation-ratchet.mjs check apps/api",
+    "ratchetResult": "passed"
+  },
+  "traceability": {
+    "mutationRunCommit": "7de4f3b7f5a694c107c5febeaa7da5bcd1d1ff55",
+    "rebasedOntoMain": "64ac47cdbe270d7f32e39c265d55f284105590de",
+    "note": "Rebased onto current main (64ac47c). Replaces stale pre-rebase evidence (814f5f21/fcf9540). PR review head recorded in GitHub PR metadata."
+  },
+  "notes": "Focused src review raised production-only apps/api score from 48.42% to 61.07%. Full-repo pnpm mutation:ratchet:check not rerun because this slice intentionally uses a scoped --mutate override."
+}

@@ -1,28 +1,28 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-06-26T23:47:32.185Z",
+  "updatedAt": "2026-06-27T16:53:24.136Z",
   "source": "reports/mutation/mutation.json",
   "scope": {
     "excluded": [],
-    "note": "INS-256: raised packages/runtime-injection floor after focused mutation review."
+    "note": "INS-260: raised apps/api floor after focused mutation review on apps/api/src."
   },
   "overall": {
-    "mutants": 11594,
-    "killed": 5860,
-    "survived": 2289,
-    "noCoverage": 3338,
+    "mutants": 11634,
+    "killed": 6415,
+    "survived": 2275,
+    "noCoverage": 2837,
     "timeout": 14,
     "ignored": 93,
     "other": 0,
-    "score": 50.54
+    "score": 55.14
   },
   "areas": {
     "apps/api": {
-      "score": 48.42,
-      "mutants": 382,
-      "killed": 185,
-      "survived": 116,
-      "noCoverage": 81,
+      "score": 61.07,
+      "mutants": 411,
+      "killed": 251,
+      "survived": 106,
+      "noCoverage": 54,
       "timeout": 0,
       "ignored": 0,
       "other": 0

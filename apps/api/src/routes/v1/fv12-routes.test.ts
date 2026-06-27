@@ -5,6 +5,7 @@ import {
   INJECTION_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
   SECRET_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
   bytesToBase64Url,
   environmentId,
   injectionGrantId,
@@ -33,12 +34,27 @@ const {
   issueInjectionGrant,
   resolveEffectiveAccess,
   recordAccessDenial,
-} = vi.hoisted(() => ({
-  provisionGuidedOrganization: vi.fn(),
-  issueInjectionGrant: vi.fn(),
-  resolveEffectiveAccess: vi.fn(),
-  recordAccessDenial: vi.fn(),
-}));
+  InjectionGrantError,
+} = vi.hoisted(() => {
+  class InjectionGrantError extends Error {
+    readonly code: string;
+    readonly retryable: boolean;
+    constructor(code: string, message: string, retryable = false) {
+      super(message);
+      this.name = "InjectionGrantError";
+      this.code = code;
+      this.retryable = retryable;
+    }
+  }
+
+  return {
+    provisionGuidedOrganization: vi.fn(),
+    issueInjectionGrant: vi.fn(),
+    resolveEffectiveAccess: vi.fn(),
+    recordAccessDenial: vi.fn(),
+    InjectionGrantError,
+  };
+});
 
 vi.mock("@insecur/onboarding", () => ({
   provisionGuidedOrganization,
@@ -55,16 +71,7 @@ vi.mock("@insecur/onboarding", () => ({
 // Grant issue is metadata-only and stays on the API Worker (no keyring), so it is still mocked here.
 vi.mock("@insecur/runtime-injection-issue", () => ({
   issueInjectionGrant,
-  InjectionGrantError: class InjectionGrantError extends Error {
-    readonly code: string;
-    readonly retryable: boolean;
-    constructor(code: string, message: string, retryable = false) {
-      super(message);
-      this.name = "InjectionGrantError";
-      this.code = code;
-      this.retryable = retryable;
-    }
-  },
+  InjectionGrantError,
 }));
 
 vi.mock("@insecur/access", async (importOriginal) => {
@@ -505,7 +512,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("rejects invalid projectId and environmentId combinations in the body", async () => {
-      const response = await app.request(
+      const invalidProjectResponse = await app.request(
         grantsPath,
         {
           method: "POST",
@@ -519,8 +526,35 @@ describe("FV-12 worker routes", () => {
         env,
       );
 
-      expect(response.status).toBe(400);
+      expect(invalidProjectResponse.status).toBe(400);
       expect(issueInjectionGrant).not.toHaveBeenCalled();
+      const invalidProjectBody: unknown = await invalidProjectResponse.json();
+      expect(invalidProjectBody).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
+
+      const invalidEnvironmentResponse = await app.request(
+        grantsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            projectId: projectIdValue,
+            environmentId: "not-an-environment",
+            variableKey: "API_KEY",
+          }),
+        },
+        env,
+      );
+
+      expect(invalidEnvironmentResponse.status).toBe(400);
+      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      const invalidEnvironmentBody: unknown = await invalidEnvironmentResponse.json();
+      expect(invalidEnvironmentBody).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
     });
 
     it("delegates grant issue by variable key to the runtime-injection package", async () => {
@@ -639,7 +673,6 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps grant issue denials to metadata-only errors", async () => {
-      const { InjectionGrantError } = await import("@insecur/runtime-injection-issue");
       issueInjectionGrant.mockRejectedValue(
         new InjectionGrantError(INJECTION_ERROR_CODES.grantDenied, "injection grant issue denied"),
       );
@@ -828,6 +861,11 @@ describe("FV-12 worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(writeSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
     });
 
     it("rejects invalid environment path params before forwarding to the Runtime Worker", async () => {
@@ -846,6 +884,11 @@ describe("FV-12 worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(writeSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
     });
 
     it("rejects invalid organization path params before forwarding to the Runtime Worker", async () => {
@@ -864,6 +907,11 @@ describe("FV-12 worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(writeSecret).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
     });
 
     it("rejects invalid variable keys before forwarding to the Runtime Worker", async () => {
