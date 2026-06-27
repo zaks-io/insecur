@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Seeds the preview Neon branch with the instance shell and smoke-test User admission row.
+ * Seeds the shared preview database with the instance shell and smoke-test User admission row.
  * Replaces the former ADMITTED_USER_MAP_JSON Worker var: admission is persisted in Postgres.
  */
 import postgres from "postgres";

@@ -427,7 +427,7 @@ The agent-facing one-command loop is documented in [docs/agents/testing.md](agen
 
 1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage and enforces the ratchet thresholds in `vitest.config.ts`; it excludes integration and RLS suites so it stays DB-less. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
 2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `postgres-integration` job (INS-144) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
-3. **Preview smoke (gated).** The `pr-preview` workflow deploys a per-PR preview Worker backed by an ephemeral Neon branch through Hyperdrive and runs the First Value smoke over HTTP. It is the only layer that can catch a broken deploy, a missing binding, or a bad secret. Gated behind the repository variable `PREVIEW_ENV_ENABLED` until the preview infrastructure exists (INS-164); secret-bearing, so it never runs on forked pull requests.
+3. **Shared preview smoke.** `pnpm deploy:preview` and the `Deploy Preview` workflow run the First Value smoke over HTTP against one deployed preview environment backed by a shared preview Neon branch through Hyperdrive. It is the only layer that can catch a broken deploy, a missing binding, or a bad secret. It is not a per-PR workflow: PRs use Docker Compose Postgres in the `CI` workflow's `postgres-integration` job.
 
 Docker Compose Postgres is the substrate for the authoritative integration+RLS gate and uses the
 same major version as the stable Neon target, currently Postgres 17 (ADR-0060), so the integration
@@ -456,27 +456,31 @@ jscpd duplicate-code: warning annotations + blocking ratchet (duplicates:ci, thr
 
 These jobs are required status checks on the protected branch. They run for forked pull requests too, because they touch no secrets.
 
-### Preview workflow: `pr-preview` (gated)
+### PR Database Policy
 
-Trigger: `pull_request`, but the deploy job runs only when the repository variable
-`PREVIEW_ENV_ENABLED` is `'true'` and the PR head is not a fork (see Fork Isolation). The workflow
-is built but inert until the preview infrastructure lands; standing it up and flipping the flag is
-INS-164. It runs the preview-smoke test layer, not `test:rls`. Steps:
+PRs must not create Neon branches, Hyperdrive configs, or per-PR Worker deploys. The repository
+cannot support unbounded preview environments in Neon, and fork isolation is simpler when PR checks
+stay secretless. The authoritative PR database gate is `CI` → `Postgres tests (integration + RLS +
+e2e)`, which runs:
 
-1. Create a Neon branch for the PR (`neondatabase/create-branch-action`).
-2. Verify branch isolation: the PR branch id must exist and differ from the production branch id.
-3. Run migrations against the branch under the elevated migration role.
-4. Create or reuse the per-PR Hyperdrive (`scripts/ci/create-hyperdrive.mjs`).
-5. Build and deploy the preview Worker (`--env preview`, per-PR name, per-PR Hyperdrive binding)
-   using the CI machine token.
-6. Wait for `/healthz` readiness (three consecutive 200s).
-7. Run the First Value cloud smoke (`scripts/ci/smoke-first-value.mjs`, which hard-fails when
-   `SMOKE_BASE_URL` is unset — no green-by-skip once the job runs).
-8. Comment the preview Worker URL and Neon branch on the PR.
+```
+pnpm dev:db:reset
+node scripts/ci/postgres-integration-tests.mjs
+pnpm exec turbo run test:integration --filter=@insecur/instance-bootstrap
+```
 
-### Cleanup workflow: `pr-preview-cleanup`
+The deployed smoke belongs to a separate shared preview workflow, not to `pull_request`. That
+workflow may use Neon and Hyperdrive, but it must target a bounded shared preview database/Worker
+pair rather than allocating resources per PR.
 
-Trigger: `pull_request` `closed`. Deletes the PR's Neon branch and tears down the preview deployment.
+### Preview deploy: `deploy-preview`
+
+Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. This deploys the bounded shared
+Preview environment (`insecur-runtime-preview` then `insecur-api-preview`) against the live Neon
+preview branch through the shared `insecur-nonprod` Hyperdrive config. Before deploy it applies
+tenant-store migrations with `PREVIEW_DATABASE_URL_MIGRATION`, seeds the smoke user admission, then
+syncs Worker secrets via `wrangler secret put`. The deploy fails if the migration URL is not a Neon
+URL so it cannot accidentally use Docker `.env.local`.
 
 ### Staging deploy: `deploy-staging`
 
@@ -516,7 +520,7 @@ Two distinct database credentials exist:
 - `DATABASE_URL_RUNTIME`: the `NOBYPASSRLS` runtime role. This is what `test:rls` and the running product use.
 - `DATABASE_URL_MIGRATION`: the elevated migration URL, used only to apply migrations.
 
-Locally and in CI's `postgres-integration` job, `pnpm dev:db:reset` provisions both roles on Docker Compose Postgres and writes both URLs to `.env.local`; in the gated `pr-preview` workflow the migration URL is the Neon branch connection string held as a CI secret.
+Locally and in CI's `postgres-integration` job, `pnpm dev:db:reset` provisions both roles on Docker Compose Postgres and writes both URLs to `.env.local`. PR validation uses these local credentials only.
 
 Connecting `test:rls` as the migration role silently disables RLS and turns the suite green while testing nothing (ADR-0054). The `postgres-integration` job must therefore run the `assert:rls-credentials` step before trusting `test:rls`, failing the build if either assertion does not hold:
 
@@ -525,7 +529,7 @@ Connecting `test:rls` as the migration role silently disables RLS and turns the 
 
 ## Fork Isolation
 
-A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. The gated `pr-preview` workflow guards every secret step on the PR not originating from a fork. An untrusted fork of a secrets manager must never touch a credential. `test:rls` is no longer secret-bearing: it runs against Docker Compose Postgres in the secretless `postgres-integration` job (ADR-0065), so it runs for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
+A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. There is no per-PR secret-bearing preview workflow. `test:rls` runs against Docker Compose Postgres in the secretless `postgres-integration` job (ADR-0065), so it runs for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
 
 ## Code Review Gate
 

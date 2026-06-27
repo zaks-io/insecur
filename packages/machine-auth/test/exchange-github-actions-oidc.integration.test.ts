@@ -19,8 +19,8 @@ import {
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
-const TEST_MACHINE_ID = "mach_00000000000000000000000001";
-const TEST_AUTH_METHOD_ID = "mauth_00000000000000000000000001";
+const TEST_MACHINE_ID = "mach_00000000000000000000000003";
+const TEST_AUTH_METHOD_ID = "mauth_00000000000000000000000003";
 const AUDIENCE = "insecur://oidc/github-actions";
 const SIGNING_SECRET = "integration-machine-access-signing-secret";
 const NOW = 1_700_000_000;

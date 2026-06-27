@@ -41,7 +41,6 @@ import {
 } from "./integration-helpers.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
-
 const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000071";
 
 async function loadLatestIssueDeniedAudit(organizationId: ReturnType<typeof testOrganization>) {

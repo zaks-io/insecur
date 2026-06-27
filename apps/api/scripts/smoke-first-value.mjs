@@ -7,8 +7,8 @@
 // surface in the real multi-deploy runtime.
 //
 // HARD-FAILS when unconfigured (no SMOKE_BASE_URL) because a smoke that silently passes
-// against nothing is worse than no smoke. This script is wired into the gated pr-preview
-// workflow, which itself stays opt-in until preview Workers + Hyperdrive are enabled.
+// against nothing is worse than no smoke. This script is reserved for a shared preview
+// deploy workflow, not pull_request workflows.
 //
 // Auth is self-minted, not a pasted bearer: a static token expires and turns the smoke
 // falsely red. We mint a short-TTL ephemeral session credential at run time exactly as

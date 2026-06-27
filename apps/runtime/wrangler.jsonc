@@ -38,15 +38,22 @@
       "id": "b44845027d2e40328efcbdd20bb9ea21",
     },
   ],
-  // Preview environment override for the gated pr-preview workflow. The per-PR Hyperdrive id is
-  // created at deploy time and patched into this placeholder by scripts/ci/patch-preview-wrangler.mjs;
-  // until PREVIEW_ENV_ENABLED is set this env is never deployed.
+  // Preview environment override for the shared preview deploy. PR workflows must not patch this
+  // config or create per-PR Hyperdrive configs.
   "env": {
     "preview": {
+      "name": "insecur-runtime-preview",
+      "secrets_store_secrets": [
+        {
+          "binding": "INSTANCE_ROOT_KEY_V1",
+          "store_id": "eb5941d60ebe470c95af9c8eb26cf874",
+          "secret_name": "INSECUR_NONPROD_INSTANCE_ROOT_KEY_V1",
+        },
+      ],
       "hyperdrive": [
         {
           "binding": "DB",
-          "id": "0000000000000000000000000000000a",
+          "id": "b44845027d2e40328efcbdd20bb9ea21",
         },
       ],
     },
