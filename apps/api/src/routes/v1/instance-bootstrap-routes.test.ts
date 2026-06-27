@@ -1,4 +1,8 @@
-import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
+import {
+  generateCsrfToken,
+  mintEphemeralSessionCredential,
+  testSessionSigningSecret,
+} from "@insecur/auth";
 import {
   AUTH_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
@@ -34,6 +38,7 @@ const workosUserId = WORKOS_USER_ID;
 const orgId = organizationId.brand("org_00000000000000000000000001");
 const operatorGrantId = "iop_00000000000000000000000001";
 const ownerMembershipIdValue = membershipId.brand("mem_00000000000000000000000001");
+const sealedSession = "sealed_bootstrap_cookie_auth_test";
 
 const statusPath = "/v1/instance/bootstrap/status";
 const claimPath = "/v1/instance/bootstrap/operator-claim";
@@ -46,6 +51,14 @@ const env = {
   INSTANCE_ID: "inst_LOCAL_DEV",
   RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
   RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
+  WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+    {
+      sessionData: sealedSession,
+      userId: workosUserId,
+      sessionId: "session_bootstrap_cookie",
+      authenticationMethod: "Passkey",
+    },
+  ]),
 };
 
 const awaitingClaimStatus = {
@@ -125,6 +138,28 @@ describe("instance bootstrap worker routes", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: claimBody("bootstrap-secret-material"),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: false, error: { code: AUTH_ERROR_CODES.required } });
+      expect(completeBootstrapOperatorClaim).not.toHaveBeenCalled();
+    });
+
+    it("rejects WorkOS cookie auth even with CSRF on mutation routes", async () => {
+      const csrf = generateCsrfToken();
+      const response = await app.request(
+        claimPath,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `wos-session=${sealedSession}; insecur_csrf=${csrf}`,
+            "x-insecur-csrf": csrf,
+          },
           body: claimBody("bootstrap-secret-material"),
         },
         env,

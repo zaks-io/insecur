@@ -14,16 +14,15 @@ export const requireUserActor = createMiddleware<{
   Bindings: AuthWorkerEnv;
   Variables: AuthVariables;
 }>(async (context, next) => {
-  const { config, workos, resolveAdmittedUser } = createAuthContext(context.env);
+  const { config, resolveAdmittedUser } = createAuthContext(context.env);
   const credentials = parseRequestCredentials({
     authorizationHeader: context.req.header("Authorization"),
-    cookieHeader: context.req.header("Cookie"),
-    csrfHeader: context.req.header("x-insecur-csrf"),
+    cookieHeader: null,
+    csrfHeader: null,
   });
   const resolved = await resolveUserActor({
     credentials,
     config,
-    workos,
     resolveAdmittedUser,
   });
   if (!resolved.ok) {
