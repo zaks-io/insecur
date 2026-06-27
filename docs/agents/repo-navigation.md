@@ -46,22 +46,30 @@ authoritative route → deploy table is
 [`docs/specs/deploy-route-inventory.md`](../specs/deploy-route-inventory.md); do not restate it
 here.
 
-| Area                                                           | Files                         |
-| -------------------------------------------------------------- | ----------------------------- |
-| Public API Worker: transport, routes, bindings, hop token      | `apps/api/`                   |
-| Private Runtime Worker: keyring/decrypt-egress, RuntimeService | `apps/runtime/`               |
-| Web Console BFF (deferred; not scaffolded yet, INS-201)        | `apps/web/` (planned)         |
-| Shared Worker composition glue (http/auth)                     | `packages/worker-kit/`        |
-| CLI parsing, local config, output, and child process execution | `packages/cli/`               |
-| Shared branded primitives and result vocabulary                | `packages/domain/`            |
-| Authorization and Effective Access                             | `packages/access/`            |
-| Tenant-scoped transactions and RLS adapter contract            | `packages/tenant-store/`      |
-| Keyring, envelope encryption, and ciphertext binding           | `packages/crypto/`            |
-| Metadata-only audit events                                     | `packages/audit/`             |
-| Secret Shape, Blind Secret Write, and Secret Version Store     | `packages/secret-store/`      |
-| Runtime Injection grants                                       | `packages/runtime-injection/` |
-| Guided Organization Provisioning                               | `packages/onboarding/`        |
-| Copyable First Value proof                                     | `examples/first-value-proof/` |
+| Area                                                           | Files                               |
+| -------------------------------------------------------------- | ----------------------------------- |
+| Public API Worker: transport, routes, bindings, hop token      | `apps/api/`                         |
+| Private Runtime Worker: keyring/decrypt-egress, RuntimeService | `apps/runtime/`                     |
+| Web Console BFF (deferred; not scaffolded yet, INS-201)        | `apps/web/` (planned)               |
+| Shared Worker composition glue (http/auth)                     | `packages/worker-kit/`              |
+| CLI parsing, local config, output, and child process execution | `packages/cli/`                     |
+| Shared branded primitives and result vocabulary                | `packages/domain/`                  |
+| Machine Identity auth method exchange                          | `packages/machine-auth/`            |
+| Authorization and Effective Access                             | `packages/access/`                  |
+| Tenant-scoped transactions and RLS adapter contract            | `packages/tenant-store/`            |
+| Plaintext-free custody and wrapped-material contracts          | `packages/custody-contracts/`       |
+| Keyring, envelope encryption, and ciphertext binding           | `packages/crypto/`                  |
+| Runtime-only tenant-backed Keyring composition                 | `packages/tenant-keyring/`          |
+| Metadata-only audit events                                     | `packages/audit/`                   |
+| Public-safe Secret Write validation and errors                 | `packages/secret-store-contracts/`  |
+| Secret Shape, Blind Secret Write, and Secret Version Store     | `packages/secret-store/`            |
+| Public-safe Runtime Injection grant issue path                 | `packages/runtime-injection-issue/` |
+| Runtime Injection grants                                       | `packages/runtime-injection/`       |
+| Guided Organization Provisioning                               | `packages/onboarding/`              |
+| Instance Bootstrap and Bootstrap Operator Claim                | `packages/instance-bootstrap/`      |
+| Operation Store and Sync Target Serialization                  | `packages/operations/`              |
+| Security Evidence Bundle assembly                              | `packages/release-gate/`            |
+| Copyable First Value proof                                     | `examples/first-value-proof/`       |
 
 For package work, read the package `CONTEXT.md` first, then load only the glossary slice and
 ADRs named by that local context.
@@ -108,3 +116,9 @@ no public `/v1/*` routes, reached only over the private `RUNTIME` Service Bindin
 mounts and [`docs/project-status.md`](../project-status.md) for a status snapshot — but treat that
 snapshot as lower authority than owning specs/ADRs and verified code when they disagree (per the
 Source Of Truth Rules in [`docs/specs/README.md`](../specs/README.md)).
+
+The package graph is likewise split by capability: public/API-facing packages use
+`@insecur/custody-contracts`, `@insecur/secret-store-contracts`, and
+`@insecur/runtime-injection-issue` instead of importing `@insecur/crypto`. The package-boundary
+conformance gate (`pnpm conformance:packages`, included in `pnpm verify`) fails any forbidden
+production dependency path from public/contract packages into `@insecur/crypto`.

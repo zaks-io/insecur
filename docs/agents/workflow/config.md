@@ -24,8 +24,8 @@ external systems (Linear, GitHub, CI), not here.
 - Branch prefix: `ins-<number>-<short-slug>` (one Linear issue per branch)
 - Package manager: pnpm@10.19.0 (corepack), Node `>=24 <25` (`engine-strict=true`)
 - Install: `pnpm install --frozen-lockfile`
-- Full local gate: `pnpm verify` (duplicate warnings + format:check + turbo lint typecheck test). `verify` does NOT include the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds lines 80 / fns 82 / stmts 80 / branches 62 in `vitest.config.ts`). Any PR touching covered packages must also pass `pnpm test:coverage`; CI runs it as its own `Coverage` job, and pre-push runs it locally, but the Cursor cloud worker skips push hooks, so run it explicitly before opening a PR.
-- Focused checks: `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
+- Full local gate: `pnpm verify` (duplicate warnings + blocking duplicate ratchet + knip + actionlint + deploy topology conformance + package-boundary conformance + format:check + turbo lint typecheck test). `verify` does NOT include the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds lines 80 / fns 82 / stmts 80 / branches 62 in `vitest.config.ts`). Any PR touching covered packages must also pass `pnpm test:coverage`; CI runs it as its own `Coverage` job, and pre-push runs it locally, but the Cursor cloud worker skips push hooks, so run it explicitly before opening a PR.
+- Focused checks: `pnpm conformance:packages`; `pnpm conformance:topology`; `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
 - Preview checks: no per-PR preview workflow; PR database validation is `CI` → `Postgres tests (integration + RLS + e2e)` using Docker Compose Postgres. Shared preview deploy is `Deploy Preview` / `pnpm deploy:preview`.
@@ -121,7 +121,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 - Authoritative issue state: Linear team `INS`
 - Authoritative PR state: GitHub `zaks-io/insecur`
-- Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow (its `Verify` job runs `pnpm verify`); duplicate-code CI annotations are warning-only for now
+- Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow; duplicate-code warning annotations are non-blocking, while the duplicate ratchet and package/deploy conformance gates are blocking in `pnpm verify`
 - Authoritative deploy state: Cloudflare (Workers `insecur-api` public edge + `insecur-runtime` private decrypt-egress)
 - Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)
@@ -154,7 +154,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - PR body: Summary, Changes, Risk, Test plan; metadata-only (no Sensitive Values)
 - Required checks: `pnpm verify` locally, plus `pnpm test:coverage` when the PR touches covered packages (the coverage ratchet is NOT part of `verify`; it is CI's separate `Coverage` job and the most common first-pass CI failure); run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
 - Code review: `workflow-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
-- CodeRabbit: not wired; escalate to `/code-review ultra` or human for high-risk PRs
+- CodeRabbit: configured through `.coderabbit.yaml`; auto-review is disabled, including drafts, so request a hosted review only when the local review recommends CodeRabbit escalation or a human explicitly asks for it
 - Issue update: Agent Orchestrator moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
 - Merge authority: see Work Coordination — Agent Orchestrator squash-merges on dual-reviewer PASS at the pinned head SHA with CI green; human merge reserved for production crypto/credential/schema runtime changes, unclean reviews, and stale PRs needing rebase
 
