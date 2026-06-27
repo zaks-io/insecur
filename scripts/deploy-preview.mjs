@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -25,15 +33,15 @@ if (options.check) {
 await main(config);
 
 async function main(config) {
+  buildWorkspace();
   migrateAndSeed(config);
-  deployWorker(runtimeConfig);
-  syncSecrets(runtimeConfig, ["RUNTIME_TOKEN_SIGNING_SECRET"], config);
-  deployWorker(apiConfig, [
-    ["INSTANCE_ID", config.instanceId],
-    ["WORKOS_CLIENT_ID", config.workosClientId],
-  ]);
-  syncSecrets(
+  deployWorker(runtimeConfig, [], ["RUNTIME_TOKEN_SIGNING_SECRET"], config);
+  deployWorker(
     apiConfig,
+    [
+      ["INSTANCE_ID", config.instanceId],
+      ["WORKOS_CLIENT_ID", config.workosClientId],
+    ],
     [
       "SESSION_SIGNING_SECRET",
       "RUNTIME_TOKEN_SIGNING_SECRET",
@@ -50,6 +58,10 @@ async function main(config) {
     await waitForHealthz(config.baseUrl);
     runSmoke(config);
   }
+}
+
+function buildWorkspace() {
+  run("pnpm", ["build"], process.env);
 }
 
 function migrateAndSeed(config) {
@@ -74,27 +86,40 @@ function migrateAndSeed(config) {
   );
 }
 
-function deployWorker(configPath, vars = []) {
+function deployWorker(configPath, vars = [], secretKeys = [], config) {
   const args = ["exec", "wrangler", "deploy", "--config", configPath, "--env", "preview"];
   for (const [key, value] of vars) {
     args.push("--var", `${key}:${value}`);
   }
-  run("pnpm", args, process.env);
+
+  let secretsDir;
+  try {
+    if (secretKeys.length > 0) {
+      secretsDir = mkdtempSync(join(tmpdir(), "insecur-preview-secrets-"));
+      const secretsPath = join(secretsDir, "secrets.json");
+      writeFileSync(secretsPath, JSON.stringify(readSecretValues(secretKeys, config)), {
+        mode: 0o600,
+      });
+      args.push("--secrets-file", secretsPath);
+    }
+    run("pnpm", args, process.env);
+  } finally {
+    if (secretsDir) {
+      rmSync(secretsDir, { force: true, recursive: true });
+    }
+  }
 }
 
-function syncSecrets(configPath, keys, config) {
-  for (const key of keys) {
-    const value = config.secrets.get(key);
-    if (!value) {
-      throw new Error(`${key} is required`);
-    }
-    run(
-      "pnpm",
-      ["exec", "wrangler", "secret", "put", key, "--config", configPath, "--env", "preview"],
-      process.env,
-      `${value}\n`,
-    );
-  }
+function readSecretValues(keys, config) {
+  return Object.fromEntries(
+    keys.map((key) => {
+      const value = config.secrets.get(key);
+      if (!value) {
+        throw new Error(`${key} is required`);
+      }
+      return [key, value];
+    }),
+  );
 }
 
 function runSmoke(config) {
@@ -224,7 +249,7 @@ function run(command, args, env, input) {
     stdio: input === undefined ? "inherit" : ["pipe", "inherit", "inherit"],
   });
   if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status ?? 1}`);
   }
 }
 

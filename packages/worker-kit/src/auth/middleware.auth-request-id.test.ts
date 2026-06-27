@@ -1,5 +1,5 @@
-import { organizationId } from "@insecur/domain";
-import { testSessionSigningSecret } from "@insecur/auth";
+import { organizationId, userId } from "@insecur/domain";
+import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
@@ -35,8 +35,8 @@ const mockedLoadAnchorOrg = vi.mocked(loadInstanceAnchorOrganizationId);
 
 const instanceId = "inst_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
 const workosUserId = "user_not_admitted";
+const deniedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5F");
 const anchorOrg = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
-const sealedSession = "sealed_not_admitted";
 
 const env: AuthWorkerEnv = {
   WORKOS_API_KEY: "sk_test",
@@ -44,15 +44,20 @@ const env: AuthWorkerEnv = {
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   INSTANCE_ID: instanceId,
-  WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-    {
-      sessionData: sealedSession,
-      userId: workosUserId,
-      sessionId: "session_x",
-      authenticationMethod: "Passkey",
-    },
-  ]),
 };
+
+async function deniedBearerHeaders(): Promise<Record<string, string>> {
+  const minted = await mintEphemeralSessionCredential({
+    actor: {
+      type: "user",
+      userId: deniedUserId,
+      workosUserId,
+      sessionId: "session_not_admitted",
+    },
+    signingSecret: env.SESSION_SIGNING_SECRET,
+  });
+  return { Authorization: `Bearer ${minted.credential}` };
+}
 
 function createAuthFailureApp(): Hono<{ Bindings: AuthWorkerEnv }> {
   const app = new Hono<{ Bindings: AuthWorkerEnv }>();
@@ -89,7 +94,7 @@ describe("requireUserActor admission-denied request id", () => {
     const app = createAuthFailureApp();
     const response = await app.request(
       "/protected",
-      { method: "GET", headers: { Cookie: `wos-session=${sealedSession}` } },
+      { method: "GET", headers: await deniedBearerHeaders() },
       env,
     );
 
@@ -112,7 +117,7 @@ describe("requireUserActor admission-denied request id", () => {
     const app = createAuthFailureApp();
     const response = await app.request(
       "/protected",
-      { method: "GET", headers: { Cookie: `wos-session=${sealedSession}` } },
+      { method: "GET", headers: await deniedBearerHeaders() },
       env,
     );
 
