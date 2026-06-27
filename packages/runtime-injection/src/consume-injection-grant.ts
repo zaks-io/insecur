@@ -20,11 +20,7 @@ import {
   withTenantScope,
 } from "@insecur/tenant-store";
 
-import {
-  assertHoldsConsumeScope,
-  assertRuntimeInjectionAccess,
-  CONSUME_SCOPE,
-} from "./assert-runtime-injection-access.js";
+import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-injection-access.js";
 import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
@@ -108,8 +104,21 @@ export async function executeConsumeInjectionGrant(
   input: ConsumeInjectionGrantCoreInput,
   loaded: LoadedGrantBinding | undefined,
 ): Promise<ConsumeInjectionGrantCoreResult> {
+  assertUserActorForConsume(input.actor);
+
+  // A consume grant pins its own project/environment, so the authorization coordinate is only known
+  // after the grant loads. A not-found grant therefore cannot be authorized, and surfacing
+  // `grant_denied` here would let a caller distinguish "grant absent" from "grant present but I lack
+  // scope" (which the per-coordinate check below returns as `insufficient_scope`). Both collapse to
+  // `insufficient_scope` so the consume path is not a grant-existence oracle (mirrors the issuance
+  // pre-check, INS-181). Authorizing at the grant's real coordinate — not a coarse org coordinate —
+  // is what keeps a legitimately project-scoped consumer (e.g. the developer preset) from being
+  // wrongly denied for a valid grant in their own project.
   if (!loaded) {
-    throw new InjectionGrantError(INJECTION_ERROR_CODES.grantDenied, "injection grant not found");
+    throw new InjectionGrantError(
+      AUTH_ERROR_CODES.insufficientScope,
+      "injection grant consume denied",
+    );
   }
 
   const grantCoordinate: GrantCoordinate = {
@@ -117,8 +126,6 @@ export async function executeConsumeInjectionGrant(
     projectId: loaded.projectId,
     environmentId: loaded.environmentId,
   };
-
-  assertUserActorForConsume(input.actor);
 
   await assertRuntimeInjectionAccess(
     { type: "user", userId: auditActorUserId(input.actor) },
@@ -215,24 +222,6 @@ export async function recordDeniedConsume(
 export async function consumeInjectionGrantWithAudit(
   input: ConsumeInjectionGrantCoreInput,
 ): Promise<ConsumeInjectionGrantCoreResult> {
-  try {
-    // Fail closed before the grant is read: an actor lacking consume scope at the organization must
-    // not be able to distinguish a present grant (insufficient_scope after load) from an absent one
-    // (grant_denied). The coarse org-level gate collapses both to insufficient_scope so the consume
-    // path is not a grant-existence oracle, mirroring the issuance pre-check (INS-181). The precise
-    // per-coordinate consume check still runs inside executeConsumeInjectionGrant.
-    assertUserActorForConsume(input.actor);
-    await assertHoldsConsumeScope(
-      { type: "user", userId: auditActorUserId(input.actor) },
-      { organizationId: input.organizationId },
-    );
-  } catch (error) {
-    if (error instanceof InjectionGrantError) {
-      await recordDeniedConsume(input, error.code).catch(() => undefined);
-    }
-    throw error;
-  }
-
   const loaded = await loadGrantBinding(input.organizationId, input.grantId);
   const coordinate = loaded
     ? { projectId: loaded.projectId, environmentId: loaded.environmentId }
