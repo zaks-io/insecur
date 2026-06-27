@@ -42,6 +42,10 @@
       "dependsOn": ["topo", "^build"],
       "outputs": []
     },
+    "@insecur/crypto#test": {
+      "dependsOn": ["topo", "^build", "@insecur/runtime-injection#build"],
+      "outputs": []
+    },
     "test:rls": {
       "dependsOn": ["topo", "^build", "build"],
       "cache": false,

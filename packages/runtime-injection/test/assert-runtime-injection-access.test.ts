@@ -1,3 +1,4 @@
+import * as access from "@insecur/access";
 import { AUTHORIZATION_SCOPES, type LoadMembershipsFn } from "@insecur/access";
 import {
   AUTH_ERROR_CODES,
@@ -9,6 +10,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  assertHoldsAnyIssuanceScope,
   assertRuntimeInjectionAccess,
   resolveIssueGrantRequiredScope,
 } from "../src/assert-runtime-injection-access.js";
@@ -70,6 +72,56 @@ describe("assertRuntimeInjectionAccess", () => {
         AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected,
         { loadMemberships },
       ),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+  });
+});
+
+describe("assertHoldsAnyIssuanceScope", () => {
+  const coordinate = { organizationId: ORG, projectId: PROJECT, environmentId: ENV };
+
+  it("passes when effective access includes only the non-protected issuance atom", async () => {
+    await expect(
+      assertHoldsAnyIssuanceScope({ type: "user", userId: ACTOR_USER }, coordinate, {
+        loadMemberships: vi.fn(async () => [
+          {
+            membershipId: "mem_owner" as never,
+            organizationId: ORG,
+            projectId: PROJECT,
+            userId: ACTOR_USER,
+            rolePreset: "owner",
+          },
+        ]),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("passes when effective access includes only the protected issuance atom", async () => {
+    const resolveSpy = vi.spyOn(access, "resolveEffectiveAccess").mockResolvedValueOnce({
+      scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+    });
+
+    try {
+      await expect(
+        assertHoldsAnyIssuanceScope({ type: "user", userId: ACTOR_USER }, coordinate),
+      ).resolves.toBeUndefined();
+    } finally {
+      resolveSpy.mockRestore();
+    }
+  });
+
+  it("fails closed when effective access includes neither issuance atom", async () => {
+    await expect(
+      assertHoldsAnyIssuanceScope({ type: "user", userId: ACTOR_USER }, coordinate, {
+        loadMemberships: vi.fn(async () => [
+          {
+            membershipId: "mem_read" as never,
+            organizationId: ORG,
+            projectId: PROJECT,
+            userId: ACTOR_USER,
+            rolePreset: "read_only",
+          },
+        ]),
+      }),
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
   });
 });
