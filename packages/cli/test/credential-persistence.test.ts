@@ -93,6 +93,7 @@ describe("no credential persistence", () => {
     await runLoginCommand(flags, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
+      shell: false,
     });
     expect(getMemorySession()?.credential).toBe(sensitiveCredential);
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
@@ -107,6 +108,7 @@ describe("no credential persistence", () => {
     await runLoginCommand(flags, createMockApi(), mockContext(), {
       cookieEnv: "INSECUR_WORKOS_COOKIE",
       csrfEnv: "INSECUR_WORKOS_CSRF",
+      shell: false,
     });
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
     const isolatedHome = await createIsolatedHome("insecur-cli-init-home-");

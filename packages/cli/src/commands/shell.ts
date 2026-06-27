@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { successEnvelope, type ResolvedTargetEcho } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
@@ -7,16 +6,7 @@ import { requireSessionCredential } from "../auth/require-session.js";
 import { renderSuccess } from "../output/render.js";
 import { asEchoId } from "../output/target-echo.js";
 import { buildShellChildEnv, shellProfileSummary } from "./shell-env.js";
-
-function runInteractiveShell(shell: string, childEnv: NodeJS.ProcessEnv): Promise<number> {
-  return new Promise<number>((resolve, reject) => {
-    const child = spawn(shell, [], { env: childEnv, stdio: "inherit", shell: false });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      resolve(code ?? 0);
-    });
-  });
-}
+import { resolveInteractiveShell, runInteractiveShell } from "./managed-shell.js";
 
 export async function runShellCommand(
   flags: GlobalCliFlags,
@@ -49,6 +39,5 @@ export async function runShellCommand(
   if (!flags.quiet) {
     process.stdout.write(`${shellProfileSummary(profileId, profile)}\n`);
   }
-  const shell = process.env.SHELL ?? "/bin/bash";
-  return runInteractiveShell(shell, buildShellChildEnv(credential, profile));
+  return runInteractiveShell(resolveInteractiveShell(), buildShellChildEnv(credential, profile));
 }
