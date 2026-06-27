@@ -65,7 +65,7 @@ describe("shell command registration", () => {
           profileSlug: "local-dev",
         },
       });
-      expect(parsed.data.host).toMatch(/^https:\/\//);
+      expect(parsed.data.host).toBe("https://insecur.test");
     } finally {
       isolatedHome.restore();
     }

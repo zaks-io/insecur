@@ -27,25 +27,31 @@ context for a specific task.
 | ------------------------- | -------------------------------------------------------------------------------------------------- |
 | `apps/api/CONTEXT.md`     | Working on the public API Worker: routes, request composition, bindings, API transport, hop token. |
 | `apps/runtime/CONTEXT.md` | Working on the private Runtime Worker: the keyring/decrypt-egress deploy and `RuntimeService` RPC. |
-| `packages/cli/CONTEXT.md` | Working on CLI commands, local config, safe input, output formatting, or child process execution.  |
 
-## Scaffolded Package Contexts
+## Package Contexts
 
-| Path                                     | Module                                                         |
-| ---------------------------------------- | -------------------------------------------------------------- |
-| `packages/domain/CONTEXT.md`             | Shared domain primitives and stable vocabulary shapes.         |
-| `packages/token-signing/CONTEXT.md`      | Shared HS256/HMAC signed-token codec for auth modules.         |
-| `packages/auth/CONTEXT.md`               | Human authentication sessions and User actor context.          |
-| `packages/access/CONTEXT.md`             | Effective Access Resolver and scope-first authorization.       |
-| `packages/tenant-store/CONTEXT.md`       | Tenant-Scoped Store and metadata isolation.                    |
-| `packages/crypto/CONTEXT.md`             | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
-| `packages/audit/CONTEXT.md`              | Audit Event Writer and metadata-only audit records.            |
-| `packages/secret-store/CONTEXT.md`       | Secret Version Store and Blind Secret Write rules.             |
-| `packages/runtime-injection/CONTEXT.md`  | Runtime Injection Grant Service.                               |
-| `packages/onboarding/CONTEXT.md`         | Guided Organization Provisioning.                              |
-| `packages/release-gate/CONTEXT.md`       | Security Evidence Bundle assembly and release-gate skeleton.   |
-| `packages/instance-bootstrap/CONTEXT.md` | Instance Bootstrap and Bootstrap Operator Claim.               |
-| `packages/operations/CONTEXT.md`         | Operation Store and Sync Target Serialization.                 |
+| Path                                          | Module                                                         |
+| --------------------------------------------- | -------------------------------------------------------------- |
+| `packages/domain/CONTEXT.md`                  | Shared domain primitives and stable vocabulary shapes.         |
+| `packages/token-signing/CONTEXT.md`           | Shared HS256/HMAC signed-token codec for auth modules.         |
+| `packages/auth/CONTEXT.md`                    | Human authentication sessions and User actor context.          |
+| `packages/machine-auth/CONTEXT.md`            | Machine Identity auth method exchange and OIDC trust matching. |
+| `packages/access/CONTEXT.md`                  | Effective Access Resolver and scope-first authorization.       |
+| `packages/tenant-store/CONTEXT.md`            | Tenant-Scoped Store and metadata isolation.                    |
+| `packages/custody-contracts/CONTEXT.md`       | Plaintext-free custody and wrapped-material contracts.         |
+| `packages/crypto/CONTEXT.md`                  | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
+| `packages/tenant-keyring/CONTEXT.md`          | Runtime-only tenant-backed Keyring composition.                |
+| `packages/audit/CONTEXT.md`                   | Audit Event Writer and metadata-only audit records.            |
+| `packages/secret-store/CONTEXT.md`            | Secret Version Store and Blind Secret Write rules.             |
+| `packages/secret-store-contracts/CONTEXT.md`  | Public-safe Secret Write validation and error contracts.       |
+| `packages/runtime-injection-issue/CONTEXT.md` | Public-safe Injection Grant issue path and selector contracts. |
+| `packages/runtime-injection/CONTEXT.md`       | Runtime Injection Grant Service.                               |
+| `packages/onboarding/CONTEXT.md`              | Guided Organization Provisioning.                              |
+| `packages/release-gate/CONTEXT.md`            | Security Evidence Bundle assembly and release-gate skeleton.   |
+| `packages/instance-bootstrap/CONTEXT.md`      | Instance Bootstrap and Bootstrap Operator Claim.               |
+| `packages/operations/CONTEXT.md`              | Operation Store and Sync Target Serialization.                 |
+| `packages/worker-kit/CONTEXT.md`              | Shared Worker HTTP/auth/RPC composition glue.                  |
+| `packages/cli/CONTEXT.md`                     | CLI commands, local config, safe input, and child execution.   |
 
 ## Reading Rules
 

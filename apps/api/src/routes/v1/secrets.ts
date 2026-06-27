@@ -15,8 +15,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { RequestId } from "@insecur/domain";
 import type { ApiEnv } from "../../env.js";
-import { mintRuntimeHopToken } from "../../rpc/mint-hop-token.js";
-import { unwrapRuntimeResult } from "../../rpc/unwrap-runtime-result.js";
+import { writeRuntimeSecret } from "../../rpc/runtime-caller.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
 export const secretsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
@@ -40,23 +39,19 @@ async function executeSecretWriteByVariableKey(
   assertSafeSecretValueIngress("valueUtf8" in parsed ? "request_body" : "generated");
   rejectNamedLocalValueFile(parsed.localValueFile);
 
-  const actorToken = await mintRuntimeHopToken(context.env, userActor);
   const writeInput =
     "valueUtf8" in parsed ? { valueUtf8: parsed.valueUtf8 } : { generate: parsed.generate };
 
-  return unwrapRuntimeResult(
-    await context.env.RUNTIME.writeSecret({
-      organizationId,
-      projectId,
-      environmentId,
-      variableKey: parsed.variableKey,
-      ...writeInput,
-      requestId: reqId,
-      actorToken,
-      ...(parsed.allowEmpty !== undefined ? { allowEmpty: parsed.allowEmpty } : {}),
-      ...(parsed.secretId !== undefined ? { secretId: parsed.secretId } : {}),
-    }),
-  );
+  return writeRuntimeSecret(context.env, userActor, {
+    organizationId,
+    projectId,
+    environmentId,
+    variableKey: parsed.variableKey,
+    ...writeInput,
+    requestId: reqId,
+    ...(parsed.allowEmpty !== undefined ? { allowEmpty: parsed.allowEmpty } : {}),
+    ...(parsed.secretId !== undefined ? { secretId: parsed.secretId } : {}),
+  });
 }
 
 secretsRoutes.post(
