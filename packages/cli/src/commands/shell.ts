@@ -29,7 +29,7 @@ export async function runShellCommand(
     { selector: profileSelector },
     { required: true },
   );
-  const { host } = context.scope;
+  const { host } = profile;
   const resolvedTargets: ResolvedTargetEcho[] = [
     {
       type: "cli_profile",
