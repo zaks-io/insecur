@@ -57,13 +57,14 @@ jobs:
           PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
           SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          SMOKE_INPUT: ${{ inputs.smoke }}
           SMOKE_ADMITTED_USER_ID: ${{ vars.SMOKE_ADMITTED_USER_ID }}
           SMOKE_WORKOS_USER_ID: ${{ vars.SMOKE_WORKOS_USER_ID }}
           WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
           WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
           WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
         run: |
-          if [ "${{ inputs.smoke }}" = "false" ]; then
+          if [ "$SMOKE_INPUT" = "false" ]; then
             pnpm deploy:preview --skip-smoke
           else
             pnpm deploy:preview
