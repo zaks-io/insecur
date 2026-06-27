@@ -10,8 +10,10 @@ import {
 import { toStoreFacingCiphertext } from "./envelope-storage.js";
 import type { Keyring } from "./keyring.js";
 import type { SecretCiphertextIdentity } from "./types.js";
+import type { WrappedSecretValue } from "@insecur/custody-contracts";
 
 export { serializeDekWrapAad };
+export type { WrappedSecretValue } from "@insecur/custody-contracts";
 
 /**
  * Canonical ciphertext-layer AAD for Secret records.
@@ -42,18 +44,6 @@ export function identityMatches(
     left.environmentId === right.environmentId &&
     left.secretId === right.secretId
   );
-}
-
-/** Wrapped material returned to callers; never plaintext at rest. */
-export interface WrappedSecretValue {
-  organizationDataKeyVersion: number;
-  projectDataKeyVersion: number;
-  ciphertext: Uint8Array;
-  /**
-   * Optional encrypt-path echo. Persisted Secret Version rows store only
-   * key-version columns and ciphertext bytes.
-   */
-  identity?: SecretCiphertextIdentity;
 }
 
 /**

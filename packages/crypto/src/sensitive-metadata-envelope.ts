@@ -11,6 +11,9 @@ import { toStoreFacingCiphertext } from "./envelope-storage.js";
 import type { Keyring } from "./keyring.js";
 import type { ProjectId } from "@insecur/domain";
 import type { SensitiveMetadataCiphertextIdentity } from "./types.js";
+import type { WrappedSensitiveMetadata } from "@insecur/custody-contracts";
+
+export type { WrappedSensitiveMetadata } from "@insecur/custody-contracts";
 
 export function isOrganizationScopedSensitiveMetadata(
   identity: SensitiveMetadataCiphertextIdentity,
@@ -43,13 +46,6 @@ export function sensitiveMetadataIdentityMatches(
     left.recordResourceId === right.recordResourceId &&
     left.fieldKey === right.fieldKey
   );
-}
-
-export interface WrappedSensitiveMetadata {
-  organizationDataKeyVersion: number;
-  projectDataKeyVersion: number | null;
-  ciphertext: Uint8Array;
-  identity?: SensitiveMetadataCiphertextIdentity;
 }
 
 function requireProjectScope(identity: SensitiveMetadataCiphertextIdentity): ProjectId {

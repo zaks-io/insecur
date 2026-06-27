@@ -15,7 +15,7 @@ describe("safe secret value ingress", () => {
     expect(() => assertSafeSecretValueIngress("masked_prompt")).not.toThrow();
   });
 
-  it("rejects argv, query, file, and named local value file ingress", () => {
+  it("rejects argv, query, file, named local value file, and unknown ingress", () => {
     for (const ingress of [
       "argv",
       "query",
@@ -23,6 +23,8 @@ describe("safe secret value ingress", () => {
       "named_local_value_file",
       "get_request",
       "route_param",
+      "stdinn",
+      "request-body",
     ]) {
       expect(() => assertSafeSecretValueIngress(ingress)).toThrow(SecretWriteError);
       try {

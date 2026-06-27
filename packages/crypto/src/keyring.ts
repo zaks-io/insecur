@@ -1,6 +1,7 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
+import type { KeyVersion, TenantDataKeyRewrapStore } from "@insecur/custody-contracts";
 
-import type { RewrapTenantDataKeysInput, TenantDataKeyRewrapStore } from "./data-key-rewrap.js";
+import type { RewrapTenantDataKeysInput } from "./data-key-rewrap.js";
 import { rewrapTenantDataKeys } from "./data-key-rewrap.js";
 import {
   unwrapOrganizationDataKey,
@@ -14,8 +15,6 @@ export {
   unwrapProjectDataKey,
   WrappedDefaultTenantDataKeySource,
 } from "./keyring-unwrap.js";
-
-export type KeyVersion = number;
 
 export interface RootKeyProvider {
   getRootKeyBytes(version: KeyVersion): Promise<Uint8Array>;
@@ -196,4 +195,4 @@ export function createKeyring(rootKeyBytes: Uint8Array): Keyring {
   return new Keyring(rootKeyProvider, new WrappedDefaultTenantDataKeySource(rootKeyProvider));
 }
 
-export type { TenantDataKeyRewrapStore };
+export type { KeyVersion, TenantDataKeyRewrapStore } from "@insecur/custody-contracts";

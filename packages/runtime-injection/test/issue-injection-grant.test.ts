@@ -3,7 +3,7 @@ import {
   resolveEffectiveAccess,
   type LoadMembershipsFn,
 } from "@insecur/access";
-import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES } from "@insecur/domain";
+import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES, machineIdentityId } from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
 import {
   ProjectEnvironmentCoordinateError,
@@ -41,6 +41,9 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   class MockTenantInjectionGrantStore {
     insertGrant = vi.fn().mockResolvedValue(undefined);
   }
+  class MockTenantSecretVersionStore {
+    getCurrentVersion = vi.fn().mockResolvedValue({ secretVersionId: "sv_test" });
+  }
   const withTenantScope = vi.fn(
     async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => fn({ db: {} }),
   );
@@ -69,7 +72,12 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
       }
     }),
     TenantInjectionGrantStore: MockTenantInjectionGrantStore,
+    TenantSecretVersionStore: MockTenantSecretVersionStore,
     ProjectEnvironmentCoordinateError: actual.ProjectEnvironmentCoordinateError,
+    resolveSecretForRead: vi.fn().mockResolvedValue({
+      secretId: "sec_test",
+      variableKey: "TEST_KEY",
+    }),
   };
 });
 
@@ -83,14 +91,6 @@ vi.mock("@insecur/access", async (importOriginal) => {
     }),
   };
 });
-
-vi.mock("../src/resolve-injection-grant-bindings.js", () => ({
-  resolveInjectionGrantBinding: vi.fn().mockResolvedValue({
-    secretId: "sec_test",
-    secretVersionId: "sv_test",
-    variableKey: "TEST_KEY",
-  }),
-}));
 
 vi.mock("@insecur/audit", () => ({
   auditActorUserId: (actor: { userId: string }) => actor.userId,
@@ -183,6 +183,19 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     expect(result.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
     expect(result.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(result.auditEventId).toBe("aud_test");
+  });
+
+  it("rejects non-user actors before access checks", async () => {
+    await expect(
+      executeIssueInjectionGrant({
+        ...baseInput,
+        actor: {
+          type: "machine",
+          machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+        },
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
   });
 
   it("records insufficient_scope denial through issueInjectionGrantWithAudit", async () => {

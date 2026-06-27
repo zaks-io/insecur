@@ -1,8 +1,7 @@
 import type { OrganizationId, ProjectId } from "@insecur/domain";
+import type { DataKeyVersionStatus } from "@insecur/custody-contracts";
 
-export const DATA_KEY_VERSION_STATUSES = ["active", "retired", "revoked"] as const;
-
-export type DataKeyVersionStatus = (typeof DATA_KEY_VERSION_STATUSES)[number];
+export { DATA_KEY_VERSION_STATUSES, type DataKeyVersionStatus } from "@insecur/custody-contracts";
 
 export interface OrganizationDataKeyRow {
   id: string;

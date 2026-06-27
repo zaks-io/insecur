@@ -10,8 +10,8 @@ import {
 } from "@insecur/domain";
 import { GuidedOrganizationProvisionError } from "@insecur/onboarding";
 import { OperationStoreError } from "@insecur/operations";
-import { InjectionGrantError } from "@insecur/runtime-injection";
-import { SecretWriteError } from "@insecur/secret-store";
+import { InjectionGrantError } from "@insecur/runtime-injection-issue";
+import { SecretWriteError } from "@insecur/secret-store-contracts";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
 import { HTTP_STATUS_BY_CODE } from "./http-status-by-code.js";
 

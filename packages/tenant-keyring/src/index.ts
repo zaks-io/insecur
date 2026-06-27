@@ -3,11 +3,10 @@ import {
   PersistingMetadataTenantDataKeySource,
   type RootKeyProvider,
 } from "@insecur/crypto";
-
 import {
   createTenantDataKeyMetadataAccess,
-  TenantScopedDataKeyMetadataAccess,
-} from "./tenant-scoped-data-key-metadata.js";
+  type TenantScopedDataKeyMetadataAccess,
+} from "@insecur/tenant-store";
 
 /** Production keyring that unwraps wrapped DEKs from tenant-scoped Postgres metadata. */
 export function createTenantBackedKeyring(rootKeyProvider: RootKeyProvider): Keyring {

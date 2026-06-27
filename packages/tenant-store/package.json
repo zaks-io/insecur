@@ -26,13 +26,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@insecur/crypto": "workspace:*",
+    "@insecur/custody-contracts": "workspace:*",
     "@insecur/domain": "workspace:*",
     "drizzle-orm": "catalog:",
     "postgres": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@insecur/crypto": "workspace:*",
     "drizzle-kit": "catalog:",
     "eslint": "catalog:",
     "tsx": "catalog:",

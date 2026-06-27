@@ -1,7 +1,7 @@
 import type {
   TenantDataKeyMetadataProvisioner,
   TenantDataKeyMetadataReader,
-} from "@insecur/crypto";
+} from "@insecur/custody-contracts";
 import type { OrganizationId, ProjectId } from "@insecur/domain";
 
 import { TenantDataKeyMetadataStore } from "./tenant-data-key-metadata-store.js";

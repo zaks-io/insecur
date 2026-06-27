@@ -19,6 +19,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@insecur/custody-contracts": "workspace:*",
     "@insecur/domain": "workspace:*"
   },
   "devDependencies": {

@@ -7,7 +7,7 @@ import {
   type RootKeyProvider,
   type SecretsStoreSecretBinding,
 } from "@insecur/crypto";
-import { createTenantBackedKeyring } from "@insecur/tenant-store";
+import { createTenantBackedKeyring } from "@insecur/tenant-keyring";
 
 import type { RuntimeEnv } from "../env.js";
 

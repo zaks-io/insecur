@@ -1,4 +1,7 @@
-import { assertSafeSecretValueIngress, rejectNamedLocalValueFile } from "@insecur/secret-store";
+import {
+  assertSafeSecretValueIngress,
+  rejectNamedLocalValueFile,
+} from "@insecur/secret-store-contracts";
 import {
   handleRoute,
   parseEnvironmentIdParam,

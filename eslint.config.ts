@@ -134,8 +134,8 @@ export default tseslint.config(
       "packages/access/test/**/*.ts",
       "packages/access/vitest.config.ts",
       "packages/access/vitest.rls.config.ts",
-      "packages/secret-store/test/**/*.ts",
-      "packages/secret-store/vitest.config.ts",
+      "packages/secret-store{,-contracts}/test/**/*.ts",
+      "packages/secret-store{,-contracts}/vitest.config.ts",
       "packages/runtime-injection/test/**/*.ts",
       "packages/runtime-injection/vitest.config.ts",
       "packages/audit/test/**/*.ts",
@@ -202,7 +202,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/secret-store/src/is-valid-utf8.ts"],
+    files: ["packages/secret-store-contracts/src/is-valid-utf8.ts"],
     rules: {
       complexity: "off",
       "max-lines-per-function": "off",

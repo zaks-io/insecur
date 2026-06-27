@@ -3,7 +3,7 @@ import type {
   SensitiveMetadataFieldKey,
   SensitiveMetadataType,
   WrappedSensitiveMetadata,
-} from "@insecur/crypto";
+} from "@insecur/custody-contracts";
 
 export interface UpsertSensitiveMetadataInput {
   readonly organizationId: OrganizationId;

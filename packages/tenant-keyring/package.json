@@ -1,0 +1,30 @@
+{
+  "name": "@insecur/tenant-keyring",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "topo": "node -e \"\"",
+    "build": "tsc",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@insecur/crypto": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
+  },
+  "devDependencies": {
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

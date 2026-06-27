@@ -1,5 +1,5 @@
 import type { AppConnectionId, OrganizationId, ProviderCredentialId } from "@insecur/domain";
-import { toStoreFacingCiphertext } from "@insecur/crypto";
+import { toStoreFacingCiphertext } from "@insecur/custody-contracts";
 import { and, eq } from "drizzle-orm";
 
 import { providerCredentials } from "../db/schema/tenant-integrations.js";
