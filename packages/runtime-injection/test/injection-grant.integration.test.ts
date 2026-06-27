@@ -3,6 +3,7 @@ import {
   AUTH_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
   brandValue,
+  ENVIRONMENT_LIFECYCLE_STAGES,
   environmentId,
   injectionGrantId,
   INJECTION_ERROR_CODES,
@@ -11,7 +12,11 @@ import {
   type VariableKey,
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
+import {
+  closeRuntimeSql,
+  TenantEnvironmentLifecycleStore,
+  withTenantScope,
+} from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
@@ -24,6 +29,7 @@ import {
   uniqueVariableKey,
   writeTestSecret,
 } from "../../secret-store/test/integration-helpers.js";
+import { testDisplayName } from "../../secret-store/test/test-display-name.js";
 
 import { InjectionGrantError } from "../src/injection-grant-error.js";
 import { consumeInjectionGrant, issueInjectionGrant } from "../src/injection-grants.js";
@@ -35,6 +41,8 @@ import {
 } from "./integration-helpers.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
+
+const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000071";
 
 async function loadLatestIssueDeniedAudit(organizationId: ReturnType<typeof testOrganization>) {
   return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
@@ -421,14 +429,18 @@ describeIntegration("Runtime Injection Grant Service", () => {
   it("denies protected-environment issue with insufficient scope when grant_issue_protected is absent", async () => {
     const org = testOrganization();
     const variableKey = uniqueVariableKey("FV11_PROTECTED");
-    await writeTestSecret(variableKey, new TextEncoder().encode("protected-env"));
+    const protectedEnvironmentId = environmentId.brand(PREVIEW_PROTECTED_ENV_ID);
 
-    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
-      await sql`
-        UPDATE environments
-        SET is_protected = true
-        WHERE id = ${testEnvironment()}
-      `;
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ db, sql }) => {
+      await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+      const store = new TenantEnvironmentLifecycleStore(db);
+      await store.create({
+        organizationId: org,
+        projectId: testProject(),
+        environmentId: protectedEnvironmentId,
+        displayName: testDisplayName("Protected Preview"),
+        lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.preview,
+      });
     });
 
     try {
@@ -436,7 +448,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
         issueInjectionGrant({
           organizationId: org,
           projectId: testProject(),
-          environmentId: testEnvironment(),
+          environmentId: protectedEnvironmentId,
           selector: { kind: "variable_key", variableKey },
           actor: testActor(),
         }),
@@ -448,11 +460,7 @@ describeIntegration("Runtime Injection Grant Service", () => {
       expect(deniedAudit?.result_code).toBe(AUTH_ERROR_CODES.insufficientScope);
     } finally {
       await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
-        await sql`
-          UPDATE environments
-          SET is_protected = false
-          WHERE id = ${testEnvironment()}
-        `;
+        await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
       });
     }
   });
