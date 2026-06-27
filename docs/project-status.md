@@ -55,15 +55,17 @@ landed.
 
 A 2026-06-03 ADR-conformance audit then checked all 60 accepted ADRs against the code. Beyond the
 Drizzle drift above (since closed), it produced four new tickets; the RLS CI gate (INS-144) is
-wired in `postgres-integration`. The data-key model is HKDF-derived rather than wrapped, so
-ADR-0005 and ADR-0028 were amended (2026-06-03) to make organization/project data keys random keys
-stored AES-GCM wrapped under the root in `wrapped_storage_ref`, with rotation rewrapping the blob
-and never decrypting a value; the keyring conversion plus the rewrap primitive is INS-160, still
-open. The ESLint test-file override relaxing
-`complexity`/`max-statements` beyond ADR-0055 landed as INS-161. Routing the runtime pool through
-Hyperdrive was INS-162 (now composed on `apps/runtime`; API Worker adapter is INS-212) and the
-approval-gated production migration step is INS-163 (ready-for-human). The audit found no other code-vs-ADR contradictions worth acting on; remaining
-gaps below are unbuilt pre-V1 work, not divergences.
+wired in `postgres-integration`. The data-key divergence is also closed: INS-160 landed random
+organization/project data keys stored as inline AES-GCM wrapped material in `wrapped_storage_ref`,
+the keyring unwrap/readiness path, and the root-key rewrap primitive. Current evidence lives in
+`packages/crypto/src/data-key-wrap.ts`, `packages/crypto/src/data-key-rewrap.ts`,
+`packages/crypto/src/keyring.ts`, `packages/tenant-store/src/data-keys/`, and the tenant-scoped
+rewrap RLS suite at `packages/tenant-store/test/rls/data-key-rewrap.test.ts`. The ESLint test-file
+override relaxing `complexity`/`max-statements` beyond ADR-0055 landed as INS-161. Routing the
+runtime pool through Hyperdrive was INS-162 (now composed on `apps/runtime`; API Worker adapter is
+INS-212) and the approval-gated production migration step is INS-163 (ready-for-human). The audit
+found no other code-vs-ADR contradictions worth acting on; remaining gaps below are unbuilt pre-V1
+work, not divergences.
 
 A 2026-06-12 full spec-corpus review then prepared the docs for the agent-fleet hand-off: 77
 confirmed defects were fixed across the spec, ADR, and area-doc corpus (key model, role list,
@@ -124,8 +126,8 @@ First Value routes under `/v1/orgs/:org`).
   closed on sensitive-looking keys or binary payloads.
 - `@insecur/crypto` owns the keyring and encryption envelope below domain workflows:
   root-key runtime configuration, organization/project data key metadata resolution,
-  key readiness reports, AES-GCM envelope behavior, ciphertext identity binding, DEK
-  wrap AAD, and opaque decrypt failures.
+  inline wrapped data-key mint/unwrap/rewrap behavior, key readiness reports, AES-GCM
+  envelope behavior, ciphertext identity binding, DEK wrap AAD, and opaque decrypt failures.
 - `@insecur/secret-store` owns non-protected Blind Secret Write and Secret Version Store
   behavior: safe value ingress policy, UTF-8 and 64 KiB value validation, Variable Key
   validation, append/current-version persistence, wrapped-material storage, metadata-only
@@ -216,12 +218,12 @@ verify`. Do not compose new routes into a single worker; every route belongs to 
 - Root key custody is partially wired through request-scoped Cloudflare Secrets Store
   keyring construction. Production bootstrap, escrow evidence, and Storage Security Gate
   sign-off are still pending.
-- Key rotation workflows are not implemented. Version metadata and readiness checks exist,
-  but rotation operations, rewrap workflows, and operator UX do not. The data-key model is
-  also still HKDF-derived rather than wrapped: ADR-0005/0028 (2026-06-03 amendments) decide
-  that organization/project data keys are random keys stored AES-GCM wrapped under the root in
-  `wrapped_storage_ref`, so rotation can rewrap without decrypting values. Converting the keyring
-  off derivation and adding the rewrap primitive is tracked in INS-160.
+- Root-key custody and rotation are not production-complete. Wrapped data keys and the
+  root-key rewrap primitive landed in INS-160: data-key rows carry inline wrapped material and
+  root-key version metadata, and the RLS rewrap suite verifies tenant-scoped rewrap across root
+  versions. Still open are production root-key bootstrap, escrow evidence, Storage Security Gate
+  sign-off, rotation scheduling/runbook/operator UX, and the release-gate evidence needed before
+  valuable production secrets.
 - Protected Environments, Draft/Published Version, Promotion, rollback, Protected Change
   Orchestrator, Human Approval Surface, Delivery Risk Policy Presets, and Storage Security
   Gate enforcement are not implemented.

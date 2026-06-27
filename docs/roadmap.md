@@ -23,9 +23,11 @@ feature work starts, so seam divergence is caught by gates instead of review.
   no-plaintext canary gate `pnpm test:canary` (ADR-0069), the exit/HTTP lockstep test
   (ADR-0062), the decrypt-import lint boundary (ADR-0071), and non-lease `execution_deadline`
   claims with lazy abandonment recovery (ADR-0073, INS-219).
-- Close the custody and persistence gaps already ticketed: Cloudflare Secrets Store keyring
-  wiring (INS-145/147/149/150), wrapped data keys plus the rewrap primitive (INS-160), and the
-  Hyperdrive runtime pool (INS-162).
+- Close the remaining custody and persistence gaps already ticketed: production root-key
+  bootstrap, escrow evidence, and Storage Security Gate sign-off (INS-145/147/149/150), plus the
+  API-side production Hyperdrive follow-through tracked after the landed runtime-pool work. INS-160
+  is landed evidence for wrapped-data-key storage and the root-key rewrap primitive, not an open M0
+  dependency.
 
 Exit gate: each named gate is blocking in CI; `pnpm verify` and the `postgres-integration` job are
 green with the new gates enabled.
