@@ -52,13 +52,10 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
           ${TEST_ORG_A_ID},
           ${TEST_MACHINE_ID},
           ${TEST_PROJECT_A_ID},
-          ${sql.array(
-            [
-              AUTHORIZATION_SCOPES.runtimeInjectionRun,
-              AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
-            ],
-            "text",
-          )}
+          ${[
+            AUTHORIZATION_SCOPES.runtimeInjectionRun,
+            AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
+          ]}
         )
         ON CONFLICT (id) DO NOTHING
       `;
@@ -84,10 +81,7 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
           ${"insecur-ci/example"},
           ${"production"},
           ${AUDIENCE},
-          ${sql.array(
-            [CREDENTIAL_SCOPES.runtimeInjectionRun, CREDENTIAL_SCOPES.runtimeInjectionGrantIssue],
-            "text",
-          )}
+          ${[CREDENTIAL_SCOPES.runtimeInjectionRun, CREDENTIAL_SCOPES.runtimeInjectionGrantIssue]}
         )
         ON CONFLICT (id) DO NOTHING
       `;
