@@ -39,10 +39,6 @@
   },
   "rules": {
     "exports": "off",
-    "types": "off",
-    "nsExports": "off",
-    "nsTypes": "off",
-    "enumMembers": "off",
-    "duplicates": "off"
+    "types": "off"
   }
 }

@@ -248,11 +248,15 @@ pre-push, and `pnpm verify`, is:
 pnpm knip
 ```
 
-Export- and type-level dead-code rules (`exports`, `types`, `nsExports`, `nsTypes`, `enumMembers`,
-`duplicates`) are deferred off in `knip.json` because the package `src/index.ts` files are deliberate
-empty skeletons (ADR-0018) and nothing re-exports through them yet, so every internal symbol would
-read as unused. The active rules catch dependency drift and orphaned files now. As product code wires
-the package indexes up, turn those rules back on one at a time — that is the knip ratchet.
+The namespace export, namespace type, enum member, and duplicate export/type rules
+(`nsExports`, `nsTypes`, `enumMembers`, `duplicates`) are enabled. INS-271 proved those classes green
+with a temporary config that removed the disabled-rule block before removing the switches from
+`knip.json`.
+
+The remaining disabled dead-code rules are `exports` and `types`. They stay off because the current
+checkout still reports exported values and exported types that are either deliberate internal seams
+or pending cleanup. Keep those two as the knip ratchet: resolve the reported symbols first, then
+delete exactly one disabled rule from `knip.json` and prove `pnpm knip` and `pnpm verify` green.
 
 ## Workflow Lint (actionlint)
 
@@ -269,7 +273,10 @@ actionlint, so it is declared in `.github/actionlint.yaml` (ADR-0061) to suppres
 
 ## ESLint (eslint.config.ts)
 
-Flat config, type-aware everywhere, one ruleset (ADR-0055). The `.ts` config requires `jiti`, which is in the catalog. `eslint-config-prettier` is applied last so no lint rule fights the formatter.
+Flat config, type-aware for product source, one ruleset (ADR-0055). The current checkout carries
+temporary test/config relaxations that are tracked in the ratchet plan below. The `.ts` config
+requires `jiti`, which is in the catalog. `eslint-config-prettier` is applied last so no lint rule
+fights the formatter.
 
 ```ts
 import eslint from "@eslint/js";
@@ -315,13 +322,22 @@ export default tseslint.config(
       "max-lines": ["error", { max: 250, skipBlankLines: true, skipComments: true }],
     },
   },
-  // Tests run long by nature (describe blocks, fixtures); relax the two length
-  // caps there. complexity, depth, and params still apply to test code.
+  // Tests currently carry scaffold-era relaxations. INS-271 tracks the
+  // ratchet back toward the ADR-0055 target.
   {
-    files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+    files: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx",
+      "**/*.e2e.test.ts",
+      "**/*.integration.test.ts",
+    ],
     rules: {
       "max-lines": "off",
       "max-lines-per-function": "off",
+      "max-statements": "off",
+      complexity: "off",
     },
   },
   // Must be last: turn off rules that conflict with Prettier.
@@ -349,7 +365,119 @@ These caps keep generated code small and decomposed. Agents write the bulk of th
 
 Per-character line width is absent on purpose: Prettier's `printWidth: 100` already governs column width, and `max-lines` governs file length.
 
-Test files (`**/*.{test,spec}.{ts,tsx}`) turn off `max-lines` and `max-lines-per-function` only; a long `describe` block or fixture is not the smell these budgets target, but `complexity`, `max-depth`, and `max-params` still apply. If `describe`/`it` nesting later trips `max-statements` or `max-nested-callbacks`, add those to the test override rather than weakening the global value.
+Test files currently turn off `max-lines`, `max-lines-per-function`, `max-statements`, and
+`complexity` through the broad override in `eslint.config.ts`. That is intentionally looser than the
+target ADR-0055 posture while the largest scaffold-era tests are split. `max-depth`, `max-params`,
+and `max-nested-callbacks` still apply to test code.
+
+### Next Quality Ratchet Plan
+
+INS-271 bounds the next cleanup sequence for scaffold-era looseness. Do not lower the current gates
+while doing this work; each step should be one PR and should leave `pnpm verify` green.
+
+1. **Split the largest integration tests before tightening test length.**
+   - First split `packages/onboarding/test/membership-management.integration.test.ts` (730 lines).
+     Natural seams from the existing cases are operator organization creation, invitation acceptance
+     denials, invitation creation/duplicate denials, RLS read denial, and operator audit assertions.
+   - Then split `packages/runtime-injection/test/injection-grant.integration.test.ts` (686 lines).
+     Natural seams are issue+consume happy paths, selector/rotation behavior, issue denials, consume
+     denials, legacy multi-key safety, and TTL expiry.
+   - After those two land, reassess the next largest files before a broad lint change:
+     `apps/api/src/routes/v1/fv12-routes.test.ts` (645 lines),
+     `packages/tenant-store/test/drizzle-store-queries.test.ts` (619 lines), and
+     `packages/instance-bootstrap/test/bootstrap-operator-claim.integration.test.ts` (578 lines).
+2. **Make test-file lint relaxations narrower only after the first splits.**
+   - Current broad override in `eslint.config.ts` disables `max-lines`, `max-lines-per-function`,
+     `max-statements`, and `complexity` for
+     `**/*.test.ts`, `**/*.test.tsx`, `**/*.spec.ts`, `**/*.spec.tsx`, `**/*.e2e.test.ts`, and
+     `**/*.integration.test.ts`.
+   - The first target rule is `max-lines`: restore the global `max-lines` rule for tests and add
+     explicit per-file exceptions only for still-oversized files named above. Do not re-enable
+     `complexity` or `max-statements` in the same PR; those need separate probes because many tests
+     use table-shaped assertions and nested fixture setup.
+3. **Finish the knip export/type ratchet in smallest-first order.**
+   - `nsExports`, `nsTypes`, `enumMembers`, and `duplicates` are already enabled by removing their
+     `knip.json` off switches.
+
+   - Next candidate is `exports`. Resolve or intentionally internalize these exact current value
+     export findings, then delete `"exports": "off"` from `knip.json`:
+
+     ```text
+     apps/api/src/rpc/unwrap-runtime-result.ts: RuntimeRpcResultError
+     apps/api/test/canary/postgres-sweep.ts: listPublicSchemaColumns, sweepPostgresColumns, findEncodingHit
+     apps/runtime/src/crypto/keyring-context.ts: RuntimeEnvRootKeyProvider
+     packages/audit/src/audit-export-constants.ts: AUDIT_EXPORT_MANIFEST_SEPARATOR
+     packages/audit/src/parse-audit-export-manifest-helpers.ts: buildPartial
+     packages/audit/src/verify-audit-export-helpers.ts: unsignedManifestFromSigned
+     packages/cli/src/config/forbidden-config-keys.ts: FORBIDDEN_CONFIG_KEYS
+     packages/cli/src/config/paths.ts: USER_CONFIG_DIR
+     packages/cli/src/input/generate-random-secret.ts: assertSupportedGenerateMode
+     packages/cli/src/output/exit-codes.ts: EXIT_SUCCESS, EXIT_PROVIDER, EXIT_RETRYABLE, EXIT_INCOMPLETE
+     packages/cli/src/output/render.ts: renderError
+     packages/cli/src/program.ts: buildProgram
+     packages/crypto/src/data-key-lifecycle.ts: assertDataKeyStatusTransition
+     packages/crypto/src/data-key-rewrap.ts: canRetireRootKeyBinding
+     packages/crypto/src/data-key-wrap.ts: serializeOrganizationDataKeyWrapAad, serializeProjectDataKeyWrapAad
+     packages/crypto/src/encryption.ts: identityMatches, serializeSecretDekWrapAad
+     packages/crypto/src/envelope-engine.ts: ENVELOPE_HEADER_LENGTH
+     packages/crypto/src/envelope.ts: serializeDekWrapAad, toStoreFacingCiphertext
+     packages/crypto/src/keyring.ts: unwrapOrganizationDataKey, unwrapProjectDataKey
+     packages/crypto/src/provider-credential-envelope.ts: toStoreFacingCiphertext
+     packages/crypto/src/sensitive-metadata-envelope.ts: toStoreFacingCiphertext
+     packages/instance-bootstrap/src/bootstrap-error.ts: asKnownBootstrapCode
+     packages/onboarding/src/invitation-store.ts: BUILT_IN_ROLE_PRESETS
+     packages/operations/src/sync-target-lease-operation-progress.ts: operationProgressWithoutSyncTargetLease
+     packages/operations/src/sync-target-lease-persistence.ts: selectSyncTargetLeaseForUpdate
+     packages/release-gate/src/collect-controls.ts: collectChecklistControls
+     packages/runtime-injection/src/injection-grant-ttl.ts: computeInjectionGrantExpiresAt
+     packages/runtime-injection/src/issue-injection-grant.ts: recordDeniedIssue
+     packages/runtime-injection/src/resolve-injection-grant-bindings.ts: resolveInjectionGrantBinding
+     packages/secret-store/test/test-display-name.ts: forgedDisplayName
+     packages/tenant-store/src/data-keys/data-key-store-mappers.ts: parseStatus
+     packages/tenant-store/test/fixtures/unregistered-schema-table.ts: conformanceGateFixtureTable
+     packages/tenant-store/test/rls/seed-data-keys.ts: RLS_TEST_ROOT_KEY_BYTES
+     ```
+
+   - `types` can be cleaned independently while `exports` remains disabled. Resolve or
+     intentionally internalize these exact current type export findings, then delete
+     `"types": "off"` from `knip.json`:
+
+     ```text
+     apps/api/src/routes/v1/parse-secret-write-body.ts: ParsedSecretWriteBody, SecretWritePathParams
+     apps/api/test/canary/postgres-sweep.ts: SchemaColumn
+     packages/audit/src/audit-export-types.ts: AuditExportChainLink
+     packages/audit/src/audit-types.ts: AuditCiExchangeActorRef
+     packages/audit/src/build-audit-event.ts: BuildAuditEventBaseInput
+     packages/audit/src/parse-audit-export-manifest-helpers.ts: AuditExportManifestPartial
+     packages/audit/src/parse-audit-export-manifest.ts: AuditExportManifestPartial, AuditExportManifestValidationFailure
+     packages/auth/src/cli-exchange.ts: CliSessionExchangeRotation
+     packages/cli/src/api/provision-request-body.ts: GuidedOrganizationResourceIdsBody
+     packages/cli/src/api/types.ts: SecretGenerationRequest, ApiSuccess, ApiFailure
+     packages/cli/src/input/collect-secret-value.ts: SecretValueInputMode
+     packages/crypto/src/data-key-metadata.ts: KeyVersion
+     packages/crypto/src/data-key-rewrap.ts: TenantDataKeyRewrapStore
+     packages/instance-bootstrap/src/bootstrap-types.ts: BootstrapStatusBase
+     packages/machine-auth/src/exchange-github-actions-oidc.ts: ExchangeGitHubActionsOidcSuccess, ExchangeGitHubActionsOidcFailure
+     packages/machine-auth/src/match-github-actions-oidc-trust.ts: OidcTrustMatchSuccess, OidcTrustMatchFailure
+     packages/machine-auth/src/rs256-jwt.ts: JwtHeader
+     packages/runtime-injection/src/injection-grants.ts: InjectionGrantConsumeSelector, InjectionGrantIssueSelector
+     packages/runtime-injection/src/issue-injection-grant.ts: IssueInjectionGrantCoreInput, IssueInjectionGrantCoreResult
+     ```
+
+Follow-up issue drafts if Linear is available:
+
+- **Split onboarding membership integration tests.** Scope:
+  `packages/onboarding/test/membership-management.integration.test.ts` only; split along the seams
+  above without changing assertions or DB setup. Verify with the package test command and
+  `pnpm verify`.
+- **Split runtime-injection grant integration tests.** Scope:
+  `packages/runtime-injection/test/injection-grant.integration.test.ts` only; split along the seams
+  above without changing product behavior. Verify with the package test command and `pnpm verify`.
+- **Enable knip `exports`.** Scope: resolve only the value-export findings listed above, then remove
+  `"exports": "off"`. Verify with `pnpm knip` and `pnpm verify`.
+- **Enable knip `types`.** Scope: resolve only the type-export findings listed above while keeping
+  `"exports": "off"` unchanged, then remove `"types": "off"`. Verify with `pnpm knip` and
+  `pnpm verify`.
 
 ## Prettier
 
