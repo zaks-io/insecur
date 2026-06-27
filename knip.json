@@ -34,8 +34,7 @@
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts", "*.config.mjs"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreBinaries": ["wrangler"],
-      "ignoreDependencies": ["dependency-cruiser", "lefthook"]
+      "ignoreDependencies": ["dependency-cruiser"]
     }
   },
   "rules": {

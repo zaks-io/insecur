@@ -47,4 +47,4 @@ if (gitDir.length > 0 && commonDir.length > 0 && gitDir !== commonDir) {
   process.exit(0);
 }
 
-execFileSync("pnpm", ["exec", "lefthook", "install"], { stdio: "inherit" });
+execFileSync("pnpm", ["run", "lefthook:install"], { stdio: "inherit" });
