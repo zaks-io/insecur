@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-26
+Last updated: 2026-06-27
 
 This document is a **status snapshot** — what was built, verified, and still open when it was last
 edited. It is not normative product truth. When this prose disagrees with an owning spec, ADR, or
@@ -14,10 +14,12 @@ insecur has moved well past the empty scaffold. The repo now has product-bearing
 code for the First Value and Production Delivery foundation, capability-isolated Worker deploys
 (`apps/api` + `apps/runtime`), a public route surface for auth/session, onboarding, instance
 bootstrap, membership/invitations, operations, non-protected secret writes, and Runtime Injection
-grants, plus the first CLI commands. The main missing pieces are the rest of the user-facing First
-Value composition (`insecur secrets set`, `insecur run`, the remaining CLI/proof path), the
-`apps/web` BFF deploy (INS-201), production Hyperdrive on the API Worker for its DB-backed public
-routes (INS-212), and provider sync.
+grants, plus the baseline First Value CLI commands (`login`, `init`, `shell`, `secrets set`, `run`,
+and masked TTY secret input). The main missing pieces are the remaining First Value integration
+(copyable proof execution through live CLI/API commands, durable auth handoff across separate CLI
+processes, and any still-open route/profile hardening), the `apps/web` BFF deploy (INS-201),
+production Hyperdrive on the API Worker for its DB-backed public routes (INS-212), and provider
+sync.
 
 The current workspace is Node 24 and pnpm 10, with Turbo, Prettier, ESLint, Vitest,
 package builds, local Postgres development scripts, RLS migrations, Blacksmith-backed
@@ -177,10 +179,10 @@ First Value routes under `/v1/orgs/:org`).
 
 - The CLI now has `insecur login`, `insecur init`, `insecur shell`, `insecur secrets set`,
   `insecur run`, and audit verification commands, plus local profile resolution,
-  user/project config, metadata-only JSON output, service-generated non-protected secret
-  writes, and exact Variable Key injection into a child process. Still missing at the
-  copyable First Value UX layer: durable auth handoff across separate CLI processes and the
-  final live proof path through local/deployed Workers.
+  user/project config, masked TTY secret input, metadata-only JSON output,
+  service-generated non-protected secret writes, and exact Variable Key injection into a child
+  process. Still missing at the copyable First Value UX layer: durable auth handoff across
+  separate CLI processes and the final live proof path through local/deployed Workers (INS-1).
 - The API Worker now exposes the public route groups in
   [deploy-route-inventory.md](specs/deploy-route-inventory.md). Still missing at the product
   layer: provider sync, Storage Security Gate enforcement, audit export routes, and the
@@ -254,10 +256,10 @@ fleet hand-off is [roadmap.md](roadmap.md).
 
 **First Value Completion**
 
-Wire the existing packages into the usable First Value path: instance/admitted-user setup,
-guided Personal Organization provisioning, non-protected development secret write, one-use
-Runtime Injection Grant issue/consume, CLI profile defaults, `insecur run`, metadata-only
-output, and the copyable First Value Proof.
+Finish the remaining First Value integration on top of the landed package and CLI seams:
+copyable proof execution through live `insecur secrets set` and `insecur run` commands,
+durable auth handoff across separate CLI processes, and any still-open route/profile
+hardening (for example INS-169).
 
 **Production Delivery Foundation**
 
@@ -306,13 +308,15 @@ release-gate evidence bundles.
    [deploy-route-inventory.md](specs/deploy-route-inventory.md). Secret write and grant consume are
    keyring routes executed Runtime-side; other public routes land on `apps/api`. No deploy may hold
    both a public route and the root key (CI gate INS-199).
-3. Finish the CLI First Value path on top of the landed `login`/`init`/`shell` commands
-   (INS-31): masked safe secret input, metadata-only `secrets set`, and one-command `run` with
-   child-process env injection without local secret files.
+3. Complete the copyable First Value Proof (INS-1) on top of the landed CLI commands
+   (`secrets set`, `run`, and masked TTY secret input from INS-32/INS-33/INS-226): durable auth
+   handoff across separate CLI processes and a live CLI/API proof path through local or deployed
+   Workers.
 4. Run `pnpm dev:db:reset && pnpm test:rls` before treating the DB-backed integration suites as
    current evidence.
-5. Convert the First Value Proof in `examples/first-value-proof` from standalone proof script to
-   a real CLI/API integration proof once the CLI and routes exist.
+5. Keep `examples/first-value-proof/verify.mjs` aligned with the live CLI/API integration proof
+   as INS-1 closes; it should succeed only through `insecur secrets set --generate` plus
+   `insecur run`.
 6. Add production identity persistence and replace the Worker development admitted-user JSON map.
 7. Add root-key custody through the intended Cloudflare Secrets Store path and enforce key
    readiness before secret writes or runtime delivery.
