@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -88,6 +88,8 @@ function checkBaseline(onlyArea) {
 
 function updateAreaBaseline(area) {
   const baseline = readBaseline();
+  const report = readJson(reportPath);
+  assertCompleteAreaReport(area, report);
   const current = readCurrentMetrics({ area, productionSourceOnly: true });
   const nextMetric = current.areas[area];
   if (nextMetric === undefined) {
@@ -230,7 +232,55 @@ function areaName(filePath) {
 }
 
 function isTestFile(filePath) {
-  return filePath.includes(".test.");
+  return filePath.includes(".test.") || filePath.includes(".spec.");
+}
+
+function listProductionSourceFiles(area) {
+  const areaPath = join(root, ...area.split("/"));
+  if (!existsSync(areaPath)) {
+    console.error(`${area}: area path does not exist (${relative(root, areaPath)})`);
+    process.exit(1);
+  }
+
+  const files = [];
+  walkProductionSources(areaPath, files);
+  return files.sort();
+}
+
+function walkProductionSources(directoryPath, files) {
+  for (const entry of readdirSync(directoryPath)) {
+    const fullPath = join(directoryPath, entry);
+    const stats = statSync(fullPath);
+    if (stats.isDirectory()) {
+      walkProductionSources(fullPath, files);
+      continue;
+    }
+    if (!entry.endsWith(".ts") || entry.endsWith(".d.ts") || isTestFile(entry)) {
+      continue;
+    }
+    files.push(relative(root, fullPath).replaceAll("\\", "/"));
+  }
+}
+
+function assertCompleteAreaReport(area, report) {
+  const expectedFiles = listProductionSourceFiles(area);
+  const reportFiles = Object.keys(report.files ?? {});
+  const missingFiles = expectedFiles.filter((filePath) => !reportFiles.includes(filePath));
+  if (missingFiles.length > 0) {
+    console.error(
+      `${area}: mutation report is partial; missing ${missingFiles.length} production file(s):`,
+    );
+    for (const filePath of missingFiles.slice(0, 10)) {
+      console.error(`- ${filePath}`);
+    }
+    if (missingFiles.length > 10) {
+      console.error(`- ...and ${missingFiles.length - 10} more`);
+    }
+    console.error(
+      `Run a focused review that covers all production sources under ${area}, for example: pnpm exec stryker run --mutate "${area}/src/**/*.ts"`,
+    );
+    process.exit(1);
+  }
 }
 
 function areaMetricToCounters(metric) {

@@ -23,16 +23,6 @@ import {
   knownErrorCodeFromUnknown,
 } from "./domain-error-response.js";
 
-// A runtime decrypt failure (DecryptError) is thrown inside the Runtime Worker, behind
-// the RPC seam. By the time it reaches this public-edge handler it is a structurally-typed
-// { code, retryable } value, not a live @insecur/crypto class instance (the public edge
-// never imports @insecur/crypto — ADR-0064/0077). This fixture is that seam-crossed shape.
-const seamCrossedDecryptError = {
-  code: CRYPTO_ERROR_CODES.decryptFailed,
-  message: "decrypt failed",
-  retryable: false,
-};
-
 describe("httpStatusForKnownErrorCode", () => {
   it("maps reauth, MFA enrollment, and high-assurance auth codes to 401", () => {
     expect(httpStatusForKnownErrorCode(AUTH_ERROR_CODES.reauthRequired)).toBe(401);
@@ -53,7 +43,15 @@ describe("httpStatusForKnownErrorCode", () => {
 
   it("maps a seam-crossed runtime decrypt failure to opaque crypto.decrypt_failed ErrorEnvelope", () => {
     const reqId = requestId.generate();
-    const { status, body } = domainErrorEnvelope(seamCrossedDecryptError, reqId);
+    const attackerMessage = "root-key-hex-deadbeef-ciphertext-leak";
+    const { status, body } = domainErrorEnvelope(
+      {
+        code: CRYPTO_ERROR_CODES.decryptFailed,
+        message: attackerMessage,
+        retryable: false,
+      },
+      reqId,
+    );
 
     expect(status).toBe(500);
     expect(body).toMatchObject({
@@ -65,6 +63,7 @@ describe("httpStatusForKnownErrorCode", () => {
       },
       meta: { requestId: reqId },
     });
+    expect(body.error.message).not.toContain(attackerMessage);
   });
 
   it("maps a seam-crossed tenant data key readiness failure to crypto.tenant_data_key_not_ready", () => {
@@ -206,18 +205,22 @@ describe("domainErrorEnvelope typed error boundaries", () => {
       },
     });
 
-    const decryptError = Object.assign(new Error("decrypt failed"), { name: "DecryptError" });
+    const attackerDecryptMessage = "attacker-controlled decrypt diagnostic detail";
+    const decryptError = Object.assign(new Error(attackerDecryptMessage), { name: "DecryptError" });
     const decryptEnvelope = domainErrorEnvelope(decryptError, reqId);
     expect(decryptEnvelope.body.error).toMatchObject({
       code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
-      message: "decrypt failed",
+      message: GENERIC_ERROR_MESSAGE,
     });
+    expect(decryptEnvelope.body.error.message).not.toContain(attackerDecryptMessage);
 
-    const rootKeyError = Object.assign(new Error("instance root key is not configured"), {
-      name: "RootKeyNotConfiguredError",
-    });
+    const attackerRootKeyMessage = "attacker-controlled root key material detail";
     const rootKeyEnvelope = domainErrorEnvelope(
-      { code: CRYPTO_ERROR_CODES.rootKeyNotConfigured, retryable: true },
+      {
+        code: CRYPTO_ERROR_CODES.rootKeyNotConfigured,
+        message: attackerRootKeyMessage,
+        retryable: true,
+      },
       reqId,
     );
     expect(rootKeyEnvelope).toMatchObject({
@@ -230,7 +233,7 @@ describe("domainErrorEnvelope typed error boundaries", () => {
         },
       },
     });
-    expect(rootKeyEnvelope.body.error.message).toBe(rootKeyError.message);
+    expect(rootKeyEnvelope.body.error.message).not.toContain(attackerRootKeyMessage);
   });
 
   it("preserves retryable flags from typed store errors", () => {

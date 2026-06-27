@@ -1,4 +1,4 @@
-import { testSessionSigningSecret } from "@insecur/auth";
+import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth";
 import { describe, expect, it } from "vitest";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
@@ -13,8 +13,16 @@ const baseEnv: AuthWorkerEnv = {
 describe("createWorkOSSessionPortFromEnv", () => {
   it("uses the real WorkOS adapter when WORKOS_FAKE_SESSIONS_JSON is absent", async () => {
     const port = createWorkOSSessionPortFromEnv(baseEnv);
-    await expect(port.authenticateSealedSession("unknown-session")).resolves.toMatchObject({
+    const emptyFakePort = createFakeWorkOSSessionPort([]);
+    const session = "unknown-session";
+
+    await expect(emptyFakePort.authenticateSealedSession(session)).resolves.toEqual({
       authenticated: false,
+      reason: "invalid",
+    });
+    await expect(port.authenticateSealedSession(session)).resolves.toMatchObject({
+      authenticated: false,
+      reason: expect.not.stringMatching(/^invalid$/),
     });
   });
 
@@ -63,8 +71,36 @@ describe("createWorkOSSessionPortFromEnv", () => {
     };
 
     const port = createWorkOSSessionPortFromEnv(env);
-    await expect(port.authenticateSealedSession("unknown-session")).resolves.toMatchObject({
+    const emptyFakePort = createFakeWorkOSSessionPort([]);
+    const session = "unknown-session";
+
+    await expect(emptyFakePort.authenticateSealedSession(session)).resolves.toEqual({
       authenticated: false,
+      reason: "invalid",
+    });
+    await expect(port.authenticateSealedSession(session)).resolves.toMatchObject({
+      authenticated: false,
+      reason: expect.not.stringMatching(/^invalid$/),
+    });
+  });
+
+  it("treats an empty fake session array as absent and falls back to the real adapter", async () => {
+    const env: AuthWorkerEnv = {
+      ...baseEnv,
+      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([]),
+    };
+
+    const port = createWorkOSSessionPortFromEnv(env);
+    const emptyFakePort = createFakeWorkOSSessionPort([]);
+    const session = "unknown-session";
+
+    await expect(emptyFakePort.authenticateSealedSession(session)).resolves.toEqual({
+      authenticated: false,
+      reason: "invalid",
+    });
+    await expect(port.authenticateSealedSession(session)).resolves.toMatchObject({
+      authenticated: false,
+      reason: expect.not.stringMatching(/^invalid$/),
     });
   });
 

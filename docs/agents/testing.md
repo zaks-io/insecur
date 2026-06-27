@@ -62,7 +62,7 @@ pnpm mutation:baseline:update
 
 To review a focused area, pass Stryker's `--mutate` override after `pnpm build`:
 
-```
+```shell
 pnpm build && pnpm exec stryker run --mutate "packages/worker-kit/src/**/*.ts"
 pnpm mutation:baseline:update-area packages/worker-kit
 node scripts/ci/mutation-ratchet.mjs check packages/worker-kit
@@ -70,7 +70,7 @@ node scripts/ci/mutation-ratchet.mjs check packages/worker-kit
 
 Other focused examples:
 
-```
+```shell
 pnpm build && pnpm exec stryker run --mutate "packages/crypto/src/**/*.ts"
 pnpm build && pnpm exec stryker run --mutate "apps/api/src/routes/v1/secrets.ts"
 pnpm build && pnpm exec stryker run --mutate "packages/worker-kit/src/http/handle-route.ts:1-80"
