@@ -156,7 +156,18 @@ function collectPublicHostnameExposures(exposures, scope, config) {
   }
   if (config.workers_dev === true) {
     exposures.push(`${scope}.workers_dev`);
+  } else if (config.workers_dev !== false && !hasConfiguredPublicHostname(config)) {
+    exposures.push(`${scope}.workers_dev(default)`);
   }
+}
+
+function hasConfiguredPublicHostname(config) {
+  return (
+    isConfiguredPublicHostname(config.route) ||
+    (Array.isArray(config.routes) &&
+      config.routes.some((route) => isConfiguredPublicHostname(route))) ||
+    isConfiguredPublicHostname(config.custom_domain)
+  );
 }
 
 function isConfiguredPublicHostname(value) {

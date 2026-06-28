@@ -4,9 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-05-27",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
   // The Runtime Worker holds no public route (ADR-0077): it is reachable only over the private
   // Service Binding from the API Worker via the RuntimeService RPC entrypoint. The deploy-topology
-  // conformance gate (INS-199) asserts this deploy declares zero `/v1/*` routes.
+  // conformance gate (INS-199) asserts this deploy declares zero public source routes or hostnames.
   "observability": {
     "enabled": true,
     "logs": {
@@ -43,6 +44,7 @@
   "env": {
     "preview": {
       "name": "insecur-runtime-preview",
+      "workers_dev": false,
       "secrets_store_secrets": [
         {
           "binding": "INSTANCE_ROOT_KEY_V1",
