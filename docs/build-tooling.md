@@ -192,7 +192,7 @@ and are not repeated here.
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
     "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
-    "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.5 apps packages scripts",
+    "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.25 apps packages scripts",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "knip": "knip",
     "test": "turbo run test --cache=local:rw,remote:r",
@@ -227,14 +227,15 @@ commands wrap it, each with a different threshold:
 
 ```sh
 pnpm duplicates:check   # threshold 0  — strict local zero gate
-pnpm duplicates:ci      # threshold 0.5 — ratchet floor, blocking in CI and pre-push
+pnpm duplicates:ci      # threshold 0.25 — ratchet floor, blocking in CI and pre-push
 pnpm duplicates:warn    # annotations only, never fails
 ```
 
 `duplicates:check` exits non-zero on any clone; it is the aspirational zero target for local use.
-`duplicates:ci` is the **blocking ratchet**: set just above the current duplication (currently
-~0.42%) so CI and pre-push are green today but any new duplication trips them. Lower the `--threshold`
-in the `duplicates:ci` script as the backlog burns down; never raise it.
+`duplicates:ci` is the **blocking ratchet**: set just above the current duplication (currently 7
+exact clones, 72 duplicated lines, and 0.24% duplicated lines) so CI and pre-push are green today but
+any new duplication trips them. Lower the `--threshold` in the `duplicates:ci` script as the backlog
+burns down; never raise it.
 
 `duplicates:warn` writes `.jscpd-report/ci/jscpd-report.json` and emits GitHub warning annotations for
 each clone without failing, so reviewers see every clone even those under the ratchet. The `CI`
@@ -582,7 +583,7 @@ actionlint (workflow lint + run-block shellcheck)
 gitleaks (full working tree, authoritative)
 semgrep (stock rule packs; SAST; fills the project-status SAST gap)
 syft (generate SBOM) then grype (scan SBOM for known CVEs)
-jscpd duplicate-code: warning annotations + blocking ratchet (duplicates:ci, threshold 0.5%)
+jscpd duplicate-code: warning annotations + blocking ratchet (duplicates:ci, threshold 0.25%)
 ```
 
 These jobs are required status checks on the protected branch. They run for forked pull requests too, because they touch no secrets.
