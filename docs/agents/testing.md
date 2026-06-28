@@ -85,10 +85,17 @@ To run the full DB-backed loop with no cloud credentials, only Docker:
 
 ```
 pnpm dev:db:reset   # Docker Compose Postgres 17, migrated
+pnpm test:rls       # forced-RLS tenant isolation + DB-backed package integration
 pnpm test:e2e       # First Value loop through the real Worker routes
-pnpm test:rls       # forced-RLS tenant isolation suite
 pnpm test:canary    # no-plaintext canary gate (Postgres columns + console output)
 ```
+
+`pnpm test:rls` runs the forced-RLS tenant-store suites plus every workspace package-level
+DB-backed `*.integration.test.ts` suite that depends on `DATABASE_URL_RUNTIME`. The suites
+are excluded from ordinary package `test` tasks so `pnpm verify` stays unit-only even when a local
+Postgres URL exists. Inside the DB-backed configs, the suites still self-gate on
+`integrationDatabaseReady` for ad hoc local runs, while the CI gate sets `INSECUR_CI_RLS_GATE=1` so
+a missing or unreachable runtime database fails instead of skipping.
 
 `pnpm test:e2e` runs `apps/api/test/e2e/first-value-loop.e2e.test.ts`, which drives the actual
 API Worker routes (`app.request`) against real Postgres and real crypto — no package mocks —
@@ -101,9 +108,10 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 
 ## Layer boundaries
 
-- **Unit vs integration**: most package integration suites live alongside unit tests and
-  self-gate on `DATABASE_URL_RUNTIME` via `tenant-store/test/rls/load-env`. They skip without
-  a DB and execute when one is present.
+- **Unit vs integration**: DB-backed package integration suites live alongside unit tests but are
+  excluded from ordinary package `test` tasks. Run them through `pnpm test:rls`, where
+  `tenant-store/test/rls/load-env` loads local DB env and the CI gate fails closed when the runtime
+  DB is missing.
 - **Why not miniflare**: the `postgres` driver uses raw TCP, which workerd can't reach
   locally without Hyperdrive, so the real loop runs in Node Vitest, not the Workers pool. See
   ADR-0065.
@@ -118,8 +126,8 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 The `postgres-integration` job in `.github/workflows/ci.yml` resets Docker Compose Postgres
 17 once, runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ;
 runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
-`INSECUR_CI_RLS_GATE=1` and runs `test:rls`, `test:e2e`, and `test:canary`; each fails closed under that gate
-rather than skipping. The no-plaintext canary gate
+`INSECUR_CI_RLS_GATE=1` and runs every workspace `test:rls` suite, `test:e2e`, and
+`test:canary`; each fails closed under that gate rather than skipping. The no-plaintext canary gate
 ([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) runs after `test:e2e` via
 `apps/api/test/canary/no-plaintext-canary.test.ts`: it drives the real route stack with a
 fresh high-entropy sentinel, then sweeps every `public` schema column from live
@@ -137,11 +145,15 @@ forwards `INSECUR_CI_RLS_GATE` when it is listed on the `test:rls` / `test:e2e` 
 tasks in
 `turbo.json`; a probe task (`assert:ci-rls-gate-env`) runs first so CI logs prove the var
 reached the task process. Vitest setup logs `[insecur] INSECUR_CI_RLS_GATE=1` when fail-closed
-mode is active. Turbo `test:rls` fans out to
-`@insecur/tenant-store` (forced-RLS suite: tenant isolation, data-key isolation, secret-version
-concurrency) and `@insecur/access` (`*.integration.test.ts`). The job then runs
-`@insecur/instance-bootstrap` integration tests. Other packages' `*.integration.test.ts` files
-still self-gate in `pnpm verify` until the Drizzle conversion wires them.
+mode is active. Turbo `test:rls` fans out to:
+
+- `@insecur/tenant-store` forced-RLS suites plus tenant-store root `*.integration.test.ts` suites.
+- `@insecur/access`, `@insecur/audit`, `@insecur/operations`, `@insecur/onboarding`,
+  `@insecur/secret-store`, `@insecur/runtime-injection`, `@insecur/machine-auth`, and
+  `@insecur/instance-bootstrap` package-level `*.integration.test.ts` suites.
+
+In ordinary `pnpm verify`, these integration suites still keep local fast unit-test behavior by
+being excluded from package `test` tasks, even when `DATABASE_URL_RUNTIME` is present.
 
 ### Verifying the gate fails closed
 
