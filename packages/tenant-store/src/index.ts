@@ -114,3 +114,8 @@ export type {
   PreviewNonProductionOptDown,
   UpdateEnvironmentLifecycleMetadataInput,
 } from "./environments/types.js";
+export {
+  persistGuidedOrganization,
+  type GuidedOrganizationResourceIds,
+  type PersistGuidedOrganizationInput,
+} from "./guided-organization/persist-guided-organization.js";
