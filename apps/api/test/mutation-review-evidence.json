@@ -1,9 +1,7 @@
 {
   "issue": "INS-260",
-  "reviewedAt": "2026-06-27T21:15:00.000Z",
+  "reviewedAt": "2026-06-28T00:10:00.000Z",
   "gitHead": "22c7e31d5f2b0479ab3b7ef1e0860cb81512880c",
-  "prHead": "2898767afe860955404e704046646510bcd7ba1e",
-  "evidenceRecordsCommit": "2898767afe860955404e704046646510bcd7ba1e",
   "command": "pnpm build && pnpm exec stryker run --mutate \"apps/api/src/**/*.ts\" --force",
   "area": "apps/api",
   "scope": "production sources under apps/api/src (focused --mutate override per INS-260)",
@@ -29,7 +27,7 @@
   "traceability": {
     "mutationRunCommit": "22c7e31d5f2b0479ab3b7ef1e0860cb81512880c",
     "rebasedOntoMain": "64ac47cdbe270d7f32e39c265d55f284105590de",
-    "note": "Rebased onto current main (64ac47c). Replaces stale pre-rebase evidence lineage (814f5f21/fcf9540)."
+    "note": "gitHead/mutationRunCommit = focused Stryker run commit on this branch. Stale prHead/evidenceRecordsCommit fields removed; PR review head is the commit SHA that contains this evidence file."
   },
   "notes": "Focused src review raised production-only apps/api score from 48.42% to 61.07%. Full-repo pnpm mutation:ratchet:check not rerun because this slice intentionally uses a scoped --mutate override."
 }
