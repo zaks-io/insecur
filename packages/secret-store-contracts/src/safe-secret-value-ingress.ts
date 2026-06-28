@@ -20,7 +20,7 @@ export function assertSafeSecretValueIngress(ingress: string): void {
   if (!isSafeSecretValueIngress(ingress)) {
     throw new SecretWriteError(
       SECRET_ERROR_CODES.inputRequired,
-      "Secret values must use a safe input path (stdin, generation, or request body).",
+      "Secret values must use a safe input path (stdin, generation, request body, or masked prompt).",
     );
   }
 }
