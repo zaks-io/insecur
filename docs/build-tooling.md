@@ -577,7 +577,7 @@ Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no 
 turbo run lint typecheck build test --cache=local:rw,remote:rw
 prettier --check .
 test:coverage (unit coverage, enforces ratchet thresholds; DB-less)
-postgres-integration (Docker Compose Postgres 17: assert:rls-credentials, test:rls, test:e2e, test:canary, instance-bootstrap integration)
+postgres-integration (Docker Compose Postgres 17: assert:rls-credentials, workspace test:rls suites, test:e2e, test:canary)
 knip (unused files, deps, and unlisted deps)
 actionlint (workflow lint + run-block shellcheck)
 gitleaks (full working tree, authoritative)
@@ -598,7 +598,6 @@ e2e)`, which runs:
 ```
 pnpm dev:db:reset
 node scripts/ci/postgres-integration-tests.mjs
-pnpm exec turbo run test:integration --filter=@insecur/instance-bootstrap
 ```
 
 The deployed smoke belongs to a separate shared preview workflow, not to `pull_request`. That
