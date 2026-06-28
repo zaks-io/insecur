@@ -3,7 +3,10 @@ import { getTableName, is, SQL as SQLClass } from "drizzle-orm";
 import { getTableConfig, PgDialect, type PgTable } from "drizzle-orm/pg-core";
 import type { PgColumn } from "drizzle-orm/pg-core";
 
+import { formatConformanceReport, throwIfConformanceViolations } from "./conformance-report.js";
+
 const pgDialect = new PgDialect();
+const SCHEMA_SHAPE_CONFORMANCE_TITLE = "Schema shape conformance failed:";
 
 export interface SchemaShapeColumn {
   readonly notNull: boolean;
@@ -68,10 +71,7 @@ export class SchemaShapeConformanceError extends Error {
 }
 
 export function formatSchemaShapeViolations(violations: readonly string[]): string {
-  return [
-    "Schema shape conformance failed:",
-    ...violations.map((violation) => `- ${violation}`),
-  ].join("\n");
+  return formatConformanceReport(SCHEMA_SHAPE_CONFORMANCE_TITLE, violations);
 }
 
 function serializeSql(fragment: SQL | undefined): string | undefined {
@@ -282,9 +282,10 @@ export function assertSchemaShapeConformance(
   expected: SchemaShapeRegistry,
 ): void {
   const violations = collectSchemaShapeConformanceViolations(actual, expected);
-  if (violations.length > 0) {
-    throw new SchemaShapeConformanceError(violations);
-  }
+  throwIfConformanceViolations(
+    violations,
+    (conformanceViolations) => new SchemaShapeConformanceError(conformanceViolations),
+  );
 }
 
 export function assertDrizzleSchemaShapeConformance(

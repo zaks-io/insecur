@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { getTableName } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 
+import { formatConformanceReport } from "../src/db/schema/conformance-report.js";
 import { SCHEMA_SHAPE_REGISTRY } from "../src/db/schema/schema-shape-registry.js";
 import {
   assertDrizzleSchemaShapeConformance,
@@ -9,6 +10,7 @@ import {
   collectSchemaShapeConformanceViolations,
   extractSchemaShapeRegistry,
   extractSchemaShapeTable,
+  formatSchemaShapeViolations,
   SchemaShapeConformanceError,
 } from "../src/db/schema/schema-shape.js";
 import {
@@ -76,6 +78,20 @@ describe("schema shape conformance (unit layer)", () => {
         "environments_preview_opt_down_fields_scope_check",
         "environments_staging_production_protected_check",
       ].sort(),
+    );
+  });
+
+  it("formats conformance violations for actionable error output", () => {
+    const violations = ["table instances is missing from the schema shape registry"];
+
+    expect(formatSchemaShapeViolations(violations)).toBe(
+      formatConformanceReport("Schema shape conformance failed:", violations),
+    );
+    expect(formatSchemaShapeViolations(violations)).toBe(
+      [
+        "Schema shape conformance failed:",
+        "- table instances is missing from the schema shape registry",
+      ].join("\n"),
     );
   });
 
