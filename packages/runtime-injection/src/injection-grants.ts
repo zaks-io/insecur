@@ -1,4 +1,5 @@
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { ActorRef } from "@insecur/access";
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
 import type {
   EnvironmentId,
@@ -26,7 +27,7 @@ export interface IssueInjectionGrantInput {
   environmentId: EnvironmentId;
   /** Exactly one Secret binding per grant (First Value: one `run --variable-key` or `--secret-id`). */
   selector: InjectionGrantIssueSelector;
-  actor: AuditActorRef;
+  actor: ActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }
