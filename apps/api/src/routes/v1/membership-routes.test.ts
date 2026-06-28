@@ -58,14 +58,18 @@ const grantedMembershipId = membershipId.brand("mem_00000000000000000000000071")
 const operatorOrgId = organizationId.brand("org_00000000000000000000000099");
 const operatorTeamId = "team_00000000000000000000000099";
 
-const env = {
+const envWithoutInstanceId = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  INSTANCE_ID: "inst_LOCAL_DEV",
   RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
   RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
+};
+
+const env = {
+  ...envWithoutInstanceId,
+  INSTANCE_ID: "inst_MEMBERSHIP_TEST",
 };
 
 const createInvitationPath = `/v1/orgs/${orgId}/invitations`;
@@ -521,6 +525,26 @@ describe("membership management worker routes", () => {
         ok: true,
         data: { organizationId: operatorOrgId, defaultTeamId: operatorTeamId },
       });
+    });
+
+    it("uses the worker-kit local development instance fallback when INSTANCE_ID is omitted", async () => {
+      const response = await app.request(
+        createOrganizationPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({ organizationDisplayName: "Operator Org" }),
+        },
+        envWithoutInstanceId,
+      );
+
+      expect(response.status).toBe(200);
+      expect(createOperatorOrganization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          instanceId: "inst_LOCAL_DEV",
+          operatorUserId: admittedUserId,
+        }),
+      );
     });
 
     it("maps not-instance-operator denial to stable envelopes", async () => {

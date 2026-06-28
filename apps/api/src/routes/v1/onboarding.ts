@@ -6,6 +6,7 @@ import {
   parseOptionalDisplayName,
   readOptionalString,
   requireUserActor,
+  resolveInstanceId,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
@@ -33,7 +34,7 @@ onboardingRoutes.post("/personal-organization", requireUserActor, async (context
 
     return provisionGuidedOrganization({
       userId: userActor.userId,
-      instanceId: context.env.INSTANCE_ID ?? "inst_LOCAL_DEV",
+      instanceId: resolveInstanceId(context.env),
       isAdmitted: true,
       ...optionalDisplayName(body, "organizationDisplayName"),
       ...optionalDisplayName(body, "projectDisplayName"),
