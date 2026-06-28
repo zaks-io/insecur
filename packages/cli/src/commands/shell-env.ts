@@ -1,6 +1,17 @@
 import type { CliProfileId } from "@insecur/domain";
 import type { CliUserProfile } from "../config/user-config.js";
 
+export function buildLoginShellChildEnv(credential: string, host: string): NodeJS.ProcessEnv {
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    INSECUR_SESSION_TOKEN: credential,
+    INSECUR_HOST: host,
+  };
+  delete childEnv.INSECUR_DEPLOY_KEY;
+  delete childEnv.INSECUR_OIDC_TOKEN;
+  return childEnv;
+}
+
 export function buildShellChildEnv(credential: string, profile: CliUserProfile): NodeJS.ProcessEnv {
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,

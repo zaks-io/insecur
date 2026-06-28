@@ -2,7 +2,13 @@
 
 This is the copyable non-protected development example for the first insecur session.
 
-It uses the real product flow:
+It uses the real product flow inside a managed authenticated shell:
+
+```bash
+insecur login --shell
+```
+
+Inside the managed shell (no profile required before `init`):
 
 ```bash
 insecur init
@@ -10,9 +16,9 @@ insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --leng
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
-The CLI session credential must be available to each command. The current CLI supports
-`INSECUR_SESSION_TOKEN` or a same-process session; durable `insecur login` handoff across separate
-commands is not complete yet.
+`insecur login --shell` exchanges a WorkOS browser session and starts an interactive child shell
+with `INSECUR_SESSION_TOKEN` in that child environment only. The CLI never prints the session
+credential, writes it to disk, or asks you to `eval` or `source` shell exports.
 
 The verifier expects `INSECUR_PROOF_SECRET` in its environment, uses it as an HMAC key for an internal challenge, and prints only success or failure. It does not print the secret, the child-process environment, or a digest.
 

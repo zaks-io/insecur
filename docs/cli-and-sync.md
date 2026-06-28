@@ -44,14 +44,21 @@ The beachhead workflow is a First Value Proof for Diskless Development Secret Us
 Preferred command sequence:
 
 ```bash
+insecur login --shell
+```
+
+Inside the managed shell:
+
+```bash
 insecur init
 insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
-The sequence assumes the CLI session credential is available to each command. The current CLI can
-read `INSECUR_SESSION_TOKEN`; durable `insecur login` handoff across separate command processes is a
-remaining First Value UX gap.
+`insecur login --shell` exchanges a WorkOS browser session and starts an interactive child shell
+with `INSECUR_SESSION_TOKEN` in that child environment only. The credential is not printed, not
+written to disk, and not handed off through `eval` or `source`. First Value does not require an
+existing CLI profile before `insecur init` provisions one.
 
 The sequence uses normal product primitives:
 
