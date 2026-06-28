@@ -123,4 +123,3 @@ export {
   errorEnvelope,
   successEnvelope,
 } from "./envelopes.js";
-export { NotImplementedError } from "./not-implemented.js";
