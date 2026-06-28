@@ -214,16 +214,24 @@ Non-secret environment variables:
 - `INSECUR_CLIENT_ID`
 - `INSECUR_CONFIG_DIR`
 
-Session-only credential environment variables:
+Session and browser-exchange credential environment variables:
 
 - `INSECUR_SESSION_TOKEN`
 - `INSECUR_DEPLOY_KEY`
 - `INSECUR_OIDC_TOKEN`
+- `INSECUR_WORKOS_COOKIE`
+- `INSECUR_WORKOS_CSRF`
 
 Rules:
 
-- Session-only credential variables are never written by insecur to disk.
+- Session and browser-exchange credential variables are never written by insecur to disk.
 - Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
+- WorkOS cookie and CSRF variables are exchange inputs for `insecur login`; they are never runtime
+  authority for arbitrary child commands.
+- Child process environments scrub auth-bearing `INSECUR_*TOKEN`, `INSECUR_*COOKIE`,
+  `INSECUR_*CSRF`, and `INSECUR_*KEY` names by default. Authenticated shells deliberately receive
+  only `INSECUR_SESSION_TOKEN` plus profile metadata; Runtime Injection commands receive only the
+  requested injected variable value plus non-sensitive execution context.
 - `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
 - Prefer `insecur shell <profile-slug-or-id>` or one-shot `insecur run <profile-slug-or-id> --login -- <command>` so the CLI can keep credentials in memory or in a child process environment without printing them.
 - Do not accept Sensitive Values through CLI arguments or named local value files. Use stdin, masked prompts, service generation, or provider authorization flows.

@@ -127,6 +127,10 @@ describe("runRunCommand", () => {
   afterEach(() => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
+    delete process.env.INSECUR_WORKOS_COOKIE;
+    delete process.env.INSECUR_WORKOS_CSRF;
+    delete process.env.INSECUR_FUTURE_TOKEN;
+    delete process.env.INSECUR_FUTURE_KEY;
     delete process.env.API_KEY;
     vi.restoreAllMocks();
     spawnMock.mockReset();
@@ -198,6 +202,36 @@ describe("runRunCommand", () => {
     });
 
     expect(capturedEnv?.INSECUR_SESSION_TOKEN).toBeUndefined();
+    expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
+  });
+
+  it("scrubs WorkOS exchange material and future auth-bearing INSECUR variables from the child environment", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    process.env.INSECUR_WORKOS_COOKIE = "dummy-workos-cookie";
+    process.env.INSECUR_WORKOS_CSRF = "dummy-workos-csrf";
+    process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
+    process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
+    const api = createMockApi();
+    let capturedEnv: NodeJS.ProcessEnv | undefined;
+    spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
+      capturedEnv = options.env;
+      return createMockChild(0);
+    });
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await runRunCommand(flags, api, mockContext, {
+      variableKey: "API_KEY",
+      command: ["node", "-e", "0"],
+    });
+
+    expect(capturedEnv?.INSECUR_WORKOS_COOKIE).toBeUndefined();
+    expect(capturedEnv?.INSECUR_WORKOS_CSRF).toBeUndefined();
+    expect(capturedEnv?.INSECUR_FUTURE_TOKEN).toBeUndefined();
+    expect(capturedEnv?.INSECUR_FUTURE_KEY).toBeUndefined();
     expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
   });
 
