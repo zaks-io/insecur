@@ -5,6 +5,7 @@ function isContinuation(bytes: Uint8Array, start: number, count: number): boolea
       return false;
     }
   }
+  // The loop catches missing bytes; this keeps the helper's bounds invariant explicit.
   return start + count <= bytes.byteLength;
 }
 
