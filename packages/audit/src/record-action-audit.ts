@@ -5,15 +5,21 @@ import {
   type OrganizationId,
   type ProjectId,
 } from "@insecur/domain";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 
 import type { AuditEventCode } from "./audit-event-codes.js";
 import type {
   AuditEventActorRef,
+  AuditEventInput,
   AuditOperationRef,
   AuditRequestRef,
   AuditResourceRef,
 } from "./audit-types.js";
-import { type AuditEventResult, writeAuditEvent } from "./write-audit-event.js";
+import {
+  type AuditEventResult,
+  writeAuditEvent,
+  writeAuditEventInTenantScope,
+} from "./write-audit-event.js";
 
 export interface RecordActionAuditInput {
   outcome: "success" | "denied";
@@ -55,27 +61,38 @@ export function actionAuditScopeFields(input: ActionAuditScopeInput) {
   };
 }
 
+function toActionAuditEventInput(input: RecordActionAuditInput): AuditEventInput {
+  const base = actionAuditScopeFields(input);
+
+  if (input.outcome === "success") {
+    return {
+      ...base,
+      eventCode: input.eventCode,
+      outcome: "success",
+    };
+  }
+
+  const reasonCode = input.reasonCode ?? AUDIT_ERROR_CODES.eventInvalid;
+
+  return {
+    ...base,
+    eventCode: input.eventCode,
+    outcome: "denied",
+    denial: { reasonCode },
+  };
+}
+
 /**
  * Assembles tenant-qualified audit base fields and records a metadata-only
  * success or denied action event through {@link writeAuditEvent}.
  */
 export async function recordActionAudit(input: RecordActionAuditInput): Promise<AuditEventResult> {
-  const base = actionAuditScopeFields(input);
+  return writeAuditEvent(toActionAuditEventInput(input));
+}
 
-  if (input.outcome === "success") {
-    return writeAuditEvent({
-      ...base,
-      eventCode: input.eventCode,
-      outcome: "success",
-    });
-  }
-
-  const reasonCode = input.reasonCode ?? AUDIT_ERROR_CODES.eventInvalid;
-
-  return writeAuditEvent({
-    ...base,
-    eventCode: input.eventCode,
-    outcome: "denied",
-    denial: { reasonCode },
-  });
+export async function recordActionAuditInTenantScope(
+  sql: TenantScopedSql,
+  input: RecordActionAuditInput,
+): Promise<AuditEventResult> {
+  return writeAuditEventInTenantScope(sql, toActionAuditEventInput(input));
 }

@@ -6,10 +6,15 @@ import type {
   ProjectId,
   RequestId,
 } from "@insecur/domain";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 import type { AuditEventCode } from "./audit-event-codes.js";
 import { auditCorrelationRefs } from "./audit-correlation.js";
 import { omitUndefinedFields } from "./optional-audit-fields.js";
-import { actionAuditScopeFields, recordActionAudit } from "./record-action-audit.js";
+import {
+  actionAuditScopeFields,
+  recordActionAudit,
+  recordActionAuditInTenantScope,
+} from "./record-action-audit.js";
 import type { AuditActorRef, AuditResourceRef } from "./audit-types.js";
 import type { AuditEventResult } from "./write-audit-event.js";
 
@@ -57,4 +62,11 @@ function toRecordActionAuditInput(input: RecordScopedAuditInput) {
 /** Records a tenant-scoped audit event with optional correlation identifiers. */
 export async function recordScopedAudit(input: RecordScopedAuditInput): Promise<AuditEventResult> {
   return recordActionAudit(toRecordActionAuditInput(input));
+}
+
+export async function recordScopedAuditInTenantScope(
+  sql: TenantScopedSql,
+  input: RecordScopedAuditInput,
+): Promise<AuditEventResult> {
+  return recordActionAuditInTenantScope(sql, toRecordActionAuditInput(input));
 }

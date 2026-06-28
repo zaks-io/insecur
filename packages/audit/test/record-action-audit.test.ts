@@ -10,11 +10,12 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "../src/audit-event-codes.js";
-import { recordActionAudit } from "../src/record-action-audit.js";
-import { writeAuditEvent } from "../src/write-audit-event.js";
+import { recordActionAudit, recordActionAuditInTenantScope } from "../src/record-action-audit.js";
+import { writeAuditEvent, writeAuditEventInTenantScope } from "../src/write-audit-event.js";
 
 vi.mock("../src/write-audit-event.js", () => ({
   writeAuditEvent: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  writeAuditEventInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -33,6 +34,7 @@ const RELATED = {
 };
 
 const writeMock = vi.mocked(writeAuditEvent);
+const writeInScopeMock = vi.mocked(writeAuditEventInTenantScope);
 
 describe("recordActionAudit", () => {
   it("records success with optional scope and resource fields", async () => {
@@ -64,6 +66,32 @@ describe("recordActionAudit", () => {
       relatedResource: RELATED,
       request: REQUEST,
       operation: OPERATION,
+    });
+  });
+
+  it("records success on an existing tenant-scoped transaction", async () => {
+    writeInScopeMock.mockClear();
+    const sql = {} as never;
+
+    const result = await recordActionAuditInTenantScope(sql, {
+      outcome: "success",
+      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      request: REQUEST,
+    });
+
+    expect(result).toEqual({ auditEventId: "aud_test" });
+    expect(writeInScopeMock).toHaveBeenCalledWith(sql, {
+      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+      outcome: "success",
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      request: REQUEST,
     });
   });
 
