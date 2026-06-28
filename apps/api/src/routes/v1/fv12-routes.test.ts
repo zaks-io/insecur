@@ -781,6 +781,52 @@ describe("FV-12 worker routes", () => {
       });
     });
 
+    it("rejects consume requests with blank variableKey and present secretId before Runtime RPC", async () => {
+      const response = await app.request(
+        consumePath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "",
+            secretId: "sec_00000000000000000000000001",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(consumeGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
+    });
+
+    it("rejects consume requests with present variableKey and blank secretId before Runtime RPC", async () => {
+      const response = await app.request(
+        consumePath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            secretId: "",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(consumeGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
+    });
+
     it("returns runtime delivery material from the Runtime Worker only on the consume route", async () => {
       const response = await app.request(
         consumePath,

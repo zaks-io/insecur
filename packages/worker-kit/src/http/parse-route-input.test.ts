@@ -333,6 +333,8 @@ describe("parseInjectionGrantConsumeSelector", () => {
       {},
       { variableKey: "DATABASE_URL", secretId: VALID_SEC_ID },
       { variableKey: "", secretId: "" },
+      { variableKey: "", secretId: VALID_SEC_ID },
+      { variableKey: "DATABASE_URL", secretId: "" },
     ] as const) {
       expectValidationError(
         () => parseInjectionGrantConsumeSelector(input),
