@@ -1,5 +1,5 @@
-import { errorEnvelope } from "@insecur/domain";
-import { AuthFailureError } from "@insecur/worker-kit";
+import { AUTH_ERROR_CODES, errorEnvelope, requestId } from "@insecur/domain";
+import { AuthConfigError, AuthFailureError } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
 import { instanceBootstrapRoutes } from "./routes/v1/instance-bootstrap.js";
@@ -27,6 +27,20 @@ app.onError((err, context) => {
         { requestId: reqId },
       ),
       401,
+    );
+  }
+  if (err instanceof AuthConfigError) {
+    const reqId = requestId.generate();
+    return context.json(
+      errorEnvelope(
+        {
+          code: AUTH_ERROR_CODES.configInvalid,
+          message: err.message,
+          retryable: false,
+        },
+        { requestId: reqId },
+      ),
+      503,
     );
   }
   if ("getResponse" in err && typeof err.getResponse === "function") {

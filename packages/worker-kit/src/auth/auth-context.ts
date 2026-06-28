@@ -33,8 +33,8 @@ function authConfigErrorMessage(field: AuthConfigField): string {
   }
 }
 
-function isBlank(value: string): boolean {
-  return value.trim() === "";
+function isBlank(value: string | undefined): boolean {
+  return value === undefined || value.trim() === "";
 }
 
 export function validateAuthContext(config: InsecurAuthConfig): void {

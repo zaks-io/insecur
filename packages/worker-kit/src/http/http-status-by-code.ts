@@ -16,6 +16,7 @@ import {
 /** Enforcing HTTP projection of docs/cli-and-sync.md Error Code To Exit Code Mapping. */
 export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [AUTH_ERROR_CODES.required, 401],
+  [AUTH_ERROR_CODES.configInvalid, 503],
   [AUTH_ERROR_CODES.expired, 401],
   [AUTH_ERROR_CODES.invalid, 401],
   [AUTH_ERROR_CODES.reauthRequired, 401],
