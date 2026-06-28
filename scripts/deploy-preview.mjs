@@ -35,8 +35,9 @@ await main(config);
 async function main(config) {
   buildWorkspace();
   migrateAndSeed(config);
-  deployWorker(runtimeConfig, [], ["RUNTIME_TOKEN_SIGNING_SECRET"], config);
+  deployWorker("@insecur/runtime", runtimeConfig, [], ["RUNTIME_TOKEN_SIGNING_SECRET"], config);
   deployWorker(
+    "@insecur/api",
     apiConfig,
     [
       ["INSTANCE_ID", config.instanceId],
@@ -86,8 +87,18 @@ function migrateAndSeed(config) {
   );
 }
 
-function deployWorker(configPath, vars = [], secretKeys = [], config) {
-  const args = ["exec", "wrangler", "deploy", "--config", configPath, "--env", "preview"];
+function deployWorker(packageName, configPath, vars = [], secretKeys = [], config) {
+  const args = [
+    "--filter",
+    packageName,
+    "exec",
+    "wrangler",
+    "deploy",
+    "--config",
+    join(root, configPath),
+    "--env",
+    "preview",
+  ];
   for (const [key, value] of vars) {
     args.push("--var", `${key}:${value}`);
   }
