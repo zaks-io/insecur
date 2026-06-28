@@ -127,8 +127,8 @@ function declaresRootKey(config) {
 }
 
 // Extract public mount prefixes from a Hono composition root by reading its `app.route(...)`,
-// `app.<method>(...)`, `app.on(...)`, and `app.use(...)` calls. This is the live route inventory the
-// deploy actually serves.
+// `app.<method>(...)`, `app.on(...)`, `app.mount(...)`, and `app.use(...)` calls. This is the live
+// route inventory the deploy actually serves.
 function extractPublicRoutes(indexPath) {
   if (!isFile(indexPath)) {
     return [];
@@ -136,14 +136,14 @@ function extractPublicRoutes(indexPath) {
   const source = readFileSync(indexPath, "utf8");
   const mounts = new Set();
   const patterns = [
-    /app\.(?:route|all|get|post|put|delete|patch|options|head|use)\(\s*["'`]([^"'`]+)["'`]/g,
+    /app\.(?:route|all|get|post|put|delete|patch|options|head|mount|use)\(\s*["'`]([^"'`]+)["'`]/g,
     /app\.on\(\s*(?:\[[^\)]*?\]|["'`][^"'`]+["'`])\s*,\s*["'`]([^"'`]+)["'`]/g,
   ];
   for (const pattern of patterns) {
     let match;
     while ((match = pattern.exec(source)) !== null) {
       const prefix = match[1];
-      if (prefix.startsWith("/")) {
+      if (isPublicMount(prefix)) {
         mounts.add(prefix);
       }
     }
@@ -154,12 +154,16 @@ function extractPublicRoutes(indexPath) {
     const paths = arrayMatch[1];
     for (const pathMatch of paths.matchAll(/["'`]([^"'`]+)["'`]/g)) {
       const prefix = pathMatch[1];
-      if (prefix.startsWith("/")) {
+      if (isPublicMount(prefix)) {
         mounts.add(prefix);
       }
     }
   }
   return [...mounts].sort();
+}
+
+function isPublicMount(prefix) {
+  return prefix === "*" || prefix.startsWith("/");
 }
 
 function assertSingleRootKeyHolder(deploys) {
