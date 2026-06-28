@@ -5,13 +5,13 @@
 //
 // Asserts:
 //   (a) exactly ONE deploy declares the INSTANCE_ROOT_KEY_V1 binding, and it is `insecur-runtime`.
-//   (b) the Runtime Worker mounts ZERO public /v1/* routes.
-//   (c) NO deploy declares BOTH a public /v1/* route group AND the root-key binding (the monolith
+//   (b) the Runtime Worker mounts ZERO public routes.
+//   (c) NO deploy declares BOTH a public route group AND the root-key binding (the monolith
 //       signature).
 //   (d) NO V1 deploy carries a Service Access token audience or a reveal/value/delivery/approval
 //       scope (ADR-0019 negative assertion; Service Access is deferred and unbuilt).
 //   (e) the API Worker has exactly the intended private Runtime Service Binding shape.
-//   (f) each deploy's live /v1/* route mounts match docs/specs/deploy-route-inventory.md in both
+//   (f) each deploy's live public route mounts match docs/specs/deploy-route-inventory.md in both
 //       directions (ADR-0067).
 //
 // HARD-FAILS (exit 1) on any violation. Wired into `pnpm verify`.
@@ -94,7 +94,7 @@ function discoverDeploys() {
       raw,
       rootKeyScopes,
       hasRootKey: rootKeyScopes.length > 0,
-      routes: extractV1Routes(join(appPath, "src", "index.ts")),
+      routes: extractPublicRoutes(join(appPath, "src", "index.ts")),
     });
   }
   return deploys;
@@ -126,23 +126,29 @@ function declaresRootKey(config) {
   return secrets.some((secret) => secret?.binding === ROOT_KEY_BINDING);
 }
 
-// Extract the /v1/* mount prefixes from a Hono composition root by reading its `app.route(...)` /
-// `app.<method>(...)` calls. This is the live route inventory the deploy actually serves.
-function extractV1Routes(indexPath) {
+// Extract public mount prefixes from a Hono composition root by reading its `app.route(...)`,
+// `app.<method>(...)`, `app.on(...)`, and `app.use(...)` calls. This is the live route inventory the
+// deploy actually serves.
+function extractPublicRoutes(indexPath) {
   if (!isFile(indexPath)) {
     return [];
   }
   const source = readFileSync(indexPath, "utf8");
-  const mounts = [];
-  const pattern = /app\.(?:route|get|post|put|delete|patch)\(\s*["'`]([^"'`]+)["'`]/g;
-  let match;
-  while ((match = pattern.exec(source)) !== null) {
-    const prefix = match[1];
-    if (prefix.startsWith("/v1/")) {
-      mounts.push(prefix);
+  const mounts = new Set();
+  const patterns = [
+    /app\.(?:route|all|get|post|put|delete|patch|options|head|use)\(\s*["'`]([^"'`]+)["'`]/g,
+    /app\.on\(\s*(?:\[[^\)]*?\]|["'`][^"'`]+["'`])\s*,\s*["'`]([^"'`]+)["'`]/g,
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const prefix = match[1];
+      if (prefix.startsWith("/")) {
+        mounts.add(prefix);
+      }
     }
   }
-  return mounts.sort();
+  return [...mounts].sort();
 }
 
 function assertSingleRootKeyHolder(deploys) {
@@ -168,7 +174,7 @@ function assertRuntimeHasNoPublicRoutes(deploys) {
   for (const deploy of deploys) {
     if (deploy.name === RUNTIME_SCRIPT_NAME && deploy.routes.length > 0) {
       fail(
-        `${RUNTIME_SCRIPT_NAME} must serve zero public /v1/* routes but mounts: ${deploy.routes.join(", ")}`,
+        `${RUNTIME_SCRIPT_NAME} must serve zero public routes but mounts: ${deploy.routes.join(", ")}`,
       );
     }
   }
@@ -178,7 +184,7 @@ function assertNoMonolith(deploys) {
   for (const deploy of deploys) {
     if (deploy.hasRootKey && deploy.routes.length > 0) {
       fail(
-        `MONOLITH: deploy '${deploy.name}' declares both the root-key binding and public /v1/* routes (${deploy.routes.join(", ")})`,
+        `MONOLITH: deploy '${deploy.name}' declares both the root-key binding and public routes (${deploy.routes.join(", ")})`,
       );
     }
   }
@@ -295,7 +301,7 @@ function parseRouteInventory(doc) {
     const bodyStart = heading.index + title.length;
     const bodyEnd = headings[index + 1]?.index ?? doc.length;
     const body = doc.slice(bodyStart, bodyEnd);
-    const routes = [...body.matchAll(/^\|\s*[^|]+\|\s*`(\/v1\/[^`]+)`\s*\|/gm)].map(
+    const routes = [...body.matchAll(/^\|\s*[^|]+\|\s*`(\/[^`]+)`\s*\|/gm)].map(
       (match) => match[1],
     );
     documentedByDeploy.set(deployName, new Set(routes.sort()));
