@@ -183,6 +183,11 @@ describe("membership management worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(createInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
     });
 
     it("rejects invalid optional projectId values", async () => {
@@ -202,6 +207,11 @@ describe("membership management worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(createInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
     });
 
     it("rejects invalid organization path params", async () => {
@@ -220,6 +230,11 @@ describe("membership management worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(createInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
     });
 
     it("delegates invitation creation to the onboarding package", async () => {
