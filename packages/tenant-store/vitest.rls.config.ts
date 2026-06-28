@@ -6,7 +6,7 @@ loadRepoEnvLocal();
 export default defineConfig({
   test: {
     setupFiles: ["test/rls/load-env.ts"],
-    include: ["test/rls/**/*.test.ts"],
+    include: ["test/rls/**/*.test.ts", "test/*.integration.test.ts"],
     fileParallelism: false,
     hookTimeout: 60_000,
     testTimeout: 30_000,

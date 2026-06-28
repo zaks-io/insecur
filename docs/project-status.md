@@ -201,16 +201,16 @@ First Value routes under `/v1/orgs/:org`).
 - DB-backed integration tests are present for tenant isolation, data-key isolation,
   access resolution, machine effective access and GitHub Actions OIDC exchange, audit writes,
   non-protected secret writes, runtime injection grants, guided provisioning, membership
-  management, instance bootstrap, operation store, and sync target leases. In ordinary
-  `pnpm verify`, suites that need `DATABASE_URL_RUNTIME` are skipped when the runtime DB is not
-  configured.
+  management, instance bootstrap, operation store, and sync target leases. Ordinary
+  package `test` tasks exclude these DB-backed `*.integration.test.ts` suites so `pnpm verify`
+  stays unit-only even when local Postgres env exists.
 - `pnpm test:rls` is the real-Postgres RLS gate (`ENABLE` + `FORCE ROW LEVEL SECURITY`,
   `NOBYPASSRLS` runtime role). The `postgres-integration` CI job resets Docker Compose
   Postgres 17, asserts migration vs runtime credentials and `NOBYPASSRLS`, then runs
-  `test:rls` (`@insecur/tenant-store` forced-RLS suite plus `@insecur/access` integration
-  RLS tests), `test:e2e`, and `test:canary` with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build.
-  Package integration suites outside those tasks still self-gate in `pnpm verify` when
-  `DATABASE_URL_RUNTIME` is unset.
+  every workspace DB-backed `test:rls` suite, `test:e2e`, and `test:canary` with
+  `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. The `test:rls` fanout covers the
+  tenant-store forced-RLS suite plus package-level DB-backed integration suites in access, audit,
+  operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap.
 - PRs use Docker Compose Postgres in the `postgres-integration` CI job for RLS, e2e, and canary.
   The deployed First Value smoke runs through `pnpm deploy:preview` / `Deploy Preview` against the
   bounded shared preview environment, not per-PR Neon branches or Workers.

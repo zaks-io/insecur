@@ -78,7 +78,8 @@ describeIntegration("exportTenantAuditEvents", () => {
     expect(bundle.manifest.organization_id).toBe(TEST_ORG_A_ID);
     expect(bundle.manifest.entry_count).toBeGreaterThan(0);
     expect(bundle.jsonl).toContain(TEST_ORG_A_ID);
-    expect(bundle.jsonl).not.toMatch(/password|plaintext|secret/i);
+    // `secret` is an allowed metadata resource type/event prefix; plaintext-like values are not.
+    expect(bundle.jsonl).not.toMatch(/password|plaintext/i);
 
     const keys = new StaticAuditExportVerificationKeys();
     keys.registerHmacKey(hmacKey);
