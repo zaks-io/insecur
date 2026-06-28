@@ -9,7 +9,7 @@
     "typecheck": "turbo run typecheck --cache=local:rw,remote:r",
     "lint": "turbo run lint --cache=local:rw,remote:r",
     "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
-    "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.5 apps packages scripts",
+    "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.25 apps packages scripts",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "knip": "knip",
     "knip:strict": "knip --strict",
