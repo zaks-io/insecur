@@ -22,9 +22,11 @@ export const invitationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVar
 invitationsRoutes.post("/", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
-    const organizationId = parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
+    const organizationIdParam = requireRouteParam(
+      context.req.param("organizationId"),
+      "organizationId",
     );
+    const organizationId = parseOrganizationIdParam(organizationIdParam);
     const body = parseJsonBody(await context.req.json());
     const projectIdRaw = readOptionalString(body, "projectId");
     const invitationIdValue = parseOptionalInvitationId(readOptionalString(body, "invitationId"));
