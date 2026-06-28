@@ -7,6 +7,7 @@ import {
   verifyAuditExport,
   writeAuditEvent,
 } from "../src/index.js";
+import { assertAuditExportJsonlIsMetadataOnly } from "./support/assert-audit-export-jsonl-metadata-only.js";
 import {
   brandOpaqueResourceIdForPrefix,
   environmentId,
@@ -78,8 +79,9 @@ describeIntegration("exportTenantAuditEvents", () => {
     expect(bundle.manifest.organization_id).toBe(TEST_ORG_A_ID);
     expect(bundle.manifest.entry_count).toBeGreaterThan(0);
     expect(bundle.jsonl).toContain(TEST_ORG_A_ID);
-    // `secret` is an allowed metadata resource type/event prefix; plaintext-like values are not.
-    expect(bundle.jsonl).not.toMatch(/password|plaintext/i);
+    // Wide time range may include First Value smoke rows (e.g. secret.non_protected_write).
+    assertAuditExportJsonlIsMetadataOnly(bundle.jsonl);
+    expect(bundle.jsonl).toContain(FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisioned);
 
     const keys = new StaticAuditExportVerificationKeys();
     keys.registerHmacKey(hmacKey);
