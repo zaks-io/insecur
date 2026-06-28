@@ -148,6 +148,17 @@ function extractPublicRoutes(indexPath) {
       }
     }
   }
+  const onPathArrayPattern = /app\.on\(\s*(?:\[[^\)]*?\]|["'`][^"'`]+["'`])\s*,\s*\[([^\]]*)\]/g;
+  let arrayMatch;
+  while ((arrayMatch = onPathArrayPattern.exec(source)) !== null) {
+    const paths = arrayMatch[1];
+    for (const pathMatch of paths.matchAll(/["'`]([^"'`]+)["'`]/g)) {
+      const prefix = pathMatch[1];
+      if (prefix.startsWith("/")) {
+        mounts.add(prefix);
+      }
+    }
+  }
   return [...mounts].sort();
 }
 
