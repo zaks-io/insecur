@@ -16,6 +16,7 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.config.ts",
+    "test:rls": "vitest run --config vitest.rls.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
