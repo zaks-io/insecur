@@ -1,0 +1,33 @@
+{
+  "issue": "INS-260",
+  "reviewedAt": "2026-06-28T00:10:00.000Z",
+  "gitHead": "22c7e31d5f2b0479ab3b7ef1e0860cb81512880c",
+  "command": "pnpm build && pnpm exec stryker run --mutate \"apps/api/src/**/*.ts\" --force",
+  "area": "apps/api",
+  "scope": "production sources under apps/api/src (focused --mutate override per INS-260)",
+  "mutationScore": {
+    "productionOnly": 61.07,
+    "priorBaselineProductionOnly": 48.42
+  },
+  "mutants": {
+    "productionOnly": {
+      "total": 411,
+      "killed": 251,
+      "survived": 106,
+      "noCoverage": 54,
+      "timeout": 0
+    }
+  },
+  "ratchet": {
+    "baselineUpdated": true,
+    "baselineCommand": "manual apps/api area floor update in config/mutation-ratchet.json (update-area blocked by node_modules walk under apps/api)",
+    "ratchetCheck": "node scripts/ci/mutation-ratchet.mjs check apps/api",
+    "ratchetResult": "passed"
+  },
+  "traceability": {
+    "mutationRunCommit": "22c7e31d5f2b0479ab3b7ef1e0860cb81512880c",
+    "rebasedOntoMain": "64ac47cdbe270d7f32e39c265d55f284105590de",
+    "note": "gitHead/mutationRunCommit = focused Stryker run commit on this branch. Stale prHead/evidenceRecordsCommit fields removed; PR review head is the commit SHA that contains this evidence file."
+  },
+  "notes": "Focused src review raised production-only apps/api score from 48.42% to 61.07%. Full-repo pnpm mutation:ratchet:check not rerun because this slice intentionally uses a scoped --mutate override."
+}

@@ -145,6 +145,98 @@ describe("membership management worker routes", () => {
       expect(createInvitation).not.toHaveBeenCalled();
     });
 
+    it("rejects missing inviteeUserId before delegating invitation creation", async () => {
+      const response = await app.request(
+        createInvitationPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            rolePreset: "developer",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(createInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
+    it("rejects invalid inviteeUserId values", async () => {
+      const response = await app.request(
+        createInvitationPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            inviteeUserId: "not-a-user",
+            rolePreset: "developer",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(createInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
+    it("rejects invalid optional projectId values", async () => {
+      const response = await app.request(
+        createInvitationPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            inviteeUserId,
+            rolePreset: "developer",
+            projectId: "not-a-project",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(createInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
+    it("rejects invalid organization path params", async () => {
+      const response = await app.request(
+        `/v1/orgs/not-an-org/invitations`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            inviteeUserId,
+            rolePreset: "developer",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(createInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
     it("delegates invitation creation to the onboarding package", async () => {
       const response = await app.request(
         createInvitationPath,
@@ -257,6 +349,26 @@ describe("membership management worker routes", () => {
       expect(acceptInvitation).not.toHaveBeenCalled();
     });
 
+    it("rejects invalid invitation id path params", async () => {
+      const response = await app.request(
+        `/v1/orgs/${orgId}/invitations/not-an-invitation/accept`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: "{}",
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(acceptInvitation).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+
     it("binds the authenticated actor and delegates acceptance to the onboarding package", async () => {
       const response = await app.request(
         acceptInvitationPath,
@@ -361,6 +473,28 @@ describe("membership management worker routes", () => {
 
       expect(response.status).toBe(401);
       expect(createOperatorOrganization).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid operator organization resourceIds shapes", async () => {
+      const response = await app.request(
+        createOrganizationPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            resourceIds: "not-an-object",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(createOperatorOrganization).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
     });
 
     it("delegates operator organization creation to the onboarding package", async () => {
