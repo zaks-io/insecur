@@ -2,6 +2,7 @@
  * Drizzle schema source of truth (ADR-0037). Plain table definitions only.
  */
 /* Stryker disable ObjectLiteral */
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { primaryKey } from "drizzle-orm/pg-core";
 import {
   bigint,
@@ -15,7 +16,8 @@ import {
   unique,
   uniqueIndex,
 } from "./pg-core.js";
-import { organizations, projects, teams, environments } from "./tenant-hierarchy.js";
+import { organizations, projects, teams } from "./tenant-hierarchy.js";
+import { orgEnvironmentForeignKey, orgProjectForeignKey } from "./tenant-org-scope-foreign-keys.js";
 import { operations } from "./tenant-secrets.js";
 export const invitations = pgTable(
   "invitations",
@@ -99,6 +101,20 @@ export const machineIdentities = pgTable(
   (table) => [unique("machine_identities_org_id_id_key").on(table.orgId, table.id)],
 );
 
+function orgMachineIdentityAndProjectForeignKeys(table: {
+  orgId: AnyPgColumn;
+  machineIdentityId: AnyPgColumn;
+  projectId: AnyPgColumn;
+}) {
+  return [
+    foreignKey({
+      columns: [table.orgId, table.machineIdentityId],
+      foreignColumns: [machineIdentities.orgId, machineIdentities.id],
+    }),
+    orgProjectForeignKey(table),
+  ];
+}
+
 export const machineIdentityMemberships = pgTable(
   "machine_identity_memberships",
   {
@@ -118,14 +134,7 @@ export const machineIdentityMemberships = pgTable(
       table.machineIdentityId,
       table.projectId,
     ),
-    foreignKey({
-      columns: [table.orgId, table.machineIdentityId],
-      foreignColumns: [machineIdentities.orgId, machineIdentities.id],
-    }),
-    foreignKey({
-      columns: [table.orgId, table.projectId],
-      foreignColumns: [projects.orgId, projects.id],
-    }),
+    ...orgMachineIdentityAndProjectForeignKeys(table),
     check("machine_identity_memberships_project_scoped", sql`${table.projectId} IS NOT NULL`),
     check(
       "machine_identity_memberships_scopes_nonempty",
@@ -153,18 +162,8 @@ export const machineIdentityGitHubActionsOidc = pgTable(
   },
   (table) => [
     unique("machine_identity_github_actions_oidc_org_id_id_key").on(table.orgId, table.id),
-    foreignKey({
-      columns: [table.orgId, table.machineIdentityId],
-      foreignColumns: [machineIdentities.orgId, machineIdentities.id],
-    }),
-    foreignKey({
-      columns: [table.orgId, table.projectId],
-      foreignColumns: [projects.orgId, projects.id],
-    }),
-    foreignKey({
-      columns: [table.orgId, table.environmentId],
-      foreignColumns: [environments.orgId, environments.id],
-    }),
+    ...orgMachineIdentityAndProjectForeignKeys(table),
+    orgEnvironmentForeignKey(table),
     check(
       "machine_identity_github_actions_oidc_repository_lowercase",
       sql`lower(${table.githubRepository}) = ${table.githubRepository}`,
