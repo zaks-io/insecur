@@ -1,10 +1,6 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 
-import { AUTHORIZATION_SCOPES } from "@insecur/access";
-import { consumeInjectionGrant } from "@insecur/runtime-injection";
-import { assertSecretWriteCoordinate, writeNonProtectedSecret } from "@insecur/secret-store";
 import { configureRuntimeConnection } from "@insecur/tenant-store";
-import { authorizeScopeOrThrow } from "@insecur/worker-kit";
 import type {
   ConsumeGrantRpcInput,
   RuntimeDeliveryEnvelope,
@@ -14,10 +10,9 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "./env.js";
+import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
+import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import { withRuntimeRpcEntry } from "./rpc/runtime-rpc-entry.js";
-import { createKeyringFromRuntimeEnv } from "./crypto/keyring-context.js";
-import { generateSecretValueUtf8 } from "./secret-generation.js";
-import { runtimeDeliveryEnvelope } from "./runtime-delivery-envelope.js";
 
 /**
  * The decrypt-egress deep module (ADR-0077). This is the only deploy that holds
@@ -57,28 +52,9 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
   async consumeGrant(
     input: ConsumeGrantRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) => {
-      const result = await consumeInjectionGrant({
-        keyring: createKeyringFromRuntimeEnv(this.env),
-        organizationId: input.organizationId,
-        grantId: input.grantId,
-        ...(input.variableKey !== undefined ? { variableKey: input.variableKey } : {}),
-        ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
-        actor: auditActor,
-        request: { requestId: input.requestId },
-      });
-      return runtimeDeliveryEnvelope(
-        {
-          grantId: input.grantId,
-          secretId: result.secretId,
-          secretVersionId: result.secretVersionId,
-          variableKey: result.variableKey,
-          valueUtf8: result.valueUtf8,
-          ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
-        },
-        { requestId: input.requestId },
-      );
-    });
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
+      consumeGrantOperation({ env: this.env, input, auditActor }),
+    );
   }
 
   async writeSecret(
@@ -86,49 +62,8 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
   ): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
     return withRuntimeRpcEntry(
       this.#rpcEntryOptions(input.actorToken),
-      async ({ auditActor, accessActor }) => {
-        const coordinate = {
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          environmentId: input.environmentId,
-        };
-        // Authorization first, coordinate check second: a caller lacking write scope must get the
-        // same insufficient_scope denial whether or not the URL environment exists, so the coordinate
-        // check (which reads the environments table) cannot become a cross-project existence oracle.
-        // The coordinate check then runs only for callers already entitled to write at this project.
-        await authorizeScopeOrThrow({
-          actor: accessActor,
-          auditActor,
-          coordinate,
-          requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
-          requestId: input.requestId,
-        });
-        await assertSecretWriteCoordinate({
-          ...coordinate,
-          actor: auditActor,
-          request: { requestId: input.requestId },
-        });
-        const result = await writeNonProtectedSecret({
-          keyring: createKeyringFromRuntimeEnv(this.env),
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          environmentId: input.environmentId,
-          variableKey: input.variableKey,
-          actor: auditActor,
-          valueUtf8:
-            "valueUtf8" in input ? input.valueUtf8 : generateSecretValueUtf8(input.generate),
-          ...(input.allowEmpty !== undefined ? { allowEmpty: input.allowEmpty } : {}),
-          ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
-          request: { requestId: input.requestId },
-        });
-        return {
-          secretId: result.secretId,
-          secretVersionId: result.secretVersionId,
-          variableKey: result.variableKey,
-          createdSecretShape: result.createdSecretShape,
-          ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
-        };
-      },
+      async ({ auditActor, accessActor }) =>
+        writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
     );
   }
 }
