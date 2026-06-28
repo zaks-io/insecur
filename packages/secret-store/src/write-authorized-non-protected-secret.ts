@@ -6,7 +6,7 @@ import {
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 
 import { assertSecretNonProtectedWriteAccess } from "./assert-secret-non-protected-write-access.js";
-import { recordSecretWriteAudit } from "./record-secret-write-audit.js";
+import { recordDeniedWriteAudit } from "./record-denied-write-audit.js";
 import { SecretWriteError } from "./secret-write-error.js";
 import {
   type WriteNonProtectedSecretInput,
@@ -24,17 +24,9 @@ export interface WriteAuthorizedNonProtectedSecretInput extends WriteNonProtecte
 async function recordDeniedAuthorizedWrite(
   input: WriteAuthorizedNonProtectedSecretInput,
 ): Promise<void> {
-  await recordSecretWriteAudit({
-    outcome: "denied",
-    actor: input.actor,
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-    ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
-    ...(input.request !== undefined ? { request: input.request } : {}),
-    ...(input.operation !== undefined ? { operation: input.operation } : {}),
-    reasonCode: AUTH_ERROR_CODES.insufficientScope,
-  });
+  const scope = [input.organizationId, input.projectId, input.environmentId] as const;
+  const refs = [input.secretId, input.request, input.operation] as const;
+  await recordDeniedWriteAudit(input.actor, scope, refs, AUTH_ERROR_CODES.insufficientScope);
 }
 
 /**
