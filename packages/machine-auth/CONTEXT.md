@@ -12,9 +12,14 @@ exchange audit events.
 
 ## Read First
 
-- `../../CONTEXT-MAP.md`
+- `../../docs/context-map.md`
+- `../../docs/specs/agent-workstreams.md` (W7)
+- `../../docs/context/glossary/machine-access.md`
+- `../../docs/context/glossary/access-authorization.md`
+- `../../docs/context/glossary/runtime-injection.md`
 - `../../docs/adr/0004-machine-identities-and-ci-auth.md`
 - `../../docs/adr/0029-environments-and-cd-trust-model.md`
+- `../../docs/adr/0038-protected-delivery-requires-machine-credential.md`
 - `../../packages/access/CONTEXT.md`
 
 ## Terms To Load
@@ -36,6 +41,7 @@ exchange audit events.
 ## Does Not Own
 
 - Human authentication (`@insecur/auth`).
+- Machine Identity persistence or membership tables (`@insecur/tenant-store`).
 - Effective Access resolution (`@insecur/access`).
-- HTTP routes (`apps/api`) or decrypt-egress RPC (`apps/runtime`).
+- HTTP route/API composition (`apps/api`) or decrypt-egress RPC (`apps/runtime`).
 - Environment Deploy Keys (later MAC slice).
