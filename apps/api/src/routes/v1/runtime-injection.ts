@@ -4,13 +4,11 @@ import {
   handleRoute,
   parseEnvironmentIdParam,
   parseGrantIdParam,
+  parseInjectionGrantConsumeSelector,
   parseInjectionGrantIssueSelector,
   parseJsonBody,
-  parseOptionalSecretId,
   parseOrganizationIdParam,
   parseProjectIdParam,
-  parseVariableKeyField,
-  readOptionalString,
   readRequiredString,
   requireRouteParam,
   requireUserActor,
@@ -56,17 +54,15 @@ runtimeInjectionRoutes.post("/grants/:grantId/consume", requireUserActor, async 
     );
     const grantId = parseGrantIdParam(context.req.param("grantId"));
     const body = parseJsonBody(await context.req.json());
-    const variableKeyRaw = readOptionalString(body, "variableKey");
-    const secretId = parseOptionalSecretId(readOptionalString(body, "secretId"));
+    const selector = parseInjectionGrantConsumeSelector(body);
 
     const envelope = await consumeRuntimeGrant(context.env, userActor, {
       organizationId,
       grantId,
       requestId: reqId,
-      ...(variableKeyRaw !== undefined
-        ? { variableKey: parseVariableKeyField(variableKeyRaw) }
-        : {}),
-      ...(secretId !== undefined ? { secretId } : {}),
+      ...(selector.kind === "variable_key"
+        ? { variableKey: selector.variableKey }
+        : { secretId: selector.secretId }),
     });
 
     return context.json(envelope);
