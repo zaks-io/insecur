@@ -1,13 +1,11 @@
 import { createOperatorOrganization } from "@insecur/onboarding";
-import type { OperatorOrganizationResourceIds } from "@insecur/onboarding";
-import { organizationId, teamId, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   handleRoute,
   parseJsonBody,
+  parseOperatorOrganizationResourceIds,
   parseOptionalDisplayName,
   parseOrganizationIdParam,
   readOptionalString,
-  readRequiredString,
   requireRouteParam,
   requireUserActor,
   resolveInstanceId,
@@ -17,33 +15,6 @@ import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
 
 export const organizationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
-
-function parseOperatorOrganizationResourceIds(
-  body: Record<string, unknown>,
-): OperatorOrganizationResourceIds | undefined {
-  const raw = body.resourceIds;
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw Object.assign(new Error("Invalid resourceIds."), {
-      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
-    });
-  }
-  const record = raw as Record<string, unknown>;
-  const parsedOrganizationId = organizationId.parse(readRequiredString(record, "organizationId"));
-  if (!parsedOrganizationId.ok) {
-    throw Object.assign(new Error("Invalid resourceIds."), { code: parsedOrganizationId.code });
-  }
-  const parsedTeamId = teamId.parse(readRequiredString(record, "defaultTeamId"));
-  if (!parsedTeamId.ok) {
-    throw Object.assign(new Error("Invalid resourceIds."), { code: parsedTeamId.code });
-  }
-  return {
-    organizationId: parsedOrganizationId.value,
-    defaultTeamId: parsedTeamId.value,
-  };
-}
 
 organizationsRoutes.post("/", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {

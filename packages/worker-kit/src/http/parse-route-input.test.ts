@@ -7,12 +7,18 @@ import {
   parseGuidedOrganizationResourceIds,
   parseInjectionGrantConsumeSelector,
   parseInjectionGrantIssueSelector,
+  parseInvitationIdParam,
   parseJsonBody,
   parseOperationIdParam,
   parseOptionalDisplayName,
+  parseOptionalInvitationId,
+  parseOptionalMembershipId,
   parseOptionalSecretId,
+  parseOperatorOrganizationResourceIds,
   parseOrganizationIdParam,
+  parseOwnerMembershipId,
   parseProjectIdParam,
+  parseUserIdField,
   parseVariableKeyField,
   readOptionalBoolean,
   readOptionalString,
@@ -29,6 +35,8 @@ const VALID_OPERATION = "op_01TEST00000000000000000001";
 const VALID_SEC_ID = "sec_01TEST00000000000000000001";
 const VALID_TEAM = "team_01TEST00000000000000000001";
 const VALID_MEMBERSHIP = "mem_01TEST00000000000000000001";
+const VALID_INVITATION = "inv_01TEST00000000000000000001";
+const VALID_USER = "usr_01TEST00000000000000000001";
 
 function expectValidationError(fn: () => unknown, message: string, code: string): void {
   expect(fn).toThrow(
@@ -93,6 +101,26 @@ describe("branded route id params", () => {
   });
 });
 
+describe("invitation and user id route inputs", () => {
+  it("parses valid invitation and user ids", () => {
+    expect(parseInvitationIdParam(VALID_INVITATION)).toBe(VALID_INVITATION);
+    expect(parseUserIdField(VALID_USER)).toBe(VALID_USER);
+  });
+
+  it("rejects malformed invitation and user ids", () => {
+    expectValidationError(
+      () => parseInvitationIdParam("not-an-invitation"),
+      "Invalid invitation id.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+    expectValidationError(
+      () => parseUserIdField("not-a-user"),
+      "Invalid user id.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+});
+
 describe("parseVariableKeyField", () => {
   it("accepts env-var-safe keys", () => {
     expect(parseVariableKeyField("DATABASE_URL")).toBe("DATABASE_URL");
@@ -120,6 +148,31 @@ describe("parseOptionalSecretId", () => {
     expectValidationError(
       () => parseOptionalSecretId("not-a-secret"),
       "Invalid secret id.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+});
+
+describe("optional invitation and membership id fields", () => {
+  it("returns undefined when optional ids are absent", () => {
+    expect(parseOptionalInvitationId(undefined)).toBeUndefined();
+    expect(parseOptionalMembershipId(undefined)).toBeUndefined();
+  });
+
+  it("parses valid optional ids", () => {
+    expect(parseOptionalInvitationId(VALID_INVITATION)).toBe(VALID_INVITATION);
+    expect(parseOptionalMembershipId(VALID_MEMBERSHIP)).toBe(VALID_MEMBERSHIP);
+  });
+
+  it("rejects malformed optional ids", () => {
+    expectValidationError(
+      () => parseOptionalInvitationId("not-an-invitation"),
+      "Invalid invitation id.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+    expectValidationError(
+      () => parseOptionalMembershipId("not-a-membership"),
+      "Invalid membership id.",
       VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     );
   });
@@ -241,6 +294,28 @@ describe("readOptionalBoolean", () => {
     expectValidationError(
       () => readOptionalBoolean({ enabled: "yes" }, "enabled"),
       "Invalid field: enabled.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+});
+
+describe("parseOwnerMembershipId", () => {
+  it("parses a valid owner membership id field", () => {
+    expect(parseOwnerMembershipId({ ownerMembershipId: VALID_MEMBERSHIP })).toBe(VALID_MEMBERSHIP);
+  });
+
+  it("rejects missing owner membership id fields", () => {
+    expectValidationError(
+      () => parseOwnerMembershipId({}),
+      "Missing required field: ownerMembershipId.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+
+  it("rejects malformed owner membership id fields", () => {
+    expectValidationError(
+      () => parseOwnerMembershipId({ ownerMembershipId: "not-a-membership" }),
+      "Invalid owner membership id.",
       VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     );
   });
@@ -394,6 +469,52 @@ describe("parseGuidedOrganizationResourceIds", () => {
           },
         }),
       "Missing required field: projectId.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+});
+
+describe("parseOperatorOrganizationResourceIds", () => {
+  const validResourceIds = {
+    organizationId: VALID_ORG,
+    defaultTeamId: VALID_TEAM,
+  };
+
+  it("returns undefined when resourceIds is absent", () => {
+    expect(parseOperatorOrganizationResourceIds({})).toBeUndefined();
+  });
+
+  it("parses valid operator organization resourceIds", () => {
+    expect(parseOperatorOrganizationResourceIds({ resourceIds: validResourceIds })).toEqual(
+      validResourceIds,
+    );
+  });
+
+  it("rejects non-object resourceIds", () => {
+    for (const raw of [null, "bad", []] as const) {
+      expectValidationError(
+        () => parseOperatorOrganizationResourceIds({ resourceIds: raw }),
+        "Invalid resourceIds.",
+        VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      );
+    }
+  });
+
+  it("rejects missing and malformed operator organization resourceIds fields", () => {
+    expectValidationError(
+      () =>
+        parseOperatorOrganizationResourceIds({
+          resourceIds: { defaultTeamId: validResourceIds.defaultTeamId },
+        }),
+      "Missing required field: organizationId.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+    expectValidationError(
+      () =>
+        parseOperatorOrganizationResourceIds({
+          resourceIds: { ...validResourceIds, defaultTeamId: "not-a-team" },
+        }),
+      "Invalid resourceIds.",
       VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     );
   });

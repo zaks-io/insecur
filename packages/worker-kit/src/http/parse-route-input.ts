@@ -1,8 +1,8 @@
-import type { ProvisionGuidedOrganizationResourceIds } from "@insecur/onboarding";
 import {
   VALIDATION_ERROR_CODES,
   environmentId,
   injectionGrantId,
+  invitationId,
   membershipId,
   operationId,
   organizationId,
@@ -10,18 +10,54 @@ import {
   parseVariableKey,
   projectId,
   secretId,
-  teamId,
+  userId,
   type DisplayName,
   type EnvironmentId,
   type InjectionGrantId,
+  type InvitationId,
+  type MembershipId,
   type OperationId,
   type OrganizationId,
   type ProjectId,
   type SecretId,
+  type UserId,
 } from "@insecur/domain";
+
+export {
+  parseGuidedOrganizationResourceIds,
+  parseOperatorOrganizationResourceIds,
+} from "./parse-route-resource-ids.js";
 
 function throwParseError(message: string, code: string): never {
   throw Object.assign(new Error(message), { code });
+}
+
+type ParseResult<T> = { ok: true; value: T } | { ok: false; code: string };
+
+const parseOrganizationResourceId = (raw: string) => organizationId.parse(raw);
+const parseProjectResourceId = (raw: string) => projectId.parse(raw);
+const parseEnvironmentResourceId = (raw: string) => environmentId.parse(raw);
+const parseGrantResourceId = (raw: string) => injectionGrantId.parse(raw);
+const parseOperationResourceId = (raw: string) => operationId.parse(raw);
+const parseInvitationResourceId = (raw: string) => invitationId.parse(raw);
+const parseUserResourceId = (raw: string) => userId.parse(raw);
+const parseSecretResourceId = (raw: string) => secretId.parse(raw);
+const parseMembershipResourceId = (raw: string) => membershipId.parse(raw);
+
+function parseValue<T>(raw: string, parser: (raw: string) => ParseResult<T>, message: string): T {
+  const parsed = parser(raw);
+  if (!parsed.ok) {
+    throwParseError(message, parsed.code);
+  }
+  return parsed.value;
+}
+
+function parseOptionalValue<T>(
+  raw: string | undefined,
+  parser: (raw: string) => ParseResult<T>,
+  message: string,
+): T | undefined {
+  return raw === undefined ? undefined : parseValue(raw, parser, message);
 }
 
 export function requireRouteParam(value: string | undefined, label: string): string {
@@ -34,77 +70,51 @@ export function requireRouteParam(value: string | undefined, label: string): str
 }
 
 export function parseOrganizationIdParam(raw: string): OrganizationId {
-  const parsed = organizationId.parse(raw);
-  if (!parsed.ok) {
-    throwParseError("Invalid organization id.", parsed.code);
-  }
-  return parsed.value;
+  return parseValue(raw, parseOrganizationResourceId, "Invalid organization id.");
 }
 
 export function parseProjectIdParam(raw: string): ProjectId {
-  const parsed = projectId.parse(raw);
-  if (!parsed.ok) {
-    throwParseError("Invalid project id.", parsed.code);
-  }
-  return parsed.value;
+  return parseValue(raw, parseProjectResourceId, "Invalid project id.");
 }
 
 export function parseEnvironmentIdParam(raw: string): EnvironmentId {
-  const parsed = environmentId.parse(raw);
-  if (!parsed.ok) {
-    throwParseError("Invalid environment id.", parsed.code);
-  }
-  return parsed.value;
+  return parseValue(raw, parseEnvironmentResourceId, "Invalid environment id.");
 }
 
 export function parseGrantIdParam(raw: string): InjectionGrantId {
-  const parsed = injectionGrantId.parse(raw);
-  if (!parsed.ok) {
-    throwParseError("Invalid injection grant id.", parsed.code);
-  }
-  return parsed.value;
+  return parseValue(raw, parseGrantResourceId, "Invalid injection grant id.");
 }
 
 export function parseOperationIdParam(raw: string): OperationId {
-  const parsed = operationId.parse(raw);
-  if (!parsed.ok) {
-    throwParseError("Invalid operation id.", parsed.code);
-  }
-  return parsed.value;
+  return parseValue(raw, parseOperationResourceId, "Invalid operation id.");
+}
+
+export function parseInvitationIdParam(raw: string): InvitationId {
+  return parseValue(raw, parseInvitationResourceId, "Invalid invitation id.");
+}
+
+export function parseUserIdField(raw: string): UserId {
+  return parseValue(raw, parseUserResourceId, "Invalid user id.");
 }
 
 export function parseVariableKeyField(raw: string) {
-  const parsed = parseVariableKey(raw);
-  if (!parsed.ok) {
-    throw Object.assign(new Error("Invalid variable key."), {
-      code: parsed.code,
-    });
-  }
-  return parsed.value;
+  return parseValue(raw, parseVariableKey, "Invalid variable key.");
 }
 
 export function parseOptionalSecretId(raw: string | undefined): SecretId | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const parsed = secretId.parse(raw);
-  if (!parsed.ok) {
-    throwParseError("Invalid secret id.", parsed.code);
-  }
-  return parsed.value;
+  return parseOptionalValue(raw, parseSecretResourceId, "Invalid secret id.");
+}
+
+export function parseOptionalMembershipId(raw: string | undefined): MembershipId | undefined {
+  return parseOptionalValue(raw, parseMembershipResourceId, "Invalid membership id.");
+}
+
+export function parseOptionalInvitationId(raw: string | undefined): InvitationId | undefined {
+  return parseOptionalValue(raw, parseInvitationResourceId, "Invalid invitation id.");
 }
 
 export function parseOptionalDisplayName(raw: string | undefined): DisplayName | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const parsed = parseDisplayName(raw);
-  if (!parsed.ok) {
-    throw Object.assign(new Error("Invalid display name."), {
-      code: parsed.code,
-    });
-  }
-  return parsed.value;
+  return parseOptionalValue(raw, parseDisplayName, "Invalid display name.");
 }
 
 export function parseJsonBody(raw: unknown): Record<string, unknown> {
@@ -168,6 +178,14 @@ export function readOptionalBoolean(
   return value;
 }
 
+export function parseOwnerMembershipId(body: Record<string, unknown>): MembershipId {
+  return parseValue(
+    readRequiredString(body, "ownerMembershipId"),
+    parseMembershipResourceId,
+    "Invalid owner membership id.",
+  );
+}
+
 export function encodeRequestValueUtf8(value: string): Uint8Array {
   return new TextEncoder().encode(value);
 }
@@ -221,40 +239,4 @@ export function parseInjectionGrantConsumeSelector(
   body: Record<string, unknown>,
 ): InjectionGrantConsumeSelectorInput {
   return parseSingleInjectionGrantSelector(body);
-}
-
-function parseRequiredBrandedId<T>(
-  record: Record<string, unknown>,
-  field: string,
-  parser: { parse: (raw: string) => { ok: true; value: T } | { ok: false } },
-): T {
-  const parsed = parser.parse(readRequiredString(record, field));
-  if (!parsed.ok) {
-    throwParseError("Invalid resourceIds.", VALIDATION_ERROR_CODES.invalidOpaqueResourceId);
-  }
-  return parsed.value;
-}
-
-export function parseGuidedOrganizationResourceIds(
-  body: Record<string, unknown>,
-): ProvisionGuidedOrganizationResourceIds | undefined {
-  const raw = body.resourceIds;
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throwParseError("Invalid resourceIds.", VALIDATION_ERROR_CODES.invalidOpaqueResourceId);
-  }
-  const record = raw as Record<string, unknown>;
-  return {
-    organizationId: parseRequiredBrandedId(record, "organizationId", organizationId),
-    defaultTeamId: parseRequiredBrandedId(record, "defaultTeamId", teamId),
-    ownerMembershipId: parseRequiredBrandedId(record, "ownerMembershipId", membershipId),
-    projectId: parseRequiredBrandedId(record, "projectId", projectId),
-    developmentEnvironmentId: parseRequiredBrandedId(
-      record,
-      "developmentEnvironmentId",
-      environmentId,
-    ),
-  };
 }
