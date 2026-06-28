@@ -159,6 +159,10 @@ function extractPublicRoutes(indexPath) {
       }
     }
   }
+  const pathOmittedUsePattern = /app\.use\(\s*(?!["'`])/g;
+  if (pathOmittedUsePattern.test(source)) {
+    mounts.add("*");
+  }
   return [...mounts].sort();
 }
 
