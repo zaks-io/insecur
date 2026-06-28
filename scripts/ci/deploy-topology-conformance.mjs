@@ -10,7 +10,9 @@
 //       signature).
 //   (d) NO V1 deploy carries a Service Access token audience or a reveal/value/delivery/approval
 //       scope (ADR-0019 negative assertion; Service Access is deferred and unbuilt).
-//   (e) each deploy's live /v1/* route mounts match docs/specs/deploy-route-inventory.md (ADR-0067).
+//   (e) the API Worker has exactly the intended private Runtime Service Binding shape.
+//   (f) each deploy's live /v1/* route mounts match docs/specs/deploy-route-inventory.md in both
+//       directions (ADR-0067).
 //
 // HARD-FAILS (exit 1) on any violation. Wired into `pnpm verify`.
 
@@ -21,7 +23,10 @@ import { fileURLToPath } from "node:url";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const appsDir = join(repoRoot, "apps");
 const ROOT_KEY_BINDING = "INSTANCE_ROOT_KEY_V1";
+const API_SCRIPT_NAME = "insecur-api";
+const RUNTIME_BINDING = "RUNTIME";
 const RUNTIME_SCRIPT_NAME = "insecur-runtime";
+const RUNTIME_ENTRYPOINT = "RuntimeService";
 const INVENTORY_DOC = join(repoRoot, "docs", "specs", "deploy-route-inventory.md");
 
 // ADR-0019: Service Access is deferred and must never be expressed by a V1 deploy. These tokens in a
@@ -52,6 +57,7 @@ function main() {
   assertRuntimeHasNoPublicRoutes(deploys);
   assertNoMonolith(deploys);
   assertNoServiceAccessSurface(deploys);
+  assertApiRuntimeServiceBinding(deploys);
   assertRouteInventoryMatches(deploys);
 
   report();
@@ -77,20 +83,42 @@ function discoverDeploys() {
     if (!isFile(wranglerPath)) {
       continue;
     }
-    const config = parseJsonc(readFileSync(wranglerPath, "utf8"), wranglerPath);
+    const raw = readFileSync(wranglerPath, "utf8");
+    const config = parseJsonc(raw, wranglerPath);
+    const rootKeyScopes = findRootKeyScopes(config);
     deploys.push({
       app: entry,
       name: typeof config.name === "string" ? config.name : entry,
+      config,
       wranglerPath,
-      raw: readFileSync(wranglerPath, "utf8"),
-      hasRootKey: declaresRootKey(config),
+      raw,
+      rootKeyScopes,
+      hasRootKey: rootKeyScopes.length > 0,
       routes: extractV1Routes(join(appPath, "src", "index.ts")),
     });
   }
   return deploys;
 }
 
+function findRootKeyScopes(config) {
+  const scopes = [];
+  if (declaresRootKey(config)) {
+    scopes.push("top-level");
+  }
+  if (config && typeof config === "object" && config.env && typeof config.env === "object") {
+    for (const [envName, envConfig] of Object.entries(config.env)) {
+      if (declaresRootKey(envConfig)) {
+        scopes.push(`env.${envName}`);
+      }
+    }
+  }
+  return scopes;
+}
+
 function declaresRootKey(config) {
+  if (!config || typeof config !== "object") {
+    return false;
+  }
   const secrets = config.secrets_store_secrets;
   if (!Array.isArray(secrets)) {
     return false;
@@ -130,7 +158,7 @@ function assertSingleRootKeyHolder(deploys) {
   for (const holder of holders) {
     if (holder.name !== RUNTIME_SCRIPT_NAME) {
       fail(
-        `${ROOT_KEY_BINDING} is declared by '${holder.name}' but only '${RUNTIME_SCRIPT_NAME}' may hold it`,
+        `${ROOT_KEY_BINDING} is declared by '${holder.name}' (${holder.rootKeyScopes.join(", ")}) but only '${RUNTIME_SCRIPT_NAME}' may hold it`,
       );
     }
   }
@@ -169,22 +197,110 @@ function assertNoServiceAccessSurface(deploys) {
   }
 }
 
+function assertApiRuntimeServiceBinding(deploys) {
+  const apiDeploy = deploys.find((deploy) => deploy.name === API_SCRIPT_NAME);
+  if (!apiDeploy) {
+    fail(`missing API deploy '${API_SCRIPT_NAME}'`);
+    return;
+  }
+  assertRuntimeBindingShape(apiDeploy, apiDeploy.config, {
+    scope: "top-level",
+    expectedService: RUNTIME_SCRIPT_NAME,
+  });
+
+  const previewConfig = apiDeploy.config?.env?.preview;
+  if (!previewConfig || typeof previewConfig !== "object") {
+    fail(
+      `deploy '${API_SCRIPT_NAME}' env.preview is missing the ${RUNTIME_BINDING} Service Binding override`,
+    );
+    return;
+  }
+  assertRuntimeBindingShape(apiDeploy, previewConfig, {
+    scope: "env.preview",
+    expectedService: `${RUNTIME_SCRIPT_NAME}-preview`,
+  });
+}
+
+function assertRuntimeBindingShape(deploy, config, { scope, expectedService }) {
+  const services = config?.services;
+  if (!Array.isArray(services)) {
+    fail(
+      `deploy '${deploy.name}' ${scope} must declare exactly one ${RUNTIME_BINDING} Service Binding`,
+    );
+    return;
+  }
+  if (services.length !== 1) {
+    fail(
+      `deploy '${deploy.name}' ${scope} declares ${services.length} Service Bindings (expected exactly one ${RUNTIME_BINDING} binding)`,
+    );
+    return;
+  }
+  const [binding] = services;
+  const actual = {
+    binding: binding?.binding,
+    service: binding?.service,
+    entrypoint: binding?.entrypoint,
+  };
+  const expected = {
+    binding: RUNTIME_BINDING,
+    service: expectedService,
+    entrypoint: RUNTIME_ENTRYPOINT,
+  };
+  for (const key of Object.keys(expected)) {
+    if (actual[key] !== expected[key]) {
+      fail(
+        `deploy '${deploy.name}' ${scope} ${RUNTIME_BINDING} Service Binding has ${key} '${String(actual[key])}' (expected '${expected[key]}')`,
+      );
+    }
+  }
+}
+
 function assertRouteInventoryMatches(deploys) {
   if (!isFile(INVENTORY_DOC)) {
     fail(`route inventory owner doc is missing: ${INVENTORY_DOC}`);
     return;
   }
   const doc = readFileSync(INVENTORY_DOC, "utf8");
-  const documented = new Set([...doc.matchAll(/`(\/v1\/[^`]+)`/g)].map((match) => match[1]).sort());
+  const documentedByDeploy = parseRouteInventory(doc);
   for (const deploy of deploys) {
+    const documented = documentedByDeploy.get(deploy.name) ?? new Set();
     for (const route of deploy.routes) {
       if (!documented.has(route)) {
         fail(
-          `route '${route}' on deploy '${deploy.name}' is not in ${INVENTORY_DOC} (ADR-0067: declare it there or move it off this deploy)`,
+          `route '${route}' on deploy '${deploy.name}' is not documented for that deploy in ${INVENTORY_DOC} (ADR-0067: declare it there or move it off this deploy)`,
+        );
+      }
+    }
+    for (const route of documented) {
+      if (!deploy.routes.includes(route)) {
+        fail(
+          `route '${route}' is documented for deploy '${deploy.name}' in ${INVENTORY_DOC} but is not mounted by that deploy`,
         );
       }
     }
   }
+}
+
+function parseRouteInventory(doc) {
+  const documentedByDeploy = new Map();
+  const headingPattern = /^## .+$/gm;
+  const headings = [...doc.matchAll(headingPattern)];
+  for (const [index, heading] of headings.entries()) {
+    const title = heading[0];
+    const backticked = [...title.matchAll(/`([^`]+)`/g)];
+    const deployName = backticked.at(-1)?.[1];
+    if (!deployName) {
+      continue;
+    }
+    const bodyStart = heading.index + title.length;
+    const bodyEnd = headings[index + 1]?.index ?? doc.length;
+    const body = doc.slice(bodyStart, bodyEnd);
+    const routes = [...body.matchAll(/^\|\s*[^|]+\|\s*`(\/v1\/[^`]+)`\s*\|/gm)].map(
+      (match) => match[1],
+    );
+    documentedByDeploy.set(deployName, new Set(routes.sort()));
+  }
+  return documentedByDeploy;
 }
 
 function isFile(path) {
