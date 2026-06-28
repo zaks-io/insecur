@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { formatConformanceReport } from "../../../src/db/schema/conformance-report.js";
 import {
   assertOrgIdRlsConformance,
   findOrgIdRlsViolations,
+  formatOrgIdRlsConformanceViolations,
   isTenantOwnedTable,
   tenantOwnedTableNames,
   type TablePolicyRow,
@@ -69,14 +71,22 @@ describe("findOrgIdRlsViolations", () => {
 });
 
 describe("assertOrgIdRlsConformance", () => {
-  it("throws listing the offending table when coverage is incomplete", () => {
+  it("throws a titled list of offending tables when coverage is incomplete", () => {
     const names = tenantOwnedTableNames(SCHEMA);
     const rls = names.map((tableName) => ({
       tableName,
       rowSecurity: true,
       forceRowSecurity: true,
     }));
-    expect(() => assertOrgIdRlsConformance(SCHEMA, rls, [])).toThrowError(/no_isolation_policy/);
+    const violations = findOrgIdRlsViolations(SCHEMA, rls, []);
+    const expectedMessage = formatConformanceReport(
+      "tenant-owned tables missing RLS coverage (FORCE ROW LEVEL SECURITY + isolation policy):",
+      violations,
+      (violation) => `${violation.tableName}: ${violation.reason}`,
+    );
+
+    expect(formatOrgIdRlsConformanceViolations(violations)).toBe(expectedMessage);
+    expect(() => assertOrgIdRlsConformance(SCHEMA, rls, [])).toThrowError(expectedMessage);
   });
 
   it("does not throw when coverage is complete", () => {

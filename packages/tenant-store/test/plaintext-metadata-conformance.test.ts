@@ -8,6 +8,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { PLAINTEXT_METADATA_ALLOWLIST } from "../src/db/schema/plaintext-metadata-allowlist.js";
+import { formatConformanceReport } from "../src/db/schema/conformance-report.js";
 import {
   assertDrizzleSchemaPlaintextMetadataConformance,
   assertInformationSchemaPlaintextMetadataConformance,
@@ -106,11 +107,19 @@ describe("plaintext metadata allowlist (unit layer)", () => {
   });
 
   it("formats conformance violations for actionable error output", () => {
-    expect(
-      formatPlaintextMetadataConformanceViolations([
-        "column secrets.unregistered_column is not registered in the Plaintext Metadata Allowlist",
-      ]),
-    ).toContain("secrets.unregistered_column");
+    const violations = [
+      "column secrets.unregistered_column is not registered in the Plaintext Metadata Allowlist",
+    ];
+
+    expect(formatPlaintextMetadataConformanceViolations(violations)).toBe(
+      formatConformanceReport("Plaintext Metadata Allowlist conformance failed:", violations),
+    );
+    expect(formatPlaintextMetadataConformanceViolations(violations)).toBe(
+      [
+        "Plaintext Metadata Allowlist conformance failed:",
+        "- column secrets.unregistered_column is not registered in the Plaintext Metadata Allowlist",
+      ].join("\n"),
+    );
   });
 
   it("fails closed on an unregistered schema column", () => {

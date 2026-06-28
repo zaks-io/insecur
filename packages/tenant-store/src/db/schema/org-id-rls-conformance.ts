@@ -1,6 +1,8 @@
 import { getTableColumns, getTableName } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 
+import { formatConformanceReport, throwIfConformanceViolations } from "./conformance-report.js";
+
 /**
  * The column that marks a table as tenant-owned. Every table carrying it must be protected by
  * FORCE ROW LEVEL SECURITY plus a tenant-isolation policy, or a cross-tenant read/write is possible
@@ -9,6 +11,8 @@ import type { PgTable } from "drizzle-orm/pg-core";
  */
 const TENANT_KEY_COLUMN = "org_id";
 const SELF_KEYED_TENANT_TABLE = "organizations";
+const ORG_ID_RLS_CONFORMANCE_TITLE =
+  "tenant-owned tables missing RLS coverage (FORCE ROW LEVEL SECURITY + isolation policy):";
 
 /** Live `pg_class` row for a public table's RLS flags. */
 export interface TableRlsRow {
@@ -83,6 +87,16 @@ export function findOrgIdRlsViolations(
   return violations;
 }
 
+export function formatOrgIdRlsConformanceViolations(
+  violations: readonly OrgIdRlsViolation[],
+): string {
+  return formatConformanceReport(ORG_ID_RLS_CONFORMANCE_TITLE, violations, formatOrgIdRlsViolation);
+}
+
+function formatOrgIdRlsViolation(violation: OrgIdRlsViolation): string {
+  return `${violation.tableName}: ${violation.reason}`;
+}
+
 /** Fails closed (throws) when any tenant-owned table lacks FORCE RLS or an isolation policy. */
 export function assertOrgIdRlsConformance(
   schemaTables: readonly PgTable[],
@@ -90,11 +104,9 @@ export function assertOrgIdRlsConformance(
   policyRows: readonly TablePolicyRow[],
 ): void {
   const violations = findOrgIdRlsViolations(schemaTables, rlsRows, policyRows);
-  if (violations.length === 0) {
-    return;
-  }
-  const detail = violations.map((v) => `${v.tableName}: ${v.reason}`).join("; ");
-  throw new Error(
-    `tenant-owned tables missing RLS coverage (FORCE ROW LEVEL SECURITY + isolation policy): ${detail}`,
+  throwIfConformanceViolations(
+    violations,
+    (conformanceViolations) =>
+      new Error(formatOrgIdRlsConformanceViolations(conformanceViolations)),
   );
 }

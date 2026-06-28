@@ -5,8 +5,11 @@ import {
   PLAINTEXT_METADATA_ALLOWLIST,
   type PlaintextMetadataAllowlist,
 } from "./plaintext-metadata-allowlist.js";
+import { formatConformanceReport, throwIfConformanceViolations } from "./conformance-report.js";
 
 export type SchemaColumnMap = ReadonlyMap<string, ReadonlySet<string>>;
+
+const PLAINTEXT_METADATA_CONFORMANCE_TITLE = "Plaintext Metadata Allowlist conformance failed:";
 
 export class PlaintextMetadataConformanceError extends Error {
   readonly violations: readonly string[];
@@ -21,10 +24,7 @@ export class PlaintextMetadataConformanceError extends Error {
 export function formatPlaintextMetadataConformanceViolations(
   violations: readonly string[],
 ): string {
-  return [
-    "Plaintext Metadata Allowlist conformance failed:",
-    ...violations.map((violation) => `- ${violation}`),
-  ].join("\n");
+  return formatConformanceReport(PLAINTEXT_METADATA_CONFORMANCE_TITLE, violations);
 }
 
 export function enumerateDrizzleSchemaColumns(tables: readonly PgTable[]): SchemaColumnMap {
@@ -104,9 +104,10 @@ export function assertPlaintextMetadataConformance(
   registry: PlaintextMetadataAllowlist = PLAINTEXT_METADATA_ALLOWLIST,
 ): void {
   const violations = collectPlaintextMetadataConformanceViolations(actualColumns, registry);
-  if (violations.length > 0) {
-    throw new PlaintextMetadataConformanceError(violations);
-  }
+  throwIfConformanceViolations(
+    violations,
+    (conformanceViolations) => new PlaintextMetadataConformanceError(conformanceViolations),
+  );
 }
 
 export function assertDrizzleSchemaPlaintextMetadataConformance(
