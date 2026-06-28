@@ -48,6 +48,7 @@ describe("isValidUtf8", () => {
   it("rejects invalid three-byte E0 continuations and surrogate encodings", () => {
     expect(isValidUtf8(bytes(0xe0, 0x80, 0x80))).toBe(false);
     expect(isValidUtf8(bytes(0xe0, 0xc0, 0x80))).toBe(false);
+    expect(isValidUtf8(bytes(0xe0))).toBe(false);
     expect(isValidUtf8(bytes(0xe0, 0xa0))).toBe(false);
     expect(isValidUtf8(bytes(0xed, 0xa0, 0x80))).toBe(false);
     expect(isValidUtf8(bytes(0xed, 0x9f, 0xc0))).toBe(false);
@@ -66,6 +67,7 @@ describe("isValidUtf8", () => {
   it("rejects invalid four-byte sequences and code points above U+10FFFF", () => {
     expect(isValidUtf8(bytes(0xf0, 0x80, 0x80, 0x80))).toBe(false);
     expect(isValidUtf8(bytes(0xf0, 0xc0, 0x80, 0x80))).toBe(false);
+    expect(isValidUtf8(bytes(0xf0))).toBe(false);
     expect(isValidUtf8(bytes(0xf0, 0x90, 0x80))).toBe(false);
     expect(isValidUtf8(bytes(0xf4, 0x90, 0x80, 0x80))).toBe(false);
     expect(isValidUtf8(bytes(0xf4, 0x8f, 0xbf, 0xc0))).toBe(false);
@@ -81,10 +83,10 @@ describe("isValidUtf8", () => {
   });
 
   it("accepts mixed valid sequences including emoji and rejects when a later sequence is invalid", () => {
-    const smiley = new TextEncoder().encode("a\u0080\u{1F600}z");
-    expect(isValidUtf8(smiley)).toBe(true);
+    const mixedValid = bytes(0x61, 0xc2, 0x80, 0xf0, 0x9f, 0x98, 0x80, 0x7a);
+    expect(isValidUtf8(mixedValid)).toBe(true);
 
-    const brokenTail = Uint8Array.from([...smiley, 0xc2]);
+    const brokenTail = bytes(...mixedValid, 0xc2);
     expect(isValidUtf8(brokenTail)).toBe(false);
   });
 
