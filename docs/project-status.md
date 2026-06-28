@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-27
+Last updated: 2026-06-28
 
 This document is a **status snapshot** — what was built, verified, and still open when it was last
 edited. It is not normative product truth. When this prose disagrees with an owning spec, ADR, or
@@ -214,8 +214,12 @@ First Value routes under `/v1/orgs/:org`).
 - WorkOS AuthKit is represented through session validation and config composition, but
   hosted login/logout/callback UI, MFA enrollment, and high-risk action challenges are not
   implemented.
-- Admitted User resolution in the Worker is still a development JSON map, not persisted
-  User admission or production identity configuration.
+- Persisted admitted-user resolution has landed: `user_admissions` rows back the
+  tenant-store admission helpers, and `@insecur/worker-kit` defaults Worker auth composition to the
+  store-backed resolver. JSON admission maps remain only in test-only helpers. Still open are the
+  production identity/admission gaps around hosted WorkOS UI/MFA/high-risk flows, signup/admission
+  controls, lockdown/abuse handling, and final production identity configuration hardening before
+  valuable secrets.
 - **Worker topology is capability-isolated (INS-194 Cut 1 landed).** The former single Worker deploy
   is split into `apps/api` (public API Worker, `insecur-api`, no keyring) and `apps/runtime`
   (private Runtime Worker, `insecur-runtime`, sole `INSTANCE_ROOT_KEY_V1` holder, no
@@ -287,7 +291,7 @@ hardening (for example INS-169).
 
 **Production Delivery Foundation**
 
-Finish Worker composition, persisted identity/admission behavior, production Postgres/Hyperdrive
+Finish Worker composition, production identity/admission hardening, production Postgres/Hyperdrive
 binding, root-key custody, key readiness enforcement, Storage Security Gate checks, protected
 environment modeling, route-level authorization, and tenant-qualified audit coverage.
 
@@ -341,7 +345,9 @@ release-gate evidence bundles.
 5. Keep `examples/first-value-proof/verify.mjs` aligned with the live CLI/API integration proof
    as INS-1 closes; it should succeed only through `insecur secrets set --generate` plus
    `insecur run`.
-6. Add production identity persistence and replace the Worker development admitted-user JSON map.
+6. Close the remaining production identity/admission gaps now that Worker admission is store-backed:
+   hosted WorkOS login/logout/callback UI, MFA/high-risk flows, signup/admission controls,
+   lockdown/abuse handling, and production identity configuration hardening.
 7. Add root-key custody through the intended Cloudflare Secrets Store path and enforce key
    readiness before secret writes or runtime delivery.
 8. Keep provider sync and protected delivery behind the Storage Security Gate until tenant-bound
