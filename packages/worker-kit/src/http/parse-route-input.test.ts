@@ -5,6 +5,7 @@ import {
   parseEnvironmentIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
+  parseInjectionGrantConsumeSelector,
   parseInjectionGrantIssueSelector,
   parseJsonBody,
   parseOperationIdParam,
@@ -309,6 +310,36 @@ describe("parseInjectionGrantIssueSelector", () => {
       "Invalid variable key.",
       VALIDATION_ERROR_CODES.invalidVariableKey,
     );
+  });
+});
+
+describe("parseInjectionGrantConsumeSelector", () => {
+  it("accepts exactly one variableKey selector", () => {
+    expect(parseInjectionGrantConsumeSelector({ variableKey: "DATABASE_URL" })).toEqual({
+      kind: "variable_key",
+      variableKey: "DATABASE_URL",
+    });
+  });
+
+  it("accepts exactly one secretId selector", () => {
+    expect(parseInjectionGrantConsumeSelector({ secretId: VALID_SEC_ID })).toEqual({
+      kind: "secret_id",
+      secretId: VALID_SEC_ID,
+    });
+  });
+
+  it("rejects missing or multiple selectors with the same stable validation error", () => {
+    for (const input of [
+      {},
+      { variableKey: "DATABASE_URL", secretId: VALID_SEC_ID },
+      { variableKey: "", secretId: "" },
+    ] as const) {
+      expectValidationError(
+        () => parseInjectionGrantConsumeSelector(input),
+        "Exactly one of variableKey or secretId is required.",
+        VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      );
+    }
   });
 });
 

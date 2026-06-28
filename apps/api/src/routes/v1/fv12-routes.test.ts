@@ -738,6 +738,49 @@ describe("FV-12 worker routes", () => {
       });
     });
 
+    it("rejects consume requests with both variableKey and secretId before Runtime RPC", async () => {
+      const response = await app.request(
+        consumePath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            secretId: "sec_00000000000000000000000001",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(consumeGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
+    });
+
+    it("rejects consume requests with neither selector before Runtime RPC", async () => {
+      const response = await app.request(
+        consumePath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({}),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(consumeGrant).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
+    });
+
     it("returns runtime delivery material from the Runtime Worker only on the consume route", async () => {
       const response = await app.request(
         consumePath,
@@ -768,6 +811,38 @@ describe("FV-12 worker routes", () => {
       const delivery = (body as { delivery: { encodedValueUtf8: string } }).delivery;
       expect(delivery.encodedValueUtf8.length).toBeGreaterThan(0);
       expect(JSON.stringify(body)).not.toContain("valueUtf8");
+      expect(JSON.stringify(body)).not.toContain("runtime-delivery-material");
+    });
+
+    it("forwards consume by secret id to the Runtime Worker", async () => {
+      const secretIdValue = secretId.brand("sec_00000000000000000000000001");
+      const response = await app.request(
+        consumePath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({ secretId: secretIdValue }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(consumeGrant).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          grantId: grantIdValue,
+          secretId: secretIdValue,
+        }),
+      );
+      expect(consumeGrant.mock.calls[0]?.[0]).not.toHaveProperty("variableKey");
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        delivery: {
+          grantId: grantIdValue,
+          secretId: secretIdValue,
+        },
+      });
       expect(JSON.stringify(body)).not.toContain("runtime-delivery-material");
     });
 

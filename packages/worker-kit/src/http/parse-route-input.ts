@@ -172,13 +172,17 @@ export function encodeRequestValueUtf8(value: string): Uint8Array {
   return new TextEncoder().encode(value);
 }
 
-export type InjectionGrantIssueSelectorInput =
+type InjectionGrantSelectorInput =
   | { kind: "variable_key"; variableKey: ReturnType<typeof parseVariableKeyField> }
   | { kind: "secret_id"; secretId: SecretId };
 
-export function parseInjectionGrantIssueSelector(
+export type InjectionGrantIssueSelectorInput = InjectionGrantSelectorInput;
+
+export type InjectionGrantConsumeSelectorInput = InjectionGrantSelectorInput;
+
+function parseSingleInjectionGrantSelector(
   body: Record<string, unknown>,
-): InjectionGrantIssueSelectorInput {
+): InjectionGrantSelectorInput {
   const variableKeyRaw = readOptionalString(body, "variableKey");
   const secretIdRaw = readOptionalString(body, "secretId");
   const hasVariableKey = variableKeyRaw !== undefined && variableKeyRaw !== "";
@@ -201,6 +205,18 @@ export function parseInjectionGrantIssueSelector(
   }
 
   return { kind: "variable_key", variableKey: parseVariableKeyField(variableKeyRaw ?? "") };
+}
+
+export function parseInjectionGrantIssueSelector(
+  body: Record<string, unknown>,
+): InjectionGrantIssueSelectorInput {
+  return parseSingleInjectionGrantSelector(body);
+}
+
+export function parseInjectionGrantConsumeSelector(
+  body: Record<string, unknown>,
+): InjectionGrantConsumeSelectorInput {
+  return parseSingleInjectionGrantSelector(body);
 }
 
 function parseRequiredBrandedId<T>(

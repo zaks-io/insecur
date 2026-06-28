@@ -10,6 +10,7 @@ export {
   parseEnvironmentIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
+  parseInjectionGrantConsumeSelector,
   parseInjectionGrantIssueSelector,
   parseJsonBody,
   parseOperationIdParam,
@@ -23,6 +24,7 @@ export {
   readRequiredString,
   readSecretValueField,
   requireRouteParam,
+  type InjectionGrantConsumeSelectorInput,
   type InjectionGrantIssueSelectorInput,
 } from "./http/parse-route-input.js";
 export { authorizeScopeOrThrow } from "./http/authorize-scope.js";
