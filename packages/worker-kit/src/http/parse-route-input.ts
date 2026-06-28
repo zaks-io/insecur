@@ -172,17 +172,23 @@ export function encodeRequestValueUtf8(value: string): Uint8Array {
   return new TextEncoder().encode(value);
 }
 
-export type InjectionGrantIssueSelectorInput =
+type InjectionGrantSelectorInput =
   | { kind: "variable_key"; variableKey: ReturnType<typeof parseVariableKeyField> }
   | { kind: "secret_id"; secretId: SecretId };
 
-export function parseInjectionGrantIssueSelector(
+export type InjectionGrantIssueSelectorInput = InjectionGrantSelectorInput;
+
+export type InjectionGrantConsumeSelectorInput = InjectionGrantSelectorInput;
+
+function hasOwnField(body: Record<string, unknown>, field: string): boolean {
+  return Object.prototype.hasOwnProperty.call(body, field);
+}
+
+function parseSingleInjectionGrantSelector(
   body: Record<string, unknown>,
-): InjectionGrantIssueSelectorInput {
-  const variableKeyRaw = readOptionalString(body, "variableKey");
-  const secretIdRaw = readOptionalString(body, "secretId");
-  const hasVariableKey = variableKeyRaw !== undefined && variableKeyRaw !== "";
-  const hasSecretId = secretIdRaw !== undefined && secretIdRaw !== "";
+): InjectionGrantSelectorInput {
+  const hasVariableKey = hasOwnField(body, "variableKey");
+  const hasSecretId = hasOwnField(body, "secretId");
 
   if (hasVariableKey === hasSecretId) {
     throw Object.assign(new Error("Exactly one of variableKey or secretId is required."), {
@@ -191,6 +197,7 @@ export function parseInjectionGrantIssueSelector(
   }
 
   if (hasSecretId) {
+    const secretIdRaw = readOptionalString(body, "secretId");
     const parsedSecretId = parseOptionalSecretId(secretIdRaw);
     if (parsedSecretId === undefined) {
       throw Object.assign(new Error("Invalid secret id."), {
@@ -200,7 +207,20 @@ export function parseInjectionGrantIssueSelector(
     return { kind: "secret_id", secretId: parsedSecretId };
   }
 
+  const variableKeyRaw = readOptionalString(body, "variableKey");
   return { kind: "variable_key", variableKey: parseVariableKeyField(variableKeyRaw ?? "") };
+}
+
+export function parseInjectionGrantIssueSelector(
+  body: Record<string, unknown>,
+): InjectionGrantIssueSelectorInput {
+  return parseSingleInjectionGrantSelector(body);
+}
+
+export function parseInjectionGrantConsumeSelector(
+  body: Record<string, unknown>,
+): InjectionGrantConsumeSelectorInput {
+  return parseSingleInjectionGrantSelector(body);
 }
 
 function parseRequiredBrandedId<T>(
