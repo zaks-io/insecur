@@ -12,7 +12,7 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/logs wrangler dev --port 8788 --inspector-port 9231",
     "deploy": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --env=\"\"",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
-    "test": "vitest run --passWithNoTests --config vitest.config.ts",
+    "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .wrangler"
   },

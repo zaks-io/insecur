@@ -9,7 +9,7 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/logs wrangler dev --port 8787 --inspector-port 9230",
     "deploy": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --env=\"\"",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
-    "test": "vitest run --passWithNoTests --config vitest.config.ts",
+    "test": "vitest run --config vitest.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:canary": "vitest run --config vitest.canary.config.ts",
     "typecheck": "tsc --noEmit",
