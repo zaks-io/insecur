@@ -5,6 +5,7 @@ import {
   mintOrganizationDataKey,
   mintProjectDataKey,
   unwrapOrganizationDataKeyBytes,
+  unwrapProjectDataKeyBytes,
 } from "../src/data-key-wrap.js";
 import { DecryptError } from "../src/errors.js";
 import {
@@ -17,9 +18,14 @@ import type {
   ProjectDataKeyMetadata,
 } from "../src/data-key-metadata.js";
 import {
+  DATA_KEY_VERSION_STATUSES,
   Keyring,
   MetadataTenantDataKeySource,
   StaticRootKeyProvider,
+  TenantDataKeyNotReadyError,
+  canRetireRootKeyBinding,
+  rewrapTenantDataKeys,
+  statusAfterRootRewrap,
   type TenantDataKeyRewrapStore,
 } from "../src/index.js";
 
@@ -38,10 +44,39 @@ function identity(): SecretCiphertextIdentity {
   };
 }
 
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  return (
+    left.byteLength === right.byteLength && left.every((value, index) => value === right[index])
+  );
+}
+
+function expectBytesEqual(left: Uint8Array, right: Uint8Array): void {
+  expect(bytesEqual(left, right)).toBe(true);
+}
+
 class InMemoryRewrapStore implements TenantDataKeyRewrapStore {
+  readonly organizationUpdates: {
+    readonly keyVersion: number;
+    readonly input: {
+      readonly wrappedStorageRef: string;
+      readonly rootKeyVersion: number;
+      readonly status: OrganizationDataKeyMetadata["status"];
+    };
+  }[] = [];
+
+  readonly projectUpdates: {
+    readonly projectId: typeof PROJECT;
+    readonly keyVersion: number;
+    readonly input: {
+      readonly wrappedStorageRef: string;
+      readonly status: ProjectDataKeyMetadata["status"];
+    };
+  }[] = [];
+
   constructor(
     private organizationKeys: OrganizationDataKeyMetadata[],
     private projectKeys: ProjectDataKeyMetadata[],
+    private readonly options: { readonly persistOrganizationUpdates?: boolean } = {},
   ) {}
 
   listOrganizationDataKeys(): Promise<OrganizationDataKeyMetadata[]> {
@@ -61,6 +96,10 @@ class InMemoryRewrapStore implements TenantDataKeyRewrapStore {
       status: OrganizationDataKeyMetadata["status"];
     },
   ): Promise<void> {
+    this.organizationUpdates.push({ keyVersion, input });
+    if (this.options.persistOrganizationUpdates === false) {
+      return Promise.resolve();
+    }
     this.organizationKeys = this.organizationKeys.map((key) =>
       key.keyVersion === keyVersion
         ? {
@@ -80,6 +119,7 @@ class InMemoryRewrapStore implements TenantDataKeyRewrapStore {
     keyVersion: number,
     input: { wrappedStorageRef: string; status: ProjectDataKeyMetadata["status"] },
   ): Promise<void> {
+    this.projectUpdates.push({ projectId: projectIdValue, keyVersion, input });
     this.projectKeys = this.projectKeys.map((key) =>
       key.projectId === projectIdValue && key.keyVersion === keyVersion
         ? {
@@ -190,12 +230,15 @@ describe("rewrapTenantDataKeys", () => {
     if (!updatedOrgKey?.wrappedStorageRef) {
       throw new Error("expected updated organization wrapped ref");
     }
-    expect(
-      await unwrapOrganizationDataKeyBytes(rootV2, updatedOrgKey.wrappedStorageRef, {
+    const recoveredOrgKeyBytes = await unwrapOrganizationDataKeyBytes(
+      rootV2,
+      updatedOrgKey.wrappedStorageRef,
+      {
         organizationId: ORG,
         keyVersion: 1,
-      }),
-    ).toEqual(orgMinted.dataKeyBytes);
+      },
+    );
+    expectBytesEqual(recoveredOrgKeyBytes, orgMinted.dataKeyBytes);
 
     keyring.clearCacheForTests();
     const decrypted = await decryptSecretValueForRuntime(keyring, identity(), wrapped);
@@ -282,6 +325,417 @@ describe("rewrapTenantDataKeys", () => {
     sensitiveMetadataSpy.mockRestore();
   });
 
+  it("skips organization keys outside the old root and project keys already under the new root", async () => {
+    const rootProvider = {
+      getRootKeyBytes(version: number): Promise<Uint8Array> {
+        return Promise.resolve(version === 1 ? rootV1 : rootV2);
+      },
+    };
+    const orgMinted = await mintOrganizationDataKey(rootProvider, 2, {
+      organizationId: ORG,
+      keyVersion: 1,
+    });
+    const projectMinted = await mintProjectDataKey(rootProvider, 2, {
+      organizationId: ORG,
+      projectId: PROJECT,
+      keyVersion: 1,
+    });
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_new_root",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 2,
+          wrappedStorageRef: orgMinted.wrappedStorageRef,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [
+        {
+          id: "pdk_new_root",
+          organizationId: ORG,
+          projectId: PROJECT,
+          keyVersion: 1,
+          status: "active",
+          organizationDataKeyVersion: 1,
+          wrappedStorageRef: projectMinted.wrappedStorageRef,
+        },
+      ],
+    );
+
+    await rewrapTenantDataKeys({
+      organizationId: ORG,
+      oldRootVersion: 1,
+      newRootVersion: 2,
+      rootKeyProvider: rootProvider,
+      store,
+    });
+
+    expect(store.organizationUpdates).toEqual([]);
+    expect(store.projectUpdates).toEqual([]);
+    const organizationRows = await store.listOrganizationDataKeys();
+    const projectRows = await store.listProjectDataKeys();
+    const organizationRow = organizationRows[0];
+    const projectRow = projectRows[0];
+    if (!organizationRow || !projectRow) {
+      throw new Error("expected seeded data key rows");
+    }
+    expect(organizationRow.rootKeyVersion).toBe(2);
+    expect(organizationRow.wrappedStorageRef === orgMinted.wrappedStorageRef).toBe(true);
+    expect(projectRow.wrappedStorageRef === projectMinted.wrappedStorageRef).toBe(true);
+  });
+
+  it("rewraps project keys that still unwrap with the old root", async () => {
+    const rootProvider = {
+      getRootKeyBytes(version: number): Promise<Uint8Array> {
+        return Promise.resolve(version === 1 ? rootV1 : rootV2);
+      },
+    };
+    const orgMinted = await mintOrganizationDataKey(rootProvider, 2, {
+      organizationId: ORG,
+      keyVersion: 1,
+    });
+    const projectMinted = await mintProjectDataKey(rootProvider, 1, {
+      organizationId: ORG,
+      projectId: PROJECT,
+      keyVersion: 1,
+    });
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_new_root",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 2,
+          wrappedStorageRef: orgMinted.wrappedStorageRef,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [
+        {
+          id: "pdk_old_root",
+          organizationId: ORG,
+          projectId: PROJECT,
+          keyVersion: 1,
+          status: "retired",
+          organizationDataKeyVersion: 1,
+          wrappedStorageRef: projectMinted.wrappedStorageRef,
+        },
+      ],
+    );
+
+    await rewrapTenantDataKeys({
+      organizationId: ORG,
+      oldRootVersion: 1,
+      newRootVersion: 2,
+      rootKeyProvider: rootProvider,
+      store,
+    });
+
+    expect(store.organizationUpdates).toEqual([]);
+    expect(store.projectUpdates).toHaveLength(1);
+    const projectUpdate = store.projectUpdates[0];
+    if (!projectUpdate) {
+      throw new Error("expected project rewrap update");
+    }
+    expect(projectUpdate).toMatchObject({
+      projectId: PROJECT,
+      keyVersion: 1,
+      input: { status: "retired" },
+    });
+    const updatedProjectKey = await store.listProjectDataKeys().then((rows) => rows[0]);
+    if (!updatedProjectKey?.wrappedStorageRef) {
+      throw new Error("expected updated project wrapped ref");
+    }
+    const recoveredProjectKeyBytes = await unwrapProjectDataKeyBytes(
+      rootV2,
+      updatedProjectKey.wrappedStorageRef,
+      {
+        organizationId: ORG,
+        projectId: PROJECT,
+        keyVersion: 1,
+      },
+    );
+    expectBytesEqual(recoveredProjectKeyBytes, projectMinted.dataKeyBytes);
+  });
+
+  it("fails closed when an old-root organization key is missing wrapped material", async () => {
+    const rootProvider = new StaticRootKeyProvider(rootV1);
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_missing_ref",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 1,
+          wrappedStorageRef: null,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [],
+    );
+
+    await expect(
+      rewrapTenantDataKeys({
+        organizationId: ORG,
+        oldRootVersion: 1,
+        newRootVersion: 2,
+        rootKeyProvider: rootProvider,
+        store,
+      }),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+  });
+
+  it("fails closed when a project key is missing wrapped material", async () => {
+    const rootProvider = new StaticRootKeyProvider(rootV1);
+    const orgMinted = await mintOrganizationDataKey(rootProvider, 1, {
+      organizationId: ORG,
+      keyVersion: 1,
+    });
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_1",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 2,
+          wrappedStorageRef: orgMinted.wrappedStorageRef,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [
+        {
+          id: "pdk_missing_ref",
+          organizationId: ORG,
+          projectId: PROJECT,
+          keyVersion: 1,
+          status: "active",
+          organizationDataKeyVersion: 1,
+          wrappedStorageRef: null,
+        },
+      ],
+    );
+
+    await expect(
+      rewrapTenantDataKeys({
+        organizationId: ORG,
+        oldRootVersion: 1,
+        newRootVersion: 2,
+        rootKeyProvider: rootProvider,
+        store,
+      }),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+  });
+
+  it("fails closed when a project wrapped ref is unreadable under old and new roots", async () => {
+    const rootProvider = {
+      getRootKeyBytes(version: number): Promise<Uint8Array> {
+        return Promise.resolve(version === 1 ? rootV1 : rootV2);
+      },
+    };
+    const orgMinted = await mintOrganizationDataKey(rootProvider, 2, {
+      organizationId: ORG,
+      keyVersion: 1,
+    });
+    const unreadableProjectMinted = await mintProjectDataKey(rootProvider, 1, {
+      organizationId: OTHER_ORG,
+      projectId: PROJECT,
+      keyVersion: 1,
+    });
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_new_root",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 2,
+          wrappedStorageRef: orgMinted.wrappedStorageRef,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [
+        {
+          id: "pdk_unreadable",
+          organizationId: ORG,
+          projectId: PROJECT,
+          keyVersion: 1,
+          status: "active",
+          organizationDataKeyVersion: 1,
+          wrappedStorageRef: unreadableProjectMinted.wrappedStorageRef,
+        },
+      ],
+    );
+
+    await expect(
+      rewrapTenantDataKeys({
+        organizationId: ORG,
+        oldRootVersion: 1,
+        newRootVersion: 2,
+        rootKeyProvider: rootProvider,
+        store,
+      }),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+    expect(store.projectUpdates).toEqual([]);
+  });
+
+  it("propagates non-decrypt failures while probing a project under the old root", async () => {
+    const setupRootProvider = {
+      getRootKeyBytes(): Promise<Uint8Array> {
+        return Promise.resolve(rootV1);
+      },
+    };
+    const orgMinted = await mintOrganizationDataKey(setupRootProvider, 1, {
+      organizationId: ORG,
+      keyVersion: 1,
+    });
+    const projectMinted = await mintProjectDataKey(setupRootProvider, 1, {
+      organizationId: ORG,
+      projectId: PROJECT,
+      keyVersion: 1,
+    });
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_new_root",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 2,
+          wrappedStorageRef: orgMinted.wrappedStorageRef,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [
+        {
+          id: "pdk_probe_old_failure",
+          organizationId: ORG,
+          projectId: PROJECT,
+          keyVersion: 1,
+          status: "active",
+          organizationDataKeyVersion: 1,
+          wrappedStorageRef: projectMinted.wrappedStorageRef,
+        },
+      ],
+    );
+    const invalidOldRootProvider = {
+      getRootKeyBytes(version: number): Promise<Uint8Array> {
+        return Promise.resolve(version === 1 ? new Uint8Array(1) : rootV2);
+      },
+    };
+
+    await expect(
+      rewrapTenantDataKeys({
+        organizationId: ORG,
+        oldRootVersion: 1,
+        newRootVersion: 2,
+        rootKeyProvider: invalidOldRootProvider,
+        store,
+      }),
+    ).rejects.toThrow("invalid root key length");
+    expect(store.projectUpdates).toEqual([]);
+  });
+
+  it("propagates non-decrypt failures while probing a project under the new root", async () => {
+    const setupRootProvider = {
+      getRootKeyBytes(version: number): Promise<Uint8Array> {
+        return Promise.resolve(version === 1 ? rootV1 : rootV2);
+      },
+    };
+    const orgMinted = await mintOrganizationDataKey(setupRootProvider, 2, {
+      organizationId: ORG,
+      keyVersion: 1,
+    });
+    const projectMinted = await mintProjectDataKey(setupRootProvider, 2, {
+      organizationId: ORG,
+      projectId: PROJECT,
+      keyVersion: 1,
+    });
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_new_root",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 2,
+          wrappedStorageRef: orgMinted.wrappedStorageRef,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [
+        {
+          id: "pdk_probe_new_failure",
+          organizationId: ORG,
+          projectId: PROJECT,
+          keyVersion: 1,
+          status: "active",
+          organizationDataKeyVersion: 1,
+          wrappedStorageRef: projectMinted.wrappedStorageRef,
+        },
+      ],
+    );
+    const invalidNewRootProvider = {
+      getRootKeyBytes(version: number): Promise<Uint8Array> {
+        return Promise.resolve(version === 1 ? rootV1 : new Uint8Array(1));
+      },
+    };
+
+    await expect(
+      rewrapTenantDataKeys({
+        organizationId: ORG,
+        oldRootVersion: 1,
+        newRootVersion: 2,
+        rootKeyProvider: invalidNewRootProvider,
+        store,
+      }),
+    ).rejects.toThrow("invalid root key length");
+    expect(store.projectUpdates).toEqual([]);
+  });
+
+  it("fails closed when updated organization keys still reference the retiring root", async () => {
+    const rootProvider = {
+      getRootKeyBytes(version: number): Promise<Uint8Array> {
+        return Promise.resolve(version === 1 ? rootV1 : rootV2);
+      },
+    };
+    const orgMinted = await mintOrganizationDataKey(rootProvider, 1, {
+      organizationId: ORG,
+      keyVersion: 1,
+    });
+    const store = new InMemoryRewrapStore(
+      [
+        {
+          id: "odk_old_root",
+          organizationId: ORG,
+          keyVersion: 1,
+          status: "active",
+          rootKeyVersion: 1,
+          wrappedStorageRef: orgMinted.wrappedStorageRef,
+          custodyEvidenceRef: null,
+        },
+      ],
+      [],
+      { persistOrganizationUpdates: false },
+    );
+
+    await expect(
+      rewrapTenantDataKeys({
+        organizationId: ORG,
+        oldRootVersion: 1,
+        newRootVersion: 2,
+        rootKeyProvider: rootProvider,
+        store,
+      }),
+    ).rejects.toBeInstanceOf(TenantDataKeyNotReadyError);
+    expect(store.organizationUpdates).toHaveLength(1);
+  });
+
   it("fails closed for cross-tenant unwrap during rewrap", async () => {
     const rootProvider = new StaticRootKeyProvider(rootV1);
     const orgMinted = await mintOrganizationDataKey(rootProvider, 1, {
@@ -330,5 +784,19 @@ describe("rewrapTenantDataKeys", () => {
         store,
       }),
     ).rejects.toBeInstanceOf(DecryptError);
+  });
+});
+
+describe("data key lifecycle rewrap decisions", () => {
+  it("preserves every data-key status after root rewrap", () => {
+    for (const status of DATA_KEY_VERSION_STATUSES) {
+      expect(statusAfterRootRewrap(status)).toBe(status);
+    }
+  });
+
+  it("allows root retirement only after all organization keys leave the old root", () => {
+    expect(canRetireRootKeyBinding([], 1)).toBe(true);
+    expect(canRetireRootKeyBinding([{ rootKeyVersion: 2 }, { rootKeyVersion: 3 }], 1)).toBe(true);
+    expect(canRetireRootKeyBinding([{ rootKeyVersion: 2 }, { rootKeyVersion: 1 }], 1)).toBe(false);
   });
 });
