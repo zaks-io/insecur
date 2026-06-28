@@ -28,12 +28,7 @@ const results = [];
 
 checkNode();
 checkCommand("pnpm", ["--version"], (value) => value === "10.19.0", "pnpm 10.19.0");
-checkCommand(
-  "pnpm",
-  ["--filter", "@insecur/api", "exec", "wrangler", "--version"],
-  (value) => /^4\./u.test(value),
-  "Wrangler 4",
-);
+checkWranglerResolution();
 checkOptionalCommand(
   "docker",
   ["--version"],
@@ -69,6 +64,59 @@ for (const result of results) {
 
 if (results.some((result) => result.status === "FAIL")) {
   process.exitCode = 1;
+}
+
+function checkWranglerResolution() {
+  const apiVersion = readCommandVersion("pnpm", [
+    "--filter",
+    "@insecur/api",
+    "exec",
+    "wrangler",
+    "--version",
+  ]);
+  const runtimeVersion = readCommandVersion("pnpm", [
+    "--filter",
+    "@insecur/runtime",
+    "exec",
+    "wrangler",
+    "--version",
+  ]);
+  const rootVersion = readCommandVersion("pnpm", ["exec", "wrangler", "--version"]);
+  const isWrangler4 = (value) => /^4\./u.test(value);
+
+  record(
+    isWrangler4(apiVersion) ? "OK" : "FAIL",
+    `Wrangler 4 (@insecur/api): ${apiVersion || "missing"}`,
+  );
+  record(
+    isWrangler4(runtimeVersion) ? "OK" : "FAIL",
+    `Wrangler 4 (@insecur/runtime): ${runtimeVersion || "missing"}`,
+  );
+  record(
+    isWrangler4(rootVersion) ? "OK" : "FAIL",
+    `Wrangler 4 (root): ${rootVersion || "missing"}`,
+  );
+  record(
+    apiVersion &&
+      runtimeVersion &&
+      rootVersion &&
+      apiVersion === runtimeVersion &&
+      apiVersion === rootVersion
+      ? "OK"
+      : "FAIL",
+    `Wrangler versions aligned: root=${rootVersion || "missing"}, api=${apiVersion || "missing"}, runtime=${runtimeVersion || "missing"}`,
+  );
+}
+
+function readCommandVersion(command, args) {
+  const result = spawnSync(command, args, {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    return "";
+  }
+  return result.stdout.trim().split(/\s+/u)[0] ?? "";
 }
 
 function checkNode() {
