@@ -7,9 +7,14 @@ import {
   type ProjectId,
   type SecretVersionId,
 } from "@insecur/domain";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 import { FIRST_VALUE_AUDIT_EVENT_CODES, type AuditEventCode } from "./audit-event-codes.js";
 import { omitUndefinedFields } from "./optional-audit-fields.js";
-import { recordScopedAudit, type RecordScopedAuditInput } from "./record-scoped-audit.js";
+import {
+  recordScopedAudit,
+  recordScopedAuditInTenantScope,
+  type RecordScopedAuditInput,
+} from "./record-scoped-audit.js";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "./audit-types.js";
 import type { AuditEventResult } from "./write-audit-event.js";
 
@@ -105,4 +110,11 @@ export async function recordRuntimeInjectionAudit(
   input: RecordRuntimeInjectionAuditInput,
 ): Promise<AuditEventResult | undefined> {
   return recordScopedAudit(toRuntimeInjectionScopedInput(input));
+}
+
+export async function recordRuntimeInjectionAuditInTenantScope(
+  sql: TenantScopedSql,
+  input: RecordRuntimeInjectionAuditInput,
+): Promise<AuditEventResult> {
+  return recordScopedAuditInTenantScope(sql, toRuntimeInjectionScopedInput(input));
 }

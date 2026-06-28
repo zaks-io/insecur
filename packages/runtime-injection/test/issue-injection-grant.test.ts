@@ -3,7 +3,13 @@ import {
   resolveEffectiveAccess,
   type LoadMembershipsFn,
 } from "@insecur/access";
-import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES, machineIdentityId } from "@insecur/domain";
+import { recordRuntimeInjectionAuditInTenantScope } from "@insecur/audit";
+import {
+  AUTH_ERROR_CODES,
+  INJECTION_ERROR_CODES,
+  auditEventId,
+  machineIdentityId,
+} from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
 import {
   ProjectEnvironmentCoordinateError,
@@ -25,28 +31,59 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const ACTOR_USER = userId.brand("usr_00000000000000000000000001");
+const AUDIT_EVENT = auditEventId.brand("aud_00000000000000000000000001");
 
 let protectedEnvironment = true;
 let coordinateError: ProjectEnvironmentCoordinateError | undefined;
 
+interface MockTransactionDb {
+  pendingGrants: unknown[];
+}
+
+const { committedGrants, insertGrant, withTenantScope } = vi.hoisted(() => ({
+  committedGrants: [] as unknown[],
+  insertGrant: vi.fn(async (db: MockTransactionDb, input: unknown) => {
+    db.pendingGrants.push(input);
+  }),
+  withTenantScope: vi.fn(
+    async (
+      _scope: unknown,
+      fn: (ctx: { db: MockTransactionDb; sql: unknown }) => Promise<unknown>,
+    ) => {
+      const db = { pendingGrants: [] };
+      const result = await fn({ db, sql: {} });
+      committedGrants.push(...db.pendingGrants);
+      return result;
+    },
+  ),
+}));
+
 beforeEach(() => {
   protectedEnvironment = true;
   coordinateError = undefined;
+  committedGrants.length = 0;
+  insertGrant.mockClear();
+  withTenantScope.mockClear();
   vi.mocked(resolveEffectiveAccess).mockReset();
   vi.mocked(assertProjectEnvironmentCoordinate).mockClear();
+  vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockReset();
+  vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockResolvedValue({
+    auditEventId: AUDIT_EVENT,
+  });
 });
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
   class MockTenantInjectionGrantStore {
-    insertGrant = vi.fn().mockResolvedValue(undefined);
+    constructor(private readonly db: MockTransactionDb) {}
+
+    async insertGrant(input: unknown): Promise<void> {
+      await insertGrant(this.db, input);
+    }
   }
   class MockTenantSecretVersionStore {
     getCurrentVersion = vi.fn().mockResolvedValue({ secretVersionId: "sv_test" });
   }
-  const withTenantScope = vi.fn(
-    async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => fn({ db: {} }),
-  );
   const assertProjectEnvironmentCoordinate = vi.fn(async () => {
     if (coordinateError !== undefined) {
       throw coordinateError;
@@ -95,6 +132,7 @@ vi.mock("@insecur/access", async (importOriginal) => {
 vi.mock("@insecur/audit", () => ({
   auditActorUserId: (actor: { userId: string }) => actor.userId,
   recordRuntimeInjectionAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  recordRuntimeInjectionAuditInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 
 describe("resolveIssueGrantRequiredScope", () => {
@@ -182,7 +220,24 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     const result = await executeIssueInjectionGrant(baseInput);
     expect(result.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
     expect(result.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(result.auditEventId).toBe("aud_test");
+    expect(result.auditEventId).toBe(AUDIT_EVENT);
+    expect(committedGrants).toHaveLength(1);
+  });
+
+  it("rolls back the grant insert when the success audit insert fails", async () => {
+    protectedEnvironment = false;
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue],
+    });
+    vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockRejectedValueOnce(
+      new Error("audit insert failed"),
+    );
+
+    await expect(executeIssueInjectionGrant(baseInput)).rejects.toThrow("audit insert failed");
+
+    expect(insertGrant).toHaveBeenCalledOnce();
+    expect(recordRuntimeInjectionAuditInTenantScope).toHaveBeenCalledOnce();
+    expect(committedGrants).toEqual([]);
   });
 
   it("rejects non-user actors before access checks", async () => {

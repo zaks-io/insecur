@@ -21,6 +21,7 @@ import { writeAuditEvent } from "../src/write-audit-event.js";
 
 vi.mock("../src/write-audit-event.js", () => ({
   writeAuditEvent: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  writeAuditEventInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 
 const ORG = organizationId.brand("org_00000000000000000000000001");

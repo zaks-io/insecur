@@ -64,6 +64,7 @@ export {
   type RecordRuntimeInjectionAuditInput,
   type RuntimeInjectionAuditPhase,
   recordRuntimeInjectionAudit,
+  recordRuntimeInjectionAuditInTenantScope,
 } from "./record-runtime-injection-audit.js";
 export { type RecordStorageAuditInput, recordStorageAudit } from "./record-storage-audit.js";
 export { generateAuditEventId } from "./generate-audit-event-id.js";
@@ -73,7 +74,11 @@ export {
   resolveAuditResultCode,
   validateAuditEventInput,
 } from "./validate-audit-event.js";
-export { type AuditEventResult, writeAuditEvent } from "./write-audit-event.js";
+export {
+  type AuditEventResult,
+  writeAuditEvent,
+  writeAuditEventInTenantScope,
+} from "./write-audit-event.js";
 export {
   AUDIT_EXPORT_CHAIN_GENESIS,
   AUDIT_EXPORT_HASH_ALGORITHM,

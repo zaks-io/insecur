@@ -1,6 +1,7 @@
 import { EffectiveAccessMemo, auditAccessDenialOnFailure, type ActorRef } from "@insecur/access";
 import {
   recordRuntimeInjectionAudit,
+  recordRuntimeInjectionAuditInTenantScope,
   type AuditActorRef,
   type AuditOperationRef,
   type AuditRequestRef,
@@ -62,7 +63,7 @@ function toGrantCoordinate(input: IssueInjectionGrantCoreInput): GrantCoordinate
 async function assertIssueGrantCoordinate(
   coordinate: GrantCoordinate,
 ): Promise<{ isProtected: boolean }> {
-  return assertProjectEnvironmentCoordinateWithScope({
+  return await assertProjectEnvironmentCoordinateWithScope({
     coordinate,
     createCoordinateError: () =>
       new InjectionGrantError(
@@ -112,33 +113,36 @@ export async function executeIssueInjectionGrant(
   const grantId = injectionGrantId.generate();
   const expiresAtDate = computeInjectionGrantExpiresAt();
 
-  await withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
-    new TenantInjectionGrantStore(db).insertGrant({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      grantId,
-      binding,
-      expiresAt: expiresAtDate,
-    }),
-  );
+  const audit = await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async ({ db, sql }) => {
+      await new TenantInjectionGrantStore(db).insertGrant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        grantId,
+        binding,
+        expiresAt: expiresAtDate,
+      });
 
-  const audit = await recordRuntimeInjectionAudit({
-    phase: "issue",
-    outcome: "success",
-    actor: input.actor,
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-    grantId,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-    ...(input.operation !== undefined ? { operation: input.operation } : {}),
-  });
+      return recordRuntimeInjectionAuditInTenantScope(sql, {
+        phase: "issue",
+        outcome: "success",
+        actor: input.actor,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        grantId,
+        ...(input.request !== undefined ? { request: input.request } : {}),
+        ...(input.operation !== undefined ? { operation: input.operation } : {}),
+      });
+    },
+  );
 
   return {
     grantId,
     expiresAt: expiresAtDate.toISOString(),
-    ...(audit?.auditEventId !== undefined ? { auditEventId: audit.auditEventId } : {}),
+    auditEventId: audit.auditEventId,
   };
 }
 
