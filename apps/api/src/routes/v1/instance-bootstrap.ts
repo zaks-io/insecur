@@ -1,8 +1,8 @@
 import { completeBootstrapOperatorClaim, getBootstrapStatus } from "@insecur/instance-bootstrap";
-import { membershipId } from "@insecur/domain";
 import {
   handleRoute,
   parseJsonBody,
+  parseOwnerMembershipId,
   readRequiredString,
   requireUserActor,
   resolveInstanceId,
@@ -15,16 +15,6 @@ export const instanceBootstrapRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();
-
-function parseOwnerMembershipId(body: Record<string, unknown>) {
-  const parsed = membershipId.parse(readRequiredString(body, "ownerMembershipId"));
-  if (!parsed.ok) {
-    throw Object.assign(new Error("Invalid owner membership id."), {
-      code: parsed.code,
-    });
-  }
-  return parsed.value;
-}
 
 instanceBootstrapRoutes.get("/status", async (context) => {
   return handleRoute(context, async () => {
