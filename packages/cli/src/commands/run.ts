@@ -14,6 +14,7 @@ import type {
 } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
+import { scrubCliChildAuthEnv } from "../auth/child-env.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
@@ -53,12 +54,9 @@ function decodeDeliveryValue(encodedValueUtf8: string): string {
 
 function buildRunChildEnv(variableKey: VariableKey, valueUtf8: string): NodeJS.ProcessEnv {
   const childEnv: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...scrubCliChildAuthEnv(),
     [variableKey]: valueUtf8,
   };
-  delete childEnv.INSECUR_SESSION_TOKEN;
-  delete childEnv.INSECUR_DEPLOY_KEY;
-  delete childEnv.INSECUR_OIDC_TOKEN;
   return childEnv;
 }
 
