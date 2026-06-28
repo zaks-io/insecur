@@ -25,6 +25,7 @@ import {
 } from "@insecur/tenant-store";
 
 import { assertEnvironmentAllowsNonProtectedWrite } from "./assert-environment-allows-non-protected-write.js";
+import { recordDeniedWriteAudit } from "./record-denied-write-audit.js";
 import { recordSecretWriteAudit } from "./record-secret-write-audit.js";
 import { SecretWriteError } from "./secret-write-error.js";
 import { validateTextSecretValue } from "./validate-text-secret-value.js";
@@ -73,17 +74,9 @@ async function recordDeniedWrite(
   input: WriteNonProtectedSecretInput,
   reasonCode: SecretWriteError["code"],
 ): Promise<void> {
-  await recordSecretWriteAudit({
-    outcome: "denied",
-    actor: input.actor,
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-    ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
-    ...(input.request !== undefined ? { request: input.request } : {}),
-    ...(input.operation !== undefined ? { operation: input.operation } : {}),
-    reasonCode,
-  });
+  const scope = [input.organizationId, input.projectId, input.environmentId] as const;
+  const refs = [input.secretId, input.request, input.operation] as const;
+  await recordDeniedWriteAudit(input.actor, scope, refs, reasonCode);
 }
 
 function isInsufficientScopeSecretWriteError(error: unknown): error is SecretWriteError {
