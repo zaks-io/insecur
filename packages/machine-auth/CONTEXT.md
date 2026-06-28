@@ -12,7 +12,6 @@ exchange audit events.
 
 ## Read First
 
-- `../../CONTEXT-MAP.md`
 - `../../docs/context-map.md`
 - `../../docs/specs/agent-workstreams.md` (W7)
 - `../../docs/context/glossary/machine-access.md`
