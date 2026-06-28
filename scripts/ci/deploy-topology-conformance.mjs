@@ -5,9 +5,8 @@
 //
 // Asserts:
 //   (a) exactly ONE deploy declares the INSTANCE_ROOT_KEY_V1 binding, and it is `insecur-runtime`.
-//   (b) the Runtime Worker mounts ZERO public routes.
-//   (c) NO deploy declares BOTH a public route group AND the root-key binding (the monolith
-//       signature).
+//   (b) the Runtime Worker mounts ZERO public routes and declares ZERO public hostname exposure.
+//   (c) NO deploy declares BOTH public exposure AND the root-key binding (the monolith signature).
 //   (d) NO V1 deploy carries a Service Access token audience or a reveal/value/delivery/approval
 //       scope (ADR-0019 negative assertion; Service Access is deferred and unbuilt).
 //   (e) the API Worker has exactly the intended private Runtime Service Binding shape.
@@ -86,6 +85,7 @@ function discoverDeploys() {
     const raw = readFileSync(wranglerPath, "utf8");
     const config = parseJsonc(raw, wranglerPath);
     const rootKeyScopes = findRootKeyScopes(config);
+    const publicHostnameExposures = findPublicHostnameExposures(config);
     deploys.push({
       app: entry,
       name: typeof config.name === "string" ? config.name : entry,
@@ -94,6 +94,7 @@ function discoverDeploys() {
       raw,
       rootKeyScopes,
       hasRootKey: rootKeyScopes.length > 0,
+      publicHostnameExposures,
       routes: extractPublicRoutes(join(appPath, "src", "index.ts")),
     });
   }
@@ -124,6 +125,54 @@ function declaresRootKey(config) {
     return false;
   }
   return secrets.some((secret) => secret?.binding === ROOT_KEY_BINDING);
+}
+
+function findPublicHostnameExposures(config) {
+  const exposures = [];
+  collectPublicHostnameExposures(exposures, "top-level", config);
+  if (config && typeof config === "object" && config.env && typeof config.env === "object") {
+    for (const [envName, envConfig] of Object.entries(config.env)) {
+      collectPublicHostnameExposures(exposures, `env.${envName}`, envConfig);
+    }
+  }
+  return exposures;
+}
+
+function collectPublicHostnameExposures(exposures, scope, config) {
+  if (!config || typeof config !== "object") {
+    return;
+  }
+  if (isConfiguredPublicHostname(config.route)) {
+    exposures.push(`${scope}.route`);
+  }
+  if (
+    Array.isArray(config.routes) &&
+    config.routes.some((route) => isConfiguredPublicHostname(route))
+  ) {
+    exposures.push(`${scope}.routes`);
+  }
+  if (isConfiguredPublicHostname(config.custom_domain)) {
+    exposures.push(`${scope}.custom_domain`);
+  }
+  if (config.workers_dev === true) {
+    exposures.push(`${scope}.workers_dev`);
+  }
+}
+
+function isConfiguredPublicHostname(value) {
+  if (value === undefined || value === null || value === false) {
+    return false;
+  }
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.some((item) => isConfiguredPublicHostname(item));
+  }
+  if (typeof value === "object") {
+    return Object.keys(value).length > 0;
+  }
+  return Boolean(value);
 }
 
 // Extract public mount prefixes from a Hono composition root by reading its `app.route(...)`,
@@ -191,9 +240,9 @@ function assertSingleRootKeyHolder(deploys) {
 
 function assertRuntimeHasNoPublicRoutes(deploys) {
   for (const deploy of deploys) {
-    if (deploy.name === RUNTIME_SCRIPT_NAME && deploy.routes.length > 0) {
+    if (deploy.name === RUNTIME_SCRIPT_NAME && publicExposureSummary(deploy).length > 0) {
       fail(
-        `${RUNTIME_SCRIPT_NAME} must serve zero public routes but mounts: ${deploy.routes.join(", ")}`,
+        `${RUNTIME_SCRIPT_NAME} must serve zero public routes or hostname exposure but declares: ${publicExposureSummary(deploy).join(", ")}`,
       );
     }
   }
@@ -201,12 +250,19 @@ function assertRuntimeHasNoPublicRoutes(deploys) {
 
 function assertNoMonolith(deploys) {
   for (const deploy of deploys) {
-    if (deploy.hasRootKey && deploy.routes.length > 0) {
+    if (deploy.hasRootKey && publicExposureSummary(deploy).length > 0) {
       fail(
-        `MONOLITH: deploy '${deploy.name}' declares both the root-key binding and public routes (${deploy.routes.join(", ")})`,
+        `MONOLITH: deploy '${deploy.name}' declares both the root-key binding and public exposure (${publicExposureSummary(deploy).join(", ")})`,
       );
     }
   }
+}
+
+function publicExposureSummary(deploy) {
+  return [
+    ...deploy.routes.map((route) => `source route ${route}`),
+    ...deploy.publicHostnameExposures.map((exposure) => `wrangler ${exposure}`),
+  ];
 }
 
 function assertNoServiceAccessSurface(deploys) {
