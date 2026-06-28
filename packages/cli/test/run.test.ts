@@ -21,6 +21,7 @@ const GRANT_ID = "igr_01TEST00000000000000000001";
 const SECRET_ID = "sec_01TEST00000000000000000001";
 const VERSION_ID = "sv_01TEST00000000000000000001";
 const SENSITIVE_VALUE = "super-secret-runtime-value";
+const NON_EXPIRED_SESSION_EXPIRES_AT = "2999-01-01T00:00:00.000Z";
 
 const flags = {
   host: "https://insecur.test",
@@ -127,6 +128,10 @@ describe("runRunCommand", () => {
   afterEach(() => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
+    delete process.env.INSECUR_WORKOS_COOKIE;
+    delete process.env.INSECUR_WORKOS_CSRF;
+    delete process.env.INSECUR_FUTURE_TOKEN;
+    delete process.env.INSECUR_FUTURE_KEY;
     delete process.env.API_KEY;
     vi.restoreAllMocks();
     spawnMock.mockReset();
@@ -137,7 +142,7 @@ describe("runRunCommand", () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     const api = createMockApi();
     delete process.env.INSECUR_SESSION_TOKEN;
@@ -181,7 +186,7 @@ describe("runRunCommand", () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     process.env.INSECUR_SESSION_TOKEN = "inherited-parent-token";
     const api = createMockApi();
@@ -201,11 +206,41 @@ describe("runRunCommand", () => {
     expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
   });
 
+  it("scrubs WorkOS exchange material and future auth-bearing INSECUR variables from the child environment", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    process.env.INSECUR_WORKOS_COOKIE = "dummy-workos-cookie";
+    process.env.INSECUR_WORKOS_CSRF = "dummy-workos-csrf";
+    process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
+    process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
+    const api = createMockApi();
+    let capturedEnv: NodeJS.ProcessEnv | undefined;
+    spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
+      capturedEnv = options.env;
+      return createMockChild(0);
+    });
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await runRunCommand(flags, api, mockContext, {
+      variableKey: "API_KEY",
+      command: ["node", "-e", "0"],
+    });
+
+    expect(capturedEnv?.INSECUR_WORKOS_COOKIE).toBeUndefined();
+    expect(capturedEnv?.INSECUR_WORKOS_CSRF).toBeUndefined();
+    expect(capturedEnv?.INSECUR_FUTURE_TOKEN).toBeUndefined();
+    expect(capturedEnv?.INSECUR_FUTURE_KEY).toBeUndefined();
+    expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
+  });
+
   it("does not capture child stdout in CLI output", async () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     const api = createMockApi();
     spawnMock.mockImplementation(() => createMockChild(0));
@@ -227,7 +262,7 @@ describe("runRunCommand", () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     const api = createMockApi();
     spawnMock.mockImplementation(() => createMockChildTerminatedBySignal("SIGTERM"));
@@ -245,7 +280,7 @@ describe("runRunCommand", () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     const api = createMockApi();
     const spawnError = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
@@ -263,7 +298,7 @@ describe("runRunCommand", () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     const api = createMockApi({
       consumeInjectionGrant: vi.fn(async () => ({
@@ -296,7 +331,7 @@ describe("runRunCommand", () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     const api = createMockApi();
 
@@ -317,7 +352,7 @@ describe("runRunCommand", () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
-      expiresAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
     const api = createMockApi();
 

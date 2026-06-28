@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { successEnvelope } from "@insecur/domain";
 import { runLoginCommand } from "../src/commands/login.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
+import type { CliUserProfile } from "../src/config/user-config.js";
 import { clearMemorySession, getMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";
 import { EXIT_VALIDATION } from "../src/output/exit-codes.js";
@@ -80,7 +81,12 @@ describe("login --shell managed session", () => {
   afterEach(() => {
     clearMemorySession();
     delete process.env.INSECUR_WORKOS_COOKIE;
+    delete process.env.INSECUR_WORKOS_CSRF;
     delete process.env.INSECUR_SESSION_TOKEN;
+    delete process.env.INSECUR_DEPLOY_KEY;
+    delete process.env.INSECUR_OIDC_TOKEN;
+    delete process.env.INSECUR_FUTURE_TOKEN;
+    delete process.env.INSECUR_FUTURE_KEY;
     vi.clearAllMocks();
   });
 
@@ -157,10 +163,14 @@ describe("login --shell managed session", () => {
 });
 
 describe("buildLoginShellChildEnv", () => {
-  it("strips deploy and oidc tokens from the child environment", async () => {
+  it("scrubs auth-bearing env vars while preserving the intended session token", async () => {
     const { buildLoginShellChildEnv } = await import("../src/commands/shell-env.js");
     process.env.INSECUR_DEPLOY_KEY = "deploy-key";
     process.env.INSECUR_OIDC_TOKEN = "oidc-token";
+    process.env.INSECUR_WORKOS_COOKIE = "dummy-workos-cookie";
+    process.env.INSECUR_WORKOS_CSRF = "dummy-workos-csrf";
+    process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
+    process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
 
     const childEnv = buildLoginShellChildEnv("credential", "https://insecur.test");
 
@@ -168,8 +178,44 @@ describe("buildLoginShellChildEnv", () => {
     expect(childEnv.INSECUR_HOST).toBe("https://insecur.test");
     expect(childEnv.INSECUR_DEPLOY_KEY).toBeUndefined();
     expect(childEnv.INSECUR_OIDC_TOKEN).toBeUndefined();
+    expect(childEnv.INSECUR_WORKOS_COOKIE).toBeUndefined();
+    expect(childEnv.INSECUR_WORKOS_CSRF).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_TOKEN).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_KEY).toBeUndefined();
+  });
+});
 
-    delete process.env.INSECUR_DEPLOY_KEY;
-    delete process.env.INSECUR_OIDC_TOKEN;
+describe("buildShellChildEnv", () => {
+  it("scrubs auth-bearing env vars while preserving profile metadata and the intended session token", async () => {
+    const { buildShellChildEnv } = await import("../src/commands/shell-env.js");
+    const profile: CliUserProfile = {
+      slug: "local-dev",
+      displayName: "Local Dev" as never,
+      host: "https://insecur.test",
+      orgId: "org_01TEST00000000000000000001" as never,
+      projectId: "prj_01TEST00000000000000000001" as never,
+      envId: "env_01TEST00000000000000000001" as never,
+    };
+    process.env.INSECUR_DEPLOY_KEY = "deploy-key";
+    process.env.INSECUR_OIDC_TOKEN = "oidc-token";
+    process.env.INSECUR_WORKOS_COOKIE = "dummy-workos-cookie";
+    process.env.INSECUR_WORKOS_CSRF = "dummy-workos-csrf";
+    process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
+    process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
+
+    const childEnv = buildShellChildEnv("credential", profile);
+
+    expect(childEnv.INSECUR_SESSION_TOKEN).toBe("credential");
+    expect(childEnv.INSECUR_HOST).toBe(profile.host);
+    expect(childEnv.INSECUR_ORG).toBe(profile.orgId);
+    expect(childEnv.INSECUR_PROJECT).toBe(profile.projectId);
+    expect(childEnv.INSECUR_ENV).toBe(profile.envId);
+    expect(childEnv.INSECUR_PROFILE).toBe(profile.slug);
+    expect(childEnv.INSECUR_DEPLOY_KEY).toBeUndefined();
+    expect(childEnv.INSECUR_OIDC_TOKEN).toBeUndefined();
+    expect(childEnv.INSECUR_WORKOS_COOKIE).toBeUndefined();
+    expect(childEnv.INSECUR_WORKOS_CSRF).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_TOKEN).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_KEY).toBeUndefined();
   });
 });

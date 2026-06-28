@@ -214,18 +214,28 @@ Non-secret environment variables:
 - `INSECUR_CLIENT_ID`
 - `INSECUR_CONFIG_DIR`
 
-Session-only credential environment variables:
+Session and browser-exchange credential environment variables:
 
 - `INSECUR_SESSION_TOKEN`
 - `INSECUR_DEPLOY_KEY`
 - `INSECUR_OIDC_TOKEN`
+- `INSECUR_WORKOS_COOKIE`
+- `INSECUR_WORKOS_CSRF`
 
 Rules:
 
-- Session-only credential variables are never written by insecur to disk.
+- Session and browser-exchange credential variables are never written by insecur to disk.
 - Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
+- WorkOS cookie and CSRF variables are exchange inputs for `insecur login`; they are never runtime
+  authority for arbitrary child commands.
+- Child process environments scrub auth-bearing `INSECUR_*TOKEN`, `INSECUR_*COOKIE`,
+  `INSECUR_*CSRF`, and `INSECUR_*KEY` names by default. Authenticated shells deliberately receive
+  only `INSECUR_SESSION_TOKEN` plus profile metadata; Runtime Injection commands receive only the
+  requested injected variable value plus non-sensitive execution context.
 - `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
-- Prefer `insecur shell <profile-slug-or-id>` or one-shot `insecur run <profile-slug-or-id> --login -- <command>` so the CLI can keep credentials in memory or in a child process environment without printing them.
+- Prefer `insecur login --shell` or `insecur shell <profile-slug-or-id>` when a child shell
+  needs the short-lived session token. Use `insecur run --variable-key <key> -- <command>` for
+  one-shot Runtime Injection; run children do not inherit CLI/browser exchange credentials.
 - Do not accept Sensitive Values through CLI arguments or named local value files. Use stdin, masked prompts, service generation, or provider authorization flows.
 
 Precedence:
@@ -437,7 +447,12 @@ Mappings without a dotted code: a client-minted resource ID that already exists 
 
 ## Agent Execution And Human Step-Up
 
-A local coding agent has no identity of its own. It runs inside a human-initiated session, started with `insecur shell <profile-slug-or-id>` or `insecur run <profile-slug-or-id> --login -- <command>`, inherits the short-lived `INSECUR_SESSION_TOKEN` from the process environment, and acts with the human's Effective Access. Because a High-Assurance Challenge re-verifies the human freshly, the agent can do low-risk work autonomously but cannot clear high-risk gates on its own.
+A local coding agent has no identity of its own. It acts through a human-initiated CLI session with
+the human's Effective Access. In `insecur shell <profile-slug-or-id>`, the authenticated child shell
+receives the short-lived `INSECUR_SESSION_TOKEN`; in `insecur run --variable-key <key> -- <command>`,
+the child receives a fresh Runtime Injection grant's exact requested value and does not inherit
+CLI/browser exchange credentials. Because a High-Assurance Challenge re-verifies the human freshly,
+the agent can do low-risk work autonomously but cannot clear high-risk gates on its own.
 
 - Any action requiring a High-Assurance Challenge that the acting credential cannot satisfy fails closed with exit code `10` and stable error code `auth.high_assurance_required`.
 - The `auth.high_assurance_required` error envelope carries a bounded operation ID in `meta.operationId` describing the exact pending action the human must authorize.
@@ -461,7 +476,7 @@ insecur login
 insecur login --browser
 insecur login --device
 insecur shell prof_01JZ8E6H2R7M4T0V9X3C5D8F1G
-insecur run prof_01JZ8E6H2R7M4T0V9X3C5D8F1G --login -- npm run dev
+insecur run --variable-key API_KEY -- npm run dev
 insecur login --method oidc --provider github-actions
 insecur login --method bootstrap --client-id "$INSECUR_CLIENT_ID" --client-secret-stdin
 insecur logout
