@@ -28,6 +28,14 @@ and daily security scan workflow files. `pnpm verify` includes the deploy-topolo
 and the package-boundary conformance gate (`pnpm conformance:packages`), which fails forbidden
 production dependency paths from public/API and contract packages into `@insecur/crypto`.
 
+Machine Access and CI Trust has started landing in code. Project-scoped Machine Identity rows and
+memberships exist in tenant-store, machine effective-access resolution exists in `@insecur/access`,
+and `@insecur/machine-auth` now covers GitHub Actions OIDC trusted-source exchange plus
+short-lived machine access token mint/verify. The remaining Machine Access gaps are the
+Environment Deploy Keys fallback, deploy-key rotation policy, full route/API composition for the
+exchange and protected Runtime Injection path, broader machine-access audit hardening, and any
+still-open W7 slices.
+
 The accepted implementation direction is still Diskless Development Secret Use first:
 developers and agents should use non-protected development secrets through Runtime
 Injection without creating plaintext local secret files. Production delivery remains
@@ -120,12 +128,20 @@ First Value routes under `/v1/orgs/:org`).
   runtime-role grants, and RLS helper scripts/tests.
 - Tenant-store migrations now create the First Value metadata spine: instances,
   organizations, projects, environments, teams, memberships, organization/project data
-  key metadata, secrets, secret versions, injection grants, audit events, operations,
-  instance bootstrap tables, invitations, and sync target leases. Tenant-owned tables
-  have RLS enabled and forced.
+  key metadata, machine identities, project-scoped machine identity memberships,
+  GitHub Actions OIDC machine auth methods, secrets, secret versions, injection grants,
+  audit events, operations, instance bootstrap tables, invitations, and sync target leases.
+  Tenant-owned tables have RLS enabled and forced.
 - `@insecur/access` owns Effective Access resolution, built-in role presets, First
   Value owner scopes, request-level memoization/cache behavior, project/org coordinate
-  filtering, scope checks, and access-denied audit recording.
+  filtering, scope checks, machine effective-access resolution for project-scoped
+  Machine Identity memberships plus Credential Scopes, and access-denied audit recording.
+- `@insecur/machine-auth` owns the landed Machine Identity auth method exchange package surface:
+  GitHub Actions OIDC JWT verification, trusted repository/environment/audience matching,
+  tenant-scoped OIDC auth method loading, short-lived machine access token mint/verify, and
+  metadata-only exchange audit events. It composes with tenant-store persistence and
+  `@insecur/access`; Worker route/API composition and Environment Deploy Keys remain outside this
+  package.
 - `@insecur/audit` owns tenant-qualified, metadata-only audit event validation and
   writing, including stable denied-result codes and payload allowlist checks that fail
   closed on sensitive-looking keys or binary payloads.
@@ -179,14 +195,15 @@ First Value routes under `/v1/orgs/:org`).
 - Worker auth/session tests pass, including unauthenticated/invalid/expired credential
   responses, valid bearer `whoami`, and WorkOS-browser-session-to-CLI credential exchange.
 - Package unit tests pass for domain primitives, auth, access role/scope logic, audit
-  metadata allowlists, crypto envelope/AAD/readiness behavior, secret input validation,
-  runtime injection metadata/selector rules, operation state/metadata rules, and bootstrap
-  secret/authenticated-actor checks.
+  metadata allowlists, machine auth OIDC/token exchange behavior, crypto envelope/AAD/readiness
+  behavior, secret input validation, runtime injection metadata/selector rules, operation
+  state/metadata rules, and bootstrap secret/authenticated-actor checks.
 - DB-backed integration tests are present for tenant isolation, data-key isolation,
-  access resolution, audit writes, non-protected secret writes, runtime injection grants,
-  guided provisioning, membership management, instance bootstrap, operation store, and
-  sync target leases. In ordinary `pnpm verify`, suites that need `DATABASE_URL_RUNTIME`
-  are skipped when the runtime DB is not configured.
+  access resolution, machine effective access and GitHub Actions OIDC exchange, audit writes,
+  non-protected secret writes, runtime injection grants, guided provisioning, membership
+  management, instance bootstrap, operation store, and sync target leases. In ordinary
+  `pnpm verify`, suites that need `DATABASE_URL_RUNTIME` are skipped when the runtime DB is not
+  configured.
 - `pnpm test:rls` is the real-Postgres RLS gate (`ENABLE` + `FORCE ROW LEVEL SECURITY`,
   `NOBYPASSRLS` runtime role). The `postgres-integration` CI job resets Docker Compose
   Postgres 17, asserts migration vs runtime credentials and `NOBYPASSRLS`, then runs
@@ -251,8 +268,12 @@ verify`. Do not compose new routes into a single worker; every route belongs to 
 - Protected Environments, Draft/Published Version, Promotion, rollback, Protected Change
   Orchestrator, Human Approval Surface, Delivery Risk Policy Presets, and Storage Security
   Gate enforcement are not implemented.
-- Machine Identity, GitHub Actions OIDC, environment-scoped deploy keys, deploy-key
-  rotation, and short-lived CI access tokens are not implemented.
+- Machine Access and CI Trust remains partial. Landed code covers the project-scoped Machine
+  Identity model/memberships, machine effective-access scope construction, GitHub Actions OIDC
+  trusted-source exchange, short-lived machine access token mint/verify, and exchange audit events
+  in `@insecur/machine-auth`. Still open: Environment Deploy Keys, deploy-key rotation policy,
+  full public route/API composition for OIDC exchange and protected Runtime Injection token use,
+  broader machine-access audit/denial coverage, and the remaining W7 rollout work.
 - Provider App Connections and Secret Sync adapters for GitHub Actions and Cloudflare
   Worker secrets are not implemented. Operation Store and sync target lease primitives
   exist, but provider connect/plan/write/verify flows do not.
@@ -297,8 +318,10 @@ environment modeling, route-level authorization, and tenant-qualified audit cove
 
 **Machine Access And CI Trust**
 
-Add Machine Identities, GitHub Actions OIDC, environment-scoped deploy keys, rotation policy,
-and short-lived automation access for scoped Runtime Injection without broad long-lived tokens.
+Continue from the landed Machine Identity model, GitHub Actions OIDC exchange, and
+`@insecur/machine-auth` package surface. Finish Environment Deploy Keys, rotation policy, route/API
+composition, machine-access audit coverage, and the protected Runtime Injection rollout so CI can
+use scoped short-lived automation access without broad long-lived tokens.
 
 **Promotion Approval And High-Assurance Challenges**
 
