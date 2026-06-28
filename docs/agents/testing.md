@@ -92,8 +92,10 @@ pnpm test:canary    # no-plaintext canary gate (Postgres columns + console outpu
 
 `pnpm test:rls` runs the forced-RLS tenant-store suites plus every workspace package-level
 DB-backed `*.integration.test.ts` suite that depends on `DATABASE_URL_RUNTIME`. The suites
-self-gate on `integrationDatabaseReady` for fast local/unit runs, but the CI gate sets
-`INSECUR_CI_RLS_GATE=1` so a missing or unreachable runtime database fails instead of skipping.
+are excluded from ordinary package `test` tasks so `pnpm verify` stays unit-only even when a local
+Postgres URL exists. Inside the DB-backed configs, the suites still self-gate on
+`integrationDatabaseReady` for ad hoc local runs, while the CI gate sets `INSECUR_CI_RLS_GATE=1` so
+a missing or unreachable runtime database fails instead of skipping.
 
 `pnpm test:e2e` runs `apps/api/test/e2e/first-value-loop.e2e.test.ts`, which drives the actual
 API Worker routes (`app.request`) against real Postgres and real crypto — no package mocks —
@@ -106,9 +108,10 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 
 ## Layer boundaries
 
-- **Unit vs integration**: most package integration suites live alongside unit tests and
-  self-gate on `DATABASE_URL_RUNTIME` via `tenant-store/test/rls/load-env`. They skip without
-  a DB and execute when one is present.
+- **Unit vs integration**: DB-backed package integration suites live alongside unit tests but are
+  excluded from ordinary package `test` tasks. Run them through `pnpm test:rls`, where
+  `tenant-store/test/rls/load-env` loads local DB env and the CI gate fails closed when the runtime
+  DB is missing.
 - **Why not miniflare**: the `postgres` driver uses raw TCP, which workerd can't reach
   locally without Hyperdrive, so the real loop runs in Node Vitest, not the Workers pool. See
   ADR-0065.
@@ -150,7 +153,7 @@ mode is active. Turbo `test:rls` fans out to:
   `@insecur/instance-bootstrap` package-level `*.integration.test.ts` suites.
 
 In ordinary `pnpm verify`, these integration suites still keep local fast unit-test behavior by
-self-gating when `DATABASE_URL_RUNTIME` is absent.
+being excluded from package `test` tasks, even when `DATABASE_URL_RUNTIME` is present.
 
 ### Verifying the gate fails closed
 

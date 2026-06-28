@@ -7,6 +7,7 @@ export default mergeConfig(
     test: {
       setupFiles: ["../tenant-store/test/rls/load-env.ts"],
       include: ["test/**/*.test.ts"],
+      exclude: ["test/**/*.integration.test.ts"],
       fileParallelism: false,
       hookTimeout: 60_000,
       testTimeout: 30_000,
