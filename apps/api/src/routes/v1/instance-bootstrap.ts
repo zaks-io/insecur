@@ -5,6 +5,7 @@ import {
   parseJsonBody,
   readRequiredString,
   requireUserActor,
+  resolveInstanceId,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
@@ -14,10 +15,6 @@ export const instanceBootstrapRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();
-
-function instanceIdFromEnv(env: ApiEnv): string {
-  return env.INSTANCE_ID ?? "inst_LOCAL_DEV";
-}
 
 function parseOwnerMembershipId(body: Record<string, unknown>) {
   const parsed = membershipId.parse(readRequiredString(body, "ownerMembershipId"));
@@ -31,7 +28,7 @@ function parseOwnerMembershipId(body: Record<string, unknown>) {
 
 instanceBootstrapRoutes.get("/status", async (context) => {
   return handleRoute(context, async () => {
-    return getBootstrapStatus(instanceIdFromEnv(context.env));
+    return getBootstrapStatus(resolveInstanceId(context.env));
   });
 });
 
@@ -40,7 +37,7 @@ instanceBootstrapRoutes.post("/operator-claim", requireUserActor, async (context
     const body = parseJsonBody(await context.req.json());
 
     return completeBootstrapOperatorClaim({
-      instanceId: instanceIdFromEnv(context.env),
+      instanceId: resolveInstanceId(context.env),
       actor: context.get("userActor"),
       bootstrapSecret: readRequiredString(body, "bootstrapSecret"),
       operatorGrantId: readRequiredString(body, "operatorGrantId"),

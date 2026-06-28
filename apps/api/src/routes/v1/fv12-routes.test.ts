@@ -106,14 +106,18 @@ const consumeGrant =
   vi.fn<(input: ConsumeGrantRpcInput) => Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>>>();
 const runtimeBinding: RuntimeRpc = { writeSecret, consumeGrant };
 
-const env = {
+const envWithoutInstanceId = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  INSTANCE_ID: "inst_LOCAL_DEV",
   RUNTIME_TOKEN_SIGNING_SECRET,
   RUNTIME: runtimeBinding,
+};
+
+const env = {
+  ...envWithoutInstanceId,
+  INSTANCE_ID: "inst_FV12_TEST",
 };
 
 function parseVariableKeyOrThrow(raw: string): VariableKey {
@@ -226,13 +230,40 @@ describe("FV-12 worker routes", () => {
       expect(provisionGuidedOrganization).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: admittedUserId,
-          instanceId: "inst_LOCAL_DEV",
+          instanceId: env.INSTANCE_ID,
           isAdmitted: true,
         }),
       );
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: true, data: { organizationId: orgId } });
       expect(JSON.stringify(body)).not.toMatch(/plaintext|valueUtf8/i);
+    });
+
+    it("uses the worker-kit local development instance fallback when INSTANCE_ID is omitted", async () => {
+      provisionGuidedOrganization.mockResolvedValue({
+        organizationId: orgId,
+        defaultTeamId: "team_00000000000000000000000001",
+        ownerMembershipId: "mem_00000000000000000000000001",
+        projectId: projectIdValue,
+        developmentEnvironmentId: environmentIdValue,
+      });
+
+      const response = await app.request(
+        "/v1/onboarding/personal-organization",
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({}),
+        },
+        envWithoutInstanceId,
+      );
+
+      expect(response.status).toBe(200);
+      expect(provisionGuidedOrganization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          instanceId: "inst_LOCAL_DEV",
+        }),
+      );
     });
 
     it("maps onboarding conflicts to error envelopes", async () => {

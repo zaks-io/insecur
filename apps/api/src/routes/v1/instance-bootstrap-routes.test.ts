@@ -43,12 +43,11 @@ const sealedSession = "sealed_bootstrap_cookie_auth_test";
 const statusPath = "/v1/instance/bootstrap/status";
 const claimPath = "/v1/instance/bootstrap/operator-claim";
 
-const env = {
+const envWithoutInstanceId = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  INSTANCE_ID: "inst_LOCAL_DEV",
   RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
   RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
@@ -59,6 +58,11 @@ const env = {
       authenticationMethod: "Passkey",
     },
   ]),
+};
+
+const env = {
+  ...envWithoutInstanceId,
+  INSTANCE_ID: "inst_BOOTSTRAP_TEST",
 };
 
 const awaitingClaimStatus = {
@@ -126,6 +130,26 @@ describe("instance bootstrap worker routes", () => {
           phase: "awaiting_operator_claim",
           instanceId: env.INSTANCE_ID,
           organizationId: orgId,
+        },
+      });
+    });
+
+    it("uses the worker-kit local development instance fallback when INSTANCE_ID is omitted", async () => {
+      getBootstrapStatus.mockResolvedValue({
+        ...awaitingClaimStatus,
+        instanceId: "inst_LOCAL_DEV",
+      });
+
+      const response = await app.request(statusPath, { method: "GET" }, envWithoutInstanceId);
+
+      expect(response.status).toBe(200);
+      expect(getBootstrapStatus).toHaveBeenCalledWith("inst_LOCAL_DEV");
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          phase: "awaiting_operator_claim",
+          instanceId: "inst_LOCAL_DEV",
         },
       });
     });

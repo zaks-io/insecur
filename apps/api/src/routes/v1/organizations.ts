@@ -10,16 +10,13 @@ import {
   readRequiredString,
   requireRouteParam,
   requireUserActor,
+  resolveInstanceId,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
 
 export const organizationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
-
-function instanceIdFromEnv(env: ApiEnv): string {
-  return env.INSTANCE_ID ?? "inst_LOCAL_DEV";
-}
 
 function parseOperatorOrganizationResourceIds(
   body: Record<string, unknown>,
@@ -62,7 +59,7 @@ organizationsRoutes.post("/", requireUserActor, async (context) => {
     const resourceIds = parseOperatorOrganizationResourceIds(body);
 
     return createOperatorOrganization({
-      instanceId: instanceIdFromEnv(context.env),
+      instanceId: resolveInstanceId(context.env),
       operatorUserId: userActor.userId,
       ...(organizationDisplayName !== undefined ? { organizationDisplayName } : {}),
       ...(teamDisplayName !== undefined ? { teamDisplayName } : {}),
