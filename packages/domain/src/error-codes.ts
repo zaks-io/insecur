@@ -16,6 +16,7 @@ export type ValidationErrorCode =
 /** Scaffolding for known auth error codes (implementation in access/auth slices). */
 export const AUTH_ERROR_CODES = {
   required: "auth.required",
+  configInvalid: "auth.config_invalid",
   expired: "auth.expired",
   invalid: "auth.invalid",
   insufficientScope: "auth.insufficient_scope",
