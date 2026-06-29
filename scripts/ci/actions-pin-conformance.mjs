@@ -13,7 +13,9 @@ const shaPattern = /^[0-9a-f]{40}$/i;
 
 const failures = [];
 
-for (const fileName of readdirSync(workflowsDir).filter((name) => name.endsWith(".yml"))) {
+const workflowFilePattern = /\.ya?ml$/;
+
+for (const fileName of readdirSync(workflowsDir).filter((name) => workflowFilePattern.test(name))) {
   const filePath = join(workflowsDir, fileName);
   const lines = readFileSync(filePath, "utf8").split("\n");
 
