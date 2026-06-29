@@ -82,6 +82,14 @@ spec, so the implementation built a monolith from the spec's "one Cloudflare Wor
     itself: the Runtime serves zero public routes (so only the bound API deploy can reach them), they
     touch no keyring, and they return only identity/metadata — no decrypt path is exposed even at the
     boundary.
+- **The Runtime opens its Postgres client per RPC request, never as a module singleton.** A
+  `postgres.js` client's socket promises are pinned to the I/O context of the request that created
+  them, so a client cached across RPC invocations cancels its continuations ("promise resolved from a
+  different request context") and the rejected query collapses to a generic `auth.invalid`. The
+  Runtime therefore opens a request-scoped client (`runWithRuntimeConnection`, `max: 1` since
+  Hyperdrive pools server-side) inside each invocation, exposes it to the connection-agnostic store
+  API via async-local storage, and hands the socket `end()` to `ctx.waitUntil`. The module-level
+  fallback pool exists only for the Node/local test path (single context, no cross-request hazard).
 - Secret Sync stays inline in the Runtime deploy (ADR-0057); re-adding a separate execution surface
   later is additive, not required.
 - ADR-0027's "one Cloudflare Worker" data-plane statement is amended to reference this ADR so it
