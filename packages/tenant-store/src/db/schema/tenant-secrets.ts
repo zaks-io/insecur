@@ -14,7 +14,8 @@ import {
   unique,
   uniqueIndex,
 } from "./pg-core.js";
-import { environments, organizations, projects } from "./tenant-hierarchy.js";
+import { organizations } from "./tenant-hierarchy.js";
+import { orgProjectAndEnvironmentForeignKeys } from "./tenant-org-scope-foreign-keys.js";
 
 /** Deferred so `secretVersions` exists before the composite current-version FK is attached. */
 const secretsDeferredConstraints: ForeignKeyBuilder[] = [];
@@ -35,14 +36,7 @@ export const secrets = pgTable(
   (table) => [
     unique("secrets_environment_id_variable_key_key").on(table.environmentId, table.variableKey),
     unique("secrets_org_id_id_key").on(table.orgId, table.id),
-    foreignKey({
-      columns: [table.orgId, table.projectId],
-      foreignColumns: [projects.orgId, projects.id],
-    }),
-    foreignKey({
-      columns: [table.orgId, table.environmentId],
-      foreignColumns: [environments.orgId, environments.id],
-    }),
+    ...orgProjectAndEnvironmentForeignKeys(table),
     ...secretsDeferredConstraints,
   ],
 );
@@ -98,16 +92,7 @@ export const injectionGrants = pgTable(
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    foreignKey({
-      columns: [table.orgId, table.projectId],
-      foreignColumns: [projects.orgId, projects.id],
-    }),
-    foreignKey({
-      columns: [table.orgId, table.environmentId],
-      foreignColumns: [environments.orgId, environments.id],
-    }),
-  ],
+  (table) => orgProjectAndEnvironmentForeignKeys(table),
 );
 
 export const auditEvents = pgTable("audit_events", {
