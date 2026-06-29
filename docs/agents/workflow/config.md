@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-06-14
+Last updated: 2026-06-29
 
 Workflow lookup table for the shared `workflow-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
@@ -8,8 +8,8 @@ external systems (Linear, GitHub, CI), not here.
 
 ## Verification
 
-- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note.
-- Last verified: 2026-06-14 (Linear labels re-listed live; statuses/projects unchanged since 2026-05-28).
+- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note. 2026-06-29 (INS-234): refreshed CodeRabbit wiring guidance to match active PR status contexts and orchestrator current-head manual review requests.
+- Last verified: 2026-06-29 (CodeRabbit status context on open PRs; `.coderabbit.yaml` auto-review disabled).
 - Evidence sources: `package.json`, `.npmrc`, git remote/branch, `AGENTS.md`/`CLAUDE.md` symlinks, `.agents/skills/*` + `.claude/skills/*` + root `skills/*` symlinks, live Linear `list_teams`/`list_issue_statuses`/`list_issue_labels`.
 - Safe commands run: `git remote get-url origin`, `git symbolic-ref --short HEAD`, `jq` over `package.json`, `ls -la`/`-ef` symlink checks, `git log`/`diff`/`wc` over skills.
 - Read-only tool calls: Linear `list_teams (INS)`, `list_issue_statuses (INS)`, `list_issue_labels (INS, 100)` — all IDs below confirmed unchanged.
@@ -154,7 +154,10 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - PR body: Summary, Changes, Risk, Test plan; metadata-only (no Sensitive Values)
 - Required checks: `pnpm verify` locally, plus `pnpm test:coverage` when the PR touches covered packages (the coverage ratchet is NOT part of `verify`; it is CI's separate `Coverage` job and the most common first-pass CI failure); run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
 - Code review: `workflow-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
-- CodeRabbit: configured through `.coderabbit.yaml`; auto-review is disabled, including drafts, so request a hosted review only when the local review recommends CodeRabbit escalation or a human explicitly asks for it
+- CodeRabbit config: root `.coderabbit.yaml`; bot `@coderabbitai`; `reviews.auto_review.enabled: false` (drafts off, incremental off)
+- CodeRabbit wiring: active PRs can expose a CodeRabbit GitHub status context; Agent Orchestrator checks that context and current hosted review state against the PR head before merge
+- CodeRabbit request policy: because auto-review is off, request a current-head hosted review with a top-level PR comment (`@coderabbitai review`, or `@coderabbitai full review` when no complete review covers the head) after local review is clean when `workflow-code-review` recommends escalation, the diff is HIGH-risk (auth, secrets, schema/migration, crypto, credentials, production-runtime), or a human asks; wait when a hosted review is already pending or complete for the current head; treat missing auth, rate limits, or credits as a recorded skip unless explicitly required
+- CodeRabbit is additive: it does not replace Agent Review, required CI, or human/security merge gates for `risk-security-sensitive`, `risk-schema`, credential, crypto, or production-runtime behavior changes
 - Issue update: Agent Orchestrator moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
 - Merge authority: see Work Coordination — Agent Orchestrator squash-merges on dual-reviewer PASS at the pinned head SHA with CI green; human merge reserved for production crypto/credential/schema runtime changes, unclean reviews, and stale PRs needing rebase
 
