@@ -84,7 +84,10 @@ export {
   resolveInstanceId,
 } from "./auth/admitted-user-resolver.js";
 export { createAuthConfig } from "./auth/config.js";
-export { createWorkOSSessionPortFromEnv } from "./auth/workos-port.js";
+export {
+  FakeWorkOSSessionConfigError,
+  createWorkOSSessionPortFromEnv,
+} from "./auth/workos-port.js";
 export {
   AuthConfigError,
   createAuthContext,

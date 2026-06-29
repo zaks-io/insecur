@@ -1,4 +1,4 @@
-import { testSessionSigningSecret } from "@insecur/auth";
+import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
 import { userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import type { AuthWorkerEnv } from "../auth-worker-env.js";
@@ -42,6 +42,31 @@ describe("createTestAuthContext", () => {
   it("wires fake admission resolution by default", async () => {
     const context = createTestAuthContext(env, { user_01workos: admittedUserId });
     await expect(context.resolveAdmittedUser("user_01workos")).resolves.toBe(admittedUserId);
+  });
+
+  it("accepts an explicit fake WorkOS adapter for test/local composition", async () => {
+    const context = createTestAuthContext(
+      env,
+      { user_01workos: admittedUserId },
+      {
+        workos: createFakeWorkOSSessionPort([
+          {
+            sessionData: "sealed_test_context",
+            userId: "user_01workos",
+            sessionId: "session_test_context",
+          },
+        ]),
+      },
+    );
+
+    await expect(context.workos.authenticateSealedSession("sealed_test_context")).resolves.toEqual({
+      authenticated: true,
+      context: {
+        user: { id: "user_01workos" },
+        sessionId: "session_test_context",
+        authFactors: [],
+      },
+    });
   });
 });
 

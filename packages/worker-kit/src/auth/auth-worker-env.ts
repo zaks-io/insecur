@@ -22,7 +22,7 @@ export interface AuthWorkerEnv {
   readonly SESSION_SIGNING_SECRET: string;
   /** Instance identifier for guided organization provisioning and admission resolution. */
   readonly INSTANCE_ID?: string;
-  /** JSON array of fake sealed sessions for local/testing (development only). */
+  /** Rejected if non-empty; fake WorkOS sessions must be wired through test/local factories. */
   readonly WORKOS_FAKE_SESSIONS_JSON?: string;
   /** Private Service Binding to the Runtime Worker for the pre-auth admission seam (ADR-0077). */
   readonly RUNTIME: RuntimeAdmissionRpc;

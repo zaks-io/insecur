@@ -1,4 +1,5 @@
-import { INSECUR_SESSION_CREDENTIAL_HEADER, testSessionSigningSecret } from "@insecur/auth";
+import { INSECUR_SESSION_CREDENTIAL_HEADER } from "@insecur/auth";
+import { testSessionSigningSecret, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeRpcStub } from "../test/support/runtime-rpc-stub.js";
 import { WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
@@ -9,8 +10,23 @@ const { recordAdmissionDeniedAuditForAuthFailureMock } = vi.hoisted(() => ({
 
 vi.mock("@insecur/worker-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/worker-kit")>();
+  const { createFakeWorkOSSessionPort } = await import("@insecur/auth/testing");
   return {
     ...actual,
+    createAuthContext: (
+      env: Parameters<typeof actual.createAuthContext>[0],
+      options?: Parameters<typeof actual.createAuthContext>[1],
+    ) => {
+      const fakeSessions = (
+        env as { readonly WORKOS_TEST_FAKE_SESSIONS?: readonly FakeWorkOSSessionEntry[] }
+      ).WORKOS_TEST_FAKE_SESSIONS;
+      return actual.createAuthContext(env, {
+        ...options,
+        ...(fakeSessions === undefined
+          ? {}
+          : { workos: createFakeWorkOSSessionPort(fakeSessions) }),
+      });
+    },
     recordAdmissionDeniedAuditForAuthFailure: recordAdmissionDeniedAuditForAuthFailureMock,
   };
 });
@@ -30,7 +46,10 @@ const env = {
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   RUNTIME: createRuntimeRpcStub(),
-  WORKOS_FAKE_SESSIONS_JSON: "[]",
+};
+
+type ApiAuthFailureTestEnv = typeof env & {
+  readonly WORKOS_TEST_FAKE_SESSIONS?: readonly FakeWorkOSSessionEntry[];
 };
 
 function expectAuthFailureEnvelope(body: unknown): void {
@@ -50,10 +69,13 @@ function expectAuthFailureEnvelope(body: unknown): void {
   expect(envelope.meta?.requestId).toMatch(/^req_/);
 }
 
-function pkceExchangeSuccessEnv(authorizationCode: string, codeVerifier: string): typeof env {
+function pkceExchangeSuccessEnv(
+  authorizationCode: string,
+  codeVerifier: string,
+): ApiAuthFailureTestEnv {
   return {
     ...env,
-    WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+    WORKOS_TEST_FAKE_SESSIONS: [
       {
         sessionData: "sealed_unused",
         userId: WORKOS_USER_ID,
@@ -62,7 +84,7 @@ function pkceExchangeSuccessEnv(authorizationCode: string, codeVerifier: string)
         codeVerifier,
         authenticationMethod: "Passkey",
       },
-    ]),
+    ],
   };
 }
 
@@ -95,7 +117,7 @@ describe("centralized AuthFailure HTTP mapping", () => {
   it("maps /cli/pkce/exchange failures to 401 via app.onError", async () => {
     const invalidPkceEnv = {
       ...env,
-      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+      WORKOS_TEST_FAKE_SESSIONS: [
         {
           sessionData: "sealed_unused_invalid_pkce",
           userId: WORKOS_USER_ID,
@@ -104,7 +126,7 @@ describe("centralized AuthFailure HTTP mapping", () => {
           codeVerifier: "expected_verifier",
           authenticationMethod: "Passkey",
         },
-      ]),
+      ],
     };
     const response = await app.request(
       "/v1/auth/cli/pkce/exchange",
@@ -187,6 +209,42 @@ describe("centralized AuthFailure HTTP mapping", () => {
     expect(envelope.meta?.requestId).toMatch(/^req_/);
   });
 
+  it("maps non-empty fake WorkOS session config to auth.config_invalid", async () => {
+    const fakeSessionEnv = {
+      ...env,
+      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+        {
+          sessionData: "sealed_should_not_be_used",
+          userId: WORKOS_USER_ID,
+          sessionId: "session_should_not_be_used",
+        },
+      ]),
+    };
+
+    const response = await app.request(
+      "/v1/auth/cli/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A49152%2Fcallback&state=state_test&code_challenge=challenge_test&code_challenge_method=S256",
+      { method: "GET" },
+      fakeSessionEnv,
+    );
+    expect(response.status).toBe(503);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: "auth.config_invalid",
+        retryable: false,
+      },
+    });
+    if (typeof body !== "object" || body === null) {
+      expect.fail("expected object response body");
+      return;
+    }
+    const envelope = body as { error?: { message?: unknown } };
+    expect(envelope.error?.message).toBe(
+      "auth configuration invalid: WORKOS_FAKE_SESSIONS_JSON is test-only and cannot be used by deployable auth composition",
+    );
+  });
+
   it("keeps /cli/pkce/exchange success path working", async () => {
     const response = await app.request(
       "/v1/auth/cli/pkce/exchange",
@@ -212,7 +270,7 @@ describe("centralized AuthFailure HTTP mapping", () => {
 
     const notAdmittedEnv = {
       ...env,
-      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+      WORKOS_TEST_FAKE_SESSIONS: [
         {
           sessionData: "sealed_unused_not_admitted",
           userId: notAdmittedWorkosUserId,
@@ -221,7 +279,7 @@ describe("centralized AuthFailure HTTP mapping", () => {
           codeVerifier: notAdmittedCodeVerifier,
           authenticationMethod: "Passkey",
         },
-      ]),
+      ],
     };
 
     it("uses one request id for /cli/pkce/exchange admission-denied audit and HTTP envelope", async () => {

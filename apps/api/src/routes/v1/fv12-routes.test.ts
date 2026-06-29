@@ -1,4 +1,5 @@
-import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
+import { mintEphemeralSessionCredential } from "@insecur/auth";
+import { testSessionSigningSecret } from "@insecur/auth/testing";
 import {
   AUTH_ERROR_CODES,
   CRYPTO_ERROR_CODES,

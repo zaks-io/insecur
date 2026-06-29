@@ -1,4 +1,4 @@
-import type { AdmittedUserResolver } from "@insecur/auth";
+import type { AdmittedUserResolver, WorkOSSessionPort } from "@insecur/auth";
 import { userId, type UserId } from "@insecur/domain";
 import type { AuthContext } from "../auth-context.js";
 import type { AuthWorkerEnv } from "../auth-worker-env.js";
@@ -19,12 +19,12 @@ export function createFakeAdmittedUserResolver(
 export function createTestAuthContext(
   env: AuthWorkerEnv,
   admissions: Readonly<Record<string, UserId>>,
-  options?: { resolveAdmittedUser?: AdmittedUserResolver },
+  options?: { resolveAdmittedUser?: AdmittedUserResolver; workos?: WorkOSSessionPort },
 ): AuthContext {
   const config = createAuthConfig(env);
   return {
     config,
-    workos: createWorkOSSessionPortFromEnv(env),
+    workos: options?.workos ?? createWorkOSSessionPortFromEnv(env),
     resolveAdmittedUser: options?.resolveAdmittedUser ?? createFakeAdmittedUserResolver(admissions),
   };
 }

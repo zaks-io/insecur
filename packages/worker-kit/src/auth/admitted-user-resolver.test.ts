@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { testSessionSigningSecret } from "@insecur/auth";
+import { testSessionSigningSecret } from "@insecur/auth/testing";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
 import {
   createRuntimeAdmittedUserResolver,

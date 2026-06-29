@@ -1,123 +1,36 @@
-import {
-  createFakeWorkOSSessionPort,
-  createWorkOSSessionPort,
-  type FakeWorkOSSessionEntry,
-  type WorkOSAuthFactorSummary,
-  type WorkOSSessionPort,
-} from "@insecur/auth";
+import { createWorkOSSessionPort, type WorkOSSessionPort } from "@insecur/auth";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
 import { createAuthConfig } from "./config.js";
 
-function parseAuthFactors(value: unknown): readonly WorkOSAuthFactorSummary[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
+export class FakeWorkOSSessionConfigError extends Error {
+  constructor() {
+    super(
+      "auth configuration invalid: WORKOS_FAKE_SESSIONS_JSON is test-only and cannot be used by deployable auth composition",
+    );
+    this.name = "FakeWorkOSSessionConfigError";
   }
-  const factors: WorkOSAuthFactorSummary[] = [];
-  for (const item of value) {
-    if (typeof item !== "object" || item === null) {
-      continue;
-    }
-    const type = (item as Record<string, unknown>).type;
-    if (typeof type === "string") {
-      factors.push({ type });
-    }
-  }
-  return factors.length > 0 ? factors : undefined;
 }
 
-function parseRefreshFailure(value: unknown): FakeWorkOSSessionEntry["refreshFailure"] | undefined {
-  if (
-    value === "expired" ||
-    value === "invalid" ||
-    value === "missing" ||
-    value === "mfa_enrollment"
-  ) {
-    return value;
-  }
-  return undefined;
-}
-
-function parseAuthorizationCodeFailure(
-  value: unknown,
-): FakeWorkOSSessionEntry["authorizationCodeFailure"] | undefined {
-  if (
-    value === "expired" ||
-    value === "invalid" ||
-    value === "missing" ||
-    value === "mfa_enrollment" ||
-    value === "mfa_challenge"
-  ) {
-    return value;
-  }
-  return undefined;
-}
-
-function optionalStringProperty<K extends keyof FakeWorkOSSessionEntry>(
-  key: K,
-  value: unknown,
-): Partial<Record<K, string>> {
-  if (typeof value !== "string") {
-    return {};
-  }
-  return { [key]: value } as Partial<Record<K, string>>;
-}
-
-function parseFakeSessionOptionalFields(
-  record: Record<string, unknown>,
-): Omit<FakeWorkOSSessionEntry, "sessionData" | "userId" | "sessionId"> {
-  const authFactors = parseAuthFactors(record.authFactors);
-  const refreshFailure = parseRefreshFailure(record.refreshFailure);
-  const authorizationCodeFailure = parseAuthorizationCodeFailure(record.authorizationCodeFailure);
-  return {
-    ...optionalStringProperty("authorizationCode", record.authorizationCode),
-    ...optionalStringProperty("codeVerifier", record.codeVerifier),
-    ...(authorizationCodeFailure !== undefined ? { authorizationCodeFailure } : {}),
-    ...optionalStringProperty("email", record.email),
-    ...optionalStringProperty("authenticationMethod", record.authenticationMethod),
-    ...(authFactors !== undefined ? { authFactors } : {}),
-    ...optionalStringProperty("rotatedSessionData", record.rotatedSessionData),
-    ...(refreshFailure !== undefined ? { refreshFailure } : {}),
-  };
-}
-
-function parseFakeSessionEntry(item: unknown): FakeWorkOSSessionEntry | null {
-  if (typeof item !== "object" || item === null) {
-    return null;
-  }
-  const record = item as Record<string, unknown>;
-  if (
-    typeof record.sessionData !== "string" ||
-    typeof record.userId !== "string" ||
-    typeof record.sessionId !== "string"
-  ) {
-    return null;
-  }
-  return {
-    sessionData: record.sessionData,
-    userId: record.userId,
-    sessionId: record.sessionId,
-    ...parseFakeSessionOptionalFields(record),
-  };
-}
-
-function parseFakeSessions(raw: string | undefined): FakeWorkOSSessionEntry[] {
+function hasConfiguredFakeSessions(raw: string | undefined): boolean {
   if (raw === undefined || raw.trim() === "") {
-    return [];
+    return false;
   }
-  const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) {
-    return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return true;
   }
-  return parsed
-    .map((item) => parseFakeSessionEntry(item))
-    .filter((entry): entry is FakeWorkOSSessionEntry => entry !== null);
+  return !Array.isArray(parsed) || parsed.length > 0;
 }
 
-/** Uses fake sessions in development when WORKOS_FAKE_SESSIONS_JSON is set. */
+/**
+ * Deployable Worker auth composition always uses the real WorkOS adapter.
+ * Fake sessions must be wired explicitly through test/local factories.
+ */
 export function createWorkOSSessionPortFromEnv(env: AuthWorkerEnv): WorkOSSessionPort {
-  const fakeEntries = parseFakeSessions(env.WORKOS_FAKE_SESSIONS_JSON);
-  if (fakeEntries.length > 0) {
-    return createFakeWorkOSSessionPort(fakeEntries);
+  if (hasConfiguredFakeSessions(env.WORKOS_FAKE_SESSIONS_JSON)) {
+    throw new FakeWorkOSSessionConfigError();
   }
   return createWorkOSSessionPort(createAuthConfig(env).workos);
 }
