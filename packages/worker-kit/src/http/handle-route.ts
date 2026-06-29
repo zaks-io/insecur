@@ -16,11 +16,6 @@ export async function handleRoute<TData>(
     const data = await handler(reqId);
     return context.json(successEnvelope(data, { requestId: reqId }));
   } catch (error) {
-    // TEMP DIAG (preview): log the real error class + message API-side (NEVER secret material) so the
-    // wire-redacted "Request failed." can be traced. Remove before merge.
-    console.error(
-      `ROUTE_ERR req=${reqId} name=${error instanceof Error ? error.name : typeof error} msg=${error instanceof Error ? error.message : String(error)}`,
-    );
     const { status, body } = domainErrorEnvelope(error, reqId);
     return context.json(body, status as ContentfulStatusCode);
   }
