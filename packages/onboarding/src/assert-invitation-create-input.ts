@@ -7,30 +7,12 @@ import {
 import {
   AUTH_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
-  type KnownErrorCode,
   type OrganizationId,
   type ProjectId,
 } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
-import { recordInvitationCreateDenied } from "./membership-management-audit.js";
+import { denyInvitationCreate } from "./deny-invitation-create.js";
 import type { CreateInvitationInput } from "./invitation-types.js";
-import { MembershipManagementError } from "./membership-management-error.js";
-
-async function denyInvitationCreate(
-  input: CreateInvitationInput,
-  denial: {
-    reasonCode: KnownErrorCode;
-    message: string;
-  },
-): Promise<never> {
-  await recordInvitationCreateDenied({
-    actorUserId: input.actor.userId,
-    organizationId: input.organizationId,
-    reasonCode: denial.reasonCode,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-  });
-  throw new MembershipManagementError(denial.reasonCode, denial.message, input.organizationId);
-}
 
 /**
  * Runtime-validates invitation role presets at the onboarding boundary.
