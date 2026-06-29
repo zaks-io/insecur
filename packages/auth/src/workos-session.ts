@@ -79,8 +79,8 @@ function sessionIdFromAccessToken(accessToken: string): string | null {
 
 function mapAuthorizationCodeFailure(error: unknown): WorkOSAuthorizationCodeResult {
   if (error instanceof OauthException) {
-    if (error.error === "mfa_enrollment") {
-      return { authenticated: false, reason: "mfa_enrollment" };
+    if (error.error === "mfa_enrollment" || error.error === "mfa_challenge") {
+      return { authenticated: false, reason: error.error };
     }
     if (error.error === "invalid_grant") {
       return { authenticated: false, reason: "invalid" };

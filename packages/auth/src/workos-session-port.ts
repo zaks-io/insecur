@@ -55,7 +55,7 @@ export type WorkOSAuthorizationCodeResult =
     }
   | {
       readonly authenticated: false;
-      readonly reason: "expired" | "invalid" | "missing" | "mfa_enrollment";
+      readonly reason: "expired" | "invalid" | "missing" | "mfa_enrollment" | "mfa_challenge";
     };
 
 /** Port for WorkOS user-session operations (test doubles avoid network). */

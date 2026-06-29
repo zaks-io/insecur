@@ -25,6 +25,7 @@ describe("exchangeCliPkceSession", () => {
         authorizationCode: "code_exchange",
         codeVerifier: "verifier_exchange",
         authenticationMethod: "Passkey",
+        refreshFailure: "expired",
       },
     ]);
     const result = await exchangeCliPkceSession({
@@ -73,7 +74,7 @@ describe("exchangeCliPkceSession", () => {
         sessionId: "session_mfa_enroll",
         authorizationCode: "code_mfa",
         codeVerifier: "verifier_mfa",
-        refreshFailure: "mfa_enrollment",
+        authorizationCodeFailure: "mfa_enrollment",
       },
     ]);
     const result = await exchangeCliPkceSession({
@@ -86,6 +87,30 @@ describe("exchangeCliPkceSession", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.failure.code).toBe(AUTH_ERROR_CODES.mfaEnrollmentRequired);
+    }
+  });
+
+  it("returns auth.reauth_required when code exchange requires an MFA challenge", async () => {
+    const workos = createFakeWorkOSSessionPort([
+      {
+        sessionData: "sealed_unused",
+        userId: "user_01workos",
+        sessionId: "session_mfa_challenge",
+        authorizationCode: "code_mfa_challenge",
+        codeVerifier: "verifier_mfa_challenge",
+        authorizationCodeFailure: "mfa_challenge",
+      },
+    ]);
+    const result = await exchangeCliPkceSession({
+      code: "code_mfa_challenge",
+      codeVerifier: "verifier_mfa_challenge",
+      config,
+      workos,
+      resolveAdmittedUser: () => Promise.resolve(admittedUserId),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.reauthRequired);
     }
   });
 

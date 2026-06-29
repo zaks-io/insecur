@@ -12,6 +12,12 @@ export interface FakeWorkOSSessionEntry {
   readonly sessionId: string;
   readonly authorizationCode?: string;
   readonly codeVerifier?: string;
+  readonly authorizationCodeFailure?:
+    | "expired"
+    | "invalid"
+    | "missing"
+    | "mfa_enrollment"
+    | "mfa_challenge";
   readonly email?: string;
   readonly authenticationMethod?: string;
   readonly authFactors?: readonly WorkOSAuthFactorSummary[];
@@ -58,8 +64,8 @@ function authenticateFakeAuthorizationCode(
   if (entry.codeVerifier !== undefined && entry.codeVerifier !== input.codeVerifier) {
     return Promise.resolve({ authenticated: false, reason: "invalid" });
   }
-  if (entry.refreshFailure !== undefined) {
-    return Promise.resolve({ authenticated: false, reason: entry.refreshFailure });
+  if (entry.authorizationCodeFailure !== undefined) {
+    return Promise.resolve({ authenticated: false, reason: entry.authorizationCodeFailure });
   }
   return Promise.resolve({ authenticated: true, context: contextFromEntry(entry) });
 }

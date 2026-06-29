@@ -124,6 +124,28 @@ describe("centralized AuthFailure HTTP mapping", () => {
     });
   });
 
+  it("maps missing /cli/pkce/exchange fields to validation.invalid_command_input", async () => {
+    const response = await app.request(
+      "/v1/auth/cli/pkce/exchange",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: "code_missing_verifier" }),
+      },
+      env,
+    );
+    expect(response.status).toBe(400);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: "validation.invalid_command_input",
+        message: "Missing PKCE exchange code or verifier.",
+        retryable: false,
+      },
+    });
+  });
+
   it("does not leak AuthFailureError as a 500", async () => {
     const response = await app.request("/v1/session/whoami", { method: "GET" }, env);
     expect(response.status).not.toBe(500);

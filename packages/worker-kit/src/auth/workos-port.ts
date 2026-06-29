@@ -37,24 +37,45 @@ function parseRefreshFailure(value: unknown): FakeWorkOSSessionEntry["refreshFai
   return undefined;
 }
 
+function parseAuthorizationCodeFailure(
+  value: unknown,
+): FakeWorkOSSessionEntry["authorizationCodeFailure"] | undefined {
+  if (
+    value === "expired" ||
+    value === "invalid" ||
+    value === "missing" ||
+    value === "mfa_enrollment" ||
+    value === "mfa_challenge"
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function optionalStringProperty<K extends keyof FakeWorkOSSessionEntry>(
+  key: K,
+  value: unknown,
+): Partial<Record<K, string>> {
+  if (typeof value !== "string") {
+    return {};
+  }
+  return { [key]: value } as Partial<Record<K, string>>;
+}
+
 function parseFakeSessionOptionalFields(
   record: Record<string, unknown>,
 ): Omit<FakeWorkOSSessionEntry, "sessionData" | "userId" | "sessionId"> {
   const authFactors = parseAuthFactors(record.authFactors);
   const refreshFailure = parseRefreshFailure(record.refreshFailure);
+  const authorizationCodeFailure = parseAuthorizationCodeFailure(record.authorizationCodeFailure);
   return {
-    ...(typeof record.authorizationCode === "string"
-      ? { authorizationCode: record.authorizationCode }
-      : {}),
-    ...(typeof record.codeVerifier === "string" ? { codeVerifier: record.codeVerifier } : {}),
-    ...(typeof record.email === "string" ? { email: record.email } : {}),
-    ...(typeof record.authenticationMethod === "string"
-      ? { authenticationMethod: record.authenticationMethod }
-      : {}),
+    ...optionalStringProperty("authorizationCode", record.authorizationCode),
+    ...optionalStringProperty("codeVerifier", record.codeVerifier),
+    ...(authorizationCodeFailure !== undefined ? { authorizationCodeFailure } : {}),
+    ...optionalStringProperty("email", record.email),
+    ...optionalStringProperty("authenticationMethod", record.authenticationMethod),
     ...(authFactors !== undefined ? { authFactors } : {}),
-    ...(typeof record.rotatedSessionData === "string"
-      ? { rotatedSessionData: record.rotatedSessionData }
-      : {}),
+    ...optionalStringProperty("rotatedSessionData", record.rotatedSessionData),
     ...(refreshFailure !== undefined ? { refreshFailure } : {}),
   };
 }

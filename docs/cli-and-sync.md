@@ -214,15 +214,21 @@ Non-secret environment variables:
 - `INSECUR_CLIENT_ID`
 - `INSECUR_CONFIG_DIR`
 
-Session credential environment variables:
+Auth-bearing environment variables:
+
+Session credential:
 
 - `INSECUR_SESSION_TOKEN`
+
+Machine-auth credentials:
+
 - `INSECUR_DEPLOY_KEY`
 - `INSECUR_OIDC_TOKEN`
 
 Rules:
 
-- Session credential variables are never written by insecur to disk.
+- `INSECUR_SESSION_TOKEN` is never written by insecur to disk.
+- Machine-auth credentials are supplied by CI/provider contexts and must not be persisted by the CLI.
 - Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
 - Child process environments scrub auth-bearing `INSECUR_*TOKEN`, `INSECUR_*COOKIE`,
   `INSECUR_*CSRF`, and `INSECUR_*KEY` names by default. Authenticated shells deliberately receive

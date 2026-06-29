@@ -5,6 +5,7 @@ import {
 } from "./session-assurance.js";
 import type {
   WorkOSAuthorizationCodeInput,
+  WorkOSAuthorizationCodeResult,
   WorkOSSessionAuthenticateResult,
   WorkOSSessionContext,
   WorkOSSessionPort,
@@ -41,6 +42,7 @@ function evaluateContext(context: WorkOSSessionContext): ResolveWorkOSSessionRes
 
 type WorkOSSessionFailureReason =
   | Extract<WorkOSSessionAuthenticateResult, { authenticated: false }>["reason"]
+  | Extract<WorkOSAuthorizationCodeResult, { authenticated: false }>["reason"]
   | Extract<WorkOSSessionRefreshResult, { refreshed: false }>["reason"];
 
 function mapWorkOSSessionFailure(reason: WorkOSSessionFailureReason): {
@@ -50,15 +52,21 @@ function mapWorkOSSessionFailure(reason: WorkOSSessionFailureReason): {
   return { ok: false, failure: authFailureForReason(reason) };
 }
 
+function resolveAuthenticatedWorkOSResult(
+  result: WorkOSSessionAuthenticateResult | WorkOSAuthorizationCodeResult,
+): ResolveWorkOSSessionResult {
+  if (!result.authenticated) {
+    return mapWorkOSSessionFailure(result.reason);
+  }
+  return evaluateContext(result.context);
+}
+
 export async function authenticateWorkOSSession(
   workos: WorkOSSessionPort,
   sessionData: string,
 ): Promise<ResolveWorkOSSessionResult> {
   const workosResult = await workos.authenticateSealedSession(sessionData);
-  if (!workosResult.authenticated) {
-    return mapWorkOSSessionFailure(workosResult.reason);
-  }
-  return evaluateContext(workosResult.context);
+  return resolveAuthenticatedWorkOSResult(workosResult);
 }
 
 export async function authenticateWorkOSAuthorizationCode(
@@ -66,10 +74,7 @@ export async function authenticateWorkOSAuthorizationCode(
   input: WorkOSAuthorizationCodeInput,
 ): Promise<ResolveWorkOSSessionResult> {
   const workosResult = await workos.authenticateAuthorizationCode(input);
-  if (!workosResult.authenticated) {
-    return mapWorkOSSessionFailure(workosResult.reason);
-  }
-  return evaluateContext(workosResult.context);
+  return resolveAuthenticatedWorkOSResult(workosResult);
 }
 
 export interface RefreshWorkOSSessionSuccess {

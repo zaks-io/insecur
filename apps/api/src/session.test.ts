@@ -139,6 +139,19 @@ describe("worker session routes", () => {
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
   });
 
+  it("accepts IPv6 loopback CLI PKCE redirect URIs", async () => {
+    const redirectUri = "http://[::1]:49152/callback";
+    const response = await app.request(
+      `/v1/auth/cli/authorize?redirect_uri=${encodeURIComponent(redirectUri)}&state=state_test&code_challenge=challenge_test&code_challenge_method=S256`,
+      { method: "GET" },
+      env,
+    );
+    expect(response.status).toBe(302);
+    const location = response.headers.get("Location");
+    const url = new URL(location ?? "");
+    expect(url.searchParams.get("redirect_uri")).toBe(redirectUri);
+  });
+
   it("rejects non-loopback CLI PKCE redirect URIs", async () => {
     const response = await app.request(
       "/v1/auth/cli/authorize?redirect_uri=https%3A%2F%2Fevil.example%2Fcallback&state=state_test&code_challenge=challenge_test&code_challenge_method=S256",

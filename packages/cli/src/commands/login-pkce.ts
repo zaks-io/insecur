@@ -52,21 +52,45 @@ function browserOpenCommand(url: string): readonly [string, readonly string[]] {
   return ["xdg-open", [url]];
 }
 
-function tryOpenBrowser(url: string): boolean {
+function tryOpenBrowser(url: string): Promise<boolean> {
   const [command, args] = browserOpenCommand(url);
-  try {
-    const child = spawn(command, args, {
-      detached: true,
-      stdio: "ignore",
-    });
-    child.once("error", (error) => {
-      void error;
-    });
-    child.unref();
-    return child.pid !== undefined;
-  } catch {
-    return false;
-  }
+  return new Promise((resolve) => {
+    let resolved = false;
+    const resolveOpened = (opened: boolean): void => {
+      if (resolved) {
+        return;
+      }
+      resolved = true;
+      resolve(opened);
+    };
+    const timer = setTimeout(() => {
+      resolveOpened(true);
+    }, 100);
+    const finish = (opened: boolean): void => {
+      clearTimeout(timer);
+      resolveOpened(opened);
+    };
+    try {
+      const child = spawn(command, args, {
+        detached: true,
+        stdio: "ignore",
+      });
+      child.once("error", () => {
+        finish(false);
+      });
+      child.once("exit", (code) => {
+        if (code !== 0) {
+          finish(false);
+        }
+      });
+      child.unref();
+      if (child.pid === undefined) {
+        finish(false);
+      }
+    } catch {
+      finish(false);
+    }
+  });
 }
 
 function writeCallbackResponse(response: ServerResponse, status: number, message: string): void {
@@ -196,7 +220,7 @@ export async function runBrowserPkceLogin(
       codeChallenge: pkce.challenge,
       codeChallengeMethod: "S256",
     });
-    const opened = input.options.openBrowser && tryOpenBrowser(authorizationUrl);
+    const opened = input.options.openBrowser && (await tryOpenBrowser(authorizationUrl));
     if (!opened || !input.flags.quiet) {
       process.stderr.write(`Open this URL to complete WorkOS login:\n${authorizationUrl}\n`);
     }

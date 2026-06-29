@@ -45,7 +45,9 @@ function isLoopbackRedirectUri(value: string): boolean {
   }
   return (
     parsed.protocol === "http:" &&
-    (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost")
+    (parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "[::1]")
   );
 }
 
