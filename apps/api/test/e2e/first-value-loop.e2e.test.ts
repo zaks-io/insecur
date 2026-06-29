@@ -135,6 +135,44 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
     expect(body.data.developmentEnvironmentId).toMatch(/^env_[0-9A-Z]{26}$/);
   });
 
+  it("writes a secret to a freshly onboarded coordinate (preview smoke chain)", async () => {
+    // The cloud smoke onboards then writes to the NEW org/project/env (not the seeded baseline). This
+    // exercises secret write against a coordinate whose data keys were just provisioned by onboarding
+    // — the exact next step that failed in preview after onboarding started succeeding.
+    const headers = await authHeaders();
+
+    const onboardResponse = await app.request(
+      "/v1/onboarding/personal-organization",
+      { method: "POST", headers, body: JSON.stringify({}) },
+      env,
+    );
+    expect(onboardResponse.status).toBe(200);
+    const onboarded = (await onboardResponse.json()) as {
+      data: { organizationId: string; projectId: string; developmentEnvironmentId: string };
+    };
+    const { organizationId: org, projectId: prj, developmentEnvironmentId: env_ } = onboarded.data;
+
+    const variableKey = uniqueVariableKey("FV_ONBOARD");
+    const plaintext = `fv-onboard-secret-${crypto.randomUUID()}`;
+    const writeResponse = await app.request(
+      `/v1/orgs/${org}/projects/${prj}/environments/${env_}/secrets/by-variable-key`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ organizationId: org, variableKey, value: plaintext }),
+      },
+      env,
+    );
+
+    expect(writeResponse.status).toBe(200);
+    const writeBody = (await writeResponse.json()) as {
+      ok: boolean;
+      data: { variableKey: string };
+    };
+    expect(writeBody.ok).toBe(true);
+    expect(writeBody.data.variableKey).toBe(variableKey);
+  });
+
   it("round-trips a secret value through write → grant issue → grant consume", async () => {
     const headers = await authHeaders();
     const variableKey = uniqueVariableKey("FV_E2E");
