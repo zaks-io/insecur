@@ -1,0 +1,24 @@
+# GitHub-native dependency updates for the private repo (ADR-0056, INS-280).
+# pnpm enforces install-time minimumReleaseAge in pnpm-workspace.yaml; Dependabot
+# applies the same 3-day cooldown before opening update PRs.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    labels:
+      - dependencies
+      - zaks-io/insecur
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    labels:
+      - dependencies
+      - zaks-io/insecur

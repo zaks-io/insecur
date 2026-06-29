@@ -5,8 +5,7 @@ set -euo pipefail
 fail_on="${1:-high}"
 sbom_path="${SBOM_PATH:-sbom.cyclonedx.json}"
 
-curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+bash "$(dirname "$0")/install-syft-grype.sh"
 
 syft scan "dir:." -o "cyclonedx-json=${sbom_path}"
 
