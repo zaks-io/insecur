@@ -21,7 +21,7 @@ catalog:
   "@types/node": ^24.0.0
   typescript: ^5.7.0
   turbo: ^2.8.0
-  eslint: ^9.18.0
+  eslint: ^10.5.0
   typescript-eslint: ^8.20.0
   eslint-config-prettier: ^10.0.0
   prettier: ^3.5.3
