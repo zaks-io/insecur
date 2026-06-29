@@ -111,7 +111,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 `docs/phasing.md#deferred-scope-parking-lot`.
 
 - Priority policy: no agent priority automation; humans set priority
-- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked work may keep `ready-for-agent`; dependency state controls scheduling, not readiness metadata.
+- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked implementation issues stay in `Backlog` without `ready-for-agent`. Move to `Todo` and add `ready-for-agent` only after all blockers are `Done` and the issue still satisfies the agent-ready contract.
 - Agent-ready issue body: contract in `docs/agents/linear-ticketing.md#issue-body-contract` and `docs/agents/autonomous-loop.md` (Outcome, Context, In scope, Out of scope, Acceptance criteria, Required checks, Security invariants, Dependencies)
 - Status transition owner: Agent Orchestrator (`workflow-agent-orchestrator`)
 - Labels are signals, not authority: Linear status is the workflow source of truth; Agent Orchestrator owns transitions
