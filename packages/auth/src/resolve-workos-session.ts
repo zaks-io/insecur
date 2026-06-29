@@ -38,29 +38,15 @@ function evaluateContext(context: WorkOSSessionContext): ResolveWorkOSSessionRes
   return { ok: true, context };
 }
 
-type WorkOSSessionCommonFailureReason = "expired" | "invalid" | "missing";
+type WorkOSSessionFailureReason =
+  | Extract<WorkOSSessionAuthenticateResult, { authenticated: false }>["reason"]
+  | Extract<WorkOSSessionRefreshResult, { refreshed: false }>["reason"];
 
-function mapCommonSessionFailure(reason: WorkOSSessionCommonFailureReason): {
+function mapWorkOSSessionFailure(reason: WorkOSSessionFailureReason): {
   ok: false;
   failure: AuthFailure;
 } {
   return { ok: false, failure: authFailureForReason(reason) };
-}
-
-function mapAuthenticateFailure(
-  result: Extract<WorkOSSessionAuthenticateResult, { authenticated: false }>,
-): ResolveWorkOSSessionResult {
-  return mapCommonSessionFailure(result.reason);
-}
-
-function mapRefreshFailure(result: Extract<WorkOSSessionRefreshResult, { refreshed: false }>): {
-  ok: false;
-  failure: AuthFailure;
-} {
-  if (result.reason === "mfa_enrollment") {
-    return { ok: false, failure: authFailureForReason("mfa_enrollment") };
-  }
-  return mapCommonSessionFailure(result.reason);
 }
 
 export async function authenticateWorkOSSession(
@@ -69,7 +55,7 @@ export async function authenticateWorkOSSession(
 ): Promise<ResolveWorkOSSessionResult> {
   const workosResult = await workos.authenticateSealedSession(sessionData);
   if (!workosResult.authenticated) {
-    return mapAuthenticateFailure(workosResult);
+    return mapWorkOSSessionFailure(workosResult.reason);
   }
   return evaluateContext(workosResult.context);
 }
@@ -89,7 +75,7 @@ export async function refreshWorkOSSession(
 ): Promise<RefreshWorkOSSessionResult> {
   const refreshResult = await workos.refreshSealedSession(sessionData);
   if (!refreshResult.refreshed) {
-    return mapRefreshFailure(refreshResult);
+    return mapWorkOSSessionFailure(refreshResult.reason);
   }
   const evaluated = evaluateContext(refreshResult.context);
   if (!evaluated.ok) {
