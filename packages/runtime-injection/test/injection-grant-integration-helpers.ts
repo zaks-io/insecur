@@ -1,0 +1,85 @@
+import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
+import type { OrganizationId } from "@insecur/domain";
+import { afterAll, beforeAll, describe } from "vitest";
+import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
+import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
+import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
+
+export const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
+export const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000071";
+
+export function describeInjectionGrantIntegration(title: string, suite: () => void): void {
+  describeIntegration(title, () => {
+    beforeAll(async () => {
+      await seedTenantBaseline();
+    });
+
+    afterAll(async () => {
+      await closeRuntimeSql();
+    });
+
+    suite();
+  });
+}
+
+export async function loadLatestIssueDeniedAudit(organizationId: OrganizationId) {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
+    const rows = await sql<
+      {
+        event_code: string;
+        outcome: string;
+        result_code: string | null;
+      }[]
+    >`
+      SELECT event_code, outcome, result_code
+      FROM audit_events
+      WHERE event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied}
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+    return rows[0];
+  });
+}
+
+export async function loadAuditRow(organizationId: OrganizationId, auditEventId: string) {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
+    const rows = await sql<
+      {
+        event_code: string;
+        outcome: string;
+        result_code: string | null;
+        resource_type: string | null;
+        resource_id: string | null;
+        related_resource_type: string | null;
+        related_resource_id: string | null;
+      }[]
+    >`
+      SELECT
+        event_code,
+        outcome,
+        result_code,
+        resource_type,
+        resource_id,
+        related_resource_type,
+        related_resource_id
+      FROM audit_events
+      WHERE id = ${auditEventId}
+      LIMIT 1
+    `;
+    return rows[0];
+  });
+}
+
+export async function loadGrantBinding(organizationId: OrganizationId, grantId: string) {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
+    const rows = await sql<
+      { secret_ids: string[]; secret_version_id: string | null; variable_keys: string[] }[]
+    >`
+      SELECT secret_ids, secret_version_id, variable_keys
+      FROM injection_grants
+      WHERE id = ${grantId}
+      LIMIT 1
+    `;
+    return rows[0];
+  });
+}
