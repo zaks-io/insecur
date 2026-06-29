@@ -710,8 +710,9 @@ size budgets are required gates because agents are expected to write much of the
 inline disable is allowed; relaxing the global budget is not.
 
 Supply-chain hardening uses pnpm 10 with blocked lifecycle scripts, an explicit
-`onlyBuiltDependencies` allowlist, `strictDepBuilds`, and a 3-day `minimumReleaseAge`. Renovate
-must honor the same release-age floor. This makes pnpm 10 a prerequisite, not optional polish.
+`onlyBuiltDependencies` allowlist, `strictDepBuilds`, and a 3-day `minimumReleaseAge`.
+GitHub-native Dependabot must honor the same release-age floor via `.github/dependabot.yml`
+(no hosted Renovate on the private repo). This makes pnpm 10 a prerequisite, not optional polish.
 
 Turborepo remote cache is read-only for developers and agents and writable only by CI. Remote cache
 artifacts are signed. A developer laptop or local agent must not be able to poison shared build

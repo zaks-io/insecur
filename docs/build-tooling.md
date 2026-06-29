@@ -638,7 +638,7 @@ Jobs:
 
 Future opt-in filing (skeleton tracked in INS-17 and INS-94) will be metadata-only: scanner name, finding category/severity, artifact reference, and remediation pointer. No raw scanner output, secrets, or tokens in Linear. Issues will land in team `INS` with label `zaks-io/insecur`. Automated remediation PRs are not built.
 
-Renovate runs on its own schedule honoring `minimumReleaseAge: "3 days"` and `internalChecksFilter: "strict"` so it will not open an update branch before the quarantine floor elapses.
+Dependabot runs on its own schedule with `cooldown.default-days: 3` (`.github/dependabot.yml`) so it will not open an update branch before the quarantine floor elapses. Install-time enforcement remains in `pnpm-workspace.yaml` via `minimumReleaseAge: 4320`.
 
 ## Two-Credential Model And Guardrail Assertions
 
