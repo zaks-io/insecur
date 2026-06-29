@@ -2,12 +2,14 @@ import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/
 import { describe, expect, it } from "vitest";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
+import { createFakeAdmissionRuntime } from "./testing/fake-admission-runtime.js";
 
 const baseEnv: AuthWorkerEnv = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+  RUNTIME: createFakeAdmissionRuntime(),
 };
 
 describe("createWorkOSSessionPortFromEnv", () => {

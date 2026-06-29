@@ -17,20 +17,23 @@ export interface RuntimeRpcActorContext {
 export interface RuntimeRpcEntryOptions {
   readonly env: RuntimeEnv;
   readonly actorToken: string;
-  readonly configureDb: () => void;
 }
 
 /**
- * Shared Runtime RPC preamble and error envelope (ADR-0034 / ADR-0077). Configures the DB
- * connection, verifies the scoped hop token, derives audit/access actors, then runs the method
- * body. Failures map through `toRuntimeRpcError` so `code`/`retryable` survive the binding.
+ * Shared Runtime RPC preamble and error envelope (ADR-0034 / ADR-0077). Verifies the scoped hop
+ * token, derives audit/access actors, then runs the method body. Failures map through
+ * `toRuntimeRpcError` so `code`/`retryable` survive the binding.
+ *
+ * The DB connection is request-scoped by the caller (`runWithRuntimeConnection`): a cached
+ * `postgres.js` client's socket promises are pinned to the request context that created them, so a
+ * client shared across RPC invocations cancels its continuations ("promise resolved from a different
+ * request context"). Per-request connection scope keeps every query in its own context.
  */
 export async function withRuntimeRpcEntry<T>(
   options: RuntimeRpcEntryOptions,
   handler: (actors: RuntimeRpcActorContext) => Promise<T>,
 ): Promise<RuntimeRpcResult<T>> {
   try {
-    options.configureDb();
     const actor = await actorFromHopToken(options.env, options.actorToken);
     const actors: RuntimeRpcActorContext = {
       actor,

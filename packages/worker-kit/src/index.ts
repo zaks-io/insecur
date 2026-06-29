@@ -37,7 +37,19 @@ export { authorizeScopeOrThrow } from "./http/authorize-scope.js";
 export { toAccessActor, toAuditActor } from "./http/request-actor.js";
 
 export type {
+  AcceptInvitationRpcInput,
+  CompleteBootstrapClaimRpcInput,
   ConsumeGrantRpcInput,
+  CreateInvitationRpcInput,
+  CreateOperatorOrganizationRpcInput,
+  GetBootstrapStatusRpcInput,
+  GetOperationRpcInput,
+  IssueInjectionGrantRpcInput,
+  ProvisionGuidedOrganizationRpcInput,
+  RecordAdmissionDeniedRpcInput,
+  RecordAdmissionDeniedRpcPayload,
+  ResolveAdmissionRpcInput,
+  ResolveAdmissionRpcPayload,
   RuntimeGeneratedSecretInput,
   RuntimeDeliveryEnvelope,
   RuntimeDeliveryPayload,
@@ -47,12 +59,28 @@ export type {
   RuntimeSecretWritePayload,
   WriteSecretRpcInput,
 } from "./rpc/runtime-rpc-contract.js";
+export { RuntimeRpcResultError, unwrapRuntimeResult } from "./rpc/unwrap-runtime-result.js";
+// Re-export the RPC payload types the public-edge callers need but should not import from the
+// DB-backed store packages directly (the edge drops those deps per ADR-0077).
+export type {
+  AcceptInvitationResult,
+  CreateInvitationResult,
+  CreateOperatorOrganizationResult,
+  ProvisionGuidedOrganizationResult,
+} from "@insecur/onboarding";
+export type { OperationPollResult } from "@insecur/operations";
+export type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
+export type {
+  BootstrapStatus,
+  CompleteBootstrapOperatorClaimResult,
+} from "@insecur/instance-bootstrap";
 
-export type { AuthWorkerEnv } from "./auth/auth-worker-env.js";
+export type { AuthWorkerEnv, RuntimeAdmissionRpc } from "./auth/auth-worker-env.js";
 export { AuthFailureError } from "./auth/auth-failure-error.js";
 export {
-  createAdmittedUserResolver,
-  createStoreAdmittedUserResolver,
+  createRuntimeAdmittedUserResolver,
+  recordAdmissionDeniedViaBinding,
+  resolveAdmissionViaBinding,
   resolveInstanceId,
 } from "./auth/admitted-user-resolver.js";
 export { createAuthConfig } from "./auth/config.js";
@@ -66,10 +94,7 @@ export {
   type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
 export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
-export {
-  recordAdmissionDeniedAudit,
-  recordAdmissionDeniedAuditForAuthFailure,
-} from "./auth/record-admission-denied-audit.js";
+export { recordAdmissionDeniedAuditForAuthFailure } from "./auth/record-admission-denied-audit.js";
 export {
   createFakeAdmittedUserResolver,
   createTestAuthContext,

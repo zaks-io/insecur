@@ -14,8 +14,11 @@ vi.mock("drizzle-orm/postgres-js", () => ({
   drizzle: drizzleMock,
 }));
 
+const activeRuntimeConnectionMock = vi.hoisted(() => vi.fn(() => undefined));
+
 vi.mock("../../src/db/connection.js", () => ({
   getRuntimeSql: vi.fn(() => ({ options: { parsers: {}, serializers: {} } })),
+  activeRuntimeConnection: activeRuntimeConnectionMock,
 }));
 
 import { tenantStoreSchema } from "../../src/db/tenant-store-schema.js";
@@ -46,10 +49,11 @@ describe("tenantStoreSchema", () => {
 describe("getRuntimeTenantDb", () => {
   beforeEach(() => {
     drizzleMock.mockClear();
+    activeRuntimeConnectionMock.mockReturnValue(undefined);
     resetRuntimeTenantDb();
   });
 
-  it("constructs Drizzle from the runtime pool with the tenant-store schema", () => {
+  it("constructs Drizzle from the fallback pool when no request connection is active", () => {
     const db = getRuntimeTenantDb();
     expect(drizzleMock).toHaveBeenCalledWith(
       expect.objectContaining({ options: expect.any(Object) }),
@@ -58,6 +62,20 @@ describe("getRuntimeTenantDb", () => {
       },
     );
     expect(db.query.secrets).toBeDefined();
+  });
+
+  it("builds the Drizzle client over the active request connection and caches it there", () => {
+    const sql = { options: { parsers: {} } };
+    const connection: { sql: unknown; tenantDb?: unknown } = { sql };
+    activeRuntimeConnectionMock.mockReturnValue(connection as never);
+
+    const first = getRuntimeTenantDb();
+    const second = getRuntimeTenantDb();
+
+    expect(drizzleMock).toHaveBeenCalledOnce();
+    expect(drizzleMock).toHaveBeenCalledWith(sql, { schema: tenantStoreSchema });
+    expect(first).toBe(second);
+    expect(connection.tenantDb).toBe(first);
   });
 });
 

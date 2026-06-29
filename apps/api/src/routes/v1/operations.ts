@@ -1,21 +1,20 @@
-import { AUTHORIZATION_SCOPES } from "@insecur/access";
-import { getOperation } from "@insecur/operations";
 import {
-  authorizeScopeOrThrow,
   handleRoute,
   parseOperationIdParam,
   parseOrganizationIdParam,
   requireRouteParam,
   requireUserActor,
-  toAccessActor,
-  toAuditActor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
+import { getOperationViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const operationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
+// Authorize (organizationRead) then read runs atomically in the Runtime deploy (ADR-0077): the
+// public edge does no DB I/O, and operation IDs are not bearer authority, so the scope gate must
+// stay co-located with the tenant read it guards.
 operationsRoutes.get("/:operationId", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
@@ -26,14 +25,10 @@ operationsRoutes.get("/:operationId", requireUserActor, async (context) =>
       requireRouteParam(context.req.param("operationId"), "operationId"),
     );
 
-    await authorizeScopeOrThrow({
-      actor: toAccessActor(userActor),
-      auditActor: toAuditActor(userActor),
-      coordinate: { organizationId },
-      requiredScope: AUTHORIZATION_SCOPES.organizationRead,
+    return getOperationViaRuntime(context.env, userActor, {
+      organizationId,
+      operationId,
       requestId: reqId,
     });
-
-    return getOperation({ organizationId, operationId });
   }),
 );

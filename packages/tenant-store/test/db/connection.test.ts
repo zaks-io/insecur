@@ -2,9 +2,11 @@ import { STORE_ERROR_CODES } from "@insecur/domain";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  activeRuntimeConnection,
   closeRuntimeSql,
   configureRuntimeConnection,
   getRuntimeSql,
+  runWithRuntimeConnection,
   RuntimeConfigMissingError,
 } from "../../src/db/connection.js";
 
@@ -67,5 +69,44 @@ describe("tenant-store ErrorBody-compatible failures", () => {
 
   it("an empty connection string is a config-missing failure", () => {
     expect(() => configureRuntimeConnection("")).toThrow(RuntimeConfigMissingError);
+  });
+});
+
+describe("runWithRuntimeConnection", () => {
+  it("opens a request-scoped client that getRuntimeSql resolves, then closes the socket after", async () => {
+    // postgres() is lazy and never connects (no query runs), so a bogus host is safe.
+    const connStr = "postgres://req:req@req-host:5432/db";
+
+    const { result, closing } = await runWithRuntimeConnection(connStr, async () => {
+      const scoped = getRuntimeSql();
+      expect(scoped.options.host).toEqual(["req-host"]);
+      // Small per-request pool (>1) so sequential withTenantScope transactions in one RPC do not
+      // starve a single connection; Hyperdrive pools server-side so this stays cheap.
+      expect(scoped.options.max).toBe(5);
+      // The active connection is exactly the scoped client.
+      expect(activeRuntimeConnection()?.sql).toBe(scoped);
+      return "ok";
+    });
+
+    expect(result).toBe("ok");
+    await expect(closing).resolves.toBeUndefined();
+    // Outside the scope there is no active connection (no cross-request leak).
+    expect(activeRuntimeConnection()).toBeUndefined();
+  });
+
+  it("closes the client and rethrows when the body throws", async () => {
+    const connStr = "postgres://req:req@throw-host:5432/db";
+    await expect(
+      runWithRuntimeConnection(connStr, async () => {
+        throw new Error("body failed");
+      }),
+    ).rejects.toThrow("body failed");
+    expect(activeRuntimeConnection()).toBeUndefined();
+  });
+
+  it("an empty connection string is a config-missing failure", async () => {
+    await expect(runWithRuntimeConnection("", async () => "x")).rejects.toBeInstanceOf(
+      RuntimeConfigMissingError,
+    );
   });
 });

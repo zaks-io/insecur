@@ -10,26 +10,14 @@ import {
   organizationId,
   userId,
 } from "@insecur/domain";
+import type { KnownErrorCode } from "@insecur/domain";
+import type { RuntimeRpcResult } from "@insecur/worker-kit";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  BootstrapError,
-  type CompleteBootstrapOperatorClaimInput,
-} from "@insecur/instance-bootstrap";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+  createRuntimeRpcStub,
+  type RuntimeRpcStub,
+} from "../../../test/support/runtime-rpc-stub.js";
 import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../../../test/support/setup-unit-auth.js";
-
-const { completeBootstrapOperatorClaim, getBootstrapStatus } = vi.hoisted(() => ({
-  completeBootstrapOperatorClaim: vi.fn(),
-  getBootstrapStatus: vi.fn(),
-}));
-
-vi.mock("@insecur/instance-bootstrap", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@insecur/instance-bootstrap")>();
-  return {
-    ...actual,
-    completeBootstrapOperatorClaim,
-    getBootstrapStatus,
-  };
-});
 
 import app from "../../index.js";
 
@@ -43,50 +31,63 @@ const sealedSession = "sealed_bootstrap_cookie_auth_test";
 const statusPath = "/v1/instance/bootstrap/status";
 const claimPath = "/v1/instance/bootstrap/operator-claim";
 
-const envWithoutInstanceId = {
-  WORKOS_API_KEY: "sk_test",
-  WORKOS_CLIENT_ID: "client_test",
-  WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-  SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
-  RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
-  WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-    {
-      sessionData: sealedSession,
-      userId: workosUserId,
-      sessionId: "session_bootstrap_cookie",
-      authenticationMethod: "Passkey",
-    },
-  ]),
-};
+const INSTANCE_ID = "inst_BOOTSTRAP_TEST";
 
-const env = {
-  ...envWithoutInstanceId,
-  INSTANCE_ID: "inst_BOOTSTRAP_TEST",
-};
+let runtime: RuntimeRpcStub;
+
+function makeEnvWithoutInstanceId() {
+  return {
+    WORKOS_API_KEY: "sk_test",
+    WORKOS_CLIENT_ID: "client_test",
+    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+    RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
+    RUNTIME: runtime,
+    WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+      {
+        sessionData: sealedSession,
+        userId: workosUserId,
+        sessionId: "session_bootstrap_cookie",
+        authenticationMethod: "Passkey",
+      },
+    ]),
+  };
+}
+
+function makeEnv() {
+  return { ...makeEnvWithoutInstanceId(), INSTANCE_ID };
+}
 
 const awaitingClaimStatus = {
   phase: "awaiting_operator_claim" as const,
-  instanceId: env.INSTANCE_ID,
+  instanceId: INSTANCE_ID,
   organizationId: orgId,
 };
 
 const completeStatus = {
   phase: "complete" as const,
-  instanceId: env.INSTANCE_ID,
+  instanceId: INSTANCE_ID,
   organizationId: orgId,
   operatorUserId: admittedUserId,
 };
 
 const claimSuccess = {
-  instanceId: env.INSTANCE_ID,
+  instanceId: INSTANCE_ID,
   organizationId: orgId,
   operatorGrantId,
   ownerMembershipId: ownerMembershipIdValue,
   status: completeStatus,
 };
 
-async function authHeaders(): Promise<Record<string, string>> {
+function rpcFailure(
+  code: KnownErrorCode,
+  message: string,
+  retryable = false,
+): RuntimeRpcResult<never> {
+  return { ok: false, error: { code, message, retryable } };
+}
+
+async function authHeaders(env: ReturnType<typeof makeEnv>): Promise<Record<string, string>> {
   const minted = await mintEphemeralSessionCredential({
     actor: {
       type: "user",
@@ -112,38 +113,40 @@ function claimBody(bootstrapSecret: string): string {
 
 describe("instance bootstrap worker routes", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    getBootstrapStatus.mockResolvedValue(awaitingClaimStatus);
-    completeBootstrapOperatorClaim.mockResolvedValue(claimSuccess);
+    runtime = createRuntimeRpcStub();
+    runtime.getBootstrapStatus.mockResolvedValue({ ok: true, value: awaitingClaimStatus });
+    runtime.completeBootstrapOperatorClaim.mockResolvedValue({ ok: true, value: claimSuccess });
   });
 
   describe("GET /v1/instance/bootstrap/status", () => {
-    it("returns metadata-only bootstrap status from the package", async () => {
+    it("forwards the unauthenticated status read to the Runtime Worker", async () => {
+      const env = makeEnv();
       const response = await app.request(statusPath, { method: "GET" }, env);
 
       expect(response.status).toBe(200);
-      expect(getBootstrapStatus).toHaveBeenCalledWith(env.INSTANCE_ID);
+      expect(runtime.getBootstrapStatus).toHaveBeenCalledWith({ instanceId: INSTANCE_ID });
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
         data: {
           phase: "awaiting_operator_claim",
-          instanceId: env.INSTANCE_ID,
+          instanceId: INSTANCE_ID,
           organizationId: orgId,
         },
       });
     });
 
     it("uses the worker-kit local development instance fallback when INSTANCE_ID is omitted", async () => {
-      getBootstrapStatus.mockResolvedValue({
-        ...awaitingClaimStatus,
-        instanceId: "inst_LOCAL_DEV",
+      const env = makeEnvWithoutInstanceId();
+      runtime.getBootstrapStatus.mockResolvedValue({
+        ok: true,
+        value: { ...awaitingClaimStatus, instanceId: "inst_LOCAL_DEV" },
       });
 
-      const response = await app.request(statusPath, { method: "GET" }, envWithoutInstanceId);
+      const response = await app.request(statusPath, { method: "GET" }, env);
 
       expect(response.status).toBe(200);
-      expect(getBootstrapStatus).toHaveBeenCalledWith("inst_LOCAL_DEV");
+      expect(runtime.getBootstrapStatus).toHaveBeenCalledWith({ instanceId: "inst_LOCAL_DEV" });
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
@@ -157,6 +160,7 @@ describe("instance bootstrap worker routes", () => {
 
   describe("POST /v1/instance/bootstrap/operator-claim", () => {
     it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
       const response = await app.request(
         claimPath,
         {
@@ -170,10 +174,11 @@ describe("instance bootstrap worker routes", () => {
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: AUTH_ERROR_CODES.required } });
-      expect(completeBootstrapOperatorClaim).not.toHaveBeenCalled();
+      expect(runtime.completeBootstrapOperatorClaim).not.toHaveBeenCalled();
     });
 
     it("rejects WorkOS cookie auth even with CSRF on mutation routes", async () => {
+      const env = makeEnv();
       const csrf = generateCsrfToken();
       const response = await app.request(
         claimPath,
@@ -192,42 +197,38 @@ describe("instance bootstrap worker routes", () => {
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: AUTH_ERROR_CODES.required } });
-      expect(completeBootstrapOperatorClaim).not.toHaveBeenCalled();
+      expect(runtime.completeBootstrapOperatorClaim).not.toHaveBeenCalled();
     });
 
-    it("completes the bootstrap operator claim through the package seam", async () => {
+    it("forwards the operator claim to the Runtime Worker with a hop token", async () => {
+      const env = makeEnv();
       const bootstrapSecret = "bootstrap-secret-material";
       const response = await app.request(
         claimPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: claimBody(bootstrapSecret),
         },
         env,
       );
 
       expect(response.status).toBe(200);
-      const claimCall = completeBootstrapOperatorClaim.mock.calls[0]?.[0] as
-        | CompleteBootstrapOperatorClaimInput
-        | undefined;
+      const claimCall = runtime.completeBootstrapOperatorClaim.mock.calls[0]?.[0];
       expect(claimCall).toMatchObject({
-        instanceId: env.INSTANCE_ID,
-        actor: {
-          type: "user",
-          userId: admittedUserId,
-          workosUserId,
-        },
+        instanceId: INSTANCE_ID,
         bootstrapSecret,
         operatorGrantId,
         ownerMembershipId: ownerMembershipIdValue,
       });
-      expect(claimCall?.request?.requestId).toEqual(expect.stringMatching(/^req_/));
+      expect(claimCall?.actorToken.length).toBeGreaterThan(0);
+      expect(claimCall).not.toHaveProperty("actor");
+      expect(claimCall?.requestId).toEqual(expect.stringMatching(/^req_/));
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
         data: {
-          instanceId: env.INSTANCE_ID,
+          instanceId: INSTANCE_ID,
           organizationId: orgId,
           operatorGrantId,
           ownerMembershipId: ownerMembershipIdValue,
@@ -242,11 +243,11 @@ describe("instance bootstrap worker routes", () => {
     });
 
     it("denies duplicate claim attempts with bootstrap.already_claimed", async () => {
-      completeBootstrapOperatorClaim.mockRejectedValue(
-        new BootstrapError(
+      const env = makeEnv();
+      runtime.completeBootstrapOperatorClaim.mockResolvedValue(
+        rpcFailure(
           BOOTSTRAP_ERROR_CODES.alreadyClaimed,
           "bootstrap operator claim is already consumed",
-          orgId,
         ),
       );
 
@@ -254,7 +255,7 @@ describe("instance bootstrap worker routes", () => {
         claimPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: claimBody("bootstrap-secret-material"),
         },
         env,
@@ -269,19 +270,16 @@ describe("instance bootstrap worker routes", () => {
     });
 
     it("denies claim completion with bootstrap.invalid_secret", async () => {
-      completeBootstrapOperatorClaim.mockRejectedValue(
-        new BootstrapError(
-          BOOTSTRAP_ERROR_CODES.invalidSecret,
-          "bootstrap secret verification failed",
-          orgId,
-        ),
+      const env = makeEnv();
+      runtime.completeBootstrapOperatorClaim.mockResolvedValue(
+        rpcFailure(BOOTSTRAP_ERROR_CODES.invalidSecret, "bootstrap secret verification failed"),
       );
 
       const response = await app.request(
         claimPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: claimBody("wrong-bootstrap-secret"),
         },
         env,

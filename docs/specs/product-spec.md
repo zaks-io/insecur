@@ -69,7 +69,11 @@ V1 runs **multiple capability-isolated Cloudflare Worker deploys**, not one work
 Hyperdrive-backed Neon Postgres as the source of truth. The deploys are:
 
 - **API** (`apps/api`, script `insecur-api`): the public, caller-agnostic edge. It serves the
-  public/human-facing routes and holds **no** keyring or root-key binding.
+  public/human-facing routes and holds **no** keyring or root-key binding **and no Hyperdrive
+  binding**. It performs **no DB I/O**: every DB-backed operation (admission resolution, onboarding
+  and membership provisioning, operation polling, grant issue, bootstrap status/claim) is forwarded
+  to the Runtime over the private Service Binding
+  ([ADR-0077](../adr/0077-capability-isolated-worker-deploys.md)).
 - **Runtime** (`apps/runtime`, script `insecur-runtime`): the only deploy that holds the instance
   root key (`INSTANCE_ROOT_KEY_V1`) and the only place ciphertext becomes plaintext. It serves **no
   public routes**; it is reachable only over a private Cloudflare Service Binding through a
@@ -105,9 +109,12 @@ Durable operation state goes through the Operation Store. Operation records, ide
 wait/retry metadata, Sync Target Serialization leases, fencing tokens, and audit references are
 tenant-qualified metadata in Postgres, not queue payloads or provider-adapter private tables.
 
-Neon Postgres is reached through Cloudflare Hyperdrive. The Postgres connection string lives only
-in the Cloudflare Hyperdrive configuration, never as a Worker secret and never in Cloudflare
-Secrets Store; the Worker holds only the Hyperdrive binding. The Hyperdrive configuration disables
+Neon Postgres is reached through Cloudflare Hyperdrive. Only the Runtime deploy binds Hyperdrive and
+talks to Postgres; the public edge (API, Web BFF) holds no Hyperdrive binding and forwards all
+DB-backed work to the Runtime over the private Service Binding
+([ADR-0077](../adr/0077-capability-isolated-worker-deploys.md)). The Postgres connection string lives
+only in the Cloudflare Hyperdrive configuration, never as a Worker secret and never in Cloudflare
+Secrets Store; the Runtime Worker holds only the Hyperdrive binding. The Hyperdrive configuration disables
 query caching for the runtime path because revocation and authorization reads require Postgres
 strong consistency; there is no security-relevant read cache in V1. The database runtime role is
 `NOBYPASSRLS`; migrations use a distinct elevated role. Hyperdrive transaction-mode pooling means

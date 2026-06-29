@@ -5,7 +5,7 @@ import {
   type UserActor,
 } from "@insecur/auth";
 import { InjectionGrantError } from "@insecur/runtime-injection";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { RuntimeEnv } from "../env.js";
 import { withRuntimeRpcEntry } from "./runtime-rpc-entry.js";
@@ -31,10 +31,9 @@ async function mintRuntimeToken(): Promise<string> {
 }
 
 describe("withRuntimeRpcEntry", () => {
-  it("runs configureDb, verifies the hop token, and returns handler success as data", async () => {
-    const configureDb = vi.fn();
+  it("verifies the hop token and returns handler success as data", async () => {
     const result = await withRuntimeRpcEntry(
-      { env, actorToken: await mintRuntimeToken(), configureDb },
+      { env, actorToken: await mintRuntimeToken() },
       async ({ auditActor }) => {
         if (auditActor.type !== "user") {
           throw new Error("expected user audit actor");
@@ -42,7 +41,6 @@ describe("withRuntimeRpcEntry", () => {
         return { echoedUserId: auditActor.userId };
       },
     );
-    expect(configureDb).toHaveBeenCalledOnce();
     expect(result).toEqual({
       ok: true,
       value: { echoedUserId: actor.userId },
@@ -51,7 +49,7 @@ describe("withRuntimeRpcEntry", () => {
 
   it("maps handler failures through toRuntimeRpcError instead of throwing", async () => {
     const result = await withRuntimeRpcEntry(
-      { env, actorToken: await mintRuntimeToken(), configureDb: vi.fn() },
+      { env, actorToken: await mintRuntimeToken() },
       async () => {
         throw new InjectionGrantError(INJECTION_ERROR_CODES.grantExpired, "grant gone");
       },
@@ -68,7 +66,7 @@ describe("withRuntimeRpcEntry", () => {
 
   it("maps hop-token verification failures through the same envelope", async () => {
     const result = await withRuntimeRpcEntry(
-      { env, actorToken: "not-a-valid-token", configureDb: vi.fn() },
+      { env, actorToken: "not-a-valid-token" },
       async () => ({ shouldNotRun: true }),
     );
     expect(result.ok).toBe(false);

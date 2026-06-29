@@ -101,6 +101,12 @@ you cannot read the value back to escrow it (ADR-0028).
    - `openssl rand -hex 32`, or
    - `node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))"`
 
+   Use **hex**, never base64. `randomBytes(32).toString('base64')` produces a
+   44-char value that `parseInstanceRootKeyHex` rejects at runtime with
+   `RootKeyNotConfiguredError` — and Secrets Store is write-only, so the mistake is
+   invisible until the first encrypt fails. (This is exactly how the preview key was
+   mis-bootstrapped.)
+
    Do not redirect it to a file. Do not let it land in shell history (use a shell
    that does not persist this command, or clear history for the session). Keep it
    in the terminal scrollback only as long as steps 3 and 4 need.
@@ -132,6 +138,12 @@ you cannot read the value back to escrow it (ADR-0028).
 Verify against **cloud `-dev`, not localhost** — localhost cannot exercise Secrets Store bindings,
 so binding and key-material verification must run against the deployed `-dev` Worker:
 
+- **Exercise a real encrypt against the deployed `-dev` Worker** (e.g. the First
+  Value smoke's secret-write step, or any route that reaches the keyring). A
+  malformed value (wrong length, base64 instead of hex) only surfaces here: the
+  binding `.get()` succeeds and returns the bad string, then
+  `parseInstanceRootKeyHex` fails closed with `RootKeyNotConfiguredError`. Loading
+  succeeding and the binding listing as `active` is **not** proof the value is valid.
 - `wrangler --remote` confirms the deployed `-dev` Worker resolves the root key
   through `SecretsStoreRootKeyProvider` (a path that needs the root key succeeds;
   it does not echo the key).

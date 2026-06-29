@@ -23,6 +23,7 @@
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/instance-bootstrap": "workspace:*",
     "@insecur/onboarding": "workspace:*",
     "@insecur/operations": "workspace:*",
     "@insecur/runtime-injection-issue": "workspace:*",

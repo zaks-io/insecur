@@ -1,4 +1,3 @@
-import { issueInjectionGrant } from "@insecur/runtime-injection-issue";
 import {
   handleDeliveryRoute,
   handleRoute,
@@ -12,12 +11,12 @@ import {
   readRequiredString,
   requireRouteParam,
   requireUserActor,
-  toAccessActor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
 import { consumeRuntimeGrant } from "../../rpc/runtime-caller.js";
+import { issueInjectionGrantViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const runtimeInjectionRoutes = new Hono<{
   Bindings: ApiEnv;
@@ -35,13 +34,12 @@ runtimeInjectionRoutes.post("/grants", requireUserActor, async (context) => {
     const environmentId = parseEnvironmentIdParam(readRequiredString(body, "environmentId"));
     const selector = parseInjectionGrantIssueSelector(body);
 
-    return issueInjectionGrant({
+    return issueInjectionGrantViaRuntime(context.env, userActor, {
       organizationId,
       projectId,
       environmentId,
       selector,
-      actor: toAccessActor(userActor),
-      request: { requestId: reqId },
+      requestId: reqId,
     });
   });
 });

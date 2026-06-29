@@ -35,9 +35,11 @@ await main(config);
 async function main(config) {
   buildWorkspace();
   migrateAndSeed(config);
-  deployWorker(runtimeConfig, [], ["RUNTIME_TOKEN_SIGNING_SECRET"], config);
+  deployWorker("@insecur/runtime", runtimeConfig, config, [], ["RUNTIME_TOKEN_SIGNING_SECRET"]);
   deployWorker(
+    "@insecur/api",
     apiConfig,
+    config,
     [
       ["INSTANCE_ID", config.instanceId],
       ["WORKOS_CLIENT_ID", config.workosClientId],
@@ -48,7 +50,6 @@ async function main(config) {
       "WORKOS_API_KEY",
       "WORKOS_COOKIE_PASSWORD",
     ],
-    config,
   );
 
   emitOutput("base_url", config.baseUrl);
@@ -71,6 +72,10 @@ function migrateAndSeed(config) {
     INSTANCE_ID: config.instanceId,
     SMOKE_WORKOS_USER_ID: config.smokeWorkosUserId,
     SMOKE_ADMITTED_USER_ID: config.smokeAdmittedUserId,
+    // The API does zero DB I/O (ADR-0077): every tenant query runs in the Runtime deploy as the
+    // forced-RLS Hyperdrive role. Grant that role table privileges during migrate, or its first
+    // query fails closed with "permission denied for table ...".
+    INSECUR_POSTGRES_RUNTIME_ROLE: config.previewRuntimeRole,
   };
   run("pnpm", ["--filter", "@insecur/tenant-store", "migrate:local"], env);
   run(
@@ -86,8 +91,18 @@ function migrateAndSeed(config) {
   );
 }
 
-function deployWorker(configPath, vars = [], secretKeys = [], config) {
-  const args = ["exec", "wrangler", "deploy", "--config", configPath, "--env", "preview"];
+function deployWorker(packageName, configPath, config, vars = [], secretKeys = []) {
+  const args = [
+    "--filter",
+    packageName,
+    "exec",
+    "wrangler",
+    "deploy",
+    "--config",
+    join(root, configPath),
+    "--env",
+    "preview",
+  ];
   for (const [key, value] of vars) {
     args.push("--var", `${key}:${value}`);
   }
@@ -175,6 +190,7 @@ function readConfig() {
     hyperdriveId: requireEnv("PREVIEW_HYPERDRIVE_ID"),
     instanceId: process.env.PREVIEW_INSTANCE_ID ?? "inst_PREVIEW",
     previewDatabaseUrl,
+    previewRuntimeRole: requireEnv("PREVIEW_POSTGRES_RUNTIME_ROLE"),
     smokeAdmittedUserId: requireEnv("SMOKE_ADMITTED_USER_ID"),
     smokeSessionSigningSecret: process.env.SMOKE_SESSION_SIGNING_SECRET ?? sessionSigningSecret,
     smokeWorkosUserId: requireEnv("SMOKE_WORKOS_USER_ID"),

@@ -68,8 +68,31 @@ spec, so the implementation built a monolith from the spec's "one Cloudflare Wor
 - A CI conformance gate enforces the invariant (no deploy holds both a public route and the root-key
   binding; exactly one declares `INSTANCE_ROOT_KEY_V1` with zero public routes), extending the
   ADR-0071 lint boundary from imports to deploy bindings and the route inventory.
-- The public API and the Runtime deploy both bind Hyperdrive (the resolver reads the tenant store in
-  each); forced RLS (`NOBYPASSRLS`, ADR-0037) is the tenant wall regardless of which deploy connects.
+- Only the Runtime deploy binds Hyperdrive and performs DB I/O. The public API deploy holds no
+  Hyperdrive binding and does ZERO DB I/O: every non-keyring DB operation (admission resolution,
+  guided/operator organization provisioning, invitation create/accept, operation polling, grant
+  issue, bootstrap status/claim, denied-admission audit) is forwarded to the Runtime over the private
+  Service Binding. Forced RLS (`NOBYPASSRLS`, ADR-0037) remains the tenant wall in the Runtime deploy.
+  - **Two trust shapes cross the seam.** Authenticated forwards carry a scoped, audience-bound hop
+    token minted from the already-resolved actor (the same token write/consume use); the Runtime
+    verifies it and rebuilds the actor — the API never sends an actor object. The three pre-auth
+    identity/metadata calls (`resolveAdmission`, `recordAdmissionDenied`, `getBootstrapStatus`) carry
+    NO token, because admission resolution is the step that maps a WorkOS subject to an insecur user
+    id and no token can exist before it. They are trusted by the private Service Binding boundary
+    itself: the Runtime serves zero public routes (so only the bound API deploy can reach them), they
+    touch no keyring, and they return only identity/metadata — no decrypt path is exposed even at the
+    boundary.
+- **The Runtime opens its Postgres client per RPC request, never as a module singleton.** A
+  `postgres.js` client's socket promises are pinned to the I/O context of the request that created
+  them, so a client cached across RPC invocations cancels its continuations ("promise resolved from a
+  different request context") and the rejected query collapses to a generic `auth.invalid`. The
+  Runtime therefore opens a request-scoped client (`runWithRuntimeConnection`) inside each
+  invocation, exposes it to the connection-agnostic store API via async-local storage, and hands the
+  socket `end()` to `ctx.waitUntil`. The client uses a small pool (`max: 5`, not 1) because a single
+  RPC nests `withTenantScope` transactions — secret write opens a transaction and the keyring reads
+  the wrapped data key in a second transaction inside it — and a one-connection client deadlocks
+  there. The module-level fallback pool exists only for the Node/local test path (single context, no
+  cross-request hazard).
 - Secret Sync stays inline in the Runtime deploy (ADR-0057); re-adding a separate execution surface
   later is additive, not required.
 - ADR-0027's "one Cloudflare Worker" data-plane statement is amended to reference this ADR so it

@@ -1,4 +1,3 @@
-import { acceptInvitation, createInvitation } from "@insecur/onboarding";
 import {
   handleRoute,
   parseInvitationIdParam,
@@ -16,6 +15,10 @@ import {
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
+import {
+  acceptInvitationViaRuntime,
+  createInvitationViaRuntime,
+} from "../../rpc/runtime-onboarding-caller.js";
 
 export const invitationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -32,15 +35,14 @@ invitationsRoutes.post("/", requireUserActor, async (context) => {
     const invitationIdValue = parseOptionalInvitationId(readOptionalString(body, "invitationId"));
     const membershipIdValue = parseOptionalMembershipId(readOptionalString(body, "membershipId"));
 
-    return createInvitation({
-      actor: { type: "user", userId: userActor.userId },
+    return createInvitationViaRuntime(context.env, userActor, {
       organizationId,
       inviteeUserId: parseUserIdField(readRequiredString(body, "inviteeUserId")),
       rolePreset: readRequiredString(body, "rolePreset"),
       ...(projectIdRaw !== undefined ? { projectId: parseProjectIdParam(projectIdRaw) } : {}),
       ...(invitationIdValue !== undefined ? { invitationId: invitationIdValue } : {}),
       ...(membershipIdValue !== undefined ? { membershipId: membershipIdValue } : {}),
-      request: { requestId: reqId },
+      requestId: reqId,
     });
   });
 });
@@ -57,12 +59,11 @@ invitationsRoutes.post("/:invitationId/accept", requireUserActor, async (context
     const body = parseJsonBody(await context.req.json());
     const membershipIdValue = parseOptionalMembershipId(readOptionalString(body, "membershipId"));
 
-    return acceptInvitation({
+    return acceptInvitationViaRuntime(context.env, userActor, {
       invitationId: invitationIdValue,
       organizationId,
-      acceptingUserId: userActor.userId,
       ...(membershipIdValue !== undefined ? { membershipId: membershipIdValue } : {}),
-      request: { requestId: reqId },
+      requestId: reqId,
     });
   });
 });

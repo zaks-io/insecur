@@ -1,4 +1,3 @@
-import { createOperatorOrganization } from "@insecur/onboarding";
 import {
   handleRoute,
   parseJsonBody,
@@ -13,6 +12,7 @@ import {
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
+import { createOperatorOrganizationViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const organizationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -29,13 +29,12 @@ organizationsRoutes.post("/", requireUserActor, async (context) => {
     const teamDisplayName = parseOptionalDisplayName(readOptionalString(body, "teamDisplayName"));
     const resourceIds = parseOperatorOrganizationResourceIds(body);
 
-    return createOperatorOrganization({
+    return createOperatorOrganizationViaRuntime(context.env, userActor, {
       instanceId: resolveInstanceId(context.env),
-      operatorUserId: userActor.userId,
       ...(organizationDisplayName !== undefined ? { organizationDisplayName } : {}),
       ...(teamDisplayName !== undefined ? { teamDisplayName } : {}),
       ...(resourceIds !== undefined ? { resourceIds } : {}),
-      request: { requestId: reqId },
+      requestId: reqId,
     });
   });
 });

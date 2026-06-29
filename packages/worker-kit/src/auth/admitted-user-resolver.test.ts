@@ -1,55 +1,76 @@
-import { userId } from "@insecur/domain";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { testSessionSigningSecret } from "@insecur/auth";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
 import {
-  createAdmittedUserResolver,
-  createStoreAdmittedUserResolver,
+  createRuntimeAdmittedUserResolver,
+  recordAdmissionDeniedViaBinding,
+  resolveAdmissionViaBinding,
   resolveInstanceId,
 } from "./admitted-user-resolver.js";
-import { testSessionSigningSecret } from "@insecur/auth";
+import {
+  createFakeAdmissionRuntime,
+  fakeAdmittedUserId,
+} from "./testing/fake-admission-runtime.js";
 
-vi.mock("@insecur/tenant-store", () => ({
-  resolveAdmittedUserId: vi.fn(),
-}));
-
-import { resolveAdmittedUserId } from "@insecur/tenant-store";
-
-const mockedResolveAdmittedUserId = vi.mocked(resolveAdmittedUserId);
-
-const baseEnv: AuthWorkerEnv = {
-  WORKOS_API_KEY: "sk_test",
-  WORKOS_CLIENT_ID: "client_test",
-  WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-  SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-};
+function envWith(runtime: AuthWorkerEnv["RUNTIME"], instanceId?: string): AuthWorkerEnv {
+  return {
+    WORKOS_API_KEY: "sk_test",
+    WORKOS_CLIENT_ID: "client_test",
+    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+    RUNTIME: runtime,
+    ...(instanceId !== undefined ? { INSTANCE_ID: instanceId } : {}),
+  };
+}
 
 describe("resolveInstanceId", () => {
   it("uses INSTANCE_ID when set", () => {
-    expect(resolveInstanceId({ ...baseEnv, INSTANCE_ID: "inst_PREVIEW" })).toBe("inst_PREVIEW");
+    const env = envWith(createFakeAdmissionRuntime(), "inst_PREVIEW");
+    expect(resolveInstanceId(env)).toBe("inst_PREVIEW");
   });
 
   it("falls back to inst_LOCAL_DEV when INSTANCE_ID is absent", () => {
-    expect(resolveInstanceId(baseEnv)).toBe("inst_LOCAL_DEV");
+    expect(resolveInstanceId(envWith(createFakeAdmissionRuntime()))).toBe("inst_LOCAL_DEV");
   });
 });
 
-describe("createStoreAdmittedUserResolver", () => {
-  it("delegates to resolveAdmittedUserId with the bound instance id", async () => {
-    const admitted = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
-    mockedResolveAdmittedUserId.mockResolvedValueOnce(admitted);
+describe("resolveAdmissionViaBinding", () => {
+  it("returns the admitted user id from the runtime", async () => {
+    const admitted = fakeAdmittedUserId();
+    const runtime = createFakeAdmissionRuntime({ user_workos: admitted });
+    await expect(
+      resolveAdmissionViaBinding(runtime, { instanceId: "inst_TEST", workosUserId: "user_workos" }),
+    ).resolves.toBe(admitted);
+  });
 
-    const resolve = createStoreAdmittedUserResolver("inst_TEST");
-    await expect(resolve("user_workos")).resolves.toBe(admitted);
-    expect(mockedResolveAdmittedUserId).toHaveBeenCalledWith("inst_TEST", "user_workos");
+  it("returns null for an unknown subject", async () => {
+    const runtime = createFakeAdmissionRuntime();
+    await expect(
+      resolveAdmissionViaBinding(runtime, { instanceId: "inst_TEST", workosUserId: "user_x" }),
+    ).resolves.toBeNull();
   });
 });
 
-describe("createAdmittedUserResolver", () => {
-  it("binds the env instance id", async () => {
-    mockedResolveAdmittedUserId.mockResolvedValueOnce(null);
-
-    const resolve = createAdmittedUserResolver({ ...baseEnv, INSTANCE_ID: "inst_ENV" });
+describe("createRuntimeAdmittedUserResolver", () => {
+  it("binds the env instance id and forwards over the runtime", async () => {
+    const admitted = fakeAdmittedUserId();
+    const runtime = createFakeAdmissionRuntime({ user_known: admitted });
+    const resolve = createRuntimeAdmittedUserResolver(envWith(runtime, "inst_ENV"));
+    await expect(resolve("user_known")).resolves.toBe(admitted);
     await expect(resolve("user_unknown")).resolves.toBeNull();
-    expect(mockedResolveAdmittedUserId).toHaveBeenCalledWith("inst_ENV", "user_unknown");
+  });
+});
+
+describe("recordAdmissionDeniedViaBinding", () => {
+  it("forwards the denied-admission audit to the runtime", async () => {
+    const runtime = createFakeAdmissionRuntime();
+    await recordAdmissionDeniedViaBinding(runtime, {
+      instanceId: "inst_TEST",
+      workosUserId: "user_denied",
+      requestId: "req_test" as never,
+    });
+    expect(runtime.deniedCalls).toEqual([
+      { instanceId: "inst_TEST", workosUserId: "user_denied", requestId: "req_test" },
+    ]);
   });
 });

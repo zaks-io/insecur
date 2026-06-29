@@ -1,4 +1,3 @@
-import { provisionGuidedOrganization } from "@insecur/onboarding";
 import {
   handleRoute,
   parseGuidedOrganizationResourceIds,
@@ -11,6 +10,7 @@ import {
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
+import { provisionGuidedOrganizationViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const onboardingRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -32,16 +32,14 @@ onboardingRoutes.post("/personal-organization", requireUserActor, async (context
     const body = parseJsonBody(await context.req.json());
     const resourceIds = parseGuidedOrganizationResourceIds(body);
 
-    return provisionGuidedOrganization({
-      userId: userActor.userId,
+    return provisionGuidedOrganizationViaRuntime(context.env, userActor, {
       instanceId: resolveInstanceId(context.env),
-      isAdmitted: true,
       ...optionalDisplayName(body, "organizationDisplayName"),
       ...optionalDisplayName(body, "projectDisplayName"),
       ...optionalDisplayName(body, "teamDisplayName"),
       ...optionalDisplayName(body, "environmentDisplayName"),
       ...(resourceIds !== undefined ? { resourceIds } : {}),
-      request: { requestId: reqId },
+      requestId: reqId,
     });
   });
 });

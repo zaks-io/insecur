@@ -19,6 +19,7 @@ export {
 export {
   closeRuntimeSql,
   configureRuntimeConnection,
+  runWithRuntimeConnection,
   RuntimeConfigMissingError,
 } from "./db/connection.js";
 export {

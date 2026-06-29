@@ -5,6 +5,7 @@ import {
 } from "@insecur/auth";
 import { userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
+import { createRuntimeRpcStub } from "../test/support/runtime-rpc-stub.js";
 import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
 import app from "./index.js";
 
@@ -12,11 +13,15 @@ const admittedUserId = userId.brand(ADMITTED_USER_ID_RAW);
 const workosUserId = WORKOS_USER_ID;
 const sealedSession = "sealed_exchange_test";
 
+// Admission resolution and the denied-admission audit cross the private Runtime Service Binding
+// (ADR-0077); these route tests stub it. The default stub admits WORKOS_USER_ID, so authed paths
+// resolve to the admitted actor while unknown subjects resolve to null (not admitted).
 const env = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+  RUNTIME: createRuntimeRpcStub(),
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
     {
       sessionData: sealedSession,

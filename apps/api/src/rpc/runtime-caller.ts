@@ -1,14 +1,14 @@
 import type { UserActor } from "@insecur/auth";
-import type {
-  ConsumeGrantRpcInput,
-  RuntimeDeliveryEnvelope,
-  RuntimeSecretWritePayload,
-  WriteSecretRpcInput,
+import {
+  unwrapRuntimeResult,
+  type ConsumeGrantRpcInput,
+  type RuntimeDeliveryEnvelope,
+  type RuntimeSecretWritePayload,
+  type WriteSecretRpcInput,
 } from "@insecur/worker-kit";
 
 import type { ApiEnv } from "../env.js";
 import { mintRuntimeHopToken } from "./mint-hop-token.js";
-import { unwrapRuntimeResult } from "./unwrap-runtime-result.js";
 
 type WithoutActorToken<T> = T extends { readonly actorToken: string }
   ? Omit<T, "actorToken">
