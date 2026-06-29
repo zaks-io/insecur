@@ -1,41 +1,16 @@
-import type { RequestId, UserId } from "@insecur/domain";
-import {
-  recordAdmissionDeniedViaBinding,
-  resolveAdmissionViaBinding,
-  resolveInstanceId,
-  unwrapRuntimeResult,
-  type BootstrapStatus,
-} from "@insecur/worker-kit";
+import { resolveInstanceId, unwrapRuntimeResult, type BootstrapStatus } from "@insecur/worker-kit";
 
 import type { ApiEnv } from "../env.js";
 
 /**
- * Pre-auth API-side Runtime RPC callers (ADR-0077). These run before an authenticated actor exists,
- * so they carry no hop token; trust is the private Service Binding boundary. They forward the DB I/O
- * the edge never performs (admission resolution, denied-admission audit, bootstrap status).
+ * Pre-auth API-side Runtime RPC caller (ADR-0077). Runs before an authenticated actor exists, so it
+ * carries no hop token; trust is the private Service Binding boundary. Forwards the bootstrap-status
+ * read the edge never performs against the DB itself.
+ *
+ * Admission resolution and denied-admission audit are the other two pre-auth forwards, but the auth
+ * middleware reaches those directly through worker-kit (`createRuntimeAdmittedUserResolver` /
+ * `recordAdmissionDeniedAuditForAuthFailure`), so no API-side caller wrapper is needed for them.
  */
-
-export function resolveAdmissionViaRuntime(
-  env: ApiEnv,
-  input: { workosUserId: string },
-): Promise<UserId | null> {
-  return resolveAdmissionViaBinding(env.RUNTIME, {
-    instanceId: resolveInstanceId(env),
-    workosUserId: input.workosUserId,
-  });
-}
-
-export function recordAdmissionDeniedViaRuntime(
-  env: ApiEnv,
-  input: { workosUserId: string; requestId: RequestId },
-): Promise<void> {
-  return recordAdmissionDeniedViaBinding(env.RUNTIME, {
-    instanceId: resolveInstanceId(env),
-    workosUserId: input.workosUserId,
-    requestId: input.requestId,
-  });
-}
-
 export async function getBootstrapStatusViaRuntime(env: ApiEnv): Promise<BootstrapStatus> {
   return unwrapRuntimeResult(
     await env.RUNTIME.getBootstrapStatus({ instanceId: resolveInstanceId(env) }),

@@ -35,10 +35,11 @@ await main(config);
 async function main(config) {
   buildWorkspace();
   migrateAndSeed(config);
-  deployWorker("@insecur/runtime", runtimeConfig, [], ["RUNTIME_TOKEN_SIGNING_SECRET"], config);
+  deployWorker("@insecur/runtime", runtimeConfig, config, [], ["RUNTIME_TOKEN_SIGNING_SECRET"]);
   deployWorker(
     "@insecur/api",
     apiConfig,
+    config,
     [
       ["INSTANCE_ID", config.instanceId],
       ["WORKOS_CLIENT_ID", config.workosClientId],
@@ -49,7 +50,6 @@ async function main(config) {
       "WORKOS_API_KEY",
       "WORKOS_COOKIE_PASSWORD",
     ],
-    config,
   );
 
   emitOutput("base_url", config.baseUrl);
@@ -91,7 +91,7 @@ function migrateAndSeed(config) {
   );
 }
 
-function deployWorker(packageName, configPath, vars = [], secretKeys = [], config) {
+function deployWorker(packageName, configPath, config, vars = [], secretKeys = []) {
   const args = [
     "--filter",
     packageName,
