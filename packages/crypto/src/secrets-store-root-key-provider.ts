@@ -17,16 +17,30 @@ export class SecretsStoreRootKeyProvider implements RootKeyProvider {
 
   async getRootKeyBytes(version: KeyVersion): Promise<Uint8Array> {
     if (version !== this.supportedRootKeyVersion) {
+      // eslint-disable-next-line no-console
+      console.error(`ROOTKEY_DIAG version_mismatch got=${version} want=${this.supportedRootKeyVersion}`);
       throw new RootKeyNotConfiguredError();
     }
 
     let raw: string;
     try {
       raw = await this.binding.get();
-    } catch {
+    } catch (error) {
+      // TEMP DIAG (preview): the binding.get() threw — log its class/message (NEVER the value).
+      // eslint-disable-next-line no-console
+      console.error(
+        `ROOTKEY_DIAG get_threw name=${error instanceof Error ? error.name : typeof error} msg=${error instanceof Error ? error.message : String(error)}`,
+      );
       throw new RootKeyNotConfiguredError();
     }
 
+    // TEMP DIAG (preview): the binding returned — log only the SHAPE so a malformed value is
+    // distinguishable from a throw. Never logs the value itself.
+    const trimmed = typeof raw === "string" ? raw.trim() : "";
+    // eslint-disable-next-line no-console
+    console.error(
+      `ROOTKEY_DIAG got_value type=${typeof raw} len=${trimmed.length} is_hex=${/^[0-9a-fA-F]+$/.test(trimmed)}`,
+    );
     return parseInstanceRootKeyHex(raw);
   }
 }
