@@ -38,16 +38,19 @@ function evaluateContext(context: WorkOSSessionContext): ResolveWorkOSSessionRes
   return { ok: true, context };
 }
 
+type WorkOSSessionCommonFailureReason = "expired" | "invalid" | "missing";
+
+function mapCommonSessionFailure(reason: WorkOSSessionCommonFailureReason): {
+  ok: false;
+  failure: AuthFailure;
+} {
+  return { ok: false, failure: authFailureForReason(reason) };
+}
+
 function mapAuthenticateFailure(
   result: Extract<WorkOSSessionAuthenticateResult, { authenticated: false }>,
 ): ResolveWorkOSSessionResult {
-  if (result.reason === "missing") {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-  if (result.reason === "expired") {
-    return { ok: false, failure: authFailureForReason("expired") };
-  }
-  return { ok: false, failure: authFailureForReason("invalid") };
+  return mapCommonSessionFailure(result.reason);
 }
 
 function mapRefreshFailure(result: Extract<WorkOSSessionRefreshResult, { refreshed: false }>): {
@@ -57,13 +60,7 @@ function mapRefreshFailure(result: Extract<WorkOSSessionRefreshResult, { refresh
   if (result.reason === "mfa_enrollment") {
     return { ok: false, failure: authFailureForReason("mfa_enrollment") };
   }
-  if (result.reason === "missing") {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-  if (result.reason === "expired") {
-    return { ok: false, failure: authFailureForReason("expired") };
-  }
-  return { ok: false, failure: authFailureForReason("invalid") };
+  return mapCommonSessionFailure(result.reason);
 }
 
 export async function authenticateWorkOSSession(
@@ -92,8 +89,7 @@ export async function refreshWorkOSSession(
 ): Promise<RefreshWorkOSSessionResult> {
   const refreshResult = await workos.refreshSealedSession(sessionData);
   if (!refreshResult.refreshed) {
-    const resolved = mapRefreshFailure(refreshResult);
-    return { ok: false, failure: resolved.failure };
+    return mapRefreshFailure(refreshResult);
   }
   const evaluated = evaluateContext(refreshResult.context);
   if (!evaluated.ok) {
