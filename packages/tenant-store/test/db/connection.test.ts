@@ -80,8 +80,9 @@ describe("runWithRuntimeConnection", () => {
     const { result, closing } = await runWithRuntimeConnection(connStr, async () => {
       const scoped = getRuntimeSql();
       expect(scoped.options.host).toEqual(["req-host"]);
-      // max:1 — Worker-side client is short-lived; Hyperdrive pools server-side.
-      expect(scoped.options.max).toBe(1);
+      // Small per-request pool (>1) so sequential withTenantScope transactions in one RPC do not
+      // starve a single connection; Hyperdrive pools server-side so this stays cheap.
+      expect(scoped.options.max).toBe(5);
       // The active connection is exactly the scoped client.
       expect(activeRuntimeConnection()?.sql).toBe(scoped);
       return "ok";
