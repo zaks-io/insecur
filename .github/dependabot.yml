@@ -19,6 +19,12 @@ updates:
       interval: weekly
     cooldown:
       default-days: 3
+    ignore:
+      # @types/node tracks the declared Node runtime major. A Node major upgrade is planned
+      # human-owned work that updates engines, .node-version/.nvmrc, CI, and this rule together.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
     labels:
       - dependencies
       - zaks-io/insecur

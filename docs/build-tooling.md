@@ -642,6 +642,13 @@ Future opt-in filing (skeleton tracked in INS-17 and INS-94) will be metadata-on
 
 Dependabot runs on its own schedule with `cooldown.default-days: 3` (`.github/dependabot.yml`) so it will not open an update branch before the quarantine floor elapses. Install-time enforcement remains in `pnpm-workspace.yaml` via `minimumReleaseAge: 4320`.
 
+The active Node.js runtime major is the one declared by `package.json` `engines`, `.node-version`,
+and `.nvmrc`. Node-coupled ambient type packages must stay on that runtime major: Dependabot ignores
+`@types/node` semver-major npm updates while the repo remains on Node 24, but still allows patch and
+minor updates inside the 24.x line. Intentionally raising the Node baseline is separate planned work
+that updates `engines`, `.node-version`, `.nvmrc`, CI/runtime images, the pnpm catalog
+`@types/node` range, and the Dependabot guardrail together.
+
 ## Two-Credential Model And Guardrail Assertions
 
 Two distinct database credentials exist:
