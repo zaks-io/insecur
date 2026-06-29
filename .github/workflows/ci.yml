@@ -54,6 +54,7 @@ jobs:
           pnpm duplicates:warn
           pnpm duplicates:ci
           pnpm format:check
+          pnpm conformance:actions-pin
           pnpm conformance:topology
           pnpm exec turbo run lint typecheck test "${cache_flags}"
 
