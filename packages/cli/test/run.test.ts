@@ -13,6 +13,7 @@ import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { setMemorySession, clearMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";
 import { EXIT_CONFLICT, EXIT_VALIDATION } from "../src/output/exit-codes.js";
+import { CLI_CHILD_BASELINE_ENV_KEYS } from "../src/auth/child-env.js";
 
 const ORG_ID = "org_01TEST00000000000000000001";
 const PROJECT_ID = "prj_01TEST00000000000000000001";
@@ -123,6 +124,11 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
   };
 }
 
+function expectOnlyRunChildEnvKeys(childEnv: NodeJS.ProcessEnv, variableKey: string): void {
+  const allowedKeys = new Set<string>([...CLI_CHILD_BASELINE_ENV_KEYS, variableKey]);
+  expect(Object.keys(childEnv).every((name) => allowedKeys.has(name))).toBe(true);
+}
+
 describe("runRunCommand", () => {
   let stdout = "";
 
@@ -134,6 +140,10 @@ describe("runRunCommand", () => {
     delete process.env.INSECUR_FUTURE_CSRF;
     delete process.env.INSECUR_FUTURE_KEY;
     delete process.env.API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.AWS_SECRET_ACCESS_KEY;
+    delete process.env.OTHER_TOKEN;
+    delete process.env.GITHUB_TOKEN;
     vi.restoreAllMocks();
     spawnMock.mockReset();
     stdout = "";
@@ -181,6 +191,11 @@ describe("runRunCommand", () => {
     expect(parsed.data.grantId).toBe(GRANT_ID);
     expect(stdout).not.toContain(SENSITIVE_VALUE);
     expect(stdoutSpy).toHaveBeenCalled();
+    expect(capturedEnv).toBeDefined();
+    if (capturedEnv === undefined) {
+      throw new Error("Expected run command to spawn with a child environment");
+    }
+    expectOnlyRunChildEnvKeys(capturedEnv, "API_KEY");
   });
 
   it("excludes INSECUR_SESSION_TOKEN from the child environment even when the parent process has one", async () => {
@@ -207,16 +222,21 @@ describe("runRunCommand", () => {
     expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
   });
 
-  it("scrubs auth-bearing INSECUR variables from the child environment", async () => {
+  it("drops parent secrets and unrelated INSECUR auth variables from the child environment", async () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
       expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
+    process.env.INSECUR_SESSION_TOKEN = "inherited-parent-token";
     process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
     process.env.INSECUR_FUTURE_COOKIE = "dummy-future-cookie";
     process.env.INSECUR_FUTURE_CSRF = "dummy-future-csrf";
     process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
+    process.env.OPENAI_API_KEY = "dummy-openai";
+    process.env.AWS_SECRET_ACCESS_KEY = "dummy-aws";
+    process.env.OTHER_TOKEN = "dummy-other";
+    process.env.GITHUB_TOKEN = "dummy-github";
     const api = createMockApi();
     let capturedEnv: NodeJS.ProcessEnv | undefined;
     spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
@@ -230,11 +250,21 @@ describe("runRunCommand", () => {
       command: ["node", "-e", "0"],
     });
 
+    expect(capturedEnv?.INSECUR_SESSION_TOKEN).toBeUndefined();
     expect(capturedEnv?.INSECUR_FUTURE_TOKEN).toBeUndefined();
     expect(capturedEnv?.INSECUR_FUTURE_COOKIE).toBeUndefined();
     expect(capturedEnv?.INSECUR_FUTURE_CSRF).toBeUndefined();
     expect(capturedEnv?.INSECUR_FUTURE_KEY).toBeUndefined();
+    expect(capturedEnv?.OPENAI_API_KEY).toBeUndefined();
+    expect(capturedEnv?.AWS_SECRET_ACCESS_KEY).toBeUndefined();
+    expect(capturedEnv?.OTHER_TOKEN).toBeUndefined();
+    expect(capturedEnv?.GITHUB_TOKEN).toBeUndefined();
     expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
+    expect(capturedEnv).toBeDefined();
+    if (capturedEnv === undefined) {
+      throw new Error("Expected run command to spawn with a child environment");
+    }
+    expectOnlyRunChildEnvKeys(capturedEnv, "API_KEY");
   });
 
   it("does not capture child stdout in CLI output", async () => {

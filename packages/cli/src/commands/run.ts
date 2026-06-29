@@ -14,7 +14,7 @@ import type {
 } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
-import { scrubCliChildAuthEnv } from "../auth/child-env.js";
+import { buildCliChildEnv } from "../auth/child-env.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
@@ -53,11 +53,7 @@ function decodeDeliveryValue(encodedValueUtf8: string): string {
 }
 
 function buildRunChildEnv(variableKey: VariableKey, valueUtf8: string): NodeJS.ProcessEnv {
-  const childEnv: NodeJS.ProcessEnv = {
-    ...scrubCliChildAuthEnv(),
-    [variableKey]: valueUtf8,
-  };
-  return childEnv;
+  return buildCliChildEnv({ extraEnv: { [variableKey]: valueUtf8 } });
 }
 
 function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | null): number {

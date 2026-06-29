@@ -230,10 +230,13 @@ Rules:
 - `INSECUR_SESSION_TOKEN` is never written by insecur to disk.
 - Machine-auth credentials are supplied by CI/provider contexts and must not be persisted by the CLI.
 - Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
-- Child process environments scrub auth-bearing `INSECUR_*TOKEN`, `INSECUR_*COOKIE`,
-  `INSECUR_*CSRF`, and `INSECUR_*KEY` names by default. Authenticated shells deliberately receive
-  only `INSECUR_SESSION_TOKEN` plus profile metadata; Runtime Injection commands receive only the
-  requested injected variable value plus non-sensitive execution context.
+- Child process environments are deny-by-default. CLI-managed children inherit only this
+  non-sensitive baseline when present: `PATH`, `SHELL`, `TERM`, `HOME`, `USER`, `LOGNAME`, locale
+  variables (`LANG`, `LC_ALL`, `LC_CTYPE`, `LC_MESSAGES`), temp directory variables (`TMPDIR`,
+  `TMP`, `TEMP`), and Windows process basics (`SystemRoot`, `WINDIR`, `COMSPEC`, `PATHEXT`,
+  `USERPROFILE`, `HOMEDRIVE`, `HOMEPATH`). Authenticated shells deliberately receive only
+  `INSECUR_SESSION_TOKEN` plus profile metadata. Runtime Injection commands receive only the
+  requested injected variable value plus the approved baseline.
 - `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
 - Prefer `insecur login --shell` or `insecur shell <profile-slug-or-id>` when a child shell
   needs the short-lived session token. Use `insecur run --variable-key <key> -- <command>` for
