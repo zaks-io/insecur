@@ -1,0 +1,156 @@
+import {
+  brandOpaqueResourceIdForPrefix,
+  INJECTION_ERROR_CODES,
+  type VariableKey,
+} from "@insecur/domain";
+import { expect, it } from "vitest";
+import { withTenantScope } from "@insecur/tenant-store";
+import {
+  createTestKeyring,
+  uniqueVariableKey,
+  writeTestSecret,
+} from "../../secret-store/test/integration-helpers.js";
+import { consumeInjectionGrant, issueInjectionGrant } from "../src/injection-grants.js";
+import {
+  describeInjectionGrantIntegration,
+  loadAuditRow,
+  loadGrantBinding,
+} from "./injection-grant-integration-helpers.js";
+import {
+  testActor,
+  testEnvironment,
+  testOrganization,
+  testProject,
+} from "./integration-helpers.js";
+
+describeInjectionGrantIntegration("Runtime Injection Grant issue and consume", () => {
+  it("issues a fresh grant and consumes it once with metadata-only surfaces", async () => {
+    const org = testOrganization();
+    const plaintext = new TextEncoder().encode(`fv11-${crypto.randomUUID()}`);
+    const variableKey: VariableKey = uniqueVariableKey("FV11_GRANT");
+    const written = await writeTestSecret(variableKey, plaintext);
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey },
+      actor: testActor(),
+    });
+
+    expect(issued.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
+    expect(issued.auditEventId).toMatch(/^aud_[0-9A-Z]{26}$/);
+    expect(JSON.stringify(issued)).not.toContain(new TextDecoder().decode(plaintext));
+
+    const stored = await loadGrantBinding(org, issued.grantId);
+    expect(stored?.secret_ids).toEqual([written.secretId]);
+    expect(stored?.secret_version_id).toBe(written.secretVersionId);
+    expect(stored?.variable_keys).toEqual([variableKey]);
+
+    const issueAuditEventId = issued.auditEventId;
+    if (issueAuditEventId === undefined) {
+      throw new Error("expected issue audit event id");
+    }
+    const issueAudit = await loadAuditRow(org, issueAuditEventId);
+    expect(issueAudit?.event_code).toBe("runtime_injection.grant_issued");
+    expect(issueAudit?.resource_id).toBe(brandOpaqueResourceIdForPrefix("igr", issued.grantId));
+    expect(JSON.stringify(issueAudit)).not.toContain(new TextDecoder().decode(plaintext));
+
+    const consumed = await consumeInjectionGrant({
+      keyring: createTestKeyring(),
+      organizationId: org,
+      grantId: issued.grantId,
+      variableKey,
+      actor: testActor(),
+    });
+
+    expect(consumed.secretId).toBe(written.secretId);
+    expect(consumed.secretVersionId).toBe(written.secretVersionId);
+    expect(consumed.variableKey).toBe(variableKey);
+    expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
+    expect(
+      JSON.stringify({
+        variableKey: consumed.variableKey,
+        secretId: consumed.secretId,
+        secretVersionId: consumed.secretVersionId,
+      }),
+    ).not.toContain(new TextDecoder().decode(plaintext));
+
+    const consumeAuditEventId = consumed.auditEventId;
+    if (consumeAuditEventId === undefined) {
+      throw new Error("expected consume audit event id");
+    }
+    const consumeAudit = await loadAuditRow(org, consumeAuditEventId);
+    expect(consumeAudit?.event_code).toBe("runtime_injection.grant_consumed");
+    expect(consumeAudit?.resource_type).toBe("injection_grant");
+    expect(consumeAudit?.resource_id).toBe(brandOpaqueResourceIdForPrefix("igr", issued.grantId));
+    expect(consumeAudit?.related_resource_type).toBe("secret_version");
+    expect(consumeAudit?.related_resource_id).toBe(
+      brandOpaqueResourceIdForPrefix("sv", written.secretVersionId),
+    );
+    expect(JSON.stringify(consumeAudit)).not.toContain(new TextDecoder().decode(plaintext));
+
+    await expect(
+      consumeInjectionGrant({
+        keyring: createTestKeyring(),
+        organizationId: org,
+        grantId: issued.grantId,
+        variableKey,
+        actor: testActor(),
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    const replayAuditRows = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async ({ sql }) => {
+        return sql<{ event_code: string; result_code: string | null }[]>`
+        SELECT event_code, result_code
+        FROM audit_events
+        WHERE resource_id = ${brandOpaqueResourceIdForPrefix("igr", issued.grantId)}
+          AND event_code = ${"runtime_injection.grant_consume_denied"}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      },
+    );
+    expect(replayAuditRows[0]?.event_code).toBe("runtime_injection.grant_consume_denied");
+    expect(replayAuditRows[0]?.result_code).toBe(INJECTION_ERROR_CODES.grantDenied);
+    expect(JSON.stringify(replayAuditRows)).not.toContain(new TextDecoder().decode(plaintext));
+  });
+
+  it("issues and consumes by exact secret id selector", async () => {
+    const org = testOrganization();
+    const plaintext = new TextEncoder().encode(`fv11-secret-id-${crypto.randomUUID()}`);
+    const variableKey = uniqueVariableKey("FV11_SECRET_ID");
+    const written = await writeTestSecret(variableKey, plaintext);
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "secret_id", secretId: written.secretId },
+      actor: testActor(),
+    });
+
+    const stored = await loadGrantBinding(org, issued.grantId);
+    expect(stored?.secret_version_id).toBe(written.secretVersionId);
+
+    const consumed = await consumeInjectionGrant({
+      keyring: createTestKeyring(),
+      organizationId: org,
+      grantId: issued.grantId,
+      secretId: written.secretId,
+      actor: testActor(),
+    });
+
+    expect(consumed.secretId).toBe(written.secretId);
+    expect(consumed.secretVersionId).toBe(written.secretVersionId);
+    expect(consumed.variableKey).toBe(variableKey);
+    expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
+    expect(() => JSON.stringify(consumed)).toThrow(/PlaintextHandle must not be serialized/);
+  });
+});
