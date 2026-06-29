@@ -15,6 +15,7 @@ export interface FakeWorkOSSessionEntry {
   readonly authFactors?: readonly WorkOSAuthFactorSummary[];
   /** When set, refresh returns this sealed session value (rotation). */
   readonly rotatedSessionData?: string;
+  readonly authenticateFailure?: "expired" | "invalid" | "missing";
   readonly refreshFailure?: "expired" | "invalid" | "missing" | "mfa_enrollment";
 }
 
@@ -41,6 +42,9 @@ export function createFakeWorkOSSessionPort(
       const entry = bySession.get(sessionData);
       if (entry === undefined) {
         return Promise.resolve({ authenticated: false, reason: "invalid" });
+      }
+      if (entry.authenticateFailure !== undefined) {
+        return Promise.resolve({ authenticated: false, reason: entry.authenticateFailure });
       }
       return Promise.resolve({
         authenticated: true,
