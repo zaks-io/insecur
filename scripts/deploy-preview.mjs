@@ -72,6 +72,10 @@ function migrateAndSeed(config) {
     INSTANCE_ID: config.instanceId,
     SMOKE_WORKOS_USER_ID: config.smokeWorkosUserId,
     SMOKE_ADMITTED_USER_ID: config.smokeAdmittedUserId,
+    // The API does zero DB I/O (ADR-0077): every tenant query runs in the Runtime deploy as the
+    // forced-RLS Hyperdrive role. Grant that role table privileges during migrate, or its first
+    // query fails closed with "permission denied for table ...".
+    INSECUR_POSTGRES_RUNTIME_ROLE: config.previewRuntimeRole,
   };
   run("pnpm", ["--filter", "@insecur/tenant-store", "migrate:local"], env);
   run(
@@ -186,6 +190,7 @@ function readConfig() {
     hyperdriveId: requireEnv("PREVIEW_HYPERDRIVE_ID"),
     instanceId: process.env.PREVIEW_INSTANCE_ID ?? "inst_PREVIEW",
     previewDatabaseUrl,
+    previewRuntimeRole: requireEnv("PREVIEW_POSTGRES_RUNTIME_ROLE"),
     smokeAdmittedUserId: requireEnv("SMOKE_ADMITTED_USER_ID"),
     smokeSessionSigningSecret: process.env.SMOKE_SESSION_SIGNING_SECRET ?? sessionSigningSecret,
     smokeWorkosUserId: requireEnv("SMOKE_WORKOS_USER_ID"),
