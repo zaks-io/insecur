@@ -1,6 +1,6 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 
-import { configureRuntimeConnection } from "@insecur/tenant-store";
+import { runWithRuntimeConnection } from "@insecur/tenant-store";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -62,51 +62,52 @@ import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-ent
  */
 export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
   /**
-   * Hand the Hyperdrive connection string to the tenant store before any DB I/O. The string lives
-   * only on `env.DB.connectionString`, so it cannot be read from `process.env` inside the Worker.
-   * Called per RPC method (not the constructor) because the in-process fake binding builds this
-   * service with a `DB`-less env; absent binding → the store falls back to `DATABASE_URL_RUNTIME`.
+   * Run one RPC inside a request-scoped DB connection (ADR-0077). The Hyperdrive connection string
+   * lives only on `env.DB.connectionString` (never `process.env`), so the Worker opens a per-request
+   * `postgres.js` client here via `runWithRuntimeConnection` and hands the socket `end()` to
+   * `ctx.waitUntil` so teardown never blocks the response. A client is never shared across RPC
+   * invocations — that is what cancels cross-request-context promises and collapsed to `auth.invalid`.
+   *
+   * When no Hyperdrive binding is present (the in-process fake binding used by the fast test layer,
+   * built with a `DB`-less env), the work runs directly and the store falls back to its Node pool
+   * (`DATABASE_URL_RUNTIME`); single Node context, no cross-request hazard.
    */
-  #configureDb(): void {
+  async #withConnection<T>(run: () => Promise<T>): Promise<T> {
     const connStr = this.env.DB?.connectionString;
-    if (connStr) {
-      configureRuntimeConnection(connStr);
+    if (!connStr) {
+      return run();
     }
+    const { result, closing } = await runWithRuntimeConnection(connStr, run);
+    this.ctx.waitUntil(closing);
+    return result;
   }
 
   #rpcEntryOptions(actorToken: string) {
     return {
       env: this.env,
       actorToken,
-      configureDb: () => {
-        this.#configureDb();
-      },
-    };
-  }
-
-  #unauthEntryOptions() {
-    return {
-      configureDb: () => {
-        this.#configureDb();
-      },
     };
   }
 
   async consumeGrant(
     input: ConsumeGrantRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
-      consumeGrantOperation({ env: this.env, input, auditActor }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
+        consumeGrantOperation({ env: this.env, input, auditActor }),
+      ),
     );
   }
 
   async writeSecret(
     input: WriteSecretRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
-    return withRuntimeRpcEntry(
-      this.#rpcEntryOptions(input.actorToken),
-      async ({ auditActor, accessActor }) =>
-        writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(
+        this.#rpcEntryOptions(input.actorToken),
+        async ({ auditActor, accessActor }) =>
+          writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
+      ),
     );
   }
 
@@ -115,24 +116,24 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
   async resolveAdmission(
     input: ResolveAdmissionRpcInput,
   ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
-    return withRuntimeRpcUnauthEntry(this.#unauthEntryOptions(), () =>
-      resolveAdmissionOperation(input),
+    return this.#withConnection(() =>
+      withRuntimeRpcUnauthEntry(() => resolveAdmissionOperation(input)),
     );
   }
 
   async recordAdmissionDenied(
     input: RecordAdmissionDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>> {
-    return withRuntimeRpcUnauthEntry(this.#unauthEntryOptions(), () =>
-      recordAdmissionDeniedOperation(input),
+    return this.#withConnection(() =>
+      withRuntimeRpcUnauthEntry(() => recordAdmissionDeniedOperation(input)),
     );
   }
 
   async getBootstrapStatus(
     input: GetBootstrapStatusRpcInput,
   ): Promise<RuntimeRpcResult<BootstrapStatus>> {
-    return withRuntimeRpcUnauthEntry(this.#unauthEntryOptions(), () =>
-      getBootstrapStatusOperation(input),
+    return this.#withConnection(() =>
+      withRuntimeRpcUnauthEntry(() => getBootstrapStatusOperation(input)),
     );
   }
 
@@ -141,56 +142,70 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
   async provisionGuidedOrganization(
     input: ProvisionGuidedOrganizationRpcInput,
   ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-      provisionGuidedOrganizationOperation({ actor, input }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+        provisionGuidedOrganizationOperation({ actor, input }),
+      ),
     );
   }
 
   async createOperatorOrganization(
     input: CreateOperatorOrganizationRpcInput,
   ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-      createOperatorOrganizationOperation({ actor, input }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+        createOperatorOrganizationOperation({ actor, input }),
+      ),
     );
   }
 
   async createInvitation(
     input: CreateInvitationRpcInput,
   ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-      createInvitationOperation({ actor, input }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+        createInvitationOperation({ actor, input }),
+      ),
     );
   }
 
   async acceptInvitation(
     input: AcceptInvitationRpcInput,
   ): Promise<RuntimeRpcResult<AcceptInvitationResult>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-      acceptInvitationOperation({ actor, input }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+        acceptInvitationOperation({ actor, input }),
+      ),
     );
   }
 
   async getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
-    return withRuntimeRpcEntry(
-      this.#rpcEntryOptions(input.actorToken),
-      async ({ auditActor, accessActor }) =>
-        getOperationOperation({ input, auditActor, accessActor }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(
+        this.#rpcEntryOptions(input.actorToken),
+        async ({ auditActor, accessActor }) =>
+          getOperationOperation({ input, auditActor, accessActor }),
+      ),
     );
   }
 
   async issueInjectionGrant(
     input: IssueInjectionGrantRpcInput,
   ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
-      issueInjectionGrantOperation({ input, auditActor }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
+        issueInjectionGrantOperation({ input, auditActor }),
+      ),
     );
   }
 
   async completeBootstrapOperatorClaim(
     input: CompleteBootstrapClaimRpcInput,
   ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
-    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-      completeBootstrapClaimOperation({ actor, input }),
+    return this.#withConnection(() =>
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+        completeBootstrapClaimOperation({ actor, input }),
+      ),
     );
   }
 }
