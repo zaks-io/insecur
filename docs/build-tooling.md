@@ -192,7 +192,7 @@ and are not repeated here.
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
     "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
-    "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.25 apps packages scripts",
+    "duplicates:ci": "pnpm duplicates:check",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "knip": "knip",
     "test": "turbo run test --cache=local:rw,remote:r",
@@ -211,7 +211,7 @@ and are not repeated here.
 
 `verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the
 security scanners and the DB-backed `postgres-integration` job: duplicate-warning annotations, the
-blocking duplicate ratchet, knip, actionlint (optional-local), the deploy-topology conformance gate
+blocking duplicate zero gate, knip, actionlint (optional-local), the deploy-topology conformance gate
 (`conformance:topology`, ADR-0077/INS-199 — asserts capability isolation against the wrangler configs
 and composition roots), the package-boundary conformance gate (`conformance:packages` — asserts the
 public/API and contract packages have no production dependency path to `@insecur/crypto`), the
@@ -226,21 +226,17 @@ jscpd is the repo-wide copy/paste detector. It scans product TypeScript and Java
 commands wrap it, each with a different threshold:
 
 ```sh
-pnpm duplicates:check   # threshold 0  — strict local zero gate
-pnpm duplicates:ci      # threshold 0.25 — ratchet floor, blocking in CI and pre-push
+pnpm duplicates:check   # threshold 0 — strict zero gate
+pnpm duplicates:ci      # delegates to duplicates:check — blocking in CI and pre-push
 pnpm duplicates:warn    # annotations only, never fails
 ```
 
-`duplicates:check` exits non-zero on any clone; it is the aspirational zero target for local use.
-`duplicates:ci` is the **blocking ratchet**: set just above the current duplication (currently 7
-exact clones, 72 duplicated lines, and 0.24% duplicated lines) so CI and pre-push are green today but
-any new duplication trips them. Lower the `--threshold` in the `duplicates:ci` script as the backlog
-burns down; never raise it.
+`duplicates:check` exits non-zero on any clone; it is the strict zero gate for local use.
+`duplicates:ci` delegates to `duplicates:check`, so CI and pre-push fail on any new duplication.
 
 `duplicates:warn` writes `.jscpd-report/ci/jscpd-report.json` and emits GitHub warning annotations for
-each clone without failing, so reviewers see every clone even those under the ratchet. The `CI`
-workflow and `pnpm verify` run `duplicates:warn` (annotate) followed by `duplicates:ci` (enforce).
-Once the backlog reaches zero, drop the ratchet to `0` and `duplicates:ci` becomes `duplicates:check`.
+each clone without failing, so reviewers see every clone. The `CI` workflow and `pnpm verify` run
+`duplicates:warn` (annotate) followed by `duplicates:ci` (enforce).
 
 ## Unused Code and Dependencies (knip)
 
@@ -583,7 +579,7 @@ actionlint (workflow lint + run-block shellcheck)
 gitleaks (full working tree, authoritative)
 semgrep (stock rule packs; SAST; fills the project-status SAST gap)
 syft (generate SBOM) then grype (scan SBOM for known CVEs)
-jscpd duplicate-code: warning annotations + blocking ratchet (duplicates:ci, threshold 0.25%)
+jscpd duplicate-code: warning annotations + blocking zero gate (duplicates:ci)
 ```
 
 These jobs are required status checks on the protected branch. They run for forked pull requests too, because they touch no secrets.
@@ -677,7 +673,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 
 - `pnpm install` runs on pnpm 10 and Node 24, fails on a wrong Node major (`engine-strict`), and fails if any non-allowlisted dependency requests a lifecycle script (`strictDepBuilds`).
 - A dependency version published less than 3 days ago cannot be installed (`minimumReleaseAge: 4320`).
-- `pnpm verify` runs the duplicate annotations and ratchet, knip, actionlint (when installed), deploy topology conformance, package-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
+- `pnpm verify` runs the duplicate annotations and zero-duplicate gate, knip, actionlint (when installed), deploy topology conformance, package-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
 - A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `CI`; test files are exempt from the two length caps only.
