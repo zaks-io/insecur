@@ -191,6 +191,7 @@ and are not repeated here.
     "lint:actions": "node scripts/ci/actionlint-local.mjs",
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
+    "conformance:actions-pin": "node scripts/ci/actions-pin-conformance.mjs",
     "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
     "duplicates:ci": "pnpm duplicates:check",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
@@ -203,7 +204,7 @@ and are not repeated here.
     "dev:db:reset": "node scripts/dev-db.mjs reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:topology && pnpm conformance:packages && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
   },
 }
@@ -211,12 +212,13 @@ and are not repeated here.
 
 `verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the
 security scanners and the DB-backed `postgres-integration` job: duplicate-warning annotations, the
-blocking duplicate zero gate, knip, actionlint (optional-local), the deploy-topology conformance gate
-(`conformance:topology`, ADR-0077/INS-199 — asserts capability isolation against the wrangler configs
-and composition roots), the package-boundary conformance gate (`conformance:packages` — asserts the
-public/API and contract packages have no production dependency path to `@insecur/crypto`), the
-Prettier check, then the Turbo `lint typecheck test` fan-out. A green `verify` should predict a
-green `CI`. `prepare` installs the lefthook hooks via
+blocking duplicate zero gate, knip, actionlint (optional-local), the actions-pin conformance gate
+(`conformance:actions-pin` — asserts third-party GitHub Actions are pinned to full commit SHAs), the
+deploy-topology conformance gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability
+isolation against the wrangler configs and composition roots), the package-boundary conformance gate
+(`conformance:packages` — asserts the public/API and contract packages have no production dependency
+path to `@insecur/crypto`), the Prettier check, then the Turbo `lint typecheck test` fan-out. A green
+`verify` should predict a green `CI`. `prepare` installs the lefthook hooks via
 `scripts/lefthook-install.mjs` on every install.
 
 ## Duplicate Code Detection
@@ -673,7 +675,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 
 - `pnpm install` runs on pnpm 10 and Node 24, fails on a wrong Node major (`engine-strict`), and fails if any non-allowlisted dependency requests a lifecycle script (`strictDepBuilds`).
 - A dependency version published less than 3 days ago cannot be installed (`minimumReleaseAge: 4320`).
-- `pnpm verify` runs the duplicate annotations and zero-duplicate gate, knip, actionlint (when installed), deploy topology conformance, package-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
+- `pnpm verify` runs the duplicate annotations and zero-duplicate gate, knip, actionlint (when installed), actions-pin conformance, deploy topology conformance, package-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
 - A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `CI`; test files are exempt from the two length caps only.
