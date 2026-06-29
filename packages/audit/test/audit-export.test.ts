@@ -3,6 +3,7 @@ import { describe, expect, it, beforeAll } from "vitest";
 import {
   AUDIT_EXPORT_FAILURE_CODES,
   buildAuditExport,
+  FIRST_VALUE_AUDIT_EVENT_CODES,
   parseAuditExportJsonl,
   parseAuditExportManifest,
   StaticAuditExportHmacKeyProvider,
@@ -14,6 +15,7 @@ import {
   type AuditExportManifest,
   type AuditExportSigningKeyProvider,
 } from "../src/index.js";
+import { assertAuditExportJsonlIsMetadataOnly } from "./support/assert-audit-export-jsonl-metadata-only.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 
@@ -88,7 +90,46 @@ describe("audit export and verify", () => {
       signature: "valid",
       tenant_scope: "valid",
     });
-    expect(JSON.stringify(result)).not.toMatch(/password|plaintext|secret/i);
+    assertAuditExportJsonlIsMetadataOnly(bundle.jsonl);
+  });
+
+  it("allows First Value secret metadata in exported jsonl", async () => {
+    const bundle = await buildAuditExport({
+      organizationId: ORG,
+      events: [
+        sampleEvent({
+          event_code: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+          resource_type: "secret",
+          resource_id: "sec_00000000000000000000000001",
+        }),
+      ],
+      timeRange: {
+        from: "2026-05-01T00:00:00.000Z",
+        to: "2026-05-02T00:00:00.000Z",
+      },
+      hmacKey,
+      signingKey,
+    });
+
+    expect(bundle.jsonl).toContain(FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite);
+    assertAuditExportJsonlIsMetadataOnly(bundle.jsonl);
+  });
+
+  it("rejects exported jsonl that contains forbidden sensitive value keys", () => {
+    const tamperedJsonl = `${JSON.stringify({
+      schema_version: "1",
+      sequence: 0,
+      event: sampleEvent({
+        details: {
+          password: "must-not-export",
+        },
+      }),
+      chain: { previous_hash: null, entry_hash: "hash" },
+    })}\n`;
+
+    expect(() => assertAuditExportJsonlIsMetadataOnly(tamperedJsonl)).toThrow(
+      /forbidden key: password/,
+    );
   });
 
   it("detects tampered event payloads", async () => {
@@ -375,6 +416,5 @@ describe("audit export and verify", () => {
     expect(result.organization_id).toBe(ORG);
     expect(result.entry_count).toBe(1);
     expect(result.custody_evidence_refs).toBeNull();
-    expect(JSON.stringify(result)).not.toMatch(/password|plaintext|secret/i);
   });
 });

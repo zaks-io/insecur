@@ -1,4 +1,4 @@
-import type { AuditActorRef } from "@insecur/audit";
+import type { ActorRef } from "@insecur/access";
 import {
   issueInjectionGrant,
   type IssueInjectionGrantResult,
@@ -7,19 +7,21 @@ import type { IssueInjectionGrantRpcInput } from "@insecur/worker-kit";
 
 export interface IssueInjectionGrantOperationInput {
   readonly input: IssueInjectionGrantRpcInput;
-  readonly auditActor: AuditActorRef;
+  readonly accessActor: ActorRef;
 }
 
 export async function issueInjectionGrantOperation({
   input,
-  auditActor,
+  accessActor,
 }: IssueInjectionGrantOperationInput): Promise<IssueInjectionGrantResult> {
   return issueInjectionGrant({
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
     selector: input.selector,
-    actor: auditActor,
+    // issueInjectionGrant now takes the effective-access actor and resolves issuance scope +
+    // derives the audit actor internally (main #199). Pass accessActor, not auditActor.
+    actor: accessActor,
     request: { requestId: input.requestId },
   });
 }

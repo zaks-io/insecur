@@ -38,9 +38,10 @@
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts", "*.config.mjs"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreDependencies": ["dependency-cruiser"]
+      "ignoreDependencies": ["dependency-cruiser", "wrangler"]
     }
   },
+  "ignoreBinaries": ["actionlint"],
   "rules": {
     "exports": "off",
     "types": "off"

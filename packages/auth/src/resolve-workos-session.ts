@@ -38,32 +38,15 @@ function evaluateContext(context: WorkOSSessionContext): ResolveWorkOSSessionRes
   return { ok: true, context };
 }
 
-function mapAuthenticateFailure(
-  result: Extract<WorkOSSessionAuthenticateResult, { authenticated: false }>,
-): ResolveWorkOSSessionResult {
-  if (result.reason === "missing") {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-  if (result.reason === "expired") {
-    return { ok: false, failure: authFailureForReason("expired") };
-  }
-  return { ok: false, failure: authFailureForReason("invalid") };
-}
+type WorkOSSessionFailureReason =
+  | Extract<WorkOSSessionAuthenticateResult, { authenticated: false }>["reason"]
+  | Extract<WorkOSSessionRefreshResult, { refreshed: false }>["reason"];
 
-function mapRefreshFailure(result: Extract<WorkOSSessionRefreshResult, { refreshed: false }>): {
+function mapWorkOSSessionFailure(reason: WorkOSSessionFailureReason): {
   ok: false;
   failure: AuthFailure;
 } {
-  if (result.reason === "mfa_enrollment") {
-    return { ok: false, failure: authFailureForReason("mfa_enrollment") };
-  }
-  if (result.reason === "missing") {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-  if (result.reason === "expired") {
-    return { ok: false, failure: authFailureForReason("expired") };
-  }
-  return { ok: false, failure: authFailureForReason("invalid") };
+  return { ok: false, failure: authFailureForReason(reason) };
 }
 
 export async function authenticateWorkOSSession(
@@ -72,7 +55,7 @@ export async function authenticateWorkOSSession(
 ): Promise<ResolveWorkOSSessionResult> {
   const workosResult = await workos.authenticateSealedSession(sessionData);
   if (!workosResult.authenticated) {
-    return mapAuthenticateFailure(workosResult);
+    return mapWorkOSSessionFailure(workosResult.reason);
   }
   return evaluateContext(workosResult.context);
 }
@@ -92,8 +75,7 @@ export async function refreshWorkOSSession(
 ): Promise<RefreshWorkOSSessionResult> {
   const refreshResult = await workos.refreshSealedSession(sessionData);
   if (!refreshResult.refreshed) {
-    const resolved = mapRefreshFailure(refreshResult);
-    return { ok: false, failure: resolved.failure };
+    return mapWorkOSSessionFailure(refreshResult.reason);
   }
   const evaluated = evaluateContext(refreshResult.context);
   if (!evaluated.ok) {

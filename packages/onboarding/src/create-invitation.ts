@@ -1,11 +1,4 @@
-import {
-  AUTH_ERROR_CODES,
-  invitationId,
-  ONBOARDING_ERROR_CODES,
-  type InvitationId,
-  type KnownErrorCode,
-  type OrganizationId,
-} from "@insecur/domain";
+import { AUTH_ERROR_CODES, invitationId, ONBOARDING_ERROR_CODES } from "@insecur/domain";
 import { isUniqueConstraintViolation } from "@insecur/tenant-store";
 import {
   assertInvitationProjectCoordinate,
@@ -14,6 +7,7 @@ import {
 } from "./assert-invitation-create-input.js";
 import { assertMembershipManageScope } from "./assert-membership-manage-scope.js";
 import { auditAccessDenialOnFailure, type BuiltInRolePreset } from "@insecur/access";
+import { denyInvitationCreate } from "./deny-invitation-create.js";
 import {
   recordInvitationCreateDenied,
   recordInvitationCreated,
@@ -27,29 +21,6 @@ import {
 import type { CreateInvitationInput, CreateInvitationResult } from "./invitation-types.js";
 
 export type { CreateInvitationInput, CreateInvitationResult } from "./invitation-types.js";
-
-async function denyInvitationCreate(
-  input: CreateInvitationInput,
-  denial: {
-    reasonCode: KnownErrorCode;
-    message: string;
-    organizationId?: OrganizationId;
-    invitationId?: InvitationId;
-  },
-): Promise<never> {
-  await recordInvitationCreateDenied({
-    actorUserId: input.actor.userId,
-    organizationId: input.organizationId,
-    reasonCode: denial.reasonCode,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-  });
-  throw new MembershipManagementError(
-    denial.reasonCode,
-    denial.message,
-    denial.organizationId,
-    denial.invitationId,
-  );
-}
 
 async function assertCanCreateInvitation(input: CreateInvitationInput): Promise<void> {
   try {

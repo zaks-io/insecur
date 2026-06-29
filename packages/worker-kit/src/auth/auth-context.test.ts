@@ -110,6 +110,42 @@ describe("validateAuthContext", () => {
       validateAuthContext({ ...validConfig, sessionSigningSecret: "too-short-signing-secret" });
     }, "sessionSigningSecret");
   });
+
+  it("rejects undefined workos.clientId", () => {
+    expectAuthConfigError(() => {
+      validateAuthContext({
+        ...validConfig,
+        workos: { ...validConfig.workos, clientId: undefined as unknown as string },
+      });
+    }, "workos.clientId");
+  });
+
+  it("rejects undefined workos.apiKey", () => {
+    expectAuthConfigError(() => {
+      validateAuthContext({
+        ...validConfig,
+        workos: { ...validConfig.workos, apiKey: undefined as unknown as string },
+      });
+    }, "workos.apiKey");
+  });
+
+  it("rejects undefined workos.cookiePassword", () => {
+    expectAuthConfigError(() => {
+      validateAuthContext({
+        ...validConfig,
+        workos: { ...validConfig.workos, cookiePassword: undefined as unknown as string },
+      });
+    }, "workos.cookiePassword");
+  });
+
+  it("rejects undefined sessionSigningSecret", () => {
+    expectAuthConfigError(() => {
+      validateAuthContext({
+        ...validConfig,
+        sessionSigningSecret: undefined as unknown as string,
+      });
+    }, "sessionSigningSecret");
+  });
 });
 
 describe("createAuthContext", () => {
@@ -156,6 +192,27 @@ describe("createAuthContext", () => {
       () =>
         createAuthContext({ ...env, SESSION_SIGNING_SECRET: "                                " }),
       "sessionSigningSecret",
+    );
+  });
+
+  it("throws before returning when Worker auth bindings are missing", () => {
+    expectAuthConfigError(
+      () =>
+        createAuthContext({
+          WORKOS_API_KEY: undefined as unknown as string,
+          WORKOS_CLIENT_ID: undefined as unknown as string,
+          WORKOS_COOKIE_PASSWORD: undefined as unknown as string,
+          SESSION_SIGNING_SECRET: undefined as unknown as string,
+          RUNTIME: createFakeAdmissionRuntime({ user_01workos: admittedUserId }),
+        }),
+      "workos.clientId",
+    );
+  });
+
+  it("throws before returning when WORKOS_CLIENT_ID is undefined", () => {
+    expectAuthConfigError(
+      () => createAuthContext({ ...env, WORKOS_CLIENT_ID: undefined as unknown as string }),
+      "workos.clientId",
     );
   });
 

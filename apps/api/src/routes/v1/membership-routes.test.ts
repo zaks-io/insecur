@@ -28,7 +28,7 @@ const orgId = organizationId.brand("org_00000000000000000000000001");
 const otherOrgId = organizationId.brand("org_00000000000000000000000002");
 const projectIdValue = projectId.brand("prj_00000000000000000000000001");
 const invitationIdValue = invitationId.brand("inv_00000000000000000000000071");
-const grantedMembershipId = membershipId.brand("mem_00000000000000000000000071");
+const grantedMembershipId = membershipId.brand("mem_00000000000000000000000080");
 const operatorOrgId = organizationId.brand("org_00000000000000000000000099");
 const operatorTeamId = teamId.brand("team_00000000000000000000000099");
 

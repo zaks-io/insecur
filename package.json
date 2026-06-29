@@ -9,13 +9,14 @@
     "typecheck": "turbo run typecheck --cache=local:rw,remote:r",
     "lint": "turbo run lint --cache=local:rw,remote:r",
     "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
-    "duplicates:ci": "jscpd --config .jscpd.json --threshold 0.25 apps packages scripts",
+    "duplicates:ci": "pnpm duplicates:check",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "knip": "knip",
     "knip:strict": "knip --strict",
     "lint:actions": "node scripts/ci/actionlint-local.mjs",
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
+    "conformance:actions-pin": "node scripts/ci/actions-pin-conformance.mjs",
     "test": "turbo run test --cache=local:rw,remote:r",
     "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
     "mutation:dry-run": "pnpm build && stryker run --dryRunOnly",
@@ -30,7 +31,7 @@
     "test:canary": "turbo run test:canary",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:topology && pnpm conformance:packages && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
     "lefthook:install": "lefthook install",
     "dev:check": "node scripts/dev-check.mjs",
@@ -71,7 +72,8 @@
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
   },
   "pnpm": {
     "overrides": {
@@ -79,7 +81,7 @@
       "ws": "8.21.0",
       "undici": "7.28.0",
       "vite": "7.3.5",
-      "hono": "4.12.25",
+      "hono": "4.12.27",
       "js-yaml": "4.2.0",
       "qs": "6.15.2"
     }

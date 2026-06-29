@@ -41,7 +41,7 @@ export interface IssueInjectionGrantCoreInput {
   projectId: GrantCoordinate["projectId"];
   environmentId: GrantCoordinate["environmentId"];
   selector: InjectionGrantIssueSelector;
-  actor: AuditActorRef;
+  actor: ActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }
@@ -73,21 +73,18 @@ async function assertIssueGrantCoordinate(
   });
 }
 
-function assertUserActorForIssue(actor: AuditActorRef): ActorRef {
-  if (actor.type !== "user") {
-    throw new InjectionGrantError(
-      AUTH_ERROR_CODES.insufficientScope,
-      "runtime injection scope required",
-    );
+function auditActorForIssue(actor: ActorRef): AuditActorRef {
+  if (actor.type === "user") {
+    return { type: "user", userId: actor.userId };
   }
-  return { type: "user", userId: actor.userId };
+  return { type: "machine", machineIdentityId: actor.machineIdentityId };
 }
 
 export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
   const coordinate = toGrantCoordinate(input);
-  const actor = assertUserActorForIssue(input.actor);
+  const auditActor = auditActorForIssue(input.actor);
   // One request-scoped memo so the pre-check and the precise-atom check share a single membership
   // read instead of issuing two identical queries on this hot path.
   const accessDeps = { memo: new EffectiveAccessMemo() };
@@ -95,12 +92,12 @@ export async function executeIssueInjectionGrant(
   // Fail closed before the tenant coordinate read: an actor holding neither issuance atom must not
   // be able to distinguish a valid foreign coordinate (grant_denied) from an invalid one
   // (insufficient_scope) (INS-181).
-  await assertHoldsAnyIssuanceScope(actor, coordinate, accessDeps);
+  await assertHoldsAnyIssuanceScope(input.actor, coordinate, accessDeps);
 
   const { isProtected } = await assertIssueGrantCoordinate(coordinate);
 
   await assertRuntimeInjectionAccess(
-    actor,
+    input.actor,
     coordinate,
     resolveIssueGrantRequiredScope(isProtected),
     accessDeps,
@@ -128,7 +125,7 @@ export async function executeIssueInjectionGrant(
       return recordRuntimeInjectionAuditInTenantScope(sql, {
         phase: "issue",
         outcome: "success",
-        actor: input.actor,
+        actor: auditActor,
         organizationId: input.organizationId,
         projectId: input.projectId,
         environmentId: input.environmentId,
@@ -150,10 +147,11 @@ export async function recordDeniedIssue(
   input: IssueInjectionGrantCoreInput,
   reasonCode: InjectionGrantError["code"],
 ): Promise<void> {
+  const auditActor = auditActorForIssue(input.actor);
   await recordRuntimeInjectionAudit({
     phase: "issue",
     outcome: "denied",
-    actor: input.actor,
+    actor: auditActor,
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,

@@ -51,7 +51,7 @@ const TEAM = teamId.brand(TEST_TEAM_A_ID);
 const INVITEE = userId.brand("usr_00000000000000000000000002");
 const WRONG_ACCEPTOR = userId.brand(TEST_USER_ID);
 const INV = invitationId.brand("inv_00000000000000000000000001");
-const MEM = membershipId.brand("mem_00000000000000000000000071");
+const MEM = membershipId.brand("mem_00000000000000000000000080");
 
 const pendingInvitation = {
   invitationId: INV,

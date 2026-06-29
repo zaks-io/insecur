@@ -13,6 +13,25 @@ import {
   type UserId,
 } from "@insecur/domain";
 
+interface InvitationSuccessAuditInput {
+  actorUserId: UserId;
+  organizationId: OrganizationId;
+  invitationId: InvitationId;
+  request?: AuditRequestRef;
+}
+
+function invitationSuccessAuditFields(input: InvitationSuccessAuditInput) {
+  return {
+    actor: { type: "user" as const, userId: input.actorUserId },
+    organizationId: input.organizationId,
+    resource: {
+      type: "invitation" as const,
+      id: brandOpaqueResourceIdForPrefix("inv", input.invitationId),
+    },
+    ...(input.request !== undefined ? { request: input.request } : {}),
+  };
+}
+
 export async function recordOperatorOrganizationDenied(input: {
   operatorUserId: UserId;
   organizationId: OrganizationId;
@@ -48,22 +67,11 @@ export async function recordOperatorOrganizationCreated(input: {
   });
 }
 
-export async function recordInvitationCreated(input: {
-  actorUserId: UserId;
-  organizationId: OrganizationId;
-  invitationId: InvitationId;
-  request?: AuditRequestRef;
-}): Promise<void> {
+export async function recordInvitationCreated(input: InvitationSuccessAuditInput): Promise<void> {
   await recordActionAudit({
     outcome: "success",
     eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
-    actor: { type: "user", userId: input.actorUserId },
-    organizationId: input.organizationId,
-    resource: {
-      type: "invitation",
-      id: brandOpaqueResourceIdForPrefix("inv", input.invitationId),
-    },
-    ...(input.request !== undefined ? { request: input.request } : {}),
+    ...invitationSuccessAuditFields(input),
   });
 }
 
@@ -83,23 +91,13 @@ export async function recordInvitationCreateDenied(input: {
   });
 }
 
-export async function recordInvitationAccepted(input: {
-  actorUserId: UserId;
-  organizationId: OrganizationId;
-  invitationId: InvitationId;
-  membershipId: MembershipId;
-  request?: AuditRequestRef;
-}): Promise<void> {
+export async function recordInvitationAccepted(
+  input: InvitationSuccessAuditInput & { membershipId: MembershipId },
+): Promise<void> {
   await recordActionAudit({
     outcome: "success",
     eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
-    actor: { type: "user", userId: input.actorUserId },
-    organizationId: input.organizationId,
-    resource: {
-      type: "invitation",
-      id: brandOpaqueResourceIdForPrefix("inv", input.invitationId),
-    },
-    ...(input.request !== undefined ? { request: input.request } : {}),
+    ...invitationSuccessAuditFields(input),
   });
 }
 

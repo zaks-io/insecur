@@ -123,6 +123,39 @@ describe("centralized AuthFailure HTTP mapping", () => {
     expect(text).not.toContain("Internal Server Error");
   });
 
+  it("maps missing auth Worker bindings to auth.config_invalid instead of a 500 TypeError", async () => {
+    const missingAuthEnv = {
+      WORKOS_API_KEY: undefined,
+      WORKOS_CLIENT_ID: undefined,
+      WORKOS_COOKIE_PASSWORD: undefined,
+      SESSION_SIGNING_SECRET: undefined,
+    } as unknown as typeof env;
+
+    const response = await app.request("/v1/session/whoami", { method: "GET" }, missingAuthEnv);
+    expect(response.status).toBe(503);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: "auth.config_invalid",
+        retryable: false,
+      },
+    });
+    if (typeof body !== "object" || body === null) {
+      expect.fail("expected object response body");
+      return;
+    }
+    const envelope = body as {
+      error?: { message?: unknown };
+      meta?: { requestId?: unknown };
+    };
+    expect(typeof envelope.error?.message).toBe("string");
+    expect(envelope.error?.message).toContain("workos.clientId");
+    expect(envelope.error?.message).not.toContain("undefined");
+    expect(typeof envelope.meta?.requestId).toBe("string");
+    expect(envelope.meta?.requestId).toMatch(/^req_/);
+  });
+
   it("keeps /cli/exchange success path unchanged", async () => {
     const sealedSession = "sealed_auth_failure_success_test";
     const csrf = generateCsrfToken();

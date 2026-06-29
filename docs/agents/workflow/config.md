@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-06-14
+Last updated: 2026-06-29
 
 Workflow lookup table for the shared `workflow-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
@@ -8,8 +8,8 @@ external systems (Linear, GitHub, CI), not here.
 
 ## Verification
 
-- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note.
-- Last verified: 2026-06-14 (Linear labels re-listed live; statuses/projects unchanged since 2026-05-28).
+- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note. 2026-06-29 (INS-234): refreshed CodeRabbit wiring guidance to match active PR status contexts and orchestrator current-head manual review requests.
+- Last verified: 2026-06-29 (CodeRabbit status context on open PRs; `.coderabbit.yaml` auto-review disabled).
 - Evidence sources: `package.json`, `.npmrc`, git remote/branch, `AGENTS.md`/`CLAUDE.md` symlinks, `.agents/skills/*` + `.claude/skills/*` + root `skills/*` symlinks, live Linear `list_teams`/`list_issue_statuses`/`list_issue_labels`.
 - Safe commands run: `git remote get-url origin`, `git symbolic-ref --short HEAD`, `jq` over `package.json`, `ls -la`/`-ef` symlink checks, `git log`/`diff`/`wc` over skills.
 - Read-only tool calls: Linear `list_teams (INS)`, `list_issue_statuses (INS)`, `list_issue_labels (INS, 100)` — all IDs below confirmed unchanged.
@@ -24,7 +24,7 @@ external systems (Linear, GitHub, CI), not here.
 - Branch prefix: `ins-<number>-<short-slug>` (one Linear issue per branch)
 - Package manager: pnpm@10.19.0 (corepack), Node `>=24 <25` (`engine-strict=true`)
 - Install: `pnpm install --frozen-lockfile`
-- Full local gate: `pnpm verify` (duplicate warnings + blocking duplicate ratchet + knip + actionlint + deploy topology conformance + package-boundary conformance + format:check + turbo lint typecheck test). `verify` does NOT include the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds lines 80 / fns 82 / stmts 80 / branches 62 in `vitest.config.ts`). Any PR touching covered packages must also pass `pnpm test:coverage`; CI runs it as its own `Coverage` job, and pre-push runs it locally, but the Cursor cloud worker skips push hooks, so run it explicitly before opening a PR.
+- Full local gate: `pnpm verify` (duplicate warnings + blocking zero-duplicate gate + knip + actionlint + deploy topology conformance + package-boundary conformance + format:check + turbo lint typecheck test). `verify` does NOT include the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds lines 80 / fns 82 / stmts 80 / branches 62 in `vitest.config.ts`). Any PR touching covered packages must also pass `pnpm test:coverage`; CI runs it as its own `Coverage` job, and pre-push runs it locally, but the Cursor cloud worker skips push hooks, so run it explicitly before opening a PR.
 - Focused checks: `pnpm conformance:packages`; `pnpm conformance:topology`; `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
@@ -111,7 +111,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 `docs/phasing.md#deferred-scope-parking-lot`.
 
 - Priority policy: no agent priority automation; humans set priority
-- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked work may keep `ready-for-agent`; dependency state controls scheduling, not readiness metadata.
+- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked implementation issues stay in `Backlog` without `ready-for-agent`. Move to `Todo` and add `ready-for-agent` only after all blockers are `Done` and the issue still satisfies the agent-ready contract.
 - Agent-ready issue body: contract in `docs/agents/linear-ticketing.md#issue-body-contract` and `docs/agents/autonomous-loop.md` (Outcome, Context, In scope, Out of scope, Acceptance criteria, Required checks, Security invariants, Dependencies)
 - Status transition owner: Agent Orchestrator (`workflow-agent-orchestrator`)
 - Labels are signals, not authority: Linear status is the workflow source of truth; Agent Orchestrator owns transitions
@@ -121,7 +121,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 - Authoritative issue state: Linear team `INS`
 - Authoritative PR state: GitHub `zaks-io/insecur`
-- Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow; duplicate-code warning annotations are non-blocking, while the duplicate ratchet and package/deploy conformance gates are blocking in `pnpm verify`
+- Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow; duplicate-code warning annotations are non-blocking, while the zero-duplicate gate and package/deploy conformance gates are blocking in `pnpm verify`
 - Authoritative deploy state: Cloudflare (Workers `insecur-api` public edge + `insecur-runtime` private decrypt-egress)
 - Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)
@@ -154,7 +154,10 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - PR body: Summary, Changes, Risk, Test plan; metadata-only (no Sensitive Values)
 - Required checks: `pnpm verify` locally, plus `pnpm test:coverage` when the PR touches covered packages (the coverage ratchet is NOT part of `verify`; it is CI's separate `Coverage` job and the most common first-pass CI failure); run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
 - Code review: `workflow-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
-- CodeRabbit: configured through `.coderabbit.yaml`; auto-review is disabled, including drafts, so request a hosted review only when the local review recommends CodeRabbit escalation or a human explicitly asks for it
+- CodeRabbit config: root `.coderabbit.yaml`; bot `@coderabbitai`; `reviews.auto_review.enabled: false` (drafts off, incremental off)
+- CodeRabbit wiring: active PRs can expose a CodeRabbit GitHub status context; Agent Orchestrator checks that context and current hosted review state against the PR head before merge
+- CodeRabbit request policy: because auto-review is off, request a current-head hosted review with a top-level PR comment (`@coderabbitai review`, or `@coderabbitai full review` when no complete review covers the head) after local review is clean when `workflow-code-review` recommends escalation, the diff is HIGH-risk (auth, secrets, schema/migration, crypto, credentials, production-runtime), or a human asks; wait when a hosted review is already pending or complete for the current head; treat missing auth, rate limits, or credits as a recorded skip unless explicitly required
+- CodeRabbit is additive: it does not replace Agent Review, required CI, or human/security merge gates for `risk-security-sensitive`, `risk-schema`, credential, crypto, or production-runtime behavior changes
 - Issue update: Agent Orchestrator moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
 - Merge authority: see Work Coordination — Agent Orchestrator squash-merges on dual-reviewer PASS at the pinned head SHA with CI green; human merge reserved for production crypto/credential/schema runtime changes, unclean reviews, and stale PRs needing rebase
 

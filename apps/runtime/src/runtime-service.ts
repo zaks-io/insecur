@@ -193,8 +193,8 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
     input: IssueInjectionGrantRpcInput,
   ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
     return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
-        issueInjectionGrantOperation({ input, auditActor }),
+      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ accessActor }) =>
+        issueInjectionGrantOperation({ input, accessActor }),
       ),
     );
   }
