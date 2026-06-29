@@ -37,6 +37,7 @@ export {
 } from "./machine-forbidden-scopes.js";
 export type { MachineMembershipRow } from "./machine-membership-row.js";
 export type { MembershipRow } from "./membership-row.js";
+export { mapMembershipRow, type MembershipQueryRow } from "./map-membership-row.js";
 export {
   auditAccessDenialOnFailure,
   runWithAccessDenialAudit,

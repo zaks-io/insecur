@@ -1,38 +1,13 @@
 import {
   FIRST_VALUE_OWNER_SCOPES,
   hasAuthorizationScope,
+  mapMembershipRow,
+  type MembershipQueryRow,
   unionEffectiveAccessScopes,
-  type MembershipRow,
 } from "@insecur/access";
-import {
-  BOOTSTRAP_ERROR_CODES,
-  membershipId,
-  organizationId,
-  projectId,
-  userId,
-  type OrganizationId,
-  type UserId,
-} from "@insecur/domain";
+import { BOOTSTRAP_ERROR_CODES, type OrganizationId, type UserId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
 import { BootstrapError } from "./bootstrap-error.js";
-
-interface MembershipQueryRow {
-  id: string;
-  org_id: string;
-  project_id: string | null;
-  user_id: string;
-  role_preset: string;
-}
-
-function mapMembershipRow(row: MembershipQueryRow): MembershipRow {
-  return {
-    membershipId: membershipId.brand(row.id),
-    organizationId: organizationId.brand(row.org_id),
-    projectId: row.project_id === null ? null : projectId.brand(row.project_id),
-    userId: userId.brand(row.user_id),
-    rolePreset: row.role_preset,
-  };
-}
 
 export async function assertOwnerEffectiveAccessInTransaction(
   sql: TenantScopedSql,
