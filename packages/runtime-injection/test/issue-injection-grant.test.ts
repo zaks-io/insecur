@@ -1,14 +1,19 @@
 import {
   AUTHORIZATION_SCOPES,
   resolveEffectiveAccess,
+  type LoadMachineMembershipsFn,
   type LoadMembershipsFn,
 } from "@insecur/access";
-import { recordRuntimeInjectionAuditInTenantScope } from "@insecur/audit";
+import {
+  recordRuntimeInjectionAudit,
+  recordRuntimeInjectionAuditInTenantScope,
+} from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
   INJECTION_ERROR_CODES,
   auditEventId,
   machineIdentityId,
+  membershipId,
 } from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
 import {
@@ -31,6 +36,8 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const ACTOR_USER = userId.brand("usr_00000000000000000000000001");
+const ACTOR_MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
+const MACHINE_MEMBERSHIP = membershipId.brand("mem_00000000000000000000000001");
 const AUDIT_EVENT = auditEventId.brand("aud_00000000000000000000000001");
 
 let protectedEnvironment = true;
@@ -66,6 +73,7 @@ beforeEach(() => {
   withTenantScope.mockClear();
   vi.mocked(resolveEffectiveAccess).mockReset();
   vi.mocked(assertProjectEnvironmentCoordinate).mockClear();
+  vi.mocked(recordRuntimeInjectionAudit).mockClear();
   vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockReset();
   vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockResolvedValue({
     auditEventId: AUDIT_EVENT,
@@ -123,9 +131,7 @@ vi.mock("@insecur/access", async (importOriginal) => {
   return {
     ...actual,
     resolveEffectiveAccess: vi.fn(actual.resolveEffectiveAccess),
-    auditAccessDenialOnFailure: vi.fn(async (error) => {
-      throw error;
-    }),
+    auditAccessDenialOnFailure: vi.fn(actual.auditAccessDenialOnFailure),
   };
 });
 
@@ -159,6 +165,19 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     selector: { kind: "variable_key" as const, variableKey: "TEST_KEY" as const },
     actor: { type: "user" as const, userId: ACTOR_USER },
   };
+  const baseMachineInput = {
+    ...baseInput,
+    actor: {
+      type: "machine" as const,
+      machineIdentityId: ACTOR_MACHINE,
+      tokenScope: {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+      },
+      credentialScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+    },
+  };
 
   it("denies protected issuance when effective access lacks grant_issue_protected", async () => {
     protectedEnvironment = true;
@@ -185,7 +204,7 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     });
   });
 
-  it("allows protected issuance when effective access includes grant_issue_protected regardless of actor type", async () => {
+  it("allows protected issuance when effective access includes grant_issue_protected", async () => {
     protectedEnvironment = true;
     vi.mocked(resolveEffectiveAccess).mockResolvedValue({
       scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
@@ -240,17 +259,108 @@ describe("executeIssueInjectionGrant protected issuance", () => {
     expect(committedGrants).toEqual([]);
   });
 
-  it("rejects non-user actors before access checks", async () => {
+  it("fails closed for a machine actor whose token scope does not match the coordinate", async () => {
+    const mismatchedProject = projectId.brand("prj_00000000000000000000000002");
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(async () => [
+      {
+        membershipId: MACHINE_MEMBERSHIP,
+        organizationId: ORG,
+        projectId: PROJECT,
+        machineIdentityId: ACTOR_MACHINE,
+        authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+      },
+    ]);
+    vi.mocked(resolveEffectiveAccess).mockImplementation(async (actor, coordinate, deps) => {
+      const actual = await vi.importActual<typeof import("@insecur/access")>("@insecur/access");
+      return actual.resolveEffectiveAccess(actor, coordinate, {
+        ...deps,
+        loadMachineMemberships,
+      });
+    });
+
     await expect(
       executeIssueInjectionGrant({
-        ...baseInput,
+        ...baseMachineInput,
         actor: {
-          type: "machine",
-          machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+          ...baseMachineInput.actor,
+          tokenScope: {
+            organizationId: ORG,
+            projectId: mismatchedProject,
+            environmentId: ENV,
+          },
         },
       }),
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
-    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
+
+    expect(resolveEffectiveAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "machine",
+        machineIdentityId: ACTOR_MACHINE,
+      }),
+      { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+      expect.objectContaining({ memo: expect.anything() }),
+    );
+    expect(assertProjectEnvironmentCoordinate).not.toHaveBeenCalled();
+  });
+
+  it("records denied machine issue attempts with metadata-only machine audit actor", async () => {
+    protectedEnvironment = true;
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({ scopes: [] });
+
+    await expect(issueInjectionGrantWithAudit(baseMachineInput)).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.insufficientScope,
+    });
+
+    expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: "issue",
+        outcome: "denied",
+        actor: { type: "machine", machineIdentityId: ACTOR_MACHINE },
+        reasonCode: AUTH_ERROR_CODES.insufficientScope,
+      }),
+    );
+  });
+
+  it("issues for a scoped machine actor through the Effective Access machine path", async () => {
+    protectedEnvironment = true;
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(async () => [
+      {
+        membershipId: MACHINE_MEMBERSHIP,
+        organizationId: ORG,
+        projectId: PROJECT,
+        machineIdentityId: ACTOR_MACHINE,
+        authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+      },
+    ]);
+    vi.mocked(resolveEffectiveAccess).mockImplementation(async (actor, coordinate, deps) => {
+      const actual = await vi.importActual<typeof import("@insecur/access")>("@insecur/access");
+      return actual.resolveEffectiveAccess(actor, coordinate, {
+        ...deps,
+        loadMachineMemberships,
+      });
+    });
+
+    const result = await executeIssueInjectionGrant(baseMachineInput);
+
+    expect(result.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
+    expect(loadMachineMemberships).toHaveBeenCalledTimes(1);
+    expect(resolveEffectiveAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "machine",
+        machineIdentityId: ACTOR_MACHINE,
+      }),
+      { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+      expect.objectContaining({ memo: expect.anything() }),
+    );
+    expect(recordRuntimeInjectionAuditInTenantScope).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        phase: "issue",
+        outcome: "success",
+        actor: { type: "machine", machineIdentityId: ACTOR_MACHINE },
+      }),
+    );
+    expect(committedGrants).toHaveLength(1);
   });
 
   it("records insufficient_scope denial through issueInjectionGrantWithAudit", async () => {

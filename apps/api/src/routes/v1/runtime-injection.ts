@@ -12,7 +12,7 @@ import {
   readRequiredString,
   requireRouteParam,
   requireUserActor,
-  toAuditActor,
+  toAccessActor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
@@ -40,7 +40,7 @@ runtimeInjectionRoutes.post("/grants", requireUserActor, async (context) => {
       projectId,
       environmentId,
       selector,
-      actor: toAuditActor(userActor),
+      actor: toAccessActor(userActor),
       request: { requestId: reqId },
     });
   });
