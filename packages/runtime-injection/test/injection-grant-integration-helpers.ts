@@ -1,7 +1,17 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
-import type { OrganizationId } from "@insecur/domain";
+import {
+  ENVIRONMENT_LIFECYCLE_STAGES,
+  environmentId,
+  type DisplayName,
+  type OrganizationId,
+  type ProjectId,
+} from "@insecur/domain";
 import { afterAll, beforeAll, describe } from "vitest";
-import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
+import {
+  closeRuntimeSql,
+  TenantEnvironmentLifecycleStore,
+  withTenantScope,
+} from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 
@@ -19,6 +29,42 @@ export function describeInjectionGrantIntegration(title: string, suite: () => vo
     });
 
     suite();
+  });
+}
+
+export async function recreateProtectedPreviewEnvironment(input: {
+  organizationId: OrganizationId;
+  projectId: ProjectId;
+  displayName: DisplayName;
+}) {
+  const protectedEnvironmentId = environmentId.brand(PREVIEW_PROTECTED_ENV_ID);
+
+  return await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async ({ db, sql }) => {
+      await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+
+      const store = new TenantEnvironmentLifecycleStore(db);
+      const created = await store.create({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: protectedEnvironmentId,
+        displayName: input.displayName,
+        lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.preview,
+      });
+
+      if (!created.isProtected) {
+        throw new Error("protected preview fixture was not protected at creation");
+      }
+
+      return created.environmentId;
+    },
+  );
+}
+
+export async function deleteProtectedPreviewEnvironment(organizationId: OrganizationId) {
+  await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
+    await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
   });
 }
 

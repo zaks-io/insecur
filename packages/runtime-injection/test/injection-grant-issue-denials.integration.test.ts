@@ -1,7 +1,6 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
-  ENVIRONMENT_LIFECYCLE_STAGES,
   environmentId,
   INJECTION_ERROR_CODES,
   projectId,
@@ -9,15 +8,15 @@ import {
   type VariableKey,
 } from "@insecur/domain";
 import { expect, it } from "vitest";
-import { TenantEnvironmentLifecycleStore, withTenantScope } from "@insecur/tenant-store";
 import { TEST_ENV_B_ID, TEST_PROJECT_B_ID } from "../../tenant-store/test/rls/test-ids.js";
 import { uniqueVariableKey, writeTestSecret } from "../../secret-store/test/integration-helpers.js";
 import { testDisplayName } from "../../secret-store/test/test-display-name.js";
 import { issueInjectionGrant } from "../src/injection-grants.js";
 import {
+  deleteProtectedPreviewEnvironment,
   describeInjectionGrantIntegration,
   loadLatestIssueDeniedAudit,
-  PREVIEW_PROTECTED_ENV_ID,
+  recreateProtectedPreviewEnvironment,
 } from "./injection-grant-integration-helpers.js";
 import {
   testActor,
@@ -30,18 +29,10 @@ describeInjectionGrantIntegration("Runtime Injection Grant issue denials", () =>
   it("denies protected-environment issue with insufficient scope when grant_issue_protected is absent", async () => {
     const org = testOrganization();
     const variableKey = uniqueVariableKey("FV11_PROTECTED");
-    const protectedEnvironmentId = environmentId.brand(PREVIEW_PROTECTED_ENV_ID);
-
-    await withTenantScope({ kind: "organization", organizationId: org }, async ({ db, sql }) => {
-      await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
-      const store = new TenantEnvironmentLifecycleStore(db);
-      await store.create({
-        organizationId: org,
-        projectId: testProject(),
-        environmentId: protectedEnvironmentId,
-        displayName: testDisplayName("Protected Preview"),
-        lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.preview,
-      });
+    const protectedEnvironmentId = await recreateProtectedPreviewEnvironment({
+      organizationId: org,
+      projectId: testProject(),
+      displayName: testDisplayName("Protected Preview"),
     });
 
     try {
@@ -60,9 +51,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant issue denials", () =>
       expect(deniedAudit?.outcome).toBe("denied");
       expect(deniedAudit?.result_code).toBe(AUTH_ERROR_CODES.insufficientScope);
     } finally {
-      await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
-        await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
-      });
+      await deleteProtectedPreviewEnvironment(org);
     }
   });
 
