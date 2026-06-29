@@ -10,6 +10,8 @@ export interface FakeWorkOSSessionEntry {
   readonly sessionData: string;
   readonly userId: string;
   readonly sessionId: string;
+  readonly authorizationCode?: string;
+  readonly codeVerifier?: string;
   readonly email?: string;
   readonly authenticationMethod?: string;
   readonly authFactors?: readonly WorkOSAuthFactorSummary[];
@@ -32,12 +34,46 @@ function contextFromEntry(entry: FakeWorkOSSessionEntry): WorkOSSessionContext {
   return context;
 }
 
+function fakeAuthorizationUrl(input: Parameters<WorkOSSessionPort["createAuthorizationUrl"]>[0]) {
+  const params = new URLSearchParams({
+    redirect_uri: input.redirectUri,
+    state: input.state,
+    code_challenge: input.codeChallenge,
+    code_challenge_method: input.codeChallengeMethod,
+  });
+  if (input.screenHint !== undefined) {
+    params.set("screen_hint", input.screenHint);
+  }
+  return `https://workos.test/authorize?${params.toString()}`;
+}
+
+function authenticateFakeAuthorizationCode(
+  entries: readonly FakeWorkOSSessionEntry[],
+  input: Parameters<WorkOSSessionPort["authenticateAuthorizationCode"]>[0],
+): ReturnType<WorkOSSessionPort["authenticateAuthorizationCode"]> {
+  const entry = entries.find((candidate) => candidate.authorizationCode === input.code);
+  if (entry === undefined) {
+    return Promise.resolve({ authenticated: false, reason: "invalid" });
+  }
+  if (entry.codeVerifier !== undefined && entry.codeVerifier !== input.codeVerifier) {
+    return Promise.resolve({ authenticated: false, reason: "invalid" });
+  }
+  if (entry.refreshFailure !== undefined) {
+    return Promise.resolve({ authenticated: false, reason: entry.refreshFailure });
+  }
+  return Promise.resolve({ authenticated: true, context: contextFromEntry(entry) });
+}
+
 export function createFakeWorkOSSessionPort(
   entries: readonly FakeWorkOSSessionEntry[],
 ): WorkOSSessionPort {
   const bySession = new Map(entries.map((entry) => [entry.sessionData, entry]));
 
   return {
+    createAuthorizationUrl: fakeAuthorizationUrl,
+
+    authenticateAuthorizationCode: (input) => authenticateFakeAuthorizationCode(entries, input),
+
     authenticateSealedSession(sessionData: string): Promise<WorkOSSessionAuthenticateResult> {
       const entry = bySession.get(sessionData);
       if (entry === undefined) {

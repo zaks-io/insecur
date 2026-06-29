@@ -177,7 +177,7 @@ describe("instance bootstrap worker routes", () => {
       expect(runtime.completeBootstrapOperatorClaim).not.toHaveBeenCalled();
     });
 
-    it("rejects WorkOS cookie auth even with CSRF on mutation routes", async () => {
+    it("rejects browser-session auth even with CSRF on mutation routes", async () => {
       const env = makeEnv();
       const csrf = generateCsrfToken();
       const response = await app.request(

@@ -1,8 +1,4 @@
-import {
-  generateCsrfToken,
-  INSECUR_SESSION_CREDENTIAL_HEADER,
-  testSessionSigningSecret,
-} from "@insecur/auth";
+import { INSECUR_SESSION_CREDENTIAL_HEADER, testSessionSigningSecret } from "@insecur/auth";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeRpcStub } from "../test/support/runtime-rpc-stub.js";
 import { WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
@@ -22,7 +18,8 @@ vi.mock("@insecur/worker-kit", async (importOriginal) => {
 import app from "./index.js";
 
 const notAdmittedWorkosUserId = "user_not_admitted";
-const notAdmittedSealedSession = "sealed_not_admitted";
+const notAdmittedAuthorizationCode = "code_not_admitted";
+const notAdmittedCodeVerifier = "verifier_not_admitted";
 
 // Admission resolution crosses the private Runtime Service Binding (ADR-0077); the default stub
 // admits WORKOS_USER_ID. The denied-admission audit forwarder is separately mocked above, so the
@@ -53,21 +50,23 @@ function expectAuthFailureEnvelope(body: unknown): void {
   expect(envelope.meta?.requestId).toMatch(/^req_/);
 }
 
-function cliExchangeSuccessEnv(sealedSession: string): typeof env {
+function pkceExchangeSuccessEnv(authorizationCode: string, codeVerifier: string): typeof env {
   return {
     ...env,
     WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
       {
-        sessionData: sealedSession,
+        sessionData: "sealed_unused",
         userId: WORKOS_USER_ID,
         sessionId: "session_success_test",
+        authorizationCode,
+        codeVerifier,
         authenticationMethod: "Passkey",
       },
     ]),
   };
 }
 
-function expectCliExchangeSuccessBody(body: unknown): void {
+function expectPkceExchangeSuccessBody(body: unknown): void {
   expect(body).toMatchObject({
     ok: true,
     data: { sessionId: "session_success_test" },
@@ -93,25 +92,35 @@ describe("centralized AuthFailure HTTP mapping", () => {
     });
   });
 
-  it("maps /cli/exchange failures to 401 via app.onError", async () => {
-    const csrf = generateCsrfToken();
+  it("maps /cli/pkce/exchange failures to 401 via app.onError", async () => {
+    const invalidPkceEnv = {
+      ...env,
+      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+        {
+          sessionData: "sealed_unused_invalid_pkce",
+          userId: WORKOS_USER_ID,
+          sessionId: "session_invalid_pkce",
+          authorizationCode: "code_invalid",
+          codeVerifier: "expected_verifier",
+          authenticationMethod: "Passkey",
+        },
+      ]),
+    };
     const response = await app.request(
-      "/v1/auth/cli/exchange",
+      "/v1/auth/cli/pkce/exchange",
       {
         method: "POST",
-        headers: {
-          Cookie: `insecur_csrf=${csrf}`,
-          "x-insecur-csrf": csrf,
-        },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: "code_invalid", codeVerifier: "wrong_verifier" }),
       },
-      env,
+      invalidPkceEnv,
     );
     expect(response.status).toBe(401);
     const body: unknown = await response.json();
     expectAuthFailureEnvelope(body);
     expect(body).toMatchObject({
       ok: false,
-      error: { code: "auth.required", retryable: false },
+      error: { code: "auth.invalid", retryable: false },
     });
   });
 
@@ -156,23 +165,22 @@ describe("centralized AuthFailure HTTP mapping", () => {
     expect(envelope.meta?.requestId).toMatch(/^req_/);
   });
 
-  it("keeps /cli/exchange success path unchanged", async () => {
-    const sealedSession = "sealed_auth_failure_success_test";
-    const csrf = generateCsrfToken();
+  it("keeps /cli/pkce/exchange success path working", async () => {
     const response = await app.request(
-      "/v1/auth/cli/exchange",
+      "/v1/auth/cli/pkce/exchange",
       {
         method: "POST",
-        headers: {
-          Cookie: `wos-session=${sealedSession}; insecur_csrf=${csrf}`,
-          "x-insecur-csrf": csrf,
-        },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "code_success",
+          codeVerifier: "verifier_success",
+        }),
       },
-      cliExchangeSuccessEnv(sealedSession),
+      pkceExchangeSuccessEnv("code_success", "verifier_success"),
     );
     expect(response.status).toBe(200);
     expect(response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER)).toBeTruthy();
-    expectCliExchangeSuccessBody(await response.json());
+    expectPkceExchangeSuccessBody(await response.json());
   });
 
   describe("admission-denied request id correlation", () => {
@@ -184,24 +192,26 @@ describe("centralized AuthFailure HTTP mapping", () => {
       ...env,
       WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
         {
-          sessionData: notAdmittedSealedSession,
+          sessionData: "sealed_unused_not_admitted",
           userId: notAdmittedWorkosUserId,
           sessionId: "session_not_admitted",
+          authorizationCode: notAdmittedAuthorizationCode,
+          codeVerifier: notAdmittedCodeVerifier,
           authenticationMethod: "Passkey",
         },
       ]),
     };
 
-    it("uses one request id for /cli/exchange admission-denied audit and HTTP envelope", async () => {
-      const csrf = generateCsrfToken();
+    it("uses one request id for /cli/pkce/exchange admission-denied audit and HTTP envelope", async () => {
       const response = await app.request(
-        "/v1/auth/cli/exchange",
+        "/v1/auth/cli/pkce/exchange",
         {
           method: "POST",
-          headers: {
-            Cookie: `wos-session=${notAdmittedSealedSession}; insecur_csrf=${csrf}`,
-            "x-insecur-csrf": csrf,
-          },
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: notAdmittedAuthorizationCode,
+            codeVerifier: notAdmittedCodeVerifier,
+          }),
         },
         notAdmittedEnv,
       );

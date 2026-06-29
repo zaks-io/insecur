@@ -12,8 +12,6 @@ describe("scrubCliChildAuthEnv", () => {
         INSECUR_SESSION_TOKEN: "dummy-session",
         INSECUR_DEPLOY_KEY: "dummy-deploy",
         INSECUR_OIDC_TOKEN: "dummy-oidc",
-        INSECUR_WORKOS_COOKIE: "dummy-cookie",
-        INSECUR_WORKOS_CSRF: "dummy-csrf",
         INSECUR_FUTURE_TOKEN: "dummy-future-token",
         INSECUR_FUTURE_COOKIE: "dummy-future-cookie",
         INSECUR_FUTURE_CSRF: "dummy-future-csrf",
@@ -28,8 +26,6 @@ describe("scrubCliChildAuthEnv", () => {
     expect(childEnv.INSECUR_SESSION_TOKEN).toBeUndefined();
     expect(childEnv.INSECUR_DEPLOY_KEY).toBeUndefined();
     expect(childEnv.INSECUR_OIDC_TOKEN).toBeUndefined();
-    expect(childEnv.INSECUR_WORKOS_COOKIE).toBeUndefined();
-    expect(childEnv.INSECUR_WORKOS_CSRF).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_TOKEN).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_COOKIE).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_CSRF).toBeUndefined();
@@ -46,21 +42,21 @@ describe("scrubCliChildAuthEnv", () => {
       env: {
         INSECUR_SESSION_TOKEN: "dummy-session",
         INSECUR_DEPLOY_KEY: "dummy-deploy",
-        INSECUR_WORKOS_COOKIE: "dummy-cookie",
+        INSECUR_FUTURE_COOKIE: "dummy-cookie",
       },
     });
 
     expect(childEnv.INSECUR_SESSION_TOKEN).toBe("dummy-session");
     expect(childEnv.INSECUR_DEPLOY_KEY).toBeUndefined();
-    expect(childEnv.INSECUR_WORKOS_COOKIE).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_COOKIE).toBeUndefined();
   });
 });
 
 describe("isAuthBearingInsecurEnvName", () => {
   it("matches only INSECUR-prefixed token, cookie, csrf, and key names", () => {
     expect(isAuthBearingInsecurEnvName("INSECUR_SESSION_TOKEN")).toBe(true);
-    expect(isAuthBearingInsecurEnvName("INSECUR_WORKOS_COOKIE")).toBe(true);
-    expect(isAuthBearingInsecurEnvName("INSECUR_WORKOS_CSRF")).toBe(true);
+    expect(isAuthBearingInsecurEnvName("INSECUR_FUTURE_COOKIE")).toBe(true);
+    expect(isAuthBearingInsecurEnvName("INSECUR_FUTURE_CSRF")).toBe(true);
     expect(isAuthBearingInsecurEnvName("INSECUR_DEPLOY_KEY")).toBe(true);
     expect(isAuthBearingInsecurEnvName("INSECUR_HOST")).toBe(false);
     expect(isAuthBearingInsecurEnvName("OTHER_TOKEN")).toBe(false);

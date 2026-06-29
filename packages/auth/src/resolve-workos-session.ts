@@ -4,6 +4,7 @@ import {
   type SessionAssuranceFailureReason,
 } from "./session-assurance.js";
 import type {
+  WorkOSAuthorizationCodeInput,
   WorkOSSessionAuthenticateResult,
   WorkOSSessionContext,
   WorkOSSessionPort,
@@ -54,6 +55,17 @@ export async function authenticateWorkOSSession(
   sessionData: string,
 ): Promise<ResolveWorkOSSessionResult> {
   const workosResult = await workos.authenticateSealedSession(sessionData);
+  if (!workosResult.authenticated) {
+    return mapWorkOSSessionFailure(workosResult.reason);
+  }
+  return evaluateContext(workosResult.context);
+}
+
+export async function authenticateWorkOSAuthorizationCode(
+  workos: WorkOSSessionPort,
+  input: WorkOSAuthorizationCodeInput,
+): Promise<ResolveWorkOSSessionResult> {
+  const workosResult = await workos.authenticateAuthorizationCode(input);
   if (!workosResult.authenticated) {
     return mapWorkOSSessionFailure(workosResult.reason);
   }

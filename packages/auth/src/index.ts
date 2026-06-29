@@ -71,8 +71,8 @@ export {
   verifyScopedAccessToken,
 } from "./scoped-access-token.js";
 export {
-  exchangeCliSession,
-  type CliSessionExchangeInput,
+  exchangeCliPkceSession,
+  type CliPkceSessionExchangeInput,
   type CliSessionExchangeResult,
   type CliSessionExchangeSuccess,
 } from "./cli-exchange.js";

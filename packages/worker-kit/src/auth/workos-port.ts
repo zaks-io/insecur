@@ -43,6 +43,10 @@ function parseFakeSessionOptionalFields(
   const authFactors = parseAuthFactors(record.authFactors);
   const refreshFailure = parseRefreshFailure(record.refreshFailure);
   return {
+    ...(typeof record.authorizationCode === "string"
+      ? { authorizationCode: record.authorizationCode }
+      : {}),
+    ...(typeof record.codeVerifier === "string" ? { codeVerifier: record.codeVerifier } : {}),
     ...(typeof record.email === "string" ? { email: record.email } : {}),
     ...(typeof record.authenticationMethod === "string"
       ? { authenticationMethod: record.authenticationMethod }
