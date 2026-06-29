@@ -51,6 +51,11 @@ function isDomainError(error: unknown): error is DomainError {
 }
 
 export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
+  // TEMP DIAG (preview): log the real error class + message (NEVER key/secret material) so the
+  // wire-redacted "Request failed." can be traced to its true throw site. Remove before merge.
+  console.error(
+    `RPC_ERR name=${error instanceof Error ? error.name : typeof error} msg=${error instanceof Error ? error.message : String(error)}`,
+  );
   if (isDomainError(error)) {
     // Not every domain error class carries `retryable`; those without it are non-retryable.
     const retryable = "retryable" in error && typeof error.retryable === "boolean";
