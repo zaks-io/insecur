@@ -67,14 +67,6 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
       retryable: false,
     };
   }
-  // TEMP DIAG (preview): a raw/unmapped error reached the RPC boundary. Log class + pg fields
-  // (code/severity/routine/where — NEVER row data or secret material). Remove before merge.
-  {
-    const e = error as { name?: string; message?: string; code?: string; severity?: string; routine?: string; where?: string };
-    console.error(
-      `RPC_RAW name=${error instanceof Error ? error.name : typeof error} code=${e?.code} severity=${e?.severity} routine=${e?.routine} msg=${e?.message} where=${e?.where}`,
-    );
-  }
   const message = error instanceof Error ? error.message : "runtime request failed";
   const structuredCode = readStructuredErrorCode(error);
   return { code: structuredCode ?? AUTH_ERROR_CODES.invalid, message, retryable: false };
