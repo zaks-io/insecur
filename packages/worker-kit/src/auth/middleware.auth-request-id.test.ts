@@ -1,50 +1,30 @@
-import { organizationId, userId } from "@insecur/domain";
+import { userId } from "@insecur/domain";
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
 import { requireUserActor } from "./middleware.js";
-
-vi.mock("@insecur/audit", () => ({
-  recordAccessDeniedAudit: vi.fn(),
-}));
-
-vi.mock("@insecur/onboarding", () => ({
-  loadInstanceAnchorOrganizationId: vi.fn(),
-}));
-
-vi.mock("@insecur/tenant-store", () => ({
-  resolveAdmittedUserId: vi.fn(),
-  resolveActiveUserAdmission: vi.fn(),
-  withTenantScope: vi.fn(),
-}));
-
-import { recordAccessDeniedAudit } from "@insecur/audit";
-import { loadInstanceAnchorOrganizationId } from "@insecur/onboarding";
 import {
-  resolveAdmittedUserId,
-  resolveActiveUserAdmission,
-  withTenantScope,
-} from "@insecur/tenant-store";
-
-const mockedResolveAdmittedUserId = vi.mocked(resolveAdmittedUserId);
-const mockedResolveActive = vi.mocked(resolveActiveUserAdmission);
-const mockedWithTenantScope = vi.mocked(withTenantScope);
-const mockedRecordDenied = vi.mocked(recordAccessDeniedAudit);
-const mockedLoadAnchorOrg = vi.mocked(loadInstanceAnchorOrganizationId);
+  createFakeAdmissionRuntime,
+  type FakeAdmissionRuntime,
+} from "./testing/fake-admission-runtime.js";
 
 const instanceId = "inst_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
 const workosUserId = "user_not_admitted";
 const deniedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5F");
-const anchorOrg = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 
-const env: AuthWorkerEnv = {
-  WORKOS_API_KEY: "sk_test",
-  WORKOS_CLIENT_ID: "client_test",
-  WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-  SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  INSTANCE_ID: instanceId,
-};
+let runtime: FakeAdmissionRuntime;
+
+function envWith(rt: FakeAdmissionRuntime): AuthWorkerEnv {
+  return {
+    WORKOS_API_KEY: "sk_test",
+    WORKOS_CLIENT_ID: "client_test",
+    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+    INSTANCE_ID: instanceId,
+    RUNTIME: rt,
+  };
+}
 
 async function deniedBearerHeaders(): Promise<Record<string, string>> {
   const minted = await mintEphemeralSessionCredential({
@@ -54,7 +34,7 @@ async function deniedBearerHeaders(): Promise<Record<string, string>> {
       workosUserId,
       sessionId: "session_not_admitted",
     },
-    signingSecret: env.SESSION_SIGNING_SECRET,
+    signingSecret: testSessionSigningSecret(),
   });
   return { Authorization: `Bearer ${minted.credential}` };
 }
@@ -80,22 +60,16 @@ function createAuthFailureApp(): Hono<{ Bindings: AuthWorkerEnv }> {
 
 describe("requireUserActor admission-denied request id", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockedResolveAdmittedUserId.mockResolvedValue(null);
-    mockedResolveActive.mockResolvedValue(null);
-    mockedWithTenantScope.mockImplementation(async (_scope, run) => {
-      const sql = vi.fn().mockResolvedValue([]);
-      return await run({ sql } as never);
-    });
-    mockedLoadAnchorOrg.mockResolvedValue(anchorOrg);
+    // An empty admissions map resolves every subject to not-admitted.
+    runtime = createFakeAdmissionRuntime();
   });
 
-  it("reuses one request id for denied-admission audit and the auth failure response", async () => {
+  it("reuses one request id for the denied-admission forward and the auth failure response", async () => {
     const app = createAuthFailureApp();
     const response = await app.request(
       "/protected",
       { method: "GET", headers: await deniedBearerHeaders() },
-      env,
+      envWith(runtime),
     );
 
     expect(response.status).toBe(401);
@@ -107,22 +81,25 @@ describe("requireUserActor admission-denied request id", () => {
 
     const responseRequestId = (body as { meta?: { requestId?: string } }).meta?.requestId;
     expect(responseRequestId).toMatch(/^req_/);
-    expect(mockedRecordDenied).toHaveBeenCalledTimes(1);
-    expect(mockedRecordDenied.mock.calls[0]?.[0]?.request?.requestId).toBe(responseRequestId);
+    expect(runtime.deniedCalls).toHaveLength(1);
+    expect(runtime.deniedCalls[0]?.requestId).toBe(responseRequestId);
   });
 
-  it("preserves auth failure response when denied-admission audit persistence fails", async () => {
-    mockedLoadAnchorOrg.mockRejectedValueOnce(new Error("anchor org unavailable"));
+  it("preserves auth failure response when the denied-admission forward fails", async () => {
+    const failingRuntime: FakeAdmissionRuntime = {
+      deniedCalls: [],
+      resolveAdmission: () => Promise.resolve({ ok: true, value: { userId: null } }),
+      recordAdmissionDenied: () => Promise.reject(new Error("binding down")),
+    };
 
     const app = createAuthFailureApp();
     const response = await app.request(
       "/protected",
       { method: "GET", headers: await deniedBearerHeaders() },
-      env,
+      envWith(failingRuntime),
     );
 
     expect(response.status).toBe(401);
-    expect(mockedRecordDenied).not.toHaveBeenCalled();
     const body: unknown = await response.json();
     expect((body as { meta?: { requestId?: string } }).meta?.requestId).toMatch(/^req_/);
   });

@@ -9,79 +9,28 @@ import {
   bytesToBase64Url,
   environmentId,
   injectionGrantId,
+  membershipId,
   organizationId,
   parseVariableKey,
   projectId,
   secretId,
   secretVersionId,
+  teamId,
   userId,
   type KnownErrorCode,
   type VariableKey,
 } from "@insecur/domain";
 import type {
-  ConsumeGrantRpcInput,
   RuntimeDeliveryEnvelope,
-  RuntimeRpc,
   RuntimeRpcResult,
   RuntimeSecretWritePayload,
-  WriteSecretRpcInput,
 } from "@insecur/worker-kit";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  createRuntimeRpcStub,
+  type RuntimeRpcStub,
+} from "../../../test/support/runtime-rpc-stub.js";
 import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../../../test/support/setup-unit-auth.js";
-
-const {
-  provisionGuidedOrganization,
-  issueInjectionGrant,
-  resolveEffectiveAccess,
-  recordAccessDenial,
-  InjectionGrantError,
-} = vi.hoisted(() => {
-  class InjectionGrantError extends Error {
-    readonly code: string;
-    readonly retryable: boolean;
-    constructor(code: string, message: string, retryable = false) {
-      super(message);
-      this.name = "InjectionGrantError";
-      this.code = code;
-      this.retryable = retryable;
-    }
-  }
-
-  return {
-    provisionGuidedOrganization: vi.fn(),
-    issueInjectionGrant: vi.fn(),
-    resolveEffectiveAccess: vi.fn(),
-    recordAccessDenial: vi.fn(),
-    InjectionGrantError,
-  };
-});
-
-vi.mock("@insecur/onboarding", () => ({
-  provisionGuidedOrganization,
-  GuidedOrganizationProvisionError: class GuidedOrganizationProvisionError extends Error {
-    readonly code: string;
-    constructor(code: string, message: string) {
-      super(message);
-      this.name = "GuidedOrganizationProvisionError";
-      this.code = code;
-    }
-  },
-}));
-
-// Grant issue is metadata-only and stays on the API Worker (no keyring), so it is still mocked here.
-vi.mock("@insecur/runtime-injection-issue", () => ({
-  issueInjectionGrant,
-  InjectionGrantError,
-}));
-
-vi.mock("@insecur/access", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@insecur/access")>();
-  return {
-    ...actual,
-    resolveEffectiveAccess,
-    recordAccessDenial,
-  };
-});
 
 import app from "../../index.js";
 
@@ -97,27 +46,33 @@ const RUNTIME_TOKEN_SIGNING_SECRET = "fv12-runtime-hop-secret-000000000000000000
 
 const VARIABLE_KEY = parseVariableKeyOrThrow("API_KEY");
 
-// The keyring-bound write/consume calls cross the private Service Binding into the Runtime Worker;
-// these route unit tests stub that binding with canned RuntimeRpcResult values. The real Runtime
-// implementation (authorize + encrypt/decrypt) is exercised by the integration e2e and canary suites.
-const writeSecret =
-  vi.fn<(input: WriteSecretRpcInput) => Promise<RuntimeRpcResult<RuntimeSecretWritePayload>>>();
-const consumeGrant =
-  vi.fn<(input: ConsumeGrantRpcInput) => Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>>>();
-const runtimeBinding: RuntimeRpc = { writeSecret, consumeGrant };
+// Every keyring-bound write/consume and non-keyring DB operation crosses the private Service Binding
+// into the Runtime Worker (ADR-0077); these route unit tests stub that binding with canned
+// RuntimeRpcResult values. The real Runtime implementation (authorize + encrypt/decrypt + DB) is
+// exercised by the integration e2e and canary suites.
+let runtime: RuntimeRpcStub;
 
-const envWithoutInstanceId = {
+const baseEnv = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   RUNTIME_TOKEN_SIGNING_SECRET,
-  RUNTIME: runtimeBinding,
+};
+
+const envWithoutInstanceId = {
+  ...baseEnv,
+  get RUNTIME() {
+    return runtime;
+  },
 };
 
 const env = {
-  ...envWithoutInstanceId,
+  ...baseEnv,
   INSTANCE_ID: "inst_FV12_TEST",
+  get RUNTIME() {
+    return runtime;
+  },
 };
 
 function parseVariableKeyOrThrow(raw: string): VariableKey {
@@ -184,14 +139,9 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 describe("FV-12 worker routes", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    resolveEffectiveAccess.mockResolvedValue({
-      organizationId: orgId,
-      scopes: ["onboarding:guided_organization_provision", "runtime_injection:grant_issue"],
-    });
-    recordAccessDenial.mockResolvedValue({ auditEventId: "aud_test" });
-    writeSecret.mockResolvedValue(successfulWrite);
-    consumeGrant.mockResolvedValue(successfulConsume);
+    runtime = createRuntimeRpcStub();
+    runtime.writeSecret.mockResolvedValue(successfulWrite);
+    runtime.consumeGrant.mockResolvedValue(successfulConsume);
   });
 
   describe("POST /v1/onboarding/personal-organization", () => {
@@ -204,16 +154,19 @@ describe("FV-12 worker routes", () => {
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
-      expect(provisionGuidedOrganization).not.toHaveBeenCalled();
+      expect(runtime.provisionGuidedOrganization).not.toHaveBeenCalled();
     });
 
-    it("delegates provisioning to the onboarding package", async () => {
-      provisionGuidedOrganization.mockResolvedValue({
-        organizationId: orgId,
-        defaultTeamId: "team_00000000000000000000000001",
-        ownerMembershipId: "mem_00000000000000000000000001",
-        projectId: projectIdValue,
-        developmentEnvironmentId: environmentIdValue,
+    it("forwards provisioning to the Runtime Worker", async () => {
+      runtime.provisionGuidedOrganization.mockResolvedValue({
+        ok: true,
+        value: {
+          organizationId: orgId,
+          defaultTeamId: teamId.brand("team_00000000000000000000000001"),
+          ownerMembershipId: membershipId.brand("mem_00000000000000000000000001"),
+          projectId: projectIdValue,
+          developmentEnvironmentId: environmentIdValue,
+        },
       });
 
       const response = await app.request(
@@ -227,25 +180,31 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(provisionGuidedOrganization).toHaveBeenCalledWith(
+      expect(runtime.provisionGuidedOrganization).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: admittedUserId,
           instanceId: env.INSTANCE_ID,
-          isAdmitted: true,
         }),
       );
+      // The API mints and forwards a scoped hop token; userId/isAdmitted are derived in the Runtime.
+      const forwarded = runtime.provisionGuidedOrganization.mock.calls[0]?.[0];
+      expect(forwarded?.actorToken.length).toBeGreaterThan(0);
+      expect(forwarded).not.toHaveProperty("userId");
+      expect(forwarded).not.toHaveProperty("isAdmitted");
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: true, data: { organizationId: orgId } });
       expect(JSON.stringify(body)).not.toMatch(/plaintext|valueUtf8/i);
     });
 
     it("uses the worker-kit local development instance fallback when INSTANCE_ID is omitted", async () => {
-      provisionGuidedOrganization.mockResolvedValue({
-        organizationId: orgId,
-        defaultTeamId: "team_00000000000000000000000001",
-        ownerMembershipId: "mem_00000000000000000000000001",
-        projectId: projectIdValue,
-        developmentEnvironmentId: environmentIdValue,
+      runtime.provisionGuidedOrganization.mockResolvedValue({
+        ok: true,
+        value: {
+          organizationId: orgId,
+          defaultTeamId: teamId.brand("team_00000000000000000000000001"),
+          ownerMembershipId: membershipId.brand("mem_00000000000000000000000001"),
+          projectId: projectIdValue,
+          developmentEnvironmentId: environmentIdValue,
+        },
       });
 
       const response = await app.request(
@@ -259,7 +218,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(provisionGuidedOrganization).toHaveBeenCalledWith(
+      expect(runtime.provisionGuidedOrganization).toHaveBeenCalledWith(
         expect.objectContaining({
           instanceId: "inst_LOCAL_DEV",
         }),
@@ -267,12 +226,10 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps onboarding conflicts to error envelopes", async () => {
-      const { GuidedOrganizationProvisionError } = await import("@insecur/onboarding");
-      provisionGuidedOrganization.mockRejectedValue(
-        new GuidedOrganizationProvisionError(
+      runtime.provisionGuidedOrganization.mockResolvedValue(
+        rpcFailure(
           ONBOARDING_ERROR_CODES.alreadyProvisioned,
           "user already has a guided organization",
-          orgId,
         ),
       );
 
@@ -313,7 +270,7 @@ describe("FV-12 worker routes", () => {
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
     });
 
     it("rejects missing secret input before forwarding to Runtime", async () => {
@@ -328,7 +285,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -352,7 +309,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -376,7 +333,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -399,7 +356,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(writeSecret).toHaveBeenCalledWith(
+      expect(runtime.writeSecret).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: orgId,
           projectId: projectIdValue,
@@ -408,7 +365,7 @@ describe("FV-12 worker routes", () => {
         }),
       );
       // The API mints and forwards a scoped hop token; it never authorizes or logs the value itself.
-      const forwarded = writeSecret.mock.calls[0]?.[0];
+      const forwarded = runtime.writeSecret.mock.calls[0]?.[0];
       expect(forwarded?.actorToken.length).toBeGreaterThan(0);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: true, data: { variableKey: "API_KEY" } });
@@ -430,7 +387,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      const forwarded = writeSecret.mock.calls[0]?.[0];
+      const forwarded = runtime.writeSecret.mock.calls[0]?.[0];
       expect(forwarded).toMatchObject({
         organizationId: orgId,
         projectId: projectIdValue,
@@ -445,7 +402,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps a Runtime insufficient-scope failure to a 403 envelope", async () => {
-      writeSecret.mockResolvedValue(
+      runtime.writeSecret.mockResolvedValue(
         rpcFailure(AUTH_ERROR_CODES.insufficientScope, "actor lacks secret:non_protected_write"),
       );
 
@@ -471,7 +428,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps a Runtime secret validation failure without leaking values", async () => {
-      writeSecret.mockResolvedValue(
+      runtime.writeSecret.mockResolvedValue(
         rpcFailure(SECRET_ERROR_CODES.valueTooLarge, "Secret value is too large."),
       );
 
@@ -516,7 +473,7 @@ describe("FV-12 worker routes", () => {
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
-      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      expect(runtime.issueInjectionGrant).not.toHaveBeenCalled();
     });
 
     it("rejects missing projectId before delegating grant issue", async () => {
@@ -534,7 +491,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      expect(runtime.issueInjectionGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -558,7 +515,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(invalidProjectResponse.status).toBe(400);
-      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      expect(runtime.issueInjectionGrant).not.toHaveBeenCalled();
       const invalidProjectBody: unknown = await invalidProjectResponse.json();
       expect(invalidProjectBody).toMatchObject({
         ok: false,
@@ -580,7 +537,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(invalidEnvironmentResponse.status).toBe(400);
-      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      expect(runtime.issueInjectionGrant).not.toHaveBeenCalled();
       const invalidEnvironmentBody: unknown = await invalidEnvironmentResponse.json();
       expect(invalidEnvironmentBody).toMatchObject({
         ok: false,
@@ -588,11 +545,14 @@ describe("FV-12 worker routes", () => {
       });
     });
 
-    it("delegates grant issue by variable key to the runtime-injection package", async () => {
-      issueInjectionGrant.mockResolvedValue({
-        grantId: grantIdValue,
-        expiresAt: "2026-06-13T00:00:00.000Z",
-        auditEventId: "aud_00000000000000000000000002",
+    it("forwards grant issue by variable key to the Runtime Worker", async () => {
+      runtime.issueInjectionGrant.mockResolvedValue({
+        ok: true,
+        value: {
+          grantId: grantIdValue,
+          expiresAt: "2026-06-13T00:00:00.000Z",
+          auditEventId: "aud_00000000000000000000000002",
+        },
       });
 
       const response = await app.request(
@@ -610,23 +570,29 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(issueInjectionGrant).toHaveBeenCalledWith(
+      expect(runtime.issueInjectionGrant).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: orgId,
           selector: { kind: "variable_key", variableKey: "API_KEY" },
         }),
       );
+      const forwarded = runtime.issueInjectionGrant.mock.calls[0]?.[0];
+      expect(forwarded?.actorToken.length).toBeGreaterThan(0);
+      expect(forwarded).not.toHaveProperty("actor");
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: true, data: { grantId: grantIdValue } });
       expect(JSON.stringify(body)).not.toMatch(/valueUtf8|plaintext/i);
     });
 
-    it("delegates grant issue by secret id without requiring variableKey", async () => {
+    it("forwards grant issue by secret id without requiring variableKey", async () => {
       const secretIdValue = secretId.brand("sec_00000000000000000000000001");
-      issueInjectionGrant.mockResolvedValue({
-        grantId: grantIdValue,
-        expiresAt: "2026-06-13T00:00:00.000Z",
-        auditEventId: "aud_00000000000000000000000002",
+      runtime.issueInjectionGrant.mockResolvedValue({
+        ok: true,
+        value: {
+          grantId: grantIdValue,
+          expiresAt: "2026-06-13T00:00:00.000Z",
+          auditEventId: "aud_00000000000000000000000002",
+        },
       });
 
       const response = await app.request(
@@ -644,7 +610,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(issueInjectionGrant).toHaveBeenCalledWith(
+      expect(runtime.issueInjectionGrant).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: orgId,
           selector: { kind: "secret_id", secretId: secretIdValue },
@@ -672,7 +638,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      expect(runtime.issueInjectionGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -695,7 +661,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(issueInjectionGrant).not.toHaveBeenCalled();
+      expect(runtime.issueInjectionGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -704,8 +670,8 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps grant issue denials to metadata-only errors", async () => {
-      issueInjectionGrant.mockRejectedValue(
-        new InjectionGrantError(INJECTION_ERROR_CODES.grantDenied, "injection grant issue denied"),
+      runtime.issueInjectionGrant.mockResolvedValue(
+        rpcFailure(INJECTION_ERROR_CODES.grantDenied, "injection grant issue denied"),
       );
 
       const response = await app.request(
@@ -746,7 +712,7 @@ describe("FV-12 worker routes", () => {
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
-      expect(consumeGrant).not.toHaveBeenCalled();
+      expect(runtime.consumeGrant).not.toHaveBeenCalled();
     });
 
     it("rejects invalid grant id path params before forwarding consume", async () => {
@@ -761,7 +727,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(consumeGrant).not.toHaveBeenCalled();
+      expect(runtime.consumeGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -784,7 +750,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(consumeGrant).not.toHaveBeenCalled();
+      expect(runtime.consumeGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -804,7 +770,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(consumeGrant).not.toHaveBeenCalled();
+      expect(runtime.consumeGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -827,7 +793,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(consumeGrant).not.toHaveBeenCalled();
+      expect(runtime.consumeGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -850,7 +816,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(consumeGrant).not.toHaveBeenCalled();
+      expect(runtime.consumeGrant).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -870,7 +836,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(consumeGrant).toHaveBeenCalledWith(
+      expect(runtime.consumeGrant).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: orgId,
           grantId: grantIdValue,
@@ -904,14 +870,14 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(consumeGrant).toHaveBeenCalledWith(
+      expect(runtime.consumeGrant).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: orgId,
           grantId: grantIdValue,
           secretId: secretIdValue,
         }),
       );
-      expect(consumeGrant.mock.calls[0]?.[0]).not.toHaveProperty("variableKey");
+      expect(runtime.consumeGrant.mock.calls[0]?.[0]).not.toHaveProperty("variableKey");
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
@@ -924,7 +890,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps replay consume failures to grant denied", async () => {
-      consumeGrant.mockResolvedValue(
+      runtime.consumeGrant.mockResolvedValue(
         rpcFailure(INJECTION_ERROR_CODES.grantDenied, "injection grant consume denied"),
       );
 
@@ -948,7 +914,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps expired grants to grant expired", async () => {
-      consumeGrant.mockResolvedValue(
+      runtime.consumeGrant.mockResolvedValue(
         rpcFailure(INJECTION_ERROR_CODES.grantExpired, "injection grant expired"),
       );
 
@@ -971,7 +937,7 @@ describe("FV-12 worker routes", () => {
     });
 
     it("maps runtime decrypt failures to opaque crypto.decrypt_failed", async () => {
-      consumeGrant.mockResolvedValue(
+      runtime.consumeGrant.mockResolvedValue(
         rpcFailure(CRYPTO_ERROR_CODES.decryptFailed, "decrypt failed"),
       );
 
@@ -1012,7 +978,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -1035,7 +1001,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -1058,7 +1024,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -1081,7 +1047,7 @@ describe("FV-12 worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(writeSecret).not.toHaveBeenCalled();
+      expect(runtime.writeSecret).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,

@@ -1,31 +1,20 @@
 import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
-import { AUTH_ERROR_CODES, OPERATION_ERROR_CODES, organizationId, userId } from "@insecur/domain";
-import { OperationStoreError } from "@insecur/operations";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AUTH_ERROR_CODES,
+  OPERATION_ERROR_CODES,
+  auditEventId,
+  operationId,
+  organizationId,
+  userId,
+} from "@insecur/domain";
+import type { KnownErrorCode } from "@insecur/domain";
+import type { RuntimeRpcResult } from "@insecur/worker-kit";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  createRuntimeRpcStub,
+  type RuntimeRpcStub,
+} from "../../../test/support/runtime-rpc-stub.js";
 import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../../../test/support/setup-unit-auth.js";
-
-const { getOperation, resolveEffectiveAccess, recordAccessDenial } = vi.hoisted(() => ({
-  getOperation: vi.fn(),
-  resolveEffectiveAccess: vi.fn(),
-  recordAccessDenial: vi.fn(),
-}));
-
-vi.mock("@insecur/operations", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@insecur/operations")>();
-  return {
-    ...actual,
-    getOperation,
-  };
-});
-
-vi.mock("@insecur/access", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@insecur/access")>();
-  return {
-    ...actual,
-    resolveEffectiveAccess,
-    recordAccessDenial,
-  };
-});
 
 import app from "../../index.js";
 
@@ -34,17 +23,21 @@ const workosUserId = WORKOS_USER_ID;
 
 const orgId = organizationId.brand("org_00000000000000000000000001");
 const otherOrgId = organizationId.brand("org_00000000000000000000000002");
-const operationIdValue = "op_00000000000000000000000001";
+const operationIdValue = operationId.brand("op_00000000000000000000000001");
 
-const env = {
-  WORKOS_API_KEY: "sk_test",
-  WORKOS_CLIENT_ID: "client_test",
-  WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-  SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  INSTANCE_ID: "inst_LOCAL_DEV",
-  RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
-  RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
-};
+let runtime: RuntimeRpcStub;
+
+function makeEnv() {
+  return {
+    WORKOS_API_KEY: "sk_test",
+    WORKOS_CLIENT_ID: "client_test",
+    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+    INSTANCE_ID: "inst_LOCAL_DEV",
+    RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
+    RUNTIME: runtime,
+  };
+}
 
 const operationPath = `/v1/orgs/${orgId}/operations/${operationIdValue}`;
 const crossTenantPath = `/v1/orgs/${otherOrgId}/operations/${operationIdValue}`;
@@ -58,13 +51,21 @@ const metadataOnlyOperation = {
     counters: { bindingsTotal: 3, bindingsSucceeded: 1 },
     providerStatusCode: "sync.target_busy",
     wait: { reasonCode: "auth.high_assurance_required" },
-    auditEventIds: ["aud_00000000000000000000000001"],
+    auditEventIds: [auditEventId.brand("aud_00000000000000000000000001")],
   },
   createdAt: "2026-06-24T00:00:00.000Z",
   updatedAt: "2026-06-24T00:01:00.000Z",
 };
 
-async function authHeaders(): Promise<Record<string, string>> {
+function rpcFailure(
+  code: KnownErrorCode,
+  message: string,
+  retryable = false,
+): RuntimeRpcResult<never> {
+  return { ok: false, error: { code, message, retryable } };
+}
+
+async function authHeaders(env: ReturnType<typeof makeEnv>): Promise<Record<string, string>> {
   const minted = await mintEphemeralSessionCredential({
     actor: {
       type: "user",
@@ -81,37 +82,38 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 describe("operations worker routes", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    resolveEffectiveAccess.mockResolvedValue({
-      organizationId: orgId,
-      scopes: ["organization:read"],
-    });
-    recordAccessDenial.mockResolvedValue({ auditEventId: "aud_test" });
-    getOperation.mockResolvedValue(metadataOnlyOperation);
+    runtime = createRuntimeRpcStub();
+    runtime.getOperation.mockResolvedValue({ ok: true, value: metadataOnlyOperation });
   });
 
   describe("GET /v1/orgs/:organizationId/operations/:operationId", () => {
     it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
       const response = await app.request(operationPath, { method: "GET" }, env);
 
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
-      expect(getOperation).not.toHaveBeenCalled();
+      expect(runtime.getOperation).not.toHaveBeenCalled();
     });
 
-    it("returns metadata-only operation status from the operations package", async () => {
+    it("forwards the read to the Runtime Worker and returns metadata-only status", async () => {
+      const env = makeEnv();
       const response = await app.request(
         operationPath,
-        { method: "GET", headers: await authHeaders() },
+        { method: "GET", headers: await authHeaders(env) },
         env,
       );
 
       expect(response.status).toBe(200);
-      expect(getOperation).toHaveBeenCalledWith({
-        organizationId: orgId,
-        operationId: operationIdValue,
-      });
+      expect(runtime.getOperation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          operationId: operationIdValue,
+        }),
+      );
+      const forwarded = runtime.getOperation.mock.calls[0]?.[0];
+      expect(forwarded?.actorToken.length).toBeGreaterThan(0);
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
@@ -130,36 +132,35 @@ describe("operations worker routes", () => {
       expect(serialized).not.toMatch(/valueUtf8|plaintext|secret|password/i);
     });
 
-    it("maps Effective Access denial to auth.insufficient_scope without probing the store", async () => {
-      resolveEffectiveAccess.mockResolvedValue({
-        organizationId: orgId,
-        scopes: [],
-      });
+    it("maps a Runtime insufficient-scope denial to auth.insufficient_scope", async () => {
+      const env = makeEnv();
+      runtime.getOperation.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "actor lacks organization:read"),
+      );
 
       const response = await app.request(
         operationPath,
-        { method: "GET", headers: await authHeaders() },
+        { method: "GET", headers: await authHeaders(env) },
         env,
       );
 
       expect(response.status).toBe(403);
-      expect(getOperation).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
         error: { code: AUTH_ERROR_CODES.insufficientScope },
       });
-      expect(recordAccessDenial).toHaveBeenCalled();
     });
 
     it("maps unknown operation IDs to operation.not_found without existence leakage", async () => {
-      getOperation.mockRejectedValue(
-        new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found"),
+      const env = makeEnv();
+      runtime.getOperation.mockResolvedValue(
+        rpcFailure(OPERATION_ERROR_CODES.notFound, "operation not found"),
       );
 
       const response = await app.request(
         operationPath,
-        { method: "GET", headers: await authHeaders() },
+        { method: "GET", headers: await authHeaders(env) },
         env,
       );
 
@@ -172,26 +173,25 @@ describe("operations worker routes", () => {
       expect(JSON.stringify(body)).not.toContain("operation not found");
     });
 
-    it("tenant-qualifies cross-tenant reads through the operations package seam", async () => {
-      resolveEffectiveAccess.mockResolvedValue({
-        organizationId: otherOrgId,
-        scopes: ["organization:read"],
-      });
-      getOperation.mockRejectedValue(
-        new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found"),
+    it("tenant-qualifies cross-tenant reads through the Runtime seam", async () => {
+      const env = makeEnv();
+      runtime.getOperation.mockResolvedValue(
+        rpcFailure(OPERATION_ERROR_CODES.notFound, "operation not found"),
       );
 
       const response = await app.request(
         crossTenantPath,
-        { method: "GET", headers: await authHeaders() },
+        { method: "GET", headers: await authHeaders(env) },
         env,
       );
 
       expect(response.status).toBe(404);
-      expect(getOperation).toHaveBeenCalledWith({
-        organizationId: otherOrgId,
-        operationId: operationIdValue,
-      });
+      expect(runtime.getOperation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: otherOrgId,
+          operationId: operationIdValue,
+        }),
+      );
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -200,14 +200,15 @@ describe("operations worker routes", () => {
     });
 
     it("rejects invalid operation id parameters", async () => {
+      const env = makeEnv();
       const response = await app.request(
         `/v1/orgs/${orgId}/operations/not-an-operation-id`,
-        { method: "GET", headers: await authHeaders() },
+        { method: "GET", headers: await authHeaders(env) },
         env,
       );
 
       expect(response.status).toBe(400);
-      expect(getOperation).not.toHaveBeenCalled();
+      expect(runtime.getOperation).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,

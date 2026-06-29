@@ -6,7 +6,7 @@ import {
   type InsecurAuthConfig,
 } from "@insecur/auth";
 import { userId, type UserId } from "@insecur/domain";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   AuthConfigError,
   createAuthContext,
@@ -14,14 +14,7 @@ import {
   type AuthConfigField,
 } from "../index.js";
 import type { AdmittedUserResolver } from "@insecur/auth";
-
-vi.mock("@insecur/tenant-store", () => ({
-  resolveAdmittedUserId: vi.fn(),
-}));
-
-import { resolveAdmittedUserId } from "@insecur/tenant-store";
-
-const mockedResolveAdmittedUserId = vi.mocked(resolveAdmittedUserId);
+import { createFakeAdmissionRuntime } from "./testing/fake-admission-runtime.js";
 
 function createFakeAdmittedUserResolver(
   admissions: Readonly<Record<string, UserId>>,
@@ -39,6 +32,7 @@ const env = {
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+  RUNTIME: createFakeAdmissionRuntime({ user_01workos: admittedUserId }),
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
     {
       sessionData: sealedSession,
@@ -119,11 +113,10 @@ describe("validateAuthContext", () => {
 });
 
 describe("createAuthContext", () => {
-  it("defaults to store-backed admission resolution", async () => {
-    mockedResolveAdmittedUserId.mockResolvedValueOnce(admittedUserId);
+  it("defaults to runtime-backed admission resolution", async () => {
     const { resolveAdmittedUser } = createAuthContext(env);
     await expect(resolveAdmittedUser(workosUserId)).resolves.toBe(admittedUserId);
-    expect(mockedResolveAdmittedUserId).toHaveBeenCalledWith("inst_LOCAL_DEV", workosUserId);
+    await expect(resolveAdmittedUser("user_unknown")).resolves.toBeNull();
   });
 
   it("uses a custom admitted-user resolver when provided", async () => {

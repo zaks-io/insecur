@@ -6,43 +6,17 @@ import {
   ONBOARDING_ERROR_CODES,
   organizationId,
   projectId,
+  teamId,
   userId,
 } from "@insecur/domain";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { KnownErrorCode } from "@insecur/domain";
+import type { RuntimeRpcResult } from "@insecur/worker-kit";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  createRuntimeRpcStub,
+  type RuntimeRpcStub,
+} from "../../../test/support/runtime-rpc-stub.js";
 import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../../../test/support/setup-unit-auth.js";
-
-const {
-  acceptInvitation,
-  createInvitation,
-  createOperatorOrganization,
-  resolveEffectiveAccess,
-  recordAccessDenial,
-} = vi.hoisted(() => ({
-  acceptInvitation: vi.fn(),
-  createInvitation: vi.fn(),
-  createOperatorOrganization: vi.fn(),
-  resolveEffectiveAccess: vi.fn(),
-  recordAccessDenial: vi.fn(),
-}));
-
-vi.mock("@insecur/onboarding", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@insecur/onboarding")>();
-  return {
-    ...actual,
-    acceptInvitation,
-    createInvitation,
-    createOperatorOrganization,
-  };
-});
-
-vi.mock("@insecur/access", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@insecur/access")>();
-  return {
-    ...actual,
-    resolveEffectiveAccess,
-    recordAccessDenial,
-  };
-});
 
 import app from "../../index.js";
 
@@ -56,21 +30,26 @@ const projectIdValue = projectId.brand("prj_00000000000000000000000001");
 const invitationIdValue = invitationId.brand("inv_00000000000000000000000071");
 const grantedMembershipId = membershipId.brand("mem_00000000000000000000000071");
 const operatorOrgId = organizationId.brand("org_00000000000000000000000099");
-const operatorTeamId = "team_00000000000000000000000099";
+const operatorTeamId = teamId.brand("team_00000000000000000000000099");
 
-const envWithoutInstanceId = {
-  WORKOS_API_KEY: "sk_test",
-  WORKOS_CLIENT_ID: "client_test",
-  WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-  SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-  RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
-  RUNTIME: { writeSecret: vi.fn(), consumeGrant: vi.fn() },
-};
+let runtime: RuntimeRpcStub;
 
-const env = {
-  ...envWithoutInstanceId,
-  INSTANCE_ID: "inst_MEMBERSHIP_TEST",
-};
+function makeEnvWithoutInstanceId() {
+  return {
+    WORKOS_API_KEY: "sk_test",
+    WORKOS_CLIENT_ID: "client_test",
+    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+    RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
+    RUNTIME: runtime,
+  };
+}
+
+const INSTANCE_ID = "inst_MEMBERSHIP_TEST";
+
+function makeEnv() {
+  return { ...makeEnvWithoutInstanceId(), INSTANCE_ID };
+}
 
 const createInvitationPath = `/v1/orgs/${orgId}/invitations`;
 const acceptInvitationPath = `/v1/orgs/${orgId}/invitations/${invitationIdValue}/accept`;
@@ -81,9 +60,9 @@ const createOrganizationPath = `/v1/orgs/${orgId}/organizations`;
 const invitationCreated = {
   invitationId: invitationIdValue,
   organizationId: orgId,
-  teamId: "team_00000000000000000000000001",
+  teamId: teamId.brand("team_00000000000000000000000001"),
   inviteeUserId,
-  rolePreset: "developer",
+  rolePreset: "developer" as const,
   projectId: projectIdValue,
 };
 
@@ -98,7 +77,17 @@ const operatorOrganizationCreated = {
   defaultTeamId: operatorTeamId,
 };
 
-async function authHeaders(): Promise<Record<string, string>> {
+function rpcFailure(
+  code: KnownErrorCode,
+  message: string,
+  retryable = false,
+): RuntimeRpcResult<never> {
+  return { ok: false, error: { code, message, retryable } };
+}
+
+async function authHeaders(env: {
+  SESSION_SIGNING_SECRET: string;
+}): Promise<Record<string, string>> {
   const minted = await mintEphemeralSessionCredential({
     actor: {
       type: "user",
@@ -116,19 +105,18 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 describe("membership management worker routes", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    resolveEffectiveAccess.mockResolvedValue({
-      organizationId: orgId,
-      scopes: ["membership:manage"],
+    runtime = createRuntimeRpcStub();
+    runtime.createInvitation.mockResolvedValue({ ok: true, value: invitationCreated });
+    runtime.acceptInvitation.mockResolvedValue({ ok: true, value: invitationAccepted });
+    runtime.createOperatorOrganization.mockResolvedValue({
+      ok: true,
+      value: operatorOrganizationCreated,
     });
-    recordAccessDenial.mockResolvedValue({ auditEventId: "aud_test" });
-    createInvitation.mockResolvedValue(invitationCreated);
-    acceptInvitation.mockResolvedValue(invitationAccepted);
-    createOperatorOrganization.mockResolvedValue(operatorOrganizationCreated);
   });
 
   describe("POST /v1/orgs/:organizationId/invitations", () => {
     it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createInvitationPath,
         {
@@ -146,15 +134,16 @@ describe("membership management worker routes", () => {
       expect(response.status).toBe(401);
       const body: unknown = await response.json();
       expect(body).toMatchObject({ ok: false, error: { code: "auth.required" } });
-      expect(createInvitation).not.toHaveBeenCalled();
+      expect(runtime.createInvitation).not.toHaveBeenCalled();
     });
 
-    it("rejects missing inviteeUserId before delegating invitation creation", async () => {
+    it("rejects missing inviteeUserId before forwarding invitation creation", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createInvitationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             rolePreset: "developer",
           }),
@@ -163,7 +152,7 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(createInvitation).not.toHaveBeenCalled();
+      expect(runtime.createInvitation).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -172,11 +161,12 @@ describe("membership management worker routes", () => {
     });
 
     it("rejects invalid inviteeUserId values", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createInvitationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             inviteeUserId: "not-a-user",
             rolePreset: "developer",
@@ -186,7 +176,7 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(createInvitation).not.toHaveBeenCalled();
+      expect(runtime.createInvitation).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -195,11 +185,12 @@ describe("membership management worker routes", () => {
     });
 
     it("rejects invalid optional projectId values", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createInvitationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             inviteeUserId,
             rolePreset: "developer",
@@ -210,7 +201,7 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(createInvitation).not.toHaveBeenCalled();
+      expect(runtime.createInvitation).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -219,11 +210,12 @@ describe("membership management worker routes", () => {
     });
 
     it("rejects invalid organization path params", async () => {
+      const env = makeEnv();
       const response = await app.request(
         `/v1/orgs/not-an-org/invitations`,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             inviteeUserId,
             rolePreset: "developer",
@@ -233,7 +225,7 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(createInvitation).not.toHaveBeenCalled();
+      expect(runtime.createInvitation).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -241,12 +233,13 @@ describe("membership management worker routes", () => {
       });
     });
 
-    it("delegates invitation creation to the onboarding package", async () => {
+    it("forwards invitation creation to the Runtime Worker with a hop token", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createInvitationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             inviteeUserId,
             rolePreset: "developer",
@@ -257,15 +250,17 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(createInvitation).toHaveBeenCalledWith(
+      expect(runtime.createInvitation).toHaveBeenCalledWith(
         expect.objectContaining({
-          actor: { type: "user", userId: admittedUserId },
           organizationId: orgId,
           inviteeUserId,
           rolePreset: "developer",
           projectId: projectIdValue,
         }),
       );
+      const forwarded = runtime.createInvitation.mock.calls[0]?.[0];
+      expect(forwarded?.actorToken.length).toBeGreaterThan(0);
+      expect(forwarded).not.toHaveProperty("actor");
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
@@ -274,21 +269,17 @@ describe("membership management worker routes", () => {
       expect(JSON.stringify(body)).not.toMatch(/token|secret|password/i);
     });
 
-    it("maps onboarding membership-management errors to stable envelopes", async () => {
-      const { MembershipManagementError } = await import("@insecur/onboarding");
-      createInvitation.mockRejectedValue(
-        new MembershipManagementError(
-          AUTH_ERROR_CODES.insufficientScope,
-          "membership management scope required",
-          orgId,
-        ),
+    it("maps Runtime membership-management errors to stable envelopes", async () => {
+      const env = makeEnv();
+      runtime.createInvitation.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "membership management scope required"),
       );
 
       const response = await app.request(
         createInvitationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             inviteeUserId,
             rolePreset: "developer",
@@ -306,21 +297,17 @@ describe("membership management worker routes", () => {
       expect(JSON.stringify(body)).not.toContain("membership management scope required");
     });
 
-    it("tenant-qualifies cross-tenant invitation creation through the package seam", async () => {
-      const { MembershipManagementError } = await import("@insecur/onboarding");
-      createInvitation.mockRejectedValue(
-        new MembershipManagementError(
-          AUTH_ERROR_CODES.insufficientScope,
-          "membership management scope required",
-          otherOrgId,
-        ),
+    it("tenant-qualifies cross-tenant invitation creation through the Runtime seam", async () => {
+      const env = makeEnv();
+      runtime.createInvitation.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "membership management scope required"),
       );
 
       const response = await app.request(
         crossTenantCreatePath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             inviteeUserId,
             rolePreset: "developer",
@@ -330,7 +317,7 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(403);
-      expect(createInvitation).toHaveBeenCalledWith(
+      expect(runtime.createInvitation).toHaveBeenCalledWith(
         expect.objectContaining({ organizationId: otherOrgId }),
       );
       const body: unknown = await response.json();
@@ -343,6 +330,7 @@ describe("membership management worker routes", () => {
 
   describe("POST /v1/orgs/:organizationId/invitations/:invitationId/accept", () => {
     it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
       const response = await app.request(
         acceptInvitationPath,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
@@ -350,22 +338,23 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(401);
-      expect(acceptInvitation).not.toHaveBeenCalled();
+      expect(runtime.acceptInvitation).not.toHaveBeenCalled();
     });
 
     it("rejects invalid invitation id path params", async () => {
+      const env = makeEnv();
       const response = await app.request(
         `/v1/orgs/${orgId}/invitations/not-an-invitation/accept`,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: "{}",
         },
         env,
       );
 
       expect(response.status).toBe(400);
-      expect(acceptInvitation).not.toHaveBeenCalled();
+      expect(runtime.acceptInvitation).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -373,26 +362,29 @@ describe("membership management worker routes", () => {
       });
     });
 
-    it("binds the authenticated actor and delegates acceptance to the onboarding package", async () => {
+    it("forwards acceptance to the Runtime Worker with a hop token", async () => {
+      const env = makeEnv();
       const response = await app.request(
         acceptInvitationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({ membershipId: grantedMembershipId }),
         },
         env,
       );
 
       expect(response.status).toBe(200);
-      expect(acceptInvitation).toHaveBeenCalledWith(
+      expect(runtime.acceptInvitation).toHaveBeenCalledWith(
         expect.objectContaining({
           invitationId: invitationIdValue,
           organizationId: orgId,
-          acceptingUserId: admittedUserId,
           membershipId: grantedMembershipId,
         }),
       );
+      const forwarded = runtime.acceptInvitation.mock.calls[0]?.[0];
+      expect(forwarded?.actorToken.length).toBeGreaterThan(0);
+      expect(forwarded).not.toHaveProperty("acceptingUserId");
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
@@ -401,21 +393,16 @@ describe("membership management worker routes", () => {
     });
 
     it("maps invitation replay to onboarding.invitation_not_pending without leaking details", async () => {
-      const { MembershipManagementError } = await import("@insecur/onboarding");
-      acceptInvitation.mockRejectedValue(
-        new MembershipManagementError(
-          ONBOARDING_ERROR_CODES.invitationNotPending,
-          "invitation is not pending",
-          orgId,
-          invitationIdValue,
-        ),
+      const env = makeEnv();
+      runtime.acceptInvitation.mockResolvedValue(
+        rpcFailure(ONBOARDING_ERROR_CODES.invitationNotPending, "invitation is not pending"),
       );
 
       const response = await app.request(
         acceptInvitationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: "{}",
         },
         env,
@@ -431,32 +418,26 @@ describe("membership management worker routes", () => {
     });
 
     it("fails closed on path-org mismatch without leaking other-org invitation state", async () => {
-      const { MembershipManagementError } = await import("@insecur/onboarding");
-      acceptInvitation.mockRejectedValue(
-        new MembershipManagementError(
-          ONBOARDING_ERROR_CODES.invitationNotPending,
-          "invitation is not pending",
-          otherOrgId,
-          invitationIdValue,
-        ),
+      const env = makeEnv();
+      runtime.acceptInvitation.mockResolvedValue(
+        rpcFailure(ONBOARDING_ERROR_CODES.invitationNotPending, "invitation is not pending"),
       );
 
       const response = await app.request(
         crossTenantAcceptPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: "{}",
         },
         env,
       );
 
       expect(response.status).toBe(409);
-      expect(acceptInvitation).toHaveBeenCalledWith(
+      expect(runtime.acceptInvitation).toHaveBeenCalledWith(
         expect.objectContaining({
           organizationId: otherOrgId,
           invitationId: invitationIdValue,
-          acceptingUserId: admittedUserId,
         }),
       );
       const body: unknown = await response.json();
@@ -469,6 +450,7 @@ describe("membership management worker routes", () => {
 
   describe("POST /v1/orgs/:organizationId/organizations", () => {
     it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createOrganizationPath,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
@@ -476,15 +458,16 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(401);
-      expect(createOperatorOrganization).not.toHaveBeenCalled();
+      expect(runtime.createOperatorOrganization).not.toHaveBeenCalled();
     });
 
     it("rejects invalid operator organization resourceIds shapes", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createOrganizationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({
             resourceIds: "not-an-object",
           }),
@@ -493,7 +476,7 @@ describe("membership management worker routes", () => {
       );
 
       expect(response.status).toBe(400);
-      expect(createOperatorOrganization).not.toHaveBeenCalled();
+      expect(runtime.createOperatorOrganization).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
@@ -501,25 +484,28 @@ describe("membership management worker routes", () => {
       });
     });
 
-    it("delegates operator organization creation to the onboarding package", async () => {
+    it("forwards operator organization creation to the Runtime Worker", async () => {
+      const env = makeEnv();
       const response = await app.request(
         createOrganizationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({ organizationDisplayName: "Operator Org" }),
         },
         env,
       );
 
       expect(response.status).toBe(200);
-      expect(createOperatorOrganization).toHaveBeenCalledWith(
+      expect(runtime.createOperatorOrganization).toHaveBeenCalledWith(
         expect.objectContaining({
-          instanceId: env.INSTANCE_ID,
-          operatorUserId: admittedUserId,
+          instanceId: INSTANCE_ID,
           organizationDisplayName: "Operator Org",
         }),
       );
+      const forwarded = runtime.createOperatorOrganization.mock.calls[0]?.[0];
+      expect(forwarded?.actorToken.length).toBeGreaterThan(0);
+      expect(forwarded).not.toHaveProperty("operatorUserId");
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: true,
@@ -528,29 +514,29 @@ describe("membership management worker routes", () => {
     });
 
     it("uses the worker-kit local development instance fallback when INSTANCE_ID is omitted", async () => {
+      const env = makeEnvWithoutInstanceId();
       const response = await app.request(
         createOrganizationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: JSON.stringify({ organizationDisplayName: "Operator Org" }),
         },
-        envWithoutInstanceId,
+        env,
       );
 
       expect(response.status).toBe(200);
-      expect(createOperatorOrganization).toHaveBeenCalledWith(
+      expect(runtime.createOperatorOrganization).toHaveBeenCalledWith(
         expect.objectContaining({
           instanceId: "inst_LOCAL_DEV",
-          operatorUserId: admittedUserId,
         }),
       );
     });
 
     it("maps not-instance-operator denial to stable envelopes", async () => {
-      const { MembershipManagementError } = await import("@insecur/onboarding");
-      createOperatorOrganization.mockRejectedValue(
-        new MembershipManagementError(
+      const env = makeEnv();
+      runtime.createOperatorOrganization.mockResolvedValue(
+        rpcFailure(
           ONBOARDING_ERROR_CODES.notInstanceOperator,
           "instance operator authority required",
         ),
@@ -560,7 +546,7 @@ describe("membership management worker routes", () => {
         createOrganizationPath,
         {
           method: "POST",
-          headers: await authHeaders(),
+          headers: await authHeaders(env),
           body: "{}",
         },
         env,

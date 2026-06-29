@@ -4,6 +4,7 @@ import {
   testSessionSigningSecret,
 } from "@insecur/auth";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createRuntimeRpcStub } from "../test/support/runtime-rpc-stub.js";
 import { WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
 
 const { recordAdmissionDeniedAuditForAuthFailureMock } = vi.hoisted(() => ({
@@ -23,11 +24,15 @@ import app from "./index.js";
 const notAdmittedWorkosUserId = "user_not_admitted";
 const notAdmittedSealedSession = "sealed_not_admitted";
 
+// Admission resolution crosses the private Runtime Service Binding (ADR-0077); the default stub
+// admits WORKOS_USER_ID. The denied-admission audit forwarder is separately mocked above, so the
+// not-admitted paths assert the request-id correlation without reaching the binding.
 const env = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+  RUNTIME: createRuntimeRpcStub(),
   WORKOS_FAKE_SESSIONS_JSON: "[]",
 };
 

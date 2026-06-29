@@ -3,6 +3,9 @@ import { InjectionGrantError } from "@insecur/runtime-injection";
 import { SecretWriteError } from "@insecur/secret-store";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
 import { RootKeyNotConfiguredError } from "@insecur/crypto";
+import { GuidedOrganizationProvisionError, MembershipManagementError } from "@insecur/onboarding";
+import { OperationStoreError } from "@insecur/operations";
+import { BootstrapError } from "@insecur/instance-bootstrap";
 import type { RuntimeRpcError } from "@insecur/worker-kit";
 
 /** Raised when the forwarded scoped hop token fails verification (ADR-0077). */
@@ -28,20 +31,34 @@ type DomainError =
   | InjectionGrantError
   | SecretWriteError
   | RuntimeConfigMissingError
-  | RuntimeActorTokenError;
+  | RuntimeActorTokenError
+  | GuidedOrganizationProvisionError
+  | MembershipManagementError
+  | OperationStoreError
+  | BootstrapError;
 
 function isDomainError(error: unknown): error is DomainError {
   return (
     error instanceof InjectionGrantError ||
     error instanceof SecretWriteError ||
     error instanceof RuntimeConfigMissingError ||
-    error instanceof RuntimeActorTokenError
+    error instanceof RuntimeActorTokenError ||
+    error instanceof GuidedOrganizationProvisionError ||
+    error instanceof MembershipManagementError ||
+    error instanceof OperationStoreError ||
+    error instanceof BootstrapError
   );
 }
 
 export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
   if (isDomainError(error)) {
-    return { code: error.code, message: error.message, retryable: error.retryable };
+    // Not every domain error class carries `retryable`; those without it are non-retryable.
+    const retryable = "retryable" in error && typeof error.retryable === "boolean";
+    return {
+      code: error.code,
+      message: error.message,
+      retryable: retryable ? error.retryable : false,
+    };
   }
   if (error instanceof RootKeyNotConfiguredError) {
     return {

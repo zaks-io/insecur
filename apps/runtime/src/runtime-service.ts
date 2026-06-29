@@ -2,17 +2,52 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 
 import { configureRuntimeConnection } from "@insecur/tenant-store";
 import type {
+  AcceptInvitationRpcInput,
+  CompleteBootstrapClaimRpcInput,
   ConsumeGrantRpcInput,
+  CreateInvitationRpcInput,
+  CreateOperatorOrganizationRpcInput,
+  GetBootstrapStatusRpcInput,
+  GetOperationRpcInput,
+  IssueInjectionGrantRpcInput,
+  ProvisionGuidedOrganizationRpcInput,
+  RecordAdmissionDeniedRpcInput,
+  RecordAdmissionDeniedRpcPayload,
+  ResolveAdmissionRpcInput,
+  ResolveAdmissionRpcPayload,
   RuntimeDeliveryEnvelope,
   RuntimeRpcResult,
   RuntimeSecretWritePayload,
   WriteSecretRpcInput,
 } from "@insecur/worker-kit";
+import type {
+  AcceptInvitationResult,
+  CreateInvitationResult,
+  CreateOperatorOrganizationResult,
+  ProvisionGuidedOrganizationResult,
+} from "@insecur/onboarding";
+import type { OperationPollResult } from "@insecur/operations";
+import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
+import type {
+  BootstrapStatus,
+  CompleteBootstrapOperatorClaimResult,
+} from "@insecur/instance-bootstrap";
 
 import type { RuntimeEnv } from "./env.js";
+import { acceptInvitationOperation } from "./operations/accept-invitation-operation.js";
+import { completeBootstrapClaimOperation } from "./operations/complete-bootstrap-claim-operation.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
+import { createInvitationOperation } from "./operations/create-invitation-operation.js";
+import { createOperatorOrganizationOperation } from "./operations/create-operator-organization-operation.js";
+import { getBootstrapStatusOperation } from "./operations/get-bootstrap-status-operation.js";
+import { getOperationOperation } from "./operations/get-operation-operation.js";
+import { issueInjectionGrantOperation } from "./operations/issue-injection-grant-operation.js";
+import { provisionGuidedOrganizationOperation } from "./operations/provision-guided-organization-operation.js";
+import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
+import { resolveAdmissionOperation } from "./operations/resolve-admission-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import { withRuntimeRpcEntry } from "./rpc/runtime-rpc-entry.js";
+import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
 /**
  * The decrypt-egress deep module (ADR-0077). This is the only deploy that holds
@@ -49,6 +84,14 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
     };
   }
 
+  #unauthEntryOptions() {
+    return {
+      configureDb: () => {
+        this.#configureDb();
+      },
+    };
+  }
+
   async consumeGrant(
     input: ConsumeGrantRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
@@ -64,6 +107,90 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
       this.#rpcEntryOptions(input.actorToken),
       async ({ auditActor, accessActor }) =>
         writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
+    );
+  }
+
+  // --- Pre-auth identity/metadata methods (no hop token; trusted by the private binding) ---
+
+  async resolveAdmission(
+    input: ResolveAdmissionRpcInput,
+  ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
+    return withRuntimeRpcUnauthEntry(this.#unauthEntryOptions(), () =>
+      resolveAdmissionOperation(input),
+    );
+  }
+
+  async recordAdmissionDenied(
+    input: RecordAdmissionDeniedRpcInput,
+  ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>> {
+    return withRuntimeRpcUnauthEntry(this.#unauthEntryOptions(), () =>
+      recordAdmissionDeniedOperation(input),
+    );
+  }
+
+  async getBootstrapStatus(
+    input: GetBootstrapStatusRpcInput,
+  ): Promise<RuntimeRpcResult<BootstrapStatus>> {
+    return withRuntimeRpcUnauthEntry(this.#unauthEntryOptions(), () =>
+      getBootstrapStatusOperation(input),
+    );
+  }
+
+  // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
+
+  async provisionGuidedOrganization(
+    input: ProvisionGuidedOrganizationRpcInput,
+  ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+      provisionGuidedOrganizationOperation({ actor, input }),
+    );
+  }
+
+  async createOperatorOrganization(
+    input: CreateOperatorOrganizationRpcInput,
+  ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+      createOperatorOrganizationOperation({ actor, input }),
+    );
+  }
+
+  async createInvitation(
+    input: CreateInvitationRpcInput,
+  ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+      createInvitationOperation({ actor, input }),
+    );
+  }
+
+  async acceptInvitation(
+    input: AcceptInvitationRpcInput,
+  ): Promise<RuntimeRpcResult<AcceptInvitationResult>> {
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+      acceptInvitationOperation({ actor, input }),
+    );
+  }
+
+  async getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
+    return withRuntimeRpcEntry(
+      this.#rpcEntryOptions(input.actorToken),
+      async ({ auditActor, accessActor }) =>
+        getOperationOperation({ input, auditActor, accessActor }),
+    );
+  }
+
+  async issueInjectionGrant(
+    input: IssueInjectionGrantRpcInput,
+  ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
+      issueInjectionGrantOperation({ input, auditActor }),
+    );
+  }
+
+  async completeBootstrapOperatorClaim(
+    input: CompleteBootstrapClaimRpcInput,
+  ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
+    return withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
+      completeBootstrapClaimOperation({ actor, input }),
     );
   }
 }

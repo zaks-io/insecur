@@ -7,12 +7,14 @@ import {
   createTestAuthContext,
   parseFakeAdmissionsJson,
 } from "./create-test-auth-context.js";
+import { createFakeAdmissionRuntime } from "./fake-admission-runtime.js";
 
 const env: AuthWorkerEnv = {
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+  RUNTIME: createFakeAdmissionRuntime(),
 };
 
 const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");

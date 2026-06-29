@@ -14,8 +14,10 @@ only over the private Service Binding via the `RuntimeService` RPC entrypoint (A
 
 ## API Worker — `apps/api` (`insecur-api`)
 
-Public edge. Authenticates humans/agents, forwards keyring-bound work to the Runtime Worker over the
-`RUNTIME` Service Binding. Holds NO root-key binding.
+Public edge. Authenticates humans/agents, forwards keyring-bound work AND all non-keyring DB work
+(admission, onboarding, membership, operations, grant issue, bootstrap) to the Runtime Worker over
+the `RUNTIME` Service Binding. Holds NO root-key binding and NO Hyperdrive binding; performs zero DB
+I/O.
 
 | Method | Mount prefix                                 |
 | ------ | -------------------------------------------- |

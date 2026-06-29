@@ -1,15 +1,37 @@
 import type {
+  DisplayName,
   EnvironmentId,
   InjectionGrantId,
+  InvitationId,
   KnownErrorCode,
+  MembershipId,
   MetadataEnvelopeMeta,
+  OperationId,
   OrganizationId,
   ProjectId,
   RequestId,
   SecretId,
   SecretVersionId,
+  UserId,
   VariableKey,
 } from "@insecur/domain";
+import type {
+  AcceptInvitationResult,
+  CreateInvitationResult,
+  CreateOperatorOrganizationResult,
+  OperatorOrganizationResourceIds,
+  ProvisionGuidedOrganizationResourceIds,
+  ProvisionGuidedOrganizationResult,
+} from "@insecur/onboarding";
+import type { OperationPollResult } from "@insecur/operations";
+import type {
+  InjectionGrantIssueSelector,
+  IssueInjectionGrantResult,
+} from "@insecur/runtime-injection-issue";
+import type {
+  BootstrapStatus,
+  CompleteBootstrapOperatorClaimResult,
+} from "@insecur/instance-bootstrap";
 
 /**
  * The RPC contract between the public API Worker and the private Runtime Worker (ADR-0077).
@@ -101,12 +123,135 @@ export type WriteSecretRpcInput = WriteSecretRpcInputBase &
       }
   );
 
+// --- Non-keyring DB operations forwarded over the seam (ADR-0077) ---
+//
+// The public API Worker holds no Hyperdrive binding and does zero DB I/O. Every non-keyring DB
+// operation runs in the Runtime deploy (the sole holder of `DB`) and is reached over this contract.
+// Two trust shapes:
+//   - PRE-AUTH calls carry NO actorToken because they run before an authenticated actor exists
+//     (admission resolution is the step that maps a WorkOS subject to an insecur `userId`). They are
+//     trusted by the private Service Binding boundary itself: the Runtime serves zero public routes,
+//     they touch no keyring, and they return only identity/metadata.
+//   - POST-AUTH calls carry an `actorToken` (the same scoped hop token write/consume use). The
+//     Runtime verifies it and rebuilds the actor; the API never sends an actor object across.
+
+/** PRE-AUTH: resolve a WorkOS subject to its admitted insecur user id (null = not admitted). */
+export interface ResolveAdmissionRpcInput {
+  readonly instanceId: string;
+  readonly workosUserId: string;
+}
+export interface ResolveAdmissionRpcPayload {
+  readonly userId: UserId | null;
+}
+
+/** PRE-AUTH: best-effort metadata-only denied-admission audit. */
+export interface RecordAdmissionDeniedRpcInput {
+  readonly instanceId: string;
+  readonly workosUserId: string;
+  readonly requestId: RequestId;
+}
+export interface RecordAdmissionDeniedRpcPayload {
+  readonly recorded: true;
+}
+
+/** PRE-AUTH: public instance bootstrap phase (the `/status` route is unauthenticated). */
+export interface GetBootstrapStatusRpcInput {
+  readonly instanceId: string;
+}
+
+interface PostAuthRpcInputBase {
+  /** Scoped, audience-bound hop token authenticating the forwarded actor (ADR-0077). */
+  readonly actorToken: string;
+  /** API-minted request id, threaded into the Runtime audit rows. */
+  readonly requestId: RequestId;
+}
+
+export interface ProvisionGuidedOrganizationRpcInput extends PostAuthRpcInputBase {
+  readonly instanceId: string;
+  readonly organizationDisplayName?: DisplayName;
+  readonly projectDisplayName?: DisplayName;
+  readonly teamDisplayName?: DisplayName;
+  readonly environmentDisplayName?: DisplayName;
+  readonly resourceIds?: ProvisionGuidedOrganizationResourceIds;
+}
+
+export interface CreateOperatorOrganizationRpcInput extends PostAuthRpcInputBase {
+  readonly instanceId: string;
+  readonly organizationDisplayName?: DisplayName;
+  readonly teamDisplayName?: DisplayName;
+  readonly resourceIds?: OperatorOrganizationResourceIds;
+}
+
+export interface CreateInvitationRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly inviteeUserId: UserId;
+  readonly rolePreset: string;
+  readonly projectId?: ProjectId;
+  readonly invitationId?: InvitationId;
+  readonly membershipId?: MembershipId;
+}
+
+export interface AcceptInvitationRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly invitationId: InvitationId;
+  readonly membershipId?: MembershipId;
+}
+
+export interface GetOperationRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly operationId: OperationId;
+}
+
+export interface IssueInjectionGrantRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly selector: InjectionGrantIssueSelector;
+}
+
+export interface CompleteBootstrapClaimRpcInput extends PostAuthRpcInputBase {
+  readonly instanceId: string;
+  readonly bootstrapSecret: string;
+  readonly operatorGrantId: string;
+  readonly ownerMembershipId: MembershipId;
+}
+
 /**
  * The interface the API Worker binds against. The implementation
  * (`RuntimeService extends WorkerEntrypoint`) lives in `apps/runtime`; the API never imports it,
- * it only calls `c.env.RUNTIME.consumeGrant(...)` / `.writeSecret(...)` typed by this contract.
+ * it only calls `c.env.RUNTIME.<method>(...)` typed by this contract.
  */
 export interface RuntimeRpc {
   consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>>;
   writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>>;
+
+  // Pre-auth (no hop token; trusted by the private Service Binding boundary).
+  resolveAdmission(
+    input: ResolveAdmissionRpcInput,
+  ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>>;
+  recordAdmissionDenied(
+    input: RecordAdmissionDeniedRpcInput,
+  ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>>;
+  getBootstrapStatus(input: GetBootstrapStatusRpcInput): Promise<RuntimeRpcResult<BootstrapStatus>>;
+
+  // Post-auth (carry a scoped hop token; the Runtime rebuilds the actor).
+  provisionGuidedOrganization(
+    input: ProvisionGuidedOrganizationRpcInput,
+  ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>>;
+  createOperatorOrganization(
+    input: CreateOperatorOrganizationRpcInput,
+  ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>>;
+  createInvitation(
+    input: CreateInvitationRpcInput,
+  ): Promise<RuntimeRpcResult<CreateInvitationResult>>;
+  acceptInvitation(
+    input: AcceptInvitationRpcInput,
+  ): Promise<RuntimeRpcResult<AcceptInvitationResult>>;
+  getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>>;
+  issueInjectionGrant(
+    input: IssueInjectionGrantRpcInput,
+  ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>>;
+  completeBootstrapOperatorClaim(
+    input: CompleteBootstrapClaimRpcInput,
+  ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>>;
 }

@@ -110,6 +110,31 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
     await closeRuntimeSql();
   });
 
+  it("onboards a personal organization through the real Runtime binding (INS deploy regression)", async () => {
+    // Regression for the preview smoke failure: onboarding provisions tenant rows, which the API
+    // Worker can no longer do directly (no DB binding). It must forward over the RUNTIME binding,
+    // where admission resolution + provisioning run. This drives admission-over-RPC and
+    // provision-over-RPC against the real RuntimeService, the gap the in-process unit env could not
+    // cover before ADR-0077 Option B.
+    const headers = await authHeaders();
+
+    const response = await app.request(
+      "/v1/onboarding/personal-organization",
+      { method: "POST", headers, body: JSON.stringify({}) },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      ok: boolean;
+      data: { organizationId: string; projectId: string; developmentEnvironmentId: string };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.data.organizationId).toMatch(/^org_[0-9A-Z]{26}$/);
+    expect(body.data.projectId).toMatch(/^prj_[0-9A-Z]{26}$/);
+    expect(body.data.developmentEnvironmentId).toMatch(/^env_[0-9A-Z]{26}$/);
+  });
+
   it("round-trips a secret value through write → grant issue → grant consume", async () => {
     const headers = await authHeaders();
     const variableKey = uniqueVariableKey("FV_E2E");
