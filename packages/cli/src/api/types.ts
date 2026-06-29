@@ -16,6 +16,13 @@ export interface CliSessionExchangeData {
   readonly expiresAt: string;
 }
 
+export interface CliAuthorizationUrlInput {
+  readonly redirectUri: string;
+  readonly state: string;
+  readonly codeChallenge: string;
+  readonly codeChallengeMethod: "S256";
+}
+
 export interface GuidedOrganizationProvisionData {
   readonly organizationId: OrganizationId;
   readonly defaultTeamId: TeamId;
@@ -63,10 +70,11 @@ export type ApiSuccess<T> = SuccessEnvelope<T>;
 export type ApiFailure = ErrorEnvelope;
 
 export interface ApiClient {
-  exchangeCliSession(input: {
+  createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
+  exchangeCliPkceSession(input: {
     readonly host: string;
-    readonly cookieHeader: string;
-    readonly csrfHeader?: string;
+    readonly code: string;
+    readonly codeVerifier: string;
   }): Promise<
     | { ok: true; credential: string; envelope: ApiSuccess<CliSessionExchangeData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }

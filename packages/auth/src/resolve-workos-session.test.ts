@@ -2,10 +2,21 @@ import { AUTH_ERROR_CODES } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
 import { authFailureForReason } from "./auth-failure.js";
-import { authenticateWorkOSSession, refreshWorkOSSession } from "./resolve-workos-session.js";
+import {
+  authenticateWorkOSAuthorizationCode,
+  authenticateWorkOSSession,
+  refreshWorkOSSession,
+} from "./resolve-workos-session.js";
 import { createFakeWorkOSSessionPort } from "./testing/fake-workos-session.js";
 
 const authenticateReasons = ["missing", "expired", "invalid"] as const;
+const authorizationCodeReasons = [
+  "missing",
+  "expired",
+  "invalid",
+  "mfa_enrollment",
+  "mfa_challenge",
+] as const;
 const refreshReasons = ["missing", "expired", "invalid", "mfa_enrollment"] as const;
 
 describe("authenticateWorkOSSession failure mapping", () => {
@@ -22,6 +33,31 @@ describe("authenticateWorkOSSession failure mapping", () => {
       ]);
 
       const result = await authenticateWorkOSSession(workos, `sealed_auth_${reason}`);
+
+      expect(result).toEqual({ ok: false, failure: authFailureForReason(reason) });
+    },
+  );
+});
+
+describe("authenticateWorkOSAuthorizationCode failure mapping", () => {
+  it.each(authorizationCodeReasons)(
+    "maps %s to the same AuthFailure as authFailureForReason",
+    async (reason) => {
+      const workos = createFakeWorkOSSessionPort([
+        {
+          sessionData: `sealed_auth_code_${reason}`,
+          userId: "user_01workos",
+          sessionId: "session_auth_code",
+          authorizationCode: `code_${reason}`,
+          codeVerifier: `verifier_${reason}`,
+          authorizationCodeFailure: reason,
+        },
+      ]);
+
+      const result = await authenticateWorkOSAuthorizationCode(workos, {
+        code: `code_${reason}`,
+        codeVerifier: `verifier_${reason}`,
+      });
 
       expect(result).toEqual({ ok: false, failure: authFailureForReason(reason) });
     },

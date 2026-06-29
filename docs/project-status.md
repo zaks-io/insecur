@@ -1,380 +1,461 @@
 # Project Status
 
-Last updated: 2026-06-28
+Last updated: 2026-06-29
 
-This document is a **status snapshot** — what was built, verified, and still open when it was last
-edited. It is not normative product truth. When this prose disagrees with an owning spec, ADR, or
-verified code, follow the owner and treat this file as the defect (see the Source Of Truth Rules in
-[specs/README.md](specs/README.md)). For the authoritative route → deploy table, use
-[specs/deploy-route-inventory.md](specs/deploy-route-inventory.md) instead of restating routes here.
+This is a code and runtime status snapshot. It says what is delivered now, what was
+verified, and what is still missing. It is not the normative product spec. When this
+file disagrees with an owning spec, ADR, or verified code, follow the owner and treat
+this file as the defect. The authoritative route to deploy table is
+[specs/deploy-route-inventory.md](specs/deploy-route-inventory.md).
 
-## Current State
+## Status At A Glance
 
-insecur has moved well past the empty scaffold. The repo now has product-bearing package
-code for the First Value and Production Delivery foundation, capability-isolated Worker deploys
-(`apps/api` + `apps/runtime`), a public route surface for auth/session, onboarding, instance
-bootstrap, membership/invitations, operations, non-protected secret writes, and Runtime Injection
-grants, plus the baseline First Value CLI commands (`login`, `init`, `shell`, `secrets set`, `run`,
-and masked TTY secret input). The main missing pieces are the remaining First Value integration
-(copyable proof execution through live CLI/API commands, durable auth handoff across separate CLI
-processes, and any still-open route/profile hardening), the `apps/web` BFF deploy (INS-201),
-production Hyperdrive on the API Worker for its DB-backed public routes (INS-212), and provider
-sync.
+The repo is not a scaffold anymore. The current delivered product surface is a
+deployable preview/nonprod First Value loop with capability-isolated Workers, real
+Postgres/RLS persistence, wrapped data keys, root-key-backed encrypt/decrypt, and CLI
+commands that target the same API shape.
 
-The current workspace is Node 24 and pnpm 10, with Turbo, Prettier, ESLint, Vitest,
-20 workspace packages, two Worker app deploy packages (`@insecur/api` and `@insecur/runtime`),
-local Postgres development scripts, RLS migrations, Blacksmith-backed CI workflows, gitleaks config,
-and daily security scan workflow files. `pnpm verify` includes the deploy-topology conformance gate
-and the package-boundary conformance gate (`pnpm conformance:packages`), which fails forbidden
-production dependency paths from public/API and contract packages into `@insecur/crypto`.
+What is delivered:
 
-Machine Access and CI Trust has started landing in code. Project-scoped Machine Identity rows and
-memberships exist in tenant-store, machine effective-access resolution exists in `@insecur/access`,
-and `@insecur/machine-auth` now covers GitHub Actions OIDC trusted-source exchange plus
-short-lived machine access token mint/verify. The remaining Machine Access gaps are the
-Environment Deploy Keys fallback, deploy-key rotation policy, full route/API composition for the
-exchange and protected Runtime Injection path, broader machine-access audit hardening, and any
-still-open W7 slices.
+- `apps/api` is the public API Worker. It exposes the `/healthz` and `/v1/*` route
+  groups listed in the route inventory.
+- `apps/runtime` is the private Runtime Worker. It owns DB access, the root-key
+  binding, keyring construction, encrypt, decrypt, and non-keyring tenant DB work
+  reached over the private `RUNTIME` Service Binding.
+- The repo has 22 workspace projects and builds on Node 24 and pnpm 10.
+- The local verification floor passes.
+- The local DB-backed RLS, e2e, and no-plaintext canary layers pass after a fresh
+  local Postgres reset.
+- The shared Cloudflare preview deploy passes on `main`, including real Worker deploy,
+  `/healthz`, and First Value smoke against the deployed API.
+- The nonprod root key in Cloudflare Secrets Store has been regenerated, escrowed in
+  Bitwarden, and verified through the deployed preview smoke.
 
-The accepted implementation direction is still Diskless Development Secret Use first:
-developers and agents should use non-protected development secrets through Runtime
-Injection without creating plaintext local secret files. Production delivery remains
-behind the Storage Security Gate and the Small-Group Production baseline.
+What is not delivered:
 
-The GitHub repository is `zaks-io/insecur`, and Linear team `INS` is the tracker. First
-Value implementation still follows [first-value-ticket-plan.md](specs/first-value-ticket-plan.md)
-and the milestone contract in [first-value-milestone.md](first-value-milestone.md).
+- No production launch gate is complete.
+- No `apps/web` BFF or web console exists.
+- No provider sync to GitHub or customer Cloudflare Workers exists.
+- No Storage Security Gate enforcement is wired into production delivery.
+- No hosted web-console WorkOS login/logout/callback UI, MFA enrollment, or high-risk
+  challenge flow exists.
+- CLI WorkOS login now has a PKCE loopback implementation in code, but it has not yet
+  been deployed to and verified against preview.
+- No authenticated CLI success transcript against the deployed preview exists yet.
+- No production decrypt path was exercised in this verification pass.
+- The Bitwarden escrow evidence is recovery evidence, but not launch-grade
+  out-of-band access-log evidence unless it is moved to or backed by an organization
+  vault with event logs.
 
-A recent seam-deepening pass (the `ARCH-0`/`ARCH-1` epics, INS-115 through INS-127)
-collapsed shallow modules, sealed the Encryption Envelope internals, unified package
-failures on ErrorBody-compatible codes, and tightened onboarding/operations/runtime-injection
-audit behavior. A follow-up architecture review (epic INS-133, `ARCH-2`) is now open and
-holds the verified trailing test-surface and duplication work: accept-side invitation
-denial-audit coverage (INS-134), `resolveUserActor` admission re-check tests (INS-135),
-making CSRF unconditional in `exchangeCliSession` (INS-136), centralizing the Postgres
-`23505` check (INS-137), homing the Stable Dotted Code validator in `@insecur/domain`
-(INS-138), and `MetadataTenantDataKeySource` invalid-key coverage (INS-139). Related open
-dedup tickets INS-130 and INS-132 consolidate the per-package denial-audit builders. None of
-these block First Value wiring; they harden seams already in code.
+## Verified On 2026-06-29
 
-The same `ARCH-2` review opened the Drizzle restoration (INS-155): ADR-0037 says Drizzle owns the
-schema and a raw SQL step owns the RLS policies and roles, but the data layer was hand-written
-`postgres.js` with no Drizzle. The restoration is complete: tooling (INS-156), the ADR-0037
-footnote (INS-157), the schema cutover (INS-158), and the query-builder rewrite (INS-159) have all
-landed.
+Local checkout:
 
-A 2026-06-03 ADR-conformance audit then checked all 60 accepted ADRs against the code. Beyond the
-Drizzle drift above (since closed), it produced four new tickets; the RLS CI gate (INS-144) is
-wired in `postgres-integration`. The data-key divergence is also closed: INS-160 landed random
-organization/project data keys stored as inline AES-GCM wrapped material in `wrapped_storage_ref`,
-the keyring unwrap/readiness path, and the root-key rewrap primitive. Current evidence lives in
-`packages/crypto/src/data-key-wrap.ts`, `packages/crypto/src/data-key-rewrap.ts`,
-`packages/crypto/src/keyring.ts`, `packages/tenant-store/src/data-keys/`, and the tenant-scoped
-rewrap RLS suite at `packages/tenant-store/test/rls/data-key-rewrap.test.ts`. The ESLint test-file
-override relaxing `complexity`/`max-statements` beyond ADR-0055 landed as INS-161. Routing the
-runtime pool through Hyperdrive was INS-162 (now composed on `apps/runtime`; API Worker adapter is
-INS-212) and the approval-gated production migration step is INS-163 (ready-for-human). The audit
-found no other code-vs-ADR contradictions worth acting on; remaining gaps below are unbuilt pre-V1
-work, not divergences.
+- Branch: `main`
+- HEAD: `e1c1dd4179a1f6536e6ef2f6b75373ff488ed675`
+- Working tree: dirty with local PKCE login implementation and status-doc edits, not
+  committed
+- Open GitHub PRs: none at the time of verification
+- Toolchain: Node `v24.16.0`, pnpm `10.19.0`
 
-A 2026-06-12 full spec-corpus review then prepared the docs for the agent-fleet hand-off: 77
-confirmed defects were fixed across the spec, ADR, and area-doc corpus (key model, role list,
-audit-export, route-shape, and deferral-language drift), and the architecture-improvement pass
-landed ADRs 0066 through 0076 plus dated amendments to ADR-0008/0028/0032/0034/0038/0062, the
-[custody-material compromise runbook](runbooks/custody-material-compromise.md), and the content
-ownership / single-statement / deterministic-conflict rules in
-[specs/README.md](specs/README.md) (ADR-0067). The M0 contract-and-gate batch from ADRs 0062 and
-0066–0073 is blocking in CI: the Plaintext Metadata Allowlist conformance gate (ADR-0070),
-the role-bundle registry conformance suite (ADR-0034) including the machine-only
-protected-issuance scope (ADR-0038), the `OPERATION_INTENT_CODES` catalog (ADR-0068), the
-`operation.idempotency_mismatch` check (ADR-0066), the no-plaintext canary gate `pnpm test:canary`
-(ADR-0069), the exit/HTTP lockstep test (ADR-0062), the decrypt-import lint boundary
-(ADR-0071), and non-lease `execution_deadline` claims with lazy abandonment recovery
-(ADR-0073, landed INS-219). Review follow-ups are
-INS-167 (metadata-viewer role preset) and INS-169 (re-home
-First Value routes under `/v1/orgs/:org`).
+Commands run locally for the current PKCE login change:
 
-## Implemented In Code
+```sh
+pnpm verify
+pnpm build
+pnpm duplicates:ci
+pnpm --filter @insecur/cli start --host https://insecur-api-preview.isaac-a46.workers.dev login --help
+pnpm deploy:preview
+```
 
-- `@insecur/domain` owns shared domain primitives: opaque resource IDs, resource ID
-  brands, display names, Variable Keys, base64url byte encoding, metadata-only
-  envelopes, stable error codes, and request/audit ID generation.
-- `@insecur/auth` owns WorkOS-backed human session composition, admitted User actor
-  resolution, CSRF helpers, HMAC-signed ephemeral CLI session credentials, request
-  credential parsing, auth failure envelopes, and fake WorkOS sessions for tests.
-- `apps/api` (public API Worker, `insecur-api`) exposes the public `/v1/*` route groups listed in
-  [deploy-route-inventory.md](specs/deploy-route-inventory.md): `GET /healthz`, auth/session,
-  onboarding, instance bootstrap, org-scoped invitations/organizations/projects/operations, and
-  runtime-injection grant issue/consume. It holds no keyring: secret-write and grant-consume forward
-  to `RUNTIME.writeSecret` / `RUNTIME.consumeGrant` over the private Service Binding, so live
-  encrypt/decrypt runs in the Runtime Worker. It deliberately binds no Hyperdrive (DB I/O for
-  keyring-bound work is Runtime-side; see Hyperdrive notes below). It validates auth configuration
-  at construction, supports development fake sessions, requires CSRF for browser-to-CLI exchange, and
-  returns metadata-only success/error envelopes.
-- `apps/runtime` (private Runtime Worker, `insecur-runtime`) is the sole holder of
-  `INSTANCE_ROOT_KEY_V1` and the only place decryption happens. It serves no public routes;
-  its `RuntimeService` RPC entrypoint (`consumeGrant`, `writeSecret`) is reachable only over
-  the private `RUNTIME` Service Binding. Authorization and decryption are one indivisible
-  call inside it (ADR-0034).
-  - Custody caveat: the Runtime Worker creates an ADR-0064 request-scoped Keyring from the
-    `INSTANCE_ROOT_KEY_V{n}` Secrets Store bindings and passes it through the crypto boundary
-    explicitly. Production root-key bootstrap, escrow evidence, and Storage Security Gate
-    sign-off remain pending. Tracked in INS-145/147/149.
-- `@insecur/worker-kit` owns shared Worker HTTP/auth/RPC composition glue: route helpers,
-  domain-error-to-HTTP mapping, public route input parsing, admitted-user/auth context helpers, and
-  the Runtime RPC contract shared across the private Service Binding seam.
-- `@insecur/tenant-store` owns the Postgres persistence seam: scoped transactions,
-  transaction-local tenant scope, runtime connection handling, local migration scripts,
-  runtime-role grants, and RLS helper scripts/tests.
-- Tenant-store migrations now create the First Value metadata spine: instances,
-  organizations, projects, environments, teams, memberships, organization/project data
-  key metadata, machine identities, project-scoped machine identity memberships,
-  GitHub Actions OIDC machine auth methods, secrets, secret versions, injection grants,
-  audit events, operations, instance bootstrap tables, invitations, and sync target leases.
-  Tenant-owned tables have RLS enabled and forced.
-- `@insecur/access` owns Effective Access resolution, built-in role presets, First
-  Value owner scopes, request-level memoization/cache behavior, project/org coordinate
-  filtering, scope checks, machine effective-access resolution for project-scoped
-  Machine Identity memberships plus Credential Scopes, and access-denied audit recording.
-- `@insecur/machine-auth` owns the landed Machine Identity auth method exchange package surface:
-  GitHub Actions OIDC JWT verification, trusted repository/environment/audience matching,
-  tenant-scoped OIDC auth method loading, short-lived machine access token mint/verify, and
-  metadata-only exchange audit events. It composes with tenant-store persistence and
-  `@insecur/access`; Worker route/API composition and Environment Deploy Keys remain outside this
-  package.
-- `@insecur/audit` owns tenant-qualified, metadata-only audit event validation and
-  writing, including stable denied-result codes and payload allowlist checks that fail
-  closed on sensitive-looking keys or binary payloads.
-- `@insecur/custody-contracts` owns plaintext-free custody and wrapped-material contract shapes:
-  data-key metadata access interfaces, lifecycle/rewrap status shapes, wrapped Secret/Provider
-  Credential/Sensitive Metadata material shapes, and the tenant data-key readiness error shared
-  across package seams.
-- `@insecur/crypto` owns the keyring and encryption envelope below domain workflows:
-  root-key runtime configuration, organization/project data-key mint/unwrap/rewrap behavior,
-  key readiness reports, AES-GCM envelope behavior, ciphertext identity binding, DEK wrap AAD, and
-  opaque decrypt failures. Public/API and contract packages must not depend on it; the
-  package-boundary conformance gate enforces that split.
-- `@insecur/tenant-keyring` owns Runtime-only composition of tenant-scoped data-key metadata access
-  with the crypto Keyring, keeping the crypto dependency behind the Runtime Worker boundary.
-- `@insecur/secret-store-contracts` owns public-safe Secret Write validation and error contracts:
-  safe value ingress policy, UTF-8 and 64 KiB value validation, and Variable Key write validation.
-- `@insecur/secret-store` owns non-protected Blind Secret Write and Secret Version Store
-  behavior: append/current-version persistence, wrapped-material storage, metadata-only write
-  results, and denied write audit, composed with the contracts package for public-safe validation.
-- `@insecur/runtime-injection-issue` owns the public-safe Injection Grant issue path: selector
-  contracts, issuance authorization, binding resolution, grant TTL, and metadata-only issue/denial
-  audit without keyring access.
-- `@insecur/runtime-injection` owns server-side one-use Injection Grant behavior:
-  consume rules, decrypt-for-runtime path, command output safety, denied consume audit, and
-  metadata-only consume results.
-- `@insecur/onboarding` owns Guided Organization Provisioning and early membership
-  management: Personal Organization, Default Team, owner Membership, first Project,
-  non-protected development Environment, operator-created Organizations, invitations,
-  project-scoped invitation acceptance, and related audit events.
-- `@insecur/instance-bootstrap` owns initial instance setup and Bootstrap Operator Claim
-  completion: instance posture/config rows, WorkOS-ready identity configuration,
-  bootstrap secret verifier hashing, pending claim CAS, first Organization owner grant,
-  Instance Operator grant, bootstrap status, and rollback on failed post-grant audit.
-- `@insecur/operations` owns the Operation Store and sync target serialization core:
-  operation create/transition/progress/retry/cancel/poll, metadata-safe operation
-  progress, `blocked` and `incomplete` resume semantics, sync target key validation,
-  leases, renew/release, fencing tokens, stale-token rejection, target-busy errors,
-  non-lease `execution_deadline` claims, and lazy abandonment recovery (ADR-0073).
-- Package failures have been aligned around ErrorBody-compatible stable codes where the
-  package surface exposes failures to Worker/API callers.
+Results:
 
-## Verified Locally
+- Focused auth/API/CLI validation passed before the full repo gate:
+  `@insecur/auth` lint/typecheck/test, `@insecur/api` lint/typecheck/session tests,
+  and `@insecur/cli` lint/typecheck/test.
+- `pnpm duplicates:ci` passed with 0 clones.
+- `pnpm verify` passed. This includes duplicate-code gates, knip, actionlint,
+  GitHub Actions SHA pinning, deploy topology conformance, package-boundary
+  conformance, Prettier format check, lint, typecheck, and unit tests across the
+  workspace.
+- `pnpm build` passed. It built all 22 workspace projects and ran Worker dry-run builds.
+  The dry-run output showed the API Worker binding only `env.RUNTIME`, and the Runtime
+  Worker binding both `env.DB` and `env.INSTANCE_ROOT_KEY_V1`.
+- Current CLI `login --help` starts with the preview host configured and shows the PKCE
+  flags: `--no-open` and `--callback-port <port>`.
+- `pnpm deploy:preview` did not deploy. It failed before build/deploy because this
+  local shell does not have `CLOUDFLARE_WORKERS_SUBDOMAIN`; redacted env-key
+  inspection showed `.env.preview` only has `PREVIEW_DATABASE_URL_MIGRATION`, not the
+  preview deploy vars/secrets.
+- The currently deployed preview still returns `200` for `/healthz`.
+- The currently deployed preview returns `404` for `/v1/auth/cli/authorize`, proving
+  the PKCE route is not deployed there yet.
 
-- `pnpm verify` is the local deterministic gate for the current package/deploy graph. It includes
-  duplicate warnings and the blocking duplicate ratchet, knip, actionlint, deploy topology
-  conformance, package-boundary conformance, `pnpm format:check`, and Turbo `lint`, `typecheck`, and
-  `test`.
-- The package-boundary conformance gate (`pnpm conformance:packages`) uses dependency-cruiser to
-  fail forbidden production dependency paths from public/API and contract packages into
-  `@insecur/crypto`; this is the code-backed status for the split crypto-facing packages.
-- Worker auth/session tests pass, including unauthenticated/invalid/expired credential
-  responses, valid bearer `whoami`, and WorkOS-browser-session-to-CLI credential exchange.
-- Package unit tests pass for domain primitives, auth, access role/scope logic, audit
-  metadata allowlists, machine auth OIDC/token exchange behavior, crypto envelope/AAD/readiness
-  behavior, secret input validation, runtime injection metadata/selector rules, operation
-  state/metadata rules, and bootstrap secret/authenticated-actor checks.
-- DB-backed integration tests are present for tenant isolation, data-key isolation,
-  access resolution, machine effective access and GitHub Actions OIDC exchange, audit writes,
-  non-protected secret writes, runtime injection grants, guided provisioning, membership
-  management, instance bootstrap, operation store, and sync target leases. Ordinary
-  package `test` tasks exclude these DB-backed `*.integration.test.ts` suites so `pnpm verify`
-  stays unit-only even when local Postgres env exists.
-- `pnpm test:rls` is the real-Postgres RLS gate (`ENABLE` + `FORCE ROW LEVEL SECURITY`,
-  `NOBYPASSRLS` runtime role). The `postgres-integration` CI job resets Docker Compose
-  Postgres 17, asserts migration vs runtime credentials and `NOBYPASSRLS`, then runs
-  every workspace DB-backed `test:rls` suite, `test:e2e`, and `test:canary` with
-  `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. The `test:rls` fanout covers the
-  tenant-store forced-RLS suite plus package-level DB-backed integration suites in access, audit,
-  operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap.
-- PRs use Docker Compose Postgres in the `postgres-integration` CI job for RLS, e2e, and canary.
-  The deployed First Value smoke runs through `pnpm deploy:preview` / `Deploy Preview` against the
-  bounded shared preview environment, not per-PR Neon branches or Workers.
+Hosted preview verification before the local PKCE code change:
 
-## Not Yet Wired
+- GitHub run: <https://github.com/zaks-io/insecur/actions/runs/28387807893>
+- Workflow: `Deploy Preview`
+- Ref: `main`
+- Commit: `e1c1dd4179a1f6536e6ef2f6b75373ff488ed675`
+- Result: success
+- Completed: `2026-06-29T16:40:51Z`
+- Smoke input: `true`
+- Runtime deployed: `insecur-runtime-preview`
+- API deployed: `insecur-api-preview`
+- Runtime binding resolved:
+  `INSTANCE_ROOT_KEY_V1 -> eb5941d60ebe470c95af9c8eb26cf874/INSECUR_NONPROD_INSTANCE_ROOT_KEY_V1`
+- `/healthz` passed 3 consecutive checks.
+- First Value smoke returned `{"ok":true,"smoke":"first-value-loop",...}`.
 
-- The CLI now has `insecur login`, `insecur init`, `insecur shell`, `insecur secrets set`,
-  `insecur run`, and audit verification commands, plus local profile resolution,
-  user/project config, masked TTY secret input, metadata-only JSON output,
-  service-generated non-protected secret writes, and exact Variable Key injection into a child
-  process. Still missing at the copyable First Value UX layer: durable auth handoff across
-  separate CLI processes and the final live proof path through local/deployed Workers (INS-1).
-- The API Worker now exposes the public route groups in
-  [deploy-route-inventory.md](specs/deploy-route-inventory.md). Still missing at the product
-  layer: provider sync, Storage Security Gate enforcement, audit export routes, and the
-  `apps/web` BFF (INS-201). The custody gap is that production root-key bootstrap, escrow
-  evidence, and Storage Security Gate sign-off remain pending (INS-145/147/149).
-- WorkOS AuthKit is represented through session validation and config composition, but
-  hosted login/logout/callback UI, MFA enrollment, and high-risk action challenges are not
-  implemented.
-- Persisted admitted-user resolution has landed: `user_admissions` rows back the
-  tenant-store admission helpers, and `@insecur/worker-kit` defaults Worker auth composition to the
-  store-backed resolver. JSON admission maps remain only in test-only helpers. Still open are the
-  production identity/admission gaps around hosted WorkOS UI/MFA/high-risk flows, signup/admission
-  controls, lockdown/abuse handling, and final production identity configuration hardening before
-  valuable secrets.
-- **Worker topology is capability-isolated (INS-194 Cut 1 landed).** The former single Worker deploy
-  is split into `apps/api` (public API Worker, `insecur-api`, no keyring) and `apps/runtime`
-  (private Runtime Worker, `insecur-runtime`, sole `INSTANCE_ROOT_KEY_V1` holder, no
-  public routes, reached only over a private Service Binding via the `RuntimeService`
-  `WorkerEntrypoint` RPC seam). Shared composition glue lives in `packages/worker-kit`. **No deploy
-  holds both a public route and the root-key binding**, enforced by `pnpm conformance:topology`
-  (`scripts/ci/deploy-topology-conformance.mjs`) plus the lint keyring boundary, both in `pnpm
-verify`. Do not compose new routes into a single worker; every route belongs to a specific deploy
-  by capability per [deploy-route-inventory.md](specs/deploy-route-inventory.md). `apps/web` (Web
-  Console BFF, `insecur-web`) is Cut 2 (INS-201) and is not scaffolded yet; Service Access stays a
-  deferred deploy with a negative conformance assertion (ADR-0019). Epic: INS-194 (slices INS-195..201).
-- **Hyperdrive bindings (partial).** `apps/runtime` composes a Hyperdrive `DB` binding in
-  `wrangler.jsonc` and reads Postgres via `env.DB.connectionString` at RPC entry (with
-  `DATABASE_URL_RUNTIME` fallback for local/CI/tests). `apps/api` deliberately binds no Hyperdrive:
-  keyring-bound persistence is Runtime-side over the `RUNTIME` Service Binding. DB-backed public
-  routes on the API Worker still rely on the `DATABASE_URL_RUNTIME` fallback path in tests and need a
-  production Hyperdrive adapter on the API deploy (INS-212). Preview `env.preview` binds the
-  Runtime deploy to the shared live Neon preview Hyperdrive; PRs must keep using Docker Compose
-  Postgres in CI.
-- Root key custody is partially wired through request-scoped Cloudflare Secrets Store
-  keyring construction. Production bootstrap, escrow evidence, and Storage Security Gate
-  sign-off are still pending.
-- Root-key custody and rotation are not production-complete. Wrapped data keys and the
-  root-key rewrap primitive landed in INS-160: data-key rows carry inline wrapped material and
-  root-key version metadata, and the RLS rewrap suite verifies tenant-scoped rewrap across root
-  versions. Still open are production root-key bootstrap, escrow evidence, Storage Security Gate
-  sign-off, rotation scheduling/runbook/operator UX, and the release-gate evidence needed before
-  valuable production secrets.
-- Protected Environments, Draft/Published Version, Promotion, rollback, Protected Change
-  Orchestrator, Human Approval Surface, Delivery Risk Policy Presets, and Storage Security
-  Gate enforcement are not implemented.
-- Machine Access and CI Trust remains partial. Landed code covers the project-scoped Machine
-  Identity model/memberships, machine effective-access scope construction, GitHub Actions OIDC
-  trusted-source exchange, short-lived machine access token mint/verify, and exchange audit events
-  in `@insecur/machine-auth`. Still open: Environment Deploy Keys, deploy-key rotation policy,
-  full public route/API composition for OIDC exchange and protected Runtime Injection token use,
-  broader machine-access audit/denial coverage, and the remaining W7 rollout work.
-- Provider App Connections and Secret Sync adapters for GitHub Actions and Cloudflare
-  Worker secrets are not implemented. Operation Store and sync target lease primitives
-  exist, but provider connect/plan/write/verify flows do not.
-- Tamper-evident audit export, JSONL hash chains, HMACed manifests, `audit verify`, backup
-  and restore evidence, and breach forensic records are not implemented.
-- Public signup controls, signup lockdown, quotas, tenant suspension, abuse handling, and
-  tenant enumeration defenses are not implemented.
-- No web console UI exists.
+Preview CLI verification attempt:
 
-## Product Boundary
+- Target: `https://insecur-api-preview.isaac-a46.workers.dev`
+- `pnpm --filter @insecur/cli start --host <preview> --json --help` passed and
+  listed the implemented CLI commands.
+- Cloudflare preview API secrets are present by name:
+  `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
+  `WORKOS_COOKIE_PASSWORD`. Cloudflare does not expose secret values.
+- No deployed fake-session bypass is configured on the preview API; `WORKOS_FAKE_SESSIONS_JSON`
+  is not present in the preview secret list.
+- Redacted local-env inspection found no `SESSION_SIGNING_SECRET`,
+  `SMOKE_SESSION_SIGNING_SECRET`, `SMOKE_ADMITTED_USER_ID`, or
+  `SMOKE_WORKOS_USER_ID` in `.env.preview`, `.env.local`, or `.env.production`.
+- An isolated `insecur login` probe with an invalid fake WorkOS browser session reached
+  the preview API and returned `auth.invalid`, as expected.
 
-The removed pre-V1 scaffold remains disposable learning code. It is not a supported product
-mode and should not be treated as evidence of intended product behavior. Current work must
-continue through the package seams above.
+What this proves: the CLI binary starts, accepts the preview host, and reaches the
+preview auth exchange route.
 
-The First Value Milestone can prove the non-protected development loop before production
-delivery is ready. It is not safe for production-grade Sensitive Values. Production delivery
-must meet the Small-Group Production baseline before storing or delivering valuable secrets:
-tenant-qualified storage, membership and role authorization, tenant-bound keys, no-reveal
-secret custody, protected delivery policy, machine access, app connections, tenant-bounded
-audit, controlled Organization creation, and invitation-based Organization access.
+What this does not prove: successful preview `login`, `init`, `secrets set`, `run`, or
+`shell`. Those require a valid CLI session credential, and this checkout currently has
+neither a real WorkOS browser session nor the deployed nonprod session-signing secret
+needed to mint the smoke credential locally. `audit verify` is a local audit-export
+verification command and does not talk to the preview API.
 
-## Build Order
+Follow-up local code change after this hosted verification: `insecur login` now uses
+only a WorkOS AuthKit PKCE loopback flow. The API owns
+`GET /v1/auth/cli/authorize` for the AuthKit redirect and
+`POST /v1/auth/cli/pkce/exchange` for code-verifier exchange plus Insecur CLI
+credential minting. No CLI browser-session copy exchange path remains. This code is
+local and verified by tests/build, but not yet deployed to preview.
 
-This is dependency order, not a release plan. Version boundaries are still governed by
-[phasing.md](phasing.md), production readiness is governed by
-[production-mvp-acceptance.md](production-mvp-acceptance.md), and milestone sequencing for the
-fleet hand-off is [roadmap.md](roadmap.md).
+Human evidence recorded:
 
-**First Value Completion**
+- Bitwarden escrow items are visible as `Insecur Non Prod Root Key` and
+  `Insecur Prod Root Key`.
+- Cloudflare Secrets Store shows nonprod and prod instance root-key secrets as active.
+- Cloudflare audit UI shows a Secrets Store secret update at `2026-06-29 09:00:15`,
+  actor `isaac@zaks.io`, action `update`, resource `secrets_store / stores.secrets`,
+  source `dash`.
 
-Finish the remaining First Value integration on top of the landed package and CLI seams:
-copyable proof execution through live `insecur secrets set` and `insecur run` commands,
-durable auth handoff across separate CLI processes, and any still-open route/profile
-hardening (for example INS-169).
+## Delivered Code Surface
 
-**Production Delivery Foundation**
+### Worker Deploys
 
-Finish Worker composition, production identity/admission hardening, production Postgres/Hyperdrive
-binding, root-key custody, key readiness enforcement, Storage Security Gate checks, protected
-environment modeling, route-level authorization, and tenant-qualified audit coverage.
+`apps/api` is the public API Worker, script `insecur-api`.
 
-**Machine Access And CI Trust**
+It mounts:
 
-Continue from the landed Machine Identity model, GitHub Actions OIDC exchange, and
-`@insecur/machine-auth` package surface. Finish Environment Deploy Keys, rotation policy, route/API
-composition, machine-access audit coverage, and the protected Runtime Injection rollout so CI can
-use scoped short-lived automation access without broad long-lived tokens.
+- `GET /healthz`
+- `/v1/auth`
+- `/v1/session`
+- `/v1/onboarding`
+- `/v1/instance/bootstrap`
+- `/v1/orgs/:organizationId/invitations`
+- `/v1/orgs/:organizationId/organizations`
+- `/v1/orgs/:organizationId/projects`
+- `/v1/orgs/:organizationId/operations`
+- `/v1/orgs/:organizationId/runtime-injection`
 
-**Promotion Approval And High-Assurance Challenges**
+The API Worker does not bind the root key and does not bind Hyperdrive. Its Wrangler
+config binds only the private `RUNTIME` Service Binding to
+`insecur-runtime#RuntimeService` for default deploys, and to
+`insecur-runtime-preview#RuntimeService` in the `preview` environment.
 
-Add the core Protected Environment Promotion approval state machine, High-Assurance Challenges,
-protected delivery configuration change approvals, and versioned Delivery Risk Policy Presets.
-This block lands before provider sync: protected Secret Sync enable/run and Cloudflare Worker
-secret writes stay fail-closed until these approval gates exist, because the accepted Approval
-Impact Review is the approval evidence for Cloudflare Worker Secret Deploys
-([ADR-0039](adr/0039-cloudflare-worker-secrets-sync-target.md)).
+`apps/runtime` is the private Runtime Worker, script `insecur-runtime`.
 
-**Provider Sync: GitHub And Cloudflare**
+It exposes no public product route. Its default `fetch` returns `404`. The actual
+surface is `RuntimeService extends WorkerEntrypoint`, reached over the private Service
+Binding. Runtime owns:
 
-Build App Connections and inline sync adapters on top of the Operation Store and sync target
-lease/fencing primitives. The sync-specific approval surfaces — Approval Impact Review sync
-impact, protected Secret Sync enable/run approvals, and Cloudflare Worker Secret Deploy approval
-evidence — land alongside this block. Cloudflare Worker secret writes remain production deploys
-for the affected script/environment and need approval and audit evidence (ADR-0039).
+- request-scoped DB connection setup through `env.DB.connectionString`
+- root-key access through `INSTANCE_ROOT_KEY_V1`
+- secret write
+- injection grant consume
+- admission resolution and denial audit
+- instance bootstrap status and operator claim
+- guided organization provisioning
+- operator-created organizations
+- invitation create/accept
+- operation polling
+- injection grant issue
 
-**Audit, Runbooks, And Release Gates**
+The deploy topology is enforced by `pnpm conformance:topology`: exactly one deploy
+declares `INSTANCE_ROOT_KEY_V1`, and no deploy has both public routes and the root-key
+binding.
 
-Add tamper-evident audit exports, `audit verify`, tested restore evidence, security runbooks,
-ASVS/API Top 10 checks, dependency scanning, secret scanning, SBOM/vulnerability scanning, and
-release-gate evidence bundles.
+### First Value Loop
 
-## Recommended Next Steps
+The delivered First Value path is:
 
-1. Close the custody/persistence gaps ticketed in [roadmap.md](roadmap.md) M0 before parallel
-   feature work depends on them. The ADR-0073 non-lease execution-deadline/lazy-abandonment gate
-   landed in INS-219; see [operation-store.md](operation-store.md) and
-   `packages/operations/CONTEXT.md` for the owner contract.
-2. Wire remaining package implementations into the correct deploy (INS-194 Cut 1 landed). The
-   decided topology is `apps/api` (public edge, no keyring), `apps/runtime`
-   (sole `INSTANCE_ROOT_KEY_V1` holder, decrypt-egress behind a `WorkerEntrypoint` RPC seam, no
-   public routes), and `apps/web` (BFF, INS-201, not scaffolded yet). Route mounts are owned by
-   [deploy-route-inventory.md](specs/deploy-route-inventory.md). Secret write and grant consume are
-   keyring routes executed Runtime-side; other public routes land on `apps/api`. No deploy may hold
-   both a public route and the root key (CI gate INS-199).
-3. Complete the copyable First Value Proof (INS-1) on top of the landed CLI commands
-   (`secrets set`, `run`, and masked TTY secret input from INS-32/INS-33/INS-226): durable auth
-   handoff across separate CLI processes and a live CLI/API proof path through local or deployed
-   Workers.
-4. Run `pnpm dev:db:reset && pnpm test:rls` before treating the DB-backed integration suites as
-   current evidence.
-5. Keep `examples/first-value-proof/verify.mjs` aligned with the live CLI/API integration proof
-   as INS-1 closes; it should succeed only through `insecur secrets set --generate` plus
-   `insecur run`.
-6. Close the remaining production identity/admission gaps now that Worker admission is store-backed:
-   hosted WorkOS login/logout/callback UI, MFA/high-risk flows, signup/admission controls,
-   lockdown/abuse handling, and production identity configuration hardening.
-7. Add root-key custody through the intended Cloudflare Secrets Store path and enforce key
-   readiness before secret writes or runtime delivery.
-8. Keep provider sync and protected delivery behind the Storage Security Gate until tenant-bound
-   storage, authorization, audit, and key readiness are all composed through routes.
-9. Burn down the `ARCH-2` hardening backlog (epic INS-133) opportunistically alongside First
-   Value wiring. The slices are scoped to one PR each, carry mutation-based acceptance checks,
-   and are independent except INS-135/INS-136 (both touch `packages/auth`, different files).
+1. Authenticate an admitted user.
+2. Provision or use an organization, project, and development environment.
+3. Write a non-protected secret through the public API route.
+4. Forward the write over `RUNTIME.writeSecret`.
+5. Runtime authorizes, encrypts, and persists the wrapped value.
+6. Issue a one-use Runtime Injection Grant.
+7. Consume the grant through Runtime.
+8. Runtime authorizes and decrypts the value.
+
+This is verified two ways:
+
+- local e2e: `apps/api/test/e2e/first-value-loop.e2e.test.ts`
+- hosted preview smoke: `scripts/ci/smoke-first-value.mjs` through `pnpm deploy:preview`
+
+The deployed preview smoke is the strongest evidence because it uses the real Cloudflare
+Workers, the real `RUNTIME` Service Binding, the real Hyperdrive binding, and the real
+Cloudflare Secrets Store root-key binding.
+
+### CLI
+
+The CLI package is implemented and built. Commands present in code:
+
+- `insecur login`
+- `insecur login --shell`
+- `insecur shell`
+- `insecur init`
+- `insecur secrets set`
+- `insecur run`
+- `insecur audit verify`
+
+The CLI has local profile/config resolution, safe secret input paths, masked TTY input,
+stdin/generation paths for secret values, metadata-only output rendering, child-process
+environment construction, and HTTP clients for the First Value API routes.
+
+Current login implementation:
+
+- default `insecur login`: native-client WorkOS AuthKit PKCE loopback flow
+- `insecur login --no-open`: prints the AuthKit URL for headless/manual use
+- `insecur login --callback-port <port>`: pins the local callback port when the WorkOS
+  redirect configuration requires it
+
+What was verified against the currently deployed preview:
+
+- `/healthz` returns `200`
+- the old preview build does not have the PKCE authorize route yet:
+  `/v1/auth/cli/authorize` returns `404`
+- previous CLI probing against this preview proved the CLI starts with the preview host
+  configured and reaches the legacy auth exchange route
+
+What was not verified in this pass: successful authenticated CLI commands against the
+deployed preview. The deployed smoke drove the same product route sequence directly
+over HTTP, but it did not exercise the CLI command process, and the PKCE login code is
+not deployed to preview yet.
+
+What was verified locally after the PKCE implementation:
+
+- API PKCE authorize route redirects to WorkOS AuthKit with the loopback redirect URI,
+  state, code challenge, and `S256`.
+- API PKCE exchange route mints a CLI credential header after fake WorkOS code exchange
+  and persisted admission resolution.
+- CLI default login uses a real local loopback callback and exchanges the returned code
+  without copied browser-session material.
+
+### Auth And Session
+
+Delivered:
+
+- WorkOS-backed session validation and config composition.
+- `GET /v1/session/whoami`.
+- WorkOS AuthKit PKCE authorization-code exchange for CLI credentials.
+- Ephemeral CLI session credentials.
+- Auth failure envelopes and request IDs.
+- Development/test fake-session support.
+
+Not delivered:
+
+- hosted web-console WorkOS login/logout/callback UI
+- MFA enrollment UX
+- high-risk action challenge flow
+
+### Tenancy, Persistence, And RLS
+
+Delivered:
+
+- Drizzle-owned schema baseline.
+- Raw SQL step for roles, grants, RLS policies, and lifecycle triggers.
+- Local reset/migration tooling.
+- Runtime role guard against bypass-RLS.
+- Tenant-scoped transaction helpers.
+- Forced RLS test layer.
+
+Persisted domain tables include:
+
+- instances
+- organizations
+- projects
+- environments
+- teams
+- memberships
+- user admissions
+- organization and project data keys
+- machine identities and memberships
+- GitHub Actions OIDC machine auth methods
+- secrets and secret versions
+- injection grants
+- audit events
+- operations
+- bootstrap claims/config
+- invitations
+- sync target leases
+
+### Crypto And Custody
+
+Delivered:
+
+- Secrets Store root-key provider.
+- Production refusal of plaintext root-key fallback.
+- Request-scoped Runtime keyring construction.
+- AES-GCM envelope encryption.
+- wrapped organization/project data keys.
+- root-key rewrap primitive.
+- per-domain record type tags for secrets, provider credentials, and sensitive metadata.
+- decrypt-import lint boundary.
+- package-boundary conformance that prevents public/API and contract packages from
+  depending on `@insecur/crypto`.
+
+Nonprod custody status:
+
+- `INSTANCE_ROOT_KEY_V1` is bound on the Runtime Worker only.
+- Cloudflare Secrets Store item: nonprod instance root key.
+- Store ID: `eb5941d60ebe470c95af9c8eb26cf874`
+- The regenerated value was verified by deployed preview smoke.
+- The escrow copy exists in Bitwarden.
+
+Remaining custody gap:
+
+- Bitwarden access logging has not been verified. This is acceptable for pre-live
+  nonprod recovery evidence, but it is not enough for a launch gate that requires
+  out-of-band escrow access logs.
+- The production root key secret and Bitwarden item are visible in screenshots, but the
+  production decrypt path was not exercised.
+
+### Runtime Injection
+
+Delivered:
+
+- Public-safe grant issue path.
+- Selector validation.
+- One-use grant consume path.
+- Runtime-side decrypt for injection.
+- Metadata-only consume results.
+- Denial audit behavior.
+- Tests for issue, consume, selector matching, access checks, and decrypted value delivery.
+
+### Secret Store
+
+Delivered:
+
+- Public-safe secret write validation.
+- UTF-8 and 64 KiB value checks.
+- Variable Key validation.
+- Non-protected Blind Secret Write.
+- Secret Version Store append/current-version behavior.
+- Wrapped material persistence.
+- Metadata-only write results.
+- Denied write audit.
+
+### Onboarding And Membership
+
+Delivered:
+
+- Guided Personal Organization provisioning.
+- Default project and development environment provisioning.
+- Operator-created organizations.
+- Invitations.
+- Project-scoped invitation acceptance.
+- Membership management behavior.
+- Audit events for the above paths.
+
+### Instance Bootstrap
+
+Delivered:
+
+- Instance posture/config rows.
+- Bootstrap Operator Claim.
+- Bootstrap secret verifier hashing.
+- Pending claim compare-and-set.
+- First organization owner grant.
+- Instance Operator grant.
+- Bootstrap status route.
+- Rollback on failed post-grant audit.
+
+### Machine Auth
+
+Delivered as package code:
+
+- GitHub Actions OIDC JWT verification.
+- Trusted repository/environment/audience matching.
+- Tenant-scoped OIDC auth method loading.
+- Short-lived machine access token mint/verify.
+- Metadata-only exchange audit events.
+- Machine Effective Access resolution through project-scoped Machine Identity memberships
+  and Credential Scopes.
+
+Not delivered:
+
+- Worker route composition for the exchange.
+- Environment Deploy Keys fallback.
+- deploy-key rotation policy.
+- complete protected Runtime Injection machine flow.
+
+### Operations, Audit, And Release Gate
+
+Delivered:
+
+- Operation Store create/transition/progress/retry/cancel/poll.
+- Metadata-safe operation progress.
+- `blocked` and `incomplete` resume semantics.
+- sync target key validation and leases.
+- fencing tokens and stale-token rejection.
+- non-lease `execution_deadline` claims.
+- lazy abandonment recovery.
+- metadata-only audit event validation and writes.
+- denied-result codes.
+- audit payload allowlist checks.
+- release-gate evidence bundle skeleton and metadata-safety checks.
+
+Not delivered:
+
+- full production release-gate automation
+- backup/export freshness control wired to live backup jobs
+- tested restore drill
+- audit export route/API
+
+## Not Delivered Yet
+
+These are concrete missing product/code surfaces, not tracker hypotheticals:
+
+- `apps/web` BFF and web console.
+- Provider sync to GitHub Actions secrets.
+- Provider sync to customer Cloudflare Worker secrets.
+- Cloudflare App Connection and GitHub App Connection production flows.
+- Storage Security Gate verdict enforcement before production delivery/decrypt/provider write.
+- Production backup export pipeline and tested restore drill.
+- Launch-grade root-key escrow access logging.
+- Hosted web-console WorkOS auth UI, MFA, and high-assurance challenge UX.
+- Machine auth exchange route and protected machine Runtime Injection flow.
+- Authenticated live CLI transcript against the deployed preview after deploying the PKCE
+  login loop and configuring the WorkOS redirect URI.
+- Production deploy/decrypt smoke.
+
+## Source Pointers
+
+- Worker route/deploy ownership: [specs/deploy-route-inventory.md](specs/deploy-route-inventory.md)
+- API Worker composition: [../apps/api/src/index.ts](../apps/api/src/index.ts)
+- API Worker bindings: [../apps/api/wrangler.jsonc](../apps/api/wrangler.jsonc)
+- Runtime Worker RPC: [../apps/runtime/src/runtime-service.ts](../apps/runtime/src/runtime-service.ts)
+- Runtime Worker bindings: [../apps/runtime/wrangler.jsonc](../apps/runtime/wrangler.jsonc)
+- First Value e2e: [../apps/api/test/e2e/first-value-loop.e2e.test.ts](../apps/api/test/e2e/first-value-loop.e2e.test.ts)
+- Preview deploy script: [../scripts/deploy-preview.mjs](../scripts/deploy-preview.mjs)
+- Root-key runbook: [runbooks/instance-root-key-bootstrap.md](runbooks/instance-root-key-bootstrap.md)

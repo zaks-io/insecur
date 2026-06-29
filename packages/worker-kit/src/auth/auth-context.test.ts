@@ -1,7 +1,5 @@
 import {
-  exchangeCliSession,
-  generateCsrfToken,
-  parseRequestCredentials,
+  exchangeCliPkceSession,
   testSessionSigningSecret,
   type InsecurAuthConfig,
 } from "@insecur/auth";
@@ -25,7 +23,6 @@ function createFakeAdmittedUserResolver(
 
 const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const workosUserId = "user_01workos";
-const sealedSession = "sealed_auth_context_test";
 
 const env = {
   WORKOS_API_KEY: "sk_test",
@@ -35,9 +32,11 @@ const env = {
   RUNTIME: createFakeAdmissionRuntime({ user_01workos: admittedUserId }),
   WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
     {
-      sessionData: sealedSession,
+      sessionData: "sealed_unused_context_test",
       userId: workosUserId,
       sessionId: "session_context_test",
+      authorizationCode: "code_context_test",
+      codeVerifier: "verifier_context_test",
       authenticationMethod: "Passkey",
     },
   ]),
@@ -223,13 +222,9 @@ describe("createAuthContext", () => {
     expect(config.sessionSigningSecret).toBe(env.SESSION_SIGNING_SECRET);
     await expect(resolveAdmittedUser(workosUserId)).resolves.toBe(admittedUserId);
 
-    const csrf = generateCsrfToken();
-    const exchanged = await exchangeCliSession({
-      credentials: parseRequestCredentials({
-        authorizationHeader: undefined,
-        cookieHeader: `wos-session=${sealedSession}; insecur_csrf=${csrf}`,
-        csrfHeader: csrf,
-      }),
+    const exchanged = await exchangeCliPkceSession({
+      code: "code_context_test",
+      codeVerifier: "verifier_context_test",
       config,
       workos,
       resolveAdmittedUser,

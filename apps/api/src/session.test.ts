@@ -1,8 +1,4 @@
-import {
-  generateCsrfToken,
-  mintEphemeralSessionCredential,
-  testSessionSigningSecret,
-} from "@insecur/auth";
+import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
 import { userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import { createRuntimeRpcStub } from "../test/support/runtime-rpc-stub.js";
@@ -27,6 +23,8 @@ const env = {
       sessionData: sealedSession,
       userId: workosUserId,
       sessionId: "session_browser",
+      authorizationCode: "code_pkce_test",
+      codeVerifier: "verifier_pkce_test",
       authenticationMethod: "Passkey",
     },
   ]),
@@ -125,92 +123,59 @@ describe("worker session routes", () => {
     });
   });
 
-  it("returns auth.invalid when CSRF is missing on cli exchange", async () => {
+  it("redirects CLI PKCE authorization requests to WorkOS AuthKit", async () => {
     const response = await app.request(
-      "/v1/auth/cli/exchange",
-      {
-        method: "POST",
-        headers: {
-          Cookie: `wos-session=${sealedSession}`,
-        },
-      },
+      "/v1/auth/cli/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A49152%2Fcallback&state=state_test&code_challenge=challenge_test&code_challenge_method=S256",
+      { method: "GET" },
       env,
     );
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(302);
+    const location = response.headers.get("Location");
+    expect(location).toContain("https://workos.test/authorize?");
+    const url = new URL(location ?? "");
+    expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:49152/callback");
+    expect(url.searchParams.get("state")).toBe("state_test");
+    expect(url.searchParams.get("code_challenge")).toBe("challenge_test");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+  });
+
+  it("accepts IPv6 loopback CLI PKCE redirect URIs", async () => {
+    const redirectUri = "http://[::1]:49152/callback";
+    const response = await app.request(
+      `/v1/auth/cli/authorize?redirect_uri=${encodeURIComponent(redirectUri)}&state=state_test&code_challenge=challenge_test&code_challenge_method=S256`,
+      { method: "GET" },
+      env,
+    );
+    expect(response.status).toBe(302);
+    const location = response.headers.get("Location");
+    const url = new URL(location ?? "");
+    expect(url.searchParams.get("redirect_uri")).toBe(redirectUri);
+  });
+
+  it("rejects non-loopback CLI PKCE redirect URIs", async () => {
+    const response = await app.request(
+      "/v1/auth/cli/authorize?redirect_uri=https%3A%2F%2Fevil.example%2Fcallback&state=state_test&code_challenge=challenge_test&code_challenge_method=S256",
+      { method: "GET" },
+      env,
+    );
+    expect(response.status).toBe(400);
     const body: unknown = await response.json();
     expect(body).toMatchObject({
       ok: false,
-      error: { code: "auth.invalid" },
+      error: { code: "validation.invalid_command_input" },
     });
   });
 
-  it("rotates the WorkOS session cookie on successful cli exchange", async () => {
-    const csrf = generateCsrfToken();
+  it("exchanges a WorkOS PKCE code for a CLI credential header", async () => {
     const response = await app.request(
-      "/v1/auth/cli/exchange",
+      "/v1/auth/cli/pkce/exchange",
       {
         method: "POST",
-        headers: {
-          Cookie: `wos-session=${sealedSession}; insecur_csrf=${csrf}`,
-          "x-insecur-csrf": csrf,
-        },
-      },
-      env,
-    );
-    expect(response.status).toBe(200);
-    const setCookie = response.headers.get("Set-Cookie");
-    expect(setCookie).toContain("wos-session=");
-    expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("Secure");
-    expect(setCookie).toContain(`${sealedSession}_rotated`);
-  });
-
-  it("returns auth.reauth_required for insufficient-assurance browser sessions", async () => {
-    const magicSession = "sealed_magic_auth_worker";
-    const magicEnv = {
-      ...env,
-      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-        {
-          sessionData: magicSession,
-          userId: workosUserId,
-          sessionId: "session_magic",
-          authenticationMethod: "MagicAuth",
-          authFactors: [{ type: "totp" }],
-        },
-      ]),
-    };
-    const csrf = generateCsrfToken();
-    const response = await app.request(
-      "/v1/auth/cli/exchange",
-      {
-        method: "POST",
-        headers: {
-          Cookie: `wos-session=${magicSession}; insecur_csrf=${csrf}`,
-          "x-insecur-csrf": csrf,
-        },
-      },
-      magicEnv,
-    );
-    expect(response.status).toBe(401);
-    const body: unknown = await response.json();
-    expect(body).toMatchObject({
-      ok: false,
-      error: { code: "auth.reauth_required" },
-    });
-    const text = JSON.stringify(body);
-    expect(text).not.toContain(magicSession);
-  });
-
-  it("exchanges a WorkOS browser session for a CLI credential header", async () => {
-    const csrf = generateCsrfToken();
-    const response = await app.request(
-      "/v1/auth/cli/exchange",
-      {
-        method: "POST",
-        headers: {
-          Cookie: `wos-session=${sealedSession}; insecur_csrf=${csrf}`,
-          "x-insecur-csrf": csrf,
-        },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "code_pkce_test",
+          codeVerifier: "verifier_pkce_test",
+        }),
       },
       env,
     );
@@ -230,5 +195,43 @@ describe("worker session routes", () => {
       );
       expect(whoami.status).toBe(200);
     }
+  });
+
+  it("returns auth.reauth_required for insufficient-assurance PKCE sessions", async () => {
+    const magicEnv = {
+      ...env,
+      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+        {
+          sessionData: "sealed_unused_magic",
+          userId: workosUserId,
+          sessionId: "session_magic",
+          authorizationCode: "code_magic",
+          codeVerifier: "verifier_magic",
+          authenticationMethod: "MagicAuth",
+          authFactors: [{ type: "totp" }],
+        },
+      ]),
+    };
+    const response = await app.request(
+      "/v1/auth/cli/pkce/exchange",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "code_magic",
+          codeVerifier: "verifier_magic",
+        }),
+      },
+      magicEnv,
+    );
+    expect(response.status).toBe(401);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: { code: "auth.reauth_required" },
+    });
+    const text = JSON.stringify(body);
+    expect(text).not.toContain("code_magic");
+    expect(text).not.toContain("verifier_magic");
   });
 });

@@ -40,6 +40,9 @@ describe("createWorkOSSessionPortFromEnv", () => {
           email: "agent@example.com",
           authenticationMethod: "Passkey",
           authFactors: [{ type: "totp" }, { type: 42 }, null],
+          authorizationCode: "code_mfa_challenge",
+          codeVerifier: "verifier_mfa_challenge",
+          authorizationCodeFailure: "mfa_challenge",
           rotatedSessionData: "sealed_rotated",
           refreshFailure: "expired",
         },
@@ -62,6 +65,15 @@ describe("createWorkOSSessionPortFromEnv", () => {
     await expect(port.refreshSealedSession(sealedSession)).resolves.toEqual({
       refreshed: false,
       reason: "expired",
+    });
+    await expect(
+      port.authenticateAuthorizationCode({
+        code: "code_mfa_challenge",
+        codeVerifier: "verifier_mfa_challenge",
+      }),
+    ).resolves.toEqual({
+      authenticated: false,
+      reason: "mfa_challenge",
     });
     await expect(port.listAuthFactors("user_01workos")).resolves.toEqual([{ type: "totp" }]);
   });

@@ -1,33 +1,37 @@
-import { AUTH_ERROR_CODES, successEnvelope, type ResolvedTargetEcho } from "@insecur/domain";
+import { successEnvelope, type ResolvedTargetEcho } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CliError } from "../output/cli-error.js";
-import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 import { asEchoId, buildEnvelopeMeta } from "../output/target-echo.js";
 import { setMemorySession } from "../session/memory-session.js";
+import { runBrowserPkceLogin } from "./login-pkce.js";
 import { runManagedLoginShell } from "./login-shell.js";
 
 export interface LoginCommandOptions {
-  readonly cookieEnv: string;
-  readonly csrfEnv: string;
   readonly shell: boolean;
+  readonly openBrowser: boolean;
+  readonly callbackPort?: number;
 }
 
-function readCookieHeader(cookieEnv: string): string {
-  const cookieHeader = process.env[cookieEnv];
-  if (cookieHeader === undefined || cookieHeader === "") {
-    throw new CliError(
-      {
-        code: AUTH_ERROR_CODES.required,
-        message: `Set ${cookieEnv} to the WorkOS browser Cookie header for CLI exchange.`,
-        retryable: false,
-      },
-      EXIT_AUTH_REQUIRED,
-    );
-  }
-  return cookieHeader;
+async function exchangeLoginSession(
+  flags: GlobalCliFlags,
+  api: ApiClient,
+  host: string,
+  commandOptions: LoginCommandOptions,
+) {
+  return runBrowserPkceLogin({
+    flags,
+    api,
+    host,
+    options: {
+      openBrowser: commandOptions.openBrowser,
+      ...(commandOptions.callbackPort === undefined
+        ? {}
+        : { callbackPort: commandOptions.callbackPort }),
+    },
+  });
 }
 
 interface MemoryLoginResult {
@@ -65,13 +69,7 @@ export async function runLoginCommand(
   commandOptions: LoginCommandOptions,
 ): Promise<number> {
   const { host } = context.scope;
-  const cookieHeader = readCookieHeader(commandOptions.cookieEnv);
-  const csrfHeader = process.env[commandOptions.csrfEnv];
-  const exchanged = await api.exchangeCliSession({
-    host,
-    cookieHeader,
-    ...(csrfHeader === undefined || csrfHeader === "" ? {} : { csrfHeader }),
-  });
+  const exchanged = await exchangeLoginSession(flags, api, host, commandOptions);
   if (!exchanged.ok) {
     throw new CliError(exchanged.envelope.error);
   }

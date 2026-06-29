@@ -1,14 +1,8 @@
 import type { RequestId } from "@insecur/domain";
 import type { AdmittedUserResolver } from "./admitted-user.js";
-import {
-  authFailureForAdmissionDenial,
-  authFailureForReason,
-  type AuthFailure,
-} from "./auth-failure.js";
-import { validateCsrfToken } from "./csrf.js";
-import type { ParsedRequestCredentials } from "./credentials.js";
+import { authFailureForAdmissionDenial, type AuthFailure } from "./auth-failure.js";
 import { mintEphemeralSessionCredential } from "./ephemeral-session.js";
-import { refreshWorkOSSession } from "./resolve-workos-session.js";
+import { authenticateWorkOSAuthorizationCode } from "./resolve-workos-session.js";
 import type { InsecurAuthConfig } from "./workos-config.js";
 import type { WorkOSSessionPort } from "./workos-session-port.js";
 import type { UserActor } from "./user-actor.js";
@@ -19,31 +13,33 @@ export interface CliSessionExchangeSuccess {
   readonly requestId?: RequestId;
 }
 
-export interface CliSessionExchangeRotation {
-  readonly sealedSession: string;
-}
-
 export type CliSessionExchangeResult =
   | {
       ok: true;
       credential: string;
       body: CliSessionExchangeSuccess;
-      rotation?: CliSessionExchangeRotation;
     }
   | { ok: false; failure: AuthFailure };
 
-export interface CliSessionExchangeInput {
-  readonly credentials: ParsedRequestCredentials;
+export interface CliPkceSessionExchangeInput {
+  readonly code: string;
+  readonly codeVerifier: string;
   readonly config: InsecurAuthConfig;
   readonly workos: WorkOSSessionPort;
   readonly resolveAdmittedUser: AdmittedUserResolver;
+  readonly ipAddress?: string;
+  readonly userAgent?: string;
+  readonly requestId?: RequestId;
+}
+
+interface CliSessionMintInput {
+  readonly config: InsecurAuthConfig;
   readonly requestId?: RequestId;
 }
 
 async function mintCliExchangeResult(
-  input: CliSessionExchangeInput,
+  input: CliSessionMintInput,
   actor: UserActor,
-  sealedSession: string,
 ): Promise<CliSessionExchangeResult> {
   const minted = await mintEphemeralSessionCredential({
     actor,
@@ -58,45 +54,38 @@ async function mintCliExchangeResult(
     ok: true,
     credential: minted.credential,
     body,
-    rotation: { sealedSession },
   };
 }
 
 /**
- * Exchanges a valid WorkOS browser session for a memory-only CLI credential.
- * The credential is returned out-of-band via INSECUR_SESSION_CREDENTIAL_HEADER.
- * Browser sessions are rotated via WorkOS refresh before minting the CLI credential.
+ * Exchanges a WorkOS AuthKit authorization code plus PKCE verifier for a memory-only
+ * CLI credential. Native clients use this instead of copying browser session material.
  */
-export async function exchangeCliSession(
-  input: CliSessionExchangeInput,
+export async function exchangeCliPkceSession(
+  input: CliPkceSessionExchangeInput,
 ): Promise<CliSessionExchangeResult> {
-  const csrfValid = validateCsrfToken(input.credentials.csrfCookie, input.credentials.csrfHeader);
-  if (!csrfValid) {
-    return { ok: false, failure: authFailureForReason("invalid") };
+  const authenticated = await authenticateWorkOSAuthorizationCode(input.workos, {
+    code: input.code,
+    codeVerifier: input.codeVerifier,
+    ...(input.ipAddress === undefined ? {} : { ipAddress: input.ipAddress }),
+    ...(input.userAgent === undefined ? {} : { userAgent: input.userAgent }),
+  });
+  if (!authenticated.ok) {
+    return { ok: false, failure: authenticated.failure };
   }
 
-  if (input.credentials.workosSealedSession === undefined) {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-
-  const rotated = await refreshWorkOSSession(input.workos, input.credentials.workosSealedSession);
-  if (!rotated.ok) {
-    return rotated;
-  }
-
-  const userId = await input.resolveAdmittedUser(rotated.rotated.context.user.id);
+  const userId = await input.resolveAdmittedUser(authenticated.context.user.id);
   if (userId === null) {
-    return { ok: false, failure: authFailureForAdmissionDenial(rotated.rotated.context.user.id) };
+    return {
+      ok: false,
+      failure: authFailureForAdmissionDenial(authenticated.context.user.id),
+    };
   }
 
-  return mintCliExchangeResult(
-    input,
-    {
-      type: "user",
-      userId,
-      workosUserId: rotated.rotated.context.user.id,
-      sessionId: rotated.rotated.context.sessionId,
-    },
-    rotated.rotated.sealedSession,
-  );
+  return mintCliExchangeResult(input, {
+    type: "user",
+    userId,
+    workosUserId: authenticated.context.user.id,
+    sessionId: authenticated.context.sessionId,
+  });
 }

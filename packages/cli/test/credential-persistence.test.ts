@@ -42,9 +42,27 @@ function mockContext(host = flags.host): ResolvedCliContext {
   };
 }
 
+function ignoreCallbackFetchError(error: unknown): void {
+  void error;
+}
+
+function completeLoginCallback(callback: URL): void {
+  queueMicrotask(() => {
+    void fetch(callback).catch(ignoreCallbackFetchError);
+  });
+}
+
 function createMockApi(): ApiClient {
   return {
-    async exchangeCliSession() {
+    createCliAuthorizationUrl(input) {
+      const callback = new URL(input.redirectUri);
+      callback.searchParams.set("code", "code_mock_login");
+      callback.searchParams.set("state", input.state);
+      completeLoginCallback(callback);
+      return "https://workos.test/authorize";
+    },
+    async exchangeCliPkceSession(input) {
+      expect(input.code).toBe("code_mock_login");
       return {
         ok: true,
         credential: sensitiveCredential,
@@ -69,6 +87,12 @@ function createMockApi(): ApiClient {
     async writeSecretByVariableKey() {
       throw new Error("not used");
     },
+    async issueInjectionGrant() {
+      throw new Error("not used");
+    },
+    async consumeInjectionGrant() {
+      throw new Error("not used");
+    },
   };
 }
 
@@ -85,15 +109,12 @@ describe("no credential persistence", () => {
   afterEach(() => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
-    delete process.env.INSECUR_WORKOS_COOKIE;
   });
 
   it("stores login credentials in memory only", async () => {
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
       shell: false,
+      openBrowser: false,
     });
     expect(getMemorySession()?.credential).toBe(sensitiveCredential);
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
@@ -104,11 +125,9 @@ describe("no credential persistence", () => {
   });
 
   it("writes only opaque ids to project and user config during init", async () => {
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
       shell: false,
+      openBrowser: false,
     });
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
     const isolatedHome = await createIsolatedHome("insecur-cli-init-home-");

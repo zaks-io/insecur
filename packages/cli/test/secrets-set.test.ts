@@ -73,13 +73,20 @@ function createMockApi(
     },
   }));
   return {
-    exchangeCliSession: async () => {
+    createCliAuthorizationUrl: () => "https://insecur.test/v1/auth/cli/authorize",
+    exchangeCliPkceSession: async () => {
       throw new Error("not used");
     },
     provisionPersonalOrganization: async () => {
       throw new Error("not used");
     },
     writeSecretByVariableKey,
+    issueInjectionGrant: async () => {
+      throw new Error("not used");
+    },
+    consumeInjectionGrant: async () => {
+      throw new Error("not used");
+    },
     ...overrides,
   };
 }

@@ -1,6 +1,6 @@
 import { AUTH_ERROR_CODES, userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
-import { exchangeCliSession, generateCsrfToken, parseRequestCredentials } from "./index.js";
+import { exchangeCliPkceSession } from "./index.js";
 import { createFakeWorkOSSessionPort } from "./testing/fake-workos-session.js";
 import { testSessionSigningSecret } from "./testing/test-session-signing-secret.js";
 
@@ -15,23 +15,22 @@ const config = {
 
 const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 
-describe("exchangeCliSession", () => {
-  it("returns a credential when WorkOS session and CSRF are valid", async () => {
-    const csrf = generateCsrfToken();
+describe("exchangeCliPkceSession", () => {
+  it("returns a credential when WorkOS code exchange and admission succeed", async () => {
     const workos = createFakeWorkOSSessionPort([
       {
-        sessionData: "sealed_for_exchange",
+        sessionData: "sealed_unused",
         userId: "user_01workos",
         sessionId: "session_exchange",
+        authorizationCode: "code_exchange",
+        codeVerifier: "verifier_exchange",
         authenticationMethod: "Passkey",
+        refreshFailure: "expired",
       },
     ]);
-    const result = await exchangeCliSession({
-      credentials: parseRequestCredentials({
-        authorizationHeader: null,
-        cookieHeader: `wos-session=sealed_for_exchange; insecur_csrf=${csrf}`,
-        csrfHeader: csrf,
-      }),
+    const result = await exchangeCliPkceSession({
+      code: "code_exchange",
+      codeVerifier: "verifier_exchange",
       config,
       workos,
       resolveAdmittedUser: () => Promise.resolve(admittedUserId),
@@ -40,25 +39,23 @@ describe("exchangeCliSession", () => {
     if (result.ok) {
       expect(result.credential.length).toBeGreaterThan(20);
       expect(result.body.sessionId).toBe("session_exchange");
-      expect(result.rotation?.sealedSession).toBe("sealed_for_exchange_rotated");
     }
   });
 
-  it("returns auth.invalid when CSRF does not match", async () => {
+  it("returns auth.invalid when WorkOS rejects the code verifier", async () => {
     const workos = createFakeWorkOSSessionPort([
       {
-        sessionData: "sealed_for_exchange",
+        sessionData: "sealed_unused",
         userId: "user_01workos",
         sessionId: "session_exchange",
+        authorizationCode: "code_exchange",
+        codeVerifier: "expected_verifier",
         authenticationMethod: "Passkey",
       },
     ]);
-    const result = await exchangeCliSession({
-      credentials: parseRequestCredentials({
-        authorizationHeader: null,
-        cookieHeader: "wos-session=sealed_for_exchange; insecur_csrf=abc",
-        csrfHeader: "def",
-      }),
+    const result = await exchangeCliPkceSession({
+      code: "code_exchange",
+      codeVerifier: "wrong_verifier",
       config,
       workos,
       resolveAdmittedUser: () => Promise.resolve(admittedUserId),
@@ -69,22 +66,20 @@ describe("exchangeCliSession", () => {
     }
   });
 
-  it("returns auth.mfa_enrollment_required when refresh reports MFA enrollment", async () => {
-    const csrf = generateCsrfToken();
+  it("returns auth.mfa_enrollment_required when code exchange requires MFA enrollment", async () => {
     const workos = createFakeWorkOSSessionPort([
       {
-        sessionData: "sealed_mfa_enroll",
+        sessionData: "sealed_unused",
         userId: "user_01workos",
         sessionId: "session_mfa_enroll",
-        refreshFailure: "mfa_enrollment",
+        authorizationCode: "code_mfa",
+        codeVerifier: "verifier_mfa",
+        authorizationCodeFailure: "mfa_enrollment",
       },
     ]);
-    const result = await exchangeCliSession({
-      credentials: parseRequestCredentials({
-        authorizationHeader: null,
-        cookieHeader: `wos-session=sealed_mfa_enroll; insecur_csrf=${csrf}`,
-        csrfHeader: csrf,
-      }),
+    const result = await exchangeCliPkceSession({
+      code: "code_mfa",
+      codeVerifier: "verifier_mfa",
       config,
       workos,
       resolveAdmittedUser: () => Promise.resolve(admittedUserId),
@@ -95,18 +90,47 @@ describe("exchangeCliSession", () => {
     }
   });
 
-  it("returns auth.required when WorkOS cookie is absent", async () => {
-    const csrf = generateCsrfToken();
-    const workos = createFakeWorkOSSessionPort([]);
-    const result = await exchangeCliSession({
-      credentials: parseRequestCredentials({
-        authorizationHeader: null,
-        cookieHeader: `insecur_csrf=${csrf}`,
-        csrfHeader: csrf,
-      }),
+  it("returns auth.reauth_required when code exchange requires an MFA challenge", async () => {
+    const workos = createFakeWorkOSSessionPort([
+      {
+        sessionData: "sealed_unused",
+        userId: "user_01workos",
+        sessionId: "session_mfa_challenge",
+        authorizationCode: "code_mfa_challenge",
+        codeVerifier: "verifier_mfa_challenge",
+        authorizationCodeFailure: "mfa_challenge",
+      },
+    ]);
+    const result = await exchangeCliPkceSession({
+      code: "code_mfa_challenge",
+      codeVerifier: "verifier_mfa_challenge",
       config,
       workos,
       resolveAdmittedUser: () => Promise.resolve(admittedUserId),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.reauthRequired);
+    }
+  });
+
+  it("returns auth.required when the WorkOS user is not admitted", async () => {
+    const workos = createFakeWorkOSSessionPort([
+      {
+        sessionData: "sealed_unused",
+        userId: "user_not_admitted",
+        sessionId: "session_not_admitted",
+        authorizationCode: "code_not_admitted",
+        codeVerifier: "verifier_not_admitted",
+        authenticationMethod: "Passkey",
+      },
+    ]);
+    const result = await exchangeCliPkceSession({
+      code: "code_not_admitted",
+      codeVerifier: "verifier_not_admitted",
+      config,
+      workos,
+      resolveAdmittedUser: () => Promise.resolve(null),
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {

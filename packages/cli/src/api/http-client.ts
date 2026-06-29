@@ -42,6 +42,14 @@ function parseDeliveryEnvelope(body: unknown): InjectionGrantDeliveryEnvelope | 
   throw new Error("API delivery response missing ok/delivery fields");
 }
 
+function readCliCredentialHeader(response: Response, missingMessage: string): string {
+  const credential = response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER);
+  if (credential === null || credential === "") {
+    throw new Error(missingMessage);
+  }
+  return credential;
+}
+
 async function postJson(
   url: URL,
   init: RequestInit,
@@ -70,7 +78,8 @@ async function postAuthorizedJson(
 export function createHttpApiClientForHost(host: string): ApiClient {
   const base = host.endsWith("/") ? host.slice(0, -1) : host;
   return {
-    exchangeCliSession: (input) => exchangeCliSession(base, input),
+    createCliAuthorizationUrl: (input) => createCliAuthorizationUrl(base, input),
+    exchangeCliPkceSession: (input) => exchangeCliPkceSession(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
     issueInjectionGrant: (input) => issueInjectionGrant(base, input),
@@ -78,29 +87,41 @@ export function createHttpApiClientForHost(host: string): ApiClient {
   };
 }
 
-async function exchangeCliSession(
+function createCliAuthorizationUrl(
   base: string,
-  input: { readonly cookieHeader: string; readonly csrfHeader?: string },
+  input: Parameters<ApiClient["createCliAuthorizationUrl"]>[0],
+): string {
+  const url = new URL("/v1/auth/cli/authorize", base);
+  url.searchParams.set("redirect_uri", input.redirectUri);
+  url.searchParams.set("state", input.state);
+  url.searchParams.set("code_challenge", input.codeChallenge);
+  url.searchParams.set("code_challenge_method", input.codeChallengeMethod);
+  return url.toString();
+}
+
+async function exchangeCliPkceSession(
+  base: string,
+  input: Parameters<ApiClient["exchangeCliPkceSession"]>[0],
 ) {
-  const headers: Record<string, string> = {
-    Cookie: input.cookieHeader,
-    Accept: "application/json",
-  };
-  if (input.csrfHeader !== undefined) {
-    headers["x-insecur-csrf"] = input.csrfHeader;
-  }
-  const { response, body } = await postJson(new URL("/v1/auth/cli/exchange", base), {
+  const { response, body } = await postJson(new URL("/v1/auth/cli/pkce/exchange", base), {
     method: "POST",
-    headers,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      code: input.code,
+      codeVerifier: input.codeVerifier,
+    }),
   });
   const envelope = parseEnvelope<CliSessionExchangeData>(body);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
   }
-  const credential = response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER);
-  if (credential === null || credential === "") {
-    throw new Error("CLI exchange succeeded but session credential header is missing");
-  }
+  const credential = readCliCredentialHeader(
+    response,
+    "CLI PKCE exchange succeeded but session credential header is missing",
+  );
   return { ok: true as const, credential, envelope };
 }
 

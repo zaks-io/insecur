@@ -8,7 +8,7 @@ Human authentication session composition for the insecur API Worker.
 - Memory-only CLI ephemeral session credentials (HMAC-signed, short-lived).
 - `UserActor` resolution for admitted Users.
 - CSRF helpers for browser session cookie mutations.
-- CLI token exchange contract (`exchangeCliSession`).
+- CLI PKCE authorization-code exchange contract (`exchangeCliPkceSession`).
 
 ## Consumes
 

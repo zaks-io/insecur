@@ -35,13 +35,20 @@ const mockContext: ResolvedCliContext = {
 };
 
 const noopApi: ApiClient = {
-  exchangeCliSession: async () => {
+  createCliAuthorizationUrl: () => "https://insecur.test/v1/auth/cli/authorize",
+  exchangeCliPkceSession: async () => {
     throw new Error("not used");
   },
   provisionPersonalOrganization: async () => {
     throw new Error("not used");
   },
   writeSecretByVariableKey: async () => {
+    throw new Error("not used");
+  },
+  issueInjectionGrant: async () => {
+    throw new Error("not used");
+  },
+  consumeInjectionGrant: async () => {
     throw new Error("not used");
   },
 };

@@ -107,7 +107,8 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
     },
   }));
   return {
-    exchangeCliSession: async () => {
+    createCliAuthorizationUrl: () => "https://insecur.test/v1/auth/cli/authorize",
+    exchangeCliPkceSession: async () => {
       throw new Error("not used");
     },
     provisionPersonalOrganization: async () => {
@@ -128,9 +129,9 @@ describe("runRunCommand", () => {
   afterEach(() => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
-    delete process.env.INSECUR_WORKOS_COOKIE;
-    delete process.env.INSECUR_WORKOS_CSRF;
     delete process.env.INSECUR_FUTURE_TOKEN;
+    delete process.env.INSECUR_FUTURE_COOKIE;
+    delete process.env.INSECUR_FUTURE_CSRF;
     delete process.env.INSECUR_FUTURE_KEY;
     delete process.env.API_KEY;
     vi.restoreAllMocks();
@@ -206,15 +207,15 @@ describe("runRunCommand", () => {
     expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
   });
 
-  it("scrubs WorkOS exchange material and future auth-bearing INSECUR variables from the child environment", async () => {
+  it("scrubs auth-bearing INSECUR variables from the child environment", async () => {
     setMemorySession({
       credential: "credential_test",
       sessionId: "sess_test",
       expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
     });
-    process.env.INSECUR_WORKOS_COOKIE = "dummy-workos-cookie";
-    process.env.INSECUR_WORKOS_CSRF = "dummy-workos-csrf";
     process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
+    process.env.INSECUR_FUTURE_COOKIE = "dummy-future-cookie";
+    process.env.INSECUR_FUTURE_CSRF = "dummy-future-csrf";
     process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
     const api = createMockApi();
     let capturedEnv: NodeJS.ProcessEnv | undefined;
@@ -229,9 +230,9 @@ describe("runRunCommand", () => {
       command: ["node", "-e", "0"],
     });
 
-    expect(capturedEnv?.INSECUR_WORKOS_COOKIE).toBeUndefined();
-    expect(capturedEnv?.INSECUR_WORKOS_CSRF).toBeUndefined();
     expect(capturedEnv?.INSECUR_FUTURE_TOKEN).toBeUndefined();
+    expect(capturedEnv?.INSECUR_FUTURE_COOKIE).toBeUndefined();
+    expect(capturedEnv?.INSECUR_FUTURE_CSRF).toBeUndefined();
     expect(capturedEnv?.INSECUR_FUTURE_KEY).toBeUndefined();
     expect(capturedEnv?.API_KEY).toBe(SENSITIVE_VALUE);
   });

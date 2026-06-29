@@ -6,6 +6,7 @@ export type AuthFailureReason =
   | "invalid"
   | "not_admitted"
   | "mfa_enrollment"
+  | "mfa_challenge"
   | "insufficient_assurance";
 
 export interface AuthFailureAdmissionDenial {
@@ -21,6 +22,51 @@ export interface AuthFailure {
   readonly admissionDenial?: AuthFailureAdmissionDenial;
 }
 
+const AUTH_FAILURE_BODIES: Record<AuthFailureReason, AuthFailure> = {
+  missing: {
+    code: AUTH_ERROR_CODES.required,
+    message: "Authentication is required.",
+    retryable: false,
+    reason: "missing",
+  },
+  expired: {
+    code: AUTH_ERROR_CODES.expired,
+    message: "Authentication has expired.",
+    retryable: false,
+    reason: "expired",
+  },
+  invalid: {
+    code: AUTH_ERROR_CODES.invalid,
+    message: "Authentication is invalid.",
+    retryable: false,
+    reason: "invalid",
+  },
+  not_admitted: {
+    code: AUTH_ERROR_CODES.required,
+    message: "Authentication is required.",
+    retryable: false,
+    reason: "not_admitted",
+  },
+  mfa_enrollment: {
+    code: AUTH_ERROR_CODES.mfaEnrollmentRequired,
+    message: "Multi-factor authentication enrollment is required.",
+    retryable: false,
+    reason: "mfa_enrollment",
+  },
+  mfa_challenge: {
+    code: AUTH_ERROR_CODES.reauthRequired,
+    message: "Multi-factor authentication is required.",
+    retryable: false,
+    reason: "mfa_challenge",
+  },
+  insufficient_assurance: {
+    code: AUTH_ERROR_CODES.reauthRequired,
+    message: "Authentication must be refreshed with a stronger factor.",
+    retryable: false,
+    reason: "insufficient_assurance",
+  },
+};
+
 export function authFailureForReason(
   reason: AuthFailureReason,
   options?: { readonly admissionDenial?: AuthFailureAdmissionDenial },
@@ -33,50 +79,7 @@ export function authFailureForReason(
 }
 
 function authFailureBodyForReason(reason: AuthFailureReason): AuthFailure {
-  switch (reason) {
-    case "missing":
-      return {
-        code: AUTH_ERROR_CODES.required,
-        message: "Authentication is required.",
-        retryable: false,
-        reason,
-      };
-    case "expired":
-      return {
-        code: AUTH_ERROR_CODES.expired,
-        message: "Authentication has expired.",
-        retryable: false,
-        reason,
-      };
-    case "invalid":
-      return {
-        code: AUTH_ERROR_CODES.invalid,
-        message: "Authentication is invalid.",
-        retryable: false,
-        reason,
-      };
-    case "not_admitted":
-      return {
-        code: AUTH_ERROR_CODES.required,
-        message: "Authentication is required.",
-        retryable: false,
-        reason,
-      };
-    case "mfa_enrollment":
-      return {
-        code: AUTH_ERROR_CODES.mfaEnrollmentRequired,
-        message: "Multi-factor authentication enrollment is required.",
-        retryable: false,
-        reason,
-      };
-    case "insufficient_assurance":
-      return {
-        code: AUTH_ERROR_CODES.reauthRequired,
-        message: "Authentication must be refreshed with a stronger factor.",
-        retryable: false,
-        reason,
-      };
-  }
+  return AUTH_FAILURE_BODIES[reason];
 }
 
 /** Stable auth.required failure when a WorkOS identity is not actively admitted. */

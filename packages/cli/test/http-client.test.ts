@@ -8,31 +8,49 @@ describe("createHttpApiClientForHost", () => {
     vi.restoreAllMocks();
   });
 
-  it("exchanges CLI session and reads the credential header", async () => {
+  it("builds the CLI PKCE authorization URL without fetching", () => {
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const url = new URL(
+      client.createCliAuthorizationUrl({
+        redirectUri: "http://127.0.0.1:49152/callback",
+        state: "state_test",
+        codeChallenge: "challenge_test",
+        codeChallengeMethod: "S256",
+      }),
+    );
+    expect(url.origin).toBe("https://insecur.test");
+    expect(url.pathname).toBe("/v1/auth/cli/authorize");
+    expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:49152/callback");
+    expect(url.searchParams.get("state")).toBe("state_test");
+    expect(url.searchParams.get("code_challenge")).toBe("challenge_test");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+  });
+
+  it("exchanges CLI PKCE code and reads the credential header", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
           ok: true,
-          data: { sessionId: "sess_test", expiresAt: "2026-01-01T00:00:00.000Z" },
+          data: { sessionId: "sess_pkce", expiresAt: "2026-01-01T00:00:00.000Z" },
         }),
         {
           status: 200,
-          headers: { [INSECUR_SESSION_CREDENTIAL_HEADER]: "credential_test" },
+          headers: { [INSECUR_SESSION_CREDENTIAL_HEADER]: "credential_pkce" },
         },
       ),
     );
     const client = createHttpApiClientForHost("https://insecur.test");
-    const result = await client.exchangeCliSession({
+    const result = await client.exchangeCliPkceSession({
       host: "https://insecur.test",
-      cookieHeader: "wos-session=test",
-      csrfHeader: "csrf_test",
+      code: "code_test",
+      codeVerifier: "verifier_test",
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.credential).toBe("credential_test");
+      expect(result.credential).toBe("credential_pkce");
     }
     expect(fetchMock).toHaveBeenCalledWith(
-      new URL("/v1/auth/cli/exchange", "https://insecur.test"),
+      new URL("/v1/auth/cli/pkce/exchange", "https://insecur.test"),
       expect.objectContaining({ method: "POST" }),
     );
   });
@@ -52,9 +70,10 @@ describe("createHttpApiClientForHost", () => {
       ),
     );
     const client = createHttpApiClientForHost("https://insecur.test");
-    const result = await client.exchangeCliSession({
+    const result = await client.exchangeCliPkceSession({
       host: "https://insecur.test",
-      cookieHeader: "wos-session=test",
+      code: "code_test",
+      codeVerifier: "verifier_test",
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {

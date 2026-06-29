@@ -55,10 +55,10 @@ insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --leng
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
-`insecur login --shell` exchanges a WorkOS browser session and starts an interactive child shell
-with `INSECUR_SESSION_TOKEN` in that child environment only. The credential is not printed, not
-written to disk, and not handed off through `eval` or `source`. First Value does not require an
-existing CLI profile before `insecur init` provisions one.
+`insecur login --shell` completes a WorkOS AuthKit PKCE loopback login and starts an interactive
+child shell with `INSECUR_SESSION_TOKEN` in that child environment only. The credential is not
+printed, not written to disk, and not handed off through `eval` or `source`. First Value does not
+require an existing CLI profile before `insecur init` provisions one.
 
 The sequence uses normal product primitives:
 
@@ -214,20 +214,22 @@ Non-secret environment variables:
 - `INSECUR_CLIENT_ID`
 - `INSECUR_CONFIG_DIR`
 
-Session and browser-exchange credential environment variables:
+Auth-bearing environment variables:
+
+Session credential:
 
 - `INSECUR_SESSION_TOKEN`
+
+Machine-auth credentials:
+
 - `INSECUR_DEPLOY_KEY`
 - `INSECUR_OIDC_TOKEN`
-- `INSECUR_WORKOS_COOKIE`
-- `INSECUR_WORKOS_CSRF`
 
 Rules:
 
-- Session and browser-exchange credential variables are never written by insecur to disk.
+- `INSECUR_SESSION_TOKEN` is never written by insecur to disk.
+- Machine-auth credentials are supplied by CI/provider contexts and must not be persisted by the CLI.
 - Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
-- WorkOS cookie and CSRF variables are exchange inputs for `insecur login`; they are never runtime
-  authority for arbitrary child commands.
 - Child process environments scrub auth-bearing `INSECUR_*TOKEN`, `INSECUR_*COOKIE`,
   `INSECUR_*CSRF`, and `INSECUR_*KEY` names by default. Authenticated shells deliberately receive
   only `INSECUR_SESSION_TOKEN` plus profile metadata; Runtime Injection commands receive only the
@@ -474,8 +476,8 @@ the agent can do low-risk work autonomously but cannot clear high-risk gates on 
 
 ```bash
 insecur login
-insecur login --browser
-insecur login --device
+insecur login --no-open
+insecur login --callback-port 49152
 insecur shell prof_01JZ8E6H2R7M4T0V9X3C5D8F1G
 insecur run --variable-key API_KEY -- npm run dev
 insecur login --method oidc --provider github-actions

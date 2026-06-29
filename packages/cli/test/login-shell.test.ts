@@ -49,9 +49,27 @@ function mockContext(host = flags.host): ResolvedCliContext {
   };
 }
 
+function ignoreCallbackFetchError(error: unknown): void {
+  void error;
+}
+
+function completeLoginCallback(callback: URL): void {
+  queueMicrotask(() => {
+    void fetch(callback).catch(ignoreCallbackFetchError);
+  });
+}
+
 function createMockApi(): ApiClient {
   return {
-    async exchangeCliSession() {
+    createCliAuthorizationUrl(input) {
+      const callback = new URL(input.redirectUri);
+      callback.searchParams.set("code", "code_mock_login");
+      callback.searchParams.set("state", input.state);
+      completeLoginCallback(callback);
+      return "https://workos.test/authorize";
+    },
+    async exchangeCliPkceSession(input) {
+      expect(input.code).toBe("code_mock_login");
       return {
         ok: true,
         credential: sensitiveCredential,
@@ -67,6 +85,12 @@ function createMockApi(): ApiClient {
     async writeSecretByVariableKey() {
       throw new Error("not used");
     },
+    async issueInjectionGrant() {
+      throw new Error("not used");
+    },
+    async consumeInjectionGrant() {
+      throw new Error("not used");
+    },
   };
 }
 
@@ -80,8 +104,6 @@ function assertNoCredentialMaterial(contents: string): void {
 describe("login --shell managed session", () => {
   afterEach(() => {
     clearMemorySession();
-    delete process.env.INSECUR_WORKOS_COOKIE;
-    delete process.env.INSECUR_WORKOS_CSRF;
     delete process.env.INSECUR_SESSION_TOKEN;
     delete process.env.INSECUR_DEPLOY_KEY;
     delete process.env.INSECUR_OIDC_TOKEN;
@@ -91,13 +113,11 @@ describe("login --shell managed session", () => {
   });
 
   it("hands the credential to a managed child shell without parent memory retention", async () => {
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     spawnMock.mockResolvedValue(0);
 
     const exitCode = await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
       shell: true,
+      openBrowser: false,
     });
 
     expect(exitCode).toBe(0);
@@ -112,16 +132,62 @@ describe("login --shell managed session", () => {
     expect(childEnv.INSECUR_PROFILE).toBeUndefined();
   });
 
+  it("uses PKCE loopback login by default", async () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const api: ApiClient = {
+      createCliAuthorizationUrl(input) {
+        const callback = new URL(input.redirectUri);
+        callback.searchParams.set("code", "code_pkce_test");
+        callback.searchParams.set("state", input.state);
+        completeLoginCallback(callback);
+        return "https://workos.test/authorize";
+      },
+      async exchangeCliPkceSession(input) {
+        expect(input.code).toBe("code_pkce_test");
+        expect(input.codeVerifier.length).toBeGreaterThan(40);
+        return {
+          ok: true,
+          credential: sensitiveCredential,
+          envelope: successEnvelope({
+            sessionId: "sess_cli_pkce",
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          }),
+        };
+      },
+      async provisionPersonalOrganization() {
+        throw new Error("not used");
+      },
+      async writeSecretByVariableKey() {
+        throw new Error("not used");
+      },
+      async issueInjectionGrant() {
+        throw new Error("not used");
+      },
+      async consumeInjectionGrant() {
+        throw new Error("not used");
+      },
+    };
+
+    const exitCode = await runLoginCommand(flags, api, mockContext(), {
+      shell: false,
+      openBrowser: false,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(getMemorySession()?.credential).toBe(sensitiveCredential);
+    expect(stderr.mock.calls.map((call) => String(call[0])).join("")).toContain(
+      "https://workos.test/authorize",
+    );
+  });
+
   it("writes session metadata to stderr only and never prints the credential", async () => {
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     spawnMock.mockResolvedValue(0);
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
     await runLoginCommand({ ...flags, quiet: false }, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
       shell: true,
+      openBrowser: false,
     });
 
     const stderrOutput = stderr.mock.calls.map((call) => String(call[0])).join("");
@@ -133,13 +199,10 @@ describe("login --shell managed session", () => {
   });
 
   it("rejects --shell with --json", async () => {
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
-
     await expect(
       runLoginCommand({ ...flags, json: true }, createMockApi(), mockContext(), {
-        cookieEnv: "INSECUR_WORKOS_COOKIE",
-        csrfEnv: "INSECUR_WORKOS_CSRF",
         shell: true,
+        openBrowser: false,
       }),
     ).rejects.toMatchObject({
       exitCode: EXIT_VALIDATION,
@@ -149,13 +212,11 @@ describe("login --shell managed session", () => {
   });
 
   it("returns the managed shell exit code", async () => {
-    process.env.INSECUR_WORKOS_COOKIE = "wos-session=test";
     spawnMock.mockResolvedValue(42);
 
     const exitCode = await runLoginCommand(flags, createMockApi(), mockContext(), {
-      cookieEnv: "INSECUR_WORKOS_COOKIE",
-      csrfEnv: "INSECUR_WORKOS_CSRF",
       shell: true,
+      openBrowser: false,
     });
 
     expect(exitCode).toBe(42);
@@ -167,8 +228,8 @@ describe("buildLoginShellChildEnv", () => {
     const { buildLoginShellChildEnv } = await import("../src/commands/shell-env.js");
     process.env.INSECUR_DEPLOY_KEY = "deploy-key";
     process.env.INSECUR_OIDC_TOKEN = "oidc-token";
-    process.env.INSECUR_WORKOS_COOKIE = "dummy-workos-cookie";
-    process.env.INSECUR_WORKOS_CSRF = "dummy-workos-csrf";
+    process.env.INSECUR_FUTURE_COOKIE = "dummy-future-cookie";
+    process.env.INSECUR_FUTURE_CSRF = "dummy-future-csrf";
     process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
     process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
 
@@ -178,8 +239,8 @@ describe("buildLoginShellChildEnv", () => {
     expect(childEnv.INSECUR_HOST).toBe("https://insecur.test");
     expect(childEnv.INSECUR_DEPLOY_KEY).toBeUndefined();
     expect(childEnv.INSECUR_OIDC_TOKEN).toBeUndefined();
-    expect(childEnv.INSECUR_WORKOS_COOKIE).toBeUndefined();
-    expect(childEnv.INSECUR_WORKOS_CSRF).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_COOKIE).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_CSRF).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_TOKEN).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_KEY).toBeUndefined();
   });
@@ -198,8 +259,8 @@ describe("buildShellChildEnv", () => {
     };
     process.env.INSECUR_DEPLOY_KEY = "deploy-key";
     process.env.INSECUR_OIDC_TOKEN = "oidc-token";
-    process.env.INSECUR_WORKOS_COOKIE = "dummy-workos-cookie";
-    process.env.INSECUR_WORKOS_CSRF = "dummy-workos-csrf";
+    process.env.INSECUR_FUTURE_COOKIE = "dummy-future-cookie";
+    process.env.INSECUR_FUTURE_CSRF = "dummy-future-csrf";
     process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
     process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
 
@@ -213,8 +274,8 @@ describe("buildShellChildEnv", () => {
     expect(childEnv.INSECUR_PROFILE).toBe(profile.slug);
     expect(childEnv.INSECUR_DEPLOY_KEY).toBeUndefined();
     expect(childEnv.INSECUR_OIDC_TOKEN).toBeUndefined();
-    expect(childEnv.INSECUR_WORKOS_COOKIE).toBeUndefined();
-    expect(childEnv.INSECUR_WORKOS_CSRF).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_COOKIE).toBeUndefined();
+    expect(childEnv.INSECUR_FUTURE_CSRF).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_TOKEN).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_KEY).toBeUndefined();
   });

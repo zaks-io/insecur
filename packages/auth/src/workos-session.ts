@@ -1,7 +1,11 @@
-import { WorkOS } from "@workos-inc/node";
+import { OauthException, WorkOS } from "@workos-inc/node";
+import { base64UrlToBytes } from "@insecur/domain";
 import type { WorkOSAuthFactorSummary } from "./mfa-posture.js";
 import type { WorkOSAuthConfig } from "./workos-config.js";
 import type {
+  WorkOSAuthorizationCodeInput,
+  WorkOSAuthorizationCodeResult,
+  WorkOSAuthorizationUrlInput,
   WorkOSSessionAuthenticateResult,
   WorkOSSessionContext,
   WorkOSSessionPort,
@@ -54,6 +58,83 @@ function contextFromAuthenticate(
     return { ...context, authenticationMethod };
   }
   return context;
+}
+
+function sessionIdFromAccessToken(accessToken: string): string | null {
+  const payload = accessToken.split(".")[1];
+  if (payload === undefined) {
+    return null;
+  }
+  const bytes = base64UrlToBytes(payload);
+  if (bytes === null) {
+    return null;
+  }
+  try {
+    const claims = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+    return typeof claims.sid === "string" ? claims.sid : null;
+  } catch {
+    return null;
+  }
+}
+
+function mapAuthorizationCodeFailure(error: unknown): WorkOSAuthorizationCodeResult {
+  if (error instanceof OauthException) {
+    if (error.error === "mfa_enrollment" || error.error === "mfa_challenge") {
+      return { authenticated: false, reason: error.error };
+    }
+    if (error.error === "invalid_grant") {
+      return { authenticated: false, reason: "invalid" };
+    }
+  }
+  throw error;
+}
+
+function createAuthorizationUrlWithWorkOS(
+  workos: WorkOS,
+  config: WorkOSAuthConfig,
+  input: WorkOSAuthorizationUrlInput,
+): string {
+  return workos.userManagement.getAuthorizationUrl({
+    provider: "authkit",
+    clientId: config.clientId,
+    redirectUri: input.redirectUri,
+    state: input.state,
+    codeChallenge: input.codeChallenge,
+    codeChallengeMethod: input.codeChallengeMethod,
+    ...(input.screenHint === undefined ? {} : { screenHint: input.screenHint }),
+  });
+}
+
+async function authenticateAuthorizationCodeWithWorkOS(
+  workos: WorkOS,
+  config: WorkOSAuthConfig,
+  input: WorkOSAuthorizationCodeInput,
+): Promise<WorkOSAuthorizationCodeResult> {
+  try {
+    const result = await workos.userManagement.authenticateWithCode({
+      clientId: config.clientId,
+      code: input.code,
+      codeVerifier: input.codeVerifier,
+      ...(input.ipAddress === undefined ? {} : { ipAddress: input.ipAddress }),
+      ...(input.userAgent === undefined ? {} : { userAgent: input.userAgent }),
+    });
+    const sessionId = sessionIdFromAccessToken(result.accessToken);
+    if (sessionId === null) {
+      return { authenticated: false, reason: "invalid" };
+    }
+    const authFactors = await listAuthFactorsForUser(workos, result.user.id);
+    return {
+      authenticated: true,
+      context: contextFromAuthenticate(
+        result.user,
+        sessionId,
+        result.authenticationMethod,
+        authFactors,
+      ),
+    };
+  } catch (error) {
+    return mapAuthorizationCodeFailure(error);
+  }
 }
 
 async function authenticateSealedSessionWithWorkOS(
@@ -114,6 +195,9 @@ async function refreshSealedSessionWithWorkOS(
 export function createWorkOSSessionPort(config: WorkOSAuthConfig): WorkOSSessionPort {
   const workos = new WorkOS(config.apiKey, { clientId: config.clientId });
   return {
+    createAuthorizationUrl: (input) => createAuthorizationUrlWithWorkOS(workos, config, input),
+    authenticateAuthorizationCode: (input) =>
+      authenticateAuthorizationCodeWithWorkOS(workos, config, input),
     authenticateSealedSession: (sessionData) =>
       authenticateSealedSessionWithWorkOS(workos, config, sessionData),
     refreshSealedSession: (sessionData) =>
