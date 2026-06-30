@@ -24,3 +24,21 @@ export const KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS = [
   ...KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS,
   ...KEYRING_CONSTRUCTION_RESTRICTED_RUNTIME_IMPORTS,
 ] as const;
+
+/** Crypto source modules that export decrypt-capable keyring constructors. */
+export const KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES = [
+  "keyring",
+  "secrets-store-root-key-provider",
+  "crypto-runtime",
+] as const;
+
+export const KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS =
+  KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES.flatMap((basename) => [
+    `**/crypto/src/${basename}`,
+    `**/crypto/src/${basename}.js`,
+  ]);
+
+export const KEYRING_CONSTRUCTION_RESTRICTED_IMPORT_NAME_PATTERN = `^(${KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS.join("|")})$`;
+
+export const KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX =
+  KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES.join("|");

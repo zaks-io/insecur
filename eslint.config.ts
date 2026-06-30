@@ -6,6 +6,9 @@ import tseslint from "typescript-eslint";
 import {
   KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS,
   KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS,
+  KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX,
+  KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS,
+  KEYRING_CONSTRUCTION_RESTRICTED_IMPORT_NAME_PATTERN,
 } from "./packages/crypto/src/keyring-construction-boundary.js";
 
 /** ADR-0071 decrypt-import allowlist of record. */
@@ -70,6 +73,15 @@ const keyringBoundaryOptions = {
       group: ["**/crypto/keyring-context", "**/crypto/keyring-context.js"],
       message: KEYRING_BOUNDARY_MESSAGE,
     },
+    {
+      group: [...KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS],
+      importNamePattern: KEYRING_CONSTRUCTION_RESTRICTED_IMPORT_NAME_PATTERN,
+      message: KEYRING_BOUNDARY_MESSAGE,
+    },
+    {
+      group: [...KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS],
+      message: KEYRING_BOUNDARY_MESSAGE,
+    },
   ],
 };
 
@@ -77,6 +89,17 @@ const keyringBoundarySyntaxRules = KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS.map((
   selector: `ImportSpecifier[imported.name="${importName}"]`,
   message: KEYRING_BOUNDARY_MESSAGE,
 }));
+
+const keyringDynamicImportSyntaxRules = [
+  {
+    selector: `ImportExpression[source.value=/\\/crypto\\/src\\/(${KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX})\\.js$/]`,
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+  {
+    selector: `ImportExpression[source.value=/\\/crypto\\/src\\/(${KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX})$/]`,
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+] as const;
 
 const decryptDynamicImportSyntaxRules = [
   {
@@ -247,6 +270,7 @@ export default tseslint.config(
       "no-restricted-syntax": [
         "error",
         ...decryptDynamicImportSyntaxRules,
+        ...keyringDynamicImportSyntaxRules,
         ...keyringBoundarySyntaxRules,
       ],
     },

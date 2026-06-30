@@ -15,6 +15,18 @@ const negativeFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/keyring-construction-boundary-negative.fixture.ts",
 );
+const negativeDeepPathFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/keyring-construction-boundary-negative-deep-path.fixture.ts",
+);
+const negativeDeepNamespaceFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/keyring-construction-boundary-negative-deep-namespace.fixture.ts",
+);
+const negativeDynamicFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/keyring-construction-boundary-negative-dynamic.fixture.ts",
+);
 const allowlistedModule = path.join(repoRoot, "apps/runtime/src/crypto/keyring-context.ts");
 const eslintConfigPath = path.join(repoRoot, "eslint.config.ts");
 const NEWLY_COVERED_KEYRING_CONSTRUCTORS = [
@@ -90,6 +102,8 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
     const source = readEslintConfigSource();
     expect(source).toContain("KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS");
     expect(source).toContain("KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS");
+    expect(source).toContain("KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS");
+    expect(source).toContain("keyringDynamicImportSyntaxRules");
     expect(source).not.toMatch(/importNames:\s*\[[\s\S]*?"createKeyringFromDevEnvRootKey"/);
   });
 
@@ -101,6 +115,36 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
       for (const importName of NEWLY_COVERED_KEYRING_CONSTRUCTORS) {
         expect(output).toContain(importName);
       }
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "fails lint for unallowlisted deep-path keyring constructor imports",
+    async () => {
+      const output = await runEslintExpectFailure(negativeDeepPathFixture);
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toContain("createKeyring");
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "fails lint for unallowlisted deep-path namespace keyring imports",
+    async () => {
+      const output = await runEslintExpectFailure(negativeDeepNamespaceFixture);
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toMatch(/keyring\.js/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "fails lint for unallowlisted dynamic deep-path keyring imports",
+    async () => {
+      const output = await runEslintExpectFailure(negativeDynamicFixture);
+      expect(output).toMatch(/no-restricted-syntax/);
+      expect(output).toMatch(/Keyring construction is confined to apps\/runtime\/src/);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );
