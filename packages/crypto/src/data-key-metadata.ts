@@ -1,5 +1,4 @@
 export type {
-  KeyVersion,
   OrganizationDataKeyMetadata,
   ProjectDataKeyMetadata,
   TenantDataKeyMetadataProvisioner,

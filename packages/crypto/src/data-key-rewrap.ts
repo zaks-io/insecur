@@ -157,4 +157,3 @@ export async function rewrapTenantDataKeys(input: RewrapTenantDataKeysInput): Pr
 }
 
 export { canRetireRootKeyBinding };
-export type { TenantDataKeyRewrapStore } from "@insecur/custody-contracts";

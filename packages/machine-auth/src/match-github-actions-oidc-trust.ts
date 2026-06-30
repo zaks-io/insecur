@@ -16,12 +16,12 @@ export type OidcTrustMatchFailureReason =
   | "wrong_environment"
   | "untrusted_source";
 
-export interface OidcTrustMatchSuccess {
+interface OidcTrustMatchSuccess {
   readonly ok: true;
   readonly authMethod: GitHubActionsOidcAuthMethodRow;
 }
 
-export interface OidcTrustMatchFailure {
+interface OidcTrustMatchFailure {
   readonly ok: false;
   readonly reason: OidcTrustMatchFailureReason;
   readonly reasonCode: AuthErrorCode;

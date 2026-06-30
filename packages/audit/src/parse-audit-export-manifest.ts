@@ -20,11 +20,6 @@ import {
   type UnknownRecord,
 } from "./parse-audit-export-manifest-helpers.js";
 
-export type {
-  AuditExportManifestPartial,
-  AuditExportManifestValidationFailure,
-} from "./parse-audit-export-manifest-helpers.js";
-
 export type AuditExportManifestValidationResult =
   | { readonly ok: true; readonly manifest: AuditExportManifest }
   | { readonly ok: false; readonly failure: AuditExportManifestValidationFailure };
