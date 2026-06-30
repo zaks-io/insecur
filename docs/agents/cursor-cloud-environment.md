@@ -42,8 +42,8 @@ Cursor's repo-level environment config should be treated as reviewable infrastru
   deploy-topology conformance gate (INS-199) fails any deploy that holds both a public route and the
   root key. See `docs/project-status.md` (Worker topology) and the decomposition epic INS-194.
 - Public/API-facing and contract packages must not grow a production dependency path to
-  `@insecur/crypto`; `pnpm conformance:packages` is included in `pnpm verify` and enforces that
-  package-boundary split.
+  `@insecur/crypto`; `pnpm conformance:packages` is included in `pnpm verify` and in CI's `Verify`
+  job and enforces that package-boundary split.
 - Do not `COPY` the repository into `.cursor/Dockerfile`; Cursor manages checkout and branch state.
 - Do not add secrets to `.cursor/environment.json` or `.cursor/Dockerfile`.
 - Any package added to `onlyBuiltDependencies` is a supply-chain decision and should be reviewed as such.

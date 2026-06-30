@@ -121,7 +121,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 - Authoritative issue state: Linear team `INS`
 - Authoritative PR state: GitHub `zaks-io/insecur`
-- Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow; duplicate-code warning annotations are non-blocking, while the zero-duplicate gate, actions-pin conformance gate, and package/deploy conformance gates are blocking in `pnpm verify`
+- Authoritative check state: local `pnpm verify` plus the hosted GitHub `CI` workflow; duplicate-code warning annotations are non-blocking, while the zero-duplicate gate, actions-pin conformance gate, and package/deploy conformance gates are blocking in `pnpm verify` and in CI's `Verify` job (knip and actionlint are separate CI jobs, not part of `Verify`)
 - Authoritative deploy state: Cloudflare (Workers `insecur-api` public edge + `insecur-runtime` private decrypt-egress)
 - Orchestrator mutation authority: Agent Orchestrator only
 - Implement authority: Agent Implement (one issue per branch/PR)
