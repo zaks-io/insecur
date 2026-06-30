@@ -68,6 +68,34 @@
           "entrypoint": "RuntimeService",
         },
       ],
+      // Preview-specific namespace IDs (distinct from top-level) so preview deploys enforce abuse controls.
+      "ratelimits": [
+        {
+          "name": "ONBOARDING_IP",
+          "namespace_id": "2871",
+          "simple": { "limit": 30, "period": 60 },
+        },
+        {
+          "name": "ONBOARDING_ACTOR",
+          "namespace_id": "2872",
+          "simple": { "limit": 10, "period": 60 },
+        },
+        {
+          "name": "BOOTSTRAP_IP",
+          "namespace_id": "2874",
+          "simple": { "limit": 10, "period": 60 },
+        },
+        {
+          "name": "BOOTSTRAP_ACTOR",
+          "namespace_id": "2875",
+          "simple": { "limit": 5, "period": 60 },
+        },
+        {
+          "name": "AUTH_EXCHANGE_IP",
+          "namespace_id": "2876",
+          "simple": { "limit": 20, "period": 60 },
+        },
+      ],
     },
   },
 }

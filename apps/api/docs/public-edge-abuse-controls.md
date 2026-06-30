@@ -41,7 +41,24 @@ audit to the Runtime Worker:
 
 Each denied event stores `denial.reasonCode = abuse.rate_limited`.
 
+## Deploy bindings
+
+Production (`insecur-api`) and preview (`insecur-api-preview` via `env.preview`) both declare the
+same binding names and limits in `apps/api/wrangler.jsonc`. Preview uses **distinct namespace IDs**
+so counters do not share state with production.
+
+| Binding            | Production namespace | Preview namespace |
+| ------------------ | -------------------- | ----------------- |
+| `ONBOARDING_IP`    | 2781                 | 2871              |
+| `ONBOARDING_ACTOR` | 2782                 | 2872              |
+| `BOOTSTRAP_IP`     | 2784                 | 2874              |
+| `BOOTSTRAP_ACTOR`  | 2785                 | 2875              |
+| `AUTH_EXCHANGE_IP` | 2786                 | 2876              |
+
+The deploy-topology conformance gate (`pnpm conformance:topology`) asserts both scopes declare every
+binding with matching limits and non-colliding namespace IDs.
+
 ## Local development and tests
 
 Vitest and `wrangler dev` without deployed ratelimit bindings treat missing bindings as **pass-through**
-(unlimited). Production/preview deploys must declare the bindings in `wrangler.jsonc`.
+(unlimited). Production and preview deploys must declare the bindings in `wrangler.jsonc`.
