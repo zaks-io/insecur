@@ -23,6 +23,7 @@ export const FIRST_VALUE_AUDIT_EVENT_CODES = {
   injectionRunCompleted: "runtime_injection.run_completed",
   injectionRunDenied: "runtime_injection.run_denied",
   accessDenied: "access.denied",
+  authCliPkceExchangeDenied: "auth.cli_pkce_exchange_denied",
 } as const;
 
 /**
@@ -76,6 +77,7 @@ export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEvent
   FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
+  FIRST_VALUE_AUDIT_EVENT_CODES.authCliPkceExchangeDenied,
 ]);
 
 export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventCode>([

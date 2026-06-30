@@ -2,7 +2,10 @@ import { exchangeCliPkceSession, INSECUR_SESSION_CREDENTIAL_HEADER } from "@inse
 import { errorEnvelope, requestId, successEnvelope, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   AuthFailureError,
+  AbuseLimitError,
   createAuthContext,
+  domainErrorEnvelope,
+  enforcePublicEdgeAbuseControl,
   recordAdmissionDeniedAuditForAuthFailure,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
@@ -103,8 +106,32 @@ authRoutes.get("/cli/authorize", (context) => {
   return context.redirect(authorizationUrl, 302);
 });
 
+async function enforceAuthExchangeRateLimit(
+  context: AuthRouteContext,
+  reqId: ReturnType<typeof requestId.generate>,
+): Promise<Response | null> {
+  try {
+    await enforcePublicEdgeAbuseControl(context.env, (name: string) => context.req.header(name), {
+      target: "auth_cli_pkce_exchange",
+      requestId: reqId,
+    });
+    return null;
+  } catch (error) {
+    if (error instanceof AbuseLimitError) {
+      const { status, body } = domainErrorEnvelope(error, reqId);
+      return context.json(body, status as 429);
+    }
+    throw error;
+  }
+}
+
 authRoutes.post("/cli/pkce/exchange", async (context) => {
   const reqId = requestId.generate();
+  const rateLimited = await enforceAuthExchangeRateLimit(context, reqId);
+  if (rateLimited !== null) {
+    return rateLimited;
+  }
+
   const { config, workos, resolveAdmittedUser } = createAuthContext(context.env);
   const parsed = await parsePkceExchangeBody(context);
   if (!parsed.ok) {

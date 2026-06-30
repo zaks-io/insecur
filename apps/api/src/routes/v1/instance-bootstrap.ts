@@ -6,6 +6,7 @@ import {
   requireUserActor,
   resolveInstanceId,
   runtimeClientFor,
+  enforcePublicEdgeAbuseControl,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
@@ -25,6 +26,13 @@ instanceBootstrapRoutes.get("/status", async (context) => {
 
 instanceBootstrapRoutes.post("/operator-claim", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    await enforcePublicEdgeAbuseControl(context.env, (name) => context.req.header(name), {
+      target: "bootstrap_operator_claim",
+      requestId: reqId,
+      actorUserId: userActor.userId,
+    });
+
     const body = parseJsonBody(await context.req.json());
 
     return runtimeClientFor(context.env, context.get("userActor")).completeBootstrapOperatorClaim({

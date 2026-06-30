@@ -1,5 +1,6 @@
 import {
   AUDIT_ERROR_CODES,
+  ABUSE_ERROR_CODES,
   AUTH_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
   CRYPTO_ERROR_CODES,
@@ -61,6 +62,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [CRYPTO_ERROR_CODES.tenantDataKeyNotReady, 503],
   [CRYPTO_ERROR_CODES.invalidAadField, 400],
   [AUDIT_ERROR_CODES.eventInvalid, 400],
+  [ABUSE_ERROR_CODES.rateLimited, 429],
   [INJECTION_ERROR_CODES.grantDenied, 404],
   [INJECTION_ERROR_CODES.grantExpired, 404],
   [OPERATION_ERROR_CODES.notFound, 404],

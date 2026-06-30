@@ -1,5 +1,6 @@
 import {
   AUDIT_ERROR_CODES,
+  ABUSE_ERROR_CODES,
   AUTH_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
   CRYPTO_ERROR_CODES,
@@ -68,6 +69,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [CRYPTO_ERROR_CODES.tenantDataKeyNotReady]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.invalidAadField]: EXIT_VALIDATION,
   [AUDIT_ERROR_CODES.eventInvalid]: EXIT_VALIDATION,
+  [ABUSE_ERROR_CODES.rateLimited]: EXIT_RETRYABLE,
 };
 
 function exitCodeForPrefix(code: KnownErrorCode): number | undefined {

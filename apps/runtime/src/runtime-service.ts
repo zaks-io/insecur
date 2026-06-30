@@ -33,6 +33,8 @@ import type {
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
+  RecordAbuseDeniedRpcInput,
+  RecordAbuseDeniedRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RuntimeDeliveryEnvelope,
@@ -45,6 +47,7 @@ import type { RuntimeEnv } from "./env.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { getOperationOperation } from "./operations/get-operation-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
+import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
@@ -136,6 +139,12 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
     input: RecordAdmissionDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>> {
     return this.#pre(() => recordAdmissionDeniedOperation(input));
+  }
+
+  recordAbuseDenied(
+    input: RecordAbuseDeniedRpcInput,
+  ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>> {
+    return this.#pre(() => recordAbuseDeniedOperation(input));
   }
 
   getBootstrapStatus(

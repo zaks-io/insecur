@@ -26,6 +26,40 @@
       "entrypoint": "RuntimeService",
     },
   ],
+  // Pre-tenant public-edge abuse controls (INS-278). Cloudflare Rate Limiting bindings — not KV.
+  // Limits are per Cloudflare location; see apps/api/docs/public-edge-abuse-controls.md.
+  "ratelimits": [
+    {
+      "name": "ONBOARDING_IP",
+      "namespace_id": "2781",
+      "simple": { "limit": 30, "period": 60 },
+    },
+    {
+      "name": "ONBOARDING_ACTOR",
+      "namespace_id": "2782",
+      "simple": { "limit": 10, "period": 60 },
+    },
+    {
+      "name": "PERSONAL_ORG_ACTOR",
+      "namespace_id": "2783",
+      "simple": { "limit": 3, "period": 60 },
+    },
+    {
+      "name": "BOOTSTRAP_IP",
+      "namespace_id": "2784",
+      "simple": { "limit": 10, "period": 60 },
+    },
+    {
+      "name": "BOOTSTRAP_ACTOR",
+      "namespace_id": "2785",
+      "simple": { "limit": 5, "period": 60 },
+    },
+    {
+      "name": "AUTH_EXCHANGE_IP",
+      "namespace_id": "2786",
+      "simple": { "limit": 20, "period": 60 },
+    },
+  ],
   // Preview environment override for the shared preview deploy. The API Worker does no DB I/O
   // (everything keyring- and DB-bound is forwarded over the RUNTIME Service Binding), so it binds no
   // Hyperdrive. PR workflows must not patch this config or create per-PR preview deploys.

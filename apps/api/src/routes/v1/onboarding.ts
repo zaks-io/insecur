@@ -7,6 +7,7 @@ import {
   requireUserActor,
   resolveInstanceId,
   runtimeClientFor,
+  enforcePublicEdgeAbuseControl,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
@@ -29,6 +30,12 @@ function optionalDisplayName(
 onboardingRoutes.post("/personal-organization", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
+    await enforcePublicEdgeAbuseControl(context.env, (name) => context.req.header(name), {
+      target: "onboarding_guided_provision",
+      requestId: reqId,
+      actorUserId: userActor.userId,
+    });
+
     const body = parseJsonBody(await context.req.json());
     const resourceIds = parseGuidedOrganizationResourceIds(body);
 
