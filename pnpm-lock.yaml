@@ -37,8 +37,8 @@ catalogs:
       specifier: ^10.0.0
       version: 10.1.8
     globals:
-      specifier: ^16.0.0
-      version: 16.5.0
+      specifier: ^17.7.0
+      version: 17.7.0
     jiti:
       specifier: ^2.4.0
       version: 2.7.0
@@ -117,7 +117,7 @@ importers:
         version: 10.1.8(eslint@10.6.0(jiti@2.7.0))
       globals:
         specifier: 'catalog:'
-        version: 16.5.0
+        version: 17.7.0
       jiti:
         specifier: 'catalog:'
         version: 2.7.0
@@ -2695,8 +2695,8 @@ packages:
     resolution: {integrity: sha512-wHTUcDUoZ1H5/0iVqEudYW4/kAlN5cZ3j/bXn0Dpbizl9iaUVeWSHqiOjsgk6OW2bkLclbBjzewBz6weQ1zA2Q==}
     engines: {node: '>=18'}
 
-  globals@16.5.0:
-    resolution: {integrity: sha512-c/c15i26VrJ4IRt5Z89DnIzCGDn9EcebibhAOjw5ibqEHsE1wLUgkPn9RDmNcUKyU87GeaL633nyJ+pplFR2ZQ==}
+  globals@17.7.0:
+    resolution: {integrity: sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg==}
     engines: {node: '>=18'}
 
   gopd@1.2.0:
@@ -5410,7 +5410,7 @@ snapshots:
     dependencies:
       ini: 4.1.1
 
-  globals@16.5.0: {}
+  globals@17.7.0: {}
 
   gopd@1.2.0: {}
 
