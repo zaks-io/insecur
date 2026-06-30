@@ -32,12 +32,12 @@ catalog:
   knip: ^6.20.0
   lefthook: ^2.1.8
   jiti: ^2.4.0
-  globals: ^16.0.0
+  globals: ^17.7.0
   postgres: ^3.4.0
   drizzle-orm: ^0.45.2
   drizzle-kit: ^0.31.10
   hono: ^4.12.27
-  tsx: ^4.19.0
+  tsx: ^4.22.4
   wrangler: ^4.0.0
 
 patchedDependencies:
