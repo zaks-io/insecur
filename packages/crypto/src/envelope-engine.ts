@@ -3,13 +3,9 @@ import { DecryptError } from "./errors.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import { aesGcmDecrypt, aesGcmEncrypt, concatBytes, randomIv } from "./envelope-crypto.js";
 import { toBufferSource } from "./buffer.js";
-import {
-  ENVELOPE_HEADER_LENGTH,
-  parseEnvelopeLayout,
-  writeEnvelopeHeader,
-} from "./envelope-layout.js";
+import { parseEnvelopeLayout, writeEnvelopeHeader } from "./envelope-layout.js";
 
-export function serializeDekWrapAad(recordType: number, tenantDataKeyVersion: number): Uint8Array {
+function serializeDekWrapAad(recordType: number, tenantDataKeyVersion: number): Uint8Array {
   return serializeAadFields([
     String(recordType),
     String(ENVELOPE_FORMAT_VERSION),
@@ -94,5 +90,3 @@ export async function openTenantBoundEnvelope(
     throw new DecryptError();
   }
 }
-
-export { ENVELOPE_HEADER_LENGTH };

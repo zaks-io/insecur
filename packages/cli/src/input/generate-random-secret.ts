@@ -46,7 +46,7 @@ export function parseGenerateLength(raw: string | undefined): number {
   return parsed;
 }
 
-export function assertSupportedGenerateMode(mode: string | true | undefined): "random" {
+function assertSupportedGenerateMode(mode: string | true | undefined): "random" {
   if (mode === undefined) {
     throw new CliError({
       code: SECRET_ERROR_CODES.invalidInputMode,

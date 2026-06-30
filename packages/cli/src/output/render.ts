@@ -25,7 +25,7 @@ export function renderSuccess<TData>(
   }
 }
 
-export function renderError(envelope: ErrorEnvelope, options: RenderOptions): void {
+function renderError(envelope: ErrorEnvelope, options: RenderOptions): void {
   assertMetadataOnlyEnvelopeShape(envelope as unknown as Record<string, unknown>);
   if (options.json) {
     process.stderr.write(`${JSON.stringify(envelope)}\n`);

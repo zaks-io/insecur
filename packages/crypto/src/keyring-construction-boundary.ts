@@ -21,7 +21,7 @@ export const KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST = [
 ] as const;
 
 /** Runtime keyring-context exports fenced outside `apps/runtime/src/**`. */
-export const KEYRING_CONSTRUCTION_RESTRICTED_RUNTIME_IMPORTS = [
+const KEYRING_CONSTRUCTION_RESTRICTED_RUNTIME_IMPORTS = [
   "createKeyringFromRuntimeEnv",
   "RuntimeEnvRootKeyProvider",
 ] as const;
@@ -32,7 +32,7 @@ export const KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS = [
 ] as const;
 
 /** Crypto source modules that export decrypt-capable keyring constructors. */
-export const KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES = [
+const KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES = [
   "keyring",
   "secrets-store-root-key-provider",
   "crypto-runtime",

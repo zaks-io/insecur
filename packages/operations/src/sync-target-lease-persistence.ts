@@ -72,29 +72,6 @@ export async function upsertClaimSyncTargetLease(
   return parseFencingToken(row);
 }
 
-export async function selectSyncTargetLeaseForUpdate(
-  sql: TenantScopedSql,
-  target: SyncTargetKey,
-): Promise<SyncTargetLeaseRow | null> {
-  const rows = await sql<SyncTargetLeaseRow[]>`
-    SELECT
-      org_id,
-      project_id,
-      provider_kind,
-      target_identity,
-      held_by_operation_id,
-      fencing_token,
-      expires_at
-    FROM sync_target_leases
-    WHERE org_id = ${target.organizationId}
-      AND project_id = ${target.projectId}
-      AND provider_kind = ${target.providerKind}
-      AND target_identity = ${target.targetIdentity}
-    FOR UPDATE
-  `;
-  return rows[0] ?? null;
-}
-
 export async function selectActiveSyncTargetLeaseForOperation(
   sql: TenantScopedSql,
   input: {

@@ -3,7 +3,7 @@ import { organizationId, projectId } from "@insecur/domain";
 import { organizationDataKeys, projectDataKeys } from "../db/schema/tenant-hierarchy.js";
 import type { DataKeyVersionStatus } from "./types.js";
 
-export function parseStatus(raw: string): DataKeyVersionStatus {
+function parseStatus(raw: string): DataKeyVersionStatus {
   if (raw === "active" || raw === "retired" || raw === "revoked") {
     return raw;
   }

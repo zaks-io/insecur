@@ -1,4 +1,4 @@
-import type { BootstrapErrorCode, KnownErrorCode, OrganizationId } from "@insecur/domain";
+import type { BootstrapErrorCode, OrganizationId } from "@insecur/domain";
 
 export class BootstrapError extends Error {
   readonly code: BootstrapErrorCode;
@@ -16,8 +16,4 @@ export class BootstrapError extends Error {
 
 export function isBootstrapError(error: unknown): error is BootstrapError {
   return error instanceof BootstrapError;
-}
-
-export function asKnownBootstrapCode(code: BootstrapErrorCode): KnownErrorCode {
-  return code;
 }

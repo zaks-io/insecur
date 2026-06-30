@@ -155,5 +155,3 @@ export async function rewrapTenantDataKeys(input: RewrapTenantDataKeysInput): Pr
     throw new TenantDataKeyNotReadyError();
   }
 }
-
-export { canRetireRootKeyBinding };

@@ -96,7 +96,7 @@ export function readCustodyEvidenceRefs(
   };
 }
 
-export function buildPartial(record: UnknownRecord | null): AuditExportManifestPartial {
+function buildPartial(record: UnknownRecord | null): AuditExportManifestPartial {
   if (record === null) {
     return {
       organization_id: null,

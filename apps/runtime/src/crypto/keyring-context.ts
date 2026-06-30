@@ -24,7 +24,7 @@ function bindingForRootKeyVersion(
 }
 
 /** Dispatches unwrap to the per-version Secrets Store binding recorded on data-key rows. */
-export class RuntimeEnvRootKeyProvider implements RootKeyProvider {
+class RuntimeEnvRootKeyProvider implements RootKeyProvider {
   constructor(private readonly env: RuntimeEnv) {}
 
   async getRootKeyBytes(version: KeyVersion): Promise<Uint8Array> {
