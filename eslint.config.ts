@@ -3,6 +3,15 @@ import eslintConfigPrettier from "eslint-config-prettier";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import {
+  KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS,
+  KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS,
+  KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX,
+  KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS,
+  KEYRING_CONSTRUCTION_RESTRICTED_IMPORT_NAME_PATTERN,
+  KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
+} from "./packages/crypto/src/keyring-construction-boundary.js";
+
 /** ADR-0071 decrypt-import allowlist of record. */
 const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/runtime-injection/src/decrypt-grant-secret.ts",
@@ -56,12 +65,8 @@ const keyringBoundaryOptions = {
   paths: [
     {
       name: "@insecur/crypto",
-      importNames: [
-        "SecretsStoreRootKeyProvider",
-        "EnvRootKeyProvider",
-        "createKeyringFromDevEnvRootKey",
-        "resolveInstanceRootKeyFromEnv",
-      ],
+      importNames: [...KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS],
+      allowTypeImports: true,
       message: KEYRING_BOUNDARY_MESSAGE,
     },
   ],
@@ -70,28 +75,31 @@ const keyringBoundaryOptions = {
       group: ["**/crypto/keyring-context", "**/crypto/keyring-context.js"],
       message: KEYRING_BOUNDARY_MESSAGE,
     },
+    {
+      group: [...KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS],
+      importNamePattern: KEYRING_CONSTRUCTION_RESTRICTED_IMPORT_NAME_PATTERN,
+      allowTypeImports: true,
+      message: KEYRING_BOUNDARY_MESSAGE,
+    },
+    {
+      group: [...KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS],
+      message: KEYRING_BOUNDARY_MESSAGE,
+    },
   ],
 };
 
-const keyringBoundarySyntaxRules = [
+const keyringBoundarySyntaxRules = KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS.map((importName) => ({
+  selector: `ImportDeclaration[importKind!="type"] ImportSpecifier[imported.name="${importName}"][importKind!="type"]`,
+  message: KEYRING_BOUNDARY_MESSAGE,
+}));
+
+const keyringDynamicImportSyntaxRules = [
   {
-    selector: 'ImportSpecifier[imported.name="createKeyringFromRuntimeEnv"]',
+    selector: `ImportExpression[source.value=/\\/crypto\\/src\\/(${KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX})\\.js$/]`,
     message: KEYRING_BOUNDARY_MESSAGE,
   },
   {
-    selector: 'ImportSpecifier[imported.name="RuntimeEnvRootKeyProvider"]',
-    message: KEYRING_BOUNDARY_MESSAGE,
-  },
-  {
-    selector: 'ImportSpecifier[imported.name="EnvRootKeyProvider"]',
-    message: KEYRING_BOUNDARY_MESSAGE,
-  },
-  {
-    selector: 'ImportSpecifier[imported.name="createKeyringFromDevEnvRootKey"]',
-    message: KEYRING_BOUNDARY_MESSAGE,
-  },
-  {
-    selector: 'ImportSpecifier[imported.name="resolveInstanceRootKeyFromEnv"]',
+    selector: `ImportExpression[source.value=/\\/crypto\\/src\\/(${KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX})$/]`,
     message: KEYRING_BOUNDARY_MESSAGE,
   },
 ] as const;
@@ -252,6 +260,7 @@ export default tseslint.config(
       "**/*.integration.test.ts",
       "packages/crypto/src/**",
       "apps/runtime/src/**",
+      ...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
     rules: {
@@ -265,6 +274,7 @@ export default tseslint.config(
       "no-restricted-syntax": [
         "error",
         ...decryptDynamicImportSyntaxRules,
+        ...keyringDynamicImportSyntaxRules,
         ...keyringBoundarySyntaxRules,
       ],
     },
