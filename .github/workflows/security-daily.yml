@@ -1,5 +1,5 @@
-# Daily supply-chain and security scan. Scanners run on schedule; Linear filing is a
-# gated placeholder (see report-criticals). See docs/build-tooling.md#daily-security-scan-security-daily.
+# Daily supply-chain and security scan. Scanners run on schedule; Linear filing is
+# explicitly opt-in and metadata-only. See docs/build-tooling.md#daily-security-scan-security-daily.
 name: security-daily
 
 on:
@@ -19,8 +19,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
       - name: Generate SBOM and scan for CVEs
+        env:
+          GRYPE_JSON_PATH: ${{ runner.temp }}/grype.json
         run: bash scripts/ci/sbom-grype.sh none
+
+      - name: Summarize critical grype findings
+        run: |
+          node scripts/ci/security-daily-linear-reporting.mjs summarize-grype \
+            --input "${RUNNER_TEMP}/grype.json" \
+            --output security-daily-findings/grype.json \
+            --workflow-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Upload grype finding metadata
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-daily-findings-grype
+          path: security-daily-findings/grype.json
+          if-no-files-found: warn
+          retention-days: 14
 
   sast-full:
     name: SAST full scan (semgrep)
@@ -30,10 +53,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
       - name: Run semgrep
+        id: semgrep
+        continue-on-error: true
         uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
         with:
           config: auto
+          generateSarif: "1"
+
+      - name: Summarize critical semgrep findings
+        if: always()
+        run: |
+          if [ -f semgrep.sarif ]; then
+            node scripts/ci/security-daily-linear-reporting.mjs summarize-semgrep \
+              --input semgrep.sarif \
+              --output security-daily-findings/semgrep.json \
+              --workflow-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          else
+            mkdir -p security-daily-findings
+            printf '{"schema_version":1,"source":"security-daily","scanner":"semgrep","findings":[]}\n' > security-daily-findings/semgrep.json
+          fi
+
+      - name: Upload semgrep finding metadata
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-daily-findings-semgrep
+          path: security-daily-findings/semgrep.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Fail if semgrep failed
+        if: steps.semgrep.outcome == 'failure'
+        run: exit 1
 
   secret-scan-history:
     name: Secret scan history (gitleaks)
@@ -45,11 +102,46 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
       - name: Install gitleaks (OSS CLI)
         run: bash scripts/ci/install-gitleaks.sh
 
       - name: Scan git history for secrets
+        id: gitleaks
+        continue-on-error: true
+        env:
+          GITLEAKS_REPORT_PATH: ${{ runner.temp }}/gitleaks.json
         run: bash scripts/ci/gitleaks-detect.sh git
+
+      - name: Summarize critical gitleaks findings
+        if: always()
+        run: |
+          if [ -f "${RUNNER_TEMP}/gitleaks.json" ]; then
+            node scripts/ci/security-daily-linear-reporting.mjs summarize-gitleaks \
+              --input "${RUNNER_TEMP}/gitleaks.json" \
+              --output security-daily-findings/gitleaks.json \
+              --workflow-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          else
+            mkdir -p security-daily-findings
+            printf '{"schema_version":1,"source":"security-daily","scanner":"gitleaks","findings":[]}\n' > security-daily-findings/gitleaks.json
+          fi
+
+      - name: Upload gitleaks finding metadata
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-daily-findings-gitleaks
+          path: security-daily-findings/gitleaks.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Fail if gitleaks failed
+        if: steps.gitleaks.outcome == 'failure'
+        run: exit 1
 
   dependency-scan:
     name: Dependency scan (placeholder)
@@ -69,22 +161,59 @@ jobs:
           exit 1
 
   report-criticals:
-    name: Report critical findings (placeholder)
+    name: Report critical findings
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
+    if: always()
     needs:
       - vulnerability-scan
       - sast-full
       - secret-scan-history
     steps:
-      - name: Linear reporting gate
+      - name: Linear reporting disabled notice
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED != 'true'
         env:
           LINEAR_SECURITY_REPORTING_ENABLED: ${{ vars.LINEAR_SECURITY_REPORTING_ENABLED }}
         run: |
           set -euo pipefail
-          if [ "${LINEAR_SECURITY_REPORTING_ENABLED:-}" != "true" ]; then
-            echo "::notice::Linear security reporting skipped: set LINEAR_SECURITY_REPORTING_ENABLED=true and configure LINEAR_API_KEY before enabling automated issue filing."
-            exit 0
+          echo "::notice::Linear security reporting skipped: set LINEAR_SECURITY_REPORTING_ENABLED=true and configure LINEAR_API_KEY before enabling automated issue filing."
+
+      - name: Checkout
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Validate Linear reporting configuration
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${LINEAR_API_KEY:-}" ]; then
+            echo "::error::LINEAR_SECURITY_REPORTING_ENABLED is true but LINEAR_API_KEY is not configured."
+            exit 1
           fi
-          echo "::error::LINEAR_SECURITY_REPORTING_ENABLED is true but automated Linear filing is not wired yet."
-          exit 1
+
+      - name: Download scanner finding metadata
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          pattern: security-daily-findings-*
+          path: security-daily-findings
+          merge-multiple: true
+
+      - name: File or update Linear issues
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          LINEAR_SECURITY_REPORTING_ENABLED: ${{ vars.LINEAR_SECURITY_REPORTING_ENABLED }}
+          LINEAR_SECURITY_REPORTING_LABELS: zaks-io/insecur,risk-security-sensitive,Bug
+          LINEAR_TEAM_KEY: INS
+          SECURITY_DAILY_REPORT_DIR: security-daily-findings
+        run: node scripts/ci/security-daily-linear-reporting.mjs report

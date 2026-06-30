@@ -15,12 +15,22 @@ cd "${repo_root}"
 
 case "${mode}" in
   detect)
-    gitleaks detect --config "${config}" --source . --no-git --redact --no-banner --verbose
+    report_args=()
+    if [ -n "${GITLEAKS_REPORT_PATH:-}" ]; then
+      mkdir -p "$(dirname "${GITLEAKS_REPORT_PATH}")"
+      report_args=(--report-format json --report-path "${GITLEAKS_REPORT_PATH}")
+    fi
+    gitleaks detect --config "${config}" --source . --no-git --redact --no-banner --verbose "${report_args[@]}"
     bash "${repo_root}/scripts/ci/gitleaks-workflow-config-probe.sh"
     bash "${repo_root}/scripts/ci/gitleaks-setup-doc-probe.sh"
     ;;
   git)
-    gitleaks git --config "${config}" --redact --no-banner --verbose
+    report_args=()
+    if [ -n "${GITLEAKS_REPORT_PATH:-}" ]; then
+      mkdir -p "$(dirname "${GITLEAKS_REPORT_PATH}")"
+      report_args=(--report-format json --report-path "${GITLEAKS_REPORT_PATH}")
+    fi
+    gitleaks git --config "${config}" --redact --no-banner --verbose "${report_args[@]}"
     ;;
   *)
     echo "usage: $0 [detect|git]" >&2
