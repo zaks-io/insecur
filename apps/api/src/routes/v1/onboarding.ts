@@ -6,11 +6,11 @@ import {
   readOptionalString,
   requireUserActor,
   resolveInstanceId,
+  runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
-import { provisionGuidedOrganizationViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const onboardingRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -32,7 +32,7 @@ onboardingRoutes.post("/personal-organization", requireUserActor, async (context
     const body = parseJsonBody(await context.req.json());
     const resourceIds = parseGuidedOrganizationResourceIds(body);
 
-    return provisionGuidedOrganizationViaRuntime(context.env, userActor, {
+    return runtimeClientFor(context.env, userActor).provisionGuidedOrganization({
       instanceId: resolveInstanceId(context.env),
       ...optionalDisplayName(body, "organizationDisplayName"),
       ...optionalDisplayName(body, "projectDisplayName"),

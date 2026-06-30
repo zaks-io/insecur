@@ -9,13 +9,13 @@ import {
   parseProjectIdParam,
   requireRouteParam,
   requireUserActor,
+  runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { RequestId } from "@insecur/domain";
 import type { ApiEnv } from "../../env.js";
-import { writeRuntimeSecret } from "../../rpc/runtime-caller.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
 export const secretsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
@@ -42,7 +42,7 @@ async function executeSecretWriteByVariableKey(
   const writeInput =
     "valueUtf8" in parsed ? { valueUtf8: parsed.valueUtf8 } : { generate: parsed.generate };
 
-  return writeRuntimeSecret(context.env, userActor, {
+  return runtimeClientFor(context.env, userActor).writeSecret({
     organizationId,
     projectId,
     environmentId,

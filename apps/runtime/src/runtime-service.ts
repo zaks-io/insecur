@@ -1,6 +1,26 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 
+import {
+  acceptInvitation,
+  createInvitation,
+  createOperatorOrganization,
+  provisionGuidedOrganization,
+  type AcceptInvitationResult,
+  type CreateInvitationResult,
+  type CreateOperatorOrganizationResult,
+  type ProvisionGuidedOrganizationResult,
+} from "@insecur/onboarding";
+import { issueInjectionGrant } from "@insecur/runtime-injection-issue";
+import {
+  completeBootstrapOperatorClaim,
+  getBootstrapStatus,
+  type BootstrapStatus,
+  type CompleteBootstrapOperatorClaimResult,
+} from "@insecur/instance-bootstrap";
+import { resolveAdmittedUserId } from "@insecur/tenant-store";
 import { runWithRuntimeConnection } from "@insecur/tenant-store";
+import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
+import type { OperationPollResult } from "@insecur/operations";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -20,33 +40,13 @@ import type {
   RuntimeSecretWritePayload,
   WriteSecretRpcInput,
 } from "@insecur/worker-kit";
-import type {
-  AcceptInvitationResult,
-  CreateInvitationResult,
-  CreateOperatorOrganizationResult,
-  ProvisionGuidedOrganizationResult,
-} from "@insecur/onboarding";
-import type { OperationPollResult } from "@insecur/operations";
-import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
-import type {
-  BootstrapStatus,
-  CompleteBootstrapOperatorClaimResult,
-} from "@insecur/instance-bootstrap";
 
 import type { RuntimeEnv } from "./env.js";
-import { acceptInvitationOperation } from "./operations/accept-invitation-operation.js";
-import { completeBootstrapClaimOperation } from "./operations/complete-bootstrap-claim-operation.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
-import { createInvitationOperation } from "./operations/create-invitation-operation.js";
-import { createOperatorOrganizationOperation } from "./operations/create-operator-organization-operation.js";
-import { getBootstrapStatusOperation } from "./operations/get-bootstrap-status-operation.js";
 import { getOperationOperation } from "./operations/get-operation-operation.js";
-import { issueInjectionGrantOperation } from "./operations/issue-injection-grant-operation.js";
-import { provisionGuidedOrganizationOperation } from "./operations/provision-guided-organization-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
-import { resolveAdmissionOperation } from "./operations/resolve-admission-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
-import { withRuntimeRpcEntry } from "./rpc/runtime-rpc-entry.js";
+import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
 /**
@@ -59,6 +59,11 @@ import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-ent
  * resolver internally before they touch the keyring, so there is no "decrypt without authorize"
  * path to split across the seam. Errors are returned as data, not thrown, because RPC does not
  * propagate custom error properties (`code`/`retryable`) - the API re-throws a shaped error.
+ *
+ * Each public method is one RPC binding: it picks a trust shape (`#post` verifies the hop token and
+ * derives the actor views; `#pre` runs token-less, trusted by the private binding) and runs one
+ * operation. Operations carrying real logic (write, consume, operation-read, denied-audit) keep
+ * their own files; the rest map the RPC input straight onto the owning package function inline.
  */
 export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
   /**
@@ -82,130 +87,173 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
     return result;
   }
 
-  #rpcEntryOptions(actorToken: string) {
-    return {
-      env: this.env,
-      actorToken,
-    };
+  /**
+   * Post-auth RPC pipeline: request-scoped connection, hop-token verification + actor derivation,
+   * and the structured error envelope. The handler receives the verified actor views and returns
+   * the method payload.
+   */
+  #post<T>(
+    actorToken: string,
+    run: (actors: RuntimeRpcActorContext) => Promise<T>,
+  ): Promise<RuntimeRpcResult<T>> {
+    return this.#withConnection(() => withRuntimeRpcEntry({ env: this.env, actorToken }, run));
   }
 
-  async consumeGrant(
-    input: ConsumeGrantRpcInput,
-  ): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ auditActor }) =>
-        consumeGrantOperation({ env: this.env, input, auditActor }),
-      ),
+  /**
+   * Pre-auth RPC pipeline: request-scoped connection and the same error envelope, but no hop-token
+   * verification — these methods run before an authenticated actor exists and are trusted by the
+   * private Service Binding boundary itself (zero public routes, no keyring, identity/metadata only).
+   */
+  #pre<T>(run: () => Promise<T>): Promise<RuntimeRpcResult<T>> {
+    return this.#withConnection(() => withRuntimeRpcUnauthEntry(run));
+  }
+
+  // --- Keyring-bound methods (decrypt happens here; real-logic operations) ---
+
+  consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
+    return this.#post(input.actorToken, ({ auditActor }) =>
+      consumeGrantOperation({ env: this.env, input, auditActor }),
     );
   }
 
-  async writeSecret(
-    input: WriteSecretRpcInput,
-  ): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(
-        this.#rpcEntryOptions(input.actorToken),
-        async ({ auditActor, accessActor }) =>
-          writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
-      ),
+  writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
+    return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
+      writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
     );
   }
 
   // --- Pre-auth identity/metadata methods (no hop token; trusted by the private binding) ---
 
-  async resolveAdmission(
+  resolveAdmission(
     input: ResolveAdmissionRpcInput,
   ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcUnauthEntry(() => resolveAdmissionOperation(input)),
-    );
+    return this.#pre(async () => ({
+      userId: await resolveAdmittedUserId(input.instanceId, input.workosUserId),
+    }));
   }
 
-  async recordAdmissionDenied(
+  recordAdmissionDenied(
     input: RecordAdmissionDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcUnauthEntry(() => recordAdmissionDeniedOperation(input)),
-    );
+    return this.#pre(() => recordAdmissionDeniedOperation(input));
   }
 
-  async getBootstrapStatus(
+  getBootstrapStatus(
     input: GetBootstrapStatusRpcInput,
   ): Promise<RuntimeRpcResult<BootstrapStatus>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcUnauthEntry(() => getBootstrapStatusOperation(input)),
-    );
+    return this.#pre(() => getBootstrapStatus(input.instanceId));
   }
 
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
 
-  async provisionGuidedOrganization(
+  provisionGuidedOrganization(
     input: ProvisionGuidedOrganizationRpcInput,
   ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-        provisionGuidedOrganizationOperation({ actor, input }),
-      ),
+    return this.#post(input.actorToken, ({ actor }) =>
+      provisionGuidedOrganization({
+        userId: actor.userId,
+        instanceId: input.instanceId,
+        // The hop token only mints for an already-admitted, resolved actor.
+        isAdmitted: true,
+        ...(input.organizationDisplayName !== undefined
+          ? { organizationDisplayName: input.organizationDisplayName }
+          : {}),
+        ...(input.projectDisplayName !== undefined
+          ? { projectDisplayName: input.projectDisplayName }
+          : {}),
+        ...(input.teamDisplayName !== undefined ? { teamDisplayName: input.teamDisplayName } : {}),
+        ...(input.environmentDisplayName !== undefined
+          ? { environmentDisplayName: input.environmentDisplayName }
+          : {}),
+        ...(input.resourceIds !== undefined ? { resourceIds: input.resourceIds } : {}),
+        request: { requestId: input.requestId },
+      }),
     );
   }
 
-  async createOperatorOrganization(
+  createOperatorOrganization(
     input: CreateOperatorOrganizationRpcInput,
   ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-        createOperatorOrganizationOperation({ actor, input }),
-      ),
+    return this.#post(input.actorToken, ({ actor }) =>
+      createOperatorOrganization({
+        instanceId: input.instanceId,
+        operatorUserId: actor.userId,
+        ...(input.organizationDisplayName !== undefined
+          ? { organizationDisplayName: input.organizationDisplayName }
+          : {}),
+        ...(input.teamDisplayName !== undefined ? { teamDisplayName: input.teamDisplayName } : {}),
+        ...(input.resourceIds !== undefined ? { resourceIds: input.resourceIds } : {}),
+        request: { requestId: input.requestId },
+      }),
     );
   }
 
-  async createInvitation(
+  createInvitation(
     input: CreateInvitationRpcInput,
   ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-        createInvitationOperation({ actor, input }),
-      ),
+    return this.#post(input.actorToken, ({ actor }) =>
+      createInvitation({
+        actor: { type: "user", userId: actor.userId },
+        organizationId: input.organizationId,
+        inviteeUserId: input.inviteeUserId,
+        rolePreset: input.rolePreset,
+        ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+        ...(input.invitationId !== undefined ? { invitationId: input.invitationId } : {}),
+        ...(input.membershipId !== undefined ? { membershipId: input.membershipId } : {}),
+        request: { requestId: input.requestId },
+      }),
     );
   }
 
-  async acceptInvitation(
+  acceptInvitation(
     input: AcceptInvitationRpcInput,
   ): Promise<RuntimeRpcResult<AcceptInvitationResult>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-        acceptInvitationOperation({ actor, input }),
-      ),
+    return this.#post(input.actorToken, ({ actor }) =>
+      acceptInvitation({
+        invitationId: input.invitationId,
+        organizationId: input.organizationId,
+        acceptingUserId: actor.userId,
+        ...(input.membershipId !== undefined ? { membershipId: input.membershipId } : {}),
+        request: { requestId: input.requestId },
+      }),
     );
   }
 
-  async getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(
-        this.#rpcEntryOptions(input.actorToken),
-        async ({ auditActor, accessActor }) =>
-          getOperationOperation({ input, auditActor, accessActor }),
-      ),
+  getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
+    return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
+      getOperationOperation({ input, auditActor, accessActor }),
     );
   }
 
-  async issueInjectionGrant(
+  issueInjectionGrant(
     input: IssueInjectionGrantRpcInput,
   ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ accessActor }) =>
-        issueInjectionGrantOperation({ input, accessActor }),
-      ),
+    return this.#post(input.actorToken, ({ accessActor }) =>
+      issueInjectionGrant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        selector: input.selector,
+        // issueInjectionGrant takes the effective-access actor and resolves issuance scope +
+        // derives the audit actor internally (main #199). Pass accessActor, not auditActor.
+        actor: accessActor,
+        request: { requestId: input.requestId },
+      }),
     );
   }
 
-  async completeBootstrapOperatorClaim(
+  completeBootstrapOperatorClaim(
     input: CompleteBootstrapClaimRpcInput,
   ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
-    return this.#withConnection(() =>
-      withRuntimeRpcEntry(this.#rpcEntryOptions(input.actorToken), async ({ actor }) =>
-        completeBootstrapClaimOperation({ actor, input }),
-      ),
+    return this.#post(input.actorToken, ({ actor }) =>
+      completeBootstrapOperatorClaim({
+        instanceId: input.instanceId,
+        actor,
+        bootstrapSecret: input.bootstrapSecret,
+        operatorGrantId: input.operatorGrantId,
+        ownerMembershipId: input.ownerMembershipId,
+        request: { requestId: input.requestId },
+      }),
     );
   }
 }

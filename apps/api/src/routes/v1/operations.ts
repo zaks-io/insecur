@@ -4,11 +4,11 @@ import {
   parseOrganizationIdParam,
   requireRouteParam,
   requireUserActor,
+  runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
-import { getOperationViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const operationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -25,7 +25,7 @@ operationsRoutes.get("/:operationId", requireUserActor, async (context) =>
       requireRouteParam(context.req.param("operationId"), "operationId"),
     );
 
-    return getOperationViaRuntime(context.env, userActor, {
+    return runtimeClientFor(context.env, userActor).getOperation({
       organizationId,
       operationId,
       requestId: reqId,

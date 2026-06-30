@@ -60,6 +60,11 @@ export type {
   WriteSecretRpcInput,
 } from "./rpc/runtime-rpc-contract.js";
 export { RuntimeRpcResultError, unwrapRuntimeResult } from "./rpc/unwrap-runtime-result.js";
+export {
+  runtimeClientFor,
+  type AuthenticatedRuntimeClient,
+  type RuntimeClientEnv,
+} from "./rpc/runtime-client.js";
 // Re-export the RPC payload types the public-edge callers need but should not import from the
 // DB-backed store packages directly (the edge drops those deps per ADR-0077).
 export type {
