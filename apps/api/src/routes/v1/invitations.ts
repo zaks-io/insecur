@@ -11,14 +11,11 @@ import {
   readRequiredString,
   requireRouteParam,
   requireUserActor,
+  runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
-import {
-  acceptInvitationViaRuntime,
-  createInvitationViaRuntime,
-} from "../../rpc/runtime-onboarding-caller.js";
 
 export const invitationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -35,7 +32,7 @@ invitationsRoutes.post("/", requireUserActor, async (context) => {
     const invitationIdValue = parseOptionalInvitationId(readOptionalString(body, "invitationId"));
     const membershipIdValue = parseOptionalMembershipId(readOptionalString(body, "membershipId"));
 
-    return createInvitationViaRuntime(context.env, userActor, {
+    return runtimeClientFor(context.env, userActor).createInvitation({
       organizationId,
       inviteeUserId: parseUserIdField(readRequiredString(body, "inviteeUserId")),
       rolePreset: readRequiredString(body, "rolePreset"),
@@ -59,7 +56,7 @@ invitationsRoutes.post("/:invitationId/accept", requireUserActor, async (context
     const body = parseJsonBody(await context.req.json());
     const membershipIdValue = parseOptionalMembershipId(readOptionalString(body, "membershipId"));
 
-    return acceptInvitationViaRuntime(context.env, userActor, {
+    return runtimeClientFor(context.env, userActor).acceptInvitation({
       invitationId: invitationIdValue,
       organizationId,
       ...(membershipIdValue !== undefined ? { membershipId: membershipIdValue } : {}),

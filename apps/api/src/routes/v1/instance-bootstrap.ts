@@ -5,12 +5,12 @@ import {
   readRequiredString,
   requireUserActor,
   resolveInstanceId,
+  runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
 import { getBootstrapStatusViaRuntime } from "../../rpc/runtime-admission-caller.js";
-import { completeBootstrapClaimViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const instanceBootstrapRoutes = new Hono<{
   Bindings: ApiEnv;
@@ -27,7 +27,7 @@ instanceBootstrapRoutes.post("/operator-claim", requireUserActor, async (context
   return handleRoute(context, async (reqId) => {
     const body = parseJsonBody(await context.req.json());
 
-    return completeBootstrapClaimViaRuntime(context.env, context.get("userActor"), {
+    return runtimeClientFor(context.env, context.get("userActor")).completeBootstrapOperatorClaim({
       instanceId: resolveInstanceId(context.env),
       bootstrapSecret: readRequiredString(body, "bootstrapSecret"),
       operatorGrantId: readRequiredString(body, "operatorGrantId"),

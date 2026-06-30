@@ -11,12 +11,11 @@ import {
   readRequiredString,
   requireRouteParam,
   requireUserActor,
+  runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
-import { consumeRuntimeGrant } from "../../rpc/runtime-caller.js";
-import { issueInjectionGrantViaRuntime } from "../../rpc/runtime-onboarding-caller.js";
 
 export const runtimeInjectionRoutes = new Hono<{
   Bindings: ApiEnv;
@@ -34,7 +33,7 @@ runtimeInjectionRoutes.post("/grants", requireUserActor, async (context) => {
     const environmentId = parseEnvironmentIdParam(readRequiredString(body, "environmentId"));
     const selector = parseInjectionGrantIssueSelector(body);
 
-    return issueInjectionGrantViaRuntime(context.env, userActor, {
+    return runtimeClientFor(context.env, userActor).issueInjectionGrant({
       organizationId,
       projectId,
       environmentId,
@@ -54,7 +53,7 @@ runtimeInjectionRoutes.post("/grants/:grantId/consume", requireUserActor, async 
     const body = parseJsonBody(await context.req.json());
     const selector = parseInjectionGrantConsumeSelector(body);
 
-    const envelope = await consumeRuntimeGrant(context.env, userActor, {
+    const envelope = await runtimeClientFor(context.env, userActor).consumeGrant({
       organizationId,
       grantId,
       requestId: reqId,
