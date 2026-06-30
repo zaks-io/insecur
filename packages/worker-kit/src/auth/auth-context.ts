@@ -63,6 +63,7 @@ export interface AuthContext {
 
 export interface CreateAuthContextOptions {
   readonly resolveAdmittedUser?: AdmittedUserResolver;
+  readonly workos?: WorkOSSessionPort;
 }
 
 export function createAuthContext(
@@ -73,7 +74,7 @@ export function createAuthContext(
   validateAuthContext(config);
   return {
     config,
-    workos: createWorkOSSessionPortFromEnv(env),
+    workos: options?.workos ?? createWorkOSSessionPortFromEnv(env),
     resolveAdmittedUser: options?.resolveAdmittedUser ?? createRuntimeAdmittedUserResolver(env),
   };
 }

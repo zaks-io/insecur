@@ -1,9 +1,32 @@
-import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
+import { mintEphemeralSessionCredential } from "@insecur/auth";
+import { testSessionSigningSecret, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
 import { userId } from "@insecur/domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createRuntimeRpcStub } from "../test/support/runtime-rpc-stub.js";
 import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
 import app from "./index.js";
+
+vi.mock("@insecur/worker-kit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/worker-kit")>();
+  const { createFakeWorkOSSessionPort } = await import("@insecur/auth/testing");
+  return {
+    ...actual,
+    createAuthContext: (
+      env: Parameters<typeof actual.createAuthContext>[0],
+      options?: Parameters<typeof actual.createAuthContext>[1],
+    ) => {
+      const fakeSessions = (
+        env as { readonly WORKOS_TEST_FAKE_SESSIONS?: readonly FakeWorkOSSessionEntry[] }
+      ).WORKOS_TEST_FAKE_SESSIONS;
+      return actual.createAuthContext(env, {
+        ...options,
+        ...(fakeSessions === undefined
+          ? {}
+          : { workos: createFakeWorkOSSessionPort(fakeSessions) }),
+      });
+    },
+  };
+});
 
 const admittedUserId = userId.brand(ADMITTED_USER_ID_RAW);
 const workosUserId = WORKOS_USER_ID;
@@ -18,7 +41,7 @@ const env = {
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   RUNTIME: createRuntimeRpcStub(),
-  WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+  WORKOS_TEST_FAKE_SESSIONS: [
     {
       sessionData: sealedSession,
       userId: workosUserId,
@@ -27,7 +50,7 @@ const env = {
       codeVerifier: "verifier_pkce_test",
       authenticationMethod: "Passkey",
     },
-  ]),
+  ],
 };
 
 describe("worker session routes", () => {
@@ -200,7 +223,7 @@ describe("worker session routes", () => {
   it("returns auth.reauth_required for insufficient-assurance PKCE sessions", async () => {
     const magicEnv = {
       ...env,
-      WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
+      WORKOS_TEST_FAKE_SESSIONS: [
         {
           sessionData: "sealed_unused_magic",
           userId: workosUserId,
@@ -210,7 +233,7 @@ describe("worker session routes", () => {
           authenticationMethod: "MagicAuth",
           authFactors: [{ type: "totp" }],
         },
-      ]),
+      ],
     };
     const response = await app.request(
       "/v1/auth/cli/pkce/exchange",

@@ -1,5 +1,9 @@
 import { AUTH_ERROR_CODES, errorEnvelope, requestId } from "@insecur/domain";
-import { AuthConfigError, AuthFailureError } from "@insecur/worker-kit";
+import {
+  AuthConfigError,
+  AuthFailureError,
+  FakeWorkOSSessionConfigError,
+} from "@insecur/worker-kit";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
 import { instanceBootstrapRoutes } from "./routes/v1/instance-bootstrap.js";
@@ -29,7 +33,7 @@ app.onError((err, context) => {
       401,
     );
   }
-  if (err instanceof AuthConfigError) {
+  if (err instanceof AuthConfigError || err instanceof FakeWorkOSSessionConfigError) {
     const reqId = requestId.generate();
     return context.json(
       errorEnvelope(

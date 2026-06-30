@@ -1,5 +1,6 @@
 import { userId } from "@insecur/domain";
-import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
+import { mintEphemeralSessionCredential } from "@insecur/auth";
+import { testSessionSigningSecret } from "@insecur/auth/testing";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";

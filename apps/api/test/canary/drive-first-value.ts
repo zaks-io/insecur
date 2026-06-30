@@ -1,4 +1,5 @@
-import { mintEphemeralSessionCredential, testSessionSigningSecret } from "@insecur/auth";
+import { mintEphemeralSessionCredential } from "@insecur/auth";
+import { testSessionSigningSecret } from "@insecur/auth/testing";
 import {
   bytesToBase64Url,
   environmentId,

@@ -81,11 +81,6 @@ export {
   type ResolveUserActorResult,
   resolveUserActor,
 } from "./resolve-user-actor.js";
-export {
-  createFakeWorkOSSessionPort,
-  type FakeWorkOSSessionEntry,
-} from "./testing/fake-workos-session.js";
-export { testSessionSigningSecret } from "./testing/test-session-signing-secret.js";
 export type { UserActor } from "./user-actor.js";
 export type { InsecurAuthConfig, WorkOSAuthConfig } from "./workos-config.js";
 export { createWorkOSSessionPort } from "./workos-session.js";

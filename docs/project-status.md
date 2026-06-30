@@ -115,8 +115,8 @@ Preview CLI verification attempt:
 - Cloudflare preview API secrets are present by name:
   `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
   `WORKOS_COOKIE_PASSWORD`. Cloudflare does not expose secret values.
-- No deployed fake-session bypass is configured on the preview API; `WORKOS_FAKE_SESSIONS_JSON`
-  is not present in the preview secret list.
+- Deployable API auth composition now rejects non-empty `WORKOS_FAKE_SESSIONS_JSON` instead of
+  selecting a fake adapter, and the preview API also does not bind that secret.
 - Redacted local-env inspection found no `SESSION_SIGNING_SECRET`,
   `SMOKE_SESSION_SIGNING_SECRET`, `SMOKE_ADMITTED_USER_ID`, or
   `SMOKE_WORKOS_USER_ID` in `.env.preview`, `.env.local`, or `.env.production`.
@@ -270,7 +270,8 @@ Delivered:
 - WorkOS AuthKit PKCE authorization-code exchange for CLI credentials.
 - Ephemeral CLI session credentials.
 - Auth failure envelopes and request IDs.
-- Development/test fake-session support.
+- Explicit test/local fake-session support through test-only factories; deployable env-backed
+  auth composition rejects fake-session configuration.
 
 Not delivered:
 

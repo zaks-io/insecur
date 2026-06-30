@@ -1,8 +1,5 @@
-import {
-  exchangeCliPkceSession,
-  testSessionSigningSecret,
-  type InsecurAuthConfig,
-} from "@insecur/auth";
+import { exchangeCliPkceSession, type InsecurAuthConfig } from "@insecur/auth";
+import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
 import { userId, type UserId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import {
@@ -30,16 +27,6 @@ const env = {
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
   RUNTIME: createFakeAdmissionRuntime({ user_01workos: admittedUserId }),
-  WORKOS_FAKE_SESSIONS_JSON: JSON.stringify([
-    {
-      sessionData: "sealed_unused_context_test",
-      userId: workosUserId,
-      sessionId: "session_context_test",
-      authorizationCode: "code_context_test",
-      codeVerifier: "verifier_context_test",
-      authenticationMethod: "Passkey",
-    },
-  ]),
 };
 
 const validConfig: InsecurAuthConfig = {
@@ -217,6 +204,16 @@ describe("createAuthContext", () => {
 
   it("composes config, workos, and admitted-user resolution for auth entry points", async () => {
     const { config, workos, resolveAdmittedUser } = createAuthContext(env, {
+      workos: createFakeWorkOSSessionPort([
+        {
+          sessionData: "sealed_unused_context_test",
+          userId: workosUserId,
+          sessionId: "session_context_test",
+          authorizationCode: "code_context_test",
+          codeVerifier: "verifier_context_test",
+          authenticationMethod: "Passkey",
+        },
+      ]),
       resolveAdmittedUser: createFakeAdmittedUserResolver({ [workosUserId]: admittedUserId }),
     });
     expect(config.sessionSigningSecret).toBe(env.SESSION_SIGNING_SECRET);

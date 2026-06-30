@@ -1,9 +1,6 @@
 import { requestId } from "@insecur/domain";
-import {
-  authFailureForAdmissionDenial,
-  authFailureForReason,
-  testSessionSigningSecret,
-} from "@insecur/auth";
+import { authFailureForAdmissionDenial, authFailureForReason } from "@insecur/auth";
+import { testSessionSigningSecret } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthWorkerEnv, RuntimeAdmissionRpc } from "./auth-worker-env.js";
 import { recordAdmissionDeniedAuditForAuthFailure } from "./record-admission-denied-audit.js";
