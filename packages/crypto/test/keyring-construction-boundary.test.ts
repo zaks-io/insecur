@@ -36,6 +36,10 @@ const positiveKeyringTypeFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/keyring-construction-boundary-positive-keyring-type.fixture.ts",
 );
+const positiveConstructorTypeFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/keyring-construction-boundary-positive-constructor-type.fixture.ts",
+);
 const tenantKeyringModule = path.join(repoRoot, "packages/tenant-keyring/src/index.ts");
 const typeOnlyConsumerModule = path.join(
   repoRoot,
@@ -173,6 +177,14 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
       const output = await runEslintExpectFailure(negativeKeyringValueFixture);
       expect(output).toMatch(/no-restricted-imports|no-restricted-syntax/);
       expect(output).toContain("Keyring");
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "allows type-only constructor imports outside runtime",
+    async () => {
+      await runEslint(positiveConstructorTypeFixture);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );

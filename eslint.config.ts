@@ -88,19 +88,10 @@ const keyringBoundaryOptions = {
   ],
 };
 
-const keyringBoundarySyntaxRules = [
-  ...KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS.filter((importName) => importName !== "Keyring").map(
-    (importName) => ({
-      selector: `ImportSpecifier[imported.name="${importName}"]`,
-      message: KEYRING_BOUNDARY_MESSAGE,
-    }),
-  ),
-  {
-    selector:
-      'ImportDeclaration[importKind!="type"] ImportSpecifier[imported.name="Keyring"][importKind!="type"]',
-    message: KEYRING_BOUNDARY_MESSAGE,
-  },
-];
+const keyringBoundarySyntaxRules = KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS.map((importName) => ({
+  selector: `ImportDeclaration[importKind!="type"] ImportSpecifier[imported.name="${importName}"][importKind!="type"]`,
+  message: KEYRING_BOUNDARY_MESSAGE,
+}));
 
 const keyringDynamicImportSyntaxRules = [
   {
