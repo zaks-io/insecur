@@ -15,7 +15,7 @@ nodeLinker: isolated
 
 catalog:
   "@cloudflare/workers-types": ^4.20260626.1
-  "@eslint/js": ^9.18.0
+  "@eslint/js": ^10.0.1
   "@stryker-mutator/core": ^9.6.1
   "@stryker-mutator/vitest-runner": ^9.6.1
   "@types/node": ^24.0.0
