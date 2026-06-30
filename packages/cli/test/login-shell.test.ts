@@ -7,6 +7,7 @@ import { clearMemorySession, getMemorySession } from "../src/session/memory-sess
 import type { ApiClient } from "../src/api/types.js";
 import { EXIT_VALIDATION } from "../src/output/exit-codes.js";
 import { CliError } from "../src/output/cli-error.js";
+import { CLI_CHILD_BASELINE_ENV_KEYS } from "../src/auth/child-env.js";
 
 const spawnMock = vi.hoisted(() => vi.fn());
 
@@ -101,6 +102,14 @@ function assertNoCredentialMaterial(contents: string): void {
   expect(contents).not.toMatch(/"accessToken"/);
 }
 
+function expectOnlyAuthenticatedShellEnvKeys(
+  childEnv: NodeJS.ProcessEnv,
+  extraKeys: readonly string[],
+): void {
+  const allowedKeys = new Set<string>([...CLI_CHILD_BASELINE_ENV_KEYS, ...extraKeys]);
+  expect(Object.keys(childEnv).every((name) => allowedKeys.has(name))).toBe(true);
+}
+
 describe("login --shell managed session", () => {
   afterEach(() => {
     clearMemorySession();
@@ -109,6 +118,10 @@ describe("login --shell managed session", () => {
     delete process.env.INSECUR_OIDC_TOKEN;
     delete process.env.INSECUR_FUTURE_TOKEN;
     delete process.env.INSECUR_FUTURE_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.AWS_SECRET_ACCESS_KEY;
+    delete process.env.OTHER_TOKEN;
+    delete process.env.GITHUB_TOKEN;
     vi.clearAllMocks();
   });
 
@@ -130,6 +143,7 @@ describe("login --shell managed session", () => {
     expect(childEnv.INSECUR_PROJECT).toBeUndefined();
     expect(childEnv.INSECUR_ENV).toBeUndefined();
     expect(childEnv.INSECUR_PROFILE).toBeUndefined();
+    expectOnlyAuthenticatedShellEnvKeys(childEnv, ["INSECUR_SESSION_TOKEN", "INSECUR_HOST"]);
   });
 
   it("uses PKCE loopback login by default", async () => {
@@ -224,16 +238,24 @@ describe("login --shell managed session", () => {
 });
 
 describe("buildLoginShellChildEnv", () => {
-  it("scrubs auth-bearing env vars while preserving the intended session token", async () => {
+  it("passes only baseline env, host, and the intended session token", async () => {
     const { buildLoginShellChildEnv } = await import("../src/commands/shell-env.js");
-    process.env.INSECUR_DEPLOY_KEY = "deploy-key";
-    process.env.INSECUR_OIDC_TOKEN = "oidc-token";
-    process.env.INSECUR_FUTURE_COOKIE = "dummy-future-cookie";
-    process.env.INSECUR_FUTURE_CSRF = "dummy-future-csrf";
-    process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
-    process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
-
-    const childEnv = buildLoginShellChildEnv("credential", "https://insecur.test");
+    const childEnv = buildLoginShellChildEnv("credential", "https://insecur.test", {
+      env: {
+        PATH: "/usr/bin",
+        SHELL: "/bin/bash",
+        INSECUR_DEPLOY_KEY: "deploy-key",
+        INSECUR_OIDC_TOKEN: "oidc-token",
+        INSECUR_FUTURE_COOKIE: "dummy-future-cookie",
+        INSECUR_FUTURE_CSRF: "dummy-future-csrf",
+        INSECUR_FUTURE_TOKEN: "dummy-future-token",
+        INSECUR_FUTURE_KEY: "dummy-future-key",
+        OPENAI_API_KEY: "dummy-openai",
+        AWS_SECRET_ACCESS_KEY: "dummy-aws",
+        OTHER_TOKEN: "dummy-other",
+        GITHUB_TOKEN: "dummy-github",
+      },
+    });
 
     expect(childEnv.INSECUR_SESSION_TOKEN).toBe("credential");
     expect(childEnv.INSECUR_HOST).toBe("https://insecur.test");
@@ -243,11 +265,20 @@ describe("buildLoginShellChildEnv", () => {
     expect(childEnv.INSECUR_FUTURE_CSRF).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_TOKEN).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_KEY).toBeUndefined();
+    expect(childEnv.OPENAI_API_KEY).toBeUndefined();
+    expect(childEnv.AWS_SECRET_ACCESS_KEY).toBeUndefined();
+    expect(childEnv.OTHER_TOKEN).toBeUndefined();
+    expect(childEnv.GITHUB_TOKEN).toBeUndefined();
+    expect(childEnv.PATH).toBe("/usr/bin");
+    expect(childEnv.SHELL).toBe("/bin/bash");
+    expect(Object.keys(childEnv).sort()).toEqual(
+      ["INSECUR_HOST", "INSECUR_SESSION_TOKEN", "PATH", "SHELL"].sort(),
+    );
   });
 });
 
 describe("buildShellChildEnv", () => {
-  it("scrubs auth-bearing env vars while preserving profile metadata and the intended session token", async () => {
+  it("passes only baseline env, profile metadata, and the intended session token", async () => {
     const { buildShellChildEnv } = await import("../src/commands/shell-env.js");
     const profile: CliUserProfile = {
       slug: "local-dev",
@@ -257,14 +288,22 @@ describe("buildShellChildEnv", () => {
       projectId: "prj_01TEST00000000000000000001" as never,
       envId: "env_01TEST00000000000000000001" as never,
     };
-    process.env.INSECUR_DEPLOY_KEY = "deploy-key";
-    process.env.INSECUR_OIDC_TOKEN = "oidc-token";
-    process.env.INSECUR_FUTURE_COOKIE = "dummy-future-cookie";
-    process.env.INSECUR_FUTURE_CSRF = "dummy-future-csrf";
-    process.env.INSECUR_FUTURE_TOKEN = "dummy-future-token";
-    process.env.INSECUR_FUTURE_KEY = "dummy-future-key";
-
-    const childEnv = buildShellChildEnv("credential", profile);
+    const childEnv = buildShellChildEnv("credential", profile, {
+      env: {
+        PATH: "/usr/bin",
+        TERM: "xterm-256color",
+        INSECUR_DEPLOY_KEY: "deploy-key",
+        INSECUR_OIDC_TOKEN: "oidc-token",
+        INSECUR_FUTURE_COOKIE: "dummy-future-cookie",
+        INSECUR_FUTURE_CSRF: "dummy-future-csrf",
+        INSECUR_FUTURE_TOKEN: "dummy-future-token",
+        INSECUR_FUTURE_KEY: "dummy-future-key",
+        OPENAI_API_KEY: "dummy-openai",
+        AWS_SECRET_ACCESS_KEY: "dummy-aws",
+        OTHER_TOKEN: "dummy-other",
+        GITHUB_TOKEN: "dummy-github",
+      },
+    });
 
     expect(childEnv.INSECUR_SESSION_TOKEN).toBe("credential");
     expect(childEnv.INSECUR_HOST).toBe(profile.host);
@@ -278,5 +317,23 @@ describe("buildShellChildEnv", () => {
     expect(childEnv.INSECUR_FUTURE_CSRF).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_TOKEN).toBeUndefined();
     expect(childEnv.INSECUR_FUTURE_KEY).toBeUndefined();
+    expect(childEnv.OPENAI_API_KEY).toBeUndefined();
+    expect(childEnv.AWS_SECRET_ACCESS_KEY).toBeUndefined();
+    expect(childEnv.OTHER_TOKEN).toBeUndefined();
+    expect(childEnv.GITHUB_TOKEN).toBeUndefined();
+    expect(childEnv.PATH).toBe("/usr/bin");
+    expect(childEnv.TERM).toBe("xterm-256color");
+    expect(Object.keys(childEnv).sort()).toEqual(
+      [
+        "INSECUR_ENV",
+        "INSECUR_HOST",
+        "INSECUR_PROFILE",
+        "INSECUR_PROJECT",
+        "INSECUR_ORG",
+        "INSECUR_SESSION_TOKEN",
+        "PATH",
+        "TERM",
+      ].sort(),
+    );
   });
 });
