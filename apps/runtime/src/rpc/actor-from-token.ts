@@ -5,6 +5,8 @@ import {
   type UserActor,
 } from "@insecur/auth";
 
+import { validateRuntimeTokenSigningSecret } from "@insecur/worker-kit";
+
 import type { RuntimeEnv } from "../env.js";
 import { RuntimeActorTokenError } from "./runtime-rpc-error.js";
 
@@ -15,6 +17,8 @@ import { RuntimeActorTokenError } from "./runtime-rpc-error.js";
  * claims) collapses to `auth.invalid` so the seam leaks nothing about why verification failed.
  */
 export async function actorFromHopToken(env: RuntimeEnv, actorToken: string): Promise<UserActor> {
+  validateRuntimeTokenSigningSecret(env.RUNTIME_TOKEN_SIGNING_SECRET);
+
   const result = await verifyScopedAccessToken({
     token: actorToken,
     expectedAudience: INSECUR_RUNTIME_TOKEN_AUDIENCE,

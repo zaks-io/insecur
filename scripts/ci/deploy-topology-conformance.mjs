@@ -12,6 +12,7 @@
 //   (e) the API Worker has exactly the intended private Runtime Service Binding shape.
 //   (f) each deploy's live public route mounts match docs/specs/deploy-route-inventory.md in both
 //       directions (ADR-0067).
+//   (g) signing secrets are never declared as plaintext wrangler `vars` (INS-276).
 //
 // HARD-FAILS (exit 1) on any violation. Wired into `pnpm verify`.
 
@@ -40,6 +41,10 @@ const SERVICE_ACCESS_TOKENS = [
   "approval_grant",
 ];
 
+// INS-276: hop-token and session signing keys must be encrypted Worker secrets or Secrets Store
+// bindings — never plaintext wrangler `vars` visible in the dashboard.
+const PLAINTEXT_FORBIDDEN_VARS = ["RUNTIME_TOKEN_SIGNING_SECRET", "SESSION_SIGNING_SECRET"];
+
 const failures = [];
 const fail = (message) => failures.push(message);
 
@@ -58,6 +63,7 @@ function main() {
   assertNoServiceAccessSurface(deploys);
   assertApiRuntimeServiceBinding(deploys);
   assertRouteInventoryMatches(deploys);
+  assertNoPlaintextSigningSecretsInVars(deploys);
 
   report();
 }
@@ -371,6 +377,34 @@ function assertRouteInventoryMatches(deploys) {
       }
     }
   }
+}
+
+function assertNoPlaintextSigningSecretsInVars(deploys) {
+  for (const deploy of deploys) {
+    for (const { scope, config } of collectConfigScopes(deploy.config)) {
+      const vars = config?.vars;
+      if (!vars || typeof vars !== "object") {
+        continue;
+      }
+      for (const key of PLAINTEXT_FORBIDDEN_VARS) {
+        if (Object.prototype.hasOwnProperty.call(vars, key)) {
+          fail(
+            `deploy '${deploy.name}' ${scope} declares ${key} as a plaintext wrangler var; use wrangler secret put or Secrets Store (INS-276)`,
+          );
+        }
+      }
+    }
+  }
+}
+
+function collectConfigScopes(config) {
+  const scopes = [{ scope: "top-level", config }];
+  if (config && typeof config === "object" && config.env && typeof config.env === "object") {
+    for (const [envName, envConfig] of Object.entries(config.env)) {
+      scopes.push({ scope: `env.${envName}`, config: envConfig });
+    }
+  }
+  return scopes;
 }
 
 function parseRouteInventory(doc) {

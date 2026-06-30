@@ -65,6 +65,10 @@ export {
   type AuthenticatedRuntimeClient,
   type RuntimeClientEnv,
 } from "./rpc/runtime-client.js";
+export {
+  RuntimeTokenSigningSecretConfigError,
+  validateRuntimeTokenSigningSecret,
+} from "./rpc/runtime-token-signing-secret.js";
 // Re-export the RPC payload types the public-edge callers need but should not import from the
 // DB-backed store packages directly (the edge drops those deps per ADR-0077).
 export type {

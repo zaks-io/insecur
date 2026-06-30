@@ -5,6 +5,7 @@ import {
 } from "@insecur/auth";
 
 import type { RuntimeRpc, RuntimeRpcResult } from "./runtime-rpc-contract.js";
+import { validateRuntimeTokenSigningSecret } from "./runtime-token-signing-secret.js";
 import { unwrapRuntimeResult } from "./unwrap-runtime-result.js";
 
 /**
@@ -60,6 +61,8 @@ export function runtimeClientFor(
   env: RuntimeClientEnv,
   actor: UserActor,
 ): AuthenticatedRuntimeClient {
+  validateRuntimeTokenSigningSecret(env.RUNTIME_TOKEN_SIGNING_SECRET);
+
   let tokenPromise: Promise<string> | undefined;
   const actorToken = (): Promise<string> =>
     (tokenPromise ??= mintScopedAccessToken({
