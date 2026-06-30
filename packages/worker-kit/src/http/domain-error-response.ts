@@ -1,4 +1,5 @@
 import {
+  AUTH_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
   VALIDATION_ERROR_CODES,
@@ -27,6 +28,8 @@ const GENERIC_ERROR_MESSAGE = "Request failed." as const;
 /** Error classes whose constructor always sets the same message. */
 const STATIC_MESSAGE_BY_ERROR_NAME: Readonly<Record<string, string>> = {
   RuntimeConfigMissingError: "runtime database configuration is required",
+  RuntimeTokenSigningSecretConfigError:
+    "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
   DecryptError: "decrypt failed",
   RootKeyNotConfiguredError: "instance root key is not configured",
   TenantDataKeyNotReadyError: "tenant data keys are not ready",
@@ -51,6 +54,9 @@ function messageForError(error: unknown, code: KnownErrorCode): string {
     const expectedByName = STATIC_MESSAGE_BY_ERROR_NAME[error.name];
     if (expectedByName !== undefined && error.message === expectedByName) {
       return expectedByName;
+    }
+    if (code === AUTH_ERROR_CODES.configInvalid) {
+      return error.message;
     }
   }
 

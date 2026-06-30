@@ -150,6 +150,8 @@ describe("operations worker routes", () => {
         ok: false,
         error: {
           code: "auth.config_invalid",
+          message:
+            "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
           retryable: false,
         },
       });

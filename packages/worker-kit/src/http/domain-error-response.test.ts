@@ -209,6 +209,23 @@ describe("domainErrorEnvelope typed error boundaries", () => {
       },
     });
 
+    const hopTokenSecretConfig = domainErrorEnvelope(
+      new RuntimeTokenSigningSecretConfigError(),
+      reqId,
+    );
+    expect(hopTokenSecretConfig).toMatchObject({
+      status: 503,
+      body: {
+        ok: false,
+        error: {
+          code: AUTH_ERROR_CODES.configInvalid,
+          message:
+            "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
+          retryable: false,
+        },
+      },
+    });
+
     const attackerDecryptMessage = "attacker-controlled decrypt diagnostic detail";
     const decryptError = Object.assign(new Error(attackerDecryptMessage), { name: "DecryptError" });
     const decryptEnvelope = domainErrorEnvelope(decryptError, reqId);
