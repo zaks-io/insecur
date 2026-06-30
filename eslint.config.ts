@@ -9,6 +9,7 @@ import {
   KEYRING_CONSTRUCTION_SOURCE_MODULE_BASENAMES_REGEX,
   KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS,
   KEYRING_CONSTRUCTION_RESTRICTED_IMPORT_NAME_PATTERN,
+  KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
 } from "./packages/crypto/src/keyring-construction-boundary.js";
 
 /** ADR-0071 decrypt-import allowlist of record. */
@@ -65,6 +66,7 @@ const keyringBoundaryOptions = {
     {
       name: "@insecur/crypto",
       importNames: [...KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS],
+      allowTypeImports: true,
       message: KEYRING_BOUNDARY_MESSAGE,
     },
   ],
@@ -76,6 +78,7 @@ const keyringBoundaryOptions = {
     {
       group: [...KEYRING_CONSTRUCTION_SOURCE_MODULE_PATTERNS],
       importNamePattern: KEYRING_CONSTRUCTION_RESTRICTED_IMPORT_NAME_PATTERN,
+      allowTypeImports: true,
       message: KEYRING_BOUNDARY_MESSAGE,
     },
     {
@@ -85,10 +88,19 @@ const keyringBoundaryOptions = {
   ],
 };
 
-const keyringBoundarySyntaxRules = KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS.map((importName) => ({
-  selector: `ImportSpecifier[imported.name="${importName}"]`,
-  message: KEYRING_BOUNDARY_MESSAGE,
-}));
+const keyringBoundarySyntaxRules = [
+  ...KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS.filter((importName) => importName !== "Keyring").map(
+    (importName) => ({
+      selector: `ImportSpecifier[imported.name="${importName}"]`,
+      message: KEYRING_BOUNDARY_MESSAGE,
+    }),
+  ),
+  {
+    selector:
+      'ImportDeclaration[importKind!="type"] ImportSpecifier[imported.name="Keyring"][importKind!="type"]',
+    message: KEYRING_BOUNDARY_MESSAGE,
+  },
+];
 
 const keyringDynamicImportSyntaxRules = [
   {
@@ -257,6 +269,7 @@ export default tseslint.config(
       "**/*.integration.test.ts",
       "packages/crypto/src/**",
       "apps/runtime/src/**",
+      ...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
     rules: {

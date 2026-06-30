@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS,
   KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS,
+  KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
 } from "../src/keyring-construction-boundary.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -26,6 +27,19 @@ const negativeDeepNamespaceFixture = path.join(
 const negativeDynamicFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/keyring-construction-boundary-negative-dynamic.fixture.ts",
+);
+const negativeKeyringValueFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/keyring-construction-boundary-negative-keyring-value.fixture.ts",
+);
+const positiveKeyringTypeFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/keyring-construction-boundary-positive-keyring-type.fixture.ts",
+);
+const tenantKeyringModule = path.join(repoRoot, "packages/tenant-keyring/src/index.ts");
+const typeOnlyConsumerModule = path.join(
+  repoRoot,
+  "packages/runtime-injection/src/injection-grants.ts",
 );
 const allowlistedModule = path.join(repoRoot, "apps/runtime/src/crypto/keyring-context.ts");
 const eslintConfigPath = path.join(repoRoot, "eslint.config.ts");
@@ -145,6 +159,46 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
       const output = await runEslintExpectFailure(negativeDynamicFixture);
       expect(output).toMatch(/no-restricted-syntax/);
       expect(output).toMatch(/Keyring construction is confined to apps\/runtime\/src/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it("lists Keyring on the shared crypto denylist", () => {
+    expect(KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS).toContain("Keyring");
+  });
+
+  it(
+    "fails lint for unallowlisted Keyring value imports from the package index",
+    async () => {
+      const output = await runEslintExpectFailure(negativeKeyringValueFixture);
+      expect(output).toMatch(/no-restricted-imports|no-restricted-syntax/);
+      expect(output).toContain("Keyring");
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "allows type-only Keyring imports outside runtime",
+    async () => {
+      await runEslint(positiveKeyringTypeFixture);
+      await runEslint(typeOnlyConsumerModule);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "does not apply the keyring boundary to tenant-keyring composition helpers",
+    async () => {
+      const config = await readLintConfigFor(tenantKeyringModule);
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).not.toContain(KEYRING_BOUNDARY_MESSAGE);
+      expect(KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST).toEqual([
+        "packages/tenant-keyring/src/**",
+      ]);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );

@@ -12,6 +12,12 @@ export const KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS = [
   "createKeyringFromRootKeyProvider",
   "createKeyring",
   "StaticRootKeyProvider",
+  "Keyring",
+] as const;
+
+/** Production modules that may import keyring-construction values outside `apps/runtime/src/**`. */
+export const KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST = [
+  "packages/tenant-keyring/src/**",
 ] as const;
 
 /** Runtime keyring-context exports fenced outside `apps/runtime/src/**`. */
