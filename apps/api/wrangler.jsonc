@@ -40,11 +40,6 @@
       "simple": { "limit": 10, "period": 60 },
     },
     {
-      "name": "PERSONAL_ORG_ACTOR",
-      "namespace_id": "2783",
-      "simple": { "limit": 3, "period": 60 },
-    },
-    {
       "name": "BOOTSTRAP_IP",
       "namespace_id": "2784",
       "simple": { "limit": 10, "period": 60 },

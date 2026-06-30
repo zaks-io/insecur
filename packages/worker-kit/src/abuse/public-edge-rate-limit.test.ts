@@ -39,16 +39,9 @@ describe("enforcePublicEdgeRateLimit", () => {
     ).rejects.toBeInstanceOf(AbuseLimitError);
   });
 
-  it("caps personal-org creation per actor", async () => {
-    const bindings = {
-      PERSONAL_ORG_ACTOR: createInMemoryRateLimiter(2),
-    };
+  it("throws abuse.rate_limited when the onboarding actor limiter rejects", async () => {
+    const bindings = { ONBOARDING_ACTOR: createInMemoryRateLimiter(1) };
 
-    await enforcePublicEdgeRateLimit({
-      bindings,
-      target: "onboarding_guided_provision",
-      actorUserId,
-    });
     await enforcePublicEdgeRateLimit({
       bindings,
       target: "onboarding_guided_provision",

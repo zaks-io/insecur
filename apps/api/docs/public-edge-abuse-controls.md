@@ -19,12 +19,11 @@ Workers Rate Limiting product semantics documented by Cloudflare.
 
 All windows use a **60 second** period (Cloudflare binding constraint).
 
-| Route                                        | IP binding                  | Actor binding                    | Notes                                       |
-| -------------------------------------------- | --------------------------- | -------------------------------- | ------------------------------------------- |
-| `POST /v1/onboarding/personal-organization`  | `ONBOARDING_IP` — 30/min    | `ONBOARDING_ACTOR` — 10/min      | Authenticated user actor                    |
-| same                                         | —                           | `PERSONAL_ORG_ACTOR` — **3/min** | Personal-org creation cap per user          |
-| `POST /v1/instance/bootstrap/operator-claim` | `BOOTSTRAP_IP` — 10/min     | `BOOTSTRAP_ACTOR` — 5/min        | Brute-force protection for bootstrap secret |
-| `POST /v1/auth/cli/pkce/exchange`            | `AUTH_EXCHANGE_IP` — 20/min | —                                | Unauthenticated; per-IP only                |
+| Route                                        | IP binding                  | Actor binding               | Notes                                       |
+| -------------------------------------------- | --------------------------- | --------------------------- | ------------------------------------------- |
+| `POST /v1/onboarding/personal-organization`  | `ONBOARDING_IP` — 30/min    | `ONBOARDING_ACTOR` — 10/min | Authenticated user actor                    |
+| `POST /v1/instance/bootstrap/operator-claim` | `BOOTSTRAP_IP` — 10/min     | `BOOTSTRAP_ACTOR` — 5/min   | Brute-force protection for bootstrap secret |
+| `POST /v1/auth/cli/pkce/exchange`            | `AUTH_EXCHANGE_IP` — 20/min | —                           | Unauthenticated; per-IP only                |
 
 Limiter keys are prefixed (`ip:…`, `actor:…`) inside each binding namespace so counters do not
 collide across routes.

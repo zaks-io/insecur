@@ -71,7 +71,6 @@ describe("public-edge abuse controls", () => {
     const env = baseEnv({
       ONBOARDING_IP: createInMemoryRateLimiter(1),
       ONBOARDING_ACTOR: createInMemoryRateLimiter(10),
-      PERSONAL_ORG_ACTOR: createInMemoryRateLimiter(10),
     });
 
     const first = await app.request(

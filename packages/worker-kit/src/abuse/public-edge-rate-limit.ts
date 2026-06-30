@@ -25,10 +25,7 @@ function onboardingChecks(
     checks.push(allowLimiter(bindings.ONBOARDING_IP, `ip:${ipAddress}`));
   }
   if (actorUserId !== undefined) {
-    checks.push(
-      allowLimiter(bindings.ONBOARDING_ACTOR, `actor:${actorUserId}`),
-      allowLimiter(bindings.PERSONAL_ORG_ACTOR, `actor:${actorUserId}`),
-    );
+    checks.push(allowLimiter(bindings.ONBOARDING_ACTOR, `actor:${actorUserId}`));
   }
   return checks;
 }
