@@ -24,10 +24,17 @@ type PostAuthMethodName = {
     : never;
 }[keyof RuntimeRpc];
 
+/**
+ * The payload behind a `RuntimeRpcResult`. Distributes over the result union so the `ok: false`
+ * branch (which carries no `value`) drops to `never` and only the success payload survives — a
+ * non-distributing `extends { value: infer V }` over the whole union resolves to `never`.
+ */
+type UnwrapValue<R> = R extends { readonly ok: true; readonly value: infer V } ? V : never;
+
 /** A post-auth method as the client exposes it: `actorToken` removed, the RPC result unwrapped. */
 type ClientMethod<K extends PostAuthMethodName> = (
   input: Omit<Parameters<RuntimeRpc[K]>[0], "actorToken">,
-) => Promise<Awaited<ReturnType<RuntimeRpc[K]>> extends { value: infer V } ? V : never>;
+) => Promise<UnwrapValue<Awaited<ReturnType<RuntimeRpc[K]>>>>;
 
 /**
  * An authenticated view of the Runtime over the private binding. Each method is its `RuntimeRpc`

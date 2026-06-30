@@ -5,8 +5,9 @@ import {
   type UserActor,
 } from "@insecur/auth";
 import { AUTH_ERROR_CODES, userId } from "@insecur/domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { CreateInvitationResult } from "@insecur/onboarding";
 import type { RuntimeRpc, RuntimeRpcResult } from "./runtime-rpc-contract.js";
 import { runtimeClientFor, type RuntimeClientEnv } from "./runtime-client.js";
 import { RuntimeRpcResultError } from "./unwrap-runtime-result.js";
@@ -60,6 +61,10 @@ describe("runtimeClientFor", () => {
       rolePreset: "member",
       requestId: "req_1" as never,
     });
+
+    // The client unwraps to the precise success payload, not the RuntimeRpcResult union and not
+    // `never` (a non-distributing unwrap conditional silently collapses to `never`).
+    expectTypeOf(result).toEqualTypeOf<CreateInvitationResult>();
 
     expect(result).toEqual({ invitationId: "inv_1" });
     expect(calls).toHaveLength(1);
