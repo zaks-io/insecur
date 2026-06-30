@@ -1,6 +1,5 @@
 import {
   INSECUR_RUNTIME_TOKEN_AUDIENCE,
-  testSessionSigningSecret,
   verifyScopedAccessToken,
   type UserActor,
 } from "@insecur/auth";
@@ -12,7 +11,10 @@ import type { RuntimeRpc, RuntimeRpcResult } from "./runtime-rpc-contract.js";
 import { runtimeClientFor, type RuntimeClientEnv } from "./runtime-client.js";
 import { RuntimeRpcResultError } from "./unwrap-runtime-result.js";
 
-const SIGNING_SECRET = testSessionSigningSecret();
+// Deterministic HMAC material for the mint/verify round-trip; not a production secret. Inlined
+// rather than importing auth's test fixture so this unit test does not depend on a cross-package
+// test-only export crossing the build boundary (mirrors apps/runtime's runtime-rpc-entry.test).
+const SIGNING_SECRET = "runtime-client-test-secret-000000000000000000000";
 
 const actor: UserActor = {
   type: "user",
