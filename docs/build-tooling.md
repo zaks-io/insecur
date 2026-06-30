@@ -507,7 +507,7 @@ pnpm-lock.yaml
 
 ## lefthook.yml
 
-Pre-commit catches per-file issues on staged files (format, lint, typecheck, staged secret scan). Pre-push runs the full deterministic CI gate so the high-churn failures — lint, types, tests, format, duplicates, knip, actionlint, coverage thresholds — are caught locally instead of after a CI round-trip: `pnpm verify` is the same floor CI's `Verify` job runs, and `pnpm test:coverage` is CI's `Coverage` job. Security scanners (semgrep, grype, gitleaks history) stay CI-only because they are low-frequency and do not belong in the push hot path. `--no-verify` is an accepted human escape hatch because CI branch protection is the real enforcement boundary, not the hook.
+Pre-commit catches per-file issues on staged files (format, lint, typecheck, staged secret scan). Pre-push runs the full deterministic CI gate so the high-churn failures — lint, types, tests, format, duplicates, knip, actionlint, coverage thresholds — are caught locally instead of after a CI round-trip: `pnpm verify` is the local superset (it includes knip and actionlint inline), while CI's `Verify` job runs the overlapping blocking conformance and turbo lint/typecheck/test floor with CI-only remote cache writes; knip and actionlint stay separate CI jobs. `pnpm test:coverage` is CI's `Coverage` job. Security scanners (semgrep, grype, gitleaks history) stay CI-only because they are low-frequency and do not belong in the push hot path. `--no-verify` is an accepted human escape hatch because CI branch protection is the real enforcement boundary, not the hook.
 
 The `format-and-lint` group runs Prettier then ESLint sequentially on the same TypeScript files so `eslint --fix` operates on Prettier's output and the two do not race when re-staging. Independent jobs run in parallel.
 
@@ -569,22 +569,24 @@ GitHub Actions on Blacksmith-hosted runners (ADR-0061). Every job sets `runs-on`
 
 ### Required status-check workflow: `CI` (`ci.yml`)
 
-Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets. Branch protection keys on the job names within this workflow (`Verify`, `Coverage`, ...), not the workflow name, so the jobs are the required checks:
+Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets. Branch protection keys on the job names within this workflow (`Verify`, `Coverage`, ...), not the workflow name, so the jobs are the required checks.
+
+The `Verify` job runs a hand-rolled subset aligned with `pnpm verify` (not a literal `pnpm verify` invocation, so knip and actionlint stay in their own jobs and CI can enable remote Turbo cache writes only when secrets are present):
 
 ```
-turbo run lint typecheck build test --cache=local:rw,remote:rw
-prettier --check .
-conformance:packages (public/contract package-boundary gate)
-test:security-reporting (metadata-only security-daily Linear reporting parser/dedupe helper)
-test:coverage (unit coverage, enforces ratchet thresholds; DB-less)
-postgres-integration (Docker Compose Postgres 17: assert:rls-credentials, workspace test:rls suites, test:e2e, test:canary)
-knip (unused files, deps, and unlisted deps)
-actionlint (workflow lint + run-block shellcheck)
-gitleaks (full working tree, authoritative)
-semgrep (stock rule packs; SAST; fills the project-status SAST gap)
-syft (generate SBOM) then grype (scan SBOM for known CVEs)
-jscpd duplicate-code: warning annotations + blocking zero gate (duplicates:ci)
+pnpm duplicates:warn
+pnpm duplicates:ci
+pnpm format:check
+pnpm conformance:actions-pin
+pnpm conformance:topology
+pnpm conformance:packages
+pnpm test:security-reporting
+pnpm exec turbo run lint typecheck test --cache=local:rw,remote:<r|rw>
 ```
+
+`pnpm conformance:packages` asserts public/API and contract packages have no production dependency path to `@insecur/crypto`. The gate also fails closed if this command is removed from the hosted `Verify` job.
+
+Other required jobs in the same workflow: `Coverage` (`pnpm test:coverage`), `Knip`, `Actionlint`, `Postgres tests (integration + RLS + e2e)`, `Secret scan (gitleaks)`, `SAST (semgrep)`, `SBOM and vulnerability scan (syft + grype)`, and the dependency-scan placeholder.
 
 These jobs are required status checks on the protected branch. They run for forked pull requests too, because they touch no secrets.
 
