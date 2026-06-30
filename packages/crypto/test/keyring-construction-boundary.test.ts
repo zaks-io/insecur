@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,6 +16,7 @@ const negativeFixture = path.join(
   "scripts/lint-fixtures/keyring-construction-boundary-negative.fixture.ts",
 );
 const allowlistedModule = path.join(repoRoot, "apps/runtime/src/crypto/keyring-context.ts");
+const eslintConfigPath = path.join(repoRoot, "eslint.config.ts");
 const NEWLY_COVERED_KEYRING_CONSTRUCTORS = [
   "createKeyringFromSecretsStoreBinding",
   "createKeyringFromRootKeyProvider",
@@ -79,7 +81,18 @@ async function readLintConfigFor(filePath: string): Promise<LintConfigWithRules>
   return config;
 }
 
+function readEslintConfigSource(): string {
+  return readFileSync(eslintConfigPath, "utf8");
+}
+
 describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
+  it("drives eslint from the shared crypto denylist constant", () => {
+    const source = readEslintConfigSource();
+    expect(source).toContain("KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS");
+    expect(source).toContain("KEYRING_CONSTRUCTION_RESTRICTED_IMPORTS");
+    expect(source).not.toMatch(/importNames:\s*\[[\s\S]*?"createKeyringFromDevEnvRootKey"/);
+  });
+
   it(
     "fails lint for unallowlisted keyring constructor imports",
     async () => {

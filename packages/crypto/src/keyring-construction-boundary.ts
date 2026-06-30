@@ -1,8 +1,7 @@
 /**
  * ADR-0064/0077 keyring-construction lint boundary: decrypt-capable constructors that may only be
  * imported inside `apps/runtime/src/**` (plus `packages/crypto/src/**` for package-internal use).
- * Consumed by `eslint.config.ts` — add new constructors here so lint fails closed without a second
- * manual edit.
+ * Single source of truth for `eslint.config.ts` — add new constructors here so lint fails closed.
  */
 export const KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS = [
   "SecretsStoreRootKeyProvider",
