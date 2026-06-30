@@ -1,42 +1,21 @@
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
-import type { ActorRef } from "@insecur/access";
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
 import type {
-  EnvironmentId,
   InjectionGrantId,
   OrganizationId,
-  ProjectId,
   SecretId,
   SecretVersionId,
   VariableKey,
 } from "@insecur/domain";
 
 import { consumeInjectionGrantWithAudit } from "./consume-injection-grant.js";
-import type { InjectionGrantIssueSelector } from "./injection-grant-selectors.js";
 import { normalizeConsumeSelector } from "./injection-grant-selectors.js";
-import { issueInjectionGrantWithAudit } from "./issue-injection-grant.js";
 
-export type {
-  InjectionGrantConsumeSelector,
-  InjectionGrantIssueSelector,
-} from "./injection-grant-selectors.js";
-
-export interface IssueInjectionGrantInput {
-  organizationId: OrganizationId;
-  projectId: ProjectId;
-  environmentId: EnvironmentId;
-  /** Exactly one Secret binding per grant (First Value: one `run --variable-key` or `--secret-id`). */
-  selector: InjectionGrantIssueSelector;
-  actor: ActorRef;
-  request?: AuditRequestRef;
-  operation?: AuditOperationRef;
-}
-
-export interface IssueInjectionGrantResult {
-  grantId: InjectionGrantId;
-  expiresAt: string;
-  auditEventId?: string;
-}
+export {
+  type IssueInjectionGrantInput,
+  type IssueInjectionGrantResult,
+  issueInjectionGrant,
+} from "@insecur/runtime-injection-issue";
 
 export interface ConsumeInjectionGrantInput {
   keyring: Keyring;
@@ -62,15 +41,6 @@ export interface ConsumeInjectionGrantResult {
   /** Process-environment delivery only; never serialize to metadata envelopes. */
   valueUtf8: PlaintextHandle;
   auditEventId?: string;
-}
-
-/**
- * Issues a fresh short-lived Injection Grant for one exact Secret in a non-protected Environment.
- */
-export function issueInjectionGrant(
-  input: IssueInjectionGrantInput,
-): Promise<IssueInjectionGrantResult> {
-  return issueInjectionGrantWithAudit(input);
 }
 
 /**

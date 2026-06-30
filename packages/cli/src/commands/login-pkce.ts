@@ -7,7 +7,7 @@ import type { GlobalCliFlags } from "../cli-options.js";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED, EXIT_VALIDATION } from "../output/exit-codes.js";
 
-export interface BrowserPkceLoginOptions {
+interface BrowserPkceLoginOptions {
   readonly openBrowser: boolean;
   readonly callbackPort?: number;
 }

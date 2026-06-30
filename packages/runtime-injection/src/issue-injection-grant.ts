@@ -1,6 +1,4 @@
 export {
-  type IssueInjectionGrantCoreInput,
-  type IssueInjectionGrantCoreResult,
   executeIssueInjectionGrant,
   issueInjectionGrantWithAudit,
   recordDeniedIssue,

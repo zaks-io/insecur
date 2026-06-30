@@ -26,7 +26,7 @@ import {
   recordGitHubActionsOidcExchangeSuccess,
 } from "./record-github-actions-oidc-exchange-audit.js";
 
-export interface ExchangeGitHubActionsOidcSuccess {
+interface ExchangeGitHubActionsOidcSuccess {
   readonly ok: true;
   readonly accessToken: string;
   readonly expiresAt: string;
@@ -36,7 +36,7 @@ export interface ExchangeGitHubActionsOidcSuccess {
   readonly environmentId?: string;
 }
 
-export interface ExchangeGitHubActionsOidcFailure {
+interface ExchangeGitHubActionsOidcFailure {
   readonly ok: false;
   readonly code: AuthErrorCode;
   readonly message: string;
