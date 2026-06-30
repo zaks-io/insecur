@@ -312,8 +312,8 @@ importers:
         specifier: workspace:*
         version: link:../token-signing
       '@workos-inc/node':
-        specifier: ^10.0.0
-        version: 10.0.0
+        specifier: ^10.7.0
+        version: 10.7.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -2159,8 +2159,8 @@ packages:
   '@vitest/utils@4.1.7':
     resolution: {integrity: sha512-T532WBu791cBxJlCl6SO+J14l81DQx6uQHm1bQbmCDY7nqlEIgkza/UFnSBNaUtSf41unldDFjdOBYEQC4b5Hw==}
 
-  '@workos-inc/node@10.0.0':
-    resolution: {integrity: sha512-Vnqd/TAoNZSYTW7FSxR/f+BnWMyffK0ueX+KNBnoahMHOcLCMiF3Y5Rkt4VIdRdvvhQ+pR2JgcwCHIEcE1OXWw==}
+  '@workos-inc/node@10.7.0':
+    resolution: {integrity: sha512-rffa9znZuIv4yo+9JRxGOLTTSxh0XhOT6jlsktgqEi9MuB9V0VFHRzLd3bTpkq+J9sgrPZNGpvX4aWNfMqt5cQ==}
     engines: {node: '>=22.11.0'}
 
   acorn-jsx-walk@2.0.0:
@@ -4910,9 +4910,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@workos-inc/node@10.0.0':
-    dependencies:
-      eventemitter3: 5.0.4
+  '@workos-inc/node@10.7.0': {}
 
   acorn-jsx-walk@2.0.0: {}
 
