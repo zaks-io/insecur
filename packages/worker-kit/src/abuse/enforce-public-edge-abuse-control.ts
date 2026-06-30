@@ -6,7 +6,7 @@ import type { PublicEdgeAbuseTarget } from "./public-edge-abuse-target.js";
 import type { PublicEdgeRateLimitBindings } from "./public-edge-rate-limit-bindings.js";
 import { recordAbuseDeniedAudit, type AbuseDeniedRuntimeRpc } from "./record-abuse-denied-audit.js";
 
-export type PublicEdgeAbuseEnv = AuthWorkerEnv &
+type PublicEdgeAbuseEnv = AuthWorkerEnv &
   PublicEdgeRateLimitBindings & {
     readonly RUNTIME: AbuseDeniedRuntimeRpc;
   };
