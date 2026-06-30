@@ -43,7 +43,6 @@
   },
   "ignoreBinaries": ["actionlint"],
   "rules": {
-    "exports": "off",
-    "types": "off"
+    "exports": "off"
   }
 }

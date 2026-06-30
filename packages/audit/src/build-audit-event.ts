@@ -10,7 +10,7 @@ import type {
 } from "./audit-types.js";
 import { validateAuditEventInput } from "./validate-audit-event.js";
 
-export interface BuildAuditEventBaseInput extends AuditTenantScope, AuditCorrelationRefs {
+interface BuildAuditEventBaseInput extends AuditTenantScope, AuditCorrelationRefs {
   eventCode: AuditEventCode;
   actor: AuditActorRef;
   resource?: AuditResourceRef;

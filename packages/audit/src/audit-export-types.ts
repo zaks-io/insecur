@@ -43,7 +43,7 @@ export interface AuditExportEventPayload {
   readonly recorded_at: string;
 }
 
-export interface AuditExportChainLink {
+interface AuditExportChainLink {
   readonly previous_hash: string | null;
   readonly entry_hash: string;
 }

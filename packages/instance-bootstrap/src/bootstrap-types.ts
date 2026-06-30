@@ -10,7 +10,7 @@ import type {
 
 export type BootstrapPhase = "not_bootstrapped" | "awaiting_operator_claim" | "complete";
 
-export interface BootstrapStatusBase {
+interface BootstrapStatusBase {
   phase: BootstrapPhase;
 }
 

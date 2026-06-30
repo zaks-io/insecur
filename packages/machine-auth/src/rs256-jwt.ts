@@ -8,7 +8,7 @@ export interface JwkPublicKey {
   readonly publicKey: Rs256PublicKey;
 }
 
-export interface JwtHeader {
+interface JwtHeader {
   readonly alg: string;
   readonly typ?: string;
   readonly kid?: string;

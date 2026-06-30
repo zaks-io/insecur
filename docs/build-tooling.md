@@ -255,10 +255,11 @@ The namespace export, namespace type, enum member, and duplicate export/type rul
 with a temporary config that removed the disabled-rule block before removing the switches from
 `knip.json`.
 
-The remaining disabled dead-code rules are `exports` and `types`. They stay off because the current
-checkout still reports exported values and exported types that are either deliberate internal seams
-or pending cleanup. Keep those two as the knip ratchet: resolve the reported symbols first, then
-delete exactly one disabled rule from `knip.json` and prove `pnpm knip` and `pnpm verify` green.
+The remaining disabled dead-code rule is `exports`. It stays off because the current checkout still
+reports exported values that are either deliberate internal seams or pending cleanup. INS-311 enabled
+the `types` rule by internalizing the documented type-export backlog and removing `"types": "off"`
+from `knip.json`. Keep `exports` as the remaining knip ratchet: resolve the reported symbols first,
+then delete `"exports": "off"` from `knip.json` and prove `pnpm knip` and `pnpm verify` green.
 
 ## Workflow Lint (actionlint)
 
@@ -397,11 +398,12 @@ while doing this work; each step should be one PR and should leave `pnpm verify`
      explicit per-file exceptions only for still-oversized files named above. Do not re-enable
      `complexity` or `max-statements` in the same PR; those need separate probes because many tests
      use table-shaped assertions and nested fixture setup.
-3. **Finish the knip export/type ratchet in smallest-first order.**
-   - `nsExports`, `nsTypes`, `enumMembers`, and `duplicates` are already enabled by removing their
-     `knip.json` off switches.
+3. **Finish the knip export ratchet.**
+   - `nsExports`, `nsTypes`, `enumMembers`, `duplicates`, and `types` are already enabled by
+     removing their `knip.json` off switches. INS-311 resolved the documented `types` backlog and
+     removed `"types": "off"`.
 
-   - Next candidate is `exports`. Resolve or intentionally internalize these exact current value
+   - Remaining candidate is `exports`. Resolve or intentionally internalize these exact current value
      export findings, then delete `"exports": "off"` from `knip.json`:
 
      ```text
@@ -440,32 +442,6 @@ while doing this work; each step should be one PR and should leave `pnpm verify`
      packages/tenant-store/test/rls/seed-data-keys.ts: RLS_TEST_ROOT_KEY_BYTES
      ```
 
-   - `types` can be cleaned independently while `exports` remains disabled. Resolve or
-     intentionally internalize these exact current type export findings, then delete
-     `"types": "off"` from `knip.json`:
-
-     ```text
-     apps/api/src/routes/v1/parse-secret-write-body.ts: ParsedSecretWriteBody, SecretWritePathParams
-     apps/api/test/canary/postgres-sweep.ts: SchemaColumn
-     packages/audit/src/audit-export-types.ts: AuditExportChainLink
-     packages/audit/src/audit-types.ts: AuditCiExchangeActorRef
-     packages/audit/src/build-audit-event.ts: BuildAuditEventBaseInput
-     packages/audit/src/parse-audit-export-manifest-helpers.ts: AuditExportManifestPartial
-     packages/audit/src/parse-audit-export-manifest.ts: AuditExportManifestPartial, AuditExportManifestValidationFailure
-     packages/auth/src/cli-exchange.ts: CliSessionExchangeRotation
-     packages/cli/src/api/provision-request-body.ts: GuidedOrganizationResourceIdsBody
-     packages/cli/src/api/types.ts: SecretGenerationRequest, ApiSuccess, ApiFailure
-     packages/cli/src/input/collect-secret-value.ts: SecretValueInputMode
-     packages/crypto/src/data-key-metadata.ts: KeyVersion
-     packages/crypto/src/data-key-rewrap.ts: TenantDataKeyRewrapStore
-     packages/instance-bootstrap/src/bootstrap-types.ts: BootstrapStatusBase
-     packages/machine-auth/src/exchange-github-actions-oidc.ts: ExchangeGitHubActionsOidcSuccess, ExchangeGitHubActionsOidcFailure
-     packages/machine-auth/src/match-github-actions-oidc-trust.ts: OidcTrustMatchSuccess, OidcTrustMatchFailure
-     packages/machine-auth/src/rs256-jwt.ts: JwtHeader
-     packages/runtime-injection/src/injection-grants.ts: InjectionGrantConsumeSelector, InjectionGrantIssueSelector
-     packages/runtime-injection/src/issue-injection-grant.ts: IssueInjectionGrantCoreInput, IssueInjectionGrantCoreResult
-     ```
-
 Follow-up issue drafts if Linear is available:
 
 - **Split onboarding membership integration tests.** Scope:
@@ -477,9 +453,6 @@ Follow-up issue drafts if Linear is available:
   above without changing product behavior. Verify with the package test command and `pnpm verify`.
 - **Enable knip `exports`.** Scope: resolve only the value-export findings listed above, then remove
   `"exports": "off"`. Verify with `pnpm knip` and `pnpm verify`.
-- **Enable knip `types`.** Scope: resolve only the type-export findings listed above while keeping
-  `"exports": "off"` unchanged, then remove `"types": "off"`. Verify with `pnpm knip` and
-  `pnpm verify`.
 
 ## Prettier
 

@@ -3,7 +3,7 @@ import type { AuditExportTimeRange } from "./audit-export-types.js";
 
 export type UnknownRecord = Record<string, unknown>;
 
-export interface AuditExportManifestPartial {
+interface AuditExportManifestPartial {
   readonly organization_id: string | null;
   readonly entry_count: number;
   readonly time_range: AuditExportTimeRange | null;

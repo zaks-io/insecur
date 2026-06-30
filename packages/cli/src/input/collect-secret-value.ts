@@ -8,7 +8,7 @@ import { readMaskedPrompt } from "./masked-prompt.js";
 import { readStdinBytes } from "./read-stdin.js";
 import { validateSecretValueUtf8 } from "./validate-secret-value.js";
 
-export type SecretValueInputMode = "stdin" | "masked_prompt" | "generated";
+type SecretValueInputMode = "stdin" | "masked_prompt" | "generated";
 
 export interface CollectSecretValueInput {
   readonly generateMode: string | true | undefined;
