@@ -662,6 +662,13 @@ minor updates inside the 24.x line. Intentionally raising the Node baseline is s
 that updates `engines`, `.node-version`, `.nvmrc`, CI/runtime images, the pnpm catalog
 `@types/node` range, and the Dependabot guardrail together.
 
+The active TypeScript compiler major is the one declared by the pnpm catalog (`typescript: ^5.7.0`)
+and the Version Policy table above. Dependabot ignores `typescript` semver-major npm updates while
+the repo remains on TypeScript 5.x, but still allows patch and minor updates inside the 5.x line.
+Intentionally raising the TypeScript baseline is separate planned work that updates the pnpm catalog
+`typescript` range, shared `tsconfig`/`lib` settings, package ambient-type boundaries, and the
+Dependabot guardrail together.
+
 ## Two-Credential Model And Guardrail Assertions
 
 Two distinct database credentials exist:
