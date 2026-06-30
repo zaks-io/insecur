@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 export const REPO_ROOT = process.cwd();
+const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
 export const WORKSPACE_DIRS = ["apps", "packages"];
 export const CRYPTO_PACKAGE = "@insecur/crypto";
 export const DEEP_CRYPTO_IMPORT_FIXTURE = path.join(
@@ -265,7 +266,27 @@ export async function assertPackageBoundaryConformance(packages) {
   }
 }
 
+export function assertHostedCiVerifyRunsPackageBoundaryConformance() {
+  const workflow = readFileSync(CI_WORKFLOW_PATH, "utf8");
+  const verifyJobMatch = workflow.match(
+    /^\s+verify:\s*\n[\s\S]*?^\s+run:\s*\|\s*\n((?:\s{10}.*\n)+)/m,
+  );
+  if (!verifyJobMatch) {
+    throw new Error(
+      "package-boundary conformance: could not locate CI Verify job run block in .github/workflows/ci.yml",
+    );
+  }
+
+  const verifyCommands = verifyJobMatch[1];
+  if (!/\bpnpm\s+conformance:packages\b/.test(verifyCommands)) {
+    throw new Error(
+      "package-boundary conformance: hosted CI Verify must run `pnpm conformance:packages` (INS-307)",
+    );
+  }
+}
+
 export async function runPackageBoundaryConformance() {
+  assertHostedCiVerifyRunsPackageBoundaryConformance();
   await assertPackageBoundaryNegativeProbe();
   const packages = await readWorkspacePackages();
   await assertPackageBoundaryConformance(packages);

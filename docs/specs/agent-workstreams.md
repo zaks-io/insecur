@@ -75,7 +75,9 @@ Owns:
 - ESLint flat config, type-aware rules, Prettier, and size/complexity budgets.
 - Turbo tasks and cache policy, including remote read for developers/agents and remote write only
   for CI.
-- GitHub Actions topology: the `CI` workflow (its `Verify` job runs `pnpm verify`),
+- GitHub Actions topology: the `CI` workflow (its `Verify` job runs the blocking conformance and
+  turbo lint/typecheck/test floor, including `pnpm conformance:packages`; knip and actionlint are
+  separate jobs),
   `deploy-preview`, and `security-daily` exist today; staging deploy and production deploy are
   planned per [build-tooling.md](../build-tooling.md) and
   [ADR-0029](../adr/0029-environments-and-cd-trust-model.md) but not yet created.
