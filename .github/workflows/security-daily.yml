@@ -201,7 +201,7 @@ jobs:
 
       - name: Download scanner finding metadata
         if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: security-daily-findings-*
           path: security-daily-findings
