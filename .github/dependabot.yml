@@ -25,6 +25,12 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
+      # typescript tracks the declared compiler baseline (TypeScript 5.x). A TypeScript major
+      # upgrade is planned human-owned work that updates the pnpm catalog, shared tsconfig/lib
+      # settings, and this rule together.
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
     labels:
       - dependencies
       - zaks-io/insecur
