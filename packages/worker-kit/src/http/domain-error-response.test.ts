@@ -16,6 +16,7 @@ import { InjectionGrantError } from "@insecur/runtime-injection-issue";
 import { SecretWriteError } from "@insecur/secret-store-contracts";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
 import { describe, expect, it } from "vitest";
+import { RuntimeTokenSigningSecretConfigError } from "../rpc/runtime-token-signing-secret.js";
 import {
   GENERIC_ERROR_MESSAGE,
   domainErrorEnvelope,
@@ -167,6 +168,9 @@ describe("knownErrorCodeFromUnknown", () => {
     ).toBe(ONBOARDING_ERROR_CODES.notInstanceOperator);
     expect(knownErrorCodeFromUnknown(new RuntimeConfigMissingError())).toBe(
       STORE_ERROR_CODES.runtimeConfigMissing,
+    );
+    expect(knownErrorCodeFromUnknown(new RuntimeTokenSigningSecretConfigError())).toBe(
+      AUTH_ERROR_CODES.configInvalid,
     );
     expect(
       knownErrorCodeFromUnknown(

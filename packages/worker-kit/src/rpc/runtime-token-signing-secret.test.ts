@@ -35,4 +35,18 @@ describe("validateRuntimeTokenSigningSecret", () => {
       RuntimeTokenSigningSecretConfigError,
     );
   });
+
+  it("exposes auth.config_invalid with retryable false", () => {
+    try {
+      validateRuntimeTokenSigningSecret("");
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: "RuntimeTokenSigningSecretConfigError",
+        code: "auth.config_invalid",
+        retryable: false,
+      });
+      return;
+    }
+    expect.fail("expected RuntimeTokenSigningSecretConfigError");
+  });
 });

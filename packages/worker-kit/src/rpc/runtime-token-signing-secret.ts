@@ -1,4 +1,9 @@
+import { AUTH_ERROR_CODES, type KnownErrorCode } from "@insecur/domain";
+
 export class RuntimeTokenSigningSecretConfigError extends Error {
+  readonly code: KnownErrorCode = AUTH_ERROR_CODES.configInvalid;
+  readonly retryable = false;
+
   constructor() {
     super(
       "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
