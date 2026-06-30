@@ -196,7 +196,7 @@ and are not repeated here.
     "duplicates:ci": "pnpm duplicates:check",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "knip": "knip",
-    "test": "turbo run test --cache=local:rw,remote:r",
+    "test": "pnpm test:security-reporting && turbo run test --cache=local:rw,remote:r",
     "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
     "test:rls": "turbo run test:rls",
     "test:e2e": "turbo run test:e2e",
@@ -204,7 +204,7 @@ and are not repeated here.
     "dev:db:reset": "node scripts/dev-db.mjs reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm format:check && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
   },
 }
@@ -574,6 +574,8 @@ Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no 
 ```
 turbo run lint typecheck build test --cache=local:rw,remote:rw
 prettier --check .
+conformance:packages (public/contract package-boundary gate)
+test:security-reporting (metadata-only security-daily Linear reporting parser/dedupe helper)
 test:coverage (unit coverage, enforces ratchet thresholds; DB-less)
 postgres-integration (Docker Compose Postgres 17: assert:rls-credentials, workspace test:rls suites, test:e2e, test:canary)
 knip (unused files, deps, and unlisted deps)
@@ -636,9 +638,20 @@ Jobs:
 - **SAST full scan:** semgrep with `config: auto`.
 - **Secret scan history:** gitleaks over full git history (`gitleaks-detect.sh git`).
 - **Dependency scan:** placeholder gated behind repository variable `DEPENDENCY_SCAN_ENABLED`; skipped by default and fails closed if enabled without a wired scanner.
-- **Report criticals:** placeholder gated behind repository variable `LINEAR_SECURITY_REPORTING_ENABLED`. **Automated Linear filing is not wired yet.** When the variable is unset or not `true`, the job exits successfully with a notice and performs no filing. When `LINEAR_SECURITY_REPORTING_ENABLED=true` but `LINEAR_API_KEY` and filing logic are not configured, the job fails closed with an error.
+- **Report criticals:** opt-in metadata-only Linear filing gated behind repository variable
+  `LINEAR_SECURITY_REPORTING_ENABLED`. When the variable is unset or not `true`, the job exits
+  successfully with a notice and performs no checkout, artifact download, or filing. When
+  `LINEAR_SECURITY_REPORTING_ENABLED=true` but `LINEAR_API_KEY` or required Linear labels are not
+  configured, the job fails closed with a metadata-only error. Scanner jobs upload only normalized
+  critical-finding metadata produced by `scripts/ci/security-daily-linear-reporting.mjs`; raw scanner
+  payloads are not filed in Linear.
 
-Future opt-in filing (skeleton tracked in INS-17 and INS-94) will be metadata-only: scanner name, finding category/severity, artifact reference, and remediation pointer. No raw scanner output, secrets, or tokens in Linear. Issues will land in team `INS` with label `zaks-io/insecur`. Automated remediation PRs are not built.
+Opt-in filing is metadata-only: scanner name, finding category/severity, workflow artifact reference,
+safe package/path identifier, and remediation pointer. No raw scanner output, secrets, tokens,
+credentials, private key material, or Sensitive Values are included in Linear. Issues land in team
+`INS` with labels `zaks-io/insecur`, `risk-security-sensitive`, and `Bug`. Stable metadata-only
+fingerprints let the helper update an existing Linear issue for the same finding instead of creating
+duplicates. Automated remediation PRs are not built.
 
 Dependabot runs on its own schedule with `cooldown.default-days: 3` (`.github/dependabot.yml`) so it will not open an update branch before the quarantine floor elapses. Install-time enforcement remains in `pnpm-workspace.yaml` via `minimumReleaseAge: 4320`.
 
@@ -692,5 +705,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.
 - A forked pull request runs the `CI` workflow only and reaches no secret-bearing step.
 - A merge to `main` auto-deploys staging; a production deploy waits on a GitHub Environment required reviewer and runs under a machine identity distinct from the approver.
-- The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated Linear filing for critical findings is not built yet; `report-criticals` skips unless `LINEAR_SECURITY_REPORTING_ENABLED=true` and fails closed when enabled without configuration.
+- The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated
+  Linear filing for critical findings is disabled by default; `report-criticals` skips unless
+  `LINEAR_SECURITY_REPORTING_ENABLED=true` and fails closed when enabled without configuration.
 - Branch protection has administrator bypass disabled and requires the `CI` workflow's checks plus review approval.
