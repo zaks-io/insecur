@@ -283,9 +283,6 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260626.1
-      '@insecur/api':
-        specifier: workspace:*
-        version: link:../api
       '@types/react':
         specifier: ^19.2.7
         version: 19.2.17
