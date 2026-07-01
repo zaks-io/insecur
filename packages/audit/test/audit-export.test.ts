@@ -37,7 +37,7 @@ function sampleEvent(overrides: Partial<AuditExportEventPayload> = {}): AuditExp
     related_resource_id: null,
     request_id: "req_00000000000000000000000001",
     operation_id: null,
-    details: { phase: "complete" },
+    details: { phase: "audit.phase.complete" },
     recorded_at: "2026-05-01T12:00:00.000Z",
     ...overrides,
   };

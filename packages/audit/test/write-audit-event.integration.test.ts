@@ -119,7 +119,7 @@ describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
       actor: { type: "user", userId: userId.brand(TEST_USER_ID) },
       organizationId: org,
       denial: { reasonCode: "auth.insufficient_scope" },
-      details: { gate: "storage_security" },
+      details: { gate: "audit.gate.storage_security" },
     });
 
     const rows = await withTenantScope(
@@ -133,7 +133,7 @@ describeIntegration("writeAuditEvent (tenant-scoped store)", () => {
       },
     );
 
-    expect(rows[0]?.details).toEqual({ gate: "storage_security" });
+    expect(rows[0]?.details).toEqual({ gate: "audit.gate.storage_security" });
   });
 
   it("stores stable denial result codes for denied attempts", async () => {

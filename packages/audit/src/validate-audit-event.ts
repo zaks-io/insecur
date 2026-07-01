@@ -1,5 +1,6 @@
 import {
   assertMetadataOnlyValue,
+  assertMetadataSafeDetailMap,
   AUDIT_ERROR_CODES,
   type AuditErrorCode,
   isStableDottedCode,
@@ -68,6 +69,20 @@ function assertTenantScope(event: AuditEventInput): void {
   }
 }
 
+function assertMetadataSafeAuditDetails(event: AuditEventInput): void {
+  if (event.details === undefined) {
+    return;
+  }
+  try {
+    assertMetadataSafeDetailMap(event.details);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new AuditEventValidationError(error.message);
+    }
+    throw error;
+  }
+}
+
 function assertDenialMetadata(event: AuditEventInput): void {
   if (event.outcome !== "denied") {
     if ("denial" in event) {
@@ -97,6 +112,7 @@ export function validateAuditEventInput(event: AuditEventInput): void {
   }
 
   assertMetadataOnlyAuditEvent(event);
+  assertMetadataSafeAuditDetails(event);
   assertTenantScope(event);
   assertOutcomeMatchesEventCode(eventCode, event.outcome);
   assertDenialMetadata(event);

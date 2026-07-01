@@ -1,5 +1,6 @@
 import {
   assertMetadataOnlyValue,
+  isMetadataSafeOpaqueTokenString,
   isStableDottedCode,
   MetadataEnvelopeValidationError,
   type AuditEventId,
@@ -23,6 +24,30 @@ const OPERATION_INCOMPLETE_CAUSES = new Set<OperationIncompleteCause>([
   "retryable",
   "action_required",
 ]);
+
+const OPERATION_PROGRESS_KEYS = new Set<string>([
+  "auditEventIds",
+  "wait",
+  "retry",
+  "counters",
+  "providerStatusCode",
+  "resultCode",
+  "mutationIdempotencyKey",
+  "cause",
+  "syncTargetLease",
+  "abandoned",
+]);
+
+function assertOnlyKnownProgressKeys(progress: OperationProgress): void {
+  for (const key of Object.keys(progress)) {
+    if (!OPERATION_PROGRESS_KEYS.has(key)) {
+      throw new OperationStoreError(
+        OPERATION_ERROR_CODES.invalidMetadata,
+        `progress contains unknown field: ${key}`,
+      );
+    }
+  }
+}
 
 function assertKnownErrorCode(value: string, field: string): asserts value is KnownErrorCode {
   if (!isStableDottedCode(value)) {
@@ -126,10 +151,10 @@ function assertSyncTargetLeaseProgress(
 }
 
 function assertMutationIdempotencyKey(key: string): void {
-  if (key.length === 0 || key.length > 256) {
+  if (!isMetadataSafeOpaqueTokenString(key)) {
     throw new OperationStoreError(
       OPERATION_ERROR_CODES.invalidMetadata,
-      "mutationIdempotencyKey must be 1-256 characters",
+      "mutationIdempotencyKey must be a 1-256 character opaque token",
     );
   }
 }
@@ -198,6 +223,7 @@ export function validateOperationProgress(
   progress: OperationProgress,
   organizationId?: SyncTargetKey["organizationId"],
 ): void {
+  assertOnlyKnownProgressKeys(progress);
   assertMetadataOnlyProgress(progress);
 
   if (progress.syncTargetLease !== undefined) {
