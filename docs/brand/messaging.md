@@ -51,6 +51,12 @@ not exist."
 The proof should make the user feel the missing `.env` file, the successful command, and the
 absence of plaintext output.
 
+The primary Public Site CTA is to run that proof or a near-equivalent static, copyable terminal demo
+with the real CLI, such as an `npx` flow that stores/generates a development secret and uses it in a
+small command or mock service. Do not run browser-executed demos or hosted sandboxes in the initial
+site. Security design, source links, legal, and company pages matter, but they are secondary to
+getting testers to use the product.
+
 **"How no-reveal actually works"** is the conversion engine for the security-minded buyer.
 A mechanism page, not a feature list. Walk the custody guarantee end to end: where the
 plaintext is and is not, why there is no reveal / readback / export / file path for protected
@@ -58,10 +64,11 @@ values, how diskless runtime injection works, why robot credentials are short-li
 scoped, and how the audit log is tamper-evident. This is the page where the price gets
 justified.
 
-**Pricing** is a story, not just a table: free for dev (holds no production secrets), paid
-for production custody, and we charge for people, never your robots. Predictable per-seat,
-no usage meters, because bill anxiety is off-brand for a product whose pitch is "trust us
-with production."
+**Pricing** is deferred during the tester phase. Do not ship a pricing page until we have real
+charging intent. When pricing lands, it is a story, not just a table: free for dev (holds no
+production secrets), paid for production custody, and we charge for people, never your robots.
+Predictable per-seat, no usage meters, because bill anxiety is off-brand for a product whose pitch
+is "trust us with production."
 
 **Competitive frame** (custody vs management):
 

@@ -80,6 +80,8 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0074: Injection Grant Lifecycle And Revocation](0074-injection-grant-lifecycle-and-revocation.md)
 - [ADR-0075: Orphan Cleanup Is A New Operation](0075-orphan-cleanup-is-a-new-operation.md)
 - [ADR-0076: Lazy Lifecycle Expiry And Retained Published Version Disposal](0076-lazy-lifecycle-expiry-and-retained-version-disposal.md)
+- [ADR-0077: Capability-Isolated Worker Deploys](0077-capability-isolated-worker-deploys.md)
+- [ADR-0078: Public Site Worker Separate From Web Console BFF](0078-public-site-worker.md)
 
 ## Superseded
 
