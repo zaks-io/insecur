@@ -1,7 +1,6 @@
-import { AUTHORIZATION_SCOPES, type ActorRef } from "@insecur/access";
+import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow, type ActorRef } from "@insecur/access";
 import type { AuditActorRef } from "@insecur/audit";
 import { getOperation, type OperationPollResult } from "@insecur/operations";
-import { authorizeScopeOrThrow } from "@insecur/worker-kit";
 import type { GetOperationRpcInput } from "@insecur/worker-kit";
 
 export interface GetOperationOperationInput {
