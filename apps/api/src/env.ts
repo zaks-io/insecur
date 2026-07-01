@@ -1,4 +1,5 @@
 import type { AuthWorkerEnv, RuntimeRpc } from "@insecur/worker-kit";
+import type { PublicEdgeRateLimitBindings } from "@insecur/worker-kit";
 
 /**
  * Bindings for the public API Worker (ADR-0077). This deploy is the public edge: it authenticates
@@ -7,7 +8,7 @@ import type { AuthWorkerEnv, RuntimeRpc } from "@insecur/worker-kit";
  * in the Runtime deploy, so no public route here can build one (enforced structurally and by the
  * INS-199 lint gate).
  */
-export interface ApiEnv extends AuthWorkerEnv {
+export interface ApiEnv extends AuthWorkerEnv, PublicEdgeRateLimitBindings {
   /** Private Service Binding to the Runtime Worker's `RuntimeService` RPC entrypoint. */
   readonly RUNTIME: RuntimeRpc;
   /** HMAC secret shared with the Runtime Worker to mint the scoped hop token (ADR-0077). */

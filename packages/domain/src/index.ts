@@ -82,6 +82,8 @@ export {
   SECRET_VALUE_SIZE_LIMIT_BYTES,
 } from "./secret-value-limits.js";
 export {
+  ABUSE_ERROR_CODES,
+  type AbuseErrorCode,
   AUDIT_ERROR_CODES,
   type AuditErrorCode,
   AUTH_ERROR_CODES,

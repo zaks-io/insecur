@@ -21,6 +21,7 @@ export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc
     writeSecret: (input) => service.writeSecret(input),
     resolveAdmission: (input) => service.resolveAdmission(input),
     recordAdmissionDenied: (input) => service.recordAdmissionDenied(input),
+    recordAbuseDenied: (input) => service.recordAbuseDenied(input),
     getBootstrapStatus: (input) => service.getBootstrapStatus(input),
     provisionGuidedOrganization: (input) => service.provisionGuidedOrganization(input),
     createOperatorOrganization: (input) => service.createOperatorOrganization(input),

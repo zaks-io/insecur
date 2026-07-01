@@ -112,6 +112,13 @@ export const STORE_ERROR_CODES = {
 
 export type StoreErrorCode = (typeof STORE_ERROR_CODES)[keyof typeof STORE_ERROR_CODES];
 
+/** Public-edge abuse controls (rate limiting). */
+export const ABUSE_ERROR_CODES = {
+  rateLimited: "abuse.rate_limited",
+} as const;
+
+export type AbuseErrorCode = (typeof ABUSE_ERROR_CODES)[keyof typeof ABUSE_ERROR_CODES];
+
 /** Audit event writer validation failures. */
 export const AUDIT_ERROR_CODES = {
   eventInvalid: "audit.event_invalid",
@@ -152,6 +159,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   ENVIRONMENT_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
+  ABUSE_ERROR_CODES,
   AUDIT_ERROR_CODES,
   OPERATION_ERROR_CODES,
 ] as const;
@@ -166,6 +174,7 @@ export type KnownErrorCode =
   | EnvironmentErrorCode
   | CryptoErrorCode
   | StoreErrorCode
+  | AbuseErrorCode
   | AuditErrorCode
   | OperationErrorCode
   | (string & {});

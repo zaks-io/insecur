@@ -32,6 +32,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
       ),
     ),
     recordAdmissionDenied: vi.fn(() => Promise.resolve(ok({ recorded: true as const }))),
+    recordAbuseDenied: vi.fn(() => Promise.resolve(ok({ recorded: true as const }))),
     getBootstrapStatus: vi.fn(),
     provisionGuidedOrganization: vi.fn(),
     createOperatorOrganization: vi.fn(),
