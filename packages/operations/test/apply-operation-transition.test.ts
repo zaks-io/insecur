@@ -160,7 +160,7 @@ describe("casApplyOperationTransition", () => {
     const current = sampleOperation({
       state: "running",
       progress: {
-        mutationIdempotencyKey: "idem-retry-1",
+        mutationIdempotencyKey: "operation.idempotency.idem_retry_1",
         counters: { attempt: 2 },
       },
     });
@@ -179,7 +179,7 @@ describe("casApplyOperationTransition", () => {
         message: () => "not allowed",
       },
       idempotency: {
-        key: "idem-retry-1",
+        key: "operation.idempotency.idem_retry_1",
         alreadyAppliedWhen: (operation) => operation.state === "running",
       },
     });
@@ -191,7 +191,7 @@ describe("casApplyOperationTransition", () => {
     const current = sampleOperation({
       state: "running",
       progress: {
-        mutationIdempotencyKey: "idem-stored",
+        mutationIdempotencyKey: "operation.idempotency.idem_stored",
         counters: { attempt: 1 },
       },
     });
@@ -204,14 +204,14 @@ describe("casApplyOperationTransition", () => {
         organizationId: ORG,
         operationId: OP,
         nextState: "running",
-        progressPatch: { mutationIdempotencyKey: "idem-request" },
+        progressPatch: { mutationIdempotencyKey: "operation.idempotency.idem_request" },
         legalFromStates: "by-transition-table",
         notAllowedError: {
           code: OPERATION_ERROR_CODES.invalidTransition,
           message: () => "not allowed",
         },
         idempotency: {
-          key: "idem-request",
+          key: "operation.idempotency.idem_request",
           alreadyAppliedWhen: (operation) => operation.state === "running",
         },
       }),
@@ -258,8 +258,7 @@ describe("casApplyOperationTransition", () => {
 
     const sql = createFakeTenantSql((query, values) => {
       if (queryIncludes(query, "update operations")) {
-        const deadline = values.find((value) => value === null);
-        expect(deadline).toBeNull();
+        expect(values).toContain(null);
         return [
           operationRowFromPoll(current, {
             state: "incomplete",
@@ -434,7 +433,7 @@ describe("casApplyOperationTransition", () => {
     const current = sampleOperation({
       state: "pending",
       progress: {
-        mutationIdempotencyKey: "idem-continue",
+        mutationIdempotencyKey: "operation.idempotency.idem_continue",
       },
     });
     const sql = createLegalTransitionSql(current);
@@ -450,7 +449,7 @@ describe("casApplyOperationTransition", () => {
         message: () => "not allowed",
       },
       idempotency: {
-        key: "idem-continue",
+        key: "operation.idempotency.idem_continue",
         alreadyAppliedWhen: () => false,
       },
     });

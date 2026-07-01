@@ -96,13 +96,13 @@ describe("toAuditEventInsertRow", () => {
         actor: { type: "user", userId: USER },
         organizationId: ORG,
         denial: { reasonCode: "auth.insufficient_scope" },
-        details: { gate: "storage_security", retryable: false },
+        details: { gate: "audit.gate.storage_security", retryable: false },
       },
       auditEventId,
       "auth.insufficient_scope",
     );
 
-    expect(row.details).toEqual({ gate: "storage_security", retryable: false });
+    expect(row.details).toEqual({ gate: "audit.gate.storage_security", retryable: false });
   });
 
   it("maps machine and ci_exchange actors onto insert rows", () => {

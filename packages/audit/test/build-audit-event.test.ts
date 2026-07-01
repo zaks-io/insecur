@@ -16,12 +16,12 @@ describe("buildAuditEventInput", () => {
       actor: { type: "user", userId: USER },
       organizationId: ORG,
       denial: { reasonCode: "auth.insufficient_scope" },
-      details: { gate: "storage_security" },
+      details: { gate: "audit.gate.storage_security" },
     });
 
     expect(event.outcome).toBe("denied");
     expect(event.denial.reasonCode).toBe("auth.insufficient_scope");
-    expect(event.details).toEqual({ gate: "storage_security" });
+    expect(event.details).toEqual({ gate: "audit.gate.storage_security" });
   });
 
   it("rejects secret-bearing detail keys before persistence", () => {

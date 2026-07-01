@@ -115,13 +115,31 @@ describe("validateOperationProgress branches", () => {
     );
   });
 
+  it("rejects unknown progress fields and free-form string values", () => {
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          smuggled: "arbitrary secret text",
+        } as never),
+      /progress contains unknown field: smuggled/,
+    );
+  });
+
   it("rejects invalid mutation idempotency keys", () => {
     expectInvalidMetadata(
       () =>
         validateOperationProgress({
           mutationIdempotencyKey: "",
         }),
-      /mutationIdempotencyKey must be 1-256 characters/,
+      /mutationIdempotencyKey must be a stable dotted code or opaque resource ID/,
+    );
+
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          mutationIdempotencyKey: "idem-1",
+        }),
+      /mutationIdempotencyKey must be a stable dotted code or opaque resource ID/,
     );
 
     expectInvalidMetadata(
@@ -129,7 +147,7 @@ describe("validateOperationProgress branches", () => {
         validateOperationProgress({
           mutationIdempotencyKey: "x".repeat(257),
         }),
-      /mutationIdempotencyKey must be 1-256 characters/,
+      /mutationIdempotencyKey must be a stable dotted code or opaque resource ID/,
     );
   });
 
@@ -205,7 +223,7 @@ describe("validateOperationProgress branches", () => {
           counters: { bindingsTotal: 2, bindingsSucceeded: 1 },
           providerStatusCode: "sync.target_busy",
           resultCode: "sync.partial_failure",
-          mutationIdempotencyKey: "idem-1",
+          mutationIdempotencyKey: "operation.idempotency.idem_1",
           cause: "action_required",
           wait: {
             reasonCode: "auth.high_assurance_required",

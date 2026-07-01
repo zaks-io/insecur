@@ -1,4 +1,8 @@
-import { assertMetadataOnlyValue, FORBIDDEN_ENVELOPE_KEYS } from "@insecur/domain";
+import {
+  assertMetadataOnlyValue,
+  assertMetadataSafeDetailMap,
+  FORBIDDEN_ENVELOPE_KEYS,
+} from "@insecur/domain";
 import type { AuditEventInsertRow } from "./audit-event-row.js";
 import type { AuditExportEventPayload } from "./audit-export-types.js";
 
@@ -35,6 +39,7 @@ export function assertAuditExportPayloadIsMetadataOnly(payload: AuditExportEvent
   assertMetadataOnlyValue(payload);
   if (payload.details !== null) {
     assertMetadataOnlyValue(payload.details);
+    assertMetadataSafeDetailMap(payload.details, "details");
   }
 }
 

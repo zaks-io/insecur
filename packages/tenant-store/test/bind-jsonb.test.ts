@@ -14,7 +14,7 @@ describe("bindJsonb", () => {
   it("binds JSON-serialized values with the jsonb OID", () => {
     const typed = vi.fn().mockReturnValue("bound");
     const sql = { typed } as unknown as TenantScopedSql;
-    const value = { gate: "storage_security" };
+    const value = { gate: "audit.gate.storage_security" };
 
     expect(bindJsonb(sql, value)).toBe("bound");
     expect(typed).toHaveBeenCalledWith(JSON.stringify(value), 3802);

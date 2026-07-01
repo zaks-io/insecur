@@ -109,6 +109,18 @@ describe("audit metadata allowlist", () => {
     }
   });
 
+  it("rejects free-form detail values", () => {
+    expect(() => {
+      validateAuditEventInput({
+        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+        outcome: "success",
+        actor: { type: "user", userId: USER },
+        organizationId: ORG,
+        details: { gate: "storage_security" },
+      });
+    }).toThrow(/stable dotted code or opaque resource ID/);
+  });
+
   it("rejects forbidden sensitive-value keys anywhere in the payload", () => {
     expect(() => {
       validateAuditEventInput({
