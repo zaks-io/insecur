@@ -13,9 +13,12 @@ export { toIsoTimestamp } from "./parse-db-timestamp.js";
 export {
   getRuntimeTenantDb,
   resetRuntimeTenantDb,
-  tenantScopedSql,
   type TenantScopedDb,
 } from "./tenant-scoped-db.js";
+export {
+  createTenantScopedTransaction,
+  type TenantScopedTransaction,
+} from "./tenant-scoped-transaction.js";
 export {
   closeRuntimeSql,
   configureRuntimeConnection,

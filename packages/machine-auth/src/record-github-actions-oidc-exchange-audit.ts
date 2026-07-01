@@ -77,8 +77,5 @@ export async function recordGitHubActionsOidcExchangeDenied(input: {
 export function mapVerificationFailureToReasonCode(
   reason: "malformed" | "invalid" | "expired",
 ): AuthErrorCode {
-  if (reason === "expired") {
-    return AUTH_ERROR_CODES.expired;
-  }
-  return AUTH_ERROR_CODES.invalid;
+  return reason === "expired" ? AUTH_ERROR_CODES.expired : AUTH_ERROR_CODES.invalid;
 }
