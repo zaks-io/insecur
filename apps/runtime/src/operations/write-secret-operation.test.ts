@@ -1,3 +1,4 @@
+import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow } from "@insecur/access";
 import type { Keyring } from "@insecur/crypto";
 import {
   environmentId,
@@ -10,7 +11,6 @@ import {
   userId,
 } from "@insecur/domain";
 import { assertSecretWriteCoordinate, writeNonProtectedSecret } from "@insecur/secret-store";
-import { authorizeScopeOrThrow } from "@insecur/worker-kit";
 import type { WriteSecretRpcInput } from "@insecur/worker-kit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,9 +24,13 @@ vi.mock("@insecur/secret-store", () => ({
   writeNonProtectedSecret: vi.fn(),
 }));
 
-vi.mock("@insecur/worker-kit", () => ({
-  authorizeScopeOrThrow: vi.fn(),
-}));
+vi.mock("@insecur/access", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/access")>();
+  return {
+    ...actual,
+    authorizeScopeOrThrow: vi.fn(),
+  };
+});
 
 vi.mock("../crypto/keyring-context.js", () => ({
   createKeyringFromRuntimeEnv: vi.fn(),
@@ -116,6 +120,7 @@ describe("writeSecretOperation", () => {
           projectId: project,
           environmentId: environment,
         },
+        requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
         requestId: request,
       }),
     );

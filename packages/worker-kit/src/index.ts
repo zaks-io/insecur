@@ -34,7 +34,6 @@ export {
   type InjectionGrantConsumeSelectorInput,
   type InjectionGrantIssueSelectorInput,
 } from "./http/parse-route-input.js";
-export { authorizeScopeOrThrow } from "./http/authorize-scope.js";
 export { toAccessActor, toAuditActor } from "./http/request-actor.js";
 
 export type {
