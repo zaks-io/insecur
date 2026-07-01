@@ -44,6 +44,11 @@ export {
   type AccessDenialAuditOptions,
 } from "./assert-access-or-audit.js";
 export {
+  authorizeScopeOrThrow,
+  type AuthorizeScopeDeps,
+  type AuthorizeScopeInput,
+} from "./authorize-scope.js";
+export {
   assertEnvironmentLifecycleUpdateAccess,
   EnvironmentLifecycleAccessError,
   type EnvironmentLifecycleAccessCoordinate,
