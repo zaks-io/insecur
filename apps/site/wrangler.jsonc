@@ -21,21 +21,17 @@
   // must never grow a control-plane binding; the @insecur/site -> @insecur/ui-only import boundary
   // is enforced by dependency-cruiser (pnpm conformance:site-boundary).
   //
-  // Preview deploys to the shared *.workers.dev subdomain, exactly like the api/runtime preview
-  // deploys (their wrangler configs declare no custom domain either). Production custom domains are
-  // attached only when the zone is set up in the Cloudflare account and the legal/security
-  // publication gates settle (ADR-0078); until then the production `routes` below are commented out
-  // so `wrangler deploy` never tries to provision a route on a zone that may not exist yet.
-  // Production is manual-only: do not auto-publish on every `main` push.
-  "workers_dev": true,
-  // "routes": [
-  //   { "pattern": "insecur.cloud", "custom_domain": true },
-  //   { "pattern": "www.insecur.cloud", "custom_domain": true },
-  // ],
+  // Served on the insecur.cloud zone (active in the Cloudflare account). Production binds the apex
+  // and www; preview binds preview.insecur.cloud. Production is manual-only: do not auto-publish on
+  // every `main` push until the legal/security publication gates settle (ADR-0078).
+  "routes": [
+    { "pattern": "insecur.cloud", "custom_domain": true },
+    { "pattern": "www.insecur.cloud", "custom_domain": true },
+  ],
   "env": {
     "preview": {
       "name": "insecur-site-preview",
-      "workers_dev": true,
+      "routes": [{ "pattern": "preview.insecur.cloud", "custom_domain": true }],
     },
   },
 }

@@ -8,11 +8,13 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "insecur — no-reveal secrets custody" },
+      { title: "insecur — coming soon" },
       {
         name: "description",
-        content: "No-reveal secrets custody for teams shipping with agents and CI.",
+        content: "No-reveal secrets custody for teams shipping with agents and CI. Coming soon.",
       },
+      // Placeholder site: keep it out of search indexes until launch.
+      { name: "robots", content: "noindex, nofollow" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
