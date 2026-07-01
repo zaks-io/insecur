@@ -4,6 +4,7 @@ export {
   domainErrorEnvelope,
   httpStatusForKnownErrorCode,
   knownErrorCodeFromUnknown,
+  safePublicErrorMessage,
 } from "./http/domain-error-response.js";
 export {
   encodeRequestValueUtf8,

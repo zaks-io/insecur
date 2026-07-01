@@ -7,7 +7,13 @@ import { GuidedOrganizationProvisionError, MembershipManagementError } from "@in
 import { OperationStoreError } from "@insecur/operations";
 import { BootstrapError } from "@insecur/instance-bootstrap";
 import type { RuntimeRpcError } from "@insecur/worker-kit";
-import { RuntimeTokenSigningSecretConfigError } from "@insecur/worker-kit";
+import { RuntimeTokenSigningSecretConfigError, safePublicErrorMessage } from "@insecur/worker-kit";
+
+const RUNTIME_RPC_GENERIC_MESSAGE = "runtime request failed" as const;
+
+function runtimeRpcMessage(error: unknown, code: KnownErrorCode): string {
+  return safePublicErrorMessage(error, code, { genericMessage: RUNTIME_RPC_GENERIC_MESSAGE });
+}
 
 /** Raised when the forwarded scoped hop token fails verification (ADR-0077). */
 export class RuntimeActorTokenError extends Error {
@@ -61,7 +67,7 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
     const retryable = "retryable" in error && typeof error.retryable === "boolean";
     return {
       code: error.code,
-      message: error.message,
+      message: runtimeRpcMessage(error, error.code),
       retryable: retryable ? error.retryable : false,
     };
   }
@@ -72,9 +78,13 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
       retryable: false,
     };
   }
-  const message = error instanceof Error ? error.message : "runtime request failed";
   const structuredCode = readStructuredErrorCode(error);
-  return { code: structuredCode ?? AUTH_ERROR_CODES.invalid, message, retryable: false };
+  const code = structuredCode ?? AUTH_ERROR_CODES.invalid;
+  return {
+    code,
+    message: runtimeRpcMessage(error, code),
+    retryable: false,
+  };
 }
 
 /**

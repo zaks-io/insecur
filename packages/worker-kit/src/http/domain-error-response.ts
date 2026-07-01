@@ -64,9 +64,15 @@ function allowlistedStaticMessage(error: Error, code: KnownErrorCode): string | 
   return undefined;
 }
 
-function messageForError(error: unknown, code: KnownErrorCode): string {
+export function safePublicErrorMessage(
+  error: unknown,
+  code: KnownErrorCode,
+  options?: { readonly genericMessage?: string },
+): string {
+  const genericMessage = options?.genericMessage ?? GENERIC_ERROR_MESSAGE;
+
   if (error instanceof RuntimeConfigMissingError) {
-    return STATIC_MESSAGE_BY_ERROR_NAME.RuntimeConfigMissingError ?? GENERIC_ERROR_MESSAGE;
+    return STATIC_MESSAGE_BY_ERROR_NAME.RuntimeConfigMissingError ?? genericMessage;
   }
 
   if (error instanceof Error) {
@@ -81,7 +87,7 @@ function messageForError(error: unknown, code: KnownErrorCode): string {
     return codeMessage;
   }
 
-  return GENERIC_ERROR_MESSAGE;
+  return genericMessage;
 }
 
 function readErrorCode(error: unknown): KnownErrorCode | undefined {
@@ -174,7 +180,7 @@ export function domainErrorEnvelope(
   const body = errorEnvelope(
     {
       code,
-      message: messageForError(error, code),
+      message: safePublicErrorMessage(error, code),
       retryable: retryableForError(error),
     },
     { requestId },

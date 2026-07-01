@@ -11,6 +11,7 @@ import type { RuntimeEnv } from "../env.js";
 import { withRuntimeRpcEntry } from "./runtime-rpc-entry.js";
 
 const RUNTIME_TOKEN_SIGNING_SECRET = "runtime-entry-secret-000000000000000000000000000";
+const SENTINEL = "sentinel-plaintext-must-not-cross-seam";
 
 const env: RuntimeEnv = { RUNTIME_TOKEN_SIGNING_SECRET };
 
@@ -47,21 +48,24 @@ describe("withRuntimeRpcEntry", () => {
     });
   });
 
-  it("maps handler failures through toRuntimeRpcError instead of throwing", async () => {
+  it("maps handler failures through toRuntimeRpcError without leaking raw domain text", async () => {
     const result = await withRuntimeRpcEntry(
       { env, actorToken: await mintRuntimeToken() },
       async () => {
-        throw new InjectionGrantError(INJECTION_ERROR_CODES.grantExpired, "grant gone");
+        throw new InjectionGrantError(INJECTION_ERROR_CODES.grantExpired, SENTINEL);
       },
     );
     expect(result).toEqual({
       ok: false,
       error: {
         code: INJECTION_ERROR_CODES.grantExpired,
-        message: "grant gone",
+        message: "runtime request failed",
         retryable: false,
       },
     });
+    if (!result.ok) {
+      expect(result.error.message).not.toContain(SENTINEL);
+    }
   });
 
   it("maps hop-token verification failures through the same envelope", async () => {
@@ -72,7 +76,8 @@ describe("withRuntimeRpcEntry", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.retryable).toBe(false);
-      expect(result.error.message).toContain("scoped hop token");
+      expect(result.error.message).toBe("runtime request failed");
+      expect(result.error.message).not.toContain("scoped hop token");
     }
   });
 
