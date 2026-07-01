@@ -1,7 +1,6 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "./audit-event-codes.js";
 import type { OrganizationId } from "@insecur/domain";
-import type { TenantScopedSql } from "@insecur/tenant-store";
-import { withTenantScope } from "@insecur/tenant-store";
+import { toIsoTimestamp, withTenantScope, type TenantScopedSql } from "@insecur/tenant-store";
 
 export interface FirstValueUsageWindow {
   readonly startInclusive: Date;
@@ -34,6 +33,14 @@ const DENIED_FIRST_VALUE_EVENT_CODES = [
   FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
 ] as const;
 
+function windowStartSql(window: FirstValueUsageWindow): string {
+  return toIsoTimestamp(window.startInclusive);
+}
+
+function windowEndSql(window: FirstValueUsageWindow): string {
+  return toIsoTimestamp(window.endExclusive);
+}
+
 async function countAuditEvents(
   sql: TenantScopedSql,
   organizationId: OrganizationId,
@@ -45,8 +52,8 @@ async function countAuditEvents(
     FROM audit_events
     WHERE org_id = ${organizationId}
       AND event_code = ${eventCode}
-      AND created_at >= ${window.startInclusive}
-      AND created_at < ${window.endExclusive}
+      AND created_at >= ${windowStartSql(window)}::timestamptz
+      AND created_at < ${windowEndSql(window)}::timestamptz
   `;
   return Number(rows[0]?.count ?? "0");
 }
@@ -61,8 +68,8 @@ async function countDeniedAttempts(
     FROM audit_events
     WHERE org_id = ${organizationId}
       AND event_code = ANY(${DENIED_FIRST_VALUE_EVENT_CODES})
-      AND created_at >= ${window.startInclusive}
-      AND created_at < ${window.endExclusive}
+      AND created_at >= ${windowStartSql(window)}::timestamptz
+      AND created_at < ${windowEndSql(window)}::timestamptz
   `;
   return Number(rows[0]?.count ?? "0");
 }
@@ -78,8 +85,8 @@ async function countDistinctRunActors(
     WHERE org_id = ${organizationId}
       AND event_code = ${FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunCompleted}
       AND actor_user_id IS NOT NULL
-      AND created_at >= ${window.startInclusive}
-      AND created_at < ${window.endExclusive}
+      AND created_at >= ${windowStartSql(window)}::timestamptz
+      AND created_at < ${windowEndSql(window)}::timestamptz
   `;
   return Number(rows[0]?.count ?? "0");
 }
