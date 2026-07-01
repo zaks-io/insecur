@@ -1,6 +1,5 @@
-import { AUTHORIZATION_SCOPES } from "@insecur/access";
+import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow } from "@insecur/access";
 import { assertSecretWriteCoordinate, writeNonProtectedSecret } from "@insecur/secret-store";
-import { authorizeScopeOrThrow } from "@insecur/worker-kit";
 import type { RuntimeSecretWritePayload, WriteSecretRpcInput } from "@insecur/worker-kit";
 
 import { createKeyringFromRuntimeEnv } from "../crypto/keyring-context.js";
