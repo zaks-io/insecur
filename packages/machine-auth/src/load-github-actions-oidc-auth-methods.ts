@@ -17,6 +17,8 @@ interface GithubActionsOidcAuthMethodDbRow {
   project_id: string;
   environment_id: string | null;
   github_repository: string;
+  github_repository_id: string;
+  github_repository_owner_id: string;
   github_environment: string | null;
   oidc_audience: string;
   credential_scopes: string[];
@@ -52,6 +54,8 @@ function toAuthMethodRow(
     projectId: projectId.brand(row.project_id),
     environmentId: row.environment_id === null ? null : environmentId.brand(row.environment_id),
     githubRepository: row.github_repository,
+    githubRepositoryId: row.github_repository_id,
+    githubRepositoryOwnerId: row.github_repository_owner_id,
     githubEnvironment: row.github_environment,
     oidcAudience: row.oidc_audience,
     credentialScopes,
@@ -74,6 +78,8 @@ export async function loadActiveGitHubActionsOidcAuthMethods(
       method.project_id,
       method.environment_id,
       method.github_repository,
+      method.github_repository_id,
+      method.github_repository_owner_id,
       method.github_environment,
       method.oidc_audience,
       method.credential_scopes,

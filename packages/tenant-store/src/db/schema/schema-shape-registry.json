@@ -1016,6 +1016,20 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
+      "github_repository_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "github_repository_owner_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "github_environment": {
         "notNull": false,
         "primaryKey": false,
@@ -1056,8 +1070,16 @@
     },
     "checks": [
       {
+        "name": "machine_identity_github_actions_oidc_repository_id_numeric",
+        "sql": "\"machine_identity_github_actions_oidc\".\"github_repository_id\" ~ '^[0-9]+$'"
+      },
+      {
         "name": "machine_identity_github_actions_oidc_repository_lowercase",
         "sql": "lower(\"machine_identity_github_actions_oidc\".\"github_repository\") = \"machine_identity_github_actions_oidc\".\"github_repository\""
+      },
+      {
+        "name": "machine_identity_github_actions_oidc_repository_owner_id_numeric",
+        "sql": "\"machine_identity_github_actions_oidc\".\"github_repository_owner_id\" ~ '^[0-9]+$'"
       },
       {
         "name": "machine_identity_github_actions_oidc_scopes_nonempty",

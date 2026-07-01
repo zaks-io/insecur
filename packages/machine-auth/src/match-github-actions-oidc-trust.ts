@@ -2,7 +2,6 @@ import type { AuthErrorCode } from "@insecur/domain";
 import {
   audienceMatches,
   assertGitHubActionsIssuer,
-  normalizeGitHubRepository,
   type GitHubActionsOidcClaims,
 } from "./github-actions-oidc-claims.js";
 import type { GitHubActionsOidcAuthMethodRow } from "./github-actions-oidc-auth-method-row.js";
@@ -32,13 +31,13 @@ export type OidcTrustMatchResult = OidcTrustMatchSuccess | OidcTrustMatchFailure
 
 export { oidcTrustFailureReasonCode } from "./oidc-trust-match-failure.js";
 
-function repositoryMatches(
+function repositoryIdentityMatches(
   claims: GitHubActionsOidcClaims,
   authMethod: GitHubActionsOidcAuthMethodRow,
 ): boolean {
   return (
-    normalizeGitHubRepository(claims.repository) ===
-    normalizeGitHubRepository(authMethod.githubRepository)
+    claims.repositoryId === authMethod.githubRepositoryId &&
+    claims.repositoryOwnerId === authMethod.githubRepositoryOwnerId
   );
 }
 
@@ -67,7 +66,12 @@ function matchUniqueAuthMethod(
 
 /**
  * Matches verified GitHub Actions OIDC claims to one tenant-qualified auth method.
- * Fails closed when issuer, expiry, audience, repository, or environment do not align.
+ * Fails closed when issuer, expiry, audience, stable repository identity, or environment
+ * do not align. Repository display names are not trusted because they can change on
+ * rename, transfer, or recreation.
+ *
+ * Deferred: workflow/ref/subject constraints (`job_workflow_ref`, `ref`, immutable `sub`
+ * patterns) are not enforced in this slice; see INS-273 follow-up.
  */
 export function matchGitHubActionsOidcTrust(
   claims: GitHubActionsOidcClaims,
@@ -89,7 +93,7 @@ export function matchGitHubActionsOidcTrust(
   }
 
   const repositoryMatchesByMethod = audienceMatchesByMethod.filter((method) =>
-    repositoryMatches(claims, method),
+    repositoryIdentityMatches(claims, method),
   );
   if (repositoryMatchesByMethod.length === 0) {
     return oidcTrustMatchFailure("wrong_repository");

@@ -32,6 +32,8 @@ const AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000001"
 const AUDIENCE = "insecur://oidc/github-actions";
 const SIGNING_SECRET = "unit-machine-access-signing-secret";
 const NOW = 1_700_000_000;
+const REPOSITORY_ID = "123456789";
+const REPOSITORY_OWNER_ID = "987654321";
 
 function authMethodRow(): GitHubActionsOidcAuthMethodRow {
   return {
@@ -41,6 +43,8 @@ function authMethodRow(): GitHubActionsOidcAuthMethodRow {
     projectId: PROJECT,
     environmentId: ENV,
     githubRepository: "insecur-ci/example",
+    githubRepositoryId: REPOSITORY_ID,
+    githubRepositoryOwnerId: REPOSITORY_OWNER_ID,
     githubEnvironment: "production",
     oidcAudience: AUDIENCE,
     credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
@@ -60,6 +64,8 @@ function sqlReturningAuthMethods(
       project_id: row.projectId,
       environment_id: row.environmentId,
       github_repository: row.githubRepository,
+      github_repository_id: row.githubRepositoryId,
+      github_repository_owner_id: row.githubRepositoryOwnerId,
       github_environment: row.githubEnvironment,
       oidc_audience: row.oidcAudience,
       credential_scopes: [...row.credentialScopes],
@@ -82,6 +88,8 @@ describe("exchangeGitHubActionsOidc (unit)", () => {
         audience: AUDIENCE,
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: NOW + 600,
@@ -137,6 +145,8 @@ describe("exchangeGitHubActionsOidc (unit)", () => {
         audience: AUDIENCE,
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: NOW - 60,
@@ -167,6 +177,8 @@ describe("exchangeGitHubActionsOidc (unit)", () => {
         audience: AUDIENCE,
         repository: "other-org/other-repo",
         repositoryOwner: "other-org",
+        repositoryId: "111111111",
+        repositoryOwnerId: "222222222",
         subject: "repo:other-org/other-repo:environment:production",
         environment: "production",
         expiresAtEpoch: NOW + 600,

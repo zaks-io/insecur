@@ -6,8 +6,11 @@ export interface GitHubActionsOidcClaims {
   readonly subject: string;
   readonly audience: readonly string[];
   readonly expiresAtEpoch: number;
+  /** Display metadata only; trust matching uses stable repository identity claims. */
   readonly repository: string;
   readonly repositoryOwner: string;
+  readonly repositoryId: string;
+  readonly repositoryOwnerId: string;
   readonly environment?: string;
 }
 
@@ -33,9 +36,64 @@ function readStringClaim(payload: Record<string, unknown>, key: string): string 
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+/** GitHub emits repository identity claims as numeric strings (sometimes numbers). */
+function readStableRepositoryIdentityClaim(
+  payload: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = payload[key];
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return String(value);
+  }
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    return value;
+  }
+  return null;
+}
+
 function readExpiryEpoch(payload: Record<string, unknown>): number | null {
   const exp = payload.exp;
   return typeof exp === "number" && Number.isFinite(exp) ? Math.floor(exp) : null;
+}
+
+interface ParsedGitHubActionsOidcRequiredClaims {
+  readonly issuer: string;
+  readonly subject: string;
+  readonly audience: readonly string[];
+  readonly expiresAtEpoch: number;
+  readonly repository: string;
+  readonly repositoryOwner: string;
+  readonly repositoryId: string;
+  readonly repositoryOwnerId: string;
+}
+
+function readRequiredGitHubActionsOidcClaims(
+  payload: Record<string, unknown>,
+): ParsedGitHubActionsOidcRequiredClaims | null {
+  const issuer = readStringClaim(payload, "iss");
+  const subject = readStringClaim(payload, "sub");
+  const audience = normalizeAudience(payload.aud);
+  const expiresAtEpoch = readExpiryEpoch(payload);
+  const repository = readStringClaim(payload, "repository");
+  const repositoryOwner = readStringClaim(payload, "repository_owner");
+  const repositoryId = readStableRepositoryIdentityClaim(payload, "repository_id");
+  const repositoryOwnerId = readStableRepositoryIdentityClaim(payload, "repository_owner_id");
+
+  const required = {
+    issuer,
+    subject,
+    audience,
+    expiresAtEpoch,
+    repository,
+    repositoryOwner,
+    repositoryId,
+    repositoryOwnerId,
+  };
+  if (Object.values(required).some((value) => value === null)) {
+    return null;
+  }
+
+  return required as ParsedGitHubActionsOidcRequiredClaims;
 }
 
 /**
@@ -45,33 +103,15 @@ function readExpiryEpoch(payload: Record<string, unknown>): number | null {
 export function parseGitHubActionsOidcClaims(
   payload: Record<string, unknown>,
 ): GitHubActionsOidcClaims | null {
-  const issuer = readStringClaim(payload, "iss");
-  const subject = readStringClaim(payload, "sub");
-  const audience = normalizeAudience(payload.aud);
-  const expiresAtEpoch = readExpiryEpoch(payload);
-  const repository = readStringClaim(payload, "repository");
-  const repositoryOwner = readStringClaim(payload, "repository_owner");
-
-  if (
-    issuer === null ||
-    subject === null ||
-    audience === null ||
-    expiresAtEpoch === null ||
-    repository === null ||
-    repositoryOwner === null
-  ) {
+  const required = readRequiredGitHubActionsOidcClaims(payload);
+  if (required === null) {
     return null;
   }
 
   const environment = readStringClaim(payload, "environment");
 
   return {
-    issuer,
-    subject,
-    audience,
-    expiresAtEpoch,
-    repository,
-    repositoryOwner,
+    ...required,
     ...(environment !== null ? { environment } : {}),
   };
 }

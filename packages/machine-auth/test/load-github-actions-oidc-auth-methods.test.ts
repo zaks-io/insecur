@@ -15,6 +15,8 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000001");
+const REPOSITORY_ID = "123456789";
+const REPOSITORY_OWNER_ID = "987654321";
 
 describe("loadActiveGitHubActionsOidcAuthMethods", () => {
   it("maps active auth method rows into branded domain identifiers", async () => {
@@ -28,6 +30,8 @@ describe("loadActiveGitHubActionsOidcAuthMethods", () => {
           project_id: PROJECT,
           environment_id: ENV,
           github_repository: "insecur-ci/example",
+          github_repository_id: REPOSITORY_ID,
+          github_repository_owner_id: REPOSITORY_OWNER_ID,
           github_environment: "production",
           oidc_audience: "insecur://oidc/github-actions",
           credential_scopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
@@ -45,6 +49,8 @@ describe("loadActiveGitHubActionsOidcAuthMethods", () => {
         projectId: PROJECT,
         environmentId: ENV,
         githubRepository: "insecur-ci/example",
+        githubRepositoryId: REPOSITORY_ID,
+        githubRepositoryOwnerId: REPOSITORY_OWNER_ID,
         githubEnvironment: "production",
         oidcAudience: "insecur://oidc/github-actions",
         credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
