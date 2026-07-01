@@ -136,7 +136,6 @@ vi.mock("@insecur/access", async (importOriginal) => {
 });
 
 vi.mock("@insecur/audit", () => ({
-  auditActorUserId: (actor: { userId: string }) => actor.userId,
   recordRuntimeInjectionAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
   recordRuntimeInjectionAuditInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));

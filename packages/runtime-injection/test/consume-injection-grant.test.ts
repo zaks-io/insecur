@@ -3,7 +3,7 @@ import {
   auditAccessDenialOnFailure,
   resolveEffectiveAccess,
 } from "@insecur/access";
-import { auditActorUserId, recordRuntimeInjectionAudit } from "@insecur/audit";
+import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import { PlaintextHandle } from "@insecur/crypto";
 import {
   AUTH_ERROR_CODES,
@@ -94,7 +94,6 @@ vi.mock("@insecur/access", async (importOriginal) => {
 });
 
 vi.mock("@insecur/audit", () => ({
-  auditActorUserId: vi.fn((actor: { userId: string }) => actor.userId),
   recordRuntimeInjectionAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 
@@ -129,7 +128,6 @@ function boundGrantFromRow() {
 }
 
 beforeEach(() => {
-  vi.mocked(auditActorUserId).mockClear();
   vi.mocked(resolveEffectiveAccess).mockReset();
   vi.mocked(recordRuntimeInjectionAudit).mockClear();
   vi.mocked(auditAccessDenialOnFailure).mockClear();
@@ -172,7 +170,6 @@ describe("executeConsumeInjectionGrant", () => {
       code: AUTH_ERROR_CODES.insufficientScope,
     });
 
-    expect(auditActorUserId).not.toHaveBeenCalled();
     expect(resolveEffectiveAccess).not.toHaveBeenCalled();
     expect(tryConsumeGrant).not.toHaveBeenCalled();
   });
@@ -190,7 +187,6 @@ describe("executeConsumeInjectionGrant", () => {
       code: AUTH_ERROR_CODES.insufficientScope,
     });
 
-    expect(auditActorUserId).not.toHaveBeenCalled();
     expect(resolveEffectiveAccess).not.toHaveBeenCalled();
     expect(tryConsumeGrant).not.toHaveBeenCalled();
   });

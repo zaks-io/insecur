@@ -41,7 +41,7 @@ function toAuthMethodRow(
   if (credentialScopes === null) {
     return null;
   }
-  if (row.status !== "active" && row.status !== "disabled") {
+  if (row.status !== "active") {
     return null;
   }
 
@@ -55,7 +55,7 @@ function toAuthMethodRow(
     githubEnvironment: row.github_environment,
     oidcAudience: row.oidc_audience,
     credentialScopes,
-    status: row.status,
+    status: "active",
   };
 }
 

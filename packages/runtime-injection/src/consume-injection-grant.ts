@@ -1,6 +1,11 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
-import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type {
+  AuditActorRef,
+  AuditOperationRef,
+  AuditRequestRef,
+  AuditUserActorRef,
+} from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
   environmentId,
@@ -25,7 +30,7 @@ import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
 import { matchConsumeSelectorToBinding } from "./match-consume-selector.js";
-import { recordRuntimeInjectionAudit, auditActorUserId } from "@insecur/audit";
+import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
 
 export interface ConsumeInjectionGrantCoreInput {
@@ -65,7 +70,7 @@ export interface LoadedGrantBinding {
   };
 }
 
-function assertUserActorForConsume(actor: AuditActorRef): void {
+function assertUserActorForConsume(actor: AuditActorRef): asserts actor is AuditUserActorRef {
   if (actor.type !== "user") {
     throw new InjectionGrantError(
       AUTH_ERROR_CODES.insufficientScope,
@@ -127,11 +132,7 @@ export async function executeConsumeInjectionGrant(
     environmentId: loaded.environmentId,
   };
 
-  await assertRuntimeInjectionAccess(
-    { type: "user", userId: auditActorUserId(input.actor) },
-    grantCoordinate,
-    CONSUME_SCOPE,
-  );
+  await assertRuntimeInjectionAccess(input.actor, grantCoordinate, CONSUME_SCOPE);
 
   const identity = matchConsumeSelectorToBinding(input.selector, loaded.binding);
 
