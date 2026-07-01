@@ -3,7 +3,7 @@ import {
   queryFirstValueUsageEvidenceInTenantScope,
 } from "@insecur/audit";
 import { organizationId, userId } from "@insecur/domain";
-import { withTenantScope } from "@insecur/tenant-store";
+import { withTenantScope, bindJsonb } from "@insecur/tenant-store";
 import { describe, expect, it } from "vitest";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { TEST_ORG_A_ID, TEST_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
@@ -41,7 +41,7 @@ describeIntegration("queryFirstValueUsageEvidence", () => {
             ${"audit.succeeded"},
             ${"user"},
             ${USER},
-            ${sql.json({ childExitCode: 0 })},
+            ${bindJsonb(sql, { childExitCode: 0 })},
             NOW()
           )
         `;
