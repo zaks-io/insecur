@@ -36,8 +36,10 @@ the authoritative route → deploy table.
 
 - `.env.example` documents optional service keys for future product slices.
 - Copy keys into `.env.local` only when a task explicitly needs real service access.
-- `apps/api/.dev.vars.example` and `apps/runtime/.dev.vars.example` document local Worker variable
+- `apps/api/.dev.vars.example` and `apps/runtime/.dev.vars.example` document local Worker secret
   placement for each deploy (the shared `RUNTIME_TOKEN_SIGNING_SECRET` must match between them).
+  In deployed environments these values are delivered as encrypted Worker secrets (`wrangler secret
+put` / `--secrets-file`), never as plaintext wrangler `vars`.
 - `pnpm dev:workers` does not put WorkOS or hop-token values in `.dev.vars`; create local ignored
   `.dev.vars` files when authenticated route smoke needs those Worker bindings.
 - `.env.local`, `.env.production`, and `.dev.vars` are ignored and must not be committed.

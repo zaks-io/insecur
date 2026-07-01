@@ -16,6 +16,7 @@ import { InjectionGrantError } from "@insecur/runtime-injection-issue";
 import { SecretWriteError } from "@insecur/secret-store-contracts";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
 import { describe, expect, it } from "vitest";
+import { RuntimeTokenSigningSecretConfigError } from "../rpc/runtime-token-signing-secret.js";
 import {
   GENERIC_ERROR_MESSAGE,
   domainErrorEnvelope,
@@ -168,6 +169,9 @@ describe("knownErrorCodeFromUnknown", () => {
     expect(knownErrorCodeFromUnknown(new RuntimeConfigMissingError())).toBe(
       STORE_ERROR_CODES.runtimeConfigMissing,
     );
+    expect(knownErrorCodeFromUnknown(new RuntimeTokenSigningSecretConfigError())).toBe(
+      AUTH_ERROR_CODES.configInvalid,
+    );
     expect(
       knownErrorCodeFromUnknown(
         Object.assign(new Error("tenant data keys are not ready"), {
@@ -205,6 +209,23 @@ describe("domainErrorEnvelope typed error boundaries", () => {
       },
     });
 
+    const hopTokenSecretConfig = domainErrorEnvelope(
+      new RuntimeTokenSigningSecretConfigError(),
+      reqId,
+    );
+    expect(hopTokenSecretConfig).toMatchObject({
+      status: 503,
+      body: {
+        ok: false,
+        error: {
+          code: AUTH_ERROR_CODES.configInvalid,
+          message:
+            "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
+          retryable: false,
+        },
+      },
+    });
+
     const attackerDecryptMessage = "attacker-controlled decrypt diagnostic detail";
     const decryptError = Object.assign(new Error(attackerDecryptMessage), { name: "DecryptError" });
     const decryptEnvelope = domainErrorEnvelope(decryptError, reqId);
@@ -234,6 +255,29 @@ describe("domainErrorEnvelope typed error boundaries", () => {
       },
     });
     expect(rootKeyEnvelope.body.error.message).not.toContain(attackerRootKeyMessage);
+  });
+
+  it("redacts dynamic auth.config_invalid diagnostics to generic safe copy", () => {
+    const reqId = requestId.generate();
+    const sensitiveDiagnostic = "sensitive diagnostic";
+    const { status, body } = domainErrorEnvelope(
+      Object.assign(new Error(sensitiveDiagnostic), {
+        code: AUTH_ERROR_CODES.configInvalid,
+        retryable: false,
+      }),
+      reqId,
+    );
+
+    expect(status).toBe(503);
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: AUTH_ERROR_CODES.configInvalid,
+        message: GENERIC_ERROR_MESSAGE,
+        retryable: false,
+      },
+    });
+    expect(body.error.message).not.toContain(sensitiveDiagnostic);
   });
 
   it("preserves retryable flags from typed store errors", () => {

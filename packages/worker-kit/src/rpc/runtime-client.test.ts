@@ -8,6 +8,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { CreateInvitationResult } from "@insecur/onboarding";
 import type { RuntimeRpc, RuntimeRpcResult } from "./runtime-rpc-contract.js";
+import { RuntimeTokenSigningSecretConfigError } from "./runtime-token-signing-secret.js";
 import { runtimeClientFor, type RuntimeClientEnv } from "./runtime-client.js";
 import { RuntimeRpcResultError } from "./unwrap-runtime-result.js";
 
@@ -122,5 +123,26 @@ describe("runtimeClientFor", () => {
 
     expect(calls).toHaveLength(2);
     expect(calls[0]?.input.actorToken).toBe(calls[1]?.input.actorToken);
+  });
+
+  it("throws before minting when the signing secret is missing", () => {
+    expect(() =>
+      runtimeClientFor(
+        { RUNTIME: fakeRuntime({ ok: true, value: {} }).rpc, RUNTIME_TOKEN_SIGNING_SECRET: "" },
+        actor,
+      ),
+    ).toThrow(RuntimeTokenSigningSecretConfigError);
+  });
+
+  it("throws before minting when the signing secret is too short", () => {
+    expect(() =>
+      runtimeClientFor(
+        {
+          RUNTIME: fakeRuntime({ ok: true, value: {} }).rpc,
+          RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret",
+        },
+        actor,
+      ),
+    ).toThrow(RuntimeTokenSigningSecretConfigError);
   });
 });

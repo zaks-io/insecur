@@ -1,8 +1,11 @@
-# Local-only variables for the public API Worker (`insecur-api`), loaded by `wrangler dev`.
+# Local-only secrets for the public API Worker (`insecur-api`), loaded by `wrangler dev`.
 # Copy to apps/api/.dev.vars and fill in. Never commit real secrets.
 #
 # The API Worker holds NO keyring. It authenticates the caller and forwards keyring-bound work to
 # the Runtime Worker over the RUNTIME Service Binding, minting a scoped hop token (ADR-0077).
+#
+# Deployed/preview environments deliver these via encrypted Worker secrets (`wrangler secret put`
+# or `--secrets-file`), not plaintext wrangler `vars` (INS-276).
 
 # WorkOS auth (public edge):
 WORKOS_API_KEY=
@@ -11,5 +14,5 @@ WORKOS_COOKIE_PASSWORD=
 SESSION_SIGNING_SECRET=
 
 # HMAC secret shared with the Runtime Worker to mint the scoped hop token. Must match the value in
-# apps/runtime/.dev.vars (RUNTIME_TOKEN_SIGNING_SECRET).
+# apps/runtime/.dev.vars (RUNTIME_TOKEN_SIGNING_SECRET). Must be at least 32 characters.
 RUNTIME_TOKEN_SIGNING_SECRET=
