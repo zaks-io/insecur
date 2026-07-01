@@ -20,6 +20,10 @@ _Avoid_: crypto service, sync worker, or "the worker" when this private decrypt-
 The browser-facing deploy (`insecur-web`, deferred to Cut 2): the only deploy the browser talks to, holding the session cookie and reaching the **API Worker** over a private Service Binding with a per-request `insecur-api`-audience token. It holds no Keyring and no database binding.
 _Avoid_: frontend, SPA backend when the session-holding edge-for-the-browser is meant
 
+**Public Site Worker**:
+The public marketing and legal deploy (`insecur-site`) that hosts `insecur.cloud` and `www.insecur.cloud`. It is the face of the project and stays separate from the **Web Console BFF**: no auth session ownership, no database binding, no Keyring, and no Service Binding to the product control plane. Future public-site flags and A/B testing belong to this surface, but their mechanism is not decided.
+_Avoid_: apex, marketing page, web when the separate public site deploy is meant
+
 **Service Access Surface**:
 The deferred cross-Organization audited deploy (`insecur-service-access`, name reserved, not built — ADR-0019). Its separate-deploy and no-reveal constraints remain binding even while deferred; a negative conformance assertion keeps any reveal/value/delivery/approval scope out of every V1 deploy.
 _Avoid_: admin API, internal API when the deferred audited cross-tenant surface is meant
