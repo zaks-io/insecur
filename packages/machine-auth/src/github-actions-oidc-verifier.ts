@@ -26,6 +26,28 @@ function verificationFailure(
   return { ok: false, reason: verifyResult.reason === "malformed" ? "malformed" : "invalid" };
 }
 
+function readNotBeforeEpoch(payload: Record<string, unknown>): number | null {
+  const nbf = payload.nbf;
+  return typeof nbf === "number" && Number.isFinite(nbf) ? Math.floor(nbf) : null;
+}
+
+type OidcTokenTimingFailure = "invalid" | "expired";
+
+function timingFailureReason(
+  payload: Record<string, unknown>,
+  claims: GitHubActionsOidcClaims,
+  nowEpoch: number,
+): OidcTokenTimingFailure | null {
+  const notBeforeEpoch = readNotBeforeEpoch(payload);
+  if (notBeforeEpoch !== null && notBeforeEpoch > nowEpoch) {
+    return "invalid";
+  }
+  if (claims.expiresAtEpoch <= nowEpoch) {
+    return "expired";
+  }
+  return null;
+}
+
 /**
  * Verifies a GitHub Actions OIDC JWT and extracts metadata-safe claims.
  */
@@ -50,8 +72,9 @@ export async function verifyGitHubActionsOidcToken(
   }
 
   const now = nowEpoch ?? Math.floor(Date.now() / 1000);
-  if (claims.expiresAtEpoch <= now) {
-    return { ok: false, reason: "expired" };
+  const timingFailure = timingFailureReason(verified.payload, claims, now);
+  if (timingFailure !== null) {
+    return { ok: false, reason: timingFailure };
   }
 
   return { ok: true, claims };

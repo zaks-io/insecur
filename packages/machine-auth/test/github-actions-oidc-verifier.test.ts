@@ -70,6 +70,25 @@ describe("verifyGitHubActionsOidcToken", () => {
     expect(verified.ok).toBe(false);
   });
 
+  it("rejects tokens with a not-before claim in the future", async () => {
+    const signer = await createTestGitHubActionsOidcSigner();
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const token = await signer.sign({
+      ...buildGitHubActionsOidcClaims({
+        audience: "insecur://oidc/github-actions",
+        repository: "insecur-ci/example",
+        repositoryOwner: "insecur-ci",
+        subject: "repo:insecur-ci/example:environment:production",
+        environment: "production",
+        expiresAtEpoch: nowEpoch + 600,
+      }),
+      nbf: nowEpoch + 120,
+    });
+
+    const verified = await verifyGitHubActionsOidcToken(token, signer.jwks, nowEpoch);
+    expect(verified).toEqual({ ok: false, reason: "invalid" });
+  });
+
   it("rejects empty JWKS key sets", async () => {
     const verified = await verifyGitHubActionsOidcToken("a.b.c", {
       getVerificationKeys: async () => [],

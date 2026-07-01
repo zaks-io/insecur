@@ -22,12 +22,7 @@ export {
   type GitHubActionsOidcJwksPort,
   type VerifyGitHubActionsOidcTokenResult,
 } from "./github-actions-oidc-verifier.js";
-export {
-  verifyRs256Jwt,
-  importRs256PublicKeyFromJwk,
-  encodeUnsignedJwtPayload,
-  type JwkPublicKey,
-} from "./rs256-jwt.js";
+export { verifyRs256Jwt, importRs256PublicKeyFromJwk, type JwkPublicKey } from "./rs256-jwt.js";
 export {
   mintMachineAccessToken,
   verifyMachineAccessToken,
