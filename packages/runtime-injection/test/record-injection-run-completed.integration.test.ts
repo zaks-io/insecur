@@ -1,11 +1,14 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
+  AUTH_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
   type InjectionGrantId,
   type OrganizationId,
+  userId,
 } from "@insecur/domain";
 import { expect, it } from "vitest";
 import { withTenantScope } from "@insecur/tenant-store";
+import { TEST_NO_SCOPE_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
 import {
   createTestKeyring,
   uniqueVariableKey,
@@ -116,6 +119,46 @@ describeInjectionGrantIntegration("Runtime Injection run completion telemetry", 
 
     const duplicateCount = await countRunCompletedAuditEvents(org, issued.grantId);
     expect(duplicateCount).toBe(1);
+  });
+
+  it("denies idempotent run completion replay without consume scope", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV_RUN_DONE_DENY");
+    await writeTestSecret(variableKey, new TextEncoder().encode(`run-deny-${crypto.randomUUID()}`));
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey },
+      actor: testActor(),
+    });
+
+    await consumeInjectionGrant({
+      keyring: createTestKeyring(),
+      organizationId: org,
+      grantId: issued.grantId,
+      variableKey,
+      actor: testActor(),
+    });
+
+    await recordInjectionRunCompleted({
+      organizationId: org,
+      grantId: issued.grantId,
+      childExitCode: 0,
+      actor: testActor(),
+    });
+
+    await expect(
+      recordInjectionRunCompleted({
+        organizationId: org,
+        grantId: issued.grantId,
+        childExitCode: 0,
+        actor: { type: "user", userId: userId.brand(TEST_NO_SCOPE_USER_ID) },
+      }),
+    ).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.insufficientScope,
+    });
   });
 });
 

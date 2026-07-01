@@ -119,6 +119,11 @@ async function recordRunCompletedInTenantScope(
 ): Promise<RecordInjectionRunCompletedResult> {
   await lockRunCompletedGrant(handles.sql, input.organizationId, input.grantId);
 
+  const { grantProjectId, grantEnvironmentId } = await assertConsumedGrantForRunCompletion(
+    handles,
+    input,
+  );
+
   const existingAuditEventId = await findExistingRunCompletedAuditId(
     handles.sql,
     input.organizationId,
@@ -127,11 +132,6 @@ async function recordRunCompletedInTenantScope(
   if (existingAuditEventId !== undefined) {
     return { auditEventId: existingAuditEventId, alreadyRecorded: true };
   }
-
-  const { grantProjectId, grantEnvironmentId } = await assertConsumedGrantForRunCompletion(
-    handles,
-    input,
-  );
 
   const audit = await recordRuntimeInjectionAuditInTenantScope(handles.sql, {
     phase: "run",
