@@ -1,6 +1,6 @@
 import {
   assertMetadataOnlyValue,
-  isMetadataSafeStringValue,
+  isMetadataSafeOpaqueTokenString,
   isStableDottedCode,
   MetadataEnvelopeValidationError,
   type AuditEventId,
@@ -151,10 +151,10 @@ function assertSyncTargetLeaseProgress(
 }
 
 function assertMutationIdempotencyKey(key: string): void {
-  if (!isMetadataSafeStringValue(key)) {
+  if (!isMetadataSafeOpaqueTokenString(key)) {
     throw new OperationStoreError(
       OPERATION_ERROR_CODES.invalidMetadata,
-      "mutationIdempotencyKey must be a stable dotted code or opaque resource ID",
+      "mutationIdempotencyKey must be a 1-256 character opaque token",
     );
   }
 }

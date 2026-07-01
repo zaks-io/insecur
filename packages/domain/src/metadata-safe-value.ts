@@ -1,14 +1,16 @@
 import { OPAQUE_RESOURCE_ID_PATTERN } from "./opaque-resource-id.js";
 import { isStableDottedCode } from "./stable-dotted-code.js";
 
+const METADATA_SAFE_OPAQUE_TOKEN_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,255}$/;
+
 /**
  * Metadata-only detail/progress string values must be structurally constrained so
  * Sensitive Values cannot be smuggled as arbitrary prose (spec §11, ADR-0068).
  *
  * Approach: value-type guard — strings are limited to stable dotted codes or opaque
- * resource IDs; numbers and booleans are accepted as-is. Field-specific exceptions
- * (ISO-8601 timestamps, provider target selectors, idempotency keys) are validated
- * at their owning call sites, not through this helper.
+ * resource IDs; numbers and booleans are accepted as-is. Field-specific closed shapes
+ * (ISO-8601 timestamps, provider target selectors, opaque idempotency tokens) are
+ * validated at their owning call sites, not through the detail-map helper.
  */
 export type MetadataSafeStringKind = "stable_dotted_code" | "opaque_resource_id";
 
@@ -28,6 +30,11 @@ export function classifyMetadataSafeString(value: string): MetadataSafeStringKin
 
 export function isMetadataSafeStringValue(value: string): boolean {
   return classifyMetadataSafeString(value) !== null;
+}
+
+/** Client-minted opaque token shape for idempotency keys (no spaces or free-form prose). */
+export function isMetadataSafeOpaqueTokenString(value: string): boolean {
+  return value.length > 0 && value.length <= 256 && METADATA_SAFE_OPAQUE_TOKEN_PATTERN.test(value);
 }
 
 export function isMetadataSafeDetailPrimitive(

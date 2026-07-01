@@ -131,15 +131,15 @@ describe("validateOperationProgress branches", () => {
         validateOperationProgress({
           mutationIdempotencyKey: "",
         }),
-      /mutationIdempotencyKey must be a stable dotted code or opaque resource ID/,
+      /mutationIdempotencyKey must be a 1-256 character opaque token/,
     );
 
     expectInvalidMetadata(
       () =>
         validateOperationProgress({
-          mutationIdempotencyKey: "idem-1",
+          mutationIdempotencyKey: "arbitrary secret text",
         }),
-      /mutationIdempotencyKey must be a stable dotted code or opaque resource ID/,
+      /mutationIdempotencyKey must be a 1-256 character opaque token/,
     );
 
     expectInvalidMetadata(
@@ -147,7 +147,7 @@ describe("validateOperationProgress branches", () => {
         validateOperationProgress({
           mutationIdempotencyKey: "x".repeat(257),
         }),
-      /mutationIdempotencyKey must be a stable dotted code or opaque resource ID/,
+      /mutationIdempotencyKey must be a 1-256 character opaque token/,
     );
   });
 
@@ -223,7 +223,7 @@ describe("validateOperationProgress branches", () => {
           counters: { bindingsTotal: 2, bindingsSucceeded: 1 },
           providerStatusCode: "sync.target_busy",
           resultCode: "sync.partial_failure",
-          mutationIdempotencyKey: "operation.idempotency.idem_1",
+          mutationIdempotencyKey: "idem-1",
           cause: "action_required",
           wait: {
             reasonCode: "auth.high_assurance_required",

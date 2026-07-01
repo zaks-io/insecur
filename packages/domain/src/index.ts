@@ -82,6 +82,7 @@ export {
   assertMetadataSafeDetailValue,
   classifyMetadataSafeString,
   isMetadataSafeDetailPrimitive,
+  isMetadataSafeOpaqueTokenString,
   isMetadataSafeStringValue,
   isOpaqueResourceIdString,
 } from "./metadata-safe-value.js";

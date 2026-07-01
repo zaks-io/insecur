@@ -160,7 +160,7 @@ describe("casApplyOperationTransition", () => {
     const current = sampleOperation({
       state: "running",
       progress: {
-        mutationIdempotencyKey: "operation.idempotency.idem_retry_1",
+        mutationIdempotencyKey: "idem-retry-1",
         counters: { attempt: 2 },
       },
     });
@@ -179,7 +179,7 @@ describe("casApplyOperationTransition", () => {
         message: () => "not allowed",
       },
       idempotency: {
-        key: "operation.idempotency.idem_retry_1",
+        key: "idem-retry-1",
         alreadyAppliedWhen: (operation) => operation.state === "running",
       },
     });
@@ -191,7 +191,7 @@ describe("casApplyOperationTransition", () => {
     const current = sampleOperation({
       state: "running",
       progress: {
-        mutationIdempotencyKey: "operation.idempotency.idem_stored",
+        mutationIdempotencyKey: "idem-stored",
         counters: { attempt: 1 },
       },
     });
@@ -204,14 +204,14 @@ describe("casApplyOperationTransition", () => {
         organizationId: ORG,
         operationId: OP,
         nextState: "running",
-        progressPatch: { mutationIdempotencyKey: "operation.idempotency.idem_request" },
+        progressPatch: { mutationIdempotencyKey: "idem-request" },
         legalFromStates: "by-transition-table",
         notAllowedError: {
           code: OPERATION_ERROR_CODES.invalidTransition,
           message: () => "not allowed",
         },
         idempotency: {
-          key: "operation.idempotency.idem_request",
+          key: "idem-request",
           alreadyAppliedWhen: (operation) => operation.state === "running",
         },
       }),
@@ -433,7 +433,7 @@ describe("casApplyOperationTransition", () => {
     const current = sampleOperation({
       state: "pending",
       progress: {
-        mutationIdempotencyKey: "operation.idempotency.idem_continue",
+        mutationIdempotencyKey: "idem-continue",
       },
     });
     const sql = createLegalTransitionSql(current);
@@ -449,7 +449,7 @@ describe("casApplyOperationTransition", () => {
         message: () => "not allowed",
       },
       idempotency: {
-        key: "operation.idempotency.idem_continue",
+        key: "idem-continue",
         alreadyAppliedWhen: () => false,
       },
     });

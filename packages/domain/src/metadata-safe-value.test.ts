@@ -3,6 +3,7 @@ import {
   assertMetadataSafeDetailMap,
   assertMetadataSafeDetailValue,
   isMetadataSafeDetailPrimitive,
+  isMetadataSafeOpaqueTokenString,
   isMetadataSafeStringValue,
   isOpaqueResourceIdString,
 } from "./metadata-safe-value.js";
@@ -63,5 +64,12 @@ describe("metadata-safe detail values", () => {
         relatedId: "sec_01JZ8E2QYQ6M7F4K9A2B3C4D5E",
       });
     }).not.toThrow();
+  });
+
+  it("accepts opaque token strings for idempotency-key-shaped metadata", () => {
+    expect(isMetadataSafeOpaqueTokenString("idem-retry-1")).toBe(true);
+    expect(isMetadataSafeOpaqueTokenString("operation.idempotency.idem_1")).toBe(true);
+    expect(isMetadataSafeOpaqueTokenString("arbitrary secret text")).toBe(false);
+    expect(isMetadataSafeOpaqueTokenString("")).toBe(false);
   });
 });
