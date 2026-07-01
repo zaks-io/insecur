@@ -14,6 +14,8 @@ const BASE_CLAIMS = {
   exp: 1_700_000_600,
   repository: "insecur-ci/example",
   repository_owner: "insecur-ci",
+  repository_id: "123456789",
+  repository_owner_id: "987654321",
   environment: "production",
 };
 
@@ -27,8 +29,20 @@ describe("parseGitHubActionsOidcClaims", () => {
       expiresAtEpoch: BASE_CLAIMS.exp,
       repository: "insecur-ci/example",
       repositoryOwner: "insecur-ci",
+      repositoryId: "123456789",
+      repositoryOwnerId: "987654321",
       environment: "production",
     });
+  });
+
+  it("parses numeric stable repository identity claims", () => {
+    const claims = parseGitHubActionsOidcClaims({
+      ...BASE_CLAIMS,
+      repository_id: 123456789,
+      repository_owner_id: 987654321,
+    });
+    expect(claims?.repositoryId).toBe("123456789");
+    expect(claims?.repositoryOwnerId).toBe("987654321");
   });
 
   it("parses array audience claims", () => {
@@ -54,6 +68,10 @@ describe("parseGitHubActionsOidcClaims", () => {
     ["sub", { ...BASE_CLAIMS, sub: "" }],
     ["repository", { ...BASE_CLAIMS, repository: "" }],
     ["repository_owner", { ...BASE_CLAIMS, repository_owner: "" }],
+    ["repository_id", { ...BASE_CLAIMS, repository_id: "" }],
+    ["repository_id", { ...BASE_CLAIMS, repository_id: "not-numeric" }],
+    ["repository_owner_id", { ...BASE_CLAIMS, repository_owner_id: "" }],
+    ["repository_owner_id", { ...BASE_CLAIMS, repository_owner_id: -1 }],
     ["exp", { ...BASE_CLAIMS, exp: "not-a-number" }],
     ["exp", { ...BASE_CLAIMS, exp: Number.NaN }],
     ["aud", { ...BASE_CLAIMS, aud: [] }],
@@ -61,6 +79,8 @@ describe("parseGitHubActionsOidcClaims", () => {
     ["aud", { ...BASE_CLAIMS, aud: 123 }],
     ["aud", { ...BASE_CLAIMS, aud: ["valid", 1] }],
     ["iss", { ...BASE_CLAIMS, iss: undefined }],
+    ["repository_id", { ...BASE_CLAIMS, repository_id: undefined }],
+    ["repository_owner_id", { ...BASE_CLAIMS, repository_owner_id: undefined }],
   ] as const)("returns null when %s is invalid", (_field, payload) => {
     expect(parseGitHubActionsOidcClaims(payload as Record<string, unknown>)).toBeNull();
   });

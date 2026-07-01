@@ -120,6 +120,8 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     environment_id: { category: "opaque-id" },
     github_environment: { category: "type-code" },
     github_repository: { category: "type-code" },
+    github_repository_id: { category: "opaque-id" },
+    github_repository_owner_id: { category: "opaque-id" },
     id: { category: "opaque-id" },
     machine_identity_id: { category: "opaque-id" },
     oidc_audience: { category: "type-code" },

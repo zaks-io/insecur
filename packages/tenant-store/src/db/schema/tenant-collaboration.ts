@@ -154,6 +154,8 @@ export const machineIdentityGitHubActionsOidc = pgTable(
     projectId: text("project_id").notNull(),
     environmentId: text("environment_id"),
     githubRepository: text("github_repository").notNull(),
+    githubRepositoryId: text("github_repository_id").notNull(),
+    githubRepositoryOwnerId: text("github_repository_owner_id").notNull(),
     githubEnvironment: text("github_environment"),
     oidcAudience: text("oidc_audience").notNull(),
     credentialScopes: text("credential_scopes").array().notNull(),
@@ -167,6 +169,14 @@ export const machineIdentityGitHubActionsOidc = pgTable(
     check(
       "machine_identity_github_actions_oidc_repository_lowercase",
       sql`lower(${table.githubRepository}) = ${table.githubRepository}`,
+    ),
+    check(
+      "machine_identity_github_actions_oidc_repository_id_numeric",
+      sql`${table.githubRepositoryId} ~ '^[0-9]+$'`,
+    ),
+    check(
+      "machine_identity_github_actions_oidc_repository_owner_id_numeric",
+      sql`${table.githubRepositoryOwnerId} ~ '^[0-9]+$'`,
     ),
     check(
       "machine_identity_github_actions_oidc_scopes_nonempty",

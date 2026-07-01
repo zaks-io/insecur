@@ -9,6 +9,9 @@ import {
   createTestGitHubActionsOidcSigner,
 } from "../src/testing/sign-github-actions-oidc.js";
 
+const REPOSITORY_ID = "123456789";
+const REPOSITORY_OWNER_ID = "987654321";
+
 describe("verifyGitHubActionsOidcToken", () => {
   it("verifies RS256 GitHub Actions OIDC tokens and extracts claims", async () => {
     const signer = await createTestGitHubActionsOidcSigner();
@@ -17,6 +20,8 @@ describe("verifyGitHubActionsOidcToken", () => {
         audience: "insecur://oidc/github-actions",
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: Math.floor(Date.now() / 1000) + 600,
@@ -40,6 +45,8 @@ describe("verifyGitHubActionsOidcToken", () => {
         audience: "insecur://oidc/github-actions",
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: nowEpoch - 60,
@@ -60,6 +67,8 @@ describe("verifyGitHubActionsOidcToken", () => {
         audience: "insecur://oidc/github-actions",
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: Math.floor(Date.now() / 1000) + 600,
@@ -78,6 +87,8 @@ describe("verifyGitHubActionsOidcToken", () => {
         audience: "insecur://oidc/github-actions",
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: nowEpoch + 600,

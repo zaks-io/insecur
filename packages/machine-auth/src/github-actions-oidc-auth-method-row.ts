@@ -14,7 +14,10 @@ export interface GitHubActionsOidcAuthMethodRow {
   readonly machineIdentityId: MachineIdentityId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId | null;
+  /** Display metadata only; trust matching uses stable repository identity fields. */
   readonly githubRepository: string;
+  readonly githubRepositoryId: string;
+  readonly githubRepositoryOwnerId: string;
   readonly githubEnvironment: string | null;
   readonly oidcAudience: string;
   readonly credentialScopes: readonly CredentialScope[];
