@@ -2,20 +2,21 @@ import {
   handleDeliveryRoute,
   handleRoute,
   parseEnvironmentIdParam,
-  parseGrantIdParam,
   parseInjectionGrantConsumeSelector,
   parseInjectionGrantIssueSelector,
   parseJsonBody,
-  parseOrganizationIdParam,
   parseProjectIdParam,
   readRequiredString,
-  requireRouteParam,
   requireUserActor,
   runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
+import {
+  parseOrganizationAndGrantRouteParams,
+  parseOrganizationRouteParam,
+} from "./parse-org-route-params.js";
 
 export const runtimeInjectionRoutes = new Hono<{
   Bindings: ApiEnv;
@@ -25,9 +26,7 @@ export const runtimeInjectionRoutes = new Hono<{
 runtimeInjectionRoutes.post("/grants", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
-    const organizationId = parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
-    );
+    const organizationId = parseOrganizationRouteParam(context);
     const body = parseJsonBody(await context.req.json());
     const projectId = parseProjectIdParam(readRequiredString(body, "projectId"));
     const environmentId = parseEnvironmentIdParam(readRequiredString(body, "environmentId"));
@@ -46,10 +45,7 @@ runtimeInjectionRoutes.post("/grants", requireUserActor, async (context) => {
 runtimeInjectionRoutes.post("/grants/:grantId/consume", requireUserActor, async (context) => {
   return handleDeliveryRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
-    const organizationId = parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
-    );
-    const grantId = parseGrantIdParam(context.req.param("grantId"));
+    const { organizationId, grantId } = parseOrganizationAndGrantRouteParams(context);
     const body = parseJsonBody(await context.req.json());
     const selector = parseInjectionGrantConsumeSelector(body);
 
@@ -63,5 +59,26 @@ runtimeInjectionRoutes.post("/grants/:grantId/consume", requireUserActor, async 
     });
 
     return context.json(envelope);
+  });
+});
+
+runtimeInjectionRoutes.post("/grants/:grantId/run-completed", requireUserActor, async (context) => {
+  return handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const { organizationId, grantId } = parseOrganizationAndGrantRouteParams(context);
+    const body = parseJsonBody(await context.req.json());
+    const childExitCode = body.childExitCode;
+    if (typeof childExitCode !== "number" || !Number.isInteger(childExitCode)) {
+      throw Object.assign(new Error("childExitCode must be an integer"), {
+        code: "validation.invalid_command_input",
+      });
+    }
+
+    return runtimeClientFor(context.env, userActor).recordInjectionRunCompleted({
+      organizationId,
+      grantId,
+      childExitCode,
+      requestId: reqId,
+    });
   });
 });

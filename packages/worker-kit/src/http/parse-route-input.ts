@@ -9,6 +9,7 @@ import {
   parseDisplayName,
   parseVariableKey,
   projectId,
+  requestId,
   secretId,
   userId,
   type DisplayName,
@@ -19,6 +20,7 @@ import {
   type OperationId,
   type OrganizationId,
   type ProjectId,
+  type RequestId,
   type SecretId,
   type UserId,
 } from "@insecur/domain";
@@ -39,6 +41,7 @@ const parseProjectResourceId = (raw: string) => projectId.parse(raw);
 const parseEnvironmentResourceId = (raw: string) => environmentId.parse(raw);
 const parseGrantResourceId = (raw: string) => injectionGrantId.parse(raw);
 const parseOperationResourceId = (raw: string) => operationId.parse(raw);
+const parseRequestResourceId = (raw: string) => requestId.parse(raw);
 const parseInvitationResourceId = (raw: string) => invitationId.parse(raw);
 const parseUserResourceId = (raw: string) => userId.parse(raw);
 const parseSecretResourceId = (raw: string) => secretId.parse(raw);
@@ -87,6 +90,10 @@ export function parseGrantIdParam(raw: string): InjectionGrantId {
 
 export function parseOperationIdParam(raw: string): OperationId {
   return parseValue(raw, parseOperationResourceId, "Invalid operation id.");
+}
+
+export function parseRequestIdParam(raw: string): RequestId {
+  return parseValue(raw, parseRequestResourceId, "Invalid request id.");
 }
 
 export function parseInvitationIdParam(raw: string): InvitationId {

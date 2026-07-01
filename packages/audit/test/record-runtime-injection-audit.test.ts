@@ -81,6 +81,24 @@ function baseInput(phase: RuntimeInjectionAuditPhase, outcome: "success" | "deni
 }
 
 describe("recordRuntimeInjectionAudit", () => {
+  it("records childExitCode in run audit details", async () => {
+    await recordRuntimeInjectionAudit({
+      phase: "run",
+      outcome: "success",
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      grantId: GRANT,
+      childExitCode: 17,
+    });
+
+    expect(writeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunCompleted,
+        details: { childExitCode: 17 },
+      }),
+    );
+  });
+
   it.each(PHASE_OUTCOME_EVENT_CODES)(
     "maps $phase $outcome to $eventCode",
     async ({ phase, outcome, eventCode }) => {

@@ -70,6 +70,26 @@ export {
   recordRuntimeInjectionAudit,
   recordRuntimeInjectionAuditInTenantScope,
 } from "./record-runtime-injection-audit.js";
+export {
+  FIRST_VALUE_FEEDBACK_KINDS,
+  type CaptureFirstValueFeedbackInput,
+  type FirstValueFeedbackKind,
+  type ParseFirstValueFeedbackResult,
+  isFirstValueFeedbackKind,
+  parseFirstValueFeedbackInput,
+} from "./first-value-feedback.js";
+export {
+  type CaptureFirstValueFeedbackResult,
+  captureFirstValueFeedback,
+  captureFirstValueFeedbackInTenantScope,
+} from "./capture-first-value-feedback.js";
+export {
+  type FirstValueUsageEventCounts,
+  type FirstValueUsageEvidence,
+  type FirstValueUsageWindow,
+  queryFirstValueUsageEvidence,
+  queryFirstValueUsageEvidenceInTenantScope,
+} from "./query-first-value-usage.js";
 export { type RecordStorageAuditInput, recordStorageAudit } from "./record-storage-audit.js";
 export { generateAuditEventId } from "./generate-audit-event-id.js";
 export { insertAuditEventRow } from "./insert-audit-event-row.js";

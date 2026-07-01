@@ -17,6 +17,12 @@ export {
   issueInjectionGrant,
 } from "@insecur/runtime-injection-issue";
 
+export {
+  type RecordInjectionRunCompletedInput,
+  type RecordInjectionRunCompletedResult,
+  recordInjectionRunCompleted,
+} from "./record-injection-run-completed.js";
+
 export interface ConsumeInjectionGrantInput {
   keyring: Keyring;
   organizationId: OrganizationId;

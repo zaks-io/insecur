@@ -31,6 +31,7 @@ export {
   type MachineAuthMethodId,
   type AppConnectionId,
   type ProviderCredentialId,
+  type FirstValueFeedbackId,
   organizationId,
   projectId,
   environmentId,
@@ -52,6 +53,7 @@ export {
   machineAuthMethodId,
   appConnectionId,
   providerCredentialId,
+  firstValueFeedbackId,
 } from "./resource-ids.js";
 export {
   type DisplayName,

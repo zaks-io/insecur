@@ -78,6 +78,7 @@ function createMockChildSpawnError(error: Error) {
 function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
   issueInjectionGrant: ReturnType<typeof vi.fn>;
   consumeInjectionGrant: ReturnType<typeof vi.fn>;
+  recordInjectionRunCompleted: ReturnType<typeof vi.fn>;
 } {
   const encodedValueUtf8 = bytesToBase64Url(new TextEncoder().encode(SENSITIVE_VALUE));
   const issueInjectionGrant = vi.fn(async () => ({
@@ -107,6 +108,17 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
       meta: { requestId: "req_consume" as never },
     },
   }));
+  const recordInjectionRunCompleted = vi.fn(async () => ({
+    ok: true as const,
+    envelope: {
+      ok: true as const,
+      data: {
+        auditEventId: "aud_run_completed",
+        alreadyRecorded: false,
+      },
+      meta: { requestId: "req_run_completed" as never },
+    },
+  }));
   return {
     createCliAuthorizationUrl: () => "https://insecur.test/v1/auth/cli/authorize",
     exchangeCliPkceSession: async () => {
@@ -120,6 +132,7 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
     },
     issueInjectionGrant,
     consumeInjectionGrant,
+    recordInjectionRunCompleted,
     ...overrides,
   };
 }

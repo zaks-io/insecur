@@ -8,6 +8,8 @@ export const VALIDATION_ERROR_CODES = {
   displayNameEmpty: "validation.display_name_empty",
   invalidVariableKey: "validation.invalid_variable_key",
   invalidCommandInput: "validation.invalid_command_input",
+  invalidFeedbackKind: "validation.invalid_feedback_kind",
+  feedbackAssociationRequired: "validation.feedback_association_required",
 } as const;
 
 export type ValidationErrorCode =

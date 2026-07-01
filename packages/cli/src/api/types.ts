@@ -133,4 +133,20 @@ export interface ApiClient {
     | { ok: true; envelope: InjectionGrantDeliveryEnvelope }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
+  recordInjectionRunCompleted(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly grantId: InjectionGrantId;
+    readonly childExitCode: number;
+  }): Promise<
+    | {
+        ok: true;
+        envelope: ApiSuccess<{
+          readonly auditEventId: string;
+          readonly alreadyRecorded: boolean;
+        }>;
+      }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
 }

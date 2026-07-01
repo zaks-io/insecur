@@ -141,6 +141,16 @@ export async function runRunCommand(
     buildRunChildEnv(variableKey, decodeDeliveryValue(delivery.encodedValueUtf8)),
   );
 
+  await api
+    .recordInjectionRunCompleted({
+      host: context.scope.host,
+      bearerCredential: credential,
+      organizationId: runScope.orgId,
+      grantId: issueData.grantId,
+      childExitCode,
+    })
+    .catch(() => undefined);
+
   renderSuccess(
     successEnvelope(
       {

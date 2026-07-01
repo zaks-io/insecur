@@ -9,6 +9,7 @@ import {
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
+import { designPartnerFeedbackRoutes } from "./routes/v1/design-partner-feedback.js";
 import { instanceBootstrapRoutes } from "./routes/v1/instance-bootstrap.js";
 import { invitationsRoutes } from "./routes/v1/invitations.js";
 import { onboardingRoutes } from "./routes/v1/onboarding.js";
@@ -84,5 +85,6 @@ app.route("/v1/orgs/:organizationId/organizations", organizationsRoutes);
 app.route("/v1/orgs/:organizationId/projects", secretsRoutes);
 app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
 app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
+app.route("/v1/orgs/:organizationId/design-partner-feedback", designPartnerFeedbackRoutes);
 
 export default app;
