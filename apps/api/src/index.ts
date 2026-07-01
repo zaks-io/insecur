@@ -1,9 +1,10 @@
 import { AUTH_ERROR_CODES, errorEnvelope, requestId } from "@insecur/domain";
 import {
+  AbuseLimitError,
   AuthConfigError,
   AuthFailureError,
-  AbuseLimitError,
   FakeWorkOSSessionConfigError,
+  RuntimeTokenSigningSecretConfigError,
   domainErrorEnvelope,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
@@ -39,7 +40,11 @@ app.onError((err, context) => {
       401,
     );
   }
-  if (err instanceof AuthConfigError || err instanceof FakeWorkOSSessionConfigError) {
+  if (
+    err instanceof AuthConfigError ||
+    err instanceof FakeWorkOSSessionConfigError ||
+    err instanceof RuntimeTokenSigningSecretConfigError
+  ) {
     const reqId = requestId.generate();
     return context.json(
       errorEnvelope(

@@ -10,6 +10,7 @@ import { RootKeyNotConfiguredError, TenantDataKeyNotReadyError } from "@insecur/
 import { describe, expect, it } from "vitest";
 
 import { RuntimeActorTokenError, toRuntimeRpcError } from "./runtime-rpc-error.js";
+import { RuntimeTokenSigningSecretConfigError } from "@insecur/worker-kit";
 
 describe("toRuntimeRpcError", () => {
   it("passes through a domain error's own code and retryable flag", () => {
@@ -36,6 +37,16 @@ describe("toRuntimeRpcError", () => {
     );
     expect(mapped.code).toBe(AUTH_ERROR_CODES.expired);
     expect(mapped.retryable).toBe(false);
+  });
+
+  it("maps hop-token signing secret misconfiguration to auth.config_invalid", () => {
+    const mapped = toRuntimeRpcError(new RuntimeTokenSigningSecretConfigError());
+    expect(mapped).toEqual({
+      code: AUTH_ERROR_CODES.configInvalid,
+      message:
+        "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
+      retryable: false,
+    });
   });
 
   it("hides root-key misconfiguration behind a generic validation failure", () => {

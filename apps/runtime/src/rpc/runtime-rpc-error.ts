@@ -7,6 +7,7 @@ import { GuidedOrganizationProvisionError, MembershipManagementError } from "@in
 import { OperationStoreError } from "@insecur/operations";
 import { BootstrapError } from "@insecur/instance-bootstrap";
 import type { RuntimeRpcError } from "@insecur/worker-kit";
+import { RuntimeTokenSigningSecretConfigError } from "@insecur/worker-kit";
 
 /** Raised when the forwarded scoped hop token fails verification (ADR-0077). */
 export class RuntimeActorTokenError extends Error {
@@ -32,22 +33,26 @@ type DomainError =
   | SecretWriteError
   | RuntimeConfigMissingError
   | RuntimeActorTokenError
+  | RuntimeTokenSigningSecretConfigError
   | GuidedOrganizationProvisionError
   | MembershipManagementError
   | OperationStoreError
   | BootstrapError;
 
+const DOMAIN_ERROR_TYPES = [
+  InjectionGrantError,
+  SecretWriteError,
+  RuntimeConfigMissingError,
+  RuntimeActorTokenError,
+  RuntimeTokenSigningSecretConfigError,
+  GuidedOrganizationProvisionError,
+  MembershipManagementError,
+  OperationStoreError,
+  BootstrapError,
+] as const;
+
 function isDomainError(error: unknown): error is DomainError {
-  return (
-    error instanceof InjectionGrantError ||
-    error instanceof SecretWriteError ||
-    error instanceof RuntimeConfigMissingError ||
-    error instanceof RuntimeActorTokenError ||
-    error instanceof GuidedOrganizationProvisionError ||
-    error instanceof MembershipManagementError ||
-    error instanceof OperationStoreError ||
-    error instanceof BootstrapError
-  );
+  return DOMAIN_ERROR_TYPES.some((ErrorType) => error instanceof ErrorType);
 }
 
 export function toRuntimeRpcError(error: unknown): RuntimeRpcError {

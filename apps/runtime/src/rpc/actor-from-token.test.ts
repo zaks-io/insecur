@@ -68,4 +68,16 @@ describe("actorFromHopToken", () => {
       RuntimeActorTokenError,
     );
   });
+
+  it("throws before verifying when the signing secret is missing", async () => {
+    await expect(
+      actorFromHopToken({ RUNTIME_TOKEN_SIGNING_SECRET: "" }, "token"),
+    ).rejects.toMatchObject({ name: "RuntimeTokenSigningSecretConfigError" });
+  });
+
+  it("throws before verifying when the signing secret is too short", async () => {
+    await expect(
+      actorFromHopToken({ RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret" }, "token"),
+    ).rejects.toMatchObject({ name: "RuntimeTokenSigningSecretConfigError" });
+  });
 });
