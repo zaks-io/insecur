@@ -4,7 +4,6 @@ import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
-import { toStoreFacingCiphertext } from "./envelope-storage.js";
 import type { Keyring } from "./keyring.js";
 import type { ProviderCredentialCiphertextIdentity } from "./types.js";
 import type { WrappedProviderCredential } from "@insecur/custody-contracts";
@@ -97,5 +96,3 @@ export async function decryptProviderCredentialForProviderUse(
   });
   return new PlaintextHandle(plaintext);
 }
-
-export { toStoreFacingCiphertext };

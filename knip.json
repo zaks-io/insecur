@@ -41,9 +41,5 @@
       "ignoreDependencies": ["dependency-cruiser", "wrangler"]
     }
   },
-  "ignoreBinaries": ["actionlint"],
-  "rules": {
-    "exports": "off",
-    "types": "off"
-  }
+  "ignoreBinaries": ["actionlint"]
 }

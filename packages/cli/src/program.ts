@@ -37,7 +37,7 @@ async function resolveApi(flags: GlobalCliFlags) {
   return { api: createHttpApiClientForHost(context.scope.host), context };
 }
 
-export function buildProgram(): Command {
+function buildProgram(): Command {
   const program = attachGlobalOptions(new Command());
   program
     .name("insecur")

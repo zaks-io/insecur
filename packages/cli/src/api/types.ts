@@ -16,7 +16,7 @@ export interface CliSessionExchangeData {
   readonly expiresAt: string;
 }
 
-export interface CliAuthorizationUrlInput {
+interface CliAuthorizationUrlInput {
   readonly redirectUri: string;
   readonly state: string;
   readonly codeChallenge: string;
@@ -61,13 +61,13 @@ export interface InjectionGrantDeliveryEnvelope {
   readonly meta?: SuccessEnvelope<unknown>["meta"];
 }
 
-export interface SecretGenerationRequest {
+interface SecretGenerationRequest {
   readonly mode: "random";
   readonly lengthBytes: number;
 }
 
-export type ApiSuccess<T> = SuccessEnvelope<T>;
-export type ApiFailure = ErrorEnvelope;
+type ApiSuccess<T> = SuccessEnvelope<T>;
+type ApiFailure = ErrorEnvelope;
 
 export interface ApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;

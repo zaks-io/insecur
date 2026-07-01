@@ -6,7 +6,7 @@ import {
 } from "./constants.js";
 import { DecryptError } from "./errors.js";
 
-export const ENVELOPE_HEADER_LENGTH =
+const ENVELOPE_HEADER_LENGTH =
   ENVELOPE_MAGIC.byteLength + 1 + 1 + 4 + GCM_IV_LENGTH + 2 + GCM_IV_LENGTH + 4;
 
 export interface ParsedEnvelopeLayout {

@@ -32,7 +32,7 @@ export interface AuditMachineActorRef {
 }
 
 /** Unauthenticated GitHub Actions OIDC exchange attempt (no matched Machine Identity). */
-export interface AuditCiExchangeActorRef {
+interface AuditCiExchangeActorRef {
   type: "ci_exchange";
 }
 

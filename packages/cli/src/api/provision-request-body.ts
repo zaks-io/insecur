@@ -17,7 +17,7 @@ export interface GuidedOrganizationProvisionRequestIds {
   readonly environmentId?: EnvironmentId;
 }
 
-export interface GuidedOrganizationResourceIdsBody {
+interface GuidedOrganizationResourceIdsBody {
   readonly organizationId: OrganizationId;
   readonly defaultTeamId: TeamId;
   readonly ownerMembershipId: MembershipId;

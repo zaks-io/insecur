@@ -7,7 +7,6 @@ import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
 import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
-import { toStoreFacingCiphertext } from "./envelope-storage.js";
 import type { Keyring } from "./keyring.js";
 import type { ProjectId } from "@insecur/domain";
 import type { SensitiveMetadataCiphertextIdentity } from "./types.js";
@@ -161,5 +160,3 @@ export async function decryptSensitiveMetadataForAuthorizedRead(
     }),
   );
 }
-
-export { toStoreFacingCiphertext };

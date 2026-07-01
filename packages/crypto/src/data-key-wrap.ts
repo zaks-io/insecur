@@ -28,14 +28,14 @@ export interface RootRewrapVersions {
   readonly newRootVersion: KeyVersion;
 }
 
-export function serializeOrganizationDataKeyWrapAad(
+function serializeOrganizationDataKeyWrapAad(
   organizationId: OrganizationId,
   keyVersion: KeyVersion,
 ): Uint8Array {
   return serializeAadFields([ORGANIZATION_DATA_KEY_AAD_KIND, organizationId, String(keyVersion)]);
 }
 
-export function serializeProjectDataKeyWrapAad(identity: ProjectDataKeyWrapIdentity): Uint8Array {
+function serializeProjectDataKeyWrapAad(identity: ProjectDataKeyWrapIdentity): Uint8Array {
   return serializeAadFields([
     PROJECT_DATA_KEY_AAD_KIND,
     identity.organizationId,

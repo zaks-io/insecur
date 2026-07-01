@@ -3,7 +3,7 @@ import type { AuditExportTimeRange } from "./audit-export-types.js";
 
 export type UnknownRecord = Record<string, unknown>;
 
-export interface AuditExportManifestPartial {
+interface AuditExportManifestPartial {
   readonly organization_id: string | null;
   readonly entry_count: number;
   readonly time_range: AuditExportTimeRange | null;
@@ -96,7 +96,7 @@ export function readCustodyEvidenceRefs(
   };
 }
 
-export function buildPartial(record: UnknownRecord | null): AuditExportManifestPartial {
+function buildPartial(record: UnknownRecord | null): AuditExportManifestPartial {
   if (record === null) {
     return {
       organization_id: null,

@@ -7,7 +7,7 @@ import {
   type SentinelVariant,
 } from "./sentinel-encodings.js";
 
-export interface SchemaColumn {
+interface SchemaColumn {
   tableName: string;
   columnName: string;
 }

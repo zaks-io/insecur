@@ -7,7 +7,7 @@ import {
   collectVerifyControl,
 } from "./collect-supply-chain-controls.js";
 
-export { collectChecklistControl, collectChecklistControls } from "./collect-checklist-controls.js";
+export { collectChecklistControl } from "./collect-checklist-controls.js";
 export {
   collectDependencyScanControl,
   collectSbomVulnerabilityControl,

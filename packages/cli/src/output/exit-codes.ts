@@ -12,16 +12,13 @@ import {
 } from "@insecur/domain";
 
 /** Stable CLI exit codes (docs/cli-and-sync.md). */
-export const EXIT_SUCCESS = 0;
 export const EXIT_UNEXPECTED = 1;
 export const EXIT_VALIDATION = 2;
 export const EXIT_AUTH_REQUIRED = 3;
 export const EXIT_FORBIDDEN = 4;
 export const EXIT_NOT_FOUND = 5;
 export const EXIT_CONFLICT = 6;
-export const EXIT_PROVIDER = 7;
-export const EXIT_RETRYABLE = 8;
-export const EXIT_INCOMPLETE = 9;
+const EXIT_RETRYABLE = 8;
 export const EXIT_STEP_UP = 10;
 
 const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {

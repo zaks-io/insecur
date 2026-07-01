@@ -2,8 +2,6 @@ import {
   DEFAULT_GENERATED_SECRET_RANDOM_BYTES,
   MAX_GENERATED_SECRET_RANDOM_BYTES,
   SECRET_ERROR_CODES,
-  type EnvironmentId,
-  type ProjectId,
   type SecretId,
   type VariableKey,
 } from "@insecur/domain";
@@ -19,7 +17,7 @@ import {
 } from "@insecur/worker-kit";
 import type { RuntimeGeneratedSecretInput } from "@insecur/worker-kit";
 
-export interface ParsedSecretWriteBody {
+interface ParsedSecretWriteBody {
   variableKey: VariableKey;
   localValueFile?: string;
   allowEmpty?: boolean;
@@ -138,9 +136,4 @@ export async function parseSecretWriteBody(request: {
     ...parseSecretPayload(body, generate),
   };
   return appendSecretWriteMetadata(parsed, body);
-}
-
-export interface SecretWritePathParams {
-  projectId: ProjectId;
-  environmentId: EnvironmentId;
 }

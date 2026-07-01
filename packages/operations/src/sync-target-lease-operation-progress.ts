@@ -1,5 +1,4 @@
 import type { ProjectId } from "@insecur/domain";
-import type { OperationProgress } from "./operation-types.js";
 import type { FencingToken, SyncProviderKind, SyncTargetKey } from "./sync-target-types.js";
 
 /** Metadata-only lease binding stored on the Operation after claim. */
@@ -38,17 +37,6 @@ export function syncTargetLeaseContextFromProgress(
     },
     fencingToken: progress.fencingToken,
   };
-}
-
-export function operationProgressWithoutSyncTargetLease(
-  progress: OperationProgress,
-): OperationProgress {
-  if (progress.syncTargetLease === undefined) {
-    return progress;
-  }
-  const { syncTargetLease, ...rest } = progress;
-  void syncTargetLease;
-  return rest;
 }
 
 export function leaseContextsMatch(

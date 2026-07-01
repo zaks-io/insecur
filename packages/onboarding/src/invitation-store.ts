@@ -1,8 +1,4 @@
-import {
-  BUILT_IN_ROLE_PRESETS,
-  isBuiltInRolePreset,
-  type BuiltInRolePreset,
-} from "@insecur/access";
+import { isBuiltInRolePreset, type BuiltInRolePreset } from "@insecur/access";
 import {
   invitationId,
   organizationId,
@@ -208,5 +204,3 @@ export async function membershipExistsForGrant(input: {
   );
   return rows.length > 0;
 }
-
-export { BUILT_IN_ROLE_PRESETS };

@@ -14,9 +14,7 @@ import {
   type VerifyAuditExportInput,
 } from "./audit-export-types.js";
 
-export function unsignedManifestFromSigned(
-  manifest: AuditExportManifest,
-): UnsignedAuditExportManifest {
+function unsignedManifestFromSigned(manifest: AuditExportManifest): UnsignedAuditExportManifest {
   return {
     schema_version: manifest.schema_version,
     organization_id: manifest.organization_id,

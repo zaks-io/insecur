@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 export const PROJECT_CONFIG_FILE = ".insecur.json";
-export const USER_CONFIG_DIR = ".insecur";
+const USER_CONFIG_DIR = ".insecur";
 export const USER_CONFIG_FILE = "config.json";
 
 export function resolveProjectRoot(configDir: string | undefined): string {
