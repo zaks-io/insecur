@@ -6,7 +6,10 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
-      "@insecur/worker-kit/api-client": ["../../packages/worker-kit/src/rpc/api-client.ts"]
+      "@insecur/worker-kit/api-client": ["../../packages/worker-kit/src/rpc/api-client.ts"],
+      "@insecur/worker-kit/record-admission-denied-audit": [
+        "../../packages/worker-kit/src/auth/record-admission-denied-audit.ts"
+      ]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]

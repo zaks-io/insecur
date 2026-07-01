@@ -7,6 +7,8 @@ import {
   type ResolveUserActorResult,
   WORKOS_SESSION_COOKIE,
 } from "@insecur/auth";
+import { requestId } from "@insecur/domain";
+import { recordAdmissionDeniedAuditForAuthFailure } from "@insecur/worker-kit/record-admission-denied-audit";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
 import { createRuntimeAdmittedUserResolver } from "../runtime/admission.js";
 import type { WebEnv } from "../env.js";
@@ -37,10 +39,9 @@ export async function resolveBrowserActor(
 
   const admittedUserId = await resolveAdmittedUser(session.context.user.id);
   if (admittedUserId === null) {
-    return {
-      ok: false,
-      failure: authFailureForAdmissionDenial(session.context.user.id),
-    };
+    const failure = authFailureForAdmissionDenial(session.context.user.id);
+    await recordAdmissionDeniedAuditForAuthFailure(env, failure, requestId.generate());
+    return { ok: false, failure };
   }
 
   return {

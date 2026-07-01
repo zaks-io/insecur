@@ -1,4 +1,4 @@
-import type { KnownErrorCode, UserId } from "@insecur/domain";
+import type { KnownErrorCode, RequestId, UserId } from "@insecur/domain";
 
 interface RuntimeRpcError {
   readonly code: KnownErrorCode;
@@ -15,4 +15,9 @@ export interface RuntimeAdmissionRpc {
     instanceId: string;
     workosUserId: string;
   }): Promise<RuntimeRpcResult<{ userId: UserId | null }>>;
+  recordAdmissionDenied(input: {
+    instanceId: string;
+    workosUserId: string;
+    requestId: RequestId;
+  }): Promise<RuntimeRpcResult<{ recorded: true }>>;
 }

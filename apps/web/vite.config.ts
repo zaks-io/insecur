@@ -17,6 +17,10 @@ const workspaceAliases = {
     repoRoot,
     "packages/worker-kit/src/rpc/api-client.ts",
   ),
+  "@insecur/worker-kit/record-admission-denied-audit": path.join(
+    repoRoot,
+    "packages/worker-kit/src/auth/record-admission-denied-audit.ts",
+  ),
 };
 
 export default defineConfig({
