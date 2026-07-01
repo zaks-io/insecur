@@ -12,34 +12,43 @@ import { describe, expect, it } from "vitest";
 import { RuntimeActorTokenError, toRuntimeRpcError } from "./runtime-rpc-error.js";
 import { RuntimeTokenSigningSecretConfigError } from "@insecur/worker-kit";
 
+const SENTINEL = "sentinel-plaintext-must-not-cross-seam";
+const RUNTIME_RPC_GENERIC_MESSAGE = "runtime request failed";
+
 describe("toRuntimeRpcError", () => {
-  it("passes through a domain error's own code and retryable flag", () => {
+  it("preserves a domain error code and retryable flag but suppresses raw message text", () => {
     const mapped = toRuntimeRpcError(
-      new InjectionGrantError(INJECTION_ERROR_CODES.grantExpired, "grant gone"),
+      new InjectionGrantError(INJECTION_ERROR_CODES.grantExpired, SENTINEL),
     );
     expect(mapped).toEqual({
       code: INJECTION_ERROR_CODES.grantExpired,
-      message: "grant gone",
+      message: RUNTIME_RPC_GENERIC_MESSAGE,
       retryable: false,
     });
+    expect(mapped.message).not.toContain(SENTINEL);
   });
 
-  it("carries a secret-write error's retryable flag across the seam", () => {
+  it("carries a secret-write error's retryable flag across the seam without raw message text", () => {
     const mapped = toRuntimeRpcError(
-      new SecretWriteError(VALIDATION_ERROR_CODES.invalidVariableKey, "bad key", true),
+      new SecretWriteError(VALIDATION_ERROR_CODES.invalidVariableKey, SENTINEL, true),
     );
+    expect(mapped.code).toBe(VALIDATION_ERROR_CODES.invalidVariableKey);
     expect(mapped.retryable).toBe(true);
+    expect(mapped.message).toBe(RUNTIME_RPC_GENERIC_MESSAGE);
+    expect(mapped.message).not.toContain(SENTINEL);
   });
 
-  it("maps the hop-token rejection to its auth code", () => {
+  it("maps the hop-token rejection to its auth code with a safe message", () => {
     const mapped = toRuntimeRpcError(
-      new RuntimeActorTokenError(AUTH_ERROR_CODES.expired, "token expired"),
+      new RuntimeActorTokenError(AUTH_ERROR_CODES.expired, SENTINEL),
     );
     expect(mapped.code).toBe(AUTH_ERROR_CODES.expired);
     expect(mapped.retryable).toBe(false);
+    expect(mapped.message).toBe(RUNTIME_RPC_GENERIC_MESSAGE);
+    expect(mapped.message).not.toContain(SENTINEL);
   });
 
-  it("maps hop-token signing secret misconfiguration to auth.config_invalid", () => {
+  it("maps hop-token signing secret misconfiguration to an allowlisted safe message", () => {
     const mapped = toRuntimeRpcError(new RuntimeTokenSigningSecretConfigError());
     expect(mapped).toEqual({
       code: AUTH_ERROR_CODES.configInvalid,
@@ -55,29 +64,30 @@ describe("toRuntimeRpcError", () => {
     expect(mapped.message).not.toContain("root");
   });
 
-  it("carries tenant data key readiness failures with a dedicated crypto code", () => {
+  it("carries tenant data key readiness failures with an allowlisted safe message", () => {
     const mapped = toRuntimeRpcError(new TenantDataKeyNotReadyError());
     expect(mapped.code).toBe(CRYPTO_ERROR_CODES.tenantDataKeyNotReady);
+    expect(mapped.message).toBe("tenant data keys are not ready");
     expect(mapped.retryable).toBe(false);
   });
 
   it("collapses an unknown error to a non-retryable auth failure with a fixed message", () => {
-    const mapped = toRuntimeRpcError(new Error("boom"));
+    const mapped = toRuntimeRpcError(new Error(SENTINEL));
     expect(mapped).toEqual({
       code: AUTH_ERROR_CODES.invalid,
-      message: "runtime request failed",
+      message: RUNTIME_RPC_GENERIC_MESSAGE,
       retryable: false,
     });
-    expect(mapped.message).not.toContain("boom");
+    expect(mapped.message).not.toContain(SENTINEL);
   });
 
   it("preserves a structured code but still suppresses the raw message", () => {
     const mapped = toRuntimeRpcError({
       code: AUTH_ERROR_CODES.insufficientScope,
-      message: "scope leak must not cross seam",
+      message: SENTINEL,
     });
     expect(mapped.code).toBe(AUTH_ERROR_CODES.insufficientScope);
-    expect(mapped.message).toBe("runtime request failed");
-    expect(mapped.message).not.toContain("scope leak");
+    expect(mapped.message).toBe(RUNTIME_RPC_GENERIC_MESSAGE);
+    expect(mapped.message).not.toContain(SENTINEL);
   });
 });
