@@ -95,7 +95,8 @@
     },
     "deploy": {
       "dependsOn": ["build"],
-      "cache": false
+      "cache": false,
+      "env": ["CLOUDFLARE_ENV", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
     },
     "assert:ci-rls-gate-env": {
       "cache": false,

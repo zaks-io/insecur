@@ -180,6 +180,8 @@ export default tseslint.config(
       "apps/api/vitest.canary.config.ts",
       "apps/runtime/src/**/*.test.ts",
       "apps/runtime/vitest.config.ts",
+      "apps/site/vitest.config.ts",
+      "packages/ui/src/**/*.test.{ts,tsx}",
     ],
     extends: [tseslint.configs.disableTypeChecked],
   },

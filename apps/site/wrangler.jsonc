@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "insecur-site",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "destinations": ["axiom-logs"],
+    },
+    "traces": {
+      "enabled": true,
+      "destinations": ["axiom-traces"],
+    },
+  },
+  // Public Site Worker (ADR-0078). Serves public marketing/legal/security pages for insecur.cloud.
+  // It is deliberately NOT a BFF: it owns no auth session and declares NO database/Hyperdrive
+  // binding, NO keyring / INSTANCE_ROOT_KEY_V1 binding, and NO API or Runtime Service Binding. It
+  // must never grow a control-plane binding; the @insecur/site -> @insecur/ui-only import boundary
+  // is enforced by dependency-cruiser (pnpm conformance:site-boundary).
+  //
+  // Served on the insecur.cloud zone (active in the Cloudflare account). Production binds the apex
+  // and www; preview binds preview.insecur.cloud. Production is manual-only: do not auto-publish on
+  // every `main` push until the legal/security publication gates settle (ADR-0078).
+  "routes": [
+    { "pattern": "insecur.cloud", "custom_domain": true },
+    { "pattern": "www.insecur.cloud", "custom_domain": true },
+  ],
+  "env": {
+    "preview": {
+      "name": "insecur-site-preview",
+      "routes": [{ "pattern": "preview.insecur.cloud", "custom_domain": true }],
+    },
+  },
+}
