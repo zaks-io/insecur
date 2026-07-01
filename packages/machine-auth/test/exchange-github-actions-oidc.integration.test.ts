@@ -218,6 +218,8 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
         audience: AUDIENCE,
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:staging",
         environment: "staging",
         expiresAtEpoch: NOW + 600,
