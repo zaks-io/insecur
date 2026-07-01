@@ -106,7 +106,8 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 ### Quick reference
 
 - **Install deps:** `pnpm install --frozen-lockfile`
-- **Verify:** `pnpm verify` (duplicate warnings + blocking zero-duplicate gate, knip, actionlint, deploy/package conformance, format check, lint, typecheck, and unit-test task fan-out)
+- **Verify:** `pnpm verify` (duplicate warnings + blocking zero-duplicate gate, knip, actionlint, deploy/package/site conformance, format check, lint, typecheck, and unit-test task fan-out)
+- **CI check alias:** `pnpm ci:check` (same as `pnpm verify`)
 - **Duplicate scan:** `pnpm duplicates:check` (strict jscpd zero gate). CI/pre-push enforce `pnpm duplicates:ci` (zero-duplicate gate, delegates to `duplicates:check`).
 - **Unused code/deps:** `pnpm knip` (blocking in CI, pre-push, and verify)
 - **Workflow lint:** `pnpm lint:actions` (actionlint; blocking in CI, optional-local in pre-push/verify)
