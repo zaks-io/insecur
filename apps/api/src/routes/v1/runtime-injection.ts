@@ -11,6 +11,7 @@ import {
   runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
+import { parseChildExitCode } from "@insecur/domain";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
 import {
@@ -68,16 +69,22 @@ runtimeInjectionRoutes.post("/grants/:grantId/run-completed", requireUserActor, 
     const { organizationId, grantId } = parseOrganizationAndGrantRouteParams(context);
     const body = parseJsonBody(await context.req.json());
     const childExitCode = body.childExitCode;
-    if (typeof childExitCode !== "number" || !Number.isInteger(childExitCode)) {
-      throw Object.assign(new Error("childExitCode must be an integer"), {
+    if (typeof childExitCode !== "number") {
+      throw Object.assign(new Error("childExitCode must be a number"), {
         code: "validation.invalid_command_input",
+      });
+    }
+    const parsedChildExitCode = parseChildExitCode(childExitCode);
+    if (!parsedChildExitCode.ok) {
+      throw Object.assign(new Error("childExitCode is invalid"), {
+        code: parsedChildExitCode.code,
       });
     }
 
     return runtimeClientFor(context.env, userActor).recordInjectionRunCompleted({
       organizationId,
       grantId,
-      childExitCode,
+      childExitCode: parsedChildExitCode.value,
       requestId: reqId,
     });
   });

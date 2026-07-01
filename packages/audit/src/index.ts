@@ -77,6 +77,7 @@ export {
   type ParseFirstValueFeedbackResult,
   isFirstValueFeedbackKind,
   parseFirstValueFeedbackInput,
+  throwFirstValueFeedbackValidationError,
 } from "./first-value-feedback.js";
 export {
   type CaptureFirstValueFeedbackResult,

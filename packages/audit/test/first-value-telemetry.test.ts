@@ -3,6 +3,7 @@ import {
   FIRST_VALUE_AUDIT_EVENT_CODES,
   FIRST_VALUE_FEEDBACK_KINDS,
   parseFirstValueFeedbackInput,
+  throwFirstValueFeedbackValidationError,
   validateAuditEventInput,
 } from "../src/index.js";
 import {
@@ -84,5 +85,16 @@ describe("parseFirstValueFeedbackInput", () => {
       requestId: requestId.brand("req_00000000000000000000000001"),
     });
     expect(parsed.ok).toBe(true);
+  });
+
+  it("throws structured validation errors with stable codes", () => {
+    expect(() => {
+      throwFirstValueFeedbackValidationError("validation.feedback_association_required");
+    }).toThrow(
+      expect.objectContaining({
+        message: "validation.feedback_association_required",
+        code: "validation.feedback_association_required",
+      }),
+    );
   });
 });

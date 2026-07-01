@@ -62,6 +62,11 @@ export {
   parseDisplayName,
 } from "./display-name.js";
 export {
+  CHILD_EXIT_CODE_MAX,
+  type ParseChildExitCodeResult,
+  parseChildExitCode,
+} from "./child-exit-code.js";
+export {
   ENVIRONMENT_LIFECYCLE_STAGES,
   type EnvironmentLifecycleStage,
   isEnvironmentLifecycleStage,

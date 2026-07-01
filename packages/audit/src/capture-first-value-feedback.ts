@@ -4,6 +4,7 @@ import { withTenantScope } from "@insecur/tenant-store";
 
 import {
   parseFirstValueFeedbackInput,
+  throwFirstValueFeedbackValidationError,
   type CaptureFirstValueFeedbackInput,
   type ParsedFirstValueFeedbackInput,
 } from "./first-value-feedback.js";
@@ -62,7 +63,7 @@ export async function captureFirstValueFeedback(
 ): Promise<CaptureFirstValueFeedbackResult> {
   const parsed = parseFirstValueFeedbackInput(input);
   if (!parsed.ok) {
-    throw new Error(parsed.code);
+    throwFirstValueFeedbackValidationError(parsed.code);
   }
 
   return withTenantScope(
@@ -77,7 +78,7 @@ export async function captureFirstValueFeedbackInTenantScope(
 ): Promise<CaptureFirstValueFeedbackResult> {
   const parsed = parseFirstValueFeedbackInput(input);
   if (!parsed.ok) {
-    throw new Error(parsed.code);
+    throwFirstValueFeedbackValidationError(parsed.code);
   }
   return insertFirstValueFeedbackRow(sql, parsed.value);
 }

@@ -78,6 +78,17 @@ function buildParsedFeedbackInput(
   };
 }
 
+type FirstValueFeedbackValidationCode = Extract<
+  ParseFirstValueFeedbackResult,
+  { ok: false }
+>["code"];
+
+export function throwFirstValueFeedbackValidationError(
+  code: FirstValueFeedbackValidationCode,
+): never {
+  throw Object.assign(new Error(code), { code });
+}
+
 export function parseFirstValueFeedbackInput(
   input: CaptureFirstValueFeedbackInput,
 ): ParseFirstValueFeedbackResult {
