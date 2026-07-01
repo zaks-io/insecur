@@ -257,6 +257,29 @@ describe("domainErrorEnvelope typed error boundaries", () => {
     expect(rootKeyEnvelope.body.error.message).not.toContain(attackerRootKeyMessage);
   });
 
+  it("redacts dynamic auth.config_invalid diagnostics to generic safe copy", () => {
+    const reqId = requestId.generate();
+    const sensitiveDiagnostic = "sensitive diagnostic";
+    const { status, body } = domainErrorEnvelope(
+      Object.assign(new Error(sensitiveDiagnostic), {
+        code: AUTH_ERROR_CODES.configInvalid,
+        retryable: false,
+      }),
+      reqId,
+    );
+
+    expect(status).toBe(503);
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: AUTH_ERROR_CODES.configInvalid,
+        message: GENERIC_ERROR_MESSAGE,
+        retryable: false,
+      },
+    });
+    expect(body.error.message).not.toContain(sensitiveDiagnostic);
+  });
+
   it("preserves retryable flags from typed store errors", () => {
     const reqId = requestId.generate();
     const { body } = domainErrorEnvelope(

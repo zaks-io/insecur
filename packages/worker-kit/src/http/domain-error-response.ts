@@ -47,18 +47,32 @@ const STATIC_MESSAGE_BY_CODE: Readonly<Partial<Record<KnownErrorCode, string>>> 
   [STORE_ERROR_CODES.runtimeConfigMissing]: "runtime database configuration is required",
 };
 
+const RUNTIME_TOKEN_SIGNING_SECRET_CONFIG_MESSAGE =
+  STATIC_MESSAGE_BY_ERROR_NAME.RuntimeTokenSigningSecretConfigError;
+
+function allowlistedStaticMessage(error: Error, code: KnownErrorCode): string | undefined {
+  const expectedByName = STATIC_MESSAGE_BY_ERROR_NAME[error.name];
+  if (expectedByName !== undefined && error.message === expectedByName) {
+    return expectedByName;
+  }
+  if (
+    code === AUTH_ERROR_CODES.configInvalid &&
+    error.message === RUNTIME_TOKEN_SIGNING_SECRET_CONFIG_MESSAGE
+  ) {
+    return RUNTIME_TOKEN_SIGNING_SECRET_CONFIG_MESSAGE;
+  }
+  return undefined;
+}
+
 function messageForError(error: unknown, code: KnownErrorCode): string {
   if (error instanceof RuntimeConfigMissingError) {
     return STATIC_MESSAGE_BY_ERROR_NAME.RuntimeConfigMissingError ?? GENERIC_ERROR_MESSAGE;
   }
 
   if (error instanceof Error) {
-    const expectedByName = STATIC_MESSAGE_BY_ERROR_NAME[error.name];
-    if (expectedByName !== undefined && error.message === expectedByName) {
-      return expectedByName;
-    }
-    if (code === AUTH_ERROR_CODES.configInvalid) {
-      return error.message;
+    const allowlisted = allowlistedStaticMessage(error, code);
+    if (allowlisted !== undefined) {
+      return allowlisted;
     }
   }
 
