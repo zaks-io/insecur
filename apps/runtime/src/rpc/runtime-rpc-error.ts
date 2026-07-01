@@ -72,9 +72,12 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
       retryable: false,
     };
   }
-  const message = error instanceof Error ? error.message : "runtime request failed";
   const structuredCode = readStructuredErrorCode(error);
-  return { code: structuredCode ?? AUTH_ERROR_CODES.invalid, message, retryable: false };
+  return {
+    code: structuredCode ?? AUTH_ERROR_CODES.invalid,
+    message: "runtime request failed",
+    retryable: false,
+  };
 }
 
 /**

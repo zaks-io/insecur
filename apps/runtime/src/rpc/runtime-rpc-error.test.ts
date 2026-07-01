@@ -61,8 +61,23 @@ describe("toRuntimeRpcError", () => {
     expect(mapped.retryable).toBe(false);
   });
 
-  it("collapses an unknown error to a non-retryable auth failure", () => {
+  it("collapses an unknown error to a non-retryable auth failure with a fixed message", () => {
     const mapped = toRuntimeRpcError(new Error("boom"));
-    expect(mapped).toEqual({ code: AUTH_ERROR_CODES.invalid, message: "boom", retryable: false });
+    expect(mapped).toEqual({
+      code: AUTH_ERROR_CODES.invalid,
+      message: "runtime request failed",
+      retryable: false,
+    });
+    expect(mapped.message).not.toContain("boom");
+  });
+
+  it("preserves a structured code but still suppresses the raw message", () => {
+    const mapped = toRuntimeRpcError({
+      code: AUTH_ERROR_CODES.insufficientScope,
+      message: "scope leak must not cross seam",
+    });
+    expect(mapped.code).toBe(AUTH_ERROR_CODES.insufficientScope);
+    expect(mapped.message).toBe("runtime request failed");
+    expect(mapped.message).not.toContain("scope leak");
   });
 });

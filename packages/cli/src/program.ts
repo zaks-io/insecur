@@ -12,6 +12,10 @@ import type { GlobalCliFlags } from "./cli-options.js";
 import { CliError } from "./output/cli-error.js";
 import { EXIT_UNEXPECTED } from "./output/exit-codes.js";
 import { renderEnvelope } from "./output/render.js";
+import {
+  logUnexpectedCliErrorDebug,
+  unexpectedCliErrorBody,
+} from "./output/unexpected-cli-error.js";
 import { registerSecretsCommands } from "./register-secrets-commands.js";
 
 function attachGlobalOptions(command: Command): Command {
@@ -94,15 +98,8 @@ export async function runCli(argv: readonly string[]): Promise<number> {
       return error.exitCode;
     }
     const flags = globalFlags(program);
-    renderEnvelope(
-      errorEnvelope({
-        code: "cli.unexpected_error",
-        message: error instanceof Error ? error.message : "Unexpected CLI failure",
-        retryable: false,
-      }),
-      flags,
-      () => "",
-    );
+    logUnexpectedCliErrorDebug(error, flags.verbose);
+    renderEnvelope(errorEnvelope(unexpectedCliErrorBody(error)), flags, () => "");
     return EXIT_UNEXPECTED;
   }
 }

@@ -18,6 +18,7 @@ import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
 import { secretsRoutes } from "./routes/v1/secrets.js";
 import { sessionRoutes } from "./routes/v1/session.js";
 import type { ApiEnv } from "./env.js";
+import { logUnhandledApiError } from "./log-unhandled-error.js";
 
 const app = new Hono<{ Bindings: ApiEnv }>();
 
@@ -62,7 +63,7 @@ app.onError((err, context) => {
     const res = err.getResponse();
     return context.newResponse(res.body, res);
   }
-  console.error(err);
+  logUnhandledApiError(err);
   return context.text("Internal Server Error", 500);
 });
 
