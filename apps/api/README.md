@@ -20,7 +20,8 @@ authoritative route → deploy table.
 src/index.ts            Composition root: mounts the public route groups, RUNTIME binding
 src/routes/v1/*         Hono route wiring composed from the domain packages
 src/rpc/*               Unwrap RuntimeRpcResult envelopes returned across the Service Binding
-wrangler.jsonc          Local and dry-run Worker configuration (no secrets_store_secrets)
+wrangler.jsonc          Local and dry-run Worker configuration (no secrets_store_secrets;
+                        signing secrets delivered as encrypted Worker secrets in deploy)
 ```
 
 ## Route surface

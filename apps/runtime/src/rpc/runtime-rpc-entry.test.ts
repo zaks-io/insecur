@@ -75,4 +75,23 @@ describe("withRuntimeRpcEntry", () => {
       expect(result.error.message).toContain("scoped hop token");
     }
   });
+
+  it("maps an invalid hop-token signing secret to auth.config_invalid", async () => {
+    const result = await withRuntimeRpcEntry(
+      {
+        env: { RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret" },
+        actorToken: await mintRuntimeToken(),
+      },
+      async () => ({ shouldNotRun: true }),
+    );
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "auth.config_invalid",
+        message:
+          "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
+        retryable: false,
+      },
+    });
+  });
 });

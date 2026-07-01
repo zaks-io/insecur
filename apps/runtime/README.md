@@ -19,7 +19,8 @@ src/index.ts                   Exports RuntimeService; default fetch returns 404
 src/runtime-service.ts         The RuntimeService RPC seam: consumeGrant (decrypt), writeSecret (encrypt)
 src/crypto/keyring-context.ts  Keyring construction — the chokepoint fenced to this deploy only
 src/rpc/*                      Hop-token verification + RpcResult error mapping across the seam
-wrangler.jsonc                 secrets_store_secrets: [INSTANCE_ROOT_KEY_V1]; no public route
+wrangler.jsonc                 secrets_store_secrets: [INSTANCE_ROOT_KEY_V1]; hop-token secret via
+                               encrypted Worker secret in deploy (not plaintext var)
 ```
 
 ## The seam

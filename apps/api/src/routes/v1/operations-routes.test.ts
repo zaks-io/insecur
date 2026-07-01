@@ -133,6 +133,31 @@ describe("operations worker routes", () => {
       expect(serialized).not.toMatch(/valueUtf8|plaintext|secret|password/i);
     });
 
+    it("maps an invalid hop-token signing secret to auth.config_invalid", async () => {
+      const env = {
+        ...makeEnv(),
+        RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret",
+      };
+      const response = await app.request(
+        operationPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(503);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: {
+          code: "auth.config_invalid",
+          message:
+            "runtime configuration invalid: runtimeTokenSigningSecret must be a non-empty value of at least 32 characters",
+          retryable: false,
+        },
+      });
+      expect(runtime.getOperation).not.toHaveBeenCalled();
+    });
+
     it("maps a Runtime insufficient-scope denial to auth.insufficient_scope", async () => {
       const env = makeEnv();
       runtime.getOperation.mockResolvedValue(
