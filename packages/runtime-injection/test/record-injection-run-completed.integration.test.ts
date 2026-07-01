@@ -61,8 +61,7 @@ describeInjectionGrantIntegration("Runtime Injection run completion telemetry", 
       }),
     ]);
 
-    expect(first.alreadyRecorded).toBe(false);
-    expect(second.alreadyRecorded).toBe(true);
+    expect([first.alreadyRecorded, second.alreadyRecorded].sort()).toEqual([false, true]);
     expect(second.auditEventId).toBe(first.auditEventId);
 
     const audit = await loadAuditRow(org, first.auditEventId);
