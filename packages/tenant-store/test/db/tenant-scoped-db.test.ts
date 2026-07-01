@@ -22,12 +22,7 @@ vi.mock("../../src/db/connection.js", () => ({
 }));
 
 import { tenantStoreSchema } from "../../src/db/tenant-store-schema.js";
-import {
-  getRuntimeTenantDb,
-  resetRuntimeTenantDb,
-  tenantScopedSql,
-  type TenantScopedDb,
-} from "../../src/tenant-scoped-db.js";
+import { getRuntimeTenantDb, resetRuntimeTenantDb } from "../../src/tenant-scoped-db.js";
 
 describe("tenantStoreSchema", () => {
   it("bundles tables used by the tenant-store query layer", () => {
@@ -76,13 +71,5 @@ describe("getRuntimeTenantDb", () => {
     expect(drizzleMock).toHaveBeenCalledWith(sql, { schema: tenantStoreSchema });
     expect(first).toBe(second);
     expect(connection.tenantDb).toBe(first);
-  });
-});
-
-describe("tenantScopedSql", () => {
-  it("returns the postgres.js transaction client behind a Drizzle tx", () => {
-    const client = { options: { parsers: {} } };
-    const db = { session: { client } } as unknown as TenantScopedDb;
-    expect(tenantScopedSql(db)).toBe(client);
   });
 });

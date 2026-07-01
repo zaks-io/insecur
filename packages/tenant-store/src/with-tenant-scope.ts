@@ -1,5 +1,6 @@
 import { applyTenantScope } from "./apply-tenant-scope.js";
-import { getRuntimeTenantDb, tenantScopedSql } from "./tenant-scoped-db.js";
+import { getRuntimeSql } from "./db/connection.js";
+import { createTenantScopedTransaction } from "./tenant-scoped-transaction.js";
 import type { TenantScope, TenantScopedCallback } from "./tenant-scope.js";
 
 /**
@@ -10,11 +11,12 @@ export async function withTenantScope<TResult>(
   scope: TenantScope,
   callback: TenantScopedCallback<TResult>,
 ): Promise<TResult> {
-  const db = getRuntimeTenantDb();
-  return db.transaction(async (txDb) => {
-    await applyTenantScope(txDb, scope);
-    return callback({ db: txDb, sql: tenantScopedSql(txDb) });
-  });
+  const sql = getRuntimeSql();
+  return (await sql.begin(async (txSql): Promise<TResult> => {
+    const { db, sql: scopedSql } = createTenantScopedTransaction(txSql);
+    await applyTenantScope(db, scope);
+    return callback({ db, sql: scopedSql });
+  })) as TResult;
 }
 
 export type {
