@@ -1,18 +1,10 @@
 import serverEntry from "@tanstack/react-start/server-entry";
 import type { WebEnv } from "./env.js";
+import { buildContentSecurityPolicy, generateCspNonce } from "./security/csp.js";
 
-const contentSecurityPolicy =
-  "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'";
-
-interface TanstackServerEntry {
-  fetch: (request: Request, env: WebEnv, ctx: ExecutionContext) => Response | Promise<Response>;
-}
-
-const tanstack = serverEntry as TanstackServerEntry;
-
-function withSecurityHeaders(response: Response): Response {
+function withSecurityHeaders(response: Response, nonce: string): Response {
   const headers = new Headers(response.headers);
-  headers.set("Content-Security-Policy", contentSecurityPolicy);
+  headers.set("Content-Security-Policy", buildContentSecurityPolicy(nonce));
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "no-referrer");
@@ -24,10 +16,21 @@ function withSecurityHeaders(response: Response): Response {
 }
 
 export default {
-  async fetch(request: Request, env: WebEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    request: Request,
+    // Cloudflare passes bindings per request; app code reads them via `cloudflare:workers`.
+    env: WebEnv,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
+    void env;
+    void ctx;
+
     if (new URL(request.url).pathname === "/healthz") {
       return Response.json({ ok: true, service: "insecur-web" });
     }
-    return withSecurityHeaders(await tanstack.fetch(request, env, ctx));
+
+    const nonce = generateCspNonce();
+    const response = await serverEntry.fetch(request, { context: { nonce } });
+    return withSecurityHeaders(response, nonce);
   },
 };
