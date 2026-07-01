@@ -10,9 +10,7 @@ export type {
 export {
   decryptSecretValueForRuntime,
   encryptSecretValue,
-  identityMatches,
   serializeSecretCiphertextAad,
-  serializeSecretDekWrapAad,
   type WrappedSecretValue,
 } from "./envelope.js";
 

@@ -1,4 +1,1 @@
-export {
-  type GrantCoordinate,
-  resolveInjectionGrantBinding,
-} from "@insecur/runtime-injection-issue";
+export { type GrantCoordinate } from "@insecur/runtime-injection-issue";

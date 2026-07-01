@@ -1,7 +1,7 @@
 import { FORBIDDEN_ENVELOPE_KEYS } from "@insecur/domain";
 
 /** Keys that must never appear in committed or user CLI config. */
-export const FORBIDDEN_CONFIG_KEYS: readonly string[] = [
+const FORBIDDEN_CONFIG_KEYS: readonly string[] = [
   ...FORBIDDEN_ENVELOPE_KEYS,
   "refreshToken",
   "accessToken",

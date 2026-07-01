@@ -2,17 +2,11 @@ import { RECORD_TYPE_SECRET } from "./constants.js";
 import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
-import {
-  openTenantBoundEnvelope,
-  sealTenantBoundEnvelope,
-  serializeDekWrapAad,
-} from "./envelope-engine.js";
-import { toStoreFacingCiphertext } from "./envelope-storage.js";
+import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
 import type { Keyring } from "./keyring.js";
 import type { SecretCiphertextIdentity } from "./types.js";
 import type { WrappedSecretValue } from "@insecur/custody-contracts";
 
-export { serializeDekWrapAad };
 export type { WrappedSecretValue } from "@insecur/custody-contracts";
 
 /**
@@ -29,15 +23,7 @@ export function serializeSecretCiphertextAad(identity: SecretCiphertextIdentity)
   ]);
 }
 
-/** DEK-wrap layer AAD binds format marker and project data-key version. */
-export function serializeSecretDekWrapAad(projectDataKeyVersion: number): Uint8Array {
-  return serializeDekWrapAad(RECORD_TYPE_SECRET, projectDataKeyVersion);
-}
-
-export function identityMatches(
-  left: SecretCiphertextIdentity,
-  right: SecretCiphertextIdentity,
-): boolean {
+function identityMatches(left: SecretCiphertextIdentity, right: SecretCiphertextIdentity): boolean {
   return (
     left.organizationId === right.organizationId &&
     left.projectId === right.projectId &&
@@ -109,5 +95,3 @@ export async function decryptSecretValueForRuntime(
   });
   return new PlaintextHandle(plaintext);
 }
-
-export { toStoreFacingCiphertext };

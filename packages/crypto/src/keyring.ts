@@ -11,8 +11,6 @@ import {
 
 export {
   clearWrappedDefaultTenantDataKeySourceCacheForTests,
-  unwrapOrganizationDataKey,
-  unwrapProjectDataKey,
   WrappedDefaultTenantDataKeySource,
 } from "./keyring-unwrap.js";
 

@@ -12,7 +12,7 @@ export interface ManagedLoginShellInput {
   readonly expiresAt: string;
 }
 
-export function assertLoginShellCompatible(flags: GlobalCliFlags): void {
+function assertLoginShellCompatible(flags: GlobalCliFlags): void {
   if (flags.json) {
     throw new CliError(
       {
