@@ -32,6 +32,8 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [VALIDATION_ERROR_CODES.invalidVariableKey, 400],
   [VALIDATION_ERROR_CODES.invalidDisplayName, 400],
   [VALIDATION_ERROR_CODES.displayNameEmpty, 400],
+  [VALIDATION_ERROR_CODES.invalidFeedbackKind, 400],
+  [VALIDATION_ERROR_CODES.feedbackAssociationRequired, 400],
   [SECRET_ERROR_CODES.invalidEncoding, 400],
   [SECRET_ERROR_CODES.invalidInputMode, 400],
   [SECRET_ERROR_CODES.emptyValue, 400],
