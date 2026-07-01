@@ -329,6 +329,18 @@ describe("executeConsumeInjectionGrant", () => {
     expect(result.auditEventId).toBeUndefined();
     expect(result.valueUtf8).toBe(plaintextHandle);
   });
+
+  it("returns bound metadata with a plaintext handle only (no rendered secret value field)", async () => {
+    const result = await executeConsumeInjectionGrant(baseInput, loadedBinding);
+
+    expect(Object.keys(result).sort()).toEqual(
+      ["auditEventId", "secretId", "secretVersionId", "valueUtf8", "variableKey"].sort(),
+    );
+    expect(result.valueUtf8).toBeInstanceOf(PlaintextHandle);
+    expect(result).not.toHaveProperty("value");
+    expect(result).not.toHaveProperty("plaintext");
+    expect(result).not.toHaveProperty("renderedValue");
+  });
 });
 
 describe("recordDeniedConsume", () => {
@@ -356,6 +368,25 @@ describe("recordDeniedConsume", () => {
         projectId: PROJECT,
         environmentId: ENV,
         reasonCode: INJECTION_ERROR_CODES.grantExpired,
+      }),
+    );
+  });
+
+  it("forwards request and operation refs on denied consume audit", async () => {
+    const request = { requestId: "req_denied" as never };
+    const operation = { operationId: "op_denied" as never };
+
+    await recordDeniedConsume(
+      { ...baseInput, request, operation },
+      INJECTION_ERROR_CODES.grantDenied,
+      { projectId: PROJECT, environmentId: ENV },
+    );
+
+    expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request,
+        operation,
+        reasonCode: INJECTION_ERROR_CODES.grantDenied,
       }),
     );
   });
@@ -530,5 +561,48 @@ describe("consumeInjectionGrantWithAudit", () => {
       .mocked(recordRuntimeInjectionAudit)
       .mock.calls.filter((call) => call[0]?.outcome === "denied");
     expect(deniedCalls).toHaveLength(1);
+  });
+
+  it("records grant_expired denied audit with coordinate when consume store rejects expiry", async () => {
+    getGrant.mockResolvedValue(grantRow());
+    getBoundGrant.mockReturnValue(boundGrantFromRow());
+    tryConsumeGrant.mockResolvedValue({ ok: false, reason: "expired" });
+
+    await expect(consumeInjectionGrantWithAudit(baseInput)).rejects.toMatchObject({
+      code: INJECTION_ERROR_CODES.grantExpired,
+    });
+
+    expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: "consume",
+        outcome: "denied",
+        reasonCode: INJECTION_ERROR_CODES.grantExpired,
+        projectId: PROJECT,
+        environmentId: ENV,
+      }),
+    );
+  });
+
+  it("rethrows non-injection errors without recording denied consume audit", async () => {
+    getGrant.mockResolvedValue(grantRow());
+    getBoundGrant.mockReturnValue(boundGrantFromRow());
+    vi.mocked(decryptBoundGrantSecretVersion).mockRejectedValue(new Error("decrypt failed"));
+
+    await expect(consumeInjectionGrantWithAudit(baseInput)).rejects.toThrow("decrypt failed");
+
+    expect(recordRuntimeInjectionAudit).not.toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "denied" }),
+    );
+  });
+
+  it("swallows denied audit write failures for non-scope injection errors", async () => {
+    getGrant.mockResolvedValue(grantRow());
+    getBoundGrant.mockReturnValue(boundGrantFromRow());
+    tryConsumeGrant.mockResolvedValue({ ok: false, reason: "already_consumed" });
+    vi.mocked(recordRuntimeInjectionAudit).mockRejectedValueOnce(new Error("audit unavailable"));
+
+    await expect(consumeInjectionGrantWithAudit(baseInput)).rejects.toMatchObject({
+      code: INJECTION_ERROR_CODES.grantDenied,
+    });
   });
 });
