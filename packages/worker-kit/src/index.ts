@@ -48,6 +48,8 @@ export type {
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
+  RecordAbuseDeniedRpcInput,
+  RecordAbuseDeniedRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RuntimeGeneratedSecretInput,
@@ -107,6 +109,18 @@ export {
 } from "./auth/auth-context.js";
 export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
 export { recordAdmissionDeniedAuditForAuthFailure } from "./auth/record-admission-denied-audit.js";
+
+export { AbuseLimitError } from "./abuse/abuse-limit-error.js";
+export { enforcePublicEdgeAbuseControl } from "./abuse/enforce-public-edge-abuse-control.js";
+export { enforcePublicEdgeRateLimit } from "./abuse/public-edge-rate-limit.js";
+export type { PublicEdgeAbuseTarget } from "./abuse/public-edge-abuse-target.js";
+export type { PublicEdgeRateLimitBindings } from "./abuse/public-edge-rate-limit-bindings.js";
+export type { RateLimiterBinding } from "./abuse/rate-limiter-binding.js";
+export {
+  createInMemoryRateLimiter,
+  createPassThroughRateLimiter,
+} from "./abuse/rate-limiter-binding.js";
+export { recordAbuseDeniedAudit } from "./abuse/record-abuse-denied-audit.js";
 export {
   createFakeAdmittedUserResolver,
   createTestAuthContext,

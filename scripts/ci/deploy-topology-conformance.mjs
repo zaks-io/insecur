@@ -10,6 +10,8 @@
 //   (d) NO V1 deploy carries a Service Access token audience or a reveal/value/delivery/approval
 //       scope (ADR-0019 negative assertion; Service Access is deferred and unbuilt).
 //   (e) the API Worker has exactly the intended private Runtime Service Binding shape.
+//   (e2) the API Worker declares pre-tenant public-edge rate-limit bindings at top-level and under
+//        env.preview with distinct namespace IDs (INS-278).
 //   (f) each deploy's live public route mounts match docs/specs/deploy-route-inventory.md in both
 //       directions (ADR-0067).
 //   (g) signing secrets are never declared as plaintext wrangler `vars` (INS-276).
@@ -28,6 +30,14 @@ const RUNTIME_BINDING = "RUNTIME";
 const RUNTIME_SCRIPT_NAME = "insecur-runtime";
 const RUNTIME_ENTRYPOINT = "RuntimeService";
 const INVENTORY_DOC = join(repoRoot, "docs", "specs", "deploy-route-inventory.md");
+// INS-278: pre-tenant public-edge abuse controls on @insecur/api (production + preview deploys).
+const PUBLIC_EDGE_RATE_LIMIT_BINDINGS = [
+  { name: "ONBOARDING_IP", limit: 30, period: 60 },
+  { name: "ONBOARDING_ACTOR", limit: 10, period: 60 },
+  { name: "BOOTSTRAP_IP", limit: 10, period: 60 },
+  { name: "BOOTSTRAP_ACTOR", limit: 5, period: 60 },
+  { name: "AUTH_EXCHANGE_IP", limit: 20, period: 60 },
+];
 
 // ADR-0019: Service Access is deferred and must never be expressed by a V1 deploy. These tokens in a
 // wrangler config (e.g. a token-audience var or a reveal scope binding) signal the boundary leaking.
@@ -62,6 +72,7 @@ function main() {
   assertNoMonolith(deploys);
   assertNoServiceAccessSurface(deploys);
   assertApiRuntimeServiceBinding(deploys);
+  assertApiPublicEdgeRateLimitBindings(deploys);
   assertRouteInventoryMatches(deploys);
   assertNoPlaintextSigningSecretsInVars(deploys);
 
@@ -317,6 +328,103 @@ function assertApiRuntimeServiceBinding(deploys) {
     scope: "env.preview",
     expectedService: `${RUNTIME_SCRIPT_NAME}-preview`,
   });
+}
+
+function assertApiPublicEdgeRateLimitBindings(deploys) {
+  const apiDeploy = deploys.find((deploy) => deploy.name === API_SCRIPT_NAME);
+  if (!apiDeploy) {
+    fail(`missing API deploy '${API_SCRIPT_NAME}'`);
+    return;
+  }
+
+  const topLevelByName = assertPublicEdgeRateLimitScope(apiDeploy, apiDeploy.config, "top-level");
+  if (!topLevelByName) {
+    return;
+  }
+
+  const previewConfig = apiDeploy.config?.env?.preview;
+  if (!previewConfig || typeof previewConfig !== "object") {
+    fail(
+      `deploy '${API_SCRIPT_NAME}' env.preview is missing pre-tenant public-edge rate-limit bindings (INS-278)`,
+    );
+    return;
+  }
+
+  const previewByName = assertPublicEdgeRateLimitScope(apiDeploy, previewConfig, "env.preview");
+  if (!previewByName) {
+    return;
+  }
+
+  for (const expected of PUBLIC_EDGE_RATE_LIMIT_BINDINGS) {
+    const topLevel = topLevelByName.get(expected.name);
+    const preview = previewByName.get(expected.name);
+    if (!topLevel || !preview) {
+      continue;
+    }
+    if (topLevel.namespace_id === preview.namespace_id) {
+      fail(
+        `deploy '${API_SCRIPT_NAME}' env.preview rate-limit binding '${expected.name}' reuses namespace_id '${topLevel.namespace_id}' (preview must use a distinct namespace)`,
+      );
+    }
+  }
+}
+
+function assertPublicEdgeRateLimitScope(deploy, config, scope) {
+  const ratelimits = config?.ratelimits;
+  if (!Array.isArray(ratelimits)) {
+    fail(
+      `deploy '${deploy.name}' ${scope} must declare pre-tenant public-edge rate-limit bindings (INS-278)`,
+    );
+    return null;
+  }
+
+  const byName = new Map();
+  const namespaceIds = new Set();
+  for (const binding of ratelimits) {
+    const name = binding?.name;
+    if (typeof name !== "string") {
+      fail(`deploy '${deploy.name}' ${scope} rate-limit binding is missing a name`);
+      continue;
+    }
+    if (byName.has(name)) {
+      fail(`deploy '${deploy.name}' ${scope} declares duplicate rate-limit binding '${name}'`);
+    }
+    byName.set(name, binding);
+
+    const namespaceId = binding?.namespace_id;
+    if (typeof namespaceId !== "string" || namespaceId.length === 0) {
+      fail(`deploy '${deploy.name}' ${scope} rate-limit binding '${name}' is missing namespace_id`);
+      continue;
+    }
+    if (namespaceIds.has(namespaceId)) {
+      fail(`deploy '${deploy.name}' ${scope} reuses rate-limit namespace_id '${namespaceId}'`);
+    }
+    namespaceIds.add(namespaceId);
+  }
+
+  for (const expected of PUBLIC_EDGE_RATE_LIMIT_BINDINGS) {
+    const binding = byName.get(expected.name);
+    if (!binding) {
+      fail(
+        `deploy '${deploy.name}' ${scope} is missing rate-limit binding '${expected.name}' (INS-278)`,
+      );
+      continue;
+    }
+    const simple = binding.simple;
+    if (!simple || typeof simple !== "object") {
+      fail(
+        `deploy '${deploy.name}' ${scope} rate-limit binding '${expected.name}' is missing simple limit config`,
+      );
+      continue;
+    }
+    if (simple.limit !== expected.limit || simple.period !== expected.period) {
+      fail(
+        `deploy '${deploy.name}' ${scope} rate-limit binding '${expected.name}' has limit ${simple.limit}/${simple.period} (expected ${expected.limit}/${expected.period})`,
+      );
+    }
+  }
+
+  return byName;
 }
 
 function assertRuntimeBindingShape(deploy, config, { scope, expectedService }) {

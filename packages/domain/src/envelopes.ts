@@ -194,6 +194,9 @@ function assertMetadataOnlyObject(value: object): void {
  * Recursively rejects forbidden Sensitive Value keys, binary payloads, and
  * non-JSON-safe values. Metadata envelopes may contain only JSON-safe primitives,
  * arrays, and plain objects.
+ *
+ * Audit `details` and operation `progress` maps use the narrower value-type guard
+ * in `metadata-safe-value.ts` (stable dotted codes, opaque IDs, numbers, booleans).
  */
 export function assertMetadataOnlyValue(value: unknown): void {
   if (value === null) {

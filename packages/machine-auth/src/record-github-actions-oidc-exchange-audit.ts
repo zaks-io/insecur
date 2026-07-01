@@ -25,7 +25,7 @@ function auditActorForExchange(input: { machineIdentityId?: MachineIdentityId })
 }
 
 function oidcDenialDetail(reason: OidcTrustMatchFailureReason | "malformed"): AuditEventDetails {
-  return { oidcDenialKind: reason };
+  return { oidcDenialKind: `auth.oidc_denial.${reason}` };
 }
 
 export async function recordGitHubActionsOidcExchangeSuccess(input: {

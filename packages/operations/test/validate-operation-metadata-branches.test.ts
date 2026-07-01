@@ -115,13 +115,31 @@ describe("validateOperationProgress branches", () => {
     );
   });
 
+  it("rejects unknown progress fields and free-form string values", () => {
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          smuggled: "arbitrary secret text",
+        } as never),
+      /progress contains unknown field: smuggled/,
+    );
+  });
+
   it("rejects invalid mutation idempotency keys", () => {
     expectInvalidMetadata(
       () =>
         validateOperationProgress({
           mutationIdempotencyKey: "",
         }),
-      /mutationIdempotencyKey must be 1-256 characters/,
+      /mutationIdempotencyKey must be a 1-256 character opaque token/,
+    );
+
+    expectInvalidMetadata(
+      () =>
+        validateOperationProgress({
+          mutationIdempotencyKey: "arbitrary secret text",
+        }),
+      /mutationIdempotencyKey must be a 1-256 character opaque token/,
     );
 
     expectInvalidMetadata(
@@ -129,7 +147,7 @@ describe("validateOperationProgress branches", () => {
         validateOperationProgress({
           mutationIdempotencyKey: "x".repeat(257),
         }),
-      /mutationIdempotencyKey must be 1-256 characters/,
+      /mutationIdempotencyKey must be a 1-256 character opaque token/,
     );
   });
 

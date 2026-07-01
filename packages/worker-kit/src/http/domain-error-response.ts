@@ -1,4 +1,5 @@
 import {
+  ABUSE_ERROR_CODES,
   AUTH_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
@@ -14,6 +15,7 @@ import { OperationStoreError } from "@insecur/operations";
 import { InjectionGrantError } from "@insecur/runtime-injection-issue";
 import { SecretWriteError } from "@insecur/secret-store-contracts";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
+import { AbuseLimitError } from "../abuse/abuse-limit-error.js";
 import { HTTP_STATUS_BY_CODE } from "./http-status-by-code.js";
 
 // The public edge (API/Web) never imports @insecur/crypto (ADR-0064/0077): crypto and
@@ -93,6 +95,9 @@ function readRetryable(error: unknown): boolean {
 }
 
 function retryableForError(error: unknown): boolean {
+  if (error instanceof AbuseLimitError) {
+    return error.retryable;
+  }
   if (
     error instanceof SecretWriteError ||
     error instanceof InjectionGrantError ||
@@ -103,7 +108,10 @@ function retryableForError(error: unknown): boolean {
   return readRetryable(error);
 }
 
-export function knownErrorCodeFromUnknown(error: unknown): KnownErrorCode {
+function errorCodeFromClassInstance(error: unknown): KnownErrorCode | undefined {
+  if (error instanceof AbuseLimitError) {
+    return ABUSE_ERROR_CODES.rateLimited;
+  }
   if (error instanceof SecretWriteError) {
     return error.code;
   }
@@ -119,7 +127,15 @@ export function knownErrorCodeFromUnknown(error: unknown): KnownErrorCode {
   if (error instanceof Error && error.name === "TenantDataKeyNotReadyError") {
     return CRYPTO_ERROR_CODES.tenantDataKeyNotReady;
   }
-  return readErrorCode(error) ?? VALIDATION_ERROR_CODES.invalidOpaqueResourceId;
+  return undefined;
+}
+
+export function knownErrorCodeFromUnknown(error: unknown): KnownErrorCode {
+  return (
+    errorCodeFromClassInstance(error) ??
+    readErrorCode(error) ??
+    VALIDATION_ERROR_CODES.invalidOpaqueResourceId
+  );
 }
 
 export function httpStatusForKnownErrorCode(code: KnownErrorCode): number {

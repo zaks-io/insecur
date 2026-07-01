@@ -258,8 +258,7 @@ describe("casApplyOperationTransition", () => {
 
     const sql = createFakeTenantSql((query, values) => {
       if (queryIncludes(query, "update operations")) {
-        const deadline = values.find((value) => value === null);
-        expect(deadline).toBeNull();
+        expect(values).toContain(null);
         return [
           operationRowFromPoll(current, {
             state: "incomplete",

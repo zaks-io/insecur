@@ -1,9 +1,11 @@
 import { AUTH_ERROR_CODES, errorEnvelope, requestId } from "@insecur/domain";
 import {
+  AbuseLimitError,
   AuthConfigError,
   AuthFailureError,
   FakeWorkOSSessionConfigError,
   RuntimeTokenSigningSecretConfigError,
+  domainErrorEnvelope,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
@@ -20,6 +22,10 @@ import type { ApiEnv } from "./env.js";
 const app = new Hono<{ Bindings: ApiEnv }>();
 
 app.onError((err, context) => {
+  if (err instanceof AbuseLimitError) {
+    const { status, body } = domainErrorEnvelope(err, requestId.generate());
+    return context.json(body, status as 429);
+  }
   if (err instanceof AuthFailureError) {
     const { failure, requestId: reqId } = err;
     return context.json(

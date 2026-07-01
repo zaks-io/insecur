@@ -154,6 +154,18 @@ export interface RecordAdmissionDeniedRpcPayload {
   readonly recorded: true;
 }
 
+/** PRE-AUTH: best-effort metadata-only denied audit for public-edge abuse controls. */
+export interface RecordAbuseDeniedRpcInput {
+  readonly instanceId: string;
+  readonly requestId: RequestId;
+  readonly eventCode: string;
+  readonly reasonCode: KnownErrorCode;
+  readonly actorUserId?: UserId | null;
+}
+export interface RecordAbuseDeniedRpcPayload {
+  readonly recorded: true;
+}
+
 /** PRE-AUTH: public instance bootstrap phase (the `/status` route is unauthenticated). */
 export interface GetBootstrapStatusRpcInput {
   readonly instanceId: string;
@@ -232,6 +244,9 @@ export interface RuntimeRpc {
   recordAdmissionDenied(
     input: RecordAdmissionDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>>;
+  recordAbuseDenied(
+    input: RecordAbuseDeniedRpcInput,
+  ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>>;
   getBootstrapStatus(input: GetBootstrapStatusRpcInput): Promise<RuntimeRpcResult<BootstrapStatus>>;
 
   // Post-auth (carry a scoped hop token; the Runtime rebuilds the actor).

@@ -27,14 +27,14 @@ describe("operation metadata safety", () => {
       validateOperationProgress({
         value: "must-not-appear",
       } as never);
-    }).toThrow(/forbidden key: value/);
+    }).toThrow(/progress contains unknown field: value/);
 
     expect(() => {
       validateOperationProgress({
         counters: { bindingsTotal: 1 },
         plaintext: "nope",
       } as never);
-    }).toThrow(/forbidden key: plaintext/);
+    }).toThrow(/progress contains unknown field: plaintext/);
   });
 
   it("rejects binary payloads", () => {
@@ -42,6 +42,6 @@ describe("operation metadata safety", () => {
       validateOperationProgress({
         wrappedValue: new Uint8Array([1, 2, 3]),
       } as never);
-    }).toThrow(/forbidden key: wrappedValue/);
+    }).toThrow(/progress contains unknown field: wrappedValue/);
   });
 });

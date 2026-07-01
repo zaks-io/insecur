@@ -91,7 +91,7 @@ export interface AuditDenialMetadata {
   reasonCode: KnownErrorCode;
 }
 
-/** Primitive-only detail map validated against the metadata allowlist. */
+/** Primitive-only detail map with value-type guard (dotted codes, opaque IDs, numbers, booleans). */
 export type AuditEventDetailValue = string | number | boolean | null;
 
 export type AuditEventDetails = Readonly<Record<string, AuditEventDetailValue>>;
@@ -110,7 +110,7 @@ interface AuditEventInputBase extends AuditTenantScope {
   relatedResource?: AuditResourceRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
-  /** Optional metadata-safe detail keys (allowlist-validated before persistence). */
+  /** Optional metadata-safe detail keys with constrained primitive values. */
   details?: AuditEventDetails;
 }
 

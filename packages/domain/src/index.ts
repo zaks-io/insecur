@@ -77,11 +77,23 @@ export {
   isStableDottedCode,
 } from "./stable-dotted-code.js";
 export {
+  type MetadataSafeStringKind,
+  assertMetadataSafeDetailMap,
+  assertMetadataSafeDetailValue,
+  classifyMetadataSafeString,
+  isMetadataSafeDetailPrimitive,
+  isMetadataSafeOpaqueTokenString,
+  isMetadataSafeStringValue,
+  isOpaqueResourceIdString,
+} from "./metadata-safe-value.js";
+export {
   DEFAULT_GENERATED_SECRET_RANDOM_BYTES,
   MAX_GENERATED_SECRET_RANDOM_BYTES,
   SECRET_VALUE_SIZE_LIMIT_BYTES,
 } from "./secret-value-limits.js";
 export {
+  ABUSE_ERROR_CODES,
+  type AbuseErrorCode,
   AUDIT_ERROR_CODES,
   type AuditErrorCode,
   AUTH_ERROR_CODES,

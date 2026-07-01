@@ -70,7 +70,7 @@ describe("recordGitHubActionsOidcExchangeAudit", () => {
       actor: { type: "ci_exchange" },
       organizationId: ORG,
       denial: { reasonCode: AUTH_ERROR_CODES.invalid },
-      details: { oidcDenialKind: "malformed" },
+      details: { oidcDenialKind: "auth.oidc_denial.malformed" },
       request: { requestId: REQ },
     });
   });
