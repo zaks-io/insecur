@@ -61,6 +61,8 @@ export function buildGitHubActionsOidcClaims(input: {
   audience: string;
   repository: string;
   repositoryOwner: string;
+  repositoryId: string;
+  repositoryOwnerId: string;
   subject: string;
   environment?: string;
   expiresAtEpoch: number;
@@ -74,6 +76,8 @@ export function buildGitHubActionsOidcClaims(input: {
     iat: input.issuedAtEpoch ?? input.expiresAtEpoch - 300,
     repository: input.repository,
     repository_owner: input.repositoryOwner,
+    repository_id: input.repositoryId,
+    repository_owner_id: input.repositoryOwnerId,
     ...(input.environment !== undefined ? { environment: input.environment } : {}),
   };
 }

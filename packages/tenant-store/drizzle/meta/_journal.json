@@ -57,6 +57,13 @@
       "when": 1782432583143,
       "tag": "0007_operation_execution_deadline",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782930284046,
+      "tag": "0008_hot_marauders",
+      "breakpoints": true
     }
   ]
 }

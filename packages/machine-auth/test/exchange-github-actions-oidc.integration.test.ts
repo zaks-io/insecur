@@ -24,6 +24,8 @@ const TEST_AUTH_METHOD_ID = "mauth_00000000000000000000000003";
 const AUDIENCE = "insecur://oidc/github-actions";
 const SIGNING_SECRET = "integration-machine-access-signing-secret";
 const NOW = 1_700_000_000;
+const REPOSITORY_ID = "123456789";
+const REPOSITORY_OWNER_ID = "987654321";
 
 describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
   const signerPromise = createTestGitHubActionsOidcSigner();
@@ -68,6 +70,8 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
           project_id,
           environment_id,
           github_repository,
+          github_repository_id,
+          github_repository_owner_id,
           github_environment,
           oidc_audience,
           credential_scopes
@@ -79,11 +83,15 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
           ${TEST_PROJECT_A_ID},
           ${TEST_ENV_A_ID},
           ${"insecur-ci/example"},
+          ${REPOSITORY_ID},
+          ${REPOSITORY_OWNER_ID},
           ${"production"},
           ${AUDIENCE},
           ${[CREDENTIAL_SCOPES.runtimeInjectionRun, CREDENTIAL_SCOPES.runtimeInjectionGrantIssue]}
         )
-        ON CONFLICT (id) DO NOTHING
+        ON CONFLICT (id) DO UPDATE SET
+          github_repository_id = EXCLUDED.github_repository_id,
+          github_repository_owner_id = EXCLUDED.github_repository_owner_id
       `;
     });
   });
@@ -100,6 +108,8 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
         audience: AUDIENCE,
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: NOW + 600,
@@ -138,7 +148,44 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
         audience: AUDIENCE,
         repository: "other-org/other-repo",
         repositoryOwner: "other-org",
+        repositoryId: "111111111",
+        repositoryOwnerId: "222222222",
         subject: "repo:other-org/other-repo:environment:production",
+        environment: "production",
+        expiresAtEpoch: NOW + 600,
+      }),
+    );
+
+    const result = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async ({ sql }) =>
+        exchangeGitHubActionsOidc({
+          organizationId: org,
+          oidcToken: token,
+          signingSecret: SIGNING_SECRET,
+          jwks: signer.jwks,
+          sql,
+          nowEpoch: NOW,
+        }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(AUTH_ERROR_CODES.oidcWrongRepository);
+    }
+  });
+
+  it("denies matching repository display name with different stable repository identity", async () => {
+    const signer = await signerPromise;
+    const org = organizationId.brand(TEST_ORG_A_ID);
+    const token = await signer.sign(
+      buildGitHubActionsOidcClaims({
+        audience: AUDIENCE,
+        repository: "insecur-ci/example",
+        repositoryOwner: "insecur-ci",
+        repositoryId: "999999999",
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
+        subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: NOW + 600,
       }),
@@ -204,6 +251,8 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
         audience: AUDIENCE,
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: NOW - 60,
@@ -237,6 +286,8 @@ describeIntegration("exchangeGitHubActionsOidc (tenant-scoped store)", () => {
         audience: "https://unexpected-audience.example",
         repository: "insecur-ci/example",
         repositoryOwner: "insecur-ci",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
         subject: "repo:insecur-ci/example:environment:production",
         environment: "production",
         expiresAtEpoch: NOW + 600,

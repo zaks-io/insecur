@@ -17,6 +17,8 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000001");
+const REPOSITORY_ID = "123456789";
+const REPOSITORY_OWNER_ID = "987654321";
 
 function authMethod(
   overrides: Partial<GitHubActionsOidcAuthMethodRow> = {},
@@ -28,6 +30,8 @@ function authMethod(
     projectId: PROJECT,
     environmentId: ENV,
     githubRepository: "insecur-ci/example",
+    githubRepositoryId: REPOSITORY_ID,
+    githubRepositoryOwnerId: REPOSITORY_OWNER_ID,
     githubEnvironment: "production",
     oidcAudience: "insecur://oidc/github-actions",
     credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
@@ -36,23 +40,36 @@ function authMethod(
   };
 }
 
+function matchingClaims(
+  overrides: Partial<{
+    repository: string;
+    repositoryId: string;
+    repositoryOwnerId: string;
+    environment: string;
+    audience: readonly string[];
+    expiresAtEpoch: number;
+    issuer: string;
+  }> = {},
+) {
+  return {
+    issuer: GITHUB_ACTIONS_OIDC_ISSUER,
+    subject: "repo:insecur-ci/example:environment:production",
+    audience: ["insecur://oidc/github-actions"] as const,
+    expiresAtEpoch: NOW + 600,
+    repository: "insecur-ci/example",
+    repositoryOwner: "insecur-ci",
+    repositoryId: REPOSITORY_ID,
+    repositoryOwnerId: REPOSITORY_OWNER_ID,
+    environment: "production",
+    ...overrides,
+  };
+}
+
 const NOW = 1_700_000_000;
 
 describe("matchGitHubActionsOidcTrust", () => {
-  it("accepts matching repository, environment, and audience", () => {
-    const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
-        subject: "repo:insecur-ci/example:environment:production",
-        audience: ["insecur://oidc/github-actions"],
-        expiresAtEpoch: NOW + 600,
-        repository: "insecur-ci/example",
-        repositoryOwner: "insecur-ci",
-        environment: "production",
-      },
-      [authMethod()],
-      NOW,
-    );
+  it("accepts matching stable repository identity, environment, and audience", () => {
+    const result = matchGitHubActionsOidcTrust(matchingClaims(), [authMethod()], NOW);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -62,15 +79,7 @@ describe("matchGitHubActionsOidcTrust", () => {
 
   it("denies wrong issuer", () => {
     const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: "https://evil.example",
-        subject: "repo:insecur-ci/example:environment:production",
-        audience: ["insecur://oidc/github-actions"],
-        expiresAtEpoch: NOW + 600,
-        repository: "insecur-ci/example",
-        repositoryOwner: "insecur-ci",
-        environment: "production",
-      },
+      matchingClaims({ issuer: "https://evil.example" }),
       [authMethod()],
       NOW,
     );
@@ -84,15 +93,7 @@ describe("matchGitHubActionsOidcTrust", () => {
 
   it("denies expired tokens before minting", () => {
     const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
-        subject: "repo:insecur-ci/example:environment:production",
-        audience: ["insecur://oidc/github-actions"],
-        expiresAtEpoch: NOW - 1,
-        repository: "insecur-ci/example",
-        repositoryOwner: "insecur-ci",
-        environment: "production",
-      },
+      matchingClaims({ expiresAtEpoch: NOW - 1 }),
       [authMethod()],
       NOW,
     );
@@ -106,15 +107,7 @@ describe("matchGitHubActionsOidcTrust", () => {
 
   it("denies wrong audience", () => {
     const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
-        subject: "repo:insecur-ci/example:environment:production",
-        audience: ["https://wrong.example/aud"],
-        expiresAtEpoch: NOW + 600,
-        repository: "insecur-ci/example",
-        repositoryOwner: "insecur-ci",
-        environment: "production",
-      },
+      matchingClaims({ audience: ["https://wrong.example/aud"] }),
       [authMethod()],
       NOW,
     );
@@ -126,17 +119,49 @@ describe("matchGitHubActionsOidcTrust", () => {
     }
   });
 
-  it("denies wrong repository", () => {
+  it("denies wrong repository display name when stable identity also mismatches", () => {
     const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
-        subject: "repo:other-org/other-repo:environment:production",
-        audience: ["insecur://oidc/github-actions"],
-        expiresAtEpoch: NOW + 600,
+      matchingClaims({
         repository: "other-org/other-repo",
-        repositoryOwner: "other-org",
-        environment: "production",
-      },
+        repositoryId: "111111111",
+        repositoryOwnerId: "222222222",
+      }),
+      [authMethod()],
+      NOW,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("wrong_repository");
+      expect(result.reasonCode).toBe(AUTH_ERROR_CODES.oidcWrongRepository);
+    }
+  });
+
+  it("denies matching repository display name with different stable repository identity", () => {
+    const result = matchGitHubActionsOidcTrust(
+      matchingClaims({
+        repository: "insecur-ci/example",
+        repositoryId: "999999999",
+        repositoryOwnerId: REPOSITORY_OWNER_ID,
+      }),
+      [authMethod()],
+      NOW,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("wrong_repository");
+      expect(result.reasonCode).toBe(AUTH_ERROR_CODES.oidcWrongRepository);
+    }
+  });
+
+  it("denies matching repository display name after transfer-style owner id mismatch", () => {
+    const result = matchGitHubActionsOidcTrust(
+      matchingClaims({
+        repository: "insecur-ci/example",
+        repositoryId: REPOSITORY_ID,
+        repositoryOwnerId: "555555555",
+      }),
       [authMethod()],
       NOW,
     );
@@ -150,15 +175,7 @@ describe("matchGitHubActionsOidcTrust", () => {
 
   it("denies wrong environment", () => {
     const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
-        subject: "repo:insecur-ci/example:environment:staging",
-        audience: ["insecur://oidc/github-actions"],
-        expiresAtEpoch: NOW + 600,
-        repository: "insecur-ci/example",
-        repositoryOwner: "insecur-ci",
-        environment: "staging",
-      },
+      matchingClaims({ environment: "staging" }),
       [authMethod()],
       NOW,
     );
@@ -171,17 +188,9 @@ describe("matchGitHubActionsOidcTrust", () => {
     }
   });
 
-  it("matches repositories case-insensitively", () => {
+  it("accepts renamed repository display name when stable identity still matches", () => {
     const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
-        subject: "repo:InSecur-CI/Example:environment:production",
-        audience: ["insecur://oidc/github-actions"],
-        expiresAtEpoch: NOW + 600,
-        repository: "InSecur-CI/Example",
-        repositoryOwner: "insecur-ci",
-        environment: "production",
-      },
+      matchingClaims({ repository: "insecur-ci/renamed-example" }),
       [authMethod({ githubRepository: "insecur-ci/example" })],
       NOW,
     );
@@ -194,19 +203,7 @@ describe("matchGitHubActionsOidcTrust", () => {
       id: machineAuthMethodId.brand("mauth_00000000000000000000000002"),
     });
 
-    const result = matchGitHubActionsOidcTrust(
-      {
-        issuer: GITHUB_ACTIONS_OIDC_ISSUER,
-        subject: "repo:insecur-ci/example:environment:production",
-        audience: ["insecur://oidc/github-actions"],
-        expiresAtEpoch: NOW + 600,
-        repository: "insecur-ci/example",
-        repositoryOwner: "insecur-ci",
-        environment: "production",
-      },
-      [authMethod(), duplicate],
-      NOW,
-    );
+    const result = matchGitHubActionsOidcTrust(matchingClaims(), [authMethod(), duplicate], NOW);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
