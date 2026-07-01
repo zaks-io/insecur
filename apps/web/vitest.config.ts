@@ -19,13 +19,6 @@ export default defineConfig({
         find: "@insecur/domain",
         replacement: path.join(repoRoot, "packages/domain/src/index.ts"),
       },
-      {
-        find: "@insecur/worker-kit/record-admission-denied-audit",
-        replacement: path.join(
-          repoRoot,
-          "packages/worker-kit/src/auth/record-admission-denied-audit.ts",
-        ),
-      },
     ],
   },
   test: {

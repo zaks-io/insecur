@@ -8,9 +8,11 @@ import {
   WORKOS_SESSION_COOKIE,
 } from "@insecur/auth";
 import { requestId } from "@insecur/domain";
-import { recordAdmissionDeniedAuditForAuthFailure } from "@insecur/worker-kit/record-admission-denied-audit";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
-import { createRuntimeAdmittedUserResolver } from "../runtime/admission.js";
+import {
+  createRuntimeAdmittedUserResolver,
+  recordAdmissionDeniedAuditForAuthFailure,
+} from "../runtime/admission.js";
 import type { WebEnv } from "../env.js";
 
 /**
