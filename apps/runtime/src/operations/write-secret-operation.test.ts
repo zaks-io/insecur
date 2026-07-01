@@ -1,4 +1,4 @@
-import { authorizeScopeOrThrow } from "@insecur/access";
+import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow } from "@insecur/access";
 import type { Keyring } from "@insecur/crypto";
 import {
   environmentId,
@@ -120,6 +120,7 @@ describe("writeSecretOperation", () => {
           projectId: project,
           environmentId: environment,
         },
+        requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
         requestId: request,
       }),
     );

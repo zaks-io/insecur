@@ -76,6 +76,29 @@ describe("authorizeScopeOrThrow", () => {
     });
   });
 
+  it("records denied access for org-only coordinates without project metadata", async () => {
+    const loadMemberships: LoadMembershipsFn = vi.fn(async () => []);
+    const recordAccessDenial = vi.fn(async () => undefined);
+
+    await expect(
+      authorizeScopeOrThrow({
+        actor,
+        auditActor,
+        coordinate: { organizationId: ORG },
+        requiredScope: AUTHORIZATION_SCOPES.organizationRead,
+        requestId: REQUEST,
+        deps: { loadMemberships, recordAccessDenial },
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    expect(recordAccessDenial).toHaveBeenCalledWith({
+      actor: auditActor,
+      organizationId: ORG,
+      request: { requestId: REQUEST },
+      reasonCode: AUTH_ERROR_CODES.insufficientScope,
+    });
+  });
+
   it("preserves auth.insufficient_scope when denied-audit recording fails", async () => {
     const loadMemberships: LoadMembershipsFn = vi.fn(async () => []);
     const recordAccessDenial = vi.fn(async () => {
