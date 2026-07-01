@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-06-29
+Last updated: 2026-07-01
 
 Workflow lookup table for the shared `workflow-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
@@ -8,7 +8,7 @@ external systems (Linear, GitHub, CI), not here.
 
 ## Verification
 
-- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note. 2026-06-29 (INS-234): refreshed CodeRabbit wiring guidance to match active PR status contexts and orchestrator current-head manual review requests.
+- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note. 2026-06-29 (INS-234): refreshed CodeRabbit wiring guidance to match active PR status contexts and orchestrator current-head manual review requests. 2026-07-01: added `pnpm ci:check` as a `pnpm verify` alias and documented docs-only CI short-circuiting.
 - Last verified: 2026-06-29 (CodeRabbit status context on open PRs; `.coderabbit.yaml` auto-review disabled).
 - Evidence sources: `package.json`, `.npmrc`, git remote/branch, `AGENTS.md`/`CLAUDE.md` symlinks, `.agents/skills/*` + `.claude/skills/*` + root `skills/*` symlinks, live Linear `list_teams`/`list_issue_statuses`/`list_issue_labels`.
 - Safe commands run: `git remote get-url origin`, `git symbolic-ref --short HEAD`, `jq` over `package.json`, `ls -la`/`-ef` symlink checks, `git log`/`diff`/`wc` over skills.
@@ -24,8 +24,8 @@ external systems (Linear, GitHub, CI), not here.
 - Branch prefix: `ins-<number>-<short-slug>` (one Linear issue per branch)
 - Package manager: pnpm@10.19.0 (corepack), Node `>=24 <25` (`engine-strict=true`)
 - Install: `pnpm install --frozen-lockfile`
-- Full local gate: `pnpm verify` (duplicate warnings + blocking zero-duplicate gate + knip + actionlint + actions-pin conformance + deploy topology conformance + package-boundary conformance + format:check + turbo lint typecheck test). `verify` does NOT include the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds lines 80 / fns 82 / stmts 80 / branches 62 in `vitest.config.ts`). Any PR touching covered packages must also pass `pnpm test:coverage`; CI runs it as its own `Coverage` job, and pre-push runs it locally, but the Cursor cloud worker skips push hooks, so run it explicitly before opening a PR.
-- Focused checks: `pnpm conformance:actions-pin`; `pnpm conformance:packages`; `pnpm conformance:topology`; `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
+- Full local gate: `pnpm verify` or `pnpm ci:check` (duplicate warnings + blocking zero-duplicate gate + knip + actionlint + actions-pin conformance + deploy topology conformance + package-boundary conformance + site-boundary conformance + format:check + turbo lint typecheck test). `verify` does NOT include the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds lines 80 / fns 82 / stmts 80 / branches 62 in `vitest.config.ts`). Any PR touching covered packages must also pass `pnpm test:coverage`; CI runs it as its own `Coverage` job, and pre-push runs it locally, but the Cursor cloud worker skips push hooks, so run it explicitly before opening a PR.
+- Focused checks: `pnpm conformance:actions-pin`; `pnpm conformance:packages`; `pnpm conformance:site-boundary`; `pnpm conformance:topology`; `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
 - Preview checks: no per-PR preview workflow; PR database validation is `CI` → `Postgres tests (integration + RLS + e2e)` using Docker Compose Postgres. Shared preview deploy is `Deploy Preview` / `pnpm deploy:preview`.
@@ -183,4 +183,4 @@ Linear prose, PR bodies, comments, and tests. No reveal/plaintext-export/debug-d
 
 ## Unknowns
 
-- [ ] Hosted `CI` and `security-daily` workflows run unconditionally on PRs (Verify, Coverage, postgres-integration, gitleaks/semgrep/syft+grype); CI branch protection is the real enforcement boundary, not local hooks. PRs must not provision Neon branches or per-PR Workers.
+- [ ] Hosted `CI` docs-only PR behavior should be rechecked after the next docs-only PR: required code-heavy jobs should report green no-ops, and gitleaks should still run. PRs must not provision Neon branches or per-PR Workers.
