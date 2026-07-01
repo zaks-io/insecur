@@ -63,6 +63,7 @@ export type {
   WriteSecretRpcInput,
 } from "./rpc/runtime-rpc-contract.js";
 export { RuntimeRpcResultError, unwrapRuntimeResult } from "./rpc/unwrap-runtime-result.js";
+export { apiClientFor, type ApiClientEnv } from "./rpc/api-client.js";
 export {
   runtimeClientFor,
   type AuthenticatedRuntimeClient,

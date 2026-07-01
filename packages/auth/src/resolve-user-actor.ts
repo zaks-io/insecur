@@ -4,8 +4,10 @@ import {
   authFailureForReason,
   type AuthFailure,
 } from "./auth-failure.js";
+import { INSECUR_API_TOKEN_AUDIENCE } from "./constants.js";
 import type { ParsedRequestCredentials } from "./credentials.js";
 import { verifyEphemeralSessionCredential } from "./ephemeral-session.js";
+import { verifyScopedAccessToken } from "./scoped-access-token.js";
 import type { InsecurAuthConfig } from "./workos-config.js";
 import type { UserActor } from "./user-actor.js";
 
@@ -19,6 +21,20 @@ export interface ResolveUserActorInput {
   readonly resolveAdmittedUser: AdmittedUserResolver;
 }
 
+async function resolveAdmittedActor(
+  actor: UserActor,
+  resolveAdmittedUser: AdmittedUserResolver,
+): Promise<ResolveUserActorResult> {
+  const admitted = await resolveAdmittedUser(actor.workosUserId);
+  if (admitted === null) {
+    return { ok: false, failure: authFailureForAdmissionDenial(actor.workosUserId) };
+  }
+  if (admitted !== actor.userId) {
+    return { ok: false, failure: authFailureForReason("invalid") };
+  }
+  return { ok: true, actor };
+}
+
 export async function resolveUserActor(
   input: ResolveUserActorInput,
 ): Promise<ResolveUserActorResult> {
@@ -26,6 +42,18 @@ export async function resolveUserActor(
 
   if (bearerCredential === undefined) {
     return { ok: false, failure: authFailureForReason("missing") };
+  }
+
+  const scoped = await verifyScopedAccessToken({
+    token: bearerCredential,
+    expectedAudience: INSECUR_API_TOKEN_AUDIENCE,
+    signingSecret: input.config.sessionSigningSecret,
+  });
+  if (scoped.ok) {
+    return resolveAdmittedActor(scoped.actor, input.resolveAdmittedUser);
+  }
+  if (scoped.reason === "expired") {
+    return { ok: false, failure: authFailureForReason("expired") };
   }
 
   const verified = await verifyEphemeralSessionCredential(
@@ -36,13 +64,5 @@ export async function resolveUserActor(
     const reason = verified.reason === "expired" ? "expired" : "invalid";
     return { ok: false, failure: authFailureForReason(reason) };
   }
-  const admitted = await input.resolveAdmittedUser(verified.actor.workosUserId);
-  if (admitted === null) {
-    return { ok: false, failure: authFailureForAdmissionDenial(verified.actor.workosUserId) };
-  }
-  if (admitted !== verified.actor.userId) {
-    return { ok: false, failure: authFailureForReason("invalid") };
-  }
-
-  return { ok: true, actor: verified.actor };
+  return resolveAdmittedActor(verified.actor, input.resolveAdmittedUser);
 }

@@ -1,0 +1,12 @@
+# Local-only secrets for the Web BFF (`insecur-web`), loaded by `wrangler dev` / Vite.
+# Copy to apps/web/.dev.vars and fill in. Never commit real secrets.
+#
+# The Web BFF holds NO keyring and NO database binding. It owns the browser session cookie and
+# reaches the API Worker over the private API Service Binding with a scoped hop token (ADR-0051).
+#
+# Deployed/preview environments deliver these via encrypted Worker secrets, not plaintext vars.
+
+WORKOS_API_KEY=
+WORKOS_CLIENT_ID=
+WORKOS_COOKIE_PASSWORD=
+SESSION_SIGNING_SECRET=

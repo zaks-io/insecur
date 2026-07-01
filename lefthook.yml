@@ -13,7 +13,9 @@ pre-commit:
             stage_fixed: true
           - name: eslint
             glob: "*.{ts,tsx}"
-            exclude: "scripts/lint-fixtures/**"
+            exclude:
+              - "scripts/lint-fixtures/**"
+              - "**/*.gen.ts"
             run: pnpm exec eslint --fix --max-warnings=0 {staged_files}
             stage_fixed: true
 

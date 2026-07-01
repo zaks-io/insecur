@@ -1,7 +1,9 @@
 import { AUTH_ERROR_CODES, userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import {
+  INSECUR_API_TOKEN_AUDIENCE,
   mintEphemeralSessionCredential,
+  mintScopedAccessToken,
   parseRequestCredentials,
   resolveUserActor,
 } from "./index.js";
@@ -55,6 +57,29 @@ describe("resolveUserActor", () => {
     if (!result.ok) {
       expect(result.failure.code).toBe(AUTH_ERROR_CODES.required);
     }
+  });
+
+  it("resolves a valid bearer scoped access credential minted for the API audience", async () => {
+    const minted = await mintScopedAccessToken({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_bff",
+      },
+      audience: INSECUR_API_TOKEN_AUDIENCE,
+      signingSecret: config.sessionSigningSecret,
+    });
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: `Bearer ${minted.token}`,
+        cookieHeader: null,
+        csrfHeader: null,
+      }),
+      config,
+      resolveAdmittedUser,
+    });
+    expect(result.ok).toBe(true);
   });
 
   it("resolves a valid bearer ephemeral credential", async () => {
