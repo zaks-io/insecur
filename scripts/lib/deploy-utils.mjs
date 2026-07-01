@@ -1,4 +1,4 @@
-// Shared helpers for the deploy scripts (deploy-preview.mjs, deploy-site.mjs).
+// Shared helpers for the deploy scripts (deploy-preview.mjs).
 import { appendFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 

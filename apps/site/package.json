@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "topo": "node -e \"\"",
-    "build": "vite build && WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --dry-run --outdir dist --env=\"\"",
+    "build": "vite build",
     "dev": "WRANGLER_LOG_PATH=.wrangler/logs vite dev --port 8789",
-    "deploy": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --env=\"\"",
+    "deploy": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --outdir dist",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",

@@ -9,9 +9,70 @@ import {
 import { readWorkspacePackages } from "./package-boundary-conformance-lib.mjs";
 
 const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
+const SITE_WRANGLER_PATH = path.join(REPO_ROOT, "apps", "site", "wrangler.jsonc");
 
 export const SITE_PACKAGE = "@insecur/site";
 export const UI_PACKAGE = "@insecur/ui";
+export const SITE_WORKER_NAME = "insecur-site";
+export const SITE_PREVIEW_WORKER_NAME = "insecur-site-preview";
+
+// Bindings that hand a Worker control-plane capability. The Public Site (ADR-0078 / product-spec §2)
+// must declare none: no database (Hyperdrive), no keyring, no API/Runtime Service Binding, no
+// secrets. The deploy-topology gate already forbids the root-key binding on a public deploy; this
+// gate covers the rest so the site's wrangler config can never grow one unnoticed.
+const FORBIDDEN_SITE_BINDINGS = ["hyperdrive", "services", "secrets_store_secrets", "secrets"];
+
+// Minimal JSONC reader: strips // line comments and trailing commas. Sufficient for wrangler configs
+// (no block comments; no string literals containing `//`).
+function parseSiteWrangler() {
+  const raw = readFileSync(SITE_WRANGLER_PATH, "utf8");
+  const withoutComments = raw
+    .split("\n")
+    .map((line) => stripJsoncLineComment(line))
+    .join("\n");
+  return JSON.parse(withoutComments.replace(/,(\s*[}\]])/g, "$1"));
+}
+
+function stripJsoncLineComment(line) {
+  let inString = false;
+  for (let i = 0; i < line.length; i += 1) {
+    if (line[i] === '"' && line[i - 1] !== "\\") {
+      inString = !inString;
+    }
+    if (!inString && line[i] === "/" && line[i + 1] === "/") {
+      return line.slice(0, i);
+    }
+  }
+  return line;
+}
+
+// ADR-0078 deploy-shape invariant enforced independently of any deploy run: the Public Site's
+// wrangler config names the expected workers and declares zero control-plane bindings in every
+// environment scope.
+export function assertSiteWranglerConfig() {
+  const config = parseSiteWrangler();
+  if (config.name !== SITE_WORKER_NAME) {
+    throw new Error(
+      `apps/site/wrangler.jsonc top-level name must be '${SITE_WORKER_NAME}' (ADR-0078).`,
+    );
+  }
+  if (config.env?.preview?.name !== SITE_PREVIEW_WORKER_NAME) {
+    throw new Error(
+      `apps/site/wrangler.jsonc env.preview.name must be '${SITE_PREVIEW_WORKER_NAME}' (ADR-0078).`,
+    );
+  }
+  for (const scope of [config, config.env?.preview]) {
+    if (!scope) {
+      continue;
+    }
+    const declared = FORBIDDEN_SITE_BINDINGS.filter((binding) => binding in scope);
+    if (declared.length > 0) {
+      throw new Error(
+        `apps/site/wrangler.jsonc declares forbidden control-plane binding(s): ${declared.join(", ")} (ADR-0078).`,
+      );
+    }
+  }
+}
 
 const ANY_WORKSPACE_MODULE = "(^|/)insecur__[^/]+\\.mjs$";
 
@@ -124,6 +185,7 @@ export function assertHostedCiVerifyRunsSiteBoundaryConformance() {
 
 export async function runSiteBoundaryConformance() {
   assertHostedCiVerifyRunsSiteBoundaryConformance();
+  assertSiteWranglerConfig();
   await assertSiteBoundaryNegativeProbe();
   const packages = await readWorkspacePackages();
   await assertSiteBoundaryConformance(packages);
