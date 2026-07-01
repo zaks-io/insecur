@@ -1,7 +1,7 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { SiteFooter, SiteHeader, SiteShell } from "@insecur/ui";
-import appCss from "@insecur/ui/styles.css?url";
+import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
   head: () => ({

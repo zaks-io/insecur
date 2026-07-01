@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*
+ * Tailwind v4 scans classes from the @insecur/ui components that ship with these tokens. Consuming
+ * apps import this stylesheet and add their own @source roots (e.g. their routes) for the utilities
+ * their markup uses.
+ */
+@source "../components";
+
 @custom-variant dark (&:is(.dark *));
 
 /*

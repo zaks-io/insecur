@@ -1,0 +1,7 @@
+/*
+ * Public Site stylesheet. Pulls in the @insecur/ui design tokens + component utilities, then adds
+ * this app's own source root so Tailwind v4 generates the utilities the site's routes use.
+ */
+@import "@insecur/ui/styles.css";
+
+@source "./";
