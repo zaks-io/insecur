@@ -57,6 +57,7 @@ jobs:
           pnpm conformance:actions-pin
           pnpm conformance:topology
           pnpm conformance:packages
+          pnpm conformance:site-boundary
           pnpm test:security-reporting
           pnpm exec turbo run lint typecheck test "${cache_flags}"
 

@@ -1,0 +1,38 @@
+{
+  "name": "@insecur/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "topo": "node -e \"\"",
+    "build": "vite build && WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --dry-run --outdir dist --env=\"\"",
+    "dev": "WRANGLER_LOG_PATH=.wrangler/logs vite dev --port 8789",
+    "deploy": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --env=\"\"",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .wrangler .output"
+  },
+  "dependencies": {
+    "@insecur/ui": "workspace:*",
+    "@tanstack/react-router": "^1.168.26",
+    "@tanstack/react-start": "^1.168.26",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.38.0",
+    "@cloudflare/workers-types": "catalog:",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "eslint": "catalog:",
+    "tailwindcss": "^4.3.1",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-tsconfig-paths": "^6.0.5",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
+  }
+}
