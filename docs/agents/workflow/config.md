@@ -29,8 +29,8 @@ external systems (Linear, GitHub, CI), not here.
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
 - Preview checks: no per-PR preview workflow; PR database validation is `CI` → `Postgres tests (integration + RLS + e2e)` using Docker Compose Postgres. Shared preview deploy is `Deploy Preview` / `pnpm deploy:preview`.
-- Production deploy path: `pnpm deploy:workers` (Cloudflare Workers `insecur-runtime` then `insecur-api`); approval required
-- Production approval required: yes
+- Production deploy path: `pnpm deploy:workers` (Cloudflare Workers `insecur-runtime` then `insecur-api`)
+- Production approval required: standing prelaunch approval from Isaac covers CI/CD process changes and deploy runs needed to validate the release path until the project has real users or real production data
 
 ## Issue Tracker
 
@@ -170,10 +170,10 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Development backing services: Neon Postgres (real RLS tests need `DATABASE_URL_RUNTIME`, start at FV-04); Cloudflare Workers
 - Preview: `Deploy Preview` workflow or local `pnpm deploy:preview`
 - Preview purpose: n/a until FV-02
-- Production: explicit approval required
-- Production forbidden without approval: `pnpm deploy:workers`, any Cloudflare/Neon production mutation, secret/key material changes
+- Production: standing prelaunch approval applies until the project has real users or real production data
+- Production deploy/process standing approval: agents may change CI/CD deploy process and run deploy commands needed to validate the release path. Keep Sensitive Values out of logs and preserve deploy capability isolation.
 - Hosted checks allowed without approval: read-only Linear MCP, read-only GitHub, local `pnpm verify`, Worker dry-run via `pnpm build`
-- Hosted checks requiring approval: any production deploy, any write to Cloudflare or Neon production
+- Hosted checks requiring approval: secret/key material changes, or any production Cloudflare/Neon write unrelated to validating the prelaunch release path
 
 ## Security Baseline
 
