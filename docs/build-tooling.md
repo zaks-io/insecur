@@ -590,6 +590,17 @@ The deployed smoke belongs to a separate shared preview workflow, not to `pull_r
 workflow may use Neon and Hyperdrive, but it must target a bounded shared preview database/Worker
 pair rather than allocating resources per PR.
 
+### Public site production deploy: `deploy-site`
+
+Trigger: successful `CI` workflow completion on `main`, or manual `workflow_dispatch`. The automatic
+path deploys only `@insecur/site` / `insecur-site` to `insecur.cloud` and `www.insecur.cloud` after
+the full `CI` workflow has passed for the merged commit. The manual path can still deploy the site to
+`preview.insecur.cloud`.
+
+The Public Site Worker is not the web console, API, or Runtime. It has no database, Hyperdrive,
+keyring, API Service Binding, Runtime Service Binding, or root-key binding. The site-boundary
+conformance gate keeps it on the `@insecur/ui` / public-marketing surface.
+
 ### Preview deploy: `deploy-preview`
 
 Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. This deploys the bounded shared
