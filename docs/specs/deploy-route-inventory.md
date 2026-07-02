@@ -44,6 +44,16 @@ root-key binding and NO Hyperdrive binding.
 | GET    | `/`          |
 | GET    | `/whoami`    |
 
+## Public Site Worker — `apps/site` (`insecur-site`)
+
+Public marketing/legal/security surface (ADR-0078). Holds no auth session, database, keyring, API,
+Runtime, or product-control-plane binding.
+
+| Method | Mount prefix |
+| ------ | ------------ |
+| GET    | `/healthz`   |
+| GET    | `/`          |
+
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 
 Sole holder of `INSTANCE_ROOT_KEY_V1`. Decrypt-egress deploy. Reached only via the private Service

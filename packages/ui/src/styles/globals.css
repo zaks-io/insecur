@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+/*
+ * Self-hosted Archivo (grotesque superfamily). Variable weight+width for the display tension a
+ * brutalist headline needs; Archivo Black for the heaviest cut. Self-hosted on purpose: a
+ * secrets-custody brand should not phone a font CDN on first paint.
+ */
+@import "@fontsource-variable/archivo/wght.css";
+@import "@fontsource/archivo-black/latin-400.css";
+
+@source "../components";
+
+/*
+ * @insecur/ui design tokens (ADR-0078). Presentational only. Stark ink-on-paper brutalism: no dark
+ * mode, no soft surfaces, no accent gradients. One signal color, used almost nowhere. The design is
+ * high contrast, hard edges, and big type; structure is drawn with hairline rules, not shadows.
+ */
+:root {
+  --radius: 0;
+
+  /* Paper and ink. The whole system is two colors plus one signal. */
+  --paper: oklch(0.965 0.006 95);
+  --ink: oklch(0.16 0.006 265);
+  --signal: oklch(
+    0.52 0.21 27
+  ); /* warning red; darkened to clear WCAG AA on small text over paper */
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--ink);
+  --secondary-foreground: var(--paper);
+  --muted: oklch(0.965 0.006 95);
+  --muted-foreground: oklch(0.42 0.006 265);
+  --accent: var(--signal);
+  --accent-foreground: var(--paper);
+  --destructive: var(--signal);
+  --border: var(--ink);
+  --input: var(--ink);
+  --ring: var(--ink);
+}
+
+@theme inline {
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-signal: var(--signal);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Black", "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--signal);
+    color: var(--paper);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 2px;
+  }
+}

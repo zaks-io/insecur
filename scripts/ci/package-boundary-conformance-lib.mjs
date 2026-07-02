@@ -1,10 +1,16 @@
-import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-export const REPO_ROOT = process.cwd();
+import {
+  assertDependencyCruiserRules,
+  graphModuleFileName,
+  graphPathPattern,
+  REPO_ROOT,
+} from "./dependency-cruiser-graph.mjs";
+
+export { graphModuleFileName, REPO_ROOT };
+
 const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
 export const WORKSPACE_DIRS = ["apps", "packages"];
 export const CRYPTO_PACKAGE = "@insecur/crypto";
@@ -134,41 +140,14 @@ export function assertBoundaryPackagesExist(packages) {
   }
 }
 
-export function graphModuleFileName(packageName) {
-  return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.mjs`;
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function graphPathPattern(packageName) {
-  return `(^|/)${escapeRegExp(graphModuleFileName(packageName))}$`;
-}
-
-function dependencyCruiserConfig() {
-  return {
-    forbidden: CRYPTO_FORBIDDEN_PRODUCTION_STARTS.map((start) => ({
-      name: `no-prod-crypto-from-${start.replace(/^@/, "").replaceAll("/", "-")}`,
-      comment: `${start} must not have a production dependency path to ${CRYPTO_PACKAGE}.`,
-      severity: "error",
-      from: {
-        path: graphPathPattern(start),
-      },
-      to: {
-        reachable: true,
-        path: graphPathPattern(CRYPTO_PACKAGE),
-      },
-    })),
-    options: {
-      doNotFollow: {
-        path: "node_modules",
-      },
-      progress: {
-        type: "none",
-      },
-    },
-  };
+function cryptoForbiddenRules() {
+  return CRYPTO_FORBIDDEN_PRODUCTION_STARTS.map((start) => ({
+    name: `no-prod-crypto-from-${start.replace(/^@/, "").replaceAll("/", "-")}`,
+    comment: `${start} must not have a production dependency path to ${CRYPTO_PACKAGE}.`,
+    severity: "error",
+    from: { path: graphPathPattern(start) },
+    to: { reachable: true, path: graphPathPattern(CRYPTO_PACKAGE) },
+  }));
 }
 
 /** Baseline graph for negative conformance probes (all required nodes, no crypto edges). */
@@ -184,86 +163,9 @@ export function createBaselineBoundaryPackages() {
   return packages;
 }
 
-// dependency-cruiser cruises source modules; this graph turns package manifests and
-// production source imports into cruisable modules without relying on built dist output.
-async function writeDependencyCruiserGraph(packages) {
-  const graphDir = await mkdtemp(path.join(os.tmpdir(), "insecur-package-boundary-"));
-  for (const [packageName, packageInfo] of packages) {
-    const workspaceDependencies = [
-      ...new Set([...packageInfo.dependencies, ...packageInfo.sourceImports]),
-    ]
-      .filter((dependencyName) => dependencyName !== packageName)
-      .filter((dependencyName) => packages.has(dependencyName))
-      .sort();
-    const imports = workspaceDependencies.map(
-      (dependencyName) => `import "./${graphModuleFileName(dependencyName)}";`,
-    );
-    await writeFile(
-      path.join(graphDir, graphModuleFileName(packageName)),
-      `${imports.join("\n")}\n`,
-      "utf8",
-    );
-  }
-
-  const configPath = path.join(graphDir, "dependency-cruiser.config.cjs");
-  await writeFile(
-    configPath,
-    `module.exports = ${JSON.stringify(dependencyCruiserConfig(), null, 2)};\n`,
-    "utf8",
-  );
-
-  return { graphDir, configPath };
-}
-
-async function runDependencyCruiser(graphDir, configPath) {
-  const args = [
-    "exec",
-    "depcruise",
-    graphDir,
-    "--config",
-    configPath,
-    "--output-type",
-    "err",
-    "--progress",
-    "none",
-  ];
-
-  const { stdout, stderr, exitCode } = await new Promise((resolve) => {
-    const child = spawn("pnpm", args, {
-      cwd: REPO_ROOT,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.on("error", (error) => resolve({ stdout, stderr: String(error), exitCode: 1 }));
-    child.on("close", (exitCode) => resolve({ stdout, stderr, exitCode }));
-  });
-
-  if (exitCode !== 0) {
-    const output = [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
-    throw new Error(output || `dependency-cruiser exited with status ${exitCode}`);
-  }
-
-  return { stdout, stderr };
-}
-
 export async function assertPackageBoundaryConformance(packages) {
   assertBoundaryPackagesExist(packages);
-
-  const { graphDir, configPath } = await writeDependencyCruiserGraph(packages);
-  try {
-    await runDependencyCruiser(graphDir, configPath);
-  } finally {
-    await rm(graphDir, { recursive: true, force: true });
-  }
+  await assertDependencyCruiserRules(packages, cryptoForbiddenRules(), "insecur-package-boundary-");
 }
 
 export function assertHostedCiVerifyRunsPackageBoundaryConformance() {

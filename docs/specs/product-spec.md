@@ -83,6 +83,35 @@ Hyperdrive-backed Neon Postgres as the source of truth. The deploys are:
   cookie, CSRF, and rotation, and calls the API over a private Service Binding
   ([ADR-0051](../adr/0051-web-console-architecture.md),
   [ADR-0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)).
+- **Public Site** (`apps/site`, script `insecur-site`): the public marketing and legal site for
+  `insecur.cloud` and `www.insecur.cloud`. It uses the same TanStack frontend stack as the Web BFF
+  through a shared Tailwind + shadcn-based `@insecur/ui` component and style package. `@insecur/ui`
+  is presentational and content-free: it owns design tokens, shared components, and branded layout
+  primitives, not routes, marketing copy, legal text, loaders, auth/session logic, analytics,
+  experiments, or product API types. The Public Site is not a BFF: it owns no auth session, has no
+  database, keyring, API, Runtime, or product-control-plane binding, and its import boundary is
+  enforced with dependency-cruiser: production source in `@insecur/site` may import only
+  `@insecur/ui` from the workspace, and production source in `@insecur/ui` may import no
+  `@insecur/*` packages ([ADR-0078](../adr/0078-public-site-worker.md)). The Web BFF remains the
+  authenticated app surface, for example `app.insecur.cloud`. Public-site feature flags and A/B
+  testing are future work; the mechanism is not decided. The initial public routes are the landing
+  page, no-reveal mechanism page, legal terms, privacy policy, and an open-security posture page
+  that frames the intended threat model and verification path at a high level, linking to public code
+  and threat-model/security-design material once those are public. Pricing is deferred until the
+  tester phase has real charging intent. The primary Public Site call to action is product use
+  through the **First Value Proof**: a copyable, static terminal demo using the real CLI to
+  initialize, save or generate a development secret, and use it through Runtime Injection in a small
+  command or mock service. The initial site does not run browser-executed demos, hosted sandboxes, or
+  browser-side secret workflows. Public GitHub links may appear once the repository is public. Legal
+  terms and privacy copy live as Public Site content under
+  `apps/site/content/legal/`, are not generated from product specs or ADRs, and require
+  legal/publication review before going public. The Public Site has independent deploy paths: a local
+  CLI script for deploying the current checkout and a GitHub Actions workflow. Preview deploys route
+  `preview.insecur.cloud` to `insecur-site-preview`; production deploys route `insecur.cloud` and
+  `www.insecur.cloud` to `insecur-site`. Production deploy is manual-only for now; do not auto-publish
+  site production on every `main` push until legal and security publication gates are settled. This
+  stays separate from the API/Runtime preview deploy path, which owns DB migration and First Value
+  smoke.
 - **Service Access**: a separate deploy with its own auth audience, deferred past V1
   ([ADR-0019](../adr/0019-service-access-without-secret-reveal.md)) but never collapsed into another
   deploy when built.
@@ -748,6 +777,6 @@ Trace: [ADR-0008](../adr/0008-security-gates-and-runbooks.md),
 | CLI, runtime injection, and secret egress              | [0007](../adr/0007-developer-first-cli-contract.md), [0016](../adr/0016-delivery-first-secret-egress.md), [0035](../adr/0035-display-name-resolution.md), [0038](../adr/0038-protected-delivery-requires-machine-credential.md), [0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)                                                                                                                                                                                                                                                                  |
 | Protected changes and policy                           | [0017](../adr/0017-protected-environment-promotion-and-rollback.md), [0033](../adr/0033-staged-change-set-and-publish.md), [0042](../adr/0042-policy-gated-delivery-channels.md), [0043](../adr/0043-delivery-risk-policy-presets.md)                                                                                                                                                                                                                                                                                                                                 |
 | Provider sync                                          | [0006](../adr/0006-app-connections-and-secret-syncs.md), [0011](../adr/0011-provider-connection-method-matrix.md), [0012](../adr/0012-queue-backed-sync-execution.md) (superseded by 0057), [0013](../adr/0013-durable-object-sync-target-serialization.md) (superseded by 0057), [0023](../adr/0023-cloudflare-secrets-store-sync-target.md) (superseded by 0039), [0024](../adr/0024-libsodium-wasm-for-github-sealed-box.md), [0039](../adr/0039-cloudflare-worker-secrets-sync-target.md), [0057](../adr/0057-inline-sync-execution-and-partial-failure-model.md) |
-| Web and approval surfaces                              | [0051](../adr/0051-web-console-architecture.md), [0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Web and approval surfaces                              | [0051](../adr/0051-web-console-architecture.md), [0052](../adr/0052-web-no-reveal-boundary-and-management-parity.md), [0078](../adr/0078-public-site-worker.md)                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Audit, telemetry, backup, legal, and incident response | [0014](../adr/0014-tamper-evident-audit-exports.md), [0030](../adr/0030-hybrid-allowlisted-telemetry.md), [0045](../adr/0045-asymmetric-signing-for-audit-exports-in-v1.md), [0046](../adr/0046-us-residency-claim-scoped-to-data-at-rest.md), [0047](../adr/0047-regulated-industry-exclusion-by-contract-and-attestation.md), [0048](../adr/0048-breach-forensic-record-separate-from-audit-retention.md), [0058](../adr/0058-minimal-backup-and-tested-restore.md), [0059](../adr/0059-tenant-reported-secret-compromise-response.md)                              |
 | Build, tests, and supply chain                         | [0008](../adr/0008-security-gates-and-runbooks.md), [0053](../adr/0053-remote-build-cache-trust-model.md), [0054](../adr/0054-tenant-isolation-tests-real-postgres.md), [0055](../adr/0055-eslint-prettier-type-aware-toolchain.md), [0056](../adr/0056-supply-chain-hardening-posture.md), [0060](../adr/0060-postgres-17-development-baseline.md), [0061](../adr/0061-blacksmith-github-actions-runners.md), [0065](../adr/0065-test-layers-and-preview-smoke.md)                                                                                                   |

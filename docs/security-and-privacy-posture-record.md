@@ -44,6 +44,10 @@ This is the private source record for future customer-facing security and privac
 ## Review Rules For External Copy
 
 - Treat this file as private source material; do not publish it directly.
+- The Public Site security page should be an open-security index, not a sanitized trust blurb: state
+  the intended posture, point to public implementation and deeper threat-model/security-design
+  material once public, and keep claims tied to what the governing ADRs/specs and shipped code
+  support.
 - Check no-reveal and technical-inability language against ADR-0044.
 - Check Customer-Managed Key Custody language against ADR-0050.
 - Check audit-integrity language against ADR-0045.

@@ -204,7 +204,8 @@ and are not repeated here.
     "dev:db:reset": "node scripts/dev-db.mjs reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "ci:check": "pnpm verify",
+    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
   },
 }
@@ -217,9 +218,10 @@ blocking duplicate zero gate, knip, actionlint (optional-local), the actions-pin
 deploy-topology conformance gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability
 isolation against the wrangler configs and composition roots), the package-boundary conformance gate
 (`conformance:packages` — asserts the public/API and contract packages have no production dependency
-path to `@insecur/crypto`), the Prettier check, then the Turbo `lint typecheck test` fan-out. A green
-`verify` should predict a green `CI`. `prepare` installs the lefthook hooks via
-`scripts/lefthook-install.mjs` on every install.
+path to `@insecur/crypto`), the site-boundary conformance gate (`conformance:site-boundary`), the
+Prettier check, then the Turbo `lint typecheck test` fan-out. A green `verify` should predict a
+green `CI`. `ci:check` is a compatibility alias for `verify`. `prepare` installs the lefthook hooks
+via `scripts/lefthook-install.mjs` on every install.
 
 ## Duplicate Code Detection
 
@@ -544,6 +546,12 @@ GitHub Actions on Blacksmith-hosted runners (ADR-0061). Every job sets `runs-on`
 
 Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets. Branch protection keys on the job names within this workflow (`Verify`, `Coverage`, ...), not the workflow name, so the jobs are the required checks.
 
+The `Detect changes` job classifies a pull request as docs-only when every changed path is under
+`docs/**` or ends in `.md`. On docs-only PRs, code-heavy required jobs complete with explicit no-op
+steps instead of installing dependencies or running build/test/scanner work. `merge_group` always
+runs the full gate. The gitleaks `Secret scan` job still runs on docs-only PRs because documentation
+can leak secrets.
+
 The `Verify` job runs a hand-rolled subset aligned with `pnpm verify` (not a literal `pnpm verify` invocation, so knip and actionlint stay in their own jobs and CI can enable remote Turbo cache writes only when secrets are present):
 
 ```
@@ -553,6 +561,7 @@ pnpm format:check
 pnpm conformance:actions-pin
 pnpm conformance:topology
 pnpm conformance:packages
+pnpm conformance:site-boundary
 pnpm test:security-reporting
 pnpm exec turbo run lint typecheck test --cache=local:rw,remote:<r|rw>
 ```
@@ -561,7 +570,9 @@ pnpm exec turbo run lint typecheck test --cache=local:rw,remote:<r|rw>
 
 Other required jobs in the same workflow: `Coverage` (`pnpm test:coverage`), `Knip`, `Actionlint`, `Postgres tests (integration + RLS + e2e)`, `Secret scan (gitleaks)`, `SAST (semgrep)`, `SBOM and vulnerability scan (syft + grype)`, and the dependency-scan placeholder.
 
-These jobs are required status checks on the protected branch. They run for forked pull requests too, because they touch no secrets.
+These jobs are required status checks on the protected branch. They run for forked pull requests too,
+because they touch no secrets. Docs-only PRs keep the required job names green while skipping
+code-only work; merge queue runs stay full validation.
 
 ### PR Database Policy
 
@@ -578,6 +589,17 @@ node scripts/ci/postgres-integration-tests.mjs
 The deployed smoke belongs to a separate shared preview workflow, not to `pull_request`. That
 workflow may use Neon and Hyperdrive, but it must target a bounded shared preview database/Worker
 pair rather than allocating resources per PR.
+
+### Public site production deploy: `deploy-site`
+
+Trigger: successful `CI` workflow completion on `main`, or manual `workflow_dispatch`. The automatic
+path deploys only `@insecur/site` / `insecur-site` to `insecur.cloud` and `www.insecur.cloud` after
+the full `CI` workflow has passed for the merged commit. The manual path can still deploy the site to
+`preview.insecur.cloud`.
+
+The Public Site Worker is not the web console, API, or Runtime. It has no database, Hyperdrive,
+keyring, API Service Binding, Runtime Service Binding, or root-key binding. The site-boundary
+conformance gate keeps it on the `@insecur/ui` / public-marketing surface.
 
 ### Preview deploy: `deploy-preview`
 
@@ -677,7 +699,8 @@ The build-tooling layer is complete when all of the following are verifiable:
 
 - `pnpm install` runs on pnpm 10 and Node 24, fails on a wrong Node major (`engine-strict`), and fails if any non-allowlisted dependency requests a lifecycle script (`strictDepBuilds`).
 - A dependency version published less than 3 days ago cannot be installed (`minimumReleaseAge: 4320`).
-- `pnpm verify` runs the duplicate annotations and zero-duplicate gate, knip, actionlint (when installed), actions-pin conformance, deploy topology conformance, package-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
+- `pnpm verify` runs the duplicate annotations and zero-duplicate gate, knip, actionlint (when installed), actions-pin conformance, deploy topology conformance, package-boundary conformance, site-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
+- `pnpm ci:check` is available as an operator-friendly alias for `pnpm verify`.
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
 - A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `CI`; test files are exempt from the two length caps only.
@@ -685,7 +708,8 @@ The build-tooling layer is complete when all of the following are verifiable:
 - `pnpm duplicates:warn` emits GitHub warning annotations for every jscpd clone without failing `CI`; `pnpm duplicates:check` is available as the strict local zero-threshold gate.
 - A commit that introduces a type error, a lint error, a formatting drift, or a staged secret is blocked at pre-commit; a push with a failing local test or a coverage threshold regression is blocked at pre-push; `--no-verify` bypasses locally but the same checks block in `CI`.
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.
-- A forked pull request runs the `CI` workflow only and reaches no secret-bearing step.
+- A forked pull request runs the `CI` workflow only and reaches no secret-bearing step. A docs-only
+  pull request skips code-heavy CI jobs but still runs gitleaks.
 - A merge to `main` auto-deploys staging; a production deploy waits on a GitHub Environment required reviewer and runs under a machine identity distinct from the approver.
 - The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated
   Linear filing for critical findings is disabled by default; `report-criticals` skips unless

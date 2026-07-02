@@ -1,17 +1,10 @@
 #!/usr/bin/env node
-import {
-  appendFileSync,
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 import { parseEnvAssignments } from "../packages/tenant-store/scripts/lib/env-local.mjs";
+import { emitOutput, waitForHealthz } from "./lib/deploy-utils.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const apiConfig = "apps/api/wrangler.jsonc";
@@ -62,7 +55,7 @@ async function main(config) {
 }
 
 function buildWorkspace() {
-  run("pnpm", ["build"], process.env);
+  run("pnpm", ["build"], { cwd: root });
 }
 
 function migrateAndSeed(config) {
@@ -77,7 +70,7 @@ function migrateAndSeed(config) {
     // query fails closed with "permission denied for table ...".
     INSECUR_POSTGRES_RUNTIME_ROLE: config.previewRuntimeRole,
   };
-  run("pnpm", ["--filter", "@insecur/tenant-store", "migrate:local"], env);
+  run("pnpm", ["--filter", "@insecur/tenant-store", "migrate:local"], { cwd: root, env });
   run(
     "pnpm",
     [
@@ -87,7 +80,7 @@ function migrateAndSeed(config) {
       "node",
       "scripts/seed-preview-smoke-admission.mjs",
     ],
-    env,
+    { cwd: root, env },
   );
 }
 
@@ -117,7 +110,7 @@ function deployWorker(packageName, configPath, config, vars = [], secretKeys = [
       });
       args.push("--secrets-file", secretsPath);
     }
-    run("pnpm", args, process.env);
+    run("pnpm", args, { cwd: root });
   } finally {
     if (secretsDir) {
       rmSync(secretsDir, { force: true, recursive: true });
@@ -142,42 +135,16 @@ function runSmoke(config) {
     "pnpm",
     ["--filter", "@insecur/api", "exec", "node", join(root, "scripts/ci/smoke-first-value.mjs")],
     {
-      ...process.env,
-      SMOKE_BASE_URL: config.baseUrl,
-      SMOKE_SESSION_SIGNING_SECRET: config.smokeSessionSigningSecret,
-      SMOKE_WORKOS_USER_ID: config.smokeWorkosUserId,
-      SMOKE_ADMITTED_USER_ID: config.smokeAdmittedUserId,
+      cwd: root,
+      env: {
+        ...process.env,
+        SMOKE_BASE_URL: config.baseUrl,
+        SMOKE_SESSION_SIGNING_SECRET: config.smokeSessionSigningSecret,
+        SMOKE_WORKOS_USER_ID: config.smokeWorkosUserId,
+        SMOKE_ADMITTED_USER_ID: config.smokeAdmittedUserId,
+      },
     },
   );
-}
-
-async function waitForHealthz(baseUrl) {
-  const attempts = 45;
-  let consecutive = 0;
-  for (let i = 1; i <= attempts; i += 1) {
-    const status = await fetchStatus(`${baseUrl}/healthz`);
-    if (status === 200) {
-      consecutive += 1;
-      process.stdout.write(`${baseUrl}/healthz healthy (${consecutive}/3) on attempt ${i}\n`);
-      if (consecutive >= 3) {
-        return;
-      }
-    } else {
-      consecutive = 0;
-      process.stdout.write(`not ready (status=${status}) on attempt ${i}, retrying...\n`);
-    }
-    await sleep(2000);
-  }
-  throw new Error(`${baseUrl}/healthz never got 3 consecutive healthy responses`);
-}
-
-async function fetchStatus(url) {
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    return response.status;
-  } catch {
-    return 0;
-  }
 }
 
 function readConfig() {
@@ -255,28 +222,6 @@ function requireEnv(name) {
     throw new Error(`${name} is required for preview deploy`);
   }
   return value;
-}
-
-function run(command, args, env, input) {
-  const result = spawnSync(command, args, {
-    cwd: root,
-    env,
-    input,
-    stdio: input === undefined ? "inherit" : ["pipe", "inherit", "inherit"],
-  });
-  if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status ?? 1}`);
-  }
-}
-
-function emitOutput(name, value) {
-  if (process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
-  }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function parseArgs(argv) {

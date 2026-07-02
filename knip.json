@@ -26,9 +26,17 @@
       "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/ui": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
     "apps/api": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "apps/site": {
+      "entry": ["src/router.tsx", "src/start.ts", "src/routes/**/*.tsx"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["tailwindcss"]
     },
     "apps/runtime": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
