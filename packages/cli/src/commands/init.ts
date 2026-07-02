@@ -1,6 +1,7 @@
 import { parseDisplayName, successEnvelope, type DisplayName } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
+import { parseCliProfileSlug } from "../config/profiles/profile-slug.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { persistInitConfig } from "./init-persist.js";
@@ -36,6 +37,7 @@ export async function runInitCommand(
 ): Promise<number> {
   const credential = requireSessionCredential();
   const { host, orgId, projectId, envId } = context.scope;
+  const profileSlug = parseCliProfileSlug(commandOptions.profileSlug, "--profile-slug");
   const provisioned = await api.provisionPersonalOrganization({
     host,
     bearerCredential: credential,
@@ -50,7 +52,7 @@ export async function runInitCommand(
   const { configPath, profileId } = await persistInitConfig({
     configDir: flags.configDir,
     host,
-    profileSlug: commandOptions.profileSlug,
+    profileSlug,
     profileDisplayName: INIT_LABELS.profile,
     data,
   });
@@ -58,7 +60,7 @@ export async function runInitCommand(
     configPath,
     data,
     profileId,
-    profileSlug: commandOptions.profileSlug,
+    profileSlug,
     requestId: provisioned.envelope.meta?.requestId,
   });
   return 0;

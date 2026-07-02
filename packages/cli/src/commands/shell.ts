@@ -1,10 +1,10 @@
-import { successEnvelope, type ResolvedTargetEcho } from "@insecur/domain";
+import { successEnvelope } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { resolveProfile } from "../config/profiles/resolve-profile.js";
+import { buildCliProfileResolvedTarget } from "../display-name-resolution/index.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import { renderSuccess } from "../output/render.js";
-import { asEchoId } from "../output/target-echo.js";
 import { buildShellChildEnv, shellProfileSummary } from "./shell-env.js";
 import { resolveInteractiveShell, runInteractiveShell } from "./managed-shell.js";
 
@@ -20,14 +20,7 @@ export async function runShellCommand(
     { required: true },
   );
   const { host } = profile;
-  const resolvedTargets: ResolvedTargetEcho[] = [
-    {
-      type: "cli_profile",
-      id: asEchoId(profileId),
-      slug: profile.slug,
-      displayName: profile.displayName,
-    },
-  ];
+  const resolvedTargets = [buildCliProfileResolvedTarget(profileId, profile)];
   if (flags.json) {
     renderSuccess(
       successEnvelope({ profileId, profileSlug: profile.slug, host }, { resolvedTargets }),

@@ -57,6 +57,14 @@ describe("shell command registration", () => {
       const parsed = JSON.parse(String(stdout.mock.calls[0]?.[0])) as {
         ok: boolean;
         data: { profileId: string; profileSlug: string; host: string };
+        meta?: {
+          resolvedTargets?: {
+            type: string;
+            id: string;
+            slug?: string;
+            displayName?: string;
+          }[];
+        };
       };
       expect(parsed).toMatchObject({
         ok: true,
@@ -66,6 +74,14 @@ describe("shell command registration", () => {
         },
       });
       expect(parsed.data.host).toBe("https://insecur.test");
+      expect(parsed.meta?.resolvedTargets).toEqual([
+        {
+          type: "cli_profile",
+          id: PROFILE_ID,
+          slug: "local-dev",
+          displayName: "Local Dev",
+        },
+      ]);
     } finally {
       isolatedHome.restore();
     }

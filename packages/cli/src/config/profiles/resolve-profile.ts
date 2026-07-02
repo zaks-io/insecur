@@ -1,6 +1,8 @@
 import type { CliProfileId } from "@insecur/domain";
+import { CLI_ERROR_CODES } from "@insecur/domain";
 import type { CliUserConfig, CliUserProfile } from "../user-config.js";
 import { parseCliProfileId } from "../parse-resource-id.js";
+import { parseCliProfileSlug } from "./profile-slug.js";
 import { CliError } from "../../output/cli-error.js";
 import { EXIT_NOT_FOUND } from "../../output/exit-codes.js";
 
@@ -29,7 +31,7 @@ function profileNotFoundMessage(input: ResolveProfileInput): string {
 function throwProfileNotFound(input: ResolveProfileInput): never {
   throw new CliError(
     {
-      code: "cli.profile_not_found",
+      code: CLI_ERROR_CODES.profileNotFound,
       message: profileNotFoundMessage(input),
       retryable: false,
     },
@@ -55,9 +57,8 @@ function lookupBySlugOrSelector(
   if (slugOrSelector.startsWith("prof_")) {
     return lookupById(userConfig, parseCliProfileId(slugOrSelector, "--profile"));
   }
-  const match = Object.entries(userConfig.profiles).find(
-    ([, profile]) => profile.slug === slugOrSelector,
-  );
+  const slug = parseCliProfileSlug(slugOrSelector, "--profile");
+  const match = Object.entries(userConfig.profiles).find(([, profile]) => profile.slug === slug);
   if (match === undefined) {
     return undefined;
   }

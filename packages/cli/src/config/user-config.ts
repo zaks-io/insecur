@@ -5,7 +5,9 @@ import type {
   OrganizationId,
   ProjectId,
 } from "@insecur/domain";
+import { CLI_ERROR_CODES } from "@insecur/domain";
 import { assertNoForbiddenConfigKeys } from "./forbidden-config-keys.js";
+import { parseCliProfileSlug } from "./profiles/profile-slug.js";
 import {
   parseCliProfileId,
   parseEnvironmentId,
@@ -14,6 +16,7 @@ import {
 } from "./parse-resource-id.js";
 import { requireNonEmptyString } from "./require-non-empty-string.js";
 import { readJsonFile, userConfigPath, writeJsonFile } from "./paths.js";
+import { CliError } from "../output/cli-error.js";
 
 export interface CliUserProfile {
   readonly slug: string;
@@ -30,7 +33,10 @@ export interface CliUserConfig {
 
 function parseProfile(profileId: string, record: Record<string, unknown>): CliUserProfile {
   assertNoForbiddenConfigKeys(record, `profiles.${profileId}`);
-  const slug = requireNonEmptyString(record.slug, `profiles.${profileId}.slug`);
+  const slug = parseCliProfileSlug(
+    requireNonEmptyString(record.slug, `profiles.${profileId}.slug`),
+    `profiles.${profileId}.slug`,
+  );
   const displayName = requireNonEmptyString(
     record.displayName,
     `profiles.${profileId}.displayName`,
@@ -95,7 +101,11 @@ export async function upsertUserProfile(
   const profiles: Record<string, CliUserProfile> = { ...existing.profiles };
   for (const [id, existingProfile] of Object.entries(profiles)) {
     if (id !== profileId && existingProfile.slug === profile.slug) {
-      throw new Error(`CLI profile slug already in use: ${profile.slug}`);
+      throw new CliError({
+        code: CLI_ERROR_CODES.profileSlugInUse,
+        message: `CLI profile slug already in use: ${profile.slug}`,
+        retryable: false,
+      });
     }
   }
   profiles[profileId] = profile;

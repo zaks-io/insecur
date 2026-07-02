@@ -149,6 +149,20 @@ export const OPERATION_ERROR_CODES = {
 
 export type OperationErrorCode = (typeof OPERATION_ERROR_CODES)[keyof typeof OPERATION_ERROR_CODES];
 
+/** Client-side CLI resolution and selector failures. */
+export const CLI_ERROR_CODES = {
+  profileNotFound: "cli.profile_not_found",
+  displayNameNotFound: "cli.display_name_not_found",
+  displayNameAmbiguous: "cli.display_name_ambiguous",
+  parentScopeUnresolved: "cli.parent_scope_unresolved",
+  destructiveIdRequired: "cli.destructive_id_required",
+  profileSlugInUse: "cli.profile_slug_in_use",
+  invalidProfileSlug: "validation.invalid_profile_slug",
+  scopedSelectorNotFound: "cli.scoped_selector_not_found",
+} as const;
+
+export type CliErrorCode = (typeof CLI_ERROR_CODES)[keyof typeof CLI_ERROR_CODES];
+
 /**
  * Every `*_ERROR_CODES` catalog in this module. Append new catalogs here and to
  * `KnownErrorCode` so `known-error-code-catalog.ts` lockstep coverage cannot miss them.
@@ -166,6 +180,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   ABUSE_ERROR_CODES,
   AUDIT_ERROR_CODES,
   OPERATION_ERROR_CODES,
+  CLI_ERROR_CODES,
 ] as const;
 
 export type KnownErrorCode =
@@ -181,4 +196,5 @@ export type KnownErrorCode =
   | AbuseErrorCode
   | AuditErrorCode
   | OperationErrorCode
+  | CliErrorCode
   | (string & {});
