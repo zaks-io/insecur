@@ -52,6 +52,19 @@ describe("assertProtectedPolicyUseAllowed", () => {
     ).rejects.toMatchObject({ code: RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked });
   });
 
+  it("blocks protected policy use when storage security gate evidence is absent", async () => {
+    await expect(
+      assertProtectedPolicyUseAllowed({
+        actor: {
+          type: "machine",
+          machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+        },
+        coordinate: COORDINATE,
+        isProtected: true,
+      }),
+    ).rejects.toMatchObject({ code: RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked });
+  });
+
   it("throws RuntimeInjectionPolicyError for protected human use", async () => {
     await expect(
       assertProtectedPolicyUseAllowed({

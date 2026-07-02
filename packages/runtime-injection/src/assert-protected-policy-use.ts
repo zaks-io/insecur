@@ -31,7 +31,7 @@ export async function assertProtectedPolicyUseAllowed(
     );
   }
 
-  if (input.storageSecurityGatePassed === false) {
+  if (input.storageSecurityGatePassed !== true) {
     throw new RuntimeInjectionPolicyError(
       RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked,
       "protected runtime injection policy use blocked until storage security gate passes",

@@ -70,6 +70,7 @@ function versionContent(secretIds: readonly string[] = [TEST_SECRET_A_ID]) {
 
 async function cleanupPolicies(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+    await sql`UPDATE runtime_injection_policies SET active_version_id = NULL WHERE id = ${POLICY_ID}`;
     await sql`DELETE FROM runtime_injection_policy_versions WHERE policy_id = ${POLICY_ID}`;
     await sql`DELETE FROM runtime_injection_policies WHERE id = ${POLICY_ID}`;
     await sql`DELETE FROM memberships WHERE id = ${READ_ONLY_MEMBERSHIP_ID}`;
