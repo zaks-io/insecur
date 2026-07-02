@@ -74,8 +74,11 @@ export {
   FIRST_VALUE_FEEDBACK_KINDS,
   type CaptureFirstValueFeedbackInput,
   type FirstValueFeedbackKind,
+  type FirstValueFeedbackNoteCode,
   type ParseFirstValueFeedbackResult,
+  FIRST_VALUE_FEEDBACK_NOTE_CODES,
   isFirstValueFeedbackKind,
+  isFirstValueFeedbackNoteCode,
   parseFirstValueFeedbackInput,
   throwFirstValueFeedbackValidationError,
 } from "./first-value-feedback.js";

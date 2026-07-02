@@ -25,7 +25,7 @@ designPartnerFeedbackRoutes.post("/", requireUserActor, async (context) => {
     const organizationId = parseOrganizationRouteParam(context);
     const body = parseJsonBody(await context.req.json());
     const feedbackKind = readRequiredString(body, "feedbackKind");
-    const note = readRequiredString(body, "note");
+    const noteCode = readRequiredString(body, "noteCode");
     const grantIdRaw = readOptionalString(body, "grantId");
     const operationIdRaw = readOptionalString(body, "operationId");
     const associatedRequestIdRaw = readOptionalString(body, "associatedRequestId");
@@ -33,7 +33,7 @@ designPartnerFeedbackRoutes.post("/", requireUserActor, async (context) => {
     return runtimeClientFor(context.env, userActor).captureFirstValueFeedback({
       organizationId,
       feedbackKind,
-      note,
+      noteCode,
       requestId: reqId,
       ...(grantIdRaw !== undefined ? { grantId: parseGrantIdParam(grantIdRaw) } : {}),
       ...(operationIdRaw !== undefined

@@ -65,7 +65,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     feedback_kind: { category: "type-code" },
     grant_id: { category: "opaque-id" },
     id: { category: "opaque-id" },
-    note: { category: "display-name" },
+    note: { category: "type-code" },
     operation_id: { category: "opaque-id" },
     org_id: { category: "opaque-id" },
     request_id: { category: "opaque-id" },

@@ -19,7 +19,7 @@ function toInsertRow(input: ParsedFirstValueFeedbackInput) {
     orgId: input.organizationId,
     actorUserId: input.actorUserId,
     feedbackKind: input.feedbackKind,
-    note: input.note,
+    note: input.noteCode,
     grantId: input.grantId ?? null,
     operationId: input.operationId ?? null,
     requestId: input.requestId ?? null,

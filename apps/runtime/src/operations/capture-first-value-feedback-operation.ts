@@ -6,7 +6,9 @@ import {
   projectId,
   userId,
   AUTH_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
 } from "@insecur/domain";
+import { TenantOperationStore } from "@insecur/operations";
 import { InjectionGrantError } from "@insecur/runtime-injection";
 import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "@insecur/runtime-injection-issue";
 import { TenantInjectionGrantStore, withTenantScope } from "@insecur/tenant-store";
@@ -16,6 +18,42 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeRpcActorContext } from "../rpc/runtime-rpc-entry.js";
+
+async function assertTenantFeedbackAssociationExists(
+  input: CaptureFirstValueFeedbackRpcInput,
+): Promise<void> {
+  await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async ({ sql }) => {
+      if (input.operationId !== undefined) {
+        const operation = await new TenantOperationStore(sql).getById(
+          input.organizationId,
+          input.operationId,
+        );
+        if (operation === null) {
+          throw Object.assign(new Error("feedback operation association not found"), {
+            code: VALIDATION_ERROR_CODES.feedbackAssociationNotFound,
+          });
+        }
+      }
+
+      if (input.associatedRequestId !== undefined) {
+        const rows = await sql<{ id: string }[]>`
+          SELECT id
+          FROM audit_events
+          WHERE org_id = ${input.organizationId}
+            AND request_id = ${input.associatedRequestId}
+          LIMIT 1
+        `;
+        if (rows.length === 0) {
+          throw Object.assign(new Error("feedback request association not found"), {
+            code: VALIDATION_ERROR_CODES.feedbackAssociationNotFound,
+          });
+        }
+      }
+    },
+  );
+}
 
 async function assertFirstValueFeedbackAccess(
   input: CaptureFirstValueFeedbackRpcInput,
@@ -28,6 +66,7 @@ async function assertFirstValueFeedbackAccess(
   }
 
   await assertOrganizationMembership(actors.accessActor, input.organizationId);
+  await assertTenantFeedbackAssociationExists(input);
 
   if (input.grantId === undefined) {
     return;
@@ -69,7 +108,7 @@ export async function captureFirstValueFeedbackOperation(
     organizationId: input.organizationId,
     actorUserId: userId.brand(actors.actor.userId),
     feedbackKind: input.feedbackKind,
-    note: input.note,
+    noteCode: input.noteCode,
     ...(input.grantId !== undefined ? { grantId: input.grantId } : {}),
     ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
     ...(input.associatedRequestId !== undefined ? { requestId: input.associatedRequestId } : {}),

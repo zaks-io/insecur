@@ -242,7 +242,7 @@ export interface RecordInjectionRunCompletedRpcPayload {
 export interface CaptureFirstValueFeedbackRpcInput extends PostAuthRpcInputBase {
   readonly organizationId: OrganizationId;
   readonly feedbackKind: string;
-  readonly note: string;
+  readonly noteCode: string;
   readonly grantId?: InjectionGrantId;
   readonly operationId?: OperationId;
   readonly associatedRequestId?: RequestId;

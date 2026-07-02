@@ -1,7 +1,5 @@
 import {
-  parseDisplayName,
   VALIDATION_ERROR_CODES,
-  type DisplayName,
   type InjectionGrantId,
   type OperationId,
   type OrganizationId,
@@ -25,11 +23,34 @@ export function isFirstValueFeedbackKind(value: string): value is FirstValueFeed
   return FIRST_VALUE_FEEDBACK_KIND_SET.has(value);
 }
 
+/** Closed vocabulary for metadata-only feedback notes; no user-authored free text. */
+export const FIRST_VALUE_FEEDBACK_NOTE_CODES = {
+  cliInitBlocker: "feedback.note.cli_init_blocker",
+  grantFlowBlocker: "feedback.note.grant_flow_blocker",
+  setupFriction: "feedback.note.setup_friction",
+  docsFriction: "feedback.note.docs_friction",
+  praiseLoop: "feedback.note.praise_loop",
+  praiseSpeed: "feedback.note.praise_speed",
+  suggestOnboarding: "feedback.note.suggest_onboarding",
+  suggestDocs: "feedback.note.suggest_docs",
+} as const;
+
+export type FirstValueFeedbackNoteCode =
+  (typeof FIRST_VALUE_FEEDBACK_NOTE_CODES)[keyof typeof FIRST_VALUE_FEEDBACK_NOTE_CODES];
+
+const FIRST_VALUE_FEEDBACK_NOTE_CODE_SET = new Set<string>(
+  Object.values(FIRST_VALUE_FEEDBACK_NOTE_CODES),
+);
+
+export function isFirstValueFeedbackNoteCode(value: string): value is FirstValueFeedbackNoteCode {
+  return FIRST_VALUE_FEEDBACK_NOTE_CODE_SET.has(value);
+}
+
 export interface CaptureFirstValueFeedbackInput {
   organizationId: OrganizationId;
   actorUserId: UserId;
   feedbackKind: string;
-  note: string;
+  noteCode: string;
   grantId?: InjectionGrantId;
   operationId?: OperationId;
   requestId?: RequestId;
@@ -39,7 +60,7 @@ export interface ParsedFirstValueFeedbackInput {
   organizationId: OrganizationId;
   actorUserId: UserId;
   feedbackKind: FirstValueFeedbackKind;
-  note: DisplayName;
+  noteCode: FirstValueFeedbackNoteCode;
   grantId?: InjectionGrantId;
   operationId?: OperationId;
   requestId?: RequestId;
@@ -51,8 +72,7 @@ export type ParseFirstValueFeedbackResult =
       ok: false;
       code:
         | typeof VALIDATION_ERROR_CODES.invalidFeedbackKind
-        | typeof VALIDATION_ERROR_CODES.invalidDisplayName
-        | typeof VALIDATION_ERROR_CODES.displayNameEmpty
+        | typeof VALIDATION_ERROR_CODES.invalidFeedbackNoteCode
         | typeof VALIDATION_ERROR_CODES.feedbackAssociationRequired;
     };
 
@@ -65,13 +85,13 @@ function hasFeedbackAssociation(input: CaptureFirstValueFeedbackInput): boolean 
 function buildParsedFeedbackInput(
   input: CaptureFirstValueFeedbackInput,
   feedbackKind: FirstValueFeedbackKind,
-  note: DisplayName,
+  noteCode: FirstValueFeedbackNoteCode,
 ): ParsedFirstValueFeedbackInput {
   return {
     organizationId: input.organizationId,
     actorUserId: input.actorUserId,
     feedbackKind,
-    note,
+    noteCode,
     ...(input.grantId !== undefined ? { grantId: input.grantId } : {}),
     ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
     ...(input.requestId !== undefined ? { requestId: input.requestId } : {}),
@@ -96,9 +116,8 @@ export function parseFirstValueFeedbackInput(
     return { ok: false, code: VALIDATION_ERROR_CODES.invalidFeedbackKind };
   }
 
-  const note = parseDisplayName(input.note);
-  if (!note.ok) {
-    return { ok: false, code: note.code };
+  if (!isFirstValueFeedbackNoteCode(input.noteCode)) {
+    return { ok: false, code: VALIDATION_ERROR_CODES.invalidFeedbackNoteCode };
   }
 
   if (!hasFeedbackAssociation(input)) {
@@ -107,6 +126,6 @@ export function parseFirstValueFeedbackInput(
 
   return {
     ok: true,
-    value: buildParsedFeedbackInput(input, input.feedbackKind, note.value),
+    value: buildParsedFeedbackInput(input, input.feedbackKind, input.noteCode),
   };
 }

@@ -9,7 +9,9 @@ export const VALIDATION_ERROR_CODES = {
   invalidVariableKey: "validation.invalid_variable_key",
   invalidCommandInput: "validation.invalid_command_input",
   invalidFeedbackKind: "validation.invalid_feedback_kind",
+  invalidFeedbackNoteCode: "validation.invalid_feedback_note_code",
   feedbackAssociationRequired: "validation.feedback_association_required",
+  feedbackAssociationNotFound: "validation.feedback_association_not_found",
 } as const;
 
 export type ValidationErrorCode =
