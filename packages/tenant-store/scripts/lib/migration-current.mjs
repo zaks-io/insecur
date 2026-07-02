@@ -4,7 +4,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { resolveRuntimeRole } from "../grant-runtime.mjs";
-import { resolveRuntimeRole } from "../grant-runtime.mjs";
 
 const packageRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const policiesSqlPath = join(packageRoot, "sql", "policies-and-roles.sql");
