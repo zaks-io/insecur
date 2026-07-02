@@ -96,6 +96,19 @@ describe("AAD field-separator injection resistance", () => {
     ).toThrow(InvalidAadFieldError);
   });
 
+  it("rejects provider credential identity fields that are not well-formed opaque resource ids", () => {
+    expect(() =>
+      serializeProviderCredentialCiphertextAad(
+        providerIdentity({ organizationId: "not-an-id" as typeof ORG }),
+      ),
+    ).toThrow(InvalidAadFieldError);
+    expect(() =>
+      serializeProviderCredentialCiphertextAad(
+        providerIdentity({ credentialId: "bad" as typeof CRED }),
+      ),
+    ).toThrow(InvalidAadFieldError);
+  });
+
   it("produces distinct provider-credential AAD for distinct valid identities", () => {
     const left = serializeProviderCredentialCiphertextAad(providerIdentity());
     const right = serializeProviderCredentialCiphertextAad(

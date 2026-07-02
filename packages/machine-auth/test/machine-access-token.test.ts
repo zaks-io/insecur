@@ -10,6 +10,7 @@ import {
   decodeSignedHs256PayloadBody,
   encodeSignedHs256Token,
   parseSignedHs256TokenParts,
+  TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS,
 } from "@insecur/token-signing";
 import { describe, expect, it } from "vitest";
 import { mintMachineAccessToken, verifyMachineAccessToken } from "../src/machine-access-token.js";
@@ -141,6 +142,29 @@ describe("machine access token", () => {
     if (!verified.ok) {
       expect(verified.reason).toBe("expired");
     }
+  });
+
+  it("rejects tokens with iat meaningfully in the future", async () => {
+    const minted = await mintMachineAccessToken({
+      machineIdentityId: MACHINE,
+      organizationId: ORG,
+      projectId: PROJECT,
+      credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
+      signingSecret: SECRET,
+      ttlSeconds: 600,
+    });
+    const payload = decodeMachineAccessPayload(minted.accessToken);
+    const now = Math.floor(Date.now() / 1000);
+    const resigned = await signMachineAccessPayload(
+      {
+        ...payload,
+        iat: now + TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS + 120,
+        exp: now + TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS + 300,
+      },
+      SECRET,
+    );
+    const verified = await verifyMachineAccessToken(resigned, SECRET);
+    expect(verified).toEqual({ ok: false, reason: "invalid" });
   });
 
   it("mints project-scoped credentials without environment", async () => {

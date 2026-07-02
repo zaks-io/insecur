@@ -3,7 +3,12 @@ import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import { grantRuntimeTablePrivileges, resolveRuntimeRole } from "./grant-runtime.mjs";
+import {
+  grantAppSchemaPrivileges,
+  grantRuntimeTablePrivileges,
+  resolveMigrationRole,
+  resolveRuntimeRole,
+} from "./grant-runtime.mjs";
 import { loadRepoEnvLocal, redactLoggableError, requireDatabaseUrl } from "./lib/env-local.mjs";
 import { TENANT_STORE_MIGRATION_LOCK_KEY } from "./lib/test-advisory-locks.mjs";
 
@@ -28,7 +33,17 @@ try {
   applyDrizzleBaseline();
   await applyRawPoliciesAndRoles(sql);
 
+  const migrationRole = resolveMigrationRole();
   const runtimeRole = resolveRuntimeRole();
+  if (migrationRole && runtimeRole) {
+    console.log(`Granting app schema privileges to ${migrationRole} and ${runtimeRole}`);
+    await grantAppSchemaPrivileges(sql, migrationRole, runtimeRole);
+  } else {
+    console.warn(
+      "Skipping app schema grants: set INSECUR_POSTGRES_MIGRATION_ROLE/DATABASE_URL_MIGRATION and INSECUR_POSTGRES_RUNTIME_ROLE/DATABASE_URL_RUNTIME",
+    );
+  }
+
   if (runtimeRole) {
     console.log(`Granting runtime table privileges to ${runtimeRole}`);
     await grantRuntimeTablePrivileges(sql, runtimeRole);

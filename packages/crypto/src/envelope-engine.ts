@@ -5,11 +5,23 @@ import { aesGcmDecrypt, aesGcmEncrypt, concatBytes, randomIv } from "./envelope-
 import { toBufferSource } from "./buffer.js";
 import { parseEnvelopeLayout, writeEnvelopeHeader } from "./envelope-layout.js";
 
-function serializeDekWrapAad(recordType: number, tenantDataKeyVersion: number): Uint8Array {
+/** Tenant coordinate bound into DEK-wrap AAD (org id; project id or org-scope sentinel). */
+export interface DekWrapTenantCoordinate {
+  readonly organizationId: string;
+  readonly scopeProjectId: string;
+}
+
+export function serializeDekWrapAad(
+  recordType: number,
+  tenantDataKeyVersion: number,
+  tenantCoordinate: DekWrapTenantCoordinate,
+): Uint8Array {
   return serializeAadFields([
     String(recordType),
     String(ENVELOPE_FORMAT_VERSION),
     String(tenantDataKeyVersion),
+    tenantCoordinate.organizationId,
+    tenantCoordinate.scopeProjectId,
   ]);
 }
 
@@ -17,6 +29,7 @@ export interface SealTenantBoundEnvelopeInput {
   recordType: number;
   tenantDataKey: CryptoKey;
   tenantDataKeyVersion: number;
+  dekWrapTenantCoordinate: DekWrapTenantCoordinate;
   ciphertextAad: Uint8Array;
   plaintextUtf8: Uint8Array;
 }
@@ -37,7 +50,11 @@ export async function sealTenantBoundEnvelope(
     input.tenantDataKey,
     dekWrapIv,
     dek,
-    serializeDekWrapAad(input.recordType, input.tenantDataKeyVersion),
+    serializeDekWrapAad(
+      input.recordType,
+      input.tenantDataKeyVersion,
+      input.dekWrapTenantCoordinate,
+    ),
   );
   const valueCiphertext = await aesGcmEncrypt(
     dekKey,
@@ -61,6 +78,7 @@ export interface OpenTenantBoundEnvelopeInput {
   recordType: number;
   envelopeBytes: Uint8Array;
   tenantDataKey: CryptoKey;
+  dekWrapTenantCoordinate: DekWrapTenantCoordinate;
   ciphertextAad: Uint8Array;
 }
 
@@ -73,7 +91,11 @@ export async function openTenantBoundEnvelope(
       input.tenantDataKey,
       layout.dekWrapIv,
       layout.wrappedDek,
-      serializeDekWrapAad(input.recordType, layout.tenantDataKeyVersion),
+      serializeDekWrapAad(
+        input.recordType,
+        layout.tenantDataKeyVersion,
+        input.dekWrapTenantCoordinate,
+      ),
     );
     const dekKey = await crypto.subtle.importKey(
       "raw",

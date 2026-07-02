@@ -1,14 +1,30 @@
 import { assertProviderCredentialIdentityForAad } from "./assert-ciphertext-identity.js";
-import { RECORD_TYPE_PROVIDER_CREDENTIAL } from "./constants.js";
+import {
+  RECORD_TYPE_PROVIDER_CREDENTIAL,
+  SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL,
+} from "./constants.js";
 import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
-import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
+import {
+  openTenantBoundEnvelope,
+  sealTenantBoundEnvelope,
+  type DekWrapTenantCoordinate,
+} from "./envelope-engine.js";
 import type { Keyring } from "./keyring.js";
 import type { ProviderCredentialCiphertextIdentity } from "./types.js";
 import type { WrappedProviderCredential } from "@insecur/custody-contracts";
 
 export type { WrappedProviderCredential } from "@insecur/custody-contracts";
+
+function providerCredentialDekWrapTenantCoordinate(
+  identity: ProviderCredentialCiphertextIdentity,
+): DekWrapTenantCoordinate {
+  return {
+    organizationId: identity.organizationId,
+    scopeProjectId: SENSITIVE_METADATA_ORG_SCOPE_PROJECT_SENTINEL,
+  };
+}
 
 export function serializeProviderCredentialCiphertextAad(
   identity: ProviderCredentialCiphertextIdentity,
@@ -52,6 +68,7 @@ export async function encryptProviderCredential(
     recordType: RECORD_TYPE_PROVIDER_CREDENTIAL,
     tenantDataKey: organizationDataKey,
     tenantDataKeyVersion: activeVersions.organizationDataKeyVersion,
+    dekWrapTenantCoordinate: providerCredentialDekWrapTenantCoordinate(identity),
     ciphertextAad: serializeProviderCredentialCiphertextAad(identity),
     plaintextUtf8,
   });
@@ -92,6 +109,7 @@ export async function decryptProviderCredentialForProviderUse(
     recordType: RECORD_TYPE_PROVIDER_CREDENTIAL,
     envelopeBytes: wrapped.ciphertext,
     tenantDataKey: organizationDataKey,
+    dekWrapTenantCoordinate: providerCredentialDekWrapTenantCoordinate(identity),
     ciphertextAad: serializeProviderCredentialCiphertextAad(identity),
   });
   return new PlaintextHandle(plaintext);

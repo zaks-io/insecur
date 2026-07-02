@@ -206,6 +206,4 @@ BEGIN
 END
 $$;
 
-GRANT USAGE ON SCHEMA app TO PUBLIC;
-GRANT EXECUTE ON FUNCTION app.tenant_visible(text) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION app.enforce_environment_lifecycle_immutable() TO PUBLIC;
+-- App schema function grants are applied by migrate.mjs to migration/runtime roles (INS-281).

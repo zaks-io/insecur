@@ -19,6 +19,11 @@ export const GCM_IV_LENGTH = 12;
 
 export const DATA_KEY_LENGTH = 32;
 
+const GCM_TAG_LENGTH = 16;
+
+/** Fixed wrapped-DEK ciphertext size: 32-byte DEK + 16-byte GCM tag. */
+export const WRAPPED_DEK_LENGTH = DATA_KEY_LENGTH + GCM_TAG_LENGTH;
+
 export const DEFAULT_ROOT_KEY_VERSION = 1;
 
 export const DEFAULT_ORGANIZATION_DATA_KEY_VERSION = 1;

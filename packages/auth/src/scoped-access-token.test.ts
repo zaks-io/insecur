@@ -1,7 +1,9 @@
 import { userId } from "@insecur/domain";
+import { TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS } from "@insecur/token-signing";
 import { describe, expect, it } from "vitest";
 import { INSECUR_API_TOKEN_AUDIENCE, INSECUR_RUNTIME_TOKEN_AUDIENCE } from "./constants.js";
 import { mintEphemeralSessionCredential } from "./ephemeral-session.js";
+import { decodeHmacToken, encodeHmacToken } from "./hmac-token.js";
 import { mintScopedAccessToken, verifyScopedAccessToken } from "./scoped-access-token.js";
 import { testSessionSigningSecret } from "./testing/test-session-signing-secret.js";
 import type { UserActor } from "./user-actor.js";
@@ -101,6 +103,36 @@ describe("scoped access token", () => {
     expect(verified.ok).toBe(false);
     if (!verified.ok) {
       expect(verified.reason).toBe("expired");
+    }
+  });
+
+  it("rejects tokens with iat meaningfully in the future", async () => {
+    const minted = await mintScopedAccessToken({
+      actor,
+      audience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret,
+    });
+    const claims = await decodeHmacToken(minted.token, signingSecret);
+    if (claims === null) {
+      throw new Error("expected decoded scoped access token claims");
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const resigned = await encodeHmacToken(
+      {
+        ...claims,
+        iat: now + TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS + 120,
+        exp: now + TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS + 300,
+      },
+      signingSecret,
+    );
+    const verified = await verifyScopedAccessToken({
+      token: resigned,
+      expectedAudience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret,
+    });
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("invalid");
     }
   });
 

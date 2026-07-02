@@ -6,6 +6,22 @@ import { normalizeDatabaseUrlEnv, unquoteEnvValue } from "./lib/env-local.mjs";
  * as the migration role; default privileges from Docker init do not apply when only
  * migrate.mjs runs against Neon or other hosts.
  */
+export function resolveMigrationRole() {
+  normalizeDatabaseUrlEnv();
+
+  const fromEnv = process.env.INSECUR_POSTGRES_MIGRATION_ROLE?.trim();
+  if (fromEnv) {
+    return unquoteEnvValue(fromEnv);
+  }
+
+  const migrationUrl = process.env.DATABASE_URL_MIGRATION?.trim();
+  if (migrationUrl) {
+    return new URL(unquoteEnvValue(migrationUrl)).username;
+  }
+
+  return null;
+}
+
 export function resolveRuntimeRole() {
   normalizeDatabaseUrlEnv();
 
@@ -51,6 +67,19 @@ export async function grantRuntimeTablePrivileges(sql, runtimeRole) {
 
   await sql.unsafe(`GRANT USAGE ON SCHEMA public TO ${quoteIdentifier(runtimeRole)}`);
   await sql.unsafe(`GRANT USAGE ON SCHEMA app TO ${quoteIdentifier(runtimeRole)}`);
+}
+
+export async function grantAppSchemaPrivileges(sql, migrationRole, runtimeRole) {
+  const roles = [...new Set([migrationRole, runtimeRole].filter(Boolean))];
+  for (const role of roles) {
+    await sql.unsafe(`GRANT USAGE ON SCHEMA app TO ${quoteIdentifier(role)}`);
+    await sql.unsafe(
+      `GRANT EXECUTE ON FUNCTION app.tenant_visible(text) TO ${quoteIdentifier(role)}`,
+    );
+    await sql.unsafe(
+      `GRANT EXECUTE ON FUNCTION app.enforce_environment_lifecycle_immutable() TO ${quoteIdentifier(role)}`,
+    );
+  }
 }
 
 function quoteIdentifier(identifier) {

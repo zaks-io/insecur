@@ -2,6 +2,7 @@ import {
   isStableDottedCode,
   parseOpaqueResourceId,
   STABLE_DOTTED_CODE_MAX_LENGTH,
+  type OpaqueResourceIdPrefix,
 } from "@insecur/domain";
 
 import { InvalidAadFieldError } from "./errors.js";
@@ -60,5 +61,15 @@ export function assertSensitiveMetadataFieldKeyForAad(value: string): void {
 export function assertOpaqueResourceIdForAad(value: string): void {
   if (!parseOpaqueResourceId(value).ok) {
     throw new InvalidAadFieldError("recordResourceId");
+  }
+}
+
+export function assertOpaqueResourceIdFieldForAad(
+  value: string,
+  expectedPrefix: OpaqueResourceIdPrefix,
+  field: string,
+): void {
+  if (!parseOpaqueResourceId(value, expectedPrefix).ok) {
+    throw new InvalidAadFieldError(field);
   }
 }
