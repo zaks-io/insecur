@@ -7,3 +7,4 @@ export {
   type SignedHs256Payload,
   type SignedHs256TokenParts,
 } from "./hs256-signed-token.js";
+export { isTokenIssuedAtInFuture, TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS } from "./token-lifetime.js";

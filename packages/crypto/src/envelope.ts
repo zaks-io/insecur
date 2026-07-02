@@ -1,19 +1,34 @@
 import { RECORD_TYPE_SECRET } from "./constants.js";
+import { assertSecretIdentityForAad } from "./assert-ciphertext-identity.js";
 import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
-import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
+import {
+  openTenantBoundEnvelope,
+  sealTenantBoundEnvelope,
+  type DekWrapTenantCoordinate,
+} from "./envelope-engine.js";
 import type { Keyring } from "./keyring.js";
 import type { SecretCiphertextIdentity } from "./types.js";
 import type { WrappedSecretValue } from "@insecur/custody-contracts";
 
 export type { WrappedSecretValue } from "@insecur/custody-contracts";
 
+function secretDekWrapTenantCoordinate(
+  identity: SecretCiphertextIdentity,
+): DekWrapTenantCoordinate {
+  return {
+    organizationId: identity.organizationId,
+    scopeProjectId: identity.projectId,
+  };
+}
+
 /**
  * Canonical ciphertext-layer AAD for Secret records.
  * Identity is recomputed at decrypt; it is never stored alongside ciphertext.
  */
 export function serializeSecretCiphertextAad(identity: SecretCiphertextIdentity): Uint8Array {
+  assertSecretIdentityForAad(identity);
   return serializeAadFields([
     String(RECORD_TYPE_SECRET),
     identity.organizationId,
@@ -41,6 +56,7 @@ export async function encryptSecretValue(
   identity: SecretCiphertextIdentity,
   plaintextUtf8: Uint8Array,
 ): Promise<WrappedSecretValue> {
+  assertSecretIdentityForAad(identity);
   const activeVersions = await keyring.getActiveDataKeyVersions(
     identity.organizationId,
     identity.projectId,
@@ -54,6 +70,7 @@ export async function encryptSecretValue(
     recordType: RECORD_TYPE_SECRET,
     tenantDataKey: projectDataKey,
     tenantDataKeyVersion: activeVersions.projectDataKeyVersion,
+    dekWrapTenantCoordinate: secretDekWrapTenantCoordinate(identity),
     ciphertextAad: serializeSecretCiphertextAad(identity),
     plaintextUtf8,
   });
@@ -78,6 +95,7 @@ export async function decryptSecretValueForRuntime(
     throw new DecryptError();
   }
 
+  assertSecretIdentityForAad(identity);
   const projectDataKey = await keyring.getProjectDataKey(
     identity.organizationId,
     identity.projectId,
@@ -91,6 +109,7 @@ export async function decryptSecretValueForRuntime(
     recordType: RECORD_TYPE_SECRET,
     envelopeBytes: wrapped.ciphertext,
     tenantDataKey: projectDataKey,
+    dekWrapTenantCoordinate: secretDekWrapTenantCoordinate(identity),
     ciphertextAad: serializeSecretCiphertextAad(identity),
   });
   return new PlaintextHandle(plaintext);

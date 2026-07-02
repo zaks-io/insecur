@@ -2,6 +2,7 @@ import { environmentId, organizationId, projectId, secretId } from "@insecur/dom
 import { describe, expect, it } from "vitest";
 
 import { RECORD_TYPE_SECRET } from "../src/constants.js";
+import { InvalidAadFieldError } from "../src/errors.js";
 import { serializeSecretCiphertextAad } from "../src/envelope.js";
 import type { SecretCiphertextIdentity } from "../src/types.js";
 
@@ -43,5 +44,14 @@ describe("serializeSecretCiphertextAad", () => {
     expect(aad[0]).toBe(RECORD_TYPE_SECRET + 0x30);
     expect(aad[1]).toBe(0x1f);
     expect(aad.indexOf(0x1f)).toBeGreaterThan(0);
+  });
+
+  it("rejects secret identity fields that are not well-formed opaque resource ids", () => {
+    expect(() =>
+      serializeSecretCiphertextAad(identity({ organizationId: "not-an-id" as typeof ORG_A })),
+    ).toThrow(InvalidAadFieldError);
+    expect(() =>
+      serializeSecretCiphertextAad(identity({ secretId: "bad" as typeof SECRET_A })),
+    ).toThrow(InvalidAadFieldError);
   });
 });

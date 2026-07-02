@@ -1,4 +1,5 @@
 import { userId } from "@insecur/domain";
+import { isTokenIssuedAtInFuture } from "@insecur/token-signing";
 import type { TokenClaims } from "./hmac-token.js";
 import type { UserActor } from "./user-actor.js";
 
@@ -40,6 +41,9 @@ export function actorFromClaims(claims: ActorClaims): ActorFromClaimsResult {
   const now = Math.floor(Date.now() / 1000);
   if (claims.exp <= now) {
     return { ok: false, reason: "expired" };
+  }
+  if (isTokenIssuedAtInFuture(claims.iat, now)) {
+    return { ok: false, reason: "invalid" };
   }
   const parsedUserId = userId.parse(claims.sub);
   if (!parsedUserId.ok) {

@@ -1,9 +1,11 @@
 import { userId } from "@insecur/domain";
+import { TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS } from "@insecur/token-signing";
 import { describe, expect, it } from "vitest";
 import {
   mintEphemeralSessionCredential,
   verifyEphemeralSessionCredential,
 } from "./ephemeral-session.js";
+import { decodeHmacToken, encodeHmacToken } from "./hmac-token.js";
 import { testSessionSigningSecret } from "./testing/test-session-signing-secret.js";
 import type { UserActor } from "./user-actor.js";
 
@@ -55,6 +57,28 @@ describe("ephemeral session credentials", () => {
     expect(verified.ok).toBe(false);
     if (!verified.ok) {
       expect(verified.reason).toBe("expired");
+    }
+  });
+
+  it("rejects credentials with iat meaningfully in the future", async () => {
+    const minted = await mintEphemeralSessionCredential({ actor, signingSecret });
+    const claims = await decodeHmacToken(minted.credential, signingSecret);
+    if (claims === null) {
+      throw new Error("expected decoded credential claims");
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const resigned = await encodeHmacToken(
+      {
+        ...claims,
+        iat: now + TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS + 120,
+        exp: now + TOKEN_ISSUED_AT_FUTURE_SKEW_SECONDS + 300,
+      },
+      signingSecret,
+    );
+    const verified = await verifyEphemeralSessionCredential(resigned, signingSecret);
+    expect(verified.ok).toBe(false);
+    if (!verified.ok) {
+      expect(verified.reason).toBe("invalid");
     }
   });
 });

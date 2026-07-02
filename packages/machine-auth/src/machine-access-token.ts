@@ -4,6 +4,7 @@ import { MACHINE_ACCESS_TOKEN_TTL_SECONDS, MACHINE_ACCESS_TOKEN_TYP } from "./co
 import {
   decodeSignedHs256PayloadBody,
   encodeSignedHs256Token,
+  isTokenIssuedAtInFuture,
   parseSignedHs256TokenParts,
   verifySignedHs256Signature,
 } from "@insecur/token-signing";
@@ -121,6 +122,9 @@ function verifiedTokenFromPayload(
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp <= now) {
     return { ok: false, reason: "expired" };
+  }
+  if (isTokenIssuedAtInFuture(payload.iat, now)) {
+    return { ok: false, reason: "invalid" };
   }
   return {
     ok: true,

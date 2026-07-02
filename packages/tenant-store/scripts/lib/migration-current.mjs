@@ -160,6 +160,23 @@ async function hasRuntimeTablePrivileges(sql, runtimeRole) {
   return Boolean(publicSchemaPrivilege?.ok && appSchemaPrivilege?.ok && functionPrivilege?.ok);
 }
 
+async function hasPublicAppSchemaGrantsRevoked(sql) {
+  const [publicAppSchema] = await sql`
+    SELECT has_schema_privilege('PUBLIC', 'app', 'USAGE') AS ok
+  `;
+  const [publicTenantVisible] = await sql`
+    SELECT has_function_privilege('PUBLIC', 'app.tenant_visible(text)', 'EXECUTE') AS ok
+  `;
+  const [publicLifecycle] = await sql`
+    SELECT has_function_privilege(
+      'PUBLIC',
+      'app.enforce_environment_lifecycle_immutable()',
+      'EXECUTE'
+    ) AS ok
+  `;
+  return !publicAppSchema?.ok && !publicTenantVisible?.ok && !publicLifecycle?.ok;
+}
+
 /**
  * True when Drizzle migrations, tenant policies/RLS, and runtime grants (when configured)
  * match the repo head. Lets parallel test seeds skip migrate.mjs when dev:db:reset (or CI)
@@ -180,6 +197,9 @@ export async function isTenantStoreSchemaCurrent(databaseUrl) {
       return false;
     }
     if (!(await hasPoliciesAndRolesApplied(sql))) {
+      return false;
+    }
+    if (!(await hasPublicAppSchemaGrantsRevoked(sql))) {
       return false;
     }
     const runtimeRole = resolveRuntimeRole();

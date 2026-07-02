@@ -6,7 +6,11 @@ import {
 import { DecryptError } from "./errors.js";
 import { PlaintextHandle } from "./plaintext-handle.js";
 import { serializeAadFields } from "./envelope-aad.js";
-import { openTenantBoundEnvelope, sealTenantBoundEnvelope } from "./envelope-engine.js";
+import {
+  openTenantBoundEnvelope,
+  sealTenantBoundEnvelope,
+  type DekWrapTenantCoordinate,
+} from "./envelope-engine.js";
 import type { Keyring } from "./keyring.js";
 import type { ProjectId } from "@insecur/domain";
 import type { SensitiveMetadataCiphertextIdentity } from "./types.js";
@@ -54,35 +58,48 @@ function requireProjectScope(identity: SensitiveMetadataCiphertextIdentity): Pro
   return identity.scopeProjectId as ProjectId;
 }
 
-export async function encryptSensitiveMetadata(
+function dekWrapTenantCoordinateFor(
+  identity: SensitiveMetadataCiphertextIdentity,
+): DekWrapTenantCoordinate {
+  return {
+    organizationId: identity.organizationId,
+    scopeProjectId: identity.scopeProjectId,
+  };
+}
+
+async function encryptOrganizationScopedSensitiveMetadata(
   keyring: Keyring,
   identity: SensitiveMetadataCiphertextIdentity,
   plaintextUtf8: Uint8Array,
 ): Promise<WrappedSensitiveMetadata> {
-  assertSensitiveMetadataIdentityForAad(identity);
-  if (isOrganizationScopedSensitiveMetadata(identity)) {
-    const activeVersions = await keyring.getActiveOrganizationDataKeyVersions(
-      identity.organizationId,
-    );
-    const organizationDataKey = await keyring.getOrganizationDataKey(
-      identity.organizationId,
-      activeVersions,
-    );
-    const ciphertext = await sealTenantBoundEnvelope({
-      recordType: RECORD_TYPE_SENSITIVE_METADATA,
-      tenantDataKey: organizationDataKey,
-      tenantDataKeyVersion: activeVersions.organizationDataKeyVersion,
-      ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
-      plaintextUtf8,
-    });
-    return {
-      organizationDataKeyVersion: activeVersions.organizationDataKeyVersion,
-      projectDataKeyVersion: null,
-      ciphertext,
-      identity,
-    };
-  }
+  const activeVersions = await keyring.getActiveOrganizationDataKeyVersions(
+    identity.organizationId,
+  );
+  const organizationDataKey = await keyring.getOrganizationDataKey(
+    identity.organizationId,
+    activeVersions,
+  );
+  const ciphertext = await sealTenantBoundEnvelope({
+    recordType: RECORD_TYPE_SENSITIVE_METADATA,
+    tenantDataKey: organizationDataKey,
+    tenantDataKeyVersion: activeVersions.organizationDataKeyVersion,
+    dekWrapTenantCoordinate: dekWrapTenantCoordinateFor(identity),
+    ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
+    plaintextUtf8,
+  });
+  return {
+    organizationDataKeyVersion: activeVersions.organizationDataKeyVersion,
+    projectDataKeyVersion: null,
+    ciphertext,
+    identity,
+  };
+}
 
+async function encryptProjectScopedSensitiveMetadata(
+  keyring: Keyring,
+  identity: SensitiveMetadataCiphertextIdentity,
+  plaintextUtf8: Uint8Array,
+): Promise<WrappedSensitiveMetadata> {
   const projectId = requireProjectScope(identity);
   const activeVersions = await keyring.getActiveDataKeyVersions(identity.organizationId, projectId);
   const projectDataKey = await keyring.getProjectDataKey(
@@ -94,6 +111,7 @@ export async function encryptSensitiveMetadata(
     recordType: RECORD_TYPE_SENSITIVE_METADATA,
     tenantDataKey: projectDataKey,
     tenantDataKeyVersion: activeVersions.projectDataKeyVersion,
+    dekWrapTenantCoordinate: dekWrapTenantCoordinateFor(identity),
     ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
     plaintextUtf8,
   });
@@ -103,6 +121,69 @@ export async function encryptSensitiveMetadata(
     ciphertext,
     identity,
   };
+}
+
+export async function encryptSensitiveMetadata(
+  keyring: Keyring,
+  identity: SensitiveMetadataCiphertextIdentity,
+  plaintextUtf8: Uint8Array,
+): Promise<WrappedSensitiveMetadata> {
+  assertSensitiveMetadataIdentityForAad(identity);
+  if (isOrganizationScopedSensitiveMetadata(identity)) {
+    return encryptOrganizationScopedSensitiveMetadata(keyring, identity, plaintextUtf8);
+  }
+  return encryptProjectScopedSensitiveMetadata(keyring, identity, plaintextUtf8);
+}
+
+async function decryptOrganizationScopedSensitiveMetadata(
+  keyring: Keyring,
+  identity: SensitiveMetadataCiphertextIdentity,
+  wrapped: WrappedSensitiveMetadata,
+): Promise<PlaintextHandle> {
+  if (wrapped.projectDataKeyVersion !== null) {
+    throw new DecryptError();
+  }
+  const versions = await keyring.resolveOrganizationDataKeyVersions(
+    identity.organizationId,
+    wrapped.organizationDataKeyVersion,
+  );
+  const organizationDataKey = await keyring.getOrganizationDataKey(
+    identity.organizationId,
+    versions,
+  );
+  return new PlaintextHandle(
+    await openTenantBoundEnvelope({
+      recordType: RECORD_TYPE_SENSITIVE_METADATA,
+      envelopeBytes: wrapped.ciphertext,
+      tenantDataKey: organizationDataKey,
+      dekWrapTenantCoordinate: dekWrapTenantCoordinateFor(identity),
+      ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
+    }),
+  );
+}
+
+async function decryptProjectScopedSensitiveMetadata(
+  keyring: Keyring,
+  identity: SensitiveMetadataCiphertextIdentity,
+  wrapped: WrappedSensitiveMetadata,
+): Promise<PlaintextHandle> {
+  if (wrapped.projectDataKeyVersion === null) {
+    throw new DecryptError();
+  }
+  const projectId = requireProjectScope(identity);
+  const projectDataKey = await keyring.getProjectDataKey(identity.organizationId, projectId, {
+    organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
+    projectDataKeyVersion: wrapped.projectDataKeyVersion,
+  });
+  return new PlaintextHandle(
+    await openTenantBoundEnvelope({
+      recordType: RECORD_TYPE_SENSITIVE_METADATA,
+      envelopeBytes: wrapped.ciphertext,
+      tenantDataKey: projectDataKey,
+      dekWrapTenantCoordinate: dekWrapTenantCoordinateFor(identity),
+      ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
+    }),
+  );
 }
 
 /**
@@ -122,41 +203,7 @@ export async function decryptSensitiveMetadataForAuthorizedRead(
 
   assertSensitiveMetadataIdentityForAad(identity);
   if (isOrganizationScopedSensitiveMetadata(identity)) {
-    if (wrapped.projectDataKeyVersion !== null) {
-      throw new DecryptError();
-    }
-    const versions = await keyring.resolveOrganizationDataKeyVersions(
-      identity.organizationId,
-      wrapped.organizationDataKeyVersion,
-    );
-    const organizationDataKey = await keyring.getOrganizationDataKey(
-      identity.organizationId,
-      versions,
-    );
-    return new PlaintextHandle(
-      await openTenantBoundEnvelope({
-        recordType: RECORD_TYPE_SENSITIVE_METADATA,
-        envelopeBytes: wrapped.ciphertext,
-        tenantDataKey: organizationDataKey,
-        ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
-      }),
-    );
+    return decryptOrganizationScopedSensitiveMetadata(keyring, identity, wrapped);
   }
-
-  const projectId = requireProjectScope(identity);
-  if (wrapped.projectDataKeyVersion === null) {
-    throw new DecryptError();
-  }
-  const projectDataKey = await keyring.getProjectDataKey(identity.organizationId, projectId, {
-    organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
-    projectDataKeyVersion: wrapped.projectDataKeyVersion,
-  });
-  return new PlaintextHandle(
-    await openTenantBoundEnvelope({
-      recordType: RECORD_TYPE_SENSITIVE_METADATA,
-      envelopeBytes: wrapped.ciphertext,
-      tenantDataKey: projectDataKey,
-      ciphertextAad: serializeSensitiveMetadataCiphertextAad(identity),
-    }),
-  );
+  return decryptProjectScopedSensitiveMetadata(keyring, identity, wrapped);
 }

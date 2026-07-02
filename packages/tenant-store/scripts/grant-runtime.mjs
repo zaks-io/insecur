@@ -6,6 +6,22 @@ import { normalizeDatabaseUrlEnv, unquoteEnvValue } from "./lib/env-local.mjs";
  * as the migration role; default privileges from Docker init do not apply when only
  * migrate.mjs runs against Neon or other hosts.
  */
+export function resolveMigrationRole() {
+  normalizeDatabaseUrlEnv();
+
+  const fromEnv = process.env.INSECUR_POSTGRES_MIGRATION_ROLE?.trim();
+  if (fromEnv) {
+    return unquoteEnvValue(fromEnv);
+  }
+
+  const migrationUrl = process.env.DATABASE_URL_MIGRATION?.trim();
+  if (migrationUrl) {
+    return new URL(unquoteEnvValue(migrationUrl)).username;
+  }
+
+  return null;
+}
+
 export function resolveRuntimeRole() {
   normalizeDatabaseUrlEnv();
 
@@ -51,6 +67,32 @@ export async function grantRuntimeTablePrivileges(sql, runtimeRole) {
 
   await sql.unsafe(`GRANT USAGE ON SCHEMA public TO ${quoteIdentifier(runtimeRole)}`);
   await sql.unsafe(`GRANT USAGE ON SCHEMA app TO ${quoteIdentifier(runtimeRole)}`);
+}
+
+export async function grantAppSchemaPrivileges(sql, migrationRole, runtimeRole) {
+  const roles = appGrantRoleNames(migrationRole, runtimeRole);
+  for (const role of roles) {
+    await sql.unsafe(`GRANT USAGE ON SCHEMA app TO ${quoteIdentifier(role)}`);
+    await sql.unsafe(
+      `GRANT EXECUTE ON FUNCTION app.tenant_visible(text) TO ${quoteIdentifier(role)}`,
+    );
+    await sql.unsafe(
+      `GRANT EXECUTE ON FUNCTION app.enforce_environment_lifecycle_immutable() TO ${quoteIdentifier(role)}`,
+    );
+  }
+}
+
+/** Roles that receive app schema grants; either or both may be present. */
+export function appGrantRoleNames(migrationRole, runtimeRole) {
+  return [...new Set([migrationRole, runtimeRole].filter(Boolean))];
+}
+
+export async function revokeAppSchemaPublicGrants(sql) {
+  await sql.unsafe("REVOKE USAGE ON SCHEMA app FROM PUBLIC");
+  await sql.unsafe("REVOKE EXECUTE ON FUNCTION app.tenant_visible(text) FROM PUBLIC");
+  await sql.unsafe(
+    "REVOKE EXECUTE ON FUNCTION app.enforce_environment_lifecycle_immutable() FROM PUBLIC",
+  );
 }
 
 function quoteIdentifier(identifier) {

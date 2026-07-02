@@ -3,6 +3,7 @@ import {
   ENVELOPE_MAGIC,
   GCM_IV_LENGTH,
   RECORD_TYPE_SECRET,
+  WRAPPED_DEK_LENGTH,
 } from "./constants.js";
 import { DecryptError } from "./errors.js";
 
@@ -81,6 +82,9 @@ function readEnvelopeHeader(
   const dekWrapIvStart = ENVELOPE_MAGIC.byteLength + 6;
   const dekWrapIv = bytes.subarray(dekWrapIvStart, dekWrapIvStart + GCM_IV_LENGTH);
   const wrappedDekLength = readU16BE(view, dekWrapIvStart + GCM_IV_LENGTH);
+  if (wrappedDekLength !== WRAPPED_DEK_LENGTH) {
+    throw new DecryptError();
+  }
   const valueIvStart = dekWrapIvStart + GCM_IV_LENGTH + 2;
   const valueIv = bytes.subarray(valueIvStart, valueIvStart + GCM_IV_LENGTH);
   const valueCiphertextLength = readU32BE(view, valueIvStart + GCM_IV_LENGTH);
