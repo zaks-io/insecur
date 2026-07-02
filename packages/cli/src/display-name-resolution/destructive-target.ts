@@ -11,8 +11,15 @@ export interface DestructiveTargetInput {
   readonly nameFlagLabel: string;
 }
 
+function hasSuppliedOpaqueId(id: OpaqueResourceId | string | undefined): boolean {
+  if (id === undefined) {
+    return false;
+  }
+  return id.trim() !== "";
+}
+
 export function requireOpaqueIdForDestructive(input: DestructiveTargetInput): void {
-  if (input.id !== undefined) {
+  if (hasSuppliedOpaqueId(input.id)) {
     return;
   }
   if (input.name === undefined) {

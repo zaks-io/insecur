@@ -237,6 +237,24 @@ describe("requireOpaqueIdForDestructive", () => {
     }
   });
 
+  it("requires an opaque ID when a non-interactive caller passes a blank id with a display name", () => {
+    try {
+      requireOpaqueIdForDestructive({
+        id: "",
+        name: "Prod Sync",
+        interactive: false,
+        idFlagLabel: "--sync-id",
+        nameFlagLabel: "--sync-name",
+      });
+      expect.fail("expected requireOpaqueIdForDestructive to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CliError);
+      const cliError = error as CliError;
+      expect(cliError.code).toBe(CLI_ERROR_CODES.destructiveIdRequired);
+      expect(cliError.exitCode).toBe(EXIT_VALIDATION);
+    }
+  });
+
   it("requires an opaque ID for machine identity callers even when interactive", () => {
     try {
       requireOpaqueIdForDestructive({
