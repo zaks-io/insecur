@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const outputDir = join(root, ".jscpd-report", "ci");
 const reportPath = join(outputDir, "jscpd-report.json");
+const failOnDuplicates = process.argv.includes("--fail-on-duplicates");
 
 rmSync(outputDir, { recursive: true, force: true });
 
@@ -37,12 +38,12 @@ process.stderr.write(result.stderr);
 
 if (result.status !== 0) {
   warn("jscpd could not complete. Run pnpm duplicates:check locally.");
-  process.exit(0);
+  process.exit(failOnDuplicates ? (result.status ?? 1) : 0);
 }
 
 if (!existsSync(reportPath)) {
   warn(`jscpd did not write ${reportPath}. Run pnpm duplicates:check locally.`);
-  process.exit(0);
+  process.exit(failOnDuplicates ? 1 : 0);
 }
 
 let report;
@@ -50,7 +51,7 @@ try {
   report = JSON.parse(readFileSync(reportPath, "utf8"));
 } catch (error) {
   warn(`jscpd wrote an unreadable report. Run pnpm duplicates:check locally. ${error.message}`);
-  process.exit(0);
+  process.exit(failOnDuplicates ? 1 : 0);
 }
 
 const duplicates = Array.isArray(report.duplicates) ? report.duplicates : [];
@@ -68,6 +69,11 @@ warn(
 
 for (const duplicate of duplicates) {
   warn(formatDuplicate(duplicate), duplicate.firstFile);
+}
+
+if (failOnDuplicates) {
+  console.error("jscpd duplicate-code gate failed.");
+  process.exit(1);
 }
 
 function formatDuplicate(duplicate) {

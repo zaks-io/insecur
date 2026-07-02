@@ -192,7 +192,7 @@ and are not repeated here.
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
     "conformance:actions-pin": "node scripts/ci/actions-pin-conformance.mjs",
-    "duplicates:check": "jscpd --config .jscpd.json apps packages scripts",
+    "duplicates:check": "node scripts/ci/jscpd-warn.mjs --fail-on-duplicates",
     "duplicates:ci": "pnpm duplicates:check",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "knip": "knip",
@@ -205,15 +205,15 @@ and are not repeated here.
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci:check": "pnpm verify",
-    "verify": "pnpm duplicates:warn && pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
   },
 }
 ```
 
 `verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the
-security scanners and the DB-backed `postgres-integration` job: duplicate-warning annotations, the
-blocking duplicate zero gate, knip, actionlint (optional-local), the actions-pin conformance gate
+security scanners and the DB-backed `postgres-integration` job: the blocking duplicate zero gate
+with annotations, knip, actionlint (optional-local), the actions-pin conformance gate
 (`conformance:actions-pin` — asserts third-party GitHub Actions are pinned to full commit SHAs), the
 deploy-topology conformance gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability
 isolation against the wrangler configs and composition roots), the package-boundary conformance gate
@@ -230,17 +230,19 @@ jscpd is the repo-wide copy/paste detector. It scans product TypeScript and Java
 commands wrap it, each with a different threshold:
 
 ```sh
-pnpm duplicates:check   # threshold 0 — strict zero gate
+pnpm duplicates:check   # strict zero gate; emits clone annotations/details, then fails on clones
 pnpm duplicates:ci      # delegates to duplicates:check — blocking in CI and pre-push
 pnpm duplicates:warn    # annotations only, never fails
 ```
 
-`duplicates:check` exits non-zero on any clone; it is the strict zero gate for local use.
+`duplicates:check` runs the jscpd scan through `scripts/ci/jscpd-warn.mjs --fail-on-duplicates`.
+It exits non-zero on any clone; it is the strict zero gate for local use.
 `duplicates:ci` delegates to `duplicates:check`, so CI and pre-push fail on any new duplication.
 
 `duplicates:warn` writes `.jscpd-report/ci/jscpd-report.json` and emits GitHub warning annotations for
-each clone without failing, so reviewers see every clone. The `CI` workflow and `pnpm verify` run
-`duplicates:warn` (annotate) followed by `duplicates:ci` (enforce).
+each clone without failing, so reviewers see every clone when a warning-only pass is useful.
+The `CI` workflow and `pnpm verify` run only `duplicates:ci`; strict mode reuses the same report and
+annotation path, so the gate scans once instead of running jscpd twice.
 
 ## Unused Code and Dependencies (knip)
 
@@ -546,16 +548,21 @@ GitHub Actions on Blacksmith-hosted runners (ADR-0061). Every job sets `runs-on`
 
 Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets. Branch protection keys on the job names within this workflow (`Verify`, `Coverage`, ...), not the workflow name, so the jobs are the required checks.
 
-The `Detect changes` job classifies a pull request as docs-only when every changed path is under
-`docs/**` or ends in `.md`. On docs-only PRs, code-heavy required jobs complete with explicit no-op
-steps instead of installing dependencies or running build/test/scanner work. `merge_group` always
-runs the full gate. The gitleaks `Secret scan` job still runs on docs-only PRs because documentation
-can leak secrets.
+The `Detect changes` job classifies pull request paths into two check classes:
+
+- `product_code`: any non-doc, non-workflow-config path.
+- `workflow_config`: `.github/workflows/**` or `.github/actionlint.yaml`.
+
+On docs-only PRs, code-heavy required jobs complete with explicit no-op steps instead of installing
+dependencies or running build/test/scanner work. On workflow-only PRs, the required jobs stay green
+but product-only work skips; `Verify` runs targeted workflow formatting plus the actions-pin
+conformance gate, and `Actionlint` runs the workflow lint job. `merge_group` and `push` events always
+run the full gate. The gitleaks `Secret scan` job still runs on docs-only and workflow-only PRs
+because either can leak secrets.
 
 The `Verify` job runs a hand-rolled subset aligned with `pnpm verify` (not a literal `pnpm verify` invocation, so knip and actionlint stay in their own jobs and CI can enable remote Turbo cache writes only when secrets are present):
 
 ```
-pnpm duplicates:warn
 pnpm duplicates:ci
 pnpm format:check
 pnpm conformance:actions-pin
@@ -571,8 +578,8 @@ pnpm exec turbo run lint typecheck test --cache=local:rw,remote:<r|rw>
 Other required jobs in the same workflow: `Coverage` (`pnpm test:coverage`), `Knip`, `Actionlint`, `Postgres tests (integration + RLS + e2e)`, `Secret scan (gitleaks)`, `SAST (semgrep)`, `SBOM and vulnerability scan (syft + grype)`, and the dependency-scan placeholder.
 
 These jobs are required status checks on the protected branch. They run for forked pull requests too,
-because they touch no secrets. Docs-only PRs keep the required job names green while skipping
-code-only work; merge queue runs stay full validation.
+because they touch no secrets. Docs-only and workflow-only PRs keep the required job names green
+while skipping irrelevant product-code work; merge queue runs stay full validation.
 
 ### PR Database Policy
 
@@ -699,17 +706,18 @@ The build-tooling layer is complete when all of the following are verifiable:
 
 - `pnpm install` runs on pnpm 10 and Node 24, fails on a wrong Node major (`engine-strict`), and fails if any non-allowlisted dependency requests a lifecycle script (`strictDepBuilds`).
 - A dependency version published less than 3 days ago cannot be installed (`minimumReleaseAge: 4320`).
-- `pnpm verify` runs the duplicate annotations and zero-duplicate gate, knip, actionlint (when installed), actions-pin conformance, deploy topology conformance, package-boundary conformance, site-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
+- `pnpm verify` runs the annotated zero-duplicate gate, knip, actionlint (when installed), actions-pin conformance, deploy topology conformance, package-boundary conformance, site-boundary conformance, `prettier --check`, lint, typecheck, and unit tests green locally, reading the remote cache but not writing it.
 - `pnpm ci:check` is available as an operator-friendly alias for `pnpm verify`.
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
 - A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `CI`; test files are exempt from the two length caps only.
 - An upstream type error fails a downstream `typecheck` rather than returning a stale cached pass (the `topo` transit node works).
-- `pnpm duplicates:warn` emits GitHub warning annotations for every jscpd clone without failing `CI`; `pnpm duplicates:check` is available as the strict local zero-threshold gate.
+- `pnpm duplicates:warn` emits GitHub warning annotations for every jscpd clone without failing; `pnpm duplicates:check` is the strict local zero-threshold gate and uses the same scan/report path.
 - A commit that introduces a type error, a lint error, a formatting drift, or a staged secret is blocked at pre-commit; a push with a failing local test or a coverage threshold regression is blocked at pre-push; `--no-verify` bypasses locally but the same checks block in `CI`.
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.
-- A forked pull request runs the `CI` workflow only and reaches no secret-bearing step. A docs-only
-  pull request skips code-heavy CI jobs but still runs gitleaks.
+- A forked pull request runs the `CI` workflow only and reaches no secret-bearing step. Docs-only
+  and workflow-only pull requests skip product-code CI jobs but still run gitleaks; workflow-only
+  pull requests also run workflow formatting, action pinning, and actionlint.
 - A merge to `main` auto-deploys staging; a production deploy waits on a GitHub Environment required reviewer and runs under a machine identity distinct from the approver.
 - The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated
   Linear filing for critical findings is disabled by default; `report-criticals` skips unless
