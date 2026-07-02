@@ -4,10 +4,12 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import {
+  appGrantRoleNames,
   grantAppSchemaPrivileges,
   grantRuntimeTablePrivileges,
   resolveMigrationRole,
   resolveRuntimeRole,
+  revokeAppSchemaPublicGrants,
 } from "./grant-runtime.mjs";
 import { loadRepoEnvLocal, redactLoggableError, requireDatabaseUrl } from "./lib/env-local.mjs";
 import { TENANT_STORE_MIGRATION_LOCK_KEY } from "./lib/test-advisory-locks.mjs";
@@ -35,12 +37,14 @@ try {
 
   const migrationRole = resolveMigrationRole();
   const runtimeRole = resolveRuntimeRole();
-  if (migrationRole && runtimeRole) {
-    console.log(`Granting app schema privileges to ${migrationRole} and ${runtimeRole}`);
+  const appGrantRoles = appGrantRoleNames(migrationRole, runtimeRole);
+  if (appGrantRoles.length > 0) {
+    console.log(`Granting app schema privileges to ${appGrantRoles.join(", ")}`);
+    await revokeAppSchemaPublicGrants(sql);
     await grantAppSchemaPrivileges(sql, migrationRole, runtimeRole);
   } else {
     console.warn(
-      "Skipping app schema grants: set INSECUR_POSTGRES_MIGRATION_ROLE/DATABASE_URL_MIGRATION and INSECUR_POSTGRES_RUNTIME_ROLE/DATABASE_URL_RUNTIME",
+      "Skipping app schema grants: set INSECUR_POSTGRES_MIGRATION_ROLE/DATABASE_URL_MIGRATION and/or INSECUR_POSTGRES_RUNTIME_ROLE/DATABASE_URL_RUNTIME",
     );
   }
 

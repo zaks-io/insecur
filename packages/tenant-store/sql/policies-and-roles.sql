@@ -207,3 +207,7 @@ END
 $$;
 
 -- App schema function grants are applied by migrate.mjs to migration/runtime roles (INS-281).
+-- Revoke legacy PUBLIC grants from the Drizzle 0002 baseline so only explicit roles retain access.
+REVOKE USAGE ON SCHEMA app FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION app.tenant_visible(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION app.enforce_environment_lifecycle_immutable() FROM PUBLIC;
