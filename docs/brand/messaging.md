@@ -7,10 +7,11 @@ restate the voice rules.
 ## The buyer
 
 The first buyer is a small team or solo dev shipping through Cloudflare Workers and GitHub
-Actions, running coding and deploy agents plus CI, who wants secrets used but not readable,
-without standing up Vault or paying enterprise prices for an approval workflow. They love
-their agents. We are not here to make them distrust the agent. We are here to make the secret
-unreadable.
+Actions, running coding and deploy agents plus CI, who wants their agents to move fast
+without leaving a trail of hardcoded secrets, and does not want to stand up Vault or pay
+enterprise prices for an approval workflow. They love their agents. We are not here to make
+them distrust the agent. We are here to make sure the agent never had to hold a raw secret
+to get its job done.
 
 Vercel remains part of the broader product direction, but the first customer-validation
 beachhead is Cloudflare Workers plus GitHub Actions. Lead with the narrow wedge until the
@@ -23,23 +24,24 @@ Three beats, always in this order:
 1. **Hook (why now):** the agent already read your `.env`, and you are about to run five
    more in parallel. See the agent narrative in `voice.md` and the public problem evidence
    in [`../research/problem-evidence.md`](../research/problem-evidence.md).
-2. **Mechanic (what we do):** "Use it, don't reveal it." Secrets go in, get used, and never
-   come back out as plaintext.
-3. **Proof (why believe it):** the mechanism, shown not asserted. No reveal path below the
-   API, diskless dev, short-lived scoped robot keys, tamper-evident audit, small blast
-   radius. Plus trust artifacts as they land.
+2. **Mechanic (what we do):** stop handing agents secrets to manage. The agent asks, insecur
+   creates and sets the value, and it gets back a working key. It never types, picks, or
+   copies the raw secret.
+3. **Proof (why believe it):** the mechanism, shown not asserted. Blind-generated values no
+   human chooses or sees, one-step ask-and-get, short-lived scoped robot keys, every use on
+   the record, small blast radius. Plus trust artifacts as they land.
 
-The arc moves a skeptic from "that's a cute name" to "oh, the reveal path genuinely does
-not exist."
+The arc moves a skeptic from "that's a cute name" to "oh, the agent genuinely never has to
+hold the raw secret."
 
 ## Surface map
 
 **Landing hero stack** (each line does one job, never two):
 
 - Hook line: the agent line, e.g. "Your agent already read your `.env`."
-- Mechanic line: "Use it, don't reveal it."
-- Gloss: the one-liner from `voice.md` (no-reveal custody for production secrets; your code
-  and agents can use them, nobody can read them back).
+- Mechanic line: the workflow, e.g. "Your agent never picks the secret."
+- Gloss: the one-liner from `voice.md` (secrets custody built for coding agents; it asks,
+  we create and set it, it gets back a working key it never had to hold).
 - CTA: start the free dev loop (no production secrets, no card).
 
 **First Value proof** is the first conversion event, not a feature tour:
@@ -57,12 +59,15 @@ small command or mock service. Do not run browser-executed demos or hosted sandb
 site. Security design, source links, legal, and company pages matter, but they are secondary to
 getting testers to use the product.
 
-**"How no-reveal actually works"** is the conversion engine for the security-minded buyer.
-A mechanism page, not a feature list. Walk the custody guarantee end to end: where the
-plaintext is and is not, why there is no reveal / readback / export / file path for protected
-values, how diskless runtime injection works, why robot credentials are short-lived and
-scoped, and how the audit log is tamper-evident. This is the page where the price gets
-justified.
+**"How custody actually works"** is the conversion engine for the security-minded buyer.
+A mechanism page, not a feature list, and it is scrupulously honest about the boundary. Walk
+it end to end: how an agent gets a secret in one step (ask, and get a working key), how blind
+generation sets a value no human chooses or sees, that the value is injected into the process
+environment at run time exactly like a normal secret (we do not claim the running process
+cannot read it), that there is no export or readback command so the raw value never leaves as
+a file to be committed, why robot credentials are short-lived and scoped, and how every use is
+recorded and tamper-evident. This is the page where the price gets justified, and where being
+precise about what we do and do not prevent is itself the trust signal.
 
 **Pricing** is deferred during the tester phase. Do not ship a pricing page until we have real
 charging intent. When pricing lands, it is a story, not just a table: free for dev (holds no
@@ -72,25 +77,28 @@ is "trust us with production."
 
 **Competitive frame** (custody vs management):
 
-- vs Doppler: great DX, but Cloudflare is DIY and "Restricted" is a UI mask, not a
-  storage-layer guarantee.
-- vs Infisical: closest shape, but secrets are plaintext-readable by anyone with read access;
-  no-reveal-by-default is ours.
+- vs Doppler: same runtime-injection shape, but the developer still pastes and manages raw
+  values, and Cloudflare is DIY. We make the agent's default path one where it never handled
+  a raw secret.
+- vs Infisical: closest shape, but it is built around a human reading and copying values;
+  blind generate-and-set as the agent's normal path is ours.
 - vs Phase: has a real sealed primitive, but it is opt-in per secret and there is no
-  agent-aware approval model.
-- vs Vault: the enterprise standard we are deliberately not. Heavy, no Cloudflare, approvals
-  end in plaintext.
+  agent-first, ask-and-get workflow or agent-aware approval model.
+- vs Vault: the enterprise standard we are deliberately not. Heavy, no Cloudflare, built for
+  ops engineers, not for a coding agent that needs a working key in one call.
 
-The one-line version: everyone else manages secrets, we take custody of them.
+The one-line version: everyone else hands the developer a secret to manage. We give the
+agent a working key it never had to hold.
 
 ## Proof obligations
 
 The price is backed by proof or it does not land. Market these as they ship; do not bury
 them in implementation:
 
-- No-reveal custody and small blast radius, with the mechanism explained.
-- Tamper-evident audit export, approvals an agent cannot clear, short-lived machine
-  credentials.
+- Blind generate-and-set and one-step ask-and-get, with the mechanism explained and the
+  runtime boundary stated honestly.
+- Tamper-evident audit export, every use on the record, approvals an agent cannot clear,
+  short-lived machine credentials, small blast radius.
 - SOC 2, a published penetration test, and the Storage Security Gate.
 
 ## What we do not say

@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "#lib/utils";
 
 /**
- * Branded page frame for the Public Site: a header slot, the main content column, and a footer slot.
+ * Brutalist page frame for the Public Site: full-bleed, hard hairline rules, no centered column.
  * Presentational only. All text is passed in by the caller (ADR-0078 content-free UI boundary).
  */
 export function SiteShell({
@@ -19,7 +19,7 @@ export function SiteShell({
       {...props}
     >
       {header}
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-16">{children}</main>
+      <main className="flex-1">{children}</main>
       {footer}
     </div>
   );
@@ -32,14 +32,12 @@ export function SiteHeader({
   ...props
 }: ComponentProps<"header"> & { brand: ReactNode; nav?: ReactNode }) {
   return (
-    <header
-      data-slot="site-header"
-      className={cn("border-b border-border/80", className)}
-      {...props}
-    >
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-6 px-6 py-4">
-        <span className="text-sm font-semibold tracking-tight">{brand}</span>
-        {nav ? <nav className="flex items-center gap-5 text-sm">{nav}</nav> : null}
+    <header data-slot="site-header" className={cn("border-b-2 border-ink", className)} {...props}>
+      <div className="flex items-stretch justify-between">
+        <div className="flex items-center px-5 py-4 sm:px-8">{brand}</div>
+        {nav ? (
+          <nav className="flex items-center border-l-2 border-ink px-5 py-4 sm:px-8">{nav}</nav>
+        ) : null}
       </div>
     </header>
   );
@@ -47,14 +45,8 @@ export function SiteHeader({
 
 export function SiteFooter({ className, children, ...props }: ComponentProps<"footer">) {
   return (
-    <footer
-      data-slot="site-footer"
-      className={cn("border-t border-border/80", className)}
-      {...props}
-    >
-      <div className="mx-auto w-full max-w-5xl px-6 py-8 text-sm text-muted-foreground">
-        {children}
-      </div>
+    <footer data-slot="site-footer" className={cn("border-t-2 border-ink", className)} {...props}>
+      <div className="px-5 py-6 sm:px-8">{children}</div>
     </footer>
   );
 }

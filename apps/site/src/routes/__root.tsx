@@ -1,6 +1,6 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { SiteFooter, SiteHeader, SiteShell } from "@insecur/ui";
+import { SiteFooter, SiteHeader, SiteShell, Wordmark } from "@insecur/ui";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -11,8 +11,10 @@ export const Route = createRootRoute({
       { title: "insecur — coming soon" },
       {
         name: "description",
-        content: "No-reveal secrets custody for teams shipping with agents and CI. Coming soon.",
+        content:
+          "Secrets custody built for coding agents. Your agent asks for what it needs, insecur creates and sets it, and it never has to hold the raw secret. Coming soon.",
       },
+      { name: "theme-color", content: "#f5f3ef" },
       // Placeholder site: keep it out of search indexes until launch.
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -23,7 +25,7 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
@@ -31,15 +33,22 @@ function RootDocument({ children }: { children: ReactNode }) {
         <SiteShell
           header={
             <SiteHeader
-              brand="insecur"
+              brand={<Wordmark />}
               nav={
-                <a className="text-muted-foreground hover:text-foreground" href="/">
-                  Home
-                </a>
+                <span className="text-xs font-semibold tracking-[0.2em] uppercase">
+                  Coming soon
+                </span>
               }
             />
           }
-          footer={<SiteFooter>© insecur — no-reveal secrets custody.</SiteFooter>}
+          footer={
+            <SiteFooter>
+              <div className="flex flex-col gap-1 text-xs tracking-wide uppercase sm:flex-row sm:items-center sm:justify-between">
+                <span className="font-semibold">Secrets your agents never have to hold.</span>
+                <span className="text-muted-foreground">insecur.cloud</span>
+              </div>
+            </SiteFooter>
+          }
         >
           {children}
         </SiteShell>

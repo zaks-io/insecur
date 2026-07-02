@@ -10,4 +10,4 @@ export {
   CardContent,
 } from "#components/ui/card";
 export { SiteShell, SiteHeader, SiteFooter } from "#components/layout/site-shell";
-export { Hero } from "#components/layout/hero";
+export { Wordmark } from "#components/brand/wordmark";
