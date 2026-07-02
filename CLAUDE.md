@@ -8,6 +8,10 @@ During this build-out period:
 
 - Destructive operations (dropping databases, wiping state, resetting environments, recreating schemas) are fine and do not need extra confirmation.
 - Do not write data-preservation migration scripts, backwards-compatible schema changes, or multi-step rollout plans to protect data that does not exist. Just change the schema and reset. Prefer recreate-from-scratch over migrate.
+- Deployment and CI/CD process changes are approved during prelaunch, and agents may run preview,
+  staging, or production deploy commands needed to validate the release path. Keep Sensitive Values
+  out of logs and preserve the capability-isolation invariants below. This standing approval ends
+  once the project has real users or real production data.
 - Secret rotation, real migrations, and staged rollout plans come later, once we are live.
 
 This stays true until the project actually ships.
@@ -106,7 +110,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 ### Quick reference
 
 - **Install deps:** `pnpm install --frozen-lockfile`
-- **Verify:** `pnpm verify` (duplicate warnings + blocking zero-duplicate gate, knip, actionlint, deploy/package/site conformance, format check, lint, typecheck, and unit-test task fan-out)
+- **Verify:** `pnpm verify` (single-pass annotated zero-duplicate gate, knip, actionlint, deploy/package/site conformance, format check, lint, typecheck, and unit-test task fan-out)
 - **CI check alias:** `pnpm ci:check` (same as `pnpm verify`)
 - **Duplicate scan:** `pnpm duplicates:check` (strict jscpd zero gate). CI/pre-push enforce `pnpm duplicates:ci` (zero-duplicate gate, delegates to `duplicates:check`).
 - **Unused code/deps:** `pnpm knip` (blocking in CI, pre-push, and verify)
@@ -122,7 +126,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 
 - `engine-strict=true` in `.npmrc` means `pnpm install` will hard-fail if Node is not on major 24. Always verify `node --version` first.
 - `@insecur/api` (the public API Worker, `insecur-api`) serves `/healthz` liveness plus the `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/orgs/:organizationId/projects`, and `/v1/orgs/:organizationId/runtime-injection` product routes. Keyring-bound work (secret write = encrypt, grant consume = decrypt) is forwarded over the private `RUNTIME` Service Binding to `@insecur/runtime` (`insecur-runtime`), the sole holder of `INSTANCE_ROOT_KEY_V1` and the only deploy that decrypts; it serves zero public routes. `pnpm test:e2e` drives the First Value loop through these real routes against the multi-deploy shape. The authoritative route → deploy table is `docs/specs/deploy-route-inventory.md`, enforced by `pnpm conformance:topology`.
-- jscpd duplicate-code detection: `pnpm duplicates:check` is the strict zero gate; the `CI` workflow and pre-push run `pnpm duplicates:warn` (annotations) then `pnpm duplicates:ci` (blocking zero-duplicate gate). knip (`pnpm knip`) is also blocking in CI, pre-push, and verify; its `types` dead-code rule is enabled (INS-311) and only the `exports` rule remains off in `knip.json` — enabling `exports` is the remaining eligible follow-up config change (`docs/build-tooling.md`).
+- jscpd duplicate-code detection: `pnpm duplicates:check` is the strict zero gate; `pnpm duplicates:ci` delegates to it and is the blocking CI/pre-push path. `pnpm duplicates:warn` only emits annotations and is non-blocking. knip (`pnpm knip`) is also blocking in CI, pre-push, and verify; its `types` dead-code rule is enabled (INS-311) and only the `exports` rule remains off in `knip.json` — enabling `exports` is the remaining eligible follow-up config change (`docs/build-tooling.md`).
 - Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
 - `pnpm test:rls` runs the real forced-RLS tenant suite (requires `DATABASE_URL_RUNTIME`); it now executes in CI's `postgres-integration` job alongside `pnpm test:e2e` (the First Value loop through the real Worker routes). See `docs/agents/testing.md`.
 - Lefthook pre-commit runs staged Prettier/ESLint, optional local gitleaks (skipped when `gitleaks` is not on PATH), and `turbo typecheck`; pre-push runs `pnpm verify` + `pnpm test:coverage`, mirroring CI's `Verify` and `Coverage` jobs so lint/type/test/format/dup/knip/actionlint/coverage churn is caught before pushing. The `CI` (`ci.yml`) and `security-daily` workflows add the security scanners (gitleaks, semgrep, syft+grype) on Blacksmith runners; those stay CI-only and out of the push hot path (`docs/build-tooling.md`).
