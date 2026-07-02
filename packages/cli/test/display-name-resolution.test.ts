@@ -5,6 +5,7 @@ import {
   requireOpaqueIdForDestructive,
   resolveDisplayName,
   resolveDisplayNameOrThrow,
+  resolveOpaqueIdInScopedList,
 } from "../src/display-name-resolution/index.js";
 import { CliError } from "../src/output/cli-error.js";
 import { EXIT_NOT_FOUND, EXIT_VALIDATION } from "../src/output/exit-codes.js";
@@ -123,6 +124,26 @@ describe("resolveDisplayName", () => {
     expect(staleAttempt?.id).not.toBe(first.id);
   });
 
+  it("returns not-found for a stale display name after rename removes the prior match", () => {
+    const beforeRename = [policyEntry(POLICY_A, "Dev Web")];
+    expect(
+      resolveDisplayNameOrThrow({
+        ...baseInput,
+        displayName: "Dev Web",
+        entries: beforeRename,
+      }).id,
+    ).toBe(POLICY_A);
+
+    const afterRename = [policyEntry(POLICY_A, "Preview Deploy")];
+    expect(
+      resolveDisplayName({
+        ...baseInput,
+        displayName: "Dev Web",
+        entries: afterRename,
+      }),
+    ).toBeUndefined();
+  });
+
   it("does not search across scopes when the parent environment is not pinned", () => {
     try {
       assertParentScopeResolved(
@@ -149,6 +170,38 @@ describe("resolveDisplayName", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(CliError);
       expect((error as CliError).code).toBe(CLI_ERROR_CODES.parentScopeUnresolved);
+    }
+  });
+});
+
+describe("resolveOpaqueIdInScopedList", () => {
+  it("resolves a configured opaque ID against a refreshed scoped list", () => {
+    const resolved = resolveOpaqueIdInScopedList({
+      id: POLICY_A as never,
+      resourceType: "runtime_policy",
+      idFlagLabel: "--policy-id",
+      entries: [policyEntry(POLICY_A, "Dev Web")],
+      parent: baseInput.parent,
+    });
+    expect(resolved.id).toBe(POLICY_A);
+    expect(resolved.echo.displayName).toBe("Dev Web");
+  });
+
+  it("fails when a stale configured opaque ID is absent from the refreshed scoped list", () => {
+    try {
+      resolveOpaqueIdInScopedList({
+        id: POLICY_C as never,
+        resourceType: "runtime_policy",
+        idFlagLabel: "--policy-id",
+        entries: [policyEntry(POLICY_A, "Dev Web")],
+      });
+      expect.fail("expected resolveOpaqueIdInScopedList to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CliError);
+      const cliError = error as CliError;
+      expect(cliError.code).toBe(CLI_ERROR_CODES.scopedSelectorNotFound);
+      expect(cliError.exitCode).toBe(EXIT_NOT_FOUND);
+      expect(cliError.message).toBe(`runtime_policy not found in scope: ${POLICY_C} (--policy-id)`);
     }
   });
 });

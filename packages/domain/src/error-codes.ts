@@ -158,6 +158,7 @@ export const CLI_ERROR_CODES = {
   destructiveIdRequired: "cli.destructive_id_required",
   profileSlugInUse: "cli.profile_slug_in_use",
   invalidProfileSlug: "validation.invalid_profile_slug",
+  scopedSelectorNotFound: "cli.scoped_selector_not_found",
 } as const;
 
 export type CliErrorCode = (typeof CLI_ERROR_CODES)[keyof typeof CLI_ERROR_CODES];

@@ -68,6 +68,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [CLI_ERROR_CODES.destructiveIdRequired]: EXIT_VALIDATION,
   [CLI_ERROR_CODES.profileSlugInUse]: EXIT_CONFLICT,
   [CLI_ERROR_CODES.invalidProfileSlug]: EXIT_VALIDATION,
+  [CLI_ERROR_CODES.scopedSelectorNotFound]: EXIT_NOT_FOUND,
   [INJECTION_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.rootKeyNotConfigured]: EXIT_UNEXPECTED,

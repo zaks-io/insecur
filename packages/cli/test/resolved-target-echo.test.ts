@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { successEnvelope } from "@insecur/domain";
+import { shellProfileSummary } from "../src/commands/shell-env.js";
 import { buildCliProfileResolvedTarget } from "../src/display-name-resolution/profile-echo.js";
 import { renderSuccess } from "../src/output/render.js";
 
@@ -55,5 +56,33 @@ describe("resolved target echo", () => {
       },
     });
     stdout.mockRestore();
+  });
+
+  it("prints human-readable resolved target details without sensitive metadata", () => {
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    renderSuccess(
+      successEnvelope({ profileId: PROFILE_ID }),
+      { json: false, quiet: false },
+      () => `Resolved cli_profile local-dev (${PROFILE_ID}) — Local development.`,
+    );
+    expect(stdout.mock.calls[0]?.[0]).toBe(
+      `Resolved cli_profile local-dev (${PROFILE_ID}) — Local development.\n`,
+    );
+    stdout.mockRestore();
+  });
+
+  it("summarizes shell profile targets for human output", () => {
+    expect(
+      shellProfileSummary(PROFILE_ID as never, {
+        slug: "local-dev",
+        displayName: "Local development" as never,
+        host: "https://insecur.test",
+        orgId: "org_01TEST00000000000000000001" as never,
+        projectId: "prj_01TEST00000000000000000001" as never,
+        envId: "env_01TEST00000000000000000001" as never,
+      }),
+    ).toBe(
+      `Starting authenticated shell for profile local-dev (${PROFILE_ID}) — Local development.`,
+    );
   });
 });

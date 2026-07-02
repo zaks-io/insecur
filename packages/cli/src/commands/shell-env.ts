@@ -39,5 +39,5 @@ export function buildShellChildEnv(
 }
 
 export function shellProfileSummary(profileId: CliProfileId, profile: CliUserProfile): string {
-  return `Starting authenticated shell for profile ${profile.slug} (${profileId}).`;
+  return `Starting authenticated shell for profile ${profile.slug} (${profileId}) — ${profile.displayName}.`;
 }
