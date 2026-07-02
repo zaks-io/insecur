@@ -5,13 +5,27 @@ import {
 } from "@insecur/access";
 import { captureFirstValueFeedback } from "@insecur/audit";
 import type { UserActor } from "@insecur/auth";
-import { injectionGrantId, organizationId, requestId, userId } from "@insecur/domain";
-import { withTenantScope } from "@insecur/tenant-store";
+import {
+  AUTH_ERROR_CODES,
+  environmentId,
+  injectionGrantId,
+  organizationId,
+  projectId,
+  requestId,
+  userId,
+} from "@insecur/domain";
+import {
+  assertRuntimeInjectionAccess,
+  InjectionGrantError,
+} from "@insecur/runtime-injection-issue";
+import { TenantInjectionGrantStore, withTenantScope } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CaptureFirstValueFeedbackRpcInput } from "@insecur/worker-kit";
 
 import { captureFirstValueFeedbackOperation } from "./capture-first-value-feedback-operation.js";
 import type { RuntimeRpcActorContext } from "../rpc/runtime-rpc-entry.js";
+
+const mockGetGrant = vi.fn();
 
 vi.mock("@insecur/access", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/access")>();
@@ -43,10 +57,16 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   return {
     ...actual,
     withTenantScope: vi.fn(),
+    TenantInjectionGrantStore: vi.fn(function TenantInjectionGrantStoreMock() {
+      return {
+        getGrant: mockGetGrant,
+      };
+    }),
   };
 });
 
 const organization = organizationId.generate();
+const grant = injectionGrantId.generate();
 const actorUser = userId.generate();
 const hopRequestId = requestId.generate();
 const userActor: UserActor = {
@@ -61,6 +81,22 @@ const actors: RuntimeRpcActorContext = {
   accessActor: { type: "user", userId: actorUser },
 };
 
+const grantInput: CaptureFirstValueFeedbackRpcInput = {
+  organizationId: organization,
+  feedbackKind: "feedback.kind.praise",
+  noteCode: "feedback.note.praise_loop",
+  actorToken: "verified-by-rpc-entry",
+  requestId: hopRequestId,
+  grantId: grant,
+};
+
+function grantRow() {
+  return {
+    project_id: projectId.brand("prj_00000000000000000000000001"),
+    environment_id: environmentId.brand("env_00000000000000000000000001"),
+  };
+}
+
 function mockTenantScopeWithAuditEvidence(): void {
   vi.mocked(withTenantScope).mockImplementation(async (_scope, fn) => {
     const sql = vi.fn(async () => [{ id: "aud_test" }]);
@@ -74,6 +110,9 @@ describe("captureFirstValueFeedbackOperation", () => {
     vi.mocked(authorizeScopeOrThrow).mockReset();
     vi.mocked(captureFirstValueFeedback).mockReset();
     vi.mocked(withTenantScope).mockReset();
+    vi.mocked(assertRuntimeInjectionAccess).mockReset();
+    vi.mocked(TenantInjectionGrantStore).mockClear();
+    mockGetGrant.mockReset();
     vi.mocked(assertOrganizationMembership).mockResolvedValue(undefined);
     vi.mocked(authorizeScopeOrThrow).mockResolvedValue(undefined);
     vi.mocked(captureFirstValueFeedback).mockResolvedValue({ feedbackId: "fvb_test" });
@@ -119,16 +158,33 @@ describe("captureFirstValueFeedbackOperation", () => {
   });
 
   it("does not require organization read when feedback is grant-associated only", async () => {
-    const input: CaptureFirstValueFeedbackRpcInput = {
-      organizationId: organization,
-      feedbackKind: "feedback.kind.praise",
-      noteCode: "feedback.note.praise_loop",
-      actorToken: "verified-by-rpc-entry",
-      requestId: hopRequestId,
-      grantId: injectionGrantId.generate(),
-    };
+    mockGetGrant.mockResolvedValue(null);
 
-    await expect(captureFirstValueFeedbackOperation(input, actors)).rejects.toThrow();
+    await expect(captureFirstValueFeedbackOperation(grantInput, actors)).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.insufficientScope,
+    });
     expect(authorizeScopeOrThrow).not.toHaveBeenCalled();
+    expect(assertRuntimeInjectionAccess).not.toHaveBeenCalled();
+  });
+
+  it("returns the same code for missing grant and present grant without consume scope", async () => {
+    vi.mocked(assertRuntimeInjectionAccess).mockRejectedValue(
+      new InjectionGrantError(
+        AUTH_ERROR_CODES.insufficientScope,
+        "runtime injection scope required",
+      ),
+    );
+    mockGetGrant.mockResolvedValue(grantRow());
+    const presentNoScope = await captureFirstValueFeedbackOperation(grantInput, actors).catch(
+      (error: { code?: string }) => error.code,
+    );
+
+    mockGetGrant.mockResolvedValue(null);
+    const missingGrant = await captureFirstValueFeedbackOperation(grantInput, actors).catch(
+      (error: { code?: string }) => error.code,
+    );
+
+    expect(presentNoScope).toBe(AUTH_ERROR_CODES.insufficientScope);
+    expect(missingGrant).toBe(AUTH_ERROR_CODES.insufficientScope);
   });
 });

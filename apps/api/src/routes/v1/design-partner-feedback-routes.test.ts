@@ -197,4 +197,35 @@ describe("design-partner feedback routes", () => {
       error: { code: VALIDATION_ERROR_CODES.feedbackAssociationNotFound },
     });
   });
+
+  it.each(["missing grant", "present grant without consume scope"] as const)(
+    "maps oracle-closed grant feedback denial (%s) to HTTP 403",
+    async () => {
+      runtime.captureFirstValueFeedback.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "runtime injection scope required"),
+      );
+
+      const env = makeEnv();
+      const response = await app.request(
+        feedbackPath,
+        {
+          method: "POST",
+          headers: await authHeaders(env),
+          body: JSON.stringify({
+            feedbackKind: "feedback.kind.praise",
+            noteCode: "feedback.note.praise_loop",
+            grantId: grantIdValue,
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.insufficientScope },
+      });
+    },
+  );
 });

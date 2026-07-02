@@ -6,7 +6,6 @@ import {
 import { captureFirstValueFeedback } from "@insecur/audit";
 import {
   environmentId,
-  INJECTION_ERROR_CODES,
   projectId,
   userId,
   AUTH_ERROR_CODES,
@@ -97,8 +96,8 @@ async function assertFirstValueFeedbackAccess(
       const grant = await new TenantInjectionGrantStore(db).getGrant(input.organizationId, grantId);
       if (grant === null) {
         throw new InjectionGrantError(
-          INJECTION_ERROR_CODES.grantDenied,
-          "injection grant not found",
+          AUTH_ERROR_CODES.insufficientScope,
+          "injection grant feedback denied",
         );
       }
 

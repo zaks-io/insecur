@@ -190,4 +190,31 @@ describe("runtime injection run-completed route", () => {
       error: { code: "injection.grant_denied" },
     });
   });
+
+  it.each(["missing grant", "unconsumed grant", "consumed grant without consume scope"] as const)(
+    "maps oracle-closed run completion denial (%s) to HTTP 403",
+    async () => {
+      runtime.recordInjectionRunCompleted.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "runtime injection scope required"),
+      );
+
+      const env = makeEnv();
+      const response = await app.request(
+        runCompletedPath,
+        {
+          method: "POST",
+          headers: await authHeaders(env),
+          body: JSON.stringify({ childExitCode: 0 }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.insufficientScope },
+      });
+    },
+  );
 });

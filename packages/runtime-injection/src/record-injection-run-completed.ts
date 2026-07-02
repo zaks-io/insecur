@@ -6,6 +6,7 @@ import {
   type AuditUserActorRef,
 } from "@insecur/audit";
 import {
+  AUTH_ERROR_CODES,
   INJECTION_ERROR_CODES,
   parseChildExitCode,
   projectId,
@@ -89,9 +90,9 @@ async function assertConsumedGrantForRunCompletion(
     input.organizationId,
     input.grantId,
   );
-  if (!grant?.consumed_at) {
+  if (grant === null) {
     throw new InjectionGrantError(
-      INJECTION_ERROR_CODES.grantDenied,
+      AUTH_ERROR_CODES.insufficientScope,
       "injection run completion denied",
     );
   }
@@ -108,6 +109,13 @@ async function assertConsumedGrantForRunCompletion(
     },
     CONSUME_SCOPE,
   );
+
+  if (!grant.consumed_at) {
+    throw new InjectionGrantError(
+      INJECTION_ERROR_CODES.grantDenied,
+      "injection run completion denied",
+    );
+  }
 
   return { grantProjectId, grantEnvironmentId };
 }

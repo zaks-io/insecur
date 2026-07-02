@@ -2,6 +2,7 @@ import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
+  injectionGrantId,
   type InjectionGrantId,
   type OrganizationId,
   userId,
@@ -159,6 +160,57 @@ describeInjectionGrantIntegration("Runtime Injection run completion telemetry", 
     ).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.insufficientScope,
     });
+  });
+
+  it("does not leak grant state to no-scope callers (oracle closure)", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV_RUN_ORACLE");
+    await writeTestSecret(
+      variableKey,
+      new TextEncoder().encode(`run-oracle-${crypto.randomUUID()}`),
+    );
+    const noScopeActor = { type: "user" as const, userId: userId.brand(TEST_NO_SCOPE_USER_ID) };
+
+    const missingGrant = await recordInjectionRunCompleted({
+      organizationId: org,
+      grantId: injectionGrantId.generate(),
+      childExitCode: 0,
+      actor: noScopeActor,
+    }).catch((error: { code?: string }) => error.code);
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey },
+      actor: testActor(),
+    });
+
+    const unconsumedGrant = await recordInjectionRunCompleted({
+      organizationId: org,
+      grantId: issued.grantId,
+      childExitCode: 0,
+      actor: noScopeActor,
+    }).catch((error: { code?: string }) => error.code);
+
+    await consumeInjectionGrant({
+      keyring: createTestKeyring(),
+      organizationId: org,
+      grantId: issued.grantId,
+      variableKey,
+      actor: testActor(),
+    });
+
+    const consumedGrant = await recordInjectionRunCompleted({
+      organizationId: org,
+      grantId: issued.grantId,
+      childExitCode: 0,
+      actor: noScopeActor,
+    }).catch((error: { code?: string }) => error.code);
+
+    expect(missingGrant).toBe(AUTH_ERROR_CODES.insufficientScope);
+    expect(unconsumedGrant).toBe(AUTH_ERROR_CODES.insufficientScope);
+    expect(consumedGrant).toBe(AUTH_ERROR_CODES.insufficientScope);
   });
 });
 
