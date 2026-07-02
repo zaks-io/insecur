@@ -40,7 +40,7 @@ export interface RecordInjectionRunCompletedResult {
 function assertUserActorForRunCompleted(actor: AuditActorRef): asserts actor is AuditUserActorRef {
   if (actor.type !== "user") {
     throw new InjectionGrantError(
-      INJECTION_ERROR_CODES.grantDenied,
+      AUTH_ERROR_CODES.insufficientScope,
       "injection run completion denied",
     );
   }
@@ -86,6 +86,8 @@ async function assertConsumedGrantForRunCompletion(
   grantProjectId: ReturnType<typeof projectId.brand>;
   grantEnvironmentId: ReturnType<typeof environmentId.brand>;
 }> {
+  assertUserActorForRunCompleted(input.actor);
+
   const grant = await new TenantInjectionGrantStore(handles.db).getGrant(
     input.organizationId,
     input.grantId,
@@ -99,7 +101,6 @@ async function assertConsumedGrantForRunCompletion(
 
   const grantProjectId = projectId.brand(grant.project_id);
   const grantEnvironmentId = environmentId.brand(grant.environment_id);
-  assertUserActorForRunCompleted(input.actor);
   await assertRuntimeInjectionAccess(
     input.actor,
     {
