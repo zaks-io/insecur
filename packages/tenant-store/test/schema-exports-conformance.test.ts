@@ -47,6 +47,8 @@ const EXPECTED_TABLE_EXPORTS: Record<string, readonly string[]> = {
   "tenant-secrets.js": [
     "secrets",
     "secretVersions",
+    "runtimeInjectionPolicies",
+    "runtimeInjectionPolicyVersions",
     "injectionGrants",
     "auditEvents",
     "operations",

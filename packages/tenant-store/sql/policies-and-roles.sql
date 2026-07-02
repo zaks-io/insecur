@@ -102,6 +102,18 @@ CREATE POLICY injection_grants_tenant_isolation ON injection_grants
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS runtime_injection_policies_tenant_isolation ON runtime_injection_policies;
+CREATE POLICY runtime_injection_policies_tenant_isolation ON runtime_injection_policies
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS runtime_injection_policy_versions_tenant_isolation ON runtime_injection_policy_versions;
+CREATE POLICY runtime_injection_policy_versions_tenant_isolation ON runtime_injection_policy_versions
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS audit_events_tenant_isolation ON audit_events;
 CREATE POLICY audit_events_tenant_isolation ON audit_events
   FOR ALL
@@ -187,6 +199,8 @@ BEGIN
         'secrets',
         'secret_versions',
         'injection_grants',
+        'runtime_injection_policies',
+        'runtime_injection_policy_versions',
         'audit_events',
         'first_value_feedback',
         'operations',

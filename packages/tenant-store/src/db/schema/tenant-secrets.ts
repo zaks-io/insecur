@@ -73,6 +73,91 @@ secretsDeferredConstraints.push(
   }),
 );
 
+/** Deferred so `runtimeInjectionPolicyVersions` exists before the active-version FK is attached. */
+const runtimeInjectionPoliciesDeferredConstraints: ForeignKeyBuilder[] = [];
+
+export const runtimeInjectionPolicies = pgTable(
+  "runtime_injection_policies",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    projectId: text("project_id").notNull(),
+    environmentId: text("environment_id").notNull(),
+    displayName: text("display_name").notNull(),
+    activeVersionId: text("active_version_id"),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("runtime_injection_policies_environment_id_display_name_key").on(
+      table.environmentId,
+      table.displayName,
+    ),
+    unique("runtime_injection_policies_org_id_id_key").on(table.orgId, table.id),
+    ...orgProjectAndEnvironmentForeignKeys(table),
+    ...runtimeInjectionPoliciesDeferredConstraints,
+  ],
+);
+
+export const runtimeInjectionPolicyVersions = pgTable(
+  "runtime_injection_policy_versions",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    policyId: text("policy_id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    displayNameSnapshot: text("display_name_snapshot").notNull(),
+    secretIds: text("secret_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    variableKeys: text("variable_keys")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    command: text("command").notNull(),
+    commandFingerprint: text("command_fingerprint"),
+    ttlSeconds: integer("ttl_seconds").notNull(),
+    deliveryMode: text("delivery_mode").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("runtime_injection_policy_versions_policy_id_version_number_key").on(
+      table.policyId,
+      table.versionNumber,
+    ),
+    unique("runtime_injection_policy_versions_org_id_policy_id_id_key").on(
+      table.orgId,
+      table.policyId,
+      table.id,
+    ),
+    foreignKey({
+      columns: [table.orgId, table.policyId],
+      foreignColumns: [runtimeInjectionPolicies.orgId, runtimeInjectionPolicies.id],
+    }),
+  ],
+);
+
+runtimeInjectionPoliciesDeferredConstraints.push(
+  foreignKey({
+    name: "runtime_injection_policies_org_id_id_active_version_id_fkey",
+    columns: [
+      runtimeInjectionPolicies.orgId,
+      runtimeInjectionPolicies.id,
+      runtimeInjectionPolicies.activeVersionId,
+    ],
+    foreignColumns: [
+      runtimeInjectionPolicyVersions.orgId,
+      runtimeInjectionPolicyVersions.policyId,
+      runtimeInjectionPolicyVersions.id,
+    ],
+  }),
+);
+
 export const injectionGrants = pgTable(
   "injection_grants",
   {

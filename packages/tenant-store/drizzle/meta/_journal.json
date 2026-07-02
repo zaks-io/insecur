@@ -71,6 +71,13 @@
       "when": 1783000000000,
       "tag": "0009_first_value_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783100000000,
+      "tag": "0010_runtime_injection_policies",
+      "breakpoints": true
     }
   ]
 }

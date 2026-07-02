@@ -1875,6 +1875,231 @@
     ],
     "primaryKeys": []
   },
+  "runtime_injection_policies": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "active_version_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "disabled_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "runtime_injection_policies_environment_id_display_name_key",
+        "columns": ["environment_id", "display_name"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "runtime_injection_policies_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "runtime_injection_policies_org_id_environment_id_environments_org_id_id_fk",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "runtime_injection_policies_org_id_id_active_version_id_fkey",
+        "columns": ["org_id", "id", "active_version_id"],
+        "foreignTable": "runtime_injection_policy_versions",
+        "foreignColumns": ["org_id", "policy_id", "id"]
+      },
+      {
+        "name": "runtime_injection_policies_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "runtime_injection_policies_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "runtime_injection_policy_versions": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "policy_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "version_number": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "display_name_snapshot": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_ids": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgArray",
+        "sqlType": "text[]",
+        "defaultSql": "'{}'::text[]"
+      },
+      "variable_keys": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgArray",
+        "sqlType": "text[]",
+        "defaultSql": "'{}'::text[]"
+      },
+      "command": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "command_fingerprint": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "ttl_seconds": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "delivery_mode": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "runtime_injection_policy_versions_org_id_policy_id_id_key",
+        "columns": ["org_id", "policy_id", "id"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "runtime_injection_policy_versions_policy_id_version_number_key",
+        "columns": ["policy_id", "version_number"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "runtime_injection_policy_versions_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "runtime_injection_policy_versions_org_id_policy_id_runtime_injection_policies_org_id_id_fk",
+        "columns": ["org_id", "policy_id"],
+        "foreignTable": "runtime_injection_policies",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
   "secret_versions": {
     "columns": {
       "id": {

@@ -15,3 +15,25 @@ export type {
   InjectionGrantConsumeSelector,
   InjectionGrantIssueSelector,
 } from "./injection-grant-selectors.js";
+export { RuntimeInjectionPolicyError } from "./runtime-injection-policy-error.js";
+export {
+  assertRuntimeInjectionPolicyConfigureAccess,
+  type RuntimeInjectionPolicyAccessCoordinate,
+} from "./assert-runtime-injection-policy-access.js";
+export { assertProtectedPolicyUseAllowed } from "./assert-protected-policy-use.js";
+export {
+  validateRuntimeInjectionPolicyBindings,
+  type RuntimeInjectionPolicyBindingsInput,
+  type ValidatedRuntimeInjectionPolicyBindings,
+} from "./validate-policy-bindings.js";
+export {
+  assertPolicyVersionReferenceable,
+  createAuthorizedRuntimeInjectionPolicy,
+  getRuntimeInjectionPolicyActiveVersion,
+  getRuntimeInjectionPolicyVersion,
+  publishAuthorizedRuntimeInjectionPolicyVersion,
+  runtimePolicyId,
+  runtimePolicyVersionId,
+  type CreateAuthorizedRuntimeInjectionPolicyInput,
+  type PublishAuthorizedRuntimeInjectionPolicyVersionInput,
+} from "./runtime-injection-policies.js";

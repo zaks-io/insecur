@@ -3,6 +3,7 @@
  * Every column of every user table must appear here with an explicit category.
  */
 import { PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP } from "./plaintext-metadata-allowlist-instance-bootstrap.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION } from "./plaintext-metadata-allowlist-runtime-injection.js";
 
 export const PLAINTEXT_METADATA_CATEGORIES = [
   "opaque-id",
@@ -222,6 +223,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     project_id: { category: "opaque-id" },
     variable_key: { category: "type-code" },
   },
+  ...PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION,
   sensitive_metadata_fields: {
     ciphertext_storage_ref: { category: "ciphertext-ref" },
     created_at: { category: "timestamp" },
