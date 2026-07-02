@@ -124,6 +124,8 @@ export {
   type StoreErrorCode,
   VALIDATION_ERROR_CODES,
   type ValidationErrorCode,
+  CLI_ERROR_CODES,
+  type CliErrorCode,
 } from "./error-codes.js";
 export { isKnownErrorCodeInCatalog, listKnownErrorCodes } from "./known-error-code-catalog.js";
 export {

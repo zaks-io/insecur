@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VALIDATION_ERROR_CODES } from "@insecur/domain";
+import { CLI_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import { resolveProfile } from "../src/config/profiles/resolve-profile.js";
 import type { CliUserConfig } from "../src/config/user-config.js";
 import { CliError } from "../src/output/cli-error.js";
@@ -34,7 +34,7 @@ const userConfig: CliUserConfig = {
 function expectProfileNotFound(error: unknown): asserts error is CliError {
   expect(error).toBeInstanceOf(CliError);
   const cliError = error as CliError;
-  expect(cliError.code).toBe("cli.profile_not_found");
+  expect(cliError.code).toBe(CLI_ERROR_CODES.profileNotFound);
   expect(cliError.exitCode).toBe(EXIT_NOT_FOUND);
   expect(cliError.retryable).toBe(false);
 }
