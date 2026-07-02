@@ -181,6 +181,8 @@ export default tseslint.config(
       "apps/runtime/src/**/*.test.ts",
       "apps/runtime/vitest.config.ts",
       "apps/site/vitest.config.ts",
+      "apps/web/src/**/*.test.ts",
+      "apps/web/vitest.config.ts",
       "packages/ui/src/**/*.test.{ts,tsx}",
     ],
     extends: [tseslint.configs.disableTypeChecked],

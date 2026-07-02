@@ -26,6 +26,8 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const appsDir = join(repoRoot, "apps");
 const ROOT_KEY_BINDING = "INSTANCE_ROOT_KEY_V1";
 const API_SCRIPT_NAME = "insecur-api";
+const WEB_SCRIPT_NAME = "insecur-web";
+const API_BINDING = "API";
 const RUNTIME_BINDING = "RUNTIME";
 const RUNTIME_SCRIPT_NAME = "insecur-runtime";
 const RUNTIME_ENTRYPOINT = "RuntimeService";
@@ -72,6 +74,7 @@ function main() {
   assertNoMonolith(deploys);
   assertNoServiceAccessSurface(deploys);
   assertApiRuntimeServiceBinding(deploys);
+  assertWebApiServiceBinding(deploys);
   assertApiPublicEdgeRateLimitBindings(deploys);
   assertRouteInventoryMatches(deploys);
   assertNoPlaintextSigningSecretsInVars(deploys);
@@ -112,7 +115,10 @@ function discoverDeploys() {
       rootKeyScopes,
       hasRootKey: rootKeyScopes.length > 0,
       publicHostnameExposures,
-      routes: extractPublicRoutes(join(appPath, "src", "index.ts")),
+      routes: [
+        ...extractPublicRoutes(join(appPath, "src", "index.ts")),
+        ...extractTanStackFileRoutes(appPath),
+      ].sort(),
     });
   }
   return deploys;
@@ -240,6 +246,9 @@ function extractPublicRoutes(indexPath) {
   if (pathOmittedUsePattern.test(source)) {
     mounts.add("*");
   }
+  if (/pathname\s*===\s*["'`]\/healthz["'`]/.test(source)) {
+    mounts.add("/healthz");
+  }
   return [...mounts].sort();
 }
 
@@ -303,6 +312,84 @@ function assertNoServiceAccessSurface(deploys) {
         );
       }
     }
+  }
+}
+
+function extractTanStackFileRoutes(appPath) {
+  const routesDir = join(appPath, "src", "routes");
+  if (!isDirectory(routesDir)) {
+    return [];
+  }
+  const mounts = new Set();
+  for (const entry of readdirSync(routesDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".tsx")) {
+      continue;
+    }
+    const source = readFileSync(join(routesDir, entry.name), "utf8");
+    for (const match of source.matchAll(/createFileRoute\(\s*["'`]([^"'`]+)["'`]/g)) {
+      const route = match[1];
+      if (isPublicMount(route)) {
+        mounts.add(route);
+      }
+    }
+  }
+  return [...mounts];
+}
+
+function isDirectory(path) {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function assertWebApiServiceBinding(deploys) {
+  const webDeploy = deploys.find((deploy) => deploy.name === WEB_SCRIPT_NAME);
+  if (!webDeploy) {
+    fail(`missing Web BFF deploy '${WEB_SCRIPT_NAME}'`);
+    return;
+  }
+  assertApiBindingShape(webDeploy, webDeploy.config, {
+    scope: "top-level",
+    expectedService: API_SCRIPT_NAME,
+  });
+
+  const previewConfig = webDeploy.config?.env?.preview;
+  if (!previewConfig || typeof previewConfig !== "object") {
+    fail(
+      `deploy '${WEB_SCRIPT_NAME}' env.preview is missing the ${API_BINDING} Service Binding override`,
+    );
+    return;
+  }
+  assertApiBindingShape(webDeploy, previewConfig, {
+    scope: "env.preview",
+    expectedService: `${API_SCRIPT_NAME}-preview`,
+  });
+}
+
+function assertApiBindingShape(deploy, config, { scope, expectedService }) {
+  const services = config?.services;
+  if (!Array.isArray(services)) {
+    fail(
+      `deploy '${deploy.name}' ${scope} must declare a private ${API_BINDING} Service Binding to '${expectedService}'`,
+    );
+    return;
+  }
+  const binding = services.find((service) => service?.binding === API_BINDING);
+  if (!binding) {
+    fail(`deploy '${deploy.name}' ${scope} is missing the ${API_BINDING} Service Binding`);
+    return;
+  }
+  if (binding.service !== expectedService) {
+    fail(
+      `deploy '${deploy.name}' ${scope} ${API_BINDING} Service Binding targets '${String(binding.service)}' (expected '${expectedService}')`,
+    );
+  }
+  if (binding.entrypoint !== undefined) {
+    fail(
+      `deploy '${deploy.name}' ${scope} ${API_BINDING} Service Binding must not declare an entrypoint (fetch hop to insecur-api)`,
+    );
   }
 }
 
@@ -529,7 +616,7 @@ function parseRouteInventory(doc) {
     const bodyStart = heading.index + title.length;
     const bodyEnd = headings[index + 1]?.index ?? doc.length;
     const body = doc.slice(bodyStart, bodyEnd);
-    const routes = [...body.matchAll(/^\|\s*[^|]+\|\s*`(\/[^`]+)`\s*\|/gm)].map(
+    const routes = [...body.matchAll(/^\|\s*[^|]+\|\s*`(\/[^`]*)`\s*\|/gm)].map(
       (match) => match[1],
     );
     documentedByDeploy.set(deployName, new Set(routes.sort()));

@@ -43,6 +43,11 @@
       "project": ["src/**/*.ts"],
       "ignoreDependencies": ["cloudflare"]
     },
+    "apps/web": {
+      "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["cloudflare"]
+    },
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts", "*.config.mjs"],
       "project": ["scripts/**/*.mjs"],

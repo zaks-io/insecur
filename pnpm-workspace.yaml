@@ -11,6 +11,8 @@ strictDepBuilds: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - esbuild
+  - "@cloudflare/vite-plugin"
+  - miniflare
 nodeLinker: isolated
 
 catalog:

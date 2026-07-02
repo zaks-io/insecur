@@ -33,6 +33,28 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/runtime-injection`       |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback` |
 
+## Web Worker — `apps/web` (`insecur-web`)
+
+Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API Worker only over
+the private `API` Service Binding with a per-request `insecur-api`-audience scoped token. Holds NO
+root-key binding and NO Hyperdrive binding.
+
+| Method | Mount prefix |
+| ------ | ------------ |
+| GET    | `/healthz`   |
+| GET    | `/`          |
+| GET    | `/whoami`    |
+
+## Public Site Worker — `apps/site` (`insecur-site`)
+
+Public marketing/legal/security surface (ADR-0078). Holds no auth session, database, keyring, API,
+Runtime, or product-control-plane binding.
+
+| Method | Mount prefix |
+| ------ | ------------ |
+| GET    | `/healthz`   |
+| GET    | `/`          |
+
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 
 Sole holder of `INSTANCE_ROOT_KEY_V1`. Decrypt-egress deploy. Reached only via the private Service

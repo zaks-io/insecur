@@ -22,7 +22,9 @@ What is delivered:
 - `apps/runtime` is the private Runtime Worker. It owns DB access, the root-key
   binding, keyring construction, encrypt, decrypt, and non-keyring tenant DB work
   reached over the private `RUNTIME` Service Binding.
-- The repo has 22 workspace projects and builds on Node 24 and pnpm 10.
+- `apps/web` is the Web BFF (`insecur-web`): TanStack Start on Workers with a private
+  `API` Service Binding hop and a `/whoami` authenticated proof route (INS-201).
+- The repo has 23 workspace projects and builds on Node 24 and pnpm 10.
 - The local verification floor passes.
 - The local DB-backed RLS, e2e, and no-plaintext canary layers pass after a fresh
   local Postgres reset.
@@ -34,7 +36,7 @@ What is delivered:
 What is not delivered:
 
 - No production launch gate is complete.
-- No `apps/web` BFF or web console exists.
+- Full tenant web console UX (beyond the INS-201 BFF scaffold and `/whoami` proof).
 - No provider sync to GitHub or customer Cloudflare Workers exists.
 - No Storage Security Gate enforcement is wired into production delivery.
 - No hosted web-console WorkOS login/logout/callback UI, MFA enrollment, or high-risk
@@ -437,7 +439,7 @@ Not delivered:
 
 These are concrete missing product/code surfaces, not tracker hypotheticals:
 
-- `apps/web` BFF and web console.
+- Full tenant web console beyond the INS-201 BFF scaffold (`/whoami` proof only so far).
 - Provider sync to GitHub Actions secrets.
 - Provider sync to customer Cloudflare Worker secrets.
 - Cloudflare App Connection and GitHub App Connection production flows.

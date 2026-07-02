@@ -13,7 +13,9 @@ pre-commit:
             stage_fixed: true
           - name: eslint
             glob: "*.{ts,tsx}"
-            exclude: "scripts/lint-fixtures/**"
+            exclude:
+              - "scripts/lint-fixtures/**"
+              - "**/*.gen.ts"
             # --no-warn-ignored: staging a generated/ignored file (e.g. *.gen.ts) must not trip
             # --max-warnings=0 with eslint's "File ignored by a matching ignore pattern" warning.
             run: pnpm exec eslint --fix --max-warnings=0 --no-warn-ignored {staged_files}

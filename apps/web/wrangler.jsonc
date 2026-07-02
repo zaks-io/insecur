@@ -1,0 +1,49 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "insecur-web",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "destinations": ["axiom-logs"],
+    },
+    "traces": {
+      "enabled": true,
+      "destinations": ["axiom-traces"],
+    },
+  },
+  // The Web BFF holds no keyring and no Hyperdrive binding (ADR-0051/0077). It owns the browser
+  // session cookie and reaches the public API Worker only over this private Service Binding with a
+  // per-request `insecur-api`-audience scoped token. Admission resolution uses the same private
+  // Runtime binding shape as the API edge (ADR-0077 pre-auth seam).
+  "services": [
+    {
+      "binding": "API",
+      "service": "insecur-api",
+    },
+    {
+      "binding": "RUNTIME",
+      "service": "insecur-runtime",
+      "entrypoint": "RuntimeService",
+    },
+  ],
+  "env": {
+    "preview": {
+      "name": "insecur-web-preview",
+      "services": [
+        {
+          "binding": "API",
+          "service": "insecur-api-preview",
+        },
+        {
+          "binding": "RUNTIME",
+          "service": "insecur-runtime-preview",
+          "entrypoint": "RuntimeService",
+        },
+      ],
+    },
+  },
+}

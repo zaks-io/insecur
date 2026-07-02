@@ -50,7 +50,7 @@ here.
 | -------------------------------------------------------------- | ----------------------------------- |
 | Public API Worker: transport, routes, bindings, hop token      | `apps/api/`                         |
 | Private Runtime Worker: keyring/decrypt-egress, RuntimeService | `apps/runtime/`                     |
-| Web Console BFF (deferred; not scaffolded yet, INS-201)        | `apps/web/` (planned)               |
+| Web Console BFF (`insecur-web`)                                | `apps/web/`                         |
 | Shared Worker composition glue (http/auth)                     | `packages/worker-kit/`              |
 | CLI parsing, local config, output, and child process execution | `packages/cli/`                     |
 | Shared branded primitives and result vocabulary                | `packages/domain/`                  |
@@ -111,7 +111,7 @@ Prettier/ESLint/Vitest wiring, and `pnpm verify`.
 The Worker topology is capability-isolated: `apps/api` (`insecur-api`) is the public edge with no
 root-key binding; `apps/runtime` (`insecur-runtime`) is the sole `INSTANCE_ROOT_KEY_V1` holder with
 no public `/v1/*` routes, reached only over the private `RUNTIME` Service Binding;
-`apps/web` (BFF) is deferred (INS-201). See
+`apps/web` (BFF) is scaffolded (`insecur-web`, INS-201). See
 [`docs/specs/deploy-route-inventory.md`](../specs/deploy-route-inventory.md) for the live route
 mounts and [`docs/project-status.md`](../project-status.md) for a status snapshot — but treat that
 snapshot as lower authority than owning specs/ADRs and verified code when they disagree (per the
