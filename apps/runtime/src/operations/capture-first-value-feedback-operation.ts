@@ -1,4 +1,8 @@
-import { assertOrganizationMembership } from "@insecur/access";
+import {
+  assertOrganizationMembership,
+  authorizeScopeOrThrow,
+  AUTHORIZATION_SCOPES,
+} from "@insecur/access";
 import { captureFirstValueFeedback } from "@insecur/audit";
 import {
   environmentId,
@@ -21,7 +25,20 @@ import type { RuntimeRpcActorContext } from "../rpc/runtime-rpc-entry.js";
 
 async function assertTenantFeedbackAssociationExists(
   input: CaptureFirstValueFeedbackRpcInput,
+  actors: RuntimeRpcActorContext,
 ): Promise<void> {
+  if (input.operationId === undefined && input.associatedRequestId === undefined) {
+    return;
+  }
+
+  await authorizeScopeOrThrow({
+    actor: actors.accessActor,
+    auditActor: actors.auditActor,
+    coordinate: { organizationId: input.organizationId },
+    requiredScope: AUTHORIZATION_SCOPES.organizationRead,
+    requestId: input.requestId,
+  });
+
   await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ sql }) => {
@@ -66,7 +83,7 @@ async function assertFirstValueFeedbackAccess(
   }
 
   await assertOrganizationMembership(actors.accessActor, input.organizationId);
-  await assertTenantFeedbackAssociationExists(input);
+  await assertTenantFeedbackAssociationExists(input, actors);
 
   if (input.grantId === undefined) {
     return;
