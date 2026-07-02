@@ -215,8 +215,8 @@ A design partner removes local plaintext development secrets from one real repo 
 Injection repeatedly in normal work.
 
 Pass means the repo no longer depends on a steady-state plaintext `.env` for the chosen workflow, the
-team can explain "use it, don't reveal it" in their own words, and their feedback identifies the next
-highest-confidence production-custody workflow.
+team can explain "secrets my agents never have to hold" in their own words, and their feedback
+identifies the next highest-confidence production-custody workflow.
 
 ## Done
 

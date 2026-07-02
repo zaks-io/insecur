@@ -1,69 +1,59 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
 /*
- * Tailwind v4 scans classes from the @insecur/ui components that ship with these tokens. Consuming
- * apps import this stylesheet and add their own @source roots (e.g. their routes) for the utilities
- * their markup uses.
+ * Self-hosted Archivo (grotesque superfamily). Variable weight+width for the display tension a
+ * brutalist headline needs; Archivo Black for the heaviest cut. Self-hosted on purpose: a
+ * secrets-custody brand should not phone a font CDN on first paint.
  */
+@import "@fontsource-variable/archivo/wght.css";
+@import "@fontsource/archivo-black/latin-400.css";
+
 @source "../components";
 
-@custom-variant dark (&:is(.dark *));
-
 /*
- * @insecur/ui design tokens (ADR-0078). Presentational only: brand palette, radius, and the
- * shadcn semantic token layer. This file owns no copy, routes, or product data. Tailwind v4
- * CSS-first config; the Public Site opts into dark mode by default via `.dark` on <html>.
+ * @insecur/ui design tokens (ADR-0078). Presentational only. Stark ink-on-paper brutalism: no dark
+ * mode, no soft surfaces, no accent gradients. One signal color, used almost nowhere. The design is
+ * high contrast, hard edges, and big type; structure is drawn with hairline rules, not shadows.
  */
 :root {
-  --radius: 0.625rem;
+  --radius: 0;
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-}
+  /* Paper and ink. The whole system is two colors plus one signal. */
+  --paper: oklch(0.965 0.006 95);
+  --ink: oklch(0.16 0.006 265);
+  --signal: oklch(
+    0.52 0.21 27
+  ); /* warning red; darkened to clear WCAG AA on small text over paper */
 
-.dark {
-  --background: oklch(0.16 0.03 265);
-  --foreground: oklch(0.96 0.01 255);
-  --card: oklch(0.21 0.035 265);
-  --card-foreground: oklch(0.96 0.01 255);
-  --popover: oklch(0.21 0.035 265);
-  --popover-foreground: oklch(0.96 0.01 255);
-  --primary: oklch(0.78 0.11 250);
-  --primary-foreground: oklch(0.2 0.06 260);
-  --secondary: oklch(0.27 0.03 265);
-  --secondary-foreground: oklch(0.96 0.01 255);
-  --muted: oklch(0.27 0.03 265);
-  --muted-foreground: oklch(0.72 0.03 258);
-  --accent: oklch(0.27 0.04 265);
-  --accent-foreground: oklch(0.96 0.01 255);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.6 0.1 250);
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--ink);
+  --secondary-foreground: var(--paper);
+  --muted: oklch(0.965 0.006 95);
+  --muted-foreground: oklch(0.42 0.006 265);
+  --accent: var(--signal);
+  --accent-foreground: var(--paper);
+  --destructive: var(--signal);
+  --border: var(--ink);
+  --input: var(--ink);
+  --ring: var(--ink);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-signal: var(--signal);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -84,18 +74,30 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Black", "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
     margin: 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--signal);
+    color: var(--paper);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 2px;
   }
 }

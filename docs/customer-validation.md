@@ -11,7 +11,7 @@ the mechanism is the right first product for real customers before broadening sc
 insecur should not enter the market as a generic secrets manager. The excellent version is
 the obvious new primitive for agent-era development:
 
-> Secrets are usable, scoped, audited, and structurally unreadable.
+> Secrets your agents can use without ever having to hold: asked for, generated, scoped, and audited.
 
 The first buyer is a small agent-heavy team shipping real apps with local coding agents and
 CI, starting in the Cloudflare Workers and GitHub Actions stack. They already feel that
@@ -36,7 +36,7 @@ The user should experience this:
 - There is no `.env` file for the agent to read.
 - The command still receives the secret at runtime.
 - The CLI prints metadata only.
-- The user can explain the product as "use it, don't reveal it."
+- The user can explain the product as "secrets my agents never have to hold."
 
 Everything before this moment should make the path shorter. Everything after it should earn
 its place by increasing trust, repeat usage, or the path to production custody.
@@ -144,7 +144,7 @@ Weak signals:
 Revisit the wedge if discovery shows any of these patterns:
 
 - Agent-heavy teams do not treat local plaintext secrets as painful enough to change.
-- Teams want reveal/export more than no-reveal custody.
+- Teams prefer reveal/export over the agent-never-handles-the-secret workflow.
 - The first product proof needs too much policy, web UI, or provider setup to create value.
 - Users understand the security benefit but stop using the runtime-injection loop.
 - The only interested buyers are enterprise security teams with long compliance-first
