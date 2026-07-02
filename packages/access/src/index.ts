@@ -53,6 +53,7 @@ export {
   EnvironmentLifecycleAccessError,
   type EnvironmentLifecycleAccessCoordinate,
 } from "./assert-environment-lifecycle-update-access.js";
+export { assertOrganizationMembership } from "./assert-organization-membership.js";
 export { recordAccessDenial, type RecordAccessDenialInput } from "./record-access-denial.js";
 export {
   type ActorRef,

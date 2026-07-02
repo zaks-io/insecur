@@ -35,6 +35,10 @@ import type {
   RecordAdmissionDeniedRpcPayload,
   RecordAbuseDeniedRpcInput,
   RecordAbuseDeniedRpcPayload,
+  RecordInjectionRunCompletedRpcInput,
+  RecordInjectionRunCompletedRpcPayload,
+  CaptureFirstValueFeedbackRpcInput,
+  CaptureFirstValueFeedbackRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RuntimeDeliveryEnvelope,
@@ -45,9 +49,11 @@ import type {
 
 import type { RuntimeEnv } from "./env.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
+import { captureFirstValueFeedbackOperation } from "./operations/capture-first-value-feedback-operation.js";
 import { getOperationOperation } from "./operations/get-operation-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
 import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
+import { recordInjectionRunCompletedOperation } from "./operations/record-injection-run-completed-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
@@ -263,6 +269,22 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
         ownerMembershipId: input.ownerMembershipId,
         request: { requestId: input.requestId },
       }),
+    );
+  }
+
+  recordInjectionRunCompleted(
+    input: RecordInjectionRunCompletedRpcInput,
+  ): Promise<RuntimeRpcResult<RecordInjectionRunCompletedRpcPayload>> {
+    return this.#post(input.actorToken, ({ auditActor }) =>
+      recordInjectionRunCompletedOperation({ input, auditActor }),
+    );
+  }
+
+  captureFirstValueFeedback(
+    input: CaptureFirstValueFeedbackRpcInput,
+  ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>> {
+    return this.#post(input.actorToken, (actors) =>
+      captureFirstValueFeedbackOperation(input, actors),
     );
   }
 }

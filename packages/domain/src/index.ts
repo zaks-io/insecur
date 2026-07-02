@@ -31,6 +31,7 @@ export {
   type MachineAuthMethodId,
   type AppConnectionId,
   type ProviderCredentialId,
+  type FirstValueFeedbackId,
   organizationId,
   projectId,
   environmentId,
@@ -52,6 +53,7 @@ export {
   machineAuthMethodId,
   appConnectionId,
   providerCredentialId,
+  firstValueFeedbackId,
 } from "./resource-ids.js";
 export {
   type DisplayName,
@@ -59,6 +61,11 @@ export {
   type ParseDisplayNameResult,
   parseDisplayName,
 } from "./display-name.js";
+export {
+  CHILD_EXIT_CODE_MAX,
+  type ParseChildExitCodeResult,
+  parseChildExitCode,
+} from "./child-exit-code.js";
 export {
   ENVIRONMENT_LIFECYCLE_STAGES,
   type EnvironmentLifecycleStage,

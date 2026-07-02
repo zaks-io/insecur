@@ -19,18 +19,19 @@ Public edge. Authenticates humans/agents, forwards keyring-bound work AND all no
 the `RUNTIME` Service Binding. Holds NO root-key binding and NO Hyperdrive binding; performs zero DB
 I/O.
 
-| Method | Mount prefix                                 |
-| ------ | -------------------------------------------- |
-| GET    | `/healthz`                                   |
-| \*     | `/v1/auth`                                   |
-| \*     | `/v1/session`                                |
-| \*     | `/v1/onboarding`                             |
-| \*     | `/v1/instance/bootstrap`                     |
-| \*     | `/v1/orgs/:organizationId/invitations`       |
-| \*     | `/v1/orgs/:organizationId/organizations`     |
-| \*     | `/v1/orgs/:organizationId/projects`          |
-| \*     | `/v1/orgs/:organizationId/operations`        |
-| \*     | `/v1/orgs/:organizationId/runtime-injection` |
+| Method | Mount prefix                                       |
+| ------ | -------------------------------------------------- |
+| GET    | `/healthz`                                         |
+| \*     | `/v1/auth`                                         |
+| \*     | `/v1/session`                                      |
+| \*     | `/v1/onboarding`                                   |
+| \*     | `/v1/instance/bootstrap`                           |
+| \*     | `/v1/orgs/:organizationId/invitations`             |
+| \*     | `/v1/orgs/:organizationId/organizations`           |
+| \*     | `/v1/orgs/:organizationId/projects`                |
+| \*     | `/v1/orgs/:organizationId/operations`              |
+| \*     | `/v1/orgs/:organizationId/runtime-injection`       |
+| \*     | `/v1/orgs/:organizationId/design-partner-feedback` |
 
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 

@@ -156,6 +156,12 @@ CREATE POLICY provider_credentials_tenant_isolation ON provider_credentials
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS first_value_feedback_tenant_isolation ON first_value_feedback;
+CREATE POLICY first_value_feedback_tenant_isolation ON first_value_feedback
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS sensitive_metadata_fields_tenant_isolation ON sensitive_metadata_fields;
 CREATE POLICY sensitive_metadata_fields_tenant_isolation ON sensitive_metadata_fields
   FOR ALL
@@ -182,6 +188,7 @@ BEGIN
         'secret_versions',
         'injection_grants',
         'audit_events',
+        'first_value_feedback',
         'operations',
         'invitations',
         'sync_target_leases',

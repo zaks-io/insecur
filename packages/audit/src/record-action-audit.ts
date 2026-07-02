@@ -10,6 +10,7 @@ import type { TenantScopedSql } from "@insecur/tenant-store";
 import type { AuditEventCode } from "./audit-event-codes.js";
 import type {
   AuditEventActorRef,
+  AuditEventDetails,
   AuditEventInput,
   AuditOperationRef,
   AuditRequestRef,
@@ -33,6 +34,7 @@ export interface RecordActionAuditInput {
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
   reasonCode?: KnownErrorCode;
+  details?: AuditEventDetails;
 }
 
 export type ActionAuditScopeInput = Pick<
@@ -69,6 +71,7 @@ function toActionAuditEventInput(input: RecordActionAuditInput): AuditEventInput
       ...base,
       eventCode: input.eventCode,
       outcome: "success",
+      ...(input.details !== undefined ? { details: input.details } : {}),
     };
   }
 
@@ -79,6 +82,7 @@ function toActionAuditEventInput(input: RecordActionAuditInput): AuditEventInput
     eventCode: input.eventCode,
     outcome: "denied",
     denial: { reasonCode },
+    ...(input.details !== undefined ? { details: input.details } : {}),
   };
 }
 

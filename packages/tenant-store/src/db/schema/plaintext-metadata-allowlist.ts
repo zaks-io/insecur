@@ -59,6 +59,17 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     resource_type: { category: "type-code" },
     result_code: { category: "type-code" },
   },
+  first_value_feedback: {
+    actor_user_id: { category: "actor-id" },
+    created_at: { category: "timestamp" },
+    feedback_kind: { category: "type-code" },
+    grant_id: { category: "opaque-id" },
+    id: { category: "opaque-id" },
+    note: { category: "type-code" },
+    operation_id: { category: "opaque-id" },
+    org_id: { category: "opaque-id" },
+    request_id: { category: "opaque-id" },
+  },
   environments: {
     created_at: { category: "timestamp" },
     display_name: { category: "display-name" },

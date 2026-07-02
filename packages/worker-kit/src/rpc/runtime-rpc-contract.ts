@@ -228,6 +228,30 @@ export interface CompleteBootstrapClaimRpcInput extends PostAuthRpcInputBase {
   readonly ownerMembershipId: MembershipId;
 }
 
+export interface RecordInjectionRunCompletedRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly grantId: InjectionGrantId;
+  readonly childExitCode: number;
+}
+
+export interface RecordInjectionRunCompletedRpcPayload {
+  readonly auditEventId: string;
+  readonly alreadyRecorded: boolean;
+}
+
+export interface CaptureFirstValueFeedbackRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly feedbackKind: string;
+  readonly noteCode: string;
+  readonly grantId?: InjectionGrantId;
+  readonly operationId?: OperationId;
+  readonly associatedRequestId?: RequestId;
+}
+
+export interface CaptureFirstValueFeedbackRpcPayload {
+  readonly feedbackId: string;
+}
+
 /**
  * The interface the API Worker binds against. The implementation
  * (`RuntimeService extends WorkerEntrypoint`) lives in `apps/runtime`; the API never imports it,
@@ -269,4 +293,10 @@ export interface RuntimeRpc {
   completeBootstrapOperatorClaim(
     input: CompleteBootstrapClaimRpcInput,
   ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>>;
+  recordInjectionRunCompleted(
+    input: RecordInjectionRunCompletedRpcInput,
+  ): Promise<RuntimeRpcResult<RecordInjectionRunCompletedRpcPayload>>;
+  captureFirstValueFeedback(
+    input: CaptureFirstValueFeedbackRpcInput,
+  ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>>;
 }

@@ -97,5 +97,7 @@ export function runtimeClientFor(
     completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
     writeSecret: forward("writeSecret"),
     consumeGrant: forward("consumeGrant"),
+    recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),
+    captureFirstValueFeedback: forward("captureFirstValueFeedback"),
   };
 }

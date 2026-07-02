@@ -29,6 +29,7 @@ export interface RecordRuntimeInjectionAuditInput {
   environmentId?: EnvironmentId;
   grantId?: InjectionGrantId;
   deliveredSecretVersionId?: SecretVersionId;
+  childExitCode?: number;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
   reasonCode?: KnownErrorCode;
@@ -85,6 +86,10 @@ function toRuntimeInjectionScopedInput(
     input.deliveredSecretVersionId !== undefined
       ? secretVersionAuditRelatedResource(input.deliveredSecretVersionId)
       : {};
+  const runDetails =
+    input.phase === "run" && input.childExitCode !== undefined
+      ? { details: { childExitCode: input.childExitCode } as const }
+      : {};
 
   return {
     eventCode: eventCodeFor(input),
@@ -99,6 +104,7 @@ function toRuntimeInjectionScopedInput(
       requestId: input.request?.requestId,
       operationId: input.operation?.operationId,
       reasonCode: input.reasonCode,
+      details: runDetails.details,
     }),
   };
 }

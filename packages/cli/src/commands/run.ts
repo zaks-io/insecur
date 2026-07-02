@@ -5,6 +5,7 @@ import {
   INJECTION_ERROR_CODES,
   successEnvelope,
   VALIDATION_ERROR_CODES,
+  type InjectionGrantId,
   type VariableKey,
 } from "@insecur/domain";
 import type {
@@ -118,6 +119,27 @@ async function issueAndConsumeGrant(input: {
   };
 }
 
+async function recordRunCompletedBestEffort(input: {
+  readonly api: ApiClient;
+  readonly host: string;
+  readonly credential: string;
+  readonly organizationId: ResolvedSecretWriteScope["orgId"];
+  readonly grantId: InjectionGrantId;
+  readonly childExitCode: number;
+}): Promise<void> {
+  try {
+    await input.api.recordInjectionRunCompleted({
+      host: input.host,
+      bearerCredential: input.credential,
+      organizationId: input.organizationId,
+      grantId: input.grantId,
+      childExitCode: input.childExitCode,
+    });
+  } catch {
+    // Best-effort telemetry: transport failures must not fail the injected child exit code.
+  }
+}
+
 export async function runRunCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
@@ -140,6 +162,15 @@ export async function runRunCommand(
     command,
     buildRunChildEnv(variableKey, decodeDeliveryValue(delivery.encodedValueUtf8)),
   );
+
+  await recordRunCompletedBestEffort({
+    api,
+    host: context.scope.host,
+    credential,
+    organizationId: runScope.orgId,
+    grantId: issueData.grantId,
+    childExitCode,
+  });
 
   renderSuccess(
     successEnvelope(

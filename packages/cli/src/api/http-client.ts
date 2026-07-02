@@ -84,6 +84,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
     issueInjectionGrant: (input) => issueInjectionGrant(base, input),
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
+    recordInjectionRunCompleted: (input) => recordInjectionRunCompleted(base, input),
   };
 }
 
@@ -214,6 +215,30 @@ async function consumeInjectionGrant(
     },
   );
   const envelope = parseDeliveryEnvelope(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+async function recordInjectionRunCompleted(
+  base: string,
+  input: Parameters<ApiClient["recordInjectionRunCompleted"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/run-completed`;
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    {
+      organizationId: input.organizationId,
+      childExitCode: input.childExitCode,
+    },
+  );
+  const envelope = parseEnvelope<{
+    auditEventId: string;
+    alreadyRecorded: boolean;
+  }>(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
   }

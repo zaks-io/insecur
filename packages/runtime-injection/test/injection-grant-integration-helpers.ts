@@ -98,6 +98,7 @@ export async function loadAuditRow(organizationId: OrganizationId, auditEventId:
         resource_id: string | null;
         related_resource_type: string | null;
         related_resource_id: string | null;
+        details: Record<string, unknown> | null;
       }[]
     >`
       SELECT
@@ -107,7 +108,8 @@ export async function loadAuditRow(organizationId: OrganizationId, auditEventId:
         resource_type,
         resource_id,
         related_resource_type,
-        related_resource_id
+        related_resource_id,
+        details
       FROM audit_events
       WHERE id = ${auditEventId}
       LIMIT 1

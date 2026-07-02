@@ -15,7 +15,7 @@ import {
   recordActionAudit,
   recordActionAuditInTenantScope,
 } from "./record-action-audit.js";
-import type { AuditActorRef, AuditResourceRef } from "./audit-types.js";
+import type { AuditActorRef, AuditEventDetails, AuditResourceRef } from "./audit-types.js";
 import type { AuditEventResult } from "./write-audit-event.js";
 
 export interface RecordScopedAuditInput {
@@ -30,6 +30,7 @@ export interface RecordScopedAuditInput {
   requestId?: RequestId;
   operationId?: OperationId;
   reasonCode?: KnownErrorCode;
+  details?: AuditEventDetails;
 }
 
 function toRecordActionAuditInput(input: RecordScopedAuditInput) {
@@ -55,7 +56,10 @@ function toRecordActionAuditInput(input: RecordScopedAuditInput) {
     }),
     outcome: input.outcome,
     eventCode: input.eventCode,
-    ...omitUndefinedFields({ reasonCode: input.reasonCode }),
+    ...omitUndefinedFields({
+      reasonCode: input.reasonCode,
+      details: input.details,
+    }),
   };
 }
 
