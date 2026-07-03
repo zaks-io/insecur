@@ -183,7 +183,7 @@ function writeAttestation(finishedAt = null) {
       checkov_framework: "github_actions",
       semgrep_config: "auto",
       trivy_scanners: "vuln,misconfig",
-      gitleaks_scope: "full git history",
+      gitleaks_scope: "current HEAD history",
     },
     tools: versions,
     steps,
@@ -196,7 +196,7 @@ function writeAttestation(finishedAt = null) {
 writeAttestation();
 
 runStep("gitleaks", "bash", ["scripts/ci/gitleaks-detect.sh", "git"], {
-  env: { GITLEAKS_REPORT_PATH: join(outDir, "gitleaks.json") },
+  env: { GITLEAKS_LOG_OPTS: "HEAD", GITLEAKS_REPORT_PATH: join(outDir, "gitleaks.json") },
 });
 ensureJsonFile("gitleaks.json", []);
 

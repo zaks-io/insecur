@@ -75,6 +75,11 @@ regexes = ['''^sec_[0-9A-Z]{26}$''']
 id = "curl-auth-header"
 
 [[rules.allowlists]]
+description = "Intentional fake bearer token in gitleaks setup-doc regression probe"
+condition = "and"
+paths = ['''(?i)^scripts/ci/gitleaks-setup-doc-probe\.sh$''']
+
+[[rules.allowlists]]
 description = "Historical scaffold curl Bearer placeholder in setup doc"
 condition = "and"
 paths = ['''(?i)^docs/setup\.md$''']
