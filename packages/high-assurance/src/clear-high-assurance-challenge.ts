@@ -19,19 +19,16 @@ import {
   HIGH_ASSURANCE_ERROR_CODES,
   HighAssuranceChallengeError,
 } from "./high-assurance-challenge-error.js";
+import {
+  finalizePendingChallengeAuditsInOrder,
+  finalizePendingRequestAudit,
+  hasPersistedClearAuditLinkage,
+  hasPersistedRequestAuditLinkage,
+} from "./finalize-pending-challenge-audits.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 import { recordHighAssuranceChallengeCleared } from "./record-high-assurance-challenge-audit.js";
 
 export type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
-
-function isClearAlreadyDurable(operation: OperationPollResult): boolean {
-  const evidence = operation.progress.highAssuranceChallenge;
-  return (
-    operation.state === "waiting_for_human" &&
-    evidence?.clearedAt !== undefined &&
-    evidence.clearAuditEventId !== undefined
-  );
-}
 
 async function recordBoundClearSuccessAudit(
   input: ClearHighAssuranceChallengeInput,
@@ -79,6 +76,9 @@ async function persistClearedChallengeEvidence(
     },
   });
 
+  if (hasPersistedRequestAuditLinkage(evidence)) {
+    await finalizePendingRequestAudit(input, evidence);
+  }
   await recordBoundClearSuccessAudit(input, evidence, authenticationMethodCode, clearAuditEventId);
 
   return mutationResult;
@@ -89,10 +89,7 @@ async function completeDurableClear(
   input: ClearHighAssuranceChallengeInput,
 ): Promise<OperationMutationResult> {
   const evidence = operation.progress.highAssuranceChallenge;
-  if (
-    evidence?.clearAuditEventId === undefined ||
-    evidence.clearAuthenticationMethodCode === undefined
-  ) {
+  if (!hasPersistedClearAuditLinkage(evidence)) {
     throw new HighAssuranceChallengeError(
       HIGH_ASSURANCE_ERROR_CODES.evidenceMissing,
       "cleared high-assurance challenge evidence is missing clear audit linkage",
@@ -100,12 +97,7 @@ async function completeDurableClear(
   }
 
   await assertClearingActorForClear(evidence, input);
-  await recordBoundClearSuccessAudit(
-    input,
-    evidence,
-    evidence.clearAuthenticationMethodCode,
-    evidence.clearAuditEventId,
-  );
+  await finalizePendingChallengeAuditsInOrder(input, evidence);
 
   return { operation, created: false };
 }
@@ -118,7 +110,7 @@ export async function clearHighAssuranceChallenge(
     operationId: input.operationId,
   });
 
-  if (isClearAlreadyDurable(operation)) {
+  if (hasPersistedClearAuditLinkage(operation.progress.highAssuranceChallenge)) {
     return await completeDurableClear(operation, input);
   }
 

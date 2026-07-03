@@ -593,6 +593,28 @@ describe("clear challenge flow regressions", () => {
       expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
     );
   });
+
+  it("retries clear audit finalization when operation already moved to running", async () => {
+    const cleared = clearedEvidence();
+    const runningOperation = operationWithEvidence(
+      {
+        ...cleared,
+        clearAuditEventId: AUD_CLEAR,
+        consumedAt: "2026-07-03T00:10:00.000Z",
+        consumeAuditEventId: AUD_CONSUME,
+      },
+      "running",
+    );
+    getOperation.mockResolvedValue(runningOperation);
+
+    const result = await clearHighAssuranceChallenge(clearInput());
+
+    expect(recordOperationProgress).not.toHaveBeenCalled();
+    expect(result).toEqual({ operation: runningOperation, created: false });
+    expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
+    );
+  });
 });
 
 describe("consume evidence flow regressions", () => {
@@ -701,6 +723,113 @@ describe("consume evidence flow regressions", () => {
     expect(result).toEqual({ operation: durableOperation, created: false });
     expect(recordHighAssuranceEvidenceConsumed).toHaveBeenLastCalledWith(
       expect.objectContaining({ auditEventId: AUD_CONSUME, clearingUserId: USER_A }),
+    );
+  });
+
+  it("finalizes missing clear audit when consume succeeded after clear audit failure", async () => {
+    const pending = baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" });
+    const cleared = {
+      ...pending,
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: USER_A,
+      clearAuthenticationMethodCode: "auth.assurance.passkey",
+      clearAuditEventId: AUD_CLEAR,
+    };
+    const consumed = {
+      ...cleared,
+      consumedAt: "2026-07-03T00:10:00.000Z",
+      consumeAuditEventId: AUD_CONSUME,
+    };
+    const waitingAfterClear = operationWithEvidence(cleared);
+    const runningAfterConsume = operationWithEvidence(consumed, "running");
+
+    getOperation
+      .mockResolvedValueOnce(operationWithEvidence(pending))
+      .mockResolvedValueOnce(waitingAfterClear)
+      .mockResolvedValueOnce(runningAfterConsume);
+    generateAuditEventId.mockReturnValueOnce(AUD_CLEAR).mockReturnValue(AUD_CONSUME);
+    recordOperationProgress.mockResolvedValue({
+      operation: waitingAfterClear,
+      created: false,
+    });
+    recordHighAssuranceChallengeCleared.mockRejectedValueOnce(new Error("audit store unavailable"));
+    recordHighAssuranceChallengeCleared.mockResolvedValue({ auditEventId: AUD_CLEAR });
+    transitionOperation.mockResolvedValue({
+      operation: runningAfterConsume,
+      created: false,
+    });
+
+    await expect(clearHighAssuranceChallenge(clearInput())).rejects.toThrow(
+      "audit store unavailable",
+    );
+
+    await consumeHighAssuranceEvidence({
+      organizationId: ORG,
+      operationId: OP,
+      clearingUserId: USER_A,
+    });
+
+    expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledTimes(2);
+    expect(recordHighAssuranceChallengeCleared).toHaveBeenLastCalledWith(
+      expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
+    );
+    expect(recordHighAssuranceEvidenceConsumed).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: AUD_CONSUME }),
+    );
+
+    getOperation.mockResolvedValue(runningAfterConsume);
+    recordHighAssuranceEvidenceConsumed.mockClear();
+
+    const result = await consumeHighAssuranceEvidence({
+      organizationId: ORG,
+      operationId: OP,
+      clearingUserId: USER_A,
+    });
+
+    expect(transitionOperation).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ operation: runningAfterConsume, created: false });
+    expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledTimes(3);
+    expect(recordHighAssuranceEvidenceConsumed).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: AUD_CONSUME, clearingUserId: USER_A }),
+    );
+  });
+
+  it("finalizes missing request audit during durable consume retry", async () => {
+    const cleared = {
+      ...baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" }),
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: USER_A,
+      clearAuthenticationMethodCode: "auth.assurance.passkey",
+      clearAuditEventId: auditEventId.brand("aud_00000000000000000000000002"),
+    };
+    const consumed = {
+      ...cleared,
+      consumedAt: "2026-07-03T00:10:00.000Z",
+      consumeAuditEventId: AUD_CONSUME,
+    };
+    const runningOperation = operationWithEvidence(consumed, "running");
+
+    getOperation.mockResolvedValue(runningOperation);
+    recordHighAssuranceChallengeRequested.mockResolvedValue({ auditEventId: AUD_REQUEST });
+    recordHighAssuranceChallengeCleared.mockResolvedValue({
+      auditEventId: cleared.clearAuditEventId,
+    });
+    recordHighAssuranceEvidenceConsumed.mockResolvedValue({ auditEventId: AUD_CONSUME });
+
+    await consumeHighAssuranceEvidence({
+      organizationId: ORG,
+      operationId: OP,
+      clearingUserId: USER_A,
+    });
+
+    expect(recordHighAssuranceChallengeRequested).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: AUD_REQUEST }),
+    );
+    expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: cleared.clearAuditEventId }),
+    );
+    expect(recordHighAssuranceEvidenceConsumed).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: AUD_CONSUME }),
     );
   });
 

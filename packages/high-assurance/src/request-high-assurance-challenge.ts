@@ -19,11 +19,12 @@ import {
 } from "./high-assurance-challenge-helpers.js";
 import { isHighAssuranceRiskReasonCode } from "./high-assurance-risk-reason-codes.js";
 import { mapOperationStoreErrorToDenialReason } from "./map-operation-store-denial.js";
-import { optionalAuditRequest } from "./optional-audit-request.js";
 import {
-  recordHighAssuranceChallengeRequestDenied,
-  recordHighAssuranceChallengeRequested,
-} from "./record-high-assurance-challenge-audit.js";
+  hasPersistedRequestAuditLinkage,
+  finalizePendingRequestAudit,
+} from "./finalize-pending-challenge-audits.js";
+import { optionalAuditRequest } from "./optional-audit-request.js";
+import { recordHighAssuranceChallengeRequestDenied } from "./record-high-assurance-challenge-audit.js";
 
 export type { RequestHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
 
@@ -70,11 +71,6 @@ function buildChallengeEvidence(input: {
   };
 }
 
-function isRequestAlreadyDurable(operation: OperationPollResult): boolean {
-  const evidence = operation.progress.highAssuranceChallenge;
-  return operation.state === "waiting_for_human" && evidence?.requestAuditEventId !== undefined;
-}
-
 function assertRequestRetryMatchesBoundEvidence(
   input: RequestHighAssuranceChallengeInput,
   evidence: OperationHighAssuranceChallengeEvidence,
@@ -119,29 +115,6 @@ function assertRequestRetryMatchesBoundEvidence(
       "caller requesting machine identity does not match bound challenge evidence",
     );
   }
-}
-
-async function recordBoundRequestSuccessAudit(
-  input: Pick<RequestHighAssuranceChallengeInput, "organizationId" | "operationId" | "request">,
-  evidence: OperationHighAssuranceChallengeEvidence,
-  requestAuditEventId: AuditEventId,
-): Promise<void> {
-  await recordHighAssuranceChallengeRequested({
-    organizationId: input.organizationId,
-    projectId: evidence.projectId,
-    operationId: input.operationId,
-    challengeId: evidence.challengeId,
-    riskReasonCode: evidence.riskReasonCode,
-    auditEventId: requestAuditEventId,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...(evidence.requestingUserId !== undefined
-      ? { requestingUserId: evidence.requestingUserId }
-      : {}),
-    ...(evidence.requestingMachineIdentityId !== undefined
-      ? { requestingMachineIdentityId: evidence.requestingMachineIdentityId }
-      : {}),
-    ...optionalAuditRequest(input.request),
-  });
 }
 
 async function transitionToWaitingForHuman(
@@ -191,7 +164,7 @@ async function completeDurableRequest(
 
   assertRequestRetryMatchesBoundEvidence(input, evidence);
 
-  await recordBoundRequestSuccessAudit(input, evidence, evidence.requestAuditEventId);
+  await finalizePendingRequestAudit(input, evidence);
 
   return { operation, created: false };
 }
@@ -207,7 +180,7 @@ export async function requestHighAssuranceChallenge(
     operationId: input.operationId,
   });
 
-  if (isRequestAlreadyDurable(operation)) {
+  if (hasPersistedRequestAuditLinkage(operation.progress.highAssuranceChallenge)) {
     return await completeDurableRequest(operation, input);
   }
 
@@ -228,7 +201,7 @@ export async function requestHighAssuranceChallenge(
   });
 
   const transitionResult = await transitionToWaitingForHuman(input, evidence);
-  await recordBoundRequestSuccessAudit(input, evidence, requestAuditEventId);
+  await finalizePendingRequestAudit(input, evidence);
 
   return transitionResult;
 }

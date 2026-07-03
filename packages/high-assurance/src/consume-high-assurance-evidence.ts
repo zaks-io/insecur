@@ -19,6 +19,7 @@ import {
   recordConsumeTransitionDenied,
   recordConsumeValidationDenied,
 } from "./consume-high-assurance-evidence-helpers.js";
+import { finalizePendingChallengeAuditsInOrder } from "./finalize-pending-challenge-audits.js";
 import {
   buildValidateConsumeActorInput,
   validateConsumeActor,
@@ -93,6 +94,7 @@ async function transitionAndAuditConsumedEvidence(
     throw error;
   }
 
+  await finalizePendingChallengeAuditsInOrder(input, evidence);
   await recordBoundConsumeSuccessAudit(evidence, input, consumeAuditEventId);
 
   return transitionResult;
@@ -112,6 +114,7 @@ async function completeDurableConsume(
 
   await validateConsumeActorOrDeny(operation, input, evidence);
 
+  await finalizePendingChallengeAuditsInOrder(input, evidence);
   await recordBoundConsumeSuccessAudit(evidence, input, evidence.consumeAuditEventId);
 
   return { operation, created: false };
