@@ -2,13 +2,18 @@ import { generateAuditEventId } from "@insecur/audit";
 import { type AuditEventId } from "@insecur/domain";
 import {
   getOperation,
-  recordOperationProgress,
+  OPERATION_ERROR_CODES,
+  OperationStoreError,
+  recordOperationProgressClearHighAssuranceChallenge,
   type OperationHighAssuranceChallengeEvidence,
   type OperationMutationResult,
   type OperationPollResult,
 } from "@insecur/operations";
 import type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
-import { challengeAuditScopeFromBoundEvidence } from "./high-assurance-challenge-audit-scope.js";
+import {
+  challengeAuditScopeFromBoundEvidence,
+  clearDeniedAuditScope,
+} from "./high-assurance-challenge-audit-scope.js";
 import {
   assertClearingActorForClear,
   requireOperationWaitingForClear,
@@ -26,7 +31,10 @@ import {
   hasPersistedRequestAuditLinkage,
 } from "./finalize-pending-challenge-audits.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
-import { recordHighAssuranceChallengeCleared } from "./record-high-assurance-challenge-audit.js";
+import {
+  recordHighAssuranceChallengeClearDenied,
+  recordHighAssuranceChallengeCleared,
+} from "./record-high-assurance-challenge-audit.js";
 
 export type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
 
@@ -53,6 +61,17 @@ async function recordBoundClearSuccessAudit(
   });
 }
 
+async function recordClearTransitionDenied(
+  evidence: OperationHighAssuranceChallengeEvidence,
+  input: ClearHighAssuranceChallengeInput,
+): Promise<void> {
+  await recordHighAssuranceChallengeClearDenied({
+    ...clearDeniedAuditScope(input, evidence),
+    reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    riskReasonCode: evidence.riskReasonCode,
+  });
+}
+
 async function persistClearedChallengeEvidence(
   input: ClearHighAssuranceChallengeInput,
   evidence: OperationHighAssuranceChallengeEvidence,
@@ -61,20 +80,36 @@ async function persistClearedChallengeEvidence(
   const clearedAt = new Date().toISOString();
   const clearAuditEventId = generateAuditEventId();
 
-  const mutationResult = await recordOperationProgress({
-    organizationId: input.organizationId,
-    operationId: input.operationId,
-    progress: {
-      highAssuranceChallenge: {
-        ...evidence,
-        clearedAt,
-        clearingUserId: input.clearingUserId,
-        clearAuthenticationMethodCode: authenticationMethodCode,
-        clearAuditEventId,
+  let mutationResult: OperationMutationResult;
+  try {
+    mutationResult = await recordOperationProgressClearHighAssuranceChallenge({
+      organizationId: input.organizationId,
+      operationId: input.operationId,
+      challengeId: evidence.challengeId,
+      progress: {
+        highAssuranceChallenge: {
+          ...evidence,
+          clearedAt,
+          clearingUserId: input.clearingUserId,
+          clearAuthenticationMethodCode: authenticationMethodCode,
+          clearAuditEventId,
+        },
+        auditEventIds: [clearAuditEventId],
       },
-      auditEventIds: [clearAuditEventId],
-    },
-  });
+    });
+  } catch (error) {
+    if (
+      error instanceof OperationStoreError &&
+      error.code === OPERATION_ERROR_CODES.staleTransition
+    ) {
+      await recordClearTransitionDenied(evidence, input);
+      throw new HighAssuranceChallengeError(
+        HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+        "high-assurance challenge evidence is already cleared",
+      );
+    }
+    throw error;
+  }
 
   if (hasPersistedRequestAuditLinkage(evidence)) {
     await finalizePendingRequestAudit(input, evidence);

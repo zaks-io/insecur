@@ -39,6 +39,7 @@ const {
   transitionOperation,
   transitionOperationConsumeHighAssuranceEvidence,
   recordOperationProgress,
+  recordOperationProgressClearHighAssuranceChallenge,
   recordHighAssuranceChallengeRequested,
   recordHighAssuranceChallengeCleared,
   recordHighAssuranceEvidenceConsumed,
@@ -50,6 +51,7 @@ const {
   transitionOperation: vi.fn(),
   transitionOperationConsumeHighAssuranceEvidence: vi.fn(),
   recordOperationProgress: vi.fn(),
+  recordOperationProgressClearHighAssuranceChallenge: vi.fn(),
   recordHighAssuranceChallengeRequested: vi.fn(),
   recordHighAssuranceChallengeCleared: vi.fn(),
   recordHighAssuranceEvidenceConsumed: vi.fn(),
@@ -78,6 +80,7 @@ vi.mock("@insecur/operations", async (importOriginal) => {
     transitionOperation,
     transitionOperationConsumeHighAssuranceEvidence,
     recordOperationProgress,
+    recordOperationProgressClearHighAssuranceChallenge,
   };
 });
 
@@ -705,15 +708,16 @@ describe("clear challenge flow regressions", () => {
       clearAuthenticationMethodCode: "auth.assurance.passkey",
       clearAuditEventId: AUD_CLEAR,
     };
-    recordOperationProgress.mockResolvedValue({
+    recordOperationProgressClearHighAssuranceChallenge.mockResolvedValue({
       operation: operationWithEvidence(cleared),
       created: false,
     });
 
     await clearHighAssuranceChallenge(clearInput());
 
-    expect(recordOperationProgress).toHaveBeenCalledWith(
+    expect(recordOperationProgressClearHighAssuranceChallenge).toHaveBeenCalledWith(
       expect.objectContaining({
+        challengeId: pending.challengeId,
         progress: expect.objectContaining({
           highAssuranceChallenge: expect.objectContaining({
             clearAuditEventId: AUD_CLEAR,
@@ -722,22 +726,83 @@ describe("clear challenge flow regressions", () => {
         }),
       }),
     );
-    expect(recordOperationProgress).toHaveBeenCalledBefore(recordHighAssuranceChallengeCleared);
+    expect(recordOperationProgressClearHighAssuranceChallenge).toHaveBeenCalledBefore(
+      recordHighAssuranceChallengeCleared,
+    );
     expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledWith(
       expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
     );
   });
 
-  it("does not record clear success audit when progress mutation fails", async () => {
-    recordOperationProgress.mockRejectedValue(
+  it("does not record clear success audit when atomic clear progress write fails", async () => {
+    recordOperationProgressClearHighAssuranceChallenge.mockRejectedValue(
       new OperationStoreError(OPERATION_ERROR_CODES.staleTransition, "stale transition", true),
     );
 
-    await expect(clearHighAssuranceChallenge(clearInput())).rejects.toBeInstanceOf(
-      OperationStoreError,
-    );
+    await expect(clearHighAssuranceChallenge(clearInput())).rejects.toMatchObject({
+      code: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    });
 
     expect(recordHighAssuranceChallengeCleared).not.toHaveBeenCalled();
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        denial: { reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed },
+      }),
+    );
+  });
+
+  it("denies second concurrent clear after evidence is already cleared", async () => {
+    const pending = baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" });
+    getOperation.mockResolvedValue(operationWithEvidence(pending));
+    recordOperationProgressClearHighAssuranceChallenge.mockRejectedValue(
+      new OperationStoreError(OPERATION_ERROR_CODES.staleTransition, "stale transition", true),
+    );
+
+    await expect(clearHighAssuranceChallenge(clearInput())).rejects.toMatchObject({
+      code: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    });
+
+    expect(recordHighAssuranceChallengeCleared).not.toHaveBeenCalled();
+    expect(recordOperationProgressClearHighAssuranceChallenge).toHaveBeenCalledWith(
+      expect.objectContaining({ challengeId: pending.challengeId }),
+    );
+  });
+
+  it("denies machine-origin double clear by a second authorized clearing user", async () => {
+    const pending = {
+      ...baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" }),
+      requestingUserId: undefined,
+      requestingMachineIdentityId: MACH,
+    };
+    getOperation.mockResolvedValue(operationWithEvidence(pending));
+    recordOperationProgressClearHighAssuranceChallenge.mockRejectedValue(
+      new OperationStoreError(OPERATION_ERROR_CODES.staleTransition, "stale transition", true),
+    );
+
+    await expect(
+      clearHighAssuranceChallenge(
+        clearInput({
+          clearingUserId: USER_B,
+          requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+          clearingUserAccess: {
+            organizationId: ORG,
+            scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    });
+
+    expect(recordHighAssuranceChallengeCleared).not.toHaveBeenCalled();
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        projectId: PRJ,
+        denial: { reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed },
+      }),
+    );
   });
 
   it("retries clear audit finalization when durable evidence already persisted", async () => {
@@ -750,7 +815,10 @@ describe("clear challenge flow regressions", () => {
     getOperation
       .mockResolvedValueOnce(operationWithEvidence(pending))
       .mockResolvedValueOnce(durableOperation);
-    recordOperationProgress.mockResolvedValue({ operation: durableOperation, created: false });
+    recordOperationProgressClearHighAssuranceChallenge.mockResolvedValue({
+      operation: durableOperation,
+      created: false,
+    });
     recordHighAssuranceChallengeCleared.mockRejectedValueOnce(new Error("audit store unavailable"));
     recordHighAssuranceChallengeCleared.mockResolvedValueOnce({ auditEventId: AUD_CLEAR });
 
@@ -760,7 +828,7 @@ describe("clear challenge flow regressions", () => {
 
     const result = await clearHighAssuranceChallenge(clearInput());
 
-    expect(recordOperationProgress).toHaveBeenCalledTimes(1);
+    expect(recordOperationProgressClearHighAssuranceChallenge).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ operation: durableOperation, created: false });
     expect(recordHighAssuranceChallengeCleared).toHaveBeenLastCalledWith(
       expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
@@ -782,7 +850,7 @@ describe("clear challenge flow regressions", () => {
 
     const result = await clearHighAssuranceChallenge(clearInput());
 
-    expect(recordOperationProgress).not.toHaveBeenCalled();
+    expect(recordOperationProgressClearHighAssuranceChallenge).not.toHaveBeenCalled();
     expect(result).toEqual({ operation: runningOperation, created: false });
     expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledWith(
       expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
@@ -906,7 +974,7 @@ describe("consume evidence flow regressions", () => {
       .mockResolvedValueOnce(waitingAfterClear)
       .mockResolvedValueOnce(runningAfterConsume);
     generateAuditEventId.mockReturnValueOnce(AUD_CLEAR).mockReturnValue(AUD_CONSUME);
-    recordOperationProgress.mockResolvedValue({
+    recordOperationProgressClearHighAssuranceChallenge.mockResolvedValue({
       operation: waitingAfterClear,
       created: false,
     });

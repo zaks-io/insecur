@@ -73,6 +73,10 @@ export { cancelOperation } from "./cancel-operation.js";
 export { createOperation } from "./create-operation.js";
 export { getOperation } from "./get-operation.js";
 export { recordOperationProgress } from "./record-operation-progress.js";
+export {
+  recordOperationProgressClearHighAssuranceChallenge,
+  type RecordOperationProgressClearEvidenceInput,
+} from "./record-operation-progress-clear-evidence.js";
 export { retryOperation } from "./retry-operation.js";
 export { transitionOperation } from "./transition-operation.js";
 export {

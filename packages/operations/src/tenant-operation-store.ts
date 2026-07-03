@@ -11,7 +11,7 @@ import {
   casApplyOperationTransition,
   type ApplyTransitionInput,
 } from "./apply-operation-transition.js";
-import { isTerminalOperationState } from "./operation-states.js";
+import { applyOperationProgressUpdate } from "./apply-operation-progress-update.js";
 import type {
   OperationPollResult,
   OperationProgress,
@@ -134,48 +134,43 @@ export class TenantOperationStore {
     operationId: OperationId;
     progressPatch: OperationProgressPatch;
   }): Promise<OperationPollResult> {
-    const existing = await this.getById(input.organizationId, input.operationId);
-    if (existing === null) {
-      throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
-    }
-    if (isTerminalOperationState(existing.state)) {
-      throw new OperationStoreError(
-        OPERATION_ERROR_CODES.terminalState,
-        `cannot update progress for terminal operation in state ${existing.state}`,
-      );
-    }
+    return await applyOperationProgressUpdate(
+      this.sql,
+      (organizationId, operationId) => this.getById(organizationId, operationId),
+      {
+        organizationId: input.organizationId,
+        operationId: input.operationId,
+        progressPatch: input.progressPatch,
+        staleTransitionMessage: "progress update lost a concurrent state change",
+      },
+    );
+  }
 
-    const mergedProgress = mergeOperationProgress(existing.progress, input.progressPatch);
-    validateOperationProgress(mergedProgress, input.organizationId);
-
-    const rows = await this.sql<OperationRow[]>`
-      UPDATE operations
-      SET
-        progress = ${bindJsonb(this.sql, mergedProgress)},
-        updated_at = now()
-      WHERE id = ${input.operationId}
-        AND org_id = ${input.organizationId}
-        AND state = ${existing.state}
-      RETURNING
-        id,
-        org_id,
-        state,
-        intent_code,
-        idempotency_key,
-        progress,
-        execution_deadline,
-        created_at,
-        updated_at
-    `;
-    const row = rows[0];
-    if (row === undefined) {
-      throw new OperationStoreError(
-        OPERATION_ERROR_CODES.staleTransition,
-        "progress update lost a concurrent state change",
-        true,
-      );
-    }
-    return toOperationPollResult(row);
+  async recordClearHighAssuranceProgress(input: {
+    organizationId: OrganizationId;
+    operationId: OperationId;
+    challengeId: string;
+    progressPatch: OperationProgressPatch;
+  }): Promise<OperationPollResult> {
+    return await applyOperationProgressUpdate(
+      this.sql,
+      (organizationId, operationId) => this.getById(organizationId, operationId),
+      {
+        organizationId: input.organizationId,
+        operationId: input.operationId,
+        progressPatch: input.progressPatch,
+        highAssuranceClearCas: { challengeId: input.challengeId },
+        staleTransitionMessage: "high-assurance challenge clear lost a concurrent write",
+        assertWritable: (current) => {
+          if (current.state !== "waiting_for_human") {
+            throw new OperationStoreError(
+              OPERATION_ERROR_CODES.invalidTransition,
+              `high-assurance challenge clear not allowed from state ${current.state}`,
+            );
+          }
+        },
+      },
+    );
   }
 
   /**
