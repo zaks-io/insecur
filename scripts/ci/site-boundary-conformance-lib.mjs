@@ -6,6 +6,7 @@ import {
   graphPathPattern,
   REPO_ROOT,
 } from "./dependency-cruiser-graph.mjs";
+import { parseJsonc } from "../jsonc.mjs";
 import { readWorkspacePackages } from "./package-boundary-conformance-lib.mjs";
 
 const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
@@ -22,28 +23,9 @@ export const SITE_PREVIEW_WORKER_NAME = "insecur-site-preview";
 // gate covers the rest so the site's wrangler config can never grow one unnoticed.
 const FORBIDDEN_SITE_BINDINGS = ["hyperdrive", "services", "secrets_store_secrets", "secrets"];
 
-// Minimal JSONC reader: strips // line comments and trailing commas. Sufficient for wrangler configs
-// (no block comments; no string literals containing `//`).
 function parseSiteWrangler() {
   const raw = readFileSync(SITE_WRANGLER_PATH, "utf8");
-  const withoutComments = raw
-    .split("\n")
-    .map((line) => stripJsoncLineComment(line))
-    .join("\n");
-  return JSON.parse(withoutComments.replace(/,(\s*[}\]])/g, "$1"));
-}
-
-function stripJsoncLineComment(line) {
-  let inString = false;
-  for (let i = 0; i < line.length; i += 1) {
-    if (line[i] === '"' && line[i - 1] !== "\\") {
-      inString = !inString;
-    }
-    if (!inString && line[i] === "/" && line[i + 1] === "/") {
-      return line.slice(0, i);
-    }
-  }
-  return line;
+  return parseJsonc(raw, SITE_WRANGLER_PATH);
 }
 
 // ADR-0078 deploy-shape invariant enforced independently of any deploy run: the Public Site's
