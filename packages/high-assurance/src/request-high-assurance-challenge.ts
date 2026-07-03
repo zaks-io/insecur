@@ -20,8 +20,8 @@ import {
 import { isHighAssuranceRiskReasonCode } from "./high-assurance-risk-reason-codes.js";
 import { mapOperationStoreErrorToDenialReason } from "./map-operation-store-denial.js";
 import {
-  hasPersistedRequestAuditLinkage,
   finalizePendingRequestAudit,
+  hasPendingRequestAuditFinalization,
 } from "./finalize-pending-challenge-audits.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 import { recordHighAssuranceChallengeRequestDenied } from "./record-high-assurance-challenge-audit.js";
@@ -180,7 +180,7 @@ export async function requestHighAssuranceChallenge(
     operationId: input.operationId,
   });
 
-  if (hasPersistedRequestAuditLinkage(operation.progress.highAssuranceChallenge)) {
+  if (hasPendingRequestAuditFinalization(operation)) {
     return await completeDurableRequest(operation, input);
   }
 

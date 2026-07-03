@@ -467,6 +467,45 @@ describe("request challenge flow regressions", () => {
     );
   });
 
+  it("creates fresh challenge evidence after prior evidence was consumed", async () => {
+    const consumedEvidence = {
+      ...clearedEvidence(),
+      consumedAt: "2026-07-03T00:10:00.000Z",
+      consumeAuditEventId: AUD_CONSUME,
+    };
+    const runningOperation = operationWithEvidence(consumedEvidence, "running");
+    const waitingOperation = operationWithEvidence(baseEvidence(), "waiting_for_human");
+
+    getOperation.mockResolvedValue(runningOperation);
+    transitionOperation.mockResolvedValue({ operation: waitingOperation, created: false });
+
+    await requestHighAssuranceChallenge({
+      organizationId: ORG,
+      projectId: PRJ,
+      operationId: OP,
+      riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+      requestingUserId: USER_A,
+    });
+
+    expect(transitionOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nextState: "waiting_for_human",
+        progress: expect.objectContaining({
+          highAssuranceChallenge: expect.objectContaining({
+            requestAuditEventId: AUD_REQUEST,
+            challengeId: expect.not.stringMatching(consumedEvidence.challengeId),
+          }),
+        }),
+      }),
+    );
+    expect(recordHighAssuranceChallengeRequested).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditEventId: AUD_REQUEST,
+        challengeId: expect.not.stringMatching(consumedEvidence.challengeId),
+      }),
+    );
+  });
+
   it("rejects durable request retry when caller input mismatches bound evidence", async () => {
     const machineEvidence = {
       ...baseEvidence(),

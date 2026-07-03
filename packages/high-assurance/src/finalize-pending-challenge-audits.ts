@@ -1,5 +1,8 @@
 import type { AuditEventId, OperationId, OrganizationId, RequestId, UserId } from "@insecur/domain";
-import type { OperationHighAssuranceChallengeEvidence } from "@insecur/operations";
+import type {
+  OperationHighAssuranceChallengeEvidence,
+  OperationPollResult,
+} from "@insecur/operations";
 import { challengeAuditScopeFromBoundEvidence } from "./high-assurance-challenge-audit-scope.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 import {
@@ -17,6 +20,15 @@ export function hasPersistedRequestAuditLinkage(
   evidence: OperationHighAssuranceChallengeEvidence | undefined,
 ): evidence is OperationHighAssuranceChallengeEvidence & { requestAuditEventId: AuditEventId } {
   return evidence?.requestAuditEventId !== undefined;
+}
+
+export function hasPendingRequestAuditFinalization(operation: OperationPollResult): boolean {
+  const evidence = operation.progress.highAssuranceChallenge;
+  return (
+    operation.state === "waiting_for_human" &&
+    evidence?.requestAuditEventId !== undefined &&
+    evidence.consumedAt === undefined
+  );
 }
 
 export function hasPersistedClearAuditLinkage(
