@@ -11,6 +11,7 @@ import { parse as parseYaml } from "yaml";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const CLI_RELEASE_ENTRY = path.join(REPO_ROOT, "packages", "cli", "dist", "index.js");
+const CLI_RELEASE_HASHBANG = "#!/usr/bin/env node";
 const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
 const PRIVATE_WORKSPACE_MODULE_PATH =
   "(^|/)(?:(?:packages|apps)/(?!cli(?:/|$))[^/]+/(?:src|dist)/|node_modules/(?:\\.pnpm/)?@insecur(?:/|\\+))";
@@ -63,6 +64,24 @@ async function assertReleaseEntryHasNoPrivateImports() {
   }
 }
 
+async function assertReleaseEntryHasValidHashbang() {
+  const source = await readFile(CLI_RELEASE_ENTRY, "utf8");
+  const lines = source.split(/\r?\n/);
+  if (lines[0] !== CLI_RELEASE_HASHBANG) {
+    throw new Error(
+      `CLI release boundary conformance: ${CLI_RELEASE_ENTRY} must start with ${CLI_RELEASE_HASHBANG}`,
+    );
+  }
+  const extraHashbangLine = lines.findIndex((line, index) => index > 0 && line.startsWith("#!"));
+  if (extraHashbangLine !== -1) {
+    throw new Error(
+      `CLI release boundary conformance: ${CLI_RELEASE_ENTRY} has an extra hashbang on line ${
+        extraHashbangLine + 1
+      }`,
+    );
+  }
+}
+
 function isRecord(value) {
   return typeof value === "object" && value !== null;
 }
@@ -94,6 +113,7 @@ async function assertHostedCiRunsCliReleaseBoundaryConformance() {
 
 async function main() {
   await assertHostedCiRunsCliReleaseBoundaryConformance();
+  await assertReleaseEntryHasValidHashbang();
   await assertReleaseEntryHasNoPrivateImports();
   console.log("CLI release boundary conformance passed with dependency-cruiser.");
 }
