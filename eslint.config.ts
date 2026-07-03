@@ -156,7 +156,6 @@ export default tseslint.config(
       "packages/operations/vitest.rls.config.ts",
       "packages/high-assurance/test/**/*.ts",
       "packages/high-assurance/vitest.config.ts",
-      "packages/high-assurance/vitest.rls.config.ts",
       "packages/onboarding/test/**/*.ts",
       "packages/onboarding/vitest.config.ts",
       "packages/onboarding/vitest.rls.config.ts",
