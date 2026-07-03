@@ -29,7 +29,7 @@ external systems (Linear, GitHub, CI), not here.
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
 - Preview checks: no per-PR preview workflow; PR database validation is `CI` → `Postgres tests (integration + RLS + e2e)` using Docker Compose Postgres. Shared preview deploy is `Deploy Preview` / `pnpm deploy:preview` for all preview Workers. The workflow runs `pnpm migrate:preview` before deploy. Target a Worker with standard Turbo filtering, for example `pnpm deploy:preview --filter @insecur/web`. Preview URLs are `https://api.preview.insecur.cloud`, `https://app.preview.insecur.cloud`, and `https://preview.insecur.cloud`; Runtime has no public route.
-- Production deploy path: `Deploy Production` workflow only. It requires a completed successful `CI` workflow run for the deployed commit, runs `pnpm migrate:production`, then deploys Cloudflare Workers `insecur-runtime`, `insecur-api`, `insecur-web`, and `insecur-site`.
+- Production deploy path: `Deploy Production` workflow only. It auto-runs after successful `CI` on `main`, can be manually dispatched as an operator fallback, requires a completed successful `CI` workflow run for the deployed commit, runs `pnpm migrate:production`, then deploys Cloudflare Workers `insecur-runtime`, `insecur-api`, `insecur-web`, and `insecur-site`.
 - Production approval required: standing prelaunch approval from Isaac covers CI/CD process changes and deploy runs needed to validate the release path until the project has real users or real production data
 
 ## Issue Tracker

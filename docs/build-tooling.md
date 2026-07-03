@@ -627,9 +627,10 @@ Trigger: `push` to `main`. Auto-deploys the staging Worker environment using the
 
 ### Production deploy: `deploy-production`
 
-Trigger: `workflow_dispatch`, job bound to the `Production` GitHub Environment. During prelaunch,
-the manual workflow first verifies that the exact commit being deployed has a completed successful
-`CI` workflow run, then applies production database migrations with the Production GitHub
+Trigger: successful `CI` completion for `main`, or `workflow_dispatch`, job bound to the
+`Production` GitHub Environment. During prelaunch, the workflow verifies that the exact commit
+being deployed has a completed successful `CI` workflow run, then applies production database
+migrations with the Production GitHub
 Environment's elevated migration credential. After the CI and migration gates pass, it syncs
 encrypted Worker secrets from the Production GitHub Environment into the corresponding Cloudflare
 Workers, then deploys the full app Worker fleet (`insecur-runtime`, `insecur-api`, `insecur-web`,
@@ -648,8 +649,8 @@ separate production site workflow.
 7. Deploy `insecur-web` with the private API and Runtime Service Bindings.
 8. Deploy `insecur-site` with no control-plane binding.
 
-The identity that executes this deploy is the CI machine token, distinct from the human approver. The
-approver's personal credentials are never the deploy credential (ADR-0029 amendment, ADR-0004). The
+The identity that executes this deploy is the CI machine token. The operator's personal credentials
+are never the deploy credential (ADR-0029 amendment, ADR-0004). The
 Cloudflare token must be able to write Worker scripts and Worker routes for the `insecur.cloud`
 zone, because Wrangler attaches the production custom domains during deploy.
 
@@ -739,7 +740,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 - A forked pull request runs the `CI` workflow only and reaches no secret-bearing step. Docs-only
   and workflow-only pull requests skip product-code CI jobs but still run gitleaks; workflow-only
   pull requests also run workflow formatting, action pinning, and actionlint.
-- A merge to `main` auto-deploys staging; a production deploy waits on a GitHub Environment required reviewer and runs under a machine identity distinct from the approver.
+- A merge to `main` runs `CI`; successful `CI` on `main` auto-triggers production deploy through the `Production` GitHub Environment and runs under a CI machine identity.
 - The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated
   Linear filing for critical findings is disabled by default; `report-criticals` skips unless
   `LINEAR_SECURITY_REPORTING_ENABLED=true` and fails closed when enabled without configuration.

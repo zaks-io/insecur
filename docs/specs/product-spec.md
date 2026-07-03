@@ -111,8 +111,8 @@ Hyperdrive-backed Neon Postgres as the source of truth. The deploys are:
   `api.preview.insecur.cloud` to `insecur-api-preview` and `app.preview.insecur.cloud` to
   `insecur-web-preview`. Production deploys route `insecur.cloud` and `www.insecur.cloud` to
   `insecur-site` as part of `Deploy Production`, alongside `insecur-runtime`, `insecur-api`, and
-  `insecur-web`. Production deploy remains manual-only for now; do not auto-publish any production
-  Worker on every `main` push until legal and security publication gates are settled. The shared
+  `insecur-web`. Production deploy runs after successful `CI` on `main`, with manual dispatch
+  retained as an operator fallback. The shared
   preview workflow owns CI migration before Worker deploy; First Value smoke remains an explicit
   post-deploy check.
 - **Service Access**: a separate deploy with its own auth audience, deferred past V1
@@ -159,10 +159,10 @@ one error envelope without learning package-private dialects. The decrypt opacit
 is the only exception to cause visibility.
 
 Staging and production run as `wrangler` environments inside one Cloudflare account for now.
-Production deploys require a GitHub Environment approval gate, but the executor is a CI-held
-machine identity distinct from the human approver. While single-account deployment holds, staging
-must not contain real customer secrets, and Secrets Store account roles must stay limited to the
-operator.
+During prelaunch, production deploys auto-run after successful `CI` on `main` through the
+protected `Production` GitHub Environment, and the executor is a CI-held machine identity. While
+single-account deployment holds, staging must not contain real customer secrets, and Secrets Store
+account roles must stay limited to the operator.
 
 Trace: [ADR-0002](../adr/0002-cloudflare-native-focused-stack.md),
 [ADR-0019](../adr/0019-service-access-without-secret-reveal.md),
