@@ -1,6 +1,7 @@
 import { auditEventId } from "@insecur/domain";
 import {
   getOperation,
+  recordOperationProgress,
   transitionOperation,
   type OperationHighAssuranceChallengeEvidence,
   type OperationMutationResult,
@@ -41,14 +42,13 @@ async function loadValidatedEvidence(
   }
 }
 
-async function transitionWithConsumedEvidence(
+async function transitionAndAuditConsumedEvidence(
   input: ConsumeHighAssuranceEvidenceInput,
   evidence: OperationHighAssuranceChallengeEvidence,
-  consumeAuditEventId: string,
 ): Promise<OperationMutationResult> {
   const consumedAt = new Date().toISOString();
   try {
-    return await transitionOperation({
+    await transitionOperation({
       organizationId: input.organizationId,
       operationId: input.operationId,
       nextState: "running",
@@ -56,9 +56,7 @@ async function transitionWithConsumedEvidence(
         highAssuranceChallenge: {
           ...evidence,
           consumedAt,
-          consumeAuditEventId: auditEventId.brand(consumeAuditEventId),
         },
-        auditEventIds: [auditEventId.brand(consumeAuditEventId)],
       },
       ...(input.idempotencyKey !== undefined ? { idempotencyKey: input.idempotencyKey } : {}),
     });
@@ -66,6 +64,30 @@ async function transitionWithConsumedEvidence(
     await recordConsumeTransitionDenied(evidence, input);
     throw error;
   }
+
+  const consumeAudit = await recordHighAssuranceEvidenceConsumed({
+    organizationId: input.organizationId,
+    projectId: evidence.projectId,
+    operationId: input.operationId,
+    clearingUserId: input.clearingUserId,
+    challengeId: evidence.challengeId,
+    riskReasonCode: evidence.riskReasonCode,
+    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
+    ...optionalAuditRequest(input.request),
+  });
+
+  return await recordOperationProgress({
+    organizationId: input.organizationId,
+    operationId: input.operationId,
+    progress: {
+      highAssuranceChallenge: {
+        ...evidence,
+        consumedAt,
+        consumeAuditEventId: auditEventId.brand(consumeAudit.auditEventId),
+      },
+      auditEventIds: [auditEventId.brand(consumeAudit.auditEventId)],
+    },
+  });
 }
 
 /**
@@ -85,16 +107,5 @@ export async function consumeHighAssuranceEvidence(
     await denyConsumeNotWaiting(evidence, input, operation.state);
   }
 
-  const consumeAudit = await recordHighAssuranceEvidenceConsumed({
-    organizationId: input.organizationId,
-    projectId: evidence.projectId,
-    operationId: input.operationId,
-    clearingUserId: input.clearingUserId,
-    challengeId: evidence.challengeId,
-    riskReasonCode: evidence.riskReasonCode,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...optionalAuditRequest(input.request),
-  });
-
-  return await transitionWithConsumedEvidence(input, evidence, consumeAudit.auditEventId);
+  return await transitionAndAuditConsumedEvidence(input, evidence);
 }

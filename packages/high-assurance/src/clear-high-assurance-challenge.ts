@@ -5,6 +5,7 @@ import {
   type OperationMutationResult,
 } from "@insecur/operations";
 import type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
+import { challengeAuditScopeFromBoundEvidence } from "./high-assurance-challenge-audit-scope.js";
 import {
   assertClearingActorForClear,
   requireOperationWaitingForClear,
@@ -25,14 +26,11 @@ async function persistClearedChallengeEvidence(
 ): Promise<OperationMutationResult> {
   const clearedAt = new Date().toISOString();
   const clearAudit = await recordHighAssuranceChallengeCleared({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    operationId: input.operationId,
+    ...challengeAuditScopeFromBoundEvidence(input, evidence),
     clearingUserId: input.clearingUserId,
     challengeId: evidence.challengeId,
     riskReasonCode: evidence.riskReasonCode,
     clearAuthenticationMethodCode: authenticationMethodCode,
-    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
     ...(evidence.requestingUserId !== undefined
       ? { requestingUserId: evidence.requestingUserId }
       : {}),
@@ -67,10 +65,9 @@ export async function clearHighAssuranceChallenge(
   });
 
   const pendingEvidence = operation.progress.highAssuranceChallenge;
-  const riskReasonCode = pendingEvidence?.riskReasonCode;
 
-  const authenticationMethodCode = await requireSessionAssuranceForClear(input, riskReasonCode);
-  await requireOperationWaitingForClear(operation, input, riskReasonCode);
+  const authenticationMethodCode = await requireSessionAssuranceForClear(input, pendingEvidence);
+  await requireOperationWaitingForClear(operation, input, pendingEvidence);
   const evidence = await requirePendingChallengeEvidence(pendingEvidence, input);
   await assertClearingActorForClear(evidence, input);
 

@@ -34,7 +34,7 @@ function challengeAuditDetails(input: {
 
 interface ChallengeAuditScope {
   organizationId: OrganizationId;
-  projectId: ProjectId;
+  projectId?: ProjectId;
   environmentId?: EnvironmentId;
   operationId: OperationId;
   request?: { requestId: RequestId };
@@ -43,7 +43,7 @@ interface ChallengeAuditScope {
 function scopedAuditFields(scope: ChallengeAuditScope) {
   return {
     organizationId: scope.organizationId,
-    projectId: scope.projectId,
+    ...(scope.projectId !== undefined ? { projectId: scope.projectId } : {}),
     operation: { operationId: scope.operationId },
     ...(scope.environmentId !== undefined ? { environmentId: scope.environmentId } : {}),
     ...(scope.request !== undefined ? { request: scope.request } : {}),
@@ -149,7 +149,7 @@ export async function recordHighAssuranceChallengeCleared(input: {
 
 export async function recordHighAssuranceChallengeClearDenied(input: {
   organizationId: OrganizationId;
-  projectId: ProjectId;
+  projectId?: ProjectId;
   environmentId?: EnvironmentId;
   operationId: OperationId;
   clearingUserId: UserId;

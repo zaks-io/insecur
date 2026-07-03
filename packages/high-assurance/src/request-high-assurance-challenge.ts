@@ -16,6 +16,7 @@ import {
   generateChallengeId,
 } from "./high-assurance-challenge-helpers.js";
 import { isHighAssuranceRiskReasonCode } from "./high-assurance-risk-reason-codes.js";
+import { mapOperationStoreErrorToDenialReason } from "./map-operation-store-denial.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 import {
   recordHighAssuranceChallengeRequestDenied,
@@ -86,11 +87,11 @@ async function transitionToWaitingForHuman(
   } catch (error) {
     await recordHighAssuranceChallengeRequestDenied({
       organizationId: input.organizationId,
-      projectId: input.projectId,
+      projectId: evidence.projectId,
       operationId: input.operationId,
-      reasonCode: HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      reasonCode: mapOperationStoreErrorToDenialReason(error),
       riskReasonCode: input.riskReasonCode,
-      ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
+      ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
       ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
       ...optionalAuditRequest(input.request),
     });

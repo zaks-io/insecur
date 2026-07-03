@@ -1,33 +1,22 @@
 import type { HighAssuranceErrorCode, KnownErrorCode } from "@insecur/domain";
-import { HighAssuranceChallengeError } from "./high-assurance-challenge-error.js";
+import type { OperationHighAssuranceChallengeEvidence } from "@insecur/operations";
 import type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
-import { optionalAuditRequest } from "./optional-audit-request.js";
+import { clearDeniedAuditScope } from "./high-assurance-challenge-audit-scope.js";
+import { HighAssuranceChallengeError } from "./high-assurance-challenge-error.js";
 import { recordHighAssuranceChallengeClearDenied } from "./record-high-assurance-challenge-audit.js";
 
-function clearChallengeDeniedAuditBase(input: ClearHighAssuranceChallengeInput) {
-  return {
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    operationId: input.operationId,
-    clearingUserId: input.clearingUserId,
-    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
-    ...optionalAuditRequest(input.request),
-  };
-}
-
-export async function denyClearHighAssuranceChallenge(
-  input: ClearHighAssuranceChallengeInput,
-  throwCode: HighAssuranceErrorCode,
-  message: string,
-  options?: {
-    readonly auditReasonCode?: KnownErrorCode;
-    readonly riskReasonCode?: string;
-  },
-): Promise<never> {
+export async function denyClearHighAssuranceChallenge(input: {
+  readonly clearInput: ClearHighAssuranceChallengeInput;
+  readonly boundEvidence?: OperationHighAssuranceChallengeEvidence;
+  readonly throwCode: HighAssuranceErrorCode;
+  readonly message: string;
+  readonly auditReasonCode?: KnownErrorCode;
+  readonly riskReasonCode?: string;
+}): Promise<never> {
   await recordHighAssuranceChallengeClearDenied({
-    ...clearChallengeDeniedAuditBase(input),
-    reasonCode: options?.auditReasonCode ?? throwCode,
-    ...(options?.riskReasonCode !== undefined ? { riskReasonCode: options.riskReasonCode } : {}),
+    ...clearDeniedAuditScope(input.clearInput, input.boundEvidence),
+    reasonCode: input.auditReasonCode ?? input.throwCode,
+    ...(input.riskReasonCode !== undefined ? { riskReasonCode: input.riskReasonCode } : {}),
   });
-  throw new HighAssuranceChallengeError(throwCode, message);
+  throw new HighAssuranceChallengeError(input.throwCode, input.message);
 }
