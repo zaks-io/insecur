@@ -1,6 +1,7 @@
 import {
   auditEventId,
   HIGH_ASSURANCE_ERROR_CODES,
+  machineIdentityId,
   OPERATION_ERROR_CODES,
   operationId,
   organizationId,
@@ -15,7 +16,10 @@ import type {
 import { OperationStoreError } from "@insecur/operations";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClearHighAssuranceChallengeInput } from "../src/high-assurance-challenge-inputs.js";
-import { requirePendingChallengeEvidence } from "../src/clear-high-assurance-challenge-preflight.js";
+import {
+  assertClearingActorForClear,
+  requirePendingChallengeEvidence,
+} from "../src/clear-high-assurance-challenge-preflight.js";
 import { consumeHighAssuranceEvidence } from "../src/consume-high-assurance-evidence.js";
 import { mapOperationStoreErrorToDenialReason } from "../src/map-operation-store-denial.js";
 import { HIGH_ASSURANCE_RISK_REASON_CODES } from "../src/high-assurance-risk-reason-codes.js";
@@ -43,6 +47,8 @@ const PRJ_OTHER = projectId.brand("prj_00000000000000000000000002");
 const OP = operationId.brand("op_00000000000000000000000001");
 const USER_A = userId.brand("usr_00000000000000000000000001");
 const USER_B = userId.brand("usr_00000000000000000000000002");
+const MACH = machineIdentityId.brand("mach_00000000000000000000000001");
+const ORG_OTHER = organizationId.brand("org_00000000000000000000000002");
 const AUD_REQUEST = auditEventId.brand("aud_00000000000000000000000001");
 const AUD_CONSUME = auditEventId.brand("aud_00000000000000000000000003");
 
@@ -98,6 +104,14 @@ function clearedEvidence(): OperationHighAssuranceChallengeEvidence {
     clearAuthenticationMethodCode: "auth.assurance.passkey",
     clearAuditEventId: auditEventId.brand("aud_00000000000000000000000002"),
   });
+}
+
+function machineClearedEvidence(): OperationHighAssuranceChallengeEvidence {
+  return {
+    ...clearedEvidence(),
+    requestingUserId: undefined,
+    requestingMachineIdentityId: MACH,
+  };
 }
 
 function operationWithEvidence(
@@ -171,6 +185,84 @@ describe("clear preflight regressions", () => {
     expect(writeAuditEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: PRJ_OTHER,
+      }),
+    );
+  });
+});
+
+describe("machine-origin authorization regressions", () => {
+  beforeEach(() => {
+    writeAuditEvent.mockResolvedValue({ auditEventId: "aud_00000000000000000000000099" });
+  });
+
+  it("denies clear without coordinate-bound scopes and access", async () => {
+    const evidence = {
+      ...baseEvidence({ expiresAt: "2026-07-03T00:15:00.000Z" }),
+      requestingUserId: undefined,
+      requestingMachineIdentityId: MACH,
+    };
+
+    await expect(
+      assertClearingActorForClear(
+        evidence,
+        clearInput({
+          sessionAssurance: { authenticationMethod: "Passkey", authFactors: [] },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied });
+
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        projectId: PRJ,
+        denial: { reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied },
+      }),
+    );
+  });
+
+  it("denies clear when effective access organization mismatches bounded operation", async () => {
+    const evidence = {
+      ...baseEvidence({ expiresAt: "2026-07-03T00:15:00.000Z" }),
+      requestingUserId: undefined,
+      requestingMachineIdentityId: MACH,
+    };
+
+    await expect(
+      assertClearingActorForClear(
+        evidence,
+        clearInput({
+          sessionAssurance: { authenticationMethod: "Passkey", authFactors: [] },
+          requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+          clearingUserAccess: {
+            organizationId: ORG_OTHER,
+            scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch });
+  });
+
+  it("denies durable consume retry for machine-origin evidence without scopes and access", async () => {
+    const consumedEvidence = {
+      ...machineClearedEvidence(),
+      consumedAt: "2026-07-03T00:10:00.000Z",
+      consumeAuditEventId: AUD_CONSUME,
+    };
+    getOperation.mockResolvedValue(operationWithEvidence(consumedEvidence, "running"));
+
+    await expect(
+      consumeHighAssuranceEvidence({
+        organizationId: ORG,
+        operationId: OP,
+        clearingUserId: USER_A,
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied });
+
+    expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumeDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PRJ,
+        reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
       }),
     );
   });

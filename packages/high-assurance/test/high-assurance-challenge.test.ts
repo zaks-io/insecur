@@ -1,11 +1,13 @@
 import {
   auditEventId,
   HIGH_ASSURANCE_ERROR_CODES,
+  machineIdentityId,
   operationId,
   organizationId,
   projectId,
   userId,
 } from "@insecur/domain";
+import { AUTHORIZATION_SCOPES } from "@insecur/access";
 import type {
   OperationHighAssuranceChallengeEvidence,
   OperationPollResult,
@@ -18,7 +20,10 @@ import {
 } from "../src/high-assurance-challenge-helpers.js";
 import { HIGH_ASSURANCE_RISK_REASON_CODES } from "../src/high-assurance-risk-reason-codes.js";
 import {
+  assertClearingActorForPendingChallenge,
+  buildValidateConsumeActorInput,
   resolveHighAssuranceChallengeStatus,
+  validateConsumeActor,
   validateHighAssuranceEvidence,
 } from "../src/validate-high-assurance-evidence.js";
 import { validateOperationProgress } from "@insecur/operations";
@@ -28,6 +33,8 @@ const PRJ = projectId.brand("prj_00000000000000000000000001");
 const OP = operationId.brand("op_00000000000000000000000001");
 const USER_A = userId.brand("usr_00000000000000000000000001");
 const USER_B = userId.brand("usr_00000000000000000000000002");
+const MACH = machineIdentityId.brand("mach_00000000000000000000000001");
+const ORG_OTHER = organizationId.brand("org_00000000000000000000000002");
 const AUD_REQUEST = auditEventId.brand("aud_00000000000000000000000001");
 
 function baseEvidence(
@@ -135,6 +142,104 @@ describe("high-assurance challenge evidence validation", () => {
         clearingUserId: USER_A,
       }),
     ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed }));
+  });
+});
+
+describe("machine-origin clearing authorization", () => {
+  function machinePendingEvidence(): OperationHighAssuranceChallengeEvidence {
+    return {
+      ...baseEvidence(),
+      requestingUserId: undefined,
+      requestingMachineIdentityId: MACH,
+    };
+  }
+
+  function machineClearedEvidence(): OperationHighAssuranceChallengeEvidence {
+    return {
+      ...machinePendingEvidence(),
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: USER_A,
+      clearAuthenticationMethodCode: "auth.assurance.passkey",
+      clearAuditEventId: auditEventId.brand("aud_00000000000000000000000002"),
+    };
+  }
+
+  it("rejects clear without required scopes and effective access", () => {
+    expect(() =>
+      assertClearingActorForPendingChallenge({
+        evidence: machinePendingEvidence(),
+        organizationId: ORG,
+        clearingUserId: USER_A,
+      }),
+    ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied }));
+  });
+
+  it("rejects clear when effective access organization mismatches bounded operation", () => {
+    expect(() =>
+      assertClearingActorForPendingChallenge({
+        evidence: machinePendingEvidence(),
+        organizationId: ORG,
+        clearingUserId: USER_A,
+        requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+        clearingUserAccess: {
+          organizationId: ORG_OTHER,
+          scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+        },
+      }),
+    ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch }));
+  });
+
+  it("rejects consume and durable retry without coordinate-bound clearing access", () => {
+    const evidence = machineClearedEvidence();
+
+    expect(() =>
+      validateConsumeActor(
+        buildValidateConsumeActorInput({
+          organizationId: ORG,
+          evidence,
+          clearingUserId: USER_A,
+        }),
+      ),
+    ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied }));
+
+    expect(() =>
+      validateHighAssuranceEvidence({
+        operation: operationWithEvidence(evidence),
+        clearingUserId: USER_A,
+        now: new Date("2026-07-03T00:10:00.000Z"),
+      }),
+    ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied }));
+  });
+
+  it("accepts machine-origin clear and consume when scopes match coordinate-bound access", () => {
+    const pending = machinePendingEvidence();
+    const cleared = machineClearedEvidence();
+    const access = {
+      organizationId: ORG,
+      scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+    };
+
+    expect(() =>
+      assertClearingActorForPendingChallenge({
+        evidence: pending,
+        organizationId: ORG,
+        clearingUserId: USER_A,
+        requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+        clearingUserAccess: access,
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      validateConsumeActor(
+        buildValidateConsumeActorInput({
+          organizationId: ORG,
+          evidence: cleared,
+          clearingUserId: USER_A,
+          requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+          clearingUserAccess: access,
+        }),
+      ),
+    ).not.toThrow();
   });
 });
 

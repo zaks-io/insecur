@@ -1,6 +1,6 @@
 import type { AuthorizationScope } from "@insecur/access";
 import { hasAuthorizationScope, type EffectiveAccessResult } from "@insecur/access";
-import type { UserId } from "@insecur/domain";
+import type { OrganizationId, UserId } from "@insecur/domain";
 import type { OperationHighAssuranceChallengeEvidence } from "@insecur/operations";
 import {
   HIGH_ASSURANCE_ERROR_CODES,
@@ -71,7 +71,7 @@ export function requireClearingUserMatch(
   }
 }
 
-export function assertClearingUserScopes(
+function assertClearingUserScopes(
   requiredScopes: readonly AuthorizationScope[],
   clearingUserAccess: EffectiveAccessResult,
 ): void {
@@ -82,5 +82,51 @@ export function assertClearingUserScopes(
         `clearing user lacks required scope ${scope}`,
       );
     }
+  }
+}
+
+function isMachineOriginChallengeEvidence(
+  evidence: OperationHighAssuranceChallengeEvidence,
+): boolean {
+  return evidence.requestingMachineIdentityId !== undefined;
+}
+
+function assertClearingUserAccessOrganization(
+  organizationId: OrganizationId,
+  clearingUserAccess: EffectiveAccessResult,
+): void {
+  if (clearingUserAccess.organizationId !== organizationId) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      "clearing user effective access organization does not match bounded operation",
+    );
+  }
+}
+
+export function assertClearingAuthorizationForEvidence(input: {
+  readonly evidence: OperationHighAssuranceChallengeEvidence;
+  readonly organizationId: OrganizationId;
+  readonly requiredScopes?: readonly AuthorizationScope[];
+  readonly clearingUserAccess?: EffectiveAccessResult;
+}): void {
+  const hasAccessInput =
+    input.requiredScopes !== undefined && input.clearingUserAccess !== undefined;
+
+  if (isMachineOriginChallengeEvidence(input.evidence)) {
+    if (!hasAccessInput) {
+      throw new HighAssuranceChallengeError(
+        HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
+        "machine-origin bounded operation requires clearing user scopes and effective access",
+      );
+    }
+
+    assertClearingUserAccessOrganization(input.organizationId, input.clearingUserAccess);
+    assertClearingUserScopes(input.requiredScopes, input.clearingUserAccess);
+    return;
+  }
+
+  if (hasAccessInput) {
+    assertClearingUserAccessOrganization(input.organizationId, input.clearingUserAccess);
+    assertClearingUserScopes(input.requiredScopes, input.clearingUserAccess);
   }
 }

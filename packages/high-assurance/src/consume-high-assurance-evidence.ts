@@ -35,6 +35,7 @@ async function validateConsumeActorOrDeny(
   try {
     validateConsumeActor(
       buildValidateConsumeActorInput({
+        organizationId: input.organizationId,
         evidence,
         clearingUserId: input.clearingUserId,
         requiredScopes: input.requiredScopes,

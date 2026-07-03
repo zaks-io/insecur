@@ -180,16 +180,15 @@ export async function assertClearingActorForClear(
   evidence: OperationHighAssuranceChallengeEvidence,
   input: ClearHighAssuranceChallengeInput,
 ): Promise<void> {
-  if (input.requiredScopes === undefined || input.clearingUserAccess === undefined) {
-    return;
-  }
-
   try {
     assertClearingActorForPendingChallenge({
       evidence,
+      organizationId: input.organizationId,
       clearingUserId: input.clearingUserId,
-      requiredScopes: input.requiredScopes,
-      clearingUserAccess: input.clearingUserAccess,
+      ...(input.requiredScopes !== undefined ? { requiredScopes: input.requiredScopes } : {}),
+      ...(input.clearingUserAccess !== undefined
+        ? { clearingUserAccess: input.clearingUserAccess }
+        : {}),
     });
   } catch (error) {
     if (error instanceof HighAssuranceChallengeError) {

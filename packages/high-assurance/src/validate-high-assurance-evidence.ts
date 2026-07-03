@@ -1,12 +1,12 @@
 import type { AuthorizationScope } from "@insecur/access";
 import type { EffectiveAccessResult } from "@insecur/access";
-import { AUTH_ERROR_CODES, type UserId } from "@insecur/domain";
+import { AUTH_ERROR_CODES, type OrganizationId, type UserId } from "@insecur/domain";
 import type {
   OperationHighAssuranceChallengeEvidence,
   OperationPollResult,
 } from "@insecur/operations";
 import {
-  assertClearingUserScopes,
+  assertClearingAuthorizationForEvidence,
   requireChallengeEvidence,
   requireClearedEvidence,
   requireClearingUserMatch,
@@ -31,6 +31,7 @@ export interface ValidateHighAssuranceEvidenceResult {
 }
 
 export interface ValidateConsumeActorInput {
+  readonly organizationId: OrganizationId;
   readonly evidence: OperationHighAssuranceChallengeEvidence;
   readonly clearingUserId?: UserId;
   readonly requiredScopes?: readonly AuthorizationScope[];
@@ -38,12 +39,14 @@ export interface ValidateConsumeActorInput {
 }
 
 export function buildValidateConsumeActorInput(input: {
+  readonly organizationId: OrganizationId;
   readonly evidence: OperationHighAssuranceChallengeEvidence;
   readonly clearingUserId?: UserId | undefined;
   readonly requiredScopes?: readonly AuthorizationScope[] | undefined;
   readonly clearingUserAccess?: EffectiveAccessResult | undefined;
 }): ValidateConsumeActorInput {
   return {
+    organizationId: input.organizationId,
     evidence: input.evidence,
     ...(input.clearingUserId !== undefined ? { clearingUserId: input.clearingUserId } : {}),
     ...(input.requiredScopes !== undefined ? { requiredScopes: input.requiredScopes } : {}),
@@ -56,10 +59,7 @@ export function buildValidateConsumeActorInput(input: {
 export function validateConsumeActor(input: ValidateConsumeActorInput): void {
   requireClearedEvidence(input.evidence);
   requireClearingUserMatch(input.evidence, input.clearingUserId);
-
-  if (input.requiredScopes !== undefined && input.clearingUserAccess !== undefined) {
-    assertClearingUserScopes(input.requiredScopes, input.clearingUserAccess);
-  }
+  assertClearingAuthorizationForEvidence(input);
 }
 
 export function validateHighAssuranceEvidence(
@@ -70,6 +70,7 @@ export function validateHighAssuranceEvidence(
   requireUnexpiredEvidence(evidence, input.now ?? new Date());
   validateConsumeActor(
     buildValidateConsumeActorInput({
+      organizationId: input.operation.organizationId,
       evidence,
       clearingUserId: input.clearingUserId,
       requiredScopes: input.requiredScopes,
@@ -82,6 +83,7 @@ export function validateHighAssuranceEvidence(
 
 export function assertClearingActorForPendingChallenge(input: {
   readonly evidence: OperationHighAssuranceChallengeEvidence;
+  readonly organizationId: OrganizationId;
   readonly clearingUserId: UserId;
   readonly requiredScopes?: readonly AuthorizationScope[];
   readonly clearingUserAccess?: EffectiveAccessResult;
@@ -96,9 +98,7 @@ export function assertClearingActorForPendingChallenge(input: {
     );
   }
 
-  if (input.requiredScopes !== undefined && input.clearingUserAccess !== undefined) {
-    assertClearingUserScopes(input.requiredScopes, input.clearingUserAccess);
-  }
+  assertClearingAuthorizationForEvidence(input);
 }
 
 export function mapSessionAssuranceFailureToReasonCode(
