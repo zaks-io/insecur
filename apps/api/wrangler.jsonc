@@ -4,6 +4,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-05-27",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [{ "pattern": "api.insecur.cloud", "custom_domain": true }],
+  "vars": {
+    "INSTANCE_ID": "inst_PRODUCTION",
+    "WORKOS_CLIENT_ID": "client_01KSND74JFBXZ3F6PE62S54RCA",
+  },
   "observability": {
     "enabled": true,
     "logs": {
@@ -63,6 +69,10 @@
       "name": "insecur-api-preview",
       "workers_dev": true,
       "routes": [{ "pattern": "api.preview.insecur.cloud", "custom_domain": true }],
+      "vars": {
+        "INSTANCE_ID": "inst_PREVIEW",
+        "WORKOS_CLIENT_ID": "client_01KW4ZMTFWMYQFT90DK0E1J4EV",
+      },
       "services": [
         {
           "binding": "RUNTIME",

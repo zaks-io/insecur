@@ -95,7 +95,7 @@ jobs:
         run: |
           set -euo pipefail
           cache_flags="--cache=local:rw,remote:r"
-          if [ -n "${TURBO_REMOTE_CACHE_SIGNATURE_KEY:-}" ] && [ -n "${TURBO_TOKEN:-}" ]; then
+          if [ -n "${TURBO_REMOTE_CACHE_SIGNATURE_KEY:-}" ] && [ -n "${TURBO_TOKEN:-}" ] && [ -n "${TURBO_TEAM:-}" ]; then
             cache_flags="--cache=local:rw,remote:rw"
             echo "Remote Turbo cache writes enabled (CI-only, signed when signature key is set)."
           else
