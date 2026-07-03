@@ -1,5 +1,4 @@
 import { generateAuditEventId } from "@insecur/audit";
-import type { AuditEventId } from "@insecur/domain";
 import {
   getOperation,
   transitionOperation,
@@ -15,16 +14,40 @@ import {
 import {
   buildConsumedEvidenceProgress,
   denyConsumeNotWaiting,
-  finalizeConsumeAudit,
   isConsumeAlreadyDurable,
+  recordBoundConsumeSuccessAudit,
   recordConsumeTransitionDenied,
   recordConsumeValidationDenied,
 } from "./consume-high-assurance-evidence-helpers.js";
-import { optionalAuditRequest } from "./optional-audit-request.js";
-import { recordHighAssuranceEvidenceConsumed } from "./record-high-assurance-challenge-audit.js";
-import { validateHighAssuranceEvidence } from "./validate-high-assurance-evidence.js";
+import {
+  buildValidateConsumeActorInput,
+  validateConsumeActor,
+  validateHighAssuranceEvidence,
+} from "./validate-high-assurance-evidence.js";
 
 export type { ConsumeHighAssuranceEvidenceInput } from "./high-assurance-challenge-inputs.js";
+
+async function validateConsumeActorOrDeny(
+  operation: OperationPollResult,
+  input: ConsumeHighAssuranceEvidenceInput,
+  evidence: OperationHighAssuranceChallengeEvidence,
+): Promise<void> {
+  try {
+    validateConsumeActor(
+      buildValidateConsumeActorInput({
+        evidence,
+        clearingUserId: input.clearingUserId,
+        requiredScopes: input.requiredScopes,
+        clearingUserAccess: input.clearingUserAccess,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof HighAssuranceChallengeError) {
+      await recordConsumeValidationDenied(operation, input, error);
+    }
+    throw error;
+  }
+}
 
 async function loadValidatedEvidence(
   operation: OperationPollResult,
@@ -48,24 +71,6 @@ async function loadValidatedEvidence(
   }
 }
 
-async function recordConsumeSuccessAudit(
-  evidence: OperationHighAssuranceChallengeEvidence,
-  input: ConsumeHighAssuranceEvidenceInput,
-  consumeAuditEventId: AuditEventId,
-): Promise<void> {
-  await recordHighAssuranceEvidenceConsumed({
-    organizationId: input.organizationId,
-    projectId: evidence.projectId,
-    operationId: input.operationId,
-    clearingUserId: input.clearingUserId,
-    challengeId: evidence.challengeId,
-    riskReasonCode: evidence.riskReasonCode,
-    auditEventId: consumeAuditEventId,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...optionalAuditRequest(input.request),
-  });
-}
-
 async function transitionAndAuditConsumedEvidence(
   input: ConsumeHighAssuranceEvidenceInput,
   evidence: OperationHighAssuranceChallengeEvidence,
@@ -87,7 +92,7 @@ async function transitionAndAuditConsumedEvidence(
     throw error;
   }
 
-  await recordConsumeSuccessAudit(evidence, input, consumeAuditEventId);
+  await recordBoundConsumeSuccessAudit(evidence, input, consumeAuditEventId);
 
   return transitionResult;
 }
@@ -104,10 +109,9 @@ async function completeDurableConsume(
     );
   }
 
-  await finalizeConsumeAudit(
-    { ...evidence, consumeAuditEventId: evidence.consumeAuditEventId },
-    input,
-  );
+  await validateConsumeActorOrDeny(operation, input, evidence);
+
+  await recordBoundConsumeSuccessAudit(evidence, input, evidence.consumeAuditEventId);
 
   return { operation, created: false };
 }

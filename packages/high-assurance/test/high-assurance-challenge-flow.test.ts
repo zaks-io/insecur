@@ -7,6 +7,7 @@ import {
   projectId,
   userId,
 } from "@insecur/domain";
+import { AUTHORIZATION_SCOPES } from "@insecur/access";
 import type {
   OperationHighAssuranceChallengeEvidence,
   OperationPollResult,
@@ -41,6 +42,7 @@ const PRJ = projectId.brand("prj_00000000000000000000000001");
 const PRJ_OTHER = projectId.brand("prj_00000000000000000000000002");
 const OP = operationId.brand("op_00000000000000000000000001");
 const USER_A = userId.brand("usr_00000000000000000000000001");
+const USER_B = userId.brand("usr_00000000000000000000000002");
 const AUD_REQUEST = auditEventId.brand("aud_00000000000000000000000001");
 const AUD_CONSUME = auditEventId.brand("aud_00000000000000000000000003");
 
@@ -279,7 +281,61 @@ describe("consume evidence flow regressions", () => {
     expect(transitionOperation).not.toHaveBeenCalled();
     expect(result).toEqual({ operation: durableOperation, created: false });
     expect(recordHighAssuranceEvidenceConsumed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ auditEventId: AUD_CONSUME }),
+      expect.objectContaining({ auditEventId: AUD_CONSUME, clearingUserId: USER_A }),
+    );
+  });
+
+  it("denies durable consume retry for actor-mismatched clearing user", async () => {
+    const consumedEvidence = {
+      ...clearedEvidence(),
+      consumedAt: "2026-07-03T00:10:00.000Z",
+      consumeAuditEventId: AUD_CONSUME,
+    };
+    const durableOperation = operationWithEvidence(consumedEvidence, "running");
+    getOperation.mockResolvedValue(durableOperation);
+
+    await expect(
+      consumeHighAssuranceEvidence({
+        organizationId: ORG,
+        operationId: OP,
+        clearingUserId: USER_B,
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.actorMismatch });
+
+    expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumeDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PRJ,
+        reasonCode: HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
+      }),
+    );
+  });
+
+  it("denies durable consume retry when caller lacks required scopes", async () => {
+    const consumedEvidence = {
+      ...clearedEvidence(),
+      consumedAt: "2026-07-03T00:10:00.000Z",
+      consumeAuditEventId: AUD_CONSUME,
+    };
+    const durableOperation = operationWithEvidence(consumedEvidence, "running");
+    getOperation.mockResolvedValue(durableOperation);
+
+    await expect(
+      consumeHighAssuranceEvidence({
+        organizationId: ORG,
+        operationId: OP,
+        clearingUserId: USER_A,
+        requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+        clearingUserAccess: { organizationId: ORG, scopes: [] },
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied });
+
+    expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumeDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PRJ,
+        reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
+      }),
     );
   });
 });

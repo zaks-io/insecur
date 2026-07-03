@@ -30,18 +30,52 @@ export interface ValidateHighAssuranceEvidenceResult {
   readonly evidence: OperationHighAssuranceChallengeEvidence;
 }
 
+export interface ValidateConsumeActorInput {
+  readonly evidence: OperationHighAssuranceChallengeEvidence;
+  readonly clearingUserId?: UserId;
+  readonly requiredScopes?: readonly AuthorizationScope[];
+  readonly clearingUserAccess?: EffectiveAccessResult;
+}
+
+export function buildValidateConsumeActorInput(input: {
+  readonly evidence: OperationHighAssuranceChallengeEvidence;
+  readonly clearingUserId?: UserId | undefined;
+  readonly requiredScopes?: readonly AuthorizationScope[] | undefined;
+  readonly clearingUserAccess?: EffectiveAccessResult | undefined;
+}): ValidateConsumeActorInput {
+  return {
+    evidence: input.evidence,
+    ...(input.clearingUserId !== undefined ? { clearingUserId: input.clearingUserId } : {}),
+    ...(input.requiredScopes !== undefined ? { requiredScopes: input.requiredScopes } : {}),
+    ...(input.clearingUserAccess !== undefined
+      ? { clearingUserAccess: input.clearingUserAccess }
+      : {}),
+  };
+}
+
+export function validateConsumeActor(input: ValidateConsumeActorInput): void {
+  requireClearedEvidence(input.evidence);
+  requireClearingUserMatch(input.evidence, input.clearingUserId);
+
+  if (input.requiredScopes !== undefined && input.clearingUserAccess !== undefined) {
+    assertClearingUserScopes(input.requiredScopes, input.clearingUserAccess);
+  }
+}
+
 export function validateHighAssuranceEvidence(
   input: ValidateHighAssuranceEvidenceInput,
 ): ValidateHighAssuranceEvidenceResult {
   const evidence = requireChallengeEvidence(input.operation.progress.highAssuranceChallenge);
   requireUnconsumedEvidence(evidence);
   requireUnexpiredEvidence(evidence, input.now ?? new Date());
-  requireClearedEvidence(evidence);
-  requireClearingUserMatch(evidence, input.clearingUserId);
-
-  if (input.requiredScopes !== undefined && input.clearingUserAccess !== undefined) {
-    assertClearingUserScopes(input.requiredScopes, input.clearingUserAccess);
-  }
+  validateConsumeActor(
+    buildValidateConsumeActorInput({
+      evidence,
+      clearingUserId: input.clearingUserId,
+      requiredScopes: input.requiredScopes,
+      clearingUserAccess: input.clearingUserAccess,
+    }),
+  );
 
   return { evidence };
 }

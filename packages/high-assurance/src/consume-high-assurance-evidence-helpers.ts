@@ -23,18 +23,26 @@ export function isConsumeAlreadyDurable(operation: OperationPollResult): boolean
   );
 }
 
-export async function finalizeConsumeAudit(
-  evidence: OperationHighAssuranceChallengeEvidence & { consumeAuditEventId: AuditEventId },
+export async function recordBoundConsumeSuccessAudit(
+  evidence: OperationHighAssuranceChallengeEvidence,
   input: ConsumeHighAssuranceEvidenceInput,
+  consumeAuditEventId: AuditEventId,
 ): Promise<void> {
+  if (evidence.clearingUserId === undefined) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.evidenceMissing,
+      "high-assurance challenge evidence is not cleared",
+    );
+  }
+
   await recordHighAssuranceEvidenceConsumed({
     organizationId: input.organizationId,
     projectId: evidence.projectId,
     operationId: input.operationId,
-    clearingUserId: input.clearingUserId,
+    clearingUserId: evidence.clearingUserId,
     challengeId: evidence.challengeId,
     riskReasonCode: evidence.riskReasonCode,
-    auditEventId: evidence.consumeAuditEventId,
+    auditEventId: consumeAuditEventId,
     ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
     ...optionalAuditRequest(input.request),
   });
