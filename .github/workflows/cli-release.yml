@@ -318,7 +318,6 @@ jobs:
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -327,7 +326,6 @@ jobs:
           set -euo pipefail
           if [ -n "$APPLE_CERTIFICATE" ] &&
             [ -n "$APPLE_CERTIFICATE_PASSWORD" ] &&
-            [ -n "$KEYCHAIN_PASSWORD" ] &&
             [ -n "$APPLE_SIGNING_IDENTITY" ] &&
             [ -n "$APPLE_API_KEY_BASE64" ] &&
             [ -n "$APPLE_API_ISSUER" ] &&
@@ -343,12 +341,11 @@ jobs:
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           set -euo pipefail
           : "${APPLE_CERTIFICATE:?APPLE_CERTIFICATE is required}"
           : "${APPLE_CERTIFICATE_PASSWORD:?APPLE_CERTIFICATE_PASSWORD is required}"
-          : "${KEYCHAIN_PASSWORD:?KEYCHAIN_PASSWORD is required}"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
           cert_path="$RUNNER_TEMP/apple-certificate.p12"
           cleanup_certificate() {
             rm -f "$cert_path"
