@@ -105,15 +105,16 @@ Hyperdrive-backed Neon Postgres as the source of truth. The deploys are:
   browser-side secret workflows. Public GitHub links may appear once the repository is public. Legal
   terms and privacy copy live as Public Site content under
   `apps/site/content/legal/`, are not generated from product specs or ADRs, and require
-  legal/publication review before going public. The Public Site has independent deploy paths: a local
-  CLI script for deploying the current checkout and a GitHub Actions workflow. Preview deploys route
-  `preview.insecur.cloud` to `insecur-site-preview`; the shared preview app surfaces route
+  legal/publication review before going public. The Public Site deploys with the same shared Worker
+  fleet workflows as the other app Workers, not through a separate production path. Preview deploys
+  route `preview.insecur.cloud` to `insecur-site-preview`; the shared preview app surfaces route
   `api.preview.insecur.cloud` to `insecur-api-preview` and `app.preview.insecur.cloud` to
   `insecur-web-preview`. Production deploys route `insecur.cloud` and `www.insecur.cloud` to
-  `insecur-site`. Production deploy is manual-only for now; do not auto-publish site production on
-  every `main` push until legal and security publication gates are settled. The shared preview
-  workflow owns CI migration before Worker deploy; First Value smoke remains an explicit post-deploy
-  check.
+  `insecur-site` as part of `Deploy Production`, alongside `insecur-runtime`, `insecur-api`, and
+  `insecur-web`. Production deploy remains manual-only for now; do not auto-publish any production
+  Worker on every `main` push until legal and security publication gates are settled. The shared
+  preview workflow owns CI migration before Worker deploy; First Value smoke remains an explicit
+  post-deploy check.
 - **Service Access**: a separate deploy with its own auth audience, deferred past V1
   ([ADR-0019](../adr/0019-service-access-without-secret-reveal.md)) but never collapsed into another
   deploy when built.

@@ -178,9 +178,9 @@ Set the developer default by putting `--cache=local:rw,remote:r` into the root s
 ## Root package.json Scripts
 
 The root `package.json` is the authoritative script list; this is the load-bearing subset (cache
-flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `deploy:workers`, `cli`,
-`migrate:local`, `migrate:preview`, `migrate:production`, the remaining `dev:db:*` commands,
-`dev:check`/`doctor`, `clean`) live there too and are not repeated here.
+flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `deploy:production`,
+`deploy:workers`, `cli`, `migrate:local`, `migrate:preview`, `migrate:production`, the remaining
+`dev:db:*` commands, `dev:check`/`doctor`, `clean`) live there too and are not repeated here.
 
 ```jsonc
 {
@@ -597,17 +597,6 @@ The deployed smoke belongs to a separate shared preview workflow, not to `pull_r
 workflow may use Neon and Hyperdrive, but it must target a bounded shared preview database/Worker
 pair rather than allocating resources per PR.
 
-### Public site production deploy: `deploy-site`
-
-Trigger: successful `CI` workflow completion on `main`, or manual `workflow_dispatch`. The automatic
-path deploys only `@insecur/site` / `insecur-site` to `insecur.cloud` and `www.insecur.cloud` after
-the full `CI` workflow has passed for the merged commit. The manual path can still deploy only the
-site to `preview.insecur.cloud` through the same package-level preview deploy script used by Turbo.
-
-The Public Site Worker is not the web console, API, or Runtime. It has no database, Hyperdrive,
-keyring, API Service Binding, Runtime Service Binding, or root-key binding. The site-boundary
-conformance gate keeps it on the `@insecur/ui` / public-marketing surface.
-
 ### Preview deploy: `deploy-preview`
 
 Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. The workflow runs
@@ -641,23 +630,28 @@ Trigger: `push` to `main`. Auto-deploys the staging Worker environment using the
 Trigger: `workflow_dispatch`, job bound to the `Production` GitHub Environment. During prelaunch,
 the manual workflow first verifies that the exact commit being deployed has a completed successful
 `CI` workflow run, then applies production database migrations with the Production GitHub
-Environment's elevated migration credential. After the CI and migration gates pass, it deploys the
-product Worker fleet (`insecur-runtime`, `insecur-api`, and `insecur-web`) in order, then syncs
+Environment's elevated migration credential. After the CI and migration gates pass, it syncs
 encrypted Worker secrets from the Production GitHub Environment into the corresponding Cloudflare
-Workers.
+Workers, then deploys the full app Worker fleet (`insecur-runtime`, `insecur-api`, `insecur-web`,
+and `insecur-site`) in dependency order. The site deploy is part of this fleet path; there is no
+separate production site workflow.
 
 1. Require a completed successful `CI` workflow run for the deployed commit SHA.
 2. Run `pnpm migrate:production` with `PRODUCTION_DATABASE_URL_MIGRATION` and
    `PRODUCTION_POSTGRES_RUNTIME_ROLE` from the Production GitHub Environment.
-3. Build the production Worker fleet.
-4. Deploy `insecur-runtime` with the production Secrets Store root-key binding and production
-   Hyperdrive binding.
-5. Deploy `insecur-api` with the private Runtime Service Binding.
-6. Deploy `insecur-web` with the private API and Runtime Service Bindings.
-7. Sync `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
+3. Sync `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
    `WORKOS_COOKIE_PASSWORD` as encrypted Worker secrets.
+4. Build the production Worker fleet.
+5. Deploy `insecur-runtime` with the production Secrets Store root-key binding and production
+   Hyperdrive binding.
+6. Deploy `insecur-api` with the private Runtime Service Binding.
+7. Deploy `insecur-web` with the private API and Runtime Service Bindings.
+8. Deploy `insecur-site` with no control-plane binding.
 
-The identity that executes this deploy is the CI machine token, distinct from the human approver. The approver's personal credentials are never the deploy credential (ADR-0029 amendment, ADR-0004).
+The identity that executes this deploy is the CI machine token, distinct from the human approver. The
+approver's personal credentials are never the deploy credential (ADR-0029 amendment, ADR-0004). The
+Cloudflare token must be able to write Worker scripts and Worker routes for the `insecur.cloud`
+zone, because Wrangler attaches the production custom domains during deploy.
 
 ### Daily security scan: `security-daily`
 

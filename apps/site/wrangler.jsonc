@@ -22,9 +22,8 @@
   // is enforced by dependency-cruiser (pnpm conformance:site-boundary).
   //
   // Served on the insecur.cloud zone (active in the Cloudflare account). Production binds the apex
-  // and www; preview binds preview.insecur.cloud. Production deploys for this public marketing
-  // surface run only after the `CI` workflow succeeds on `main`; API/Runtime production deploys stay
-  // separate and locked down.
+  // and www; preview binds preview.insecur.cloud. Production deploys with the same manual fleet
+  // workflow as runtime, API, and web; keep the site separate only at the capability boundary.
   "routes": [
     { "pattern": "insecur.cloud", "custom_domain": true },
     { "pattern": "www.insecur.cloud", "custom_domain": true },
