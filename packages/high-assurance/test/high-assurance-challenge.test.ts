@@ -30,6 +30,7 @@ import { validateOperationProgress } from "@insecur/operations";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PRJ = projectId.brand("prj_00000000000000000000000001");
+const PRJ_OTHER = projectId.brand("prj_00000000000000000000000002");
 const OP = operationId.brand("op_00000000000000000000000001");
 const USER_A = userId.brand("usr_00000000000000000000000001");
 const USER_B = userId.brand("usr_00000000000000000000000002");
@@ -79,6 +80,8 @@ describe("high-assurance challenge evidence validation", () => {
 
     const result = validateHighAssuranceEvidence({
       operation: operationWithEvidence(evidence),
+      projectId: PRJ,
+      resumingUserId: USER_A,
       clearingUserId: USER_A,
       now: new Date("2026-07-03T00:10:00.000Z"),
     });
@@ -93,6 +96,8 @@ describe("high-assurance challenge evidence validation", () => {
           ...operationWithEvidence(baseEvidence()),
           progress: {},
         },
+        projectId: PRJ,
+        resumingUserId: USER_A,
         clearingUserId: USER_A,
       }),
     ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.evidenceMissing }));
@@ -108,6 +113,8 @@ describe("high-assurance challenge evidence validation", () => {
     expect(() =>
       validateHighAssuranceEvidence({
         operation: operationWithEvidence(evidence),
+        projectId: PRJ,
+        resumingUserId: USER_A,
         clearingUserId: USER_A,
         now: new Date("2026-07-03T00:20:00.000Z"),
       }),
@@ -123,10 +130,46 @@ describe("high-assurance challenge evidence validation", () => {
     expect(() =>
       validateHighAssuranceEvidence({
         operation: operationWithEvidence(evidence),
+        projectId: PRJ,
+        resumingUserId: USER_A,
         clearingUserId: USER_A,
         now: new Date("2026-07-03T00:10:00.000Z"),
       }),
     ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.actorMismatch }));
+  });
+
+  it("rejects resuming actor mismatch against bound evidence", () => {
+    const evidence = baseEvidence({
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: USER_A,
+    });
+
+    expect(() =>
+      validateHighAssuranceEvidence({
+        operation: operationWithEvidence(evidence),
+        projectId: PRJ,
+        resumingUserId: USER_B,
+        clearingUserId: USER_A,
+        now: new Date("2026-07-03T00:10:00.000Z"),
+      }),
+    ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.actorMismatch }));
+  });
+
+  it("rejects consume coordinate mismatch against bound evidence", () => {
+    const evidence = baseEvidence({
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: USER_A,
+    });
+
+    expect(() =>
+      validateHighAssuranceEvidence({
+        operation: operationWithEvidence(evidence),
+        projectId: PRJ_OTHER,
+        resumingUserId: USER_A,
+        clearingUserId: USER_A,
+        now: new Date("2026-07-03T00:10:00.000Z"),
+      }),
+    ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch }));
   });
 
   it("rejects already consumed evidence", () => {
@@ -139,6 +182,8 @@ describe("high-assurance challenge evidence validation", () => {
     expect(() =>
       validateHighAssuranceEvidence({
         operation: operationWithEvidence(evidence),
+        projectId: PRJ,
+        resumingUserId: USER_A,
         clearingUserId: USER_A,
       }),
     ).toThrowError(expect.objectContaining({ code: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed }));
@@ -196,7 +241,9 @@ describe("machine-origin clearing authorization", () => {
       validateConsumeActor(
         buildValidateConsumeActorInput({
           organizationId: ORG,
+          projectId: PRJ,
           evidence,
+          resumingMachineIdentityId: MACH,
           clearingUserId: USER_A,
         }),
       ),
@@ -205,6 +252,8 @@ describe("machine-origin clearing authorization", () => {
     expect(() =>
       validateHighAssuranceEvidence({
         operation: operationWithEvidence(evidence),
+        projectId: PRJ,
+        resumingMachineIdentityId: MACH,
         clearingUserId: USER_A,
         now: new Date("2026-07-03T00:10:00.000Z"),
       }),
@@ -233,7 +282,9 @@ describe("machine-origin clearing authorization", () => {
       validateConsumeActor(
         buildValidateConsumeActorInput({
           organizationId: ORG,
+          projectId: PRJ,
           evidence: cleared,
+          resumingMachineIdentityId: MACH,
           clearingUserId: USER_A,
           requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
           clearingUserAccess: access,

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   recordHighAssuranceChallengeRequestDenied,
   recordHighAssuranceChallengeRequested,
+  recordHighAssuranceEvidenceConsumed,
 } from "../src/record-high-assurance-challenge-audit.js";
 import { HIGH_ASSURANCE_RISK_REASON_CODES } from "../src/high-assurance-risk-reason-codes.js";
 
@@ -89,6 +90,30 @@ describe("machine-origin challenge request audits", () => {
     expect(writeAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: { type: "machine", machineIdentityId: MACH },
+      }),
+    );
+  });
+
+  it("records machine actor on consume success audit", async () => {
+    await recordHighAssuranceEvidenceConsumed({
+      organizationId: ORG,
+      projectId: PRJ,
+      operationId: OP,
+      requestingMachineIdentityId: MACH,
+      clearingUserId: USER_A,
+      challengeId: "challenge_test_token_001",
+      riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+    });
+
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: PRODUCTION_AUDIT_EVENT_CODES.highAssuranceEvidenceConsumed,
+        outcome: "success",
+        actor: { type: "machine", machineIdentityId: MACH },
+        details: expect.objectContaining({
+          requestingMachineIdentityId: MACH,
+          clearingUserId: USER_A,
+        }),
       }),
     );
   });

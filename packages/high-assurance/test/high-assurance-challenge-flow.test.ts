@@ -15,7 +15,10 @@ import type {
 } from "@insecur/operations";
 import { OperationStoreError, mergeOperationProgress } from "@insecur/operations";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ClearHighAssuranceChallengeInput } from "../src/high-assurance-challenge-inputs.js";
+import type {
+  ClearHighAssuranceChallengeInput,
+  ConsumeHighAssuranceEvidenceInput,
+} from "../src/high-assurance-challenge-inputs.js";
 import {
   assertClearingActorForClear,
   requirePendingChallengeEvidence,
@@ -34,6 +37,7 @@ const AUD_CLEAR = auditEventId.brand("aud_00000000000000000000000004");
 const {
   getOperation,
   transitionOperation,
+  transitionOperationConsumeHighAssuranceEvidence,
   recordOperationProgress,
   recordHighAssuranceChallengeRequested,
   recordHighAssuranceChallengeCleared,
@@ -44,6 +48,7 @@ const {
 } = vi.hoisted(() => ({
   getOperation: vi.fn(),
   transitionOperation: vi.fn(),
+  transitionOperationConsumeHighAssuranceEvidence: vi.fn(),
   recordOperationProgress: vi.fn(),
   recordHighAssuranceChallengeRequested: vi.fn(),
   recordHighAssuranceChallengeCleared: vi.fn(),
@@ -70,6 +75,7 @@ vi.mock("@insecur/operations", async (importOriginal) => {
     ...actual,
     getOperation,
     transitionOperation,
+    transitionOperationConsumeHighAssuranceEvidence,
     recordOperationProgress,
   };
 });
@@ -159,6 +165,34 @@ function clearInput(
     },
     ...overrides,
   };
+}
+
+function consumeInput(
+  overrides: Partial<ConsumeHighAssuranceEvidenceInput> = {},
+): ConsumeHighAssuranceEvidenceInput {
+  return {
+    organizationId: ORG,
+    projectId: PRJ,
+    operationId: OP,
+    resumingUserId: USER_A,
+    clearingUserId: USER_A,
+    ...overrides,
+  };
+}
+
+function machineConsumeInput(
+  overrides: Partial<ConsumeHighAssuranceEvidenceInput> = {},
+): ConsumeHighAssuranceEvidenceInput {
+  return consumeInput({
+    resumingUserId: undefined,
+    resumingMachineIdentityId: MACH,
+    requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+    clearingUserAccess: {
+      organizationId: ORG,
+      scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+    },
+    ...overrides,
+  });
 }
 
 describe("clear preflight regressions", () => {
@@ -353,11 +387,12 @@ describe("machine-origin authorization regressions", () => {
     getOperation.mockResolvedValue(operationWithEvidence(consumedEvidence, "running"));
 
     await expect(
-      consumeHighAssuranceEvidence({
-        organizationId: ORG,
-        operationId: OP,
-        clearingUserId: USER_A,
-      }),
+      consumeHighAssuranceEvidence(
+        consumeInput({
+          resumingUserId: undefined,
+          resumingMachineIdentityId: MACH,
+        }),
+      ),
     ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied });
 
     expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
@@ -743,11 +778,11 @@ describe("consume evidence flow regressions", () => {
     });
   });
 
-  it("persists consumed metadata and audit linkage in one transition", async () => {
+  it("persists consumed metadata and audit linkage in one atomic consume transition", async () => {
     const evidence = clearedEvidence();
     const operation = operationWithEvidence(evidence);
     getOperation.mockResolvedValue(operation);
-    transitionOperation.mockResolvedValue({
+    transitionOperationConsumeHighAssuranceEvidence.mockResolvedValue({
       operation: operationWithEvidence(
         {
           ...evidence,
@@ -759,15 +794,11 @@ describe("consume evidence flow regressions", () => {
       created: false,
     });
 
-    await consumeHighAssuranceEvidence({
-      organizationId: ORG,
-      operationId: OP,
-      clearingUserId: USER_A,
-    });
+    await consumeHighAssuranceEvidence(consumeInput());
 
-    expect(transitionOperation).toHaveBeenCalledWith(
+    expect(transitionOperationConsumeHighAssuranceEvidence).toHaveBeenCalledWith(
       expect.objectContaining({
-        nextState: "running",
+        challengeId: evidence.challengeId,
         progress: expect.objectContaining({
           highAssuranceChallenge: expect.objectContaining({
             consumedAt: expect.any(String),
@@ -777,26 +808,29 @@ describe("consume evidence flow regressions", () => {
         }),
       }),
     );
-    expect(transitionOperation).toHaveBeenCalledBefore(recordHighAssuranceEvidenceConsumed);
+    expect(transitionOperationConsumeHighAssuranceEvidence).toHaveBeenCalledBefore(
+      recordHighAssuranceEvidenceConsumed,
+    );
     expect(recordHighAssuranceEvidenceConsumed).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: PRJ, auditEventId: AUD_CONSUME }),
+      expect.objectContaining({
+        projectId: PRJ,
+        auditEventId: AUD_CONSUME,
+        requestingUserId: USER_A,
+        clearingUserId: USER_A,
+      }),
     );
   });
 
-  it("does not record consume success audit when transition fails", async () => {
+  it("does not record consume success audit when atomic consume transition fails", async () => {
     const evidence = clearedEvidence();
     getOperation.mockResolvedValue(operationWithEvidence(evidence));
-    transitionOperation.mockRejectedValue(
+    transitionOperationConsumeHighAssuranceEvidence.mockRejectedValue(
       new OperationStoreError(OPERATION_ERROR_CODES.staleTransition, "stale transition", true),
     );
 
-    await expect(
-      consumeHighAssuranceEvidence({
-        organizationId: ORG,
-        operationId: OP,
-        clearingUserId: USER_A,
-      }),
-    ).rejects.toBeInstanceOf(OperationStoreError);
+    await expect(consumeHighAssuranceEvidence(consumeInput())).rejects.toBeInstanceOf(
+      OperationStoreError,
+    );
 
     expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
     expect(recordHighAssuranceEvidenceConsumeDenied).toHaveBeenCalledWith(
@@ -820,23 +854,15 @@ describe("consume evidence flow regressions", () => {
     recordHighAssuranceEvidenceConsumed.mockRejectedValueOnce(new Error("audit store unavailable"));
     recordHighAssuranceEvidenceConsumed.mockResolvedValueOnce({ auditEventId: AUD_CONSUME });
 
-    await expect(
-      consumeHighAssuranceEvidence({
-        organizationId: ORG,
-        operationId: OP,
-        clearingUserId: USER_A,
-      }),
-    ).rejects.toThrow("audit store unavailable");
+    await expect(consumeHighAssuranceEvidence(consumeInput())).rejects.toThrow(
+      "audit store unavailable",
+    );
 
     getOperation.mockResolvedValue(durableOperation);
 
-    const result = await consumeHighAssuranceEvidence({
-      organizationId: ORG,
-      operationId: OP,
-      clearingUserId: USER_A,
-    });
+    const result = await consumeHighAssuranceEvidence(consumeInput());
 
-    expect(transitionOperation).not.toHaveBeenCalled();
+    expect(transitionOperationConsumeHighAssuranceEvidence).not.toHaveBeenCalled();
     expect(result).toEqual({ operation: durableOperation, created: false });
     expect(recordHighAssuranceEvidenceConsumed).toHaveBeenLastCalledWith(
       expect.objectContaining({ auditEventId: AUD_CONSUME, clearingUserId: USER_A }),
@@ -871,7 +897,7 @@ describe("consume evidence flow regressions", () => {
     });
     recordHighAssuranceChallengeCleared.mockRejectedValueOnce(new Error("audit store unavailable"));
     recordHighAssuranceChallengeCleared.mockResolvedValue({ auditEventId: AUD_CLEAR });
-    transitionOperation.mockResolvedValue({
+    transitionOperationConsumeHighAssuranceEvidence.mockResolvedValue({
       operation: runningAfterConsume,
       created: false,
     });
@@ -880,11 +906,7 @@ describe("consume evidence flow regressions", () => {
       "audit store unavailable",
     );
 
-    await consumeHighAssuranceEvidence({
-      organizationId: ORG,
-      operationId: OP,
-      clearingUserId: USER_A,
-    });
+    await consumeHighAssuranceEvidence(consumeInput());
 
     expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledTimes(2);
     expect(recordHighAssuranceChallengeCleared).toHaveBeenLastCalledWith(
@@ -897,13 +919,9 @@ describe("consume evidence flow regressions", () => {
     getOperation.mockResolvedValue(runningAfterConsume);
     recordHighAssuranceEvidenceConsumed.mockClear();
 
-    const result = await consumeHighAssuranceEvidence({
-      organizationId: ORG,
-      operationId: OP,
-      clearingUserId: USER_A,
-    });
+    const result = await consumeHighAssuranceEvidence(consumeInput());
 
-    expect(transitionOperation).toHaveBeenCalledTimes(1);
+    expect(transitionOperationConsumeHighAssuranceEvidence).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ operation: runningAfterConsume, created: false });
     expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledTimes(3);
     expect(recordHighAssuranceEvidenceConsumed).toHaveBeenCalledWith(
@@ -933,11 +951,7 @@ describe("consume evidence flow regressions", () => {
     });
     recordHighAssuranceEvidenceConsumed.mockResolvedValue({ auditEventId: AUD_CONSUME });
 
-    await consumeHighAssuranceEvidence({
-      organizationId: ORG,
-      operationId: OP,
-      clearingUserId: USER_A,
-    });
+    await consumeHighAssuranceEvidence(consumeInput());
 
     expect(recordHighAssuranceChallengeRequested).toHaveBeenCalledWith(
       expect.objectContaining({ auditEventId: AUD_REQUEST }),
@@ -960,11 +974,12 @@ describe("consume evidence flow regressions", () => {
     getOperation.mockResolvedValue(durableOperation);
 
     await expect(
-      consumeHighAssuranceEvidence({
-        organizationId: ORG,
-        operationId: OP,
-        clearingUserId: USER_B,
-      }),
+      consumeHighAssuranceEvidence(
+        consumeInput({
+          clearingUserId: USER_B,
+          resumingUserId: USER_B,
+        }),
+      ),
     ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.actorMismatch });
 
     expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
@@ -986,13 +1001,12 @@ describe("consume evidence flow regressions", () => {
     getOperation.mockResolvedValue(durableOperation);
 
     await expect(
-      consumeHighAssuranceEvidence({
-        organizationId: ORG,
-        operationId: OP,
-        clearingUserId: USER_A,
-        requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
-        clearingUserAccess: { organizationId: ORG, scopes: [] },
-      }),
+      consumeHighAssuranceEvidence(
+        consumeInput({
+          requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
+          clearingUserAccess: { organizationId: ORG, scopes: [] },
+        }),
+      ),
     ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied });
 
     expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
@@ -1001,6 +1015,85 @@ describe("consume evidence flow regressions", () => {
         projectId: PRJ,
         reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
       }),
+    );
+  });
+
+  it("denies consume when resuming machine identity mismatches bound evidence", async () => {
+    const evidence = clearedEvidence();
+    getOperation.mockResolvedValue(operationWithEvidence(evidence));
+
+    await expect(
+      consumeHighAssuranceEvidence(
+        consumeInput({
+          resumingUserId: undefined,
+          resumingMachineIdentityId: MACH,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.actorMismatch });
+
+    expect(transitionOperationConsumeHighAssuranceEvidence).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumeDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestingMachineIdentityId: MACH,
+        reasonCode: HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
+      }),
+    );
+  });
+
+  it("denies consume when caller project coordinate mismatches bound evidence", async () => {
+    const evidence = clearedEvidence();
+    getOperation.mockResolvedValue(operationWithEvidence(evidence));
+
+    await expect(
+      consumeHighAssuranceEvidence(
+        consumeInput({
+          projectId: PRJ_OTHER,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch });
+
+    expect(transitionOperationConsumeHighAssuranceEvidence).not.toHaveBeenCalled();
+  });
+
+  it("records machine actor on consume success audit for machine-origin evidence", async () => {
+    const evidence = machineClearedEvidence();
+    getOperation.mockResolvedValue(operationWithEvidence(evidence));
+    transitionOperationConsumeHighAssuranceEvidence.mockResolvedValue({
+      operation: operationWithEvidence(
+        {
+          ...evidence,
+          consumedAt: "2026-07-03T00:10:00.000Z",
+          consumeAuditEventId: AUD_CONSUME,
+        },
+        "running",
+      ),
+      created: false,
+    });
+
+    await consumeHighAssuranceEvidence(machineConsumeInput());
+
+    expect(recordHighAssuranceEvidenceConsumed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestingMachineIdentityId: MACH,
+        clearingUserId: USER_A,
+      }),
+    );
+  });
+
+  it("loses concurrent double consume with stale compare-and-set", async () => {
+    const evidence = clearedEvidence();
+    getOperation.mockResolvedValue(operationWithEvidence(evidence));
+    transitionOperationConsumeHighAssuranceEvidence.mockRejectedValue(
+      new OperationStoreError(OPERATION_ERROR_CODES.staleTransition, "stale transition", true),
+    );
+
+    await expect(consumeHighAssuranceEvidence(consumeInput())).rejects.toBeInstanceOf(
+      OperationStoreError,
+    );
+
+    expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
+    expect(transitionOperationConsumeHighAssuranceEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({ challengeId: evidence.challengeId }),
     );
   });
 });

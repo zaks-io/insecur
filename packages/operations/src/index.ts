@@ -75,3 +75,7 @@ export { getOperation } from "./get-operation.js";
 export { recordOperationProgress } from "./record-operation-progress.js";
 export { retryOperation } from "./retry-operation.js";
 export { transitionOperation } from "./transition-operation.js";
+export {
+  transitionOperationConsumeHighAssuranceEvidence,
+  type TransitionOperationConsumeEvidenceInput,
+} from "./transition-operation-consume-evidence.js";

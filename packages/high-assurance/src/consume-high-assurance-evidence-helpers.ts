@@ -14,6 +14,29 @@ import {
   recordHighAssuranceEvidenceConsumed,
 } from "./record-high-assurance-challenge-audit.js";
 
+function consumeAuditActorFields(input: ConsumeHighAssuranceEvidenceInput) {
+  return {
+    ...(input.resumingUserId !== undefined ? { requestingUserId: input.resumingUserId } : {}),
+    ...(input.resumingMachineIdentityId !== undefined
+      ? { requestingMachineIdentityId: input.resumingMachineIdentityId }
+      : {}),
+  };
+}
+
+function consumeAuditDeniedFields(
+  input: ConsumeHighAssuranceEvidenceInput,
+  evidence: OperationHighAssuranceChallengeEvidence,
+) {
+  return {
+    organizationId: input.organizationId,
+    projectId: evidence.projectId,
+    operationId: input.operationId,
+    ...consumeAuditActorFields(input),
+    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
+    ...optionalAuditRequest(input.request),
+  };
+}
+
 export function isConsumeAlreadyDurable(operation: OperationPollResult): boolean {
   const evidence = operation.progress.highAssuranceChallenge;
   return (
@@ -43,6 +66,12 @@ export async function recordBoundConsumeSuccessAudit(
     challengeId: evidence.challengeId,
     riskReasonCode: evidence.riskReasonCode,
     auditEventId: consumeAuditEventId,
+    ...(evidence.requestingUserId !== undefined
+      ? { requestingUserId: evidence.requestingUserId }
+      : {}),
+    ...(evidence.requestingMachineIdentityId !== undefined
+      ? { requestingMachineIdentityId: evidence.requestingMachineIdentityId }
+      : {}),
     ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
     ...optionalAuditRequest(input.request),
   });
@@ -74,15 +103,8 @@ export async function recordConsumeValidationDenied(
   }
 
   await recordHighAssuranceEvidenceConsumeDenied({
-    organizationId: input.organizationId,
-    projectId: boundEvidence.projectId,
-    operationId: input.operationId,
+    ...consumeAuditDeniedFields(input, boundEvidence),
     reasonCode: error.code,
-    requestingUserId: input.clearingUserId,
-    ...(boundEvidence.environmentId !== undefined
-      ? { environmentId: boundEvidence.environmentId }
-      : {}),
-    ...optionalAuditRequest(input.request),
   });
 }
 
@@ -92,13 +114,8 @@ export async function denyConsumeNotWaiting(
   operationState: OperationPollResult["state"],
 ): Promise<never> {
   await recordHighAssuranceEvidenceConsumeDenied({
-    organizationId: input.organizationId,
-    projectId: evidence.projectId,
-    operationId: input.operationId,
+    ...consumeAuditDeniedFields(input, evidence),
     reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
-    requestingUserId: input.clearingUserId,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...optionalAuditRequest(input.request),
   });
   throw new HighAssuranceChallengeError(
     HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
@@ -111,12 +128,7 @@ export async function recordConsumeTransitionDenied(
   input: ConsumeHighAssuranceEvidenceInput,
 ): Promise<void> {
   await recordHighAssuranceEvidenceConsumeDenied({
-    organizationId: input.organizationId,
-    projectId: evidence.projectId,
-    operationId: input.operationId,
+    ...consumeAuditDeniedFields(input, evidence),
     reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
-    requestingUserId: input.clearingUserId,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...optionalAuditRequest(input.request),
   });
 }

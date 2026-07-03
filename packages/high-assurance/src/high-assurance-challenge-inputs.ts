@@ -25,7 +25,11 @@ export interface ClearHighAssuranceChallengeInput {
 
 export interface ConsumeHighAssuranceEvidenceInput {
   readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId?: EnvironmentId;
   readonly operationId: OperationId;
+  readonly resumingUserId?: UserId;
+  readonly resumingMachineIdentityId?: MachineIdentityId;
   readonly clearingUserId: UserId;
   readonly requiredScopes?: readonly AuthorizationScope[];
   readonly clearingUserAccess?: EffectiveAccessResult;

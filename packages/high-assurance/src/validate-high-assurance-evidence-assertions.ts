@@ -1,6 +1,7 @@
 import type { AuthorizationScope } from "@insecur/access";
 import { hasAuthorizationScope, type EffectiveAccessResult } from "@insecur/access";
-import type { OrganizationId, UserId } from "@insecur/domain";
+import type { EnvironmentId, OrganizationId, ProjectId, UserId } from "@insecur/domain";
+import type { MachineIdentityId } from "@insecur/domain";
 import type { OperationHighAssuranceChallengeEvidence } from "@insecur/operations";
 import {
   HIGH_ASSURANCE_ERROR_CODES,
@@ -60,14 +61,58 @@ export function requireClearingUserMatch(
       "high-assurance challenge evidence clearing user does not match",
     );
   }
+}
 
-  if (evidence.requestingUserId !== undefined && clearingUserId !== undefined) {
-    if (evidence.requestingUserId !== clearingUserId) {
-      throw new HighAssuranceChallengeError(
-        HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
-        "human-session bounded operation must be cleared by the requesting user",
-      );
-    }
+export function requireResumingActorForConsume(input: {
+  readonly evidence: OperationHighAssuranceChallengeEvidence;
+  readonly resumingUserId?: UserId;
+  readonly resumingMachineIdentityId?: MachineIdentityId;
+}): void {
+  if (input.resumingUserId === undefined && input.resumingMachineIdentityId === undefined) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
+      "high-assurance evidence consume requires a resuming user or machine identity",
+    );
+  }
+
+  if (
+    input.evidence.requestingUserId !== undefined &&
+    input.resumingUserId !== input.evidence.requestingUserId
+  ) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
+      "resuming user does not match bound challenge evidence",
+    );
+  }
+
+  if (
+    input.evidence.requestingMachineIdentityId !== undefined &&
+    input.resumingMachineIdentityId !== input.evidence.requestingMachineIdentityId
+  ) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
+      "resuming machine identity does not match bound challenge evidence",
+    );
+  }
+}
+
+export function requireConsumeCoordinateMatch(input: {
+  readonly evidence: OperationHighAssuranceChallengeEvidence;
+  readonly projectId: ProjectId;
+  readonly environmentId?: EnvironmentId;
+}): void {
+  if (input.projectId !== input.evidence.projectId) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      "caller project does not match bound challenge evidence",
+    );
+  }
+
+  if (input.environmentId !== input.evidence.environmentId) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      "caller environment does not match bound challenge evidence",
+    );
   }
 }
 

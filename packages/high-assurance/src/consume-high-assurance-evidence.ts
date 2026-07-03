@@ -1,7 +1,7 @@
 import { generateAuditEventId } from "@insecur/audit";
 import {
   getOperation,
-  transitionOperation,
+  transitionOperationConsumeHighAssuranceEvidence,
   type OperationHighAssuranceChallengeEvidence,
   type OperationMutationResult,
   type OperationPollResult,
@@ -22,6 +22,7 @@ import {
 import { finalizePendingChallengeAuditsInOrder } from "./finalize-pending-challenge-audits.js";
 import {
   buildValidateConsumeActorInput,
+  buildValidateHighAssuranceEvidenceInput,
   validateConsumeActor,
   validateHighAssuranceEvidence,
 } from "./validate-high-assurance-evidence.js";
@@ -37,7 +38,11 @@ async function validateConsumeActorOrDeny(
     validateConsumeActor(
       buildValidateConsumeActorInput({
         organizationId: input.organizationId,
+        projectId: input.projectId,
         evidence,
+        environmentId: input.environmentId,
+        resumingUserId: input.resumingUserId,
+        resumingMachineIdentityId: input.resumingMachineIdentityId,
         clearingUserId: input.clearingUserId,
         requiredScopes: input.requiredScopes,
         clearingUserAccess: input.clearingUserAccess,
@@ -56,15 +61,8 @@ async function loadValidatedEvidence(
   input: ConsumeHighAssuranceEvidenceInput,
 ): Promise<OperationHighAssuranceChallengeEvidence> {
   try {
-    const validationInput = {
-      operation,
-      clearingUserId: input.clearingUserId,
-      ...(input.requiredScopes !== undefined ? { requiredScopes: input.requiredScopes } : {}),
-      ...(input.clearingUserAccess !== undefined
-        ? { clearingUserAccess: input.clearingUserAccess }
-        : {}),
-    };
-    return validateHighAssuranceEvidence(validationInput).evidence;
+    return validateHighAssuranceEvidence(buildValidateHighAssuranceEvidenceInput(operation, input))
+      .evidence;
   } catch (error) {
     if (error instanceof HighAssuranceChallengeError) {
       await recordConsumeValidationDenied(operation, input, error);
@@ -82,10 +80,10 @@ async function transitionAndAuditConsumedEvidence(
 
   let transitionResult: OperationMutationResult;
   try {
-    transitionResult = await transitionOperation({
+    transitionResult = await transitionOperationConsumeHighAssuranceEvidence({
       organizationId: input.organizationId,
       operationId: input.operationId,
-      nextState: "running",
+      challengeId: evidence.challengeId,
       progress: buildConsumedEvidenceProgress(evidence, consumedAt, consumeAuditEventId),
       ...(input.idempotencyKey !== undefined ? { idempotencyKey: input.idempotencyKey } : {}),
     });
