@@ -6,9 +6,11 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "routes": [{ "pattern": "api.insecur.cloud", "custom_domain": true }],
+  // Public placeholders only. `scripts/wrangler-deploy-config.mjs` materializes live values from
+  // Preview/Production GitHub Environment variables during deploy.
   "vars": {
-    "INSTANCE_ID": "inst_PRODUCTION",
-    "WORKOS_CLIENT_ID": "client_01KSND74JFBXZ3F6PE62S54RCA",
+    "INSTANCE_ID": "inst_PUBLIC_PRODUCTION_PLACEHOLDER",
+    "WORKOS_CLIENT_ID": "client_PUBLIC_PRODUCTION_PLACEHOLDER",
   },
   "observability": {
     "enabled": true,
@@ -33,31 +35,32 @@
     },
   ],
   // Pre-tenant public-edge abuse controls (INS-278). Cloudflare Rate Limiting bindings — not KV.
-  // Limits are per Cloudflare location; see apps/api/docs/public-edge-abuse-controls.md.
+  // Limits are per Cloudflare location; live namespace IDs come from GitHub Environment variables.
+  // See apps/api/docs/public-edge-abuse-controls.md.
   "ratelimits": [
     {
       "name": "ONBOARDING_IP",
-      "namespace_id": "2781",
+      "namespace_id": "9001",
       "simple": { "limit": 30, "period": 60 },
     },
     {
       "name": "ONBOARDING_ACTOR",
-      "namespace_id": "2782",
+      "namespace_id": "9002",
       "simple": { "limit": 10, "period": 60 },
     },
     {
       "name": "BOOTSTRAP_IP",
-      "namespace_id": "2784",
+      "namespace_id": "9003",
       "simple": { "limit": 10, "period": 60 },
     },
     {
       "name": "BOOTSTRAP_ACTOR",
-      "namespace_id": "2785",
+      "namespace_id": "9004",
       "simple": { "limit": 5, "period": 60 },
     },
     {
       "name": "AUTH_EXCHANGE_IP",
-      "namespace_id": "2786",
+      "namespace_id": "9005",
       "simple": { "limit": 20, "period": 60 },
     },
   ],
@@ -70,8 +73,8 @@
       "workers_dev": true,
       "routes": [{ "pattern": "api.preview.insecur.cloud", "custom_domain": true }],
       "vars": {
-        "INSTANCE_ID": "inst_PREVIEW",
-        "WORKOS_CLIENT_ID": "client_01KW4ZMTFWMYQFT90DK0E1J4EV",
+        "INSTANCE_ID": "inst_PUBLIC_PREVIEW_PLACEHOLDER",
+        "WORKOS_CLIENT_ID": "client_PUBLIC_PREVIEW_PLACEHOLDER",
       },
       "services": [
         {
@@ -84,27 +87,27 @@
       "ratelimits": [
         {
           "name": "ONBOARDING_IP",
-          "namespace_id": "2871",
+          "namespace_id": "9101",
           "simple": { "limit": 30, "period": 60 },
         },
         {
           "name": "ONBOARDING_ACTOR",
-          "namespace_id": "2872",
+          "namespace_id": "9102",
           "simple": { "limit": 10, "period": 60 },
         },
         {
           "name": "BOOTSTRAP_IP",
-          "namespace_id": "2874",
+          "namespace_id": "9103",
           "simple": { "limit": 10, "period": 60 },
         },
         {
           "name": "BOOTSTRAP_ACTOR",
-          "namespace_id": "2875",
+          "namespace_id": "9104",
           "simple": { "limit": 5, "period": 60 },
         },
         {
           "name": "AUTH_EXCHANGE_IP",
-          "namespace_id": "2876",
+          "namespace_id": "9105",
           "simple": { "limit": 20, "period": 60 },
         },
       ],

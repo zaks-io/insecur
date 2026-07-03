@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseJsonc } from "../../../scripts/jsonc.mjs";
+import { loadDeployWranglerConfig } from "../../../scripts/wrangler-deploy-config.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const RUNTIME_DIR = path.resolve(SCRIPT_DIR, "..");
@@ -20,7 +20,7 @@ if (process.env.CLOUDFLARE_ENV && process.env.CLOUDFLARE_ENV !== "production") {
 const accountId = requireEnv("CLOUDFLARE_ACCOUNT_ID");
 const apiToken = requireEnv("CLOUDFLARE_API_TOKEN");
 
-const config = parseJsonc(await readFile(WRANGLER_PATH, "utf8"), WRANGLER_PATH);
+const { config } = await loadDeployWranglerConfig(WRANGLER_PATH);
 const scriptName = assertString(config.name, "wrangler.name");
 
 await assertDeployedRuntimeConfig(scriptName, config);
@@ -144,7 +144,7 @@ function assertBinding(bindings, expected) {
   for (const [key, value] of Object.entries(expected)) {
     if (binding[key] !== value) {
       throw new Error(
-        `Refusing content-only deploy: deployed ${expected.name}.${key} is ${binding[key]}, expected ${value}.`,
+        `Refusing content-only deploy: deployed ${expected.name}.${key} does not match deploy config.`,
       );
     }
   }

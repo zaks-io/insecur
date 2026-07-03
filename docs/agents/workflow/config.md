@@ -12,7 +12,7 @@ external systems (Linear, GitHub, CI), not here.
 - Last verified: 2026-06-29 (CodeRabbit status context on open PRs; `.coderabbit.yaml` auto-review disabled).
 - Evidence sources: `package.json`, `.npmrc`, git remote/branch, `AGENTS.md`/`CLAUDE.md` symlinks, `.agents/skills/*` + `.claude/skills/*` + root `skills/*` symlinks, live Linear `list_teams`/`list_issue_statuses`/`list_issue_labels`.
 - Safe commands run: `git remote get-url origin`, `git symbolic-ref --short HEAD`, `jq` over `package.json`, `ls -la`/`-ef` symlink checks, `git log`/`diff`/`wc` over skills.
-- Read-only tool calls: Linear `list_teams (INS)`, `list_issue_statuses (INS)`, `list_issue_labels (INS, 100)` — all IDs below confirmed unchanged.
+- Read-only tool calls: Linear `list_teams (INS)`, `list_issue_statuses (INS)`, `list_issue_labels (INS, 100)` — live IDs verified privately and intentionally omitted from public repo docs.
 - Inferred values: none.
 - Critical unknowns: none.
 
@@ -28,50 +28,51 @@ external systems (Linear, GitHub, CI), not here.
 - Focused checks: `pnpm conformance:actions-pin`; `pnpm conformance:packages`; `pnpm conformance:site-boundary`; `pnpm conformance:topology`; `pnpm typecheck`; `pnpm lint`; `pnpm test`; `pnpm test:coverage` (when the change touches covered packages); `pnpm dev:check`; `pnpm duplicates:check`
 - Build: `pnpm build` (includes Worker dry-run deploys via apps/api/wrangler.jsonc and apps/runtime/wrangler.jsonc)
 - Generated artifacts: none tracked; turbo cache only
-- Preview checks: no per-PR preview workflow; PR database validation is `CI` → `Postgres tests (integration + RLS + e2e)` using Docker Compose Postgres. Shared preview deploy is `Deploy Preview` / `pnpm deploy:preview` for all preview Workers. The workflow runs `pnpm migrate:preview` before deploy. Target a Worker with standard Turbo filtering, for example `pnpm deploy:preview --filter @insecur/web`. Preview URLs are `https://api.preview.insecur.cloud`, `https://app.preview.insecur.cloud`, and `https://preview.insecur.cloud`; Runtime has no public route.
-- Production deploy path: `Deploy Production` workflow only. It auto-runs after successful `CI` on `main`, can be manually dispatched as an operator fallback, requires a completed successful `CI` workflow run for the deployed commit, runs `pnpm migrate:production`, then deploys Cloudflare Workers `insecur-runtime`, `insecur-api`, `insecur-web`, and `insecur-site`. Runtime production deploy uploads code only and preserves the existing root-key Secrets Store and Hyperdrive bindings; API, Web, and Site production deploys preserve existing custom-domain routes. CI must not need Secrets Store write access or Workers Routes write access for routine deploys.
+- Preview checks: no per-PR preview workflow; PR database validation is `CI` → `Postgres tests (integration + RLS + e2e)` using Docker Compose Postgres. Shared preview deploy is `Deploy Preview` / `pnpm deploy:preview` for all preview Workers. The workflow runs `pnpm migrate:preview` before deploy. Target a Worker with standard Turbo filtering, for example `pnpm deploy:preview --filter @insecur/web`. Preview URLs are `https://api.preview.insecur.cloud`, `https://app.preview.insecur.cloud`, and `https://preview.insecur.cloud`; Runtime has no public route. Private deploy identifiers are GitHub Environment variables, not tracked Wrangler values.
+- Production deploy path: `Deploy Production` workflow only. It auto-runs after successful `CI` on `main`, can be manually dispatched as an operator fallback, requires a completed successful `CI` workflow run for the deployed commit, runs `pnpm migrate:production`, then deploys Cloudflare Workers `insecur-runtime`, `insecur-api`, `insecur-web`, and `insecur-site`. Runtime production deploy uploads code only and preserves the existing root-key Secrets Store and Hyperdrive bindings; API, Web, and Site production deploys preserve existing custom-domain routes. CI must not need Secrets Store write access or Workers Routes write access for routine deploys. `scripts/wrangler-deploy-config.mjs` materializes private IDs from the Preview/Production GitHub Environment before invoking Wrangler.
+- Deploy GitHub Environment variables: Preview uses `PREVIEW_INSTANCE_ID`, `PREVIEW_HYPERDRIVE_ID`, `PREVIEW_RUNTIME_ROOT_KEY_STORE_ID`, `PREVIEW_RUNTIME_ROOT_KEY_SECRET_NAME`, and `PREVIEW_API_RATELIMIT_*_NAMESPACE_ID`; Production uses `PRODUCTION_INSTANCE_ID`, `PRODUCTION_HYPERDRIVE_ID`, `PRODUCTION_RUNTIME_ROOT_KEY_STORE_ID`, `PRODUCTION_RUNTIME_ROOT_KEY_SECRET_NAME`, and `PRODUCTION_API_RATELIMIT_*_NAMESPACE_ID`. Both environments use `WORKOS_CLIENT_ID`. The workflows map those environment-scoped names into the package-level `INSECUR_*` variables consumed by `scripts/wrangler-deploy-config.mjs`.
 - Production approval required: standing prelaunch approval from Isaac covers CI/CD process changes and deploy runs needed to validate the release path until the project has real users or real production data
 
 ## Issue Tracker
 
 - Provider: Linear (Linear MCP server)
-- Provider location: team `INS` ("Insecur"), id `bfbdcafe-cafe-41a4-b35a-30d3f8f6a0b0`
+- Provider location: team `INS` ("Insecur"); live ID intentionally omitted from public repo docs
 - Metadata verified: 2026-05-28 via list_teams, list_issue_statuses, list_issue_labels, list_projects
 - Label source of truth: live Linear team `INS` label metadata
 - Label docs: `docs/agents/triage-labels.md` (mirror; covers readiness subset — see Unknowns)
-- Routing label: `zaks-io/insecur` (id `498e1661-64bb-4b1e-b3ca-3883dd6aa7a3`, parent `repo`); required on every repo issue, preserve on updates
+- Routing label: `zaks-io/insecur` (parent `repo`); required on every repo issue, preserve on updates
 - Triage scope: filter the `INS` queue by `zaks-io/insecur` before treating an issue as this repo's work
 - Orphan policy: route only when project/team/parent/label is directly evidenced; else leave in `Triage` with `needs-info` or `ready-for-human`; never `ready-for-agent` until routing, body, and labels are correct. Encode status and blockers separately.
 - Issue key examples: INS-16, INS-34, INS-35
 
-### Statuses (verified IDs)
+### Statuses
 
-- Triage: `cb2877b3-df50-48c5-a365-70a905e5885b`
-- Backlog: `731d29c4-7408-47fb-82e5-a556b2b67ae8`
-- Todo (ready state): `013bffd1-af93-43e3-9e7c-df693d0a528c`
-- In Progress: `de975a93-d3f8-4f70-aacf-23d5f4444a77`
-- Blocked: `8b19f54a-55bd-491d-8b7a-fd59a4b5c2bb`
-- In Review: `4f27a394-0553-4ccc-b7d8-79246e371132`
-- Changes Requested: `972aa5b4-5209-45fb-a63e-7be92b459130`
-- Ready to Merge (merge-ready state): `b854f5bb-70e4-4c76-b1f4-37bc5d410d4f`
-- Done: `a11aa832-77cd-4b46-961f-ca72a0452323`
-- Canceled: `b2aad859-a2f2-4ce5-96e6-6609bb43232e`
-- Duplicate: `bc00d6f5-a56f-444f-8a5d-cb73b7c9a508`
+- Triage
+- Backlog
+- Todo (ready state)
+- In Progress
+- Blocked
+- In Review
+- Changes Requested
+- Ready to Merge (merge-ready state)
+- Done
+- Canceled
+- Duplicate
 
-### Labels (verified IDs)
+### Labels
 
 Readiness (parent `Readiness`):
 
-- needs-triage `0f3d30ec-e60f-4782-8146-66b71122b4ea`
-- needs-info `7cada386-964d-40dc-94d4-2c45f2db834c`
-- ready-for-agent `45bb65be-aa4a-4357-9d32-54b996813452`
-- ready-for-human `30de6f2d-ac9e-4384-a751-1c5c08ce47f0`
-- wontfix `d219cd4b-27a2-4a20-960d-b9b1ff43fa49`
-- remote worker: `remote-cursor` `7ca081c9-f1fb-45ba-a6a4-751e3dc30fec` (no `Readiness` parent; this repo uses Cursor as the remote worker)
+- `needs-triage`
+- `needs-info`
+- `ready-for-agent`
+- `ready-for-human`
+- `wontfix`
+- remote worker: `remote-cursor` (no `Readiness` parent; this repo uses Cursor as the remote worker)
 
 Review gate (no parent):
 
-- `code-review-passed` `094ebaff-9aa1-4d86-9207-28f02b34a32e` — "Code review has passed and all feedback has been resolved". The merge-gate marker. Use this exact kebab-case slug; the display name is title-case ("Code review passed") and searching by the display string returns empty. Apply it to the issue when Agent Review is clean for the current PR head; the supporting evidence (head SHA + both reviewer verdicts) goes in an issue comment.
+- `code-review-passed` — "Code review has passed and all feedback has been resolved". The merge-gate marker. Use this exact kebab-case slug; the display name is title-case ("Code review passed") and searching by the display string returns empty. Apply it to the issue when Agent Review is clean for the current PR head; the supporting evidence (head SHA + both reviewer verdicts) goes in an issue comment.
 
 ### Label Policies
 
@@ -81,30 +82,30 @@ Review gate (no parent):
 
 Risk (no parent):
 
-- risk-normal `eba9f5cf-b2d5-44b9-9866-10cee1b395ab`
-- risk-security-sensitive `3dbff4e4-bdb3-435e-9cc2-68e332a7f252`
-- risk-schema `e5bfaa62-80ef-4f7a-8d32-5cbbfdf6896e`
-- risk-cross-cutting `5617445a-3891-4c44-889d-296aee6e4828`
+- `risk-normal`
+- `risk-security-sensitive`
+- `risk-schema`
+- `risk-cross-cutting`
 
 Type (parent `Type`):
 
-- Bug `6828da22-1f94-47d1-8042-b2d95d40de71`
-- Feature `da876536-9d8f-486e-8f1d-910fbd782522`
-- Improvement `3b390b40-f8ba-471d-909a-881bc8c41957`
-- Tech Debt `2eb30d36-9331-4fc6-b64e-8e19cfbde5f7`
-- Spike `de02dd0a-55a1-4faa-a6cd-64c07b50f66b`
-- Hotfix `6623d242-b70f-439c-ae17-3fe0419b6c23`
+- `Bug`
+- `Feature`
+- `Improvement`
+- `Tech Debt`
+- `Spike`
+- `Hotfix`
 
-### Projects (verified IDs)
+### Projects
 
-- Customer Discovery & Design Partners: `1867c85a-806d-468a-9269-b5904bd66ff6`
-- First Value Build: `d1576893-c3e8-4528-8d9e-8327015011dc`
-- Production Delivery Foundation: `e69d825d-bd55-448d-a215-3f2a48333a1a`
-- Machine Access and CI Trust: `4279414c-a1e9-465e-8d22-900cca46f56a`
-- Runtime Injection Delivery: `8a8c3c00-95cd-465d-875b-b489a0a15cde`
-- Provider Sync: GitHub and Cloudflare: `f17641b3-632c-47fe-948a-897493f8bb91`
-- Approval UX and Delivery Policy: `62266e4b-2885-4459-a3e1-eccd1c0cdef5`
-- Audit, Runbooks, and Release Gates: `a086be98-10e4-49c4-8ab3-ae2a110e1218`
+- Customer Discovery & Design Partners
+- First Value Build
+- Production Delivery Foundation
+- Machine Access and CI Trust
+- Runtime Injection Delivery
+- Provider Sync: GitHub and Cloudflare
+- Approval UX and Delivery Policy
+- Audit, Runbooks, and Release Gates
 
 Project field model, milestones, and parent workstreams: see `docs/agents/linear-ticketing.md`
 and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linear:

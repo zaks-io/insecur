@@ -45,15 +45,17 @@ Each denied event stores `denial.reasonCode = abuse.rate_limited`.
 
 Production (`insecur-api`) and preview (`insecur-api-preview` via `env.preview`) both declare the
 same binding names and limits in `apps/api/wrangler.jsonc`. Preview uses **distinct namespace IDs**
-so counters do not share state with production.
+so counters do not share state with production. The checked-in IDs are public placeholders; live
+Cloudflare namespace IDs are materialized at deploy time from GitHub Environment variables by
+`scripts/wrangler-deploy-config.mjs`.
 
-| Binding            | Production namespace | Preview namespace |
-| ------------------ | -------------------- | ----------------- |
-| `ONBOARDING_IP`    | 2781                 | 2871              |
-| `ONBOARDING_ACTOR` | 2782                 | 2872              |
-| `BOOTSTRAP_IP`     | 2784                 | 2874              |
-| `BOOTSTRAP_ACTOR`  | 2785                 | 2875              |
-| `AUTH_EXCHANGE_IP` | 2786                 | 2876              |
+| Binding            | Preview GitHub Environment variable                   | Production GitHub Environment variable                   |
+| ------------------ | ----------------------------------------------------- | -------------------------------------------------------- |
+| `ONBOARDING_IP`    | `PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID`    | `PRODUCTION_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID`    |
+| `ONBOARDING_ACTOR` | `PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID` | `PRODUCTION_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID` |
+| `BOOTSTRAP_IP`     | `PREVIEW_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID`     | `PRODUCTION_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID`     |
+| `BOOTSTRAP_ACTOR`  | `PREVIEW_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID`  | `PRODUCTION_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID`  |
+| `AUTH_EXCHANGE_IP` | `PREVIEW_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID` | `PRODUCTION_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID` |
 
 The deploy-topology conformance gate (`pnpm conformance:topology`) asserts both scopes declare every
 binding with matching limits and non-colliding namespace IDs.
