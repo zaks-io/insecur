@@ -17,6 +17,7 @@ import {
   unexpectedCliErrorBody,
 } from "./output/unexpected-cli-error.js";
 import { registerSecretsCommands } from "./register-secrets-commands.js";
+import { cliVersion } from "./version.js";
 
 function attachGlobalOptions(command: Command): Command {
   return command
@@ -46,7 +47,7 @@ function buildProgram(): Command {
   program
     .name("insecur")
     .description("insecur CLI — metadata-only, memory/session-only auth")
-    .version("0.0.0");
+    .version(cliVersion());
 
   registerLoginCommand(program, { globalFlags, resolveApi });
 

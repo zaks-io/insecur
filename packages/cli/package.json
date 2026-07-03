@@ -8,21 +8,21 @@
   },
   "scripts": {
     "topo": "node -e \"\"",
-    "build": "tsc",
+    "build": "node build.mjs",
     "clean": "rm -rf dist",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "start": "node --import tsx/esm src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
-    "commander": "^15.0.0"
-  },
-  "devDependencies": {
     "@types/node": "catalog:",
+    "commander": "^15.0.0",
+    "esbuild": "catalog:",
     "eslint": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

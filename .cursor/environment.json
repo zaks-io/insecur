@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  "install": "corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install --frozen-lockfile",
+  "install": "pnpm install --frozen-lockfile",
   "start": "sudo service docker start",
   "terminals": []
 }

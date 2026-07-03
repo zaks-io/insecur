@@ -223,6 +223,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ["scripts/security-attest.mjs"],
+    rules: {
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: ["packages/secret-store-contracts/src/is-valid-utf8.ts"],
     rules: {
       complexity: "off",

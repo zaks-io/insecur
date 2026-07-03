@@ -15,9 +15,11 @@
     "knip:strict": "knip --strict",
     "lint:actions": "node scripts/ci/actionlint-local.mjs",
     "test:security-reporting": "node --test scripts/ci/security-daily-linear-reporting.test.mjs",
+    "security:attest": "node scripts/security-attest.mjs",
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
     "conformance:site-boundary": "node scripts/ci/site-boundary-conformance.mjs",
+    "conformance:cli-release-boundary": "turbo run build --filter @insecur/cli --cache=local:rw,remote:r && node scripts/ci/cli-release-boundary-conformance.mjs",
     "conformance:actions-pin": "node scripts/ci/actions-pin-conformance.mjs",
     "test": "pnpm test:security-reporting && turbo run test --cache=local:rw,remote:r",
     "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
@@ -34,7 +36,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci:check": "pnpm verify",
-    "verify": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
     "lefthook:install": "lefthook install",
     "dev:check": "node scripts/dev-check.mjs",
@@ -62,6 +64,7 @@
     "node": ">=24 <25"
   },
   "devDependencies": {
+    "@cyclonedx/cyclonedx-esbuild": "catalog:",
     "@eslint/js": "catalog:",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
@@ -80,7 +83,8 @@
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
-    "wrangler": "catalog:"
+    "wrangler": "catalog:",
+    "yaml": "catalog:"
   },
   "pnpm": {
     "overrides": {

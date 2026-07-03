@@ -1,8 +1,4 @@
-import {
-  INSECUR_API_TOKEN_AUDIENCE,
-  mintScopedAccessToken,
-  verifyScopedAccessToken,
-} from "@insecur/auth";
+import { INSECUR_API_TOKEN_AUDIENCE, verifyScopedAccessToken } from "@insecur/auth";
 import { userId } from "@insecur/domain";
 import { testSessionSigningSecret } from "@insecur/auth/testing";
 import { describe, expect, it, vi } from "vitest";
@@ -73,11 +69,14 @@ describe("apiClientFor", () => {
     expect(authorizations[0]).toBe(authorizations[1]);
 
     const token = (authorizations[0] ?? "").replace(/^Bearer\s+/u, "");
-    const minted = await mintScopedAccessToken({
-      actor,
-      audience: INSECUR_API_TOKEN_AUDIENCE,
+    const verified = await verifyScopedAccessToken({
+      token,
+      expectedAudience: INSECUR_API_TOKEN_AUDIENCE,
       signingSecret,
     });
-    expect(token).toBe(minted.token);
+    expect(verified.ok).toBe(true);
+    if (verified.ok) {
+      expect(verified.actor).toEqual(actor);
+    }
   });
 });
