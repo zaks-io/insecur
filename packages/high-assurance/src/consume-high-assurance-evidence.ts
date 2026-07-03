@@ -1,16 +1,22 @@
-import { auditEventId } from "@insecur/domain";
+import { generateAuditEventId } from "@insecur/audit";
+import type { AuditEventId } from "@insecur/domain";
 import {
   getOperation,
-  recordOperationProgress,
   transitionOperation,
   type OperationHighAssuranceChallengeEvidence,
   type OperationMutationResult,
   type OperationPollResult,
 } from "@insecur/operations";
 import type { ConsumeHighAssuranceEvidenceInput } from "./high-assurance-challenge-inputs.js";
-import { HighAssuranceChallengeError } from "./high-assurance-challenge-error.js";
 import {
+  HIGH_ASSURANCE_ERROR_CODES,
+  HighAssuranceChallengeError,
+} from "./high-assurance-challenge-error.js";
+import {
+  buildConsumedEvidenceProgress,
   denyConsumeNotWaiting,
+  finalizeConsumeAudit,
+  isConsumeAlreadyDurable,
   recordConsumeTransitionDenied,
   recordConsumeValidationDenied,
 } from "./consume-high-assurance-evidence-helpers.js";
@@ -42,22 +48,38 @@ async function loadValidatedEvidence(
   }
 }
 
+async function recordConsumeSuccessAudit(
+  evidence: OperationHighAssuranceChallengeEvidence,
+  input: ConsumeHighAssuranceEvidenceInput,
+  consumeAuditEventId: AuditEventId,
+): Promise<void> {
+  await recordHighAssuranceEvidenceConsumed({
+    organizationId: input.organizationId,
+    projectId: evidence.projectId,
+    operationId: input.operationId,
+    clearingUserId: input.clearingUserId,
+    challengeId: evidence.challengeId,
+    riskReasonCode: evidence.riskReasonCode,
+    auditEventId: consumeAuditEventId,
+    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
+    ...optionalAuditRequest(input.request),
+  });
+}
+
 async function transitionAndAuditConsumedEvidence(
   input: ConsumeHighAssuranceEvidenceInput,
   evidence: OperationHighAssuranceChallengeEvidence,
 ): Promise<OperationMutationResult> {
   const consumedAt = new Date().toISOString();
+  const consumeAuditEventId = generateAuditEventId();
+
+  let transitionResult: OperationMutationResult;
   try {
-    await transitionOperation({
+    transitionResult = await transitionOperation({
       organizationId: input.organizationId,
       operationId: input.operationId,
       nextState: "running",
-      progress: {
-        highAssuranceChallenge: {
-          ...evidence,
-          consumedAt,
-        },
-      },
+      progress: buildConsumedEvidenceProgress(evidence, consumedAt, consumeAuditEventId),
       ...(input.idempotencyKey !== undefined ? { idempotencyKey: input.idempotencyKey } : {}),
     });
   } catch (error) {
@@ -65,29 +87,29 @@ async function transitionAndAuditConsumedEvidence(
     throw error;
   }
 
-  const consumeAudit = await recordHighAssuranceEvidenceConsumed({
-    organizationId: input.organizationId,
-    projectId: evidence.projectId,
-    operationId: input.operationId,
-    clearingUserId: input.clearingUserId,
-    challengeId: evidence.challengeId,
-    riskReasonCode: evidence.riskReasonCode,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...optionalAuditRequest(input.request),
-  });
+  await recordConsumeSuccessAudit(evidence, input, consumeAuditEventId);
 
-  return await recordOperationProgress({
-    organizationId: input.organizationId,
-    operationId: input.operationId,
-    progress: {
-      highAssuranceChallenge: {
-        ...evidence,
-        consumedAt,
-        consumeAuditEventId: auditEventId.brand(consumeAudit.auditEventId),
-      },
-      auditEventIds: [auditEventId.brand(consumeAudit.auditEventId)],
-    },
-  });
+  return transitionResult;
+}
+
+async function completeDurableConsume(
+  operation: OperationPollResult,
+  input: ConsumeHighAssuranceEvidenceInput,
+): Promise<OperationMutationResult> {
+  const evidence = operation.progress.highAssuranceChallenge;
+  if (evidence?.consumeAuditEventId === undefined) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.evidenceMissing,
+      "consumed high-assurance challenge evidence is missing consume audit linkage",
+    );
+  }
+
+  await finalizeConsumeAudit(
+    { ...evidence, consumeAuditEventId: evidence.consumeAuditEventId },
+    input,
+  );
+
+  return { operation, created: false };
 }
 
 /**
@@ -101,6 +123,10 @@ export async function consumeHighAssuranceEvidence(
     organizationId: input.organizationId,
     operationId: input.operationId,
   });
+
+  if (isConsumeAlreadyDurable(operation)) {
+    return await completeDurableConsume(operation, input);
+  }
 
   const evidence = await loadValidatedEvidence(operation, input);
   if (operation.state !== "waiting_for_human") {

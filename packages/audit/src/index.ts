@@ -106,6 +106,8 @@ export {
   type AuditEventResult,
   writeAuditEvent,
   writeAuditEventInTenantScope,
+  writeAuditEventInTenantScopeWithId,
+  writeAuditEventWithId,
 } from "./write-audit-event.js";
 export {
   AUDIT_EXPORT_CHAIN_GENESIS,

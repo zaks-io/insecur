@@ -1,3 +1,4 @@
+import type { AuditEventId } from "@insecur/domain";
 import type {
   OperationHighAssuranceChallengeEvidence,
   OperationPollResult,
@@ -8,7 +9,51 @@ import {
 } from "./high-assurance-challenge-error.js";
 import type { ConsumeHighAssuranceEvidenceInput } from "./high-assurance-challenge-inputs.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
-import { recordHighAssuranceEvidenceConsumeDenied } from "./record-high-assurance-challenge-audit.js";
+import {
+  recordHighAssuranceEvidenceConsumeDenied,
+  recordHighAssuranceEvidenceConsumed,
+} from "./record-high-assurance-challenge-audit.js";
+
+export function isConsumeAlreadyDurable(operation: OperationPollResult): boolean {
+  const evidence = operation.progress.highAssuranceChallenge;
+  return (
+    operation.state === "running" &&
+    evidence?.consumedAt !== undefined &&
+    evidence.consumeAuditEventId !== undefined
+  );
+}
+
+export async function finalizeConsumeAudit(
+  evidence: OperationHighAssuranceChallengeEvidence & { consumeAuditEventId: AuditEventId },
+  input: ConsumeHighAssuranceEvidenceInput,
+): Promise<void> {
+  await recordHighAssuranceEvidenceConsumed({
+    organizationId: input.organizationId,
+    projectId: evidence.projectId,
+    operationId: input.operationId,
+    clearingUserId: input.clearingUserId,
+    challengeId: evidence.challengeId,
+    riskReasonCode: evidence.riskReasonCode,
+    auditEventId: evidence.consumeAuditEventId,
+    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
+    ...optionalAuditRequest(input.request),
+  });
+}
+
+export function buildConsumedEvidenceProgress(
+  evidence: OperationHighAssuranceChallengeEvidence,
+  consumedAt: string,
+  consumeAuditEventId: AuditEventId,
+) {
+  return {
+    highAssuranceChallenge: {
+      ...evidence,
+      consumedAt,
+      consumeAuditEventId,
+    },
+    auditEventIds: [consumeAuditEventId],
+  };
+}
 
 export async function recordConsumeValidationDenied(
   operation: OperationPollResult,

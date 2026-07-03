@@ -2,9 +2,11 @@ import {
   PRODUCTION_AUDIT_EVENT_CODES,
   type AuditEventDetails,
   writeAuditEvent,
+  writeAuditEventWithId,
 } from "@insecur/audit";
 import {
   brandOpaqueResourceIdForPrefix,
+  type AuditEventId,
   type EnvironmentId,
   type KnownErrorCode,
   type OperationId,
@@ -177,12 +179,13 @@ export async function recordHighAssuranceEvidenceConsumed(input: {
   clearingUserId: UserId;
   challengeId: string;
   riskReasonCode: string;
+  auditEventId?: AuditEventId;
   request?: { requestId: RequestId };
 }): Promise<{ auditEventId: string }> {
-  const result = await writeAuditEvent({
+  const event = {
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.highAssuranceEvidenceConsumed,
-    outcome: "success",
-    actor: { type: "user", userId: input.clearingUserId },
+    outcome: "success" as const,
+    actor: { type: "user" as const, userId: input.clearingUserId },
     ...scopedAuditFields(input),
     resource: operationResource(input.operationId),
     details: challengeAuditDetails({
@@ -190,7 +193,14 @@ export async function recordHighAssuranceEvidenceConsumed(input: {
       riskReasonCode: input.riskReasonCode,
       clearingUserId: input.clearingUserId,
     }),
-  });
+  };
+
+  if (input.auditEventId !== undefined) {
+    const result = await writeAuditEventWithId(event, input.auditEventId);
+    return { auditEventId: result.auditEventId };
+  }
+
+  const result = await writeAuditEvent(event);
 
   return { auditEventId: result.auditEventId };
 }
