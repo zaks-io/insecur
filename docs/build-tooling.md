@@ -179,8 +179,8 @@ Set the developer default by putting `--cache=local:rw,remote:r` into the root s
 
 The root `package.json` is the authoritative script list; this is the load-bearing subset (cache
 flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `deploy:workers`, `cli`,
-`migrate:local`, the remaining `dev:db:*` commands, `dev:check`/`doctor`, `clean`) live there too
-and are not repeated here.
+`migrate:local`, `migrate:preview`, `migrate:production`, the remaining `dev:db:*` commands,
+`dev:check`/`doctor`, `clean`) live there too and are not repeated here.
 
 ```jsonc
 {
@@ -639,16 +639,22 @@ Trigger: `push` to `main`. Auto-deploys the staging Worker environment using the
 ### Production deploy: `deploy-production`
 
 Trigger: `workflow_dispatch`, job bound to the `Production` GitHub Environment. During prelaunch,
-the manual workflow deploys the product Worker fleet (`insecur-runtime`, `insecur-api`, and
-`insecur-web`) in order, then syncs encrypted Worker secrets from the Production GitHub Environment
-into the corresponding Cloudflare Workers.
+the manual workflow first verifies that the exact commit being deployed has a completed successful
+`CI` workflow run, then applies production database migrations with the Production GitHub
+Environment's elevated migration credential. After the CI and migration gates pass, it deploys the
+product Worker fleet (`insecur-runtime`, `insecur-api`, and `insecur-web`) in order, then syncs
+encrypted Worker secrets from the Production GitHub Environment into the corresponding Cloudflare
+Workers.
 
-1. Build the production Worker fleet.
-2. Deploy `insecur-runtime` with the production Secrets Store root-key binding and production
+1. Require a completed successful `CI` workflow run for the deployed commit SHA.
+2. Run `pnpm migrate:production` with `PRODUCTION_DATABASE_URL_MIGRATION` and
+   `PRODUCTION_POSTGRES_RUNTIME_ROLE` from the Production GitHub Environment.
+3. Build the production Worker fleet.
+4. Deploy `insecur-runtime` with the production Secrets Store root-key binding and production
    Hyperdrive binding.
-3. Deploy `insecur-api` with the private Runtime Service Binding.
-4. Deploy `insecur-web` with the private API and Runtime Service Bindings.
-5. Sync `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
+5. Deploy `insecur-api` with the private Runtime Service Binding.
+6. Deploy `insecur-web` with the private API and Runtime Service Bindings.
+7. Sync `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
    `WORKOS_COOKIE_PASSWORD` as encrypted Worker secrets.
 
 The identity that executes this deploy is the CI machine token, distinct from the human approver. The approver's personal credentials are never the deploy credential (ADR-0029 amendment, ADR-0004).

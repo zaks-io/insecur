@@ -45,6 +45,7 @@
     "dev:db:guard": "node scripts/dev-db.mjs guard",
     "migrate:local": "pnpm --filter @insecur/tenant-store migrate:local",
     "migrate:preview": "pnpm --filter @insecur/tenant-store migrate:local",
+    "migrate:production": "pnpm --filter @insecur/tenant-store migrate:local",
     "doctor": "pnpm dev:check",
     "dev": "turbo run dev --cache=local:rw,remote:r",
     "dev:workers": "node scripts/dev-workers.mjs",
