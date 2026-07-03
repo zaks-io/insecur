@@ -44,6 +44,13 @@ export {
   type ResolveWorkOSSessionResult,
 } from "./resolve-workos-session.js";
 export {
+  evaluateHighAssuranceChallengeClearAssurance,
+  type EvaluateHighAssuranceChallengeClearInput,
+  type FreshStepUpFactorType,
+  type HighAssuranceChallengeClearAssuranceResult,
+  type HighAssuranceChallengeClearFailureReason,
+} from "./high-assurance-challenge-clear-assurance.js";
+export {
   evaluateSessionAssurance,
   type EvaluateSessionAssuranceInput,
   type SessionAssuranceFailureReason,

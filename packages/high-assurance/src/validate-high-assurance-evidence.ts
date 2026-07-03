@@ -102,7 +102,11 @@ export function assertClearingActorForPendingChallenge(input: {
 }
 
 export function mapSessionAssuranceFailureToReasonCode(
-  reason: "sms_not_allowed" | "mfa_enrollment" | "insufficient_assurance",
+  reason:
+    | "sms_not_allowed"
+    | "mfa_enrollment"
+    | "insufficient_assurance"
+    | "fresh_step_up_required",
 ): typeof AUTH_ERROR_CODES.mfaEnrollmentRequired | typeof AUTH_ERROR_CODES.reauthRequired {
   return reason === "mfa_enrollment"
     ? AUTH_ERROR_CODES.mfaEnrollmentRequired

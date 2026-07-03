@@ -1,6 +1,6 @@
 import type { AuthorizationScope } from "@insecur/access";
 import type { EffectiveAccessResult } from "@insecur/access";
-import type { EvaluateSessionAssuranceInput } from "@insecur/auth";
+import type { EvaluateHighAssuranceChallengeClearInput } from "@insecur/auth";
 import type {
   EnvironmentId,
   MachineIdentityId,
@@ -17,7 +17,7 @@ export interface ClearHighAssuranceChallengeInput {
   readonly environmentId?: EnvironmentId;
   readonly operationId: OperationId;
   readonly clearingUserId: UserId;
-  readonly sessionAssurance: EvaluateSessionAssuranceInput;
+  readonly sessionAssurance: EvaluateHighAssuranceChallengeClearInput;
   readonly requiredScopes?: readonly AuthorizationScope[];
   readonly clearingUserAccess?: EffectiveAccessResult;
   readonly request?: { requestId: RequestId };

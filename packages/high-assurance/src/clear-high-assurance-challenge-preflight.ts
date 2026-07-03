@@ -1,4 +1,4 @@
-import { evaluateSessionAssurance } from "@insecur/auth";
+import { evaluateHighAssuranceChallengeClearAssurance } from "@insecur/auth";
 import type {
   OperationHighAssuranceChallengeEvidence,
   OperationPollResult,
@@ -125,7 +125,7 @@ export async function requireSessionAssuranceForClear(
 ): Promise<HighAssuranceAuthenticationMethodCode> {
   const boundOptions =
     boundEvidence !== undefined ? boundEvidenceOptions(boundEvidence) : undefined;
-  const assurance = evaluateSessionAssurance(input.sessionAssurance);
+  const assurance = evaluateHighAssuranceChallengeClearAssurance(input.sessionAssurance);
   if (!assurance.ok) {
     return await deny(
       input,

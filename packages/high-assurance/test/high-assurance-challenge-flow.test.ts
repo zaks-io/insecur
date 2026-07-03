@@ -19,6 +19,7 @@ import type { ClearHighAssuranceChallengeInput } from "../src/high-assurance-cha
 import {
   assertClearingActorForClear,
   requirePendingChallengeEvidence,
+  requireSessionAssuranceForClear,
 } from "../src/clear-high-assurance-challenge-preflight.js";
 import { consumeHighAssuranceEvidence } from "../src/consume-high-assurance-evidence.js";
 import { mapOperationStoreErrorToDenialReason } from "../src/map-operation-store-denial.js";
@@ -148,6 +149,47 @@ function clearInput(
 describe("clear preflight regressions", () => {
   beforeEach(() => {
     writeAuditEvent.mockResolvedValue({ auditEventId: "aud_00000000000000000000000099" });
+  });
+
+  it("rejects password sessions with enrolled TOTP but no fresh step-up", async () => {
+    const evidence = baseEvidence({ expiresAt: "2026-07-03T00:15:00.000Z" });
+
+    await expect(
+      requireSessionAssuranceForClear(
+        clearInput({
+          sessionAssurance: {
+            authenticationMethod: "Password",
+            authFactors: [{ type: "totp" }],
+          },
+        }),
+        evidence,
+      ),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.sessionAssuranceFailed });
+
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        projectId: PRJ,
+        denial: { reasonCode: "auth.reauth_required" },
+      }),
+    );
+  });
+
+  it("accepts password sessions when fresh TOTP step-up evidence is present", async () => {
+    const evidence = baseEvidence({ expiresAt: "2026-07-03T00:15:00.000Z" });
+
+    await expect(
+      requireSessionAssuranceForClear(
+        clearInput({
+          sessionAssurance: {
+            authenticationMethod: "Password",
+            authFactors: [{ type: "totp" }],
+            freshStepUpFactor: "totp",
+          },
+        }),
+        evidence,
+      ),
+    ).resolves.toBe("auth.assurance.totp");
   });
 
   it("rejects clearing expired pending evidence", async () => {

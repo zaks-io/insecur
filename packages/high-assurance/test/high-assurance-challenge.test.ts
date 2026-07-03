@@ -289,13 +289,23 @@ describe("WorkOS session assurance integration", () => {
     ).toBe("auth.assurance.passkey");
   });
 
-  it("maps TOTP-backed password sessions to totp assurance codes", () => {
+  it("maps fresh TOTP step-up evidence to totp assurance codes", () => {
+    expect(
+      mapSessionAssuranceToAuthenticationMethodCode({
+        authenticationMethod: "Password",
+        authFactors: [{ type: "totp" }],
+        freshStepUpFactor: "totp",
+      }),
+    ).toBe("auth.assurance.totp");
+  });
+
+  it("rejects password sessions with enrolled TOTP but no fresh step-up", () => {
     expect(
       mapSessionAssuranceToAuthenticationMethodCode({
         authenticationMethod: "Password",
         authFactors: [{ type: "totp" }],
       }),
-    ).toBe("auth.assurance.totp");
+    ).toBeNull();
   });
 });
 

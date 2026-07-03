@@ -1,9 +1,8 @@
 import { randomBytes } from "node:crypto";
 import {
-  evaluateSessionAssurance,
+  evaluateHighAssuranceChallengeClearAssurance,
   isHighAssuranceAuthenticationMethod,
-  type EvaluateSessionAssuranceInput,
-  type WorkOSAuthFactorSummary,
+  type EvaluateHighAssuranceChallengeClearInput,
 } from "@insecur/auth";
 import type { HighAssuranceAuthenticationMethodCode } from "./high-assurance-risk-reason-codes.js";
 import { HIGH_ASSURANCE_AUTHENTICATION_METHOD_CODES } from "./high-assurance-risk-reason-codes.js";
@@ -13,22 +12,24 @@ export function generateChallengeId(): string {
 }
 
 export function mapSessionAssuranceToAuthenticationMethodCode(
-  input: EvaluateSessionAssuranceInput,
+  input: EvaluateHighAssuranceChallengeClearInput,
 ): HighAssuranceAuthenticationMethodCode | null {
-  const assurance = evaluateSessionAssurance(input);
+  const assurance = evaluateHighAssuranceChallengeClearAssurance(input);
   if (!assurance.ok) {
     return null;
   }
-  if (isHighAssuranceAuthenticationMethod(input.authenticationMethod)) {
+
+  if (
+    isHighAssuranceAuthenticationMethod(input.authenticationMethod) ||
+    input.freshStepUpFactor === "passkey"
+  ) {
     return HIGH_ASSURANCE_AUTHENTICATION_METHOD_CODES.passkey;
   }
-  if (
-    input.authFactors.some(
-      (factor: WorkOSAuthFactorSummary) => factor.type === "totp" || factor.type === "generic_otp",
-    )
-  ) {
+
+  if (input.freshStepUpFactor === "totp" || input.freshStepUpFactor === "generic_otp") {
     return HIGH_ASSURANCE_AUTHENTICATION_METHOD_CODES.totp;
   }
+
   return null;
 }
 
