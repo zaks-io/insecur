@@ -22,6 +22,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parseJsonc } from "../jsonc.mjs";
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const appsDir = join(repoRoot, "apps");
 const ROOT_KEY_BINDING = "INSTANCE_ROOT_KEY_V1";
@@ -103,7 +105,13 @@ function discoverDeploys() {
       continue;
     }
     const raw = readFileSync(wranglerPath, "utf8");
-    const config = parseJsonc(raw, wranglerPath);
+    let config;
+    try {
+      config = parseJsonc(raw, wranglerPath);
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
+      continue;
+    }
     const rootKeyScopes = findRootKeyScopes(config);
     const publicHostnameExposures = findPublicHostnameExposures(config);
     deploys.push({
@@ -630,34 +638,4 @@ function isFile(path) {
   } catch {
     return false;
   }
-}
-
-// Minimal JSONC reader: strips // line comments and trailing commas. Sufficient for wrangler configs,
-// which use no block comments and no string literals containing `//` (URLs would break this; none here).
-function parseJsonc(text, path) {
-  const withoutComments = text
-    .split("\n")
-    .map((line) => stripLineComment(line))
-    .join("\n");
-  const withoutTrailingCommas = withoutComments.replace(/,(\s*[}\]])/g, "$1");
-  try {
-    return JSON.parse(withoutTrailingCommas);
-  } catch (error) {
-    fail(`failed to parse ${path}: ${error instanceof Error ? error.message : String(error)}`);
-    return {};
-  }
-}
-
-function stripLineComment(line) {
-  let inString = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"' && line[i - 1] !== "\\") {
-      inString = !inString;
-    }
-    if (!inString && char === "/" && line[i + 1] === "/") {
-      return line.slice(0, i);
-    }
-  }
-  return line;
 }
