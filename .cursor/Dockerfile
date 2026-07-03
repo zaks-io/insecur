@@ -29,4 +29,11 @@ RUN install -m 0755 -d /etc/apt/keyrings \
 RUN corepack enable \
   && corepack prepare pnpm@10.19.0 --activate
 
+RUN usermod -aG sudo,docker node \
+  && printf 'node ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/node \
+  && chmod 0440 /etc/sudoers.d/node \
+  && mkdir -p /workspaces/insecur \
+  && chown -R node:node /workspaces
+
+USER node
 WORKDIR /workspaces/insecur

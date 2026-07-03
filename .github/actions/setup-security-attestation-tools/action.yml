@@ -1,0 +1,149 @@
+name: Setup security attestation tools
+description: Install the scanner CLIs used by pnpm security:attest.
+runs:
+  using: composite
+  steps:
+    - name: Resolve tool versions and cache key
+      id: tools
+      shell: bash
+      env:
+        GITLEAKS_VERSION: 8.30.1
+        TRIVY_VERSION: 0.69.3
+        SYFT_VERSION: 1.42.4
+        GRYPE_VERSION: 0.111.0
+        CHECKOV_VERSION: 3.2.510
+        SEMGREP_VERSION: 1.157.0
+      run: |
+        set -euo pipefail
+        python_version="$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')"
+        {
+          echo "gitleaks=$GITLEAKS_VERSION"
+          echo "trivy=$TRIVY_VERSION"
+          echo "syft=$SYFT_VERSION"
+          echo "grype=$GRYPE_VERSION"
+          echo "checkov=$CHECKOV_VERSION"
+          echo "semgrep=$SEMGREP_VERSION"
+          echo "key=${RUNNER_OS}-security-tools-gitleaks${GITLEAKS_VERSION}-trivy${TRIVY_VERSION}-syft${SYFT_VERSION}-grype${GRYPE_VERSION}-checkov${CHECKOV_VERSION}-semgrep${SEMGREP_VERSION}-py${python_version}"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Restore scanner CLI cache
+      id: tool-cache
+      uses: actions/cache@v5
+      with:
+        path: ~/.security-tools
+        key: ${{ steps.tools.outputs.key }}
+
+    - name: Install binary scanner CLIs
+      if: ${{ steps.tool-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      env:
+        GITLEAKS_VERSION: ${{ steps.tools.outputs.gitleaks }}
+        TRIVY_VERSION: ${{ steps.tools.outputs.trivy }}
+        SYFT_VERSION: ${{ steps.tools.outputs.syft }}
+        GRYPE_VERSION: ${{ steps.tools.outputs.grype }}
+      run: |
+        set -euo pipefail
+        tmp_dir="$(mktemp -d)"
+        trap 'rm -rf "$tmp_dir"' EXIT
+        bin_dir="$HOME/.security-tools/bin"
+        mkdir -p "$bin_dir"
+
+        install_release_tar() {
+          local binary="$1"
+          local repo="$2"
+          local tag="$3"
+          local asset="$4"
+          local checksum_asset="$5"
+          local archive="$tmp_dir/$asset"
+          local checksums="$tmp_dir/$checksum_asset"
+          local extract_dir="$tmp_dir/$binary"
+          local expected
+          local binary_path
+
+          curl --fail --silent --show-error --location \
+            "https://github.com/${repo}/releases/download/${tag}/${asset}" \
+            --output "$archive"
+          curl --fail --silent --show-error --location \
+            "https://github.com/${repo}/releases/download/${tag}/${checksum_asset}" \
+            --output "$checksums"
+
+          expected="$(awk -v asset="$asset" '$2 == asset { print; found = 1 } END { exit found ? 0 : 1 }' "$checksums")" || {
+            echo "::error::Missing checksum for ${asset}"
+            exit 1
+          }
+          (cd "$tmp_dir" && printf '%s\n' "$expected" | sha256sum --check --strict -)
+
+          mkdir -p "$extract_dir"
+          tar -xzf "$archive" -C "$extract_dir"
+          binary_path="$(find "$extract_dir" -type f -name "$binary" | head -n 1)"
+          if [ -z "$binary_path" ]; then
+            echo "::error::Missing ${binary} binary in ${asset}"
+            exit 1
+          fi
+          install -m 0755 "$binary_path" "$bin_dir/$binary"
+        }
+
+        install_release_tar \
+          gitleaks \
+          gitleaks/gitleaks \
+          "v${GITLEAKS_VERSION}" \
+          "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+          "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+        install_release_tar \
+          trivy \
+          aquasecurity/trivy \
+          "v${TRIVY_VERSION}" \
+          "trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
+          "trivy_${TRIVY_VERSION}_checksums.txt"
+        install_release_tar \
+          syft \
+          anchore/syft \
+          "v${SYFT_VERSION}" \
+          "syft_${SYFT_VERSION}_linux_amd64.tar.gz" \
+          "syft_${SYFT_VERSION}_checksums.txt"
+        install_release_tar \
+          grype \
+          anchore/grype \
+          "v${GRYPE_VERSION}" \
+          "grype_${GRYPE_VERSION}_linux_amd64.tar.gz" \
+          "grype_${GRYPE_VERSION}_checksums.txt"
+
+    - name: Install Python scanner CLIs
+      if: ${{ steps.tool-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      env:
+        CHECKOV_VERSION: ${{ steps.tools.outputs.checkov }}
+        SEMGREP_VERSION: ${{ steps.tools.outputs.semgrep }}
+      run: |
+        set -euo pipefail
+        venv_dir="$HOME/.security-tools/venv"
+        python3 -m venv "$venv_dir"
+        "$venv_dir/bin/pip" install --quiet "checkov==${CHECKOV_VERSION}" "semgrep==${SEMGREP_VERSION}"
+
+    - name: Add scanner CLIs to PATH
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "$HOME/.security-tools/bin" >> "$GITHUB_PATH"
+        echo "$HOME/.security-tools/venv/bin" >> "$GITHUB_PATH"
+
+    - name: Restore scanner database cache
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cache/trivy
+          ~/.cache/grype
+        key: ${{ runner.os }}-scanner-dbs-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-scanner-dbs-
+
+    - name: Show scanner versions
+      shell: bash
+      run: |
+        set -euo pipefail
+        gitleaks version
+        trivy --version
+        syft version
+        grype version
+        checkov --version
+        semgrep --version

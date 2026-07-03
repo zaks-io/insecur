@@ -9,6 +9,7 @@ dist/
 *.log
 .DS_Store
 coverage/
+artifacts/
 reports/mutation/
 .stryker-tmp/
 stryker.log

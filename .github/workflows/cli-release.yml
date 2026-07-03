@@ -1,0 +1,565 @@
+name: CLI Release
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    branches:
+      - main
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-release-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify-source-ci:
+    name: Verify source CI
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+    steps:
+      - name: Resolve source SHA
+        id: source
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Require successful CI for manual release dispatch
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+
+          ci_run="$(
+            gh run list \
+              --repo "$REPO" \
+              --workflow CI \
+              --commit "$SOURCE_SHA" \
+              --status success \
+              --json databaseId \
+              --jq '.[0].databaseId // empty'
+          )"
+          if [ -z "$ci_run" ]; then
+            echo "::error::Manual CLI release requires a successful CI run for $SOURCE_SHA."
+            exit 1
+          fi
+          echo "Found successful CI run $ci_run for $SOURCE_SHA."
+
+  detect-release-change:
+    name: Detect CLI release changes
+    needs: verify-source-ci
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.detect.outputs.should_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Detect release-relevant paths
+        id: detect
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch: running CLI release."
+            exit 0
+          fi
+
+          parent_sha="$(git rev-parse "${HEAD_SHA}^" 2>/dev/null || true)"
+          if [ -n "$parent_sha" ]; then
+            changed_files="$(git diff --name-only "$parent_sha" "$HEAD_SHA")"
+          else
+            changed_files="$(git diff-tree --root --no-commit-id --name-only -r "$HEAD_SHA")"
+          fi
+
+          matches_release_path() {
+            case "$1" in
+              .github/workflows/cli-release.yml|\
+              .gitleaks.toml|\
+              .node-version|\
+              .npmrc|\
+              .nvmrc|\
+              package.json|\
+              pnpm-lock.yaml|\
+              pnpm-workspace.yaml|\
+              turbo.json|\
+              tsconfig.base.json|\
+              scripts/security-attest.mjs|\
+              scripts/ci/cli-release-boundary-conformance.mjs|\
+              scripts/ci/gitleaks-detect.sh)
+                return 0
+                ;;
+              .github/actions/setup-security-attestation-tools/*|\
+              packages/cli/*|\
+              packages/audit/*|\
+              packages/auth/*|\
+              packages/domain/*|\
+              packages/tenant-store/*|\
+              packages/token-signing/*|\
+              packages/crypto/*|\
+              packages/custody-contracts/*|\
+              patches/*)
+                return 0
+                ;;
+            esac
+            return 1
+          }
+
+          while IFS= read -r file; do
+            if [ -n "$file" ] && matches_release_path "$file"; then
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              echo "CLI release path changed: $file"
+              exit 0
+            fi
+          done <<< "$changed_files"
+
+          echo "should_run=false" >> "$GITHUB_OUTPUT"
+          echo "No CLI release paths changed."
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs:
+      - verify-source-ci
+      - detect-release-change
+    if: needs.detect-release-change.outputs.should_run == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            runner: blacksmith-2vcpu-ubuntu-2404
+            target: bun-linux-x64
+            asset: insecur-linux-x64
+          - name: linux-arm64
+            runner: blacksmith-2vcpu-ubuntu-2404-arm
+            target: bun-linux-arm64
+            asset: insecur-linux-arm64
+          - name: macos-arm64
+            runner: blacksmith-6vcpu-macos-latest
+            target: bun-darwin-arm64
+            asset: insecur-darwin-arm64
+          - name: windows-x64
+            runner: blacksmith-4vcpu-windows-2025
+            target: bun-windows-x64
+            asset: insecur-windows-x64.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ needs.verify-source-ci.outputs.source_sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build release-safe CLI bundle
+        run: pnpm conformance:cli-release-boundary
+
+      - name: Compile binary
+        working-directory: packages/cli
+        shell: bash
+        env:
+          BUN_TARGET: ${{ matrix.target }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          bun build dist/index.js \
+            --compile \
+            --target="$BUN_TARGET" \
+            --outfile "$ASSET" \
+            --metafile=compile-metafile.json
+          chmod +x "$ASSET"
+
+      - name: Generate SBOM from bundle (CycloneDX)
+        if: matrix.name == 'linux-x64'
+        working-directory: packages/cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec cyclonedx-esbuild \
+            --bwd "$PWD" \
+            --output-reproducible \
+            -o insecur-cli.sbom.cdx.json \
+            dist/metafile.json
+
+      - name: Upload SBOM artifact
+        if: matrix.name == 'linux-x64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: packages/cli/insecur-cli.sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Smoke-check binary
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          cp "packages/cli/$ASSET" "$RUNNER_TEMP/$ASSET"
+          chmod +x "$RUNNER_TEMP/$ASSET"
+          cd "$RUNNER_TEMP"
+          "./$ASSET" --help
+          VERSION="$(node -p "require(process.env.GITHUB_WORKSPACE + '/packages/cli/package.json').version")"
+          test "$("./$ASSET" --version)" = "$VERSION"
+
+      - name: Smoke-check binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          Copy-Item "packages/cli/$env:ASSET" "$env:RUNNER_TEMP/$env:ASSET"
+          Set-Location "$env:RUNNER_TEMP"
+          & ".\$env:ASSET" --help
+          $version = node -p "require(process.env.GITHUB_WORKSPACE + '/packages/cli/package.json').version"
+          $actual = (& ".\$env:ASSET" --version).Trim()
+          if ($actual -ne $version.Trim()) {
+            throw "expected $env:ASSET version to print $version, got $actual"
+          }
+
+      - name: Import Apple Developer certificate
+        if: matrix.name == 'macos-arm64'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_CERTIFICATE:?APPLE_CERTIFICATE is required}"
+          : "${APPLE_CERTIFICATE_PASSWORD:?APPLE_CERTIFICATE_PASSWORD is required}"
+          : "${KEYCHAIN_PASSWORD:?KEYCHAIN_PASSWORD is required}"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -v -p codesigning build.keychain
+          rm certificate.p12
+
+      - name: Write Apple notarization key
+        if: matrix.name == 'macos-arm64'
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_API_KEY_BASE64:?APPLE_API_KEY_BASE64 is required}"
+          key_path="$RUNNER_TEMP/apple-api-key.p8"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
+          chmod 600 "$key_path"
+          echo "APPLE_API_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+
+      - name: Codesign and notarize binary
+        if: matrix.name == 'macos-arm64'
+        working-directory: packages/cli
+        env:
+          ASSET: ${{ matrix.asset }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_SIGNING_IDENTITY:?APPLE_SIGNING_IDENTITY is required}"
+          : "${APPLE_API_ISSUER:?APPLE_API_ISSUER is required}"
+          : "${APPLE_API_KEY:?APPLE_API_KEY is required}"
+          : "${APPLE_API_KEY_PATH:?APPLE_API_KEY_PATH not set by prior step}"
+
+          codesign --force --timestamp --options runtime \
+            --sign "$APPLE_SIGNING_IDENTITY" "$ASSET"
+          codesign --verify --strict --verbose=2 "$ASSET"
+
+          ditto -c -k --keepParent "$ASSET" "$ASSET.zip"
+          xcrun notarytool submit "$ASSET.zip" \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          rm -f "$ASSET.zip"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: packages/cli/${{ matrix.asset }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}
+          path: packages/cli/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Draft release
+    needs:
+      - verify-source-ci
+      - build
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      attestations: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.verify-source-ci.outputs.source_sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup security attestation tools
+        uses: ./.github/actions/setup-security-attestation-tools
+
+      - name: Run repo security attestation
+        run: pnpm security:attest
+
+      - name: Upload repo security attestation
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-release-repo-security-attestation
+          path: artifacts/security/**
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist-binaries
+          merge-multiple: true
+
+      - name: Attach repo security attestation bundle
+        run: tar -czf dist-binaries/repo-security-attestation.tgz -C artifacts/security .
+
+      - name: Export provenance sidecars
+        working-directory: dist-binaries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          binary_assets=(
+            "insecur-linux-x64"
+            "insecur-linux-arm64"
+            "insecur-darwin-arm64"
+            "insecur-windows-x64.exe"
+          )
+          for asset in "${binary_assets[@]}"; do
+            rm -f sha256:*.jsonl sha256-*.jsonl
+            gh attestation download "$asset" \
+              --repo "$REPO" \
+              --predicate-type https://slsa.dev/provenance/v1 \
+              --limit 1
+            downloaded="$(find . -maxdepth 1 -type f \( -name 'sha256:*.jsonl' -o -name 'sha256-*.jsonl' \) -print)"
+            downloaded_count="$(printf '%s\n' "$downloaded" | sed '/^$/d' | wc -l | tr -d ' ')"
+            if [ "$downloaded_count" != "1" ]; then
+              echo "::error::Expected one provenance bundle for $asset, found $downloaded_count"
+              exit 1
+            fi
+            sidecar="$asset.intoto.jsonl"
+            mv "$(printf '%s\n' "$downloaded" | sed -n '1p')" "$sidecar"
+
+            expected_digest="$(sha256sum "$asset" | awk '{print $1}')"
+            attested_digest="$(
+              jq -r --arg name "$asset" \
+                '.dsseEnvelope.payload | @base64d | fromjson | .subject[] | select(.name == $name) | .digest.sha256 // empty' \
+                "$sidecar" | head -n 1
+            )"
+            if [ "$attested_digest" != "$expected_digest" ]; then
+              echo "::error::Provenance digest mismatch for $asset: expected $expected_digest, got $attested_digest"
+              exit 1
+            fi
+          done
+
+      - name: Generate checksums
+        working-directory: dist-binaries
+        run: sha256sum insecur-linux-x64 insecur-linux-arm64 insecur-darwin-arm64 insecur-windows-x64.exe > SHA256SUMS
+
+      - name: Scan CLI SBOM (blocking)
+        id: grype
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          sbom: dist-binaries/insecur-cli.sbom.cdx.json
+          severity-cutoff: medium
+          fail-build: true
+          output-format: json
+
+      - name: Capture scan report and scanner database versions
+        shell: bash
+        env:
+          GRYPE_JSON: ${{ steps.grype.outputs.json }}
+          COMMIT_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          cp "$GRYPE_JSON" dist-binaries/insecur-cli.grype.json
+          # shellcheck disable=SC2016
+          jq -n \
+            --arg grypeVersion "$(jq -r '.descriptor.version // empty' "$GRYPE_JSON")" \
+            --arg vulnDbBuilt "$(jq -r '.descriptor.db.status.built // empty' "$GRYPE_JSON")" \
+            --arg vulnDbSchemaVersion "$(jq -r '.descriptor.db.status.schemaVersion // empty' "$GRYPE_JSON")" \
+            --arg commit "$COMMIT_SHA" \
+            --arg scannedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{grypeVersion:$grypeVersion, vulnDbBuilt:$vulnDbBuilt, vulnDbSchemaVersion:$vulnDbSchemaVersion, commit:$commit, scannedAt:$scannedAt, blocking:true}' \
+            > dist-binaries/scan-metadata.json
+          cat dist-binaries/scan-metadata.json
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./packages/cli/package.json').version")"
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Invalid package.json version for a release tag: $VERSION"
+            exit 1
+          fi
+          TAG="cli-v$VERSION"
+          release_assets=(
+            "dist-binaries/insecur-linux-x64"
+            "dist-binaries/insecur-linux-arm64"
+            "dist-binaries/insecur-darwin-arm64"
+            "dist-binaries/insecur-windows-x64.exe"
+            "dist-binaries/insecur-linux-x64.intoto.jsonl"
+            "dist-binaries/insecur-linux-arm64.intoto.jsonl"
+            "dist-binaries/insecur-darwin-arm64.intoto.jsonl"
+            "dist-binaries/insecur-windows-x64.exe.intoto.jsonl"
+            "dist-binaries/insecur-cli.sbom.cdx.json"
+            "dist-binaries/insecur-cli.grype.json"
+            "dist-binaries/scan-metadata.json"
+            "dist-binaries/repo-security-attestation.tgz"
+            "dist-binaries/SHA256SUMS"
+          )
+          for asset in "${release_assets[@]}"; do
+            if [ ! -s "$asset" ]; then
+              echo "::error::Expected release asset is missing or empty: $asset"
+              exit 1
+            fi
+          done
+
+          CLI_PATHS=(
+            packages/cli
+            packages/audit
+            packages/auth
+            packages/domain
+            packages/tenant-store
+            packages/token-signing
+            packages/crypto
+            packages/custody-contracts
+          )
+          PREV_TAG="$(git tag -l 'cli-v*' --sort=-version:refname | grep -vxF "$TAG" | head -n1 || true)"
+          if [ -n "$PREV_TAG" ]; then
+            LOG_RANGE="$PREV_TAG..$RELEASE_SHA"
+          else
+            LOG_RANGE="$RELEASE_SHA"
+          fi
+          {
+            printf '## What'\''s changed\n\n'
+            CHANGES="$(git log --no-merges --pretty=format:'- %s' "$LOG_RANGE" -- "${CLI_PATHS[@]}")"
+            if [ -n "$CHANGES" ]; then
+              printf '%s\n' "$CHANGES"
+            else
+              printf '_No CLI-affecting changes since %s._\n' "${PREV_TAG:-the start of history}"
+            fi
+            printf '\n'
+            # shellcheck disable=SC2016
+            printf 'Standalone CLI binaries built with `bun build --compile`. macOS binary is codesigned and notarized. Each binary carries a GitHub build-provenance attestation (verify: `gh attestation verify <binary> --repo %s`) and an attached SLSA provenance sidecar (`*.intoto.jsonl`). A CycloneDX SBOM of the bundled CLI (`insecur-cli.sbom.cdx.json`), blocking grype scan report (`insecur-cli.grype.json`), scanner database metadata (`scan-metadata.json`), and repo security attestation bundle (`repo-security-attestation.tgz`) are attached. Draft release: review and publish manually. Verify downloads against `SHA256SUMS`.\n' "$REPO"
+          } > dist-binaries/RELEASE_NOTES.md
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+            if [ "$IS_DRAFT" != "true" ]; then
+              echo "::error::Release $TAG already exists and is not a draft; refusing to mutate published assets."
+              exit 1
+            fi
+            gh release edit "$TAG" --draft --target "$RELEASE_SHA"
+            mapfile -t current_assets < <(gh release view "$TAG" --json assets --jq '.assets[].name')
+            for current_asset in "${current_assets[@]}"; do
+              keep=false
+              for asset in "${release_assets[@]}"; do
+                if [ "$(basename "$asset")" = "$current_asset" ]; then
+                  keep=true
+                  break
+                fi
+              done
+              if [ "$keep" != "true" ]; then
+                gh release delete-asset "$TAG" "$current_asset" --yes
+              fi
+            done
+            gh release upload "$TAG" "${release_assets[@]}" --clobber
+          else
+            gh release create "$TAG" "${release_assets[@]}" \
+              --draft \
+              --target "$RELEASE_SHA" \
+              --title "insecur CLI $TAG" \
+              --notes-file dist-binaries/RELEASE_NOTES.md
+          fi

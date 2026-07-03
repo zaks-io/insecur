@@ -26,6 +26,10 @@ for (const fileName of readdirSync(workflowsDir).filter((name) => workflowFilePa
     }
 
     const [, actionRef, comment = ""] = match;
+    if (actionRef.startsWith("./") || actionRef.startsWith("../")) {
+      continue;
+    }
+
     const [owner] = actionRef.split("/");
     if (owner === "actions") {
       continue;
