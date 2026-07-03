@@ -32,6 +32,7 @@
   "env": {
     "preview": {
       "name": "insecur-site-preview",
+      "workers_dev": true,
       "routes": [{ "pattern": "preview.insecur.cloud", "custom_domain": true }],
     },
   },

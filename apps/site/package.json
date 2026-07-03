@@ -8,6 +8,7 @@
     "build": "vite build",
     "dev": "WRANGLER_LOG_PATH=.wrangler/logs vite dev --port 8789",
     "deploy": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --outdir dist",
+    "deploy:preview": "wrangler deploy --outdir dist --env preview --keep-vars",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",

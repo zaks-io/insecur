@@ -3,11 +3,11 @@
 insecur's tests are organized by where Postgres comes from and what failure class each catches.
 The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 
-| Layer                | Postgres                   | Runtime                                           | Command                                                                   | Runs where             |
-| -------------------- | -------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------- |
-| Unit                 | none                       | Node Vitest                                       | `pnpm test`                                                               | local, CI, agents      |
-| Integration + RLS    | Docker Compose             | Node Vitest, real route stack + `postgres` driver | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` | local, CI, agents, PRs |
-| Shared preview smoke | shared preview Neon branch | deployed Worker + Hyperdrive                      | `pnpm deploy:preview` / `Deploy Preview`                                  | shared preview only    |
+| Layer                | Postgres                   | Runtime                                           | Command                                                                                              | Runs where             |
+| -------------------- | -------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------- |
+| Unit                 | none                       | Node Vitest                                       | `pnpm test`                                                                                          | local, CI, agents      |
+| Integration + RLS    | Docker Compose             | Node Vitest, real route stack + `postgres` driver | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary`                            | local, CI, agents, PRs |
+| Shared preview smoke | shared preview Neon branch | deployed Worker + Hyperdrive                      | deploy with `pnpm deploy:preview`, then run `scripts/ci/smoke-first-value.mjs` with `SMOKE_BASE_URL` | shared preview only    |
 
 ## Manual Mutation Review
 
@@ -118,8 +118,9 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 - **PR database policy**: PRs must not provision Neon branches, Hyperdrive configs, or Workers.
   The PR database gate is the `CI` workflow's Docker Compose `postgres-integration` job.
 - **Shared preview smoke is separate**: `scripts/ci/smoke-first-value.mjs` hard-fails if
-  `SMOKE_BASE_URL` is unset. It runs from `pnpm deploy:preview` and the `Deploy Preview`
-  workflow against the shared Neon preview branch and Hyperdrive binding.
+  `SMOKE_BASE_URL` is unset. Deploy the shared preview Worker set with `pnpm deploy:preview` or
+  the `Deploy Preview` workflow, then run the smoke explicitly against the shared Neon preview
+  branch and Hyperdrive binding.
 
 ## CI
 

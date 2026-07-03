@@ -534,7 +534,7 @@ The agent-facing one-command loop is documented in [docs/agents/testing.md](agen
 
 1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage and enforces the ratchet thresholds in `vitest.config.ts`; it excludes integration and RLS suites so it stays DB-less. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
 2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `postgres-integration` job (INS-144/INS-266) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
-3. **Shared preview smoke.** `pnpm deploy:preview` and the `Deploy Preview` workflow run the First Value smoke over HTTP against one deployed preview environment backed by a shared preview Neon branch through Hyperdrive. It is the only layer that can catch a broken deploy, a missing binding, or a bad secret. It is not a per-PR workflow: PRs use Docker Compose Postgres in the `CI` workflow's `postgres-integration` job.
+3. **Shared preview smoke.** `pnpm deploy:preview` and the `Deploy Preview` workflow deploy the shared preview Worker set (`runtime`, `api`, `web`, and `site`) through Turbo package tasks. Run `scripts/ci/smoke-first-value.mjs` explicitly with `SMOKE_BASE_URL` to exercise the API preview backed by a shared preview Neon branch through Hyperdrive. This is the only layer that can catch a broken deploy, a missing binding, or a bad secret. It is not a per-PR workflow: PRs use Docker Compose Postgres in the `CI` workflow's `postgres-integration` job.
 
 Docker Compose Postgres is the substrate for the authoritative integration+RLS gate and uses the
 same major version as the stable Neon target, currently Postgres 17 (ADR-0060), so the integration
@@ -601,8 +601,8 @@ pair rather than allocating resources per PR.
 
 Trigger: successful `CI` workflow completion on `main`, or manual `workflow_dispatch`. The automatic
 path deploys only `@insecur/site` / `insecur-site` to `insecur.cloud` and `www.insecur.cloud` after
-the full `CI` workflow has passed for the merged commit. The manual path can still deploy the site to
-`preview.insecur.cloud`.
+the full `CI` workflow has passed for the merged commit. The manual path can still deploy only the
+site to `preview.insecur.cloud` through the same package-level preview deploy script used by Turbo.
 
 The Public Site Worker is not the web console, API, or Runtime. It has no database, Hyperdrive,
 keyring, API Service Binding, Runtime Service Binding, or root-key binding. The site-boundary
@@ -610,12 +610,27 @@ conformance gate keeps it on the `@insecur/ui` / public-marketing surface.
 
 ### Preview deploy: `deploy-preview`
 
-Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. This deploys the bounded shared
-Preview environment (`insecur-runtime-preview` then `insecur-api-preview`) against the live Neon
-preview branch through the shared `insecur-nonprod` Hyperdrive config. Before deploy it applies
-tenant-store migrations with `PREVIEW_DATABASE_URL_MIGRATION`, seeds the smoke user admission, then
-syncs Worker secrets via `wrangler secret put`. The deploy fails if the migration URL is not a Neon
-URL so it cannot accidentally use Docker `.env.local`.
+Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. The workflow runs
+`pnpm migrate:preview` first with the Preview GitHub Environment's database credentials, then
+deploys the bounded shared Preview Worker fleet (`insecur-runtime-preview`,
+`insecur-api-preview`, `insecur-web-preview`, and `insecur-site-preview`) through package-level
+`deploy:preview` scripts selected by `turbo run deploy:preview`. The root script excludes non-app
+packages, so a full deploy covers every Worker app while targeted deploys use ordinary Turbo
+filters:
+
+```sh
+pnpm deploy:preview --filter @insecur/web
+```
+
+Preview routes are fixed custom domains:
+
+- API: `https://api.preview.insecur.cloud`
+- Web BFF: `https://app.preview.insecur.cloud`
+- Public Site: `https://preview.insecur.cloud`
+- Runtime: no public route
+
+Preview smoke is a separate explicit step: run `scripts/ci/smoke-first-value.mjs` with
+`SMOKE_BASE_URL` after deploy when the shared Neon preview branch and smoke admission are configured.
 
 ### Staging deploy: `deploy-staging`
 
