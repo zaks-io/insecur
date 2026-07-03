@@ -44,6 +44,12 @@ export const PRODUCTION_AUDIT_EVENT_CODES = {
   approvalRequestApproved: "approval.request_approved",
   approvalRequestRejected: "approval.request_rejected",
   approvalActionDenied: "approval.action_denied",
+  highAssuranceChallengeRequested: "high_assurance.challenge_requested",
+  highAssuranceChallengeRequestDenied: "high_assurance.challenge_request_denied",
+  highAssuranceChallengeCleared: "high_assurance.challenge_cleared",
+  highAssuranceChallengeClearDenied: "high_assurance.challenge_clear_denied",
+  highAssuranceEvidenceConsumed: "high_assurance.evidence_consumed",
+  highAssuranceEvidenceConsumeDenied: "high_assurance.evidence_consume_denied",
 } as const;
 
 /** All supported tenant-qualified audit event codes. */
@@ -87,6 +93,9 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.cryptoDataKeyDenied,
   PRODUCTION_AUDIT_EVENT_CODES.cryptoKeyRotationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeRequestDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeClearDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.highAssuranceEvidenceConsumeDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([

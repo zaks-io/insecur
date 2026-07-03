@@ -1,4 +1,13 @@
-import type { AuditEventId, KnownErrorCode, OperationId, OrganizationId } from "@insecur/domain";
+import type {
+  AuditEventId,
+  EnvironmentId,
+  KnownErrorCode,
+  MachineIdentityId,
+  OperationId,
+  OrganizationId,
+  ProjectId,
+  UserId,
+} from "@insecur/domain";
 import type { OperationState } from "./operation-states.js";
 import type { OperationSyncTargetLeaseProgress } from "./sync-target-lease-operation-progress.js";
 import type { FencingToken, SyncTargetKey, SyncTargetLeaseContext } from "./sync-target-types.js";
@@ -6,6 +15,25 @@ import type { FencingToken, SyncTargetKey, SyncTargetLeaseContext } from "./sync
 export interface OperationWaitMetadata {
   readonly reasonCode: KnownErrorCode;
   readonly until?: string;
+}
+
+/** Operation-bound High-Assurance Challenge evidence (metadata-only, no Sensitive Values). */
+export interface OperationHighAssuranceChallengeEvidence {
+  readonly challengeId: string;
+  readonly riskReasonCode: string;
+  readonly projectId: ProjectId;
+  readonly environmentId?: EnvironmentId;
+  readonly requestingUserId?: UserId;
+  readonly requestingMachineIdentityId?: MachineIdentityId;
+  readonly requestedAt: string;
+  readonly expiresAt: string;
+  readonly requestAuditEventId: AuditEventId;
+  readonly clearedAt?: string;
+  readonly clearingUserId?: UserId;
+  readonly clearAuthenticationMethodCode?: string;
+  readonly clearAuditEventId?: AuditEventId;
+  readonly consumedAt?: string;
+  readonly consumeAuditEventId?: AuditEventId;
 }
 
 export interface OperationRetryMetadata {
@@ -26,6 +54,7 @@ export interface OperationProgressInput {
   readonly resultCode?: KnownErrorCode;
   readonly mutationIdempotencyKey?: string;
   readonly cause?: OperationIncompleteCause;
+  readonly highAssuranceChallenge?: OperationHighAssuranceChallengeEvidence;
 }
 
 /** Stored operation progress, including lease binding owned by claim/release APIs. */

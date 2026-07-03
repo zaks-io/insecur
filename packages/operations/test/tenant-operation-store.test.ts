@@ -24,6 +24,15 @@ function sampleOperation(overrides: Partial<OperationPollResult> = {}): Operatio
   };
 }
 
+function findBindingsProgressJson(values: readonly unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.includes("bindingsTotal")) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 function operationRowFromPoll(
   operation: OperationPollResult,
   overrides: Partial<OperationRow> = {},
@@ -305,9 +314,7 @@ describe("TenantOperationStore", () => {
         expect(values).toContain(OP);
         expect(values).toContain(ORG);
         expect(values).toContain("succeeded");
-        const progressJson = values.find(
-          (value) => typeof value === "string" && value.includes("bindingsTotal"),
-        );
+        const progressJson = findBindingsProgressJson(values);
         expect(progressJson).toBe(JSON.stringify({ counters: { bindingsTotal: 2 } }));
         return [{ id: OP }];
       }
@@ -358,6 +365,148 @@ describe("TenantOperationStore", () => {
     await store.clearExecutionDeadline({
       organizationId: ORG,
       operationId: OP,
+    });
+  });
+
+  it("recordClearHighAssuranceProgress merges cleared evidence when compare-and-set succeeds", async () => {
+    const pendingEvidence = {
+      challengeId: "challenge_test_token_001",
+      riskReasonCode: "high_assurance.risk.agent_step_up",
+      projectId: PRJ,
+      requestingUserId: "usr_00000000000000000000000001",
+      requestedAt: "2026-07-03T00:00:00.000Z",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+      requestAuditEventId: "aud_00000000000000000000000001",
+    };
+    const operation = sampleOperation({
+      state: "waiting_for_human",
+      progress: { highAssuranceChallenge: pendingEvidence },
+    });
+
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from operations", "limit 1")) {
+        return [operationRowFromPoll(operation)];
+      }
+      if (queryIncludes(query, "from sync_target_leases")) {
+        return [];
+      }
+      if (
+        queryIncludes(query, "update operations") &&
+        queryIncludes(query, "highassurancechallenge", "clearedat")
+      ) {
+        return [
+          operationRowFromPoll(operation, {
+            progress: {
+              highAssuranceChallenge: {
+                ...pendingEvidence,
+                clearedAt: "2026-07-03T00:05:00.000Z",
+                clearingUserId: "usr_00000000000000000000000001",
+                clearAuthenticationMethodCode: "auth.assurance.passkey",
+                clearAuditEventId: "aud_00000000000000000000000002",
+              },
+            },
+          }),
+        ];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantOperationStore(sql);
+
+    const result = await store.recordClearHighAssuranceProgress({
+      organizationId: ORG,
+      operationId: OP,
+      challengeId: pendingEvidence.challengeId,
+      progressPatch: {
+        highAssuranceChallenge: {
+          ...pendingEvidence,
+          clearedAt: "2026-07-03T00:05:00.000Z",
+          clearingUserId: "usr_00000000000000000000000001",
+          clearAuthenticationMethodCode: "auth.assurance.passkey",
+          clearAuditEventId: "aud_00000000000000000000000002",
+        },
+      },
+    });
+
+    expect(result.progress.highAssuranceChallenge?.clearedAt).toBe("2026-07-03T00:05:00.000Z");
+  });
+
+  it("recordClearHighAssuranceProgress rejects compare-and-set when evidence is already cleared", async () => {
+    const clearedEvidence = {
+      challengeId: "challenge_test_token_001",
+      riskReasonCode: "high_assurance.risk.agent_step_up",
+      projectId: PRJ,
+      requestingMachineIdentityId: "mach_00000000000000000000000001",
+      requestedAt: "2026-07-03T00:00:00.000Z",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+      requestAuditEventId: "aud_00000000000000000000000001",
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: "usr_00000000000000000000000001",
+      clearAuthenticationMethodCode: "auth.assurance.passkey",
+      clearAuditEventId: "aud_00000000000000000000000002",
+    };
+    const operation = sampleOperation({
+      state: "waiting_for_human",
+      progress: { highAssuranceChallenge: clearedEvidence },
+    });
+
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from operations", "limit 1")) {
+        return [operationRowFromPoll(operation)];
+      }
+      if (queryIncludes(query, "from sync_target_leases")) {
+        return [];
+      }
+      if (
+        queryIncludes(query, "update operations") ||
+        queryIncludes(query, "highassurancechallenge", "clearedat")
+      ) {
+        return [];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantOperationStore(sql);
+
+    await expect(
+      store.recordClearHighAssuranceProgress({
+        organizationId: ORG,
+        operationId: OP,
+        challengeId: clearedEvidence.challengeId,
+        progressPatch: {
+          highAssuranceChallenge: {
+            ...clearedEvidence,
+            clearingUserId: "usr_00000000000000000000000002",
+            clearAuditEventId: "aud_00000000000000000000000003",
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.staleTransition,
+      retryable: true,
+    });
+  });
+
+  it("recordClearHighAssuranceProgress rejects non-waiting_for_human operations", async () => {
+    const operation = sampleOperation({ state: "running" });
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from operations", "limit 1")) {
+        return [operationRowFromPoll(operation)];
+      }
+      if (queryIncludes(query, "from sync_target_leases")) {
+        return [];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantOperationStore(sql);
+
+    await expect(
+      store.recordClearHighAssuranceProgress({
+        organizationId: ORG,
+        operationId: OP,
+        challengeId: "challenge_test_token_001",
+        progressPatch: {},
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.invalidTransition,
     });
   });
 });

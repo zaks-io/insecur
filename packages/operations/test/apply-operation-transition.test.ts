@@ -9,6 +9,7 @@ import type { SyncTargetLeaseRow } from "../src/sync-target-lease-row.js";
 import { createFakeTenantSql, queryIncludes } from "./helpers/fake-tenant-sql.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
+const PRJ = projectId.brand("prj_00000000000000000000000001");
 const OP = operationId.brand("op_00000000000000000000000001");
 
 function sampleOperation(overrides: Partial<OperationPollResult> = {}): OperationPollResult {
@@ -508,5 +509,62 @@ describe("casApplyOperationTransition", () => {
         },
       }),
     ).rejects.toBeInstanceOf(OperationStoreError);
+  });
+
+  it("rejects high-assurance consume compare-and-set when evidence is already consumed", async () => {
+    const challengeEvidence = {
+      challengeId: "challenge_test_token_001",
+      riskReasonCode: "high_assurance.risk.agent_step_up",
+      projectId: PRJ,
+      requestingUserId: "usr_00000000000000000000000001",
+      requestedAt: "2026-07-03T00:00:00.000Z",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+      requestAuditEventId: "aud_00000000000000000000000001",
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: "usr_00000000000000000000000001",
+      clearAuthenticationMethodCode: "auth.assurance.passkey",
+      clearAuditEventId: "aud_00000000000000000000000002",
+    };
+    const current = sampleOperation({
+      state: "waiting_for_human",
+      progress: { highAssuranceChallenge: challengeEvidence },
+    });
+
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from sync_target_leases", "held_by_operation_id")) {
+        return [];
+      }
+      if (
+        queryIncludes(query, "update operations") ||
+        queryIncludes(query, "highassurancechallenge", "consumedat")
+      ) {
+        return [];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+
+    await expect(
+      casApplyOperationTransition(sql, current, {
+        organizationId: ORG,
+        operationId: OP,
+        nextState: "running",
+        progressPatch: {
+          highAssuranceChallenge: {
+            ...challengeEvidence,
+            consumedAt: "2026-07-03T00:10:00.000Z",
+            consumeAuditEventId: "aud_00000000000000000000000003",
+          },
+        },
+        legalFromStates: new Set(["waiting_for_human"]),
+        highAssuranceConsumeCas: { challengeId: "challenge_test_token_001" },
+        notAllowedError: {
+          code: OPERATION_ERROR_CODES.invalidTransition,
+          message: () => "not allowed",
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.staleTransition,
+      retryable: true,
+    });
   });
 });

@@ -24,6 +24,7 @@ export {
   type ClaimSyncTargetLeaseInput,
   type CreateOperationInput,
   type GetOperationInput,
+  type OperationHighAssuranceChallengeEvidence,
   type OperationIncompleteCause,
   type OperationMutationResult,
   type OperationPollResult,
@@ -72,5 +73,13 @@ export { cancelOperation } from "./cancel-operation.js";
 export { createOperation } from "./create-operation.js";
 export { getOperation } from "./get-operation.js";
 export { recordOperationProgress } from "./record-operation-progress.js";
+export {
+  recordOperationProgressClearHighAssuranceChallenge,
+  type RecordOperationProgressClearEvidenceInput,
+} from "./record-operation-progress-clear-evidence.js";
 export { retryOperation } from "./retry-operation.js";
 export { transitionOperation } from "./transition-operation.js";
+export {
+  transitionOperationConsumeHighAssuranceEvidence,
+  type TransitionOperationConsumeEvidenceInput,
+} from "./transition-operation-consume-evidence.js";

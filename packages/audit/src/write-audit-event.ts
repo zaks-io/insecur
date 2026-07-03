@@ -1,5 +1,9 @@
 import type { AuditEventId } from "@insecur/domain";
-import { withTenantScope, type TenantScopedSql } from "@insecur/tenant-store";
+import {
+  isUniqueConstraintViolation,
+  withTenantScope,
+  type TenantScopedSql,
+} from "@insecur/tenant-store";
 import { generateAuditEventId } from "./generate-audit-event-id.js";
 import { insertAuditEventRow } from "./insert-audit-event-row.js";
 import type { AuditEventInput } from "./audit-types.js";
@@ -9,6 +13,27 @@ export interface AuditEventResult {
   auditEventId: AuditEventId;
 }
 
+async function insertValidatedAuditEvent(
+  sql: TenantScopedSql,
+  event: AuditEventInput,
+  auditEventId: AuditEventId,
+  options?: { readonly idempotent?: boolean },
+): Promise<AuditEventResult> {
+  validateAuditEventInput(event);
+
+  const resultCode = resolveAuditResultCode(event);
+
+  try {
+    await insertAuditEventRow(sql, auditEventId, event, resultCode);
+  } catch (error) {
+    if (options?.idempotent !== true || !isUniqueConstraintViolation(error)) {
+      throw error;
+    }
+  }
+
+  return { auditEventId };
+}
+
 /**
  * Records a tenant-qualified metadata-only audit event on an existing tenant-scoped transaction.
  */
@@ -16,14 +41,19 @@ export async function writeAuditEventInTenantScope(
   sql: TenantScopedSql,
   event: AuditEventInput,
 ): Promise<AuditEventResult> {
-  validateAuditEventInput(event);
+  return insertValidatedAuditEvent(sql, event, generateAuditEventId());
+}
 
-  const auditEventId = generateAuditEventId();
-  const resultCode = resolveAuditResultCode(event);
-
-  await insertAuditEventRow(sql, auditEventId, event, resultCode);
-
-  return { auditEventId };
+/**
+ * Records a tenant-qualified metadata-only audit event with a caller-supplied opaque ID.
+ * Duplicate IDs are treated as idempotent success.
+ */
+export async function writeAuditEventInTenantScopeWithId(
+  sql: TenantScopedSql,
+  event: AuditEventInput,
+  auditEventId: AuditEventId,
+): Promise<AuditEventResult> {
+  return insertValidatedAuditEvent(sql, event, auditEventId, { idempotent: true });
 }
 
 /**
@@ -34,6 +64,22 @@ export async function writeAuditEvent(event: AuditEventInput): Promise<AuditEven
     { kind: "organization", organizationId: event.organizationId },
     async ({ sql }) => {
       return writeAuditEventInTenantScope(sql, event);
+    },
+  );
+}
+
+/**
+ * Records a tenant-qualified metadata-only audit event with a caller-supplied opaque ID.
+ * Duplicate IDs are treated as idempotent success.
+ */
+export async function writeAuditEventWithId(
+  event: AuditEventInput,
+  auditEventId: AuditEventId,
+): Promise<AuditEventResult> {
+  return await withTenantScope(
+    { kind: "organization", organizationId: event.organizationId },
+    async ({ sql }) => {
+      return writeAuditEventInTenantScopeWithId(sql, event, auditEventId);
     },
   );
 }

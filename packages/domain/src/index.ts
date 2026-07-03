@@ -119,6 +119,8 @@ export {
   type BootstrapErrorCode,
   ENVIRONMENT_ERROR_CODES,
   type EnvironmentErrorCode,
+  HIGH_ASSURANCE_ERROR_CODES,
+  type HighAssuranceErrorCode,
   OPERATION_ERROR_CODES,
   type OperationErrorCode,
   type KnownErrorCode,

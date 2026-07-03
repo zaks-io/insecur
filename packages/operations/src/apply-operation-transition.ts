@@ -1,7 +1,7 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
-import { bindJsonb, type TenantScopedSql } from "@insecur/tenant-store";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
-import { type OperationRow, toOperationPollResult } from "./operation-row.js";
+import { toOperationPollResult } from "./operation-row.js";
 import { computeNonLeaseExecutionDeadline } from "./operation-execution-deadline.js";
 import {
   OPERATION_ERROR_CODES,
@@ -16,6 +16,7 @@ import {
 import type { OperationPollResult, OperationProgressPatch } from "./operation-types.js";
 import { findActiveLeaseForOperation } from "./resolve-operation-liveness.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
+import { updateOperationTransitionRow } from "./update-operation-transition-row.js";
 
 export interface ApplyTransitionInput {
   organizationId: OrganizationId;
@@ -35,6 +36,13 @@ export interface ApplyTransitionInput {
   beforeTransition?: (current: OperationPollResult) => Promise<void>;
   /** When set, overrides automatic execution-claim deadline handling for this transition. */
   executionDeadline?: string | null;
+  /**
+   * When set, CAS UPDATE also requires unconsumed, cleared high-assurance challenge
+   * evidence with the given challenge id (ADR-0032 exact-once consume).
+   */
+  highAssuranceConsumeCas?: {
+    challengeId: string;
+  };
 }
 
 function assertApplyTransitionAllowed(
@@ -134,28 +142,12 @@ export async function casApplyOperationTransition(
 
   const executionDeadline = await resolveExecutionDeadlineForTransition(sql, current, input);
 
-  const rows = await sql<OperationRow[]>`
-    UPDATE operations
-    SET
-      state = ${input.nextState},
-      progress = ${bindJsonb(sql, mergedProgress)},
-      execution_deadline = ${executionDeadline},
-      updated_at = now()
-    WHERE id = ${input.operationId}
-      AND org_id = ${input.organizationId}
-      AND state = ${current.state}
-    RETURNING
-      id,
-      org_id,
-      state,
-      intent_code,
-      idempotency_key,
-      progress,
-      execution_deadline,
-      created_at,
-      updated_at
-  `;
-  const row = rows[0];
+  const row = await updateOperationTransitionRow(sql, {
+    current,
+    transition: input,
+    mergedProgress,
+    executionDeadline,
+  });
   if (row === undefined) {
     throw new OperationStoreError(
       OPERATION_ERROR_CODES.staleTransition,
