@@ -24,6 +24,7 @@ export {
   type ClaimSyncTargetLeaseInput,
   type CreateOperationInput,
   type GetOperationInput,
+  type OperationHighAssuranceChallengeEvidence,
   type OperationIncompleteCause,
   type OperationMutationResult,
   type OperationPollResult,

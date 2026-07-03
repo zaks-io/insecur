@@ -4,15 +4,16 @@ import {
   isStableDottedCode,
   MetadataEnvelopeValidationError,
   type AuditEventId,
-  type KnownErrorCode,
 } from "@insecur/domain";
 import { isOperationIntentCode } from "./operation-intent-codes.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
+import { assertIsoTimestamp, assertKnownErrorCode } from "./metadata-assertions.js";
 import type {
   OperationIncompleteCause,
   OperationProgress,
   OperationProgressInput,
 } from "./operation-types.js";
+import { assertHighAssuranceChallengeEvidence } from "./validate-high-assurance-challenge-progress.js";
 import {
   assertFencingToken,
   isSyncProviderKind,
@@ -36,6 +37,7 @@ const OPERATION_PROGRESS_KEYS = new Set<string>([
   "cause",
   "syncTargetLease",
   "abandoned",
+  "highAssuranceChallenge",
 ]);
 
 function assertOnlyKnownProgressKeys(progress: OperationProgress): void {
@@ -46,24 +48,6 @@ function assertOnlyKnownProgressKeys(progress: OperationProgress): void {
         `progress contains unknown field: ${key}`,
       );
     }
-  }
-}
-
-function assertKnownErrorCode(value: string, field: string): asserts value is KnownErrorCode {
-  if (!isStableDottedCode(value)) {
-    throw new OperationStoreError(
-      OPERATION_ERROR_CODES.invalidMetadata,
-      `${field} must be a stable dotted code`,
-    );
-  }
-}
-
-function assertIsoTimestamp(value: string, field: string): void {
-  if (Number.isNaN(Date.parse(value))) {
-    throw new OperationStoreError(
-      OPERATION_ERROR_CODES.invalidMetadata,
-      `${field} must be an ISO-8601 timestamp`,
-    );
   }
 }
 
@@ -216,16 +200,10 @@ function assertIncompleteMetadata(progress: OperationProgress): void {
   }
 }
 
-/**
- * Rejects secret-bearing or free-form operation metadata before persistence or polling.
- */
-export function validateOperationProgress(
+function assertProgressFieldMetadata(
   progress: OperationProgress,
   organizationId?: SyncTargetKey["organizationId"],
 ): void {
-  assertOnlyKnownProgressKeys(progress);
-  assertMetadataOnlyProgress(progress);
-
   if (progress.syncTargetLease !== undefined) {
     assertSyncTargetLeaseProgress(progress.syncTargetLease, organizationId);
   }
@@ -241,7 +219,22 @@ export function validateOperationProgress(
   if (progress.mutationIdempotencyKey !== undefined) {
     assertMutationIdempotencyKey(progress.mutationIdempotencyKey);
   }
+  if (progress.highAssuranceChallenge !== undefined) {
+    assertHighAssuranceChallengeEvidence(progress.highAssuranceChallenge);
+  }
   assertIncompleteMetadata(progress);
+}
+
+/**
+ * Rejects secret-bearing or free-form operation metadata before persistence or polling.
+ */
+export function validateOperationProgress(
+  progress: OperationProgress,
+  organizationId?: SyncTargetKey["organizationId"],
+): void {
+  assertOnlyKnownProgressKeys(progress);
+  assertMetadataOnlyProgress(progress);
+  assertProgressFieldMetadata(progress, organizationId);
 }
 
 export function validateOperationIntentCode(intentCode: string): void {

@@ -1,5 +1,9 @@
 import type { AuditEventId } from "@insecur/domain";
-import type { OperationProgress, OperationProgressPatch } from "./operation-types.js";
+import type {
+  OperationHighAssuranceChallengeEvidence,
+  OperationProgress,
+  OperationProgressPatch,
+} from "./operation-types.js";
 
 function mergeAuditEventIds(
   existing: readonly AuditEventId[] | undefined,
@@ -25,6 +29,23 @@ function mergeCounters(
   return { ...existing, ...incoming };
 }
 
+function mergeHighAssuranceChallenge(
+  existing: OperationHighAssuranceChallengeEvidence | undefined,
+  incoming: OperationHighAssuranceChallengeEvidence | undefined,
+): OperationHighAssuranceChallengeEvidence | undefined {
+  if (incoming === undefined) {
+    return existing;
+  }
+  if (existing === undefined) {
+    return incoming;
+  }
+  return { ...existing, ...incoming };
+}
+
+function pickPatchedOrExisting<T>(incoming: T | undefined, existing: T | undefined): T | undefined {
+  return incoming ?? existing;
+}
+
 export function mergeOperationProgress(
   existing: OperationProgress,
   patch: OperationProgressPatch,
@@ -32,22 +53,21 @@ export function mergeOperationProgress(
   const { syncTargetLease, ...patchRest } = patch;
   const auditEventIds = mergeAuditEventIds(existing.auditEventIds, patchRest.auditEventIds);
   const counters = mergeCounters(existing.counters, patchRest.counters);
+  const highAssuranceChallenge = mergeHighAssuranceChallenge(
+    existing.highAssuranceChallenge,
+    patchRest.highAssuranceChallenge,
+  );
+  const wait = pickPatchedOrExisting(patchRest.wait, existing.wait);
+  const retry = pickPatchedOrExisting(patchRest.retry, existing.retry);
 
   const merged: OperationProgress = {
     ...existing,
     ...patchRest,
     ...(auditEventIds !== undefined ? { auditEventIds } : {}),
     ...(counters !== undefined ? { counters } : {}),
-    ...(patchRest.wait !== undefined
-      ? { wait: patchRest.wait }
-      : existing.wait !== undefined
-        ? { wait: existing.wait }
-        : {}),
-    ...(patchRest.retry !== undefined
-      ? { retry: patchRest.retry }
-      : existing.retry !== undefined
-        ? { retry: existing.retry }
-        : {}),
+    ...(highAssuranceChallenge !== undefined ? { highAssuranceChallenge } : {}),
+    ...(wait !== undefined ? { wait } : {}),
+    ...(retry !== undefined ? { retry } : {}),
     ...(existing.syncTargetLease !== undefined
       ? { syncTargetLease: existing.syncTargetLease }
       : {}),

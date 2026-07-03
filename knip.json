@@ -22,6 +22,10 @@
       "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "packages/high-assurance": {
+      "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
     "packages/worker-kit": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
       "project": ["src/**/*.ts"]

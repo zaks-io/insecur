@@ -144,6 +144,21 @@ export const AUDIT_ERROR_CODES = {
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[keyof typeof AUDIT_ERROR_CODES];
 
+/** High-Assurance Challenge bounded operation evidence failures. */
+export const HIGH_ASSURANCE_ERROR_CODES = {
+  evidenceMissing: "high_assurance.evidence_missing",
+  evidenceExpired: "high_assurance.evidence_expired",
+  operationMismatch: "high_assurance.operation_mismatch",
+  actorMismatch: "high_assurance.actor_mismatch",
+  alreadyConsumed: "high_assurance.already_consumed",
+  clearingDenied: "high_assurance.clearing_denied",
+  sessionAssuranceFailed: "high_assurance.session_assurance_failed",
+  invalidRiskReason: "high_assurance.invalid_risk_reason",
+} as const;
+
+export type HighAssuranceErrorCode =
+  (typeof HIGH_ASSURANCE_ERROR_CODES)[keyof typeof HIGH_ASSURANCE_ERROR_CODES];
+
 /** Operation Store metadata-only workflow failures. */
 export const OPERATION_ERROR_CODES = {
   notFound: "operation.not_found",
@@ -194,6 +209,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   STORE_ERROR_CODES,
   ABUSE_ERROR_CODES,
   AUDIT_ERROR_CODES,
+  HIGH_ASSURANCE_ERROR_CODES,
   OPERATION_ERROR_CODES,
   CLI_ERROR_CODES,
 ] as const;
@@ -211,6 +227,7 @@ export type KnownErrorCode =
   | StoreErrorCode
   | AbuseErrorCode
   | AuditErrorCode
+  | HighAssuranceErrorCode
   | OperationErrorCode
   | CliErrorCode
   | (string & {});

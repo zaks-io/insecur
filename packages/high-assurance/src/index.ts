@@ -1,0 +1,53 @@
+export { DEFAULT_HIGH_ASSURANCE_CHALLENGE_TTL_SECONDS } from "./constants.js";
+export {
+  HIGH_ASSURANCE_AUTHENTICATION_METHOD_CODES,
+  HIGH_ASSURANCE_RISK_REASON_CODES,
+  isHighAssuranceRiskReasonCode,
+  type HighAssuranceAuthenticationMethodCode,
+  type HighAssuranceRiskReasonCode,
+} from "./high-assurance-risk-reason-codes.js";
+export {
+  HIGH_ASSURANCE_ERROR_CODES,
+  HighAssuranceChallengeError,
+} from "./high-assurance-challenge-error.js";
+export type {
+  HighAssuranceChallengeLifecycleState,
+  HighAssuranceChallengeStatus,
+} from "./high-assurance-challenge-types.js";
+export {
+  computeChallengeExpiresAt,
+  generateChallengeId,
+  isChallengeEvidenceExpired,
+  mapSessionAssuranceToAuthenticationMethodCode,
+} from "./high-assurance-challenge-helpers.js";
+export {
+  assertClearingActorForPendingChallenge,
+  mapSessionAssuranceFailureToReasonCode,
+  resolveHighAssuranceChallengeStatus,
+  validateHighAssuranceEvidence,
+  type ValidateHighAssuranceEvidenceInput,
+} from "./validate-high-assurance-evidence.js";
+export {
+  requestHighAssuranceChallenge,
+  type RequestHighAssuranceChallengeInput,
+} from "./request-high-assurance-challenge.js";
+export {
+  clearHighAssuranceChallenge,
+  type ClearHighAssuranceChallengeInput,
+} from "./clear-high-assurance-challenge.js";
+export {
+  consumeHighAssuranceEvidence,
+  type ConsumeHighAssuranceEvidenceInput,
+} from "./consume-high-assurance-evidence.js";
+export {
+  getHighAssuranceChallengeStatus,
+  type GetHighAssuranceChallengeStatusInput,
+} from "./get-high-assurance-challenge-status.js";
+export {
+  recordHighAssuranceChallengeCleared,
+  recordHighAssuranceChallengeClearDenied,
+  recordHighAssuranceChallengeRequestDenied,
+  recordHighAssuranceChallengeRequested,
+  recordHighAssuranceEvidenceConsumeDenied,
+  recordHighAssuranceEvidenceConsumed,
+} from "./record-high-assurance-challenge-audit.js";
