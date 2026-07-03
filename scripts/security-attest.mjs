@@ -30,9 +30,16 @@ mkdirSync(outDir, { recursive: true });
 
 const startedAt = new Date().toISOString();
 const steps = [];
+const FS_EXCLUDE_DIRS = ["node_modules", ".git", ".turbo", "coverage", "artifacts", "dist"];
+const SEMGREP_EXCLUDE_DIRS = ["node_modules", ".turbo", "coverage", "artifacts"];
+const SYFT_EXCLUDE_DIRS = FS_EXCLUDE_DIRS.map((dir) => `./${dir}`);
 
 function rel(path) {
   return relative(repoRoot, path);
+}
+
+function trimmedOutput(value) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function capture(command, commandArgs) {
@@ -43,8 +50,8 @@ function capture(command, commandArgs) {
   });
   return {
     status: result.status ?? 1,
-    stdout: result.stdout.trim(),
-    stderr: result.stderr.trim(),
+    stdout: trimmedOutput(result.stdout),
+    stderr: trimmedOutput(result.stderr),
   };
 }
 
@@ -55,47 +62,82 @@ function ensureJsonFile(name, fallback) {
   }
 }
 
-function runStep(name, command, commandArgs, options = {}) {
-  const stdoutPath = options.stdoutFile ? join(outDir, options.stdoutFile) : null;
-  const stderrPath = options.stderrFile
-    ? join(outDir, options.stderrFile)
-    : join(outDir, `${name}.stderr.txt`);
-  console.log(`\n[security] ${name}: ${[command, ...commandArgs].join(" ")}`);
+function optionPairs(option, values) {
+  return values.flatMap((value) => [option, value]);
+}
 
-  const result = spawnSync(command, commandArgs, {
+function words(value) {
+  return value.split(" ");
+}
+
+function stepOutputPaths(name, options) {
+  return {
+    stdoutPath: options.stdoutFile ? join(outDir, options.stdoutFile) : null,
+    stderrPath: options.stderrFile
+      ? join(outDir, options.stderrFile)
+      : join(outDir, `${name}.stderr.txt`),
+  };
+}
+
+function spawnStepCommand(command, commandArgs, options) {
+  return spawnSync(command, commandArgs, {
     cwd: repoRoot,
     encoding: "utf8",
     env: { ...process.env, ...(options.env ?? {}) },
     maxBuffer: 100 * 1024 * 1024,
   });
+}
 
-  if (stdoutPath) {
-    writeFileSync(stdoutPath, result.stdout);
-  } else if (result.stdout) {
-    process.stdout.write(result.stdout);
+function writeOrForwardOutput(output, path, stream) {
+  if (path) {
+    writeFileSync(path, output);
+    return;
   }
-
-  if (stderrPath) {
-    writeFileSync(stderrPath, result.stderr);
-  } else if (result.stderr) {
-    process.stderr.write(result.stderr);
+  if (output) {
+    stream.write(output);
   }
+}
 
+function writeStepOutputs(result, paths) {
+  const stdout = typeof result.stdout === "string" ? result.stdout : "";
+  const stderr = typeof result.stderr === "string" ? result.stderr : "";
+  writeOrForwardOutput(stdout, paths.stdoutPath, process.stdout);
+  writeOrForwardOutput(stderr, paths.stderrPath, process.stderr);
+}
+
+function recordStep({ name, command, commandArgs, result, paths }) {
   const status = result.status ?? 1;
-  steps.push({
+  const step = {
     name,
     command: [command, ...commandArgs],
     status,
     signal: result.signal ?? null,
-    stdout: stdoutPath ? rel(stdoutPath) : null,
-    stderr: stderrPath ? rel(stderrPath) : null,
-  });
+    stdout: paths.stdoutPath ? rel(paths.stdoutPath) : null,
+    stderr: paths.stderrPath ? rel(paths.stderrPath) : null,
+  };
+  steps.push(step);
+  return step;
+}
 
-  if (status !== 0) {
-    console.error(`[security] ${name} failed with exit code ${status}`);
+function logStepFailure(step) {
+  if (step.status !== 0) {
+    console.error(`[security] ${step.name} failed with exit code ${step.status}`);
   }
+}
 
-  return status;
+function runStep(name, command, commandArgs, options = {}) {
+  const paths = stepOutputPaths(name, options);
+  console.log(`\n[security] ${name}: ${[command, ...commandArgs].join(" ")}`);
+
+  const result = spawnStepCommand(command, commandArgs, options);
+  writeStepOutputs(result, paths);
+  const step = recordStep({ name, command, commandArgs, result, paths });
+  logStepFailure(step);
+  return step.status;
+}
+
+function runStdoutStep(name, command, commandArgs, stdoutFile) {
+  runStep(name, command, commandArgs, { stdoutFile });
 }
 
 function runPolicyStep(name, status, details) {
@@ -158,46 +200,31 @@ runStep("gitleaks", "bash", ["scripts/ci/gitleaks-detect.sh", "git"], {
 });
 ensureJsonFile("gitleaks.json", []);
 
-runStep("pnpm-audit", "pnpm", ["audit", "--audit-level", "moderate", "--json"], {
-  stdoutFile: "pnpm-audit.json",
-});
+runStdoutStep(
+  "pnpm-audit",
+  "pnpm",
+  ["audit", "--audit-level", "moderate", "--json"],
+  "pnpm-audit.json",
+);
 
-runStep(
+runStdoutStep(
   "checkov-github-actions",
   "checkov",
-  ["-d", ".github", "--framework", "github_actions", "--quiet", "--compact", "--output", "json"],
-  {
-    stdoutFile: "checkov-github-actions.json",
-  },
+  words("-d .github --framework github_actions --quiet --compact --output json"),
+  "checkov-github-actions.json",
 );
 ensureJsonFile("checkov-github-actions.json", {});
 
 runStep("trivy", "trivy", [
-  "fs",
-  "--scanners",
-  "vuln,misconfig",
-  "--include-dev-deps",
-  "--severity",
-  "MEDIUM,HIGH,CRITICAL",
-  "--format",
-  "json",
+  ...words(
+    "fs --scanners vuln,misconfig --include-dev-deps --severity MEDIUM,HIGH,CRITICAL --format json",
+  ),
   "--output",
   join(outDir, "trivy.json"),
   "--exit-code",
   "1",
   "--skip-version-check",
-  "--skip-dirs",
-  "node_modules",
-  "--skip-dirs",
-  ".git",
-  "--skip-dirs",
-  ".turbo",
-  "--skip-dirs",
-  "coverage",
-  "--skip-dirs",
-  "artifacts",
-  "--skip-dirs",
-  "dist",
+  ...optionPairs("--skip-dirs", FS_EXCLUDE_DIRS),
   ".",
 ]);
 ensureJsonFile("trivy.json", {});
@@ -206,18 +233,7 @@ runStep("syft", "syft", [
   "dir:.",
   "-o",
   `cyclonedx-json=${join(outDir, "insecur.sbom.cdx.json")}`,
-  "--exclude",
-  "./node_modules",
-  "--exclude",
-  "./.git",
-  "--exclude",
-  "./.turbo",
-  "--exclude",
-  "./coverage",
-  "--exclude",
-  "./artifacts",
-  "--exclude",
-  "./dist",
+  ...optionPairs("--exclude", SYFT_EXCLUDE_DIRS),
 ]);
 
 runStep("grype", "grype", [
@@ -232,20 +248,9 @@ runStep("grype", "grype", [
 ensureJsonFile("grype.json", {});
 
 runStep("semgrep", "semgrep", [
-  "scan",
-  "--config",
-  "auto",
-  "--json",
-  "--output",
+  ...words("scan --config auto --json --output"),
   join(outDir, "semgrep.json"),
-  "--exclude",
-  "node_modules",
-  "--exclude",
-  ".turbo",
-  "--exclude",
-  "coverage",
-  "--exclude",
-  "artifacts",
+  ...optionPairs("--exclude", SEMGREP_EXCLUDE_DIRS),
   ".",
 ]);
 ensureJsonFile("semgrep.json", {});

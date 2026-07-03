@@ -1,5 +1,5 @@
 import { chmod, readFile, rm, writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import path from "node:path";
 
 import { build } from "esbuild";
@@ -14,6 +14,7 @@ await rm(distDir, { recursive: true, force: true });
 
 const result = await build({
   absWorkingDir: packageRoot,
+  banner: { js: "#!/usr/bin/env node" },
   bundle: true,
   define: { __INSECUR_CLI_VERSION__: JSON.stringify(packageJson.version) },
   entryPoints: ["src/index.ts"],

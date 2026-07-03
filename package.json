@@ -83,7 +83,8 @@
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
-    "wrangler": "catalog:"
+    "wrangler": "catalog:",
+    "yaml": "catalog:"
   },
   "pnpm": {
     "overrides": {
