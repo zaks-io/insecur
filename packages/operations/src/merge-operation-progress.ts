@@ -39,6 +39,9 @@ function mergeHighAssuranceChallenge(
   if (existing === undefined) {
     return incoming;
   }
+  if (incoming.challengeId !== existing.challengeId) {
+    return incoming;
+  }
   return { ...existing, ...incoming };
 }
 

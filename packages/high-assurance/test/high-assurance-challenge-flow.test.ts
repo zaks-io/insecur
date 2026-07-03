@@ -13,7 +13,7 @@ import type {
   OperationHighAssuranceChallengeEvidence,
   OperationPollResult,
 } from "@insecur/operations";
-import { OperationStoreError } from "@insecur/operations";
+import { OperationStoreError, mergeOperationProgress } from "@insecur/operations";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClearHighAssuranceChallengeInput } from "../src/high-assurance-challenge-inputs.js";
 import {
@@ -27,6 +27,7 @@ import { consumeHighAssuranceEvidence } from "../src/consume-high-assurance-evid
 import { mapOperationStoreErrorToDenialReason } from "../src/map-operation-store-denial.js";
 import { HIGH_ASSURANCE_RISK_REASON_CODES } from "../src/high-assurance-risk-reason-codes.js";
 import { computeChallengeExpiresAt } from "../src/high-assurance-challenge-helpers.js";
+import { resolveHighAssuranceChallengeStatus } from "../src/resolve-high-assurance-challenge-status.js";
 
 const AUD_CLEAR = auditEventId.brand("aud_00000000000000000000000004");
 
@@ -485,6 +486,37 @@ describe("request challenge flow regressions", () => {
       operationId: OP,
       riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
       requestingUserId: USER_A,
+    });
+
+    const transitionCall = transitionOperation.mock.calls[0]?.[0];
+    expect(transitionCall).toBeDefined();
+
+    const mergedProgress = mergeOperationProgress(
+      runningOperation.progress,
+      transitionCall?.progress ?? {},
+    );
+    const storedEvidence = mergedProgress.highAssuranceChallenge;
+
+    expect(storedEvidence).toEqual(
+      expect.objectContaining({
+        requestAuditEventId: AUD_REQUEST,
+        challengeId: expect.not.stringMatching(consumedEvidence.challengeId),
+      }),
+    );
+    expect(storedEvidence).not.toHaveProperty("clearedAt");
+    expect(storedEvidence).not.toHaveProperty("clearingUserId");
+    expect(storedEvidence).not.toHaveProperty("clearAuthenticationMethodCode");
+    expect(storedEvidence).not.toHaveProperty("clearAuditEventId");
+    expect(storedEvidence).not.toHaveProperty("consumedAt");
+    expect(storedEvidence).not.toHaveProperty("consumeAuditEventId");
+    expect(
+      resolveHighAssuranceChallengeStatus({
+        operationId: OP,
+        highAssuranceChallenge: storedEvidence,
+      }),
+    ).toMatchObject({
+      state: "pending",
+      hasClearedEvidence: false,
     });
 
     expect(transitionOperation).toHaveBeenCalledWith(
