@@ -647,15 +647,19 @@ separate production site workflow.
    already-deployed production Secrets Store root-key binding and Hyperdrive binding match
    `apps/runtime/wrangler.jsonc`. CI does not receive Secrets Store write permission; Runtime
    binding/config changes are an operator-controlled Cloudflare change.
-6. Deploy `insecur-api` with the private Runtime Service Binding.
-7. Deploy `insecur-web` with the private API and Runtime Service Bindings.
-8. Deploy `insecur-site` with no control-plane binding.
+6. Deploy `insecur-api` with the private Runtime Service Binding, using a deploy-time Wrangler
+   config that omits production routes so the existing custom domain stays attached without giving
+   CI Workers Routes write access.
+7. Deploy `insecur-web` with the private API and Runtime Service Bindings, also preserving the
+   existing production route attachment.
+8. Deploy `insecur-site` with no control-plane binding, also preserving the existing apex and www
+   route attachments.
 
 The identity that executes this deploy is the CI machine token. The operator's personal credentials
-are never the deploy credential (ADR-0029 amendment, ADR-0004). The
-Cloudflare token must be able to write Worker scripts and Worker routes for the `insecur.cloud`
-zone, because Wrangler attaches the production custom domains during deploy. It must not need
-Secrets Store write access for routine production deploys.
+are never the deploy credential (ADR-0029 amendment, ADR-0004). The Cloudflare token must be able
+to write Worker scripts and upload Worker assets. It must not need Secrets Store write access or
+Workers Routes write access for routine production deploys. Root-key custody changes and custom
+domain route changes are operator-controlled Cloudflare changes.
 
 ### Daily security scan: `security-daily`
 
