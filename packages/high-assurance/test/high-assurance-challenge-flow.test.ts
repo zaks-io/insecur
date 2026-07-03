@@ -805,6 +805,33 @@ describe("clear challenge flow regressions", () => {
     );
   });
 
+  it("denies stale clear after operation leaves waiting_for_human and records clear denied audit", async () => {
+    const pending = baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" });
+    getOperation.mockResolvedValue(operationWithEvidence(pending));
+    recordOperationProgressClearHighAssuranceChallenge.mockRejectedValue(
+      new OperationStoreError(
+        OPERATION_ERROR_CODES.invalidTransition,
+        "high-assurance challenge clear not allowed from state running",
+      ),
+    );
+
+    await expect(clearHighAssuranceChallenge(clearInput())).rejects.toMatchObject({
+      code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
+    });
+
+    expect(recordHighAssuranceChallengeCleared).not.toHaveBeenCalled();
+    expect(recordOperationProgressClearHighAssuranceChallenge).toHaveBeenCalledWith(
+      expect.objectContaining({ challengeId: pending.challengeId }),
+    );
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        projectId: PRJ,
+        denial: { reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied },
+      }),
+    );
+  });
+
   it("retries clear audit finalization when durable evidence already persisted", async () => {
     const pending = baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" });
     const cleared = clearedEvidence();

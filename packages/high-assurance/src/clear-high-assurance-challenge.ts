@@ -61,15 +61,40 @@ async function recordBoundClearSuccessAudit(
   });
 }
 
-async function recordClearTransitionDenied(
+async function recordClearPersistDenied(
   evidence: OperationHighAssuranceChallengeEvidence,
   input: ClearHighAssuranceChallengeInput,
+  reasonCode: (typeof HIGH_ASSURANCE_ERROR_CODES)[keyof typeof HIGH_ASSURANCE_ERROR_CODES],
 ): Promise<void> {
   await recordHighAssuranceChallengeClearDenied({
     ...clearDeniedAuditScope(input, evidence),
-    reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    reasonCode,
     riskReasonCode: evidence.riskReasonCode,
   });
+}
+
+async function handleClearPersistStoreError(
+  error: unknown,
+  evidence: OperationHighAssuranceChallengeEvidence,
+  input: ClearHighAssuranceChallengeInput,
+): Promise<never> {
+  if (error instanceof OperationStoreError) {
+    if (error.code === OPERATION_ERROR_CODES.staleTransition) {
+      await recordClearPersistDenied(evidence, input, HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed);
+      throw new HighAssuranceChallengeError(
+        HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+        "high-assurance challenge evidence is already cleared",
+      );
+    }
+    if (error.code === OPERATION_ERROR_CODES.invalidTransition) {
+      await recordClearPersistDenied(evidence, input, HIGH_ASSURANCE_ERROR_CODES.clearingDenied);
+      throw new HighAssuranceChallengeError(
+        HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
+        error.message,
+      );
+    }
+  }
+  throw error;
 }
 
 async function persistClearedChallengeEvidence(
@@ -98,17 +123,7 @@ async function persistClearedChallengeEvidence(
       },
     });
   } catch (error) {
-    if (
-      error instanceof OperationStoreError &&
-      error.code === OPERATION_ERROR_CODES.staleTransition
-    ) {
-      await recordClearTransitionDenied(evidence, input);
-      throw new HighAssuranceChallengeError(
-        HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
-        "high-assurance challenge evidence is already cleared",
-      );
-    }
-    throw error;
+    return await handleClearPersistStoreError(error, evidence, input);
   }
 
   if (hasPersistedRequestAuditLinkage(evidence)) {
