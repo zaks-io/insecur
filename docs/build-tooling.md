@@ -638,12 +638,18 @@ Trigger: `push` to `main`. Auto-deploys the staging Worker environment using the
 
 ### Production deploy: `deploy-production`
 
-Trigger: `push` to `main`, job bound to a GitHub Environment named `production` with a required reviewer. The required-reviewer approval is the wrench in the loop. On approval:
+Trigger: `workflow_dispatch`, job bound to the `Production` GitHub Environment. During prelaunch,
+the manual workflow deploys the product Worker fleet (`insecur-runtime`, `insecur-api`, and
+`insecur-web`) in order, then syncs encrypted Worker secrets from the Production GitHub Environment
+into the corresponding Cloudflare Workers.
 
-1. Take a fresh R2 backup or snapshot.
-2. Apply Neon migrations under the elevated migration role (expand-contract, backward compatible only).
-3. Deploy the production Worker using the CI machine token.
-4. Smoke-check production.
+1. Build the production Worker fleet.
+2. Deploy `insecur-runtime` with the production Secrets Store root-key binding and production
+   Hyperdrive binding.
+3. Deploy `insecur-api` with the private Runtime Service Binding.
+4. Deploy `insecur-web` with the private API and Runtime Service Bindings.
+5. Sync `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
+   `WORKOS_COOKIE_PASSWORD` as encrypted Worker secrets.
 
 The identity that executes this deploy is the CI machine token, distinct from the human approver. The approver's personal credentials are never the deploy credential (ADR-0029 amendment, ADR-0004).
 

@@ -1,0 +1,102 @@
+# Deploy the production product Worker fleet with the same capability-isolated topology as Preview.
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Production
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 25
+    environment:
+      name: Production
+      url: ${{ steps.deploy.outputs.base_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy product Workers
+        id: deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          pnpm deploy:workers
+          echo "base_url=https://app.insecur.cloud" >> "$GITHUB_OUTPUT"
+
+      - name: Sync Worker secrets
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
+          SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
+          WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          required=(
+            CLOUDFLARE_ACCOUNT_ID
+            CLOUDFLARE_API_TOKEN
+            RUNTIME_TOKEN_SIGNING_SECRET
+            SESSION_SIGNING_SECRET
+            WORKOS_API_KEY
+            WORKOS_COOKIE_PASSWORD
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured in the Production GitHub Environment."
+              exit 1
+            fi
+          done
+
+          jq -n --arg value "$RUNTIME_TOKEN_SIGNING_SECRET" \
+            '{ RUNTIME_TOKEN_SIGNING_SECRET: $value }' |
+            pnpm exec wrangler secret bulk --cwd apps/runtime --name insecur-runtime --env=""
+
+          jq -n \
+            --arg runtime "$RUNTIME_TOKEN_SIGNING_SECRET" \
+            --arg session "$SESSION_SIGNING_SECRET" \
+            --arg workos "$WORKOS_API_KEY" \
+            --arg cookie "$WORKOS_COOKIE_PASSWORD" \
+            '{
+              RUNTIME_TOKEN_SIGNING_SECRET: $runtime,
+              SESSION_SIGNING_SECRET: $session,
+              WORKOS_API_KEY: $workos,
+              WORKOS_COOKIE_PASSWORD: $cookie
+            }' |
+            pnpm exec wrangler secret bulk --cwd apps/api --name insecur-api --env=""
+
+          jq -n \
+            --arg session "$SESSION_SIGNING_SECRET" \
+            --arg workos "$WORKOS_API_KEY" \
+            --arg cookie "$WORKOS_COOKIE_PASSWORD" \
+            '{
+              SESSION_SIGNING_SECRET: $session,
+              WORKOS_API_KEY: $workos,
+              WORKOS_COOKIE_PASSWORD: $cookie
+            }' |
+            pnpm exec wrangler secret bulk --cwd apps/web --name insecur-web --env=""

@@ -19,24 +19,23 @@
       "destinations": ["axiom-traces"],
     },
   },
-  // `-dev` instance root key (ADR-0028). This is the ONLY deploy that declares the root-key binding
-  // (moved here verbatim from the former monolith). Secret material lives in Cloudflare Secrets
-  // Store — never as a wrangler secret or in git. store_id is the 32-hex store ID.
+  // Production instance root key (ADR-0028). This is the ONLY deploy that declares the root-key
+  // binding. Secret material lives in Cloudflare Secrets Store — never as a wrangler secret or in
+  // git. store_id is the 32-hex store ID.
   "secrets_store_secrets": [
     {
       "binding": "INSTANCE_ROOT_KEY_V1",
       "store_id": "eb5941d60ebe470c95af9c8eb26cf874",
-      "secret_name": "INSECUR_NONPROD_INSTANCE_ROOT_KEY_V1",
+      "secret_name": "INSECUR_PROD_INSTANCE_ROOT_KEY_V1",
     },
   ],
-  // Hyperdrive binding to the Instance's Postgres (ADR-0036). This is the provisioned `insecur-nonprod`
+  // Hyperdrive binding to the Instance's Postgres (ADR-0036). This is the provisioned `insecur-prod`
   // config (role `insecur_runtime_rls`, Neon pooler, caching disabled). The Worker reads its Postgres
-  // connection only from env.DB.connectionString — never a wrangler secret or process.env. The
-  // production id is supplied via an env override at prod deploy time.
+  // connection only from env.DB.connectionString — never a wrangler secret or process.env.
   "hyperdrive": [
     {
       "binding": "DB",
-      "id": "b44845027d2e40328efcbdd20bb9ea21",
+      "id": "06b87227f97f4cabb9af42c11855f5ca",
     },
   ],
   // Preview environment override for the shared preview deploy. PR workflows must not patch this
