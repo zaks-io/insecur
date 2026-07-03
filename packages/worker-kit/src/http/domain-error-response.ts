@@ -2,9 +2,11 @@ import {
   ABUSE_ERROR_CODES,
   AUTH_ERROR_CODES,
   CRYPTO_ERROR_CODES,
+  DEFAULT_UNKNOWN_ERROR_CODE,
   STORE_ERROR_CODES,
-  VALIDATION_ERROR_CODES,
   isKnownErrorCodeInCatalog,
+  readErrorCode,
+  readRetryable,
   type KnownErrorCode,
   errorEnvelope,
   type ErrorEnvelope,
@@ -90,30 +92,6 @@ export function safePublicErrorMessage(
   return genericMessage;
 }
 
-function readErrorCode(error: unknown): KnownErrorCode | undefined {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-  ) {
-    return error.code;
-  }
-  return undefined;
-}
-
-function readRetryable(error: unknown): boolean {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "retryable" in error &&
-    typeof error.retryable === "boolean"
-  ) {
-    return error.retryable;
-  }
-  return false;
-}
-
 function retryableForError(error: unknown): boolean {
   if (error instanceof AbuseLimitError) {
     return error.retryable;
@@ -151,11 +129,7 @@ function errorCodeFromClassInstance(error: unknown): KnownErrorCode | undefined 
 }
 
 export function knownErrorCodeFromUnknown(error: unknown): KnownErrorCode {
-  return (
-    errorCodeFromClassInstance(error) ??
-    readErrorCode(error) ??
-    VALIDATION_ERROR_CODES.invalidOpaqueResourceId
-  );
+  return errorCodeFromClassInstance(error) ?? readErrorCode(error) ?? DEFAULT_UNKNOWN_ERROR_CODE;
 }
 
 export function httpStatusForKnownErrorCode(code: KnownErrorCode): number {

@@ -4,19 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./error-code-registry": {
-      "types": "./dist/error-code-registry.d.ts",
-      "default": "./dist/error-code-registry.js"
-    }
+    ".": "./src/index.ts",
+    "./error-code-registry": "./src/error-code-registry.ts"
   },
-  "types": "./dist/index.d.ts",
   "scripts": {
-    "topo": "node -e \"\"",
-    "build": "tsc",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

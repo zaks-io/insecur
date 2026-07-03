@@ -7,7 +7,6 @@
     "insecur": "./dist/index.js"
   },
   "scripts": {
-    "topo": "node -e \"\"",
     "build": "node build.mjs",
     "clean": "rm -rf dist",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",

@@ -55,7 +55,7 @@
     ".": {
       "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts", "*.config.mjs"],
       "project": ["scripts/**/*.mjs"],
-      "ignoreDependencies": ["dependency-cruiser", "wrangler"]
+      "ignoreDependencies": ["dependency-cruiser"]
     }
   },
   "ignoreBinaries": ["actionlint"]

@@ -133,6 +133,12 @@ export {
   CLI_ERROR_CODES,
   type CliErrorCode,
 } from "./error-codes.js";
+export {
+  DEFAULT_UNKNOWN_ERROR_CODE,
+  readErrorCode,
+  readRetryable,
+  resolveKnownErrorCode,
+} from "./error-code-resolution.js";
 export { isKnownErrorCodeInCatalog, listKnownErrorCodes } from "./known-error-code-catalog.js";
 export {
   type ErrorBody,

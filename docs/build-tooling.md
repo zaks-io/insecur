@@ -138,18 +138,16 @@ Remote cache trust model is ADR-0053. Full file:
   "futureFlags": { "longerSignatureKey": true },
   "remoteCache": { "signature": true },
   "tasks": {
-    "topo": { "dependsOn": ["^topo"] },
     "build": {
       "dependsOn": ["^build"],
       "env": ["CLOUDFLARE_ENV"],
       "outputs": ["dist/**"],
     },
     "dev": { "cache": false, "persistent": true },
-    "typecheck": { "dependsOn": ["topo", "^build"], "outputs": [] },
-    "lint": { "dependsOn": ["topo", "^build"], "outputs": [] },
-    "test": { "dependsOn": ["topo", "^build"], "outputs": [] },
+    "typecheck": { "outputs": [] },
+    "lint": { "outputs": [] },
+    "test": { "outputs": [] },
     "test:rls": {
-      "dependsOn": ["topo", "^build"],
       "cache": false,
       "env": ["DATABASE_URL_RUNTIME"],
     },
@@ -160,11 +158,11 @@ Remote cache trust model is ADR-0053. Full file:
 
 Notes that an implementing agent must not change without understanding them:
 
-- The `topo` task is a transit node. `typecheck`, `lint`, `test`, and `test:rls` depend on `topo`, which depends on `^topo`. This forces a cache key to bust when an upstream package's source changes, so a stale cached `typecheck` pass cannot survive an upstream type error. This is the documented just-in-time-package correctness pattern and is load-bearing for "no type errors are ever committed."
+- Turborepo hashes each task's inputs including the source of workspace packages a task's package depends on, so a cached `typecheck`/`lint`/`test` result is invalidated when an upstream package's source changes. Because packages import each other's `./src` directly (Just-in-Time packages, no `dist`), an upstream type error surfaces in the downstream `typecheck` on the next run rather than returning a stale cached pass. These tasks declare no `dependsOn`; ordering falls out of the input hash, not an explicit transit node.
 - `test:rls` has `cache: false` because it runs against live database state — Docker Compose Postgres locally and in CI's `postgres-integration` job (ADR-0065) — and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
 - `globalDependencies` includes the root `eslint.config.ts`, Prettier config, and `.prettierignore` so a rule change busts every cached `lint`.
 - `envMode: strict` means a task only sees environment variables it declares. Declare new inputs in the task `env` array, do not relax the mode.
-- `lint`, `typecheck`, `test`, and `test:rls` depend on `^build` so workspace packages that export `dist/**` types (for example `@insecur/domain`) are built before downstream checks run. `pnpm verify` must pass from a clean checkout without a separate prebuild.
+- Workspace packages are Just-in-Time internal packages: their `package.json` `exports` point directly at `./src/*.ts` and they have no `build` step or `dist/`. Consumers (Vitest, Wrangler, tsc under `moduleResolution: "Bundler"`) resolve and compile that source directly. Checks therefore declare no `dependsOn`, never `^build`. Node and Workers ambient types come from root `@types/node` + `@cloudflare/workers-types` devDependencies plus `lib: ["ES2022","DOM"]` in `tsconfig.base.json`; packages that use Workers binding globals (`Fetcher`, `WorkerEntrypoint`) set `types: ["node","@cloudflare/workers-types"]`. The only remaining `build` outputs are the app Worker bundles (Wrangler dry-run/deploy) and the `@insecur/cli` binary. `pnpm verify` must pass from a clean checkout with no prebuild.
 
 ### Cache write scope (ADR-0053)
 
@@ -575,7 +573,7 @@ pnpm exec turbo run lint typecheck test --cache=local:rw,remote:<r|rw>
 
 `pnpm conformance:packages` asserts public/API and contract packages have no production dependency path to `@insecur/crypto`. The gate also fails closed if this command is removed from the hosted `Verify` job.
 
-Other required jobs in the same workflow: `Coverage` (`pnpm test:coverage`), `Knip`, `Actionlint`, `Postgres tests (integration + RLS + e2e)`, `Secret scan (gitleaks)`, `SAST (semgrep)`, `SBOM and vulnerability scan (syft + grype)`, and the dependency-scan placeholder.
+Other required jobs in the same workflow: `Coverage` (`pnpm test:coverage`), `Knip`, `Actionlint`, `Postgres tests (integration + RLS + e2e)`, `Secret scan (gitleaks)`, `SAST (semgrep)`, and `SBOM and vulnerability scan (syft + grype)` (which also serves as the dependency-CVE gate).
 
 These jobs are required status checks on the protected branch. They run for forked pull requests too,
 because they touch no secrets. Docs-only and workflow-only PRs keep the required job names green
@@ -670,7 +668,8 @@ Jobs:
 - **Vulnerability scan:** syft SBOM + grype via `scripts/ci/sbom-grype.sh none` (report only, no `--fail-on`).
 - **SAST full scan:** semgrep with `config: auto`.
 - **Secret scan history:** gitleaks over full git history (`gitleaks-detect.sh git`).
-- **Dependency scan:** placeholder gated behind repository variable `DEPENDENCY_SCAN_ENABLED`; skipped by default and fails closed if enabled without a wired scanner.
+- **Dependency scan:** covered by the syft + grype job, which builds a CycloneDX SBOM over the full
+  dependency tree and matches it against grype's advisory database.
 - **Report criticals:** opt-in metadata-only Linear filing gated behind repository variable
   `LINEAR_SECURITY_REPORTING_ENABLED`. When the variable is unset or not `true`, the job exits
   successfully with a notice and performs no checkout, artifact download, or filing. When
@@ -740,7 +739,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 - A developer or agent run cannot write the remote cache; only CI can. Verified by inspecting the `--cache` flags and by a CI-only signing key.
 - Editing a rule in `eslint.config.ts` busts the cached `lint` for every package.
 - A function over the complexity/size budget (complexity 8, 50 lines, 15 statements, depth 3, 4 params) or a non-test file over 250 lines fails `lint` at pre-commit and in `CI`; test files are exempt from the two length caps only.
-- An upstream type error fails a downstream `typecheck` rather than returning a stale cached pass (the `topo` transit node works).
+- An upstream type error fails a downstream `typecheck` rather than returning a stale cached pass (Turborepo's dependency-source input hashing).
 - `pnpm duplicates:warn` emits GitHub warning annotations for every jscpd clone without failing; `pnpm duplicates:check` is the strict local zero-threshold gate and uses the same scan/report path.
 - A commit that introduces a type error, a lint error, a formatting drift, or a staged secret is blocked at pre-commit; a push with a failing local test or a coverage threshold regression is blocked at pre-push; `--no-verify` bypasses locally but the same checks block in `CI`.
 - `test:rls` connects as `NOBYPASSRLS` and the CI guardrail assertions pass: the two database credentials differ and the runtime role does not bypass RLS.

@@ -1,5 +1,6 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
+import { isIsoTimestampExpired } from "./operation-execution-deadline.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import {
   deleteSyncTargetLease,
@@ -90,7 +91,7 @@ export class TenantSyncTargetLeaseStore {
     }
 
     const snapshot = toSyncTargetLeaseSnapshot(row);
-    const isExpired = Date.parse(snapshot.expiresAt) <= Date.now();
+    const isExpired = isIsoTimestampExpired(snapshot.expiresAt);
     if (
       snapshot.heldByOperationId !== input.operationId ||
       snapshot.fencingToken !== input.fencingToken ||

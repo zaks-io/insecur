@@ -115,7 +115,7 @@ export async function verifySignedHs256Signature(
   }
   const key = await importSigningKey(signingSecret);
   const data = new TextEncoder().encode(signingInput);
-  return crypto.subtle.verify("HMAC", key, signatureBytes, data);
+  return crypto.subtle.verify("HMAC", key, signatureBytes as BufferSource, data);
 }
 
 /** Decode a base64url token body into a JSON object payload, or null when malformed. */

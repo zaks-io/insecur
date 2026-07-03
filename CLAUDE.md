@@ -115,7 +115,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - **Duplicate scan:** `pnpm duplicates:check` (strict jscpd zero gate). CI/pre-push enforce `pnpm duplicates:ci` (zero-duplicate gate, delegates to `duplicates:check`).
 - **Unused code/deps:** `pnpm knip` (blocking in CI, pre-push, and verify)
 - **Workflow lint:** `pnpm lint:actions` (actionlint; blocking in CI, optional-local in pre-push/verify)
-- **Typecheck:** `pnpm typecheck` (runs across all 20 packages plus `apps/api` and `apps/runtime` — 22 workspace projects)
+- **Typecheck:** `pnpm typecheck` (runs across every workspace project: 22 packages + 4 apps)
 - **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and scaffold file checks)
 - **Local Postgres:** `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
 - **Build:** `pnpm build` (includes the Worker dry-run deploys through `apps/api/wrangler.jsonc` and `apps/runtime/wrangler.jsonc`)

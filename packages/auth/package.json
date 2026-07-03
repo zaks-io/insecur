@@ -4,19 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./testing": {
-      "types": "./dist/testing/index.d.ts",
-      "default": "./dist/testing/index.js"
-    }
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
-  "types": "./dist/index.d.ts",
   "scripts": {
-    "topo": "node -e \"\"",
-    "build": "tsc",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
