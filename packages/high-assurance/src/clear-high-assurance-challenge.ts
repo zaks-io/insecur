@@ -1,8 +1,11 @@
-import { auditEventId } from "@insecur/domain";
+import { generateAuditEventId } from "@insecur/audit";
+import { type AuditEventId } from "@insecur/domain";
 import {
   getOperation,
   recordOperationProgress,
+  type OperationHighAssuranceChallengeEvidence,
   type OperationMutationResult,
+  type OperationPollResult,
 } from "@insecur/operations";
 import type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
 import { challengeAuditScopeFromBoundEvidence } from "./high-assurance-challenge-audit-scope.js";
@@ -12,25 +15,37 @@ import {
   requirePendingChallengeEvidence,
   requireSessionAssuranceForClear,
 } from "./clear-high-assurance-challenge-preflight.js";
+import {
+  HIGH_ASSURANCE_ERROR_CODES,
+  HighAssuranceChallengeError,
+} from "./high-assurance-challenge-error.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 import { recordHighAssuranceChallengeCleared } from "./record-high-assurance-challenge-audit.js";
 
 export type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
 
-async function persistClearedChallengeEvidence(
+function isClearAlreadyDurable(operation: OperationPollResult): boolean {
+  const evidence = operation.progress.highAssuranceChallenge;
+  return (
+    operation.state === "waiting_for_human" &&
+    evidence?.clearedAt !== undefined &&
+    evidence.clearAuditEventId !== undefined
+  );
+}
+
+async function recordBoundClearSuccessAudit(
   input: ClearHighAssuranceChallengeInput,
-  evidence: NonNullable<
-    Awaited<ReturnType<typeof getOperation>>["progress"]["highAssuranceChallenge"]
-  >,
+  evidence: OperationHighAssuranceChallengeEvidence,
   authenticationMethodCode: string,
-): Promise<OperationMutationResult> {
-  const clearedAt = new Date().toISOString();
-  const clearAudit = await recordHighAssuranceChallengeCleared({
+  clearAuditEventId: AuditEventId,
+): Promise<void> {
+  await recordHighAssuranceChallengeCleared({
     ...challengeAuditScopeFromBoundEvidence(input, evidence),
     clearingUserId: input.clearingUserId,
     challengeId: evidence.challengeId,
     riskReasonCode: evidence.riskReasonCode,
     clearAuthenticationMethodCode: authenticationMethodCode,
+    auditEventId: clearAuditEventId,
     ...(evidence.requestingUserId !== undefined
       ? { requestingUserId: evidence.requestingUserId }
       : {}),
@@ -39,8 +54,17 @@ async function persistClearedChallengeEvidence(
       : {}),
     ...optionalAuditRequest(input.request),
   });
+}
 
-  return await recordOperationProgress({
+async function persistClearedChallengeEvidence(
+  input: ClearHighAssuranceChallengeInput,
+  evidence: OperationHighAssuranceChallengeEvidence,
+  authenticationMethodCode: string,
+): Promise<OperationMutationResult> {
+  const clearedAt = new Date().toISOString();
+  const clearAuditEventId = generateAuditEventId();
+
+  const mutationResult = await recordOperationProgress({
     organizationId: input.organizationId,
     operationId: input.operationId,
     progress: {
@@ -49,11 +73,41 @@ async function persistClearedChallengeEvidence(
         clearedAt,
         clearingUserId: input.clearingUserId,
         clearAuthenticationMethodCode: authenticationMethodCode,
-        clearAuditEventId: auditEventId.brand(clearAudit.auditEventId),
+        clearAuditEventId,
       },
-      auditEventIds: [auditEventId.brand(clearAudit.auditEventId)],
+      auditEventIds: [clearAuditEventId],
     },
   });
+
+  await recordBoundClearSuccessAudit(input, evidence, authenticationMethodCode, clearAuditEventId);
+
+  return mutationResult;
+}
+
+async function completeDurableClear(
+  operation: OperationPollResult,
+  input: ClearHighAssuranceChallengeInput,
+): Promise<OperationMutationResult> {
+  const evidence = operation.progress.highAssuranceChallenge;
+  if (
+    evidence?.clearAuditEventId === undefined ||
+    evidence.clearAuthenticationMethodCode === undefined
+  ) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.evidenceMissing,
+      "cleared high-assurance challenge evidence is missing clear audit linkage",
+    );
+  }
+
+  await assertClearingActorForClear(evidence, input);
+  await recordBoundClearSuccessAudit(
+    input,
+    evidence,
+    evidence.clearAuthenticationMethodCode,
+    evidence.clearAuditEventId,
+  );
+
+  return { operation, created: false };
 }
 
 export async function clearHighAssuranceChallenge(
@@ -63,6 +117,10 @@ export async function clearHighAssuranceChallenge(
     organizationId: input.organizationId,
     operationId: input.operationId,
   });
+
+  if (isClearAlreadyDurable(operation)) {
+    return await completeDurableClear(operation, input);
+  }
 
   const pendingEvidence = operation.progress.highAssuranceChallenge;
 

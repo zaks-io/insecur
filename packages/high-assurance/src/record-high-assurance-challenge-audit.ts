@@ -1,6 +1,8 @@
 import {
   PRODUCTION_AUDIT_EVENT_CODES,
+  type AuditEventActorRef,
   type AuditEventDetails,
+  type AuditEventInput,
   writeAuditEvent,
   writeAuditEventWithId,
 } from "@insecur/audit";
@@ -9,6 +11,7 @@ import {
   type AuditEventId,
   type EnvironmentId,
   type KnownErrorCode,
+  type MachineIdentityId,
   type OperationId,
   type OrganizationId,
   type ProjectId,
@@ -20,7 +23,7 @@ function challengeAuditDetails(input: {
   challengeId: string;
   riskReasonCode: string;
   requestingUserId?: UserId;
-  requestingMachineIdentityId?: string;
+  requestingMachineIdentityId?: MachineIdentityId;
   clearingUserId?: UserId;
 }): AuditEventDetails {
   return {
@@ -52,10 +55,20 @@ function scopedAuditFields(scope: ChallengeAuditScope) {
   };
 }
 
-function userActor(userId: UserId | undefined) {
+function userActor(userId: UserId | undefined): AuditEventActorRef {
   return userId !== undefined
     ? { type: "user" as const, userId }
     : { type: "user" as const, userId: null };
+}
+
+function challengeRequestActor(input: {
+  requestingUserId?: UserId;
+  requestingMachineIdentityId?: MachineIdentityId;
+}): AuditEventActorRef {
+  if (input.requestingMachineIdentityId !== undefined) {
+    return { type: "machine", machineIdentityId: input.requestingMachineIdentityId };
+  }
+  return userActor(input.requestingUserId);
 }
 
 function operationResource(operationId: OperationId) {
@@ -65,30 +78,48 @@ function operationResource(operationId: OperationId) {
   };
 }
 
+async function writeChallengeAuditEvent(
+  event: AuditEventInput,
+  auditEventId?: AuditEventId,
+): Promise<{ auditEventId: string }> {
+  if (auditEventId !== undefined) {
+    const result = await writeAuditEventWithId(event, auditEventId);
+    return { auditEventId: result.auditEventId };
+  }
+
+  const result = await writeAuditEvent(event);
+  return { auditEventId: result.auditEventId };
+}
+
 export async function recordHighAssuranceChallengeRequested(input: {
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId?: EnvironmentId;
   operationId: OperationId;
   requestingUserId?: UserId;
+  requestingMachineIdentityId?: MachineIdentityId;
   challengeId: string;
   riskReasonCode: string;
+  auditEventId?: AuditEventId;
   request?: { requestId: RequestId };
 }): Promise<{ auditEventId: string }> {
-  const result = await writeAuditEvent({
+  const event = {
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeRequested,
-    outcome: "success",
-    actor: userActor(input.requestingUserId),
+    outcome: "success" as const,
+    actor: challengeRequestActor(input),
     ...scopedAuditFields(input),
     resource: operationResource(input.operationId),
     details: challengeAuditDetails({
       challengeId: input.challengeId,
       riskReasonCode: input.riskReasonCode,
       ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
+      ...(input.requestingMachineIdentityId !== undefined
+        ? { requestingMachineIdentityId: input.requestingMachineIdentityId }
+        : {}),
     }),
-  });
+  };
 
-  return { auditEventId: result.auditEventId };
+  return writeChallengeAuditEvent(event, input.auditEventId);
 }
 
 export async function recordHighAssuranceChallengeRequestDenied(input: {
@@ -97,6 +128,7 @@ export async function recordHighAssuranceChallengeRequestDenied(input: {
   environmentId?: EnvironmentId;
   operationId: OperationId;
   requestingUserId?: UserId;
+  requestingMachineIdentityId?: MachineIdentityId;
   reasonCode: KnownErrorCode;
   riskReasonCode: string;
   request?: { requestId: RequestId };
@@ -104,7 +136,7 @@ export async function recordHighAssuranceChallengeRequestDenied(input: {
   await writeAuditEvent({
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeRequestDenied,
     outcome: "denied",
-    actor: userActor(input.requestingUserId),
+    actor: challengeRequestActor(input),
     ...scopedAuditFields(input),
     denial: { reasonCode: input.reasonCode },
     details: { riskReasonCode: input.riskReasonCode },
@@ -118,16 +150,17 @@ export async function recordHighAssuranceChallengeCleared(input: {
   operationId: OperationId;
   clearingUserId: UserId;
   requestingUserId?: UserId;
-  requestingMachineIdentityId?: string;
+  requestingMachineIdentityId?: MachineIdentityId;
   challengeId: string;
   riskReasonCode: string;
   clearAuthenticationMethodCode: string;
+  auditEventId?: AuditEventId;
   request?: { requestId: RequestId };
 }): Promise<{ auditEventId: string }> {
-  const result = await writeAuditEvent({
+  const event = {
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeCleared,
-    outcome: "success",
-    actor: { type: "user", userId: input.clearingUserId },
+    outcome: "success" as const,
+    actor: { type: "user" as const, userId: input.clearingUserId },
     ...scopedAuditFields(input),
     resource: operationResource(input.operationId),
     details: {
@@ -144,9 +177,9 @@ export async function recordHighAssuranceChallengeCleared(input: {
       }),
       clearAuthenticationMethodCode: input.clearAuthenticationMethodCode,
     },
-  });
+  };
 
-  return { auditEventId: result.auditEventId };
+  return writeChallengeAuditEvent(event, input.auditEventId);
 }
 
 export async function recordHighAssuranceChallengeClearDenied(input: {
@@ -195,14 +228,7 @@ export async function recordHighAssuranceEvidenceConsumed(input: {
     }),
   };
 
-  if (input.auditEventId !== undefined) {
-    const result = await writeAuditEventWithId(event, input.auditEventId);
-    return { auditEventId: result.auditEventId };
-  }
-
-  const result = await writeAuditEvent(event);
-
-  return { auditEventId: result.auditEventId };
+  return writeChallengeAuditEvent(event, input.auditEventId);
 }
 
 export async function recordHighAssuranceEvidenceConsumeDenied(input: {

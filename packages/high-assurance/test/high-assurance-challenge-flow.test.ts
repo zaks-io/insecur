@@ -21,14 +21,21 @@ import {
   requirePendingChallengeEvidence,
   requireSessionAssuranceForClear,
 } from "../src/clear-high-assurance-challenge-preflight.js";
+import { clearHighAssuranceChallenge } from "../src/clear-high-assurance-challenge.js";
+import { requestHighAssuranceChallenge } from "../src/request-high-assurance-challenge.js";
 import { consumeHighAssuranceEvidence } from "../src/consume-high-assurance-evidence.js";
 import { mapOperationStoreErrorToDenialReason } from "../src/map-operation-store-denial.js";
 import { HIGH_ASSURANCE_RISK_REASON_CODES } from "../src/high-assurance-risk-reason-codes.js";
 import { computeChallengeExpiresAt } from "../src/high-assurance-challenge-helpers.js";
 
+const AUD_CLEAR = auditEventId.brand("aud_00000000000000000000000004");
+
 const {
   getOperation,
   transitionOperation,
+  recordOperationProgress,
+  recordHighAssuranceChallengeRequested,
+  recordHighAssuranceChallengeCleared,
   recordHighAssuranceEvidenceConsumed,
   recordHighAssuranceEvidenceConsumeDenied,
   writeAuditEvent,
@@ -36,6 +43,9 @@ const {
 } = vi.hoisted(() => ({
   getOperation: vi.fn(),
   transitionOperation: vi.fn(),
+  recordOperationProgress: vi.fn(),
+  recordHighAssuranceChallengeRequested: vi.fn(),
+  recordHighAssuranceChallengeCleared: vi.fn(),
   recordHighAssuranceEvidenceConsumed: vi.fn(),
   recordHighAssuranceEvidenceConsumeDenied: vi.fn(),
   writeAuditEvent: vi.fn(),
@@ -59,6 +69,7 @@ vi.mock("@insecur/operations", async (importOriginal) => {
     ...actual,
     getOperation,
     transitionOperation,
+    recordOperationProgress,
   };
 });
 
@@ -67,6 +78,8 @@ vi.mock("../src/record-high-assurance-challenge-audit.js", async (importOriginal
     await importOriginal<typeof import("../src/record-high-assurance-challenge-audit.js")>();
   return {
     ...actual,
+    recordHighAssuranceChallengeRequested,
+    recordHighAssuranceChallengeCleared,
     recordHighAssuranceEvidenceConsumed,
     recordHighAssuranceEvidenceConsumeDenied,
   };
@@ -306,6 +319,201 @@ describe("machine-origin authorization regressions", () => {
         projectId: PRJ,
         reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
       }),
+    );
+  });
+});
+
+describe("request challenge flow regressions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    generateAuditEventId.mockReturnValue(AUD_REQUEST);
+    recordHighAssuranceChallengeRequested.mockResolvedValue({ auditEventId: AUD_REQUEST });
+    getOperation.mockResolvedValue({
+      operationId: OP,
+      organizationId: ORG,
+      state: "running",
+      intentCode: "sync.run",
+      progress: {},
+      createdAt: "2026-07-03T00:00:00.000Z",
+      updatedAt: "2026-07-03T00:00:00.000Z",
+    });
+  });
+
+  it("persists request evidence before writing request success audit", async () => {
+    const durableOperation = operationWithEvidence(baseEvidence(), "waiting_for_human");
+    transitionOperation.mockResolvedValue({ operation: durableOperation, created: false });
+
+    await requestHighAssuranceChallenge({
+      organizationId: ORG,
+      projectId: PRJ,
+      operationId: OP,
+      riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+      requestingUserId: USER_A,
+    });
+
+    expect(transitionOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nextState: "waiting_for_human",
+        progress: expect.objectContaining({
+          highAssuranceChallenge: expect.objectContaining({
+            requestAuditEventId: AUD_REQUEST,
+          }),
+          auditEventIds: [AUD_REQUEST],
+        }),
+      }),
+    );
+    expect(transitionOperation).toHaveBeenCalledBefore(recordHighAssuranceChallengeRequested);
+    expect(recordHighAssuranceChallengeRequested).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: AUD_REQUEST, requestingUserId: USER_A }),
+    );
+  });
+
+  it("does not record request success audit when transition fails", async () => {
+    transitionOperation.mockRejectedValue(
+      new OperationStoreError(OPERATION_ERROR_CODES.staleTransition, "stale transition", true),
+    );
+
+    await expect(
+      requestHighAssuranceChallenge({
+        organizationId: ORG,
+        projectId: PRJ,
+        operationId: OP,
+        riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+        requestingMachineIdentityId: MACH,
+      }),
+    ).rejects.toBeInstanceOf(OperationStoreError);
+
+    expect(recordHighAssuranceChallengeRequested).not.toHaveBeenCalled();
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        actor: { type: "machine", machineIdentityId: MACH },
+      }),
+    );
+  });
+
+  it("retries request audit finalization when durable evidence already persisted", async () => {
+    const pendingOperation = {
+      operationId: OP,
+      organizationId: ORG,
+      state: "running" as const,
+      intentCode: "sync.run",
+      progress: {},
+      createdAt: "2026-07-03T00:00:00.000Z",
+      updatedAt: "2026-07-03T00:00:00.000Z",
+    };
+    const durableOperation = operationWithEvidence(baseEvidence(), "waiting_for_human");
+    getOperation.mockResolvedValueOnce(pendingOperation).mockResolvedValueOnce(durableOperation);
+    transitionOperation.mockResolvedValue({ operation: durableOperation, created: false });
+    recordHighAssuranceChallengeRequested.mockRejectedValueOnce(
+      new Error("audit store unavailable"),
+    );
+    recordHighAssuranceChallengeRequested.mockResolvedValueOnce({ auditEventId: AUD_REQUEST });
+
+    await expect(
+      requestHighAssuranceChallenge({
+        organizationId: ORG,
+        projectId: PRJ,
+        operationId: OP,
+        riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+        requestingUserId: USER_A,
+      }),
+    ).rejects.toThrow("audit store unavailable");
+
+    const result = await requestHighAssuranceChallenge({
+      organizationId: ORG,
+      projectId: PRJ,
+      operationId: OP,
+      riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+      requestingUserId: USER_A,
+    });
+
+    expect(transitionOperation).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ operation: durableOperation, created: false });
+    expect(recordHighAssuranceChallengeRequested).toHaveBeenLastCalledWith(
+      expect.objectContaining({ auditEventId: AUD_REQUEST }),
+    );
+  });
+});
+
+describe("clear challenge flow regressions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    generateAuditEventId.mockReturnValue(AUD_CLEAR);
+    recordHighAssuranceChallengeCleared.mockResolvedValue({ auditEventId: AUD_CLEAR });
+    getOperation.mockResolvedValue(
+      operationWithEvidence(baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" })),
+    );
+  });
+
+  it("persists cleared evidence before writing clear success audit", async () => {
+    const pending = baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" });
+    const cleared = {
+      ...pending,
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: USER_A,
+      clearAuthenticationMethodCode: "auth.assurance.passkey",
+      clearAuditEventId: AUD_CLEAR,
+    };
+    recordOperationProgress.mockResolvedValue({
+      operation: operationWithEvidence(cleared),
+      created: false,
+    });
+
+    await clearHighAssuranceChallenge(clearInput());
+
+    expect(recordOperationProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        progress: expect.objectContaining({
+          highAssuranceChallenge: expect.objectContaining({
+            clearAuditEventId: AUD_CLEAR,
+          }),
+          auditEventIds: [AUD_CLEAR],
+        }),
+      }),
+    );
+    expect(recordOperationProgress).toHaveBeenCalledBefore(recordHighAssuranceChallengeCleared);
+    expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledWith(
+      expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
+    );
+  });
+
+  it("does not record clear success audit when progress mutation fails", async () => {
+    recordOperationProgress.mockRejectedValue(
+      new OperationStoreError(OPERATION_ERROR_CODES.staleTransition, "stale transition", true),
+    );
+
+    await expect(clearHighAssuranceChallenge(clearInput())).rejects.toBeInstanceOf(
+      OperationStoreError,
+    );
+
+    expect(recordHighAssuranceChallengeCleared).not.toHaveBeenCalled();
+  });
+
+  it("retries clear audit finalization when durable evidence already persisted", async () => {
+    const pending = baseEvidence({ expiresAt: "2027-01-01T00:00:00.000Z" });
+    const cleared = clearedEvidence();
+    const durableOperation = operationWithEvidence({
+      ...cleared,
+      clearAuditEventId: AUD_CLEAR,
+    });
+    getOperation
+      .mockResolvedValueOnce(operationWithEvidence(pending))
+      .mockResolvedValueOnce(durableOperation);
+    recordOperationProgress.mockResolvedValue({ operation: durableOperation, created: false });
+    recordHighAssuranceChallengeCleared.mockRejectedValueOnce(new Error("audit store unavailable"));
+    recordHighAssuranceChallengeCleared.mockResolvedValueOnce({ auditEventId: AUD_CLEAR });
+
+    await expect(clearHighAssuranceChallenge(clearInput())).rejects.toThrow(
+      "audit store unavailable",
+    );
+
+    const result = await clearHighAssuranceChallenge(clearInput());
+
+    expect(recordOperationProgress).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ operation: durableOperation, created: false });
+    expect(recordHighAssuranceChallengeCleared).toHaveBeenLastCalledWith(
+      expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
     );
   });
 });

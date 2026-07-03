@@ -1,9 +1,11 @@
-import { AUTH_ERROR_CODES, auditEventId } from "@insecur/domain";
+import { generateAuditEventId } from "@insecur/audit";
+import { AUTH_ERROR_CODES, type AuditEventId } from "@insecur/domain";
 import {
   getOperation,
   transitionOperation,
   type OperationHighAssuranceChallengeEvidence,
   type OperationMutationResult,
+  type OperationPollResult,
 } from "@insecur/operations";
 import { DEFAULT_HIGH_ASSURANCE_CHALLENGE_TTL_SECONDS } from "./constants.js";
 import type { RequestHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
@@ -48,7 +50,7 @@ function buildChallengeEvidence(input: {
   challengeId: string;
   requestedAt: Date;
   expiresAt: string;
-  requestAuditEventId: string;
+  requestAuditEventId: AuditEventId;
 }): OperationHighAssuranceChallengeEvidence {
   const { request, challengeId, requestedAt, expiresAt, requestAuditEventId } = input;
   return {
@@ -64,14 +66,39 @@ function buildChallengeEvidence(input: {
       : {}),
     requestedAt: requestedAt.toISOString(),
     expiresAt,
-    requestAuditEventId: auditEventId.brand(requestAuditEventId),
+    requestAuditEventId,
   };
+}
+
+function isRequestAlreadyDurable(operation: OperationPollResult): boolean {
+  const evidence = operation.progress.highAssuranceChallenge;
+  return operation.state === "waiting_for_human" && evidence?.requestAuditEventId !== undefined;
+}
+
+async function recordBoundRequestSuccessAudit(
+  input: RequestHighAssuranceChallengeInput,
+  evidence: OperationHighAssuranceChallengeEvidence,
+  requestAuditEventId: AuditEventId,
+): Promise<void> {
+  await recordHighAssuranceChallengeRequested({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    operationId: input.operationId,
+    challengeId: evidence.challengeId,
+    riskReasonCode: input.riskReasonCode,
+    auditEventId: requestAuditEventId,
+    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
+    ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
+    ...(input.requestingMachineIdentityId !== undefined
+      ? { requestingMachineIdentityId: input.requestingMachineIdentityId }
+      : {}),
+    ...optionalAuditRequest(input.request),
+  });
 }
 
 async function transitionToWaitingForHuman(
   input: RequestHighAssuranceChallengeInput,
   evidence: OperationHighAssuranceChallengeEvidence,
-  requestAuditEventId: string,
 ): Promise<OperationMutationResult> {
   try {
     return await transitionOperation({
@@ -81,7 +108,7 @@ async function transitionToWaitingForHuman(
       progress: {
         wait: { reasonCode: AUTH_ERROR_CODES.highAssuranceRequired, until: evidence.expiresAt },
         highAssuranceChallenge: evidence,
-        auditEventIds: [auditEventId.brand(requestAuditEventId)],
+        auditEventIds: [evidence.requestAuditEventId],
       },
     });
   } catch (error) {
@@ -93,10 +120,30 @@ async function transitionToWaitingForHuman(
       riskReasonCode: input.riskReasonCode,
       ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
       ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
+      ...(input.requestingMachineIdentityId !== undefined
+        ? { requestingMachineIdentityId: input.requestingMachineIdentityId }
+        : {}),
       ...optionalAuditRequest(input.request),
     });
     throw error;
   }
+}
+
+async function completeDurableRequest(
+  operation: OperationPollResult,
+  input: RequestHighAssuranceChallengeInput,
+): Promise<OperationMutationResult> {
+  const evidence = operation.progress.highAssuranceChallenge;
+  if (evidence?.requestAuditEventId === undefined) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.evidenceMissing,
+      "high-assurance challenge evidence is missing request audit linkage",
+    );
+  }
+
+  await recordBoundRequestSuccessAudit(input, evidence, evidence.requestAuditEventId);
+
+  return { operation, created: false };
 }
 
 export async function requestHighAssuranceChallenge(
@@ -105,10 +152,14 @@ export async function requestHighAssuranceChallenge(
   assertRiskReasonCode(input.riskReasonCode);
   assertRequestActor(input);
 
-  await getOperation({
+  const operation = await getOperation({
     organizationId: input.organizationId,
     operationId: input.operationId,
   });
+
+  if (isRequestAlreadyDurable(operation)) {
+    return await completeDurableRequest(operation, input);
+  }
 
   const requestedAt = new Date();
   const challengeId = generateChallengeId();
@@ -116,25 +167,18 @@ export async function requestHighAssuranceChallenge(
     requestedAt,
     input.ttlSeconds ?? DEFAULT_HIGH_ASSURANCE_CHALLENGE_TTL_SECONDS,
   );
-
-  const requestAudit = await recordHighAssuranceChallengeRequested({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    operationId: input.operationId,
-    challengeId,
-    riskReasonCode: input.riskReasonCode,
-    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
-    ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
-    ...optionalAuditRequest(input.request),
-  });
+  const requestAuditEventId = generateAuditEventId();
 
   const evidence = buildChallengeEvidence({
     request: input,
     challengeId,
     requestedAt,
     expiresAt,
-    requestAuditEventId: requestAudit.auditEventId,
+    requestAuditEventId,
   });
 
-  return await transitionToWaitingForHuman(input, evidence, requestAudit.auditEventId);
+  const transitionResult = await transitionToWaitingForHuman(input, evidence);
+  await recordBoundRequestSuccessAudit(input, evidence, requestAuditEventId);
+
+  return transitionResult;
 }
