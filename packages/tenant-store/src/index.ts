@@ -123,3 +123,15 @@ export {
   type GuidedOrganizationResourceIds,
   type PersistGuidedOrganizationInput,
 } from "./guided-organization/persist-guided-organization.js";
+export { RuntimeInjectionPolicyStoreError } from "./runtime-injection-policies/errors.js";
+export { TenantRuntimeInjectionPolicyStore } from "./runtime-injection-policies/tenant-runtime-injection-policy-store.js";
+export {
+  RUNTIME_INJECTION_DELIVERY_MODES,
+  type CreateRuntimeInjectionPolicyInput,
+  type PublishRuntimeInjectionPolicyVersionInput,
+  type RuntimeInjectionDeliveryMode,
+  type RuntimeInjectionPolicyBindingInput,
+  type RuntimeInjectionPolicyRow,
+  type RuntimeInjectionPolicyVersionContentInput,
+  type RuntimeInjectionPolicyVersionRow,
+} from "./runtime-injection-policies/types.js";

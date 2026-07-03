@@ -59,6 +59,20 @@ export const INJECTION_ERROR_CODES = {
   decryptFailed: "injection.decrypt_failed",
 } as const;
 
+/** Runtime Injection Policy metadata validation and access failures. */
+export const RUNTIME_POLICY_ERROR_CODES = {
+  notFound: "runtime_policy.not_found",
+  displayNameInUse: "runtime_policy.display_name_in_use",
+  invalidBindings: "runtime_policy.invalid_bindings",
+  patternBindingRejected: "runtime_policy.pattern_binding_rejected",
+  versionImmutable: "runtime_policy.version_immutable",
+  protectedUseBlocked: "runtime_policy.protected_use_blocked",
+  disabled: "runtime_policy.disabled",
+} as const;
+
+export type RuntimePolicyErrorCode =
+  (typeof RUNTIME_POLICY_ERROR_CODES)[keyof typeof RUNTIME_POLICY_ERROR_CODES];
+
 export type InjectionErrorCode = (typeof INJECTION_ERROR_CODES)[keyof typeof INJECTION_ERROR_CODES];
 
 /** Guided Organization Provisioning error codes. */
@@ -172,6 +186,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   AUTH_ERROR_CODES,
   SECRET_ERROR_CODES,
   INJECTION_ERROR_CODES,
+  RUNTIME_POLICY_ERROR_CODES,
   ONBOARDING_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
   ENVIRONMENT_ERROR_CODES,
@@ -188,6 +203,7 @@ export type KnownErrorCode =
   | AuthErrorCode
   | SecretErrorCode
   | InjectionErrorCode
+  | RuntimePolicyErrorCode
   | OnboardingErrorCode
   | BootstrapErrorCode
   | EnvironmentErrorCode

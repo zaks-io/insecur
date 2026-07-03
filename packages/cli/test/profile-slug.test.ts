@@ -1,12 +1,10 @@
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { CLI_ERROR_CODES } from "@insecur/domain";
 import { isCliProfileSlug, parseCliProfileSlug } from "../src/config/profiles/profile-slug.js";
 import { upsertUserProfile } from "../src/config/user-config.js";
 import { CliError } from "../src/output/cli-error.js";
 import { EXIT_CONFLICT, EXIT_VALIDATION } from "../src/output/exit-codes.js";
+import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const VALID_ORG = "org_01TEST00000000000000000001";
 const VALID_PROJECT = "prj_01TEST00000000000000000001";
@@ -37,9 +35,15 @@ describe("CLI profile slug validation", () => {
 });
 
 describe("upsertUserProfile slug uniqueness", () => {
+  let isolatedHome: Awaited<ReturnType<typeof createIsolatedHome>> | undefined;
+
+  afterEach(() => {
+    isolatedHome?.restore();
+    isolatedHome = undefined;
+  });
+
   it("rejects duplicate slugs across profiles", async () => {
-    const configDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-profile-"));
-    process.env.INSECUR_CONFIG_DIR = configDir;
+    isolatedHome = await createIsolatedHome("insecur-cli-profile-");
     const profile = {
       slug: "local-dev",
       displayName: "Local development" as never,
@@ -58,8 +62,6 @@ describe("upsertUserProfile slug uniqueness", () => {
       expect(cliError.code).toBe(CLI_ERROR_CODES.profileSlugInUse);
       expect(cliError.exitCode).toBe(EXIT_CONFLICT);
       expect(cliError.message).toBe("CLI profile slug already in use: local-dev");
-    } finally {
-      delete process.env.INSECUR_CONFIG_DIR;
     }
   });
 });

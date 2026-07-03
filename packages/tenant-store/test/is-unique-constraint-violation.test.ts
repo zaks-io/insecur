@@ -7,6 +7,14 @@ describe("isUniqueConstraintViolation", () => {
     expect(isUniqueConstraintViolation({ code: "23505" })).toBe(true);
   });
 
+  it("returns true for wrapped Postgres unique_violation causes", () => {
+    expect(
+      isUniqueConstraintViolation({
+        cause: { code: "23505" },
+      }),
+    ).toBe(true);
+  });
+
   it("returns false for other Postgres error codes", () => {
     expect(isUniqueConstraintViolation({ code: "23503" })).toBe(false);
   });
