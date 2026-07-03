@@ -1,16 +1,10 @@
-# Deploy the bounded shared Preview environment. This is intentionally not a
+# Deploy the bounded shared Preview Worker fleet. This is intentionally not a
 # pull_request workflow: PRs use Docker Compose Postgres in CI, while this job
-# targets the live Neon preview branch through the shared Hyperdrive config.
+# targets the shared preview Worker deploys.
 name: Deploy Preview
 
 on:
   workflow_dispatch:
-    inputs:
-      smoke:
-        description: Run First Value smoke after deploy
-        required: false
-        default: true
-        type: boolean
 
 permissions:
   contents: read
@@ -46,27 +40,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Deploy shared preview
+      - name: Migrate preview database
+        env:
+          DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
+          INSECUR_POSTGRES_RUNTIME_ROLE: ${{ vars.PREVIEW_POSTGRES_RUNTIME_ROLE }}
+        run: pnpm migrate:preview
+
+      - name: Deploy all preview Workers
         id: deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
-          PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
-          PREVIEW_HYPERDRIVE_ID: ${{ vars.PREVIEW_HYPERDRIVE_ID }}
-          PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
-          PREVIEW_POSTGRES_RUNTIME_ROLE: ${{ vars.PREVIEW_POSTGRES_RUNTIME_ROLE }}
-          RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
-          SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
-          SMOKE_INPUT: ${{ inputs.smoke }}
-          SMOKE_ADMITTED_USER_ID: ${{ vars.SMOKE_ADMITTED_USER_ID }}
-          SMOKE_WORKOS_USER_ID: ${{ vars.SMOKE_WORKOS_USER_ID }}
-          WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
-          WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
-          WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
         run: |
-          if [ "$SMOKE_INPUT" = "false" ]; then
-            pnpm deploy:preview --skip-smoke
-          else
-            pnpm deploy:preview
-          fi
+          pnpm deploy:preview
+          echo "base_url=https://app.preview.insecur.cloud" >> "$GITHUB_OUTPUT"

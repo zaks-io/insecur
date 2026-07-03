@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-29
+Last updated: 2026-07-03
 
 This is a code and runtime status snapshot. It says what is delivered now, what was
 verified, and what is still missing. It is not the normative product spec. When this
@@ -28,8 +28,10 @@ What is delivered:
 - The local verification floor passes.
 - The local DB-backed RLS, e2e, and no-plaintext canary layers pass after a fresh
   local Postgres reset.
-- The shared Cloudflare preview deploy passes on `main`, including real Worker deploy,
-  `/healthz`, and First Value smoke against the deployed API.
+- The shared Cloudflare preview deploy path is package-level Turbo deploys for Runtime,
+  API, Web, and Site. The intended preview URLs are `https://api.preview.insecur.cloud`,
+  `https://app.preview.insecur.cloud`, and `https://preview.insecur.cloud`; Runtime has
+  no public route.
 - The nonprod root key in Cloudflare Secrets Store has been regenerated, escrowed in
   Bitwarden, and verified through the deployed preview smoke.
 
@@ -66,7 +68,7 @@ Commands run locally for the current PKCE login change:
 pnpm verify
 pnpm build
 pnpm duplicates:ci
-pnpm --filter @insecur/cli start --host https://insecur-api-preview.isaac-a46.workers.dev login --help
+pnpm --filter @insecur/cli start --host https://api.preview.insecur.cloud login --help
 pnpm deploy:preview
 ```
 
@@ -85,10 +87,10 @@ Results:
   Worker binding both `env.DB` and `env.INSTANCE_ROOT_KEY_V1`.
 - Current CLI `login --help` starts with the preview host configured and shows the PKCE
   flags: `--no-open` and `--callback-port <port>`.
-- `pnpm deploy:preview` did not deploy. It failed before build/deploy because this
-  local shell does not have `CLOUDFLARE_WORKERS_SUBDOMAIN`; redacted env-key
-  inspection showed `.env.preview` only has `PREVIEW_DATABASE_URL_MIGRATION`, not the
-  preview deploy vars/secrets.
+- `pnpm deploy:preview` did not deploy on that checkout because the previous preview deploy
+  path required local smoke/migration configuration before any Worker deploy could start.
+  The current deploy path uses package-level Turbo deploys for the preview Workers; the
+  manual `Deploy Preview` workflow runs `pnpm migrate:preview` before deploy.
 - The currently deployed preview still returns `200` for `/healthz`.
 - The currently deployed preview returns `404` for `/v1/auth/cli/authorize`, proving
   the PKCE route is not deployed there yet.
@@ -111,7 +113,8 @@ Hosted preview verification before the local PKCE code change:
 
 Preview CLI verification attempt:
 
-- Target: `https://insecur-api-preview.isaac-a46.workers.dev`
+- Target at the time: `https://insecur-api-preview.isaac-a46.workers.dev`
+- Current API preview URL: `https://api.preview.insecur.cloud`
 - `pnpm --filter @insecur/cli start --host <preview> --json --help` passed and
   listed the implemented CLI commands.
 - Cloudflare preview API secrets are present by name:
@@ -212,7 +215,7 @@ The delivered First Value path is:
 This is verified two ways:
 
 - local e2e: `apps/api/test/e2e/first-value-loop.e2e.test.ts`
-- hosted preview smoke: `scripts/ci/smoke-first-value.mjs` through `pnpm deploy:preview`
+- hosted preview smoke: `scripts/ci/smoke-first-value.mjs` against a deployed preview API
 
 The deployed preview smoke is the strongest evidence because it uses the real Cloudflare
 Workers, the real `RUNTIME` Service Binding, the real Hyperdrive binding, and the real
@@ -460,5 +463,5 @@ These are concrete missing product/code surfaces, not tracker hypotheticals:
 - Runtime Worker RPC: [../apps/runtime/src/runtime-service.ts](../apps/runtime/src/runtime-service.ts)
 - Runtime Worker bindings: [../apps/runtime/wrangler.jsonc](../apps/runtime/wrangler.jsonc)
 - First Value e2e: [../apps/api/test/e2e/first-value-loop.e2e.test.ts](../apps/api/test/e2e/first-value-loop.e2e.test.ts)
-- Preview deploy script: [../scripts/deploy-preview.mjs](../scripts/deploy-preview.mjs)
+- Preview deploy task: [../package.json](../package.json) and [../turbo.json](../turbo.json)
 - Root-key runbook: [runbooks/instance-root-key-bootstrap.md](runbooks/instance-root-key-bootstrap.md)

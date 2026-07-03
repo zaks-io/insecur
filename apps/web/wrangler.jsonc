@@ -33,6 +33,8 @@
   "env": {
     "preview": {
       "name": "insecur-web-preview",
+      "workers_dev": true,
+      "routes": [{ "pattern": "app.preview.insecur.cloud", "custom_domain": true }],
       "services": [
         {
           "binding": "API",
