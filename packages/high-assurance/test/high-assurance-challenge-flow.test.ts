@@ -155,6 +155,7 @@ function clearInput(
     sessionAssurance: {
       authenticationMethod: "Passkey",
       authFactors: [],
+      freshStepUpFactor: "passkey",
     },
     ...overrides,
   };
@@ -204,6 +205,47 @@ describe("clear preflight regressions", () => {
         evidence,
       ),
     ).resolves.toBe("auth.assurance.totp");
+  });
+
+  it("accepts passkey sessions when fresh passkey step-up evidence is present", async () => {
+    const evidence = baseEvidence({ expiresAt: "2026-07-03T00:15:00.000Z" });
+
+    await expect(
+      requireSessionAssuranceForClear(
+        clearInput({
+          sessionAssurance: {
+            authenticationMethod: "Passkey",
+            authFactors: [],
+            freshStepUpFactor: "passkey",
+          },
+        }),
+        evidence,
+      ),
+    ).resolves.toBe("auth.assurance.passkey");
+  });
+
+  it("rejects passkey sessions without fresh step-up evidence", async () => {
+    const evidence = baseEvidence({ expiresAt: "2026-07-03T00:15:00.000Z" });
+
+    await expect(
+      requireSessionAssuranceForClear(
+        clearInput({
+          sessionAssurance: {
+            authenticationMethod: "Passkey",
+            authFactors: [],
+          },
+        }),
+        evidence,
+      ),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.sessionAssuranceFailed });
+
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        projectId: PRJ,
+        denial: { reasonCode: "auth.reauth_required" },
+      }),
+    );
   });
 
   it("rejects clearing expired pending evidence", async () => {
@@ -287,7 +329,11 @@ describe("machine-origin authorization regressions", () => {
       assertClearingActorForClear(
         evidence,
         clearInput({
-          sessionAssurance: { authenticationMethod: "Passkey", authFactors: [] },
+          sessionAssurance: {
+            authenticationMethod: "Passkey",
+            authFactors: [],
+            freshStepUpFactor: "passkey",
+          },
           requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
           clearingUserAccess: {
             organizationId: ORG_OTHER,

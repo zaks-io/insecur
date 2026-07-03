@@ -1,5 +1,4 @@
 import {
-  isHighAssuranceAuthenticationMethod,
   isInsufficientAssuranceAuthenticationMethod,
   isSmsAuthFactor,
   type WorkOSAuthFactorSummary,
@@ -31,10 +30,7 @@ export interface EvaluateHighAssuranceChallengeClearInput {
 }
 
 function hasFreshPasskeyStepUp(input: EvaluateHighAssuranceChallengeClearInput): boolean {
-  return (
-    isHighAssuranceAuthenticationMethod(input.authenticationMethod) ||
-    input.freshStepUpFactor === "passkey"
-  );
+  return input.freshStepUpFactor === "passkey";
 }
 
 function hasFreshTotpStepUp(input: EvaluateHighAssuranceChallengeClearInput): boolean {

@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import {
   evaluateHighAssuranceChallengeClearAssurance,
-  isHighAssuranceAuthenticationMethod,
   type EvaluateHighAssuranceChallengeClearInput,
 } from "@insecur/auth";
 import type { HighAssuranceAuthenticationMethodCode } from "./high-assurance-risk-reason-codes.js";
@@ -19,10 +18,7 @@ export function mapSessionAssuranceToAuthenticationMethodCode(
     return null;
   }
 
-  if (
-    isHighAssuranceAuthenticationMethod(input.authenticationMethod) ||
-    input.freshStepUpFactor === "passkey"
-  ) {
+  if (input.freshStepUpFactor === "passkey") {
     return HIGH_ASSURANCE_AUTHENTICATION_METHOD_CODES.passkey;
   }
 

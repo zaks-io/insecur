@@ -280,13 +280,23 @@ describe("resolveHighAssuranceChallengeStatus", () => {
 });
 
 describe("WorkOS session assurance integration", () => {
-  it("maps passkey sessions to metadata-safe assurance method codes", () => {
+  it("maps fresh passkey step-up evidence to metadata-safe assurance method codes", () => {
+    expect(
+      mapSessionAssuranceToAuthenticationMethodCode({
+        authenticationMethod: "Passkey",
+        authFactors: [],
+        freshStepUpFactor: "passkey",
+      }),
+    ).toBe("auth.assurance.passkey");
+  });
+
+  it("rejects passkey sessions without fresh step-up evidence", () => {
     expect(
       mapSessionAssuranceToAuthenticationMethodCode({
         authenticationMethod: "Passkey",
         authFactors: [],
       }),
-    ).toBe("auth.assurance.passkey");
+    ).toBeNull();
   });
 
   it("maps fresh TOTP step-up evidence to totp assurance codes", () => {

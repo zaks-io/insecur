@@ -2,11 +2,21 @@ import { describe, expect, it } from "vitest";
 import { evaluateHighAssuranceChallengeClearAssurance } from "./high-assurance-challenge-clear-assurance.js";
 
 describe("evaluateHighAssuranceChallengeClearAssurance", () => {
-  it("accepts passkey sessions without fresh step-up metadata", () => {
+  it("rejects passkey sessions without fresh step-up metadata", () => {
     expect(
       evaluateHighAssuranceChallengeClearAssurance({
         authenticationMethod: "Passkey",
         authFactors: [],
+      }),
+    ).toEqual({ ok: false, reason: "fresh_step_up_required" });
+  });
+
+  it("accepts passkey sessions with fresh passkey step-up evidence", () => {
+    expect(
+      evaluateHighAssuranceChallengeClearAssurance({
+        authenticationMethod: "Passkey",
+        authFactors: [],
+        freshStepUpFactor: "passkey",
       }),
     ).toEqual({ ok: true });
   });
