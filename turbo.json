@@ -99,8 +99,32 @@
       "env": ["CLOUDFLARE_ENV"],
       "passThroughEnv": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
     },
+    "@insecur/api#deploy": {
+      "dependsOn": ["build", "@insecur/runtime#deploy"],
+      "cache": false,
+      "env": ["CLOUDFLARE_ENV"],
+      "passThroughEnv": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
+    },
+    "@insecur/web#deploy": {
+      "dependsOn": ["build", "@insecur/api#deploy", "@insecur/runtime#deploy"],
+      "cache": false,
+      "env": ["CLOUDFLARE_ENV"],
+      "passThroughEnv": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
+    },
     "deploy:preview": {
       "dependsOn": ["build"],
+      "cache": false,
+      "env": ["CLOUDFLARE_ENV"],
+      "passThroughEnv": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
+    },
+    "@insecur/api#deploy:preview": {
+      "dependsOn": ["build", "@insecur/runtime#deploy:preview"],
+      "cache": false,
+      "env": ["CLOUDFLARE_ENV"],
+      "passThroughEnv": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
+    },
+    "@insecur/web#deploy:preview": {
+      "dependsOn": ["build", "@insecur/api#deploy:preview", "@insecur/runtime#deploy:preview"],
       "cache": false,
       "env": ["CLOUDFLARE_ENV"],
       "passThroughEnv": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
