@@ -14,7 +14,9 @@ import {
 import {
   buildConsumedEvidenceProgress,
   denyConsumeNotWaiting,
+  denyDistinctConsumeAfterEvidenceConsumed,
   isConsumeAlreadyDurable,
+  isConsumeEvidencePersisted,
   recordBoundConsumeSuccessAudit,
   recordConsumeTransitionDenied,
   recordConsumeValidationDenied,
@@ -130,8 +132,11 @@ export async function consumeHighAssuranceEvidence(
     operationId: input.operationId,
   });
 
-  if (isConsumeAlreadyDurable(operation)) {
-    return await completeDurableConsume(operation, input);
+  if (isConsumeEvidencePersisted(operation)) {
+    if (isConsumeAlreadyDurable(operation, input)) {
+      return await completeDurableConsume(operation, input);
+    }
+    return await denyDistinctConsumeAfterEvidenceConsumed(operation, input);
   }
 
   const evidence = await loadValidatedEvidence(operation, input);

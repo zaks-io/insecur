@@ -37,12 +37,51 @@ function consumeAuditDeniedFields(
   };
 }
 
-export function isConsumeAlreadyDurable(operation: OperationPollResult): boolean {
+export function isConsumeEvidencePersisted(operation: OperationPollResult): boolean {
   const evidence = operation.progress.highAssuranceChallenge;
+  return evidence?.consumedAt !== undefined && evidence.consumeAuditEventId !== undefined;
+}
+
+function isConsumeIdempotencyReplay(
+  operation: OperationPollResult,
+  input: ConsumeHighAssuranceEvidenceInput,
+): boolean {
+  if (input.idempotencyKey === undefined) {
+    return false;
+  }
+  return operation.progress.mutationIdempotencyKey === input.idempotencyKey;
+}
+
+export function isConsumeAlreadyDurable(
+  operation: OperationPollResult,
+  input: ConsumeHighAssuranceEvidenceInput,
+): boolean {
   return (
     operation.state === "running" &&
-    evidence?.consumedAt !== undefined &&
-    evidence.consumeAuditEventId !== undefined
+    isConsumeEvidencePersisted(operation) &&
+    isConsumeIdempotencyReplay(operation, input)
+  );
+}
+
+export async function denyDistinctConsumeAfterEvidenceConsumed(
+  operation: OperationPollResult,
+  input: ConsumeHighAssuranceEvidenceInput,
+): Promise<never> {
+  const evidence = operation.progress.highAssuranceChallenge;
+  if (evidence === undefined) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.evidenceMissing,
+      "high-assurance challenge evidence is required",
+    );
+  }
+
+  await recordHighAssuranceEvidenceConsumeDenied({
+    ...consumeAuditDeniedFields(input, evidence),
+    reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+  });
+  throw new HighAssuranceChallengeError(
+    HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    "high-assurance challenge evidence was already consumed",
   );
 }
 

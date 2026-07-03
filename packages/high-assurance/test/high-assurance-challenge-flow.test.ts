@@ -68,6 +68,7 @@ const MACH = machineIdentityId.brand("mach_00000000000000000000000001");
 const ORG_OTHER = organizationId.brand("org_00000000000000000000000002");
 const AUD_REQUEST = auditEventId.brand("aud_00000000000000000000000001");
 const AUD_CONSUME = auditEventId.brand("aud_00000000000000000000000003");
+const CONSUME_IDEM = "consume-idem-001";
 
 vi.mock("@insecur/operations", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/operations")>();
@@ -138,16 +139,32 @@ function machineClearedEvidence(): OperationHighAssuranceChallengeEvidence {
 function operationWithEvidence(
   evidence: OperationHighAssuranceChallengeEvidence,
   state: OperationPollResult["state"] = "waiting_for_human",
+  progressOverrides: Partial<OperationPollResult["progress"]> = {},
 ): OperationPollResult {
   return {
     operationId: OP,
     organizationId: ORG,
     state,
     intentCode: "sync.run",
-    progress: { highAssuranceChallenge: evidence },
+    progress: { highAssuranceChallenge: evidence, ...progressOverrides },
     createdAt: "2026-07-03T00:00:00.000Z",
     updatedAt: "2026-07-03T00:00:00.000Z",
   };
+}
+
+function consumedRunningOperation(
+  evidence: OperationHighAssuranceChallengeEvidence,
+  idempotencyKey: string = CONSUME_IDEM,
+): OperationPollResult {
+  return operationWithEvidence(
+    {
+      ...evidence,
+      consumedAt: evidence.consumedAt ?? "2026-07-03T00:10:00.000Z",
+      consumeAuditEventId: evidence.consumeAuditEventId ?? AUD_CONSUME,
+    },
+    "running",
+    { mutationIdempotencyKey: idempotencyKey },
+  );
 }
 
 function clearInput(
@@ -178,6 +195,15 @@ function consumeInput(
     clearingUserId: USER_A,
     ...overrides,
   };
+}
+
+function durableConsumeInput(
+  overrides: Partial<ConsumeHighAssuranceEvidenceInput> = {},
+): ConsumeHighAssuranceEvidenceInput {
+  return consumeInput({
+    idempotencyKey: CONSUME_IDEM,
+    ...overrides,
+  });
 }
 
 function machineConsumeInput(
@@ -379,16 +405,11 @@ describe("machine-origin authorization regressions", () => {
   });
 
   it("denies durable consume retry for machine-origin evidence without scopes and access", async () => {
-    const consumedEvidence = {
-      ...machineClearedEvidence(),
-      consumedAt: "2026-07-03T00:10:00.000Z",
-      consumeAuditEventId: AUD_CONSUME,
-    };
-    getOperation.mockResolvedValue(operationWithEvidence(consumedEvidence, "running"));
+    getOperation.mockResolvedValue(consumedRunningOperation(machineClearedEvidence()));
 
     await expect(
       consumeHighAssuranceEvidence(
-        consumeInput({
+        durableConsumeInput({
           resumingUserId: undefined,
           resumingMachineIdentityId: MACH,
         }),
@@ -842,25 +863,19 @@ describe("consume evidence flow regressions", () => {
   });
 
   it("retries audit finalization when durable consume already persisted", async () => {
-    const evidence = clearedEvidence();
-    const consumedEvidence = {
-      ...evidence,
-      consumedAt: "2026-07-03T00:10:00.000Z",
-      consumeAuditEventId: AUD_CONSUME,
-    };
-    const durableOperation = operationWithEvidence(consumedEvidence, "running");
+    const durableOperation = consumedRunningOperation(clearedEvidence());
 
     getOperation.mockResolvedValue(durableOperation);
     recordHighAssuranceEvidenceConsumed.mockRejectedValueOnce(new Error("audit store unavailable"));
     recordHighAssuranceEvidenceConsumed.mockResolvedValueOnce({ auditEventId: AUD_CONSUME });
 
-    await expect(consumeHighAssuranceEvidence(consumeInput())).rejects.toThrow(
+    await expect(consumeHighAssuranceEvidence(durableConsumeInput())).rejects.toThrow(
       "audit store unavailable",
     );
 
     getOperation.mockResolvedValue(durableOperation);
 
-    const result = await consumeHighAssuranceEvidence(consumeInput());
+    const result = await consumeHighAssuranceEvidence(durableConsumeInput());
 
     expect(transitionOperationConsumeHighAssuranceEvidence).not.toHaveBeenCalled();
     expect(result).toEqual({ operation: durableOperation, created: false });
@@ -884,7 +899,7 @@ describe("consume evidence flow regressions", () => {
       consumeAuditEventId: AUD_CONSUME,
     };
     const waitingAfterClear = operationWithEvidence(cleared);
-    const runningAfterConsume = operationWithEvidence(consumed, "running");
+    const runningAfterConsume = consumedRunningOperation(consumed);
 
     getOperation
       .mockResolvedValueOnce(operationWithEvidence(pending))
@@ -906,7 +921,7 @@ describe("consume evidence flow regressions", () => {
       "audit store unavailable",
     );
 
-    await consumeHighAssuranceEvidence(consumeInput());
+    await consumeHighAssuranceEvidence(durableConsumeInput());
 
     expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledTimes(2);
     expect(recordHighAssuranceChallengeCleared).toHaveBeenLastCalledWith(
@@ -919,7 +934,7 @@ describe("consume evidence flow regressions", () => {
     getOperation.mockResolvedValue(runningAfterConsume);
     recordHighAssuranceEvidenceConsumed.mockClear();
 
-    const result = await consumeHighAssuranceEvidence(consumeInput());
+    const result = await consumeHighAssuranceEvidence(durableConsumeInput());
 
     expect(transitionOperationConsumeHighAssuranceEvidence).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ operation: runningAfterConsume, created: false });
@@ -942,7 +957,7 @@ describe("consume evidence flow regressions", () => {
       consumedAt: "2026-07-03T00:10:00.000Z",
       consumeAuditEventId: AUD_CONSUME,
     };
-    const runningOperation = operationWithEvidence(consumed, "running");
+    const runningOperation = consumedRunningOperation(consumed);
 
     getOperation.mockResolvedValue(runningOperation);
     recordHighAssuranceChallengeRequested.mockResolvedValue({ auditEventId: AUD_REQUEST });
@@ -951,7 +966,7 @@ describe("consume evidence flow regressions", () => {
     });
     recordHighAssuranceEvidenceConsumed.mockResolvedValue({ auditEventId: AUD_CONSUME });
 
-    await consumeHighAssuranceEvidence(consumeInput());
+    await consumeHighAssuranceEvidence(durableConsumeInput());
 
     expect(recordHighAssuranceChallengeRequested).toHaveBeenCalledWith(
       expect.objectContaining({ auditEventId: AUD_REQUEST }),
@@ -965,17 +980,11 @@ describe("consume evidence flow regressions", () => {
   });
 
   it("denies durable consume retry for actor-mismatched clearing user", async () => {
-    const consumedEvidence = {
-      ...clearedEvidence(),
-      consumedAt: "2026-07-03T00:10:00.000Z",
-      consumeAuditEventId: AUD_CONSUME,
-    };
-    const durableOperation = operationWithEvidence(consumedEvidence, "running");
-    getOperation.mockResolvedValue(durableOperation);
+    getOperation.mockResolvedValue(consumedRunningOperation(clearedEvidence()));
 
     await expect(
       consumeHighAssuranceEvidence(
-        consumeInput({
+        durableConsumeInput({
           clearingUserId: USER_B,
           resumingUserId: USER_B,
         }),
@@ -992,17 +1001,11 @@ describe("consume evidence flow regressions", () => {
   });
 
   it("denies durable consume retry when caller lacks required scopes", async () => {
-    const consumedEvidence = {
-      ...clearedEvidence(),
-      consumedAt: "2026-07-03T00:10:00.000Z",
-      consumeAuditEventId: AUD_CONSUME,
-    };
-    const durableOperation = operationWithEvidence(consumedEvidence, "running");
-    getOperation.mockResolvedValue(durableOperation);
+    getOperation.mockResolvedValue(consumedRunningOperation(clearedEvidence()));
 
     await expect(
       consumeHighAssuranceEvidence(
-        consumeInput({
+        durableConsumeInput({
           requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
           clearingUserAccess: { organizationId: ORG, scopes: [] },
         }),
@@ -1076,6 +1079,46 @@ describe("consume evidence flow regressions", () => {
       expect.objectContaining({
         requestingMachineIdentityId: MACH,
         clearingUserId: USER_A,
+      }),
+    );
+  });
+
+  it("denies second same-actor consume after evidence consumed without matching idempotency", async () => {
+    getOperation.mockResolvedValue(consumedRunningOperation(clearedEvidence()));
+
+    await expect(consumeHighAssuranceEvidence(consumeInput())).rejects.toMatchObject({
+      code: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    });
+
+    expect(transitionOperationConsumeHighAssuranceEvidence).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumeDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PRJ,
+        requestingUserId: USER_A,
+        reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+      }),
+    );
+  });
+
+  it("denies second same-actor consume after evidence consumed with wrong idempotency key", async () => {
+    getOperation.mockResolvedValue(consumedRunningOperation(clearedEvidence()));
+
+    await expect(
+      consumeHighAssuranceEvidence(
+        consumeInput({
+          idempotencyKey: "consume-idem-other",
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+    });
+
+    expect(transitionOperationConsumeHighAssuranceEvidence).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumed).not.toHaveBeenCalled();
+    expect(recordHighAssuranceEvidenceConsumeDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reasonCode: HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
       }),
     );
   });
