@@ -20,7 +20,7 @@ case "${mode}" in
       mkdir -p "$(dirname "${GITLEAKS_REPORT_PATH}")"
       report_args=(--report-format json --report-path "${GITLEAKS_REPORT_PATH}")
     fi
-    gitleaks detect --config "${config}" --source . --no-git --redact --no-banner --verbose "${report_args[@]}"
+    gitleaks detect --config "${config}" --source . --no-git --redact --no-banner --verbose "${report_args[@]+"${report_args[@]}"}"
     bash "${repo_root}/scripts/ci/gitleaks-workflow-config-probe.sh"
     bash "${repo_root}/scripts/ci/gitleaks-setup-doc-probe.sh"
     ;;
@@ -34,7 +34,7 @@ case "${mode}" in
     if [ -n "${GITLEAKS_LOG_OPTS:-}" ]; then
       log_opts_args=(--log-opts "${GITLEAKS_LOG_OPTS}")
     fi
-    gitleaks git --config "${config}" --redact --no-banner --verbose "${log_opts_args[@]}" "${report_args[@]}"
+    gitleaks git --config "${config}" --redact --no-banner --verbose "${log_opts_args[@]+"${log_opts_args[@]}"}" "${report_args[@]+"${report_args[@]}"}"
     ;;
   *)
     echo "usage: $0 [detect|git]" >&2
