@@ -24,7 +24,7 @@ What is delivered:
   reached over the private `RUNTIME` Service Binding.
 - `apps/web` is the Web BFF (`insecur-web`): TanStack Start on Workers with a private
   `API` Service Binding hop and a `/whoami` authenticated proof route (INS-201).
-- The repo has 23 workspace projects and builds on Node 24 and pnpm 10.
+- The repo has 26 workspace projects (22 packages + 4 apps) on Node 24 and pnpm 10.
 - The local verification floor passes.
 - The local DB-backed RLS, e2e, and no-plaintext canary layers pass after a fresh
   local Postgres reset.

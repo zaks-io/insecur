@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "topo": "node -e \"\"",
     "build": "vite build",
     "dev": "WRANGLER_LOG_PATH=.wrangler/logs vite dev --port 8789",
     "deploy": "WRANGLER_LOG_PATH=.wrangler/logs node ../../scripts/deploy-route-preserving-worker.mjs dist/server/wrangler.json -- --outdir dist",

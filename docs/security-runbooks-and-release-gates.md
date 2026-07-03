@@ -143,14 +143,14 @@ is not `passed`. Missing evidence is `missing_evidence` and blocks the gate.
 
 ### Skeleton control IDs
 
-| Control ID                        | Evidence artifact (relative to evidence dir) | Source                                      |
-| --------------------------------- | -------------------------------------------- | ------------------------------------------- |
-| `supply_chain.verify`             | `verify.json`                                | `pnpm verify` CI job or local verify run    |
-| `supply_chain.dependency_scan`    | `supply-chain/dependency-scan.json`          | Dependency scan job / lockfile gate         |
-| `supply_chain.secret_scan`        | `supply-chain/secret-scan.json`              | gitleaks summary (counts and rule IDs only) |
-| `supply_chain.sbom_vulnerability` | `supply-chain/sbom-vulnerability.json`       | syft + grype summary                        |
-| `auth.asvs_checklist`             | `security/asvs-checklist.json`               | OWASP ASVS checklist status                 |
-| `auth.api_top10_checklist`        | `security/api-top10-checklist.json`          | OWASP API Security Top 10 checklist status  |
+| Control ID                        | Evidence artifact (relative to evidence dir) | Source                                             |
+| --------------------------------- | -------------------------------------------- | -------------------------------------------------- |
+| `supply_chain.verify`             | `verify.json`                                | `pnpm verify` CI job or local verify run           |
+| `supply_chain.dependency_scan`    | `supply-chain/dependency-scan.json`          | syft + grype job (SBOM-driven dependency CVE scan) |
+| `supply_chain.secret_scan`        | `supply-chain/secret-scan.json`              | gitleaks summary (counts and rule IDs only)        |
+| `supply_chain.sbom_vulnerability` | `supply-chain/sbom-vulnerability.json`       | syft + grype summary                               |
+| `auth.asvs_checklist`             | `security/asvs-checklist.json`               | OWASP ASVS checklist status                        |
+| `auth.api_top10_checklist`        | `security/api-top10-checklist.json`          | OWASP API Security Top 10 checklist status         |
 
 Evidence files are JSON metadata only. Secret-scan artifacts must record
 `finding_count` and optional `rule_ids`; they must not include Sensitive Values,

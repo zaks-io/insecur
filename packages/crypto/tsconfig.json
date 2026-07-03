@@ -5,9 +5,7 @@
     "rootDir": ".",
     "declaration": true,
     "declarationMap": true,
-    "noEmit": true,
-    "lib": ["ES2022", "DOM"],
-    "types": ["@types/node"]
+    "noEmit": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

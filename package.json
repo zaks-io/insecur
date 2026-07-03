@@ -83,6 +83,8 @@
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
+    "@cloudflare/workers-types": "catalog:",
+    "@types/node": "catalog:",
     "wrangler": "catalog:",
     "yaml": "catalog:"
   },

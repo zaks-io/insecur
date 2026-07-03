@@ -328,26 +328,3 @@ jobs:
       - name: Docs-only short-circuit
         if: needs.changes.outputs.product_code != 'true'
         run: echo "No product-code change; skipping SBOM vulnerability scan."
-
-  dependency-scan:
-    name: Dependency scan (placeholder)
-    needs: changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 5
-    steps:
-      - name: Dependency scan gate
-        if: needs.changes.outputs.product_code == 'true'
-        env:
-          DEPENDENCY_SCAN_ENABLED: ${{ vars.DEPENDENCY_SCAN_ENABLED }}
-        run: |
-          set -euo pipefail
-          if [ "${DEPENDENCY_SCAN_ENABLED:-}" != "true" ]; then
-            echo "::notice::dependency-scan skipped: set repository variable DEPENDENCY_SCAN_ENABLED=true and configure scanner credentials before enabling."
-            exit 0
-          fi
-          echo "::error::DEPENDENCY_SCAN_ENABLED is true but no dependency scanner is wired yet."
-          exit 1
-
-      - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true'
-        run: echo "No product-code change; skipping dependency scan placeholder."

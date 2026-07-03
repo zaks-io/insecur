@@ -5,7 +5,8 @@
     "rootDir": "src",
     "declaration": true,
     "declarationMap": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["node", "@cloudflare/workers-types"]
   },
   "include": ["src/**/*.ts"]
 }

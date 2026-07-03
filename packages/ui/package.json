@@ -16,7 +16,6 @@
     "./styles.css": "./src/styles/globals.css"
   },
   "scripts": {
-    "topo": "node -e \"\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

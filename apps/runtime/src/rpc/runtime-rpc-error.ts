@@ -1,4 +1,8 @@
-import { AUTH_ERROR_CODES, VALIDATION_ERROR_CODES, type KnownErrorCode } from "@insecur/domain";
+import {
+  VALIDATION_ERROR_CODES,
+  resolveKnownErrorCode,
+  type KnownErrorCode,
+} from "@insecur/domain";
 import { InjectionGrantError } from "@insecur/runtime-injection";
 import { SecretWriteError } from "@insecur/secret-store";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
@@ -78,26 +82,13 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
       retryable: false,
     };
   }
-  const structuredCode = readStructuredErrorCode(error);
-  const code = structuredCode ?? AUTH_ERROR_CODES.invalid;
+  // resolveKnownErrorCode preserves a structural `{ code }` (e.g. the insufficient-scope denial
+  // authorizeScopeOrThrow throws) and otherwise falls back to the shared cross-seam default, so an
+  // unknown error resolves to the same code here and at the public edge.
+  const code = resolveKnownErrorCode(error);
   return {
     code,
     message: runtimeRpcMessage(error, code),
     retryable: false,
   };
-}
-
-/**
- * Read a `{ code }` own-property off a non-class error - the shape `authorizeScopeOrThrow` throws
- * for an insufficient-scope denial. Preserving the code keeps the authorization verdict honest
- * across the seam instead of collapsing it to a generic auth failure.
- */
-function readStructuredErrorCode(error: unknown): KnownErrorCode | undefined {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const { code } = error;
-    if (typeof code === "string") {
-      return code;
-    }
-  }
-  return undefined;
 }

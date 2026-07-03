@@ -100,6 +100,9 @@ importers:
 
   .:
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 'catalog:'
+        version: 4.20260626.1
       '@cyclonedx/cyclonedx-esbuild':
         specifier: 'catalog:'
         version: 1.4.0(esbuild@0.28.1)(xmlbuilder2@4.0.3)
@@ -112,6 +115,9 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
         version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.12.4))(vitest@4.1.7)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.7(vitest@4.1.7)

@@ -14,7 +14,7 @@ reading map before loading slices of the root `../CONTEXT.md`.
 - `@insecur/domain` - shared domain primitives and stable vocabulary shapes
 - `@insecur/token-signing` - shared HS256/HMAC signed-token codec
 - `@insecur/auth` - WorkOS session composition, User actor context, and CLI exchange contract
-- `@insecur/machine-auth` - Machine Identity auth method exchange and OIDC trust matching
+- `@insecur/machine-auth` - Machine Identity auth method exchange and OIDC trust matching (staged M4 package; complete and tested, but no API exchange route consumes it yet)
 - `@insecur/access` - Effective Access Resolver and scope-first authorization
 - `@insecur/tenant-store` - Tenant-Scoped Store and RLS adapter contract
 - `@insecur/custody-contracts` - plaintext-free custody metadata and wrapped material contracts

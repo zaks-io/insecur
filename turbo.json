@@ -22,32 +22,21 @@
     "signature": true
   },
   "tasks": {
-    "topo": {
-      "dependsOn": ["^topo"]
-    },
     "build": {
       "dependsOn": ["^build"],
       "env": ["CLOUDFLARE_ENV"],
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "dependsOn": ["topo", "^build"],
       "outputs": []
     },
     "lint": {
-      "dependsOn": ["topo", "^build"],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["topo", "^build"],
-      "outputs": []
-    },
-    "@insecur/crypto#test": {
-      "dependsOn": ["topo", "^build", "@insecur/runtime-injection#build"],
       "outputs": []
     },
     "test:rls": {
-      "dependsOn": ["topo", "^build", "build"],
       "cache": false,
       "env": [
         "DATABASE_URL",
@@ -58,12 +47,10 @@
       ]
     },
     "test:integration": {
-      "dependsOn": ["topo", "^build"],
       "cache": false,
       "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION", "DATABASE_URL_RUNTIME"]
     },
     "test:e2e": {
-      "dependsOn": ["topo", "^build"],
       "cache": false,
       "env": [
         "DATABASE_URL",
@@ -74,7 +61,6 @@
       ]
     },
     "test:canary": {
-      "dependsOn": ["topo", "^build"],
       "cache": false,
       "env": [
         "DATABASE_URL",

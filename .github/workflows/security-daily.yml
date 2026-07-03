@@ -143,23 +143,6 @@ jobs:
         if: steps.gitleaks.outcome == 'failure'
         run: exit 1
 
-  dependency-scan:
-    name: Dependency scan (placeholder)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 5
-    steps:
-      - name: Dependency scan gate
-        env:
-          DEPENDENCY_SCAN_ENABLED: ${{ vars.DEPENDENCY_SCAN_ENABLED }}
-        run: |
-          set -euo pipefail
-          if [ "${DEPENDENCY_SCAN_ENABLED:-}" != "true" ]; then
-            echo "::notice::dependency-scan skipped: set repository variable DEPENDENCY_SCAN_ENABLED=true and configure scanner credentials before enabling."
-            exit 0
-          fi
-          echo "::error::DEPENDENCY_SCAN_ENABLED is true but no dependency scanner is wired yet."
-          exit 1
-
   report-criticals:
     name: Report critical findings
     runs-on: blacksmith-4vcpu-ubuntu-2404

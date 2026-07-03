@@ -1,6 +1,7 @@
 import {
   AUTH_ERROR_CODES,
   CRYPTO_ERROR_CODES,
+  DEFAULT_UNKNOWN_ERROR_CODE,
   INJECTION_ERROR_CODES,
   VALIDATION_ERROR_CODES,
 } from "@insecur/domain";
@@ -71,10 +72,10 @@ describe("toRuntimeRpcError", () => {
     expect(mapped.retryable).toBe(false);
   });
 
-  it("collapses an unknown error to a non-retryable auth failure with a fixed message", () => {
+  it("collapses an unknown error to the shared cross-seam fallback code with a fixed message", () => {
     const mapped = toRuntimeRpcError(new Error(SENTINEL));
     expect(mapped).toEqual({
-      code: AUTH_ERROR_CODES.invalid,
+      code: DEFAULT_UNKNOWN_ERROR_CODE,
       message: RUNTIME_RPC_GENERIC_MESSAGE,
       retryable: false,
     });

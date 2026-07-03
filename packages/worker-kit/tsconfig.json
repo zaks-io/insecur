@@ -6,7 +6,7 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": false,
-    "types": ["@cloudflare/workers-types"]
+    "types": ["node", "@cloudflare/workers-types"]
   },
   "include": ["src/**/*.ts"]
 }
