@@ -21,7 +21,7 @@ jobs:
   verify-source-ci:
     name: Verify source CI
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 5
+    timeout-minutes: 35
     permissions:
       actions: read
       contents: read
@@ -45,20 +45,47 @@ jobs:
         run: |
           set -euo pipefail
 
-          ci_run="$(
-            gh run list \
-              --repo "$REPO" \
-              --workflow CI \
-              --commit "$SOURCE_SHA" \
-              --status success \
-              --json databaseId \
-              --jq '.[0].databaseId // empty'
-          )"
-          if [ -z "$ci_run" ]; then
-            echo "::error::Manual CLI release requires a successful CI run for $SOURCE_SHA."
-            exit 1
-          fi
-          echo "Found successful CI run $ci_run for $SOURCE_SHA."
+          deadline=$((SECONDS + 1800))
+
+          while true; do
+            ci_run="$(
+              gh run list \
+                --repo "$REPO" \
+                --workflow CI \
+                --commit "$SOURCE_SHA" \
+                --limit 1 \
+                --json databaseId,status,conclusion,url \
+                --jq '.[0] // empty'
+            )"
+
+            if [ -z "$ci_run" ]; then
+              echo "Waiting for CI run to appear for $SOURCE_SHA."
+            else
+              ci_run_id="$(jq -r '.databaseId' <<< "$ci_run")"
+              ci_run_status="$(jq -r '.status' <<< "$ci_run")"
+              ci_run_conclusion="$(jq -r '.conclusion // ""' <<< "$ci_run")"
+              ci_run_url="$(jq -r '.url' <<< "$ci_run")"
+
+              if [ "$ci_run_status" = "completed" ] && [ "$ci_run_conclusion" = "success" ]; then
+                echo "Found successful CI run $ci_run_id for $SOURCE_SHA: $ci_run_url"
+                exit 0
+              fi
+
+              if [ "$ci_run_status" = "completed" ]; then
+                echo "::error::Manual CLI release requires successful CI for $SOURCE_SHA; latest CI run $ci_run_id completed with $ci_run_conclusion: $ci_run_url"
+                exit 1
+              fi
+
+              echo "Waiting for CI run $ci_run_id for $SOURCE_SHA to complete; current status is $ci_run_status."
+            fi
+
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::Timed out waiting for CI to complete for $SOURCE_SHA."
+              exit 1
+            fi
+
+            sleep 15
+          done
 
   detect-release-change:
     name: Detect CLI release changes
@@ -161,6 +188,10 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -209,7 +240,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build release-safe CLI bundle
+        if: matrix.name == 'linux-x64'
         run: pnpm conformance:cli-release-boundary
+
+      - name: Build CLI bundle
+        if: matrix.name != 'linux-x64'
+        run: pnpm --filter @insecur/cli build
 
       - name: Compile binary
         working-directory: packages/cli
@@ -276,8 +312,34 @@ jobs:
             throw "expected $env:ASSET version to print $version, got $actual"
           }
 
-      - name: Import Apple Developer certificate
+      - name: Check Apple signing configuration
+        id: apple-signing
         if: matrix.name == 'macos-arm64'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "$APPLE_CERTIFICATE" ] &&
+            [ -n "$APPLE_CERTIFICATE_PASSWORD" ] &&
+            [ -n "$KEYCHAIN_PASSWORD" ] &&
+            [ -n "$APPLE_SIGNING_IDENTITY" ] &&
+            [ -n "$APPLE_API_KEY_BASE64" ] &&
+            [ -n "$APPLE_API_ISSUER" ] &&
+            [ -n "$APPLE_API_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping macOS codesign and notarization because Apple signing secrets are not configured."
+          fi
+
+      - name: Import Apple Developer certificate
+        if: matrix.name == 'macos-arm64' && steps.apple-signing.outputs.configured == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -303,7 +365,7 @@ jobs:
           security find-identity -v -p codesigning build.keychain
 
       - name: Codesign and notarize binary
-        if: matrix.name == 'macos-arm64'
+        if: matrix.name == 'macos-arm64' && steps.apple-signing.outputs.configured == 'true'
         working-directory: packages/cli
         env:
           ASSET: ${{ matrix.asset }}
@@ -339,6 +401,7 @@ jobs:
           rm -f "$ASSET.zip"
 
       - name: Attest build provenance
+        if: github.event.repository.private == false
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: packages/cli/${{ matrix.asset }}
@@ -408,6 +471,7 @@ jobs:
         run: tar -czf dist-binaries/repo-security-attestation.tgz -C artifacts/security .
 
       - name: Export provenance sidecars
+        if: github.event.repository.private == false
         working-directory: dist-binaries
         shell: bash
         env:
@@ -498,16 +562,23 @@ jobs:
             "dist-binaries/insecur-linux-arm64"
             "dist-binaries/insecur-darwin-arm64"
             "dist-binaries/insecur-windows-x64.exe"
-            "dist-binaries/insecur-linux-x64.intoto.jsonl"
-            "dist-binaries/insecur-linux-arm64.intoto.jsonl"
-            "dist-binaries/insecur-darwin-arm64.intoto.jsonl"
-            "dist-binaries/insecur-windows-x64.exe.intoto.jsonl"
             "dist-binaries/insecur-cli.sbom.cdx.json"
             "dist-binaries/insecur-cli.grype.json"
             "dist-binaries/scan-metadata.json"
             "dist-binaries/repo-security-attestation.tgz"
             "dist-binaries/SHA256SUMS"
           )
+          provenance_assets=(
+            "dist-binaries/insecur-linux-x64.intoto.jsonl"
+            "dist-binaries/insecur-linux-arm64.intoto.jsonl"
+            "dist-binaries/insecur-darwin-arm64.intoto.jsonl"
+            "dist-binaries/insecur-windows-x64.exe.intoto.jsonl"
+          )
+          for provenance_asset in "${provenance_assets[@]}"; do
+            if [ -s "$provenance_asset" ]; then
+              release_assets+=("$provenance_asset")
+            fi
+          done
           for asset in "${release_assets[@]}"; do
             if [ ! -s "$asset" ]; then
               echo "::error::Expected release asset is missing or empty: $asset"
@@ -541,7 +612,7 @@ jobs:
             fi
             printf '\n'
             # shellcheck disable=SC2016
-            printf 'Standalone CLI binaries built with `bun build --compile`. macOS binary is codesigned and notarized. Each binary carries a GitHub build-provenance attestation (verify: `gh attestation verify <binary> --repo %s`) and an attached SLSA provenance sidecar (`*.intoto.jsonl`). A CycloneDX SBOM of the bundled CLI (`insecur-cli.sbom.cdx.json`), blocking grype scan report (`insecur-cli.grype.json`), scanner database metadata (`scan-metadata.json`), and repo security attestation bundle (`repo-security-attestation.tgz`) are attached. Draft release: review and publish manually. Verify downloads against `SHA256SUMS`.\n' "$REPO"
+            printf 'Standalone CLI binaries built with `bun build --compile`. macOS codesign and notarization run when Apple signing secrets are configured. GitHub build-provenance attestations and SLSA provenance sidecars (`*.intoto.jsonl`) are attached when repository visibility and organization billing support GitHub artifact attestations. A CycloneDX SBOM of the bundled CLI (`insecur-cli.sbom.cdx.json`), blocking grype scan report (`insecur-cli.grype.json`), scanner database metadata (`scan-metadata.json`), and repo security attestation bundle (`repo-security-attestation.tgz`) are attached. Draft release: review and publish manually. Verify downloads against `SHA256SUMS`.\n'
           } > dist-binaries/RELEASE_NOTES.md
 
           if gh release view "$TAG" >/dev/null 2>&1; then
