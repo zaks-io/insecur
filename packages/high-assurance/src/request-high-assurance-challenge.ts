@@ -75,22 +75,70 @@ function isRequestAlreadyDurable(operation: OperationPollResult): boolean {
   return operation.state === "waiting_for_human" && evidence?.requestAuditEventId !== undefined;
 }
 
-async function recordBoundRequestSuccessAudit(
+function assertRequestRetryMatchesBoundEvidence(
   input: RequestHighAssuranceChallengeInput,
+  evidence: OperationHighAssuranceChallengeEvidence,
+): void {
+  if (input.projectId !== evidence.projectId) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      "caller project does not match bound challenge evidence",
+    );
+  }
+
+  if (input.riskReasonCode !== evidence.riskReasonCode) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      "caller risk reason does not match bound challenge evidence",
+    );
+  }
+
+  if (input.environmentId !== evidence.environmentId) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      "caller environment does not match bound challenge evidence",
+    );
+  }
+
+  if (
+    evidence.requestingUserId !== undefined &&
+    input.requestingUserId !== evidence.requestingUserId
+  ) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
+      "caller requesting user does not match bound challenge evidence",
+    );
+  }
+
+  if (
+    evidence.requestingMachineIdentityId !== undefined &&
+    input.requestingMachineIdentityId !== evidence.requestingMachineIdentityId
+  ) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
+      "caller requesting machine identity does not match bound challenge evidence",
+    );
+  }
+}
+
+async function recordBoundRequestSuccessAudit(
+  input: Pick<RequestHighAssuranceChallengeInput, "organizationId" | "operationId" | "request">,
   evidence: OperationHighAssuranceChallengeEvidence,
   requestAuditEventId: AuditEventId,
 ): Promise<void> {
   await recordHighAssuranceChallengeRequested({
     organizationId: input.organizationId,
-    projectId: input.projectId,
+    projectId: evidence.projectId,
     operationId: input.operationId,
     challengeId: evidence.challengeId,
-    riskReasonCode: input.riskReasonCode,
+    riskReasonCode: evidence.riskReasonCode,
     auditEventId: requestAuditEventId,
-    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
-    ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
-    ...(input.requestingMachineIdentityId !== undefined
-      ? { requestingMachineIdentityId: input.requestingMachineIdentityId }
+    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
+    ...(evidence.requestingUserId !== undefined
+      ? { requestingUserId: evidence.requestingUserId }
+      : {}),
+    ...(evidence.requestingMachineIdentityId !== undefined
+      ? { requestingMachineIdentityId: evidence.requestingMachineIdentityId }
       : {}),
     ...optionalAuditRequest(input.request),
   });
@@ -140,6 +188,8 @@ async function completeDurableRequest(
       "high-assurance challenge evidence is missing request audit linkage",
     );
   }
+
+  assertRequestRetryMatchesBoundEvidence(input, evidence);
 
   await recordBoundRequestSuccessAudit(input, evidence, evidence.requestAuditEventId);
 

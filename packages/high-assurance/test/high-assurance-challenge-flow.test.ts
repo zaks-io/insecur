@@ -434,6 +434,83 @@ describe("request challenge flow regressions", () => {
       expect.objectContaining({ auditEventId: AUD_REQUEST }),
     );
   });
+
+  it("derives durable request retry audit scope and actor from bound evidence", async () => {
+    const machineEvidence = {
+      ...baseEvidence(),
+      requestingUserId: undefined,
+      requestingMachineIdentityId: MACH,
+    };
+    getOperation.mockResolvedValue(operationWithEvidence(machineEvidence, "waiting_for_human"));
+
+    await requestHighAssuranceChallenge({
+      organizationId: ORG,
+      projectId: PRJ,
+      operationId: OP,
+      riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+      requestingMachineIdentityId: MACH,
+    });
+
+    expect(transitionOperation).not.toHaveBeenCalled();
+    expect(recordHighAssuranceChallengeRequested).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PRJ,
+        riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+        requestingMachineIdentityId: MACH,
+        auditEventId: AUD_REQUEST,
+      }),
+    );
+    expect(recordHighAssuranceChallengeRequested).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        requestingUserId: expect.anything(),
+      }),
+    );
+  });
+
+  it("rejects durable request retry when caller input mismatches bound evidence", async () => {
+    const machineEvidence = {
+      ...baseEvidence(),
+      requestingUserId: undefined,
+      requestingMachineIdentityId: MACH,
+    };
+    getOperation.mockResolvedValue(operationWithEvidence(machineEvidence, "waiting_for_human"));
+
+    await expect(
+      requestHighAssuranceChallenge({
+        organizationId: ORG,
+        projectId: PRJ_OTHER,
+        operationId: OP,
+        riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+        requestingMachineIdentityId: MACH,
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch });
+
+    expect(recordHighAssuranceChallengeRequested).not.toHaveBeenCalled();
+
+    await expect(
+      requestHighAssuranceChallenge({
+        organizationId: ORG,
+        projectId: PRJ,
+        operationId: OP,
+        riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.protectedPromotion,
+        requestingMachineIdentityId: MACH,
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch });
+
+    expect(recordHighAssuranceChallengeRequested).not.toHaveBeenCalled();
+
+    await expect(
+      requestHighAssuranceChallenge({
+        organizationId: ORG,
+        projectId: PRJ,
+        operationId: OP,
+        riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.agentStepUp,
+        requestingMachineIdentityId: machineIdentityId.brand("mach_00000000000000000000000002"),
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.actorMismatch });
+
+    expect(recordHighAssuranceChallengeRequested).not.toHaveBeenCalled();
+  });
 });
 
 describe("clear challenge flow regressions", () => {
