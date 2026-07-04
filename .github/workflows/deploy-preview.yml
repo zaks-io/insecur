@@ -203,6 +203,6 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           LINEAR_PREVIEW_SMOKE_LABELS: ${{ vars.LINEAR_PREVIEW_SMOKE_LABELS }}
           LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED: ${{ vars.LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED }}
-          LINEAR_TEAM_KEY: INS
+          LINEAR_TEAM_KEY: Insecur
           PREVIEW_SMOKE_EVIDENCE_PATH: preview-smoke-evidence/evidence.json
         run: node scripts/ci/preview-smoke-linear-reporting.mjs

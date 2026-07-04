@@ -197,6 +197,6 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           LINEAR_SECURITY_REPORTING_ENABLED: ${{ vars.LINEAR_SECURITY_REPORTING_ENABLED }}
           LINEAR_SECURITY_REPORTING_LABELS: zaks-io/insecur,risk-security-sensitive,Bug
-          LINEAR_TEAM_KEY: INS
+          LINEAR_TEAM_KEY: Insecur
           SECURITY_DAILY_REPORT_DIR: security-daily-findings
         run: node scripts/ci/security-daily-linear-reporting.mjs report
