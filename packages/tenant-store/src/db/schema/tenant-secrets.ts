@@ -31,6 +31,7 @@ export const secrets = pgTable(
     environmentId: text("environment_id").notNull(),
     variableKey: text("variable_key").notNull(),
     currentVersionId: text("current_version_id"),
+    liveVersionNumber: integer("live_version_number").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -53,9 +54,12 @@ export const secretVersions = pgTable(
     organizationDataKeyVersion: integer("organization_data_key_version"),
     projectDataKeyVersion: integer("project_data_key_version"),
     ciphertextStorageRef: text("ciphertext_storage_ref").notNull(),
+    lifecycleState: text("lifecycle_state").notNull().default("draft"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    sql`CHECK (${table.lifecycleState} IN ('draft', 'live', 'retained', 'discarded'))`,
     unique("secret_versions_secret_id_version_number_key").on(table.secretId, table.versionNumber),
     unique("secret_versions_org_id_secret_id_id_key").on(table.orgId, table.secretId, table.id),
     foreignKey({

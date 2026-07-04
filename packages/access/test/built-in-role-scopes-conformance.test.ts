@@ -35,6 +35,7 @@ const RESOURCE_PREFIX_CATEGORIES = {
 const EXPLICIT_SCOPE_CATEGORIES = {
   [AUTHORIZATION_SCOPES.onboardingGuidedProvision]: "mutation",
   [AUTHORIZATION_SCOPES.secretNonProtectedWrite]: "mutation",
+  [AUTHORIZATION_SCOPES.secretProtectedDraftWrite]: "mutation",
   [AUTHORIZATION_SCOPES.organizationRead]: "read",
   [AUTHORIZATION_SCOPES.projectRead]: "read",
   [AUTHORIZATION_SCOPES.environmentRead]: "read",

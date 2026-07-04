@@ -4,6 +4,7 @@
  */
 import { PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP } from "./plaintext-metadata-allowlist-instance-bootstrap.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION } from "./plaintext-metadata-allowlist-runtime-injection.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_SECRETS } from "./plaintext-metadata-allowlist-secrets.js";
 
 export const PLAINTEXT_METADATA_CATEGORIES = [
   "opaque-id",
@@ -210,25 +211,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     organization_data_key_version: { category: "key-version" },
     provider: { category: "type-code" },
   },
-  secret_versions: {
-    ciphertext_storage_ref: { category: "ciphertext-ref" },
-    created_at: { category: "timestamp" },
-    id: { category: "opaque-id" },
-    org_id: { category: "opaque-id" },
-    organization_data_key_version: { category: "key-version" },
-    project_data_key_version: { category: "key-version" },
-    secret_id: { category: "opaque-id" },
-    version_number: { category: "count" },
-  },
-  secrets: {
-    created_at: { category: "timestamp" },
-    current_version_id: { category: "opaque-id" },
-    environment_id: { category: "opaque-id" },
-    id: { category: "opaque-id" },
-    org_id: { category: "opaque-id" },
-    project_id: { category: "opaque-id" },
-    variable_key: { category: "type-code" },
-  },
+  ...PLAINTEXT_METADATA_ALLOWLIST_SECRETS,
   ...PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION,
   sensitive_metadata_fields: {
     ciphertext_storage_ref: { category: "ciphertext-ref" },

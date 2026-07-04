@@ -48,6 +48,11 @@ export {
   SecretVersionStoreNotFoundError,
 } from "./secrets/errors.js";
 export { TenantSecretVersionStore } from "./secrets/tenant-secret-version-store.js";
+export {
+  SECRET_VERSION_LIFECYCLE_STATES,
+  parseSecretVersionLifecycleState,
+  type SecretVersionLifecycleState,
+} from "./secrets/lifecycle-states.js";
 export { resolveSecretForRead } from "./secrets/resolve-secret-for-read.js";
 export type {
   ResolveSecretForReadInput,
@@ -75,6 +80,14 @@ export type {
 export type {
   AppendSecretVersionAndMakeLiveInput,
   AppendSecretVersionAndMakeLiveResult,
+  AppendSecretVersionAsDraftInput,
+  AppendSecretVersionAsDraftResult,
+  AppendSecretVersionResult,
+  DraftVersionMetadataRow,
+  ListDraftVersionsInput,
+  PublishSecretVersionTarget,
+  PublishSecretVersionsInput,
+  PublishSecretVersionsResult,
   ResolveSecretForWriteInput,
   SecretVersionStoreRow,
   StoredWrappedSecretMaterial,

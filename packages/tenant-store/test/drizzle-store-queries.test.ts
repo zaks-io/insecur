@@ -192,6 +192,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
             orgId: ORG,
             secretId: secretIdValue,
             versionNumber: 1,
+            lifecycleState: "live",
             organizationDataKeyVersion: null,
             projectDataKeyVersion: null,
             ciphertextStorageRef: encodeInlineCiphertextStorageRef(new Uint8Array([1])),
@@ -215,6 +216,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
             orgId: ORG,
             secretId: secretIdValue,
             versionNumber: 2,
+            lifecycleState: "live",
             organizationDataKeyVersion: 1,
             projectDataKeyVersion: 1,
             ciphertextStorageRef: storageRef,
@@ -230,7 +232,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
 
   it("appendVersionAndMakeLive allocates the next version under row lock", async () => {
     const { db, insertValues } = createMockTenantDb({
-      selectResults: [[{ id: secretIdValue }], [{ maxVersion: 2 }]],
+      selectResults: [[{ id: secretIdValue }], [{ maxVersion: 2 }], [{ currentVersionId: null }]],
       updateReturning: [[{ id: secretIdValue }]],
     });
     const store = new TenantSecretVersionStore(db);
@@ -246,6 +248,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
       },
     });
     expect(result.versionNumber).toBe(3);
+    expect(result.lifecycleState).toBe("live");
     expect(insertValues[0]?.versionNumber).toBe(3);
   });
 
@@ -278,6 +281,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
             orgId: ORG,
             secretId: secretIdValue,
             versionNumber: 1,
+            lifecycleState: "live",
             organizationDataKeyVersion: 1,
             projectDataKeyVersion: 1,
             ciphertextStorageRef: storageRef,
@@ -288,6 +292,53 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
     const store = new TenantSecretVersionStore(db);
     const current = await store.getCurrentVersion(secretIdValue);
     expect(current?.secretVersionId).toBe(versionIdValue);
+  });
+
+  it("returns deliverable versions for live and retained lifecycle states", async () => {
+    const storageRef = encodeInlineCiphertextStorageRef(new Uint8Array([7, 8]));
+    const { db } = createMockTenantDb({
+      selectResults: [
+        [
+          {
+            id: versionIdValue,
+            orgId: ORG,
+            secretId: secretIdValue,
+            versionNumber: 1,
+            lifecycleState: "retained",
+            organizationDataKeyVersion: 1,
+            projectDataKeyVersion: 1,
+            ciphertextStorageRef: storageRef,
+          },
+        ],
+      ],
+    });
+    const store = new TenantSecretVersionStore(db);
+    const retained = await store.getDeliverableVersion(secretIdValue, versionIdValue);
+    expect(retained?.lifecycleState).toBe("retained");
+  });
+
+  it("rejects draft versions as not deliverable", async () => {
+    const storageRef = encodeInlineCiphertextStorageRef(new Uint8Array([7, 8]));
+    const { db } = createMockTenantDb({
+      selectResults: [
+        [
+          {
+            id: versionIdValue,
+            orgId: ORG,
+            secretId: secretIdValue,
+            versionNumber: 2,
+            lifecycleState: "draft",
+            organizationDataKeyVersion: 1,
+            projectDataKeyVersion: 1,
+            ciphertextStorageRef: storageRef,
+          },
+        ],
+      ],
+    });
+    const store = new TenantSecretVersionStore(db);
+    await expect(store.getDeliverableVersion(secretIdValue, versionIdValue)).rejects.toBeInstanceOf(
+      SecretVersionStoreConflictError,
+    );
   });
 });
 

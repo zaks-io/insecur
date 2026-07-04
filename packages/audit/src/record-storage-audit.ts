@@ -10,6 +10,7 @@ import {
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "./audit-event-codes.js";
 import { actionAuditScopeFields, recordActionAudit } from "./record-action-audit.js";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "./audit-types.js";
+import type { AuditEventCode } from "./audit-event-codes.js";
 import type { AuditEventResult } from "./write-audit-event.js";
 
 export interface RecordStorageAuditInput {
@@ -23,14 +24,20 @@ export interface RecordStorageAuditInput {
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
   reasonCode?: KnownErrorCode;
+  eventCode?: AuditEventCode;
 }
 
 /**
- * Records metadata-only secret storage write audit events (non-protected path).
+ * Records metadata-only secret storage write audit events.
  */
 export async function recordStorageAudit(
   input: RecordStorageAuditInput,
 ): Promise<AuditEventResult> {
+  const defaultEventCode =
+    input.outcome === "success"
+      ? FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite
+      : FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied;
+
   return recordActionAudit({
     ...actionAuditScopeFields({
       actor: input.actor,
@@ -57,10 +64,7 @@ export async function recordStorageAudit(
         : {}),
     }),
     outcome: input.outcome,
-    eventCode:
-      input.outcome === "success"
-        ? FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite
-        : FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
+    eventCode: input.eventCode ?? defaultEventCode,
     ...(input.reasonCode !== undefined ? { reasonCode: input.reasonCode } : {}),
   });
 }
