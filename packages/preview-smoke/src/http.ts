@@ -57,8 +57,12 @@ async function requestJson(
   return parseJson(text, label);
 }
 
-export async function readJsonResponse(response: Response, label: string): Promise<JsonRecord> {
-  return parseJson(await response.text(), label);
+export async function readJsonResponse(
+  response: Response,
+  label: string,
+  bodyText?: string,
+): Promise<JsonRecord> {
+  return parseJson(bodyText ?? (await response.text()), label);
 }
 
 export function assertIdentity(body: JsonRecord, service: string, expectedSha: string): void {

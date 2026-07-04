@@ -126,7 +126,7 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     if (response.ok) {
       throw new Error("Grant replay unexpectedly succeeded.");
     }
-    const body = await readJsonResponse(response, "Grant replay");
+    const body = await readJsonResponse(response, "Grant replay", text);
     if (body.ok !== false || typeof asRecord(body.error, "grant replay error").code !== "string") {
       throw new Error(`Grant replay did not return a failed error envelope: ${redactor(text)}`);
     }
