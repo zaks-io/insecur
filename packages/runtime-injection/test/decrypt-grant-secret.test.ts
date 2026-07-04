@@ -93,13 +93,29 @@ describe("decryptBoundGrantSecretVersion", () => {
   it("decrypts the bound secret version through the runtime keyring seam", async () => {
     const wrapped = { ciphertext: "cipher", metadata: {} };
     const plaintext = new PlaintextHandle(new TextEncoder().encode("decrypted"));
+    let insideTenantScope = false;
+    let decryptStartedInsideTenantScope = false;
+    withTenantScope.mockImplementationOnce(
+      async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) => {
+        insideTenantScope = true;
+        try {
+          return await fn({ db: {} });
+        } finally {
+          insideTenantScope = false;
+        }
+      },
+    );
     getDeliverableVersion.mockResolvedValue({ wrapped });
-    decryptSecretValueForRuntime.mockResolvedValue(plaintext);
+    decryptSecretValueForRuntime.mockImplementation(async () => {
+      decryptStartedInsideTenantScope = insideTenantScope;
+      return plaintext;
+    });
 
     const result = await decryptBoundGrantSecretVersion(baseInput);
 
     expect(withTenantScope).toHaveBeenCalledWith(ORG_TENANT_SCOPE, expect.any(Function));
     expect(getDeliverableVersion).toHaveBeenCalledWith(SECRET, SECRET_VERSION);
+    expect(decryptStartedInsideTenantScope).toBe(false);
     expect(decryptSecretValueForRuntime).toHaveBeenCalledWith(
       baseInput.keyring,
       {

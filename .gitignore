@@ -11,6 +11,7 @@ dist/
 coverage/
 artifacts/
 reports/mutation/
+preview-smoke-artifacts/
 .stryker-tmp/
 stryker.log
 .turbo/

@@ -1,10 +1,13 @@
 import {
+  type AdmittedUserResolver,
   authenticateWorkOSSession,
   authFailureForAdmissionDenial,
   authFailureForReason,
   INSECUR_CSRF_HEADER,
   parseRequestCredentials,
   type ResolveUserActorResult,
+  type UserActor,
+  verifyEphemeralSessionCredential,
   WORKOS_SESSION_COOKIE,
 } from "@insecur/auth";
 import { requestId } from "@insecur/domain";
@@ -24,17 +27,45 @@ export async function resolveBrowserActor(
   env: WebEnv,
 ): Promise<ResolveUserActorResult> {
   const credentials = parseRequestCredentials({
-    authorizationHeader: null,
+    authorizationHeader: request.headers.get("Authorization"),
     cookieHeader: request.headers.get("Cookie"),
     csrfHeader: request.headers.get(INSECUR_CSRF_HEADER) ?? undefined,
   });
-  if (credentials.workosSealedSession === undefined) {
+  const resolveAdmittedUser = createRuntimeAdmittedUserResolver(env);
+  if (credentials.bearerCredential !== undefined && acceptsPreviewSmokeCredentials(env)) {
+    const smokeResult = await resolvePreviewSmokeActor(
+      credentials.bearerCredential,
+      env,
+      resolveAdmittedUser,
+    );
+    if (shouldUseSmokeResult(smokeResult, credentials.workosSealedSession)) {
+      return smokeResult;
+    }
+  }
+  return resolveWorkosCookieActor(credentials.workosSealedSession, env, resolveAdmittedUser);
+}
+
+function shouldUseSmokeResult(
+  smokeResult: ResolveUserActorResult,
+  workosSealedSession: string | undefined,
+): boolean {
+  if (smokeResult.ok || workosSealedSession === undefined) {
+    return true;
+  }
+  return !["expired", "invalid"].includes(smokeResult.failure.reason);
+}
+
+async function resolveWorkosCookieActor(
+  workosSealedSession: string | undefined,
+  env: WebEnv,
+  resolveAdmittedUser: AdmittedUserResolver,
+): Promise<ResolveUserActorResult> {
+  if (workosSealedSession === undefined) {
     return { ok: false, failure: authFailureForReason("missing") };
   }
 
   const workos = createWorkOSSessionPortFromEnv(env);
-  const resolveAdmittedUser = createRuntimeAdmittedUserResolver(env);
-  const session = await authenticateWorkOSSession(workos, credentials.workosSealedSession);
+  const session = await authenticateWorkOSSession(workos, workosSealedSession);
   if (!session.ok) {
     return { ok: false, failure: session.failure };
   }
@@ -55,6 +86,42 @@ export async function resolveBrowserActor(
       sessionId: session.context.sessionId,
     },
   };
+}
+
+function acceptsPreviewSmokeCredentials(env: WebEnv): boolean {
+  return env.PREVIEW_SMOKE_SESSION_CREDENTIALS === "true";
+}
+
+async function resolvePreviewSmokeActor(
+  credential: string,
+  env: WebEnv,
+  resolveAdmittedUser: AdmittedUserResolver,
+): Promise<ResolveUserActorResult> {
+  const verified = await verifyEphemeralSessionCredential(credential, env.SESSION_SIGNING_SECRET);
+  if (!verified.ok) {
+    return {
+      ok: false,
+      failure: authFailureForReason(verified.reason === "expired" ? "expired" : "invalid"),
+    };
+  }
+  return resolveAdmittedActor(verified.actor, env, resolveAdmittedUser);
+}
+
+async function resolveAdmittedActor(
+  actor: UserActor,
+  env: WebEnv,
+  resolveAdmittedUser: AdmittedUserResolver,
+): Promise<ResolveUserActorResult> {
+  const admittedUserId = await resolveAdmittedUser(actor.workosUserId);
+  if (admittedUserId === null) {
+    const failure = authFailureForAdmissionDenial(actor.workosUserId);
+    await recordAdmissionDeniedAuditForAuthFailure(env, failure, requestId.generate());
+    return { ok: false, failure };
+  }
+  if (admittedUserId !== actor.userId) {
+    return { ok: false, failure: authFailureForReason("invalid") };
+  }
+  return { ok: true, actor };
 }
 
 export function hasWorkosSessionCookie(request: Request): boolean {

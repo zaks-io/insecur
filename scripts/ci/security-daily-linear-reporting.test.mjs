@@ -125,6 +125,43 @@ test("Linear fingerprint lookup is scoped to the INS team filter", async (t) => 
   assert.equal(issue.id, "issue-id");
 });
 
+test("Linear team resolution filters team query server-side", async (t) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    assert.deepEqual(body.variables.filter, {
+      or: [{ id: { eq: "Insecur" } }, { key: { eq: "Insecur" } }, { name: { eq: "Insecur" } }],
+    });
+    return jsonResponse({
+      data: {
+        teams: {
+          nodes: [
+            {
+              id: "other-team-id",
+              key: "SPL",
+              name: "Splitch",
+              labels: { nodes: [] },
+            },
+            {
+              id: "insecur-team-id",
+              key: "INS",
+              name: "Insecur",
+              labels: { nodes: [{ id: "bug-label-id", name: "Bug" }] },
+            },
+          ],
+        },
+      },
+    });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const resolved = await new LinearClient("test-api-key").resolveTeamAndLabels("Insecur", ["Bug"]);
+
+  assert.deepEqual(resolved, { teamId: "insecur-team-id", labelIds: ["bug-label-id"] });
+});
+
 test("metadata validation rejects raw scanner payload keys", () => {
   assert.throws(
     () => validateMetadataOnly({ scanner: "gitleaks", findings: [{ Secret: "REDACTED" }] }),

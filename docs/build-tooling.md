@@ -538,7 +538,7 @@ The agent-facing one-command loop is documented in [docs/agents/testing.md](agen
 
 1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage across the covered workspace targets, then `scripts/merge-coverage.mjs` merges their `coverage-final.json` files and enforces the repo-wide ratchet thresholds; it excludes integration and RLS suites so it stays DB-less. Each covered workspace has a Turbo `test:coverage` task with `coverage/**` outputs, so repeated pushes can restore unchanged workspace reports from cache while changed packages recompute independently. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
 2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `postgres-integration` job (INS-144/INS-266) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
-3. **Shared preview smoke.** `pnpm deploy:preview` and the `Deploy Preview` workflow deploy the shared preview Worker set (`runtime`, `api`, `web`, and `site`) through Turbo package tasks. Run `scripts/ci/smoke-first-value.mjs` explicitly with `SMOKE_BASE_URL` to exercise the API preview backed by a shared preview Neon branch through Hyperdrive. This is the only layer that can catch a broken deploy, a missing binding, or a bad secret. It is not a per-PR workflow: PRs use Docker Compose Postgres in the `CI` workflow's `postgres-integration` job.
+3. **Shared preview smoke.** `Deploy Preview` preflights the shared preview Worker set (`runtime`, `api`, `web`, and `site`) before any preview mutation, deploys through Turbo package tasks, then runs `pnpm smoke:preview`, which delegates to `@insecur/preview-smoke`. The smoke is a Playwright Test suite that verifies API/Web/Site deploy identities against the current SHA, drives the current happy paths over deployed HTTP routes, and sweeps preview Postgres for the generated sentinel through the migration credential. This is the only layer that can catch a broken deploy, a missing binding, a bad secret, or a route that only fails in the deployed Cloudflare shape. It is not a per-PR workflow: PRs use Docker Compose Postgres in the `CI` workflow's `postgres-integration` job.
 
 Docker Compose Postgres is the substrate for the authoritative integration+RLS gate and uses the
 same major version as the stable Neon target, currently Postgres 17 (ADR-0060), so the integration
@@ -603,17 +603,32 @@ pair rather than allocating resources per PR.
 
 ### Preview deploy: `deploy-preview`
 
-Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. The workflow runs
-`pnpm migrate:preview` first with the Preview GitHub Environment's database credentials, then
-deploys the bounded shared Preview Worker fleet (`insecur-runtime-preview`,
-`insecur-api-preview`, `insecur-web-preview`, and `insecur-site-preview`) through package-level
-`deploy:preview` scripts selected by `turbo run deploy:preview`. The root script excludes non-app
-packages, so a full deploy covers every Worker app while targeted deploys use ordinary Turbo
-filters:
+Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. The workflow first runs
+`pnpm deploy:preview:preflight`, which builds and Wrangler dry-runs Runtime, API, Web, and Site
+with the Preview GitHub Environment variables materialized. Only after that preflight passes does
+it run `pnpm migrate:preview`, seed the smoke actors, deploy the bounded shared Preview Worker
+fleet (`insecur-runtime-preview`, `insecur-api-preview`, `insecur-web-preview`, and
+`insecur-site-preview`) through package-level `deploy:preview` scripts selected by
+`turbo run deploy:preview`, then run `pnpm smoke:preview`. During deployment, the workflow writes
+temporary per-Worker `--secrets-file` inputs so Cloudflare receives encrypted Worker secrets with
+the deployed Worker version: `RUNTIME_TOKEN_SIGNING_SECRET` to Runtime, and
+`RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
+`WORKOS_COOKIE_PASSWORD` to API/Web according to each deploy's binding needs. The root script
+excludes non-app packages, and `turbo.json` passes the temporary secrets-file paths through strict
+env filtering for preview deploy tasks. A full deploy covers every Worker app while targeted
+deploys use ordinary Turbo filters:
 
 ```sh
 pnpm deploy:preview --filter @insecur/web
 ```
+
+Preview and production deploys require `SENTRY_AUTH_TOKEN` in the GitHub Environment. CI sets
+`SENTRY_RELEASE` to the deployed commit SHA, materializes that value into every Worker config, and
+uploads source maps during deploy. Web and Site upload hidden Vite source maps through the official
+Sentry Vite plugin and delete client `.map` files before asset deployment. API and Runtime use
+Wrangler `--upload-source-maps` plus `sentry-cli sourcemaps upload` against the Wrangler output
+directory. Sentry events should therefore show the deployed Git SHA as their release instead of an
+opaque Cloudflare script version.
 
 Preview routes are fixed custom domains:
 
@@ -622,8 +637,16 @@ Preview routes are fixed custom domains:
 - Public Site: `https://preview.insecur.cloud`
 - Runtime: no public route
 
-Preview smoke is a separate explicit step: run `scripts/ci/smoke-first-value.mjs` with
-`SMOKE_BASE_URL` after deploy when the shared Neon preview branch and smoke admission are configured.
+The preview application smoke requires `SMOKE_API_BASE_URL`, `SMOKE_WEB_BASE_URL`,
+`SMOKE_SITE_BASE_URL`, `SMOKE_EXPECTED_DEPLOY_SHA`, `PREVIEW_DATABASE_URL_MIGRATION`,
+`SMOKE_SESSION_SIGNING_SECRET`, and owner/invitee smoke actor IDs. In CI,
+`SMOKE_SESSION_SIGNING_SECRET` is populated from the same `SESSION_SIGNING_SECRET` deployed to API
+and Web. The smoke mints short-lived session credentials during the run; Web preview accepts them
+only through the
+`PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview Worker var, so CI never stores an expiring browser
+session cookie. Playwright writes preview artifacts under `preview-smoke-artifacts/`: an HTML
+report, JSON results, JUnit XML, and failure traces/screenshots/videos when applicable. GitHub
+Actions uploads those artifacts and uses Playwright's GitHub reporter for failure annotations.
 
 ### Staging deploy: `deploy-staging`
 
@@ -658,6 +681,9 @@ separate production site workflow.
    existing production route attachment.
 8. Deploy `insecur-site` with no control-plane binding, also preserving the existing apex and www
    route attachments.
+
+The production deploy uses the same Sentry release/source-map path as Preview and requires
+`SENTRY_AUTH_TOKEN` in the `Production` GitHub Environment.
 
 The identity that executes this deploy is the CI machine token. The operator's personal credentials
 are never the deploy credential (ADR-0029 amendment, ADR-0004). The Cloudflare token must be able

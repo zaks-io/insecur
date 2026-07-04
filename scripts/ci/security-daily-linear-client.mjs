@@ -7,11 +7,11 @@ export class LinearClient {
     this.apiKey = apiKey;
   }
 
-  async resolveTeamAndLabels(teamKey, labelNames) {
-    const data = await this.request(TEAM_AND_LABELS_QUERY, { teamKey });
-    const team = data.teams.nodes[0];
+  async resolveTeamAndLabels(teamQuery, labelNames) {
+    const data = await this.request(TEAM_AND_LABELS_QUERY, { filter: teamFilter(teamQuery) });
+    const team = data.teams.nodes.find((candidate) => matchesTeam(candidate, teamQuery));
     if (!team) {
-      throw new Error(`Linear team not found: ${teamKey}`);
+      throw new Error(`Linear team not found: ${teamQuery}`);
     }
     return { teamId: team.id, labelIds: labelIdsByName(team.labels.nodes, labelNames) };
   }
@@ -61,6 +61,23 @@ function labelIdsByName(labels, names) {
   return ids;
 }
 
+function matchesTeam(team, query) {
+  const normalized = normalizeTeamQuery(query);
+  return [team.id, team.key, team.name].some((value) => normalizeTeamQuery(value) === normalized);
+}
+
+function normalizeTeamQuery(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function teamFilter(teamQuery) {
+  return {
+    or: [{ id: { eq: teamQuery } }, { key: { eq: teamQuery } }, { name: { eq: teamQuery } }],
+  };
+}
+
 function parseLinearResponse(response, text) {
   const body = parseJsonText(text);
   if (!response.ok) {
@@ -82,10 +99,12 @@ function parseJsonText(text) {
 }
 
 const TEAM_AND_LABELS_QUERY = `
-  query TeamAndLabels($teamKey: String!) {
-    teams(filter: { key: { eq: $teamKey } }, first: 1) {
+  query TeamAndLabels($filter: TeamFilter!) {
+    teams(filter: $filter, first: 10) {
       nodes {
         id
+        key
+        name
         labels {
           nodes {
             id

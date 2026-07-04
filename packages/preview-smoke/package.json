@@ -1,0 +1,23 @@
+{
+  "name": "@insecur/preview-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke:preview": "playwright test -c playwright.preview.config.ts --fail-on-flaky-tests",
+    "lint": "eslint \"playwright.preview.config.ts\" \"src/**/*.ts\" \"tests/**/*.ts\" --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf ../../preview-smoke-artifacts"
+  },
+  "dependencies": {
+    "@insecur/auth": "workspace:*",
+    "@insecur/domain": "workspace:*",
+    "postgres": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

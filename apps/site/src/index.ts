@@ -43,7 +43,13 @@ const handler = {
     void ctx;
 
     if (new URL(request.url).pathname === "/healthz") {
-      return Response.json({ ok: true, service: "insecur-site" });
+      return Response.json({
+        ok: true,
+        service: "insecur-site",
+        deploySha: env.DEPLOY_SHA ?? "unknown",
+        runId: env.DEPLOY_RUN_ID ?? "unknown",
+        deployedAt: env.DEPLOYED_AT ?? "unknown",
+      });
     }
 
     const sentry = sentryBrowserConfig(env);

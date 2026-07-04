@@ -72,16 +72,27 @@ type ValidatedBlindWriteInput = BlindSecretWriteInput & { variableKey: VariableK
 
 export type BlindSecretWriteMode = "non_protected_live" | "protected_draft";
 
+interface ResolvedSecretForWrite {
+  readonly secretId: SecretId;
+  readonly createdSecretShape: boolean;
+}
+
+interface AppendWrappedVersionForWriteInput {
+  readonly validatedInput: ValidatedBlindWriteInput;
+  readonly newVersionId: SecretVersionId;
+  readonly mode: BlindSecretWriteMode;
+  readonly resolved: ResolvedSecretForWrite;
+  readonly wrapped: WrappedSecretValue;
+}
+
 function auditKindForMode(mode: BlindSecretWriteMode): SecretStorageWriteAuditKind {
   return mode === "protected_draft" ? "protected_draft" : "non_protected";
 }
 
-async function appendEncryptedVersionForWrite(
+async function resolveWritableSecretForWrite(
   validatedInput: ValidatedBlindWriteInput,
-  newVersionId: SecretVersionId,
-  mode: BlindSecretWriteMode,
   assertEnvironment: (environment: EnvironmentLifecycleRow | null) => void,
-): Promise<AppendSecretVersionResult> {
+): Promise<ResolvedSecretForWrite> {
   return withTenantScope(
     { kind: "organization", organizationId: validatedInput.organizationId },
     async ({ db }) => {
@@ -93,25 +104,28 @@ async function appendEncryptedVersionForWrite(
       assertEnvironment(environment);
 
       const store = new TenantSecretVersionStore(db);
-      const resolved = await store.resolveSecretForWrite({
+      return store.resolveSecretForWrite({
         organizationId: validatedInput.organizationId,
         projectId: validatedInput.projectId,
         environmentId: validatedInput.environmentId,
         variableKey: validatedInput.variableKey,
         ...(validatedInput.secretId !== undefined ? { secretId: validatedInput.secretId } : {}),
       });
+    },
+  );
+}
 
-      const wrapped = await encryptSecretValue(
-        validatedInput.keyring,
-        {
-          organizationId: validatedInput.organizationId,
-          projectId: validatedInput.projectId,
-          environmentId: validatedInput.environmentId,
-          secretId: resolved.secretId,
-        },
-        validatedInput.valueUtf8,
-      );
-
+async function appendWrappedVersionForWrite({
+  validatedInput,
+  newVersionId,
+  mode,
+  resolved,
+  wrapped,
+}: AppendWrappedVersionForWriteInput): Promise<AppendSecretVersionResult> {
+  return withTenantScope(
+    { kind: "organization", organizationId: validatedInput.organizationId },
+    async ({ db }) => {
+      const store = new TenantSecretVersionStore(db);
       const appendInput = {
         organizationId: validatedInput.organizationId,
         secretId: resolved.secretId,
@@ -125,6 +139,26 @@ async function appendEncryptedVersionForWrite(
         : store.appendVersionAndMakeLive(appendInput);
     },
   );
+}
+
+async function appendEncryptedVersionForWrite(
+  validatedInput: ValidatedBlindWriteInput,
+  newVersionId: SecretVersionId,
+  mode: BlindSecretWriteMode,
+  assertEnvironment: (environment: EnvironmentLifecycleRow | null) => void,
+): Promise<AppendSecretVersionResult> {
+  const resolved = await resolveWritableSecretForWrite(validatedInput, assertEnvironment);
+  const wrapped = await encryptSecretValue(
+    validatedInput.keyring,
+    {
+      organizationId: validatedInput.organizationId,
+      projectId: validatedInput.projectId,
+      environmentId: validatedInput.environmentId,
+      secretId: resolved.secretId,
+    },
+    validatedInput.valueUtf8,
+  );
+  return appendWrappedVersionForWrite({ validatedInput, newVersionId, mode, resolved, wrapped });
 }
 
 async function executeBlindSecretWrite(
