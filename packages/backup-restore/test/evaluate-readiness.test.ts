@@ -103,4 +103,32 @@ describe("evaluateRestoreDrillEvidence", () => {
     const result = evaluateRestoreDrillEvidence(evidence);
     expect(result.status).toBe("blocked");
   });
+
+  it("blocks when evidence inflates target_seconds beyond policy", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      rto: {
+        ...baseDrillEvidence().rto,
+        duration_seconds: 99_999,
+        target_seconds: 999_999,
+      },
+    };
+    const result = evaluateRestoreDrillEvidence(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("target_seconds");
+  });
+
+  it("blocks when target_seconds mismatches policy even with low duration", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      rto: {
+        ...baseDrillEvidence().rto,
+        duration_seconds: 5,
+        target_seconds: 999_999,
+      },
+    };
+    const result = evaluateRestoreDrillEvidence(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("target_seconds");
+  });
 });

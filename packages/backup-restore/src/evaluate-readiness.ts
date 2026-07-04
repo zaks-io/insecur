@@ -143,10 +143,19 @@ export function evaluateRestoreDrillEvidence(
     });
   }
 
-  if (evidence.rto.duration_seconds > evidence.rto.target_seconds) {
+  if (evidence.rto.target_seconds !== RESTORE_DRILL_RTO_TARGET_SECONDS) {
     return blockedEvaluation({
       controlId,
-      summary: `Measured RTO ${String(evidence.rto.duration_seconds)}s exceeds target ${String(evidence.rto.target_seconds)}s.`,
+      summary: "Restore drill evidence has invalid or inflated RTO target metadata.",
+      checkedAt,
+      blockingReason: `target_seconds must equal policy value ${String(RESTORE_DRILL_RTO_TARGET_SECONDS)}`,
+    });
+  }
+
+  if (evidence.rto.duration_seconds > RESTORE_DRILL_RTO_TARGET_SECONDS) {
+    return blockedEvaluation({
+      controlId,
+      summary: `Measured RTO ${String(evidence.rto.duration_seconds)}s exceeds target ${String(RESTORE_DRILL_RTO_TARGET_SECONDS)}s.`,
       checkedAt,
       blockingReason: "RTO target exceeded",
     });
