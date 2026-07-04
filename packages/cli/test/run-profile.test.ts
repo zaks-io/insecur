@@ -9,7 +9,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { runRunCommand } from "../src/commands/run.js";
-import { splitRunCommandArgs } from "../src/commands/resolve-run-profile.js";
+import { parseRunCommandArgv, splitRunCommandArgs } from "../src/commands/resolve-run-profile.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { setMemorySession, clearMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";
@@ -159,6 +159,51 @@ describe("splitRunCommandArgs", () => {
 
   it("returns command only when no -- separator is present", () => {
     expect(splitRunCommandArgs(["npm", "test"])).toEqual({
+      command: ["npm", "test"],
+    });
+  });
+});
+
+describe("parseRunCommandArgv", () => {
+  it("prefers commander positional profile over args without a -- separator", () => {
+    expect(
+      parseRunCommandArgv({
+        positionalProfile: "local-dev",
+        args: ["npm", "test"],
+      }),
+    ).toEqual({
+      profileSelector: "local-dev",
+      command: ["npm", "test"],
+    });
+  });
+
+  it("drops a duplicated positional profile prefix from child argv", () => {
+    expect(
+      parseRunCommandArgv({
+        positionalProfile: "local-dev",
+        args: ["local-dev", "npm", "test"],
+      }),
+    ).toEqual({
+      profileSelector: "local-dev",
+      command: ["npm", "test"],
+    });
+  });
+
+  it("keeps profile and command split when -- is present in excess args", () => {
+    expect(
+      parseRunCommandArgv({
+        positionalProfile: "local-dev",
+        args: ["--", "npm", "test"],
+      }),
+    ).toEqual({
+      profileSelector: "local-dev",
+      command: ["npm", "test"],
+    });
+  });
+
+  it("falls back to profile before -- when no positional profile is bound", () => {
+    expect(parseRunCommandArgv({ args: ["local-dev", "--", "npm", "test"] })).toEqual({
+      profileSelector: "local-dev",
       command: ["npm", "test"],
     });
   });
