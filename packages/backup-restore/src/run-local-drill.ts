@@ -24,6 +24,8 @@ export interface RunLocalRestoreDrillInput {
   actor?: string;
   rootKeyBytes?: Uint8Array;
   restoreTargetRef?: string;
+  startedAt?: Date;
+  completedAt?: Date;
 }
 
 export interface RunLocalRestoreDrillResult {
@@ -75,7 +77,7 @@ function buildDrillEvidence(input: {
     organization_count: input.organizationCount,
     artifact_ref: input.artifactRef,
     encryption_verified: input.encryptionVerified,
-    expires_at: computeExportExpiresAt(checkedAt),
+    expires_at: computeExportExpiresAt(input.exportTimestamp),
   };
 
   const drillEvidence: RestoreDrillEvidence = {
@@ -108,7 +110,7 @@ export async function runLocalRestoreDrill(
   const instanceId = input.instanceId ?? "inst_local_restore_drill";
   const actor = input.actor ?? "ci:backup-restore-drill";
   const rootKeyBytes = input.rootKeyBytes ?? durableDrillRootKey();
-  const startedAt = new Date();
+  const startedAt = input.startedAt ?? new Date();
   const exportTimestamp = startedAt.toISOString();
   const canaryRow = await buildRecoveryCanaryExportRow(rootKeyBytes);
   const jsonlPayload = new TextEncoder().encode(`${JSON.stringify(canaryRow)}\n`);
@@ -153,7 +155,7 @@ export async function runLocalRestoreDrill(
     instanceId,
     actor,
     startedAt,
-    completedAt: new Date(),
+    completedAt: input.completedAt ?? new Date(),
     exportTimestamp,
     artifactRef,
     encryptionVerified: encryptionCheck.status === "passed",

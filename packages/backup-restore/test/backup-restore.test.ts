@@ -14,6 +14,12 @@ import {
   findRecoveryCanaryRow,
   verifyRecoveryCanaryFromCiphertext,
 } from "../src/recovery-canary.js";
+import {
+  computeExportExpiresAt,
+  evaluateExportFreshnessEvidence,
+  evaluateRestoreDrillEvidence,
+} from "../src/evaluate-readiness.js";
+import { verifyBackupRestoreEvidence } from "../src/verify-evidence.js";
 
 function durableRootKey(): Uint8Array {
   const root = new Uint8Array(32);
@@ -184,5 +190,32 @@ describe("runLocalRestoreDrill", () => {
     expect(drillJson).not.toMatch(/"secret"/i);
     expect(drillJson).not.toMatch(/"plaintext"/i);
     expect(drillJson).not.toMatch(/insecur-recovery-canary-v1-sentinel/);
+  });
+
+  it("keeps export freshness policy aligned when drill duration is non-zero", async () => {
+    const { runLocalRestoreDrill } = await import("../src/run-local-drill.js");
+    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-backup-restore-duration-"));
+    const startedAt = new Date("2026-07-04T00:00:00.000Z");
+    const completedAt = new Date("2026-07-04T00:00:10.000Z");
+
+    const result = await runLocalRestoreDrill({
+      evidenceDir,
+      startedAt,
+      completedAt,
+    });
+
+    expect(result.exportEvidence.expires_at).toBe(
+      computeExportExpiresAt(result.exportEvidence.export_timestamp),
+    );
+    expect(result.drillEvidence.rto.duration_seconds).toBe(10);
+
+    const exportFresh = evaluateExportFreshnessEvidence(result.exportEvidence, completedAt);
+    expect(exportFresh.status).toBe("passed");
+
+    const restoreDrill = evaluateRestoreDrillEvidence(result.drillEvidence, completedAt);
+    expect(restoreDrill.status).toBe("passed");
+
+    const verified = verifyBackupRestoreEvidence({ evidenceDir, now: completedAt });
+    expect(verified.ok).toBe(true);
   });
 });
