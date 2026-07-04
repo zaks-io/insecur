@@ -50,6 +50,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
           RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
           WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
           WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
@@ -79,6 +80,7 @@ jobs:
             CLOUDFLARE_API_TOKEN
             PREVIEW_DATABASE_URL_MIGRATION
             RUNTIME_TOKEN_SIGNING_SECRET
+            SENTRY_AUTH_TOKEN
             SESSION_SIGNING_SECRET
             WORKOS_API_KEY
             WORKOS_COOKIE_PASSWORD
@@ -125,6 +127,7 @@ jobs:
           INSECUR_DEPLOY_SHA: ${{ github.sha }}
           INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
           INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
+          SENTRY_RELEASE: ${{ github.sha }}
           INSECUR_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
@@ -167,6 +170,10 @@ jobs:
           INSECUR_DEPLOY_SHA: ${{ github.sha }}
           INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
           INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: zaksio
+          SENTRY_PROJECT: insecur
+          SENTRY_RELEASE: ${{ github.sha }}
           INSECUR_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
@@ -188,6 +195,7 @@ jobs:
             CLOUDFLARE_ACCOUNT_ID
             CLOUDFLARE_API_TOKEN
             RUNTIME_TOKEN_SIGNING_SECRET
+            SENTRY_AUTH_TOKEN
             SESSION_SIGNING_SECRET
             WORKOS_API_KEY
             WORKOS_COOKIE_PASSWORD

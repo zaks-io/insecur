@@ -43,6 +43,7 @@ test("materializes API production deploy identifiers", () => {
   assert.equal(config.vars.DEPLOY_SHA, "abc123");
   assert.equal(config.vars.DEPLOY_RUN_ID, "123456789");
   assert.equal(config.vars.DEPLOYED_AT, "2026-07-04T12:00:00.000Z");
+  assert.equal(config.vars.SENTRY_RELEASE, "abc123");
   assert.equal(config.ratelimits[0].namespace_id, "onboarding-ip-ns");
   assert.equal(config.ratelimits[4].namespace_id, "auth-exchange-ip-ns");
   assert.equal(source.vars.INSTANCE_ID, "INSTANCE_ID_PLACEHOLDER");
@@ -58,6 +59,7 @@ test("materializes runtime preview deploy identifiers", () => {
   assert.equal(preview.secrets_store_secrets[0].store_id, "root-key-store-live");
   assert.equal(preview.secrets_store_secrets[0].secret_name, "root-key-secret-live");
   assert.equal(preview.hyperdrive[0].id, "hyperdrive-live");
+  assert.equal(preview.vars.SENTRY_RELEASE, "abc123");
 });
 
 test("materializes Web preview deploy identifiers", () => {
@@ -69,6 +71,7 @@ test("materializes Web preview deploy identifiers", () => {
   assert.equal(config.env.preview.vars.INSTANCE_ID, "instance-live");
   assert.equal(config.env.preview.vars.WORKOS_CLIENT_ID, "workos-live");
   assert.equal(config.env.preview.vars.DEPLOY_SHA, "abc123");
+  assert.equal(config.env.preview.vars.SENTRY_RELEASE, "abc123");
 });
 
 test("materializes generated Web preview deploy config", () => {
@@ -83,6 +86,7 @@ test("materializes generated Web preview deploy config", () => {
   assert.equal(config.vars.INSTANCE_ID, "instance-live");
   assert.equal(config.vars.WORKOS_CLIENT_ID, "workos-live");
   assert.equal(config.vars.DEPLOY_SHA, "abc123");
+  assert.equal(config.vars.SENTRY_RELEASE, "abc123");
 });
 
 test("materializes Site preview deploy identity without dropping observability vars", () => {
@@ -96,7 +100,17 @@ test("materializes Site preview deploy identity without dropping observability v
   assert.equal(config.env.preview.vars.DEPLOYED_AT, "2026-07-04T12:00:00.000Z");
   assert.equal(config.env.preview.vars.SENTRY_DSN, "site-preview-dsn");
   assert.equal(config.env.preview.vars.SENTRY_ENVIRONMENT, "preview");
+  assert.equal(config.env.preview.vars.SENTRY_RELEASE, "abc123");
   assert.equal(config.env.preview.vars.SENTRY_SERVICE, "insecur-site-preview");
+});
+
+test("uses an explicit Sentry release when provided", () => {
+  const config = materializeDeployWranglerConfig(siteConfig(), {
+    env: { ...DEPLOY_ENV, SENTRY_RELEASE: "release-explicit" },
+    wranglerEnv: "preview",
+  });
+
+  assert.equal(config.env.preview.vars.SENTRY_RELEASE, "release-explicit");
 });
 
 test("materializes generated preview configs by original top-level worker name", () => {
@@ -296,6 +310,49 @@ test("preview deploy Turbo tasks pass through secrets-file env vars", async () =
         passThroughEnv.includes(envName),
         `${taskName} must pass ${envName} through Turbo strict env filtering`,
       );
+    }
+  }
+});
+
+test("Turbo build and deploy tasks pass through Sentry release upload env", async () => {
+  const turbo = JSON.parse(await readFile(new URL("../turbo.json", import.meta.url), "utf8"));
+  const buildEnv = turbo.tasks.build?.env ?? [];
+  for (const envName of [
+    "INSECUR_DEPLOY_RUN_ID",
+    "INSECUR_DEPLOY_SHA",
+    "SENTRY_AUTH_TOKEN",
+    "SENTRY_ORG",
+    "SENTRY_PROJECT",
+    "SENTRY_RELEASE",
+  ]) {
+    assert.ok(buildEnv.includes(envName), `build must include ${envName}`);
+  }
+
+  const deployTasks = [
+    "deploy",
+    "@insecur/api#deploy",
+    "@insecur/web#deploy",
+    "deploy:preview",
+    "deploy:preview:dry-run",
+    "@insecur/api#deploy:preview",
+    "@insecur/web#deploy:preview",
+  ];
+  for (const taskName of deployTasks) {
+    const passThroughEnv = turbo.tasks[taskName]?.passThroughEnv ?? [];
+    assert.ok(passThroughEnv.includes("SENTRY_RELEASE"), `${taskName} must pass SENTRY_RELEASE`);
+  }
+
+  for (const taskName of [
+    "deploy",
+    "@insecur/api#deploy",
+    "@insecur/web#deploy",
+    "deploy:preview",
+    "@insecur/api#deploy:preview",
+    "@insecur/web#deploy:preview",
+  ]) {
+    const passThroughEnv = turbo.tasks[taskName]?.passThroughEnv ?? [];
+    for (const envName of ["SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"]) {
+      assert.ok(passThroughEnv.includes(envName), `${taskName} must pass ${envName}`);
     }
   }
 });

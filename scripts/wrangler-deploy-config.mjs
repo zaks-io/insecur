@@ -72,17 +72,21 @@ export function materializeDeployWranglerConfig(config, options = {}) {
 
   switch (workerName) {
     case "insecur-api":
+      materializeSentryRelease(scope, deployContext);
       materializeDeployIdentity(scope, deployContext);
       materializeApiConfig(scope, deployContext);
       break;
     case "insecur-runtime":
+      materializeSentryRelease(scope, deployContext);
       materializeRuntimeConfig(scope, deployContext);
       break;
     case "insecur-web":
+      materializeSentryRelease(scope, deployContext);
       materializeDeployIdentity(scope, deployContext);
       materializeWebConfig(scope, deployContext);
       break;
     case "insecur-site":
+      materializeSentryRelease(scope, deployContext);
       materializeDeployIdentity(scope, deployContext);
       break;
     default:
@@ -273,6 +277,20 @@ function materializeDeployIdentity(scope, context) {
         `${envName} is required for ${scopeLabel(context)}. Configure it in the GitHub Environment or export it for preview deploys.`,
       );
     }
+  }
+}
+
+function materializeSentryRelease(scope, context) {
+  scope.vars ??= {};
+  const release = context.env.SENTRY_RELEASE ?? context.env.INSECUR_DEPLOY_SHA;
+  if (release) {
+    scope.vars.SENTRY_RELEASE = release;
+    return;
+  }
+  if (requiresDeployIdentity(context)) {
+    throw new Error(
+      `SENTRY_RELEASE or INSECUR_DEPLOY_SHA is required for ${scopeLabel(context)}. Configure it in the GitHub Environment or export it for deploys.`,
+    );
   }
 }
 

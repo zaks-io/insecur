@@ -74,6 +74,8 @@
     "@cloudflare/workers-types": "catalog:",
     "@cyclonedx/cyclonedx-esbuild": "catalog:",
     "@eslint/js": "catalog:",
+    "@sentry/cli": "^2.58.6",
+    "@sentry/vite-plugin": "^5.3.0",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",

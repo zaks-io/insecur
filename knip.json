@@ -57,9 +57,15 @@
       "ignoreDependencies": ["cloudflare"]
     },
     ".": {
-      "entry": ["scripts/**/*.mjs", "examples/**/*.mjs", "*.config.ts", "*.config.mjs"],
-      "project": ["scripts/**/*.mjs"],
-      "ignoreDependencies": ["dependency-cruiser"]
+      "entry": [
+        "config/**/*.ts",
+        "scripts/**/*.mjs",
+        "examples/**/*.mjs",
+        "*.config.ts",
+        "*.config.mjs"
+      ],
+      "project": ["config/**/*.ts", "scripts/**/*.mjs"],
+      "ignoreDependencies": ["@sentry/cli", "dependency-cruiser"]
     }
   },
   "ignoreBinaries": ["actionlint"]

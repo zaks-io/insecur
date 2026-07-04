@@ -622,6 +622,14 @@ deploys use ordinary Turbo filters:
 pnpm deploy:preview --filter @insecur/web
 ```
 
+Preview and production deploys require `SENTRY_AUTH_TOKEN` in the GitHub Environment. CI sets
+`SENTRY_RELEASE` to the deployed commit SHA, materializes that value into every Worker config, and
+uploads source maps during deploy. Web and Site upload hidden Vite source maps through the official
+Sentry Vite plugin and delete client `.map` files before asset deployment. API and Runtime use
+Wrangler `--upload-source-maps` plus `sentry-cli sourcemaps upload` against the Wrangler output
+directory. Sentry events should therefore show the deployed Git SHA as their release instead of an
+opaque Cloudflare script version.
+
 Preview routes are fixed custom domains:
 
 - API: `https://api.preview.insecur.cloud`
@@ -673,6 +681,9 @@ separate production site workflow.
    existing production route attachment.
 8. Deploy `insecur-site` with no control-plane binding, also preserving the existing apex and www
    route attachments.
+
+The production deploy uses the same Sentry release/source-map path as Preview and requires
+`SENTRY_AUTH_TOKEN` in the `Production` GitHub Environment.
 
 The identity that executes this deploy is the CI machine token. The operator's personal credentials
 are never the deploy credential (ADR-0029 amendment, ADR-0004). The Cloudflare token must be able

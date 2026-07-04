@@ -152,6 +152,10 @@ jobs:
           INSECUR_DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
           INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: zaksio
+          SENTRY_PROJECT: insecur
+          SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
           INSECUR_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PRODUCTION_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
@@ -163,5 +167,19 @@ jobs:
           INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME: ${{ vars.PRODUCTION_RUNTIME_ROOT_KEY_SECRET_NAME }}
           INSECUR_RUNTIME_HYPERDRIVE_ID: ${{ vars.PRODUCTION_HYPERDRIVE_ID }}
         run: |
+          set -euo pipefail
+
+          required=(
+            CLOUDFLARE_ACCOUNT_ID
+            CLOUDFLARE_API_TOKEN
+            SENTRY_AUTH_TOKEN
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured in the Production GitHub Environment."
+              exit 1
+            fi
+          done
+
           pnpm deploy:production
           echo "base_url=https://app.insecur.cloud" >> "$GITHUB_OUTPUT"

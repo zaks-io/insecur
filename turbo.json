@@ -24,7 +24,15 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["CLOUDFLARE_ENV"],
+      "env": [
+        "CLOUDFLARE_ENV",
+        "INSECUR_DEPLOY_RUN_ID",
+        "INSECUR_DEPLOY_SHA",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
+      ],
       "outputs": ["dist/**"]
     },
     "typecheck": {
@@ -104,7 +112,11 @@
         "INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_STORE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME",
-        "INSECUR_RUNTIME_HYPERDRIVE_ID"
+        "INSECUR_RUNTIME_HYPERDRIVE_ID",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
       ]
     },
     "@insecur/api#deploy": {
@@ -127,7 +139,11 @@
         "INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_STORE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME",
-        "INSECUR_RUNTIME_HYPERDRIVE_ID"
+        "INSECUR_RUNTIME_HYPERDRIVE_ID",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
       ]
     },
     "@insecur/web#deploy": {
@@ -150,7 +166,11 @@
         "INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_STORE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME",
-        "INSECUR_RUNTIME_HYPERDRIVE_ID"
+        "INSECUR_RUNTIME_HYPERDRIVE_ID",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
       ]
     },
     "deploy:preview": {
@@ -176,7 +196,11 @@
         "INSECUR_RUNTIME_HYPERDRIVE_ID",
         "INSECUR_RUNTIME_SECRETS_FILE",
         "INSECUR_API_SECRETS_FILE",
-        "INSECUR_WEB_SECRETS_FILE"
+        "INSECUR_WEB_SECRETS_FILE",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
       ]
     },
     "deploy:preview:dry-run": {
@@ -199,7 +223,8 @@
         "INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_STORE_ID",
         "INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME",
-        "INSECUR_RUNTIME_HYPERDRIVE_ID"
+        "INSECUR_RUNTIME_HYPERDRIVE_ID",
+        "SENTRY_RELEASE"
       ]
     },
     "@insecur/api#deploy:preview": {
@@ -225,7 +250,11 @@
         "INSECUR_RUNTIME_HYPERDRIVE_ID",
         "INSECUR_RUNTIME_SECRETS_FILE",
         "INSECUR_API_SECRETS_FILE",
-        "INSECUR_WEB_SECRETS_FILE"
+        "INSECUR_WEB_SECRETS_FILE",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
       ]
     },
     "@insecur/web#deploy:preview": {
@@ -251,7 +280,11 @@
         "INSECUR_RUNTIME_HYPERDRIVE_ID",
         "INSECUR_RUNTIME_SECRETS_FILE",
         "INSECUR_API_SECRETS_FILE",
-        "INSECUR_WEB_SECRETS_FILE"
+        "INSECUR_WEB_SECRETS_FILE",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
       ]
     },
     "assert:ci-rls-gate-env": {
