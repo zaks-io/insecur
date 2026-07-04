@@ -47,6 +47,11 @@ function testDisplayName(raw: string): DisplayName {
 
 async function cleanupProtectedEnvironment(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG }, async ({ sql }) => {
+    await sql`
+      UPDATE secrets
+      SET current_version_id = NULL
+      WHERE environment_id = ${PROTECTED_ENV_ID}
+    `;
     await sql`DELETE FROM secret_versions WHERE secret_id IN (
       SELECT id FROM secrets WHERE environment_id = ${PROTECTED_ENV_ID}
     )`;
@@ -170,7 +175,7 @@ describeIntegration("protected secret version lifecycle (INS-55)", () => {
       },
       current.wrapped,
     );
-    expect(new TextDecoder().decode(plaintext.bytes)).toBe("publish-me");
+    expect(new TextDecoder().decode(plaintext.unwrapUtf8())).toBe("publish-me");
     plaintext.dispose();
   });
 
