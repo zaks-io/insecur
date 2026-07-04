@@ -125,6 +125,10 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
   `@insecur/preview-smoke` Playwright suite. Playwright verifies API/Web/Site deploy identities,
   drives the current happy paths over HTTP, sweeps preview Postgres for the generated sentinel,
   emits GitHub annotations, and uploads HTML, JSON, JUnit XML, and failure trace artifacts.
+  Local runs load ignored `.env.preview` and `.env.local` files before checking required variables.
+  `SMOKE_SESSION_SIGNING_SECRET` may be supplied as `SESSION_SIGNING_SECRET`, but it must match the
+  API/Web workers under test; a throwaway random value only works for a local Worker stack that was
+  started with the same value.
 
 ## CI
 
