@@ -7,7 +7,10 @@ import { IndexBuilder } from "drizzle-orm/pg-core";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { PLAINTEXT_METADATA_ALLOWLIST } from "../src/db/schema/plaintext-metadata-allowlist.js";
+import {
+  PLAINTEXT_METADATA_ALLOWLIST,
+  PLAINTEXT_METADATA_CATEGORIES,
+} from "../src/db/schema/plaintext-metadata-allowlist.js";
 import { formatConformanceReport } from "../src/db/schema/conformance-report.js";
 import {
   assertDrizzleSchemaPlaintextMetadataConformance,
@@ -45,6 +48,30 @@ describe("plaintext metadata allowlist (unit layer)", () => {
   beforeAll(async () => {
     userSchemaTables = await loadUserSchemaTables();
     materializePgTableExtraConfigs(userSchemaTables);
+  });
+
+  it("includes the INS-185 category vocabulary extensions", () => {
+    expect(PLAINTEXT_METADATA_CATEGORIES).toEqual(
+      expect.arrayContaining(["validated-payload", "plaintext-lookup-key", "verifier-material"]),
+    );
+  });
+
+  it("classifies INS-185 registry columns under the honest category contracts", () => {
+    expect(PLAINTEXT_METADATA_ALLOWLIST.audit_events.details.category).toBe("validated-payload");
+    expect(PLAINTEXT_METADATA_ALLOWLIST.operations.progress.category).toBe("validated-payload");
+    expect(PLAINTEXT_METADATA_ALLOWLIST.injection_grants.variable_keys.category).toBe(
+      "plaintext-lookup-key",
+    );
+    expect(PLAINTEXT_METADATA_ALLOWLIST.secrets.variable_key.category).toBe("plaintext-lookup-key");
+    expect(PLAINTEXT_METADATA_ALLOWLIST.sync_target_leases.target_identity.category).toBe(
+      "plaintext-lookup-key",
+    );
+    expect(PLAINTEXT_METADATA_ALLOWLIST.bootstrap_secret_verifiers.hash_b64.category).toBe(
+      "verifier-material",
+    );
+    expect(PLAINTEXT_METADATA_ALLOWLIST.bootstrap_secret_verifiers.salt_b64.category).toBe(
+      "verifier-material",
+    );
   });
 
   it("conforms to the exported Drizzle schema with zero drift in either direction", () => {

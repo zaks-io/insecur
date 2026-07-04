@@ -18,6 +18,9 @@ export const PLAINTEXT_METADATA_CATEGORIES = [
   "flag",
   "ciphertext-ref",
   "key-version",
+  "validated-payload",
+  "plaintext-lookup-key",
+  "verifier-material",
 ] as const;
 
 export type PlaintextMetadataCategory = (typeof PLAINTEXT_METADATA_CATEGORIES)[number];
@@ -38,7 +41,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     actor_type: { category: "type-code" },
     actor_user_id: { category: "actor-id" },
     created_at: { category: "timestamp" },
-    details: { category: "type-code" },
+    details: { category: "validated-payload" },
     environment_id: { category: "opaque-id" },
     event_code: { category: "type-code" },
     id: { category: "opaque-id" },
@@ -85,7 +88,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     project_id: { category: "opaque-id" },
     secret_ids: { category: "opaque-id" },
     secret_version_id: { category: "opaque-id" },
-    variable_keys: { category: "type-code" },
+    variable_keys: { category: "plaintext-lookup-key" },
   },
   instances: {
     created_at: { category: "timestamp" },
@@ -150,7 +153,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     idempotency_key: { category: "opaque-id" },
     intent_code: { category: "type-code" },
     org_id: { category: "opaque-id" },
-    progress: { category: "type-code" },
+    progress: { category: "validated-payload" },
     state: { category: "status-code" },
     updated_at: { category: "timestamp" },
   },
@@ -218,7 +221,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     org_id: { category: "opaque-id" },
     project_id: { category: "opaque-id" },
     provider_kind: { category: "type-code" },
-    target_identity: { category: "opaque-id" },
+    target_identity: { category: "plaintext-lookup-key" },
     updated_at: { category: "timestamp" },
   },
   teams: {

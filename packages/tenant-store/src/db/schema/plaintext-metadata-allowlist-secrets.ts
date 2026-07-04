@@ -22,6 +22,6 @@ export const PLAINTEXT_METADATA_ALLOWLIST_SECRETS = {
     live_version_number: { category: "count" },
     org_id: { category: "opaque-id" },
     project_id: { category: "opaque-id" },
-    variable_key: { category: "type-code" },
+    variable_key: { category: "plaintext-lookup-key" },
   },
 } as const satisfies PlaintextMetadataAllowlist;
