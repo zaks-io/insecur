@@ -35,20 +35,35 @@ function requirePolicyId(
   });
 }
 
-function resolveRunProfileId(input: {
-  readonly flags: GlobalCliFlags;
-  readonly context: ResolvedCliContext;
-}): CliProfileId | undefined {
-  return input.flags.profileId ?? input.context.scope.profileId;
+function resolveProjectProfileId(context: ResolvedCliContext): CliProfileId | undefined {
+  return context.scope.profileId ?? context.projectConfig?.profileId;
 }
 
-function resolveProfileRunSelector(input: {
+function resolveProfileRunSelection(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
   readonly profileSelector?: string;
-}): string | undefined {
-  const selector = input.profileSelector ?? input.flags.profile ?? input.context.scope.profileSlug;
-  return selector === "" ? undefined : selector;
+}): { readonly profileId?: CliProfileId; readonly selector?: string } {
+  if (input.flags.profileId !== undefined) {
+    return { profileId: input.flags.profileId };
+  }
+
+  const explicitSelector = input.profileSelector ?? input.flags.profile;
+  if (explicitSelector !== undefined && explicitSelector !== "") {
+    return { selector: explicitSelector };
+  }
+
+  const scopeProfileSlug = input.context.scope.profileSlug;
+  if (scopeProfileSlug !== undefined && scopeProfileSlug !== "") {
+    return { selector: scopeProfileSlug };
+  }
+
+  const projectProfileId = resolveProjectProfileId(input.context);
+  if (projectProfileId !== undefined) {
+    return { profileId: projectProfileId };
+  }
+
+  return {};
 }
 
 function hasExplicitProfileRunSelection(input: {
@@ -60,6 +75,14 @@ function hasExplicitProfileRunSelection(input: {
     return true;
   }
   return input.flags.profileId !== undefined;
+}
+
+function hasAmbientProfileRunSelection(context: ResolvedCliContext): boolean {
+  const scopeProfileSlug = context.scope.profileSlug;
+  if (scopeProfileSlug !== undefined && scopeProfileSlug !== "") {
+    return true;
+  }
+  return resolveProjectProfileId(context) !== undefined;
 }
 
 function hasProfileBackedRunMode(input: {
@@ -74,15 +97,11 @@ function hasProfileBackedRunMode(input: {
 
   const hasVariableKey = input.variableKey !== undefined && input.variableKey !== "";
   if (hasVariableKey) {
-    // Ambient scope profile supplies org/project/env defaults only.
+    // Ambient project/scope profile supplies org/project/env defaults only.
     return false;
   }
 
-  const scopeProfileSlug = input.context.scope.profileSlug;
-  const scopeProfileId = input.context.scope.profileId;
-  return (
-    (scopeProfileSlug !== undefined && scopeProfileSlug !== "") || scopeProfileId !== undefined
-  );
+  return hasAmbientProfileRunSelection(input.context);
 }
 
 export function resolveProfileRunInput(input: {
@@ -92,13 +111,12 @@ export function resolveProfileRunInput(input: {
   readonly policyIdOverride?: string;
 }): ResolvedProfileRunInput {
   const userConfig: CliUserConfig = input.context.userConfig;
-  const profileSelector = resolveProfileRunSelector(input);
-  const profileId = resolveRunProfileId(input);
+  const selection = resolveProfileRunSelection(input);
   const resolvedProfile = resolveProfile(
     userConfig,
     {
-      ...(profileId === undefined ? {} : { profileId }),
-      ...(profileSelector === undefined ? {} : { selector: profileSelector }),
+      ...(selection.profileId === undefined ? {} : { profileId: selection.profileId }),
+      ...(selection.selector === undefined ? {} : { selector: selection.selector }),
     },
     { required: true },
   );
@@ -180,7 +198,7 @@ export function assertRunModeExclusive(input: {
       code: VALIDATION_ERROR_CODES.invalidCommandInput,
       message: hasVariableKey
         ? "Pass either --variable-key or a CLI profile, not both."
-        : "Pass --variable-key or select a CLI profile via argument, --profile, --profile-id, or INSECUR_PROFILE.",
+        : "Pass --variable-key or select a CLI profile via argument, --profile, --profile-id, INSECUR_PROFILE, or the project .insecur.json profileId.",
       retryable: false,
     });
   }
