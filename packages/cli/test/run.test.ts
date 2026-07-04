@@ -451,6 +451,39 @@ describe("runRunCommand", () => {
     expect(api.consumeInjectionGrant).toHaveBeenCalledTimes(1);
   });
 
+  it("allows --variable-key when scope profile id only supplies ambient defaults", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation(() => createMockChild(0));
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand(
+      flags,
+      api,
+      {
+        ...mockContext,
+        scope: {
+          ...mockContext.scope,
+          profileId: "prof_01TEST00000000000000000001" as never,
+        },
+      },
+      {
+        variableKey: "API_KEY",
+        command: ["node", "-e", "process.exit(0)"],
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ variableKey: "API_KEY" }),
+    );
+    expect(api.consumeInjectionGrant).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects explicit --profile together with --variable-key", async () => {
     setMemorySession({
       credential: "credential_test",

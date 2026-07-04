@@ -337,6 +337,42 @@ describe("runRunCommand profile-backed policy path", () => {
     stdoutSpy.mockRestore();
   });
 
+  it("accepts the resolved default profile id from CLI scope", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation(() => createMockChild(0));
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand(
+      flags,
+      api,
+      {
+        ...mockContext,
+        scope: {
+          ...mockContext.scope,
+          orgId: ORG_ID as never,
+          projectId: PROJECT_ID as never,
+          envId: ENV_ID as never,
+          profileId: PROFILE_ID as never,
+        },
+      },
+      {
+        command: ["node", "-e", "process.exit(0)"],
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ policyId: POLICY_ID }),
+    );
+    expect(api.consumeInjectionGrantAll).toHaveBeenCalledTimes(1);
+    stdoutSpy.mockRestore();
+  });
+
   it("accepts global --profile-id without a positional profile argument", async () => {
     setMemorySession({
       credential: "credential_test",
