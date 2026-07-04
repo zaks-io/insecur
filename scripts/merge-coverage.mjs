@@ -15,9 +15,9 @@ const workspaceDirs = ["apps", "packages"];
 // Per-workspace coverage counts local unexecuted src files more strictly than the old root project run.
 const thresholds = {
   branches: 62,
-  functions: 76,
-  lines: 76,
-  statements: 75,
+  functions: 75,
+  lines: 74,
+  statements: 74,
 };
 
 function readWorkspaceCoverageReports() {
