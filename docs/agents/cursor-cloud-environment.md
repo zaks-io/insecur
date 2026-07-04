@@ -70,7 +70,7 @@ docker run --rm insecur-cursor-env-test sh -lc 'node --version && pnpm --version
 
 `pnpm verify` runs the deploy-topology and package-boundary conformance gates, but it does NOT run
 the coverage ratchet — that is the separate `pnpm test:coverage` job (thresholds in
-`vitest.config.ts`). Cursor Cloud agents do not run git push hooks, so the pre-push
+`scripts/merge-coverage.mjs`). Cursor Cloud agents do not run git push hooks, so the pre-push
 `test:coverage` safety net does not fire here. Before opening a PR that touches covered packages,
 run `pnpm test:coverage` explicitly in addition to `pnpm verify`. Skipping it is the most common
 first-pass CI failure in this repo (the `Coverage` job reds out while `verify` was green locally).

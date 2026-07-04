@@ -196,7 +196,8 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "knip": "knip",
     "test:scripts": "node --test scripts/*.test.mjs scripts/ci/*.test.mjs",
     "test": "pnpm test:scripts && turbo run test --cache=local:rw,remote:r",
-    "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
+    "test:coverage": "node scripts/clean-coverage.mjs && TURBO_CACHE=\"${TURBO_CACHE:-local:rw,remote:r}\" turbo run test:coverage && node scripts/merge-coverage.mjs",
+    "test:coverage:strict": "node scripts/clean-coverage.mjs && TURBO_CACHE=\"${TURBO_CACHE:-local:rw,remote:r}\" turbo run test:coverage --force && node scripts/merge-coverage.mjs",
     "test:rls": "turbo run test:rls",
     "test:e2e": "turbo run test:e2e",
     "test:canary": "turbo run test:canary",
@@ -219,8 +220,12 @@ isolation against the wrangler configs and composition roots), the package-bound
 (`conformance:packages` — asserts the public/API and contract packages have no production dependency
 path to `@insecur/crypto`), the site-boundary conformance gate (`conformance:site-boundary`), the
 Prettier check, then the Turbo `lint typecheck test` fan-out. A green `verify` should predict a
-green `CI`. `ci:check` is a compatibility alias for `verify`. `prepare` installs the lefthook hooks
-via `scripts/lefthook-install.mjs` on every install.
+green `CI`. `ci:check` is a compatibility alias for `verify`. `test:coverage` cleans stale reports,
+runs each covered workspace's `test:coverage` task through Turbo, then merges every
+`coverage/coverage-final.json` into the root report and enforces the repo-wide floor in
+`scripts/merge-coverage.mjs`. `test:coverage:strict` uses the same merge path but passes `--force`
+to recompute every workspace report. `prepare` installs the lefthook hooks via
+`scripts/lefthook-install.mjs` on every install.
 
 ## Duplicate Code Detection
 
@@ -531,7 +536,7 @@ pre-push:
 Three layers, each defined by where its Postgres comes from and what failure class it catches.
 The agent-facing one-command loop is documented in [docs/agents/testing.md](agents/testing.md).
 
-1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage and enforces the ratchet thresholds in `vitest.config.ts`; it excludes integration and RLS suites so it stays DB-less. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
+1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage across the covered workspace targets, then `scripts/merge-coverage.mjs` merges their `coverage-final.json` files and enforces the repo-wide ratchet thresholds; it excludes integration and RLS suites so it stays DB-less. Each covered workspace has a Turbo `test:coverage` task with `coverage/**` outputs, so repeated pushes can restore unchanged workspace reports from cache while changed packages recompute independently. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
 2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `postgres-integration` job (INS-144/INS-266) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
 3. **Shared preview smoke.** `pnpm deploy:preview` and the `Deploy Preview` workflow deploy the shared preview Worker set (`runtime`, `api`, `web`, and `site`) through Turbo package tasks. Run `scripts/ci/smoke-first-value.mjs` explicitly with `SMOKE_BASE_URL` to exercise the API preview backed by a shared preview Neon branch through Hyperdrive. This is the only layer that can catch a broken deploy, a missing binding, or a bad secret. It is not a per-PR workflow: PRs use Docker Compose Postgres in the `CI` workflow's `postgres-integration` job.
 

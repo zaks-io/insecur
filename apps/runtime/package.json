@@ -13,6 +13,7 @@
     "deploy:preview": "WRANGLER_LOG_PATH=.wrangler/logs node ../../scripts/wrangler-with-deploy-config.mjs wrangler.jsonc -- deploy --env preview --keep-vars",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .wrangler"
   },
