@@ -218,8 +218,7 @@ function isConfiguredPublicHostname(value) {
 }
 
 // Extract public mount prefixes from a Hono composition root by reading its `app.route(...)`,
-// `app.<method>(...)`, `app.on(...)`, `app.mount(...)`, and `app.use(...)` calls. This is the live
-// route inventory the deploy actually serves.
+// `app.<method>(...)`, `app.on(...)`, `app.mount(...)`, and public-surface `app.use(...)` calls.
 function extractPublicRoutes(indexPath) {
   if (!isFile(indexPath)) {
     return [];
@@ -227,13 +226,17 @@ function extractPublicRoutes(indexPath) {
   const source = readFileSync(indexPath, "utf8");
   const mounts = new Set();
   const patterns = [
-    /app\.(?:route|all|get|post|put|delete|patch|options|head|mount|use)\(\s*["'`]([^"'`]+)["'`]/g,
+    /app\.(route|all|get|post|put|delete|patch|options|head|mount|use)\(\s*["'`]([^"'`]+)["'`]/g,
     /app\.on\(\s*(?:\[[^\)]*?\]|["'`][^"'`]+["'`])\s*,\s*["'`]([^"'`]+)["'`]/g,
   ];
   for (const pattern of patterns) {
     let match;
     while ((match = pattern.exec(source)) !== null) {
-      const prefix = match[1];
+      const method = match[2] === undefined ? undefined : match[1];
+      if (method === "use" && isSentryMiddlewareUse(source, match.index)) {
+        continue;
+      }
+      const prefix = match[2] ?? match[1];
       if (isPublicMount(prefix)) {
         mounts.add(prefix);
       }
@@ -251,13 +254,24 @@ function extractPublicRoutes(indexPath) {
     }
   }
   const pathOmittedUsePattern = /app\.use\(\s*(?!["'`])/g;
-  if (pathOmittedUsePattern.test(source)) {
-    mounts.add("*");
+  let useMatch;
+  while ((useMatch = pathOmittedUsePattern.exec(source)) !== null) {
+    if (!isSentryMiddlewareUse(source, useMatch.index)) {
+      mounts.add("*");
+    }
   }
   if (/pathname\s*===\s*["'`]\/healthz["'`]/.test(source)) {
     mounts.add("/healthz");
   }
   return [...mounts].sort();
+}
+
+function isSentryMiddlewareUse(source, callIndex) {
+  const snippet = source.slice(callIndex, callIndex + 160);
+  return (
+    /^app\.use\(\s*sentry\(/.test(snippet) ||
+    /^app\.use\(\s*["'`][^"'`]+["'`]\s*,\s*sentry\(/.test(snippet)
+  );
 }
 
 function isPublicMount(prefix) {

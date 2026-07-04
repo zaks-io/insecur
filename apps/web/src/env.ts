@@ -1,3 +1,4 @@
+import type { SentryBindings } from "@insecur/observability";
 import type { RuntimeAdmissionRpc } from "./runtime/admission-types.js";
 
 /**
@@ -5,7 +6,7 @@ import type { RuntimeAdmissionRpc } from "./runtime/admission-types.js";
  * keyring and no Hyperdrive binding, and reaches the API Worker only over the private `API`
  * Service Binding with a per-request `insecur-api`-audience scoped token.
  */
-export interface WebEnv {
+export interface WebEnv extends SentryBindings {
   readonly WORKOS_API_KEY: string;
   readonly WORKOS_CLIENT_ID: string;
   readonly WORKOS_COOKIE_PASSWORD: string;

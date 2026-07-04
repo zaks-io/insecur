@@ -1,4 +1,5 @@
 import type { SecretsStoreSecretBinding } from "@insecur/crypto";
+import type { SentryBindings } from "@insecur/observability";
 
 /**
  * Bindings for the private Runtime Worker (ADR-0077). This is the only deploy that declares
@@ -6,7 +7,7 @@ import type { SecretsStoreSecretBinding } from "@insecur/crypto";
  * Worker authenticates the human and forwards a scoped, audience-bound hop token, which this
  * deploy verifies with `RUNTIME_TOKEN_SIGNING_SECRET`.
  */
-export interface RuntimeEnv {
+export interface RuntimeEnv extends SentryBindings {
   /** Instance root key version 1 from Cloudflare Secrets Store (ADR-0028). */
   readonly INSTANCE_ROOT_KEY_V1?: SecretsStoreSecretBinding;
   /** HMAC secret shared with the API Worker to verify the scoped hop token (ADR-0077). */

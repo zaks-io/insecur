@@ -1,3 +1,5 @@
+import type { SentryBindings } from "./sentry.js";
+
 /**
  * Bindings for the Public Site Worker (`insecur-site`, ADR-0078).
  *
@@ -6,4 +8,4 @@
  * binding here would violate the capability-isolated Worker invariant (product-spec §2). If the
  * site ever needs config, add a plaintext, non-secret `var` — never a service or secret binding.
  */
-export type SiteEnv = Record<never, never>;
+export type SiteEnv = SentryBindings;

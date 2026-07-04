@@ -16,6 +16,9 @@
   "dependencies": {
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/observability": "workspace:*",
+    "@sentry/cloudflare": "^10.63.0",
+    "@sentry/tanstackstart-react": "^10.63.0",
     "@tanstack/react-router": "^1.168.26",
     "@tanstack/react-start": "^1.168.26",
     "react": "^19.2.7",

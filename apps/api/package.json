@@ -18,9 +18,12 @@
   "dependencies": {
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/observability": "workspace:*",
     "@insecur/secret-store-contracts": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "@insecur/worker-kit": "workspace:*",
+    "@sentry/cloudflare": "^10.63.0",
+    "@sentry/hono": "^10.63.0",
     "hono": "catalog:"
   },
   "devDependencies": {
