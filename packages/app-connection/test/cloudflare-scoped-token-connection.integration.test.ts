@@ -34,7 +34,9 @@ import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
   TEST_ORG_A_ID,
   TEST_ORG_B_ID,
+  TEST_ORG_KEY_B_ID,
   TEST_PROJECT_A_ID,
+  TEST_PROJECT_B_ID,
   TEST_USER_ID,
   TEST_NO_SCOPE_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
@@ -42,7 +44,9 @@ import {
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const ORG_B = organizationId.brand(TEST_ORG_B_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
-const PROJECT_A_ALT = projectId.brand("prj_01JZ8ALT2R7M4T0V9X3C5D8F1G");
+const PROJECT_B = projectId.brand(TEST_PROJECT_B_ID);
+/** Second project in org B for same-org cross-project denial tests (never seeded in org A). */
+const PROJECT_B_ALT = projectId.brand("prj_01JZ8ALT2R7M4T0V9X3C5D8F1G");
 const CONN_CF = appConnectionId.brand("conn_01JZ8CFH2R7M4T0V9X3C5D8F1G");
 const CONN_CF_B = appConnectionId.brand("conn_01JZ8CGK5Q2R7V0X3Z6C9D1F4H");
 const CONN_CF_C = appConnectionId.brand("conn_01JZ8CJK9M5S8W1Y4A7E0G3I6H");
@@ -90,19 +94,26 @@ function createSuccessfulCloudflarePort(): CloudflareScopedTokenPort {
   };
 }
 
-async function seedOrgAAlternateProject(): Promise<void> {
-  await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+async function seedOrgBAlternateProject(): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ sql }) => {
     await sql`
       INSERT INTO projects (id, org_id, display_name)
-      VALUES (${PROJECT_A_ALT}, ${ORG_A}, ${"Org A alternate project"})
+      VALUES (${PROJECT_B_ALT}, ${ORG_B}, ${"Org B alternate project"})
       ON CONFLICT (id) DO NOTHING
     `;
     await seedDataKeys(sql, {
-      organizationId: TEST_ORG_A_ID,
-      projectId: PROJECT_A_ALT,
-      organizationDataKeyId: "odk_00000000000000000000000001",
+      organizationId: TEST_ORG_B_ID,
+      projectId: PROJECT_B_ALT,
+      organizationDataKeyId: TEST_ORG_KEY_B_ID,
       projectDataKeyId: "pdk_01JZ8ALT2R7M4T0V9X3C5D8F1G",
     });
+  });
+}
+
+async function cleanupOrgBAlternateProject(): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ sql }) => {
+    await sql`DELETE FROM project_data_keys WHERE project_id = ${PROJECT_B_ALT}`;
+    await sql`DELETE FROM projects WHERE id = ${PROJECT_B_ALT} AND org_id = ${ORG_B}`;
   });
 }
 
@@ -111,10 +122,10 @@ describeRls("cloudflare scoped-token app connection", () => {
 
   beforeAll(async () => {
     await seedTenantBaseline();
-    await seedOrgAAlternateProject();
   });
 
   afterAll(async () => {
+    await cleanupOrgBAlternateProject();
     await closeRuntimeSql();
   });
 
@@ -338,76 +349,86 @@ describeRls("cloudflare scoped-token app connection", () => {
     const cloudflarePort = createSuccessfulCloudflarePort();
     const tokenPlaintext = new TextEncoder().encode("scoped-cloudflare-token-value");
 
-    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
-      await createCloudflareScopedTokenConnection({
-        actor: ACTOR,
-        organizationId: ORG_A,
-        projectId: PROJECT_A,
-        appConnectionId: CONN_CF_D,
-        credentialId: CRED_CF_D,
-        displayName: testDisplayName("Org A Cloudflare cross-project"),
-        setupUserId: ACTOR.userId,
-        boundary: BOUNDARY,
-        tokenPlaintext,
-        keyring,
-        cloudflarePort,
-        appConnectionStore: new TenantAppConnectionStore(db),
-        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-      });
-    });
-
-    await expect(
-      withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) =>
-        validateCloudflareScopedTokenConnection({
+    await seedOrgBAlternateProject();
+    try {
+      await withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ db }) => {
+        await createCloudflareScopedTokenConnection({
           actor: ACTOR,
-          organizationId: ORG_A,
-          projectId: PROJECT_A_ALT,
+          organizationId: ORG_B,
+          projectId: PROJECT_B,
           appConnectionId: CONN_CF_D,
+          credentialId: CRED_CF_D,
+          displayName: testDisplayName("Org B Cloudflare cross-project"),
+          setupUserId: ACTOR.userId,
+          boundary: BOUNDARY,
+          tokenPlaintext,
           keyring,
           cloudflarePort,
           appConnectionStore: new TenantAppConnectionStore(db),
-          providerCredentialStore: new TenantProviderCredentialStore(db),
           sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-        }),
-      ),
-    ).rejects.toMatchObject({ code: "connection.not_found" });
+        });
+      });
+
+      await expect(
+        withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ db }) =>
+          validateCloudflareScopedTokenConnection({
+            actor: ACTOR,
+            organizationId: ORG_B,
+            projectId: PROJECT_B_ALT,
+            appConnectionId: CONN_CF_D,
+            keyring,
+            cloudflarePort,
+            appConnectionStore: new TenantAppConnectionStore(db),
+            providerCredentialStore: new TenantProviderCredentialStore(db),
+            sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "connection.not_found" });
+    } finally {
+      await cleanupOrgBAlternateProject();
+    }
   });
 
   it("denies cross-project disable when guessing another project's connection id", async () => {
     const cloudflarePort = createSuccessfulCloudflarePort();
     const tokenPlaintext = new TextEncoder().encode("scoped-cloudflare-token-value");
 
-    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
-      await createCloudflareScopedTokenConnection({
-        actor: ACTOR,
-        organizationId: ORG_A,
-        projectId: PROJECT_A,
-        appConnectionId: CONN_CF_H,
-        credentialId: CRED_CF_H,
-        displayName: testDisplayName("Org A Cloudflare cross-project disable"),
-        setupUserId: ACTOR.userId,
-        boundary: BOUNDARY,
-        tokenPlaintext,
-        keyring,
-        cloudflarePort,
-        appConnectionStore: new TenantAppConnectionStore(db),
-        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-      });
-    });
-
-    await expect(
-      withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) =>
-        disableCloudflareConnection({
+    await seedOrgBAlternateProject();
+    try {
+      await withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ db }) => {
+        await createCloudflareScopedTokenConnection({
           actor: ACTOR,
-          organizationId: ORG_A,
-          projectId: PROJECT_A_ALT,
+          organizationId: ORG_B,
+          projectId: PROJECT_B,
           appConnectionId: CONN_CF_H,
+          credentialId: CRED_CF_H,
+          displayName: testDisplayName("Org B Cloudflare cross-project disable"),
+          setupUserId: ACTOR.userId,
+          boundary: BOUNDARY,
+          tokenPlaintext,
           keyring,
+          cloudflarePort,
           appConnectionStore: new TenantAppConnectionStore(db),
           sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-        }),
-      ),
-    ).rejects.toMatchObject({ code: "connection.not_found" });
+        });
+      });
+
+      await expect(
+        withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ db }) =>
+          disableCloudflareConnection({
+            actor: ACTOR,
+            organizationId: ORG_B,
+            projectId: PROJECT_B_ALT,
+            appConnectionId: CONN_CF_H,
+            keyring,
+            appConnectionStore: new TenantAppConnectionStore(db),
+            sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "connection.not_found" });
+    } finally {
+      await cleanupOrgBAlternateProject();
+    }
   });
 
   it("denies cross-tenant validation when guessing another org id", async () => {
