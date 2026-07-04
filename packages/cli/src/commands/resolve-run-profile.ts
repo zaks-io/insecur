@@ -44,12 +44,35 @@ function resolveProfileRunSelector(input: {
   return selector === "" ? undefined : selector;
 }
 
+function hasExplicitProfileRunSelection(input: {
+  readonly flags: GlobalCliFlags;
+  readonly profileSelector?: string;
+}): boolean {
+  const selector = input.profileSelector ?? input.flags.profile;
+  if (selector !== undefined && selector !== "") {
+    return true;
+  }
+  return input.flags.profileId !== undefined;
+}
+
 function hasProfileBackedRunMode(input: {
+  readonly variableKey?: string;
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
   readonly profileSelector?: string;
 }): boolean {
-  return resolveProfileRunSelector(input) !== undefined || input.flags.profileId !== undefined;
+  if (hasExplicitProfileRunSelection(input)) {
+    return true;
+  }
+
+  const hasVariableKey = input.variableKey !== undefined && input.variableKey !== "";
+  if (hasVariableKey) {
+    // Ambient scope profile supplies org/project/env defaults only.
+    return false;
+  }
+
+  const scopeProfileSlug = input.context.scope.profileSlug;
+  return scopeProfileSlug !== undefined && scopeProfileSlug !== "";
 }
 
 export function resolveProfileRunInput(input: {
