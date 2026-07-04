@@ -59,7 +59,9 @@
     "cli": "pnpm --filter @insecur/cli start",
     "clean": "turbo run clean",
     "release-gate:bundle": "pnpm --filter @insecur/release-gate bundle",
-    "security:check": "pnpm release-gate:bundle"
+    "security:check": "pnpm release-gate:bundle",
+    "backup-restore:drill": "pnpm --filter @insecur/backup-restore drill",
+    "backup-restore:verify-evidence": "pnpm --filter @insecur/backup-restore verify-evidence"
   },
   "engines": {
     "node": ">=24 <25"

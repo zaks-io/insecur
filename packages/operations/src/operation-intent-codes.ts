@@ -5,6 +5,7 @@
 export const OPERATION_INTENT_CODES = {
   syncRun: "sync.run",
   providerReauth: "provider.reauth",
+  backupExport: "backup.export",
 } as const;
 
 export type OperationIntentCode =

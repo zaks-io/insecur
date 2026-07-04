@@ -108,3 +108,4 @@ export {
 } from "./crypto-runtime.js";
 export type { CryptoRuntimeMode } from "./crypto-runtime.js";
 export { toStoreFacingCiphertext } from "./envelope-storage.js";
+export { aesGcmDecrypt, aesGcmEncrypt, concatBytes, randomIv } from "./envelope-crypto.js";

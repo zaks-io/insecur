@@ -14,7 +14,10 @@ export function deriveBundleVerdict(
 export function assembleSecurityEvidenceBundle(
   options: AssembleSecurityEvidenceBundleOptions,
 ): SecurityEvidenceBundle {
-  const controls = collectSecurityCheckControls(options.evidenceDir);
+  const controls = collectSecurityCheckControls(
+    options.evidenceDir,
+    options.profile ?? "production_deploy",
+  );
   const verdict = deriveBundleVerdict(controls);
 
   return {

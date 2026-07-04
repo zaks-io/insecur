@@ -1,7 +1,10 @@
 export { assembleSecurityEvidenceBundle, deriveBundleVerdict } from "./assemble-bundle.js";
 export {
+  collectBackupRestoreControls,
   collectChecklistControl,
   collectDependencyScanControl,
+  collectExportFreshControl,
+  collectRestoreDrillControl,
   collectSbomVulnerabilityControl,
   collectSecretScanControl,
   collectSecurityCheckControls,
@@ -17,6 +20,7 @@ export { secretScanSummaryText, summarizeSecretScanEvidence } from "./summarize-
 export {
   EVIDENCE_BUNDLE_SCHEMA_VERSION,
   SECURITY_CHECK_CONTROL_IDS,
+  SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS,
   type AssembleSecurityEvidenceBundleOptions,
   type ChecklistEvidence,
   type ControlStatus,

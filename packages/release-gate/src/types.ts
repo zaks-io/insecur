@@ -94,4 +94,9 @@ export const SECURITY_CHECK_CONTROL_IDS = [
   "auth.api_top10_checklist",
 ] as const;
 
+export const SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS = [
+  "backup_restore.export_fresh",
+  "backup_restore.drill",
+] as const;
+
 export type SecurityCheckControlId = (typeof SECURITY_CHECK_CONTROL_IDS)[number];

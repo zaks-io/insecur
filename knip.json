@@ -18,6 +18,10 @@
       "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "packages/backup-restore": {
+      "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
     "packages/machine-auth": {
       "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]

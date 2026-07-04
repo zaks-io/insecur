@@ -1,5 +1,5 @@
 {
-  "name": "@insecur/release-gate",
+  "name": "@insecur/backup-restore",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,19 +7,21 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "bundle": "pnpm run build && node dist/cli.js",
+    "drill": "tsx src/cli.ts drill",
+    "verify-evidence": "tsx src/cli.ts verify-evidence",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@insecur/backup-restore": "workspace:*",
+    "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

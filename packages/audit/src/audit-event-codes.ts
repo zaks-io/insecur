@@ -52,6 +52,10 @@ export const PRODUCTION_AUDIT_EVENT_CODES = {
   highAssuranceChallengeClearDenied: "high_assurance.challenge_clear_denied",
   highAssuranceEvidenceConsumed: "high_assurance.evidence_consumed",
   highAssuranceEvidenceConsumeDenied: "high_assurance.evidence_consume_denied",
+  backupExportSucceeded: "backup.export_succeeded",
+  backupExportFailed: "backup.export_failed",
+  backupRestoreDrillSucceeded: "backup.restore_drill_succeeded",
+  backupRestoreDrillFailed: "backup.restore_drill_failed",
 } as const;
 
 /** All supported tenant-qualified audit event codes. */

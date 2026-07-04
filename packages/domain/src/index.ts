@@ -162,3 +162,8 @@ export {
   errorEnvelope,
   successEnvelope,
 } from "./envelopes.js";
+export {
+  assertMetadataSafe,
+  findMetadataSafetyViolations,
+  type MetadataSafetyOptions,
+} from "./metadata-safety.js";

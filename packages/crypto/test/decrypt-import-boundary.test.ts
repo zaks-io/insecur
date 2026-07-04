@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,10 +17,6 @@ const negativeDynamicFixture = path.join(
 const negativeDeepPathFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/decrypt-import-boundary-negative-deep-path.fixture.ts",
-);
-const allowlistedModule = path.join(
-  repoRoot,
-  "packages/runtime-injection/src/decrypt-grant-secret.ts",
 );
 const ESLINT_BOUNDARY_TIMEOUT_MS = 15_000;
 const DECRYPT_IMPORT_BOUNDARY_MESSAGE =
@@ -121,22 +117,103 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );
 
-  it("keeps exactly one allowlisted decrypt egress module", () => {
-    expect(readDecryptImportAllowlist()).toEqual([
-      "packages/runtime-injection/src/decrypt-grant-secret.ts",
-    ]);
-  });
+  it(
+    "fails lint for decrypt imports in unallowlisted backup-restore sibling modules",
+    async () => {
+      const output = await runEslintExpectFailure(
+        path.join(
+          repoRoot,
+          "scripts/lint-fixtures/decrypt-import-boundary-negative-backup-restore-sibling.fixture.ts",
+        ),
+      );
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toMatch(/decryptSecretValueForRuntime/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
 
   it(
-    "does not apply the decrypt boundary to the sole allowlisted egress module",
+    "fails lint for decrypt imports under keyring-only allowlist paths",
     async () => {
-      const config = await readLintConfigFor(allowlistedModule);
+      const fixturePath = path.join(
+        repoRoot,
+        "packages/tenant-keyring/src/.decrypt-import-boundary-negative.fixture.ts",
+      );
+      writeFileSync(
+        fixturePath,
+        [
+          'import { decryptSecretValueForRuntime } from "@insecur/crypto";',
+          "",
+          "export function tenantKeyringDecryptImport(): typeof decryptSecretValueForRuntime {",
+          "  return decryptSecretValueForRuntime;",
+          "}",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      try {
+        const output = await runEslintExpectFailure(fixturePath);
+        expect(output).toMatch(/no-restricted-imports/);
+        expect(output).toMatch(/decryptSecretValueForRuntime/);
+      } finally {
+        unlinkSync(fixturePath);
+      }
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "applies decrypt boundary to tenant-keyring production modules",
+    async () => {
+      const config = await readLintConfigFor(
+        path.join(repoRoot, "packages/tenant-keyring/src/index.ts"),
+      );
       const restrictedRules = JSON.stringify([
         config.rules?.["no-restricted-imports"],
         config.rules?.["no-restricted-syntax"],
       ]);
 
-      expect(restrictedRules).not.toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+      expect(restrictedRules).toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "applies decrypt boundary to backup-restore sources outside recovery-canary",
+    async () => {
+      const config = await readLintConfigFor(
+        path.join(repoRoot, "packages/backup-restore/src/backup-envelope.ts"),
+      );
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it("keeps the allowlisted decrypt egress modules", () => {
+    expect(readDecryptImportAllowlist()).toEqual([
+      "packages/runtime-injection/src/decrypt-grant-secret.ts",
+      "packages/backup-restore/src/recovery-canary.ts",
+    ]);
+  });
+
+  it(
+    "does not apply the decrypt boundary to allowlisted egress modules",
+    async () => {
+      for (const allowlistedPath of readDecryptImportAllowlist()) {
+        const config = await readLintConfigFor(path.join(repoRoot, allowlistedPath));
+        const restrictedRules = JSON.stringify([
+          config.rules?.["no-restricted-imports"],
+          config.rules?.["no-restricted-syntax"],
+        ]);
+
+        expect(restrictedRules).not.toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+      }
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );

@@ -15,6 +15,7 @@ import {
 /** ADR-0071 decrypt-import allowlist of record. */
 const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/runtime-injection/src/decrypt-grant-secret.ts",
+  "packages/backup-restore/src/recovery-canary.ts",
 ] as const;
 
 const DECRYPT_ENTRY_POINT_NAMES = [
@@ -177,6 +178,8 @@ export default tseslint.config(
       "packages/tenant-store/vitest.rls.config.ts",
       "packages/tenant-store/drizzle.config.ts",
       "packages/tenant-store/scripts/**/*.ts",
+      "packages/backup-restore/test/**/*.ts",
+      "packages/backup-restore/vitest.config.ts",
       "packages/worker-kit/src/**/*.test.ts",
       "packages/worker-kit/vitest.config.ts",
       "apps/api/test/**/*.ts",
@@ -206,6 +209,10 @@ export default tseslint.config(
   },
   {
     files: ["scripts/lint-fixtures/**/*.ts"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    files: ["**/.decrypt-import-boundary-negative.fixture.ts"],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
@@ -256,6 +263,25 @@ export default tseslint.config(
     },
   },
   {
+    files: ["packages/backup-restore/src/**/*.ts"],
+    rules: {
+      complexity: ["error", 12],
+      "max-lines-per-function": ["error", { max: 65, skipBlankLines: true, skipComments: true }],
+      "max-statements": ["error", 25],
+    },
+  },
+  {
+    files: [
+      "packages/backup-restore/src/parse-evidence.ts",
+      "packages/backup-restore/src/evaluate-readiness.ts",
+    ],
+    rules: {
+      complexity: ["error", 20],
+      "max-lines-per-function": ["error", { max: 90, skipBlankLines: true, skipComments: true }],
+      "max-statements": ["error", 30],
+    },
+  },
+  {
     files: ["packages/cli/src/config/resolve-scope.ts"],
     rules: {
       complexity: "off",
@@ -263,9 +289,8 @@ export default tseslint.config(
       "@typescript-eslint/non-nullable-type-assertion-style": "off",
     },
   },
-  // Decrypt-egress boundary (ADR-0071) AND keyring-construction boundary (ADR-0064/0077) together,
-  // for every non-test source file OUTSIDE the Runtime Worker. Runtime source is the one place
-  // allowed to build a keyring, so it is excluded here and gets the decrypt-only rules below.
+  // Decrypt-egress (ADR-0071) and keyring-construction (ADR-0064/0077) share one rule block so
+  // both path sets apply. Decrypt ignores only — keyring-only paths must not bypass decrypt lint.
   {
     files: ["**/*.ts"],
     ignores: [
@@ -275,7 +300,6 @@ export default tseslint.config(
       "**/*.integration.test.ts",
       "packages/crypto/src/**",
       "apps/runtime/src/**",
-      ...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
     rules: {
@@ -292,6 +316,21 @@ export default tseslint.config(
         ...keyringDynamicImportSyntaxRules,
         ...keyringBoundarySyntaxRules,
       ],
+    },
+  },
+  // Keyring-only allowlist: keep decrypt boundary, drop keyring fencing for composition helpers.
+  {
+    files: [...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST],
+    ignores: [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.e2e.test.ts",
+      "**/*.integration.test.ts",
+      ...DECRYPT_IMPORT_ALLOWLIST,
+    ],
+    rules: {
+      "no-restricted-imports": ["error", decryptImportBoundaryOptions],
+      "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],
     },
   },
   // Runtime Worker source: decrypt-egress boundary only. Keyring construction is permitted here.

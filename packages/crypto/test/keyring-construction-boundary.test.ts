@@ -210,7 +210,24 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
       expect(restrictedRules).not.toContain(KEYRING_BOUNDARY_MESSAGE);
       expect(KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST).toEqual([
         "packages/tenant-keyring/src/**",
+        "packages/backup-restore/src/recovery-canary.ts",
       ]);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "applies keyring boundary to backup-restore sources outside recovery-canary",
+    async () => {
+      const config = await readLintConfigFor(
+        path.join(repoRoot, "packages/backup-restore/src/backup-envelope.ts"),
+      );
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).toContain(KEYRING_BOUNDARY_MESSAGE);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );
