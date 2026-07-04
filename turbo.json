@@ -36,6 +36,11 @@
     "test": {
       "outputs": []
     },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.coverage.config.ts"],
+      "outputs": ["coverage/**"]
+    },
     "test:rls": {
       "cache": false,
       "env": [

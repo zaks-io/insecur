@@ -157,7 +157,16 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
           TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
-        run: pnpm test:coverage
+        run: |
+          set -euo pipefail
+          if [ -n "${TURBO_REMOTE_CACHE_SIGNATURE_KEY:-}" ] && [ -n "${TURBO_TOKEN:-}" ] && [ -n "${TURBO_TEAM:-}" ]; then
+            export TURBO_CACHE="local:rw,remote:rw"
+            echo "Remote Turbo cache writes enabled for coverage."
+          else
+            export TURBO_CACHE="local:rw,remote:r"
+            echo "::notice::Remote Turbo cache writes skipped. Configure TURBO_TOKEN, TURBO_TEAM, and TURBO_REMOTE_CACHE_SIGNATURE_KEY repository secrets to enable signed CI cache publication (ADR-0053)."
+          fi
+          pnpm test:coverage
 
       - name: Upload coverage report
         if: always() && needs.changes.outputs.product_code == 'true'

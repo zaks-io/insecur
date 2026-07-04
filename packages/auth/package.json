@@ -10,6 +10,7 @@
   "scripts": {
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

@@ -12,6 +12,7 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "start": "node --import tsx/esm src/index.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
