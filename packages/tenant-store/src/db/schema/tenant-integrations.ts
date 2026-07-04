@@ -5,6 +5,22 @@
 import { primaryKey } from "drizzle-orm/pg-core";
 import { check, foreignKey, integer, pgTable, sql, text, timestamp, unique } from "./pg-core.js";
 import { organizations } from "./tenant-hierarchy.js";
+
+export const APP_CONNECTION_STATUSES = [
+  "active",
+  "disconnected",
+  "reauthorization_required",
+  "pending_setup",
+] as const;
+
+export const APP_CONNECTION_METHODS = [
+  "github-app",
+  "scoped-api-token",
+  "vercel-integration-oauth",
+] as const;
+
+export const APP_CONNECTION_PROVIDERS = ["github", "cloudflare", "vercel"] as const;
+
 export const appConnections = pgTable(
   "app_connections",
   {
@@ -13,14 +29,28 @@ export const appConnections = pgTable(
       .notNull()
       .references(() => organizations.id),
     provider: text("provider").notNull(),
+    connectionMethod: text("connection_method").notNull(),
     displayName: text("display_name").notNull(),
+    status: text("status").notNull().default("pending_setup"),
+    setupUserId: text("setup_user_id").notNull(),
+    activeCredentialId: text("active_credential_id"),
+    statusReasonCode: text("status_reason_code"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     unique("app_connections_org_id_id_key").on(table.orgId, table.id),
     check(
       "app_connections_provider_check",
       sql`${table.provider} ~ '^[a-z][a-z0-9_-]+$' AND char_length(${table.provider}) <= 64`,
+    ),
+    check(
+      "app_connections_connection_method_check",
+      sql`${table.connectionMethod} IN ('github-app', 'scoped-api-token', 'vercel-integration-oauth')`,
+    ),
+    check(
+      "app_connections_status_check",
+      sql`${table.status} IN ('active', 'disconnected', 'reauthorization_required', 'pending_setup')`,
     ),
   ],
 );

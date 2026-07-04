@@ -20,6 +20,7 @@ const projectRoots = [
   "packages/domain",
   "packages/instance-bootstrap",
   "packages/machine-auth",
+  "packages/app-connection",
   "packages/onboarding",
   "packages/operations",
   "packages/release-gate",

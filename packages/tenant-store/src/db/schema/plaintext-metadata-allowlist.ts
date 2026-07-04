@@ -34,11 +34,17 @@ export type PlaintextMetadataAllowlist = Readonly<
  */
 export const PLAINTEXT_METADATA_ALLOWLIST = {
   app_connections: {
+    active_credential_id: { category: "opaque-id" },
+    connection_method: { category: "type-code" },
     created_at: { category: "timestamp" },
     display_name: { category: "display-name" },
     id: { category: "opaque-id" },
     org_id: { category: "opaque-id" },
     provider: { category: "type-code" },
+    setup_user_id: { category: "actor-id" },
+    status: { category: "status-code" },
+    status_reason_code: { category: "type-code" },
+    updated_at: { category: "timestamp" },
   },
   audit_events: {
     actor_machine_identity_id: { category: "actor-id" },
