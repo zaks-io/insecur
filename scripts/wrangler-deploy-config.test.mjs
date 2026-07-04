@@ -80,7 +80,8 @@ test("fails when a selected Wrangler environment scope is missing", () => {
 });
 
 test("fails when required deploy environment values are missing", () => {
-  const { INSECUR_INSTANCE_ID: _removed, ...env } = DEPLOY_ENV;
+  const env = { ...DEPLOY_ENV };
+  delete env.INSECUR_INSTANCE_ID;
 
   assert.throws(
     () => materializeDeployWranglerConfig(apiConfig(), { env }),
