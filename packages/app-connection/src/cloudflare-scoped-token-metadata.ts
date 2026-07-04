@@ -22,6 +22,18 @@ export interface CloudflareConnectionBoundary {
   readonly allowedWorkerScript: string;
 }
 
+/** Stable dotted codes for audit detail maps (ADR-0068 value-type guard). */
+export const CLOUDFLARE_TOKEN_STATUS_AUDIT_CODES = {
+  active: "connection.token_status.active",
+  invalid: "connection.token_status.invalid",
+} as const satisfies Record<"active" | "invalid", string>;
+
+export function toCloudflareTokenStatusAuditCode(
+  tokenStatus: "active" | "invalid",
+): (typeof CLOUDFLARE_TOKEN_STATUS_AUDIT_CODES)[keyof typeof CLOUDFLARE_TOKEN_STATUS_AUDIT_CODES] {
+  return CLOUDFLARE_TOKEN_STATUS_AUDIT_CODES[tokenStatus];
+}
+
 export function cloudflareConnectionRecordResourceId(appConnectionId: string): OpaqueResourceId {
   return appConnectionId as OpaqueResourceId;
 }

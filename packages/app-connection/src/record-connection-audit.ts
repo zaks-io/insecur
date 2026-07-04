@@ -18,6 +18,7 @@ import {
 } from "@insecur/domain";
 
 import type { CloudflareScopedTokenVerifyResult } from "./cloudflare-scoped-token-port.js";
+import { toCloudflareTokenStatusAuditCode } from "./cloudflare-scoped-token-metadata.js";
 
 function connectionResource(appConnectionId: AppConnectionId) {
   return {
@@ -28,7 +29,7 @@ function connectionResource(appConnectionId: AppConnectionId) {
 
 function validationDetails(result: CloudflareScopedTokenVerifyResult): AuditEventDetails {
   return {
-    tokenStatus: result.tokenStatus,
+    tokenStatus: toCloudflareTokenStatusAuditCode(result.tokenStatus),
     workerScriptReachable: result.workerScriptReachable,
     hasBoundaryWarning: result.hasBoundaryWarning,
   };
