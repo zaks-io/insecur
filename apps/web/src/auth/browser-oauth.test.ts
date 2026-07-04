@@ -1,5 +1,10 @@
-import { INSECUR_CSRF_COOKIE, INSECUR_CSRF_HEADER, WORKOS_SESSION_COOKIE } from "@insecur/auth";
-import { createFakeWorkOSSessionPort } from "@insecur/auth/testing";
+import {
+  generateCsrfToken,
+  INSECUR_CSRF_COOKIE,
+  INSECUR_CSRF_HEADER,
+  WORKOS_SESSION_COOKIE,
+} from "@insecur/auth";
+import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { beginBrowserLogin, completeBrowserLogin, logoutBrowserSession } from "./browser-oauth.js";
 import { INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
@@ -16,7 +21,7 @@ function createTestEnv(): WebEnv {
     WORKOS_API_KEY: "sk_test",
     WORKOS_CLIENT_ID: "client_test",
     WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-    SESSION_SIGNING_SECRET: "0123456789abcdef0123456789abcdef",
+    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
     API: { fetch: () => Promise.reject(new Error("API binding not used")) } as unknown as Fetcher,
     RUNTIME: {
       resolveAdmission: () => Promise.resolve({ ok: true, value: { userId: null } }),
@@ -125,7 +130,7 @@ describe("logoutBrowserSession", () => {
   });
 
   it("clears session cookies when the CSRF pair matches", () => {
-    const token = "csrf-token-valid";
+    const token = generateCsrfToken();
     const request = new Request("https://insecur.test/logout", {
       method: "POST",
       headers: {
@@ -146,11 +151,13 @@ describe("logoutBrowserSession", () => {
   });
 
   it("rejects logout without a valid CSRF pair", () => {
+    const cookieToken = generateCsrfToken();
+    const headerToken = generateCsrfToken();
     const request = new Request("https://insecur.test/logout", {
       method: "POST",
       headers: {
-        Cookie: `${INSECUR_CSRF_COOKIE}=cookie-token`,
-        [INSECUR_CSRF_HEADER]: "header-token",
+        Cookie: `${INSECUR_CSRF_COOKIE}=${cookieToken}`,
+        [INSECUR_CSRF_HEADER]: headerToken,
       },
     });
 
