@@ -44,8 +44,10 @@ export function materializeDeployWranglerConfig(config, options = {}) {
     case "insecur-web":
       materializeWebConfig(scope, deployContext);
       break;
-    default:
+    case "insecur-site":
       break;
+    default:
+      throw new Error(`No deploy-config materializer registered for Worker "${next.name}".`);
   }
 
   return next;
@@ -61,6 +63,17 @@ export function parseConfigCommandArgs(argv) {
   const configArg = delimiterIndex === -1 ? argv[0] : argv.slice(0, delimiterIndex)[0];
   const commandArgs = delimiterIndex === -1 ? argv.slice(1) : argv.slice(delimiterIndex + 1);
   return { configArg, commandArgs };
+}
+
+export function hasWranglerConfigArg(args) {
+  return args.some(
+    (arg) =>
+      arg === "--config" ||
+      arg.startsWith("--config=") ||
+      arg === "-c" ||
+      arg.startsWith("-c=") ||
+      /^-c[^-]/.test(arg),
+  );
 }
 
 export function rebaseConfigPaths(config, fromDir, toDir) {
@@ -141,7 +154,7 @@ function materializeWebConfig(scope, context) {
   scope.vars.WORKOS_CLIENT_ID = requireDeployEnv("INSECUR_WORKOS_CLIENT_ID", context);
 }
 
-function selectWranglerScope(config, wranglerEnv) {
+export function selectWranglerScope(config, wranglerEnv) {
   if (!wranglerEnv) {
     return config;
   }
@@ -165,7 +178,7 @@ function readWranglerEnvArg(args) {
   return undefined;
 }
 
-function normalizeWranglerEnv(value) {
+export function normalizeWranglerEnv(value) {
   if (!value || value === '""' || value === "production") {
     return undefined;
   }

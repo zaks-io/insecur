@@ -33,8 +33,8 @@ What is delivered:
   `https://app.preview.insecur.cloud`, and `https://preview.insecur.cloud`; Runtime has
   no public route. Private Worker IDs are supplied by Preview/Production GitHub
   Environment variables during deploy, not committed Wrangler config.
-- The nonprod root key in Cloudflare Secrets Store has been regenerated, escrowed in
-  Bitwarden, and verified through the deployed preview smoke.
+- The nonprod root key in Cloudflare Secrets Store has been regenerated, escrowed in an
+  operator vault, and verified through the deployed preview smoke.
 
 What is not delivered:
 
@@ -48,7 +48,7 @@ What is not delivered:
   been deployed to and verified against preview.
 - No authenticated CLI success transcript against the deployed preview exists yet.
 - No production decrypt path was exercised in this verification pass.
-- The Bitwarden escrow evidence is recovery evidence, but not launch-grade
+- The operator-vault escrow evidence is recovery evidence, but not launch-grade
   out-of-band access-log evidence unless it is moved to or backed by an organization
   vault with event logs.
 
@@ -339,10 +339,10 @@ Nonprod custody status:
 
 Remaining custody gap:
 
-- Bitwarden access logging has not been verified. This is acceptable for pre-live
+- Operator-vault access logging has not been verified. This is acceptable for pre-live
   nonprod recovery evidence, but it is not enough for a launch gate that requires
   out-of-band escrow access logs.
-- The production root key secret and Bitwarden item are visible in screenshots, but the
+- The production root key secret and operator-vault item are visible in screenshots, but the
   production decrypt path was not exercised.
 
 ### Runtime Injection

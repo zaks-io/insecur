@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   getWranglerEnvName,
+  hasWranglerConfigArg,
   loadDeployWranglerConfig,
   parseConfigCommandArgs,
   runWrangler,
@@ -15,8 +16,8 @@ if (!configArg || wranglerArgs.length === 0) {
   fail("Usage: node scripts/wrangler-with-deploy-config.mjs <wrangler-config> -- <wrangler args>");
 }
 
-if (wranglerArgs.some((arg) => arg === "--config" || arg.startsWith("--config="))) {
-  fail("Pass the source Wrangler config as the first argument, not through --config.");
+if (hasWranglerConfigArg(wranglerArgs)) {
+  fail("Pass the source Wrangler config as the first argument, not through --config/-c.");
 }
 
 const sourcePath = path.resolve(process.cwd(), configArg);
