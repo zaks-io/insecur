@@ -9,12 +9,51 @@ import {
   assertBundleIsMetadataSafe,
   EVIDENCE_BUNDLE_SCHEMA_VERSION,
   SECURITY_CHECK_CONTROL_IDS,
+  SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS,
 } from "./index.js";
 
 function writeEvidence(evidenceDir: string, relativePath: string, payload: unknown): void {
   const absolutePath = join(evidenceDir, relativePath);
   mkdirSync(join(absolutePath, ".."), { recursive: true });
   writeFileSync(absolutePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+function writeBackupEvidence(evidenceDir: string): void {
+  writeEvidence(evidenceDir, "backup/export-success.json", {
+    status: "passed",
+    checked_at: "2026-07-04T00:00:00.000Z",
+    instance_id: "inst_test",
+    export_timestamp: "2026-07-04T00:00:00.000Z",
+    root_key_version: 1,
+    organization_count: 1,
+    artifact_ref: "backup/latest-export.ibkp",
+    encryption_verified: true,
+    expires_at: "2026-07-06T00:00:00.000Z",
+  });
+  writeEvidence(evidenceDir, "backup/restore-drill.json", {
+    status: "passed",
+    checked_at: "2026-07-04T00:00:05.000Z",
+    actor: "ci:backup-restore-drill",
+    scope: {
+      instance_id: "inst_test",
+      organization_id: "org_01RCAN00000000000000000001",
+      project_id: "prj_01RCAN00000000000000000002",
+      secret_id: "sec_01RCAN00000000000000000004",
+    },
+    rto: {
+      started_at: "2026-07-04T00:00:00.000Z",
+      completed_at: "2026-07-04T00:00:05.000Z",
+      duration_seconds: 5,
+      target_seconds: 28800,
+    },
+    canary_verification: {
+      status: "passed",
+      checked_at: "2026-07-04T00:00:05.000Z",
+      variable_key: "INSECUR_RECOVERY_CANARY",
+    },
+    encryption_verified: true,
+    artifact_ref: "backup/latest-export.ibkp",
+  });
 }
 
 function writePassingEvidenceSet(evidenceDir: string): void {
@@ -84,6 +123,40 @@ describe("assembleSecurityEvidenceBundle", () => {
       expect(typeof control.summary).toBe("string");
       expect(Array.isArray(control.evidence)).toBe(true);
     }
+  });
+
+  it("includes backup_restore controls for small_group_production", () => {
+    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-release-gate-"));
+    writePassingEvidenceSet(evidenceDir);
+    writeBackupEvidence(evidenceDir);
+
+    const bundle = assembleSecurityEvidenceBundle({
+      evidenceDir,
+      profile: "small_group_production",
+      generatedAt: "2026-07-04T01:00:00.000Z",
+    });
+
+    expect(bundle.controls.map((control) => control.id)).toEqual([
+      ...SECURITY_CHECK_CONTROL_IDS,
+      ...SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS,
+    ]);
+    expect(bundle.ok).toBe(true);
+  });
+
+  it("blocks small_group_production when backup evidence is missing", () => {
+    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-release-gate-"));
+    writePassingEvidenceSet(evidenceDir);
+
+    const bundle = assembleSecurityEvidenceBundle({
+      evidenceDir,
+      profile: "small_group_production",
+    });
+
+    expect(bundle.ok).toBe(false);
+    const backupControls = bundle.controls.filter((control) =>
+      control.id.startsWith("backup_restore."),
+    );
+    expect(backupControls.every((control) => control.status === "missing_evidence")).toBe(true);
   });
 
   it("passes when all required evidence is present and healthy", () => {

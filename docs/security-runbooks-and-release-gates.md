@@ -151,6 +151,8 @@ is not `passed`. Missing evidence is `missing_evidence` and blocks the gate.
 | `supply_chain.sbom_vulnerability` | `supply-chain/sbom-vulnerability.json`       | syft + grype summary                               |
 | `auth.asvs_checklist`             | `security/asvs-checklist.json`               | OWASP ASVS checklist status                        |
 | `auth.api_top10_checklist`        | `security/api-top10-checklist.json`          | OWASP API Security Top 10 checklist status         |
+| `backup_restore.export_fresh`     | `backup/export-success.json`                 | Latest successful Worker export with `expires_at`  |
+| `backup_restore.drill`            | `backup/restore-drill.json`                  | Tested restore drill and canary verification       |
 
 Evidence files are JSON metadata only. Secret-scan artifacts must record
 `finding_count` and optional `rule_ids`; they must not include Sensitive Values,

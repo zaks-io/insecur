@@ -21,6 +21,7 @@ reading map before loading slices of the root `../CONTEXT.md`.
 - `@insecur/crypto` - Keyring and Encryption Envelope
 - `@insecur/tenant-keyring` - Runtime-only tenant-backed keyring composition
 - `@insecur/audit` - Audit Event Writer
+- `@insecur/backup-restore` - encrypted backup metadata, restore drill evidence, recovery canary verification
 - `@insecur/release-gate` - Security Evidence Bundle assembly and release-gate skeleton
 - `@insecur/secret-store-contracts` - public-safe Secret Write validation and error contracts
 - `@insecur/secret-store` - Secret Version Store and Blind Secret Write rules

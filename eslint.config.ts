@@ -15,6 +15,7 @@ import {
 /** ADR-0071 decrypt-import allowlist of record. */
 const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/runtime-injection/src/decrypt-grant-secret.ts",
+  "packages/backup-restore/src/recovery-canary.ts",
 ] as const;
 
 const DECRYPT_ENTRY_POINT_NAMES = [
@@ -177,6 +178,8 @@ export default tseslint.config(
       "packages/tenant-store/vitest.rls.config.ts",
       "packages/tenant-store/drizzle.config.ts",
       "packages/tenant-store/scripts/**/*.ts",
+      "packages/backup-restore/test/**/*.ts",
+      "packages/backup-restore/vitest.config.ts",
       "packages/worker-kit/src/**/*.test.ts",
       "packages/worker-kit/vitest.config.ts",
       "apps/api/test/**/*.ts",
@@ -253,6 +256,22 @@ export default tseslint.config(
       "max-lines-per-function": "off",
       "max-statements": "off",
       complexity: "off",
+    },
+  },
+  {
+    files: ["packages/release-gate/src/parse-backup-restore-evidence.ts"],
+    rules: {
+      complexity: ["error", 20],
+      "max-lines-per-function": ["error", { max: 90, skipBlankLines: true, skipComments: true }],
+      "max-statements": ["error", 30],
+    },
+  },
+  {
+    files: ["packages/backup-restore/src/**/*.ts"],
+    rules: {
+      complexity: ["error", 12],
+      "max-lines-per-function": ["error", { max: 65, skipBlankLines: true, skipComments: true }],
+      "max-statements": ["error", 25],
     },
   },
   {
