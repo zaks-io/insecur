@@ -9,15 +9,16 @@ import {
   projectId,
   runtimePolicyId,
 } from "@insecur/domain";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeTenantSql } from "../../operations/test/helpers/fake-tenant-sql.js";
 import { DEPLOY_KEY_SECRET_ALGORITHM } from "../src/deploy-key-secret.js";
 import {
   exchangeEnvironmentDeployKey,
-  isRequestedRuntimePolicyKeyAllowlisted,
+  resolveDeployKeyExchangeRuntimePolicyKeyId,
 } from "../src/exchange-environment-deploy-key.js";
 import type { EnvironmentDeployKeyAuthMethodRow } from "../src/environment-deploy-key-auth-method-row.js";
 import { mintMachineAccessToken } from "../src/machine-access-token.js";
+import { createDeployKeyTestSecret } from "./helpers/deploy-key-test-secret.js";
 
 vi.mock("@insecur/audit", () => ({
   PRODUCTION_AUDIT_EVENT_CODES: {
@@ -27,11 +28,13 @@ vi.mock("@insecur/audit", () => ({
   writeAuditEvent: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
+const deployKeySecretHolder = { value: "" };
+
 vi.mock("../src/deploy-key-secret.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/deploy-key-secret.js")>();
   return {
     ...actual,
-    verifyDeployKeySecret: vi.fn((secret: string) => secret === DEPLOY_KEY_SECRET),
+    verifyDeployKeySecret: vi.fn((secret: string) => secret === deployKeySecretHolder.value),
   };
 });
 
@@ -47,9 +50,9 @@ const ENV = environmentId.brand("env_00000000000000000000000001");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000004");
 const ALLOWED_POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000001");
+const SECOND_ALLOWED_POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000003");
 const DISALLOWED_POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000002");
 const SIGNING_SECRET = "unit-machine-access-signing-secret";
-const DEPLOY_KEY_SECRET = "unit-deploy-key-secret";
 const NOW = 1_700_000_000;
 
 function authMethodRow(
@@ -107,23 +110,42 @@ function sqlReturningAuthMethods(
   });
 }
 
-describe("isRequestedRuntimePolicyKeyAllowlisted", () => {
-  it("allows exchange when runtimePolicyKeyId is omitted", () => {
-    expect(isRequestedRuntimePolicyKeyAllowlisted(authMethodRow(), undefined)).toBe(true);
+describe("resolveDeployKeyExchangeRuntimePolicyKeyId", () => {
+  it("auto-binds the sole allowlisted runtime policy key when omitted", () => {
+    expect(resolveDeployKeyExchangeRuntimePolicyKeyId(authMethodRow(), undefined)).toBe(
+      ALLOWED_POLICY_KEY,
+    );
+  });
+
+  it("requires an explicit runtime policy key when multiple keys are allowlisted", () => {
+    expect(
+      resolveDeployKeyExchangeRuntimePolicyKeyId(
+        authMethodRow({
+          runtimePolicyKeyIds: [ALLOWED_POLICY_KEY, SECOND_ALLOWED_POLICY_KEY],
+        }),
+        undefined,
+      ),
+    ).toBeNull();
   });
 
   it("allows exchange when runtimePolicyKeyId is on the deploy key allowlist", () => {
-    expect(isRequestedRuntimePolicyKeyAllowlisted(authMethodRow(), ALLOWED_POLICY_KEY)).toBe(true);
+    expect(resolveDeployKeyExchangeRuntimePolicyKeyId(authMethodRow(), ALLOWED_POLICY_KEY)).toBe(
+      ALLOWED_POLICY_KEY,
+    );
   });
 
   it("rejects exchange when runtimePolicyKeyId is outside the deploy key allowlist", () => {
-    expect(isRequestedRuntimePolicyKeyAllowlisted(authMethodRow(), DISALLOWED_POLICY_KEY)).toBe(
-      false,
-    );
+    expect(
+      resolveDeployKeyExchangeRuntimePolicyKeyId(authMethodRow(), DISALLOWED_POLICY_KEY),
+    ).toBeNull();
   });
 });
 
 describe("exchangeEnvironmentDeployKey runtimePolicyKeyId allowlist branch", () => {
+  beforeAll(() => {
+    deployKeySecretHolder.value = createDeployKeyTestSecret();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -133,7 +155,7 @@ describe("exchangeEnvironmentDeployKey runtimePolicyKeyId allowlist branch", () 
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       signingSecret: SIGNING_SECRET,
       sql: sqlReturningAuthMethods(),
       runtimePolicyKeyId: DISALLOWED_POLICY_KEY,
@@ -159,7 +181,29 @@ describe("exchangeEnvironmentDeployKey runtimePolicyKeyId allowlist branch", () 
     });
   });
 
-  it("mints when runtimePolicyKeyId is allowlisted after deploy key match", async () => {
+  it("fails closed when multiple allowlisted keys are configured but none is requested", async () => {
+    const result = await exchangeEnvironmentDeployKey({
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      deployKeySecret: deployKeySecretHolder.value,
+      signingSecret: SIGNING_SECRET,
+      sql: sqlReturningAuthMethods([
+        authMethodRow({
+          runtimePolicyKeyIds: [ALLOWED_POLICY_KEY, SECOND_ALLOWED_POLICY_KEY],
+        }),
+      ]),
+      nowEpoch: NOW,
+    });
+
+    expect(mintMachineAccessToken).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(AUTH_ERROR_CODES.deployKeyInvalid);
+    }
+  });
+
+  it("binds the resolved runtime policy key into the minted machine access token", async () => {
     vi.mocked(mintMachineAccessToken).mockResolvedValue({
       accessToken: "machine-access-token",
       expiresAt: "2026-01-01T00:00:00.000Z",
@@ -169,7 +213,7 @@ describe("exchangeEnvironmentDeployKey runtimePolicyKeyId allowlist branch", () 
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       signingSecret: SIGNING_SECRET,
       sql: sqlReturningAuthMethods(),
       runtimePolicyKeyId: ALLOWED_POLICY_KEY,
@@ -177,6 +221,10 @@ describe("exchangeEnvironmentDeployKey runtimePolicyKeyId allowlist branch", () 
     });
 
     expect(result.ok).toBe(true);
-    expect(mintMachineAccessToken).toHaveBeenCalledOnce();
+    expect(mintMachineAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtimePolicyKeyId: ALLOWED_POLICY_KEY,
+      }),
+    );
   });
 });

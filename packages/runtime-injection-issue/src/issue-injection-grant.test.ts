@@ -16,6 +16,8 @@ import {
   organizationId,
   parseVariableKey,
   projectId,
+  runtimePolicyId,
+  INJECTION_ERROR_CODES,
 } from "@insecur/domain";
 import { assertProjectEnvironmentCoordinate } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -110,6 +112,12 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   class MockTenantSecretVersionStore {
     getCurrentVersion = vi.fn().mockResolvedValue({ secretVersionId: "sv_test" });
   }
+  class MockTenantRuntimeInjectionPolicyStore {
+    getActiveVersion = vi.fn().mockResolvedValue({
+      variableKeys: ["TEST_KEY"],
+      secretIds: [],
+    });
+  }
   const assertProjectEnvironmentCoordinate = vi.fn((db: MockTransactionDb, coordinate: unknown) => {
     void db;
     void coordinate;
@@ -127,6 +135,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
     ),
     TenantInjectionGrantStore: MockTenantInjectionGrantStore,
     TenantSecretVersionStore: MockTenantSecretVersionStore,
+    TenantRuntimeInjectionPolicyStore: MockTenantRuntimeInjectionPolicyStore,
     resolveSecretForRead: vi.fn().mockResolvedValue({
       secretId: "sec_test",
       variableKey: "TEST_KEY" as never,
@@ -235,5 +244,45 @@ describe("issueInjectionGrant machine actors", () => {
       }),
     );
     expect(committedGrants).toHaveLength(1);
+  });
+
+  it("denies grant issue when the bound runtime policy key does not allow the selector", async () => {
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(() =>
+      Promise.resolve([
+        {
+          membershipId: MACHINE_MEMBERSHIP,
+          organizationId: ORG,
+          projectId: PROJECT,
+          machineIdentityId: MACHINE,
+          authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+        },
+      ]),
+    );
+    mockMachineAccess(loadMachineMemberships);
+
+    await expect(
+      executeIssueInjectionGrant({
+        ...baseMachineInput,
+        actor: {
+          ...baseMachineInput.actor,
+          tokenScope: {
+            ...baseMachineInput.actor.tokenScope,
+            runtimePolicyKeyId: runtimePolicyId.brand("rp_00000000000000000000000001"),
+          },
+        },
+        selector: {
+          kind: "variable_key",
+          variableKey: (() => {
+            const parsed = parseVariableKey("OTHER_KEY");
+            if (!parsed.ok) {
+              throw new Error("test variable key fixture must be valid");
+            }
+            return parsed.value;
+          })(),
+        },
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    expect(committedGrants).toHaveLength(0);
   });
 });

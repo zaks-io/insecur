@@ -8,10 +8,13 @@ import {
   projectId,
   runtimePolicyId,
 } from "@insecur/domain";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DEPLOY_KEY_SECRET_ALGORITHM } from "../src/deploy-key-secret.js";
 import type { EnvironmentDeployKeyAuthMethodRow } from "../src/environment-deploy-key-auth-method-row.js";
 import { matchEnvironmentDeployKey } from "../src/match-environment-deploy-key.js";
+import { createDeployKeyTestSecret } from "./helpers/deploy-key-test-secret.js";
+
+const deployKeySecretHolder = { value: "" };
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -22,7 +25,6 @@ const OTHER_MACHINE = machineIdentityId.brand("mach_00000000000000000000000002")
 const AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000004");
 const OTHER_AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000005");
 const POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000001");
-const DEPLOY_KEY_SECRET = "unit-deploy-key-secret";
 const NOW = 1_700_000_000;
 
 const SHARED_VERIFIER = {
@@ -60,14 +62,18 @@ vi.mock("../src/deploy-key-secret.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/deploy-key-secret.js")>();
   return {
     ...actual,
-    verifyDeployKeySecret: vi.fn((secret: string) => secret === DEPLOY_KEY_SECRET),
+    verifyDeployKeySecret: vi.fn((secret: string) => secret === deployKeySecretHolder.value),
   };
 });
 
 describe("matchEnvironmentDeployKey", () => {
+  beforeAll(() => {
+    deployKeySecretHolder.value = createDeployKeyTestSecret();
+  });
+
   it("prefers wrong-environment over disabled when the secret matches another environment", () => {
     const result = matchEnvironmentDeployKey({
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       projectId: PROJECT,
       environmentId: OTHER_ENV,
       authMethods: [authMethodRow({ status: "disabled" })],
@@ -83,7 +89,7 @@ describe("matchEnvironmentDeployKey", () => {
 
   it("continues past wrong-environment rows that share verifier material", () => {
     const result = matchEnvironmentDeployKey({
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       projectId: PROJECT,
       environmentId: ENV,
       authMethods: [
@@ -106,7 +112,7 @@ describe("matchEnvironmentDeployKey", () => {
 
   it("denies disabled keys only after the requested environment matches", () => {
     const result = matchEnvironmentDeployKey({
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       projectId: PROJECT,
       environmentId: ENV,
       authMethods: [authMethodRow({ status: "disabled" })],

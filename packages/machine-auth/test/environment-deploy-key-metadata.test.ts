@@ -64,6 +64,17 @@ describe("environment-deploy-key-metadata", () => {
     expect(Object.keys(metadata)).not.toContain("secretVerifier");
   });
 
+  it("keeps rotationReminderDue true after the rotation boundary when the key was not rotated", () => {
+    const metadata = buildEnvironmentDeployKeyMetadata(
+      authMethodRow({
+        createdAt: new Date((NOW - 3_000_000) * 1000),
+      }),
+      NOW,
+    );
+
+    expect(metadata.rotationReminderDue).toBe(true);
+  });
+
   it("accepts Drizzle transparent-parser string timestamps from Postgres", () => {
     const metadata = buildEnvironmentDeployKeyMetadata(
       authMethodRow({

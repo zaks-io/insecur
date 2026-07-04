@@ -28,8 +28,11 @@ function isRotationReminderDue(row: EnvironmentDeployKeyAuthMethodRow, nowEpoch:
   const elapsedSeconds = nowEpoch - createdAtEpoch;
   const interval = row.rotationIntervalSeconds;
   const reminder = row.rotationReminderIntervalSeconds;
-  const nextRotationAt = Math.ceil((elapsedSeconds + 1) / interval) * interval;
-  return nextRotationAt - elapsedSeconds <= reminder;
+  const rotationBoundariesCrossed = Math.floor(elapsedSeconds / interval);
+  if (rotationBoundariesCrossed > 0) {
+    return true;
+  }
+  return interval - elapsedSeconds <= reminder;
 }
 
 export function buildEnvironmentDeployKeyMetadata(

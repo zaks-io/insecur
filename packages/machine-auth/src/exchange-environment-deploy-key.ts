@@ -32,6 +32,7 @@ interface ExchangeEnvironmentDeployKeySuccess {
   readonly organizationId: string;
   readonly projectId: string;
   readonly environmentId: string;
+  readonly runtimePolicyKeyId: string;
   readonly runtimePolicyKeyIds: readonly string[];
 }
 
@@ -86,14 +87,17 @@ function authMethodAuditScope(authMethod: EnvironmentDeployKeyAuthMethodRow) {
   });
 }
 
-/** True when no runtime policy key was requested or the key is on the deploy key allowlist. */
-export function isRequestedRuntimePolicyKeyAllowlisted(
+export function resolveDeployKeyExchangeRuntimePolicyKeyId(
   authMethod: EnvironmentDeployKeyAuthMethodRow,
   runtimePolicyKeyId: RuntimePolicyId | undefined,
-): boolean {
-  return (
-    runtimePolicyKeyId === undefined || authMethod.runtimePolicyKeyIds.includes(runtimePolicyKeyId)
-  );
+): RuntimePolicyId | null {
+  if (runtimePolicyKeyId !== undefined) {
+    return authMethod.runtimePolicyKeyIds.includes(runtimePolicyKeyId) ? runtimePolicyKeyId : null;
+  }
+  if (authMethod.runtimePolicyKeyIds.length === 1) {
+    return authMethod.runtimePolicyKeyIds[0] ?? null;
+  }
+  return null;
 }
 
 async function denyExchange(input: {
@@ -116,7 +120,7 @@ async function denyExchange(input: {
 async function completeTrustedExchange(
   authMethod: EnvironmentDeployKeyAuthMethodRow,
   signingSecret: string,
-  runtimePolicyKeyId: RuntimePolicyId | undefined,
+  runtimePolicyKeyId: RuntimePolicyId,
   request?: { requestId: RequestId },
 ): Promise<ExchangeEnvironmentDeployKeySuccess> {
   const minted = await mintMachineAccessToken({
@@ -124,6 +128,7 @@ async function completeTrustedExchange(
     organizationId: authMethod.organizationId,
     projectId: authMethod.projectId,
     environmentId: authMethod.environmentId,
+    runtimePolicyKeyId,
     credentialScopes: authMethod.credentialScopes,
     signingSecret,
   });
@@ -134,7 +139,7 @@ async function completeTrustedExchange(
     environmentId: authMethod.environmentId,
     machineIdentityId: authMethod.machineIdentityId,
     deployKeyId: authMethod.id,
-    ...(runtimePolicyKeyId !== undefined ? { runtimePolicyKeyId } : {}),
+    runtimePolicyKeyId,
     ...(request !== undefined ? { request } : {}),
   });
 
@@ -146,6 +151,7 @@ async function completeTrustedExchange(
     organizationId: authMethod.organizationId,
     projectId: authMethod.projectId,
     environmentId: authMethod.environmentId,
+    runtimePolicyKeyId,
     runtimePolicyKeyIds: [...authMethod.runtimePolicyKeyIds],
   };
 }
@@ -193,7 +199,11 @@ export async function exchangeEnvironmentDeployKey(
     return denyMatchedExchange(input, matched);
   }
 
-  if (!isRequestedRuntimePolicyKeyAllowlisted(matched.authMethod, input.runtimePolicyKeyId)) {
+  const boundRuntimePolicyKeyId = resolveDeployKeyExchangeRuntimePolicyKeyId(
+    matched.authMethod,
+    input.runtimePolicyKeyId,
+  );
+  if (boundRuntimePolicyKeyId === null) {
     return denyExchange({
       ...machineAuthExchangeTenantScope({
         ...authMethodAuditScope(matched.authMethod),
@@ -207,7 +217,7 @@ export async function exchangeEnvironmentDeployKey(
   return completeTrustedExchange(
     matched.authMethod,
     input.signingSecret,
-    input.runtimePolicyKeyId,
+    boundRuntimePolicyKeyId,
     ...(input.request !== undefined ? [input.request] : []),
   );
 }

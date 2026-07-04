@@ -66,6 +66,7 @@ export {
 } from "./match-environment-deploy-key.js";
 export {
   exchangeEnvironmentDeployKey,
+  resolveDeployKeyExchangeRuntimePolicyKeyId,
   type ExchangeEnvironmentDeployKeyInput,
   type ExchangeEnvironmentDeployKeyResult,
 } from "./exchange-environment-deploy-key.js";

@@ -18,6 +18,7 @@ function actorMembershipLoadKey(actor: ActorRef): string {
     actor.tokenScope.organizationId,
     actor.tokenScope.projectId,
     actor.tokenScope.environmentId ?? "",
+    actor.tokenScope.runtimePolicyKeyId ?? "",
     [...actor.credentialScopes].sort().join("\0"),
   ].join("\0");
 }

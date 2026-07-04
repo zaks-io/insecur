@@ -8,11 +8,12 @@ import {
   projectId,
   runtimePolicyId,
 } from "@insecur/domain";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEPLOY_KEY_SECRET_ALGORITHM } from "../src/deploy-key-secret.js";
 import { exchangeEnvironmentDeployKey } from "../src/exchange-environment-deploy-key.js";
 import type { EnvironmentDeployKeyAuthMethodRow } from "../src/environment-deploy-key-auth-method-row.js";
 import { createFakeTenantSql } from "../../operations/test/helpers/fake-tenant-sql.js";
+import { createDeployKeyTestSecret } from "./helpers/deploy-key-test-secret.js";
 
 vi.mock("@insecur/audit", () => ({
   PRODUCTION_AUDIT_EVENT_CODES: {
@@ -22,6 +23,8 @@ vi.mock("@insecur/audit", () => ({
   writeAuditEvent: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
+const deployKeySecretHolder = { value: "" };
+
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
@@ -30,7 +33,6 @@ const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000004");
 const POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000001");
 const SIGNING_SECRET = "unit-machine-access-signing-secret";
-const DEPLOY_KEY_SECRET = "unit-deploy-key-secret";
 const NOW = 1_700_000_000;
 
 function authMethodRow(
@@ -92,11 +94,15 @@ vi.mock("../src/deploy-key-secret.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/deploy-key-secret.js")>();
   return {
     ...actual,
-    verifyDeployKeySecret: vi.fn((secret: string) => secret === DEPLOY_KEY_SECRET),
+    verifyDeployKeySecret: vi.fn((secret: string) => secret === deployKeySecretHolder.value),
   };
 });
 
 describe("exchangeEnvironmentDeployKey (unit)", () => {
+  beforeAll(() => {
+    deployKeySecretHolder.value = createDeployKeyTestSecret();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -106,7 +112,7 @@ describe("exchangeEnvironmentDeployKey (unit)", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       signingSecret: SIGNING_SECRET,
       sql: sqlReturningAuthMethods(),
       nowEpoch: NOW,
@@ -116,6 +122,7 @@ describe("exchangeEnvironmentDeployKey (unit)", () => {
     if (result.ok) {
       expect(result.machineIdentityId).toBe(MACHINE);
       expect(result.environmentId).toBe(ENV);
+      expect(result.runtimePolicyKeyId).toBe(POLICY_KEY);
       expect(result.runtimePolicyKeyIds).toEqual([POLICY_KEY]);
     }
   });
@@ -125,7 +132,7 @@ describe("exchangeEnvironmentDeployKey (unit)", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       signingSecret: SIGNING_SECRET,
       sql: sqlReturningAuthMethods([authMethodRow({ status: "disabled" })]),
       nowEpoch: NOW,
@@ -144,7 +151,7 @@ describe("exchangeEnvironmentDeployKey (unit)", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       signingSecret: SIGNING_SECRET,
       sql: sqlReturningAuthMethods([
         authMethodRow({ expiresAt: new Date((NOW - 60) * 1000), nonExpiring: false }),
@@ -163,7 +170,7 @@ describe("exchangeEnvironmentDeployKey (unit)", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: OTHER_ENV,
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       signingSecret: SIGNING_SECRET,
       sql: sqlReturningAuthMethods(),
       nowEpoch: NOW,
@@ -182,7 +189,7 @@ describe("exchangeEnvironmentDeployKey (unit)", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      deployKeySecret: DEPLOY_KEY_SECRET,
+      deployKeySecret: deployKeySecretHolder.value,
       signingSecret: SIGNING_SECRET,
       sql: sqlReturningAuthMethods([
         authMethodRow({

@@ -22,21 +22,25 @@ import { exchangeEnvironmentDeployKey } from "../src/exchange-environment-deploy
 import { hashDeployKeySecret } from "../src/deploy-key-secret.js";
 import { verifyMachineAccessToken } from "../src/machine-access-token.js";
 import { buildEnvironmentDeployKeyMetadata } from "../src/environment-deploy-key-metadata.js";
+import { createDeployKeyTestSecret } from "./helpers/deploy-key-test-secret.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
 const TEST_MACHINE_ID = "mach_00000000000000000000000004";
 const TEST_AUTH_METHOD_ID = "mauth_00000000000000000000000004";
 const TEST_POLICY_KEY_ID = "rp_00000000000000000000000001";
+const SECOND_POLICY_KEY_ID = "rp_00000000000000000000000003";
 const DISALLOWED_POLICY_KEY_ID = "rp_00000000000000000000000002";
-const DEPLOY_KEY_SECRET = "integration-deploy-key-secret";
 const SIGNING_SECRET = "integration-machine-access-signing-secret";
 const NOW = 1_700_000_000;
 
 describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => {
-  const verifier = hashDeployKeySecret(DEPLOY_KEY_SECRET);
+  let deployKeySecret = "";
+  let verifier = hashDeployKeySecret("");
 
   beforeAll(async () => {
+    deployKeySecret = createDeployKeyTestSecret();
+    verifier = hashDeployKeySecret(deployKeySecret);
     await seedTenantBaseline();
     const org = organizationId.brand(TEST_ORG_A_ID);
 
@@ -126,7 +130,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           organizationId: org,
           projectId: projectId.brand(TEST_PROJECT_A_ID),
           environmentId: environmentId.brand(TEST_ENV_A_ID),
-          deployKeySecret: DEPLOY_KEY_SECRET,
+          deployKeySecret: deployKeySecret,
           signingSecret: SIGNING_SECRET,
           sql,
           nowEpoch: NOW,
@@ -137,10 +141,14 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
     if (result.ok) {
       expect(result.machineIdentityId).toBe(machineIdentityId.brand(TEST_MACHINE_ID));
       expect(result.environmentId).toBe(environmentId.brand(TEST_ENV_A_ID));
+      expect(result.runtimePolicyKeyId).toBe(runtimePolicyId.brand(TEST_POLICY_KEY_ID));
       expect(result.runtimePolicyKeyIds).toEqual([runtimePolicyId.brand(TEST_POLICY_KEY_ID)]);
 
       const verified = await verifyMachineAccessToken(result.accessToken, SIGNING_SECRET);
       expect(verified.ok).toBe(true);
+      if (verified.ok) {
+        expect(verified.token.runtimePolicyKeyId).toBe(runtimePolicyId.brand(TEST_POLICY_KEY_ID));
+      }
     }
   });
 
@@ -153,7 +161,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           organizationId: org,
           projectId: projectId.brand(TEST_PROJECT_A_ID),
           environmentId: environmentId.brand(TEST_ENV_B_ID),
-          deployKeySecret: DEPLOY_KEY_SECRET,
+          deployKeySecret: deployKeySecret,
           signingSecret: SIGNING_SECRET,
           sql,
           nowEpoch: NOW,
@@ -175,7 +183,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           organizationId: org,
           projectId: projectId.brand(TEST_PROJECT_A_ID),
           environmentId: environmentId.brand(TEST_ENV_A_ID),
-          deployKeySecret: DEPLOY_KEY_SECRET,
+          deployKeySecret: deployKeySecret,
           signingSecret: SIGNING_SECRET,
           sql,
           runtimePolicyKeyId: runtimePolicyId.brand(DISALLOWED_POLICY_KEY_ID),
@@ -192,6 +200,44 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
         retryable: false,
       });
     }
+  });
+
+  it("denies exchange when multiple runtime policy keys are allowlisted but none is requested", async () => {
+    const org = organizationId.brand(TEST_ORG_A_ID);
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      await sql`
+        UPDATE machine_identity_environment_deploy_keys
+        SET runtime_policy_key_ids = ${[TEST_POLICY_KEY_ID, SECOND_POLICY_KEY_ID]}
+        WHERE id = ${TEST_AUTH_METHOD_ID}
+      `;
+    });
+
+    const result = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async ({ sql }) =>
+        exchangeEnvironmentDeployKey({
+          organizationId: org,
+          projectId: projectId.brand(TEST_PROJECT_A_ID),
+          environmentId: environmentId.brand(TEST_ENV_A_ID),
+          deployKeySecret: deployKeySecret,
+          signingSecret: SIGNING_SECRET,
+          sql,
+          nowEpoch: NOW,
+        }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(AUTH_ERROR_CODES.deployKeyInvalid);
+    }
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      await sql`
+        UPDATE machine_identity_environment_deploy_keys
+        SET runtime_policy_key_ids = ${[TEST_POLICY_KEY_ID]}
+        WHERE id = ${TEST_AUTH_METHOD_ID}
+      `;
+    });
   });
 
   it("denies disabled deploy keys before minting", async () => {
@@ -211,7 +257,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           organizationId: org,
           projectId: projectId.brand(TEST_PROJECT_A_ID),
           environmentId: environmentId.brand(TEST_ENV_A_ID),
-          deployKeySecret: DEPLOY_KEY_SECRET,
+          deployKeySecret: deployKeySecret,
           signingSecret: SIGNING_SECRET,
           sql,
           nowEpoch: NOW,
@@ -250,7 +296,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           organizationId: org,
           projectId: projectId.brand(TEST_PROJECT_A_ID),
           environmentId: environmentId.brand(TEST_ENV_A_ID),
-          deployKeySecret: DEPLOY_KEY_SECRET,
+          deployKeySecret: deployKeySecret,
           signingSecret: SIGNING_SECRET,
           sql,
           nowEpoch: NOW,
@@ -273,7 +319,8 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
 
   it("denies overbroad credential scopes before minting", async () => {
     const org = organizationId.brand(TEST_ORG_A_ID);
-    const overbroadVerifier = hashDeployKeySecret("overbroad-deploy-key-secret");
+    const overbroadDeployKeySecret = createDeployKeyTestSecret();
+    const overbroadVerifier = hashDeployKeySecret(overbroadDeployKeySecret);
     const overbroadAuthMethodId = "mauth_00000000000000000000000005";
 
     await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
@@ -323,7 +370,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           organizationId: org,
           projectId: projectId.brand(TEST_PROJECT_A_ID),
           environmentId: environmentId.brand(TEST_ENV_A_ID),
-          deployKeySecret: "overbroad-deploy-key-secret",
+          deployKeySecret: overbroadDeployKeySecret,
           signingSecret: SIGNING_SECRET,
           sql,
           nowEpoch: NOW,
