@@ -4,10 +4,12 @@ import test from "node:test";
 
 import {
   hasWranglerConfigArg,
+  isFlattenedGeneratedWranglerConfig,
   materializeDeployWranglerConfig,
   normalizeWranglerEnv,
   rebaseConfigPaths,
   selectWranglerScope,
+  stripWranglerEnvArgs,
 } from "./wrangler-deploy-config.mjs";
 
 const DEPLOY_ENV = {
@@ -55,6 +57,19 @@ test("materializes Web preview deploy identifiers", () => {
 
   assert.equal(config.env.preview.vars.INSTANCE_ID, "instance-live");
   assert.equal(config.env.preview.vars.WORKOS_CLIENT_ID, "workos-live");
+});
+
+test("materializes generated Web preview deploy config", () => {
+  const config = materializeDeployWranglerConfig(generatedWebPreviewConfig(), {
+    env: DEPLOY_ENV,
+    wranglerEnv: "preview",
+  });
+
+  assert.equal(config.name, "insecur-web-preview");
+  assert.equal(config.main, "index.js");
+  assert.equal(config.assets.directory, "../client");
+  assert.equal(config.vars.INSTANCE_ID, "instance-live");
+  assert.equal(config.vars.WORKOS_CLIENT_ID, "workos-live");
 });
 
 test("allows the Site worker without deploy identifier materialization", () => {
@@ -118,6 +133,23 @@ test("detects long and short Wrangler config flags", () => {
   assert.equal(hasWranglerConfigArg(["deploy", "-c=wrangler.jsonc"]), true);
   assert.equal(hasWranglerConfigArg(["deploy", "-cwrangler.jsonc"]), true);
   assert.equal(hasWranglerConfigArg(["deploy", "--compatibility-date", "2026-07-03"]), false);
+});
+
+test("detects flattened generated Wrangler configs for a selected environment", () => {
+  assert.equal(isFlattenedGeneratedWranglerConfig(generatedWebPreviewConfig(), "preview"), true);
+  assert.equal(isFlattenedGeneratedWranglerConfig(generatedWebPreviewConfig(), "staging"), false);
+  assert.equal(isFlattenedGeneratedWranglerConfig(webConfig(), "preview"), false);
+});
+
+test("strips Wrangler environment flags", () => {
+  assert.deepEqual(stripWranglerEnvArgs(["deploy", "--env", "preview", "--keep-vars"]), [
+    "deploy",
+    "--keep-vars",
+  ]);
+  assert.deepEqual(stripWranglerEnvArgs(["deploy", "--env=preview", "-eproduction", "--dry-run"]), [
+    "deploy",
+    "--dry-run",
+  ]);
 });
 
 function apiConfig() {
@@ -190,6 +222,23 @@ function webConfig() {
     vars: {
       INSTANCE_ID: "INSTANCE_ID_PLACEHOLDER",
       WORKOS_CLIENT_ID: "WORKOS_CLIENT_ID_PLACEHOLDER",
+    },
+  };
+}
+
+function generatedWebPreviewConfig() {
+  return {
+    assets: {
+      directory: "../client",
+    },
+    main: "index.js",
+    name: "insecur-web-preview",
+    no_bundle: true,
+    targetEnvironment: "preview",
+    topLevelName: "insecur-web",
+    vars: {
+      INSTANCE_ID: "INSTANCE_ID_PREVIEW_PLACEHOLDER",
+      WORKOS_CLIENT_ID: "WORKOS_CLIENT_ID_PREVIEW_PLACEHOLDER",
     },
   };
 }
