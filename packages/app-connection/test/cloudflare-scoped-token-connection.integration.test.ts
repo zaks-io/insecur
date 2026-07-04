@@ -14,6 +14,7 @@ import {
 import {
   clearWrappedDefaultTenantDataKeySourceCacheForTests,
   createKeyring,
+  encryptProviderCredential,
 } from "@insecur/crypto";
 import {
   TenantAppConnectionStore,
@@ -26,7 +27,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { AppConnectionError } from "../src/app-connection-error.js";
 import { createCloudflareScopedTokenConnection } from "../src/create-cloudflare-scoped-token-connection.js";
+import { attachProviderCredential } from "../src/attach-provider-credential.js";
 import { disableCloudflareConnection } from "../src/disable-cloudflare-connection.js";
+import { storeCloudflareConnectionBoundary } from "../src/store-cloudflare-connection-boundary.js";
 import { validateCloudflareScopedTokenConnection } from "../src/validate-cloudflare-scoped-token-connection.js";
 import type { CloudflareScopedTokenPort } from "../src/cloudflare-scoped-token-port.js";
 import { describeRls } from "../../tenant-store/test/rls/describe-rls.js";
@@ -66,6 +69,7 @@ const CONN_CF_F = appConnectionId.brand("conn_01JZ8CNP4Q9V2Y5A8D1G4J7M0N");
 const CONN_CF_G = appConnectionId.brand("conn_01JZ8CQR6W0X3Y6B9E2H5K8M1P");
 const CONN_CF_H = appConnectionId.brand("conn_01JZ8CRS8Y2Z5A8D1G4J7M0P3Q");
 const CONN_CF_I = appConnectionId.brand("conn_01JZ8CTU0A4B7D9F2H5K8M1P3R");
+const CONN_CF_J = appConnectionId.brand("conn_01JZ8CWY3E6H9K2N5Q8T1V4X7A");
 const CRED_CF = providerCredentialId.brand("pcred_01JZ8CHM8S3V6X0Z2C5D8F1G4K");
 const CRED_CF_D = providerCredentialId.brand("pcred_01JZ8CKN1T4W7Y1A3D6E9H2J5L");
 const CRED_CF_E = providerCredentialId.brand("pcred_01JZ8CLP3U5X8Z1B4E7H0J3M6N");
@@ -73,6 +77,7 @@ const CRED_CF_F = providerCredentialId.brand("pcred_01JZ8CQR5V8Y1A4D7G0J3M6P9Q")
 const CRED_CF_G = providerCredentialId.brand("pcred_01JZ8CRS7X0Z3B6E9H2K5M8P1R");
 const CRED_CF_H = providerCredentialId.brand("pcred_01JZ8CTU9A3C6F0J3M6P9R2V5X");
 const CRED_CF_I = providerCredentialId.brand("pcred_01JZ8CVW2D5G8J1M4P7S0U3Y6Z");
+const CRED_CF_J = providerCredentialId.brand("pcred_01JZ8CXA4F7J0L3O6R9U2W5Y8A");
 const ACTOR = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
 const BOUNDARY = {
   allowedAccountId: "cf-account-123",
@@ -436,6 +441,66 @@ describeRls("cloudflare scoped-token app connection", () => {
             organizationId: ORG_B,
             projectId: PROJECT_B_ALT,
             appConnectionId: CONN_CF_H,
+            keyring,
+            appConnectionStore: new TenantAppConnectionStore(db),
+            sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "connection.not_found" });
+    } finally {
+      await cleanupOrgBAlternateProject();
+    }
+  });
+
+  it("denies cross-project credential attach when guessing another project's connection id", async () => {
+    const wrapped = await encryptProviderCredential(
+      keyring,
+      {
+        organizationId: ORG_B,
+        appConnectionId: CONN_CF_J,
+        provider: "scoped-api-token",
+        credentialId: CRED_CF_J,
+      },
+      new TextEncoder().encode("scoped-cloudflare-token-value"),
+    );
+
+    await seedOrgBAlternateProject();
+    try {
+      await withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ db }) => {
+        const appConnectionStore = new TenantAppConnectionStore(db);
+        const sensitiveMetadataStore = new TenantSensitiveMetadataStore(db);
+
+        await appConnectionStore.createConnection({
+          organizationId: ORG_B,
+          appConnectionId: CONN_CF_J,
+          provider: "cloudflare",
+          connectionMethod: "scoped-api-token",
+          displayName: testDisplayName("Org B Cloudflare cross-project attach"),
+          setupUserId: ACTOR.userId,
+          status: "pending_setup",
+        });
+
+        await storeCloudflareConnectionBoundary({
+          organizationId: ORG_B,
+          projectId: PROJECT_B,
+          appConnectionId: CONN_CF_J,
+          boundary: BOUNDARY,
+          providerAccountId: BOUNDARY.allowedAccountId,
+          keyring,
+          sensitiveMetadataStore,
+        });
+      });
+
+      await expect(
+        withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ db }) =>
+          attachProviderCredential({
+            actor: ACTOR,
+            organizationId: ORG_B,
+            projectId: PROJECT_B_ALT,
+            operationId: OP_CF,
+            appConnectionId: CONN_CF_J,
+            credentialId: CRED_CF_J,
+            wrapped,
             keyring,
             appConnectionStore: new TenantAppConnectionStore(db),
             sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),

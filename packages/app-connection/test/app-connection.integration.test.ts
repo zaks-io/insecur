@@ -17,6 +17,7 @@ import {
 import {
   TenantAppConnectionStore,
   TenantProviderCredentialStore,
+  TenantSensitiveMetadataStore,
   closeRuntimeSql,
   withTenantScope,
 } from "@insecur/tenant-store";
@@ -24,6 +25,7 @@ import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import { attachProviderCredential } from "../src/attach-provider-credential.js";
 import { assertAppConnectionSyncEligible } from "../src/assert-app-connection-sync-eligible.js";
+import { storeCloudflareConnectionBoundary } from "../src/store-cloudflare-connection-boundary.js";
 import { describeRls } from "../../tenant-store/test/rls/describe-rls.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
@@ -51,6 +53,11 @@ const CRED_A = providerCredentialId.brand("pcred_01JZ8EHM8S3V6X0Z2C5D8F1G4K");
 const OP_A = operationId.brand("op_01JZ8CFOP2R7M4T0V9X3C5D8F1");
 const SETUP_USER = userId.brand(TEST_USER_ID);
 const ACTOR = { type: "user" as const, userId: SETUP_USER };
+
+const BOUNDARY = {
+  allowedAccountId: "cf-account-123",
+  allowedWorkerScript: "my-api-production",
+} as const;
 
 function testDisplayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -124,6 +131,7 @@ describeRls("app connection tenant isolation and credential encryption", () => {
       { kind: "organization", organizationId: ORG_A },
       async ({ db }) => {
         const appConnectionStore = new TenantAppConnectionStore(db);
+        const sensitiveMetadataStore = new TenantSensitiveMetadataStore(db);
 
         await appConnectionStore.createConnection({
           organizationId: ORG_A,
@@ -135,6 +143,16 @@ describeRls("app connection tenant isolation and credential encryption", () => {
           status: "pending_setup",
         });
 
+        await storeCloudflareConnectionBoundary({
+          organizationId: ORG_A,
+          projectId: PROJECT_A,
+          appConnectionId: CONN_B,
+          boundary: BOUNDARY,
+          providerAccountId: BOUNDARY.allowedAccountId,
+          keyring,
+          sensitiveMetadataStore,
+        });
+
         return attachProviderCredential({
           actor: ACTOR,
           organizationId: ORG_A,
@@ -143,7 +161,9 @@ describeRls("app connection tenant isolation and credential encryption", () => {
           appConnectionId: CONN_B,
           credentialId: CRED_A,
           wrapped,
+          keyring,
           appConnectionStore,
+          sensitiveMetadataStore,
         });
       },
     );
