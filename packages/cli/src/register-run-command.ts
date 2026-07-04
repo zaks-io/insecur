@@ -25,16 +25,14 @@ export function registerRunCommand(
     .action(async function runAction(profileArg: string | undefined, command: CommanderCommand) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{ variableKey?: string; policyId?: string }>();
-      const split = splitRunCommandArgs(
-        profileArg === undefined || profileArg === ""
-          ? command.args
-          : [profileArg, ...command.args],
-      );
+      const split = splitRunCommandArgs(command.args);
+      const profileSelector =
+        profileArg !== undefined && profileArg !== "" ? profileArg : split.profileSelector;
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runRunCommand(flags, api, context, {
         ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
         ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
-        ...(split.profileSelector === undefined ? {} : { profileSelector: split.profileSelector }),
+        ...(profileSelector === undefined ? {} : { profileSelector }),
         command: split.command,
       });
     });

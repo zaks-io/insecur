@@ -9,6 +9,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { runRunCommand } from "../src/commands/run.js";
+import { splitRunCommandArgs } from "../src/commands/resolve-run-profile.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { setMemorySession, clearMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";
@@ -147,6 +148,21 @@ function createMockApi(): ApiClient & {
     recordInjectionRunCompleted,
   };
 }
+
+describe("splitRunCommandArgs", () => {
+  it("splits profile selector before -- from child command", () => {
+    expect(splitRunCommandArgs(["local-dev", "--", "npm", "test"])).toEqual({
+      profileSelector: "local-dev",
+      command: ["npm", "test"],
+    });
+  });
+
+  it("returns command only when no -- separator is present", () => {
+    expect(splitRunCommandArgs(["npm", "test"])).toEqual({
+      command: ["npm", "test"],
+    });
+  });
+});
 
 describe("runRunCommand profile-backed policy path", () => {
   let stdout = "";
