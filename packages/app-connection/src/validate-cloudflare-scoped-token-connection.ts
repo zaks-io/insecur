@@ -129,27 +129,31 @@ async function validateActiveCloudflareConnection(
   const token = await loadCloudflareValidationToken(input, connection);
   const checkedAt = new Date();
 
+  // Only provider verify failures may be recorded as a failed validation. Persistence or
+  // audit failures after a successful verify must propagate as-is instead of overwriting
+  // the row with a bogus "failed" outcome.
+  let validationResult;
   try {
-    const validationResult = await input.cloudflarePort.verifyScopedToken({
+    validationResult = await input.cloudflarePort.verifyScopedToken({
       token,
       allowedAccountId: boundary.allowedAccountId,
       allowedWorkerScript: boundary.allowedWorkerScript,
     });
-
-    await persistConnectionValidationSuccess({
-      actorUserId: input.actor.userId,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      appConnectionId: input.appConnectionId,
-      checkedAt,
-      validationResult,
-      appConnectionStore: input.appConnectionStore,
-    });
-
-    return toValidationMetadata(checkedAt, "success", null, validationResult);
   } catch (error) {
     return recordValidationFailure(input, checkedAt, error);
   }
+
+  await persistConnectionValidationSuccess({
+    actorUserId: input.actor.userId,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    appConnectionId: input.appConnectionId,
+    checkedAt,
+    validationResult,
+    appConnectionStore: input.appConnectionStore,
+  });
+
+  return toValidationMetadata(checkedAt, "success", null, validationResult);
 }
 
 export async function validateCloudflareScopedTokenConnection(
