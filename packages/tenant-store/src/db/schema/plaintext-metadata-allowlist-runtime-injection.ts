@@ -23,7 +23,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION = {
     policy_id: { category: "opaque-id" },
     secret_ids: { category: "opaque-id" },
     ttl_seconds: { category: "count" },
-    variable_keys: { category: "type-code" },
+    variable_keys: { category: "plaintext-lookup-key" },
     version_number: { category: "count" },
   },
 } as const satisfies PlaintextMetadataAllowlist;

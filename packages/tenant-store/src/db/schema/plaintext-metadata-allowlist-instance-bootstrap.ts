@@ -15,9 +15,9 @@ export const PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP = {
     algorithm: { category: "type-code" },
     consumed_at: { category: "timestamp" },
     created_at: { category: "timestamp" },
-    hash_b64: { category: "ciphertext-ref" },
+    hash_b64: { category: "verifier-material" },
     instance_id: { category: "opaque-id" },
-    salt_b64: { category: "ciphertext-ref" },
+    salt_b64: { category: "verifier-material" },
     secret_version: { category: "count" },
   },
   instance_configurations: {

@@ -38,8 +38,23 @@ registry, static unit check, and `information_schema` CI check are wired in
   normative allowlist vocabulary in [docs/context/relationships.md](../context/relationships.md): `opaque-id`,
   `display-name`, `type-code`, `status-code`, `timestamp`, `actor-id`, `count`, `flag`, plus
   envelope categories such as `ciphertext-ref` and `key-version` for columns that carry the
-  encrypted form itself. A column with no registry entry fails the conformance test closed. The
-  category vocabulary is part of the registry and is extended only by editing it in review.
+  encrypted form itself, and the payload/lookup/verifier categories below. A column with no
+  registry entry fails the conformance test closed. The category vocabulary is part of the
+  registry and is extended only by editing it in review.
+- Category contracts (INS-185):
+  - `validated-payload`: JSON payload columns whose keys and allowed shapes are enforced by named
+    validators. Example columns: `audit_events.details`, `operations.progress`.
+  - `plaintext-lookup-key`: user, provider, or integration chosen lookup identifiers that are
+    intentionally plaintext but are not insecur-minted opaque IDs and not closed type codes.
+    Example columns: `injection_grants.variable_keys`, `secrets.variable_key`,
+    `sync_target_leases.target_identity`. Env var names and provider target identities are lookup
+    keys, not `display-name` labels.
+  - `verifier-material`: one-way verifier hash and salt material that may be plaintext-storable but
+    is not a ciphertext reference. Example columns: `bootstrap_secret_verifiers.hash_b64`,
+    `bootstrap_secret_verifiers.salt_b64`.
+- `opaque-id` is limited to insecur-minted opaque identifiers. Do not classify user or provider
+  lookup keys, validated JSON payloads, or verifier material under `opaque-id`, `type-code`,
+  `display-name`, or `ciphertext-ref` when a more specific category applies.
 - All column types are gated, including integers. The Sensitive Metadata Encryption bullet in
   [docs/security-plan.md](../security-plan.md) classifies exact Protected Environment Secret value
   byte lengths as Sensitive Metadata, and that field ships as an integer column a text-only gate
