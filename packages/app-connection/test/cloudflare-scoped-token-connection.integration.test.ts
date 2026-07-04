@@ -31,6 +31,7 @@ import { disableCloudflareConnection } from "../src/disable-cloudflare-connectio
 import { storeCloudflareConnectionBoundary } from "../src/store-cloudflare-connection-boundary.js";
 import { validateCloudflareScopedTokenConnection } from "../src/validate-cloudflare-scoped-token-connection.js";
 import type { CloudflareScopedTokenPort } from "../src/cloudflare-scoped-token-port.js";
+import { toMetadataSafeCloudflareConnectionStatus } from "../src/metadata-safe-cloudflare-connection-status.js";
 import { describeRls } from "../../tenant-store/test/rls/describe-rls.js";
 import { seedDataKeys } from "../../tenant-store/test/rls/seed-data-keys.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
@@ -231,6 +232,7 @@ describeRls("cloudflare scoped-token app connection", () => {
         actor: ACTOR,
         organizationId: ORG_A,
         projectId: PROJECT_A,
+        operationId: OP_CF,
         appConnectionId: CONN_CF_E,
         credentialId: CRED_CF_E,
         displayName: testDisplayName("Cloudflare stored boundary"),
@@ -276,6 +278,7 @@ describeRls("cloudflare scoped-token app connection", () => {
         actor: ACTOR,
         organizationId: ORG_A,
         projectId: PROJECT_A,
+        operationId: OP_CF,
         appConnectionId: CONN_CF_F,
         credentialId: CRED_CF_F,
         displayName: testDisplayName("Cloudflare validation audit"),
@@ -322,6 +325,7 @@ describeRls("cloudflare scoped-token app connection", () => {
         actor: ACTOR,
         organizationId: ORG_A,
         projectId: PROJECT_A,
+        operationId: OP_CF,
         appConnectionId: CONN_CF_C,
         credentialId: CRED_CF,
         displayName: testDisplayName("Cloudflare to disable"),
@@ -510,6 +514,7 @@ describeRls("cloudflare scoped-token app connection", () => {
         actor: ACTOR,
         organizationId: ORG_A,
         projectId: PROJECT_A,
+        operationId: OP_CF,
         appConnectionId: CONN_CF_I,
         credentialId: CRED_CF_I,
         displayName: testDisplayName("Org A Cloudflare cross-tenant"),
@@ -553,6 +558,7 @@ describeRls("cloudflare scoped-token app connection", () => {
         actor: ACTOR,
         organizationId: ORG_A,
         projectId: PROJECT_A,
+        operationId: OP_CF,
         appConnectionId: CONN_CF_G,
         credentialId: CRED_CF_G,
         displayName: testDisplayName("Cloudflare boundary mismatch"),
@@ -584,18 +590,29 @@ describeRls("cloudflare scoped-token app connection", () => {
 });
 
 describe("metadata-safe cloudflare validation projection", () => {
-  it("never includes token values in validation metadata", () => {
-    const validation = {
-      checkedAt: new Date().toISOString(),
-      outcome: "success" as const,
-      reasonCode: null,
-      tokenStatus: "active" as const,
-      workerScriptReachable: true,
-      hasBoundaryWarning: false,
-    };
+  it("never includes token values in the projected connection status", () => {
+    const projected = toMetadataSafeCloudflareConnectionStatus({
+      id: CONN_CF,
+      organizationId: ORG_A,
+      provider: "cloudflare",
+      connectionMethod: "scoped-api-token",
+      displayName: testDisplayName("Cloudflare projection"),
+      status: "active",
+      setupUserId: ACTOR.userId,
+      activeCredentialId: CRED_CF,
+      statusReasonCode: null,
+      lastValidationCheckedAt: new Date("2026-07-01T00:00:00.000Z"),
+      lastValidationOutcome: "success",
+      lastValidationReasonCode: null,
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+    });
 
-    const serialized = JSON.stringify(validation);
+    expect(projected.validation).toMatchObject({ outcome: "success", reasonCode: null });
+    const serialized = JSON.stringify(projected);
     expect(serialized).not.toContain("Bearer");
     expect(serialized).not.toContain("token-value");
+    expect(serialized).not.toContain("pcred_");
+    expect(projected.connection.hasActiveCredential).toBe(true);
   });
 });

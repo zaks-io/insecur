@@ -17,8 +17,8 @@ describe("createCloudflareScopedTokenPort", () => {
       if (url.endsWith("/user/tokens/verify")) {
         return jsonResponse({ success: true, result: { status: "active", id: "token-id" } });
       }
-      if (url.includes("/workers/scripts/my-api-production")) {
-        return jsonResponse({ success: true, result: { id: "my-api-production" } });
+      if (url.endsWith("/workers/scripts/my-api-production/settings")) {
+        return jsonResponse({ success: true, result: { logpush: false } });
       }
       if (url.includes("/accounts/cf-account-123")) {
         return jsonResponse({ success: true, result: { id: "cf-account-123" } });
@@ -64,10 +64,13 @@ describe("createCloudflareScopedTokenPort", () => {
       if (url.endsWith("/user/tokens/verify")) {
         return jsonResponse({ success: true, result: { status: "active", id: "token-id" } });
       }
+      if (url.includes("/workers/scripts/")) {
+        return jsonResponse({ success: false, errors: [{ code: 10000 }] }, 403);
+      }
       if (url.includes("/accounts/cf-account-123")) {
         return jsonResponse({ success: true, result: { id: "cf-account-123" } });
       }
-      return jsonResponse({ success: false, errors: [{ code: 10000 }] }, 403);
+      throw new Error(`unexpected url: ${url}`);
     });
 
     const port = createCloudflareScopedTokenPort(fetchMock);

@@ -24,6 +24,9 @@ const CLOUDFLARE_CONNECTION: AppConnectionRow = {
   setupUserId: SETUP_USER,
   activeCredentialId: null,
   statusReasonCode: null,
+  lastValidationCheckedAt: null,
+  lastValidationOutcome: null,
+  lastValidationReasonCode: null,
   createdAt: NOW,
   updatedAt: NOW,
 };

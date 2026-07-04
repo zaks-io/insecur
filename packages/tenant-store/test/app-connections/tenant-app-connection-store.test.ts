@@ -50,6 +50,9 @@ describe("TenantAppConnectionStore.updateConnectionStatus", () => {
     });
     expect(updateSets[0]).not.toHaveProperty("activeCredentialId");
     expect(updated.activeCredentialId).toBe(CRED);
+    expect(updated.lastValidationCheckedAt).toEqual(NOW);
+    expect(updated.lastValidationOutcome).toBe("success");
+    expect(updated.lastValidationReasonCode).toBeNull();
   });
 
   it("clears active_credential_id only when explicitly set to null", async () => {
