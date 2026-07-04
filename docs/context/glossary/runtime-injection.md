@@ -106,6 +106,14 @@ _Avoid_: agent-proof secret, production readiness proof, provider setup test, ag
 An interaction path an **Agent** can drive with an inherited human session, **Machine Identity**, or local automation credential, such as CLI commands, API calls, and operation polling.
 _Avoid_: CLI-only when API access is also possible
 
+**Agent Session**:
+An agent-marked child session derived from a live human session for an agent-harness process tree, carrying the same Effective Access with its own opaque ID and a lifetime bounded by the parent, unable to satisfy a **High-Assurance Challenge** (ADR-0032 amendment 2026-07-04).
+_Avoid_: agent identity; an Agent Session is attribution on the human's session lineage, not a credential class, machine identity for a local agent; that shape stays rejected, agent account
+
+**Agent Attribution Tag**:
+A self-reported, non-authoritative label resolved per request from an explicit flag, `INSECUR_AGENT_TAG`, or detected agent-harness environment markers, recorded in audit metadata to mark probable agent traffic on a bare human token.
+_Avoid_: agent authentication, verified agent when the tag is the source; only an **Agent Session** is token-accurate, authorization input; the tag never affects access decisions
+
 **Human Approval Surface**:
 The authenticated web app surface where a **User** reviews high-risk action impact, satisfies **High-Assurance Challenges**, and confirms protected delivery decisions outside an agent-controlled terminal.
 _Avoid_: approval email, terminal approval, notification when review authority is meant, email approval; approval happens in the authenticated approval view, not in email, terminal approval not used for Protected Environment approval in V1; use Human Approval Surface for the approval and Agent-Reachable Channel for request/poll behavior

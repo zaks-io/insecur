@@ -90,9 +90,12 @@ zero secret bytes, ever — including insecur's own credentials.
 
 ## Actor Rendering
 
-Every non-human actor renders with its principal chain everywhere it appears: agent sessions as
-"agent <id> · <human>", CI as "<run> · <machine identity>". No bare robot identities in activity,
-audit, or approval evidence.
+Every non-human actor renders with its principal chain everywhere it appears: Agent Sessions as
+"agent <id> (<harness>) · under <human>" (token-accurate, groupable per session), CI as
+"<run> · <machine identity>", and self-reported Agent Attribution Tags on bare human tokens as
+"<human> · via <harness> (unverified)". No bare robot identities in activity, audit, or approval
+evidence. Attribution semantics are owned by the ADR-0032 amendment of 2026-07-04 and
+docs/cli-and-sync.md; the console renders them.
 
 ## Visual Direction
 
