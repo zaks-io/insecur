@@ -17,10 +17,12 @@
     "logs": {
       "enabled": true,
       "destinations": ["axiom-logs"],
+      "head_sampling_rate": 1,
     },
     "traces": {
       "enabled": true,
       "destinations": ["axiom-traces"],
+      "head_sampling_rate": 1,
     },
   },
   // The public API Worker holds NO root-key binding (ADR-0064/0077): all keyring-bound work is
