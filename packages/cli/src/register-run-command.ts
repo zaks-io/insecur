@@ -38,7 +38,9 @@ export function registerRunCommand(
       process.exitCode = await runRunCommand(flags, api, context, {
         ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
         ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
-        ...(parsed.profileSelector === undefined ? {} : { profileSelector: parsed.profileSelector }),
+        ...(parsed.profileSelector === undefined
+          ? {}
+          : { profileSelector: parsed.profileSelector }),
         command: parsed.command,
       });
     });
