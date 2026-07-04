@@ -44,6 +44,11 @@ export function resolveCliScope(
   const resolvedProfile = resolveProfile(userConfig, {
     ...(flags.profileId === undefined ? {} : { profileId: flags.profileId }),
     ...(profileSlugInput === undefined ? {} : { profileSlug: profileSlugInput }),
+    ...(flags.profileId === undefined &&
+    profileSlugInput === undefined &&
+    projectConfig?.profileId !== undefined
+      ? { profileId: projectConfig.profileId }
+      : {}),
   });
   const profile = resolvedProfile?.profile;
   const host =
