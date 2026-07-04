@@ -40,6 +40,7 @@ export { toAccessActor, toAuditActor } from "./http/request-actor.js";
 export type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
+  ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,
   CreateInvitationRpcInput,
   CreateOperatorOrganizationRpcInput,
@@ -58,6 +59,9 @@ export type {
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RuntimeGeneratedSecretInput,
+  RuntimeDeliveryAllEnvelope,
+  RuntimeDeliveryAllPayload,
+  RuntimeDeliveryEntryPayload,
   RuntimeDeliveryEnvelope,
   RuntimeDeliveryPayload,
   RuntimeRpc,

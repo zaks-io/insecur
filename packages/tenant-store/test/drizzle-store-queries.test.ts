@@ -362,7 +362,9 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       environment_id: ENV,
       variable_keys: [VARIABLE_KEY],
       secret_ids: [TEST_SECRET_A_ID],
-      secret_version_id: boundVersion,
+      secret_version_ids: [boundVersion],
+      policy_id: null,
+      policy_version_id: null,
       expires_at: new Date(Date.now() + 60_000),
       consumed_at: null,
       ...overrides,
@@ -378,7 +380,9 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       environment_id: ENV,
       variable_keys: ["A"],
       secret_ids: ["sec_a", "sec_b"],
-      secret_version_id: "sv_x",
+      secret_version_ids: ["sv_x"],
+      policy_id: null,
+      policy_version_id: null,
       expires_at: new Date(Date.now() + 60_000),
       consumed_at: null,
     };
@@ -445,14 +449,16 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       projectId: PROJECT,
       environmentId: ENV,
       grantId: grantIdValue,
-      binding: {
-        secretId: boundSecret,
-        secretVersionId: boundVersion,
-        variableKey: VARIABLE_KEY,
-      },
+      bindings: [
+        {
+          secretId: boundSecret,
+          secretVersionId: boundVersion,
+          variableKey: VARIABLE_KEY,
+        },
+      ],
       expiresAt: new Date("2030-01-01T00:00:00.000Z"),
     });
-    expect(insertValues[0]?.secretVersionId).toBe(boundVersion);
+    expect(insertValues[0]?.secretVersionIds).toEqual([boundVersion]);
   });
 
   it("consumes a grant when the update wins the race", async () => {

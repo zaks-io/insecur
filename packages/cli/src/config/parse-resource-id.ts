@@ -1,10 +1,17 @@
-import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import type {
+  CliProfileId,
+  EnvironmentId,
+  OrganizationId,
+  ProjectId,
+  RuntimePolicyId,
+} from "@insecur/domain";
 import {
   VALIDATION_ERROR_CODES,
   cliProfileId,
   environmentId,
   organizationId,
   projectId,
+  runtimePolicyId,
 } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
 
@@ -88,4 +95,11 @@ export function parseOptionalCliProfileId(
   context?: string,
 ): CliProfileId | undefined {
   return parseOptional(raw, cliProfileId, "CLI profile id", context);
+}
+
+export function parseOptionalRuntimePolicyId(
+  raw: string | undefined,
+  context?: string,
+): RuntimePolicyId | undefined {
+  return parseOptional(raw, runtimePolicyId, "runtime injection policy id", context);
 }

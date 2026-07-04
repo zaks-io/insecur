@@ -1,13 +1,4 @@
-import { spawn } from "node:child_process";
-import { constants as osConstants } from "node:os";
-import {
-  base64UrlToBytes,
-  INJECTION_ERROR_CODES,
-  successEnvelope,
-  VALIDATION_ERROR_CODES,
-  type InjectionGrantId,
-  type VariableKey,
-} from "@insecur/domain";
+import { successEnvelope, type VariableKey } from "@insecur/domain";
 import type {
   ApiClient,
   InjectionGrantDeliveryData,
@@ -15,75 +6,23 @@ import type {
 } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
-import { buildCliChildEnv } from "../auth/child-env.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { parseVariableKeyOrThrow } from "./parse-variable-key.js";
+import { assertRunModeExclusive, splitRunCommandArgs } from "./resolve-run-profile.js";
+import { buildRunChildEnv, decodeDeliveryValue, spawnCommand } from "./run-child.js";
+import { runProfilePolicyPath } from "./run-profile-policy.js";
 import { buildRunResolvedTargets } from "./run-result.js";
+import {
+  recordRunCompletedBestEffort,
+  requireRunCommand,
+  type RunCommandOptions,
+} from "./run-shared.js";
 import { requireSecretWriteScope, type ResolvedSecretWriteScope } from "./secrets-set-scope.js";
 
-export interface RunCommandOptions {
-  readonly variableKey: string;
-  readonly command: readonly string[];
-}
-
-function requireRunCommand(command: readonly string[]): readonly string[] {
-  const [executable] = command;
-  if (executable === undefined || executable === "") {
-    throw new CliError({
-      code: VALIDATION_ERROR_CODES.invalidCommandInput,
-      message: "Command is required after --.",
-      retryable: false,
-    });
-  }
-  return command;
-}
-
-function decodeDeliveryValue(encodedValueUtf8: string): string {
-  const bytes = base64UrlToBytes(encodedValueUtf8);
-  if (bytes === null) {
-    throw new CliError({
-      code: INJECTION_ERROR_CODES.decryptFailed,
-      message: "Grant delivery payload could not be decoded.",
-      retryable: false,
-    });
-  }
-  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-}
-
-function buildRunChildEnv(variableKey: VariableKey, valueUtf8: string): NodeJS.ProcessEnv {
-  return buildCliChildEnv({ extraEnv: { [variableKey]: valueUtf8 } });
-}
-
-function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | null): number {
-  if (code !== null) {
-    return code;
-  }
-  if (signal === null) {
-    return 0;
-  }
-  const signalNumber = osConstants.signals[signal];
-  return 128 + signalNumber;
-}
-
-function spawnCommand(command: readonly string[], childEnv: NodeJS.ProcessEnv): Promise<number> {
-  const executable = command[0];
-  if (executable === undefined) {
-    throw new Error("spawnCommand requires a validated command");
-  }
-  const args = command.slice(1);
-  return new Promise<number>((resolve, reject) => {
-    const child = spawn(executable, args, { env: childEnv, stdio: "inherit", shell: false });
-    child.on("error", reject);
-    child.on("close", (code, signal) => {
-      resolve(exitCodeForChildClose(code, signal));
-    });
-  });
-}
-
-async function issueAndConsumeGrant(input: {
+async function issueAndConsumeVariableKeyGrant(input: {
   readonly api: ApiClient;
   readonly credential: string;
   readonly host: string;
@@ -119,28 +58,7 @@ async function issueAndConsumeGrant(input: {
   };
 }
 
-async function recordRunCompletedBestEffort(input: {
-  readonly api: ApiClient;
-  readonly host: string;
-  readonly credential: string;
-  readonly organizationId: ResolvedSecretWriteScope["orgId"];
-  readonly grantId: InjectionGrantId;
-  readonly childExitCode: number;
-}): Promise<void> {
-  try {
-    await input.api.recordInjectionRunCompleted({
-      host: input.host,
-      bearerCredential: input.credential,
-      organizationId: input.organizationId,
-      grantId: input.grantId,
-      childExitCode: input.childExitCode,
-    });
-  } catch {
-    // Best-effort telemetry: transport failures must not fail the injected child exit code.
-  }
-}
-
-export async function runRunCommand(
+async function runVariableKeyPath(
   flags: GlobalCliFlags,
   api: ApiClient,
   context: ResolvedCliContext,
@@ -148,9 +66,9 @@ export async function runRunCommand(
 ): Promise<number> {
   const credential = requireSessionCredential();
   const runScope = requireSecretWriteScope(context.scope);
-  const variableKey = parseVariableKeyOrThrow(commandOptions.variableKey);
+  const variableKey = parseVariableKeyOrThrow(commandOptions.variableKey ?? "");
   const command = requireRunCommand(commandOptions.command);
-  const { issueData, delivery } = await issueAndConsumeGrant({
+  const { issueData, delivery } = await issueAndConsumeVariableKeyGrant({
     api,
     credential,
     host: context.scope.host,
@@ -192,3 +110,25 @@ export async function runRunCommand(
   );
   return childExitCode;
 }
+
+export async function runRunCommand(
+  flags: GlobalCliFlags,
+  api: ApiClient,
+  context: ResolvedCliContext,
+  commandOptions: RunCommandOptions,
+): Promise<number> {
+  assertRunModeExclusive({
+    ...(commandOptions.variableKey === undefined
+      ? {}
+      : { variableKey: commandOptions.variableKey }),
+    ...(commandOptions.profileSelector === undefined
+      ? {}
+      : { profileSelector: commandOptions.profileSelector }),
+  });
+  if (commandOptions.variableKey !== undefined && commandOptions.variableKey !== "") {
+    return runVariableKeyPath(flags, api, context, commandOptions);
+  }
+  return runProfilePolicyPath(flags, api, context, commandOptions);
+}
+
+export { splitRunCommandArgs, type RunCommandOptions };

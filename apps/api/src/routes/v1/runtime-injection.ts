@@ -63,6 +63,21 @@ runtimeInjectionRoutes.post("/grants/:grantId/consume", requireUserActor, async 
   });
 });
 
+runtimeInjectionRoutes.post("/grants/:grantId/consume-all", requireUserActor, async (context) => {
+  return handleDeliveryRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const { organizationId, grantId } = parseOrganizationAndGrantRouteParams(context);
+
+    const envelope = await runtimeClientFor(context.env, userActor).consumeGrantAll({
+      organizationId,
+      grantId,
+      requestId: reqId,
+    });
+
+    return context.json(envelope);
+  });
+});
+
 runtimeInjectionRoutes.post("/grants/:grantId/run-completed", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");

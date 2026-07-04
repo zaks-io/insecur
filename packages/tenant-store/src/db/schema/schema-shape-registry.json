@@ -692,7 +692,22 @@
         "sqlType": "text[]",
         "defaultSql": "'{}'::text[]"
       },
-      "secret_version_id": {
+      "secret_version_ids": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgArray",
+        "sqlType": "text[]",
+        "defaultSql": "'{}'::text[]"
+      },
+      "policy_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "policy_version_id": {
         "notNull": false,
         "primaryKey": false,
         "hasDefault": false,

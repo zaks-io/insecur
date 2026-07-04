@@ -1,4 +1,6 @@
 export {
+  type ConsumeInjectionGrantAllInput,
+  type ConsumeInjectionGrantAllResult,
   type ConsumeInjectionGrantInput,
   type ConsumeInjectionGrantResult,
   type IssueInjectionGrantInput,
@@ -6,6 +8,7 @@ export {
   type RecordInjectionRunCompletedInput,
   type RecordInjectionRunCompletedResult,
   consumeInjectionGrant,
+  consumeInjectionGrantAll,
   issueInjectionGrant,
   recordInjectionRunCompleted,
 } from "./injection-grants.js";

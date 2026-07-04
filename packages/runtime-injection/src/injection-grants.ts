@@ -9,6 +9,7 @@ import type {
 } from "@insecur/domain";
 
 import { consumeInjectionGrantWithAudit } from "./consume-injection-grant.js";
+import { consumeInjectionGrantAllWithAudit } from "./consume-injection-grant-all.js";
 import { normalizeConsumeSelector } from "./injection-grant-selectors.js";
 
 export {
@@ -47,6 +48,41 @@ export interface ConsumeInjectionGrantResult {
   /** Process-environment delivery only; never serialize to metadata envelopes. */
   valueUtf8: PlaintextHandle;
   auditEventId?: string;
+}
+
+export interface ConsumeInjectionGrantAllInput {
+  keyring: Keyring;
+  organizationId: OrganizationId;
+  grantId: InjectionGrantId;
+  actor: AuditActorRef;
+  request?: AuditRequestRef;
+  operation?: AuditOperationRef;
+}
+
+export interface ConsumeInjectionGrantAllResult {
+  entries: readonly {
+    secretId: SecretId;
+    secretVersionId: SecretVersionId;
+    variableKey: VariableKey;
+    valueUtf8: PlaintextHandle;
+  }[];
+  auditEventId?: string;
+}
+
+/**
+ * Consumes a one-use policy-backed Injection Grant and returns all bound values for runtime delivery.
+ */
+export function consumeInjectionGrantAll(
+  input: ConsumeInjectionGrantAllInput,
+): Promise<ConsumeInjectionGrantAllResult> {
+  return consumeInjectionGrantAllWithAudit({
+    keyring: input.keyring,
+    organizationId: input.organizationId,
+    grantId: input.grantId,
+    actor: input.actor,
+    ...(input.request !== undefined ? { request: input.request } : {}),
+    ...(input.operation !== undefined ? { operation: input.operation } : {}),
+  });
 }
 
 /**

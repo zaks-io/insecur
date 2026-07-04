@@ -108,6 +108,9 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
       meta: { requestId: "req_consume" as never },
     },
   }));
+  const consumeInjectionGrantAll = vi.fn(async () => {
+    throw new Error("consumeInjectionGrantAll not used in this test");
+  });
   const recordInjectionRunCompleted = vi.fn(async () => ({
     ok: true as const,
     envelope: {
@@ -132,6 +135,7 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
     },
     issueInjectionGrant,
     consumeInjectionGrant,
+    consumeInjectionGrantAll,
     recordInjectionRunCompleted,
     ...overrides,
   };

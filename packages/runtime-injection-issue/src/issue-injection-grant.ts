@@ -11,12 +11,15 @@ import {
   INJECTION_ERROR_CODES,
   injectionGrantId,
   type InjectionGrantId,
+  type RuntimePolicyId,
+  type RuntimePolicyVersionId,
 } from "@insecur/domain";
 import {
   assertProjectEnvironmentCoordinateWithScope,
   SecretVersionStoreConflictError,
   SecretVersionStoreNotFoundError,
   TenantInjectionGrantStore,
+  type ResolvedInjectionGrantBinding,
   withTenantScope,
 } from "@insecur/tenant-store";
 
@@ -30,11 +33,12 @@ import {
   assertSingleIssueSelectorCount,
   type InjectionGrantIssueSelector,
 } from "./injection-grant-selectors.js";
-import { computeInjectionGrantExpiresAt } from "./injection-grant-ttl.js";
 import {
-  resolveInjectionGrantBinding,
-  type GrantCoordinate,
-} from "./resolve-injection-grant-bindings.js";
+  computeInjectionGrantExpiresAt,
+  computeInjectionGrantExpiresAtFromTtl,
+} from "./injection-grant-ttl.js";
+import { type GrantCoordinate } from "./resolve-injection-grant-bindings.js";
+import { resolveInjectionGrantBindings } from "./resolve-policy-grant-bindings.js";
 
 export interface IssueInjectionGrantCoreInput {
   organizationId: GrantCoordinate["organizationId"];
@@ -80,6 +84,61 @@ function auditActorForIssue(actor: ActorRef): AuditActorRef {
   return { type: "machine", machineIdentityId: actor.machineIdentityId };
 }
 
+function buildGrantInsert(
+  resolvedBindings: Awaited<ReturnType<typeof resolveInjectionGrantBindings>>,
+): {
+  bindings: readonly ResolvedInjectionGrantBinding[];
+  policyId?: RuntimePolicyId;
+  policyVersionId?: RuntimePolicyVersionId;
+} {
+  if (resolvedBindings.kind === "policy") {
+    return {
+      bindings: resolvedBindings.resolved.bindings,
+      policyId: resolvedBindings.resolved.policyId,
+      policyVersionId: resolvedBindings.resolved.policyVersionId,
+    };
+  }
+  return { bindings: [resolvedBindings.binding] };
+}
+
+async function persistIssuedGrant(input: {
+  readonly organizationId: IssueInjectionGrantCoreInput["organizationId"];
+  readonly projectId: IssueInjectionGrantCoreInput["projectId"];
+  readonly environmentId: IssueInjectionGrantCoreInput["environmentId"];
+  readonly grantId: InjectionGrantId;
+  readonly grantInsert: ReturnType<typeof buildGrantInsert>;
+  readonly expiresAtDate: Date;
+  readonly auditActor: AuditActorRef;
+  readonly request?: AuditRequestRef;
+  readonly operation?: AuditOperationRef;
+}): Promise<{ auditEventId?: string }> {
+  return await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async ({ db, sql }) => {
+      await new TenantInjectionGrantStore(db).insertGrant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        grantId: input.grantId,
+        ...input.grantInsert,
+        expiresAt: input.expiresAtDate,
+      });
+
+      return recordRuntimeInjectionAuditInTenantScope(sql, {
+        phase: "issue",
+        outcome: "success",
+        actor: input.auditActor,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        grantId: input.grantId,
+        ...(input.request !== undefined ? { request: input.request } : {}),
+        ...(input.operation !== undefined ? { operation: input.operation } : {}),
+      });
+    },
+  );
+}
+
 export async function executeIssueInjectionGrant(
   input: IssueInjectionGrantCoreInput,
 ): Promise<IssueInjectionGrantCoreResult> {
@@ -105,41 +164,30 @@ export async function executeIssueInjectionGrant(
 
   assertSingleIssueSelectorCount(input.selector);
 
-  const binding = await resolveInjectionGrantBinding(coordinate, input.selector);
-
+  const resolvedBindings = await resolveInjectionGrantBindings(coordinate, input.selector);
   const grantId = injectionGrantId.generate();
-  const expiresAtDate = computeInjectionGrantExpiresAt();
+  const expiresAtDate =
+    resolvedBindings.kind === "policy"
+      ? computeInjectionGrantExpiresAtFromTtl(resolvedBindings.resolved.ttlSeconds)
+      : computeInjectionGrantExpiresAt();
+  const grantInsert = buildGrantInsert(resolvedBindings);
 
-  const audit = await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    async ({ db, sql }) => {
-      await new TenantInjectionGrantStore(db).insertGrant({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        grantId,
-        binding,
-        expiresAt: expiresAtDate,
-      });
-
-      return recordRuntimeInjectionAuditInTenantScope(sql, {
-        phase: "issue",
-        outcome: "success",
-        actor: auditActor,
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        grantId,
-        ...(input.request !== undefined ? { request: input.request } : {}),
-        ...(input.operation !== undefined ? { operation: input.operation } : {}),
-      });
-    },
-  );
+  const audit = await persistIssuedGrant({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    grantId,
+    grantInsert,
+    expiresAtDate,
+    auditActor,
+    ...(input.request !== undefined ? { request: input.request } : {}),
+    ...(input.operation !== undefined ? { operation: input.operation } : {}),
+  });
 
   return {
     grantId,
     expiresAt: expiresAtDate.toISOString(),
-    auditEventId: audit.auditEventId,
+    ...(audit.auditEventId !== undefined ? { auditEventId: audit.auditEventId } : {}),
   };
 }
 

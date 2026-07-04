@@ -1,6 +1,11 @@
 import type { PlaintextHandle } from "@insecur/crypto";
 import { bytesToBase64Url, type MetadataEnvelopeMeta } from "@insecur/domain";
-import type { RuntimeDeliveryEnvelope, RuntimeDeliveryPayload } from "@insecur/worker-kit";
+import type {
+  RuntimeDeliveryAllEnvelope,
+  RuntimeDeliveryAllPayload,
+  RuntimeDeliveryEnvelope,
+  RuntimeDeliveryPayload,
+} from "@insecur/worker-kit";
 
 /**
  * Seal a consumed grant's plaintext into the encoded delivery envelope. This is the only place
@@ -17,6 +22,28 @@ export function runtimeDeliveryEnvelope(
     delivery: {
       ...metadata,
       encodedValueUtf8: bytesToBase64Url(valueUtf8.unwrapUtf8()),
+    },
+    ...(meta !== undefined ? { meta } : {}),
+  };
+}
+
+export function runtimeDeliveryAllEnvelope(
+  input: Omit<RuntimeDeliveryAllPayload, "entries"> & {
+    entries: readonly (Omit<RuntimeDeliveryAllPayload["entries"][number], "encodedValueUtf8"> & {
+      valueUtf8: PlaintextHandle;
+    })[];
+  },
+  meta?: MetadataEnvelopeMeta,
+): RuntimeDeliveryAllEnvelope {
+  const { entries, ...metadata } = input;
+  return {
+    ok: true,
+    delivery: {
+      ...metadata,
+      entries: entries.map(({ valueUtf8, ...entry }) => ({
+        ...entry,
+        encodedValueUtf8: bytesToBase64Url(valueUtf8.unwrapUtf8()),
+      })),
     },
     ...(meta !== undefined ? { meta } : {}),
   };

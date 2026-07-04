@@ -2,5 +2,9 @@
 export const INJECTION_GRANT_TTL_SECONDS = 300;
 
 export function computeInjectionGrantExpiresAt(now = new Date()): Date {
-  return new Date(now.getTime() + INJECTION_GRANT_TTL_SECONDS * 1000);
+  return computeInjectionGrantExpiresAtFromTtl(INJECTION_GRANT_TTL_SECONDS, now);
+}
+
+export function computeInjectionGrantExpiresAtFromTtl(ttlSeconds: number, now = new Date()): Date {
+  return new Date(now.getTime() + ttlSeconds * 1000);
 }
