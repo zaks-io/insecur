@@ -49,8 +49,16 @@ async function loadBoundRuntimePolicyVersion(
 
 function assertSelectorAllowedByPolicyVersion(
   activeVersion: RuntimeInjectionPolicyVersionRow,
+  runtimePolicyKeyId: RuntimePolicyId,
   selector: InjectionGrantIssueSelector,
 ): void {
+  if (selector.kind === "policy_id") {
+    if (selector.policyId !== runtimePolicyKeyId) {
+      throw grantDenied("runtime policy key does not allow the requested injection selector");
+    }
+    return;
+  }
+
   const selectorAllowed =
     selector.kind === "variable_key"
       ? activeVersion.variableKeys.includes(selector.variableKey)
@@ -83,7 +91,7 @@ export async function assertRuntimePolicyKeyAllowsGrantSelector(
         coordinate,
         runtimePolicyKeyId,
       );
-      assertSelectorAllowedByPolicyVersion(activeVersion, selector);
+      assertSelectorAllowedByPolicyVersion(activeVersion, runtimePolicyKeyId, selector);
     },
   );
 }

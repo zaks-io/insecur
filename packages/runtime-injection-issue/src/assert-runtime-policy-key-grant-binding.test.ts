@@ -125,6 +125,29 @@ describe("assertRuntimePolicyKeyAllowsGrantSelector", () => {
     expect(getVersionById).not.toHaveBeenCalled();
   });
 
+  it("allows policy_id selectors that match the bound runtime policy key", async () => {
+    await expect(
+      assertRuntimePolicyKeyAllowsGrantSelector(
+        machineActor,
+        { organizationId: ORG, projectId: PROJECT_B, environmentId: ENV_B },
+        { kind: "policy_id", policyId: POLICY_KEY },
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("denies policy_id selectors outside the bound runtime policy key", async () => {
+    await expect(
+      assertRuntimePolicyKeyAllowsGrantSelector(
+        machineActor,
+        { organizationId: ORG, projectId: PROJECT_B, environmentId: ENV_B },
+        {
+          kind: "policy_id",
+          policyId: runtimePolicyId.brand("rp_00000000000000000000000002"),
+        },
+      ),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+  });
+
   it("skips enforcement for machine actors without a bound runtime policy key", async () => {
     await expect(
       assertRuntimePolicyKeyAllowsGrantSelector(
