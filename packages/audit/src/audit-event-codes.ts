@@ -33,6 +33,8 @@ export const FIRST_VALUE_AUDIT_EVENT_CODES = {
 export const PRODUCTION_AUDIT_EVENT_CODES = {
   machineGithubActionsOidcExchanged: "machine_auth.github_actions_oidc_exchanged",
   machineGithubActionsOidcExchangeDenied: "machine_auth.github_actions_oidc_exchange_denied",
+  machineDeployKeyExchanged: "machine_auth.deploy_key_exchanged",
+  machineDeployKeyExchangeDenied: "machine_auth.deploy_key_exchange_denied",
   syncExecutionCompleted: "sync.execution_completed",
   syncExecutionDenied: "sync.execution_denied",
   syncRevalidationDenied: "sync.revalidation_denied",
@@ -102,6 +104,7 @@ export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEvent
 
 export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventCode>([
   PRODUCTION_AUDIT_EVENT_CODES.machineGithubActionsOidcExchangeDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.machineDeployKeyExchangeDenied,
   PRODUCTION_AUDIT_EVENT_CODES.syncExecutionDenied,
   PRODUCTION_AUDIT_EVENT_CODES.syncRevalidationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.cryptoDataKeyDenied,

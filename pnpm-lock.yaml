@@ -658,6 +658,9 @@ importers:
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store
+      '@insecur/token-signing':
+        specifier: workspace:*
+        version: link:../token-signing
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

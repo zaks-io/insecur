@@ -1131,6 +1131,194 @@
     ],
     "primaryKeys": []
   },
+  "machine_identity_environment_deploy_keys": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "machine_identity_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "runtime_policy_key_ids": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgArray",
+        "sqlType": "text[]"
+      },
+      "credential_scopes": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgArray",
+        "sqlType": "text[]"
+      },
+      "secret_hash_algorithm": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_hash_salt_b64": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_hash_b64": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "expires_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "non_expiring": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "rotation_interval_seconds": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBigInt53",
+        "sqlType": "bigint"
+      },
+      "rotation_reminder_interval_seconds": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBigInt53",
+        "sqlType": "bigint"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "machine_identity_environment_deploy_keys_environment_required",
+        "sql": "\"machine_identity_environment_deploy_keys\".\"environment_id\" IS NOT NULL"
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_expiring_shape",
+        "sql": "(\"machine_identity_environment_deploy_keys\".\"non_expiring\" = true) OR (\"machine_identity_environment_deploy_keys\".\"expires_at\" IS NOT NULL)"
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_non_expiring_shape",
+        "sql": "(\"machine_identity_environment_deploy_keys\".\"non_expiring\" = false) OR (\"machine_identity_environment_deploy_keys\".\"expires_at\" IS NULL)"
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_policy_keys_nonempty",
+        "sql": "cardinality(\"machine_identity_environment_deploy_keys\".\"runtime_policy_key_ids\") > 0"
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_rotation_interval_positive",
+        "sql": "\"machine_identity_environment_deploy_keys\".\"rotation_interval_seconds\" IS NULL OR \"machine_identity_environment_deploy_keys\".\"rotation_interval_seconds\" > 0"
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_rotation_reminder_positive",
+        "sql": "\"machine_identity_environment_deploy_keys\".\"rotation_reminder_interval_seconds\" IS NULL OR \"machine_identity_environment_deploy_keys\".\"rotation_reminder_interval_seconds\" > 0"
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_scopes_nonempty",
+        "sql": "cardinality(\"machine_identity_environment_deploy_keys\".\"credential_scopes\") > 0"
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_status",
+        "sql": "\"machine_identity_environment_deploy_keys\".\"status\" IN ('active', 'disabled')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "machine_identity_environment_deploy_keys_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "machine_identity_environment_deploy_keys_org_id_environment_id_environments_org_id_id_fk",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_org_id_machine_identity_id_machine_identities_org_id_id_fk",
+        "columns": ["org_id", "machine_identity_id"],
+        "foreignTable": "machine_identities",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "machine_identity_environment_deploy_keys_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
   "machine_identity_github_actions_oidc": {
     "columns": {
       "id": {

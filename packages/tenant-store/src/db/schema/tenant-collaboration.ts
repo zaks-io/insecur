@@ -6,6 +6,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { primaryKey } from "drizzle-orm/pg-core";
 import {
   bigint,
+  boolean,
   check,
   foreignKey,
   index,
@@ -115,6 +116,28 @@ function orgMachineIdentityAndProjectForeignKeys(table: {
   ];
 }
 
+function machineAuthMethodScopeColumns() {
+  return {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    machineIdentityId: text("machine_identity_id").notNull(),
+    projectId: text("project_id").notNull(),
+  };
+}
+
+function machineAuthMethodStatusChecks(
+  tableName: string,
+  credentialScopesColumn: AnyPgColumn,
+  statusColumn: AnyPgColumn,
+) {
+  return [
+    check(`${tableName}_scopes_nonempty`, sql`cardinality(${credentialScopesColumn}) > 0`),
+    check(`${tableName}_status`, sql`${statusColumn} IN ('active', 'disabled')`),
+  ];
+}
+
 export const machineIdentityMemberships = pgTable(
   "machine_identity_memberships",
   {
@@ -146,12 +169,7 @@ export const machineIdentityMemberships = pgTable(
 export const machineIdentityGitHubActionsOidc = pgTable(
   "machine_identity_github_actions_oidc",
   {
-    id: text("id").primaryKey(),
-    orgId: text("org_id")
-      .notNull()
-      .references(() => organizations.id),
-    machineIdentityId: text("machine_identity_id").notNull(),
-    projectId: text("project_id").notNull(),
+    ...machineAuthMethodScopeColumns(),
     environmentId: text("environment_id"),
     githubRepository: text("github_repository").notNull(),
     githubRepositoryId: text("github_repository_id").notNull(),
@@ -178,13 +196,65 @@ export const machineIdentityGitHubActionsOidc = pgTable(
       "machine_identity_github_actions_oidc_repository_owner_id_numeric",
       sql`${table.githubRepositoryOwnerId} ~ '^[0-9]+$'`,
     ),
+    ...machineAuthMethodStatusChecks(
+      "machine_identity_github_actions_oidc",
+      table.credentialScopes,
+      table.status,
+    ),
+  ],
+);
+
+export const machineIdentityEnvironmentDeployKeys = pgTable(
+  "machine_identity_environment_deploy_keys",
+  {
+    ...machineAuthMethodScopeColumns(),
+    environmentId: text("environment_id").notNull(),
+    runtimePolicyKeyIds: text("runtime_policy_key_ids").array().notNull(),
+    credentialScopes: text("credential_scopes").array().notNull(),
+    secretHashAlgorithm: text("secret_hash_algorithm").notNull(),
+    secretHashSaltB64: text("secret_hash_salt_b64").notNull(),
+    secretHashB64: text("secret_hash_b64").notNull(),
+    status: text("status").notNull().default("active"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    nonExpiring: boolean("non_expiring").notNull().default(false),
+    rotationIntervalSeconds: bigint("rotation_interval_seconds", { mode: "number" }),
+    rotationReminderIntervalSeconds: bigint("rotation_reminder_interval_seconds", {
+      mode: "number",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("machine_identity_environment_deploy_keys_org_id_id_key").on(table.orgId, table.id),
+    ...orgMachineIdentityAndProjectForeignKeys(table),
+    orgEnvironmentForeignKey(table),
     check(
-      "machine_identity_github_actions_oidc_scopes_nonempty",
-      sql`cardinality(${table.credentialScopes}) > 0`,
+      "machine_identity_environment_deploy_keys_environment_required",
+      sql`${table.environmentId} IS NOT NULL`,
     ),
     check(
-      "machine_identity_github_actions_oidc_status",
-      sql`${table.status} IN ('active', 'disabled')`,
+      "machine_identity_environment_deploy_keys_policy_keys_nonempty",
+      sql`cardinality(${table.runtimePolicyKeyIds}) > 0`,
+    ),
+    ...machineAuthMethodStatusChecks(
+      "machine_identity_environment_deploy_keys",
+      table.credentialScopes,
+      table.status,
+    ),
+    check(
+      "machine_identity_environment_deploy_keys_non_expiring_shape",
+      sql`(${table.nonExpiring} = false) OR (${table.expiresAt} IS NULL)`,
+    ),
+    check(
+      "machine_identity_environment_deploy_keys_expiring_shape",
+      sql`(${table.nonExpiring} = true) OR (${table.expiresAt} IS NOT NULL)`,
+    ),
+    check(
+      "machine_identity_environment_deploy_keys_rotation_interval_positive",
+      sql`${table.rotationIntervalSeconds} IS NULL OR ${table.rotationIntervalSeconds} > 0`,
+    ),
+    check(
+      "machine_identity_environment_deploy_keys_rotation_reminder_positive",
+      sql`${table.rotationReminderIntervalSeconds} IS NULL OR ${table.rotationReminderIntervalSeconds} > 0`,
     ),
   ],
 );
