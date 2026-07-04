@@ -29,6 +29,7 @@ const OTHER_ENV = environmentId.brand("env_00000000000000000000000002");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const AUTH_METHOD = machineAuthMethodId.brand("mauth_00000000000000000000000004");
 const POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000001");
+const OTHER_POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000002");
 const SIGNING_SECRET = "unit-machine-access-signing-secret";
 const DEPLOY_KEY_SECRET = "unit-deploy-key-secret";
 const NOW = 1_700_000_000;
@@ -201,5 +202,40 @@ describe("exchangeEnvironmentDeployKey (unit)", () => {
       message: "Environment Deploy Key credential scopes are overbroad.",
       retryable: false,
     });
+  });
+
+  it("denies runtime policy key ids outside the deploy key allowlist before minting", async () => {
+    const result = await exchangeEnvironmentDeployKey({
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      deployKeySecret: DEPLOY_KEY_SECRET,
+      signingSecret: SIGNING_SECRET,
+      sql: sqlReturningAuthMethods(),
+      runtimePolicyKeyId: OTHER_POLICY_KEY,
+      nowEpoch: NOW,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: AUTH_ERROR_CODES.deployKeyInvalid,
+      message: "Environment Deploy Key is invalid.",
+      retryable: false,
+    });
+  });
+
+  it("exchanges when the requested runtime policy key id is allowlisted", async () => {
+    const result = await exchangeEnvironmentDeployKey({
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      deployKeySecret: DEPLOY_KEY_SECRET,
+      signingSecret: SIGNING_SECRET,
+      sql: sqlReturningAuthMethods(),
+      runtimePolicyKeyId: POLICY_KEY,
+      nowEpoch: NOW,
+    });
+
+    expect(result.ok).toBe(true);
   });
 });

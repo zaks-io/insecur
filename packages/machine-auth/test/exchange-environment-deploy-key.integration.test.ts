@@ -28,6 +28,7 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 const TEST_MACHINE_ID = "mach_00000000000000000000000004";
 const TEST_AUTH_METHOD_ID = "mauth_00000000000000000000000004";
 const TEST_POLICY_KEY_ID = "rp_00000000000000000000000001";
+const DISALLOWED_POLICY_KEY_ID = "rp_00000000000000000000000002";
 const DEPLOY_KEY_SECRET = "integration-deploy-key-secret";
 const SIGNING_SECRET = "integration-machine-access-signing-secret";
 const NOW = 1_700_000_000;
@@ -162,6 +163,29 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.code).toBe(AUTH_ERROR_CODES.deployKeyWrongEnvironment);
+    }
+  });
+
+  it("denies runtime policy key ids outside the deploy key allowlist before minting", async () => {
+    const org = organizationId.brand(TEST_ORG_A_ID);
+    const result = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async ({ sql }) =>
+        exchangeEnvironmentDeployKey({
+          organizationId: org,
+          projectId: projectId.brand(TEST_PROJECT_A_ID),
+          environmentId: environmentId.brand(TEST_ENV_A_ID),
+          deployKeySecret: DEPLOY_KEY_SECRET,
+          signingSecret: SIGNING_SECRET,
+          sql,
+          runtimePolicyKeyId: runtimePolicyId.brand(DISALLOWED_POLICY_KEY_ID),
+          nowEpoch: NOW,
+        }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(AUTH_ERROR_CODES.deployKeyInvalid);
     }
   });
 
