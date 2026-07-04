@@ -11,7 +11,7 @@ import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { parseVariableKeyOrThrow } from "./parse-variable-key.js";
-import { assertRunModeExclusive, splitRunCommandArgs } from "./resolve-run-profile.js";
+import { assertRunModeExclusive } from "./resolve-run-profile.js";
 import { buildRunChildEnv, decodeDeliveryValue, spawnCommand } from "./run-child.js";
 import { runProfilePolicyPath } from "./run-profile-policy.js";
 import { buildRunResolvedTargets } from "./run-result.js";
@@ -133,4 +133,4 @@ export async function runRunCommand(
   return runProfilePolicyPath(flags, api, context, commandOptions);
 }
 
-export { splitRunCommandArgs, type RunCommandOptions };
+export type { RunCommandOptions };
