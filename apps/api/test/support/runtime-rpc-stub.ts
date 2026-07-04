@@ -23,6 +23,7 @@ function ok<T>(value: T): RuntimeRpcResult<T> {
 export function createRuntimeRpcStub(): RuntimeRpcStub {
   return {
     consumeGrant: vi.fn(),
+    consumeGrantAll: vi.fn(),
     writeSecret: vi.fn(),
     resolveAdmission: vi.fn((input: { workosUserId: string }) =>
       Promise.resolve(

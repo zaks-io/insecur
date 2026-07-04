@@ -86,6 +86,7 @@ describe("resolveCliScope precedence", () => {
     expect(scopeFromProject.orgId).toBe(VALID_ORG_PROJECT);
     expect(scopeFromProject.projectId).toBe(VALID_PROJECT_PROJECT);
     expect(scopeFromProject.envId).toBe(VALID_ENV_PROJECT);
+    expect(scopeFromProject.profileId).toBe(VALID_PROFILE_PROJECT);
 
     process.env.INSECUR_HOST = "https://from-env.example";
     process.env.INSECUR_ORG = VALID_ORG_ENV;

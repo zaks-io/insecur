@@ -92,6 +92,9 @@ function createMockApi(): ApiClient {
     async consumeInjectionGrant() {
       throw new Error("not used");
     },
+    async consumeInjectionGrantAll() {
+      throw new Error("not used");
+    },
   };
 }
 
@@ -178,6 +181,9 @@ describe("login --shell managed session", () => {
         throw new Error("not used");
       },
       async consumeInjectionGrant() {
+        throw new Error("not used");
+      },
+      async consumeInjectionGrantAll() {
         throw new Error("not used");
       },
     };

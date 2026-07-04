@@ -44,7 +44,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant issue and consume", (
 
     const stored = await loadGrantBinding(org, issued.grantId);
     expect(stored?.secret_ids).toEqual([written.secretId]);
-    expect(stored?.secret_version_id).toBe(written.secretVersionId);
+    expect(stored?.secret_version_ids[0]).toBe(written.secretVersionId);
     expect(stored?.variable_keys).toEqual([variableKey]);
 
     const issueAuditEventId = issued.auditEventId;
@@ -135,7 +135,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant issue and consume", (
     });
 
     const stored = await loadGrantBinding(org, issued.grantId);
-    expect(stored?.secret_version_id).toBe(written.secretVersionId);
+    expect(stored?.secret_version_ids[0]).toBe(written.secretVersionId);
 
     const consumed = await consumeInjectionGrant({
       keyring: createTestKeyring(),

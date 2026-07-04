@@ -176,7 +176,12 @@ export const injectionGrants = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
-    secretVersionId: text("secret_version_id"),
+    secretVersionIds: text("secret_version_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    policyId: text("policy_id"),
+    policyVersionId: text("policy_version_id"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -99,6 +99,13 @@
       "when": 1783400000000,
       "tag": "0013_app_connections_validation_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1783500000000,
+      "tag": "0014_injection_grant_policy_bindings",
+      "breakpoints": true
     }
   ]
 }

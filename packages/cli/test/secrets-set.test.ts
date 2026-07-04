@@ -87,6 +87,9 @@ function createMockApi(
     consumeInjectionGrant: async () => {
       throw new Error("not used");
     },
+    consumeInjectionGrantAll: async () => {
+      throw new Error("not used");
+    },
     ...overrides,
   };
 }

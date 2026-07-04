@@ -85,9 +85,11 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     expires_at: { category: "timestamp" },
     id: { category: "opaque-id" },
     org_id: { category: "opaque-id" },
+    policy_id: { category: "opaque-id" },
+    policy_version_id: { category: "opaque-id" },
     project_id: { category: "opaque-id" },
     secret_ids: { category: "opaque-id" },
-    secret_version_id: { category: "opaque-id" },
+    secret_version_ids: { category: "opaque-id" },
     variable_keys: { category: "plaintext-lookup-key" },
   },
   instances: {

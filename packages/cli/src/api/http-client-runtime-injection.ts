@@ -1,0 +1,97 @@
+import type { ApiClient, IssueInjectionGrantData } from "./types.js";
+import {
+  parseDeliveryAllEnvelope,
+  parseDeliveryEnvelope,
+  parseEnvelope,
+  postAuthorizedJson,
+} from "./http-client-envelope.js";
+
+export async function issueInjectionGrant(
+  base: string,
+  input: Parameters<ApiClient["issueInjectionGrant"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants`;
+  const selectorBody =
+    "policyId" in input ? { policyId: input.policyId } : { variableKey: input.variableKey };
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      ...selectorBody,
+    },
+  );
+  const envelope = parseEnvelope<IssueInjectionGrantData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+export async function consumeInjectionGrant(
+  base: string,
+  input: Parameters<ApiClient["consumeInjectionGrant"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume`;
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    {
+      organizationId: input.organizationId,
+      variableKey: input.variableKey,
+    },
+  );
+  const envelope = parseDeliveryEnvelope(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+export async function consumeInjectionGrantAll(
+  base: string,
+  input: Parameters<ApiClient["consumeInjectionGrantAll"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume-all`;
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    {
+      organizationId: input.organizationId,
+    },
+  );
+  const envelope = parseDeliveryAllEnvelope(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+export async function recordInjectionRunCompleted(
+  base: string,
+  input: Parameters<ApiClient["recordInjectionRunCompleted"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/run-completed`;
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+    {
+      organizationId: input.organizationId,
+      childExitCode: input.childExitCode,
+    },
+  );
+  const envelope = parseEnvelope<{
+    auditEventId: string;
+    alreadyRecorded: boolean;
+  }>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}

@@ -35,7 +35,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant selector and rotation
     });
 
     const stored = await loadGrantBinding(org, issued.grantId);
-    expect(stored?.secret_version_id).toBe(firstWrite.secretVersionId);
+    expect(stored?.secret_version_ids[0]).toBe(firstWrite.secretVersionId);
 
     const secondWrite = await writeTestSecret(variableKey, secondValue);
     expect(secondWrite.secretVersionId).not.toBe(firstWrite.secretVersionId);

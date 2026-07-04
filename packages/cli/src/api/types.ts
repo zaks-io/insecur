@@ -4,6 +4,7 @@ import type {
   MembershipId,
   OrganizationId,
   ProjectId,
+  RuntimePolicyId,
   SecretId,
   SecretVersionId,
   TeamId,
@@ -53,6 +54,25 @@ export interface InjectionGrantDeliveryData {
   readonly grantId: InjectionGrantId;
   readonly encodedValueUtf8: string;
   readonly auditEventId?: string;
+}
+
+interface InjectionGrantDeliveryEntryData {
+  readonly secretId: SecretId;
+  readonly secretVersionId: SecretVersionId;
+  readonly variableKey: VariableKey;
+  readonly encodedValueUtf8: string;
+}
+
+export interface InjectionGrantDeliveryAllData {
+  readonly grantId: InjectionGrantId;
+  readonly entries: readonly InjectionGrantDeliveryEntryData[];
+  readonly auditEventId?: string;
+}
+
+export interface InjectionGrantDeliveryAllEnvelope {
+  readonly ok: true;
+  readonly delivery: InjectionGrantDeliveryAllData;
+  readonly meta?: SuccessEnvelope<unknown>["meta"];
 }
 
 export interface InjectionGrantDeliveryEnvelope {
@@ -112,14 +132,18 @@ export interface ApiClient {
     | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
-  issueInjectionGrant(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly projectId: ProjectId;
-    readonly environmentId: EnvironmentId;
-    readonly variableKey: VariableKey;
-  }): Promise<
+  issueInjectionGrant(
+    input: {
+      readonly host: string;
+      readonly bearerCredential: string;
+      readonly organizationId: OrganizationId;
+      readonly projectId: ProjectId;
+      readonly environmentId: EnvironmentId;
+    } & (
+      | { readonly variableKey: VariableKey; readonly policyId?: never }
+      | { readonly policyId: RuntimePolicyId; readonly variableKey?: never }
+    ),
+  ): Promise<
     | { ok: true; envelope: ApiSuccess<IssueInjectionGrantData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
@@ -131,6 +155,15 @@ export interface ApiClient {
     readonly variableKey: VariableKey;
   }): Promise<
     | { ok: true; envelope: InjectionGrantDeliveryEnvelope }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  consumeInjectionGrantAll(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly grantId: InjectionGrantId;
+  }): Promise<
+    | { ok: true; envelope: InjectionGrantDeliveryAllEnvelope }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
   recordInjectionRunCompleted(input: {

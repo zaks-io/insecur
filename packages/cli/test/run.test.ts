@@ -108,6 +108,9 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
       meta: { requestId: "req_consume" as never },
     },
   }));
+  const consumeInjectionGrantAll = vi.fn(async () => {
+    throw new Error("consumeInjectionGrantAll not used in this test");
+  });
   const recordInjectionRunCompleted = vi.fn(async () => ({
     ok: true as const,
     envelope: {
@@ -132,6 +135,7 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
     },
     issueInjectionGrant,
     consumeInjectionGrant,
+    consumeInjectionGrantAll,
     recordInjectionRunCompleted,
     ...overrides,
   };
@@ -411,6 +415,93 @@ describe("runRunCommand", () => {
     });
     expect(api.issueInjectionGrant).not.toHaveBeenCalled();
     expect(api.consumeInjectionGrant).not.toHaveBeenCalled();
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it("allows --variable-key when scope profile only supplies ambient defaults", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation(() => createMockChild(0));
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand(
+      flags,
+      api,
+      {
+        ...mockContext,
+        scope: {
+          ...mockContext.scope,
+          profileSlug: "local-dev",
+        },
+      },
+      {
+        variableKey: "API_KEY",
+        command: ["node", "-e", "process.exit(0)"],
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ variableKey: "API_KEY" }),
+    );
+    expect(api.consumeInjectionGrant).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows --variable-key when scope profile id only supplies ambient defaults", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation(() => createMockChild(0));
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand(
+      flags,
+      api,
+      {
+        ...mockContext,
+        scope: {
+          ...mockContext.scope,
+          profileId: "prof_01TEST00000000000000000001" as never,
+        },
+      },
+      {
+        variableKey: "API_KEY",
+        command: ["node", "-e", "process.exit(0)"],
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ variableKey: "API_KEY" }),
+    );
+    expect(api.consumeInjectionGrant).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects explicit --profile together with --variable-key", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+
+    await expect(
+      runRunCommand({ ...flags, profile: "local-dev" }, api, mockContext, {
+        variableKey: "API_KEY",
+        command: ["node", "-e", "process.exit(0)"],
+      }),
+    ).rejects.toMatchObject({
+      code: VALIDATION_ERROR_CODES.invalidCommandInput,
+      exitCode: EXIT_VALIDATION,
+    });
+    expect(api.issueInjectionGrant).not.toHaveBeenCalled();
     expect(spawnMock).not.toHaveBeenCalled();
   });
 });
