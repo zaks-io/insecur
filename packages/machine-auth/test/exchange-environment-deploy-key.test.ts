@@ -12,11 +12,12 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeTenantSql } from "../../operations/test/helpers/fake-tenant-sql.js";
 import { DEPLOY_KEY_SECRET_ALGORITHM } from "../src/deploy-key-secret.js";
-import { exchangeEnvironmentDeployKey } from "../src/exchange-environment-deploy-key.js";
+import {
+  exchangeEnvironmentDeployKey,
+  isRequestedRuntimePolicyKeyAllowlisted,
+} from "../src/exchange-environment-deploy-key.js";
 import type { EnvironmentDeployKeyAuthMethodRow } from "../src/environment-deploy-key-auth-method-row.js";
-import { loadActiveEnvironmentDeployKeyAuthMethods } from "../src/load-environment-deploy-key-auth-methods.js";
 import { mintMachineAccessToken } from "../src/machine-access-token.js";
-import { matchEnvironmentDeployKey } from "../src/match-environment-deploy-key.js";
 
 vi.mock("@insecur/audit", () => ({
   PRODUCTION_AUDIT_EVENT_CODES: {
@@ -26,13 +27,13 @@ vi.mock("@insecur/audit", () => ({
   writeAuditEvent: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-vi.mock("../src/load-environment-deploy-key-auth-methods.js", () => ({
-  loadActiveEnvironmentDeployKeyAuthMethods: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock("../src/match-environment-deploy-key.js", () => ({
-  matchEnvironmentDeployKey: vi.fn(),
-}));
+vi.mock("../src/deploy-key-secret.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/deploy-key-secret.js")>();
+  return {
+    ...actual,
+    verifyDeployKeySecret: vi.fn((secret: string) => secret === DEPLOY_KEY_SECRET),
+  };
+});
 
 vi.mock("../src/machine-access-token.js", () => ({
   mintMachineAccessToken: vi.fn(),
@@ -51,7 +52,9 @@ const SIGNING_SECRET = "unit-machine-access-signing-secret";
 const DEPLOY_KEY_SECRET = "unit-deploy-key-secret";
 const NOW = 1_700_000_000;
 
-function matchedAuthMethod(): EnvironmentDeployKeyAuthMethodRow {
+function authMethodRow(
+  overrides: Partial<EnvironmentDeployKeyAuthMethodRow> = {},
+): EnvironmentDeployKeyAuthMethodRow {
   return {
     id: AUTH_METHOD,
     organizationId: ORG,
@@ -74,32 +77,69 @@ function matchedAuthMethod(): EnvironmentDeployKeyAuthMethodRow {
     rotationIntervalSeconds: null,
     rotationReminderIntervalSeconds: null,
     createdAt: new Date((NOW - 10_000) * 1000),
+    ...overrides,
   };
 }
 
-describe("exchangeEnvironmentDeployKey runtime policy allowlist", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(matchEnvironmentDeployKey).mockReturnValue({
-      ok: true,
-      authMethod: matchedAuthMethod(),
-    });
+function sqlReturningAuthMethods(
+  rows: readonly EnvironmentDeployKeyAuthMethodRow[] = [authMethodRow()],
+) {
+  return createFakeTenantSql((_query, values) => {
+    expect(values[0]).toBe(ORG);
+    return rows.map((row) => ({
+      id: row.id,
+      org_id: row.organizationId,
+      machine_identity_id: row.machineIdentityId,
+      project_id: row.projectId,
+      environment_id: row.environmentId,
+      runtime_policy_key_ids: [...row.runtimePolicyKeyIds],
+      credential_scopes: [...row.credentialScopes],
+      secret_hash_algorithm: row.secretVerifier.algorithm,
+      secret_hash_salt_b64: row.secretVerifier.saltB64,
+      secret_hash_b64: row.secretVerifier.hashB64,
+      status: row.status,
+      expires_at: row.expiresAt,
+      non_expiring: row.nonExpiring,
+      rotation_interval_seconds: row.rotationIntervalSeconds,
+      rotation_reminder_interval_seconds: row.rotationReminderIntervalSeconds,
+      created_at: row.createdAt,
+    }));
+  });
+}
+
+describe("isRequestedRuntimePolicyKeyAllowlisted", () => {
+  it("allows exchange when runtimePolicyKeyId is omitted", () => {
+    expect(isRequestedRuntimePolicyKeyAllowlisted(authMethodRow(), undefined)).toBe(true);
   });
 
-  it("denies when runtimePolicyKeyId is outside the deploy key allowlist", async () => {
+  it("allows exchange when runtimePolicyKeyId is on the deploy key allowlist", () => {
+    expect(isRequestedRuntimePolicyKeyAllowlisted(authMethodRow(), ALLOWED_POLICY_KEY)).toBe(true);
+  });
+
+  it("rejects exchange when runtimePolicyKeyId is outside the deploy key allowlist", () => {
+    expect(isRequestedRuntimePolicyKeyAllowlisted(authMethodRow(), DISALLOWED_POLICY_KEY)).toBe(
+      false,
+    );
+  });
+});
+
+describe("exchangeEnvironmentDeployKey runtimePolicyKeyId allowlist branch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("fails closed with deployKeyInvalid when runtimePolicyKeyId is outside the allowlist", async () => {
     const result = await exchangeEnvironmentDeployKey({
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
       deployKeySecret: DEPLOY_KEY_SECRET,
       signingSecret: SIGNING_SECRET,
-      sql: createFakeTenantSql(() => []),
+      sql: sqlReturningAuthMethods(),
       runtimePolicyKeyId: DISALLOWED_POLICY_KEY,
       nowEpoch: NOW,
     });
 
-    expect(loadActiveEnvironmentDeployKeyAuthMethods).toHaveBeenCalled();
-    expect(matchEnvironmentDeployKey).toHaveBeenCalled();
     expect(mintMachineAccessToken).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
@@ -119,7 +159,7 @@ describe("exchangeEnvironmentDeployKey runtime policy allowlist", () => {
     });
   });
 
-  it("mints when runtimePolicyKeyId is allowlisted", async () => {
+  it("mints when runtimePolicyKeyId is allowlisted after deploy key match", async () => {
     vi.mocked(mintMachineAccessToken).mockResolvedValue({
       accessToken: "machine-access-token",
       expiresAt: "2026-01-01T00:00:00.000Z",
@@ -131,7 +171,7 @@ describe("exchangeEnvironmentDeployKey runtime policy allowlist", () => {
       environmentId: ENV,
       deployKeySecret: DEPLOY_KEY_SECRET,
       signingSecret: SIGNING_SECRET,
-      sql: createFakeTenantSql(() => []),
+      sql: sqlReturningAuthMethods(),
       runtimePolicyKeyId: ALLOWED_POLICY_KEY,
       nowEpoch: NOW,
     });

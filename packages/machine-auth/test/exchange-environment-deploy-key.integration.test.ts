@@ -185,7 +185,12 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.code).toBe(AUTH_ERROR_CODES.deployKeyInvalid);
+      expect(result).toEqual({
+        ok: false,
+        code: AUTH_ERROR_CODES.deployKeyInvalid,
+        message: "Environment Deploy Key is invalid.",
+        retryable: false,
+      });
     }
   });
 

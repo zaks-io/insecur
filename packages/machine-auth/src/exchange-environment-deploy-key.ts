@@ -86,6 +86,16 @@ function authMethodAuditScope(authMethod: EnvironmentDeployKeyAuthMethodRow) {
   });
 }
 
+/** True when no runtime policy key was requested or the key is on the deploy key allowlist. */
+export function isRequestedRuntimePolicyKeyAllowlisted(
+  authMethod: EnvironmentDeployKeyAuthMethodRow,
+  runtimePolicyKeyId: RuntimePolicyId | undefined,
+): boolean {
+  return (
+    runtimePolicyKeyId === undefined || authMethod.runtimePolicyKeyIds.includes(runtimePolicyKeyId)
+  );
+}
+
 async function denyExchange(input: {
   organizationId: OrganizationId;
   projectId?: ProjectId;
@@ -183,10 +193,7 @@ export async function exchangeEnvironmentDeployKey(
     return denyMatchedExchange(input, matched);
   }
 
-  if (
-    input.runtimePolicyKeyId !== undefined &&
-    !matched.authMethod.runtimePolicyKeyIds.includes(input.runtimePolicyKeyId)
-  ) {
+  if (!isRequestedRuntimePolicyKeyAllowlisted(matched.authMethod, input.runtimePolicyKeyId)) {
     return denyExchange({
       ...machineAuthExchangeTenantScope({
         ...authMethodAuditScope(matched.authMethod),
