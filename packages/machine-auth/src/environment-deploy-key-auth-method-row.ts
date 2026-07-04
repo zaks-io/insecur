@@ -20,9 +20,9 @@ export interface EnvironmentDeployKeyAuthMethodRow {
   readonly credentialScopes: readonly CredentialScope[];
   readonly secretVerifier: DeployKeySecretVerifierMaterial;
   readonly status: "active" | "disabled";
-  readonly expiresAt: Date | null;
+  readonly expiresAt: Date | string | null;
   readonly nonExpiring: boolean;
   readonly rotationIntervalSeconds: number | null;
   readonly rotationReminderIntervalSeconds: number | null;
-  readonly createdAt: Date;
+  readonly createdAt: Date | string;
 }

@@ -1,5 +1,6 @@
 import type { EnvironmentId, ProjectId } from "@insecur/domain";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
+import { toEpochSeconds } from "@insecur/tenant-store";
 import { verifyDeployKeySecret } from "./deploy-key-secret.js";
 import { collectDeployKeyOverbroadCredentialScopes } from "./deploy-key-credential-scopes.js";
 import type { EnvironmentDeployKeyAuthMethodRow } from "./environment-deploy-key-auth-method-row.js";
@@ -44,7 +45,7 @@ function isExpired(authMethod: EnvironmentDeployKeyAuthMethodRow, nowEpoch: numb
   if (authMethod.nonExpiring || authMethod.expiresAt === null) {
     return false;
   }
-  return Math.floor(authMethod.expiresAt.getTime() / 1000) <= nowEpoch;
+  return toEpochSeconds(authMethod.expiresAt) <= nowEpoch;
 }
 
 function validateMatchedAuthMethod(

@@ -1,4 +1,5 @@
 import type { EnvironmentDeployKeyAuthMethodRow } from "./environment-deploy-key-auth-method-row.js";
+import { toEpochSeconds, toIsoTimestamp } from "@insecur/tenant-store";
 
 /** Metadata-only deploy key view for status, plan, and audit output. */
 export interface EnvironmentDeployKeyMetadata {
@@ -23,7 +24,7 @@ function isRotationReminderDue(row: EnvironmentDeployKeyAuthMethodRow, nowEpoch:
   if (row.rotationReminderIntervalSeconds === null || row.rotationIntervalSeconds === null) {
     return false;
   }
-  const createdAtEpoch = Math.floor(row.createdAt.getTime() / 1000);
+  const createdAtEpoch = toEpochSeconds(row.createdAt);
   const elapsedSeconds = nowEpoch - createdAtEpoch;
   const interval = row.rotationIntervalSeconds;
   const reminder = row.rotationReminderIntervalSeconds;
@@ -44,12 +45,12 @@ export function buildEnvironmentDeployKeyMetadata(
     runtimePolicyKeyIds: [...row.runtimePolicyKeyIds],
     credentialScopes: [...row.credentialScopes],
     status: row.status,
-    expiresAt: row.expiresAt?.toISOString() ?? null,
+    expiresAt: row.expiresAt === null ? null : toIsoTimestamp(row.expiresAt),
     nonExpiring: row.nonExpiring,
     nonExpiringRiskVisible: row.nonExpiring,
     rotationIntervalSeconds: row.rotationIntervalSeconds,
     rotationReminderIntervalSeconds: row.rotationReminderIntervalSeconds,
     rotationReminderDue: isRotationReminderDue(row, nowEpoch),
-    createdAt: row.createdAt.toISOString(),
+    createdAt: toIsoTimestamp(row.createdAt),
   };
 }

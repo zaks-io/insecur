@@ -8,6 +8,7 @@ import {
 } from "@insecur/domain";
 import type { OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
+import { parseDbTimestamp } from "@insecur/tenant-store";
 import { DEPLOY_KEY_SECRET_ALGORITHM } from "./deploy-key-secret.js";
 import type { EnvironmentDeployKeyAuthMethodRow } from "./environment-deploy-key-auth-method-row.js";
 import { parseCredentialScopeRows } from "./parse-credential-scope-rows.js";
@@ -24,11 +25,11 @@ interface EnvironmentDeployKeyDbRow {
   secret_hash_salt_b64: string;
   secret_hash_b64: string;
   status: string;
-  expires_at: Date | null;
+  expires_at: Date | string | null;
   non_expiring: boolean;
   rotation_interval_seconds: number | null;
   rotation_reminder_interval_seconds: number | null;
-  created_at: Date;
+  created_at: Date | string;
 }
 
 function parseRuntimePolicyKeyIds(
@@ -77,11 +78,11 @@ function toAuthMethodRow(row: EnvironmentDeployKeyDbRow): EnvironmentDeployKeyAu
       hashB64: row.secret_hash_b64,
     },
     status: row.status,
-    expiresAt: row.expires_at,
+    expiresAt: row.expires_at === null ? null : parseDbTimestamp(row.expires_at),
     nonExpiring: row.non_expiring,
     rotationIntervalSeconds: row.rotation_interval_seconds,
     rotationReminderIntervalSeconds: row.rotation_reminder_interval_seconds,
-    createdAt: row.created_at,
+    createdAt: parseDbTimestamp(row.created_at),
   };
 }
 

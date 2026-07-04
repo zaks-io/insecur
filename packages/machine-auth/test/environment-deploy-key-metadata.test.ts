@@ -63,4 +63,17 @@ describe("environment-deploy-key-metadata", () => {
     expect(metadata.rotationReminderDue).toBe(true);
     expect(Object.keys(metadata)).not.toContain("secretVerifier");
   });
+
+  it("accepts Drizzle transparent-parser string timestamps from Postgres", () => {
+    const metadata = buildEnvironmentDeployKeyMetadata(
+      authMethodRow({
+        createdAt: "2026-01-15 12:34:56.789+00",
+        expiresAt: "2026-07-04 12:34:56.789+00",
+      }),
+      NOW,
+    );
+
+    expect(metadata.createdAt).toBe("2026-01-15T12:34:56.789Z");
+    expect(metadata.expiresAt).toBe("2026-07-04T12:34:56.789Z");
+  });
 });
