@@ -176,7 +176,6 @@ describeIntegration("protected secret version lifecycle (INS-55)", () => {
       current.wrapped,
     );
     expect(new TextDecoder().decode(plaintext.unwrapUtf8())).toBe("publish-me");
-    plaintext.dispose();
   });
 
   it("records protected draft writes with metadata-only audit events", async () => {
