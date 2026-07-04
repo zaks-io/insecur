@@ -33,9 +33,26 @@ export async function resolveBrowserActor(
   });
   const resolveAdmittedUser = createRuntimeAdmittedUserResolver(env);
   if (credentials.bearerCredential !== undefined && acceptsPreviewSmokeCredentials(env)) {
-    return resolvePreviewSmokeActor(credentials.bearerCredential, env, resolveAdmittedUser);
+    const smokeResult = await resolvePreviewSmokeActor(
+      credentials.bearerCredential,
+      env,
+      resolveAdmittedUser,
+    );
+    if (shouldUseSmokeResult(smokeResult, credentials.workosSealedSession)) {
+      return smokeResult;
+    }
   }
   return resolveWorkosCookieActor(credentials.workosSealedSession, env, resolveAdmittedUser);
+}
+
+function shouldUseSmokeResult(
+  smokeResult: ResolveUserActorResult,
+  workosSealedSession: string | undefined,
+): boolean {
+  if (smokeResult.ok || workosSealedSession === undefined) {
+    return true;
+  }
+  return !["expired", "invalid"].includes(smokeResult.failure.reason);
 }
 
 async function resolveWorkosCookieActor(

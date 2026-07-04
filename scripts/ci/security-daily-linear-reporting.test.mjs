@@ -125,11 +125,13 @@ test("Linear fingerprint lookup is scoped to the INS team filter", async (t) => 
   assert.equal(issue.id, "issue-id");
 });
 
-test("Linear team resolution matches team key, name, or id locally", async (t) => {
+test("Linear team resolution filters team query server-side", async (t) => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (_url, options) => {
     const body = JSON.parse(options.body);
-    assert.equal(body.variables && Object.keys(body.variables).length, 0);
+    assert.deepEqual(body.variables.filter, {
+      or: [{ id: { eq: "Insecur" } }, { key: { eq: "Insecur" } }, { name: { eq: "Insecur" } }],
+    });
     return jsonResponse({
       data: {
         teams: {

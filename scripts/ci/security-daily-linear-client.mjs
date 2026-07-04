@@ -8,7 +8,7 @@ export class LinearClient {
   }
 
   async resolveTeamAndLabels(teamQuery, labelNames) {
-    const data = await this.request(TEAM_AND_LABELS_QUERY, {});
+    const data = await this.request(TEAM_AND_LABELS_QUERY, { filter: teamFilter(teamQuery) });
     const team = data.teams.nodes.find((candidate) => matchesTeam(candidate, teamQuery));
     if (!team) {
       throw new Error(`Linear team not found: ${teamQuery}`);
@@ -72,6 +72,12 @@ function normalizeTeamQuery(value) {
     .toLowerCase();
 }
 
+function teamFilter(teamQuery) {
+  return {
+    or: [{ id: { eq: teamQuery } }, { key: { eq: teamQuery } }, { name: { eq: teamQuery } }],
+  };
+}
+
 function parseLinearResponse(response, text) {
   const body = parseJsonText(text);
   if (!response.ok) {
@@ -93,8 +99,8 @@ function parseJsonText(text) {
 }
 
 const TEAM_AND_LABELS_QUERY = `
-  query TeamAndLabels {
-    teams(first: 100) {
+  query TeamAndLabels($filter: TeamFilter!) {
+    teams(filter: $filter, first: 10) {
       nodes {
         id
         key

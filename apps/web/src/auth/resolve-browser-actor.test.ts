@@ -74,6 +74,15 @@ function bearerRequest(credential: string): Request {
   });
 }
 
+function sessionAndBearerRequest(credential: string): Request {
+  return new Request("https://insecur.test/whoami", {
+    headers: {
+      Authorization: `Bearer ${credential}`,
+      Cookie: `${WORKOS_SESSION_COOKIE}=${sealedSession}`,
+    },
+  });
+}
+
 async function smokeCredential(ttlSeconds?: number): Promise<string> {
   const minted = await mintEphemeralSessionCredential({
     actor: {
@@ -188,6 +197,21 @@ describe("resolveBrowserActor", () => {
     expect(expired.ok).toBe(false);
     if (!expired.ok) {
       expect(expired.failure.reason).toBe("expired");
+    }
+  });
+
+  it("falls back to the WorkOS cookie when preview receives an invalid smoke bearer", async () => {
+    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const result = await resolveBrowserActor(
+      sessionAndBearerRequest("not-a-session-token"),
+      createTestEnv(runtime, { PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.actor.userId).toBe(admittedUserId);
+      expect(result.actor.workosUserId).toBe(workosUserId);
+      expect(result.actor.sessionId).toBe("session_web");
     }
   });
 });
