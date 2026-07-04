@@ -8,7 +8,11 @@ import {
   projectId,
   userId,
 } from "@insecur/domain";
-import { TenantEnvironmentLifecycleStore, TenantSecretVersionStore } from "@insecur/tenant-store";
+import {
+  TenantEnvironmentLifecycleStore,
+  TenantSecretVersionStore,
+  withTenantScope,
+} from "@insecur/tenant-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SECRET_VALUE_SIZE_LIMIT_BYTES } from "../src/constants.js";
@@ -46,6 +50,7 @@ import {
 } from "../src/record-secret-storage-write-audit.js";
 
 const encryptMock = vi.mocked(encryptSecretValue);
+const withTenantScopeMock = vi.mocked(withTenantScope);
 const auditMock = vi.mocked(recordSecretStorageWriteAudit);
 const deniedAuditMock = vi.mocked(recordDeniedSecretStorageWriteAudit);
 
@@ -122,6 +127,7 @@ describe("toStoredWrappedSecretMaterial", () => {
 describe("writeNonProtectedSecret validation and ingress guards", () => {
   beforeEach(() => {
     encryptMock.mockReset();
+    withTenantScopeMock.mockImplementation(async (_scope, callback) => callback({ db: {} }));
     auditMock.mockClear();
     deniedAuditMock.mockClear();
     mockWritableEnvironment();
@@ -182,6 +188,30 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
     const result = await writeNonProtectedSecret(baseWriteInput(new Uint8Array(0), true));
     expect(result.secretId).toMatch(/^sec_/);
     expect(encryptMock).toHaveBeenCalled();
+  });
+
+  it("encrypts outside tenant-scoped DB transactions", async () => {
+    const events: string[] = [];
+    withTenantScopeMock.mockImplementation(async (_scope, callback) => {
+      events.push("scope:start");
+      try {
+        return await callback({ db: {} });
+      } finally {
+        events.push("scope:end");
+      }
+    });
+    encryptMock.mockImplementation(async () => {
+      events.push("encrypt");
+      return {
+        organizationDataKeyVersion: 1,
+        projectDataKeyVersion: 1,
+        ciphertext: new Uint8Array([1, 2, 3]),
+      } as never;
+    });
+
+    await writeNonProtectedSecret(baseWriteInput(new TextEncoder().encode("secret-value")));
+
+    expect(events).toEqual(["scope:start", "scope:end", "encrypt", "scope:start", "scope:end"]);
   });
 
   it("records denied audit for protected environment failures without leaking value bytes", async () => {
