@@ -348,10 +348,14 @@ description. The `auth.high_assurance_required` envelope is the canonical case:
   "remediation": {
     "approvalUrl": "https://app.insecur.cloud/orgs/org_.../approvals/op_...",
     "poll": ["insecur", "operations", "wait", "op_...", "--json"],
-    "resume": ["insecur", "deploy", "--env-id", "env_...", "--operation", "op_..."]
+    "resume": ["insecur", "secrets", "promote", "--env-id", "env_...", "--operation", "op_..."]
   }
 }
 ```
+
+The console approval route `/orgs/:orgId/approvals/:id` accepts both an Approval Request ID and a
+High-Assurance Challenge bounded operation ID; the console resolves which review view to render by
+opaque ID prefix (see docs/web-console-ux.md).
 
 Which error codes require remediation is tracked alongside the error-code registry below: every
 retryable code and every code whose resolution is a concrete next action (step-up, re-auth,
@@ -496,6 +500,7 @@ a resource-existence oracle, even where their exit codes differ.
 | `operation.terminal_state`                  | `6`  | `409`               | Operation is already in a terminal state.                                                                                                               |
 | `operation.not_cancelable`                  | `6`  | `409`               | Operation in the current state cannot be canceled.                                                                                                      |
 | `operation.not_retryable`                   | `6`  | `409`               | Operation in the current state cannot be retried.                                                                                                       |
+| `operation.wait_timeout`                    | `9`  | `n/a (client-side)` | `operations wait --timeout` expired before the operation left a non-terminal state; remediation points back at the same wait command.                   |
 | `operation.stale_fencing_token`             | `6`  | `409`               | Sync target lease fencing token is stale or does not match the operation binding.                                                                       |
 | `operation.lease_not_held`                  | `6`  | `409`               | No active sync target lease exists for the requested target.                                                                                            |
 | `operation.lease_required`                  | `2`  | `400`               | Sync target lease fencing token is required for this operation transition.                                                                              |
@@ -1103,9 +1108,9 @@ insecur operations wait op_123 --timeout 600 --json
 insecur operations cancel op_123
 ```
 
-`operations wait` accepts `--timeout <seconds>`; on expiry it exits `9` (operation incomplete)
-with the operation's current state in the envelope and remediation pointing back at the same
-`wait` command, so an unattended agent never blocks forever.
+`operations wait` accepts `--timeout <seconds>`; on expiry it fails with the client-side code
+`operation.wait_timeout` at exit `9`, carrying the operation's current state in the envelope and
+remediation pointing back at the same `wait` command, so an unattended agent never blocks forever.
 
 Long-running sync, rotation, backup, restore, and provider reauthorization workflows return an operation ID. Operation state, polling, waiting, cancellation, retry metadata, sync leases, and fencing tokens are owned by the [Operation Store](operation-store.md); CLI commands render that metadata rather than reading workflow-private tables.
 

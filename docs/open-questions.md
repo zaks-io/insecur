@@ -69,9 +69,11 @@ ship. Full counsel punch list in [research/legal-liability.md](research/legal-li
 
 ## Product and UX
 
-- **CLI human login UX:** whether human browser login uses OAuth device authorization
-  (`insecur login --device`). No ADR decides it, and the implemented INS-31 login (a WorkOS
-  cookie-exchange bridge in `packages/cli/src/commands/login.ts`) does not realize it yet. The
+- **CLI human login UX: resolved.** `insecur login --device` (OAuth device authorization for
+  remote shells, with the cross-device consent-phishing treatment) is decided in ADR-0010's
+  2026-07-04 amendment; loopback PKCE stays the default on browser-reachable machines. The
+  implemented INS-31 login (a WorkOS cookie-exchange bridge in
+  `packages/cli/src/commands/login.ts`) does not realize the device flow yet. The
   memory/session-only token posture is decided (ADR-0007).
 - **Approval notification channels are decided in ADR-0017** (browser/mobile push primary,
   in-app and email fallback, email alert-only). Open: timing of the Capacitor-wrapped mobile app

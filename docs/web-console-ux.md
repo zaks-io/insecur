@@ -31,9 +31,14 @@ Five sidebar sections, org-scoped:
 
 ## URLs
 
-Opaque Resource IDs, mirroring API routing 1:1: `/orgs/:orgId/projects/:projectId/envs/:envId/...`.
-No slug columns, no rename/redirect handling; in-page breadcrumbs carry Display Names. Approval
-deep links use the same scheme (`/orgs/:orgId/approvals/:approvalId`).
+Opaque Resource IDs throughout, following the API's opaque-ID style:
+`/orgs/:orgId/projects/:projectId/envs/:envId/...` for resource pages. No slug columns, no
+rename/redirect handling; in-page breadcrumbs carry Display Names. Approval deep links are the one
+deliberate short form: `/orgs/:orgId/approvals/:id` accepts both an Approval Request ID and a
+High-Assurance Challenge bounded operation ID (distinct, separately governed objects per
+docs/cli-and-sync.md); the console resolves which by opaque ID prefix and renders the matching
+review view. Deep links stay short because they are typed into notifications and printed by the
+CLI, while the underlying API routes remain env-scoped.
 
 ## Project Secrets View: Matrix
 

@@ -48,5 +48,6 @@ Concretely:
   as the CLI" means the same command core and envelopes, not inline value arguments.
 - An agent that was handed a plaintext value out-of-band can still store it (pipe from its
   environment), but insecur never widens that exposure and never requires it.
-- This extends the Safe Sensitive Input Path family (docs/context/glossary/runtime-injection.md):
-  an agent-context transit is not a safe input path.
+- This extends the Safe Sensitive Input Path family (see **Safe Sensitive Input Path** in
+  docs/context/glossary/sensitive-data-safety.md): an agent-context transit is not a safe input
+  path.

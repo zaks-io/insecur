@@ -33,6 +33,8 @@ the content-ownership table in the Source Of Truth Rules of
 | First Value build contract                       | `docs/first-value-milestone.md`                          |
 | First Value Linear ticket graph                  | `docs/specs/first-value-ticket-plan.md`                  |
 | CLI and provider sync behavior                   | `docs/cli-and-sync.md`                                   |
+| Web console UX decisions                         | `docs/web-console-ux.md`                                 |
+| Agent experience (AX) decisions                  | `docs/agent-experience.md`                               |
 | Storage readiness gate                           | `docs/storage-security-gate.md`                          |
 | Protected change flow                            | `docs/protected-change-orchestration.md`                 |
 | Operation retry, resume, and leases              | `docs/operation-store.md`                                |
