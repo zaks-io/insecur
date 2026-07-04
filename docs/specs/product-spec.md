@@ -40,8 +40,8 @@ ADR." V1 keeps:
 - Machine identities and GitHub Actions OIDC for short-lived CI access.
 - Cloudflare and GitHub provider sync, plus profile-based `insecur run` for local and deploy
   injection.
-- BFF/session-cookie web security, with V1 web limited to metadata browsing and the Human Approval
-  Surface.
+- BFF/session-cookie web security, with V1 web limited to metadata browsing, the Human Approval
+  Surface, and the first-run onboarding wizard.
 - Full CI, real Postgres RLS tests, security gates, and supply-chain hardening.
 
 Deferred scope lives in [docs/phasing.md](../phasing.md#deferred-scope-parking-lot). While an item
@@ -615,8 +615,11 @@ Resolver.
 
 The browser is never a Secret Reveal surface. The long-term web target has management parity with
 the CLI except reveal; it can accept Sensitive Values through masked write-only input, but never
-returns or renders stored Sensitive Values. V1 web scope is narrower: metadata browsing plus the
-Human Approval Surface. Full web management parity is deferred past V1.
+returns or renders stored Sensitive Values. V1 web scope is narrower: metadata browsing, the Human
+Approval Surface, and the first-run onboarding wizard (Guided Organization Provisioning with an
+optional first Blind Secret Write and CLI handoff, per
+[web-console-ux.md](../web-console-ux.md)). Full web management parity beyond that wizard is
+deferred past V1.
 
 The Human Approval Surface handles Protected Environment approval, High-Assurance Challenges,
 Risk-Broadening Delivery Changes, protected delivery configuration approval, and Cloudflare Worker
