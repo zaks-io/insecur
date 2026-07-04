@@ -12,6 +12,7 @@ import {
   TenantSecretVersionStore,
   withTenantScope,
   type TenantScopedDb,
+  type SecretVersionStoreRow,
 } from "@insecur/tenant-store";
 
 import { InjectionGrantError } from "./injection-grant-error.js";
@@ -24,23 +25,30 @@ export async function decryptBoundGrantSecretVersion(input: {
   secretId: SecretId;
   secretVersionId: SecretVersionId;
 }): Promise<PlaintextHandle> {
-  return withTenantScope(
+  const wrapped = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async ({ db }) => decryptResolvedVersion(input, db),
+    async ({ db }) => loadDeliverableWrappedSecretVersion(input, db),
+  );
+
+  return await decryptSecretValueForRuntime(
+    input.keyring,
+    {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      secretId: input.secretId,
+    },
+    wrapped,
   );
 }
 
-async function decryptResolvedVersion(
+async function loadDeliverableWrappedSecretVersion(
   input: {
-    keyring: Keyring;
-    organizationId: OrganizationId;
-    projectId: ProjectId;
-    environmentId: EnvironmentId;
     secretId: SecretId;
     secretVersionId: SecretVersionId;
   },
   db: TenantScopedDb,
-): Promise<PlaintextHandle> {
+): Promise<SecretVersionStoreRow["wrapped"]> {
   let version;
   try {
     version = await new TenantSecretVersionStore(db).getDeliverableVersion(
@@ -63,14 +71,5 @@ async function decryptResolvedVersion(
     );
   }
 
-  return await decryptSecretValueForRuntime(
-    input.keyring,
-    {
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      secretId: input.secretId,
-    },
-    version.wrapped,
-  );
+  return version.wrapped;
 }
