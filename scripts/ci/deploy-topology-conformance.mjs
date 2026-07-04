@@ -232,8 +232,8 @@ function extractPublicRoutes(indexPath) {
   for (const pattern of patterns) {
     let match;
     while ((match = pattern.exec(source)) !== null) {
-      const method = match[2] === undefined ? undefined : match[1];
-      if (method === "use" && isSentryMiddlewareUse(source, match.index)) {
+      const callName = match[2] === undefined ? undefined : match[1];
+      if (callName === "use" && isSentryMiddlewareUse(source, match.index)) {
         continue;
       }
       const prefix = match[2] ?? match[1];

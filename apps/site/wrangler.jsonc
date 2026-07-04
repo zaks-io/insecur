@@ -8,6 +8,7 @@
   "vars": {
     "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
     "SENTRY_ENVIRONMENT": "production",
+    "SENTRY_SERVICE": "insecur-site",
   },
   "observability": {
     "enabled": true,
@@ -41,6 +42,7 @@
       "vars": {
         "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
         "SENTRY_ENVIRONMENT": "preview",
+        "SENTRY_SERVICE": "insecur-site-preview",
       },
       "routes": [{ "pattern": "preview.insecur.cloud", "custom_domain": true }],
     },

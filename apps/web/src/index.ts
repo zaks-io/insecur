@@ -5,11 +5,10 @@ import serverEntry from "@tanstack/react-start/server-entry";
 import type { WebEnv } from "./env.js";
 import { buildContentSecurityPolicy, generateCspNonce } from "./security/csp.js";
 
-type ServerEntryOptions = Parameters<typeof serverEntry.fetch>[1];
-
 const sentryServerEntry = wrapFetchWithSentry({
   fetch(request, opts) {
-    return serverEntry.fetch(request, opts as ServerEntryOptions);
+    // @ts-expect-error TanStack Start's server entry type currently misses Cloudflare wrapper opts.
+    return serverEntry.fetch(request, opts);
   },
 });
 
@@ -33,7 +32,6 @@ const handler = {
     env: WebEnv,
     ctx: ExecutionContext,
   ): Promise<Response> {
-    void env;
     void ctx;
 
     if (new URL(request.url).pathname === "/healthz") {

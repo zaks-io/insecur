@@ -14,6 +14,7 @@ const SITE_WRANGLER_PATH = path.join(REPO_ROOT, "apps", "site", "wrangler.jsonc"
 
 export const SITE_PACKAGE = "@insecur/site";
 export const UI_PACKAGE = "@insecur/ui";
+export const OBSERVABILITY_PACKAGE = "@insecur/observability";
 export const SITE_WORKER_NAME = "insecur-site";
 export const SITE_PREVIEW_WORKER_NAME = "insecur-site-preview";
 
@@ -59,18 +60,23 @@ export function assertSiteWranglerConfig() {
 const ANY_WORKSPACE_MODULE = "(^|/)insecur__[^/]+\\.mjs$";
 
 // ADR-0078 public-site import boundary. Production source in @insecur/site may import only
-// @insecur/ui from the workspace; production source in @insecur/ui may import no @insecur/* package.
+// @insecur/ui and capability-free @insecur/observability from the workspace; production source in
+// @insecur/ui may import no @insecur/* package.
 // Everything on either side of that fence is a forbidden dependency-cruiser edge.
 function siteBoundaryForbiddenRules() {
   return [
     {
-      name: "site-imports-only-ui",
-      comment: `${SITE_PACKAGE} production source may import only ${UI_PACKAGE} from the @insecur/* workspace (ADR-0078).`,
+      name: "site-imports-only-ui-and-observability",
+      comment: `${SITE_PACKAGE} production source may import only ${UI_PACKAGE} and ${OBSERVABILITY_PACKAGE} from the @insecur/* workspace (ADR-0078).`,
       severity: "error",
       from: { path: graphPathPattern(SITE_PACKAGE) },
       to: {
         path: ANY_WORKSPACE_MODULE,
-        pathNot: [graphPathPattern(SITE_PACKAGE), graphPathPattern(UI_PACKAGE)],
+        pathNot: [
+          graphPathPattern(SITE_PACKAGE),
+          graphPathPattern(UI_PACKAGE),
+          graphPathPattern(OBSERVABILITY_PACKAGE),
+        ],
       },
     },
     {
@@ -84,7 +90,9 @@ function siteBoundaryForbiddenRules() {
 }
 
 export function assertBoundaryPackagesExist(packages) {
-  const missing = [SITE_PACKAGE, UI_PACKAGE].filter((name) => !packages.has(name));
+  const missing = [SITE_PACKAGE, UI_PACKAGE, OBSERVABILITY_PACKAGE].filter(
+    (name) => !packages.has(name),
+  );
   if (missing.length > 0) {
     throw new Error(`Public-site boundary conformance could not find: ${missing.join(", ")}`);
   }
@@ -102,7 +110,7 @@ export async function assertSiteBoundaryConformance(packages) {
 /** Baseline graph carrying only the two boundary packages and no cross edges. */
 function createBaselineBoundaryPackages() {
   const packages = new Map();
-  for (const packageName of [SITE_PACKAGE, UI_PACKAGE]) {
+  for (const packageName of [SITE_PACKAGE, UI_PACKAGE, OBSERVABILITY_PACKAGE]) {
     packages.set(packageName, {
       packageDir: path.join(REPO_ROOT, "packages", "boundary-probe"),
       dependencies: [],
@@ -134,7 +142,10 @@ async function assertSiteBoundaryNegativeProbe() {
     await assertSiteBoundaryConformance(violating);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (/site-imports-only-ui/.test(message) && /ui-imports-no-workspace/.test(message)) {
+    if (
+      /site-imports-only-ui-and-observability/.test(message) &&
+      /ui-imports-no-workspace/.test(message)
+    ) {
       rejected = true;
     } else {
       throw error;

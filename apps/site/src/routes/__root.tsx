@@ -2,8 +2,8 @@ import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 import { SiteFooter, SiteHeader, SiteShell, Wordmark } from "@insecur/ui";
+import { sentryBrowserConfigScript } from "@insecur/observability";
 import appCss from "../styles.css?url";
-import { sentryBrowserConfigScript } from "../sentry.js";
 
 export const Route = createRootRoute({
   head: () => ({

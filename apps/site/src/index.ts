@@ -1,8 +1,8 @@
+import { cloudflareSentryOptions, sentryBrowserConfig } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import serverEntry from "@tanstack/react-start/server-entry";
 import type { SiteEnv } from "./env.js";
-import { sentryBrowserConfig, sentryOptions } from "./sentry.js";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
@@ -25,11 +25,10 @@ function withSecurityHeaders(response: Response): Response {
   });
 }
 
-type ServerEntryOptions = Parameters<typeof serverEntry.fetch>[1];
-
 const sentryServerEntry = wrapFetchWithSentry({
   fetch(request, opts) {
-    return serverEntry.fetch(request, opts as ServerEntryOptions);
+    // @ts-expect-error TanStack Start's server entry type currently misses Cloudflare wrapper opts.
+    return serverEntry.fetch(request, opts);
   },
 });
 
@@ -53,4 +52,4 @@ const handler = {
   },
 } satisfies ExportedHandler<SiteEnv>;
 
-export default Sentry.withSentry<SiteEnv>(sentryOptions, handler);
+export default Sentry.withSentry<SiteEnv>(cloudflareSentryOptions, handler);

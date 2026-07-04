@@ -9,9 +9,10 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-// The Public Site's only workspace dependency is the presentational @insecur/ui package
-// (ADR-0078). Alias the two entry points to source so the SSR bundle builds straight from the
-// monorepo. Exact-match `find` regexes keep `@insecur/ui` from swallowing `@insecur/ui/styles.css`.
+// The Public Site's workspace dependencies are the presentational @insecur/ui package and
+// capability-free @insecur/observability (ADR-0078). Alias the UI entry points to source so the SSR
+// bundle builds straight from the monorepo. Exact-match `find` regexes keep `@insecur/ui` from
+// swallowing `@insecur/ui/styles.css`.
 const workspaceAliases = [
   {
     find: /^@insecur\/ui\/styles\.css$/,

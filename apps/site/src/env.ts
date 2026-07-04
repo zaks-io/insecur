@@ -1,4 +1,4 @@
-import type { SentryBindings } from "./sentry.js";
+import type { SentryBindings } from "@insecur/observability";
 
 /**
  * Bindings for the Public Site Worker (`insecur-site`, ADR-0078).

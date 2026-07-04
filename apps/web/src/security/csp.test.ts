@@ -23,4 +23,13 @@ describe("csp", () => {
     });
     expect(policy).toContain("connect-src 'self' https://example.ingest.sentry.io");
   });
+
+  it.each(["http://public@example.ingest.sentry.io/1", "not a dsn"])(
+    "ignores an unsafe sentry dsn: %s",
+    (sentryDsn) => {
+      const policy = buildContentSecurityPolicy("test-nonce-value", { sentryDsn });
+      expect(policy).toContain("connect-src 'self'");
+      expect(policy).not.toContain("example.ingest.sentry.io");
+    },
+  );
 });

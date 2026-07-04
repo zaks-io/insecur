@@ -13,6 +13,7 @@
     "INSTANCE_ID": "inst_PUBLIC_PRODUCTION_PLACEHOLDER",
     "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
     "SENTRY_ENVIRONMENT": "production",
+    "SENTRY_SERVICE": "insecur-web",
     "WORKOS_CLIENT_ID": "client_PUBLIC_PRODUCTION_PLACEHOLDER",
   },
   "observability": {
@@ -51,6 +52,7 @@
         "INSTANCE_ID": "inst_PUBLIC_PREVIEW_PLACEHOLDER",
         "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
         "SENTRY_ENVIRONMENT": "preview",
+        "SENTRY_SERVICE": "insecur-web-preview",
         "WORKOS_CLIENT_ID": "client_PUBLIC_PREVIEW_PLACEHOLDER",
       },
       "services": [

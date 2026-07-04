@@ -291,6 +291,9 @@ importers:
 
   apps/site:
     dependencies:
+      '@insecur/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@insecur/ui':
         specifier: workspace:*
         version: link:../../packages/ui
