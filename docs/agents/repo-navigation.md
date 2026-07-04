@@ -78,13 +78,14 @@ ADRs named by that local context.
 
 - Use `docs/agents/issue-tracker.md` to understand Linear conventions.
 - Use `docs/agents/autonomous-loop.md` before claiming or updating implementation work.
-- Use `docs/agents/skill-usage.md` to choose a workflow skill.
-- Use `skills/workflow-issue-triage/SKILL.md` to convert docs/specs into Linear work or audit it.
-- Use `skills/workflow-agent-implement/SKILL.md` for one ready issue.
-- Use `skills/workflow-code-review/SKILL.md` for bug-focused review of a diff, branch, or PR,
+- Use `docs/agents/skill-usage.md` to choose a ziw skill.
+- Use `skills/ziw-to-issues/SKILL.md` to turn specs, PRDs, or epics into Linear implementation work.
+- Use `skills/ziw-triage/SKILL.md` to audit or repair tracker readiness.
+- Use `skills/ziw-implement/SKILL.md` for one ready issue.
+- Use `skills/ziw-code-review/SKILL.md` for bug-focused review of a diff, branch, or PR,
   including before opening a PR.
-- Use `skills/workflow-create-pr/SKILL.md` to open or ship the current branch as a PR.
-- Use `skills/workflow-agent-review/SKILL.md` for the periodic sidecar review of newly landed `main`
+- Use `skills/ziw-pr/SKILL.md` to open or ship the current branch as a PR.
+- Use `skills/ziw-review/SKILL.md` for the periodic sidecar review of newly landed `main`
   commits that should become queued fixes.
 
 Agents should treat Linear as the queue and dependency graph, but repo docs as the product,

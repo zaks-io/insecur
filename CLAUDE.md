@@ -40,7 +40,7 @@ table is `docs/specs/deploy-route-inventory.md`.
 This repo has repo-local skills in `skills/*/SKILL.md`. If a task names one of those skills or
 matches its description, read the matching skill before acting. See `docs/agents/skill-usage.md`.
 
-Runtime-specific files are adapters only. Shared workflow truth lives in `docs/agents/*` and
+Runtime-specific files are adapters only. Shared agent workflow truth lives in `docs/agents/*` and
 `skills/*/SKILL.md`; keep Codex, Claude, and Cursor behavior aligned through those files.
 
 ### Workflow
@@ -48,7 +48,7 @@ Runtime-specific files are adapters only. Shared workflow truth lives in `docs/a
 The end-to-end repo workflow is documented in `docs/agents/workflow.md`: how to choose a skill,
 move work through Linear, implement one issue, review PRs, and coordinate agents. Read
 `docs/agents/workflow/config.md` first for the workflow lookup table (commands, Linear IDs, labels,
-runtimes, gates) before using any `workflow-*` skill.
+runtimes, gates) before using any `ziw-*` skill.
 
 ### Fast repo navigation
 

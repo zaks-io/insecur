@@ -36,7 +36,7 @@ Only implement issues that are:
 - unblocked
 - scoped to one PR
 
-Before opening a PR, run or request `skills/workflow-code-review/SKILL.md` on the branch when
+Before opening a PR, run or request `skills/ziw-code-review/SKILL.md` on the branch when
 the environment supports it. Address blocking findings before PR handoff.
 
 Use branch names like `ins-123-short-slug`. Open PRs titled `INS-123: Short summary`.
