@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "vars": {
+    "DEPLOYED_AT": "1970-01-01T00:00:00.000Z",
+    "DEPLOY_RUN_ID": "0",
+    "DEPLOY_SHA": "PUBLIC_PRODUCTION_SHA_PLACEHOLDER",
     "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
     "SENTRY_ENVIRONMENT": "production",
     "SENTRY_SERVICE": "insecur-site",
@@ -36,27 +39,20 @@
     { "pattern": "insecur.cloud", "custom_domain": true },
     { "pattern": "www.insecur.cloud", "custom_domain": true },
   ],
-  "vars": {
-    "DEPLOYED_AT": "1970-01-01T00:00:00.000Z",
-    "DEPLOY_RUN_ID": "0",
-    "DEPLOY_SHA": "PUBLIC_PRODUCTION_SHA_PLACEHOLDER",
-  },
   "env": {
     "preview": {
       "name": "insecur-site-preview",
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "workers_dev": true,
       "vars": {
+        "DEPLOYED_AT": "1970-01-01T00:00:00.000Z",
+        "DEPLOY_RUN_ID": "0",
+        "DEPLOY_SHA": "PUBLIC_PREVIEW_SHA_PLACEHOLDER",
         "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
         "SENTRY_ENVIRONMENT": "preview",
         "SENTRY_SERVICE": "insecur-site-preview",
       },
       "routes": [{ "pattern": "preview.insecur.cloud", "custom_domain": true }],
-      "vars": {
-        "DEPLOYED_AT": "1970-01-01T00:00:00.000Z",
-        "DEPLOY_RUN_ID": "0",
-        "DEPLOY_SHA": "PUBLIC_PREVIEW_SHA_PLACEHOLDER",
-      },
     },
   },
 }

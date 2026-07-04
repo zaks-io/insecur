@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  assertManifestComplete,
   createManifestRun,
   createRedactor,
   failCheck,
@@ -58,6 +59,24 @@ test("manifest summary reports pass, skip, and failure without secret values", (
   assert.match(summary, /SKIPPED: operations\.poll/u);
   assert.match(summary, /FAILED: plaintext_sweep\.postgres/u);
   assert.doesNotMatch(summary, /raw-secret-sentinel/u);
+});
+
+test("manifest completion rejects pending happy paths", () => {
+  const run = createManifestRun();
+
+  assert.throws(
+    () => assertManifestComplete(run),
+    /Preview smoke manifest left pending check\(s\): deploy\.identity\.api/u,
+  );
+});
+
+test("manifest completion accepts passed or skipped happy paths", () => {
+  const run = createManifestRun();
+  for (const check of run.checks) {
+    skipCheck(run, check.id, "covered by test setup");
+  }
+
+  assert.doesNotThrow(() => assertManifestComplete(run));
 });
 
 test("plaintext sweep detects an inserted sentinel positive control", async () => {

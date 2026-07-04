@@ -108,6 +108,16 @@ export function failCheck(run, id, message) {
   run.failure = { checkId: id, message };
 }
 
+export function assertManifestComplete(run) {
+  const pending = run.checks.filter((check) => check.status === "pending");
+  if (pending.length > 0) {
+    throw new PreviewSmokeError(
+      "workflow.preview_smoke",
+      `Preview smoke manifest left pending check(s): ${pending.map((check) => check.id).join(", ")}`,
+    );
+  }
+}
+
 export function completeManifestRun(run, completedAt = new Date().toISOString()) {
   run.completedAt = completedAt;
   return run;

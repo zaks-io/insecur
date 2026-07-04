@@ -82,15 +82,8 @@ test("materializes generated Web preview deploy config", () => {
   assert.equal(config.vars.DEPLOY_SHA, "abc123");
 });
 
-test("materializes Site preview deploy identity", () => {
-  const source = {
-    env: { preview: { vars: { DEPLOY_SHA: "DEPLOY_SHA_PREVIEW_PLACEHOLDER" } } },
-    main: "dist/server/index.js",
-    name: "insecur-site",
-    vars: { DEPLOY_SHA: "DEPLOY_SHA_PLACEHOLDER" },
-  };
-
-  const config = materializeDeployWranglerConfig(source, {
+test("materializes Site preview deploy identity without dropping observability vars", () => {
+  const config = materializeDeployWranglerConfig(siteConfig(), {
     env: DEPLOY_ENV,
     wranglerEnv: "preview",
   });
@@ -98,6 +91,9 @@ test("materializes Site preview deploy identity", () => {
   assert.equal(config.env.preview.vars.DEPLOY_SHA, "abc123");
   assert.equal(config.env.preview.vars.DEPLOY_RUN_ID, "123456789");
   assert.equal(config.env.preview.vars.DEPLOYED_AT, "2026-07-04T12:00:00.000Z");
+  assert.equal(config.env.preview.vars.SENTRY_DSN, "site-preview-dsn");
+  assert.equal(config.env.preview.vars.SENTRY_ENVIRONMENT, "preview");
+  assert.equal(config.env.preview.vars.SENTRY_SERVICE, "insecur-site-preview");
 });
 
 test("materializes generated preview configs by original top-level worker name", () => {
@@ -373,6 +369,33 @@ function webConfig() {
       DEPLOY_SHA: "DEPLOY_SHA_PLACEHOLDER",
       INSTANCE_ID: "INSTANCE_ID_PLACEHOLDER",
       WORKOS_CLIENT_ID: "WORKOS_CLIENT_ID_PLACEHOLDER",
+    },
+  };
+}
+
+function siteConfig() {
+  return {
+    env: {
+      preview: {
+        vars: {
+          DEPLOYED_AT: "DEPLOYED_AT_PREVIEW_PLACEHOLDER",
+          DEPLOY_RUN_ID: "DEPLOY_RUN_ID_PREVIEW_PLACEHOLDER",
+          DEPLOY_SHA: "DEPLOY_SHA_PREVIEW_PLACEHOLDER",
+          SENTRY_DSN: "site-preview-dsn",
+          SENTRY_ENVIRONMENT: "preview",
+          SENTRY_SERVICE: "insecur-site-preview",
+        },
+      },
+    },
+    main: "dist/server/index.js",
+    name: "insecur-site",
+    vars: {
+      DEPLOYED_AT: "DEPLOYED_AT_PLACEHOLDER",
+      DEPLOY_RUN_ID: "DEPLOY_RUN_ID_PLACEHOLDER",
+      DEPLOY_SHA: "DEPLOY_SHA_PLACEHOLDER",
+      SENTRY_DSN: "site-production-dsn",
+      SENTRY_ENVIRONMENT: "production",
+      SENTRY_SERVICE: "insecur-site",
     },
   };
 }

@@ -1,19 +1,13 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 
 import { ISSUE_SEARCH_QUERY, LinearClient } from "./security-daily-linear-client.mjs";
 
-const DEFAULT_LABELS = ["Bug"];
+const DEFAULT_LABELS = ["zaks-io/insecur", "Bug"];
 
 async function main() {
-  if (process.env.LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED !== "true") {
-    console.log(
-      "::notice::Linear preview smoke reporting skipped: set LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED=true and configure LINEAR_API_KEY to file failures.",
-    );
-    return;
-  }
-
   const config = reportingConfig();
   const evidence = await readEvidence(config.evidencePath);
   const failure = failureFromEvidence(evidence);
@@ -45,8 +39,8 @@ function reportingConfig() {
   };
 }
 
-function labelsFromEnv() {
-  const raw = process.env.LINEAR_PREVIEW_SMOKE_LABELS;
+export function labelsFromEnv(env = process.env) {
+  const raw = env.LINEAR_PREVIEW_SMOKE_LABELS;
   return raw
     ? raw
         .split(",")
@@ -63,7 +57,7 @@ async function readEvidence(path) {
   }
 }
 
-function failureFromEvidence(evidence) {
+export function failureFromEvidence(evidence) {
   if (evidence?.failure?.checkId) {
     return {
       checkId: safeText(evidence.failure.checkId, "preview-smoke.unknown"),
@@ -94,7 +88,7 @@ function issueInput({ config, evidence, failure, labelIds, marker }) {
   };
 }
 
-function issueDescription({ config, evidence, failure, marker }) {
+export function issueDescription({ config, evidence, failure, marker }) {
   const checked = Array.isArray(evidence?.checks)
     ? evidence.checks
         .filter((check) => check.status !== "pending")
@@ -121,7 +115,7 @@ function issueDescription({ config, evidence, failure, marker }) {
   ].join("\n");
 }
 
-function markerFor(checkId) {
+export function markerFor(checkId) {
   const fingerprint = createHash("sha256").update(`preview-smoke:${checkId}`).digest("hex");
   return `insecur-preview-smoke:${fingerprint}`;
 }
@@ -135,7 +129,7 @@ function workflowUrl() {
   return `https://github.com/${repository}/actions/runs/${runId}`;
 }
 
-function safeText(value, fallback) {
+export function safeText(value, fallback) {
   const text = String(value ?? "")
     .replace(/[\u0000-\u001f\u007f]/gu, " ")
     .trim()
@@ -153,12 +147,18 @@ function truncate(value, maxLength) {
 function requiredEnv(name) {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`${name} is required when LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED=true`);
+    throw new Error(`${name} is required to file preview smoke failures`);
   }
   return value;
 }
 
-main().catch((error) => {
-  console.error(`::error::${error.message}`);
-  process.exit(1);
-});
+function isMainModule() {
+  return process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+}
+
+if (isMainModule()) {
+  main().catch((error) => {
+    console.error(`::error::${error.message}`);
+    process.exit(1);
+  });
+}

@@ -638,8 +638,8 @@ only through the
 `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview Worker var, so CI never stores an expiring browser
 session cookie. It writes `preview-smoke-evidence/evidence.json` and appends a GitHub summary with
 deployed Worker identities, smoke resource IDs, checked happy paths, and the plaintext sweep result.
-On failure, the workflow can update or create a Linear issue when
-`LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED=true` and `LINEAR_API_KEY` are configured.
+On failure, the workflow updates or creates a Linear issue through `LINEAR_API_KEY`.
+`LINEAR_PREVIEW_SMOKE_LABELS` may override the default `zaks-io/insecur,Bug` labels.
 
 ### Staging deploy: `deploy-staging`
 

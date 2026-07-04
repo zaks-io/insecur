@@ -8,6 +8,7 @@ import { invitationId, membershipId, userId } from "@insecur/domain";
 import {
   PreviewSmokeError,
   appendGithubSummary,
+  assertManifestComplete,
   completeManifestRun,
   createManifestRun,
   createRedactor,
@@ -46,6 +47,7 @@ try {
   await submitFeedback(config, coords);
   await assertPlaintextSweep(config);
 
+  assertManifestComplete(run);
   completeManifestRun(run);
   await writeOutputs();
 } catch (error) {

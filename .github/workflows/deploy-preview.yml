@@ -189,20 +189,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Linear preview smoke reporting disabled notice
-        if: failure() && vars.LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED != 'true'
-        run: |
-          echo "::notice::Linear preview smoke reporting skipped: set LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED=true and configure LINEAR_API_KEY before enabling automated issue filing."
-
       - name: File or update Linear preview smoke issue
-        if: failure() && vars.LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED == 'true'
+        if: failure()
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_SHA: ${{ github.sha }}
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          LINEAR_PREVIEW_SMOKE_LABELS: ${{ vars.LINEAR_PREVIEW_SMOKE_LABELS }}
-          LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED: ${{ vars.LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED }}
+          LINEAR_PREVIEW_SMOKE_LABELS: ${{ vars.LINEAR_PREVIEW_SMOKE_LABELS || 'zaks-io/insecur,Bug' }}
           LINEAR_TEAM_KEY: ${{ vars.LINEAR_TEAM_KEY || 'INS' }}
           PREVIEW_SMOKE_EVIDENCE_PATH: preview-smoke-evidence/evidence.json
         run: node scripts/ci/preview-smoke-linear-reporting.mjs
