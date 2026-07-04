@@ -6,6 +6,7 @@ import type { RuntimeRpcResult } from "@insecur/worker-kit";
 import type { RuntimeEnv } from "../env.js";
 import { actorFromHopToken } from "./actor-from-token.js";
 import { toRuntimeRpcError } from "./runtime-rpc-error.js";
+import { captureRuntimeRpcError } from "./runtime-rpc-sentry.js";
 
 /** Verified hop-token actor plus the audit/access views every RPC method needs. */
 export interface RuntimeRpcActorContext {
@@ -43,6 +44,8 @@ export async function withRuntimeRpcEntry<T>(
     const value = await handler(actors);
     return { ok: true, value };
   } catch (error) {
-    return { ok: false, error: toRuntimeRpcError(error) };
+    const rpcError = toRuntimeRpcError(error);
+    captureRuntimeRpcError(rpcError);
+    return { ok: false, error: rpcError };
   }
 }

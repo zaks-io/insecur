@@ -7,6 +7,8 @@ import {
   RuntimeTokenSigningSecretConfigError,
   domainErrorEnvelope,
 } from "@insecur/worker-kit";
+import { cloudflareSentryOptions } from "@insecur/observability";
+import { sentry } from "@sentry/hono/cloudflare";
 import { Hono } from "hono";
 import { authRoutes } from "./routes/v1/auth.js";
 import { designPartnerFeedbackRoutes } from "./routes/v1/design-partner-feedback.js";
@@ -22,6 +24,8 @@ import type { ApiEnv } from "./env.js";
 import { logUnhandledApiError } from "./log-unhandled-error.js";
 
 const app = new Hono<{ Bindings: ApiEnv }>();
+
+app.use(sentry(app, cloudflareSentryOptions));
 
 app.onError((err, context) => {
   if (err instanceof AbuseLimitError) {

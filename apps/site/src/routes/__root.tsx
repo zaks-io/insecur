@@ -1,6 +1,8 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 import { SiteFooter, SiteHeader, SiteShell, Wordmark } from "@insecur/ui";
+import { sentryBrowserConfigScript } from "@insecur/observability";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -24,6 +26,9 @@ export const Route = createRootRoute({
 });
 
 function RootDocument({ children }: { children: ReactNode }) {
+  const context = readStartContext();
+  const sentryScript = sentryBrowserConfigScript(context?.sentry);
+
   return (
     <html lang="en">
       <head>
@@ -52,8 +57,17 @@ function RootDocument({ children }: { children: ReactNode }) {
         >
           {children}
         </SiteShell>
+        {sentryScript ? <script dangerouslySetInnerHTML={{ __html: sentryScript }} /> : null}
         <Scripts />
       </body>
     </html>
   );
+}
+
+function readStartContext(): ReturnType<typeof getGlobalStartContext> | undefined {
+  try {
+    return getGlobalStartContext();
+  } catch {
+    return undefined;
+  }
 }

@@ -10,8 +10,9 @@ The **Public Site Worker** (`insecur-site`, ADR-0078) serves the public marketin
 and security-posture surface for `insecur.cloud` and `www.insecur.cloud`. It is deliberately **not a
 BFF**: it owns no auth session, holds no database/Hyperdrive binding, no keyring
 (`INSTANCE_ROOT_KEY_V1`), and no API or Runtime Service Binding. Its presentational primitives come
-from the content-free `@insecur/ui` package, which is its only permitted `@insecur/*` dependency
-(enforced by dependency-cruiser, `pnpm conformance:site-boundary`).
+from the content-free `@insecur/ui` package. Its only permitted `@insecur/*` dependencies are
+`@insecur/ui` and capability-free `@insecur/observability` (enforced by dependency-cruiser,
+`pnpm conformance:site-boundary`).
 
 The Web Console BFF (`apps/web`) remains the authenticated product surface (for example
 `app.insecur.cloud`); the Public Site is a separate deploy with no product-control-plane capability.

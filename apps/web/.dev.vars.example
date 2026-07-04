@@ -10,3 +10,8 @@ WORKOS_API_KEY=
 WORKOS_CLIENT_ID=
 WORKOS_COOKIE_PASSWORD=
 SESSION_SIGNING_SECRET=
+
+# Optional local Sentry error reporting. DSNs are public, but keep local files ignored.
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=local
+SENTRY_SERVICE=insecur-web

@@ -4,12 +4,16 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-05-27",
   "compatibility_flags": ["nodejs_compat"],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "workers_dev": false,
   "routes": [{ "pattern": "app.insecur.cloud", "custom_domain": true }],
-  // Public placeholders only. `scripts/wrangler-deploy-config.mjs` materializes live values from
-  // Preview/Production GitHub Environment variables during deploy.
+  // Public vars only. `scripts/wrangler-deploy-config.mjs` materializes live WorkOS/instance
+  // values from Preview/Production GitHub Environment variables during deploy.
   "vars": {
     "INSTANCE_ID": "inst_PUBLIC_PRODUCTION_PLACEHOLDER",
+    "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
+    "SENTRY_ENVIRONMENT": "production",
+    "SENTRY_SERVICE": "insecur-web",
     "WORKOS_CLIENT_ID": "client_PUBLIC_PRODUCTION_PLACEHOLDER",
   },
   "observability": {
@@ -43,10 +47,14 @@
   "env": {
     "preview": {
       "name": "insecur-web-preview",
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "workers_dev": true,
       "routes": [{ "pattern": "app.preview.insecur.cloud", "custom_domain": true }],
       "vars": {
         "INSTANCE_ID": "inst_PUBLIC_PREVIEW_PLACEHOLDER",
+        "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
+        "SENTRY_ENVIRONMENT": "preview",
+        "SENTRY_SERVICE": "insecur-web-preview",
         "WORKOS_CLIENT_ID": "client_PUBLIC_PREVIEW_PLACEHOLDER",
       },
       "services": [

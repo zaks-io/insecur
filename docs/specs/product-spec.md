@@ -91,8 +91,9 @@ Hyperdrive-backed Neon Postgres as the source of truth. The deploys are:
   experiments, or product API types. The Public Site is not a BFF: it owns no auth session, has no
   database, keyring, API, Runtime, or product-control-plane binding, and its import boundary is
   enforced with dependency-cruiser: production source in `@insecur/site` may import only
-  `@insecur/ui` from the workspace, and production source in `@insecur/ui` may import no
-  `@insecur/*` packages ([ADR-0078](../adr/0078-public-site-worker.md)). The Web BFF remains the
+  `@insecur/ui` and capability-free `@insecur/observability` from the workspace, and production
+  source in `@insecur/ui` may import no `@insecur/*` packages
+  ([ADR-0078](../adr/0078-public-site-worker.md)). The Web BFF remains the
   authenticated app surface, for example `app.insecur.cloud`. Public-site feature flags and A/B
   testing are future work; the mechanism is not decided. The initial public routes are the landing
   page, no-reveal mechanism page, legal terms, privacy policy, and an open-security posture page

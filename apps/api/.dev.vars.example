@@ -16,3 +16,8 @@ SESSION_SIGNING_SECRET=
 # HMAC secret shared with the Runtime Worker to mint the scoped hop token. Must match the value in
 # apps/runtime/.dev.vars (RUNTIME_TOKEN_SIGNING_SECRET). Must be at least 32 characters.
 RUNTIME_TOKEN_SIGNING_SECRET=
+
+# Optional local Sentry error reporting. DSNs are public, but keep local files ignored.
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=local
+SENTRY_SERVICE=insecur-api

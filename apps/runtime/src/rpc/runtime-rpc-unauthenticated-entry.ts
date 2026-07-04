@@ -1,6 +1,7 @@
 import type { RuntimeRpcResult } from "@insecur/worker-kit";
 
 import { toRuntimeRpcError } from "./runtime-rpc-error.js";
+import { captureRuntimeRpcError } from "./runtime-rpc-sentry.js";
 
 /**
  * Pre-auth Runtime RPC preamble (ADR-0077). Maps errors exactly like {@link withRuntimeRpcEntry} but
@@ -21,6 +22,8 @@ export async function withRuntimeRpcUnauthEntry<T>(
     const value = await handler();
     return { ok: true, value };
   } catch (error) {
-    return { ok: false, error: toRuntimeRpcError(error) };
+    const rpcError = toRuntimeRpcError(error);
+    captureRuntimeRpcError(rpcError);
+    return { ok: false, error: rpcError };
   }
 }

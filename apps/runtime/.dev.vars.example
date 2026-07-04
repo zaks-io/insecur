@@ -11,3 +11,8 @@
 # HMAC secret shared with the API Worker to verify the scoped hop token. Must match the value in
 # apps/api/.dev.vars (RUNTIME_TOKEN_SIGNING_SECRET). Must be at least 32 characters.
 RUNTIME_TOKEN_SIGNING_SECRET=
+
+# Optional local Sentry error reporting. DSNs are public, but keep local files ignored.
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=local
+SENTRY_SERVICE=insecur-runtime

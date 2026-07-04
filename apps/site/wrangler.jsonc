@@ -4,6 +4,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-05-27",
   "compatibility_flags": ["nodejs_compat"],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "vars": {
+    "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
+    "SENTRY_ENVIRONMENT": "production",
+    "SENTRY_SERVICE": "insecur-site",
+  },
   "observability": {
     "enabled": true,
     "logs": {
@@ -33,7 +39,13 @@
   "env": {
     "preview": {
       "name": "insecur-site-preview",
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "workers_dev": true,
+      "vars": {
+        "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
+        "SENTRY_ENVIRONMENT": "preview",
+        "SENTRY_SERVICE": "insecur-site-preview",
+      },
       "routes": [{ "pattern": "preview.insecur.cloud", "custom_domain": true }],
     },
   },

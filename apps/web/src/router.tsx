@@ -1,6 +1,10 @@
+import { initBrowserSentry } from "@insecur/observability";
 import { createRouter } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
+import * as Sentry from "@sentry/tanstackstart-react";
 import { routeTree } from "./routeTree.gen";
+
+type BrowserTracingRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0];
 
 function readCspNonceFromRequestContext(): string | undefined {
   try {
@@ -22,6 +26,12 @@ export function getRouter() {
   if (nonce) {
     router.update({ ssr: { nonce } });
   }
+
+  initBrowserSentry(router, {
+    init: (options) => Sentry.init(options as Parameters<typeof Sentry.init>[0]),
+    routerTracingIntegration: (sentryRouter) =>
+      Sentry.tanstackRouterBrowserTracingIntegration(sentryRouter as BrowserTracingRouter),
+  });
 
   return router;
 }

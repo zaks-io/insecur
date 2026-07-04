@@ -1,3 +1,4 @@
+import type { SentryBindings } from "@insecur/observability";
 import type { AuthWorkerEnv, RuntimeRpc } from "@insecur/worker-kit";
 import type { PublicEdgeRateLimitBindings } from "@insecur/worker-kit";
 
@@ -8,7 +9,7 @@ import type { PublicEdgeRateLimitBindings } from "@insecur/worker-kit";
  * in the Runtime deploy, so no public route here can build one (enforced structurally and by the
  * INS-199 lint gate).
  */
-export interface ApiEnv extends AuthWorkerEnv, PublicEdgeRateLimitBindings {
+export interface ApiEnv extends AuthWorkerEnv, PublicEdgeRateLimitBindings, SentryBindings {
   /** Private Service Binding to the Runtime Worker's `RuntimeService` RPC entrypoint. */
   readonly RUNTIME: RuntimeRpc;
   /** HMAC secret shared with the Runtime Worker to mint the scoped hop token (ADR-0077). */

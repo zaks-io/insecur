@@ -25,12 +25,14 @@
     "@insecur/instance-bootstrap": "workspace:*",
     "@insecur/onboarding": "workspace:*",
     "@insecur/operations": "workspace:*",
+    "@insecur/observability": "workspace:*",
     "@insecur/runtime-injection": "workspace:*",
     "@insecur/runtime-injection-issue": "workspace:*",
     "@insecur/secret-store": "workspace:*",
     "@insecur/tenant-keyring": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
-    "@insecur/worker-kit": "workspace:*"
+    "@insecur/worker-kit": "workspace:*",
+    "@sentry/cloudflare": "^10.63.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",

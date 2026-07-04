@@ -1,4 +1,6 @@
-import { WorkerEntrypoint } from "cloudflare:workers";
+import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers";
+import { cloudflareSentryOptions } from "@insecur/observability";
+import * as Sentry from "@sentry/cloudflare";
 
 import {
   acceptInvitation,
@@ -58,6 +60,11 @@ import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
+type SentryRuntimeServiceConstructor = new (
+  ctx: ExecutionContext,
+  env: typeof cloudflareEnv,
+) => WorkerEntrypoint<RuntimeEnv>;
+
 /**
  * The decrypt-egress deep module (ADR-0077). This is the only deploy that holds
  * `INSTANCE_ROOT_KEY_V1`, so it is the only place ciphertext becomes plaintext. The API Worker
@@ -74,7 +81,7 @@ import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-ent
  * operation. Operations carrying real logic (write, consume, operation-read, denied-audit) keep
  * their own files; the rest map the RPC input straight onto the owning package function inline.
  */
-export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
+class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   /**
    * Run one RPC inside a request-scoped DB connection (ADR-0077). The Hyperdrive connection string
    * lives only on `env.DB.connectionString` (never `process.env`), so the Worker opens a per-request
@@ -288,3 +295,10 @@ export class RuntimeService extends WorkerEntrypoint<RuntimeEnv> {
     );
   }
 }
+
+export const RuntimeService = Sentry.withSentry<
+  RuntimeEnv,
+  unknown,
+  unknown,
+  SentryRuntimeServiceConstructor
+>(cloudflareSentryOptions, RuntimeServiceBase as unknown as SentryRuntimeServiceConstructor);
