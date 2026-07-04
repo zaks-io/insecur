@@ -414,6 +414,15 @@ importers:
 
   packages/app-connection:
     dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../access
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@insecur/crypto':
+        specifier: workspace:*
+        version: link:../crypto
       '@insecur/custody-contracts':
         specifier: workspace:*
         version: link:../custody-contracts
@@ -424,9 +433,6 @@ importers:
         specifier: workspace:*
         version: link:../tenant-store
     devDependencies:
-      '@insecur/crypto':
-        specifier: workspace:*
-        version: link:../crypto
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.4

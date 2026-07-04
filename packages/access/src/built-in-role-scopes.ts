@@ -30,6 +30,8 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.secretRead,
     AUTHORIZATION_SCOPES.membershipManage,
     AUTHORIZATION_SCOPES.projectConfigure,
+    AUTHORIZATION_SCOPES.connectionRead,
+    AUTHORIZATION_SCOPES.connectionManage,
     AUTHORIZATION_SCOPES.approvalApprove,
     AUTHORIZATION_SCOPES.approvalReject,
   ],
@@ -45,6 +47,8 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.runtimeInjectionRun,
     AUTHORIZATION_SCOPES.membershipManage,
     AUTHORIZATION_SCOPES.projectConfigure,
+    AUTHORIZATION_SCOPES.connectionRead,
+    AUTHORIZATION_SCOPES.connectionManage,
   ],
   [BUILT_IN_ROLE_PRESETS.developer]: [
     AUTHORIZATION_SCOPES.projectRead,
@@ -66,6 +70,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.projectRead,
     AUTHORIZATION_SCOPES.environmentRead,
     AUTHORIZATION_SCOPES.secretRead,
+    AUTHORIZATION_SCOPES.connectionRead,
   ],
 };
 

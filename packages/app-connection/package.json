@@ -14,12 +14,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@insecur/access": "workspace:*",
+    "@insecur/audit": "workspace:*",
+    "@insecur/crypto": "workspace:*",
     "@insecur/custody-contracts": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/tenant-store": "workspace:*"
   },
   "devDependencies": {
-    "@insecur/crypto": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",

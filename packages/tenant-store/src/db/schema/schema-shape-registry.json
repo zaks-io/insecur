@@ -64,6 +64,28 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
+      "last_validation_checked_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "last_validation_outcome": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "last_validation_reason_code": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "created_at": {
         "notNull": true,
         "primaryKey": false,
@@ -87,6 +109,10 @@
       {
         "name": "app_connections_connection_method_check",
         "sql": "\"app_connections\".\"connection_method\" IN ('github-app', 'scoped-api-token', 'vercel-integration-oauth')"
+      },
+      {
+        "name": "app_connections_last_validation_outcome_check",
+        "sql": "\"app_connections\".\"last_validation_outcome\" IS NULL OR \"app_connections\".\"last_validation_outcome\" IN ('success', 'failed')"
       },
       {
         "name": "app_connections_provider_check",

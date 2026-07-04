@@ -116,6 +116,7 @@ describe("expandBuiltInRolePresetToScopes", () => {
       AUTHORIZATION_SCOPES.projectRead,
       AUTHORIZATION_SCOPES.environmentRead,
       AUTHORIZATION_SCOPES.secretRead,
+      AUTHORIZATION_SCOPES.connectionRead,
     ]);
   });
 });

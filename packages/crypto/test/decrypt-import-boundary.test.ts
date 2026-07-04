@@ -199,6 +199,7 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
     expect(readDecryptImportAllowlist()).toEqual([
       "packages/runtime-injection/src/decrypt-grant-secret.ts",
       "packages/backup-restore/src/recovery-canary.ts",
+      "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
     ]);
   });
 
