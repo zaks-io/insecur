@@ -259,19 +259,22 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/release-gate/src/parse-backup-restore-evidence.ts"],
-    rules: {
-      complexity: ["error", 20],
-      "max-lines-per-function": ["error", { max: 90, skipBlankLines: true, skipComments: true }],
-      "max-statements": ["error", 30],
-    },
-  },
-  {
     files: ["packages/backup-restore/src/**/*.ts"],
     rules: {
       complexity: ["error", 12],
       "max-lines-per-function": ["error", { max: 65, skipBlankLines: true, skipComments: true }],
       "max-statements": ["error", 25],
+    },
+  },
+  {
+    files: [
+      "packages/backup-restore/src/parse-evidence.ts",
+      "packages/backup-restore/src/evaluate-readiness.ts",
+    ],
+    rules: {
+      complexity: ["error", 20],
+      "max-lines-per-function": ["error", { max: 90, skipBlankLines: true, skipComments: true }],
+      "max-statements": ["error", 30],
     },
   },
   {

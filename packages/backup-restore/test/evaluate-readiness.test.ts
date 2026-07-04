@@ -27,6 +27,7 @@ const baseDrillEvidence = (): RestoreDrillEvidence => ({
     instance_id: "inst_test",
     organization_id: "org_01RCAN00000000000000000001",
     project_id: "prj_01RCAN00000000000000000002",
+    environment_id: "env_01RCAN00000000000000000003",
     secret_id: "sec_01RCAN00000000000000000004",
   },
   rto: {
@@ -66,6 +67,30 @@ describe("evaluateExportFreshnessEvidence", () => {
     const now = new Date("2026-07-10T00:00:00.000Z");
     const result = evaluateExportFreshnessEvidence(baseExportEvidence(), now);
     expect(result.status).toBe("blocked");
+  });
+
+  it("blocks when expires_at is inflated beyond export_timestamp policy", () => {
+    const evidence: BackupExportSuccessEvidence = {
+      ...baseExportEvidence(),
+      export_timestamp: "2026-07-04T00:00:00.000Z",
+      expires_at: "2026-07-20T00:00:00.000Z",
+    };
+    const now = new Date("2026-07-04T01:00:00.000Z");
+    const result = evaluateExportFreshnessEvidence(evidence, now);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("expires_at");
+  });
+
+  it("blocks when export_timestamp is stale even with future expires_at", () => {
+    const evidence: BackupExportSuccessEvidence = {
+      ...baseExportEvidence(),
+      export_timestamp: "2026-06-01T00:00:00.000Z",
+      expires_at: computeExportExpiresAt("2026-06-01T00:00:00.000Z"),
+    };
+    const now = new Date("2026-07-04T01:00:00.000Z");
+    const result = evaluateExportFreshnessEvidence(evidence, now);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("freshness window expired");
   });
 });
 
@@ -130,5 +155,31 @@ describe("evaluateRestoreDrillEvidence", () => {
     const result = evaluateRestoreDrillEvidence(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("target_seconds");
+  });
+
+  it("blocks when drill scope does not match recovery canary sentinels", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      scope: {
+        ...baseDrillEvidence().scope,
+        organization_id: "org_wrong_scope",
+      },
+    };
+    const result = evaluateRestoreDrillEvidence(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("recovery canary constants");
+  });
+
+  it("blocks when canary variable_key does not match recovery canary sentinel", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      canary_verification: {
+        ...baseDrillEvidence().canary_verification,
+        variable_key: "WRONG_CANARY_KEY",
+      },
+    };
+    const result = evaluateRestoreDrillEvidence(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("recovery canary constants");
   });
 });

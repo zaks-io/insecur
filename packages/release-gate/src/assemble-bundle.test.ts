@@ -38,6 +38,7 @@ function writeBackupEvidence(evidenceDir: string): void {
       instance_id: "inst_test",
       organization_id: "org_01RCAN00000000000000000001",
       project_id: "prj_01RCAN00000000000000000002",
+      environment_id: "env_01RCAN00000000000000000003",
       secret_id: "sec_01RCAN00000000000000000004",
     },
     rto: {

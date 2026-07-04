@@ -1,4 +1,5 @@
 import { BACKUP_EXPORT_FRESHNESS_HOURS, RESTORE_DRILL_RTO_TARGET_SECONDS } from "./constants.js";
+import { restoreDrillEvidenceMatchesRecoveryCanarySentinel } from "./recovery-canary.js";
 import type {
   BackupExportSuccessEvidence,
   BackupRestoreEvidenceStatus,
@@ -65,6 +66,17 @@ export function evaluateExportFreshnessEvidence(
     });
   }
 
+  const exportTimestampMs = parseIso(evidence.export_timestamp);
+  if (exportTimestampMs === null) {
+    return blockedEvaluation({
+      controlId,
+      summary: "Backup export evidence is missing export_timestamp.",
+      checkedAt,
+      blockingReason: "export_timestamp is required for export freshness",
+    });
+  }
+
+  const policyExpiresAt = computeExportExpiresAt(evidence.export_timestamp);
   const expiresAtMs = parseIso(evidence.expires_at);
   if (expiresAtMs === null) {
     return blockedEvaluation({
@@ -75,22 +87,33 @@ export function evaluateExportFreshnessEvidence(
     });
   }
 
-  if (expiresAtMs <= now.getTime()) {
+  if (evidence.expires_at !== policyExpiresAt) {
+    return blockedEvaluation({
+      controlId,
+      summary: "Backup export evidence has invalid or inflated expires_at metadata.",
+      checkedAt,
+      blockingReason: "expires_at must equal policy value derived from export_timestamp",
+      expiresAt: evidence.expires_at,
+    });
+  }
+
+  const freshnessDeadlineMs = exportTimestampMs + BACKUP_EXPORT_FRESHNESS_HOURS * 60 * 60 * 1000;
+  if (now.getTime() >= freshnessDeadlineMs) {
     return blockedEvaluation({
       controlId,
       summary: `Latest successful export is older than ${String(BACKUP_EXPORT_FRESHNESS_HOURS)}h.`,
       checkedAt,
       blockingReason: "export freshness window expired",
-      expiresAt: evidence.expires_at,
+      expiresAt: policyExpiresAt,
     });
   }
 
   return {
     control_id: controlId,
     status: "passed",
-    summary: `Latest successful export is fresh (expires ${evidence.expires_at}).`,
+    summary: `Latest successful export is fresh (expires ${policyExpiresAt}).`,
     checked_at: checkedAt,
-    expires_at: evidence.expires_at,
+    expires_at: policyExpiresAt,
   };
 }
 
@@ -158,6 +181,17 @@ export function evaluateRestoreDrillEvidence(
       summary: `Measured RTO ${String(evidence.rto.duration_seconds)}s exceeds target ${String(RESTORE_DRILL_RTO_TARGET_SECONDS)}s.`,
       checkedAt,
       blockingReason: "RTO target exceeded",
+    });
+  }
+
+  if (!restoreDrillEvidenceMatchesRecoveryCanarySentinel(evidence)) {
+    return blockedEvaluation({
+      controlId,
+      summary:
+        "Restore drill evidence scope or canary metadata does not match recovery canary sentinels.",
+      checkedAt,
+      blockingReason:
+        "scope and canary_verification.variable_key must match recovery canary constants",
     });
   }
 

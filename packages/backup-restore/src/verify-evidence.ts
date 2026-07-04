@@ -5,8 +5,8 @@ import {
   evaluateExportFreshnessEvidence,
   evaluateRestoreDrillEvidence,
 } from "./evaluate-readiness.js";
-import type { BackupExportSuccessEvidence, RestoreDrillEvidence } from "./types.js";
 import { assertBackupRestoreEvidenceIsMetadataSafe } from "./assert-metadata-safe.js";
+import { parseExportSuccessEvidence, parseRestoreDrillEvidence } from "./parse-evidence.js";
 
 function readJsonFile(path: string): unknown {
   try {
@@ -14,6 +14,24 @@ function readJsonFile(path: string): unknown {
   } catch {
     return null;
   }
+}
+
+function parseMetadataSafeEvidence<T>(
+  raw: unknown,
+  parser: (value: unknown) => T | null,
+): T | null {
+  const parsed = parser(raw);
+  if (!parsed) {
+    return null;
+  }
+
+  try {
+    assertBackupRestoreEvidenceIsMetadataSafe(parsed);
+  } catch {
+    return null;
+  }
+
+  return parsed;
 }
 
 export interface VerifyBackupRestoreEvidenceOptions {
@@ -35,15 +53,8 @@ export function verifyBackupRestoreEvidence(
 
   const exportRaw = readJsonFile(resolve(evidenceDir, "backup/export-success.json"));
   const drillRaw = readJsonFile(resolve(evidenceDir, "backup/restore-drill.json"));
-  const exportEvidence = exportRaw === null ? null : (exportRaw as BackupExportSuccessEvidence);
-  const drillEvidence = drillRaw === null ? null : (drillRaw as RestoreDrillEvidence);
-
-  if (exportEvidence) {
-    assertBackupRestoreEvidenceIsMetadataSafe(exportEvidence);
-  }
-  if (drillEvidence) {
-    assertBackupRestoreEvidenceIsMetadataSafe(drillEvidence);
-  }
+  const exportEvidence = parseMetadataSafeEvidence(exportRaw, parseExportSuccessEvidence);
+  const drillEvidence = parseMetadataSafeEvidence(drillRaw, parseRestoreDrillEvidence);
 
   const exportFresh = evaluateExportFreshnessEvidence(exportEvidence, now);
   const restoreDrill = evaluateRestoreDrillEvidence(drillEvidence, now);

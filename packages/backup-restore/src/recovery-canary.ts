@@ -13,7 +13,11 @@ import {
   RECOVERY_CANARY_SECRET_ID,
   RECOVERY_CANARY_VARIABLE_KEY,
 } from "./constants.js";
-import type { RecoveryCanaryVerificationResult, TenantProjectScope } from "./types.js";
+import type {
+  RecoveryCanaryVerificationResult,
+  RestoreDrillEvidence,
+  TenantProjectScope,
+} from "./types.js";
 
 /** Sentinel plaintext used only inside verification — never log or persist. */
 function recoveryCanaryPlaintextBytes(): Uint8Array {
@@ -46,6 +50,27 @@ export function recoveryCanaryExportRowMatchesScope(row: RecoveryCanaryExportRow
     row.environment_id === RECOVERY_CANARY_ENVIRONMENT_ID &&
     row.secret_id === RECOVERY_CANARY_SECRET_ID &&
     row.variable_key === RECOVERY_CANARY_VARIABLE_KEY
+  );
+}
+
+export function restoreDrillEvidenceMatchesRecoveryCanarySentinel(
+  evidence: Pick<RestoreDrillEvidence, "scope" | "canary_verification">,
+): boolean {
+  return (
+    evidence.scope.organization_id === RECOVERY_CANARY_ORGANIZATION_ID &&
+    evidence.scope.project_id === RECOVERY_CANARY_PROJECT_ID &&
+    evidence.scope.environment_id === RECOVERY_CANARY_ENVIRONMENT_ID &&
+    evidence.scope.secret_id === RECOVERY_CANARY_SECRET_ID &&
+    evidence.canary_verification.variable_key === RECOVERY_CANARY_VARIABLE_KEY
+  );
+}
+
+export function restoreDrillScopeMatchesRecoveryCanarySentinel(scope: TenantProjectScope): boolean {
+  return (
+    scope.organization_id === RECOVERY_CANARY_ORGANIZATION_ID &&
+    scope.project_id === RECOVERY_CANARY_PROJECT_ID &&
+    scope.environment_id === RECOVERY_CANARY_ENVIRONMENT_ID &&
+    scope.secret_id === RECOVERY_CANARY_SECRET_ID
   );
 }
 

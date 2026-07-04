@@ -25,12 +25,15 @@ export {
   recoveryCanaryCiphertextIdentity,
   recoveryCanaryExportRowMatchesScope,
   recoveryCanaryScope,
+  restoreDrillEvidenceMatchesRecoveryCanarySentinel,
+  restoreDrillScopeMatchesRecoveryCanarySentinel,
   verifyRecoveryCanaryFromCiphertext,
   verifyRecoveryCanaryPlaintext,
   type RecoveryCanaryExportRow,
 } from "./recovery-canary.js";
+export { parseExportSuccessEvidence, parseRestoreDrillEvidence } from "./parse-evidence.js";
+export { asRecord, hasOneOf, readNumber, readString } from "./evidence-parsers.js";
 export {
-  computeExportExpiresAt,
   evaluateExportFreshnessEvidence,
   evaluateRestoreDrillEvidence,
   type ReadinessEvaluation,
