@@ -16,6 +16,7 @@ import {
   logUnexpectedCliErrorDebug,
   unexpectedCliErrorBody,
 } from "./output/unexpected-cli-error.js";
+import { registerScanCommand } from "./register-scan-command.js";
 import { registerSecretsCommands } from "./register-secrets-commands.js";
 import { cliVersion } from "./version.js";
 
@@ -82,6 +83,7 @@ function buildProgram(): Command {
 
   registerAuditCommands(program, globalFlags);
   registerSecretsCommands(program, { globalFlags, resolveApi });
+  registerScanCommand(program, { globalFlags });
 
   return program;
 }

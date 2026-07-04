@@ -26,7 +26,7 @@ export const EXIT_NOT_FOUND = 5;
 export const EXIT_CONFLICT = 6;
 const EXIT_RETRYABLE = 8;
 export const EXIT_STEP_UP = 10;
-const EXIT_ACTION_REQUIRED = 7;
+export const EXIT_ACTION_REQUIRED = 7;
 
 const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [AUTH_ERROR_CODES.required]: EXIT_AUTH_REQUIRED,

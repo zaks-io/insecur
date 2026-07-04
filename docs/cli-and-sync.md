@@ -728,6 +728,30 @@ Rules:
 - Detaching a Shared Secret Source does not copy its current value into the Environment.
 - Shared Secret Source selectors are opaque IDs. Display Names are ordinary plaintext metadata shown after authorization.
 
+### Scan
+
+```bash
+insecur scan
+insecur scan --json
+insecur scan --strict
+insecur scan --strict --quiet
+insecur scan --config-dir /path/to/project
+```
+
+Rules:
+
+- Offline, read-only, and metadata-only: no auth, no network, and no config requirement.
+- Walks the project tree from the current working directory (or `--config-dir`) and reports likely secret-bearing files and dotenv keys an agent with read access could find.
+- Never prints, logs, or serializes discovered values, line content, or entropy scores.
+- Respects no `.gitignore` rules (gitignored `.env` files are still reported).
+- Skips `node_modules`, `.git`, `dist`, `build`, `.next`, and common cache/coverage directories.
+- Detects `.env` / `.env.*`, PEM/private-key files, `service-account*.json`, `*credentials*.json`, `.npmrc` / `.yarnrc` entries containing `_authToken`, and `.netrc`.
+- Human output includes a summary line: `Found N likely secrets across M files in Xms. That's how long an agent would need.` plus key names only.
+- `--json` returns findings and summary through the standard metadata-only envelope.
+- Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
+- `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready).
+- Migratable dotenv findings include remediation `insecur secrets set <KEY> --value-stdin`; values are never inlined in suggested commands.
+
 ### Secrets
 
 ```bash

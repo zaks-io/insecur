@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AUTH_ERROR_CODES, ONBOARDING_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
+  EXIT_ACTION_REQUIRED,
   EXIT_AUTH_REQUIRED,
   EXIT_CONFLICT,
   EXIT_FORBIDDEN,
@@ -11,6 +12,10 @@ import {
 } from "../src/output/exit-codes.js";
 
 describe("exitCodeForErrorCode", () => {
+  it("exports action-required exit code for scan --strict", () => {
+    expect(EXIT_ACTION_REQUIRED).toBe(7);
+  });
+
   it("maps known auth and onboarding codes", () => {
     expect(exitCodeForErrorCode(AUTH_ERROR_CODES.insufficientScope)).toBe(EXIT_FORBIDDEN);
     expect(exitCodeForErrorCode(AUTH_ERROR_CODES.highAssuranceRequired)).toBe(EXIT_STEP_UP);
