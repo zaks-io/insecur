@@ -148,9 +148,9 @@ jobs:
         if: needs.changes.outputs.product_code == 'true'
         run: pnpm install --frozen-lockfile
 
-      # Enforces the ratchet thresholds in vitest.config.ts. Integration and
-      # RLS suites are excluded; this is exactly the suite CI can run without a
-      # database. Same command lefthook pre-push runs locally.
+      # Runs DB-less unit coverage per workspace, then enforces the merged
+      # repo-wide ratchet thresholds in scripts/merge-coverage.mjs. Integration
+      # and RLS suites are excluded; lefthook pre-push runs this same command.
       - name: Run coverage with thresholds
         if: needs.changes.outputs.product_code == 'true'
         env:
