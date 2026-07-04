@@ -35,7 +35,7 @@ HEAD def
 branch refs/heads/feature
 `);
 
-  assert.equal(selectSourceWorktree(records, "/repo/.codex/worktrees/1234/insecur"), "/repo");
+  assert.equal(selectSourceWorktree(records), "/repo");
 });
 
 test("keeps the primary worktree as source when the target is primary", () => {
@@ -48,7 +48,7 @@ HEAD def
 detached
 `);
 
-  assert.equal(selectSourceWorktree(records, "/repo"), "/repo");
+  assert.equal(selectSourceWorktree(records), "/repo");
 });
 
 test("detects private env files and skips examples and nested worktrees", () => {
