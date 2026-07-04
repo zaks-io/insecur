@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-01
 
-Workflow lookup table for the shared `workflow-*` skills. Values are verified
+Workflow lookup table for the shared `ziw-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
 external systems (Linear, GitHub, CI), not here.
 
@@ -114,7 +114,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Priority policy: no agent priority automation; humans set priority
 - Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked implementation issues stay in `Backlog` without `ready-for-agent`. Move to `Todo` and add `ready-for-agent` only after all blockers are `Done` and the issue still satisfies the agent-ready contract.
 - Agent-ready issue body: contract in `docs/agents/linear-ticketing.md#issue-body-contract` and `docs/agents/autonomous-loop.md` (Outcome, Context, In scope, Out of scope, Acceptance criteria, Required checks, Security invariants, Dependencies)
-- Status transition owner: Agent Orchestrator (`workflow-agent-orchestrator`)
+- Status transition owner: Agent Orchestrator (`ziw-orchestrate`)
 - Labels are signals, not authority: Linear status is the workflow source of truth; Agent Orchestrator owns transitions
 - `save_issue` quirk: a partial-payload `save_issue` (e.g. state/delegate only) can return unchanged state or fail with "title is required". Send an explicit payload with `id` + the fields being changed (`state`, `labels`, etc.) rather than a minimal diff; that path is reliable. Do not retry the minimal payload 2-3 times before switching.
 
@@ -142,22 +142,22 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 - Claude: planning, spec work, second-pass review (reads `CLAUDE.md`)
 - Claude Code source of truth: `.claude/` in this repo; `.claude/skills/*` symlink to `.agents/skills/*` (canonical)
 - Claude Code imports: project `CLAUDE.md`; `AGENTS.md` is a symlink to `CLAUDE.md` (one file, cannot drift), so Codex and Claude read the same adapter
-- Claude Code symlinks: `.claude/skills/workflow-*` -> `../.agents/skills/workflow-*`; root `skills/workflow-*` -> `../.agents/skills/workflow-*` (verified resolving 2026-05-28; all SKILL.md identical by md5)
+- Claude Code symlinks: `.claude/skills/ziw-*` -> `../.agents/skills/ziw-*`; root `skills/ziw-*` -> `../.agents/skills/ziw-*`
 - Claude Code verification: `AGENTS.md -ef CLAUDE.md` confirmed (symlink); `.claude/skills/*` and `.agents/skills/*` md5 match confirmed
 - Review model policy: implementation uses Composer 2.5; PR review uses strongest available tier (Opus-class / GPT-5.5 extra-high or current best). Do not move security/schema/cross-cutting PRs to Ready to Merge on a weak review without explicit human approval
-- Agent Orchestrator: `workflow-agent-orchestrator` (status-transition owner; replaced the former Agent Queue skill)
-- Agent Review: `workflow-agent-review`
-- Agent Implement: `workflow-agent-implement`
+- Agent Orchestrator: `ziw-orchestrate` (status-transition owner; replaced the former Agent Queue skill)
+- Agent Review: `ziw-review`
+- Agent Implement: `ziw-implement`
 
 ## Pull Requests
 
 - PR title: Conventional Commits; reference issue (e.g. `feat(cli): ... (INS-NN)`)
 - PR body: Summary, Changes, Risk, Test plan; metadata-only (no Sensitive Values)
 - Required checks: `pnpm verify` locally, plus `pnpm test:coverage` when the PR touches covered packages (the coverage ratchet is NOT part of `verify`; it is CI's separate `Coverage` job and the most common first-pass CI failure); run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
-- Code review: `workflow-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
+- Code review: `ziw-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
 - CodeRabbit config: root `.coderabbit.yaml`; bot `@coderabbitai`; `reviews.auto_review.enabled: false` (drafts off, incremental off)
 - CodeRabbit wiring: active PRs can expose a CodeRabbit GitHub status context; Agent Orchestrator checks that context and current hosted review state against the PR head before merge
-- CodeRabbit request policy: because auto-review is off, request a current-head hosted review with a top-level PR comment (`@coderabbitai review`, or `@coderabbitai full review` when no complete review covers the head) after local review is clean when `workflow-code-review` recommends escalation, the diff is HIGH-risk (auth, secrets, schema/migration, crypto, credentials, production-runtime), or a human asks; wait when a hosted review is already pending or complete for the current head; treat missing auth, rate limits, or credits as a recorded skip unless explicitly required
+- CodeRabbit request policy: because auto-review is off, request a current-head hosted review with a top-level PR comment (`@coderabbitai review`, or `@coderabbitai full review` when no complete review covers the head) after local review is clean when `ziw-code-review` recommends escalation, the diff is HIGH-risk (auth, secrets, schema/migration, crypto, credentials, production-runtime), or a human asks; wait when a hosted review is already pending or complete for the current head; treat missing auth, rate limits, or credits as a recorded skip unless explicitly required
 - CodeRabbit is additive: it does not replace Agent Review, required CI, or human/security merge gates for `risk-security-sensitive`, `risk-schema`, credential, crypto, or production-runtime behavior changes
 - Issue update: Agent Orchestrator moves Linear status; In Review on PR open, Changes Requested on feedback, Ready to Merge when clean
 - Merge authority: see Work Coordination — Agent Orchestrator squash-merges on dual-reviewer PASS at the pinned head SHA with CI green; human merge reserved for production crypto/credential/schema runtime changes, unclean reviews, and stale PRs needing rebase
@@ -180,7 +180,7 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 
 Never store, print, log, fixture, screenshot, or summarize Sensitive Values anywhere, including
 Linear prose, PR bodies, comments, and tests. No reveal/plaintext-export/debug-decrypt paths. See
-`docs/agents/workflow.md#security-baseline` and `skills/workflow-secret-redaction`.
+`docs/agents/workflow.md#security-baseline`.
 
 ## Unknowns
 

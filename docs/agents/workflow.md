@@ -10,7 +10,7 @@ workflow lives in repo docs and repo-local skills, not in one tool's private pro
 - Domain map: `CONTEXT-MAP.md` and local package/app `CONTEXT.md` files.
 - Issue queue: Linear team `INS`, filtered by repo label `zaks-io/insecur`.
 - Agent protocol: `docs/agents/*`.
-- Executable workflows: `skills/*/SKILL.md` (shared `workflow-*` skills).
+- Executable workflows: `skills/*/SKILL.md` (shared `ziw-*` skills only).
 - Runtime adapters: `AGENTS.md`, `CLAUDE.md`, and `.cursor/rules/insecur.mdc`.
 
 Runtime adapters should stay short. If the workflow changes, update shared docs and skills first.
@@ -21,31 +21,31 @@ Work moves through this repo in five stages plus one sidecar review loop.
 
 1. Triage And Roadmap
 
-   Use `skills/workflow-issue-triage/SKILL.md` to turn docs, specs, ADRs, and project status into
-   Linear projects, parent workstream issues, implementation issues, labels, and dependencies, and
-   to audit existing issues for readiness. Workstreams are parent issues, delivery gates are project
-   milestones, and execution order is represented with Linear relationships. Do not use labels for
-   workstreams. Do not create Linear scaffolding for anything still listed in
-   `docs/phasing.md#deferred-scope-parking-lot`; promote it in the repo docs first. An agent-ready
-   issue must be `Todo`, unblocked, labeled `zaks-io/insecur`, labeled `ready-for-agent`, and
-   satisfy the issue body contract in `docs/agents/autonomous-loop.md`.
+   Use `skills/ziw-to-issues/SKILL.md` to turn docs, specs, ADRs, and project status into
+   Linear projects, parent workstream issues, implementation issues, labels, and dependencies. Use
+   `skills/ziw-triage/SKILL.md` to audit existing issues for readiness. Workstreams are parent
+   issues, delivery gates are project milestones, and execution order is represented with Linear
+   relationships. Do not use labels for workstreams. Do not create Linear scaffolding for anything
+   still listed in `docs/phasing.md#deferred-scope-parking-lot`; promote it in the repo docs first.
+   An agent-ready issue must be `Todo`, unblocked, labeled `zaks-io/insecur`, labeled
+   `ready-for-agent`, and satisfy the issue body contract in `docs/agents/autonomous-loop.md`.
 
 2. Implementation
 
-   Use `skills/workflow-agent-implement/SKILL.md` for one Linear issue and one branch. The agent
+   Use `skills/ziw-implement/SKILL.md` for one Linear issue and one branch. The agent
    claims the issue, moves it to `In Progress`, creates an `ins-<number>-<short-slug>` branch,
    implements only the stated scope, and runs required checks.
 
 3. Pre-PR Local Review
 
-   Use `skills/workflow-code-review/SKILL.md` to review the local branch or working-tree diff
+   Use `skills/ziw-code-review/SKILL.md` to review the local branch or working-tree diff
    before opening a PR. This catches issue-scope problems, missed acceptance criteria, weak tests,
    security invariant gaps, debug output, and unrelated cleanup while the issue is still
    `In Progress`.
 
 4. PR
 
-   Use `skills/workflow-create-pr/SKILL.md` to open or refresh the PR, then `skills/workflow-code-review/SKILL.md`
+   Use `skills/ziw-pr/SKILL.md` to open or refresh the PR, then `skills/ziw-code-review/SKILL.md`
    to review it against the Linear issue, acceptance criteria, security invariants, tests, and
    changed docs. If review finds actionable feedback, post it on the PR, move Linear to
    `Changes Requested`, and send the original Cursor agent thread back to the same branch and PR.
@@ -53,14 +53,14 @@ Work moves through this repo in five stages plus one sidecar review loop.
 
 5. Orchestration
 
-   Use `skills/workflow-agent-orchestrator/SKILL.md` when coordinating multiple agents. The
+   Use `skills/ziw-orchestrate/SKILL.md` when coordinating multiple agents. The
    orchestrator polls Linear, selects `Todo` + `ready-for-agent` issues with no blockers, uses Cursor
    Composer 2.5 as the default implementation workhorse where it fits, watches PRs and checks, updates
    Linear, loops feedback back to the original Cursor agent thread, and escalates human decisions.
 
 6. Review Main And Queue Fixes Sidecar
 
-   Use `skills/workflow-agent-review/SKILL.md` for the periodic review agent that checks
+   Use `skills/ziw-review/SKILL.md` for the periodic review agent that checks
    `origin/main` for new commits, reviews only the newly landed range from a disposable worktree,
    and files actionable Linear issues for bugs, security regressions, or product-direction drift.
    Issues created by this loop must still satisfy the normal Linear contract before they receive
@@ -76,10 +76,10 @@ For delegated implementation work, the preferred loop is:
    issue is implementation-heavy, well scoped, and does not require new product or security
    judgment.
 3. Before PR handoff, the implementation branch gets a local review pass with
-   `skills/workflow-code-review/SKILL.md` where the environment supports it.
+   `skills/ziw-code-review/SKILL.md` where the environment supports it.
 4. Cursor opens a PR, comments in Linear, and moves the issue to `In Review`.
 5. The orchestrator checks out the PR in a local worktree and launches a review subagent with
-   `skills/workflow-code-review/SKILL.md`, using the strongest available code-review model and
+   `skills/ziw-code-review/SKILL.md`, using the strongest available code-review model and
    reasoning tier, such as Opus-class, GPT-5.5 extra-high reasoning, or the current best
    equivalent.
 6. Review findings are posted as normal GitHub PR review comments.
@@ -111,14 +111,15 @@ approval.
 
 Start by choosing the smallest skill that matches the task:
 
-| Task                                               | Skill                         |
-| -------------------------------------------------- | ----------------------------- |
-| Convert docs/specs into Linear work or audit it    | `workflow-issue-triage`       |
-| Implement one ready issue                          | `workflow-agent-implement`    |
-| Review a diff, branch, or PR                       | `workflow-code-review`        |
-| Open or ship the current branch as a PR            | `workflow-create-pr`          |
-| Orchestrate agent implementation work              | `workflow-agent-orchestrator` |
-| Review newly landed `main` commits and queue fixes | `workflow-agent-review`       |
+| Task                                               | Skill             |
+| -------------------------------------------------- | ----------------- |
+| Convert docs/specs into Linear work                | `ziw-to-issues`   |
+| Audit or repair tracker readiness                  | `ziw-triage`      |
+| Implement one ready issue                          | `ziw-implement`   |
+| Review a diff, branch, or PR                       | `ziw-code-review` |
+| Open or ship the current branch as a PR            | `ziw-pr`          |
+| Orchestrate agent implementation work              | `ziw-orchestrate` |
+| Review newly landed `main` commits and queue fixes | `ziw-review`      |
 
 If no skill matches, use the shared docs directly and keep the change narrow.
 

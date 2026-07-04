@@ -17,7 +17,7 @@ stryker.log
 .jscpd-report/
 .claude/scheduled_tasks.lock
 
-# Agent-created git worktrees (disposable; used by workflow-* skills)
+# Agent-created git worktrees (disposable; used by ziw skills)
 .claude/worktrees/
 .codex/worktrees/
 sbom.cyclonedx.json
