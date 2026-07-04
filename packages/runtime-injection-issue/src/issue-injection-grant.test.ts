@@ -1,5 +1,6 @@
 import {
   AUTHORIZATION_SCOPES,
+  CREDENTIAL_SCOPES,
   resolveEffectiveAccess,
   type LoadMachineMembershipsFn,
 } from "@insecur/access";
@@ -83,7 +84,7 @@ const baseMachineInput = {
       projectId: PROJECT,
       environmentId: ENV,
     },
-    credentialScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+    credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionGrantIssueProtected],
   },
 };
 
@@ -254,6 +255,36 @@ describe("issueInjectionGrant machine actors", () => {
       }),
     );
     expect(committedGrants).toHaveLength(1);
+  });
+
+  it("denies protected grant issue when deploy-key credential lacks grant_issue_protected", async () => {
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(() =>
+      Promise.resolve([
+        {
+          membershipId: MACHINE_MEMBERSHIP,
+          organizationId: ORG,
+          projectId: PROJECT,
+          machineIdentityId: MACHINE,
+          authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+        },
+      ]),
+    );
+    mockMachineAccess(loadMachineMemberships);
+
+    await expect(
+      executeIssueInjectionGrant({
+        ...baseMachineInput,
+        actor: {
+          ...baseMachineInput.actor,
+          credentialScopes: [
+            CREDENTIAL_SCOPES.runtimeInjectionRun,
+            CREDENTIAL_SCOPES.runtimeInjectionGrantIssue,
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    expect(committedGrants).toHaveLength(0);
   });
 
   it("denies grant issue when the bound runtime policy key does not allow the selector", async () => {

@@ -1,4 +1,10 @@
-import { AUTHORIZATION_SCOPES, CREDENTIAL_SCOPES } from "@insecur/access";
+import {
+  AUTHORIZATION_SCOPES,
+  CREDENTIAL_SCOPES,
+  RUNTIME_INJECTION_CREDENTIAL_SCOPE_BUNDLE,
+  hasAuthorizationScope,
+  resolveEffectiveAccess,
+} from "@insecur/access";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   environmentId,
@@ -67,6 +73,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           ${[
             AUTHORIZATION_SCOPES.runtimeInjectionRun,
             AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
+            AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected,
           ]}
         )
         ON CONFLICT (id) DO NOTHING
@@ -97,7 +104,7 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
           ${TEST_PROJECT_A_ID},
           ${TEST_ENV_A_ID},
           ${[TEST_POLICY_KEY_ID]},
-          ${[CREDENTIAL_SCOPES.runtimeInjectionRun, CREDENTIAL_SCOPES.runtimeInjectionGrantIssue]},
+          ${[...RUNTIME_INJECTION_CREDENTIAL_SCOPE_BUNDLE]},
           ${verifier.algorithm},
           ${verifier.saltB64},
           ${verifier.hashB64},
@@ -148,8 +155,69 @@ describeIntegration("exchangeEnvironmentDeployKey (tenant-scoped store)", () => 
       expect(verified.ok).toBe(true);
       if (verified.ok) {
         expect(verified.token.runtimePolicyKeyId).toBe(runtimePolicyId.brand(TEST_POLICY_KEY_ID));
+        expect(verified.token.credentialScopes).toEqual(
+          expect.arrayContaining([CREDENTIAL_SCOPES.runtimeInjectionGrantIssueProtected]),
+        );
       }
     }
+  });
+
+  it("resolves protected issuance for exchanged deploy-key credentials at the environment coordinate", async () => {
+    const org = organizationId.brand(TEST_ORG_A_ID);
+    const exchangeResult = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async ({ sql }) =>
+        exchangeEnvironmentDeployKey({
+          organizationId: org,
+          projectId: projectId.brand(TEST_PROJECT_A_ID),
+          environmentId: environmentId.brand(TEST_ENV_A_ID),
+          deployKeySecret: deployKeySecret,
+          signingSecret: SIGNING_SECRET,
+          sql,
+          nowEpoch: NOW,
+        }),
+    );
+
+    expect(exchangeResult.ok).toBe(true);
+    if (!exchangeResult.ok) {
+      return;
+    }
+
+    const verified = await verifyMachineAccessToken(exchangeResult.accessToken, SIGNING_SECRET);
+    expect(verified.ok).toBe(true);
+    if (!verified.ok) {
+      return;
+    }
+
+    const effectiveAccess = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async () =>
+        resolveEffectiveAccess(
+          {
+            type: "machine",
+            machineIdentityId: machineIdentityId.brand(TEST_MACHINE_ID),
+            tokenScope: {
+              organizationId: org,
+              projectId: projectId.brand(TEST_PROJECT_A_ID),
+              environmentId: environmentId.brand(TEST_ENV_A_ID),
+              runtimePolicyKeyId: runtimePolicyId.brand(TEST_POLICY_KEY_ID),
+            },
+            credentialScopes: verified.token.credentialScopes,
+          },
+          {
+            organizationId: org,
+            projectId: projectId.brand(TEST_PROJECT_A_ID),
+            environmentId: environmentId.brand(TEST_ENV_A_ID),
+          },
+        ),
+    );
+
+    expect(
+      hasAuthorizationScope(
+        effectiveAccess,
+        AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected,
+      ),
+    ).toBe(true);
   });
 
   it("denies wrong-environment exchange before minting", async () => {

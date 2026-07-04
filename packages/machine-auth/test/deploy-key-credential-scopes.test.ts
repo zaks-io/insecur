@@ -33,4 +33,18 @@ describe("deploy-key-credential-scopes", () => {
   it("pins the allowed deploy key bundle to runtime injection only", () => {
     expect(DEPLOY_KEY_ALLOWED_CREDENTIAL_SCOPES).toEqual(RUNTIME_INJECTION_CREDENTIAL_SCOPE_BUNDLE);
   });
+
+  it("allows protected issuance on deploy-key credentials", () => {
+    expect(
+      isDeployKeyCredentialScopeBundle([
+        CREDENTIAL_SCOPES.runtimeInjectionRun,
+        CREDENTIAL_SCOPES.runtimeInjectionGrantIssueProtected,
+      ]),
+    ).toBe(true);
+    expect(
+      collectDeployKeyOverbroadCredentialScopes([
+        CREDENTIAL_SCOPES.runtimeInjectionGrantIssueProtected,
+      ]),
+    ).toEqual([]);
+  });
 });
