@@ -50,6 +50,14 @@ export const PRODUCTION_AUDIT_EVENT_CODES = {
   highAssuranceChallengeClearDenied: "high_assurance.challenge_clear_denied",
   highAssuranceEvidenceConsumed: "high_assurance.evidence_consumed",
   highAssuranceEvidenceConsumeDenied: "high_assurance.evidence_consume_denied",
+  connectionCreated: "connection.created",
+  connectionCreateDenied: "connection.create_denied",
+  connectionValidated: "connection.validated",
+  connectionValidationDenied: "connection.validation_denied",
+  connectionDisabled: "connection.disabled",
+  connectionDisableDenied: "connection.disable_denied",
+  connectionCredentialAttached: "connection.credential_attached",
+  connectionCredentialAttachDenied: "connection.credential_attach_denied",
 } as const;
 
 /** All supported tenant-qualified audit event codes. */
@@ -96,6 +104,10 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeRequestDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeClearDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceEvidenceConsumeDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.connectionCreateDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.connectionDisableDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.connectionCredentialAttachDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([

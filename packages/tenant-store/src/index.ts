@@ -98,15 +98,18 @@ export {
 export type {
   AppConnectionRow,
   AppConnectionStatus,
+  AppConnectionValidationOutcome,
   AppConnectionMethod,
   AppConnectionProvider,
   CreateAppConnectionInput,
   ListAppConnectionsInput,
   UpdateAppConnectionStatusInput,
+  UpdateAppConnectionValidationInput,
   AttachActiveProviderCredentialInput,
   APP_CONNECTION_STATUSES,
   APP_CONNECTION_METHODS,
   APP_CONNECTION_PROVIDERS,
+  APP_CONNECTION_VALIDATION_OUTCOMES,
 } from "./app-connections/types.js";
 export { TenantProviderAppRegistrationStore } from "./provider-app-registrations/tenant-provider-app-registration-store.js";
 export {

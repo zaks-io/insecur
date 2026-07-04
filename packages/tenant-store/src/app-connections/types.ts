@@ -7,6 +7,10 @@ import type {
 } from "@insecur/domain";
 import type { WrappedProviderCredential } from "@insecur/custody-contracts";
 
+export const APP_CONNECTION_VALIDATION_OUTCOMES = ["success", "failed"] as const;
+
+export type AppConnectionValidationOutcome = (typeof APP_CONNECTION_VALIDATION_OUTCOMES)[number];
+
 export const APP_CONNECTION_STATUSES = [
   "active",
   "disconnected",
@@ -56,6 +60,14 @@ export interface AttachActiveProviderCredentialInput {
   readonly wrapped: WrappedProviderCredential;
 }
 
+export interface UpdateAppConnectionValidationInput {
+  readonly organizationId: OrganizationId;
+  readonly appConnectionId: AppConnectionId;
+  readonly lastValidationCheckedAt: Date;
+  readonly lastValidationOutcome: AppConnectionValidationOutcome;
+  readonly lastValidationReasonCode: string | null;
+}
+
 export interface AppConnectionRow {
   readonly id: AppConnectionId;
   readonly organizationId: OrganizationId;
@@ -66,6 +78,9 @@ export interface AppConnectionRow {
   readonly setupUserId: UserId;
   readonly activeCredentialId: ProviderCredentialId | null;
   readonly statusReasonCode: string | null;
+  readonly lastValidationCheckedAt: Date | null;
+  readonly lastValidationOutcome: AppConnectionValidationOutcome | null;
+  readonly lastValidationReasonCode: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }

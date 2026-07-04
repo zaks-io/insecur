@@ -18,10 +18,6 @@ const negativeDeepPathFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/decrypt-import-boundary-negative-deep-path.fixture.ts",
 );
-const allowlistedModule = path.join(
-  repoRoot,
-  "packages/runtime-injection/src/decrypt-grant-secret.ts",
-);
 const ESLINT_BOUNDARY_TIMEOUT_MS = 15_000;
 const DECRYPT_IMPORT_BOUNDARY_MESSAGE =
   "Decrypt entry points may only be imported from allowlisted egress modules";
@@ -121,16 +117,20 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );
 
-  it("keeps exactly one allowlisted decrypt egress module", () => {
+  it("keeps the allowlisted decrypt egress modules in sync with eslint.config.ts", () => {
     expect(readDecryptImportAllowlist()).toEqual([
       "packages/runtime-injection/src/decrypt-grant-secret.ts",
+      "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
     ]);
   });
 
-  it(
-    "does not apply the decrypt boundary to the sole allowlisted egress module",
-    async () => {
-      const config = await readLintConfigFor(allowlistedModule);
+  it.each([
+    "packages/runtime-injection/src/decrypt-grant-secret.ts",
+    "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
+  ] as const)(
+    "does not apply the decrypt boundary to allowlisted egress module %s",
+    async (allowlistedModulePath) => {
+      const config = await readLintConfigFor(path.join(repoRoot, allowlistedModulePath));
       const restrictedRules = JSON.stringify([
         config.rules?.["no-restricted-imports"],
         config.rules?.["no-restricted-syntax"],

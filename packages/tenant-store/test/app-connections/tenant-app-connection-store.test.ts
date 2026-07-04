@@ -20,6 +20,9 @@ const ACTIVE_ROW = {
   setup_user_id: SETUP_USER,
   active_credential_id: CRED,
   status_reason_code: null,
+  last_validation_checked_at: NOW,
+  last_validation_outcome: "success",
+  last_validation_reason_code: null,
   created_at: NOW,
   updated_at: NOW,
 };

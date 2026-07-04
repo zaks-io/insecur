@@ -85,6 +85,13 @@
       "when": 1783200000000,
       "tag": "0011_app_connections_provider_registration",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783300000000,
+      "tag": "0012_app_connections_validation_metadata",
+      "breakpoints": true
     }
   ]
 }
