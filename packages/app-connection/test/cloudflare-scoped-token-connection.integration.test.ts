@@ -42,8 +42,8 @@ const CONN_CF = appConnectionId.brand("conn_01JZ8CFH2R7M4T0V9X3C5D8F1G");
 const CONN_CF_B = appConnectionId.brand("conn_01JZ8CGK5Q2R7V0X3Z6C9D1F4H");
 const CONN_CF_C = appConnectionId.brand("conn_01JZ8CJK9M5S8W1Y4A7E0G3I6H");
 const CONN_CF_D = appConnectionId.brand("conn_01JZ8CLM0N6T9X2Y5B8D1G4J7K");
-const CRED_CF = providerCredentialId.brand("pcred_01JZ8CFHM8S3V6X0Z2C5D8F1G4K");
-const CRED_CF_D = providerCredentialId.brand("pcred_01JZ8CEKN1T4W7Y1A3D6E9H2J5L");
+const CRED_CF = providerCredentialId.brand("pcred_01JZ8CHM8S3V6X0Z2C5D8F1G4K");
+const CRED_CF_D = providerCredentialId.brand("pcred_01JZ8CKN1T4W7Y1A3D6E9H2J5L");
 const ACTOR = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
 const BOUNDARY = {
   allowedAccountId: "cf-account-123",
