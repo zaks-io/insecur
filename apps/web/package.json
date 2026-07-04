@@ -17,6 +17,7 @@
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/observability": "workspace:*",
+    "@insecur/ui": "workspace:*",
     "@sentry/cloudflare": "^10.63.0",
     "@sentry/tanstackstart-react": "^10.63.0",
     "@tanstack/react-router": "^1.168.26",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.38.0",
     "@cloudflare/workers-types": "catalog:",
+    "@tailwindcss/vite": "^4.3.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
