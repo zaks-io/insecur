@@ -198,7 +198,7 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    files: ["packages/cli/**/*.ts", "scripts/**/*.{ts,mjs}"],
+    files: ["packages/cli/**/*.ts", "packages/*/scripts/**/*.mjs", "scripts/**/*.{ts,mjs}"],
     languageOptions: {
       globals: {
         ...globals.node,

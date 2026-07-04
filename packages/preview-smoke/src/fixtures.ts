@@ -18,12 +18,12 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
   inviteeBearer: [
     async ({ preview }, use) => {
       await use(
-        await mintBearer(
-          preview.inviteeUserId,
-          preview.inviteeWorkosUserId,
-          preview.signingSecret,
-          "session_preview_smoke_invitee",
-        ),
+        await mintBearer({
+          rawUserId: preview.inviteeUserId,
+          sessionId: "session_preview_smoke_invitee",
+          signingSecret: preview.signingSecret,
+          workosUserId: preview.inviteeWorkosUserId,
+        }),
       );
     },
     { scope: "worker" },
@@ -31,19 +31,18 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
   ownerBearer: [
     async ({ preview }, use) => {
       await use(
-        await mintBearer(
-          preview.ownerUserId,
-          preview.ownerWorkosUserId,
-          preview.signingSecret,
-          "session_preview_smoke_owner",
-        ),
+        await mintBearer({
+          rawUserId: preview.ownerUserId,
+          sessionId: "session_preview_smoke_owner",
+          signingSecret: preview.signingSecret,
+          workosUserId: preview.ownerWorkosUserId,
+        }),
       );
     },
     { scope: "worker" },
   ],
   preview: [
-    async ({ browserName }, use) => {
-      void browserName;
+    async (_fixtures, use) => {
       await use(loadPreviewConfig());
     },
     { scope: "worker" },

@@ -3,11 +3,11 @@
 insecur's tests are organized by where Postgres comes from and what failure class each catches.
 The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 
-| Layer                | Postgres                   | Runtime                                                                            | Command                                                                                          | Runs where             |
-| -------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------- |
-| Unit                 | none                       | Node Vitest                                                                        | `pnpm test`                                                                                      | local, CI, agents      |
-| Integration + RLS    | Docker Compose             | Node Vitest, real route stack + `postgres` driver                                  | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary`                        | local, CI, agents, PRs |
-| Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | `Deploy Preview` or `pnpm deploy:preview:preflight && pnpm deploy:preview && pnpm smoke:preview` | shared preview only    |
+| Layer                | Postgres                   | Runtime                                                                            | Command                                                                                                                                                                                         | Runs where             |
+| -------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Unit                 | none                       | Node Vitest                                                                        | `pnpm test`                                                                                                                                                                                     | local, CI, agents      |
+| Integration + RLS    | Docker Compose             | Node Vitest, real route stack + `postgres` driver                                  | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary`                                                                                                                       | local, CI, agents, PRs |
+| Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | `Deploy Preview` or `pnpm deploy:preview:preflight && pnpm migrate:preview && node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs && pnpm deploy:preview && pnpm smoke:preview` | shared preview only    |
 
 ## Manual Mutation Review
 

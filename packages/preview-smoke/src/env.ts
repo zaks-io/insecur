@@ -15,7 +15,7 @@ export function loadPreviewConfig(): PreviewConfig {
   const signingSecret = requireEnv("SMOKE_SESSION_SIGNING_SECRET");
   return {
     apiBaseUrl: requireEnv("SMOKE_API_BASE_URL", "SMOKE_BASE_URL").replace(/\/$/u, ""),
-    databaseUrl: requireEnv("PREVIEW_DATABASE_URL_MIGRATION", "DATABASE_URL_MIGRATION"),
+    databaseUrl: requireEnv("PREVIEW_DATABASE_URL_MIGRATION"),
     expectedSha: requireEnv("SMOKE_EXPECTED_DEPLOY_SHA", "GITHUB_SHA"),
     inviteeUserId: requireEnv("SMOKE_INVITEE_ADMITTED_USER_ID"),
     inviteeWorkosUserId: requireEnv("SMOKE_INVITEE_WORKOS_USER_ID"),

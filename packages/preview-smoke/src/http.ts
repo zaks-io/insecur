@@ -164,11 +164,13 @@ export function collectOperationId(body: JsonRecord): string | undefined {
 }
 
 function parseJson(text: string, label: string): JsonRecord {
+  let parsed: unknown;
   try {
-    return asRecord(JSON.parse(text), label);
+    parsed = JSON.parse(text);
   } catch {
     throw new Error(`${label} returned non-JSON body`);
   }
+  return asRecord(parsed, label);
 }
 
 function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
@@ -183,6 +185,7 @@ function responseStatus(response: PageResponse | Response | null): number | unde
   if (response === null) {
     return undefined;
   }
+  // Support both Fetch Response and Playwright PageResponse shapes.
   return typeof response.status === "number" ? response.status : response.status();
 }
 

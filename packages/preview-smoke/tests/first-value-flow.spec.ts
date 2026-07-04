@@ -1,9 +1,13 @@
 import { Buffer } from "node:buffer";
 
+import { INJECTION_ERROR_CODES } from "@insecur/domain";
+
 import {
   asRecord,
   assertEnvelopeData,
+  assertEnvelopeError,
   assertEqual,
+  assertStatus,
   authHeaders,
   collectOperationId,
   getJson,
@@ -126,10 +130,9 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     if (response.ok) {
       throw new Error("Grant replay unexpectedly succeeded.");
     }
+    assertStatus(response, 404, "Grant replay", { bodyText: text, redactor });
     const body = await readJsonResponse(response, "Grant replay", text);
-    if (body.ok !== false || typeof asRecord(body.error, "grant replay error").code !== "string") {
-      throw new Error(`Grant replay did not return a failed error envelope: ${redactor(text)}`);
-    }
+    assertEnvelopeError(body, INJECTION_ERROR_CODES.grantDenied, "Grant replay");
   });
 
   await test.step("operations.poll", async () => {

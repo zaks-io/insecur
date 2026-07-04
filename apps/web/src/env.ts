@@ -15,6 +15,10 @@ export interface WebEnv extends SentryBindings {
   readonly WORKOS_COOKIE_PASSWORD: string;
   readonly SESSION_SIGNING_SECRET: string;
   readonly INSTANCE_ID?: string;
+  /**
+   * Enables preview smoke bearer admission through Runtime instead of the WorkOS cookie path.
+   * Must stay unset outside Deploy Preview.
+   */
   readonly PREVIEW_SMOKE_SESSION_CREDENTIALS?: string;
   readonly WORKOS_FAKE_SESSIONS_JSON?: string;
   /** Private Service Binding to the public API Worker (`insecur-api`). */

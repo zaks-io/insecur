@@ -25,6 +25,8 @@ export async function decryptBoundGrantSecretVersion(input: {
   secretId: SecretId;
   secretVersionId: SecretVersionId;
 }): Promise<PlaintextHandle> {
+  // Keep decrypt outside the tenant-scoped DB work. Moving it back inside can
+  // reintroduce the INS-345 grant-consume 58000/500 failure mode.
   const wrapped = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db }) => loadDeliverableWrappedSecretVersion(input, db),

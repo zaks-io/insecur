@@ -328,7 +328,9 @@ function requireDeployEnv(name, context) {
 
 function requiresDeployIdentity(context) {
   return (
-    context.wranglerEnv === "preview" || context.env.INSECUR_REQUIRE_DEPLOY_IDENTITY === "true"
+    context.wranglerEnv === "preview" ||
+    context.wranglerEnv === undefined ||
+    context.env.INSECUR_REQUIRE_DEPLOY_IDENTITY === "true"
   );
 }
 

@@ -40,6 +40,9 @@ test("materializes API production deploy identifiers", () => {
 
   assert.equal(config.vars.INSTANCE_ID, "instance-live");
   assert.equal(config.vars.WORKOS_CLIENT_ID, "workos-live");
+  assert.equal(config.vars.DEPLOY_SHA, "abc123");
+  assert.equal(config.vars.DEPLOY_RUN_ID, "123456789");
+  assert.equal(config.vars.DEPLOYED_AT, "2026-07-04T12:00:00.000Z");
   assert.equal(config.ratelimits[0].namespace_id, "onboarding-ip-ns");
   assert.equal(config.ratelimits[4].namespace_id, "auth-exchange-ip-ns");
   assert.equal(source.vars.INSTANCE_ID, "INSTANCE_ID_PLACEHOLDER");
@@ -161,6 +164,16 @@ test("fails preview public deploys without deploy identity", () => {
   assert.throws(
     () => materializeDeployWranglerConfig(webConfig(), { env, wranglerEnv: "preview" }),
     /INSECUR_DEPLOY_SHA is required for insecur-web env\.preview deploy config/,
+  );
+});
+
+test("fails production public deploys without deploy identity", () => {
+  const env = { ...DEPLOY_ENV };
+  delete env.INSECUR_DEPLOY_RUN_ID;
+
+  assert.throws(
+    () => materializeDeployWranglerConfig(siteConfig(), { env }),
+    /INSECUR_DEPLOY_RUN_ID is required for insecur-site production deploy config/,
   );
 });
 
