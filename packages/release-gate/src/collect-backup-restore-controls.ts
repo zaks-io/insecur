@@ -1,16 +1,37 @@
 import type { ReleaseGateControl, ReleaseGateProfile } from "./types.js";
 import { blockedControl, missingControl, passedControl } from "./control-helpers.js";
-import { evidencePath, parseJsonEvidence } from "./read-evidence.js";
+import { evidencePath, readJsonFile } from "./read-evidence.js";
 import {
+  evaluateBlockedBackupRestoreMetadataEvidence,
   evaluateExportFreshnessEvidence,
   evaluateRestoreDrillEvidence,
   backupRestoreEvidenceDocs,
+  findBackupRestoreEvidenceViolations,
+  parseMetadataSafeBackupRestoreEvidence,
   type ReadinessEvaluation,
 } from "@insecur/backup-restore";
 import {
   parseExportSuccessEvidence,
   parseRestoreDrillEvidence,
 } from "./parse-backup-restore-evidence.js";
+
+function loadBackupRestoreEvidence<T>(
+  evidenceDir: string,
+  relativePath: string,
+  parser: (value: unknown) => T | null,
+): { evidence: T | null; metadataBlocked: boolean } {
+  const raw = readJsonFile(evidencePath(evidenceDir, relativePath));
+  if (raw === null) {
+    return { evidence: null, metadataBlocked: false };
+  }
+  if (findBackupRestoreEvidenceViolations(raw).length > 0) {
+    return { evidence: null, metadataBlocked: true };
+  }
+  return {
+    evidence: parseMetadataSafeBackupRestoreEvidence(raw, parser),
+    metadataBlocked: false,
+  };
+}
 
 function evaluationToControl(
   evaluation: ReadinessEvaluation,
@@ -46,11 +67,10 @@ function evaluationToControl(
 export function collectExportFreshControl(evidenceDir: string): ReleaseGateControl {
   const relativePath = "backup/export-success.json";
   const docs = backupRestoreEvidenceDocs();
-  const evidence = parseJsonEvidence(
-    evidencePath(evidenceDir, relativePath),
-    parseExportSuccessEvidence,
-  );
-  const evaluation = evaluateExportFreshnessEvidence(evidence);
+  const loaded = loadBackupRestoreEvidence(evidenceDir, relativePath, parseExportSuccessEvidence);
+  const evaluation = loaded.metadataBlocked
+    ? evaluateBlockedBackupRestoreMetadataEvidence("backup_restore.export_fresh")
+    : evaluateExportFreshnessEvidence(loaded.evidence);
   const control = evaluationToControl(evaluation, relativePath, docs);
 
   if (evaluation.expires_at) {
@@ -63,11 +83,10 @@ export function collectExportFreshControl(evidenceDir: string): ReleaseGateContr
 export function collectRestoreDrillControl(evidenceDir: string): ReleaseGateControl {
   const relativePath = "backup/restore-drill.json";
   const docs = backupRestoreEvidenceDocs();
-  const evidence = parseJsonEvidence(
-    evidencePath(evidenceDir, relativePath),
-    parseRestoreDrillEvidence,
-  );
-  const evaluation = evaluateRestoreDrillEvidence(evidence);
+  const loaded = loadBackupRestoreEvidence(evidenceDir, relativePath, parseRestoreDrillEvidence);
+  const evaluation = loaded.metadataBlocked
+    ? evaluateBlockedBackupRestoreMetadataEvidence("backup_restore.drill")
+    : evaluateRestoreDrillEvidence(loaded.evidence);
   return evaluationToControl(evaluation, relativePath, docs);
 }
 

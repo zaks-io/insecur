@@ -34,6 +34,8 @@ export {
 export { parseExportSuccessEvidence, parseRestoreDrillEvidence } from "./parse-evidence.js";
 export { asRecord, hasOneOf, readNumber, readString } from "./evidence-parsers.js";
 export {
+  computeExportExpiresAt,
+  evaluateBlockedBackupRestoreMetadataEvidence,
   evaluateExportFreshnessEvidence,
   evaluateRestoreDrillEvidence,
   type ReadinessEvaluation,
@@ -41,6 +43,8 @@ export {
 export {
   assertBackupRestoreEvidenceIsMetadataSafe,
   findBackupRestoreEvidenceViolations,
+  isBackupRestoreEvidenceMetadataSafe,
+  parseMetadataSafeBackupRestoreEvidence,
 } from "./assert-metadata-safe.js";
 export {
   runLocalRestoreDrill,

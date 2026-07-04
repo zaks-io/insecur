@@ -2,10 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
+  evaluateBlockedBackupRestoreMetadataEvidence,
   evaluateExportFreshnessEvidence,
   evaluateRestoreDrillEvidence,
 } from "./evaluate-readiness.js";
-import { assertBackupRestoreEvidenceIsMetadataSafe } from "./assert-metadata-safe.js";
+import {
+  findBackupRestoreEvidenceViolations,
+  parseMetadataSafeBackupRestoreEvidence,
+} from "./assert-metadata-safe.js";
 import { parseExportSuccessEvidence, parseRestoreDrillEvidence } from "./parse-evidence.js";
 
 function readJsonFile(path: string): unknown {
@@ -16,22 +20,8 @@ function readJsonFile(path: string): unknown {
   }
 }
 
-function parseMetadataSafeEvidence<T>(
-  raw: unknown,
-  parser: (value: unknown) => T | null,
-): T | null {
-  const parsed = parser(raw);
-  if (!parsed) {
-    return null;
-  }
-
-  try {
-    assertBackupRestoreEvidenceIsMetadataSafe(parsed);
-  } catch {
-    return null;
-  }
-
-  return parsed;
+function hasMetadataSafetyViolations(raw: unknown): boolean {
+  return raw !== null && raw !== undefined && findBackupRestoreEvidenceViolations(raw).length > 0;
 }
 
 export interface VerifyBackupRestoreEvidenceOptions {
@@ -53,11 +43,19 @@ export function verifyBackupRestoreEvidence(
 
   const exportRaw = readJsonFile(resolve(evidenceDir, "backup/export-success.json"));
   const drillRaw = readJsonFile(resolve(evidenceDir, "backup/restore-drill.json"));
-  const exportEvidence = parseMetadataSafeEvidence(exportRaw, parseExportSuccessEvidence);
-  const drillEvidence = parseMetadataSafeEvidence(drillRaw, parseRestoreDrillEvidence);
 
-  const exportFresh = evaluateExportFreshnessEvidence(exportEvidence, now);
-  const restoreDrill = evaluateRestoreDrillEvidence(drillEvidence, now);
+  const exportFresh = hasMetadataSafetyViolations(exportRaw)
+    ? evaluateBlockedBackupRestoreMetadataEvidence("backup_restore.export_fresh", now)
+    : evaluateExportFreshnessEvidence(
+        parseMetadataSafeBackupRestoreEvidence(exportRaw, parseExportSuccessEvidence),
+        now,
+      );
+  const restoreDrill = hasMetadataSafetyViolations(drillRaw)
+    ? evaluateBlockedBackupRestoreMetadataEvidence("backup_restore.drill", now)
+    : evaluateRestoreDrillEvidence(
+        parseMetadataSafeBackupRestoreEvidence(drillRaw, parseRestoreDrillEvidence),
+        now,
+      );
   const ok = exportFresh.status === "passed" && restoreDrill.status === "passed";
 
   return { ok, exportFresh, restoreDrill };

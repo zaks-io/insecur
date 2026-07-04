@@ -285,9 +285,9 @@ export default tseslint.config(
       "@typescript-eslint/non-nullable-type-assertion-style": "off",
     },
   },
-  // Decrypt-egress boundary (ADR-0071) AND keyring-construction boundary (ADR-0064/0077) together,
-  // for every non-test source file OUTSIDE the Runtime Worker. Runtime source is the one place
-  // allowed to build a keyring, so it is excluded here and gets the decrypt-only rules below.
+  // Decrypt-egress (ADR-0071) and keyring-construction (ADR-0064/0077) share one rule block so
+  // both path sets apply. Ignores are split: decrypt allowlist plus keyring-only tenant-keyring.
+  // Do not ignore all of packages/backup-restore/src/** here or decrypt rules are bypassed.
   {
     files: ["**/*.ts"],
     ignores: [
@@ -297,8 +297,8 @@ export default tseslint.config(
       "**/*.integration.test.ts",
       "packages/crypto/src/**",
       "apps/runtime/src/**",
-      ...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
       ...DECRYPT_IMPORT_ALLOWLIST,
+      ...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
     ],
     rules: {
       "no-restricted-imports": [

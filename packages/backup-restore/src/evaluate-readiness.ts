@@ -122,6 +122,19 @@ export function computeExportExpiresAt(checkedAt: string): string {
   return new Date(base + BACKUP_EXPORT_FRESHNESS_HOURS * 60 * 60 * 1000).toISOString();
 }
 
+export function evaluateBlockedBackupRestoreMetadataEvidence(
+  controlId: ReadinessEvaluation["control_id"],
+  now: Date = new Date(),
+): ReadinessEvaluation {
+  const checkedAt = now.toISOString();
+  return blockedEvaluation({
+    controlId,
+    summary: "Backup/restore evidence contains forbidden metadata keys or sensitive patterns.",
+    checkedAt,
+    blockingReason: "metadata-only evidence required",
+  });
+}
+
 export function evaluateRestoreDrillEvidence(
   evidence: RestoreDrillEvidence | null,
   now: Date = new Date(),

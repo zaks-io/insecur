@@ -117,6 +117,37 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );
 
+  it(
+    "fails lint for decrypt imports in unallowlisted backup-restore sibling modules",
+    async () => {
+      const output = await runEslintExpectFailure(
+        path.join(
+          repoRoot,
+          "scripts/lint-fixtures/decrypt-import-boundary-negative-backup-restore-sibling.fixture.ts",
+        ),
+      );
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toMatch(/decryptSecretValueForRuntime/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "applies decrypt boundary to backup-restore sources outside recovery-canary",
+    async () => {
+      const config = await readLintConfigFor(
+        path.join(repoRoot, "packages/backup-restore/src/backup-envelope.ts"),
+      );
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
   it("keeps the allowlisted decrypt egress modules", () => {
     expect(readDecryptImportAllowlist()).toEqual([
       "packages/runtime-injection/src/decrypt-grant-secret.ts",
