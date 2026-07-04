@@ -4,13 +4,16 @@ import path from "node:path";
 import {
   getWranglerEnvName,
   hasWranglerConfigArg,
+  isFlattenedGeneratedWranglerConfig,
   loadDeployWranglerConfig,
   parseConfigCommandArgs,
   runWrangler,
+  stripWranglerEnvArgs,
   withTempWranglerConfig,
 } from "./wrangler-deploy-config.mjs";
 
-const { configArg, commandArgs: wranglerArgs } = parseConfigCommandArgs(process.argv.slice(2));
+const { configArg, commandArgs } = parseConfigCommandArgs(process.argv.slice(2));
+const wranglerArgs = commandArgs.filter((arg) => arg !== "--");
 
 if (!configArg || wranglerArgs.length === 0) {
   fail("Usage: node scripts/wrangler-with-deploy-config.mjs <wrangler-config> -- <wrangler args>");
@@ -23,8 +26,11 @@ if (hasWranglerConfigArg(wranglerArgs)) {
 const sourcePath = path.resolve(process.cwd(), configArg);
 const wranglerEnv = getWranglerEnvName(wranglerArgs);
 const { config, sourceDir } = await loadDeployWranglerConfig(sourcePath, { wranglerEnv });
+const deployArgs = isFlattenedGeneratedWranglerConfig(config, wranglerEnv)
+  ? stripWranglerEnvArgs(wranglerArgs)
+  : wranglerArgs;
 await withTempWranglerConfig("insecur-wrangler-config-", config, sourceDir, async (configPath) =>
-  runWrangler(insertConfigArg(wranglerArgs, configPath)),
+  runWrangler(insertConfigArg(deployArgs, configPath)),
 );
 
 function insertConfigArg(args, configPath) {

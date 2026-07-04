@@ -27,14 +27,15 @@ export function materializeDeployWranglerConfig(config, options = {}) {
   const env = options.env ?? process.env;
   const wranglerEnv = normalizeWranglerEnv(options.wranglerEnv ?? env.CLOUDFLARE_ENV);
   const scope = selectWranglerScope(next, wranglerEnv);
+  const workerName = next.topLevelName ?? next.name;
   const deployContext = {
     env,
     sourcePath: options.sourcePath,
-    workerName: next.name,
+    workerName,
     wranglerEnv,
   };
 
-  switch (next.name) {
+  switch (workerName) {
     case "insecur-api":
       materializeApiConfig(scope, deployContext);
       break;
@@ -47,7 +48,7 @@ export function materializeDeployWranglerConfig(config, options = {}) {
     case "insecur-site":
       break;
     default:
-      throw new Error(`No deploy-config materializer registered for Worker "${next.name}".`);
+      throw new Error(`No deploy-config materializer registered for Worker "${workerName}".`);
   }
 
   return next;
@@ -74,6 +75,29 @@ export function hasWranglerConfigArg(args) {
       arg.startsWith("-c=") ||
       /^-c[^-]/.test(arg),
   );
+}
+
+export function isFlattenedGeneratedWranglerConfig(config, wranglerEnv) {
+  const targetEnvironment = normalizeWranglerEnv(config?.targetEnvironment);
+  return Boolean(wranglerEnv && targetEnvironment === wranglerEnv && !config?.env?.[wranglerEnv]);
+}
+
+export function stripWranglerEnvArgs(args) {
+  const stripped = [];
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--env" || arg === "-e") {
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--env=") || /^-e[^-]/.test(arg)) {
+      continue;
+    }
+    stripped.push(arg);
+  }
+
+  return stripped;
 }
 
 export function rebaseConfigPaths(config, fromDir, toDir) {
@@ -156,6 +180,9 @@ function materializeWebConfig(scope, context) {
 
 export function selectWranglerScope(config, wranglerEnv) {
   if (!wranglerEnv) {
+    return config;
+  }
+  if (isFlattenedGeneratedWranglerConfig(config, wranglerEnv)) {
     return config;
   }
   const scope = config.env?.[wranglerEnv];
