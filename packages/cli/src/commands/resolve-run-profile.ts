@@ -35,60 +35,66 @@ function requirePolicyId(
   });
 }
 
+interface ProfileRunSelection {
+  readonly profileId?: CliProfileId;
+  readonly selector?: string;
+}
+
+function isNonEmptyProfileSelector(value: string | undefined): value is string {
+  return value !== undefined && value !== "";
+}
+
+function toProfileIdSelection(profileId: CliProfileId | undefined): ProfileRunSelection | undefined {
+  return profileId === undefined ? undefined : { profileId };
+}
+
+function toSelectorSelection(selector: string | undefined): ProfileRunSelection | undefined {
+  return isNonEmptyProfileSelector(selector) ? { selector } : undefined;
+}
+
+function firstProfileRunSelection(
+  candidates: readonly (() => ProfileRunSelection | undefined)[],
+): ProfileRunSelection {
+  for (const candidate of candidates) {
+    const selection = candidate();
+    if (selection !== undefined) {
+      return selection;
+    }
+  }
+  return {};
+}
+
 function resolveProfileRunSelection(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
   readonly profileSelector?: string;
-}): { readonly profileId?: CliProfileId; readonly selector?: string } {
-  if (input.flags.profileId !== undefined) {
-    return { profileId: input.flags.profileId };
-  }
-
-  const explicitSelector = input.profileSelector ?? input.flags.profile;
-  if (explicitSelector !== undefined && explicitSelector !== "") {
-    return { selector: explicitSelector };
-  }
-
-  const scopeProfileId = input.context.scope.profileId;
-  if (scopeProfileId !== undefined) {
-    return { profileId: scopeProfileId };
-  }
-
-  const scopeProfileSlug = input.context.scope.profileSlug;
-  if (scopeProfileSlug !== undefined && scopeProfileSlug !== "") {
-    return { selector: scopeProfileSlug };
-  }
-
-  const projectProfileId = input.context.projectConfig?.profileId;
-  if (projectProfileId !== undefined) {
-    return { profileId: projectProfileId };
-  }
-
-  return {};
+}): ProfileRunSelection {
+  const { flags, context, profileSelector } = input;
+  return firstProfileRunSelection([
+    () => toProfileIdSelection(flags.profileId),
+    () => toSelectorSelection(profileSelector ?? flags.profile),
+    () => toProfileIdSelection(context.scope.profileId),
+    () => toSelectorSelection(context.scope.profileSlug),
+    () => toProfileIdSelection(context.projectConfig?.profileId),
+  ]);
 }
 
 function hasExplicitProfileRunSelection(input: {
   readonly flags: GlobalCliFlags;
   readonly profileSelector?: string;
 }): boolean {
-  const selector = input.profileSelector ?? input.flags.profile;
-  if (selector !== undefined && selector !== "") {
-    return true;
-  }
-  return input.flags.profileId !== undefined;
+  return (
+    isNonEmptyProfileSelector(input.profileSelector ?? input.flags.profile) ||
+    input.flags.profileId !== undefined
+  );
 }
 
 function hasAmbientProfileRunSelection(context: ResolvedCliContext): boolean {
-  if (context.scope.profileId !== undefined) {
-    return true;
-  }
-
-  const scopeProfileSlug = context.scope.profileSlug;
-  if (scopeProfileSlug !== undefined && scopeProfileSlug !== "") {
-    return true;
-  }
-
-  return context.projectConfig?.profileId !== undefined;
+  return (
+    context.scope.profileId !== undefined ||
+    isNonEmptyProfileSelector(context.scope.profileSlug) ||
+    context.projectConfig?.profileId !== undefined
+  );
 }
 
 function hasProfileBackedRunMode(input: {
