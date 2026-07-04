@@ -34,6 +34,7 @@ const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const ORG_B = organizationId.brand(TEST_ORG_B_ID);
 const CONN_A = appConnectionId.brand("conn_01JZ8EFH2R7M4T0V9X3C5D8F1G");
 const CONN_B = appConnectionId.brand("conn_01JZ8EGK5Q2R7V0X3Z6C9D1F4H");
+const CONN_C = appConnectionId.brand("conn_01JZ8EJK9M5S8W1Y4A7E0G3I6H");
 const CRED_A = providerCredentialId.brand("pcred_01JZ8EHM8S3V6X0Z2C5D8F1G4K");
 const SETUP_USER = userId.brand(TEST_USER_ID);
 
@@ -158,7 +159,7 @@ describeRls("app connection tenant isolation and credential encryption", () => {
         const store = new TenantAppConnectionStore(db);
         await store.createConnection({
           organizationId: ORG_A,
-          appConnectionId: CONN_A,
+          appConnectionId: CONN_C,
           provider: "github",
           connectionMethod: "github-app",
           displayName: testDisplayName("Org A GitHub"),
@@ -166,7 +167,7 @@ describeRls("app connection tenant isolation and credential encryption", () => {
           status: "disconnected",
           statusReasonCode: "connection.disconnected",
         });
-        return store.getConnectionById(ORG_A, CONN_A);
+        return store.getConnectionById(ORG_A, CONN_C);
       },
     );
 
