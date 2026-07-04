@@ -49,6 +49,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [SECRET_ERROR_CODES.coordinateInvalid, 404],
   [ENVIRONMENT_ERROR_CODES.invalidLifecycleStage, 400],
   [ENVIRONMENT_ERROR_CODES.protectedEnvironment, 403],
+  [ENVIRONMENT_ERROR_CODES.nonProtectedEnvironment, 403],
   [ENVIRONMENT_ERROR_CODES.lifecycleImmutable, 400],
   [ENVIRONMENT_ERROR_CODES.previewOptDownInvalid, 400],
   [ENVIRONMENT_ERROR_CODES.notFound, 404],

@@ -76,6 +76,35 @@ async function seedDevelopmentEnvironment(
   `;
 }
 
+async function insertSyntheticSecretVersion(
+  tx: postgres.TransactionSql,
+  input: SeedOrgInput,
+): Promise<void> {
+  await tx`
+    INSERT INTO secret_versions (
+      id,
+      org_id,
+      secret_id,
+      version_number,
+      organization_data_key_version,
+      project_data_key_version,
+      ciphertext_storage_ref,
+      lifecycle_state
+    )
+    VALUES (
+      ${input.secretVersionId},
+      ${input.organizationId},
+      ${input.secretId},
+      ${1},
+      ${1},
+      ${1},
+      ${"synthetic-ciphertext-ref"},
+      ${"live"}
+    )
+    ON CONFLICT (id) DO NOTHING
+  `;
+}
+
 export async function seedSecretWithVersion(
   tx: postgres.TransactionSql,
   input: SeedOrgInput,
@@ -99,27 +128,7 @@ export async function seedSecretWithVersion(
     )
     ON CONFLICT (id) DO NOTHING
   `;
-  await tx`
-    INSERT INTO secret_versions (
-      id,
-      org_id,
-      secret_id,
-      version_number,
-      organization_data_key_version,
-      project_data_key_version,
-      ciphertext_storage_ref
-    )
-    VALUES (
-      ${input.secretVersionId},
-      ${input.organizationId},
-      ${input.secretId},
-      ${1},
-      ${1},
-      ${1},
-      ${"synthetic-ciphertext-ref"}
-    )
-    ON CONFLICT (id) DO NOTHING
-  `;
+  await insertSyntheticSecretVersion(tx, input);
   await tx`
     UPDATE secrets
     SET current_version_id = ${input.secretVersionId}

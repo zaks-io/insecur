@@ -37,20 +37,25 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   };
 });
 
-vi.mock("../src/record-secret-write-audit.js", () => ({
-  recordSecretWriteAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+vi.mock("../src/record-secret-storage-write-audit.js", () => ({
+  recordSecretStorageWriteAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  recordDeniedSecretStorageWriteAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../src/validate-text-secret-value.js", () => ({
   validateTextSecretValue: vi.fn(),
 }));
 
-import { recordSecretWriteAudit } from "../src/record-secret-write-audit.js";
+import {
+  recordDeniedSecretStorageWriteAudit,
+  recordSecretStorageWriteAudit,
+} from "../src/record-secret-storage-write-audit.js";
 import { validateTextSecretValue } from "../src/validate-text-secret-value.js";
 
 const encryptMock = vi.mocked(encryptSecretValue);
 const withTenantScopeMock = vi.mocked(withTenantScope);
-const auditMock = vi.mocked(recordSecretWriteAudit);
+const auditMock = vi.mocked(recordSecretStorageWriteAudit);
+const deniedAuditMock = vi.mocked(recordDeniedSecretStorageWriteAudit);
 const validateValueMock = vi.mocked(validateTextSecretValue);
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -237,13 +242,14 @@ describe("writeAuthorizedNonProtectedSecret", () => {
 
     expect(validateValueMock).not.toHaveBeenCalled();
     expect(encryptMock).not.toHaveBeenCalled();
-    expect(auditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outcome: "denied",
-        reasonCode: AUTH_ERROR_CODES.insufficientScope,
-      }),
-    );
-    expect(JSON.stringify(auditMock.mock.calls)).not.toContain("must-not-validate");
+    expect(deniedAuditMock).toHaveBeenCalledWith({
+      kind: "non_protected",
+      actor: ACTOR,
+      scope: [ORG, PROJECT, ENV],
+      refs: [undefined, undefined, undefined],
+      reasonCode: AUTH_ERROR_CODES.insufficientScope,
+    });
+    expect(JSON.stringify(deniedAuditMock.mock.calls)).not.toContain("must-not-validate");
   });
 
   it("fails with auth.insufficient_scope before persistence when scope is insufficient", async () => {

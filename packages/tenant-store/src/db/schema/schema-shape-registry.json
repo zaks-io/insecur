@@ -2306,6 +2306,21 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
+      "lifecycle_state": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "published_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
       "created_at": {
         "notNull": true,
         "primaryKey": false,
@@ -2389,6 +2404,13 @@
         "hasDefault": false,
         "columnType": "PgText",
         "sqlType": "text"
+      },
+      "live_version_number": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
       },
       "created_at": {
         "notNull": true,

@@ -15,6 +15,7 @@ export type BuiltInRolePreset = (typeof BUILT_IN_ROLE_PRESETS)[keyof typeof BUIL
 const FIRST_VALUE_OWNER_SCOPE_BUNDLE: readonly AuthorizationScope[] = [
   AUTHORIZATION_SCOPES.onboardingGuidedProvision,
   AUTHORIZATION_SCOPES.secretNonProtectedWrite,
+  AUTHORIZATION_SCOPES.secretProtectedDraftWrite,
   AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
   AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume,
   AUTHORIZATION_SCOPES.runtimeInjectionRun,
@@ -38,6 +39,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.environmentRead,
     AUTHORIZATION_SCOPES.secretRead,
     AUTHORIZATION_SCOPES.secretNonProtectedWrite,
+    AUTHORIZATION_SCOPES.secretProtectedDraftWrite,
     AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
     AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume,
     AUTHORIZATION_SCOPES.runtimeInjectionRun,
@@ -49,6 +51,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.environmentRead,
     AUTHORIZATION_SCOPES.secretRead,
     AUTHORIZATION_SCOPES.secretNonProtectedWrite,
+    AUTHORIZATION_SCOPES.secretProtectedDraftWrite,
     AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
     AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume,
     AUTHORIZATION_SCOPES.runtimeInjectionRun,

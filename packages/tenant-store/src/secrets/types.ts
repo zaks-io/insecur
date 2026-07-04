@@ -7,6 +7,8 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 
+import type { SecretVersionLifecycleState } from "./lifecycle-states.js";
+
 /** Wrapped material accepted by the Secret Version Store (plaintext-free). */
 export interface StoredWrappedSecretMaterial {
   organizationDataKeyVersion: number;
@@ -18,6 +20,7 @@ export interface SecretVersionStoreRow {
   secretVersionId: SecretVersionId;
   secretId: SecretId;
   versionNumber: number;
+  lifecycleState: SecretVersionLifecycleState;
   organizationDataKeyVersion: number;
   projectDataKeyVersion: number;
   wrapped: StoredWrappedSecretMaterial;
@@ -32,7 +35,7 @@ export interface ResolveSecretForWriteInput {
   secretId?: SecretId;
 }
 
-export interface AppendSecretVersionAndMakeLiveInput {
+interface AppendSecretVersionInput {
   organizationId: OrganizationId;
   secretId: SecretId;
   secretVersionId: SecretVersionId;
@@ -40,9 +43,43 @@ export interface AppendSecretVersionAndMakeLiveInput {
   createdSecretShape: boolean;
 }
 
-export interface AppendSecretVersionAndMakeLiveResult {
+export interface AppendSecretVersionResult {
   secretId: SecretId;
   secretVersionId: SecretVersionId;
   versionNumber: number;
+  lifecycleState: SecretVersionLifecycleState;
   createdSecretShape: boolean;
+}
+
+export type AppendSecretVersionAndMakeLiveInput = AppendSecretVersionInput;
+export type AppendSecretVersionAndMakeLiveResult = AppendSecretVersionResult;
+
+export type AppendSecretVersionAsDraftInput = AppendSecretVersionInput;
+export type AppendSecretVersionAsDraftResult = AppendSecretVersionResult;
+
+export interface PublishSecretVersionTarget {
+  secretId: SecretId;
+  secretVersionId: SecretVersionId;
+}
+
+export interface PublishSecretVersionsInput {
+  organizationId: OrganizationId;
+  targets: readonly PublishSecretVersionTarget[];
+}
+
+export interface PublishSecretVersionsResult {
+  published: readonly AppendSecretVersionResult[];
+}
+
+export interface ListDraftVersionsInput {
+  organizationId: OrganizationId;
+  environmentId: EnvironmentId;
+  secretId?: SecretId;
+}
+
+export interface DraftVersionMetadataRow {
+  secretId: SecretId;
+  secretVersionId: SecretVersionId;
+  versionNumber: number;
+  variableKey: VariableKey;
 }
