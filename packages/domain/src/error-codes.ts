@@ -178,6 +178,30 @@ export const OPERATION_ERROR_CODES = {
 
 export type OperationErrorCode = (typeof OPERATION_ERROR_CODES)[keyof typeof OPERATION_ERROR_CODES];
 
+/** App Connection metadata and sync eligibility failures. */
+export const APP_CONNECTION_ERROR_CODES = {
+  notFound: "connection.not_found",
+  resourceConflict: "connection.resource_conflict",
+  disconnected: "connection.disconnected",
+  reauthorizationRequired: "connection.reauthorization_required",
+  pendingSetup: "connection.pending_setup",
+  providerRegistrationMissing: "connection.provider_registration_missing",
+  credentialMissing: "connection.credential_missing",
+} as const;
+
+export type AppConnectionErrorCode =
+  (typeof APP_CONNECTION_ERROR_CODES)[keyof typeof APP_CONNECTION_ERROR_CODES];
+
+/** Provider App Registration metadata failures. */
+export const PROVIDER_APP_REGISTRATION_ERROR_CODES = {
+  notFound: "provider_app_registration.not_found",
+  notConfigured: "provider_app_registration.not_configured",
+  alreadyExists: "provider_app_registration.already_exists",
+} as const;
+
+export type ProviderAppRegistrationErrorCode =
+  (typeof PROVIDER_APP_REGISTRATION_ERROR_CODES)[keyof typeof PROVIDER_APP_REGISTRATION_ERROR_CODES];
+
 /** Client-side CLI resolution and selector failures. */
 export const CLI_ERROR_CODES = {
   profileNotFound: "cli.profile_not_found",
@@ -211,6 +235,8 @@ export const ALL_ERROR_CODE_CATALOGS = [
   AUDIT_ERROR_CODES,
   HIGH_ASSURANCE_ERROR_CODES,
   OPERATION_ERROR_CODES,
+  APP_CONNECTION_ERROR_CODES,
+  PROVIDER_APP_REGISTRATION_ERROR_CODES,
   CLI_ERROR_CODES,
 ] as const;
 
@@ -229,5 +255,7 @@ export type KnownErrorCode =
   | AuditErrorCode
   | HighAssuranceErrorCode
   | OperationErrorCode
+  | AppConnectionErrorCode
+  | ProviderAppRegistrationErrorCode
   | CliErrorCode
   | (string & {});

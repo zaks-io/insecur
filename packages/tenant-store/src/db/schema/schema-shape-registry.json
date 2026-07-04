@@ -22,8 +22,43 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
+      "connection_method": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "display_name": {
         "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "setup_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "active_credential_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status_reason_code": {
+        "notNull": false,
         "primaryKey": false,
         "hasDefault": false,
         "columnType": "PgText",
@@ -37,12 +72,29 @@
         "sqlType": "timestamp with time zone",
         "withTimezone": true,
         "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
       }
     },
     "checks": [
       {
+        "name": "app_connections_connection_method_check",
+        "sql": "\"app_connections\".\"connection_method\" IN ('github-app', 'scoped-api-token', 'vercel-integration-oauth')"
+      },
+      {
         "name": "app_connections_provider_check",
         "sql": "\"app_connections\".\"provider\" ~ '^[a-z][a-z0-9_-]+$' AND char_length(\"app_connections\".\"provider\") <= 64"
+      },
+      {
+        "name": "app_connections_status_check",
+        "sql": "\"app_connections\".\"status\" IN ('active', 'disconnected', 'reauthorization_required', 'pending_setup')"
       }
     ],
     "uniqueConstraints": [
@@ -1786,6 +1838,109 @@
         "name": "projects_org_id_organizations_id_fk",
         "columns": ["org_id"],
         "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "provider_app_registrations": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "provider": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "connection_method": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "client_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "callback_path": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "provider_app_registrations_connection_method_check",
+        "sql": "\"provider_app_registrations\".\"connection_method\" IN ('github-app', 'vercel-integration-oauth')"
+      },
+      {
+        "name": "provider_app_registrations_provider_check",
+        "sql": "\"provider_app_registrations\".\"provider\" IN ('github', 'vercel')"
+      },
+      {
+        "name": "provider_app_registrations_status_check",
+        "sql": "\"provider_app_registrations\".\"status\" IN ('configured', 'pending_setup')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "provider_app_registrations_instance_provider_method_key",
+        "columns": ["instance_id", "provider", "connection_method"],
+        "unique": true,
+        "nullsNotDistinct": false
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "provider_app_registrations_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
         "foreignColumns": ["id"]
       }
     ],

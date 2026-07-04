@@ -26,6 +26,7 @@ const projectRoots = [
   "packages/crypto",
   "packages/domain",
   "packages/instance-bootstrap",
+  "packages/app-connection",
   "packages/onboarding",
   "packages/operations",
   "packages/release-gate",

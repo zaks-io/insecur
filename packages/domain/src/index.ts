@@ -32,6 +32,7 @@ export {
   type MachineAuthMethodId,
   type AppConnectionId,
   type ProviderCredentialId,
+  type ProviderAppRegistrationId,
   type FirstValueFeedbackId,
   organizationId,
   projectId,
@@ -55,6 +56,7 @@ export {
   machineAuthMethodId,
   appConnectionId,
   providerCredentialId,
+  providerAppRegistrationId,
   firstValueFeedbackId,
 } from "./resource-ids.js";
 export {
@@ -123,6 +125,10 @@ export {
   type HighAssuranceErrorCode,
   OPERATION_ERROR_CODES,
   type OperationErrorCode,
+  APP_CONNECTION_ERROR_CODES,
+  type AppConnectionErrorCode,
+  PROVIDER_APP_REGISTRATION_ERROR_CODES,
+  type ProviderAppRegistrationErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,

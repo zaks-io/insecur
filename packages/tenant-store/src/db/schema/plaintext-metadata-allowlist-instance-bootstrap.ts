@@ -40,6 +40,17 @@ export const PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP = {
     instance_id: { category: "opaque-id" },
     user_id: { category: "actor-id" },
   },
+  provider_app_registrations: {
+    callback_path: { category: "type-code" },
+    client_id: { category: "opaque-id" },
+    connection_method: { category: "type-code" },
+    created_at: { category: "timestamp" },
+    id: { category: "opaque-id" },
+    instance_id: { category: "opaque-id" },
+    provider: { category: "type-code" },
+    status: { category: "status-code" },
+    updated_at: { category: "timestamp" },
+  },
   user_admissions: {
     created_at: { category: "timestamp" },
     display_name: { category: "display-name" },

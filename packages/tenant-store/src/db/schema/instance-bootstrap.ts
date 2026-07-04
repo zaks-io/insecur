@@ -141,3 +141,46 @@ export const userAdmissions = pgTable(
     uniqueIndex("user_admissions_one_user_per_instance").on(table.instanceId, table.userId),
   ],
 );
+
+export const PROVIDER_APP_REGISTRATION_STATUSES = ["configured", "pending_setup"] as const;
+
+export const PROVIDER_APP_REGISTRATION_METHODS = [
+  "github-app",
+  "vercel-integration-oauth",
+] as const;
+
+export const providerAppRegistrations = pgTable(
+  "provider_app_registrations",
+  {
+    id: text("id").primaryKey(),
+    instanceId: text("instance_id")
+      .notNull()
+      .references(() => instances.id),
+    provider: text("provider").notNull(),
+    connectionMethod: text("connection_method").notNull(),
+    clientId: text("client_id").notNull(),
+    callbackPath: text("callback_path").notNull(),
+    status: text("status").notNull().default("pending_setup"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("provider_app_registrations_instance_provider_method_key").on(
+      table.instanceId,
+      table.provider,
+      table.connectionMethod,
+    ),
+    check(
+      "provider_app_registrations_provider_check",
+      sql`${table.provider} IN ('github', 'vercel')`,
+    ),
+    check(
+      "provider_app_registrations_connection_method_check",
+      sql`${table.connectionMethod} IN ('github-app', 'vercel-integration-oauth')`,
+    ),
+    check(
+      "provider_app_registrations_status_check",
+      sql`${table.status} IN ('configured', 'pending_setup')`,
+    ),
+  ],
+);

@@ -35,6 +35,7 @@ const EXPECTED_TABLE_EXPORTS: Record<string, readonly string[]> = {
     "instanceOperators",
     "bootstrapSecretVerifiers",
     "userAdmissions",
+    "providerAppRegistrations",
   ],
   "tenant-collaboration.js": [
     "invitations",

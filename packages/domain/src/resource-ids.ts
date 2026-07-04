@@ -28,6 +28,7 @@ export type MachineIdentityId = Brand<string, "MachineIdentityId">;
 export type MachineAuthMethodId = Brand<string, "MachineAuthMethodId">;
 export type AppConnectionId = Brand<string, "AppConnectionId">;
 export type ProviderCredentialId = Brand<string, "ProviderCredentialId">;
+export type ProviderAppRegistrationId = Brand<string, "ProviderAppRegistrationId">;
 export type FirstValueFeedbackId = Brand<string, "FirstValueFeedbackId">;
 
 type ParseBrandedIdResult<T> =
@@ -82,4 +83,8 @@ export const machineIdentityId = createResourceIdHelpers("mach", "MachineIdentit
 export const machineAuthMethodId = createResourceIdHelpers("mauth", "MachineAuthMethodId");
 export const appConnectionId = createResourceIdHelpers("conn", "AppConnectionId");
 export const providerCredentialId = createResourceIdHelpers("pcred", "ProviderCredentialId");
+export const providerAppRegistrationId = createResourceIdHelpers(
+  "preg",
+  "ProviderAppRegistrationId",
+);
 export const firstValueFeedbackId = createResourceIdHelpers("fvb", "FirstValueFeedbackId");

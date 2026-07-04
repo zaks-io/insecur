@@ -85,6 +85,46 @@ export type {
   StoredWrappedProviderCredential,
   UpsertProviderCredentialInput,
 } from "./provider-credentials/types.js";
+export {
+  defaultConnectionMethodForProvider,
+  DEFAULT_CONNECTION_METHOD_BY_PROVIDER,
+} from "./app-connections/default-connection-method-for-provider.js";
+export { TenantAppConnectionStore } from "./app-connections/tenant-app-connection-store.js";
+export {
+  AppConnectionStoreError,
+  isAppConnectionStoreError,
+  APP_CONNECTION_STORE_ERROR_CODES,
+} from "./app-connections/errors.js";
+export type {
+  AppConnectionRow,
+  AppConnectionStatus,
+  AppConnectionMethod,
+  AppConnectionProvider,
+  CreateAppConnectionInput,
+  ListAppConnectionsInput,
+  UpdateAppConnectionStatusInput,
+  AttachActiveProviderCredentialInput,
+  APP_CONNECTION_STATUSES,
+  APP_CONNECTION_METHODS,
+  APP_CONNECTION_PROVIDERS,
+} from "./app-connections/types.js";
+export { TenantProviderAppRegistrationStore } from "./provider-app-registrations/tenant-provider-app-registration-store.js";
+export {
+  ProviderAppRegistrationStoreError,
+  isProviderAppRegistrationStoreError,
+  PROVIDER_APP_REGISTRATION_STORE_ERROR_CODES,
+} from "./provider-app-registrations/errors.js";
+export type {
+  ProviderAppRegistrationRow,
+  ProviderAppRegistrationStatus,
+  ProviderAppRegistrationMethod,
+  ProviderAppRegistrationProvider,
+  UpsertProviderAppRegistrationInput,
+  GetProviderAppRegistrationInput,
+  PROVIDER_APP_REGISTRATION_STATUSES,
+  PROVIDER_APP_REGISTRATION_METHODS,
+  PROVIDER_APP_REGISTRATION_PROVIDERS,
+} from "./provider-app-registrations/types.js";
 export { TenantSensitiveMetadataStore } from "./sensitive-metadata/tenant-sensitive-metadata-store.js";
 export type {
   SensitiveMetadataFieldRow,
