@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bytesToBase64Url } from "@insecur/domain";
+import { bytesToBase64Url, INJECTION_ERROR_CODES } from "@insecur/domain";
 
 const spawnMock = vi.hoisted(() => vi.fn());
 
@@ -397,5 +397,67 @@ describe("runRunCommand profile-backed policy path", () => {
       expect.objectContaining({ policyId: POLICY_ID }),
     );
     stdoutSpy.mockRestore();
+  });
+
+  it("maps policy grant issue failures through CliError", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    api.issueInjectionGrant.mockResolvedValue({
+      ok: false as const,
+      envelope: {
+        ok: false as const,
+        error: {
+          code: INJECTION_ERROR_CODES.grantDenied,
+          message: "Policy grant denied.",
+          retryable: false,
+        },
+      },
+      httpStatus: 403,
+    });
+
+    await expect(
+      runRunCommand(flags, api, mockContext, {
+        profileSelector: "local-dev",
+        command: ["node", "-e", "process.exit(0)"],
+      }),
+    ).rejects.toMatchObject({
+      code: INJECTION_ERROR_CODES.grantDenied,
+    });
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it("maps policy grant consume-all failures through CliError", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    api.consumeInjectionGrantAll.mockResolvedValue({
+      ok: false as const,
+      envelope: {
+        ok: false as const,
+        error: {
+          code: INJECTION_ERROR_CODES.grantExpired,
+          message: "Policy grant expired.",
+          retryable: false,
+        },
+      },
+      httpStatus: 409,
+    });
+
+    await expect(
+      runRunCommand(flags, api, mockContext, {
+        profileSelector: "local-dev",
+        command: ["node", "-e", "process.exit(0)"],
+      }),
+    ).rejects.toMatchObject({
+      code: INJECTION_ERROR_CODES.grantExpired,
+    });
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 });

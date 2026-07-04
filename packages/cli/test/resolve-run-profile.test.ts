@@ -62,10 +62,11 @@ const userConfig: ResolvedCliContext["userConfig"] = {
 function createContext(overrides: {
   readonly scope?: Partial<ResolvedCliContext["scope"]>;
   readonly projectConfig?: ResolvedCliContext["projectConfig"];
+  readonly userConfig?: ResolvedCliContext["userConfig"];
 }): ResolvedCliContext {
   return {
     projectConfig: overrides.projectConfig ?? null,
-    userConfig,
+    userConfig: overrides.userConfig ?? userConfig,
     scope: {
       host: flags.host ?? "https://insecur.test",
       orgId: ORG_ID as never,
@@ -109,6 +110,19 @@ describe("resolveProfileRunLookup project profile selection", () => {
         }),
       }),
     ).toEqual({ profileId: PROFILE_ID });
+  });
+
+  it("falls back to scope.profileSlug when no explicit profile is provided", () => {
+    expect(
+      resolveProfileRunLookup({
+        flags,
+        context: createContext({
+          scope: {
+            profileSlug: "staging",
+          },
+        }),
+      }),
+    ).toEqual({ selector: "staging" });
   });
 
   it("exposes the same project-bound id from scope and project config helpers", () => {
@@ -372,5 +386,77 @@ describe("assertRunModeExclusive project profile selection", () => {
         context: createContext({}),
       }),
     ).toThrowError(expect.objectContaining({ code: VALIDATION_ERROR_CODES.invalidCommandInput }));
+  });
+});
+
+describe("resolveProfileRunInput policy requirements", () => {
+  it("requires defaultRunPolicyId or --policy-id override", () => {
+    expect(() =>
+      resolveProfileRunInput({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: OTHER_PROFILE_ID as never,
+          },
+          userConfig: {
+            profiles: {
+              [OTHER_PROFILE_ID]: {
+                slug: "staging",
+                displayName: "Staging" as never,
+                host: flags.host ?? "https://insecur.test",
+                orgId: ORG_ID as never,
+                projectId: PROJECT_ID as never,
+                envId: ENV_ID as never,
+              },
+            },
+          },
+        }),
+        profileSelector: "staging",
+      }),
+    ).toThrowError(expect.objectContaining({ code: VALIDATION_ERROR_CODES.invalidCommandInput }));
+  });
+
+  it("accepts --policy-id override when the profile has no default policy", () => {
+    const resolved = resolveProfileRunInput({
+      flags,
+      context: createContext({
+        userConfig: {
+          profiles: {
+            [OTHER_PROFILE_ID]: {
+              slug: "staging",
+              displayName: "Staging" as never,
+              host: flags.host ?? "https://insecur.test",
+              orgId: ORG_ID as never,
+              projectId: PROJECT_ID as never,
+              envId: ENV_ID as never,
+            },
+          },
+        },
+      }),
+      profileSelector: "staging",
+      policyIdOverride: POLICY_ID,
+    });
+
+    expect(resolved.policyId).toBe(POLICY_ID);
+  });
+});
+
+describe("reconcileProfileRunCommand profile id flag", () => {
+  it("returns parsed argv unchanged when global --profile-id is set", () => {
+    expect(
+      reconcileProfileRunCommand({
+        flags: { ...flags, profileId: PROFILE_ID as never },
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        positionalProfile: "node",
+        args: ["node", "-e", "process.exit(0)"],
+      }),
+    ).toEqual({
+      profileSelector: "node",
+      command: ["-e", "process.exit(0)"],
+    });
   });
 });

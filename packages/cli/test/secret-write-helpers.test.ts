@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import { parseVariableKeyOrThrow } from "../src/commands/parse-variable-key.js";
-import { buildRunResolvedTargets } from "../src/commands/run-result.js";
+import {
+  buildProfileRunResolvedTargets,
+  buildRunResolvedTargets,
+} from "../src/commands/run-result.js";
 import { buildSecretsSetResolvedTargets } from "../src/commands/secrets-set-result.js";
 import { CliError } from "../src/output/cli-error.js";
 import { buildSecretWriteResolvedTargets } from "../src/output/secret-write-target-echo.js";
@@ -108,6 +111,62 @@ describe("command resolved target builders", () => {
         injectionGrantId: GRANT_ID,
       }),
     );
+  });
+
+  it("buildProfileRunResolvedTargets includes profile, policy, grant, and secret targets", () => {
+    const profileId = "prof_01TEST00000000000000000001" as never;
+    const policyId = "rp_01TEST00000000000000000001" as never;
+    expect(
+      buildProfileRunResolvedTargets({
+        scope,
+        profileId,
+        profile: {
+          slug: "local-dev",
+          displayName: "Local development" as never,
+          host: "https://insecur.test",
+          orgId: ORG_ID as never,
+          projectId: PROJECT_ID as never,
+          envId: ENV_ID as never,
+          defaultRunPolicyId: policyId,
+        },
+        policyId,
+        issueData: { grantId: GRANT_ID },
+        delivery: {
+          grantId: GRANT_ID,
+          entries: [
+            {
+              variableKey: "API_KEY",
+              secretId: SECRET_ID,
+              secretVersionId: "sv_01TEST00000000000000000001",
+              encodedValueUtf8: "ignored",
+            },
+          ],
+        },
+      }),
+    ).toEqual([
+      {
+        type: "cli_profile",
+        id: profileId,
+        slug: "local-dev",
+        displayName: "Local development",
+      },
+      {
+        type: "runtime_policy",
+        id: policyId,
+        parent: { type: "environment", id: ENV_ID },
+      },
+      {
+        type: "injection_grant",
+        id: GRANT_ID,
+        parent: { type: "environment", id: ENV_ID },
+      },
+      ...buildSecretWriteResolvedTargets({
+        scope,
+        variableKey: "API_KEY",
+        secretId: SECRET_ID,
+        injectionGrantId: GRANT_ID,
+      }),
+    ]);
   });
 
   it("buildSecretsSetResolvedTargets omits the injection grant target", () => {

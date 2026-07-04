@@ -277,4 +277,101 @@ describe("createHttpApiClientForHost", () => {
     );
     expect(JSON.stringify(result)).not.toContain(sensitive);
   });
+
+  it("issues a policy-backed injection grant", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            grantId: "igr_01TEST00000000000000000001",
+            expiresAt: "2026-01-01T00:05:00.000Z",
+          },
+          meta: { requestId: "req_policy_grant_issue" },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.issueInjectionGrant({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_01TEST00000000000000000001" as never,
+      projectId: "prj_01TEST00000000000000000001" as never,
+      environmentId: "env_01TEST0000000000000000001" as never,
+      policyId: "rp_01TEST00000000000000000001" as never,
+    });
+    expect(result.ok).toBe(true);
+    const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string) as {
+      policyId: string;
+    };
+    expect(body.policyId).toBe("rp_01TEST00000000000000000001");
+  });
+
+  it("consumes all policy bindings and parses the delivery-all envelope", async () => {
+    const sensitive = "policy-runtime-secret";
+    const encodedValueUtf8 = bytesToBase64Url(new TextEncoder().encode(sensitive));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          delivery: {
+            grantId: "igr_01TEST00000000000000000001",
+            entries: [
+              {
+                variableKey: "API_KEY",
+                secretId: "sec_01TEST00000000000000000001",
+                secretVersionId: "sv_01TEST00000000000000000001",
+                encodedValueUtf8,
+              },
+            ],
+          },
+          meta: { requestId: "req_grant_consume_all" },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.consumeInjectionGrantAll({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_01TEST00000000000000000001" as never,
+      grantId: "igr_01TEST00000000000000000001" as never,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.envelope.delivery.entries[0]?.encodedValueUtf8).toBe(encodedValueUtf8);
+    }
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain("/consume-all");
+    expect(JSON.stringify(result)).not.toContain(sensitive);
+  });
+
+  it("returns structured errors for consume-all failures", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: false,
+          error: {
+            code: "injection.grant_expired",
+            message: "Grant expired.",
+            retryable: false,
+          },
+        }),
+        { status: 409 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.consumeInjectionGrantAll({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_01TEST00000000000000000001" as never,
+      grantId: "igr_01TEST00000000000000000001" as never,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.httpStatus).toBe(409);
+      expect(result.envelope.error.code).toBe("injection.grant_expired");
+    }
+  });
 });
