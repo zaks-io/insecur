@@ -609,13 +609,13 @@ with the Preview GitHub Environment variables materialized. Only after that pref
 it run `pnpm migrate:preview`, seed the smoke actors, deploy the bounded shared Preview Worker
 fleet (`insecur-runtime-preview`, `insecur-api-preview`, `insecur-web-preview`, and
 `insecur-site-preview`) through package-level `deploy:preview` scripts selected by
-`turbo run deploy:preview`, then run `pnpm smoke:preview`. Before deployment, the workflow syncs
-the Preview GitHub Environment's encrypted Worker secrets to the Preview Worker scripts:
-`RUNTIME_TOKEN_SIGNING_SECRET` to Runtime, and `RUNTIME_TOKEN_SIGNING_SECRET`,
-`SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and `WORKOS_COOKIE_PASSWORD` to API/Web according to
-each deploy's binding needs. The root script excludes non-app
-packages, so a full deploy covers every Worker app while targeted deploys use ordinary Turbo
-filters:
+`turbo run deploy:preview`, then run `pnpm smoke:preview`. During deployment, the workflow writes
+temporary per-Worker `--secrets-file` inputs so Cloudflare receives encrypted Worker secrets with
+the deployed Worker version: `RUNTIME_TOKEN_SIGNING_SECRET` to Runtime, and
+`RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
+`WORKOS_COOKIE_PASSWORD` to API/Web according to each deploy's binding needs. The root script
+excludes non-app packages, so a full deploy covers every Worker app while targeted deploys use
+ordinary Turbo filters:
 
 ```sh
 pnpm deploy:preview --filter @insecur/web

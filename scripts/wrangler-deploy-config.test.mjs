@@ -5,11 +5,13 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  appendDeploySecretsFileArg,
   hasWranglerConfigArg,
   hydrateGeneratedWranglerConfig,
   isFlattenedGeneratedWranglerConfig,
   materializeDeployWranglerConfig,
   normalizeWranglerEnv,
+  previewSecretsFileEnvName,
   rebaseConfigPaths,
   selectWranglerScope,
   stripWranglerEnvArgs,
@@ -229,6 +231,44 @@ test("strips Wrangler environment flags", () => {
     "deploy",
     "--dry-run",
   ]);
+});
+
+test("selects preview deploy secrets files by worker without affecting dry-runs", () => {
+  const env = {
+    INSECUR_API_SECRETS_FILE: "/tmp/api-secrets.json",
+    INSECUR_RUNTIME_SECRETS_FILE: "/tmp/runtime-secrets.json",
+    INSECUR_WEB_SECRETS_FILE: "/tmp/web-secrets.json",
+  };
+
+  assert.equal(previewSecretsFileEnvName(apiConfig(), "preview"), "INSECUR_API_SECRETS_FILE");
+  assert.equal(
+    previewSecretsFileEnvName(runtimeConfig(), "preview"),
+    "INSECUR_RUNTIME_SECRETS_FILE",
+  );
+  assert.equal(
+    previewSecretsFileEnvName(generatedWebPreviewConfig(), "preview"),
+    "INSECUR_WEB_SECRETS_FILE",
+  );
+  assert.equal(previewSecretsFileEnvName(apiConfig(), undefined), undefined);
+
+  assert.deepEqual(
+    appendDeploySecretsFileArg(
+      ["deploy", "--env", "preview", "--keep-vars"],
+      apiConfig(),
+      "preview",
+      env,
+    ),
+    ["deploy", "--env", "preview", "--keep-vars", "--secrets-file", "/tmp/api-secrets.json"],
+  );
+  assert.deepEqual(
+    appendDeploySecretsFileArg(
+      ["deploy", "--env", "preview", "--dry-run"],
+      apiConfig(),
+      "preview",
+      env,
+    ),
+    ["deploy", "--env", "preview", "--dry-run"],
+  );
 });
 
 function apiConfig() {

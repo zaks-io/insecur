@@ -2,6 +2,7 @@
 import path from "node:path";
 
 import {
+  appendDeploySecretsFileArg,
   getWranglerEnvName,
   hasWranglerConfigArg,
   isFlattenedGeneratedWranglerConfig,
@@ -29,8 +30,9 @@ const { config, sourceDir } = await loadDeployWranglerConfig(sourcePath, { wrang
 const deployArgs = isFlattenedGeneratedWranglerConfig(config, wranglerEnv)
   ? stripWranglerEnvArgs(wranglerArgs)
   : wranglerArgs;
+const finalArgs = appendDeploySecretsFileArg(deployArgs, config, wranglerEnv, process.env);
 await withTempWranglerConfig("insecur-wrangler-config-", config, sourceDir, async (configPath) =>
-  runWrangler(insertConfigArg(deployArgs, configPath)),
+  runWrangler(insertConfigArg(finalArgs, configPath)),
 );
 
 function insertConfigArg(args, configPath) {

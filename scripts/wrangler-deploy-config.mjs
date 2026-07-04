@@ -153,6 +153,35 @@ export function stripWranglerEnvArgs(args) {
   return stripped;
 }
 
+export function appendDeploySecretsFileArg(args, config, wranglerEnv, env = process.env) {
+  if (args[0] !== "deploy" || args.includes("--dry-run")) {
+    return args;
+  }
+  const envName = previewSecretsFileEnvName(config, wranglerEnv);
+  const secretsFile = envName ? env[envName] : undefined;
+  if (!secretsFile) {
+    return args;
+  }
+  return [...args, "--secrets-file", secretsFile];
+}
+
+export function previewSecretsFileEnvName(config, wranglerEnv) {
+  if (wranglerEnv !== "preview") {
+    return undefined;
+  }
+  const workerName = config.topLevelName ?? config.name;
+  switch (workerName) {
+    case "insecur-api":
+      return "INSECUR_API_SECRETS_FILE";
+    case "insecur-runtime":
+      return "INSECUR_RUNTIME_SECRETS_FILE";
+    case "insecur-web":
+      return "INSECUR_WEB_SECRETS_FILE";
+    default:
+      return undefined;
+  }
+}
+
 export function rebaseConfigPaths(config, fromDir, toDir) {
   const rebased = structuredClone(config);
   rebased.main = rebasePath(rebased.main, fromDir, toDir);

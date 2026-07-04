@@ -85,10 +85,27 @@ jobs:
           SMOKE_INSTANCE_OPERATOR_ID: ${{ vars.PREVIEW_SMOKE_INSTANCE_OPERATOR_ID }}
         run: node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs
 
-      - name: Sync preview Worker secrets
+      - name: Deploy all preview Workers
+        id: deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+          INSECUR_DEPLOY_SHA: ${{ github.sha }}
+          INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
+          INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
+          INSECUR_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
+          INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
+          INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
+          INSECUR_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID }}
+          INSECUR_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID }}
+          INSECUR_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID }}
+          INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID }}
+          INSECUR_RUNTIME_ROOT_KEY_STORE_ID: ${{ vars.PREVIEW_RUNTIME_ROOT_KEY_STORE_ID }}
+          INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME: ${{ vars.PREVIEW_RUNTIME_ROOT_KEY_SECRET_NAME }}
+          INSECUR_RUNTIME_HYPERDRIVE_ID: ${{ vars.PREVIEW_HYPERDRIVE_ID }}
           RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
           SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
           WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
@@ -111,9 +128,15 @@ jobs:
             fi
           done
 
+          secret_dir="$(mktemp -d)"
+          trap 'rm -rf "$secret_dir"' EXIT
+
+          export INSECUR_RUNTIME_SECRETS_FILE="$secret_dir/runtime-preview-secrets.json"
+          export INSECUR_API_SECRETS_FILE="$secret_dir/api-preview-secrets.json"
+          export INSECUR_WEB_SECRETS_FILE="$secret_dir/web-preview-secrets.json"
+
           jq -n --arg value "$RUNTIME_TOKEN_SIGNING_SECRET" \
-            '{ RUNTIME_TOKEN_SIGNING_SECRET: $value }' |
-            pnpm exec wrangler secret bulk --cwd apps/runtime --name insecur-runtime-preview
+            '{ RUNTIME_TOKEN_SIGNING_SECRET: $value }' > "$INSECUR_RUNTIME_SECRETS_FILE"
 
           jq -n \
             --arg runtime "$RUNTIME_TOKEN_SIGNING_SECRET" \
@@ -125,8 +148,7 @@ jobs:
               SESSION_SIGNING_SECRET: $session,
               WORKOS_API_KEY: $workos,
               WORKOS_COOKIE_PASSWORD: $cookie
-            }' |
-            pnpm exec wrangler secret bulk --cwd apps/api --name insecur-api-preview
+            }' > "$INSECUR_API_SECRETS_FILE"
 
           jq -n \
             --arg session "$SESSION_SIGNING_SECRET" \
@@ -136,31 +158,10 @@ jobs:
               SESSION_SIGNING_SECRET: $session,
               WORKOS_API_KEY: $workos,
               WORKOS_COOKIE_PASSWORD: $cookie
-            }' |
-            pnpm exec wrangler secret bulk --cwd apps/web --name insecur-web-preview
+            }' > "$INSECUR_WEB_SECRETS_FILE"
 
-      - name: Deploy all preview Workers
-        id: deploy
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
-          INSECUR_DEPLOY_SHA: ${{ github.sha }}
-          INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
-          INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
-          INSECUR_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
-          INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
-          INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
-          INSECUR_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID }}
-          INSECUR_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID }}
-          INSECUR_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID }}
-          INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID }}
-          INSECUR_RUNTIME_ROOT_KEY_STORE_ID: ${{ vars.PREVIEW_RUNTIME_ROOT_KEY_STORE_ID }}
-          INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME: ${{ vars.PREVIEW_RUNTIME_ROOT_KEY_SECRET_NAME }}
-          INSECUR_RUNTIME_HYPERDRIVE_ID: ${{ vars.PREVIEW_HYPERDRIVE_ID }}
-        run: |
+          chmod 600 "$INSECUR_RUNTIME_SECRETS_FILE" "$INSECUR_API_SECRETS_FILE" "$INSECUR_WEB_SECRETS_FILE"
+
           pnpm deploy:preview
           echo "base_url=https://app.preview.insecur.cloud" >> "$GITHUB_OUTPUT"
 
