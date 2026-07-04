@@ -6,7 +6,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 config="${repo_root}/.gitleaks.toml"
 source_config="${repo_root}/docs/agents/workflow/config.md"
 probe_line="$(printf '%s%s%s' \
-  '- [gitleaks-probe `5617445a-3891-4c44-889d-296aee6e4828` const api_key = "' \
+  '- [gitleaks-probe `11111111-2222-4333-8444-555555555555` const api_key = "' \
   'sk-probe-' \
   'abcdefghijklmnopqrstuvwxyz1234567890";')"
 

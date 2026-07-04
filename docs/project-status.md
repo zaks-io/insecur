@@ -31,9 +31,10 @@ What is delivered:
 - The shared Cloudflare preview deploy path is package-level Turbo deploys for Runtime,
   API, Web, and Site. The intended preview URLs are `https://api.preview.insecur.cloud`,
   `https://app.preview.insecur.cloud`, and `https://preview.insecur.cloud`; Runtime has
-  no public route.
-- The nonprod root key in Cloudflare Secrets Store has been regenerated, escrowed in
-  Bitwarden, and verified through the deployed preview smoke.
+  no public route. Private Worker IDs are supplied by Preview/Production GitHub
+  Environment variables during deploy, not committed Wrangler config.
+- The nonprod root key in Cloudflare Secrets Store has been regenerated, escrowed in an
+  operator vault, and verified through the deployed preview smoke.
 
 What is not delivered:
 
@@ -47,7 +48,7 @@ What is not delivered:
   been deployed to and verified against preview.
 - No authenticated CLI success transcript against the deployed preview exists yet.
 - No production decrypt path was exercised in this verification pass.
-- The Bitwarden escrow evidence is recovery evidence, but not launch-grade
+- The operator-vault escrow evidence is recovery evidence, but not launch-grade
   out-of-band access-log evidence unless it is moved to or backed by an organization
   vault with event logs.
 
@@ -97,7 +98,7 @@ Results:
 
 Hosted preview verification before the local PKCE code change:
 
-- GitHub run: <https://github.com/zaks-io/insecur/actions/runs/28387807893>
+- GitHub run: recorded in private release evidence.
 - Workflow: `Deploy Preview`
 - Ref: `main`
 - Commit: `e1c1dd4179a1f6536e6ef2f6b75373ff488ed675`
@@ -106,14 +107,13 @@ Hosted preview verification before the local PKCE code change:
 - Smoke input: `true`
 - Runtime deployed: `insecur-runtime-preview`
 - API deployed: `insecur-api-preview`
-- Runtime binding resolved:
-  `INSTANCE_ROOT_KEY_V1 -> eb5941d60ebe470c95af9c8eb26cf874/INSECUR_NONPROD_INSTANCE_ROOT_KEY_V1`
+- Runtime binding resolved to the nonprod root-key Secrets Store binding.
 - `/healthz` passed 3 consecutive checks.
 - First Value smoke returned `{"ok":true,"smoke":"first-value-loop",...}`.
 
 Preview CLI verification attempt:
 
-- Target at the time: `https://insecur-api-preview.isaac-a46.workers.dev`
+- Target at the time: the deployed preview API Worker URL.
 - Current API preview URL: `https://api.preview.insecur.cloud`
 - `pnpm --filter @insecur/cli start --host <preview> --json --help` passed and
   listed the implemented CLI commands.
@@ -146,12 +146,11 @@ local and verified by tests/build, but not yet deployed to preview.
 
 Human evidence recorded:
 
-- Bitwarden escrow items are visible as `Insecur Non Prod Root Key` and
-  `Insecur Prod Root Key`.
+- Root-key escrow items are visible in the operator vault.
 - Cloudflare Secrets Store shows nonprod and prod instance root-key secrets as active.
 - Cloudflare audit UI shows a Secrets Store secret update at `2026-06-29 09:00:15`,
-  actor `isaac@zaks.io`, action `update`, resource `secrets_store / stores.secrets`,
-  source `dash`.
+  actor recorded in private release evidence, action `update`, resource
+  `secrets_store / stores.secrets`, source `dash`.
 
 ## Delivered Code Surface
 
@@ -334,16 +333,16 @@ Nonprod custody status:
 
 - `INSTANCE_ROOT_KEY_V1` is bound on the Runtime Worker only.
 - Cloudflare Secrets Store item: nonprod instance root key.
-- Store ID: `eb5941d60ebe470c95af9c8eb26cf874`
+- Store ID: recorded in private release evidence.
 - The regenerated value was verified by deployed preview smoke.
-- The escrow copy exists in Bitwarden.
+- The escrow copy exists in the operator vault.
 
 Remaining custody gap:
 
-- Bitwarden access logging has not been verified. This is acceptable for pre-live
+- Operator-vault access logging has not been verified. This is acceptable for pre-live
   nonprod recovery evidence, but it is not enough for a launch gate that requires
   out-of-band escrow access logs.
-- The production root key secret and Bitwarden item are visible in screenshots, but the
+- The production root key secret and operator-vault item are visible in screenshots, but the
   production decrypt path was not exercised.
 
 ### Runtime Injection

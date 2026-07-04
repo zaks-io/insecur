@@ -108,7 +108,7 @@ jobs:
           pnpm conformance:packages
           pnpm conformance:site-boundary
           pnpm conformance:cli-release-boundary
-          pnpm test:security-reporting
+          pnpm test:scripts
           pnpm exec turbo run lint typecheck test "${cache_flags}"
 
       - name: Workflow config checks

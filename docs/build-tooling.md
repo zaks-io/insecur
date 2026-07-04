@@ -194,7 +194,8 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "duplicates:ci": "pnpm duplicates:check",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
     "knip": "knip",
-    "test": "pnpm test:security-reporting && turbo run test --cache=local:rw,remote:r",
+    "test:scripts": "node --test scripts/*.test.mjs scripts/ci/*.test.mjs",
+    "test": "pnpm test:scripts && turbo run test --cache=local:rw,remote:r",
     "test:coverage": "turbo run build --cache=local:rw,remote:r && vitest run --coverage --config vitest.coverage.config.ts",
     "test:rls": "turbo run test:rls",
     "test:e2e": "turbo run test:e2e",
@@ -203,7 +204,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci:check": "pnpm verify",
-    "verify": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm format:check && pnpm test:security-reporting && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:scripts && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
   },
 }
@@ -567,7 +568,7 @@ pnpm conformance:actions-pin
 pnpm conformance:topology
 pnpm conformance:packages
 pnpm conformance:site-boundary
-pnpm test:security-reporting
+pnpm test:scripts
 pnpm exec turbo run lint typecheck test --cache=local:rw,remote:<r|rw>
 ```
 

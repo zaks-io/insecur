@@ -21,12 +21,13 @@
   },
   // Production instance root key (ADR-0028). This is the ONLY deploy that declares the root-key
   // binding. Secret material lives in Cloudflare Secrets Store — never as a wrangler secret or in
-  // git. store_id is the 32-hex store ID.
+  // git. The committed IDs below are public placeholders; Preview/Production GitHub Environment
+  // variables supply the live store and Hyperdrive IDs during deploy.
   "secrets_store_secrets": [
     {
       "binding": "INSTANCE_ROOT_KEY_V1",
-      "store_id": "eb5941d60ebe470c95af9c8eb26cf874",
-      "secret_name": "INSECUR_PROD_INSTANCE_ROOT_KEY_V1",
+      "store_id": "00000000000000000000000000000001",
+      "secret_name": "INSECUR_PUBLIC_PRODUCTION_ROOT_KEY_PLACEHOLDER_V1",
     },
   ],
   // Hyperdrive binding to the Instance's Postgres (ADR-0036). This is the provisioned `insecur-prod`
@@ -35,7 +36,7 @@
   "hyperdrive": [
     {
       "binding": "DB",
-      "id": "06b87227f97f4cabb9af42c11855f5ca",
+      "id": "00000000000000000000000000000002",
     },
   ],
   // Preview environment override for the shared preview deploy. PR workflows must not patch this
@@ -47,14 +48,14 @@
       "secrets_store_secrets": [
         {
           "binding": "INSTANCE_ROOT_KEY_V1",
-          "store_id": "eb5941d60ebe470c95af9c8eb26cf874",
-          "secret_name": "INSECUR_NONPROD_INSTANCE_ROOT_KEY_V1",
+          "store_id": "00000000000000000000000000000003",
+          "secret_name": "INSECUR_PUBLIC_PREVIEW_ROOT_KEY_PLACEHOLDER_V1",
         },
       ],
       "hyperdrive": [
         {
           "binding": "DB",
-          "id": "b44845027d2e40328efcbdd20bb9ea21",
+          "id": "00000000000000000000000000000004",
         },
       ],
     },
