@@ -1,4 +1,5 @@
 import { sentryBrowserConfigScript } from "@insecur/observability";
+import { Button, SiteHeader, SiteShell, Wordmark } from "@insecur/ui";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactNode } from "react";
@@ -26,13 +27,24 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <header className="site-header">
-          <a href="/">insecur</a>
-          <nav>
-            <a href="/whoami">Whoami proof</a>
-          </nav>
-        </header>
-        <main>{children}</main>
+        <SiteShell
+          header={
+            <SiteHeader
+              brand={
+                <a href="/" className="inline-flex items-center text-foreground no-underline">
+                  <Wordmark />
+                </a>
+              }
+              nav={
+                <Button asChild variant="outline" size="sm">
+                  <a href="/whoami">Whoami proof</a>
+                </Button>
+              }
+            />
+          }
+        >
+          {children}
+        </SiteShell>
         {sentryScript ? (
           <script nonce={context?.nonce} dangerouslySetInnerHTML={{ __html: sentryScript }} />
         ) : null}

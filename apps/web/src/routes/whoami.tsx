@@ -1,3 +1,4 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@insecur/ui";
 import { createFileRoute } from "@tanstack/react-router";
 import { loadWhoamiProof } from "../server/whoami";
 
@@ -11,35 +12,46 @@ function WhoamiPage() {
 
   if (!proof.authenticated) {
     return (
-      <section className="panel">
-        <h1>Session proof</h1>
-        <p>
-          No admitted browser session was found. Sign in through WorkOS to exercise the BFF hop.
-        </p>
+      <section className="px-5 py-10 sm:px-8 sm:py-12">
+        <Card className="max-w-3xl">
+          <CardHeader>
+            <CardTitle>Session proof</CardTitle>
+            <CardDescription>No admitted browser session was found.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Sign in through WorkOS to exercise the BFF hop.</p>
+          </CardContent>
+        </Card>
       </section>
     );
   }
 
   return (
-    <section className="panel">
-      <h1>Session proof</h1>
-      <p>
-        This page was rendered by the BFF after a private Service Binding call to{" "}
-        <code>/v1/session/whoami</code> on <code>insecur-api</code>. No API bearer token reached the
-        browser.
-      </p>
-      <dl className="proof-grid">
-        <dt>Actor type</dt>
-        <dd>{proof.actorType}</dd>
-        <dt>User ID</dt>
-        <dd>
-          <code>{proof.userId}</code>
-        </dd>
-        <dt>Session ID</dt>
-        <dd>
-          <code>{proof.sessionId}</code>
-        </dd>
-      </dl>
+    <section className="px-5 py-10 sm:px-8 sm:py-12">
+      <Card className="max-w-3xl">
+        <CardHeader>
+          <CardTitle>Session proof</CardTitle>
+          <CardDescription>
+            Rendered by the BFF after a private Service Binding call to{" "}
+            <code>/v1/session/whoami</code> on <code>insecur-api</code>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-6">
+          <p>No API bearer token reached the browser.</p>
+          <dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-2">
+            <dt className="font-semibold">Actor type</dt>
+            <dd>{proof.actorType}</dd>
+            <dt className="font-semibold">User ID</dt>
+            <dd>
+              <code>{proof.userId}</code>
+            </dd>
+            <dt className="font-semibold">Session ID</dt>
+            <dd>
+              <code>{proof.sessionId}</code>
+            </dd>
+          </dl>
+        </CardContent>
+      </Card>
     </section>
   );
 }
