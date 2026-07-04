@@ -35,6 +35,13 @@ function requirePolicyId(
   });
 }
 
+function resolveRunProfileId(input: {
+  readonly flags: GlobalCliFlags;
+  readonly context: ResolvedCliContext;
+}): CliProfileId | undefined {
+  return input.flags.profileId ?? input.context.scope.profileId;
+}
+
 function resolveProfileRunSelector(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
@@ -72,7 +79,10 @@ function hasProfileBackedRunMode(input: {
   }
 
   const scopeProfileSlug = input.context.scope.profileSlug;
-  return scopeProfileSlug !== undefined && scopeProfileSlug !== "";
+  const scopeProfileId = input.context.scope.profileId;
+  return (
+    (scopeProfileSlug !== undefined && scopeProfileSlug !== "") || scopeProfileId !== undefined
+  );
 }
 
 export function resolveProfileRunInput(input: {
@@ -83,10 +93,11 @@ export function resolveProfileRunInput(input: {
 }): ResolvedProfileRunInput {
   const userConfig: CliUserConfig = input.context.userConfig;
   const profileSelector = resolveProfileRunSelector(input);
+  const profileId = resolveRunProfileId(input);
   const resolvedProfile = resolveProfile(
     userConfig,
     {
-      ...(input.flags.profileId === undefined ? {} : { profileId: input.flags.profileId }),
+      ...(profileId === undefined ? {} : { profileId }),
       ...(profileSelector === undefined ? {} : { selector: profileSelector }),
     },
     { required: true },
