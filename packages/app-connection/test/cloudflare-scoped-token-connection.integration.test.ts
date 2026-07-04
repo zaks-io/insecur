@@ -42,7 +42,7 @@ import {
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const ORG_B = organizationId.brand(TEST_ORG_B_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
-const PROJECT_A_ALT = projectId.brand("prj_01JZ8CPRJ2R7M4T0V9X3C5D8F1G");
+const PROJECT_A_ALT = projectId.brand("prj_01JZ8ALT2R7M4T0V9X3C5D8F1G");
 const CONN_CF = appConnectionId.brand("conn_01JZ8CFH2R7M4T0V9X3C5D8F1G");
 const CONN_CF_B = appConnectionId.brand("conn_01JZ8CGK5Q2R7V0X3Z6C9D1F4H");
 const CONN_CF_C = appConnectionId.brand("conn_01JZ8CJK9M5S8W1Y4A7E0G3I6H");
@@ -101,7 +101,7 @@ async function seedOrgAAlternateProject(): Promise<void> {
       organizationId: TEST_ORG_A_ID,
       projectId: PROJECT_A_ALT,
       organizationDataKeyId: "odk_00000000000000000000000001",
-      projectDataKeyId: "pdk_01JZ8CPRJ2R7M4T0V9X3C5D8F1G",
+      projectDataKeyId: "pdk_01JZ8ALT2R7M4T0V9X3C5D8F1G",
     });
   });
 }
