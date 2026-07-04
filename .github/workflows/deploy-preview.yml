@@ -173,7 +173,7 @@ jobs:
           SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
           SMOKE_SITE_BASE_URL: https://preview.insecur.cloud
           SMOKE_EXPECTED_DEPLOY_SHA: ${{ github.sha }}
-          SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.PREVIEW_SMOKE_SESSION_SIGNING_SECRET || secrets.SMOKE_SESSION_SIGNING_SECRET }}
+          SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
           SMOKE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_ADMITTED_USER_ID }}
           SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}
           SMOKE_INVITEE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_ADMITTED_USER_ID }}
@@ -203,6 +203,6 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           LINEAR_PREVIEW_SMOKE_LABELS: ${{ vars.LINEAR_PREVIEW_SMOKE_LABELS }}
           LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED: ${{ vars.LINEAR_PREVIEW_SMOKE_REPORTING_ENABLED }}
-          LINEAR_TEAM_KEY: Insecur
+          LINEAR_TEAM_KEY: ${{ vars.LINEAR_TEAM_KEY || 'INS' }}
           PREVIEW_SMOKE_EVIDENCE_PATH: preview-smoke-evidence/evidence.json
         run: node scripts/ci/preview-smoke-linear-reporting.mjs

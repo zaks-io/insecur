@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -269,6 +269,26 @@ test("selects preview deploy secrets files by worker without affecting dry-runs"
     ),
     ["deploy", "--env", "preview", "--dry-run"],
   );
+});
+
+test("preview deploy Turbo tasks pass through secrets-file env vars", async () => {
+  const turbo = JSON.parse(await readFile(new URL("../turbo.json", import.meta.url), "utf8"));
+  const required = [
+    "INSECUR_RUNTIME_SECRETS_FILE",
+    "INSECUR_API_SECRETS_FILE",
+    "INSECUR_WEB_SECRETS_FILE",
+  ];
+  const tasks = ["deploy:preview", "@insecur/api#deploy:preview", "@insecur/web#deploy:preview"];
+
+  for (const taskName of tasks) {
+    const passThroughEnv = turbo.tasks[taskName]?.passThroughEnv ?? [];
+    for (const envName of required) {
+      assert.ok(
+        passThroughEnv.includes(envName),
+        `${taskName} must pass ${envName} through Turbo strict env filtering`,
+      );
+    }
+  }
 });
 
 function apiConfig() {

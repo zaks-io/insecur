@@ -614,8 +614,9 @@ temporary per-Worker `--secrets-file` inputs so Cloudflare receives encrypted Wo
 the deployed Worker version: `RUNTIME_TOKEN_SIGNING_SECRET` to Runtime, and
 `RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
 `WORKOS_COOKIE_PASSWORD` to API/Web according to each deploy's binding needs. The root script
-excludes non-app packages, so a full deploy covers every Worker app while targeted deploys use
-ordinary Turbo filters:
+excludes non-app packages, and `turbo.json` passes the temporary secrets-file paths through strict
+env filtering for preview deploy tasks. A full deploy covers every Worker app while targeted
+deploys use ordinary Turbo filters:
 
 ```sh
 pnpm deploy:preview --filter @insecur/web
@@ -630,8 +631,10 @@ Preview routes are fixed custom domains:
 
 The preview application smoke requires `SMOKE_API_BASE_URL`, `SMOKE_WEB_BASE_URL`,
 `SMOKE_SITE_BASE_URL`, `SMOKE_EXPECTED_DEPLOY_SHA`, `PREVIEW_DATABASE_URL_MIGRATION`,
-`SMOKE_SESSION_SIGNING_SECRET`, and owner/invitee smoke actor IDs. The smoke mints short-lived
-session credentials during the run; Web preview accepts them only through the
+`SMOKE_SESSION_SIGNING_SECRET`, and owner/invitee smoke actor IDs. In CI,
+`SMOKE_SESSION_SIGNING_SECRET` is populated from the same `SESSION_SIGNING_SECRET` deployed to API
+and Web. The smoke mints short-lived session credentials during the run; Web preview accepts them
+only through the
 `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview Worker var, so CI never stores an expiring browser
 session cookie. It writes `preview-smoke-evidence/evidence.json` and appends a GitHub summary with
 deployed Worker identities, smoke resource IDs, checked happy paths, and the plaintext sweep result.
