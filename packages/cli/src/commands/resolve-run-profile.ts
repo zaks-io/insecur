@@ -35,10 +35,6 @@ function requirePolicyId(
   });
 }
 
-function resolveProjectProfileId(context: ResolvedCliContext): CliProfileId | undefined {
-  return context.scope.profileId ?? context.projectConfig?.profileId;
-}
-
 function resolveProfileRunSelection(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
@@ -53,12 +49,17 @@ function resolveProfileRunSelection(input: {
     return { selector: explicitSelector };
   }
 
+  const scopeProfileId = input.context.scope.profileId;
+  if (scopeProfileId !== undefined) {
+    return { profileId: scopeProfileId };
+  }
+
   const scopeProfileSlug = input.context.scope.profileSlug;
   if (scopeProfileSlug !== undefined && scopeProfileSlug !== "") {
     return { selector: scopeProfileSlug };
   }
 
-  const projectProfileId = resolveProjectProfileId(input.context);
+  const projectProfileId = input.context.projectConfig?.profileId;
   if (projectProfileId !== undefined) {
     return { profileId: projectProfileId };
   }
@@ -78,11 +79,16 @@ function hasExplicitProfileRunSelection(input: {
 }
 
 function hasAmbientProfileRunSelection(context: ResolvedCliContext): boolean {
+  if (context.scope.profileId !== undefined) {
+    return true;
+  }
+
   const scopeProfileSlug = context.scope.profileSlug;
   if (scopeProfileSlug !== undefined && scopeProfileSlug !== "") {
     return true;
   }
-  return resolveProjectProfileId(context) !== undefined;
+
+  return context.projectConfig?.profileId !== undefined;
 }
 
 function hasProfileBackedRunMode(input: {

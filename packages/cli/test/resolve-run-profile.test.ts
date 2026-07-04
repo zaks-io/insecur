@@ -1,15 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   assertRunModeExclusive,
   resolveProfileRunInput,
 } from "../src/commands/resolve-run-profile.js";
 import type { GlobalCliFlags } from "../src/cli-options.js";
+import { loadAndResolveCliContext } from "../src/config/load-cli-context.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
+import { PROJECT_CONFIG_FILE, USER_CONFIG_FILE } from "../src/config/paths.js";
+import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const ORG_ID = "org_01TEST00000000000000000001";
 const PROJECT_ID = "prj_01TEST00000000000000000001";
-const ENV_ID = "env_01TEST0000000000000000001";
+const ENV_ID = "env_01TEST00000000000000000001";
 const PROFILE_ID = "prof_01TEST00000000000000000001";
 const OTHER_PROFILE_ID = "prof_01TEST00000000000000000002";
 const POLICY_ID = "rp_01TEST00000000000000000001";
@@ -111,6 +117,21 @@ describe("resolveProfileRunInput project profile selection", () => {
     expect(resolved.profileSlug).toBe("local-dev");
   });
 
+  it("prefers scope.profileId over a conflicting ambient profile slug", () => {
+    const resolved = resolveProfileRunInput({
+      flags,
+      context: createContext({
+        scope: {
+          profileId: PROFILE_ID as never,
+          profileSlug: "staging",
+        },
+      }),
+    });
+
+    expect(resolved.profileId).toBe(PROFILE_ID);
+    expect(resolved.profileSlug).toBe("local-dev");
+  });
+
   it("prefers an explicit positional profile over the ambient project profile id", () => {
     const resolved = resolveProfileRunInput({
       flags,
@@ -134,7 +155,78 @@ describe("resolveProfileRunInput project profile selection", () => {
   });
 });
 
+describe("resolveProfileRunInput project .insecur.json scope binding", () => {
+  let isolatedHome: Awaited<ReturnType<typeof createIsolatedHome>> | undefined;
+  let projectDir: string | undefined;
+
+  afterEach(() => {
+    isolatedHome?.restore();
+    isolatedHome = undefined;
+    projectDir = undefined;
+  });
+
+  it("loads scope.profileId from project .insecur.json for profile-backed run", async () => {
+    isolatedHome = await createIsolatedHome("insecur-cli-run-profile-home-");
+    projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-run-profile-project-"));
+    await writeFile(
+      path.join(projectDir, PROJECT_CONFIG_FILE),
+      `${JSON.stringify(
+        {
+          host: flags.host,
+          orgId: ORG_ID,
+          projectId: PROJECT_ID,
+          defaultEnvId: ENV_ID,
+          profileId: PROFILE_ID,
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await mkdir(path.join(isolatedHome.homeDir, ".insecur"), { recursive: true });
+    await writeFile(
+      path.join(isolatedHome.homeDir, ".insecur", USER_CONFIG_FILE),
+      `${JSON.stringify({ profiles: userConfig.profiles }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const context = await loadAndResolveCliContext({
+      ...flags,
+      configDir: projectDir,
+    });
+
+    expect(context.scope.profileId).toBe(PROFILE_ID);
+    expect(() =>
+      assertRunModeExclusive({
+        flags: { ...flags, configDir: projectDir },
+        context,
+      }),
+    ).not.toThrow();
+
+    const resolved = resolveProfileRunInput({
+      flags: { ...flags, configDir: projectDir },
+      context,
+    });
+    expect(resolved.profileId).toBe(PROFILE_ID);
+    expect(resolved.profileSlug).toBe("local-dev");
+    expect(resolved.policyId).toBe(POLICY_ID);
+  });
+});
+
 describe("assertRunModeExclusive project profile selection", () => {
+  it("allows profile-backed run when only scope.profileId is present", () => {
+    expect(() =>
+      assertRunModeExclusive({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+      }),
+    ).not.toThrow();
+  });
+
   it("allows profile-backed run when only projectConfig.profileId is present", () => {
     expect(() =>
       assertRunModeExclusive({
@@ -148,6 +240,20 @@ describe("assertRunModeExclusive project profile selection", () => {
             profileId: PROFILE_ID as never,
           },
         }),
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows --variable-key when only scope.profileId supplies ambient defaults", () => {
+    expect(() =>
+      assertRunModeExclusive({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        variableKey: "API_KEY",
       }),
     ).not.toThrow();
   });
