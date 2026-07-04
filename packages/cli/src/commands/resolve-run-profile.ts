@@ -131,6 +131,31 @@ export function splitRunCommandArgs(args: readonly string[]): {
   return { command: args };
 }
 
+export function parseRunCommandArgv(input: {
+  readonly positionalProfile?: string;
+  readonly args: readonly string[];
+}): {
+  readonly profileSelector?: string;
+  readonly command: readonly string[];
+} {
+  const split = splitRunCommandArgs(input.args);
+  const positionalProfile =
+    input.positionalProfile === undefined || input.positionalProfile === ""
+      ? undefined
+      : input.positionalProfile;
+  const profileSelector = positionalProfile ?? split.profileSelector;
+  const command =
+    positionalProfile !== undefined &&
+    split.profileSelector === undefined &&
+    split.command[0] === positionalProfile
+      ? split.command.slice(1)
+      : split.command;
+  return {
+    ...(profileSelector === undefined ? {} : { profileSelector }),
+    command,
+  };
+}
+
 export function assertRunModeExclusive(input: {
   readonly variableKey?: string;
   readonly flags: GlobalCliFlags;

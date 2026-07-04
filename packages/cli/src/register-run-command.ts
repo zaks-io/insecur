@@ -1,5 +1,6 @@
 import type { Command, Command as CommanderCommand } from "commander";
-import { runRunCommand, splitRunCommandArgs } from "./commands/run.js";
+import { runRunCommand } from "./commands/run.js";
+import { parseRunCommandArgv } from "./commands/resolve-run-profile.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 
 export function registerRunCommand(
@@ -22,18 +23,23 @@ export function registerRunCommand(
     .option("--policy-id <id>", "runtime injection policy id (overrides profile default)")
     .allowUnknownOption()
     .allowExcessArguments()
-    .action(async function runAction(profileArg: string | undefined, command: CommanderCommand) {
+    .action(async function runAction(
+      profileArg: string | undefined,
+      _options: unknown,
+      command: CommanderCommand,
+    ) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{ variableKey?: string; policyId?: string }>();
-      const split = splitRunCommandArgs(command.args);
-      const profileSelector =
-        profileArg !== undefined && profileArg !== "" ? profileArg : split.profileSelector;
+      const parsed = parseRunCommandArgv({
+        ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
+        args: command.args,
+      });
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runRunCommand(flags, api, context, {
         ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
         ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
-        ...(profileSelector === undefined ? {} : { profileSelector }),
-        command: split.command,
+        ...(parsed.profileSelector === undefined ? {} : { profileSelector: parsed.profileSelector }),
+        command: parsed.command,
       });
     });
 }
