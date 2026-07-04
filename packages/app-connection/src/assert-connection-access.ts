@@ -21,7 +21,7 @@ async function assertConnectionScope(
   if (!hasAuthorizationScope(effectiveAccess, requiredScope)) {
     throw new AppConnectionError(
       AUTH_ERROR_CODES.insufficientScope,
-      "connection management scope required",
+      `${requiredScope} scope required`,
     );
   }
 }

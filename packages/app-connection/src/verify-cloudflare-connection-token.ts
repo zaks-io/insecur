@@ -35,13 +35,18 @@ export async function verifyCloudflareConnectionToken(
       allowedWorkerScript: input.boundary.allowedWorkerScript,
     });
   } catch (error) {
-    await recordConnectionValidationDenied({
-      actorUserId: input.actorUserId,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      appConnectionId: input.appConnectionId,
-      reasonCode: toConnectionAuditReasonCode(error),
-    });
+    try {
+      await recordConnectionValidationDenied({
+        actorUserId: input.actorUserId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        appConnectionId: input.appConnectionId,
+        reasonCode: toConnectionAuditReasonCode(error),
+      });
+    } catch {
+      // The provider denial and its error code are the caller's contract; an audit-store
+      // failure must not replace them.
+    }
     throw error;
   }
 }

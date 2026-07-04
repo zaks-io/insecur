@@ -9,6 +9,8 @@ interface CloudflareApiResponse<T> {
 
 type FetchFn = typeof fetch;
 
+const CLOUDFLARE_API_TIMEOUT_MS = 10_000;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -37,6 +39,7 @@ async function cloudflareGet(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
+    signal: AbortSignal.timeout(CLOUDFLARE_API_TIMEOUT_MS),
   });
   const body = (await parseJsonResponse(response)) as CloudflareApiResponse<
     Record<string, unknown>
@@ -102,10 +105,13 @@ export async function verifyCloudflareWorkerScriptBoundary(
   allowedAccountId: string,
   allowedWorkerScript: string,
 ): Promise<boolean> {
-  const scriptBody = await cloudflareGet(
+  // The bare script route returns raw script content, not a JSON envelope; the settings
+  // subresource is the JSON metadata endpoint. Reaching it proves the token can access this
+  // script in this account, so a success envelope is the boundary proof.
+  await cloudflareGet(
     fetchFn,
     token,
-    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(allowedAccountId)}/workers/scripts/${encodeURIComponent(allowedWorkerScript)}`,
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(allowedAccountId)}/workers/scripts/${encodeURIComponent(allowedWorkerScript)}/settings`,
   ).catch(() => {
     throw new AppConnectionError(
       APP_CONNECTION_ERROR_CODES.boundaryMismatch,
@@ -113,12 +119,5 @@ export async function verifyCloudflareWorkerScriptBoundary(
     );
   });
 
-  const workerScriptReachable = readString(scriptBody.result ?? {}, "id") === allowedWorkerScript;
-  if (!workerScriptReachable) {
-    throw new AppConnectionError(
-      APP_CONNECTION_ERROR_CODES.boundaryMismatch,
-      "cloudflare worker script is not reachable with the provided token",
-    );
-  }
   return true;
 }
