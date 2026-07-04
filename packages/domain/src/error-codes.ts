@@ -104,6 +104,7 @@ export type OnboardingErrorCode =
 /** Environment lifecycle and posture validation failures. */
 export const ENVIRONMENT_ERROR_CODES = {
   invalidLifecycleStage: "environment.invalid_lifecycle_stage",
+  nonProtectedEnvironment: "environment.non_protected_environment",
   protectedEnvironment: "environment.protected_environment",
   lifecycleImmutable: "environment.lifecycle_immutable",
   previewOptDownInvalid: "environment.preview_opt_down_invalid",

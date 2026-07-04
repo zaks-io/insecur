@@ -8,6 +8,7 @@ import {
   type SecretVersionId,
 } from "@insecur/domain";
 import {
+  SecretVersionStoreConflictError,
   TenantSecretVersionStore,
   withTenantScope,
   type TenantScopedDb,
@@ -40,10 +41,21 @@ async function decryptResolvedVersion(
   },
   db: TenantScopedDb,
 ): Promise<PlaintextHandle> {
-  const version = await new TenantSecretVersionStore(db).getVersionById(
-    input.secretId,
-    input.secretVersionId,
-  );
+  let version;
+  try {
+    version = await new TenantSecretVersionStore(db).getDeliverableVersion(
+      input.secretId,
+      input.secretVersionId,
+    );
+  } catch (error) {
+    if (error instanceof SecretVersionStoreConflictError) {
+      throw new InjectionGrantError(
+        INJECTION_ERROR_CODES.grantDenied,
+        "bound secret version not deliverable",
+      );
+    }
+    throw error;
+  }
   if (!version) {
     throw new InjectionGrantError(
       INJECTION_ERROR_CODES.grantDenied,

@@ -192,6 +192,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
             orgId: ORG,
             secretId: secretIdValue,
             versionNumber: 1,
+            lifecycleState: "live",
             organizationDataKeyVersion: null,
             projectDataKeyVersion: null,
             ciphertextStorageRef: encodeInlineCiphertextStorageRef(new Uint8Array([1])),
@@ -215,6 +216,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
             orgId: ORG,
             secretId: secretIdValue,
             versionNumber: 2,
+            lifecycleState: "live",
             organizationDataKeyVersion: 1,
             projectDataKeyVersion: 1,
             ciphertextStorageRef: storageRef,
@@ -246,6 +248,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
       },
     });
     expect(result.versionNumber).toBe(3);
+    expect(result.lifecycleState).toBe("live");
     expect(insertValues[0]?.versionNumber).toBe(3);
   });
 
@@ -278,6 +281,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
             orgId: ORG,
             secretId: secretIdValue,
             versionNumber: 1,
+            lifecycleState: "live",
             organizationDataKeyVersion: 1,
             projectDataKeyVersion: 1,
             ciphertextStorageRef: storageRef,

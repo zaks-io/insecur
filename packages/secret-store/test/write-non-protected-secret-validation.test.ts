@@ -35,14 +35,19 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   };
 });
 
-vi.mock("../src/record-secret-write-audit.js", () => ({
-  recordSecretWriteAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+vi.mock("../src/record-secret-storage-write-audit.js", () => ({
+  recordSecretStorageWriteAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  recordDeniedSecretStorageWriteAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { recordSecretWriteAudit } from "../src/record-secret-write-audit.js";
+import {
+  recordDeniedSecretStorageWriteAudit,
+  recordSecretStorageWriteAudit,
+} from "../src/record-secret-storage-write-audit.js";
 
 const encryptMock = vi.mocked(encryptSecretValue);
-const auditMock = vi.mocked(recordSecretWriteAudit);
+const auditMock = vi.mocked(recordSecretStorageWriteAudit);
+const deniedAuditMock = vi.mocked(recordDeniedSecretStorageWriteAudit);
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -118,6 +123,7 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
   beforeEach(() => {
     encryptMock.mockReset();
     auditMock.mockClear();
+    deniedAuditMock.mockClear();
     mockWritableEnvironment();
     mockResolveSecretForWrite();
     encryptMock.mockResolvedValue({
@@ -139,13 +145,14 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
     });
 
     expect(encryptMock).not.toHaveBeenCalled();
-    expect(auditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outcome: "denied",
-        reasonCode: SECRET_ERROR_CODES.invalidEncoding,
-      }),
-    );
-    expect(JSON.stringify(auditMock.mock.calls)).not.toContain("c2");
+    expect(deniedAuditMock).toHaveBeenCalledWith({
+      kind: "non_protected",
+      actor: ACTOR,
+      scope: [ORG, PROJECT, ENV],
+      refs: [undefined, undefined, undefined],
+      reasonCode: SECRET_ERROR_CODES.invalidEncoding,
+    });
+    expect(JSON.stringify(deniedAuditMock.mock.calls)).not.toContain("c2");
   });
 
   it("rejects oversized UTF-8 before encryption", async () => {
@@ -157,12 +164,13 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
     });
 
     expect(encryptMock).not.toHaveBeenCalled();
-    expect(auditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outcome: "denied",
-        reasonCode: SECRET_ERROR_CODES.valueTooLarge,
-      }),
-    );
+    expect(deniedAuditMock).toHaveBeenCalledWith({
+      kind: "non_protected",
+      actor: ACTOR,
+      scope: [ORG, PROJECT, ENV],
+      refs: [undefined, undefined, undefined],
+      reasonCode: SECRET_ERROR_CODES.valueTooLarge,
+    });
   });
 
   it("rejects implicit empty values unless allowEmpty is set", async () => {
@@ -195,13 +203,14 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
     });
 
     expect(encryptMock).not.toHaveBeenCalled();
-    expect(auditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outcome: "denied",
-        reasonCode: ENVIRONMENT_ERROR_CODES.protectedEnvironment,
-      }),
-    );
-    expect(JSON.stringify(auditMock.mock.calls)).not.toContain("ingress-bytes");
+    expect(deniedAuditMock).toHaveBeenCalledWith({
+      kind: "non_protected",
+      actor: ACTOR,
+      scope: [ORG, PROJECT, ENV],
+      refs: [undefined, undefined, undefined],
+      reasonCode: ENVIRONMENT_ERROR_CODES.protectedEnvironment,
+    });
+    expect(JSON.stringify(deniedAuditMock.mock.calls)).not.toContain("ingress-bytes");
   });
 
   it("throws SecretWriteError without echoing rejected secret bytes", async () => {

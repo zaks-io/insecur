@@ -6,10 +6,11 @@ import {
   secretId,
   secretVersionId,
 } from "@insecur/domain";
+import { SecretVersionStoreConflictError } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getVersionById, decryptSecretValueForRuntime, withTenantScope } = vi.hoisted(() => ({
-  getVersionById: vi.fn(),
+const { getDeliverableVersion, decryptSecretValueForRuntime, withTenantScope } = vi.hoisted(() => ({
+  getDeliverableVersion: vi.fn(),
   decryptSecretValueForRuntime: vi.fn(),
   withTenantScope: vi.fn(async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) =>
     fn({ db: {} }),
@@ -19,7 +20,7 @@ const { getVersionById, decryptSecretValueForRuntime, withTenantScope } = vi.hoi
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
   class MockTenantSecretVersionStore {
-    getVersionById = getVersionById;
+    getDeliverableVersion = getDeliverableVersion;
   }
   return {
     ...actual,
@@ -57,14 +58,14 @@ const baseInput = {
 };
 
 beforeEach(() => {
-  getVersionById.mockReset();
+  getDeliverableVersion.mockReset();
   decryptSecretValueForRuntime.mockReset();
   withTenantScope.mockClear();
 });
 
 describe("decryptBoundGrantSecretVersion", () => {
   it("denies when the bound secret version row is missing", async () => {
-    getVersionById.mockResolvedValue(null);
+    getDeliverableVersion.mockResolvedValue(null);
 
     await expect(decryptBoundGrantSecretVersion(baseInput)).rejects.toMatchObject({
       code: INJECTION_ERROR_CODES.grantDenied,
@@ -75,16 +76,30 @@ describe("decryptBoundGrantSecretVersion", () => {
     expect(decryptSecretValueForRuntime).not.toHaveBeenCalled();
   });
 
+  it("denies when the bound secret version is not deliverable", async () => {
+    getDeliverableVersion.mockRejectedValue(
+      new SecretVersionStoreConflictError("secret version is not deliverable"),
+    );
+
+    await expect(decryptBoundGrantSecretVersion(baseInput)).rejects.toMatchObject({
+      code: INJECTION_ERROR_CODES.grantDenied,
+      message: "bound secret version not deliverable",
+    });
+
+    expect(withTenantScope).toHaveBeenCalledWith(ORG_TENANT_SCOPE, expect.any(Function));
+    expect(decryptSecretValueForRuntime).not.toHaveBeenCalled();
+  });
+
   it("decrypts the bound secret version through the runtime keyring seam", async () => {
     const wrapped = { ciphertext: "cipher", metadata: {} };
     const plaintext = new PlaintextHandle(new TextEncoder().encode("decrypted"));
-    getVersionById.mockResolvedValue({ wrapped });
+    getDeliverableVersion.mockResolvedValue({ wrapped });
     decryptSecretValueForRuntime.mockResolvedValue(plaintext);
 
     const result = await decryptBoundGrantSecretVersion(baseInput);
 
     expect(withTenantScope).toHaveBeenCalledWith(ORG_TENANT_SCOPE, expect.any(Function));
-    expect(getVersionById).toHaveBeenCalledWith(SECRET, SECRET_VERSION);
+    expect(getDeliverableVersion).toHaveBeenCalledWith(SECRET, SECRET_VERSION);
     expect(decryptSecretValueForRuntime).toHaveBeenCalledWith(
       baseInput.keyring,
       {
