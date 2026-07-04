@@ -2,11 +2,18 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { concatBytes } from "@insecur/crypto";
 import { describe, expect, it } from "vitest";
 
 import { openBackupArtifact, sealBackupArtifact } from "../src/backup-envelope.js";
 import { validateBackupEncryptionConfig } from "../src/backup-encryption-config.js";
 import { BACKUP_EXPORT_FORMAT_MARKER } from "../src/constants.js";
+import type { BackupExportHeader } from "../src/types.js";
+import {
+  buildRecoveryCanaryExportRow,
+  findRecoveryCanaryRow,
+  verifyRecoveryCanaryFromCiphertext,
+} from "../src/recovery-canary.js";
 
 function durableRootKey(): Uint8Array {
   const root = new Uint8Array(32);
@@ -14,6 +21,24 @@ function durableRootKey(): Uint8Array {
     root[index] = index + 1;
   }
   return root;
+}
+
+function tamperBackupHeader(
+  sealed: Uint8Array,
+  mutate: (header: BackupExportHeader) => void,
+): Uint8Array {
+  const headerLength = new DataView(sealed.buffer, sealed.byteOffset + 4, 4).getUint32(0, false);
+  const headerStart = 8;
+  const headerEnd = headerStart + headerLength;
+  const header = JSON.parse(
+    new TextDecoder().decode(sealed.subarray(headerStart, headerEnd)),
+  ) as BackupExportHeader;
+  mutate(header);
+  const headerBytes = new TextEncoder().encode(JSON.stringify(header));
+  const headerLengthBytes = new Uint8Array(4);
+  new DataView(headerLengthBytes.buffer).setUint32(0, headerBytes.byteLength, false);
+  const payloadBytes = sealed.subarray(headerEnd);
+  return concatBytes(sealed.subarray(0, 4), headerLengthBytes, headerBytes, payloadBytes);
 }
 
 describe("backup envelope", () => {
@@ -79,6 +104,69 @@ describe("backup envelope", () => {
         sealedBytes: sealed,
       }),
     ).rejects.toThrow();
+  });
+
+  it("rejects tampered root key version metadata in the backup header", async () => {
+    const rootKeyBytes = durableRootKey();
+    const instanceId = "inst_tamper_root_key_version";
+    const sealed = await sealBackupArtifact({
+      instanceId,
+      exportTimestamp: "2026-07-04T00:00:00.000Z",
+      rootKeyBytes,
+      jsonlPayload: new TextEncoder().encode("{}\n"),
+      organizationSnapshots: [
+        { organization_id: "org_test", snapshot_at: "2026-07-04T00:00:00.000Z" },
+      ],
+    });
+    const tampered = tamperBackupHeader(sealed, (header) => {
+      header.root_key_version = header.root_key_version + 1;
+    });
+
+    await expect(
+      openBackupArtifact({ instanceId, rootKeyBytes, sealedBytes: tampered }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects tampered organization snapshot metadata in the backup header", async () => {
+    const rootKeyBytes = durableRootKey();
+    const instanceId = "inst_tamper_org_snapshots";
+    const sealed = await sealBackupArtifact({
+      instanceId,
+      exportTimestamp: "2026-07-04T00:00:00.000Z",
+      rootKeyBytes,
+      jsonlPayload: new TextEncoder().encode("{}\n"),
+      organizationSnapshots: [
+        { organization_id: "org_test", snapshot_at: "2026-07-04T00:00:00.000Z" },
+      ],
+    });
+    const tampered = tamperBackupHeader(sealed, (header) => {
+      header.organization_snapshots = [
+        { organization_id: "org_forged", snapshot_at: "2026-07-04T00:00:00.000Z" },
+      ];
+    });
+
+    await expect(
+      openBackupArtifact({ instanceId, rootKeyBytes, sealedBytes: tampered }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("recovery canary scope", () => {
+  it("rejects rows with mismatched tenant scope metadata", async () => {
+    const rootKeyBytes = durableRootKey();
+    const row = await buildRecoveryCanaryExportRow(rootKeyBytes);
+    const mismatchedRow = { ...row, organization_id: "org_wrong_scope" };
+    const jsonlPayload = new TextEncoder().encode(`${JSON.stringify(mismatchedRow)}\n`);
+
+    expect(findRecoveryCanaryRow(jsonlPayload)).toBeNull();
+
+    const verification = await verifyRecoveryCanaryFromCiphertext({
+      rootKeyBytes,
+      row: mismatchedRow,
+      checkedAt: "2026-07-04T00:00:00.000Z",
+      instanceId: "inst_scope_mismatch",
+    });
+    expect(verification.status).toBe("failed");
   });
 });
 

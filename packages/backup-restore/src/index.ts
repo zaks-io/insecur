@@ -23,6 +23,7 @@ export {
   buildRecoveryCanaryExportRow,
   findRecoveryCanaryRow,
   recoveryCanaryCiphertextIdentity,
+  recoveryCanaryExportRowMatchesScope,
   recoveryCanaryScope,
   verifyRecoveryCanaryFromCiphertext,
   verifyRecoveryCanaryPlaintext,

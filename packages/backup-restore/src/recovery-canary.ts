@@ -39,6 +39,16 @@ export function recoveryCanaryCiphertextIdentity(): SecretCiphertextIdentity {
   };
 }
 
+export function recoveryCanaryExportRowMatchesScope(row: RecoveryCanaryExportRow): boolean {
+  return (
+    row.organization_id === RECOVERY_CANARY_ORGANIZATION_ID &&
+    row.project_id === RECOVERY_CANARY_PROJECT_ID &&
+    row.environment_id === RECOVERY_CANARY_ENVIRONMENT_ID &&
+    row.secret_id === RECOVERY_CANARY_SECRET_ID &&
+    row.variable_key === RECOVERY_CANARY_VARIABLE_KEY
+  );
+}
+
 export function verifyRecoveryCanaryPlaintext(decrypted: Uint8Array): boolean {
   const expected = recoveryCanaryPlaintextBytes();
   if (decrypted.byteLength !== expected.byteLength) {
@@ -54,14 +64,23 @@ export function verifyRecoveryCanaryPlaintext(decrypted: Uint8Array): boolean {
 
 export async function verifyRecoveryCanaryFromCiphertext(input: {
   rootKeyBytes: Uint8Array;
-  ciphertextBase64Url: string;
+  row: RecoveryCanaryExportRow;
   checkedAt: string;
   instanceId: string;
 }): Promise<RecoveryCanaryVerificationResult> {
   const scope = recoveryCanaryScope(input.instanceId);
+  if (!recoveryCanaryExportRowMatchesScope(input.row)) {
+    return {
+      status: "failed",
+      checked_at: input.checkedAt,
+      scope,
+      variable_key: RECOVERY_CANARY_VARIABLE_KEY,
+    };
+  }
+
   const keyring = createKeyring(input.rootKeyBytes);
   const identity = recoveryCanaryCiphertextIdentity();
-  const ciphertext = base64UrlToBytes(input.ciphertextBase64Url);
+  const ciphertext = base64UrlToBytes(input.row.ciphertext_b64url);
   if (!ciphertext) {
     return {
       status: "failed",
@@ -141,7 +160,7 @@ function parseRecoveryCanaryExportRow(parsed: unknown): RecoveryCanaryExportRow 
     return null;
   }
   const record = parsed as Record<string, unknown>;
-  if (record.table !== "secret_versions" || record.secret_id !== RECOVERY_CANARY_SECRET_ID) {
+  if (record.table !== "secret_versions") {
     return null;
   }
   if (
@@ -155,7 +174,7 @@ function parseRecoveryCanaryExportRow(parsed: unknown): RecoveryCanaryExportRow 
     return null;
   }
 
-  return {
+  const row: RecoveryCanaryExportRow = {
     table: "secret_versions",
     organization_id: record.organization_id,
     project_id: record.project_id,
@@ -164,4 +183,6 @@ function parseRecoveryCanaryExportRow(parsed: unknown): RecoveryCanaryExportRow 
     variable_key: record.variable_key,
     ciphertext_b64url: record.ciphertext_b64url,
   };
+
+  return recoveryCanaryExportRowMatchesScope(row) ? row : null;
 }

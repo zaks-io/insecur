@@ -143,7 +143,7 @@ export async function runLocalRestoreDrill(
 
   const canaryVerification = await verifyRecoveryCanaryFromCiphertext({
     rootKeyBytes,
-    ciphertextBase64Url: canaryRowFromPayload.ciphertext_b64url,
+    row: canaryRowFromPayload,
     checkedAt: new Date().toISOString(),
     instanceId,
   });

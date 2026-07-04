@@ -9,12 +9,58 @@ import {
 
 import { BACKUP_EXPORT_FORMAT_MARKER } from "./constants.js";
 import { collectMissingBackupHeaderFields } from "./backup-encryption-config.js";
-import type { BackupExportHeader } from "./types.js";
+import type { BackupExportHeader, BackupExportOrganizationSnapshot } from "./types.js";
 
 const BACKUP_MAGIC = new Uint8Array([0x49, 0x42, 0x4b, 0x50]);
 
-function serializeBackupAad(instanceId: string, exportTimestamp: string): Uint8Array {
-  return new TextEncoder().encode(`${instanceId}\0${exportTimestamp}`);
+interface ProtectedBackupHeaderMetadata {
+  format_marker: string;
+  instance_id: string;
+  export_timestamp: string;
+  root_key_version: number;
+  organization_snapshots: BackupExportOrganizationSnapshot[];
+}
+
+function canonicalOrganizationSnapshots(
+  snapshots: BackupExportOrganizationSnapshot[],
+): BackupExportOrganizationSnapshot[] {
+  return [...snapshots].sort((left, right) =>
+    left.organization_id.localeCompare(right.organization_id),
+  );
+}
+
+/** AAD binds restore-evidence header fields so tampered metadata fails decryption. */
+function serializeProtectedHeaderAad(metadata: ProtectedBackupHeaderMetadata): Uint8Array {
+  const canonical = JSON.stringify({
+    format_marker: metadata.format_marker,
+    instance_id: metadata.instance_id,
+    export_timestamp: metadata.export_timestamp,
+    root_key_version: metadata.root_key_version,
+    organization_snapshots: canonicalOrganizationSnapshots(metadata.organization_snapshots),
+  });
+  return new TextEncoder().encode(canonical);
+}
+
+function protectedMetadataFromHeader(header: BackupExportHeader): ProtectedBackupHeaderMetadata {
+  return {
+    format_marker: header.format_marker,
+    instance_id: header.instance_id,
+    export_timestamp: header.export_timestamp,
+    root_key_version: header.root_key_version,
+    organization_snapshots: header.organization_snapshots,
+  };
+}
+
+function protectedMetadataFromSealInput(
+  input: SealBackupArtifactInput,
+): ProtectedBackupHeaderMetadata {
+  return {
+    format_marker: BACKUP_EXPORT_FORMAT_MARKER,
+    instance_id: input.instanceId,
+    export_timestamp: input.exportTimestamp,
+    root_key_version: input.rootKeyVersion ?? DEFAULT_ROOT_KEY_VERSION,
+    organization_snapshots: input.organizationSnapshots,
+  };
 }
 
 async function importAesKey(bytes: Uint8Array): Promise<CryptoKey> {
@@ -96,18 +142,18 @@ async function decryptBackupPayload(
   }
 
   const rootKey = await importAesKey(rootKeyBytes);
-  const aad = serializeBackupAad(header.instance_id, header.export_timestamp);
+  const aad = serializeProtectedHeaderAad(protectedMetadataFromHeader(header));
   const exportDek = await aesGcmDecrypt(rootKey, dekIv, wrappedDek, aad);
   const exportDekKey = await importAesKey(exportDek);
   return aesGcmDecrypt(exportDekKey, payloadIv, payloadBytes, aad);
 }
 
 export async function sealBackupArtifact(input: SealBackupArtifactInput): Promise<Uint8Array> {
-  const rootKeyVersion = input.rootKeyVersion ?? DEFAULT_ROOT_KEY_VERSION;
+  const protectedMetadata = protectedMetadataFromSealInput(input);
   const exportDek = new Uint8Array(32);
   crypto.getRandomValues(exportDek);
   const rootKey = await importAesKey(input.rootKeyBytes);
-  const aad = serializeBackupAad(input.instanceId, input.exportTimestamp);
+  const aad = serializeProtectedHeaderAad(protectedMetadata);
   const dekIv = randomIv();
   const payloadIv = randomIv();
   const wrappedDek = await aesGcmEncrypt(rootKey, dekIv, exportDek, aad);
@@ -115,10 +161,10 @@ export async function sealBackupArtifact(input: SealBackupArtifactInput): Promis
   const payloadCiphertext = await aesGcmEncrypt(exportDekKey, payloadIv, input.jsonlPayload, aad);
 
   const header: BackupExportHeader = {
-    format_marker: BACKUP_EXPORT_FORMAT_MARKER,
-    instance_id: input.instanceId,
-    export_timestamp: input.exportTimestamp,
-    root_key_version: rootKeyVersion,
+    format_marker: protectedMetadata.format_marker,
+    instance_id: protectedMetadata.instance_id,
+    export_timestamp: protectedMetadata.export_timestamp,
+    root_key_version: protectedMetadata.root_key_version,
     dek_iv: bytesToBase64Url(dekIv),
     wrapped_dek: bytesToBase64Url(wrappedDek),
     payload_iv: bytesToBase64Url(payloadIv),
