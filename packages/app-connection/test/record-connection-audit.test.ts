@@ -1,6 +1,7 @@
 import * as audit from "@insecur/audit";
 import {
   appConnectionId,
+  AUTH_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
   organizationId,
   projectId,
@@ -8,7 +9,11 @@ import {
 } from "@insecur/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { recordConnectionValidated } from "../src/record-connection-audit.js";
+import {
+  recordConnectionDisableDenied,
+  recordConnectionValidated,
+  recordConnectionValidationDenied,
+} from "../src/record-connection-audit.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -68,5 +73,45 @@ describe("recordConnectionValidated audit details", () => {
         },
       });
     }).toThrow(/stable dotted code or opaque resource ID/);
+  });
+
+  it("writes auth.insufficient_scope for denied validation audits", async () => {
+    const writeSpy = vi.spyOn(audit, "writeAuditEvent").mockResolvedValue(undefined);
+
+    await recordConnectionValidationDenied({
+      actorUserId: USER,
+      organizationId: ORG,
+      projectId: PROJECT,
+      appConnectionId: CONN,
+      reasonCode: AUTH_ERROR_CODES.insufficientScope,
+    });
+
+    expect(writeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: audit.PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
+        outcome: "denied",
+        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+      }),
+    );
+  });
+
+  it("writes auth.insufficient_scope for denied disable audits", async () => {
+    const writeSpy = vi.spyOn(audit, "writeAuditEvent").mockResolvedValue(undefined);
+
+    await recordConnectionDisableDenied({
+      actorUserId: USER,
+      organizationId: ORG,
+      projectId: PROJECT,
+      appConnectionId: CONN,
+      reasonCode: AUTH_ERROR_CODES.insufficientScope,
+    });
+
+    expect(writeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: audit.PRODUCTION_AUDIT_EVENT_CODES.connectionDisableDenied,
+        outcome: "denied",
+        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+      }),
+    );
   });
 });

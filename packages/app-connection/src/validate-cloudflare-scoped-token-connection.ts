@@ -1,6 +1,7 @@
 import type { Keyring } from "@insecur/crypto";
 import {
   APP_CONNECTION_ERROR_CODES,
+  AUTH_ERROR_CODES,
   type AppConnectionId,
   type OrganizationId,
   type ProjectId,
@@ -9,13 +10,14 @@ import type {
   AppConnectionRow,
   TenantAppConnectionStore,
   TenantProviderCredentialStore,
+  TenantSensitiveMetadataStore,
 } from "@insecur/tenant-store";
 import type { UserActorRef } from "@insecur/access";
 
 import { AppConnectionError } from "./app-connection-error.js";
-import type { CloudflareConnectionBoundary } from "./cloudflare-scoped-token-metadata.js";
 import type { CloudflareScopedTokenPort } from "./cloudflare-scoped-token-port.js";
 import { decryptProviderCredentialForCloudflareValidation } from "./decrypt-provider-credential-for-validation.js";
+import { loadCloudflareConnectionBoundary } from "./load-cloudflare-connection-boundary.js";
 import {
   recordConnectionValidated,
   recordConnectionValidationDenied,
@@ -29,11 +31,11 @@ export interface ValidateCloudflareScopedTokenConnectionInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly appConnectionId: AppConnectionId;
-  readonly boundary: CloudflareConnectionBoundary;
   readonly keyring: Keyring;
   readonly cloudflarePort: CloudflareScopedTokenPort;
   readonly appConnectionStore: TenantAppConnectionStore;
   readonly providerCredentialStore: TenantProviderCredentialStore;
+  readonly sensitiveMetadataStore: TenantSensitiveMetadataStore;
 }
 
 function toValidationMetadata(
@@ -123,14 +125,21 @@ async function validateActiveCloudflareConnection(
   input: ValidateCloudflareScopedTokenConnectionInput,
   connection: AppConnectionRow,
 ): Promise<MetadataSafeCloudflareConnectionValidation> {
+  const boundary = await loadCloudflareConnectionBoundary({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    appConnectionId: input.appConnectionId,
+    keyring: input.keyring,
+    sensitiveMetadataStore: input.sensitiveMetadataStore,
+  });
   const token = await loadCloudflareValidationToken(input, connection);
   const checkedAt = new Date();
 
   try {
     const validationResult = await input.cloudflarePort.verifyScopedToken({
       token,
-      allowedAccountId: input.boundary.allowedAccountId,
-      allowedWorkerScript: input.boundary.allowedWorkerScript,
+      allowedAccountId: boundary.allowedAccountId,
+      allowedWorkerScript: boundary.allowedWorkerScript,
     });
 
     await input.appConnectionStore.updateConnectionValidation({
@@ -166,7 +175,7 @@ export async function validateCloudflareScopedTokenConnection(
           organizationId: input.organizationId,
           projectId: input.projectId,
           appConnectionId: input.appConnectionId,
-          reasonCode: APP_CONNECTION_ERROR_CODES.notFound,
+          reasonCode: AUTH_ERROR_CODES.insufficientScope,
         });
       },
       run: async (connection) => validateActiveCloudflareConnection(input, connection),

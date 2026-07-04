@@ -1,7 +1,12 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { UserActorRef } from "@insecur/access";
+import type { Keyring } from "@insecur/crypto";
 import type { AppConnectionId, OrganizationId, ProjectId } from "@insecur/domain";
-import type { AppConnectionRow, TenantAppConnectionStore } from "@insecur/tenant-store";
+import type {
+  AppConnectionRow,
+  TenantAppConnectionStore,
+  TenantSensitiveMetadataStore,
+} from "@insecur/tenant-store";
 
 import {
   assertConnectionManageScope,
@@ -10,13 +15,16 @@ import {
 } from "./assert-connection-access.js";
 import { AppConnectionError } from "./app-connection-error.js";
 import { assertCloudflareScopedTokenConnection } from "./create-cloudflare-scoped-token-connection.js";
+import { loadCloudflareConnectionBoundary } from "./load-cloudflare-connection-boundary.js";
 
 interface ConnectionOperationScope {
   readonly actor: UserActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly appConnectionId: AppConnectionId;
+  readonly keyring: Keyring;
   readonly appConnectionStore: TenantAppConnectionStore;
+  readonly sensitiveMetadataStore: TenantSensitiveMetadataStore;
 }
 
 export async function withConnectionManageAccess<T>(
@@ -71,5 +79,12 @@ async function runScopedCloudflareConnectionOperation<T>(
   }
 
   assertCloudflareScopedTokenConnection(connection);
+  await loadCloudflareConnectionBoundary({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    appConnectionId: input.appConnectionId,
+    keyring: input.keyring,
+    sensitiveMetadataStore: input.sensitiveMetadataStore,
+  });
   return input.run(connection);
 }

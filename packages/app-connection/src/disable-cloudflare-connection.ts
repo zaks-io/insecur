@@ -1,10 +1,16 @@
 import {
   APP_CONNECTION_ERROR_CODES,
+  AUTH_ERROR_CODES,
   type AppConnectionId,
   type OrganizationId,
   type ProjectId,
 } from "@insecur/domain";
-import type { AppConnectionRow, TenantAppConnectionStore } from "@insecur/tenant-store";
+import type { Keyring } from "@insecur/crypto";
+import type {
+  AppConnectionRow,
+  TenantAppConnectionStore,
+  TenantSensitiveMetadataStore,
+} from "@insecur/tenant-store";
 import type { UserActorRef } from "@insecur/access";
 
 import { AppConnectionError } from "./app-connection-error.js";
@@ -19,7 +25,9 @@ export interface DisableCloudflareConnectionInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly appConnectionId: AppConnectionId;
+  readonly keyring: Keyring;
   readonly appConnectionStore: TenantAppConnectionStore;
+  readonly sensitiveMetadataStore: TenantSensitiveMetadataStore;
 }
 
 export async function disableCloudflareConnection(
@@ -34,7 +42,7 @@ export async function disableCloudflareConnection(
           organizationId: input.organizationId,
           projectId: input.projectId,
           appConnectionId: input.appConnectionId,
-          reasonCode: APP_CONNECTION_ERROR_CODES.notFound,
+          reasonCode: AUTH_ERROR_CODES.insufficientScope,
         });
       },
       run: async () => {
