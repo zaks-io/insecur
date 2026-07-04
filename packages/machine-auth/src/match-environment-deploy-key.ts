@@ -56,6 +56,12 @@ function validateMatchedAuthMethod(
     nowEpoch: number;
   },
 ): EnvironmentDeployKeyMatchResult | null {
+  if (
+    authMethod.projectId !== input.projectId ||
+    authMethod.environmentId !== input.environmentId
+  ) {
+    return null;
+  }
   if (collectDeployKeyOverbroadCredentialScopes(authMethod.credentialScopes).length > 0) {
     return failure("overbroad_scope", authMethod);
   }
@@ -64,12 +70,6 @@ function validateMatchedAuthMethod(
   }
   if (isExpired(authMethod, input.nowEpoch)) {
     return failure("expired", authMethod);
-  }
-  if (
-    authMethod.projectId !== input.projectId ||
-    authMethod.environmentId !== input.environmentId
-  ) {
-    return null;
   }
   return { ok: true, authMethod };
 }
