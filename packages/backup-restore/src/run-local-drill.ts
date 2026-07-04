@@ -8,7 +8,7 @@ import {
   RECOVERY_CANARY_ORGANIZATION_ID,
   RESTORE_DRILL_RTO_TARGET_SECONDS,
 } from "./constants.js";
-import { computeExportExpiresAt } from "./evaluate-readiness.js";
+import { computeExportExpiresAt, computeRestoreDrillElapsedSeconds } from "./evaluate-readiness.js";
 import {
   buildRecoveryCanaryExportRow,
   findRecoveryCanaryRow,
@@ -63,10 +63,11 @@ function buildDrillEvidence(input: {
   restoreTargetRef?: string;
 }): { exportEvidence: BackupExportSuccessEvidence; drillEvidence: RestoreDrillEvidence } {
   const checkedAt = input.completedAt.toISOString();
-  const durationSeconds = Math.max(
-    0,
-    Math.round((input.completedAt.getTime() - input.startedAt.getTime()) / 1000),
-  );
+  const durationSeconds =
+    computeRestoreDrillElapsedSeconds({
+      started_at: input.startedAt.toISOString(),
+      completed_at: checkedAt,
+    }) ?? 0;
 
   const exportEvidence: BackupExportSuccessEvidence = {
     status: input.encryptionVerified ? "passed" : "failed",

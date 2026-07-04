@@ -218,4 +218,23 @@ describe("runLocalRestoreDrill", () => {
     const verified = verifyBackupRestoreEvidence({ evidenceDir, now: completedAt });
     expect(verified.ok).toBe(true);
   });
+
+  it("aligns drill duration_seconds with floor-based RTO validation", async () => {
+    const { runLocalRestoreDrill } = await import("../src/run-local-drill.js");
+    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-backup-restore-rto-floor-"));
+    const startedAt = new Date("2026-07-04T00:00:00.000Z");
+    const completedAt = new Date("2026-07-04T00:00:05.600Z");
+
+    const result = await runLocalRestoreDrill({
+      evidenceDir,
+      startedAt,
+      completedAt,
+    });
+
+    expect(result.drillEvidence.rto.duration_seconds).toBe(5);
+    expect(evaluateRestoreDrillEvidence(result.drillEvidence, completedAt).status).toBe("passed");
+
+    const verified = verifyBackupRestoreEvidence({ evidenceDir, now: completedAt });
+    expect(verified.ok).toBe(true);
+  });
 });
