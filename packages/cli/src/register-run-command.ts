@@ -1,6 +1,6 @@
 import type { Command, Command as CommanderCommand } from "commander";
 import { runRunCommand } from "./commands/run.js";
-import { parseRunCommandArgv } from "./commands/resolve-run-profile.js";
+import { reconcileProfileRunCommand } from "./commands/resolve-run-profile.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 
 export function registerRunCommand(
@@ -30,11 +30,13 @@ export function registerRunCommand(
     ) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{ variableKey?: string; policyId?: string }>();
-      const parsed = parseRunCommandArgv({
+      const { api, context } = await deps.resolveApi(flags);
+      const parsed = reconcileProfileRunCommand({
+        flags,
+        context,
         ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
         args: command.args,
       });
-      const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runRunCommand(flags, api, context, {
         ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
         ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
