@@ -7,18 +7,22 @@ import {
   parseVariableKey,
   projectId,
   runtimePolicyId,
+  runtimePolicyVersionId,
 } from "@insecur/domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { assertRuntimePolicyKeyAllowsGrantSelector } from "./assert-runtime-policy-key-grant-binding.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
-const PROJECT = projectId.brand("prj_00000000000000000000000001");
-const ENV = environmentId.brand("env_00000000000000000000000001");
+const PROJECT_A = projectId.brand("prj_00000000000000000000000001");
+const PROJECT_B = projectId.brand("prj_00000000000000000000000002");
+const ENV_A = environmentId.brand("env_00000000000000000000000001");
+const ENV_B = environmentId.brand("env_00000000000000000000000002");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000001");
-const ALLOWED_VARIABLE_KEY = (() => {
-  const parsed = parseVariableKey("ALLOWED_KEY");
+const POLICY_VERSION = runtimePolicyVersionId.brand("rpv_00000000000000000000000001");
+const SHARED_VARIABLE_KEY = (() => {
+  const parsed = parseVariableKey("SHARED_KEY");
   if (!parsed.ok) {
     throw new Error("test variable key fixture must be valid");
   }
@@ -32,12 +36,14 @@ const DISALLOWED_VARIABLE_KEY = (() => {
   return parsed.value;
 })();
 
-const getActiveVersion = vi.fn();
+const getPolicyById = vi.fn();
+const getVersionById = vi.fn();
 
 vi.mock("@insecur/tenant-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
   class MockTenantRuntimeInjectionPolicyStore {
-    getActiveVersion = getActiveVersion;
+    getPolicyById = getPolicyById;
+    getVersionById = getVersionById;
   }
   return {
     ...actual,
@@ -54,28 +60,43 @@ const machineActor = {
   machineIdentityId: MACHINE,
   tokenScope: {
     organizationId: ORG,
-    projectId: PROJECT,
-    environmentId: ENV,
+    projectId: PROJECT_B,
+    environmentId: ENV_B,
     runtimePolicyKeyId: POLICY_KEY,
   },
   credentialScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue],
 };
 
+function policyRowForCoordinate(project: typeof PROJECT_A, environment: typeof ENV_A) {
+  return {
+    policyId: POLICY_KEY,
+    organizationId: ORG,
+    projectId: project,
+    environmentId: environment,
+    displayName: "deploy-policy" as never,
+    activeVersionId: POLICY_VERSION,
+    disabledAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+}
+
 beforeEach(() => {
-  getActiveVersion.mockReset();
-  getActiveVersion.mockResolvedValue({
-    variableKeys: [ALLOWED_VARIABLE_KEY],
+  getPolicyById.mockReset();
+  getVersionById.mockReset();
+  getPolicyById.mockResolvedValue(policyRowForCoordinate(PROJECT_B, ENV_B));
+  getVersionById.mockResolvedValue({
+    variableKeys: [SHARED_VARIABLE_KEY],
     secretIds: [],
   });
 });
 
 describe("assertRuntimePolicyKeyAllowsGrantSelector", () => {
-  it("allows selectors bound to the active runtime policy version", async () => {
+  it("allows selectors bound to the active runtime policy version at the grant coordinate", async () => {
     await expect(
       assertRuntimePolicyKeyAllowsGrantSelector(
         machineActor,
-        { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
-        { kind: "variable_key", variableKey: ALLOWED_VARIABLE_KEY },
+        { organizationId: ORG, projectId: PROJECT_B, environmentId: ENV_B },
+        { kind: "variable_key", variableKey: SHARED_VARIABLE_KEY },
       ),
     ).resolves.toBeUndefined();
   });
@@ -84,10 +105,24 @@ describe("assertRuntimePolicyKeyAllowsGrantSelector", () => {
     await expect(
       assertRuntimePolicyKeyAllowsGrantSelector(
         machineActor,
-        { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+        { organizationId: ORG, projectId: PROJECT_B, environmentId: ENV_B },
         { kind: "variable_key", variableKey: DISALLOWED_VARIABLE_KEY },
       ),
     ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+  });
+
+  it("denies grants when the bound policy key belongs to a different project and environment", async () => {
+    getPolicyById.mockResolvedValue(policyRowForCoordinate(PROJECT_A, ENV_A));
+
+    await expect(
+      assertRuntimePolicyKeyAllowsGrantSelector(
+        machineActor,
+        { organizationId: ORG, projectId: PROJECT_B, environmentId: ENV_B },
+        { kind: "variable_key", variableKey: SHARED_VARIABLE_KEY },
+      ),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    expect(getVersionById).not.toHaveBeenCalled();
   });
 
   it("skips enforcement for machine actors without a bound runtime policy key", async () => {
@@ -97,15 +132,16 @@ describe("assertRuntimePolicyKeyAllowsGrantSelector", () => {
           ...machineActor,
           tokenScope: {
             organizationId: ORG,
-            projectId: PROJECT,
-            environmentId: ENV,
+            projectId: PROJECT_B,
+            environmentId: ENV_B,
           },
         },
-        { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+        { organizationId: ORG, projectId: PROJECT_B, environmentId: ENV_B },
         { kind: "variable_key", variableKey: DISALLOWED_VARIABLE_KEY },
       ),
     ).resolves.toBeUndefined();
 
-    expect(getActiveVersion).not.toHaveBeenCalled();
+    expect(getPolicyById).not.toHaveBeenCalled();
+    expect(getVersionById).not.toHaveBeenCalled();
   });
 });

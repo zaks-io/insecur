@@ -113,7 +113,17 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
     getCurrentVersion = vi.fn().mockResolvedValue({ secretVersionId: "sv_test" });
   }
   class MockTenantRuntimeInjectionPolicyStore {
-    getActiveVersion = vi.fn().mockResolvedValue({
+    getPolicyById = vi.fn().mockResolvedValue({
+      policyId: runtimePolicyId.brand("rp_00000000000000000000000001"),
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      displayName: "deploy-policy",
+      activeVersionId: "rpv_00000000000000000000000001",
+      disabledAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    getVersionById = vi.fn().mockResolvedValue({
       variableKeys: ["TEST_KEY"],
       secretIds: [],
     });
