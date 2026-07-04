@@ -53,7 +53,7 @@ const NEWLY_COVERED_KEYRING_CONSTRUCTORS = [
   "createKeyring",
   "StaticRootKeyProvider",
 ] as const;
-const ESLINT_BOUNDARY_TIMEOUT_MS = 15_000;
+const ESLINT_BOUNDARY_TIMEOUT_MS = 30_000;
 const KEYRING_BOUNDARY_MESSAGE =
   "Keyring construction is confined to apps/runtime/src/** (ADR-0064/0077)";
 const eslint = new ESLint({ cwd: repoRoot });

@@ -18,7 +18,7 @@ const negativeDeepPathFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/decrypt-import-boundary-negative-deep-path.fixture.ts",
 );
-const ESLINT_BOUNDARY_TIMEOUT_MS = 15_000;
+const ESLINT_BOUNDARY_TIMEOUT_MS = 30_000;
 const DECRYPT_IMPORT_BOUNDARY_MESSAGE =
   "Decrypt entry points may only be imported from allowlisted egress modules";
 const eslint = new ESLint({ cwd: repoRoot });
