@@ -212,6 +212,10 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
+    files: ["**/.decrypt-import-boundary-negative.fixture.ts"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
     rules: {
       complexity: ["error", 8],
       "max-depth": ["error", 3],
@@ -286,8 +290,7 @@ export default tseslint.config(
     },
   },
   // Decrypt-egress (ADR-0071) and keyring-construction (ADR-0064/0077) share one rule block so
-  // both path sets apply. Ignores are split: decrypt allowlist plus keyring-only tenant-keyring.
-  // Do not ignore all of packages/backup-restore/src/** here or decrypt rules are bypassed.
+  // both path sets apply. Decrypt ignores only — keyring-only paths must not bypass decrypt lint.
   {
     files: ["**/*.ts"],
     ignores: [
@@ -298,7 +301,6 @@ export default tseslint.config(
       "packages/crypto/src/**",
       "apps/runtime/src/**",
       ...DECRYPT_IMPORT_ALLOWLIST,
-      ...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST,
     ],
     rules: {
       "no-restricted-imports": [
@@ -314,6 +316,21 @@ export default tseslint.config(
         ...keyringDynamicImportSyntaxRules,
         ...keyringBoundarySyntaxRules,
       ],
+    },
+  },
+  // Keyring-only allowlist: keep decrypt boundary, drop keyring fencing for composition helpers.
+  {
+    files: [...KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST],
+    ignores: [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.e2e.test.ts",
+      "**/*.integration.test.ts",
+      ...DECRYPT_IMPORT_ALLOWLIST,
+    ],
+    rules: {
+      "no-restricted-imports": ["error", decryptImportBoundaryOptions],
+      "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],
     },
   },
   // Runtime Worker source: decrypt-egress boundary only. Keyring construction is permitted here.

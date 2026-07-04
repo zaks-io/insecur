@@ -104,4 +104,34 @@ describe("verifyBackupRestoreEvidence", () => {
     expect(result.restoreDrill.blocking_reason).toContain("metadata-only");
     expect(result.ok).toBe(false);
   });
+
+  it.each(["wrapped_dek", "ciphertext_b64url", "payload_bytes"] as const)(
+    "blocks otherwise-valid export evidence with package-native field %s",
+    (forbiddenKey) => {
+      const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-backup-verify-export-native-"));
+      writeEvidence(
+        evidenceDir,
+        "backup/export-success.json",
+        JSON.stringify({
+          status: "passed",
+          checked_at: "2026-07-04T00:00:00.000Z",
+          instance_id: "inst_test",
+          export_timestamp: "2026-07-04T00:00:00.000Z",
+          root_key_version: 1,
+          organization_count: 1,
+          artifact_ref: "backup/latest-export.ibkp",
+          encryption_verified: true,
+          expires_at: "2026-07-06T00:00:00.000Z",
+          [forbiddenKey]: "must-not-appear",
+        }),
+      );
+
+      const result = verifyBackupRestoreEvidence({
+        evidenceDir,
+        now: new Date("2026-07-04T01:00:00.000Z"),
+      });
+      expect(result.exportFresh.status).toBe("blocked");
+      expect(result.ok).toBe(false);
+    },
+  );
 });

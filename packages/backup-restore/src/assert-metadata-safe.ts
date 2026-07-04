@@ -1,6 +1,21 @@
 import { assertMetadataSafe, findMetadataSafetyViolations } from "@insecur/domain";
 
-const BACKUP_RESTORE_EXTRA_FORBIDDEN_KEYS = ["plaintext", "ciphertext"] as const;
+/** Generic reveal keys plus backup-package sealed export / key-material field names. */
+const BACKUP_RESTORE_EXTRA_FORBIDDEN_KEYS = [
+  "plaintext",
+  "ciphertext",
+  "ciphertext_b64url",
+  "wrapped_dek",
+  "dek_iv",
+  "payload_iv",
+  "payload",
+  "payload_bytes",
+  "body",
+  "body_bytes",
+  "sealed_bytes",
+  "jsonl_payload",
+  "encrypted_payload",
+] as const;
 
 const BACKUP_RESTORE_EXTRA_PATTERNS = [/insecur-recovery-canary-v1-sentinel/] as const;
 

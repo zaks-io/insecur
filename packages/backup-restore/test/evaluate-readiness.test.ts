@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   computeExportExpiresAt,
+  computeRestoreDrillElapsedSeconds,
   evaluateExportFreshnessEvidence,
   evaluateRestoreDrillEvidence,
 } from "../src/evaluate-readiness.js";
@@ -181,5 +182,44 @@ describe("evaluateRestoreDrillEvidence", () => {
     const result = evaluateRestoreDrillEvidence(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("recovery canary constants");
+  });
+
+  it("blocks when reported duration underreports elapsed wall-clock from timestamps", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      rto: {
+        started_at: "2026-07-04T00:00:00.000Z",
+        completed_at: "2026-07-04T00:10:00.000Z",
+        duration_seconds: 5,
+        target_seconds: 8 * 60 * 60,
+      },
+    };
+    const result = evaluateRestoreDrillEvidence(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("duration_seconds");
+  });
+
+  it("blocks when completed_at precedes started_at", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      rto: {
+        started_at: "2026-07-04T00:10:00.000Z",
+        completed_at: "2026-07-04T00:00:00.000Z",
+        duration_seconds: 0,
+        target_seconds: 8 * 60 * 60,
+      },
+    };
+    const result = evaluateRestoreDrillEvidence(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("started_at and completed_at");
+  });
+
+  it("computes elapsed seconds from drill timestamps", () => {
+    expect(
+      computeRestoreDrillElapsedSeconds({
+        started_at: "2026-07-04T00:00:00.000Z",
+        completed_at: "2026-07-04T00:00:05.000Z",
+      }),
+    ).toBe(5);
   });
 });

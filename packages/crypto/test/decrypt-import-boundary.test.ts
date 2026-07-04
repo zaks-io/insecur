@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -128,6 +128,53 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
       );
       expect(output).toMatch(/no-restricted-imports/);
       expect(output).toMatch(/decryptSecretValueForRuntime/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "fails lint for decrypt imports under keyring-only allowlist paths",
+    async () => {
+      const fixturePath = path.join(
+        repoRoot,
+        "packages/tenant-keyring/src/.decrypt-import-boundary-negative.fixture.ts",
+      );
+      writeFileSync(
+        fixturePath,
+        [
+          'import { decryptSecretValueForRuntime } from "@insecur/crypto";',
+          "",
+          "export function tenantKeyringDecryptImport(): typeof decryptSecretValueForRuntime {",
+          "  return decryptSecretValueForRuntime;",
+          "}",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      try {
+        const output = await runEslintExpectFailure(fixturePath);
+        expect(output).toMatch(/no-restricted-imports/);
+        expect(output).toMatch(/decryptSecretValueForRuntime/);
+      } finally {
+        unlinkSync(fixturePath);
+      }
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "applies decrypt boundary to tenant-keyring production modules",
+    async () => {
+      const config = await readLintConfigFor(
+        path.join(repoRoot, "packages/tenant-keyring/src/index.ts"),
+      );
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );

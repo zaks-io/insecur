@@ -4,6 +4,7 @@ import type {
   BackupExportSuccessEvidence,
   BackupRestoreEvidenceStatus,
   RestoreDrillEvidence,
+  RestoreDrillRtoMetadata,
 } from "./types.js";
 
 export interface ReadinessEvaluation {
@@ -21,6 +22,23 @@ function parseIso(value: string | undefined): number | null {
   }
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+/** Wall-clock elapsed seconds between drill timestamps; null when invalid or negative. */
+export function computeRestoreDrillElapsedSeconds(input: {
+  started_at: string;
+  completed_at: string;
+}): number | null {
+  const startedMs = parseIso(input.started_at);
+  const completedMs = parseIso(input.completed_at);
+  if (startedMs === null || completedMs === null) {
+    return null;
+  }
+  const elapsedMs = completedMs - startedMs;
+  if (elapsedMs < 0) {
+    return null;
+  }
+  return Math.floor(elapsedMs / 1000);
 }
 
 function blockedEvaluation(input: {
@@ -135,6 +153,45 @@ export function evaluateBlockedBackupRestoreMetadataEvidence(
   });
 }
 
+function evaluateRestoreDrillRtoBlockingReason(
+  rto: RestoreDrillRtoMetadata,
+): { summary: string; blockingReason: string } | null {
+  if (rto.target_seconds !== RESTORE_DRILL_RTO_TARGET_SECONDS) {
+    return {
+      summary: "Restore drill evidence has invalid or inflated RTO target metadata.",
+      blockingReason: `target_seconds must equal policy value ${String(RESTORE_DRILL_RTO_TARGET_SECONDS)}`,
+    };
+  }
+
+  const computedDurationSeconds = computeRestoreDrillElapsedSeconds({
+    started_at: rto.started_at,
+    completed_at: rto.completed_at,
+  });
+  if (computedDurationSeconds === null) {
+    return {
+      summary: "Restore drill RTO timestamps are missing, invalid, or out of order.",
+      blockingReason: "started_at and completed_at must define a non-negative elapsed range",
+    };
+  }
+
+  if (rto.duration_seconds !== computedDurationSeconds) {
+    return {
+      summary: "Restore drill reported duration does not match elapsed wall-clock from timestamps.",
+      blockingReason:
+        "duration_seconds must equal elapsed seconds derived from started_at and completed_at",
+    };
+  }
+
+  if (rto.duration_seconds > RESTORE_DRILL_RTO_TARGET_SECONDS) {
+    return {
+      summary: `Measured RTO ${String(rto.duration_seconds)}s exceeds target ${String(RESTORE_DRILL_RTO_TARGET_SECONDS)}s.`,
+      blockingReason: "RTO target exceeded",
+    };
+  }
+
+  return null;
+}
+
 export function evaluateRestoreDrillEvidence(
   evidence: RestoreDrillEvidence | null,
   now: Date = new Date(),
@@ -179,21 +236,13 @@ export function evaluateRestoreDrillEvidence(
     });
   }
 
-  if (evidence.rto.target_seconds !== RESTORE_DRILL_RTO_TARGET_SECONDS) {
+  const rtoBlocking = evaluateRestoreDrillRtoBlockingReason(evidence.rto);
+  if (rtoBlocking) {
     return blockedEvaluation({
       controlId,
-      summary: "Restore drill evidence has invalid or inflated RTO target metadata.",
+      summary: rtoBlocking.summary,
       checkedAt,
-      blockingReason: `target_seconds must equal policy value ${String(RESTORE_DRILL_RTO_TARGET_SECONDS)}`,
-    });
-  }
-
-  if (evidence.rto.duration_seconds > RESTORE_DRILL_RTO_TARGET_SECONDS) {
-    return blockedEvaluation({
-      controlId,
-      summary: `Measured RTO ${String(evidence.rto.duration_seconds)}s exceeds target ${String(RESTORE_DRILL_RTO_TARGET_SECONDS)}s.`,
-      checkedAt,
-      blockingReason: "RTO target exceeded",
+      blockingReason: rtoBlocking.blockingReason,
     });
   }
 
