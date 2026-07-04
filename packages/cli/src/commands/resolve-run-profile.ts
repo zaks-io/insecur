@@ -35,6 +35,23 @@ function requirePolicyId(
   });
 }
 
+function resolveProfileRunSelector(input: {
+  readonly flags: GlobalCliFlags;
+  readonly context: ResolvedCliContext;
+  readonly profileSelector?: string;
+}): string | undefined {
+  const selector = input.profileSelector ?? input.flags.profile ?? input.context.scope.profileSlug;
+  return selector === "" ? undefined : selector;
+}
+
+function hasProfileBackedRunMode(input: {
+  readonly flags: GlobalCliFlags;
+  readonly context: ResolvedCliContext;
+  readonly profileSelector?: string;
+}): boolean {
+  return resolveProfileRunSelector(input) !== undefined || input.flags.profileId !== undefined;
+}
+
 export function resolveProfileRunInput(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
@@ -42,8 +59,7 @@ export function resolveProfileRunInput(input: {
   readonly policyIdOverride?: string;
 }): ResolvedProfileRunInput {
   const userConfig: CliUserConfig = input.context.userConfig;
-  const profileSelector =
-    input.profileSelector ?? input.flags.profile ?? input.context.scope.profileSlug;
+  const profileSelector = resolveProfileRunSelector(input);
   const resolvedProfile = resolveProfile(
     userConfig,
     {
@@ -94,16 +110,18 @@ export function splitRunCommandArgs(args: readonly string[]): {
 
 export function assertRunModeExclusive(input: {
   readonly variableKey?: string;
+  readonly flags: GlobalCliFlags;
+  readonly context: ResolvedCliContext;
   readonly profileSelector?: string;
 }): void {
   const hasVariableKey = input.variableKey !== undefined && input.variableKey !== "";
-  const hasProfile = input.profileSelector !== undefined && input.profileSelector !== "";
+  const hasProfile = hasProfileBackedRunMode(input);
   if (hasVariableKey === hasProfile) {
     throw new CliError({
       code: VALIDATION_ERROR_CODES.invalidCommandInput,
       message: hasVariableKey
-        ? "Pass either --variable-key or a CLI profile argument, not both."
-        : "Pass --variable-key or a CLI profile slug/id before --.",
+        ? "Pass either --variable-key or a CLI profile, not both."
+        : "Pass --variable-key or select a CLI profile via argument, --profile, --profile-id, or INSECUR_PROFILE.",
       retryable: false,
     });
   }
