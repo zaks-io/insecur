@@ -46,17 +46,11 @@ function createTestEnv(runtime: RuntimeAdmissionRpc, overrides: Partial<WebEnv> 
   };
 }
 
-vi.mock("./workos-port.js", () => ({
-  createWorkOSSessionPortFromEnv: () =>
-    createFakeWorkOSSessionPort([
-      {
-        sessionData: sealedSession,
-        userId: workosUserId,
-        sessionId: "session_web",
-        authFactors: [{ type: "totp" }],
-      },
-    ]),
+const workosPortMock = vi.hoisted(() => ({
+  createWorkOSSessionPortFromEnv: vi.fn(),
 }));
+
+vi.mock("./workos-port.js", () => workosPortMock);
 
 function sessionRequest(): Request {
   return new Request("https://insecur.test/whoami", {
@@ -114,6 +108,16 @@ describe("hasWorkosSessionCookie", () => {
 describe("resolveBrowserActor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
+      createFakeWorkOSSessionPort([
+        {
+          sessionData: sealedSession,
+          userId: workosUserId,
+          sessionId: "session_web",
+          authFactors: [{ type: "totp" }],
+        },
+      ]),
+    );
   });
 
   it("returns missing when neither WorkOS cookie nor accepted smoke bearer is present", async () => {
@@ -212,6 +216,42 @@ describe("resolveBrowserActor", () => {
       expect(result.actor.userId).toBe(admittedUserId);
       expect(result.actor.workosUserId).toBe(workosUserId);
       expect(result.actor.sessionId).toBe("session_web");
+    }
+  });
+
+  it("refreshes an expired sealed session and returns rotation cookies", async () => {
+    const expiredSession = "sealed-session-expired-refresh";
+    const rotatedSession = "sealed-session-rotated";
+    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
+      createFakeWorkOSSessionPort([
+        {
+          sessionData: expiredSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh",
+          authenticateFailure: "expired",
+          rotatedSessionData: rotatedSession,
+          authFactors: [{ type: "totp" }],
+        },
+        {
+          sessionData: rotatedSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh",
+          authFactors: [{ type: "totp" }],
+        },
+      ]),
+    );
+    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const request = new Request("https://insecur.test/whoami", {
+      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
+    });
+
+    const result = await resolveBrowserActor(request, createTestEnv(runtime));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.actor.sessionId).toBe("session_web_refresh");
+      expect(result.rotation?.sealedSession).toBe(rotatedSession);
+      expect(result.rotation?.csrfToken).toMatch(/^[A-Za-z0-9_-]+$/u);
     }
   });
 });

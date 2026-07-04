@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatSessionClearCookie,
   formatSessionSetCookie,
   insecurCsrfCookieAttributes,
   workosSessionCookieAttributes,
@@ -17,5 +18,11 @@ describe("session cookie attributes", () => {
   it("keeps CSRF cookies readable by the browser", () => {
     expect(insecurCsrfCookieAttributes.httpOnly).toBe(false);
     expect(insecurCsrfCookieAttributes.secure).toBe(true);
+  });
+
+  it("clears cookies with Max-Age=0", () => {
+    const header = formatSessionClearCookie(workosSessionCookieAttributes);
+    expect(header).toContain("wos-session=");
+    expect(header).toContain("Max-Age=0");
   });
 });

@@ -1,30 +1,22 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@insecur/ui";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { loadWhoamiProof } from "../server/whoami";
 
 export const Route = createFileRoute("/whoami")({
-  loader: () => loadWhoamiProof(),
+  loader: async () => {
+    const proof = await loadWhoamiProof();
+    if (!proof.authenticated) {
+      // TanStack Router redirect objects are the supported navigation control flow.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- redirect() is not an Error
+      throw redirect({ to: "/login", search: { returnTo: "/whoami" } });
+    }
+    return proof;
+  },
   component: WhoamiPage,
 });
 
 function WhoamiPage() {
   const proof = Route.useLoaderData();
-
-  if (!proof.authenticated) {
-    return (
-      <section className="px-5 py-10 sm:px-8 sm:py-12">
-        <Card className="max-w-3xl">
-          <CardHeader>
-            <CardTitle>Session proof</CardTitle>
-            <CardDescription>No admitted browser session was found.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>Sign in through WorkOS to exercise the BFF hop.</p>
-          </CardContent>
-        </Card>
-      </section>
-    );
-  }
 
   return (
     <section className="px-5 py-10 sm:px-8 sm:py-12">

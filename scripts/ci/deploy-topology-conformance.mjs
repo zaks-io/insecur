@@ -343,11 +343,8 @@ function extractTanStackFileRoutes(appPath) {
     return [];
   }
   const mounts = new Set();
-  for (const entry of readdirSync(routesDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".tsx")) {
-      continue;
-    }
-    const source = readFileSync(join(routesDir, entry.name), "utf8");
+  for (const filePath of listRouteSourceFiles(routesDir)) {
+    const source = readFileSync(filePath, "utf8");
     for (const match of source.matchAll(/createFileRoute\(\s*["'`]([^"'`]+)["'`]/g)) {
       const route = match[1];
       if (isPublicMount(route)) {
@@ -356,6 +353,21 @@ function extractTanStackFileRoutes(appPath) {
     }
   }
   return [...mounts];
+}
+
+function listRouteSourceFiles(directory) {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listRouteSourceFiles(entryPath));
+      continue;
+    }
+    if (entry.isFile() && (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts"))) {
+      files.push(entryPath);
+    }
+  }
+  return files;
 }
 
 function isDirectory(path) {

@@ -1,11 +1,13 @@
 import {
   type AdmittedUserResolver,
-  authenticateWorkOSSession,
   authFailureForAdmissionDenial,
   authFailureForReason,
+  authenticateWorkOSSession,
+  generateCsrfToken,
   INSECUR_CSRF_HEADER,
   parseRequestCredentials,
-  type ResolveUserActorResult,
+  refreshWorkOSSession,
+  type AuthFailure,
   type UserActor,
   verifyEphemeralSessionCredential,
   WORKOS_SESSION_COOKIE,
@@ -18,6 +20,15 @@ import {
 } from "../runtime/admission.js";
 import type { WebEnv } from "../env.js";
 
+export interface BrowserSessionRotation {
+  readonly sealedSession: string;
+  readonly csrfToken: string;
+}
+
+export type ResolveBrowserActorResult =
+  | { ok: true; actor: UserActor; rotation?: BrowserSessionRotation }
+  | { ok: false; failure: AuthFailure };
+
 /**
  * Resolve the admitted human actor from the browser's WorkOS sealed session cookie.
  * The BFF never forwards browser session material to the API; it mints a scoped hop token instead.
@@ -25,7 +36,7 @@ import type { WebEnv } from "../env.js";
 export async function resolveBrowserActor(
   request: Request,
   env: WebEnv,
-): Promise<ResolveUserActorResult> {
+): Promise<ResolveBrowserActorResult> {
   const credentials = parseRequestCredentials({
     authorizationHeader: request.headers.get("Authorization"),
     cookieHeader: request.headers.get("Cookie"),
@@ -46,7 +57,7 @@ export async function resolveBrowserActor(
 }
 
 function shouldUseSmokeResult(
-  smokeResult: ResolveUserActorResult,
+  smokeResult: ResolveBrowserActorResult,
   workosSealedSession: string | undefined,
 ): boolean {
   if (smokeResult.ok || workosSealedSession === undefined) {
@@ -59,7 +70,7 @@ async function resolveWorkosCookieActor(
   workosSealedSession: string | undefined,
   env: WebEnv,
   resolveAdmittedUser: AdmittedUserResolver,
-): Promise<ResolveUserActorResult> {
+): Promise<ResolveBrowserActorResult> {
   if (workosSealedSession === undefined) {
     return { ok: false, failure: authFailureForReason("missing") };
   }
@@ -67,23 +78,52 @@ async function resolveWorkosCookieActor(
   const workos = createWorkOSSessionPortFromEnv(env);
   const session = await authenticateWorkOSSession(workos, workosSealedSession);
   if (!session.ok) {
-    return { ok: false, failure: session.failure };
+    if (session.failure.reason !== "expired") {
+      return { ok: false, failure: session.failure };
+    }
+    const refreshed = await refreshWorkOSSession(workos, workosSealedSession);
+    if (!refreshed.ok) {
+      return { ok: false, failure: refreshed.failure };
+    }
+    return resolveAdmittedWorkosContext(
+      refreshed.rotated.context,
+      refreshed.rotated.sealedSession,
+      env,
+      resolveAdmittedUser,
+    );
   }
 
-  const admittedUserId = await resolveAdmittedUser(session.context.user.id);
+  return resolveAdmittedWorkosContext(session.context, undefined, env, resolveAdmittedUser);
+}
+
+async function resolveAdmittedWorkosContext(
+  context: { readonly user: { readonly id: string }; readonly sessionId: string },
+  rotatedSealedSession: string | undefined,
+  env: WebEnv,
+  resolveAdmittedUser: AdmittedUserResolver,
+): Promise<ResolveBrowserActorResult> {
+  const admittedUserId = await resolveAdmittedUser(context.user.id);
   if (admittedUserId === null) {
-    const failure = authFailureForAdmissionDenial(session.context.user.id);
+    const failure = authFailureForAdmissionDenial(context.user.id);
     await recordAdmissionDeniedAuditForAuthFailure(env, failure, requestId.generate());
     return { ok: false, failure };
   }
 
+  const actor: UserActor = {
+    type: "user",
+    userId: admittedUserId,
+    workosUserId: context.user.id,
+    sessionId: context.sessionId,
+  };
+  if (rotatedSealedSession === undefined) {
+    return { ok: true, actor };
+  }
   return {
     ok: true,
-    actor: {
-      type: "user",
-      userId: admittedUserId,
-      workosUserId: session.context.user.id,
-      sessionId: session.context.sessionId,
+    actor,
+    rotation: {
+      sealedSession: rotatedSealedSession,
+      csrfToken: generateCsrfToken(),
     },
   };
 }
@@ -96,7 +136,7 @@ async function resolvePreviewSmokeActor(
   credential: string,
   env: WebEnv,
   resolveAdmittedUser: AdmittedUserResolver,
-): Promise<ResolveUserActorResult> {
+): Promise<ResolveBrowserActorResult> {
   const verified = await verifyEphemeralSessionCredential(credential, env.SESSION_SIGNING_SECRET);
   if (!verified.ok) {
     return {
@@ -111,7 +151,7 @@ async function resolveAdmittedActor(
   actor: UserActor,
   env: WebEnv,
   resolveAdmittedUser: AdmittedUserResolver,
-): Promise<ResolveUserActorResult> {
+): Promise<ResolveBrowserActorResult> {
   const admittedUserId = await resolveAdmittedUser(actor.workosUserId);
   if (admittedUserId === null) {
     const failure = authFailureForAdmissionDenial(actor.workosUserId);

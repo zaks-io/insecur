@@ -69,12 +69,40 @@ export async function authenticateWorkOSSession(
   return resolveAuthenticatedWorkOSResult(workosResult);
 }
 
+export interface ResolveWorkOSAuthorizationCodeSuccess {
+  readonly context: WorkOSSessionContext;
+  readonly sealedSession: string;
+}
+
+export type ResolveWorkOSAuthorizationCodeResult =
+  | { ok: true; session: ResolveWorkOSAuthorizationCodeSuccess }
+  | { ok: false; failure: AuthFailure };
+
+function resolveAuthorizationCodeSuccess(
+  result: Extract<WorkOSAuthorizationCodeResult, { authenticated: true }>,
+): ResolveWorkOSAuthorizationCodeResult {
+  const evaluated = evaluateContext(result.context);
+  if (!evaluated.ok) {
+    return { ok: false, failure: evaluated.failure };
+  }
+  return {
+    ok: true,
+    session: {
+      context: evaluated.context,
+      sealedSession: result.sealedSession,
+    },
+  };
+}
+
 export async function authenticateWorkOSAuthorizationCode(
   workos: WorkOSSessionPort,
   input: WorkOSAuthorizationCodeInput,
-): Promise<ResolveWorkOSSessionResult> {
+): Promise<ResolveWorkOSAuthorizationCodeResult> {
   const workosResult = await workos.authenticateAuthorizationCode(input);
-  return resolveAuthenticatedWorkOSResult(workosResult);
+  if (!workosResult.authenticated) {
+    return mapWorkOSSessionFailure(workosResult.reason);
+  }
+  return resolveAuthorizationCodeSuccess(workosResult);
 }
 
 export interface RefreshWorkOSSessionSuccess {
