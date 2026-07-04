@@ -5,11 +5,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   assertRunModeExclusive,
-  reconcileProfileRunCommand,
   resolveProfileRunInput,
   resolveProfileRunLookup,
   resolveScopeBoundProfileId,
 } from "../src/commands/resolve-run-profile.js";
+import { reconcileProfileRunCommand } from "../src/commands/run-command-argv.js";
 import type { GlobalCliFlags } from "../src/cli-options.js";
 import { loadAndResolveCliContext } from "../src/config/load-cli-context.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
@@ -109,6 +109,34 @@ describe("resolveProfileRunLookup project profile selection", () => {
         }),
       }),
     ).toEqual({ profileId: PROFILE_ID });
+  });
+
+  it("uses scope.profileId when commander bound the child executable as profile", () => {
+    expect(
+      resolveProfileRunLookup({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        profileSelector: "node",
+      }),
+    ).toEqual({ profileId: PROFILE_ID });
+  });
+
+  it("keeps an explicit prof_ selector when it does not resolve", () => {
+    expect(
+      resolveProfileRunLookup({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        profileSelector: "prof_01MISSING000000000000000001",
+      }),
+    ).toEqual({ selector: "prof_01MISSING000000000000000001" });
   });
 
   it("exposes the same project-bound id from scope and project config helpers", () => {
@@ -342,6 +370,21 @@ describe("assertRunModeExclusive project profile selection", () => {
             profileId: PROFILE_ID as never,
           },
         }),
+        variableKey: "API_KEY",
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows --variable-key when commander bound the child executable as profile", () => {
+    expect(() =>
+      assertRunModeExclusive({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        profileSelector: "node",
         variableKey: "API_KEY",
       }),
     ).not.toThrow();

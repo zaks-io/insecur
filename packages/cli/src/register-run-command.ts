@@ -1,6 +1,6 @@
 import type { Command, Command as CommanderCommand } from "commander";
 import { runRunCommand } from "./commands/run.js";
-import { reconcileProfileRunCommand } from "./commands/resolve-run-profile.js";
+import { reconcileProfileRunCommand } from "./commands/run-command-argv.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 
 export function registerRunCommand(

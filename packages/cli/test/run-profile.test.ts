@@ -9,7 +9,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { runRunCommand } from "../src/commands/run.js";
-import { parseRunCommandArgv, splitRunCommandArgs } from "../src/commands/resolve-run-profile.js";
+import { parseRunCommandArgv, splitRunCommandArgs } from "../src/commands/run-command-argv.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { setMemorySession, clearMemorySession } from "../src/session/memory-session.js";
 import type { ApiClient } from "../src/api/types.js";

@@ -48,6 +48,41 @@ export function resolveScopeBoundProfileId(context: ResolvedCliContext): CliProf
   return context.scope.profileId ?? context.projectConfig?.profileId;
 }
 
+function resolvesAsCliProfile(
+  userConfig: ResolvedCliContext["userConfig"],
+  selector: string,
+): boolean {
+  return resolveProfile(userConfig, { selector }, { required: false }) !== undefined;
+}
+
+function isExplicitProfileIdSelector(selector: string): boolean {
+  return selector.startsWith("prof_");
+}
+
+function resolvePositionalProfileSelector(input: {
+  readonly context: ResolvedCliContext;
+  readonly profileSelector: string;
+}): ResolveProfileInput | undefined {
+  if (isExplicitProfileIdSelector(input.profileSelector)) {
+    return { selector: input.profileSelector };
+  }
+  if (resolvesAsCliProfile(input.context.userConfig, input.profileSelector)) {
+    return { selector: input.profileSelector };
+  }
+  return undefined;
+}
+
+function resolveAmbientProfileLookup(context: ResolvedCliContext): ResolveProfileInput {
+  const scopeBoundProfileId = resolveScopeBoundProfileId(context);
+  if (scopeBoundProfileId !== undefined) {
+    return { profileId: scopeBoundProfileId };
+  }
+  if (isNonEmptyProfileSelector(context.scope.profileSlug)) {
+    return { selector: context.scope.profileSlug };
+  }
+  return {};
+}
+
 export function resolveProfileRunLookup(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
@@ -56,31 +91,45 @@ export function resolveProfileRunLookup(input: {
   if (input.flags.profileId !== undefined) {
     return { profileId: input.flags.profileId };
   }
-
-  const explicitSelector = input.profileSelector ?? input.flags.profile;
-  if (isNonEmptyProfileSelector(explicitSelector)) {
-    return { selector: explicitSelector };
+  if (isNonEmptyProfileSelector(input.flags.profile)) {
+    return { selector: input.flags.profile };
   }
-
-  const scopeBoundProfileId = resolveScopeBoundProfileId(input.context);
-  if (scopeBoundProfileId !== undefined) {
-    return { profileId: scopeBoundProfileId };
+  if (isNonEmptyProfileSelector(input.profileSelector)) {
+    const positional = resolvePositionalProfileSelector({
+      context: input.context,
+      profileSelector: input.profileSelector,
+    });
+    if (positional !== undefined) {
+      return positional;
+    }
   }
-
-  if (isNonEmptyProfileSelector(input.context.scope.profileSlug)) {
-    return { selector: input.context.scope.profileSlug };
+  const ambient = resolveAmbientProfileLookup(input.context);
+  if (ambient.profileId !== undefined || ambient.selector !== undefined) {
+    return ambient;
   }
-
+  if (isNonEmptyProfileSelector(input.profileSelector)) {
+    return { selector: input.profileSelector };
+  }
   return {};
 }
 
-function hasExplicitProfileRunSelection(input: {
+function hasResolvableExplicitProfileRunSelection(input: {
   readonly flags: GlobalCliFlags;
+  readonly context: ResolvedCliContext;
   readonly profileSelector?: string;
 }): boolean {
+  if (input.flags.profileId !== undefined) {
+    return true;
+  }
+  if (isNonEmptyProfileSelector(input.flags.profile)) {
+    return true;
+  }
+  if (!isNonEmptyProfileSelector(input.profileSelector)) {
+    return false;
+  }
   return (
-    isNonEmptyProfileSelector(input.profileSelector ?? input.flags.profile) ||
-    input.flags.profileId !== undefined
+    isExplicitProfileIdSelector(input.profileSelector) ||
+    resolvesAsCliProfile(input.context.userConfig, input.profileSelector)
   );
 }
 
@@ -97,7 +146,7 @@ function hasProfileBackedRunMode(input: {
   readonly context: ResolvedCliContext;
   readonly profileSelector?: string;
 }): boolean {
-  if (hasExplicitProfileRunSelection(input)) {
+  if (hasResolvableExplicitProfileRunSelection(input)) {
     return true;
   }
 
@@ -139,87 +188,6 @@ export function resolveProfileRunInput(input: {
     profileId: resolvedProfile.profileId,
     profileSlug: resolvedProfile.profile.slug,
     profile: resolvedProfile.profile,
-  };
-}
-
-export function splitRunCommandArgs(args: readonly string[]): {
-  readonly profileSelector?: string;
-  readonly command: readonly string[];
-} {
-  const separatorIndex = args.indexOf("--");
-  if (separatorIndex >= 0) {
-    const head = args.slice(0, separatorIndex);
-    const command = args.slice(separatorIndex + 1);
-    const profileSelector = head[0];
-    return {
-      ...(profileSelector === undefined || profileSelector === "" ? {} : { profileSelector }),
-      command,
-    };
-  }
-  return { command: args };
-}
-
-export function parseRunCommandArgv(input: {
-  readonly positionalProfile?: string;
-  readonly args: readonly string[];
-}): {
-  readonly profileSelector?: string;
-  readonly command: readonly string[];
-} {
-  const split = splitRunCommandArgs(input.args);
-  const positionalProfile =
-    input.positionalProfile === undefined || input.positionalProfile === ""
-      ? undefined
-      : input.positionalProfile;
-  const profileSelector = positionalProfile ?? split.profileSelector;
-  const command =
-    positionalProfile !== undefined &&
-    split.profileSelector === undefined &&
-    split.command[0] === positionalProfile
-      ? split.command.slice(1)
-      : split.command;
-  return {
-    ...(profileSelector === undefined ? {} : { profileSelector }),
-    command,
-  };
-}
-
-/** When Commander binds the child executable as `[profile]`, fall back to project scope profileId. */
-export function reconcileProfileRunCommand(input: {
-  readonly flags: GlobalCliFlags;
-  readonly context: ResolvedCliContext;
-  readonly positionalProfile?: string;
-  readonly args: readonly string[];
-}): {
-  readonly profileSelector?: string;
-  readonly command: readonly string[];
-} {
-  const parsed = parseRunCommandArgv({
-    ...(input.positionalProfile === undefined
-      ? {}
-      : { positionalProfile: input.positionalProfile }),
-    args: input.args,
-  });
-
-  if (parsed.profileSelector === undefined || input.flags.profileId !== undefined) {
-    return parsed;
-  }
-
-  const resolved = resolveProfile(
-    input.context.userConfig,
-    { selector: parsed.profileSelector },
-    { required: false },
-  );
-  if (resolved !== undefined) {
-    return parsed;
-  }
-
-  if (!hasAmbientProfileRunSelection(input.context)) {
-    return parsed;
-  }
-
-  return {
-    command: [parsed.profileSelector, ...parsed.command],
   };
 }
 
