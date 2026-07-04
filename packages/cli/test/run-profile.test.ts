@@ -219,4 +219,86 @@ describe("runRunCommand profile-backed policy path", () => {
     expect(JSON.stringify(parsed)).not.toContain("encodedValueUtf8");
     stdoutSpy.mockRestore();
   });
+
+  it("accepts global --profile without a positional profile argument", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
+      expect(options.stdio).toBe("inherit");
+      return createMockChild(0);
+    });
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand({ ...flags, profile: "local-dev" }, api, mockContext, {
+      command: ["node", "-e", "process.exit(0)"],
+    });
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ policyId: POLICY_ID }),
+    );
+    stdoutSpy.mockRestore();
+  });
+
+  it("accepts the resolved default profile slug from CLI scope", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation(() => createMockChild(0));
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand(
+      flags,
+      api,
+      {
+        ...mockContext,
+        scope: {
+          ...mockContext.scope,
+          profileSlug: "local-dev",
+          profileId: PROFILE_ID as never,
+          profile: mockContext.userConfig.profiles[PROFILE_ID],
+        },
+      },
+      {
+        command: ["node", "-e", "process.exit(0)"],
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(api.consumeInjectionGrantAll).toHaveBeenCalledTimes(1);
+    stdoutSpy.mockRestore();
+  });
+
+  it("accepts global --profile-id without a positional profile argument", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi();
+    spawnMock.mockImplementation(() => createMockChild(0));
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runRunCommand(
+      { ...flags, profileId: PROFILE_ID as never },
+      api,
+      mockContext,
+      {
+        command: ["node", "-e", "process.exit(0)"],
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ policyId: POLICY_ID }),
+    );
+    stdoutSpy.mockRestore();
+  });
 });

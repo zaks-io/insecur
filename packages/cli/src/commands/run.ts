@@ -118,6 +118,8 @@ export async function runRunCommand(
   commandOptions: RunCommandOptions,
 ): Promise<number> {
   assertRunModeExclusive({
+    flags,
+    context,
     ...(commandOptions.variableKey === undefined
       ? {}
       : { variableKey: commandOptions.variableKey }),
