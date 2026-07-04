@@ -66,7 +66,10 @@ function toSecretVersionStoreRow(
 }
 
 function assertDeliverableLifecycleState(lifecycleState: SecretVersionLifecycleState): void {
-  if (lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.live) {
+  if (
+    lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.live &&
+    lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.retained
+  ) {
     throw new SecretVersionStoreConflictError("secret version is not deliverable");
   }
 }

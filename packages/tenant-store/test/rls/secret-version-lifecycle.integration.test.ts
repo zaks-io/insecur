@@ -87,8 +87,8 @@ async function appendLiveVersion(
   };
 }
 
-/** Mirrors migration 0011 backfill for superseded secret versions left in draft. */
-async function applyMigration0011LifecycleBackfill(): Promise<void> {
+/** Mirrors migration 0012 backfill for superseded secret versions left in draft. */
+async function applyMigration0012LifecycleBackfill(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG }, async ({ sql }) => {
     await sql`
       UPDATE secret_versions AS sv
@@ -145,7 +145,7 @@ describeRls("TenantSecretVersionStore lifecycle (real Postgres)", () => {
     expect(versionRow[0]?.lifecycle_state).toBe(SECRET_VERSION_LIFECYCLE_STATES.live);
   });
 
-  it("retains the prior live version when appending a new non-protected live version", async () => {
+  it("retains the prior live version while keeping grant-bound delivery eligible", async () => {
     const variableKey = uniqueVariableKey("LIFE_RETAIN");
     const dedicatedSecretId = await resolveDedicatedSecret(variableKey);
 
@@ -168,16 +168,17 @@ describeRls("TenantSecretVersionStore lifecycle (real Postgres)", () => {
     expect(lifecycleRows[0]?.lifecycle_state).toBe(SECRET_VERSION_LIFECYCLE_STATES.retained);
     expect(lifecycleRows[1]?.lifecycle_state).toBe(SECRET_VERSION_LIFECYCLE_STATES.live);
 
-    await expect(
-      withTenantScope({ kind: "organization", organizationId: ORG }, ({ db }) =>
+    const grantBound = await withTenantScope(
+      { kind: "organization", organizationId: ORG },
+      ({ db }) =>
         new TenantSecretVersionStore(db).getDeliverableVersion(
           dedicatedSecretId,
           first.secretVersionId,
         ),
-      ),
-    ).rejects.toBeInstanceOf(SecretVersionStoreConflictError);
+    );
+    expect(grantBound?.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.retained);
 
-    const deliverable = await withTenantScope(
+    const currentLive = await withTenantScope(
       { kind: "organization", organizationId: ORG },
       ({ db }) =>
         new TenantSecretVersionStore(db).getDeliverableVersion(
@@ -185,10 +186,10 @@ describeRls("TenantSecretVersionStore lifecycle (real Postgres)", () => {
           second.secretVersionId,
         ),
     );
-    expect(deliverable?.secretVersionId).toBe(second.secretVersionId);
+    expect(currentLive?.secretVersionId).toBe(second.secretVersionId);
   });
 
-  it("backfills superseded versions to retained so only the current pointer stays deliverable", async () => {
+  it("backfills superseded versions to retained and restores grant-bound deliverability", async () => {
     const variableKey = uniqueVariableKey("LIFE_BACKFILL");
     const dedicatedSecretId = await resolveDedicatedSecret(variableKey);
 
@@ -219,7 +220,16 @@ describeRls("TenantSecretVersionStore lifecycle (real Postgres)", () => {
       `;
     });
 
-    await applyMigration0011LifecycleBackfill();
+    await expect(
+      withTenantScope({ kind: "organization", organizationId: ORG }, ({ db }) =>
+        new TenantSecretVersionStore(db).getDeliverableVersion(
+          dedicatedSecretId,
+          first.secretVersionId,
+        ),
+      ),
+    ).rejects.toBeInstanceOf(SecretVersionStoreConflictError);
+
+    await applyMigration0012LifecycleBackfill();
 
     const lifecycleRows = await withTenantScope(
       { kind: "organization", organizationId: ORG },
@@ -234,14 +244,15 @@ describeRls("TenantSecretVersionStore lifecycle (real Postgres)", () => {
     expect(lifecycleRows[0]?.lifecycle_state).toBe(SECRET_VERSION_LIFECYCLE_STATES.retained);
     expect(lifecycleRows[1]?.lifecycle_state).toBe(SECRET_VERSION_LIFECYCLE_STATES.live);
 
-    await expect(
-      withTenantScope({ kind: "organization", organizationId: ORG }, ({ db }) =>
+    const grantBound = await withTenantScope(
+      { kind: "organization", organizationId: ORG },
+      ({ db }) =>
         new TenantSecretVersionStore(db).getDeliverableVersion(
           dedicatedSecretId,
           first.secretVersionId,
         ),
-      ),
-    ).rejects.toBeInstanceOf(SecretVersionStoreConflictError);
+    );
+    expect(grantBound?.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.retained);
 
     const grantTarget = await withTenantScope(
       { kind: "organization", organizationId: ORG },

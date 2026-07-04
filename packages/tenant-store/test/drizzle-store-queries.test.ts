@@ -293,6 +293,53 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
     const current = await store.getCurrentVersion(secretIdValue);
     expect(current?.secretVersionId).toBe(versionIdValue);
   });
+
+  it("returns deliverable versions for live and retained lifecycle states", async () => {
+    const storageRef = encodeInlineCiphertextStorageRef(new Uint8Array([7, 8]));
+    const { db } = createMockTenantDb({
+      selectResults: [
+        [
+          {
+            id: versionIdValue,
+            orgId: ORG,
+            secretId: secretIdValue,
+            versionNumber: 1,
+            lifecycleState: "retained",
+            organizationDataKeyVersion: 1,
+            projectDataKeyVersion: 1,
+            ciphertextStorageRef: storageRef,
+          },
+        ],
+      ],
+    });
+    const store = new TenantSecretVersionStore(db);
+    const retained = await store.getDeliverableVersion(secretIdValue, versionIdValue);
+    expect(retained?.lifecycleState).toBe("retained");
+  });
+
+  it("rejects draft versions as not deliverable", async () => {
+    const storageRef = encodeInlineCiphertextStorageRef(new Uint8Array([7, 8]));
+    const { db } = createMockTenantDb({
+      selectResults: [
+        [
+          {
+            id: versionIdValue,
+            orgId: ORG,
+            secretId: secretIdValue,
+            versionNumber: 2,
+            lifecycleState: "draft",
+            organizationDataKeyVersion: 1,
+            projectDataKeyVersion: 1,
+            ciphertextStorageRef: storageRef,
+          },
+        ],
+      ],
+    });
+    const store = new TenantSecretVersionStore(db);
+    await expect(store.getDeliverableVersion(secretIdValue, versionIdValue)).rejects.toBeInstanceOf(
+      SecretVersionStoreConflictError,
+    );
+  });
 });
 
 describe("TenantInjectionGrantStore (Drizzle)", () => {

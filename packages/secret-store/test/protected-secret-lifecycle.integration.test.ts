@@ -243,11 +243,12 @@ describeIntegration("protected secret version lifecycle (INS-55)", () => {
     );
     expect(prior?.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.retained);
 
-    await expect(
-      withTenantScope({ kind: "organization", organizationId: ORG }, ({ db }) =>
+    const grantBound = await withTenantScope(
+      { kind: "organization", organizationId: ORG },
+      ({ db }) =>
         new TenantSecretVersionStore(db).getDeliverableVersion(live.secretId, live.secretVersionId),
-      ),
-    ).rejects.toBeInstanceOf(SecretVersionStoreConflictError);
+    );
+    expect(grantBound?.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.retained);
 
     const deliverable = await withTenantScope(
       { kind: "organization", organizationId: ORG },
