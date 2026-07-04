@@ -156,6 +156,12 @@ CREATE POLICY machine_identity_github_actions_oidc_tenant_isolation ON machine_i
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS machine_identity_environment_deploy_keys_tenant_isolation ON machine_identity_environment_deploy_keys;
+CREATE POLICY machine_identity_environment_deploy_keys_tenant_isolation ON machine_identity_environment_deploy_keys
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS app_connections_tenant_isolation ON app_connections;
 CREATE POLICY app_connections_tenant_isolation ON app_connections
   FOR ALL
@@ -209,6 +215,7 @@ BEGIN
         'machine_identities',
         'machine_identity_memberships',
         'machine_identity_github_actions_oidc',
+        'machine_identity_environment_deploy_keys',
         'app_connections',
         'provider_credentials',
         'sensitive_metadata_fields'

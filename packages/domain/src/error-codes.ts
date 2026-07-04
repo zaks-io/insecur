@@ -31,6 +31,10 @@ export const AUTH_ERROR_CODES = {
   oidcWrongRepository: "auth.oidc_wrong_repository",
   oidcWrongEnvironment: "auth.oidc_wrong_environment",
   oidcUntrustedSource: "auth.oidc_untrusted_source",
+  deployKeyInvalid: "auth.deploy_key_invalid",
+  deployKeyDisabled: "auth.deploy_key_disabled",
+  deployKeyWrongEnvironment: "auth.deploy_key_wrong_environment",
+  deployKeyOverbroadScope: "auth.deploy_key_overbroad_scope",
 } as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];

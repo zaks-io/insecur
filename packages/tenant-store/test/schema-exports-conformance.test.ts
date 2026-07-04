@@ -43,6 +43,7 @@ const EXPECTED_TABLE_EXPORTS: Record<string, readonly string[]> = {
     "machineIdentities",
     "machineIdentityMemberships",
     "machineIdentityGitHubActionsOidc",
+    "machineIdentityEnvironmentDeployKeys",
   ],
   "tenant-integrations.js": ["appConnections", "providerCredentials", "sensitiveMetadataFields"],
   "tenant-secrets.js": [
