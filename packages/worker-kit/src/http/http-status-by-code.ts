@@ -104,6 +104,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [OPERATION_ERROR_CODES.leaseRequired, 400],
   [APP_CONNECTION_ERROR_CODES.notFound, 404],
   [APP_CONNECTION_ERROR_CODES.resourceConflict, 409],
+  [APP_CONNECTION_ERROR_CODES.invalidConnectionMethod, 400],
   [PROVIDER_APP_REGISTRATION_ERROR_CODES.notFound, 404],
   [PROVIDER_APP_REGISTRATION_ERROR_CODES.alreadyExists, 409],
 ]);

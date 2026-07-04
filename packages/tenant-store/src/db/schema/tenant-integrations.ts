@@ -13,6 +13,8 @@ export const APP_CONNECTION_STATUSES = [
   "pending_setup",
 ] as const;
 
+export const APP_CONNECTION_VALIDATION_OUTCOMES = ["success", "failed"] as const;
+
 export const APP_CONNECTION_METHODS = [
   "github-app",
   "scoped-api-token",
@@ -35,6 +37,9 @@ export const appConnections = pgTable(
     setupUserId: text("setup_user_id").notNull(),
     activeCredentialId: text("active_credential_id"),
     statusReasonCode: text("status_reason_code"),
+    lastValidationCheckedAt: timestamp("last_validation_checked_at", { withTimezone: true }),
+    lastValidationOutcome: text("last_validation_outcome"),
+    lastValidationReasonCode: text("last_validation_reason_code"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -51,6 +56,10 @@ export const appConnections = pgTable(
     check(
       "app_connections_status_check",
       sql`${table.status} IN ('active', 'disconnected', 'reauthorization_required', 'pending_setup')`,
+    ),
+    check(
+      "app_connections_last_validation_outcome_check",
+      sql`${table.lastValidationOutcome} IS NULL OR ${table.lastValidationOutcome} IN ('success', 'failed')`,
     ),
   ],
 );

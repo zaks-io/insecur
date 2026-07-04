@@ -92,6 +92,13 @@
       "when": 1783300000000,
       "tag": "0012_secret_version_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1783400000000,
+      "tag": "0013_app_connections_validation_metadata",
+      "breakpoints": true
     }
   ]
 }

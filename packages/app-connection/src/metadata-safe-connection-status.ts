@@ -11,6 +11,9 @@ export interface MetadataSafeAppConnectionStatus {
   readonly statusReasonCode: string | null;
   readonly hasActiveCredential: boolean;
   readonly setupUserId: AppConnectionRow["setupUserId"];
+  readonly lastValidationCheckedAt: string | null;
+  readonly lastValidationOutcome: AppConnectionRow["lastValidationOutcome"];
+  readonly lastValidationReasonCode: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -28,6 +31,9 @@ export function toMetadataSafeAppConnectionStatus(
     statusReasonCode: connection.statusReasonCode,
     hasActiveCredential: connection.activeCredentialId !== null,
     setupUserId: connection.setupUserId,
+    lastValidationCheckedAt: connection.lastValidationCheckedAt?.toISOString() ?? null,
+    lastValidationOutcome: connection.lastValidationOutcome,
+    lastValidationReasonCode: connection.lastValidationReasonCode,
     createdAt: connection.createdAt.toISOString(),
     updatedAt: connection.updatedAt.toISOString(),
   };

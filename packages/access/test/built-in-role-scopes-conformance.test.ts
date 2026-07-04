@@ -42,6 +42,8 @@ const EXPLICIT_SCOPE_CATEGORIES = {
   [AUTHORIZATION_SCOPES.secretRead]: "read",
   [AUTHORIZATION_SCOPES.metadataDetailRead]: "read",
   [AUTHORIZATION_SCOPES.projectConfigure]: "configuration",
+  [AUTHORIZATION_SCOPES.connectionRead]: "read",
+  [AUTHORIZATION_SCOPES.connectionManage]: "configuration",
 } as const satisfies Partial<Record<AuthorizationScope, AuthorizationScopeCategory>>;
 
 const ADR_0004_MACHINE_FORBIDDEN_SCOPES = [
@@ -51,6 +53,7 @@ const ADR_0004_MACHINE_FORBIDDEN_SCOPES = [
   AUTHORIZATION_SCOPES.projectConfigure,
   AUTHORIZATION_SCOPES.onboardingGuidedProvision,
   AUTHORIZATION_SCOPES.metadataDetailRead,
+  AUTHORIZATION_SCOPES.connectionManage,
 ] as const satisfies readonly AuthorizationScope[];
 
 const METADATA_VIEWER_FORBIDDEN_CATEGORIES = [

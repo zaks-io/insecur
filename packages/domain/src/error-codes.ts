@@ -188,6 +188,9 @@ export const APP_CONNECTION_ERROR_CODES = {
   pendingSetup: "connection.pending_setup",
   providerRegistrationMissing: "connection.provider_registration_missing",
   credentialMissing: "connection.credential_missing",
+  validationFailed: "connection.validation_failed",
+  boundaryMismatch: "connection.boundary_mismatch",
+  invalidConnectionMethod: "connection.invalid_connection_method",
 } as const;
 
 export type AppConnectionErrorCode =

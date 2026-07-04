@@ -19,6 +19,8 @@ export const AUTHORIZATION_SCOPES = {
   approvalReject: "approval:reject",
   membershipManage: "membership:manage",
   projectConfigure: "project:configure",
+  connectionRead: "connection:read",
+  connectionManage: "connection:manage",
 } as const;
 
 export type AuthorizationScope = (typeof AUTHORIZATION_SCOPES)[keyof typeof AUTHORIZATION_SCOPES];

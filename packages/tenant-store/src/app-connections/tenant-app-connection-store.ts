@@ -20,6 +20,7 @@ import type {
   CreateAppConnectionInput,
   ListAppConnectionsInput,
   UpdateAppConnectionStatusInput,
+  UpdateAppConnectionValidationInput,
 } from "./types.js";
 
 function toAppConnectionRow(row: {
@@ -32,6 +33,9 @@ function toAppConnectionRow(row: {
   setup_user_id: string;
   active_credential_id: string | null;
   status_reason_code: string | null;
+  last_validation_checked_at: Date | null;
+  last_validation_outcome: string | null;
+  last_validation_reason_code: string | null;
   created_at: Date;
   updated_at: Date;
 }): AppConnectionRow {
@@ -45,6 +49,9 @@ function toAppConnectionRow(row: {
     setupUserId: row.setup_user_id as UserId,
     activeCredentialId: row.active_credential_id as ProviderCredentialId | null,
     statusReasonCode: row.status_reason_code,
+    lastValidationCheckedAt: row.last_validation_checked_at,
+    lastValidationOutcome: row.last_validation_outcome as AppConnectionRow["lastValidationOutcome"],
+    lastValidationReasonCode: row.last_validation_reason_code,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -60,6 +67,9 @@ const appConnectionSelect = {
   setup_user_id: appConnections.setupUserId,
   active_credential_id: appConnections.activeCredentialId,
   status_reason_code: appConnections.statusReasonCode,
+  last_validation_checked_at: appConnections.lastValidationCheckedAt,
+  last_validation_outcome: appConnections.lastValidationOutcome,
+  last_validation_reason_code: appConnections.lastValidationReasonCode,
   created_at: appConnections.createdAt,
   updated_at: appConnections.updatedAt,
 } as const;
@@ -137,14 +147,30 @@ export class TenantAppConnectionStore {
       patch.activeCredentialId = input.activeCredentialId;
     }
 
+    return this.updateConnectionById(input.organizationId, input.appConnectionId, patch);
+  }
+
+  async updateConnectionValidation(
+    input: UpdateAppConnectionValidationInput,
+  ): Promise<AppConnectionRow> {
+    return this.updateConnectionById(input.organizationId, input.appConnectionId, {
+      lastValidationCheckedAt: input.lastValidationCheckedAt,
+      lastValidationOutcome: input.lastValidationOutcome,
+      lastValidationReasonCode: input.lastValidationReasonCode,
+      updatedAt: new Date(),
+    });
+  }
+
+  private async updateConnectionById(
+    organizationId: OrganizationId,
+    appConnectionIdValue: AppConnectionId,
+    patch: Partial<typeof appConnections.$inferInsert>,
+  ): Promise<AppConnectionRow> {
     const rows = await this.db
       .update(appConnections)
       .set(patch)
       .where(
-        and(
-          eq(appConnections.orgId, input.organizationId),
-          eq(appConnections.id, input.appConnectionId),
-        ),
+        and(eq(appConnections.orgId, organizationId), eq(appConnections.id, appConnectionIdValue)),
       )
       .returning(appConnectionSelect);
 

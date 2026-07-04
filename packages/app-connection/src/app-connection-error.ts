@@ -1,9 +1,9 @@
-import { APP_CONNECTION_ERROR_CODES, type AppConnectionErrorCode } from "@insecur/domain";
+import { APP_CONNECTION_ERROR_CODES, type KnownErrorCode } from "@insecur/domain";
 
 export class AppConnectionError extends Error {
-  readonly code: AppConnectionErrorCode;
+  readonly code: KnownErrorCode;
 
-  constructor(code: AppConnectionErrorCode, message?: string) {
+  constructor(code: KnownErrorCode, message?: string) {
     super(message ?? code);
     this.name = "AppConnectionError";
     this.code = code;
