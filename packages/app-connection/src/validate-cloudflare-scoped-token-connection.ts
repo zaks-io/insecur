@@ -15,11 +15,11 @@ import type {
 import type { UserActorRef } from "@insecur/access";
 
 import { AppConnectionError } from "./app-connection-error.js";
+import type { CloudflareConnectionBoundary } from "./cloudflare-scoped-token-metadata.js";
 import type { CloudflareScopedTokenPort } from "./cloudflare-scoped-token-port.js";
 import { decryptProviderCredentialForCloudflareValidation } from "./decrypt-provider-credential-for-validation.js";
-import { loadCloudflareConnectionBoundary } from "./load-cloudflare-connection-boundary.js";
+import { persistConnectionValidationSuccess } from "./persist-connection-validation-success.js";
 import {
-  recordConnectionValidated,
   recordConnectionValidationDenied,
   toConnectionAuditReasonCode,
 } from "./record-connection-audit.js";
@@ -124,14 +124,8 @@ async function recordValidationFailure(
 async function validateActiveCloudflareConnection(
   input: ValidateCloudflareScopedTokenConnectionInput,
   connection: AppConnectionRow,
+  boundary: CloudflareConnectionBoundary,
 ): Promise<MetadataSafeCloudflareConnectionValidation> {
-  const boundary = await loadCloudflareConnectionBoundary({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    appConnectionId: input.appConnectionId,
-    keyring: input.keyring,
-    sensitiveMetadataStore: input.sensitiveMetadataStore,
-  });
   const token = await loadCloudflareValidationToken(input, connection);
   const checkedAt = new Date();
 
@@ -142,19 +136,14 @@ async function validateActiveCloudflareConnection(
       allowedWorkerScript: boundary.allowedWorkerScript,
     });
 
-    await input.appConnectionStore.updateConnectionValidation({
-      organizationId: input.organizationId,
-      appConnectionId: input.appConnectionId,
-      lastValidationCheckedAt: checkedAt,
-      lastValidationOutcome: "success",
-      lastValidationReasonCode: null,
-    });
-    await recordConnectionValidated({
+    await persistConnectionValidationSuccess({
       actorUserId: input.actor.userId,
       organizationId: input.organizationId,
       projectId: input.projectId,
       appConnectionId: input.appConnectionId,
-      validation: validationResult,
+      checkedAt,
+      validationResult,
+      appConnectionStore: input.appConnectionStore,
     });
 
     return toValidationMetadata(checkedAt, "success", null, validationResult);
@@ -178,7 +167,8 @@ export async function validateCloudflareScopedTokenConnection(
           reasonCode: AUTH_ERROR_CODES.insufficientScope,
         });
       },
-      run: async (connection) => validateActiveCloudflareConnection(input, connection),
+      run: async (connection, boundary) =>
+        validateActiveCloudflareConnection(input, connection, boundary),
     });
   } catch (error) {
     if (

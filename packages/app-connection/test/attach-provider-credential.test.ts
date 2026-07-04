@@ -33,8 +33,9 @@ vi.mock("@insecur/audit", async (importOriginal) => {
   };
 });
 
-import { AppConnectionError, APP_CONNECTION_ERROR_CODES } from "../src/app-connection-error.js";
+import { AppConnectionError } from "../src/app-connection-error.js";
 import { attachProviderCredential } from "../src/attach-provider-credential.js";
+import type { CloudflareScopedTokenPort } from "../src/cloudflare-scoped-token-port.js";
 import type {
   AppConnectionRow,
   TenantAppConnectionStore,
@@ -51,6 +52,16 @@ const ACTOR = { type: "user" as const, userId: userId.brand("usr_01JZ8E2QYQ6M7F4
 const SETUP_USER = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const NOW = new Date("2026-07-01T00:00:00.000Z");
 const KEYRING = createKeyring(new Uint8Array(32).fill(9));
+const BOUNDARY = {
+  allowedAccountId: "cf-account-123",
+  allowedWorkerScript: "my-api-production",
+} as const;
+const VALIDATION_RESULT = {
+  tokenStatus: "active" as const,
+  providerAccountId: "cf-account-123",
+  workerScriptReachable: true,
+  hasBoundaryWarning: false,
+};
 
 describe("attachProviderCredential", () => {
   beforeEach(() => {
@@ -67,13 +78,21 @@ describe("attachProviderCredential", () => {
     setupUserId: SETUP_USER,
     activeCredentialId: null,
     statusReasonCode: null,
+    lastValidationCheckedAt: null,
+    lastValidationOutcome: null,
+    lastValidationReasonCode: null,
     createdAt: NOW,
     updatedAt: NOW,
   };
 
+  function successfulCloudflarePort(): CloudflareScopedTokenPort {
+    return { verifyScopedToken: vi.fn(async () => VALIDATION_RESULT) };
+  }
+
   function attachInput(
     appConnectionStore: TenantAppConnectionStore,
     sensitiveMetadataStore: TenantSensitiveMetadataStore,
+    cloudflarePort: CloudflareScopedTokenPort,
   ) {
     return {
       actor: ACTOR,
@@ -82,11 +101,9 @@ describe("attachProviderCredential", () => {
       operationId: OP,
       appConnectionId: CONN,
       credentialId: CRED,
-      wrapped: {
-        organizationDataKeyVersion: 1,
-        ciphertext: new Uint8Array([1, 2, 3]),
-      },
+      tokenPlaintext: new TextEncoder().encode("scoped-cloudflare-token-value"),
       keyring: KEYRING,
+      cloudflarePort,
       appConnectionStore,
       sensitiveMetadataStore,
     };
@@ -108,33 +125,47 @@ describe("attachProviderCredential", () => {
       attachActiveProviderCredential,
     } as unknown as TenantAppConnectionStore;
     const sensitiveMetadataStore = {} as TenantSensitiveMetadataStore;
+    const cloudflarePort = successfulCloudflarePort();
 
     await expect(
-      attachProviderCredential(attachInput(appConnectionStore, sensitiveMetadataStore)),
+      attachProviderCredential(
+        attachInput(appConnectionStore, sensitiveMetadataStore, cloudflarePort),
+      ),
     ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.evidenceMissing });
 
     expect(withConnectionManageAccess).not.toHaveBeenCalled();
+    expect(cloudflarePort.verifyScopedToken).not.toHaveBeenCalled();
     expect(attachActiveProviderCredential).not.toHaveBeenCalled();
   });
 
-  it("routes credential attach through project-scoped manage access before activation", async () => {
+  it("verifies the candidate token against the stored boundary before activation", async () => {
     requireAppConnectionChangeEvidence.mockResolvedValue(undefined);
     const activated: AppConnectionRow = {
       ...PENDING_CONNECTION,
       status: "active",
       activeCredentialId: CRED,
     };
+    const validated: AppConnectionRow = {
+      ...activated,
+      lastValidationCheckedAt: NOW,
+      lastValidationOutcome: "success",
+    };
     const attachActiveProviderCredential = vi.fn(async () => activated);
+    const updateConnectionValidation = vi.fn(async () => validated);
     const appConnectionStore = {
       getConnectionById: vi.fn(async () => PENDING_CONNECTION),
       attachActiveProviderCredential,
+      updateConnectionValidation,
     } as unknown as TenantAppConnectionStore;
     const sensitiveMetadataStore = {} as TenantSensitiveMetadataStore;
+    const cloudflarePort = successfulCloudflarePort();
 
-    withConnectionManageAccess.mockImplementation(async ({ run }) => run(PENDING_CONNECTION));
+    withConnectionManageAccess.mockImplementation(async ({ run }) =>
+      run(PENDING_CONNECTION, BOUNDARY),
+    );
 
     const result = await attachProviderCredential(
-      attachInput(appConnectionStore, sensitiveMetadataStore),
+      attachInput(appConnectionStore, sensitiveMetadataStore, cloudflarePort),
     );
 
     expect(requireAppConnectionChangeEvidence).toHaveBeenCalledOnce();
@@ -148,17 +179,64 @@ describe("attachProviderCredential", () => {
         sensitiveMetadataStore,
       }),
     );
-    expect(attachActiveProviderCredential).toHaveBeenCalledWith({
-      organizationId: ORG,
-      appConnectionId: CONN,
-      credentialId: CRED,
-      connectionMethod: "scoped-api-token",
-      wrapped: {
-        organizationDataKeyVersion: 1,
-        ciphertext: new Uint8Array([1, 2, 3]),
-      },
+    expect(cloudflarePort.verifyScopedToken).toHaveBeenCalledWith({
+      token: "scoped-cloudflare-token-value",
+      allowedAccountId: BOUNDARY.allowedAccountId,
+      allowedWorkerScript: BOUNDARY.allowedWorkerScript,
     });
-    expect(result).toBe(activated);
+    expect(attachActiveProviderCredential).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: ORG,
+        appConnectionId: CONN,
+        credentialId: CRED,
+        connectionMethod: "scoped-api-token",
+      }),
+    );
+    const attachCall = attachActiveProviderCredential.mock.calls[0]?.[0] as {
+      wrapped: { ciphertext: Uint8Array };
+    };
+    expect(new TextDecoder().decode(attachCall.wrapped.ciphertext)).not.toContain(
+      "scoped-cloudflare-token-value",
+    );
+    expect(updateConnectionValidation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: ORG,
+        appConnectionId: CONN,
+        lastValidationOutcome: "success",
+        lastValidationReasonCode: null,
+      }),
+    );
+    expect(result).toBe(validated);
+  });
+
+  it("does not activate credentials when provider verification fails", async () => {
+    requireAppConnectionChangeEvidence.mockResolvedValue(undefined);
+    const attachActiveProviderCredential = vi.fn();
+    const updateConnectionValidation = vi.fn();
+    const appConnectionStore = {
+      getConnectionById: vi.fn(async () => PENDING_CONNECTION),
+      attachActiveProviderCredential,
+      updateConnectionValidation,
+    } as unknown as TenantAppConnectionStore;
+    const sensitiveMetadataStore = {} as TenantSensitiveMetadataStore;
+    const cloudflarePort: CloudflareScopedTokenPort = {
+      verifyScopedToken: vi.fn(async () => {
+        throw new AppConnectionError(APP_CONNECTION_ERROR_CODES.validationFailed);
+      }),
+    };
+
+    withConnectionManageAccess.mockImplementation(async ({ run }) =>
+      run(PENDING_CONNECTION, BOUNDARY),
+    );
+
+    await expect(
+      attachProviderCredential(
+        attachInput(appConnectionStore, sensitiveMetadataStore, cloudflarePort),
+      ),
+    ).rejects.toMatchObject({ code: APP_CONNECTION_ERROR_CODES.validationFailed });
+
+    expect(attachActiveProviderCredential).not.toHaveBeenCalled();
+    expect(updateConnectionValidation).not.toHaveBeenCalled();
   });
 
   it("does not activate credentials when project-scoped boundary proof fails", async () => {
@@ -175,7 +253,9 @@ describe("attachProviderCredential", () => {
     );
 
     await expect(
-      attachProviderCredential(attachInput(appConnectionStore, sensitiveMetadataStore)),
+      attachProviderCredential(
+        attachInput(appConnectionStore, sensitiveMetadataStore, successfulCloudflarePort()),
+      ),
     ).rejects.toMatchObject({ code: APP_CONNECTION_ERROR_CODES.notFound });
 
     expect(attachActiveProviderCredential).not.toHaveBeenCalled();
@@ -196,7 +276,9 @@ describe("attachProviderCredential", () => {
     });
 
     await expect(
-      attachProviderCredential(attachInput(appConnectionStore, sensitiveMetadataStore)),
+      attachProviderCredential(
+        attachInput(appConnectionStore, sensitiveMetadataStore, successfulCloudflarePort()),
+      ),
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
     expect(attachActiveProviderCredential).not.toHaveBeenCalled();

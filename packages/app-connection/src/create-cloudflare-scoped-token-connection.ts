@@ -1,5 +1,5 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
-import { encryptProviderCredential, type Keyring } from "@insecur/crypto";
+import type { Keyring } from "@insecur/crypto";
 import {
   type AppConnectionId,
   type DisplayName,
@@ -20,22 +20,21 @@ import {
   assertConnectionManageScope,
   isConnectionAccessDenied,
 } from "./assert-connection-access.js";
-import { attachProviderCredentialUnchecked } from "./attach-provider-credential-unchecked.js";
+import { attachEncryptedCloudflareCredential } from "./attach-encrypted-cloudflare-credential.js";
 import type { CloudflareConnectionBoundary } from "./cloudflare-scoped-token-metadata.js";
 import { requireAppConnectionChangeEvidence } from "./consume-app-connection-change-evidence.js";
 import type {
   CloudflareScopedTokenPort,
   CloudflareScopedTokenVerifyResult,
 } from "./cloudflare-scoped-token-port.js";
+import { persistConnectionValidationSuccess } from "./persist-connection-validation-success.js";
 import {
   recordConnectionCreated,
   recordConnectionCreateDenied,
   recordConnectionCredentialAttached,
-  recordConnectionCredentialAttachDenied,
-  recordConnectionValidated,
-  recordConnectionValidationDenied,
   toConnectionAuditReasonCode,
 } from "./record-connection-audit.js";
+import { verifyCloudflareConnectionToken } from "./verify-cloudflare-connection-token.js";
 import { storeCloudflareConnectionBoundary } from "./store-cloudflare-connection-boundary.js";
 
 export interface CreateCloudflareScopedTokenConnectionInput {
@@ -93,23 +92,15 @@ async function assertCreateConnectionAccess(
 async function verifyCloudflareTokenForCreate(
   input: CreateCloudflareScopedTokenConnectionInput,
 ): Promise<CloudflareScopedTokenVerifyResult> {
-  const token = new TextDecoder().decode(input.tokenPlaintext);
-  try {
-    return await input.cloudflarePort.verifyScopedToken({
-      token,
-      allowedAccountId: input.boundary.allowedAccountId,
-      allowedWorkerScript: input.boundary.allowedWorkerScript,
-    });
-  } catch (error) {
-    await recordConnectionValidationDenied({
-      actorUserId: input.actor.userId,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      appConnectionId: input.appConnectionId,
-      reasonCode: toConnectionAuditReasonCode(error),
-    });
-    throw error;
-  }
+  return verifyCloudflareConnectionToken({
+    actorUserId: input.actor.userId,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    appConnectionId: input.appConnectionId,
+    tokenPlaintext: input.tokenPlaintext,
+    boundary: input.boundary,
+    cloudflarePort: input.cloudflarePort,
+  });
 }
 
 async function persistCloudflareConnectionDraft(
@@ -137,38 +128,19 @@ async function persistCloudflareConnectionDraft(
   });
 }
 
-async function attachEncryptedCloudflareCredential(
+async function attachEncryptedCredentialForCreate(
   input: CreateCloudflareScopedTokenConnectionInput,
 ): Promise<AppConnectionRow> {
-  const wrapped = await encryptProviderCredential(
-    input.keyring,
-    {
-      organizationId: input.organizationId,
-      appConnectionId: input.appConnectionId,
-      provider: "scoped-api-token",
-      credentialId: input.credentialId,
-    },
-    input.tokenPlaintext,
-  );
-
-  try {
-    return await attachProviderCredentialUnchecked({
-      organizationId: input.organizationId,
-      appConnectionId: input.appConnectionId,
-      credentialId: input.credentialId,
-      wrapped,
-      appConnectionStore: input.appConnectionStore,
-    });
-  } catch (error) {
-    await recordConnectionCredentialAttachDenied({
-      actorUserId: input.actor.userId,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      appConnectionId: input.appConnectionId,
-      reasonCode: toConnectionAuditReasonCode(error),
-    });
-    throw error;
-  }
+  return attachEncryptedCloudflareCredential({
+    actorUserId: input.actor.userId,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    appConnectionId: input.appConnectionId,
+    credentialId: input.credentialId,
+    tokenPlaintext: input.tokenPlaintext,
+    keyring: input.keyring,
+    appConnectionStore: input.appConnectionStore,
+  });
 }
 
 function toMetadataSafeValidation(
@@ -190,15 +162,6 @@ async function finalizeCloudflareConnectionCreate(
   validationResult: CloudflareScopedTokenVerifyResult,
   activated: AppConnectionRow,
 ): Promise<MetadataSafeCloudflareConnectionResult> {
-  const checkedAt = new Date();
-  const validatedConnection = await input.appConnectionStore.updateConnectionValidation({
-    organizationId: input.organizationId,
-    appConnectionId: input.appConnectionId,
-    lastValidationCheckedAt: checkedAt,
-    lastValidationOutcome: "success",
-    lastValidationReasonCode: null,
-  });
-
   await recordConnectionCreated({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
@@ -211,12 +174,16 @@ async function finalizeCloudflareConnectionCreate(
     projectId: input.projectId,
     appConnectionId: input.appConnectionId,
   });
-  await recordConnectionValidated({
+
+  const checkedAt = new Date();
+  const validatedConnection = await persistConnectionValidationSuccess({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
     appConnectionId: input.appConnectionId,
-    validation: validationResult,
+    checkedAt,
+    validationResult,
+    appConnectionStore: input.appConnectionStore,
   });
 
   return {
@@ -248,7 +215,7 @@ export async function createCloudflareScopedTokenConnection(
 
   const validationResult = await verifyCloudflareTokenForCreate(input);
   await persistCloudflareConnectionDraft(input, validationResult);
-  const activated = await attachEncryptedCloudflareCredential(input);
+  const activated = await attachEncryptedCredentialForCreate(input);
 
   return finalizeCloudflareConnectionCreate(input, validationResult, activated);
 }

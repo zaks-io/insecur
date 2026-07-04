@@ -15,6 +15,7 @@ import {
 } from "./assert-connection-access.js";
 import { AppConnectionError } from "./app-connection-error.js";
 import { assertCloudflareScopedTokenConnection } from "./assert-cloudflare-scoped-token-connection.js";
+import type { CloudflareConnectionBoundary } from "./cloudflare-scoped-token-metadata.js";
 import { loadCloudflareConnectionBoundary } from "./load-cloudflare-connection-boundary.js";
 
 interface ConnectionOperationScope {
@@ -30,7 +31,10 @@ interface ConnectionOperationScope {
 export async function withConnectionManageAccess<T>(
   input: ConnectionOperationScope & {
     readonly recordDenied: () => Promise<void>;
-    readonly run: (connection: AppConnectionRow) => Promise<T>;
+    readonly run: (
+      connection: AppConnectionRow,
+      boundary: CloudflareConnectionBoundary,
+    ) => Promise<T>;
   },
 ): Promise<T> {
   try {
@@ -49,7 +53,10 @@ export async function withConnectionManageAccess<T>(
 export async function withConnectionReadAccess<T>(
   input: ConnectionOperationScope & {
     readonly recordDenied: () => Promise<void>;
-    readonly run: (connection: AppConnectionRow) => Promise<T>;
+    readonly run: (
+      connection: AppConnectionRow,
+      boundary: CloudflareConnectionBoundary,
+    ) => Promise<T>;
   },
 ): Promise<T> {
   try {
@@ -67,7 +74,10 @@ export async function withConnectionReadAccess<T>(
 
 async function runScopedCloudflareConnectionOperation<T>(
   input: ConnectionOperationScope & {
-    readonly run: (connection: AppConnectionRow) => Promise<T>;
+    readonly run: (
+      connection: AppConnectionRow,
+      boundary: CloudflareConnectionBoundary,
+    ) => Promise<T>;
   },
 ): Promise<T> {
   const connection = await input.appConnectionStore.getConnectionById(
@@ -79,12 +89,12 @@ async function runScopedCloudflareConnectionOperation<T>(
   }
 
   assertCloudflareScopedTokenConnection(connection);
-  await loadCloudflareConnectionBoundary({
+  const boundary = await loadCloudflareConnectionBoundary({
     organizationId: input.organizationId,
     projectId: input.projectId,
     appConnectionId: input.appConnectionId,
     keyring: input.keyring,
     sensitiveMetadataStore: input.sensitiveMetadataStore,
   });
-  return input.run(connection);
+  return input.run(connection, boundary);
 }

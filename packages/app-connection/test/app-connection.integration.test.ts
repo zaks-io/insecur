@@ -11,7 +11,6 @@ import {
 import {
   clearWrappedDefaultTenantDataKeySourceCacheForTests,
   createKeyring,
-  encryptProviderCredential,
   type Keyring,
 } from "@insecur/crypto";
 import {
@@ -24,6 +23,7 @@ import {
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import { attachProviderCredential } from "../src/attach-provider-credential.js";
+import type { CloudflareScopedTokenPort } from "../src/cloudflare-scoped-token-port.js";
 import { assertAppConnectionSyncEligible } from "../src/assert-app-connection-sync-eligible.js";
 import { storeCloudflareConnectionBoundary } from "../src/store-cloudflare-connection-boundary.js";
 import { describeRls } from "../../tenant-store/test/rls/describe-rls.js";
@@ -115,17 +115,14 @@ describeRls("app connection tenant isolation and credential encryption", () => {
   });
 
   it("stores provider credentials only through encrypted wrappers and activates the connection", async () => {
-    const plaintext = new TextEncoder().encode("scoped-cloudflare-token-value");
-    const wrapped = await encryptProviderCredential(
-      keyring,
-      {
-        organizationId: ORG_A,
-        appConnectionId: CONN_B,
-        provider: "scoped-api-token",
-        credentialId: CRED_A,
-      },
-      plaintext,
-    );
+    const cloudflarePort: CloudflareScopedTokenPort = {
+      verifyScopedToken: vi.fn(async () => ({
+        tokenStatus: "active" as const,
+        providerAccountId: BOUNDARY.allowedAccountId,
+        workerScriptReachable: true,
+        hasBoundaryWarning: false,
+      })),
+    };
 
     const activated = await withTenantScope(
       { kind: "organization", organizationId: ORG_A },
@@ -160,8 +157,9 @@ describeRls("app connection tenant isolation and credential encryption", () => {
           operationId: OP_A,
           appConnectionId: CONN_B,
           credentialId: CRED_A,
-          wrapped,
+          tokenPlaintext: new TextEncoder().encode("scoped-cloudflare-token-value"),
           keyring,
+          cloudflarePort,
           appConnectionStore,
           sensitiveMetadataStore,
         });
@@ -170,6 +168,8 @@ describeRls("app connection tenant isolation and credential encryption", () => {
 
     expect(activated.status).toBe("active");
     expect(activated.activeCredentialId).toBe(CRED_A);
+    expect(activated.lastValidationOutcome).toBe("success");
+    expect(activated.lastValidationCheckedAt).not.toBeNull();
 
     const storedCredential = await withTenantScope(
       { kind: "organization", organizationId: ORG_A },

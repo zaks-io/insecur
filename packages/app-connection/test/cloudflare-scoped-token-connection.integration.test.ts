@@ -14,7 +14,6 @@ import {
 import {
   clearWrappedDefaultTenantDataKeySourceCacheForTests,
   createKeyring,
-  encryptProviderCredential,
 } from "@insecur/crypto";
 import {
   TenantAppConnectionStore,
@@ -453,17 +452,6 @@ describeRls("cloudflare scoped-token app connection", () => {
   });
 
   it("denies cross-project credential attach when guessing another project's connection id", async () => {
-    const wrapped = await encryptProviderCredential(
-      keyring,
-      {
-        organizationId: ORG_B,
-        appConnectionId: CONN_CF_J,
-        provider: "scoped-api-token",
-        credentialId: CRED_CF_J,
-      },
-      new TextEncoder().encode("scoped-cloudflare-token-value"),
-    );
-
     await seedOrgBAlternateProject();
     try {
       await withTenantScope({ kind: "organization", organizationId: ORG_B }, async ({ db }) => {
@@ -500,8 +488,9 @@ describeRls("cloudflare scoped-token app connection", () => {
             operationId: OP_CF,
             appConnectionId: CONN_CF_J,
             credentialId: CRED_CF_J,
-            wrapped,
+            tokenPlaintext: new TextEncoder().encode("scoped-cloudflare-token-value"),
             keyring,
+            cloudflarePort: createSuccessfulCloudflarePort(),
             appConnectionStore: new TenantAppConnectionStore(db),
             sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
           }),
