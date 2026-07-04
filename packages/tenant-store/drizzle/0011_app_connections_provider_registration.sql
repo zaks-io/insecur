@@ -4,7 +4,11 @@ ALTER TABLE "app_connections" ADD COLUMN "setup_user_id" text;--> statement-brea
 ALTER TABLE "app_connections" ADD COLUMN "active_credential_id" text;--> statement-breakpoint
 ALTER TABLE "app_connections" ADD COLUMN "status_reason_code" text;--> statement-breakpoint
 ALTER TABLE "app_connections" ADD COLUMN "updated_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
-UPDATE "app_connections" SET "connection_method" = "provider" WHERE "connection_method" IS NULL;--> statement-breakpoint
+UPDATE "app_connections" SET "connection_method" = CASE "provider"
+  WHEN 'github' THEN 'github-app'
+  WHEN 'cloudflare' THEN 'scoped-api-token'
+  WHEN 'vercel' THEN 'vercel-integration-oauth'
+END WHERE "connection_method" IS NULL;--> statement-breakpoint
 UPDATE "app_connections" SET "setup_user_id" = 'usr_00000000000000000000000000' WHERE "setup_user_id" IS NULL;--> statement-breakpoint
 ALTER TABLE "app_connections" ALTER COLUMN "connection_method" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "app_connections" ALTER COLUMN "setup_user_id" SET NOT NULL;--> statement-breakpoint

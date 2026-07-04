@@ -110,7 +110,6 @@ describeRls("app connection tenant isolation and credential encryption", () => {
       { kind: "organization", organizationId: ORG_A },
       async ({ db }) => {
         const appConnectionStore = new TenantAppConnectionStore(db);
-        const providerCredentialStore = new TenantProviderCredentialStore(db);
 
         await appConnectionStore.createConnection({
           organizationId: ORG_A,
@@ -128,7 +127,6 @@ describeRls("app connection tenant isolation and credential encryption", () => {
           credentialId: CRED_A,
           wrapped,
           appConnectionStore,
-          providerCredentialStore,
         });
       },
     );

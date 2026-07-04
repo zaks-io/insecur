@@ -5,6 +5,7 @@ import type {
   ProviderCredentialId,
   UserId,
 } from "@insecur/domain";
+import type { WrappedProviderCredential } from "@insecur/custody-contracts";
 
 export const APP_CONNECTION_STATUSES = [
   "active",
@@ -45,6 +46,14 @@ export interface UpdateAppConnectionStatusInput {
   readonly status: AppConnectionStatus;
   readonly statusReasonCode?: string | null;
   readonly activeCredentialId?: ProviderCredentialId | null;
+}
+
+export interface AttachActiveProviderCredentialInput {
+  readonly organizationId: OrganizationId;
+  readonly appConnectionId: AppConnectionId;
+  readonly credentialId: ProviderCredentialId;
+  readonly connectionMethod: AppConnectionMethod;
+  readonly wrapped: WrappedProviderCredential;
 }
 
 export interface AppConnectionRow {

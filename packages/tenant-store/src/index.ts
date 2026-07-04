@@ -85,6 +85,10 @@ export type {
   StoredWrappedProviderCredential,
   UpsertProviderCredentialInput,
 } from "./provider-credentials/types.js";
+export {
+  defaultConnectionMethodForProvider,
+  DEFAULT_CONNECTION_METHOD_BY_PROVIDER,
+} from "./app-connections/default-connection-method-for-provider.js";
 export { TenantAppConnectionStore } from "./app-connections/tenant-app-connection-store.js";
 export {
   AppConnectionStoreError,
@@ -99,6 +103,7 @@ export type {
   CreateAppConnectionInput,
   ListAppConnectionsInput,
   UpdateAppConnectionStatusInput,
+  AttachActiveProviderCredentialInput,
   APP_CONNECTION_STATUSES,
   APP_CONNECTION_METHODS,
   APP_CONNECTION_PROVIDERS,

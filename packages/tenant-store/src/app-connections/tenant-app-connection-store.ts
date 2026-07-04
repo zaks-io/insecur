@@ -10,11 +10,13 @@ import { and, eq } from "drizzle-orm";
 
 import { appConnections } from "../db/schema/tenant-integrations.js";
 import { isUniqueConstraintViolation } from "../is-unique-constraint-violation.js";
+import { TenantProviderCredentialStore } from "../provider-credentials/tenant-provider-credential-store.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { AppConnectionStoreError } from "./errors.js";
 import type {
   AppConnectionRow,
   AppConnectionStatus,
+  AttachActiveProviderCredentialInput,
   CreateAppConnectionInput,
   ListAppConnectionsInput,
   UpdateAppConnectionStatusInput,
@@ -118,14 +120,26 @@ export class TenantAppConnectionStore {
   }
 
   async updateConnectionStatus(input: UpdateAppConnectionStatusInput): Promise<AppConnectionRow> {
+    const patch: {
+      status: AppConnectionStatus;
+      updatedAt: Date;
+      statusReasonCode?: string | null;
+      activeCredentialId?: ProviderCredentialId | null;
+    } = {
+      status: input.status,
+      updatedAt: new Date(),
+    };
+
+    if (input.statusReasonCode !== undefined) {
+      patch.statusReasonCode = input.statusReasonCode;
+    }
+    if (input.activeCredentialId !== undefined) {
+      patch.activeCredentialId = input.activeCredentialId;
+    }
+
     const rows = await this.db
       .update(appConnections)
-      .set({
-        status: input.status,
-        statusReasonCode: input.statusReasonCode ?? null,
-        activeCredentialId: input.activeCredentialId ?? null,
-        updatedAt: new Date(),
-      })
+      .set(patch)
       .where(
         and(
           eq(appConnections.orgId, input.organizationId),
@@ -139,5 +153,30 @@ export class TenantAppConnectionStore {
       throw new AppConnectionStoreError("connection.not_found");
     }
     return toAppConnectionRow(row);
+  }
+
+  /**
+   * Upserts the encrypted provider credential and activates the connection in one scoped
+   * transaction. Call only inside `withTenantScope` so both writes fail closed together.
+   */
+  async attachActiveProviderCredential(
+    input: AttachActiveProviderCredentialInput,
+  ): Promise<AppConnectionRow> {
+    const credentialStore = new TenantProviderCredentialStore(this.db);
+    await credentialStore.upsertCredential({
+      organizationId: input.organizationId,
+      appConnectionId: input.appConnectionId,
+      provider: input.connectionMethod,
+      credentialId: input.credentialId,
+      wrapped: input.wrapped,
+    });
+
+    return this.updateConnectionStatus({
+      organizationId: input.organizationId,
+      appConnectionId: input.appConnectionId,
+      status: "active",
+      statusReasonCode: null,
+      activeCredentialId: input.credentialId,
+    });
   }
 }

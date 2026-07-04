@@ -48,6 +48,28 @@ const providerAppRegistrationSelect = {
   updated_at: providerAppRegistrations.updatedAt,
 } as const;
 
+function buildProviderAppRegistrationConflictUpdate(input: UpsertProviderAppRegistrationInput): {
+  clientId: string;
+  callbackPath: string;
+  updatedAt: Date;
+  status?: ProviderAppRegistrationStatus;
+} {
+  const conflictUpdate: {
+    clientId: string;
+    callbackPath: string;
+    updatedAt: Date;
+    status?: ProviderAppRegistrationStatus;
+  } = {
+    clientId: input.clientId,
+    callbackPath: input.callbackPath,
+    updatedAt: new Date(),
+  };
+  if (input.status !== undefined) {
+    conflictUpdate.status = input.status;
+  }
+  return conflictUpdate;
+}
+
 export class TenantProviderAppRegistrationStore {
   constructor(private readonly db: TenantScopedDb) {}
 
@@ -72,12 +94,7 @@ export class TenantProviderAppRegistrationStore {
             providerAppRegistrations.provider,
             providerAppRegistrations.connectionMethod,
           ],
-          set: {
-            clientId: input.clientId,
-            callbackPath: input.callbackPath,
-            status: input.status ?? "pending_setup",
-            updatedAt: new Date(),
-          },
+          set: buildProviderAppRegistrationConflictUpdate(input),
         });
     } catch (error) {
       if (isUniqueConstraintViolation(error)) {
