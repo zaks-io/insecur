@@ -62,6 +62,9 @@ describe("plaintext metadata allowlist (unit layer)", () => {
     expect(PLAINTEXT_METADATA_ALLOWLIST.injection_grants.variable_keys.category).toBe(
       "plaintext-lookup-key",
     );
+    expect(
+      PLAINTEXT_METADATA_ALLOWLIST.runtime_injection_policy_versions.variable_keys.category,
+    ).toBe("plaintext-lookup-key");
     expect(PLAINTEXT_METADATA_ALLOWLIST.secrets.variable_key.category).toBe("plaintext-lookup-key");
     expect(PLAINTEXT_METADATA_ALLOWLIST.sync_target_leases.target_identity.category).toBe(
       "plaintext-lookup-key",
