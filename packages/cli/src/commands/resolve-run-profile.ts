@@ -44,7 +44,9 @@ function isNonEmptyProfileSelector(value: string | undefined): value is string {
   return value !== undefined && value !== "";
 }
 
-function toProfileIdSelection(profileId: CliProfileId | undefined): ProfileRunSelection | undefined {
+function toProfileIdSelection(
+  profileId: CliProfileId | undefined,
+): ProfileRunSelection | undefined {
   return profileId === undefined ? undefined : { profileId };
 }
 
