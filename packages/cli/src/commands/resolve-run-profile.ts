@@ -2,9 +2,13 @@ import type { CliProfileId, RuntimePolicyId } from "@insecur/domain";
 import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { parseOptionalRuntimePolicyId } from "../config/parse-resource-id.js";
-import { resolveProfile, type ResolvedProfile } from "../config/profiles/resolve-profile.js";
+import {
+  resolveProfile,
+  type ResolvedProfile,
+  type ResolveProfileInput,
+} from "../config/profiles/resolve-profile.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
-import type { CliUserConfig, CliUserProfile } from "../config/user-config.js";
+import type { CliUserProfile } from "../config/user-config.js";
 import { CliError } from "../output/cli-error.js";
 import { requireSecretWriteScope, type ResolvedSecretWriteScope } from "./secrets-set-scope.js";
 
@@ -35,50 +39,39 @@ function requirePolicyId(
   });
 }
 
-interface ProfileRunSelection {
-  readonly profileId?: CliProfileId;
-  readonly selector?: string;
-}
-
 function isNonEmptyProfileSelector(value: string | undefined): value is string {
   return value !== undefined && value !== "";
 }
 
-function toProfileIdSelection(
-  profileId: CliProfileId | undefined,
-): ProfileRunSelection | undefined {
-  return profileId === undefined ? undefined : { profileId };
+/** Profile id bound from project `.insecur.json` into resolved CLI scope. */
+export function resolveScopeBoundProfileId(context: ResolvedCliContext): CliProfileId | undefined {
+  return context.scope.profileId ?? context.projectConfig?.profileId;
 }
 
-function toSelectorSelection(selector: string | undefined): ProfileRunSelection | undefined {
-  return isNonEmptyProfileSelector(selector) ? { selector } : undefined;
-}
-
-function firstProfileRunSelection(
-  candidates: readonly (() => ProfileRunSelection | undefined)[],
-): ProfileRunSelection {
-  for (const candidate of candidates) {
-    const selection = candidate();
-    if (selection !== undefined) {
-      return selection;
-    }
-  }
-  return {};
-}
-
-function resolveProfileRunSelection(input: {
+export function resolveProfileRunLookup(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
   readonly profileSelector?: string;
-}): ProfileRunSelection {
-  const { flags, context, profileSelector } = input;
-  return firstProfileRunSelection([
-    () => toProfileIdSelection(flags.profileId),
-    () => toSelectorSelection(profileSelector ?? flags.profile),
-    () => toProfileIdSelection(context.scope.profileId),
-    () => toSelectorSelection(context.scope.profileSlug),
-    () => toProfileIdSelection(context.projectConfig?.profileId),
-  ]);
+}): ResolveProfileInput {
+  if (input.flags.profileId !== undefined) {
+    return { profileId: input.flags.profileId };
+  }
+
+  const explicitSelector = input.profileSelector ?? input.flags.profile;
+  if (isNonEmptyProfileSelector(explicitSelector)) {
+    return { selector: explicitSelector };
+  }
+
+  const scopeBoundProfileId = resolveScopeBoundProfileId(input.context);
+  if (scopeBoundProfileId !== undefined) {
+    return { profileId: scopeBoundProfileId };
+  }
+
+  if (isNonEmptyProfileSelector(input.context.scope.profileSlug)) {
+    return { selector: input.context.scope.profileSlug };
+  }
+
+  return {};
 }
 
 function hasExplicitProfileRunSelection(input: {
@@ -93,9 +86,8 @@ function hasExplicitProfileRunSelection(input: {
 
 function hasAmbientProfileRunSelection(context: ResolvedCliContext): boolean {
   return (
-    context.scope.profileId !== undefined ||
-    isNonEmptyProfileSelector(context.scope.profileSlug) ||
-    context.projectConfig?.profileId !== undefined
+    resolveScopeBoundProfileId(context) !== undefined ||
+    isNonEmptyProfileSelector(context.scope.profileSlug)
   );
 }
 
@@ -124,16 +116,9 @@ export function resolveProfileRunInput(input: {
   readonly profileSelector?: string;
   readonly policyIdOverride?: string;
 }): ResolvedProfileRunInput {
-  const userConfig: CliUserConfig = input.context.userConfig;
-  const selection = resolveProfileRunSelection(input);
-  const resolvedProfile = resolveProfile(
-    userConfig,
-    {
-      ...(selection.profileId === undefined ? {} : { profileId: selection.profileId }),
-      ...(selection.selector === undefined ? {} : { selector: selection.selector }),
-    },
-    { required: true },
-  );
+  const resolvedProfile = resolveProfile(input.context.userConfig, resolveProfileRunLookup(input), {
+    required: true,
+  });
   const scope = {
     host: resolvedProfile.profile.host,
     orgId: resolvedProfile.profile.orgId,
@@ -196,6 +181,45 @@ export function parseRunCommandArgv(input: {
   return {
     ...(profileSelector === undefined ? {} : { profileSelector }),
     command,
+  };
+}
+
+/** When Commander binds the child executable as `[profile]`, fall back to project scope profileId. */
+export function reconcileProfileRunCommand(input: {
+  readonly flags: GlobalCliFlags;
+  readonly context: ResolvedCliContext;
+  readonly positionalProfile?: string;
+  readonly args: readonly string[];
+}): {
+  readonly profileSelector?: string;
+  readonly command: readonly string[];
+} {
+  const parsed = parseRunCommandArgv({
+    ...(input.positionalProfile === undefined
+      ? {}
+      : { positionalProfile: input.positionalProfile }),
+    args: input.args,
+  });
+
+  if (parsed.profileSelector === undefined || input.flags.profileId !== undefined) {
+    return parsed;
+  }
+
+  const resolved = resolveProfile(
+    input.context.userConfig,
+    { selector: parsed.profileSelector },
+    { required: false },
+  );
+  if (resolved !== undefined) {
+    return parsed;
+  }
+
+  if (!hasAmbientProfileRunSelection(input.context)) {
+    return parsed;
+  }
+
+  return {
+    command: [parsed.profileSelector, ...parsed.command],
   };
 }
 

@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   assertRunModeExclusive,
+  reconcileProfileRunCommand,
   resolveProfileRunInput,
+  resolveProfileRunLookup,
+  resolveScopeBoundProfileId,
 } from "../src/commands/resolve-run-profile.js";
 import type { GlobalCliFlags } from "../src/cli-options.js";
 import { loadAndResolveCliContext } from "../src/config/load-cli-context.js";
@@ -75,6 +78,92 @@ function createContext(overrides: {
     },
   };
 }
+
+describe("resolveProfileRunLookup project profile selection", () => {
+  it("uses scope.profileId from project .insecur.json before ambient profile slug", () => {
+    expect(
+      resolveProfileRunLookup({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+            profileSlug: "staging",
+          },
+        }),
+      }),
+    ).toEqual({ profileId: PROFILE_ID });
+  });
+
+  it("falls back to projectConfig.profileId when scope.profileId is unset", () => {
+    expect(
+      resolveProfileRunLookup({
+        flags,
+        context: createContext({
+          projectConfig: {
+            host: flags.host ?? "https://insecur.test",
+            orgId: ORG_ID as never,
+            projectId: PROJECT_ID as never,
+            defaultEnvId: ENV_ID as never,
+            profileId: PROFILE_ID as never,
+          },
+        }),
+      }),
+    ).toEqual({ profileId: PROFILE_ID });
+  });
+
+  it("exposes the same project-bound id from scope and project config helpers", () => {
+    const context = createContext({
+      projectConfig: {
+        host: flags.host ?? "https://insecur.test",
+        orgId: ORG_ID as never,
+        projectId: PROJECT_ID as never,
+        defaultEnvId: ENV_ID as never,
+        profileId: PROFILE_ID as never,
+      },
+      scope: {
+        profileId: PROFILE_ID as never,
+      },
+    });
+    expect(resolveScopeBoundProfileId(context)).toBe(PROFILE_ID);
+  });
+});
+
+describe("reconcileProfileRunCommand project profile selection", () => {
+  it("treats an unknown commander positional as the child executable when scope.profileId is set", () => {
+    expect(
+      reconcileProfileRunCommand({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        positionalProfile: "node",
+        args: ["node", "-e", "process.exit(0)"],
+      }),
+    ).toEqual({
+      command: ["node", "-e", "process.exit(0)"],
+    });
+  });
+
+  it("keeps a valid commander positional profile when scope.profileId is also set", () => {
+    expect(
+      reconcileProfileRunCommand({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        positionalProfile: "staging",
+        args: ["npm", "test"],
+      }),
+    ).toEqual({
+      profileSelector: "staging",
+      command: ["npm", "test"],
+    });
+  });
+});
 
 describe("resolveProfileRunInput project profile selection", () => {
   it("resolves the profile from project .insecur.json profileId when scope only carries the id", () => {
