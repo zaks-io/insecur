@@ -429,6 +429,12 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/high-assurance':
+        specifier: workspace:*
+        version: link:../high-assurance
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../operations
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store

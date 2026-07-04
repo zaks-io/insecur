@@ -3,6 +3,7 @@ import {
   appConnectionId,
   AUTH_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
+  operationId,
   organizationId,
   parseDisplayName,
   projectId,
@@ -41,12 +42,21 @@ import {
   TEST_NO_SCOPE_USER_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
 
+const { requireAppConnectionChangeEvidence } = vi.hoisted(() => ({
+  requireAppConnectionChangeEvidence: vi.fn(async () => undefined),
+}));
+
+vi.mock("../src/consume-app-connection-change-evidence.js", () => ({
+  requireAppConnectionChangeEvidence,
+}));
+
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const ORG_B = organizationId.brand(TEST_ORG_B_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
 const PROJECT_B = projectId.brand(TEST_PROJECT_B_ID);
 /** Second project in org B for same-org cross-project denial tests (never seeded in org A). */
 const PROJECT_B_ALT = projectId.brand("prj_01JZ8ALT2R7M4T0V9X3C5D8F1G");
+const OP_CF = operationId.brand("op_01JZ8CFOP2R7M4T0V9X3C5D8F1");
 const CONN_CF = appConnectionId.brand("conn_01JZ8CFH2R7M4T0V9X3C5D8F1G");
 const CONN_CF_B = appConnectionId.brand("conn_01JZ8CGK5Q2R7V0X3Z6C9D1F4H");
 const CONN_CF_C = appConnectionId.brand("conn_01JZ8CJK9M5S8W1Y4A7E0G3I6H");
@@ -145,6 +155,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: ACTOR,
           organizationId: ORG_A,
           projectId: PROJECT_A,
+          operationId: OP_CF,
           appConnectionId: CONN_CF,
           credentialId: CRED_CF,
           displayName: testDisplayName("Org A Cloudflare workers"),
@@ -191,6 +202,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: deniedActor,
           organizationId: ORG_A,
           projectId: PROJECT_A,
+          operationId: OP_CF,
           appConnectionId: CONN_CF_B,
           credentialId: CRED_CF,
           displayName: testDisplayName("Denied Cloudflare"),
@@ -277,6 +289,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: deniedActor,
           organizationId: ORG_A,
           projectId: PROJECT_A,
+          operationId: OP_CF,
           appConnectionId: CONN_CF_F,
           keyring,
           cloudflarePort: createSuccessfulCloudflarePort(),
@@ -334,6 +347,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: ACTOR,
           organizationId: ORG_A,
           projectId: PROJECT_A,
+          operationId: OP_CF,
           appConnectionId: CONN_CF_C,
           keyring,
           cloudflarePort,
@@ -356,6 +370,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: ACTOR,
           organizationId: ORG_B,
           projectId: PROJECT_B,
+          operationId: OP_CF,
           appConnectionId: CONN_CF_D,
           credentialId: CRED_CF_D,
           displayName: testDisplayName("Org B Cloudflare cross-project"),
@@ -400,6 +415,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: ACTOR,
           organizationId: ORG_B,
           projectId: PROJECT_B,
+          operationId: OP_CF,
           appConnectionId: CONN_CF_H,
           credentialId: CRED_CF_H,
           displayName: testDisplayName("Org B Cloudflare cross-project disable"),
@@ -459,6 +475,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: ACTOR,
           organizationId: ORG_B,
           projectId: PROJECT_A,
+          operationId: OP_CF,
           appConnectionId: CONN_CF_I,
           keyring,
           cloudflarePort,
@@ -499,6 +516,7 @@ describeRls("cloudflare scoped-token app connection", () => {
           actor: ACTOR,
           organizationId: ORG_A,
           projectId: PROJECT_A,
+          operationId: OP_CF,
           appConnectionId: CONN_CF_G,
           keyring,
           cloudflarePort,

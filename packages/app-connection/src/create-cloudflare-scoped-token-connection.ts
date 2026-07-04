@@ -1,9 +1,9 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
 import { encryptProviderCredential, type Keyring } from "@insecur/crypto";
 import {
-  APP_CONNECTION_ERROR_CODES,
   type AppConnectionId,
   type DisplayName,
+  type OperationId,
   type OrganizationId,
   type ProjectId,
   type ProviderCredentialId,
@@ -16,13 +16,13 @@ import type {
 } from "@insecur/tenant-store";
 import type { UserActorRef } from "@insecur/access";
 
-import { AppConnectionError } from "./app-connection-error.js";
 import {
   assertConnectionManageScope,
   isConnectionAccessDenied,
 } from "./assert-connection-access.js";
-import { attachProviderCredential } from "./attach-provider-credential.js";
+import { attachProviderCredentialUnchecked } from "./attach-provider-credential-unchecked.js";
 import type { CloudflareConnectionBoundary } from "./cloudflare-scoped-token-metadata.js";
+import { requireAppConnectionChangeEvidence } from "./consume-app-connection-change-evidence.js";
 import type {
   CloudflareScopedTokenPort,
   CloudflareScopedTokenVerifyResult,
@@ -42,6 +42,7 @@ export interface CreateCloudflareScopedTokenConnectionInput {
   readonly actor: UserActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
+  readonly operationId: OperationId;
   readonly appConnectionId: AppConnectionId;
   readonly credentialId: ProviderCredentialId;
   readonly displayName: DisplayName;
@@ -151,7 +152,7 @@ async function attachEncryptedCloudflareCredential(
   );
 
   try {
-    return await attachProviderCredential({
+    return await attachProviderCredentialUnchecked({
       organizationId: input.organizationId,
       appConnectionId: input.appConnectionId,
       credentialId: input.credentialId,
@@ -184,14 +185,11 @@ function toMetadataSafeValidation(
   };
 }
 
-export async function createCloudflareScopedTokenConnection(
+async function finalizeCloudflareConnectionCreate(
   input: CreateCloudflareScopedTokenConnectionInput,
+  validationResult: CloudflareScopedTokenVerifyResult,
+  activated: AppConnectionRow,
 ): Promise<MetadataSafeCloudflareConnectionResult> {
-  await assertCreateConnectionAccess(input);
-  const validationResult = await verifyCloudflareTokenForCreate(input);
-  await persistCloudflareConnectionDraft(input, validationResult);
-  const activated = await attachEncryptedCloudflareCredential(input);
-
   const checkedAt = new Date();
   const validatedConnection = await input.appConnectionStore.updateConnectionValidation({
     organizationId: input.organizationId,
@@ -227,22 +225,30 @@ export async function createCloudflareScopedTokenConnection(
   };
 }
 
-export function assertCloudflareScopedTokenConnection(
-  connection: AppConnectionRow,
-): asserts connection is AppConnectionRow & {
-  provider: "cloudflare";
-  connectionMethod: "scoped-api-token";
-} {
-  if (connection.provider !== "cloudflare") {
-    throw new AppConnectionError(
-      APP_CONNECTION_ERROR_CODES.invalidConnectionMethod,
-      "expected cloudflare provider",
-    );
-  }
-  if (connection.connectionMethod !== "scoped-api-token") {
-    throw new AppConnectionError(
-      APP_CONNECTION_ERROR_CODES.invalidConnectionMethod,
-      "expected scoped-api-token connection method",
-    );
-  }
+export async function createCloudflareScopedTokenConnection(
+  input: CreateCloudflareScopedTokenConnectionInput,
+): Promise<MetadataSafeCloudflareConnectionResult> {
+  await assertCreateConnectionAccess(input);
+  await requireAppConnectionChangeEvidence(
+    {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      operationId: input.operationId,
+      actor: input.actor,
+    },
+    async (error) => {
+      await recordConnectionCreateDenied({
+        actorUserId: input.actor.userId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        reasonCode: error.code,
+      });
+    },
+  );
+
+  const validationResult = await verifyCloudflareTokenForCreate(input);
+  await persistCloudflareConnectionDraft(input, validationResult);
+  const activated = await attachEncryptedCloudflareCredential(input);
+
+  return finalizeCloudflareConnectionCreate(input, validationResult, activated);
 }

@@ -14,7 +14,7 @@ import {
   isConnectionAccessDenied,
 } from "./assert-connection-access.js";
 import { AppConnectionError } from "./app-connection-error.js";
-import { assertCloudflareScopedTokenConnection } from "./create-cloudflare-scoped-token-connection.js";
+import { assertCloudflareScopedTokenConnection } from "./assert-cloudflare-scoped-token-connection.js";
 import { loadCloudflareConnectionBoundary } from "./load-cloudflare-connection-boundary.js";
 
 interface ConnectionOperationScope {

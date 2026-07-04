@@ -31,8 +31,8 @@ export {
   type CloudflareScopedTokenVerifyInput,
   type CloudflareScopedTokenVerifyResult,
 } from "./cloudflare-scoped-token-port.js";
+export { assertCloudflareScopedTokenConnection } from "./assert-cloudflare-scoped-token-connection.js";
 export {
-  assertCloudflareScopedTokenConnection,
   createCloudflareScopedTokenConnection,
   type CreateCloudflareScopedTokenConnectionInput,
   type MetadataSafeCloudflareConnectionResult,
@@ -69,7 +69,6 @@ export {
   recordConnectionValidationDenied,
   toConnectionAuditReasonCode,
 } from "./record-connection-audit.js";
-export { storeCloudflareConnectionBoundary } from "./store-cloudflare-connection-boundary.js";
 export {
   validateCloudflareScopedTokenConnection,
   type ValidateCloudflareScopedTokenConnectionInput,
