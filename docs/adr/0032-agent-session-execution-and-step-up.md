@@ -39,3 +39,51 @@ The 2026-06-11 amendment pinned who may clear a bounded step-up operation; the r
 6. `insecur operations wait <operation-id>` exposes cleared-evidence presence as metadata-only progress while the operation remains `waiting_for_human`, giving the polling loop an observable signal to stop waiting and re-execute. Wait stays read-only and never performs the resume itself.
 7. The Publish High-Assurance Challenge rule in docs/protected-change-orchestration.md (single-use, time-limited, bound to the exact Staged Change Set review fingerprint) is an instance of this general evidence-consumption rule, not a parallel mechanism.
 8. Evidence expiry behavior is defined here: expired evidence takes the same exit `10` fresh-bounded-operation path as consumed or absent evidence. The validity-window value itself remains the tracked open question in docs/open-questions.md; nothing in this amendment decides that number.
+
+## Amendment (2026-07-04): Derived Agent Sessions for attribution
+
+The record above deliberately gives a local agent no identity of its own, and that stands: agents
+gain no standing authority, no credential class, and no challenge-clearing ability from this
+amendment. What the original record leaves unsolved is attribution. Because the agent inherits the
+human's literal `INSECUR_SESSION_TOKEN`, the server cannot distinguish agent traffic from the
+human's own traffic in the same session, so audit and the console cannot answer "what have my
+agents been doing" — a core oversight need for the agent-heavy beachhead user.
+
+This amendment adds the **Derived Agent Session**: launching an agent harness through
+`insecur agent shell -- <command>` (or `insecur agent env`, or `insecur login --device --agent`
+for remote shells) derives an agent-marked child session from the live human session. The derived
+session carries the same Effective Access as the parent in V1, has its own opaque session ID, a
+TTL no longer than the parent's, ends when the parent session ends, and cannot satisfy a
+High-Assurance Challenge. Because the harness's process subtree holds the agent-marked token while
+the human's own commands hold the human token, per-request attribution is token-accurate with no
+self-reporting, and audit groups activity per Agent Session under the owning human.
+
+For agents launched outside `insecur agent shell`, the same Agent Session record is created by
+**automatic registration**: the first CLI invocation that detects a known agent-harness
+environment marker registers an Agent Session bound to the live human session and keys it locally
+to the harness process ancestry (root PID plus process start time); later invocations auto-attach
+by ancestry match, so one registration covers the whole harness run with zero agent effort.
+Ancestry keying is what makes local persistence sound: a naive "current agent session" file would
+tag the human's own commands too, because human and agent share the filesystem, while only the
+process subtree differs between them. The persisted entry is the opaque Agent Session ID only,
+never credential material, so the no-tokens-on-disk rule is untouched; the server accepts the ID
+only with the human session it was registered under and closes it with that session. Registration
+binding is client-asserted, so audit distinguishes it ("registered") from the token-backed tier
+("verified").
+
+Alternatives considered: a per-command self-reported tag (kept, but only as the last-resort
+fallback when registration is unavailable — anything self-reported per request yields no stable
+per-run identity); an env-var handshake exported once per session (rejected: agent harnesses
+commonly run each command in a fresh subshell, so exported state does not survive between an
+agent's commands); a disk-stored registration ID without ancestry scoping (rejected: ambient
+shared state cannot scope to one principal); a separate agent command namespace (rejected: two
+command surfaces for one operation set, unenforceable, and agents trained on human-facing docs
+would bypass it immediately); real agent sub-identities as Machine Identities (rejected above,
+unchanged — standing authority a challenge cannot gate).
+
+Consequences: attribution rendering in audit and the console distinguishes token-accurate
+("verified") Agent Sessions from registered and from tag-only unverified attribution. The mark is never an authorization input in V1;
+authority remains exactly the acting credential. Agent-marked sessions create a future policy
+hook — an Organization Configuration could narrow what agent-marked sessions may do, enforced by
+token scope rather than by trusting a label — but any such narrowing is a separate future
+decision, not part of this amendment.

@@ -213,6 +213,7 @@ Non-secret environment variables:
 - `INSECUR_PROFILE`
 - `INSECUR_CLIENT_ID`
 - `INSECUR_CONFIG_DIR`
+- `INSECUR_AGENT_TAG` (Agent Attribution Tag override; see Agent Attribution below)
 
 Auth-bearing environment variables:
 
@@ -264,6 +265,7 @@ All commands should support:
 - `--json`
 - `--quiet`
 - `--verbose`
+- `--agent <name>` (Agent Attribution Tag; see Agent Attribution)
 
 Mutating or long-running commands should also support:
 
@@ -324,6 +326,41 @@ Error envelope:
   }
 }
 ```
+
+Actionable errors additionally carry a `remediation` object so an agent or user can complete the
+next step from the error alone, with no prior product knowledge. Remediation is metadata-only and
+holds exact next actions: a deep-link URL where a human surface is involved, and exact argv arrays
+for follow-up commands. `error.message` is written as next-step instructions, not just a
+description. The `auth.high_assurance_required` envelope is the canonical case:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "auth.high_assurance_required",
+    "message": "Human approval required. 1) Show your human remediation.approvalUrl. 2) Poll remediation.poll until cleared. 3) Re-run remediation.resume.",
+    "retryable": false
+  },
+  "meta": {
+    "requestId": "req_...",
+    "operationId": "op_..."
+  },
+  "remediation": {
+    "approvalUrl": "https://app.insecur.cloud/orgs/org_.../approvals/op_...",
+    "poll": ["insecur", "operations", "wait", "op_...", "--json"],
+    "resume": ["insecur", "secrets", "promote", "--env-id", "env_...", "--operation", "op_..."]
+  }
+}
+```
+
+The console approval route `/orgs/:orgId/approvals/:id` accepts both an Approval Request ID and a
+High-Assurance Challenge bounded operation ID; the console resolves which review view to render by
+opaque ID prefix (see docs/web-console-ux.md).
+
+Which error codes require remediation is tracked alongside the error-code registry below: every
+retryable code and every code whose resolution is a concrete next action (step-up, re-auth,
+idempotency conflict, operation wait) must ship remediation content, enforced the same lockstep way
+as exit and HTTP projections (ADR-0062).
 
 Secret delivery commands are the exception. `run` and sync operations may move Secret values to approved destinations by design, but human and JSON output still contain metadata only. Local file output is not a V1 delivery path: `pull`, `export`, dotenv generation, JSON secret files, and similar commands must not write stored Sensitive Values to local plaintext files. Secret Reveal to stdout or API response is not supported for Protected Environment secrets.
 
@@ -463,6 +500,7 @@ a resource-existence oracle, even where their exit codes differ.
 | `operation.terminal_state`                  | `6`  | `409`               | Operation is already in a terminal state.                                                                                                               |
 | `operation.not_cancelable`                  | `6`  | `409`               | Operation in the current state cannot be canceled.                                                                                                      |
 | `operation.not_retryable`                   | `6`  | `409`               | Operation in the current state cannot be retried.                                                                                                       |
+| `operation.wait_timeout`                    | `9`  | `n/a (client-side)` | `operations wait --timeout` expired before the operation left a non-terminal state; remediation points back at the same wait command.                   |
 | `operation.stale_fencing_token`             | `6`  | `409`               | Sync target lease fencing token is stale or does not match the operation binding.                                                                       |
 | `operation.lease_not_held`                  | `6`  | `409`               | No active sync target lease exists for the requested target.                                                                                            |
 | `operation.lease_required`                  | `2`  | `400`               | Sync target lease fencing token is required for this operation transition.                                                                              |
@@ -515,6 +553,75 @@ the agent can do low-risk work autonomously but cannot clear high-risk gates on 
 - Delivery Risk Policy Presets may allow configured non-protected development or preview delivery from agent-reachable CLI/API channels. V1 exposes Strict, Balanced, and Automation-Friendly presets instead of a custom policy editor; the server still stores versioned, scoped, auditable Delivery Risk Policy behind the preset. Balanced allows development automation by default, while preview automation requires Preview Automation Opt-In on the specific non-protected preview Environment. Automation-Friendly grants the same Preview Automation Authority by default for non-protected preview Environments in scope. Preview Automation Authority is execution-only for existing Runtime Injection Policies, existing Secret Syncs, and existing Secret Sync Bindings; it does not allow CLI/API callers to create or change App Connections, Connection Boundaries, Secret Syncs, Secret Sync Bindings, Runtime Injection Policies, provider targets, or the delivered Secret set. Protected Environment approval, protected Secret Sync enable/run, protected Runtime Injection Policy changes, and production Cloudflare Worker Secret Deploy approval evidence cannot be completed terminal-only in V1.
 - Risk-broadening Delivery Changes, including loosening presets, enabling Preview Automation Opt-In, adding preview Secret Sync Bindings, changing preview Runtime Injection Policies, or expanding the delivered preview Secret set, return the same `10` / `auth.high_assurance_required` path from CLI/API. Risk-tightening changes are authenticated web app settings actions and are not completed terminal-only in V1.
 
+### Agent Attribution
+
+Agent traffic is separated from human traffic in three tiers: a structural one that is
+token-accurate, an automatic session-persistent registration, and a per-request tag fallback.
+
+**Tier 1 — Derived Agent Session (structural, primary).** When launching an agent harness, the
+human derives an agent-marked child session from their live human session:
+
+```bash
+insecur agent shell -- claude          # spawn harness with agent session in child env
+insecur agent env                      # print exports for harnesses launched another way
+insecur login --device --agent         # remote/cloud agents: mint agent-marked directly
+```
+
+The derived session carries the same Effective Access as the parent (V1), is marked as an Agent
+Session with its own opaque ID, has a TTL no longer than the parent, dies when the parent session
+ends, and cannot satisfy a High-Assurance Challenge. Because the harness's whole process subtree
+holds the agent-marked token while the human's own commands hold the human one, server-side
+attribution is exact per request with no self-reporting: audit records and the console group
+activity per Agent Session ("agent session ag\_... (claude-code) · under isaac"). This adds no
+standing authority and no new identity class; it is the same human session lineage with an
+attribution mark (ADR-0032 amendment). Agent-marked sessions are a future policy hook (an
+Organization Configuration may later narrow what they may do, enforced by token scope), but V1
+uses them for attribution only.
+
+**Tier 2 — Registered Agent Session (automatic, session-persistent).** An agent running on a bare
+human token is upgraded to a registered Agent Session with no agent effort. The first command that
+detects a known agent-harness environment marker (harnesses mark the env of subprocesses they
+spawn, for example Claude Code sets `CLAUDECODE=1`; the CLI maintains a registry of known markers)
+auto-registers an Agent Session record server-side, bound to the live human session, and keys it
+locally to the harness process ancestry (root PID plus process start time) in CLI runtime state.
+Every later invocation walks its own process ancestry and auto-attaches when an ancestor matches,
+so one registration covers the whole harness run; the human's own commands live in a different
+process subtree and never match. Environment exports are not relied on because agent harnesses
+commonly run each command in a fresh subshell. The local state entry holds only the opaque Agent
+Session ID, never credential material; the server accepts the ID only alongside the human session
+it was registered under and closes it when that session ends. `insecur agent register` performs
+the same registration explicitly for unrecognized harnesses. Registration binding is
+client-asserted (unlike Tier 1's token), so audit renders it as registered rather than verified.
+
+**Tier 3 — Agent Attribution Tag (per-request fallback).** When registration is unavailable
+(read-only state dir, unknown harness, single-shot invocations), requests still resolve a
+best-effort tag: explicit `--agent <name>` flag, then `INSECUR_AGENT_TAG`, then detected harness
+markers. The tag is non-authoritative, recorded in audit metadata, and rendered as unverified
+("isaac · via claude-code (unverified)").
+
+No tier is ever an input to authorization: authority is exactly the acting credential per
+ADR-0032. Detection observes; the token enforces.
+
+### Whoami As The Agent Entry Point
+
+`insecur whoami --json` is the taught first command for agents and doubles as the attribution
+status check. Its envelope reports the acting human, session validity and expiry, resolved
+org/project context, and the attribution tier in effect (derived, registered with Agent Session ID
+and harness, tag-only, or none). Running it triggers Tier 2 auto-registration as a side effect
+when applicable, so "run whoami first" leaves the agent fully registered. Unauthenticated `whoami`
+exits `3` with remediation telling the agent exactly what to have its human run.
+
+### Agent Onboarding Artifact
+
+`insecur init` offers to write a "Using secrets (for agents)" section into the repo's `AGENTS.md`
+(creating the file if absent) teaching the agent loop: run `insecur whoami --json` first to check
+auth and confirm registration; never read or echo secret values; use `insecur run` for secret use;
+write values via `--generate` or by piping to `--value-stdin`
+(`printenv NAME | insecur secrets set --variable-key NAME --value-stdin`) so plaintext never enters
+the agent's own command line or context; treat exit `10` as a human handoff and follow the
+envelope's `remediation` steps. This section is the primary agent-facing product documentation and
+is kept in lockstep with this doc.
+
 ## Command Shape
 
 ### Auth
@@ -523,7 +630,12 @@ the agent can do low-risk work autonomously but cannot clear high-risk gates on 
 insecur login
 insecur login --no-open
 insecur login --callback-port 49152
+insecur login --device
+insecur login --device --agent
 insecur shell prof_01JZ8E6H2R7M4T0V9X3C5D8F1G
+insecur agent shell -- claude
+insecur agent env
+insecur agent register
 insecur run --variable-key API_KEY -- npm run dev
 insecur login --method oidc --provider github-actions
 insecur login --method bootstrap --client-id "$INSECUR_CLIENT_ID" --client-secret-stdin
@@ -534,8 +646,15 @@ insecur whoami --json
 Notes:
 
 - Browser/device login is for humans.
+- `insecur login --device` uses the OAuth device-authorization pattern for shells whose host the
+  human's browser cannot reach (cloud agents, devcontainers, Codespaces): the CLI prints a short
+  code and URL, the human approves from any browser, and the session lands in the remote process
+  memory or managed shell. The session is the human's own, with the same lifetime and step-up
+  rules as browser login; `--agent` mints it agent-marked (see Agent Attribution).
 - Human CLI auth is memory/session-only by default; no session token, refresh token, or access token is saved to disk.
 - `insecur shell <profile-slug-or-id>` launches a subshell with a short-lived session token in that child environment and clears it when the shell exits.
+- `insecur agent shell -- <command>` and `insecur agent env` derive an agent-marked child session
+  from the live human session for agent-harness process trees (see Agent Attribution).
 - OIDC is preferred for CI and agents running in supported platforms.
 - Bootstrap credentials are a narrow fallback and should exchange for short-lived access tokens.
 - Bootstrap secrets and OIDC tokens are Sensitive Values and use safe sensitive input paths only, such as provider flow or stdin, never `--token <value>` or `--client-secret <value>`.
@@ -985,8 +1104,13 @@ Security posture:
 ```bash
 insecur operations get op_123 --json
 insecur operations wait op_123 --json
+insecur operations wait op_123 --timeout 600 --json
 insecur operations cancel op_123
 ```
+
+`operations wait` accepts `--timeout <seconds>`; on expiry it fails with the client-side code
+`operation.wait_timeout` at exit `9`, carrying the operation's current state in the envelope and
+remediation pointing back at the same `wait` command, so an unattended agent never blocks forever.
 
 Long-running sync, rotation, backup, restore, and provider reauthorization workflows return an operation ID. Operation state, polling, waiting, cancellation, retry metadata, sync leases, and fencing tokens are owned by the [Operation Store](operation-store.md); CLI commands render that metadata rather than reading workflow-private tables.
 

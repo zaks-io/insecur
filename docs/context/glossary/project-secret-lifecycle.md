@@ -78,6 +78,10 @@ _Avoid_: approval service, encryption engine, secret table when the lifecycle In
 A secret write that creates a Secret Version without returning the Sensitive Value to the caller.
 _Avoid_: blind secret when implying a separate Secret type, blind secret when the write flow is meant; a blind write still creates a normal Secret Version, stage a secret when a value is written without reveal (vs Draft Version when the stored version is meant)
 
+**Metadata Receipt**:
+The metadata-only confirmation returned to the actor after a **Blind Secret Write**: new Secret Version identity, target Environments, and timestamp, with nothing derived from the Sensitive Value.
+_Avoid_: checksum, fingerprint, last-4, value preview; any value-derived confirmation artifact is a reveal channel, write confirmation when the metadata-only guarantee is the point
+
 **Draft Version**:
 An immutable secret version that is stored but not eligible for protected delivery.
 _Avoid_: staged value when the immutable version is meant

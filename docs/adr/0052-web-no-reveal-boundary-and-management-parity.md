@@ -34,3 +34,18 @@ Management parity is org-configurable. An Organization Configuration may narrow 
 ## Amendment (2026-06-11): No elevation window in V1; per-reveal challenge only
 
 The time-boxed elevation window above is dropped for V1. Any CLI-side Secret Reveal in a non-protected Environment requires its own per-reveal High-Assurance Challenge against a bounded operation describing that exact reveal, cleared on the Human Approval Surface; clearing it grants no reusable authority for future actions, exactly the ADR-0032 bounded-operation model (see ADR-0032's matching 2026-06-11 amendment for who may clear a bounded operation). A reusable window cleared once via the web challenge would hand standing reveal authority to anything holding the CLI session token, including an agent inheriting `INSECUR_SESSION_TOKEN`; that contradiction with ADR-0032's "grants no reusable authority" rule is what this amendment removes. The CLI reveal command itself is deferred past V1: docs/cli-and-sync.md defines no reveal command, and implementing agents must not invent one. If a time-boxed elevation window is ever wanted later, it needs its own ADR specifying TTL, session/Environment/secret-scope binding, web-app revocation, per-reveal audit, and the agent-inheritance consequence, reconciled against ADR-0032.
+
+## Amendment (2026-07-04): No credential material in the browser, including at issuance
+
+The no-reveal boundary extends beyond stored Sensitive Values to insecur-issued machine credential
+material. The browser never displays an Environment Deploy Key or any other machine credential,
+not even once at issuance; the show-once-then-never pattern common elsewhere is rejected here for
+the same reasons show-once-at-creation was rejected above (extensions, screen-share, screenshots,
+clipboard sync), and because a Deploy Key can consume grants, making it exactly the material the
+boundary exists to protect. Deploy Key issuance and rotation are CLI-only; the console shows key
+existence and metadata. GitHub Actions OIDC setup remains fully web-allowed because it involves no
+secret material (trust configuration plus a non-secret workflow snippet), and OIDC stays the
+preferred CI auth per the product spec. The resulting product claim is categorical: the console has
+rendered zero secret bytes, ever — customer values or insecur's own credentials. Like the stored-
+value boundary, this must be structural where possible: web-session tokens carry no scope that
+returns credential material.
