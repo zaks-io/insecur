@@ -26,6 +26,7 @@ import type { OperationPollResult } from "@insecur/operations";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
+  ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,
   CreateInvitationRpcInput,
   CreateOperatorOrganizationRpcInput,
@@ -43,6 +44,7 @@ import type {
   CaptureFirstValueFeedbackRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryEnvelope,
   RuntimeRpcResult,
   RuntimeSecretWritePayload,
@@ -50,6 +52,7 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "./env.js";
+import { consumeGrantAllOperation } from "./operations/consume-grant-all-operation.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { captureFirstValueFeedbackOperation } from "./operations/capture-first-value-feedback-operation.js";
 import { getOperationOperation } from "./operations/get-operation-operation.js";
@@ -129,6 +132,14 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
     return this.#post(input.actorToken, ({ auditActor }) =>
       consumeGrantOperation({ env: this.env, input, auditActor }),
+    );
+  }
+
+  consumeGrantAll(
+    input: ConsumeGrantAllRpcInput,
+  ): Promise<RuntimeRpcResult<RuntimeDeliveryAllEnvelope>> {
+    return this.#post(input.actorToken, ({ auditActor }) =>
+      consumeGrantAllOperation({ env: this.env, input, auditActor }),
     );
   }
 

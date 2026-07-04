@@ -4,6 +4,7 @@ import type {
   EnvironmentId,
   OrganizationId,
   ProjectId,
+  RuntimePolicyId,
 } from "@insecur/domain";
 import { CLI_ERROR_CODES } from "@insecur/domain";
 import { assertNoForbiddenConfigKeys } from "./forbidden-config-keys.js";
@@ -11,6 +12,7 @@ import { parseCliProfileSlug } from "./profiles/profile-slug.js";
 import {
   parseCliProfileId,
   parseEnvironmentId,
+  parseOptionalRuntimePolicyId,
   parseOrganizationId,
   parseProjectId,
 } from "./parse-resource-id.js";
@@ -25,6 +27,7 @@ export interface CliUserProfile {
   readonly orgId: OrganizationId;
   readonly projectId: ProjectId;
   readonly envId: EnvironmentId;
+  readonly defaultRunPolicyId?: RuntimePolicyId;
 }
 
 export interface CliUserConfig {
@@ -46,6 +49,10 @@ function parseProfile(profileId: string, record: Record<string, unknown>): CliUs
   const projectId = requireNonEmptyString(record.projectId, `profiles.${profileId}.projectId`);
   const envId = requireNonEmptyString(record.envId, `profiles.${profileId}.envId`);
   const profileContext = `profiles.${profileId}`;
+  const defaultRunPolicyId = parseOptionalRuntimePolicyId(
+    typeof record.defaultRunPolicyId === "string" ? record.defaultRunPolicyId : undefined,
+    `${profileContext}.defaultRunPolicyId`,
+  );
   return {
     slug,
     displayName: displayName as DisplayName,
@@ -53,6 +60,7 @@ function parseProfile(profileId: string, record: Record<string, unknown>): CliUs
     orgId: parseOrganizationId(orgId, `${profileContext}.orgId`),
     projectId: parseProjectId(projectId, `${profileContext}.projectId`),
     envId: parseEnvironmentId(envId, `${profileContext}.envId`),
+    ...(defaultRunPolicyId === undefined ? {} : { defaultRunPolicyId }),
   };
 }
 

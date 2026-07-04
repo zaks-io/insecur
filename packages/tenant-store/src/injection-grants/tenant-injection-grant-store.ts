@@ -1,38 +1,30 @@
-import {
-  environmentId,
-  injectionGrantId,
-  projectId,
-  secretId,
-  secretVersionId,
-  type EnvironmentId,
-  type InjectionGrantId,
-  type OrganizationId,
-  type ProjectId,
-  type SecretId,
-  type SecretVersionId,
-  type VariableKey,
+import type {
+  InjectionGrantId,
+  OrganizationId,
+  ProjectId,
+  EnvironmentId,
+  SecretId,
+  VariableKey,
 } from "@insecur/domain";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { injectionGrants } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { assertProjectEnvironmentCoordinate } from "./assert-project-environment-coordinate.js";
-import type { InjectionGrantRow, InsertInjectionGrantInput } from "./types.js";
+import * as grantBindings from "./injection-grant-bindings.js";
+import {
+  injectionGrantRowSelection,
+  performConsumeAllUpdate,
+  performConsumeUpdate,
+} from "./injection-grant-consume-sql.js";
+import type {
+  ConsumedInjectionGrantRow,
+  InjectionGrantConsumeFailure,
+  InjectionGrantRow,
+  InsertInjectionGrantInput,
+} from "./types.js";
 
-export type InjectionGrantConsumeFailure =
-  | "not_found"
-  | "expired"
-  | "already_consumed"
-  | "binding_not_allowed";
-
-export interface ConsumedInjectionGrantRow {
-  grantId: InjectionGrantId;
-  projectId: ProjectId;
-  environmentId: EnvironmentId;
-  secretId: SecretId;
-  secretVersionId: SecretVersionId;
-  variableKey: VariableKey;
-}
+export type { ConsumedInjectionGrantRow, InjectionGrantConsumeFailure } from "./types.js";
 
 /**
  * Postgres-backed one-use Injection Grant persistence (metadata only).
@@ -49,15 +41,22 @@ export class TenantInjectionGrantStore {
   }
 
   async insertGrant(input: InsertInjectionGrantInput): Promise<void> {
-    const { binding } = input;
+    if (input.bindings.length === 0) {
+      throw new Error("injection grant requires at least one binding");
+    }
+    const variableKeys = input.bindings.map((binding) => binding.variableKey);
+    const secretIds = input.bindings.map((binding) => binding.secretId);
+    const secretVersionIds = input.bindings.map((binding) => binding.secretVersionId);
     await this.db.insert(injectionGrants).values({
       id: input.grantId,
       orgId: input.organizationId,
       projectId: input.projectId,
       environmentId: input.environmentId,
-      variableKeys: [binding.variableKey],
-      secretIds: [binding.secretId],
-      secretVersionId: binding.secretVersionId,
+      variableKeys,
+      secretIds,
+      secretVersionIds,
+      ...(input.policyId === undefined ? {} : { policyId: input.policyId }),
+      ...(input.policyVersionId === undefined ? {} : { policyVersionId: input.policyVersionId }),
       expiresAt: input.expiresAt,
     });
   }
@@ -67,41 +66,23 @@ export class TenantInjectionGrantStore {
     grantIdValue: InjectionGrantId,
   ): Promise<InjectionGrantRow | null> {
     const rows = await this.db
-      .select({
-        id: injectionGrants.id,
-        org_id: injectionGrants.orgId,
-        project_id: injectionGrants.projectId,
-        environment_id: injectionGrants.environmentId,
-        variable_keys: injectionGrants.variableKeys,
-        secret_ids: injectionGrants.secretIds,
-        secret_version_id: injectionGrants.secretVersionId,
-        expires_at: injectionGrants.expiresAt,
-        consumed_at: injectionGrants.consumedAt,
-      })
+      .select(injectionGrantRowSelection)
       .from(injectionGrants)
       .where(and(eq(injectionGrants.id, grantIdValue), eq(injectionGrants.orgId, organizationId)))
       .limit(1);
     return rows[0] ?? null;
   }
 
+  isPolicyBackedGrant(grant: InjectionGrantRow): boolean {
+    return grantBindings.isPolicyBackedGrant(grant);
+  }
+
+  getBoundGrants(grant: InjectionGrantRow): ConsumedInjectionGrantRow[] | null {
+    return grantBindings.getBoundGrants(grant);
+  }
+
   getBoundGrant(grant: InjectionGrantRow): ConsumedInjectionGrantRow | null {
-    if (grant.secret_ids.length !== 1 || grant.variable_keys.length !== 1) {
-      return null;
-    }
-    const boundSecretId = grant.secret_ids[0];
-    const boundVariableKey = grant.variable_keys[0];
-    const boundVersionId = grant.secret_version_id;
-    if (boundSecretId === undefined || boundVariableKey === undefined || boundVersionId === null) {
-      return null;
-    }
-    return {
-      grantId: injectionGrantId.brand(grant.id),
-      projectId: projectId.brand(grant.project_id),
-      environmentId: environmentId.brand(grant.environment_id),
-      secretId: secretId.brand(boundSecretId),
-      secretVersionId: secretVersionId.brand(boundVersionId),
-      variableKey: boundVariableKey as VariableKey,
-    };
+    return grantBindings.getBoundGrant(grant);
   }
 
   classifyConsumeFailure(
@@ -109,23 +90,11 @@ export class TenantInjectionGrantStore {
     requestedSecretId: SecretId,
     requestedVariableKey: VariableKey,
   ): InjectionGrantConsumeFailure | null {
-    if (!grant) {
-      return "not_found";
-    }
-    const bound = this.getBoundGrant(grant);
-    if (!bound) {
-      return "not_found";
-    }
-    if (bound.secretId !== requestedSecretId || bound.variableKey !== requestedVariableKey) {
-      return "binding_not_allowed";
-    }
-    if (grant.consumed_at !== null) {
-      return "already_consumed";
-    }
-    if (grant.expires_at.getTime() <= Date.now()) {
-      return "expired";
-    }
-    return null;
+    return grantBindings.classifyConsumeFailure(grant, requestedSecretId, requestedVariableKey);
+  }
+
+  classifyConsumeAllFailure(grant: InjectionGrantRow | null): InjectionGrantConsumeFailure | null {
+    return grantBindings.classifyConsumeAllFailure(grant);
   }
 
   async tryConsumeGrant(
@@ -152,7 +121,7 @@ export class TenantInjectionGrantStore {
       return { ok: false, reason: "not_found" };
     }
 
-    const consumed = await this.performConsumeUpdate({
+    const consumed = await performConsumeUpdate(this.db, {
       organizationId,
       grantId: grantIdValue,
       bound: boundBeforeConsume,
@@ -176,41 +145,48 @@ export class TenantInjectionGrantStore {
     return { ok: true, grant: consumedBound };
   }
 
-  private async performConsumeUpdate(input: {
-    organizationId: OrganizationId;
-    grantId: InjectionGrantId;
-    bound: ConsumedInjectionGrantRow;
-    requestedSecretId: SecretId;
-    requestedVariableKey: VariableKey;
-  }): Promise<InjectionGrantRow | null> {
-    const rows = await this.db
-      .update(injectionGrants)
-      .set({ consumedAt: sql`now()` })
-      .where(
-        and(
-          eq(injectionGrants.id, input.grantId),
-          eq(injectionGrants.orgId, input.organizationId),
-          isNull(injectionGrants.consumedAt),
-          gt(injectionGrants.expiresAt, sql`now()`),
-          sql`cardinality(${injectionGrants.secretIds}) = 1`,
-          sql`cardinality(${injectionGrants.variableKeys}) = 1`,
-          eq(injectionGrants.secretVersionId, input.bound.secretVersionId),
-          sql`${input.requestedSecretId} = ANY (${injectionGrants.secretIds})`,
-          sql`${input.requestedVariableKey} = ANY (${injectionGrants.variableKeys})`,
-        ),
-      )
-      .returning({
-        id: injectionGrants.id,
-        org_id: injectionGrants.orgId,
-        project_id: injectionGrants.projectId,
-        environment_id: injectionGrants.environmentId,
-        variable_keys: injectionGrants.variableKeys,
-        secret_ids: injectionGrants.secretIds,
-        secret_version_id: injectionGrants.secretVersionId,
-        expires_at: injectionGrants.expiresAt,
-        consumed_at: injectionGrants.consumedAt,
-      });
-    return rows[0] ?? null;
+  async tryConsumeGrantAll(
+    organizationId: OrganizationId,
+    grantIdValue: InjectionGrantId,
+  ): Promise<
+    | { ok: true; grants: ConsumedInjectionGrantRow[] }
+    | { ok: false; reason: InjectionGrantConsumeFailure }
+  > {
+    const existing = await this.getGrant(organizationId, grantIdValue);
+    const preflight = this.classifyConsumeAllFailure(existing);
+    if (preflight !== null || existing === null) {
+      return { ok: false, reason: preflight ?? "not_found" };
+    }
+
+    const boundBeforeConsume = this.getBoundGrants(existing);
+    if (!boundBeforeConsume?.length) {
+      return { ok: false, reason: "not_found" };
+    }
+
+    return this.finalizeConsumeGrantAll(organizationId, grantIdValue);
+  }
+
+  private async finalizeConsumeGrantAll(
+    organizationId: OrganizationId,
+    grantIdValue: InjectionGrantId,
+  ): Promise<
+    | { ok: true; grants: ConsumedInjectionGrantRow[] }
+    | { ok: false; reason: InjectionGrantConsumeFailure }
+  > {
+    const consumed = await performConsumeAllUpdate(this.db, {
+      organizationId,
+      grantId: grantIdValue,
+    });
+    if (!consumed) {
+      return this.failureAfterConsumeAllRace(organizationId, grantIdValue);
+    }
+
+    const consumedBindings = this.getBoundGrants(consumed);
+    if (!consumedBindings?.length) {
+      return { ok: false, reason: "not_found" };
+    }
+
+    return { ok: true, grants: consumedBindings };
   }
 
   private async failureAfterConsumeRace(
@@ -223,6 +199,15 @@ export class TenantInjectionGrantStore {
     const reason =
       this.classifyConsumeFailure(refreshed, requestedSecretId, requestedVariableKey) ??
       "not_found";
+    return { ok: false, reason };
+  }
+
+  private async failureAfterConsumeAllRace(
+    organizationId: OrganizationId,
+    grantIdValue: InjectionGrantId,
+  ): Promise<{ ok: false; reason: InjectionGrantConsumeFailure }> {
+    const refreshed = await this.getGrant(organizationId, grantIdValue);
+    const reason = this.classifyConsumeAllFailure(refreshed) ?? "not_found";
     return { ok: false, reason };
   }
 }

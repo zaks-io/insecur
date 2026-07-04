@@ -5,7 +5,6 @@ import type {
   InvitationId,
   KnownErrorCode,
   MembershipId,
-  MetadataEnvelopeMeta,
   OperationId,
   OrganizationId,
   ProjectId,
@@ -32,6 +31,18 @@ import type {
   BootstrapStatus,
   CompleteBootstrapOperatorClaimResult,
 } from "@insecur/instance-bootstrap";
+import type {
+  RuntimeDeliveryAllEnvelope,
+  RuntimeDeliveryEnvelope,
+} from "./runtime-delivery-rpc-contract.js";
+
+export type {
+  RuntimeDeliveryAllEnvelope,
+  RuntimeDeliveryAllPayload,
+  RuntimeDeliveryEntryPayload,
+  RuntimeDeliveryEnvelope,
+  RuntimeDeliveryPayload,
+} from "./runtime-delivery-rpc-contract.js";
 
 /**
  * The RPC contract between the public API Worker and the private Runtime Worker (ADR-0077).
@@ -53,23 +64,6 @@ export interface RuntimeSecretWritePayload {
   auditEventId?: string;
 }
 
-/** Encoded grant delivery payload. The value is base64url UTF-8 for immediate injection only. */
-export interface RuntimeDeliveryPayload {
-  secretId: SecretId;
-  secretVersionId: SecretVersionId;
-  variableKey: VariableKey;
-  grantId: InjectionGrantId;
-  /** Base64url-encoded UTF-8 bytes for immediate process injection only; never log or persist. */
-  encodedValueUtf8: string;
-  auditEventId?: string;
-}
-
-export interface RuntimeDeliveryEnvelope {
-  readonly ok: true;
-  readonly delivery: RuntimeDeliveryPayload;
-  readonly meta?: MetadataEnvelopeMeta;
-}
-
 /** A failure crossing the RPC seam; the API re-throws a `{ code, retryable }`-shaped error. */
 export interface RuntimeRpcError {
   readonly code: KnownErrorCode;
@@ -80,6 +74,15 @@ export interface RuntimeRpcError {
 export type RuntimeRpcResult<TPayload> =
   | { readonly ok: true; readonly value: TPayload }
   | { readonly ok: false; readonly error: RuntimeRpcError };
+
+export interface ConsumeGrantAllRpcInput {
+  readonly organizationId: OrganizationId;
+  readonly grantId: InjectionGrantId;
+  /** Scoped, audience-bound hop token authenticating the forwarded actor (ADR-0077). */
+  readonly actorToken: string;
+  /** API-minted request id, threaded into the Runtime audit row and the delivery envelope meta. */
+  readonly requestId: RequestId;
+}
 
 export interface ConsumeGrantRpcInput {
   readonly organizationId: OrganizationId;
@@ -259,6 +262,9 @@ export interface CaptureFirstValueFeedbackRpcPayload {
  */
 export interface RuntimeRpc {
   consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>>;
+  consumeGrantAll(
+    input: ConsumeGrantAllRpcInput,
+  ): Promise<RuntimeRpcResult<RuntimeDeliveryAllEnvelope>>;
   writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>>;
 
   // Pre-auth (no hop token; trusted by the private Service Binding boundary).

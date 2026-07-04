@@ -73,6 +73,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   class MockTenantInjectionGrantStore {
     getGrant = getGrant;
     getBoundGrant = getBoundGrant;
+    isPolicyBackedGrant = vi.fn(() => false);
     tryConsumeGrant = tryConsumeGrant;
   }
   return {
@@ -109,7 +110,9 @@ function grantRow(overrides: Record<string, unknown> = {}) {
     environment_id: ENV,
     variable_keys: [VARIABLE_KEY],
     secret_ids: [SECRET],
-    secret_version_id: SECRET_VERSION,
+    secret_version_ids: [SECRET_VERSION],
+    policy_id: null,
+    policy_version_id: null,
     expires_at: new Date(Date.now() + 60_000),
     consumed_at: null,
     ...overrides,

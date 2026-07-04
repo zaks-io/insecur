@@ -35,7 +35,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant legacy multi-key safe
           environment_id,
           variable_keys,
           secret_ids,
-          secret_version_id,
+          secret_version_ids,
           expires_at
         )
         VALUES (
@@ -45,7 +45,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant legacy multi-key safe
           ${testEnvironment()},
           ${[firstKey, secondKey]},
           ${[first.secretId, second.secretId]},
-          ${first.secretVersionId},
+          ${[first.secretVersionId, second.secretVersionId]},
           ${expiresAt.toISOString()}
         )
       `;

@@ -5,7 +5,8 @@ import { InjectionGrantError } from "./injection-grant-error.js";
 
 export type InjectionGrantIssueSelector =
   | { kind: "variable_key"; variableKey: VariableKey }
-  | { kind: "secret_id"; secretId: SecretId };
+  | { kind: "secret_id"; secretId: SecretId }
+  | { kind: "policy_id"; policyId: import("@insecur/domain").RuntimePolicyId };
 
 export type InjectionGrantConsumeSelector =
   | { kind: "variable_key"; variableKey: VariableKey }
@@ -38,6 +39,9 @@ export function normalizeConsumeSelector(input: {
 
 /** Counts secret bindings represented by one issue selector. */
 export function issueSelectorBindingCount(selector: InjectionGrantIssueSelector): number {
+  if (selector.kind === "policy_id") {
+    return -1;
+  }
   if (selector.kind === "variable_key") {
     return selector.variableKey === "" ? 0 : 1;
   }
@@ -46,6 +50,9 @@ export function issueSelectorBindingCount(selector: InjectionGrantIssueSelector)
 
 /** First Value grants bind exactly one Secret per issue/consume cycle. */
 export function assertSingleIssueSelectorCount(selector: InjectionGrantIssueSelector): void {
+  if (selector.kind === "policy_id") {
+    return;
+  }
   if (issueSelectorBindingCount(selector) !== 1) {
     throw new InjectionGrantError(
       INJECTION_ERROR_CODES.grantDenied,

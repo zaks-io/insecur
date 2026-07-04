@@ -121,9 +121,14 @@ export async function loadAuditRow(organizationId: OrganizationId, auditEventId:
 export async function loadGrantBinding(organizationId: OrganizationId, grantId: string) {
   return withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     const rows = await sql<
-      { secret_ids: string[]; secret_version_id: string | null; variable_keys: string[] }[]
+      {
+        secret_ids: string[];
+        secret_version_ids: string[];
+        variable_keys: string[];
+        policy_id: string | null;
+      }[]
     >`
-      SELECT secret_ids, secret_version_id, variable_keys
+      SELECT secret_ids, secret_version_ids, variable_keys, policy_id
       FROM injection_grants
       WHERE id = ${grantId}
       LIMIT 1

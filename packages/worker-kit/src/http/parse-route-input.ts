@@ -10,6 +10,7 @@ import {
   parseVariableKey,
   projectId,
   requestId,
+  runtimePolicyId,
   secretId,
   userId,
   type DisplayName,
@@ -21,6 +22,7 @@ import {
   type OrganizationId,
   type ProjectId,
   type RequestId,
+  type RuntimePolicyId,
   type SecretId,
   type UserId,
 } from "@insecur/domain";
@@ -201,7 +203,9 @@ type InjectionGrantSelectorInput =
   | { kind: "variable_key"; variableKey: ReturnType<typeof parseVariableKeyField> }
   | { kind: "secret_id"; secretId: SecretId };
 
-export type InjectionGrantIssueSelectorInput = InjectionGrantSelectorInput;
+export type InjectionGrantIssueSelectorInput =
+  | InjectionGrantSelectorInput
+  | { kind: "policy_id"; policyId: RuntimePolicyId };
 
 export type InjectionGrantConsumeSelectorInput = InjectionGrantSelectorInput;
 
@@ -239,6 +243,28 @@ function parseSingleInjectionGrantSelector(
 export function parseInjectionGrantIssueSelector(
   body: Record<string, unknown>,
 ): InjectionGrantIssueSelectorInput {
+  const hasVariableKey = hasOwnField(body, "variableKey");
+  const hasSecretId = hasOwnField(body, "secretId");
+  const hasPolicyId = hasOwnField(body, "policyId");
+  const selectorCount = [hasVariableKey, hasSecretId, hasPolicyId].filter(Boolean).length;
+  if (selectorCount !== 1) {
+    throw Object.assign(
+      new Error("Exactly one of variableKey, secretId, or policyId is required."),
+      {
+        code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      },
+    );
+  }
+  if (hasPolicyId) {
+    const policyIdRaw = readRequiredString(body, "policyId");
+    const parsedPolicyId = runtimePolicyId.parse(policyIdRaw);
+    if (!parsedPolicyId.ok) {
+      throw Object.assign(new Error("Invalid runtime injection policy id."), {
+        code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      });
+    }
+    return { kind: "policy_id", policyId: parsedPolicyId.value };
+  }
   return parseSingleInjectionGrantSelector(body);
 }
 

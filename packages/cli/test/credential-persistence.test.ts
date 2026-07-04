@@ -93,6 +93,9 @@ function createMockApi(): ApiClient {
     async consumeInjectionGrant() {
       throw new Error("not used");
     },
+    async consumeInjectionGrantAll() {
+      throw new Error("not used");
+    },
   };
 }
 

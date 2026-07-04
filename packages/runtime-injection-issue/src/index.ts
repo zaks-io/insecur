@@ -15,6 +15,7 @@ export { InjectionGrantError } from "./injection-grant-error.js";
 export {
   INJECTION_GRANT_TTL_SECONDS,
   computeInjectionGrantExpiresAt,
+  computeInjectionGrantExpiresAtFromTtl,
 } from "./injection-grant-ttl.js";
 export {
   type InjectionGrantConsumeSelector,
@@ -28,6 +29,11 @@ export {
   type GrantCoordinate,
   resolveInjectionGrantBinding,
 } from "./resolve-injection-grant-bindings.js";
+export {
+  type ResolvedPolicyGrantBindings,
+  resolveInjectionGrantBindings,
+  resolveInjectionGrantPolicyBindings,
+} from "./resolve-policy-grant-bindings.js";
 export {
   type IssueInjectionGrantCoreInput,
   type IssueInjectionGrantCoreResult,

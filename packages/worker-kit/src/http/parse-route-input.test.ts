@@ -343,30 +343,39 @@ describe("parseInjectionGrantIssueSelector", () => {
     });
   });
 
-  it("rejects missing both selectors", () => {
+  it("rejects missing all selectors", () => {
     expectValidationError(
       () => parseInjectionGrantIssueSelector({}),
-      "Exactly one of variableKey or secretId is required.",
+      "Exactly one of variableKey, secretId, or policyId is required.",
       VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     );
   });
 
-  it("rejects both selectors together", () => {
+  it("rejects both variableKey and secretId together", () => {
     expectValidationError(
       () =>
         parseInjectionGrantIssueSelector({
           variableKey: "DATABASE_URL",
           secretId: VALID_SEC_ID,
         }),
-      "Exactly one of variableKey or secretId is required.",
+      "Exactly one of variableKey, secretId, or policyId is required.",
       VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+
+  it("accepts exactly one policyId selector", () => {
+    expect(parseInjectionGrantIssueSelector({ policyId: "rp_00000000000000000000000001" })).toEqual(
+      {
+        kind: "policy_id",
+        policyId: "rp_00000000000000000000000001",
+      },
     );
   });
 
   it("rejects empty selectors", () => {
     expectValidationError(
       () => parseInjectionGrantIssueSelector({ variableKey: "", secretId: "" }),
-      "Exactly one of variableKey or secretId is required.",
+      "Exactly one of variableKey, secretId, or policyId is required.",
       VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     );
   });

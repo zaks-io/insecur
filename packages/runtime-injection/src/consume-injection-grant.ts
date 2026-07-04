@@ -1,15 +1,8 @@
-import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
-import type {
-  AuditActorRef,
-  AuditOperationRef,
-  AuditRequestRef,
-  AuditUserActorRef,
-} from "@insecur/audit";
+import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
   environmentId,
-  INJECTION_ERROR_CODES,
   projectId,
   type EnvironmentId,
   type InjectionGrantId,
@@ -19,13 +12,15 @@ import {
   type SecretVersionId,
   type VariableKey,
 } from "@insecur/domain";
-import {
-  TenantInjectionGrantStore,
-  type InjectionGrantConsumeFailure,
-  withTenantScope,
-} from "@insecur/tenant-store";
+import { TenantInjectionGrantStore, withTenantScope } from "@insecur/tenant-store";
 
 import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-injection-access.js";
+import {
+  assertUserActorForConsume,
+  reasonCodeForConsumeFailure,
+  recordConsumeDeniedAudit,
+  runConsumeWithAuditDenialHandling,
+} from "./consume-injection-grant-shared.js";
 import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
@@ -51,15 +46,6 @@ export interface ConsumeInjectionGrantCoreResult {
   auditEventId?: string;
 }
 
-function reasonCodeForConsumeFailure(
-  reason: InjectionGrantConsumeFailure,
-): (typeof INJECTION_ERROR_CODES)[keyof typeof INJECTION_ERROR_CODES] {
-  if (reason === "expired") {
-    return INJECTION_ERROR_CODES.grantExpired;
-  }
-  return INJECTION_ERROR_CODES.grantDenied;
-}
-
 export interface LoadedGrantBinding {
   projectId: ProjectId;
   environmentId: EnvironmentId;
@@ -68,15 +54,6 @@ export interface LoadedGrantBinding {
     secretVersionId: SecretVersionId;
     variableKey: VariableKey;
   };
-}
-
-function assertUserActorForConsume(actor: AuditActorRef): asserts actor is AuditUserActorRef {
-  if (actor.type !== "user") {
-    throw new InjectionGrantError(
-      AUTH_ERROR_CODES.insufficientScope,
-      "runtime injection scope required",
-    );
-  }
 }
 
 async function loadGrantBinding(
@@ -201,20 +178,22 @@ async function buildConsumeSuccessResult(
 }
 
 export async function recordDeniedConsume(
-  input: ConsumeInjectionGrantCoreInput,
+  input: {
+    actor: AuditActorRef;
+    organizationId: OrganizationId;
+    grantId: InjectionGrantId;
+    request?: AuditRequestRef;
+    operation?: AuditOperationRef;
+  },
   reasonCode: InjectionGrantError["code"],
   coordinate?: { projectId: ProjectId; environmentId: EnvironmentId },
 ): Promise<void> {
-  await recordRuntimeInjectionAudit({
-    phase: "consume",
-    outcome: "denied",
+  await recordConsumeDeniedAudit({
     actor: input.actor,
     organizationId: input.organizationId,
     grantId: input.grantId,
     reasonCode,
-    ...(coordinate !== undefined
-      ? { projectId: coordinate.projectId, environmentId: coordinate.environmentId }
-      : {}),
+    ...(coordinate !== undefined ? { coordinate } : {}),
     ...(input.request !== undefined ? { request: input.request } : {}),
     ...(input.operation !== undefined ? { operation: input.operation } : {}),
   });
@@ -227,21 +206,8 @@ export async function consumeInjectionGrantWithAudit(
   const coordinate = loaded
     ? { projectId: loaded.projectId, environmentId: loaded.environmentId }
     : undefined;
-  try {
-    return await executeConsumeInjectionGrant(input, loaded);
-  } catch (error) {
-    if (error instanceof InjectionGrantError) {
-      await auditAccessDenialOnFailure(error, {
-        isAccessDenied: (candidate): candidate is InjectionGrantError =>
-          candidate instanceof InjectionGrantError &&
-          candidate.code === AUTH_ERROR_CODES.insufficientScope,
-        recordDenied: () =>
-          recordDeniedConsume(input, AUTH_ERROR_CODES.insufficientScope, coordinate),
-      });
-      if (error.code !== AUTH_ERROR_CODES.insufficientScope) {
-        await recordDeniedConsume(input, error.code, coordinate).catch(() => undefined);
-      }
-    }
-    throw error;
-  }
+  return runConsumeWithAuditDenialHandling({
+    run: () => executeConsumeInjectionGrant(input, loaded),
+    recordDenied: (reasonCode) => recordDeniedConsume(input, reasonCode, coordinate),
+  });
 }
