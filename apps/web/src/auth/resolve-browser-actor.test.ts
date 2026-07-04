@@ -1,4 +1,4 @@
-import { WORKOS_SESSION_COOKIE } from "@insecur/auth";
+import { mintEphemeralSessionCredential, WORKOS_SESSION_COOKIE } from "@insecur/auth";
 import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
 import { requestId, userId } from "@insecur/domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +9,8 @@ import { hasWorkosSessionCookie, resolveBrowserActor } from "./resolve-browser-a
 const instanceId = "inst_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
 const workosUserId = "user_01workos";
 const sealedSession = "sealed-session-admitted-test";
+const signingSecret = testSessionSigningSecret();
+const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 
 function createTestRuntime(admissions: Readonly<Record<string, ReturnType<typeof userId.brand>>>) {
   const admitted = new Map(Object.entries(admissions));
@@ -31,15 +33,16 @@ function createTestRuntime(admissions: Readonly<Record<string, ReturnType<typeof
   return { runtime, deniedCalls };
 }
 
-function createTestEnv(runtime: RuntimeAdmissionRpc): WebEnv {
+function createTestEnv(runtime: RuntimeAdmissionRpc, overrides: Partial<WebEnv> = {}): WebEnv {
   return {
     WORKOS_API_KEY: "sk_test",
     WORKOS_CLIENT_ID: "client_test",
     WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+    SESSION_SIGNING_SECRET: signingSecret,
     INSTANCE_ID: instanceId,
     API: { fetch: () => Promise.reject(new Error("API binding not used")) } as unknown as Fetcher,
     RUNTIME: runtime,
+    ...overrides,
   };
 }
 
@@ -63,6 +66,28 @@ function sessionRequest(): Request {
   });
 }
 
+function bearerRequest(credential: string): Request {
+  return new Request("https://insecur.test/whoami", {
+    headers: {
+      Authorization: `Bearer ${credential}`,
+    },
+  });
+}
+
+async function smokeCredential(ttlSeconds?: number): Promise<string> {
+  const minted = await mintEphemeralSessionCredential({
+    actor: {
+      type: "user",
+      userId: admittedUserId,
+      workosUserId,
+      sessionId: "session_web_smoke",
+    },
+    signingSecret,
+    ...(ttlSeconds === undefined ? {} : { ttlSeconds }),
+  });
+  return minted.credential;
+}
+
 describe("hasWorkosSessionCookie", () => {
   it("detects the WorkOS sealed session cookie", () => {
     const request = new Request("https://insecur.test/whoami", {
@@ -82,6 +107,19 @@ describe("resolveBrowserActor", () => {
     vi.clearAllMocks();
   });
 
+  it("returns missing when neither WorkOS cookie nor accepted smoke bearer is present", async () => {
+    const { runtime } = createTestRuntime({});
+    const result = await resolveBrowserActor(
+      new Request("https://insecur.test/whoami"),
+      createTestEnv(runtime),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.reason).toBe("missing");
+    }
+  });
+
   it("forwards denied-admission audit metadata over the Runtime binding", async () => {
     const { runtime, deniedCalls } = createTestRuntime({});
     const result = await resolveBrowserActor(sessionRequest(), createTestEnv(runtime));
@@ -98,7 +136,6 @@ describe("resolveBrowserActor", () => {
   });
 
   it("returns an admitted actor when Runtime admission resolves a user", async () => {
-    const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
     const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
     const result = await resolveBrowserActor(sessionRequest(), createTestEnv(runtime));
 
@@ -106,6 +143,51 @@ describe("resolveBrowserActor", () => {
     if (result.ok) {
       expect(result.actor.userId).toBe(admittedUserId);
       expect(result.actor.workosUserId).toBe(workosUserId);
+    }
+  });
+
+  it("accepts a smoke bearer only when preview smoke credentials are enabled", async () => {
+    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const result = await resolveBrowserActor(
+      bearerRequest(await smokeCredential()),
+      createTestEnv(runtime, { PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.actor.userId).toBe(admittedUserId);
+      expect(result.actor.workosUserId).toBe(workosUserId);
+      expect(result.actor.sessionId).toBe("session_web_smoke");
+    }
+  });
+
+  it("does not accept a smoke bearer when preview smoke credentials are disabled", async () => {
+    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const result = await resolveBrowserActor(
+      bearerRequest(await smokeCredential()),
+      createTestEnv(runtime),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.reason).toBe("missing");
+    }
+  });
+
+  it("rejects invalid and expired smoke bearers when preview smoke credentials are enabled", async () => {
+    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const env = createTestEnv(runtime, { PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" });
+
+    const invalid = await resolveBrowserActor(bearerRequest("not-a-session-token"), env);
+    expect(invalid.ok).toBe(false);
+    if (!invalid.ok) {
+      expect(invalid.failure.reason).toBe("invalid");
+    }
+
+    const expired = await resolveBrowserActor(bearerRequest(await smokeCredential(0)), env);
+    expect(expired.ok).toBe(false);
+    if (!expired.ok) {
+      expect(expired.failure.reason).toBe("expired");
     }
   });
 });

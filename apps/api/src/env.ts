@@ -10,6 +10,9 @@ import type { PublicEdgeRateLimitBindings } from "@insecur/worker-kit";
  * INS-199 lint gate).
  */
 export interface ApiEnv extends AuthWorkerEnv, PublicEdgeRateLimitBindings, SentryBindings {
+  readonly DEPLOY_SHA?: string;
+  readonly DEPLOY_RUN_ID?: string;
+  readonly DEPLOYED_AT?: string;
   /** Private Service Binding to the Runtime Worker's `RuntimeService` RPC entrypoint. */
   readonly RUNTIME: RuntimeRpc;
   /** HMAC secret shared with the Runtime Worker to mint the scoped hop token (ADR-0077). */

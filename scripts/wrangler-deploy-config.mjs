@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -15,10 +15,45 @@ const API_RATELIMIT_ENV = {
   AUTH_EXCHANGE_IP: "INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID",
 };
 
+const DEPLOY_IDENTITY_ENV = {
+  DEPLOY_SHA: "INSECUR_DEPLOY_SHA",
+  DEPLOY_RUN_ID: "INSECUR_DEPLOY_RUN_ID",
+  DEPLOYED_AT: "INSECUR_DEPLOYED_AT",
+};
+
+const GENERATED_EMPTY_BINDING_KEYS = [
+  "ai_search",
+  "ai_search_namespaces",
+  "analytics_engine_datasets",
+  "artifacts",
+  "cloudchamber",
+  "d1_databases",
+  "dispatch_namespaces",
+  "durable_objects",
+  "flagship",
+  "hyperdrive",
+  "kv_namespaces",
+  "mtls_certificates",
+  "pipelines",
+  "queues",
+  "r2_buckets",
+  "ratelimits",
+  "secrets_store_secrets",
+  "send_email",
+  "services",
+  "unsafe_hello_world",
+  "vectorize",
+  "vpc_networks",
+  "vpc_services",
+  "worker_loaders",
+  "workflows",
+];
+
 export async function loadDeployWranglerConfig(sourcePath, options = {}) {
   const source = await readFile(sourcePath, "utf8");
   const parsed = parseJsonc(source, sourcePath);
-  const config = materializeDeployWranglerConfig(parsed, { ...options, sourcePath });
+  const hydrated = await hydrateGeneratedWranglerConfig(parsed, sourcePath);
+  const config = materializeDeployWranglerConfig(hydrated, { ...options, sourcePath });
   return { config, sourceDir: path.dirname(sourcePath) };
 }
 
@@ -27,7 +62,7 @@ export function materializeDeployWranglerConfig(config, options = {}) {
   const env = options.env ?? process.env;
   const wranglerEnv = normalizeWranglerEnv(options.wranglerEnv ?? env.CLOUDFLARE_ENV);
   const scope = selectWranglerScope(next, wranglerEnv);
-  const workerName = next.topLevelName ?? next.name;
+  const workerName = deployMaterializerName(next);
   const deployContext = {
     env,
     sourcePath: options.sourcePath,
@@ -37,21 +72,39 @@ export function materializeDeployWranglerConfig(config, options = {}) {
 
   switch (workerName) {
     case "insecur-api":
+      materializeDeployIdentity(scope, deployContext);
       materializeApiConfig(scope, deployContext);
       break;
     case "insecur-runtime":
       materializeRuntimeConfig(scope, deployContext);
       break;
     case "insecur-web":
+      materializeDeployIdentity(scope, deployContext);
       materializeWebConfig(scope, deployContext);
       break;
     case "insecur-site":
+      materializeDeployIdentity(scope, deployContext);
       break;
     default:
       throw new Error(`No deploy-config materializer registered for Worker "${workerName}".`);
   }
 
   return next;
+}
+
+export async function hydrateGeneratedWranglerConfig(config, sourcePath) {
+  const userConfigPath = await resolveGeneratedUserConfigPath(config, sourcePath);
+  if (!userConfigPath) {
+    return config;
+  }
+  const userSource = await readFile(userConfigPath, "utf8");
+  const userConfig = parseJsonc(userSource, userConfigPath);
+  const hydrated = structuredClone(config);
+  if (userConfig.env !== undefined) {
+    hydrated.env = structuredClone(userConfig.env);
+  }
+  copyGeneratedEmptyBindingDefaults(hydrated, config);
+  return hydrated;
 }
 
 export function getWranglerEnvName(args, env = process.env) {
@@ -178,6 +231,22 @@ function materializeWebConfig(scope, context) {
   scope.vars.WORKOS_CLIENT_ID = requireDeployEnv("INSECUR_WORKOS_CLIENT_ID", context);
 }
 
+function materializeDeployIdentity(scope, context) {
+  scope.vars ??= {};
+  for (const [varName, envName] of Object.entries(DEPLOY_IDENTITY_ENV)) {
+    const value = context.env[envName];
+    if (value) {
+      scope.vars[varName] = value;
+      continue;
+    }
+    if (requiresDeployIdentity(context)) {
+      throw new Error(
+        `${envName} is required for ${scopeLabel(context)}. Configure it in the GitHub Environment or export it for preview deploys.`,
+      );
+    }
+  }
+}
+
 export function selectWranglerScope(config, wranglerEnv) {
   if (!wranglerEnv) {
     return config;
@@ -190,6 +259,12 @@ export function selectWranglerScope(config, wranglerEnv) {
     throw new Error(`Wrangler config has no env.${wranglerEnv} scope.`);
   }
   return scope;
+}
+
+function deployMaterializerName(config) {
+  return typeof config.topLevelName === "string" && config.topLevelName.length > 0
+    ? config.topLevelName
+    : config.name;
 }
 
 function readWranglerEnvArg(args) {
@@ -220,6 +295,61 @@ function requireDeployEnv(name, context) {
     );
   }
   return value;
+}
+
+function requiresDeployIdentity(context) {
+  return (
+    context.wranglerEnv === "preview" || context.env.INSECUR_REQUIRE_DEPLOY_IDENTITY === "true"
+  );
+}
+
+async function resolveGeneratedUserConfigPath(config, sourcePath) {
+  if (typeof config.userConfigPath !== "string" || config.userConfigPath.length === 0) {
+    return null;
+  }
+  const resolved = path.isAbsolute(config.userConfigPath)
+    ? config.userConfigPath
+    : path.resolve(path.dirname(sourcePath), config.userConfigPath);
+  if (path.resolve(sourcePath) === resolved) {
+    return null;
+  }
+  return (await fileExists(resolved)) ? resolved : null;
+}
+
+async function fileExists(candidatePath) {
+  try {
+    await access(candidatePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function copyGeneratedEmptyBindingDefaults(target, generated) {
+  if (target.env === undefined) {
+    return;
+  }
+  for (const scope of Object.values(target.env)) {
+    if (scope === null || typeof scope !== "object") {
+      continue;
+    }
+    for (const key of GENERATED_EMPTY_BINDING_KEYS) {
+      if (scope[key] !== undefined || !isEmptyBindingDefault(generated[key])) {
+        continue;
+      }
+      scope[key] = structuredClone(generated[key]);
+    }
+  }
+}
+
+function isEmptyBindingDefault(value) {
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  return Object.values(value).every((entry) => isEmptyBindingDefault(entry));
 }
 
 function scopeLabel(context) {

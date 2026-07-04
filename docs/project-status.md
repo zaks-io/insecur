@@ -214,11 +214,12 @@ The delivered First Value path is:
 This is verified two ways:
 
 - local e2e: `apps/api/test/e2e/first-value-loop.e2e.test.ts`
-- hosted preview smoke: `scripts/ci/smoke-first-value.mjs` against a deployed preview API
+- hosted preview smoke: `pnpm smoke:preview` against the deployed preview API/Web/Site and
+  preview Neon/Hyperdrive/Runtime binding
 
 The deployed preview smoke is the strongest evidence because it uses the real Cloudflare
-Workers, the real `RUNTIME` Service Binding, the real Hyperdrive binding, and the real
-Cloudflare Secrets Store root-key binding.
+Workers, the real `RUNTIME` Service Binding, the real Hyperdrive binding, the real
+Cloudflare Secrets Store root-key binding, and the preview plaintext sweep.
 
 ### CLI
 

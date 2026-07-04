@@ -76,6 +76,9 @@ app.get("/healthz", (context) =>
   context.json({
     ok: true,
     service: "insecur-api",
+    deploySha: context.env.DEPLOY_SHA ?? "unknown",
+    runId: context.env.DEPLOY_RUN_ID ?? "unknown",
+    deployedAt: context.env.DEPLOYED_AT ?? "unknown",
   }),
 );
 

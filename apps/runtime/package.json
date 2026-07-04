@@ -11,6 +11,7 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/logs wrangler dev --port 8788 --inspector-port 9231",
     "deploy": "node scripts/deploy-content-only.mjs",
     "deploy:preview": "WRANGLER_LOG_PATH=.wrangler/logs node ../../scripts/wrangler-with-deploy-config.mjs wrangler.jsonc -- deploy --env preview --keep-vars",
+    "deploy:preview:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs node ../../scripts/wrangler-with-deploy-config.mjs wrangler.jsonc -- deploy --env preview --dry-run --outdir dist --keep-vars",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
     "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
