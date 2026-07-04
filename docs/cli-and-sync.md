@@ -550,8 +550,8 @@ the agent can do low-risk work autonomously but cannot clear high-risk gates on 
 
 ### Agent Attribution
 
-Agent traffic is separated from human traffic in two tiers: a structural one that is
-token-accurate, and a self-reported detection net for agents running outside it.
+Agent traffic is separated from human traffic in three tiers: a structural one that is
+token-accurate, an automatic session-persistent registration, and a per-request tag fallback.
 
 **Tier 1 — Derived Agent Session (structural, primary).** When launching an agent harness, the
 human derives an agent-marked child session from their live human session:
@@ -573,32 +573,45 @@ attribution mark (ADR-0032 amendment). Agent-marked sessions are a future policy
 Organization Configuration may later narrow what they may do, enforced by token scope), but V1
 uses them for attribution only.
 
-**Tier 2 — Agent Attribution Tag (self-reported detection net).** Requests on a bare human token
-still resolve a best-effort tag: explicit `--agent <name>` flag, then `INSECUR_AGENT_TAG`, then
-auto-detected agent-harness environment markers (harnesses mark the env of subprocesses they
-spawn, for example Claude Code sets `CLAUDECODE=1`; the CLI maintains a registry of known
-markers). The tag is non-authoritative, recorded in audit metadata, and rendered as unverified
-("isaac · via claude-code (unverified)"). When a harness marker is detected on a bare human token,
-the CLI emits a warning nudging toward `insecur agent shell`. Detection observes; the token
-enforces. Neither tier is ever an input to authorization: authority is exactly the acting
-credential per ADR-0032.
+**Tier 2 — Registered Agent Session (automatic, session-persistent).** An agent running on a bare
+human token is upgraded to a registered Agent Session with no agent effort. The first command that
+detects a known agent-harness environment marker (harnesses mark the env of subprocesses they
+spawn, for example Claude Code sets `CLAUDECODE=1`; the CLI maintains a registry of known markers)
+auto-registers an Agent Session record server-side, bound to the live human session, and keys it
+locally to the harness process ancestry (root PID plus process start time) in CLI runtime state.
+Every later invocation walks its own process ancestry and auto-attaches when an ancestor matches,
+so one registration covers the whole harness run; the human's own commands live in a different
+process subtree and never match. Environment exports are not relied on because agent harnesses
+commonly run each command in a fresh subshell. The local state entry holds only the opaque Agent
+Session ID, never credential material; the server accepts the ID only alongside the human session
+it was registered under and closes it when that session ends. `insecur agent register` performs
+the same registration explicitly for unrecognized harnesses. Registration binding is
+client-asserted (unlike Tier 1's token), so audit renders it as registered rather than verified.
+
+**Tier 3 — Agent Attribution Tag (per-request fallback).** When registration is unavailable
+(read-only state dir, unknown harness, single-shot invocations), requests still resolve a
+best-effort tag: explicit `--agent <name>` flag, then `INSECUR_AGENT_TAG`, then detected harness
+markers. The tag is non-authoritative, recorded in audit metadata, and rendered as unverified
+("isaac · via claude-code (unverified)").
+
+No tier is ever an input to authorization: authority is exactly the acting credential per
+ADR-0032. Detection observes; the token enforces.
+
+### Whoami As The Agent Entry Point
+
+`insecur whoami --json` is the taught first command for agents and doubles as the attribution
+status check. Its envelope reports the acting human, session validity and expiry, resolved
+org/project context, and the attribution tier in effect (derived, registered with Agent Session ID
+and harness, tag-only, or none). Running it triggers Tier 2 auto-registration as a side effect
+when applicable, so "run whoami first" leaves the agent fully registered. Unauthenticated `whoami`
+exits `3` with remediation telling the agent exactly what to have its human run.
 
 ### Agent Onboarding Artifact
 
 `insecur init` offers to write a "Using secrets (for agents)" section into the repo's `AGENTS.md`
-(creating the file if absent) teaching the agent loop: never read or echo secret values; use
-`insecur run` for secret use; write values via `--generate` or by piping to `--value-stdin`
-(`printenv NAME | insecur secrets set --variable-key NAME --value-stdin`) so plaintext never enters
-the agent's own command line or context; treat exit `10` as a human handoff and follow the
-envelope's `remediation` steps; and if the CLI warns about a bare human token, ask the human to
-relaunch the harness via `insecur agent shell`. This section is the primary agent-facing product
-documentation and is kept in lockstep with this doc.
-
-### Agent Onboarding Artifact
-
-`insecur init` offers to write a "Using secrets (for agents)" section into the repo's `AGENTS.md`
-(creating the file if absent) teaching the agent loop: never read or echo secret values; use
-`insecur run` for secret use; write values via `--generate` or by piping to `--value-stdin`
+(creating the file if absent) teaching the agent loop: run `insecur whoami --json` first to check
+auth and confirm registration; never read or echo secret values; use `insecur run` for secret use;
+write values via `--generate` or by piping to `--value-stdin`
 (`printenv NAME | insecur secrets set --variable-key NAME --value-stdin`) so plaintext never enters
 the agent's own command line or context; treat exit `10` as a human handoff and follow the
 envelope's `remediation` steps. This section is the primary agent-facing product documentation and
@@ -617,6 +630,7 @@ insecur login --device --agent
 insecur shell prof_01JZ8E6H2R7M4T0V9X3C5D8F1G
 insecur agent shell -- claude
 insecur agent env
+insecur agent register
 insecur run --variable-key API_KEY -- npm run dev
 insecur login --method oidc --provider github-actions
 insecur login --method bootstrap --client-id "$INSECUR_CLIENT_ID" --client-secret-stdin

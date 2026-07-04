@@ -107,8 +107,8 @@ An interaction path an **Agent** can drive with an inherited human session, **Ma
 _Avoid_: CLI-only when API access is also possible
 
 **Agent Session**:
-An agent-marked child session derived from a live human session for an agent-harness process tree, carrying the same Effective Access with its own opaque ID and a lifetime bounded by the parent, unable to satisfy a **High-Assurance Challenge** (ADR-0032 amendment 2026-07-04).
-_Avoid_: agent identity; an Agent Session is attribution on the human's session lineage, not a credential class, machine identity for a local agent; that shape stays rejected, agent account
+A server-side record grouping one agent-harness run under a live human session for attribution, with its own opaque ID and a lifetime bounded by the human session, unable to satisfy a **High-Assurance Challenge**; backed either by a derived agent-marked child token (verified) or by automatic ancestry-keyed registration on the human token (registered), per the ADR-0032 amendment of 2026-07-04.
+_Avoid_: agent identity; an Agent Session is attribution on the human's session lineage, not a credential class, machine identity for a local agent; that shape stays rejected, agent account, agent login when registration on the existing human session is meant
 
 **Agent Attribution Tag**:
 A self-reported, non-authoritative label resolved per request from an explicit flag, `INSECUR_AGENT_TAG`, or detected agent-harness environment markers, recorded in audit metadata to mark probable agent traffic on a bare human token.

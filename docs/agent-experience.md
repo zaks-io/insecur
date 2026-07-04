@@ -24,13 +24,16 @@ design may preclude that projection.
 2. **Context safety by construction.** No surface asks an agent to place plaintext in its own
    context: generate mode, piped stdin, and server-side source refs are the write paths; metadata-
    only envelopes are the read paths (ADR-0079).
-3. **Token-accurate attribution.** Derived Agent Sessions (`insecur agent shell`,
-   `insecur login --device --agent`) separate agent traffic from human traffic structurally;
-   the self-reported Agent Attribution Tag plus harness-marker detection is the unverified net,
-   with a CLI nudge toward agent sessions (ADR-0032 amendment 2026-07-04). Feeds the console's
+3. **Attribution without effort.** Three tiers (ADR-0032 amendment 2026-07-04): Derived Agent
+   Sessions (`insecur agent shell`, `insecur login --device --agent`) are token-accurate;
+   automatic registration upgrades any detected harness on a bare human token to a
+   session-persistent Agent Session keyed to process ancestry, zero agent effort; the
+   self-reported Agent Attribution Tag is the per-request fallback. Feeds the console's
    per-agent-session activity view (docs/web-console-ux.md).
 4. **Taught, not assumed.** `insecur init` writes the "Using secrets (for agents)" `AGENTS.md`
-   section — the primary agent-facing docs, kept in lockstep with docs/cli-and-sync.md.
+   section — the primary agent-facing docs, kept in lockstep with docs/cli-and-sync.md. Its first
+   instruction is `insecur whoami --json`: the agent entry point that reports auth state, context,
+   and attribution tier, auto-registers when applicable, and remediates when unauthenticated.
 
 ## Remote And Headless Agents
 

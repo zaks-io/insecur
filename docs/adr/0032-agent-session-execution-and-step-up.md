@@ -58,17 +58,31 @@ High-Assurance Challenge. Because the harness's process subtree holds the agent-
 the human's own commands hold the human token, per-request attribution is token-accurate with no
 self-reporting, and audit groups activity per Agent Session under the owning human.
 
-Alternatives considered: a per-command self-reported tag (kept, but only as the unverified
-detection net for agents running on a bare human token — anything self-reported can be omitted or
-faked, and it yields no stable per-run identity); a disk-stored registration ID (rejected: the
-human and agent share the filesystem, so ambient state cannot scope to one principal — only the
-process environment subtree differs between them); a separate agent command namespace (rejected:
-two command surfaces for one operation set, unenforceable, and agents trained on human-facing docs
+For agents launched outside `insecur agent shell`, the same Agent Session record is created by
+**automatic registration**: the first CLI invocation that detects a known agent-harness
+environment marker registers an Agent Session bound to the live human session and keys it locally
+to the harness process ancestry (root PID plus process start time); later invocations auto-attach
+by ancestry match, so one registration covers the whole harness run with zero agent effort.
+Ancestry keying is what makes local persistence sound: a naive "current agent session" file would
+tag the human's own commands too, because human and agent share the filesystem, while only the
+process subtree differs between them. The persisted entry is the opaque Agent Session ID only,
+never credential material, so the no-tokens-on-disk rule is untouched; the server accepts the ID
+only with the human session it was registered under and closes it with that session. Registration
+binding is client-asserted, so audit distinguishes it ("registered") from the token-backed tier
+("verified").
+
+Alternatives considered: a per-command self-reported tag (kept, but only as the last-resort
+fallback when registration is unavailable — anything self-reported per request yields no stable
+per-run identity); an env-var handshake exported once per session (rejected: agent harnesses
+commonly run each command in a fresh subshell, so exported state does not survive between an
+agent's commands); a disk-stored registration ID without ancestry scoping (rejected: ambient
+shared state cannot scope to one principal); a separate agent command namespace (rejected: two
+command surfaces for one operation set, unenforceable, and agents trained on human-facing docs
 would bypass it immediately); real agent sub-identities as Machine Identities (rejected above,
 unchanged — standing authority a challenge cannot gate).
 
-Consequences: attribution rendering in audit and the console distinguishes token-accurate Agent
-Sessions from unverified self-reported tags. The mark is never an authorization input in V1;
+Consequences: attribution rendering in audit and the console distinguishes token-accurate
+("verified") Agent Sessions from registered and from tag-only unverified attribution. The mark is never an authorization input in V1;
 authority remains exactly the acting credential. Agent-marked sessions create a future policy
 hook — an Organization Configuration could narrow what agent-marked sessions may do, enforced by
 token scope rather than by trusting a label — but any such narrowing is a separate future
