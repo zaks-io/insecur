@@ -131,7 +131,8 @@ export async function seedSecretWithVersion(
   await insertSyntheticSecretVersion(tx, input);
   await tx`
     UPDATE secrets
-    SET current_version_id = ${input.secretVersionId}
+    SET current_version_id = ${input.secretVersionId},
+        live_version_number = ${1}
     WHERE id = ${input.secretId}
   `;
 }

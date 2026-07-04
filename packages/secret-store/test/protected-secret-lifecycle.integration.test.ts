@@ -227,6 +227,37 @@ describeIntegration("protected secret version lifecycle (INS-55)", () => {
     );
     expect(current?.secretVersionId).toBe(live.secretVersionId);
     expect(current?.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.live);
+
+    const successor = await writeNonProtectedSecret({
+      keyring,
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: devEnv,
+      variableKey,
+      actor: ACTOR,
+      valueUtf8: new TextEncoder().encode("live-successor"),
+    });
+
+    const prior = await withTenantScope({ kind: "organization", organizationId: ORG }, ({ db }) =>
+      new TenantSecretVersionStore(db).getVersionById(live.secretId, live.secretVersionId),
+    );
+    expect(prior?.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.retained);
+
+    await expect(
+      withTenantScope({ kind: "organization", organizationId: ORG }, ({ db }) =>
+        new TenantSecretVersionStore(db).getDeliverableVersion(live.secretId, live.secretVersionId),
+      ),
+    ).rejects.toBeInstanceOf(SecretVersionStoreConflictError);
+
+    const deliverable = await withTenantScope(
+      { kind: "organization", organizationId: ORG },
+      ({ db }) =>
+        new TenantSecretVersionStore(db).getDeliverableVersion(
+          successor.secretId,
+          successor.secretVersionId,
+        ),
+    );
+    expect(deliverable?.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.live);
   });
 
   it("rejects protected draft writes on non-protected environments", async () => {

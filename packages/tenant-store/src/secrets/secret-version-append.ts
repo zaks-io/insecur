@@ -97,12 +97,47 @@ export async function makeVersionLive(input: MakeVersionLiveInput): Promise<void
   }
 }
 
+export async function retainCurrentLiveVersion(
+  db: TenantScopedDb,
+  organizationId: AppendSecretVersionAndMakeLiveInput["organizationId"],
+  secretIdValue: SecretId,
+  currentVersionId: string,
+): Promise<void> {
+  await db
+    .update(secretVersions)
+    .set({ lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.retained })
+    .where(
+      and(
+        eq(secretVersions.orgId, organizationId),
+        eq(secretVersions.secretId, secretIdValue),
+        eq(secretVersions.id, currentVersionId),
+        eq(secretVersions.lifecycleState, SECRET_VERSION_LIFECYCLE_STATES.live),
+      ),
+    );
+}
+
 export async function insertVersionAndMakeLive(
   db: TenantScopedDb,
   input: AppendSecretVersionAndMakeLiveInput,
 ): Promise<number> {
   const storageRef = encodeInlineCiphertextStorageRef(input.wrapped.ciphertext);
   const versionNumber = await allocateNextVersionNumber(db, input.secretId);
+
+  const [currentSecret] = await db
+    .select({ currentVersionId: secrets.currentVersionId })
+    .from(secrets)
+    .where(and(eq(secrets.id, input.secretId), eq(secrets.orgId, input.organizationId)))
+    .limit(1);
+
+  if (currentSecret?.currentVersionId) {
+    await retainCurrentLiveVersion(
+      db,
+      input.organizationId,
+      input.secretId,
+      currentSecret.currentVersionId,
+    );
+  }
+
   await insertVersionRow({
     db,
     appendInput: input,
@@ -111,18 +146,13 @@ export async function insertVersionAndMakeLive(
     lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.live,
   });
 
-  const updated = await db
-    .update(secrets)
-    .set({
-      currentVersionId: input.secretVersionId,
-      liveVersionNumber: versionNumber,
-    })
-    .where(and(eq(secrets.id, input.secretId), eq(secrets.orgId, input.organizationId)))
-    .returning({ id: secrets.id });
-
-  if (!updated[0]) {
-    throw new Error("failed to allocate secret version number");
-  }
+  await makeVersionLive({
+    db,
+    organizationId: input.organizationId,
+    secretId: input.secretId,
+    secretVersionId: input.secretVersionId,
+    versionNumber,
+  });
 
   return versionNumber;
 }

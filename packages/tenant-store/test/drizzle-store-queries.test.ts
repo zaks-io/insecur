@@ -232,7 +232,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
 
   it("appendVersionAndMakeLive allocates the next version under row lock", async () => {
     const { db, insertValues } = createMockTenantDb({
-      selectResults: [[{ id: secretIdValue }], [{ maxVersion: 2 }]],
+      selectResults: [[{ id: secretIdValue }], [{ maxVersion: 2 }], [{ currentVersionId: null }]],
       updateReturning: [[{ id: secretIdValue }]],
     });
     const store = new TenantSecretVersionStore(db);

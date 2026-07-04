@@ -5,7 +5,11 @@ import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
 import { SECRET_VERSION_LIFECYCLE_STATES } from "./lifecycle-states.js";
-import { lockSecretForAppend, makeVersionLive } from "./secret-version-append.js";
+import {
+  lockSecretForAppend,
+  makeVersionLive,
+  retainCurrentLiveVersion,
+} from "./secret-version-append.js";
 import type {
   AppendSecretVersionAndMakeLiveResult,
   PublishSecretVersionsInput,
@@ -58,25 +62,6 @@ async function loadDraftPublishTargets(
   }
 
   return draftById;
-}
-
-async function retainCurrentLiveVersion(
-  db: TenantScopedDb,
-  organizationId: PublishSecretVersionsInput["organizationId"],
-  secretIdValue: SecretId,
-  currentVersionId: string,
-): Promise<void> {
-  await db
-    .update(secretVersions)
-    .set({ lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.retained })
-    .where(
-      and(
-        eq(secretVersions.orgId, organizationId),
-        eq(secretVersions.secretId, secretIdValue),
-        eq(secretVersions.id, currentVersionId),
-        eq(secretVersions.lifecycleState, SECRET_VERSION_LIFECYCLE_STATES.live),
-      ),
-    );
 }
 
 interface PromoteDraftToLiveInput {
