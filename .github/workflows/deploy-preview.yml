@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright Chromium
+        run: pnpm --filter @insecur/preview-smoke exec playwright install --with-deps chromium
+
       - name: Set deploy identity
         id: deploy_identity
         run: echo "deployed_at=$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" >> "$GITHUB_OUTPUT"
@@ -167,7 +170,6 @@ jobs:
 
       - name: Run preview application smoke
         env:
-          PREVIEW_SMOKE_EVIDENCE_PATH: preview-smoke-evidence/evidence.json
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
           SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
@@ -180,23 +182,11 @@ jobs:
           SMOKE_INVITEE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID }}
         run: pnpm smoke:preview
 
-      - name: Upload preview smoke evidence
+      - name: Upload preview smoke artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: preview-smoke-evidence
-          path: preview-smoke-evidence/evidence.json
-          if-no-files-found: warn
+          name: preview-smoke-artifacts
+          path: preview-smoke-artifacts/**
+          if-no-files-found: error
           retention-days: 14
-
-      - name: File or update Linear preview smoke issue
-        if: failure()
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_SHA: ${{ github.sha }}
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          LINEAR_PREVIEW_SMOKE_LABELS: ${{ vars.LINEAR_PREVIEW_SMOKE_LABELS || 'zaks-io/insecur,Bug' }}
-          LINEAR_TEAM_KEY: ${{ vars.LINEAR_TEAM_KEY || 'INS' }}
-          PREVIEW_SMOKE_EVIDENCE_PATH: preview-smoke-evidence/evidence.json
-        run: node scripts/ci/preview-smoke-linear-reporting.mjs

@@ -59,7 +59,7 @@
     "deploy:preview:preflight": "CLOUDFLARE_ENV=preview INSECUR_REQUIRE_DEPLOY_IDENTITY=true turbo run deploy:preview:dry-run --cache=local:rw,remote:r --filter='!./packages/*'",
     "deploy:preview": "CLOUDFLARE_ENV=preview turbo run deploy:preview --cache=local:rw,remote:r --filter='!./packages/*'",
     "deploy:preview:workers": "pnpm deploy:preview",
-    "smoke:preview": "tsx apps/api/scripts/smoke-preview-application.mjs",
+    "smoke:preview": "pnpm --filter @insecur/preview-smoke smoke:preview",
     "cli": "pnpm --filter @insecur/cli start",
     "clean": "turbo run clean",
     "release-gate:bundle": "pnpm --filter @insecur/release-gate bundle",

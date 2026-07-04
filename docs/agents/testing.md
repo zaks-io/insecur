@@ -121,10 +121,10 @@ configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
   expected SHA, smoke signing secret, smoke actor IDs, and migration database URL are set. The smoke
   mints short-lived credentials during the run; Web preview accepts them only behind the
   `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview flag. The `Deploy Preview` workflow preflights
-  all preview Workers before mutating preview, deploys the shared Worker fleet, verifies
-  API/Web/Site deploy identities, drives the current happy-path manifest over HTTP, sweeps preview
-  Postgres for the generated sentinel, writes a metadata-only evidence artifact, and reports the
-  failing manifest path to Linear when configured.
+  all preview Workers before mutating preview, deploys the shared Worker fleet, then runs the
+  `@insecur/preview-smoke` Playwright suite. Playwright verifies API/Web/Site deploy identities,
+  drives the current happy paths over HTTP, sweeps preview Postgres for the generated sentinel,
+  emits GitHub annotations, and uploads HTML, JSON, JUnit XML, and failure trace artifacts.
 
 ## CI
 
