@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { runSentryCli } from "./sentry-cli.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 
 export async function uploadWranglerSourcemaps(sourceMapDir, env = process.env) {
@@ -24,54 +24,59 @@ export async function uploadWranglerSourcemaps(sourceMapDir, env = process.env) 
     return { action: "skip", reason: "missing_source_maps" };
   }
 
-  await runSentryCli([
-    "sourcemaps",
-    "upload",
-    "--org",
-    config.org,
-    "--project",
-    config.project,
-    "--release",
-    config.release,
-    "--strip-prefix",
-    path.resolve(sourceMapDir, ".."),
-    sourceMapDir,
-  ]);
+  runSentryCli(
+    [
+      "sourcemaps",
+      "upload",
+      "--org",
+      config.org,
+      "--project",
+      config.project,
+      "--release",
+      config.release,
+      "--strip-prefix",
+      path.resolve(sourceMapDir, ".."),
+      sourceMapDir,
+    ],
+    config,
+    { env },
+  );
 
   return { action: "upload", release: config.release, sourceMapDir };
 }
 
 export async function hasSourceMap(directory) {
-  try {
-    const entries = await readdir(directory, { withFileTypes: true });
+  const pending = [directory];
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+    let entries;
+
+    try {
+      entries = await readdir(current, { withFileTypes: true });
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        if (current === directory) {
+          return false;
+        }
+        continue;
+      }
+      throw error;
+    }
+
     for (const entry of entries) {
-      const entryPath = path.join(directory, entry.name);
-      if (entry.isDirectory() && (await hasSourceMap(entryPath))) {
-        return true;
+      const entryPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(entryPath);
+        continue;
       }
       if (entry.isFile() && entry.name.endsWith(".map")) {
         return true;
       }
     }
-    return false;
-  } catch (error) {
-    if (error?.code === "ENOENT") {
-      return false;
-    }
-    throw error;
   }
-}
 
-export function runSentryCli(args) {
-  const command = process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli";
-  const result = spawnSync(command, args, { stdio: "inherit" });
-
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(`sentry-cli ${args[0]} failed with exit code ${result.status}.`);
-  }
+  return false;
 }
 
 async function main() {

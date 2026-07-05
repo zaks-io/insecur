@@ -23,10 +23,6 @@ export function resolveSentrySourcemapConfig(env = process.env) {
     );
   }
 
-  if (!org || !project) {
-    throw new Error("SENTRY_ORG and SENTRY_PROJECT are required for Sentry source map upload.");
-  }
-
   return {
     action: "upload",
     authToken,

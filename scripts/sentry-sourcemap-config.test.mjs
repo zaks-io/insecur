@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { buildSentryCliEnv, SENTRY_CLI_TIMEOUT_MS } from "./sentry-cli.mjs";
+import { runPostDeploySentrySourcemaps } from "./post-deploy-sentry-sourcemaps.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 import { hasSourceMap, uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
 import {
@@ -176,6 +178,57 @@ test("releaseHasSourceMapArtifacts requires at least one map artifact", () => {
   assert.equal(releaseHasSourceMapArtifacts(["~/index.js", "~/assets/client.js"]), false);
   assert.equal(releaseHasSourceMapArtifacts(["~/index.js.map"]), true);
   assert.equal(isSourceMapArtifact("~/index.js.map"), true);
+  assert.equal(isSourceMapArtifact("~/assets/sourcemap-report.json"), false);
+});
+
+test("buildSentryCliEnv passes only resolved Sentry credentials to sentry-cli", () => {
+  const env = buildSentryCliEnv(
+    {
+      authToken: "resolved-token",
+      org: "zaksio",
+      project: "insecur",
+      release: "abc123",
+    },
+    {
+      PATH: "/usr/bin",
+      SENTRY_AUTH_TOKEN: "unrelated-token",
+      DATABASE_URL: "postgres://example",
+    },
+  );
+
+  assert.equal(env.SENTRY_AUTH_TOKEN, "resolved-token");
+  assert.equal(env.PATH, "/usr/bin");
+  assert.equal(env.DATABASE_URL, undefined);
+});
+
+test("SENTRY_CLI_TIMEOUT_MS is a positive finite timeout", () => {
+  assert.equal(Number.isFinite(SENTRY_CLI_TIMEOUT_MS), true);
+  assert.ok(SENTRY_CLI_TIMEOUT_MS > 0);
+});
+
+test("runPostDeploySentrySourcemaps labels upload failures for operators", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "insecur-sentry-post-deploy-"));
+  const logs = [];
+  const originalError = console.error;
+  console.error = (...args) => {
+    logs.push(args.join(" "));
+  };
+
+  try {
+    await assert.rejects(
+      () =>
+        runPostDeploySentrySourcemaps("insecur-site", root, {
+          INSECUR_REQUIRE_SENTRY_SOURCEMAPS: "true",
+          SENTRY_AUTH_TOKEN: "token-value",
+          SENTRY_RELEASE: "release-1",
+        }),
+      /required Sentry source map upload cannot be skipped/u,
+    );
+    assert.match(logs.join("\n"), /insecur-site post-deploy Sentry source map upload failed/u);
+  } finally {
+    console.error = originalError;
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("worker deploy scripts upload wrangler source maps after deploy", async () => {
@@ -192,8 +245,13 @@ test("worker deploy scripts upload wrangler source maps after deploy", async () 
       const script = pkg.scripts[scriptName];
       assert.match(
         script,
-        new RegExp(`sentry-upload-wrangler-sourcemaps\\.mjs ${mapDir.replace("/", "\\/")}`),
-        `${packagePath} ${scriptName} must upload ${mapDir} source maps`,
+        /Worker deploy failed before Sentry source map upload/u,
+        `${packagePath} ${scriptName} must label Worker deploy failures before source map upload`,
+      );
+      assert.match(
+        script,
+        new RegExp(`post-deploy-sentry-sourcemaps\\.mjs [^ ]+ ${mapDir.replace("/", "\\/")}`),
+        `${packagePath} ${scriptName} must upload ${mapDir} source maps via post-deploy wrapper`,
       );
     }
   }

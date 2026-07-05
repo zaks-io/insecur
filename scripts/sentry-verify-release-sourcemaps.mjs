@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
+import { runSentryCli } from "./sentry-cli.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 
 export function verifyReleaseSourcemaps(env = process.env) {
@@ -12,7 +12,7 @@ export function verifyReleaseSourcemaps(env = process.env) {
     return { action: "skip", reason: "missing_auth_token" };
   }
 
-  const files = listReleaseFiles(config);
+  const files = listReleaseFiles(config, env);
   if (!releaseHasSourceMapArtifacts(files)) {
     throw new Error(
       `Sentry release ${config.release} has no uploaded source map artifacts for project ${config.project}.`,
@@ -24,20 +24,12 @@ export function verifyReleaseSourcemaps(env = process.env) {
   return { action: "verify", release: config.release, mapCount };
 }
 
-export function listReleaseFiles(config) {
-  const command = process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli";
-  const result = spawnSync(
-    command,
+export function listReleaseFiles(config, env = process.env) {
+  const result = runSentryCli(
     ["releases", "files", config.release, "list", "--org", config.org, "--project", config.project],
-    { encoding: "utf8" },
+    config,
+    { encoding: "utf8", env },
   );
-
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(`sentry-cli releases files list failed with exit code ${result.status}.`);
-  }
 
   return parseReleaseFilesList(result.stdout);
 }
@@ -50,7 +42,7 @@ export function parseReleaseFilesList(stdout) {
 }
 
 export function isSourceMapArtifact(fileName) {
-  return fileName.endsWith(".map") || fileName.includes(".map~") || fileName.includes("sourcemap");
+  return fileName.endsWith(".map");
 }
 
 export function releaseHasSourceMapArtifacts(files) {
