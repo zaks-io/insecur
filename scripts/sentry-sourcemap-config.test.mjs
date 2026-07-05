@@ -257,12 +257,18 @@ test("worker deploy scripts upload wrangler source maps after deploy", async () 
         new RegExp(`post-deploy-sentry-sourcemaps\\.mjs [^ ]+ ${mapDir.replace("/", "\\/")}`),
         `${packagePath} ${scriptName} must upload ${mapDir} source maps via post-deploy wrapper`,
       );
-      assertOutdirMatchesMapDir(script, packagePath, scriptName, outdir, mapDir);
+      assertOutdirMatchesMapDir({
+        script,
+        packagePath,
+        scriptName,
+        outdir,
+        mapDir,
+      });
     }
   }
 });
 
-function assertOutdirMatchesMapDir(script, packagePath, scriptName, outdir, mapDir) {
+function assertOutdirMatchesMapDir({ script, packagePath, scriptName, outdir, mapDir }) {
   const outdirMatch = script.match(/--outdir\s+([^\s]+)/u);
   if (outdirMatch) {
     const allowedMapDirs = [outdirMatch[1], path.posix.join(outdirMatch[1], "server")];
