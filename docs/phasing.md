@@ -1,6 +1,6 @@
 # Phasing
 
-Last updated: 2026-06-11. Status: **V1 scope is decided; deferred scope is parked here until explicitly promoted; finer release-splitting within V1 is still a working sequence.**
+Last updated: 2026-07-05. Status: **V1 scope is decided; deferred scope is parked here until explicitly promoted; finer release-splitting within V1 is still a working sequence.**
 
 The 2026-05-25 scope review (see [V1 scope decisions](#v1-scope-decisions-2026-05-25-scope-review) below) settled what V1 contains: the reduced production spine, Cloudflare + GitHub providers, Vercel and several heavier layers deferred. What remains open is the finer cut inside V1: whether First Value ships on its own before Production Delivery, and what counts as second-release versus post-v1 hardening. Do not infer those finer boundaries from the specs.
 
@@ -24,6 +24,7 @@ Decided:
 - **V1 = the reduced production spine** (2026-05-25 scope review). Full kept/deferred list in the [V1 scope decisions](#v1-scope-decisions-2026-05-25-scope-review) section below.
 - **Provider order: Cloudflare + GitHub in V1; Vercel deferred.** Both V1 providers are required for the insecur stack itself; Vercel is additive behind the ADR-0049 vendor ports.
 - First Value (non-protected development Secret Use) precedes Production Delivery (Protected Environments, provider sync, approvals, audit, OIDC), gated by the Storage Security Gate. See ADR-0041.
+- **Local Mode** ships in V1 as its own milestone immediately after First Value, useful standalone without a Hosted Instance account. Decision and claim boundary: [adr/0080-local-mode-accountless-development-custody.md](adr/0080-local-mode-accountless-development-custody.md). Feature ceiling: Projects and non-protected development Environments only; no Protected Environments, Secret Sync, machine access, Teams, or Organizations locally.
 - The Small-Group Production security baseline must be met before storing valuable production secrets. See ADR-0015, ADR-0021.
 
 Open (the finer cut inside V1, not the V1 contents):
@@ -47,6 +48,7 @@ The reduction is deliberately **additive**: every deferred layer is reversibilit
 - Machine identities and GitHub Actions OIDC for short-lived CI access.
 - Cloudflare + GitHub provider sync; profile-based `insecur run` for local and deploy injection.
 - BFF / session-cookie web security model; the web surface is read-only metadata browsing, the Human Approval Surface, and the first-run onboarding wizard (Guided Organization Provisioning with an optional first Blind Secret Write and CLI handoff; promoted 2026-07-04).
+- **Local Mode** — account-less encrypted local development custody behind the same CLI command surface and contract seams; promoted 2026-07-04 per ADR-0080. Standalone-useful after First Value; ceiling excludes Protected Environments, Secret Sync, machine access, Teams, and Organizations locally.
 - Full CI / supply-chain rig.
 
 ### Deferred scope parking lot
