@@ -295,6 +295,7 @@ describe("resolveBrowserActor", () => {
       expect(result.clearSession).toBe(true);
     }
     expect(setResponseHeaderMock).toHaveBeenCalledWith("Set-Cookie", expect.any(Array));
+    expect(setResponseHeaderMock.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
   it("clears stale browser cookies when refresh succeeds but post-refresh assurance fails", async () => {
