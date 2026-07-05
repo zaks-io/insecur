@@ -27,7 +27,7 @@ export interface BrowserSessionRotation {
 
 export type ResolveBrowserActorResult =
   | { ok: true; actor: UserActor; rotation?: BrowserSessionRotation }
-  | { ok: false; failure: AuthFailure };
+  | { ok: false; failure: AuthFailure; clearSession?: boolean };
 
 /**
  * Resolve the admitted human actor from the browser's WorkOS sealed session cookie.
@@ -83,14 +83,18 @@ async function resolveWorkosCookieActor(
     }
     const refreshed = await refreshWorkOSSession(workos, workosSealedSession);
     if (!refreshed.ok) {
-      return { ok: false, failure: refreshed.failure };
+      return { ok: false, failure: refreshed.failure, clearSession: true };
     }
-    return resolveAdmittedWorkosContext(
+    const admitted = await resolveAdmittedWorkosContext(
       refreshed.rotated.context,
       refreshed.rotated.sealedSession,
       env,
       resolveAdmittedUser,
     );
+    if (!admitted.ok) {
+      return { ...admitted, clearSession: true };
+    }
+    return admitted;
   }
 
   return resolveAdmittedWorkosContext(session.context, undefined, env, resolveAdmittedUser);

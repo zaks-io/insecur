@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getRequest } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
 import { completeBrowserLogin, redirectResponse } from "../auth/browser-oauth.js";
+import { formatPkceStateClearCookie } from "../auth/browser-oauth-pkce.js";
 import type { WebEnv } from "../env.js";
 
 export const Route = createFileRoute("/auth/callback")({
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/auth/callback")({
         const request = getRequest();
         const completed = await completeBrowserLogin(request, env as WebEnv);
         if (!completed.ok) {
-          return redirectResponse("/login", []);
+          return redirectResponse("/login", [formatPkceStateClearCookie()]);
         }
         return redirectResponse(completed.value.redirectTo, completed.value.setCookieHeaders);
       },

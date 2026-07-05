@@ -254,4 +254,39 @@ describe("resolveBrowserActor", () => {
       expect(result.rotation?.csrfToken).toMatch(/^[A-Za-z0-9_-]+$/u);
     }
   });
+
+  it("clears stale browser cookies when refresh succeeds but admission fails", async () => {
+    const expiredSession = "sealed-session-expired-denied";
+    const rotatedSession = "sealed-session-rotated-denied";
+    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
+      createFakeWorkOSSessionPort([
+        {
+          sessionData: expiredSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh_denied",
+          authenticateFailure: "expired",
+          rotatedSessionData: rotatedSession,
+          authFactors: [{ type: "totp" }],
+        },
+        {
+          sessionData: rotatedSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh_denied",
+          authFactors: [{ type: "totp" }],
+        },
+      ]),
+    );
+    const { runtime } = createTestRuntime({});
+    const request = new Request("https://insecur.test/whoami", {
+      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
+    });
+
+    const result = await resolveBrowserActor(request, createTestEnv(runtime));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.reason).toBe("not_admitted");
+      expect(result.clearSession).toBe(true);
+    }
+  });
 });

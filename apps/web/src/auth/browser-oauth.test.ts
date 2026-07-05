@@ -6,8 +6,13 @@ import {
 } from "@insecur/auth";
 import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { beginBrowserLogin, completeBrowserLogin, logoutBrowserSession } from "./browser-oauth.js";
-import { INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
+import {
+  beginBrowserLogin,
+  completeBrowserLogin,
+  logoutBrowserSession,
+  redirectResponse,
+} from "./browser-oauth.js";
+import { formatPkceStateClearCookie, INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
 import type { WebEnv } from "../env.js";
 
 const workosUserId = "user_01workos";
@@ -165,5 +170,17 @@ describe("logoutBrowserSession", () => {
 
     expect(result.status).toBe(403);
     expect(result.clearCookieHeaders).toHaveLength(0);
+  });
+});
+
+describe("redirectResponse", () => {
+  it("can clear the PKCE round-trip cookie on login failure redirects", () => {
+    const response = redirectResponse("/login", [formatPkceStateClearCookie()]);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe("/login");
+    expect(
+      response.headers.getSetCookie().some((header) => header.includes(INSECUR_OAUTH_PKCE_COOKIE)),
+    ).toBe(true);
   });
 });

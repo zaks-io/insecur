@@ -1,4 +1,5 @@
 import {
+  formatSessionClearCookie,
   formatSessionSetCookie,
   insecurCsrfCookieAttributes,
   workosSessionCookieAttributes,
@@ -10,5 +11,12 @@ export function applyBrowserSessionRotation(rotation: BrowserSessionRotation): v
   setResponseHeader("Set-Cookie", [
     formatSessionSetCookie(workosSessionCookieAttributes, rotation.sealedSession),
     formatSessionSetCookie(insecurCsrfCookieAttributes, rotation.csrfToken),
+  ]);
+}
+
+export function applyBrowserSessionClear(): void {
+  setResponseHeader("Set-Cookie", [
+    formatSessionClearCookie(workosSessionCookieAttributes),
+    formatSessionClearCookie(insecurCsrfCookieAttributes),
   ]);
 }
