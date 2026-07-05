@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
 import { apiClientFor } from "@insecur/worker-kit/api-client";
 import { resolveBrowserActor } from "../auth/resolve-browser-actor.js";
-import { applyBrowserSessionClear, applyBrowserSessionRotation } from "../auth/session-headers.js";
+import { applyBrowserSessionFromResolveResult } from "../auth/session-headers.js";
 import type { WebEnv } from "../env.js";
 
 export type WhoamiProof =
@@ -47,14 +47,9 @@ export const loadWhoamiProof = createServerFn({ method: "GET" }).handler(
     const request = getRequest();
     const webEnv = env as WebEnv;
     const resolved = await resolveBrowserActor(request, webEnv);
+    applyBrowserSessionFromResolveResult(resolved);
     if (!resolved.ok) {
-      if (resolved.clearSession === true) {
-        applyBrowserSessionClear();
-      }
       return { authenticated: false };
-    }
-    if (resolved.rotation !== undefined) {
-      applyBrowserSessionRotation(resolved.rotation);
     }
 
     const api = apiClientFor(webEnv, resolved.actor);

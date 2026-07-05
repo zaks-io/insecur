@@ -85,16 +85,12 @@ async function resolveWorkosCookieActor(
     if (!refreshed.ok) {
       return { ok: false, failure: refreshed.failure, clearSession: true };
     }
-    const admitted = await resolveAdmittedWorkosContext(
+    return await resolveAdmittedWorkosContext(
       refreshed.rotated.context,
       refreshed.rotated.sealedSession,
       env,
       resolveAdmittedUser,
     );
-    if (!admitted.ok) {
-      return { ...admitted, clearSession: true };
-    }
-    return admitted;
   }
 
   return resolveAdmittedWorkosContext(session.context, undefined, env, resolveAdmittedUser);
@@ -110,7 +106,11 @@ async function resolveAdmittedWorkosContext(
   if (admittedUserId === null) {
     const failure = authFailureForAdmissionDenial(context.user.id);
     await recordAdmissionDeniedAuditForAuthFailure(env, failure, requestId.generate());
-    return { ok: false, failure };
+    return {
+      ok: false,
+      failure,
+      ...(rotatedSealedSession === undefined ? {} : { clearSession: true }),
+    };
   }
 
   const actor: UserActor = {

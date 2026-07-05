@@ -5,18 +5,30 @@ import {
   workosSessionCookieAttributes,
 } from "@insecur/auth";
 import { setResponseHeader } from "@tanstack/react-start/server";
-import type { BrowserSessionRotation } from "./resolve-browser-actor.js";
+import type { BrowserSessionRotation, ResolveBrowserActorResult } from "./resolve-browser-actor.js";
 
-export function applyBrowserSessionRotation(rotation: BrowserSessionRotation): void {
+function applyBrowserSessionRotation(rotation: BrowserSessionRotation): void {
   setResponseHeader("Set-Cookie", [
     formatSessionSetCookie(workosSessionCookieAttributes, rotation.sealedSession),
     formatSessionSetCookie(insecurCsrfCookieAttributes, rotation.csrfToken),
   ]);
 }
 
-export function applyBrowserSessionClear(): void {
+function applyBrowserSessionClear(): void {
   setResponseHeader("Set-Cookie", [
     formatSessionClearCookie(workosSessionCookieAttributes),
     formatSessionClearCookie(insecurCsrfCookieAttributes),
   ]);
+}
+
+export function applyBrowserSessionFromResolveResult(resolved: ResolveBrowserActorResult): void {
+  if (!resolved.ok) {
+    if (resolved.clearSession === true) {
+      applyBrowserSessionClear();
+    }
+    return;
+  }
+  if (resolved.rotation !== undefined) {
+    applyBrowserSessionRotation(resolved.rotation);
+  }
 }

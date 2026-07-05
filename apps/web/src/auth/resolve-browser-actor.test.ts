@@ -289,4 +289,52 @@ describe("resolveBrowserActor", () => {
       expect(result.clearSession).toBe(true);
     }
   });
+
+  it("clears stale browser cookies when refresh succeeds but post-refresh assurance fails", async () => {
+    const expiredSession = "sealed-session-expired-assurance";
+    const rotatedSession = "sealed-session-rotated-assurance";
+    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
+      createFakeWorkOSSessionPort([
+        {
+          sessionData: expiredSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh_assurance",
+          authenticateFailure: "expired",
+          rotatedSessionData: rotatedSession,
+          authenticationMethod: "MagicAuth",
+          authFactors: [{ type: "totp" }],
+        },
+        {
+          sessionData: rotatedSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh_assurance",
+          authenticationMethod: "MagicAuth",
+          authFactors: [{ type: "totp" }],
+        },
+      ]),
+    );
+    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const request = new Request("https://insecur.test/whoami", {
+      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
+    });
+
+    const result = await resolveBrowserActor(request, createTestEnv(runtime));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.reason).toBe("insufficient_assurance");
+      expect(result.clearSession).toBe(true);
+    }
+  });
+
+  it("does not clear browser cookies when admission fails without refresh", async () => {
+    const { runtime } = createTestRuntime({});
+    const result = await resolveBrowserActor(sessionRequest(), createTestEnv(runtime));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.reason).toBe("not_admitted");
+      expect(result.clearSession).toBeUndefined();
+    }
+  });
 });
