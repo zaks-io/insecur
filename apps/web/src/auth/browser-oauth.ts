@@ -183,12 +183,16 @@ export function logoutBrowserSession(request: Request): BrowserLogoutResult {
   };
 }
 
-export function redirectResponse(location: string, setCookieHeaders: readonly string[]): Response {
+export function redirectResponse(
+  location: string,
+  setCookieHeaders: readonly string[],
+  status = 302,
+): Response {
   const headers = new Headers({ Location: location, "Cache-Control": "no-store" });
   for (const cookie of setCookieHeaders) {
     headers.append("Set-Cookie", cookie);
   }
-  return new Response(null, { status: 302, headers });
+  return new Response(null, { status, headers });
 }
 
 export function responseWithSetCookies(

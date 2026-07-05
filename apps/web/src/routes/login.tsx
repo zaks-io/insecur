@@ -1,26 +1,88 @@
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@insecur/ui";
 import { createFileRoute } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
+import { useCallback, useState } from "react";
 import { beginBrowserLogin, redirectResponse } from "../auth/browser-oauth.js";
+import { readTurnstileToken, turnstileSiteKey, verifyTurnstileToken } from "../auth/turnstile.js";
+import { TurnstileWidget } from "../components/turnstile-widget.js";
 import type { WebEnv } from "../env.js";
+
+interface LoginChallenge {
+  readonly siteKey: string;
+  readonly verificationFailed: boolean;
+}
+
+const loadLoginChallenge = createServerFn({ method: "GET" }).handler((): LoginChallenge => {
+  const request = getRequest();
+  const url = new URL(request.url);
+  return {
+    siteKey: turnstileSiteKey(env as WebEnv),
+    verificationFailed: url.searchParams.get("error") === "verification",
+  };
+});
 
 export const Route = createFileRoute("/login")({
   server: {
     handlers: {
-      GET: async () => {
+      POST: async () => {
         const request = getRequest();
-        const started = await beginBrowserLogin(request, env as WebEnv);
-        return redirectResponse(started.authorizationUrl, started.setCookieHeaders);
+        const webEnv = env as WebEnv;
+        const formData = await request.formData();
+        const verified = await verifyTurnstileToken(request, webEnv, readTurnstileToken(formData));
+        if (!verified.ok) {
+          return redirectResponse(loginRetryUrl(request), [], 303);
+        }
+
+        const started = await beginBrowserLogin(request, webEnv);
+        return redirectResponse(started.authorizationUrl, started.setCookieHeaders, 303);
       },
     },
   },
+  loader: async () => loadLoginChallenge(),
   component: LoginPage,
 });
 
 function LoginPage() {
+  const { siteKey, verificationFailed } = Route.useLoaderData();
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const handleTurnstileToken = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
   return (
     <section className="px-5 py-10 sm:px-8 sm:py-12">
-      <p>Redirecting to WorkOS sign-in…</p>
+      <Card className="max-w-md">
+        <CardHeader>
+          <CardTitle>Sign in</CardTitle>
+          <CardDescription>Continue to the tenant console.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form method="post" className="flex flex-col gap-5">
+            {verificationFailed ? (
+              <p className="text-sm text-destructive" role="alert">
+                Verification failed. Try again.
+              </p>
+            ) : null}
+            <TurnstileWidget siteKey={siteKey} onTokenChange={handleTurnstileToken} />
+            <Button type="submit" disabled={turnstileToken.length === 0}>
+              Continue
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </section>
   );
+}
+
+function loginRetryUrl(request: Request): string {
+  const url = new URL(request.url);
+  const retry = new URL("/login", url.origin);
+  const returnTo = url.searchParams.get("returnTo");
+  if (returnTo !== null) {
+    retry.searchParams.set("returnTo", returnTo);
+  }
+  retry.searchParams.set("error", "verification");
+  return `${retry.pathname}${retry.search}`;
 }
