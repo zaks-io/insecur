@@ -27,7 +27,7 @@ export interface EgressSweepHit {
   redactedPrefix: string;
 }
 
-const ALLOWED_BASE64URL_PATHS = new Set(["delivery.encodedValueUtf8", "encodedValueUtf8"]);
+const ALLOWED_DELIVERY_FIELD_SUFFIX = ".delivery.encodedValueUtf8";
 
 function variantForEncoding(sentinel: CanarySentinel, encoding: SentinelEncoding): SentinelVariant {
   const variant = sentinel.variants.find((entry) => entry.encoding === encoding);
@@ -80,8 +80,14 @@ function findPatternPaths(value: unknown, pattern: string, path = ""): string[] 
 }
 
 function isAllowedEgressPath(encoding: SentinelEncoding, jsonPath: string | undefined): boolean {
+  if (encoding !== "base64url" || jsonPath === undefined) {
+    return false;
+  }
+
   return (
-    encoding === "base64url" && jsonPath !== undefined && ALLOWED_BASE64URL_PATHS.has(jsonPath)
+    jsonPath === "encodedValueUtf8" ||
+    jsonPath === "delivery.encodedValueUtf8" ||
+    jsonPath.endsWith(ALLOWED_DELIVERY_FIELD_SUFFIX)
   );
 }
 
@@ -188,10 +194,13 @@ export function simulateEgressLeak(sentinel: CanarySentinel): {
     ],
     rpcDeliveryPayloadJson: JSON.stringify({
       ok: true,
-      delivery: {
-        grantId: "igr_NEGATIVE_CONTROL",
-        variableKey: "CANARY_NEGATIVE",
-        encodedValueUtf8: expectedEncoded.pattern,
+      value: {
+        ok: true,
+        delivery: {
+          grantId: "igr_NEGATIVE_CONTROL",
+          variableKey: "CANARY_NEGATIVE",
+          encodedValueUtf8: expectedEncoded.pattern,
+        },
       },
     }),
   };

@@ -40,15 +40,72 @@ describe("egress sweep", () => {
       ],
       rpcDeliveryPayloadJson: JSON.stringify({
         ok: true,
-        delivery: {
-          grantId: "igr_ALLOWED",
-          variableKey: "CANARY_OK",
-          encodedValueUtf8: base64url,
+        value: {
+          ok: true,
+          delivery: {
+            grantId: "igr_ALLOWED",
+            variableKey: "CANARY_OK",
+            encodedValueUtf8: base64url,
+          },
         },
       }),
     };
 
     expect(sweepEgressSurfaces(capture, sentinel)).toEqual([]);
+  });
+
+  it("allows base64url at value.delivery.encodedValueUtf8 in the Runtime RPC envelope", () => {
+    const sentinel = mintCanarySentinel();
+    const base64url = variantPattern(sentinel, "base64url");
+    const capture: EgressCapture = {
+      httpResponses: [],
+      rpcDeliveryPayloadJson: JSON.stringify({
+        ok: true,
+        value: {
+          ok: true,
+          delivery: {
+            grantId: "igr_ALLOWED",
+            variableKey: "CANARY_OK",
+            encodedValueUtf8: base64url,
+          },
+        },
+      }),
+    };
+
+    expect(sweepEgressSurfaces(capture, sentinel)).toEqual([]);
+  });
+
+  it("flags base64url outside delivery.encodedValueUtf8", () => {
+    const sentinel = mintCanarySentinel();
+    const base64url = variantPattern(sentinel, "base64url");
+    const capture: EgressCapture = {
+      httpResponses: [
+        {
+          step: "consume",
+          status: 200,
+          headers: {},
+          bodyText: JSON.stringify({
+            ok: true,
+            delivery: {
+              grantId: "igr_ALLOWED",
+              variableKey: "CANARY_OK",
+              encodedValueUtf8: base64url,
+            },
+            debug: base64url,
+          }),
+        },
+      ],
+      rpcDeliveryPayloadJson: JSON.stringify({ ok: true }),
+    };
+
+    const hits = sweepEgressSurfaces(capture, sentinel);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({
+      surface: "egress",
+      location: "http.consume.body",
+      jsonPath: "debug",
+      encoding: "base64url",
+    });
   });
 
   it("flags raw sentinel outside delivery.encodedValueUtf8", () => {
