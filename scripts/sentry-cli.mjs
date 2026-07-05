@@ -57,7 +57,7 @@ export function runSentryCli(args, config, options = {}) {
   const command = process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli";
   const timeout = options.timeout ?? SENTRY_CLI_TIMEOUT_MS;
   const result = spawnSync(command, args, {
-    stdio: options.stdio ?? "inherit",
+    stdio: resolveSentryCliStdio(options),
     encoding: options.encoding,
     env: buildSentryCliEnv(config, options.env ?? process.env),
     timeout,
@@ -65,6 +65,16 @@ export function runSentryCli(args, config, options = {}) {
 
   assertSentryCliSucceeded(result, args, timeout);
   return result;
+}
+
+function resolveSentryCliStdio(options) {
+  if (options.stdio !== undefined) {
+    return options.stdio;
+  }
+  if (options.encoding) {
+    return ["inherit", "pipe", "inherit"];
+  }
+  return "inherit";
 }
 
 function assertSentryCliSucceeded(result, args, timeout) {

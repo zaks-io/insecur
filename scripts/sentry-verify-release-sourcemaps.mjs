@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { runSentryCli } from "./sentry-cli.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 
-export function verifyReleaseSourcemaps(env = process.env) {
+export function verifyReleaseSourcemaps(env = process.env, options = {}) {
   const config = resolveSentrySourcemapConfig(env);
 
   if (config.action === "skip") {
@@ -12,7 +12,7 @@ export function verifyReleaseSourcemaps(env = process.env) {
     return { action: "skip", reason: "missing_auth_token" };
   }
 
-  const files = listReleaseFiles(config, env);
+  const files = listReleaseFiles(config, env, options);
   if (!releaseHasSourceMapArtifacts(files)) {
     throw new Error(
       `Sentry release ${config.release} has no uploaded source map artifacts for project ${config.project}.`,
@@ -24,8 +24,9 @@ export function verifyReleaseSourcemaps(env = process.env) {
   return { action: "verify", release: config.release, mapCount };
 }
 
-export function listReleaseFiles(config, env = process.env) {
-  const result = runSentryCli(
+export function listReleaseFiles(config, env = process.env, options = {}) {
+  const runCli = options.runCli ?? runSentryCli;
+  const result = runCli(
     ["releases", "files", config.release, "list", "--org", config.org, "--project", config.project],
     config,
     { encoding: "utf8", env },

@@ -10,6 +10,7 @@ import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 import { hasSourceMap, uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
 import {
   isSourceMapArtifact,
+  listReleaseFiles,
   parseReleaseFilesList,
   releaseHasSourceMapArtifacts,
   verifyReleaseSourcemaps,
@@ -179,6 +180,48 @@ test("releaseHasSourceMapArtifacts requires at least one map artifact", () => {
   assert.equal(releaseHasSourceMapArtifacts(["~/index.js.map"]), true);
   assert.equal(isSourceMapArtifact("~/index.js.map"), true);
   assert.equal(isSourceMapArtifact("~/assets/sourcemap-report.json"), false);
+});
+
+test("listReleaseFiles parses mocked sentry-cli stdout", () => {
+  const files = listReleaseFiles(
+    {
+      action: "upload",
+      authToken: "token-value",
+      org: "zaksio",
+      project: "insecur",
+      release: "release-1",
+    },
+    {},
+    {
+      runCli: () => ({
+        stdout: " ~/index.js.map \n~/assets/app.js\n",
+        status: 0,
+      }),
+    },
+  );
+
+  assert.deepEqual(files, ["~/index.js.map", "~/assets/app.js"]);
+});
+
+test("verifyReleaseSourcemaps succeeds with mocked map list", () => {
+  const result = verifyReleaseSourcemaps(
+    {
+      SENTRY_AUTH_TOKEN: "token-value",
+      SENTRY_RELEASE: "release-1",
+    },
+    {
+      runCli: () => ({
+        stdout: "~/worker/index.js.map\n",
+        status: 0,
+      }),
+    },
+  );
+
+  assert.deepEqual(result, {
+    action: "verify",
+    release: "release-1",
+    mapCount: 1,
+  });
 });
 
 test("buildSentryCliEnv preserves proxy and CA runtime vars while overlaying Sentry credentials", () => {
