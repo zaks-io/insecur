@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-07-03
+Last updated: 2026-07-05
 
 This is a code and runtime status snapshot. It says what is delivered now, what was
 verified, and what is still missing. It is not the normative product spec. When this
@@ -454,6 +454,35 @@ These are concrete missing product/code surfaces, not tracker hypotheticals:
 - Authenticated live CLI transcript against the deployed preview after deploying the PKCE
   login loop and configuring the WorkOS redirect URI.
 - Production deploy/decrypt smoke.
+
+## Build Order
+
+Working implementation sequence within V1 scope. Non-binding for finer release boundaries; see
+[phasing.md](phasing.md) for the decided scope cut-line and [roadmap.md](roadmap.md) for milestone
+exit gates.
+
+1. **First Value** — guided Personal Organization provisioning, first Project, non-protected
+   development Environment, service-generated Blind Secret Write, `run --variable-key`, Diskless
+   Development Secret Use, and copyable First Value Proof.
+2. **Local Mode** — account-less encrypted local development custody behind the ordinary CLI
+   command surface (ADR-0080). Standalone-useful after First Value. Feature ceiling: Projects and
+   non-protected development Environments only; no Protected Environments, Secret Sync, machine
+   access, Teams, or Organizations locally.
+3. **Production foundation** — tenant-first schema, organization/project memberships, role
+   enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key
+   versions, protected promotion/rollback, and security gates.
+4. **Machine access and CI trust** — machine identities and GitHub Actions OIDC federation for
+   short-lived CI access.
+5. **Approval UX and delivery policy** — Human Approval Surface for protected gates plus Delivery
+   Risk Policy Presets for explicit non-protected preview/development automation.
+6. **Runtime Injection Delivery** — profile-backed `insecur run` for deploy and local command
+   injection.
+7. **Provider Sync: GitHub and Cloudflare** — OAuth app connections and sync engines for GitHub
+   and direct Cloudflare Worker secrets.
+8. **Audit, runbooks, and release gates** — audit export, tested restore evidence, security
+   runbooks, and production release gates.
+9. **Deferred scope** — tracked in [phasing.md#deferred-scope-parking-lot](phasing.md#deferred-scope-parking-lot),
+   not in Linear until promoted in the repo docs.
 
 ## Source Pointers
 
