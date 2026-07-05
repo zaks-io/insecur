@@ -41,6 +41,14 @@ describe("defaultOrgPath", () => {
   it("sends org-less members to onboarding", () => {
     expect(defaultOrgPath([])).toBe("/onboarding");
   });
+
+  it("percent-encodes the opaque org id at the path boundary", () => {
+    // The org id is opaque: it must not be spliced into the URL raw. A value with a reserved
+    // character stays inside one path segment instead of injecting a query or extra segment.
+    expect(defaultOrgPath([{ organizationId: "org_a/b?c#d", displayName: "Edge Co" }])).toBe(
+      "/orgs/org_a%2Fb%3Fc%23d",
+    );
+  });
 });
 
 describe("findConsoleOrganization", () => {

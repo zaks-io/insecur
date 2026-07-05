@@ -8,7 +8,7 @@ export const Route = createFileRoute("/orgs/$orgId/projects/")({
   loader: async ({ params, location }) => {
     const read = await loadOrgProjects({ data: { organizationId: params.orgId } });
     if (read.kind === "unauthenticated") {
-      throw redirect({ href: loginRedirectHref(location.pathname) });
+      throw redirect({ href: loginRedirectHref(location.href) });
     }
     // Metadata-safe denial: a non-member org reads as nonexistent (bubbles to the org 404).
     if (read.kind === "denied") {

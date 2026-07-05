@@ -44,6 +44,24 @@ describe("normalizeReturnTo", () => {
     },
   );
 
+  it("rejects a same-origin-resolving control char that the origin check alone would pass", () => {
+    // `/foo%0Dbar` decodes to a path with a bare CR mid-segment. Unlike the cases above it resolves
+    // SAME-origin, so the parse-and-resolve check passes; only the explicit control-char reject
+    // fails it closed, keeping the validator (not the runtime Headers constructor, which 500s) the
+    // response-splitting backstop.
+    const decoded = decodeURIComponent("/foo%0Dbar");
+    expect(decoded).toBe(`/foo${String.fromCharCode(13)}bar`);
+    expect(new URL(decoded, "https://app.example").origin).toBe("https://app.example");
+    expect(normalizeReturnTo(decoded, DEFAULT_RETURN_TO)).toBe(DEFAULT_RETURN_TO);
+  });
+
+  it("rejects DEL (U+007F) and other C0 control characters in the path", () => {
+    for (const code of [0, 1, 9, 13, 31, 127]) {
+      const value = `/orgs${String.fromCharCode(code)}audit`;
+      expect(normalizeReturnTo(value, DEFAULT_RETURN_TO)).toBe(DEFAULT_RETURN_TO);
+    }
+  });
+
   it.each(["//evil.com", "https://evil.com/x", "evil.com", "", null])(
     "rejects non-relative value %j",
     (value) => {

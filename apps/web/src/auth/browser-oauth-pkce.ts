@@ -33,13 +33,37 @@ export function encodePkceRoundTrip(roundTrip: PkceRoundTrip): string {
 const RELATIVE_APP_PATH_BASE = "https://insecur.invalid";
 
 /**
+ * True when the value contains any C0 control character (U+0000–U+001F) or DEL (U+007F). CR/LF are
+ * the response-splitting vector, and any of them make the runtime `Headers` constructor throw a 500
+ * when the value lands in a `Location` header; some (e.g. a bare CR mid-path) also survive URL
+ * resolution same-origin, so the origin check alone is not a sufficient backstop. Checked by
+ * codepoint rather than a control-char regex literal (`no-control-regex`).
+ */
+function hasControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Accepts only same-origin app paths for post-login redirects. Backslashes are rejected outright
  * because the WHATWG URL parser treats `\` as `/` for special schemes, so `Location: /\evil.com`
- * resolves to `https://evil.com` (open redirect). The parse-and-resolve check backstops the string
- * checks against any other parser quirk that could escape the app origin.
+ * resolves to `https://evil.com` (open redirect). Control characters are rejected outright so this
+ * validator is the response-splitting backstop rather than the runtime `Headers` constructor (which
+ * fails closed with a 500). The parse-and-resolve check backstops the string checks against any
+ * other parser quirk that could escape the app origin.
  */
 function isRelativeAppPath(value: string): boolean {
-  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+  if (
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.includes("\\") ||
+    hasControlCharacter(value)
+  ) {
     return false;
   }
   let resolved: URL;

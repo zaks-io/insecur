@@ -70,12 +70,12 @@ function ConsoleBreadcrumbBar({ crumbs }: { crumbs: readonly ConsoleBreadcrumb[]
   return (
     <div className="border-b border-ink/20 px-5 py-3 sm:px-8">
       <Breadcrumbs>
-        {/* Linked crumbs key by href: Display Names are user-controlled and can collide with
-            fixed crumbs (a project named "Projects"); hrefs are unique per trail level, and the
-            single current crumb (no href) can't collide with them. */}
+        {/* Key by `href ?? "current"`, never by label: Display Names are user-controlled and can
+            collide with fixed crumbs (an org named "Projects"). Hrefs are unique per trail level,
+            and the single current crumb (no href) keys as "current". */}
         {crumbs.map((crumb) =>
           crumb.href === undefined ? (
-            <BreadcrumbItem key={crumb.label} current>
+            <BreadcrumbItem key="current" current>
               {crumb.label}
             </BreadcrumbItem>
           ) : (

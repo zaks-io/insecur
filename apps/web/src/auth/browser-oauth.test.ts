@@ -14,8 +14,14 @@ import {
 } from "./browser-oauth.js";
 import { formatPkceStateClearCookie, INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
 
-const authorizationCode = "code_browser_login";
-const codeVerifier = "verifier_browser_login";
+// Single-source the PKCE exchange literals so the fake WorkOS port and the test assertions can
+// never silently diverge: the mock factory is hoisted above the imports, so it reads these through
+// vi.hoisted rather than re-typing the strings.
+const pkceLiterals = vi.hoisted(() => ({
+  authorizationCode: "code_browser_login",
+  codeVerifier: "verifier_browser_login",
+}));
+const { authorizationCode, codeVerifier } = pkceLiterals;
 const oauthState = "state_browser_login";
 
 vi.mock("./workos-port.js", async () => {
@@ -27,8 +33,8 @@ vi.mock("./workos-port.js", async () => {
         fakeSessionEntry({
           sessionData: "sealed-browser-login",
           sessionId: "session_browser",
-          authorizationCode: "code_browser_login",
-          codeVerifier: "verifier_browser_login",
+          authorizationCode: pkceLiterals.authorizationCode,
+          codeVerifier: pkceLiterals.codeVerifier,
         }),
       ]),
   };
