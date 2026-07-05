@@ -2,14 +2,48 @@ import { spawnSync } from "node:child_process";
 
 export const SENTRY_CLI_TIMEOUT_MS = 300_000;
 
+const PRESERVED_RUNTIME_ENV_KEYS = [
+  "PATH",
+  "HOME",
+  "USER",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "TZ",
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "NO_PROXY",
+  "http_proxy",
+  "https_proxy",
+  "no_proxy",
+  "ALL_PROXY",
+  "all_proxy",
+  "NODE_EXTRA_CA_CERTS",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "REQUESTS_CA_BUNDLE",
+  "CURL_CA_BUNDLE",
+  "SYSTEMROOT",
+  "SystemRoot",
+  "COMSPEC",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "USERPROFILE",
+  "TEMP",
+  "TMP",
+];
+
 export function buildSentryCliEnv(config, baseEnv = process.env) {
-  const childEnv = {
-    PATH: baseEnv.PATH,
-    HOME: baseEnv.HOME,
-    USER: baseEnv.USER,
-    LANG: baseEnv.LANG,
-    SENTRY_AUTH_TOKEN: config.authToken,
-  };
+  const childEnv = {};
+
+  for (const key of PRESERVED_RUNTIME_ENV_KEYS) {
+    const value = baseEnv[key];
+    if (value !== undefined) {
+      childEnv[key] = value;
+    }
+  }
+
+  childEnv.SENTRY_AUTH_TOKEN = config.authToken;
 
   const sentryUrl = optional(baseEnv.SENTRY_URL);
   if (sentryUrl) {
@@ -29,6 +63,11 @@ export function runSentryCli(args, config, options = {}) {
     timeout,
   });
 
+  assertSentryCliSucceeded(result, args, timeout);
+  return result;
+}
+
+function assertSentryCliSucceeded(result, args, timeout) {
   if (result.error) {
     if (result.error.code === "ETIMEDOUT") {
       throw new Error(`sentry-cli ${args[0]} timed out after ${timeout}ms.`);
@@ -38,8 +77,6 @@ export function runSentryCli(args, config, options = {}) {
   if (result.status !== 0) {
     throw new Error(`sentry-cli ${args[0]} failed with exit code ${result.status}.`);
   }
-
-  return result;
 }
 
 function optional(value) {

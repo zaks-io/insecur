@@ -3,6 +3,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { runCliMain } from "./cli-exit.mjs";
 import { runSentryCli } from "./sentry-cli.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 
@@ -50,32 +51,38 @@ export async function hasSourceMap(directory) {
 
   while (pending.length > 0) {
     const current = pending.pop();
-    let entries;
-
-    try {
-      entries = await readdir(current, { withFileTypes: true });
-    } catch (error) {
-      if (error?.code === "ENOENT") {
-        if (current === directory) {
-          return false;
-        }
-        continue;
-      }
-      throw error;
+    const entries = await readDirectoryEntries(current, directory);
+    if (entries === null) {
+      return false;
     }
-
-    for (const entry of entries) {
-      const entryPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        pending.push(entryPath);
-        continue;
-      }
-      if (entry.isFile() && entry.name.endsWith(".map")) {
-        return true;
-      }
+    if (directoryContainsMap(entries, current, pending)) {
+      return true;
     }
   }
 
+  return false;
+}
+
+async function readDirectoryEntries(directory, rootDirectory) {
+  try {
+    return await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return directory === rootDirectory ? null : [];
+    }
+    throw error;
+  }
+}
+
+function directoryContainsMap(entries, currentDirectory, pending) {
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith(".map")) {
+      return true;
+    }
+    if (entry.isDirectory()) {
+      pending.push(path.join(currentDirectory, entry.name));
+    }
+  }
   return false;
 }
 
@@ -85,8 +92,5 @@ async function main() {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  });
+  runCliMain(main);
 }

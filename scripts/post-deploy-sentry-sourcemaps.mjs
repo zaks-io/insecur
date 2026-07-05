@@ -2,6 +2,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { runCliMain } from "./cli-exit.mjs";
 import { uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
 
 export async function runPostDeploySentrySourcemaps(appLabel, mapDirArg, env = process.env) {
@@ -27,7 +28,5 @@ async function main() {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch(() => {
-    process.exit(1);
-  });
+  runCliMain(main);
 }

@@ -181,7 +181,7 @@ test("releaseHasSourceMapArtifacts requires at least one map artifact", () => {
   assert.equal(isSourceMapArtifact("~/assets/sourcemap-report.json"), false);
 });
 
-test("buildSentryCliEnv passes only resolved Sentry credentials to sentry-cli", () => {
+test("buildSentryCliEnv preserves proxy and CA runtime vars while overlaying Sentry credentials", () => {
   const env = buildSentryCliEnv(
     {
       authToken: "resolved-token",
@@ -191,6 +191,8 @@ test("buildSentryCliEnv passes only resolved Sentry credentials to sentry-cli", 
     },
     {
       PATH: "/usr/bin",
+      HTTP_PROXY: "http://proxy.example",
+      NODE_EXTRA_CA_CERTS: "/etc/ssl/certs.pem",
       SENTRY_AUTH_TOKEN: "unrelated-token",
       DATABASE_URL: "postgres://example",
     },
@@ -198,6 +200,8 @@ test("buildSentryCliEnv passes only resolved Sentry credentials to sentry-cli", 
 
   assert.equal(env.SENTRY_AUTH_TOKEN, "resolved-token");
   assert.equal(env.PATH, "/usr/bin");
+  assert.equal(env.HTTP_PROXY, "http://proxy.example");
+  assert.equal(env.NODE_EXTRA_CA_CERTS, "/etc/ssl/certs.pem");
   assert.equal(env.DATABASE_URL, undefined);
 });
 
@@ -233,13 +237,13 @@ test("runPostDeploySentrySourcemaps labels upload failures for operators", async
 
 test("worker deploy scripts upload wrangler source maps after deploy", async () => {
   const packages = [
-    ["apps/api/package.json", "dist"],
-    ["apps/runtime/package.json", "dist"],
-    ["apps/web/package.json", "dist/server"],
-    ["apps/site/package.json", "dist/server"],
+    ["apps/api/package.json", "dist", "dist"],
+    ["apps/runtime/package.json", "dist", "dist"],
+    ["apps/web/package.json", "dist", "dist/server"],
+    ["apps/site/package.json", "dist", "dist/server"],
   ];
 
-  for (const [packagePath, mapDir] of packages) {
+  for (const [packagePath, outdir, mapDir] of packages) {
     const pkg = await readPackage(packagePath);
     for (const scriptName of ["deploy", "deploy:preview"]) {
       const script = pkg.scripts[scriptName];
@@ -253,9 +257,39 @@ test("worker deploy scripts upload wrangler source maps after deploy", async () 
         new RegExp(`post-deploy-sentry-sourcemaps\\.mjs [^ ]+ ${mapDir.replace("/", "\\/")}`),
         `${packagePath} ${scriptName} must upload ${mapDir} source maps via post-deploy wrapper`,
       );
+      assertOutdirMatchesMapDir(script, packagePath, scriptName, outdir, mapDir);
     }
   }
 });
+
+function assertOutdirMatchesMapDir(script, packagePath, scriptName, outdir, mapDir) {
+  const outdirMatch = script.match(/--outdir\s+([^\s]+)/u);
+  if (outdirMatch) {
+    const allowedMapDirs = [outdirMatch[1], path.posix.join(outdirMatch[1], "server")];
+    assert.ok(
+      allowedMapDirs.includes(mapDir),
+      `${packagePath} ${scriptName}: --outdir ${outdirMatch[1]} must align with post-deploy map dir ${mapDir}`,
+    );
+    assert.equal(
+      outdirMatch[1],
+      outdir,
+      `${packagePath} ${scriptName}: --outdir must stay ${outdir}`,
+    );
+    return;
+  }
+
+  if (packagePath === "apps/runtime/package.json" && scriptName === "deploy") {
+    assert.match(
+      script,
+      /deploy-content-only\.mjs/u,
+      `${packagePath} ${scriptName} must deploy content into ${mapDir}`,
+    );
+    assert.equal(mapDir, outdir);
+    return;
+  }
+
+  assert.fail(`${packagePath} ${scriptName} must pass --outdir ${outdir} for map dir alignment`);
+}
 
 async function readPackage(relativePath) {
   const { readFile } = await import("node:fs/promises");
