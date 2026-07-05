@@ -37,18 +37,17 @@ table is `docs/specs/deploy-route-inventory.md`.
 
 ## Agent skills
 
-This repo has repo-local skills in `skills/*/SKILL.md`. If a task names one of those skills or
-matches its description, read the matching skill before acting. See `docs/agents/skill-usage.md`.
+Workflow logic lives in the shared `ziw-*` skills under `skills/*/SKILL.md` (canonical source is
+the shared skills repo; the in-repo copies are generated, never hand-edit them). Repo-specific
+workflow values live in `docs/agents/workflow/config.md`, the only repo-side workflow doc. Read
+that config first, then the matching skill: `ziw-to-issues` (spec/PRD/epic into `kind-slice`
+tickets), `ziw-triage` (tracker readiness repair), `ziw-orchestrate` (the work loop),
+`ziw-implement` (one startable issue through PR), `ziw-code-review` (review gate), `ziw-pr` (PR
+creation), `ziw-setup` (create/refresh the config). Do not duplicate skill workflow logic into
+repo docs or runtime adapters; a repo doc that restates or contradicts a skill is a defect.
 
-Runtime-specific files are adapters only. Shared agent workflow truth lives in `docs/agents/*` and
-`skills/*/SKILL.md`; keep Codex, Claude, and Cursor behavior aligned through those files.
-
-### Workflow
-
-The end-to-end repo workflow is documented in `docs/agents/workflow.md`: how to choose a skill,
-move work through Linear, implement one issue, review PRs, and coordinate agents. Read
-`docs/agents/workflow/config.md` first for the workflow lookup table (commands, Linear IDs, labels,
-runtimes, gates) before using any `ziw-*` skill.
+Runtime-specific files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/insecur.mdc`) are short adapters
+only; keep Codex, Claude, and Cursor aligned through the skills and the config.
 
 ### Fast repo navigation
 
@@ -59,13 +58,9 @@ you will touch.
 
 ### Issue tracker
 
-Issues are tracked in Linear team `INS` using the Linear MCP server. See
-`docs/agents/issue-tracker.md`.
-
-### Autonomous agent loop
-
-Agents working from Linear must follow `docs/agents/autonomous-loop.md` for issue readiness,
-claiming, blockers, PR handoff, and Linear setup conventions.
+Issues are tracked in Linear team `INS` using the Linear MCP server. Tracker values, labels,
+statuses, and policies are in `docs/agents/workflow/config.md`; the workflow itself is the `ziw-*`
+skills.
 
 ### Triage labels
 
@@ -97,11 +92,7 @@ one-command loop (`pnpm dev:db:reset && pnpm test:e2e`) are documented in
 ### Cursor Cloud environment
 
 Remote Cursor agent setup and maintenance notes live in `docs/agents/cursor-cloud-environment.md`.
-
-### Environment adapters
-
-Codex, Claude, and Cursor runtime differences are documented in
-`docs/agents/environment-adapters.md`.
+Runtime roles and access rules are in `docs/agents/workflow/config.md` (Agent Runtimes).
 
 ## Cursor Cloud specific instructions
 

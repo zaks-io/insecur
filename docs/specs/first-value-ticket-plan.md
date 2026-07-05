@@ -41,11 +41,10 @@ Parent issues start in `Backlog` and must not carry `ready-for-agent`.
 
 ## Readiness Rules
 
-- Only unblocked issues in `Todo` may carry `ready-for-agent`.
-- Blocked implementation issues stay in `Backlog` without `ready-for-agent`.
-- HITL setup issues carry `ready-for-human`, not `ready-for-agent`.
-- When a blocked AFK issue's blockers reach `Done`, move it to `Todo` and add `ready-for-agent`.
-- Dependencies must be represented with Linear `blocked by` / `blocks` relationships, not labels.
+Status, readiness, and dependency treatment follow the dependency policy in
+`docs/agents/workflow/config.md` (ready slices sit in `Todo` with `ready-for-agent` even while
+blocked; `blockedBy` relations decide startability). The "Initial readiness" column below reflects
+the original publishing order, not a status rule.
 
 ## Ticket Graph
 
