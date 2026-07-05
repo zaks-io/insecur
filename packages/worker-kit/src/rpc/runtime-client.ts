@@ -102,5 +102,6 @@ export function runtimeClientFor(
     captureFirstValueFeedback: forward("captureFirstValueFeedback"),
     listProjects: forward("listProjects"),
     listEnvironments: forward("listEnvironments"),
+    listSessionOrganizations: forward("listSessionOrganizations"),
   };
 }

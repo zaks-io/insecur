@@ -2,15 +2,11 @@ import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers"
 import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
-import {
-  acceptInvitation,
-  createInvitation,
-  createOperatorOrganization,
-  provisionGuidedOrganization,
-  type AcceptInvitationResult,
-  type CreateInvitationResult,
-  type CreateOperatorOrganizationResult,
-  type ProvisionGuidedOrganizationResult,
+import type {
+  AcceptInvitationResult,
+  CreateInvitationResult,
+  CreateOperatorOrganizationResult,
+  ProvisionGuidedOrganizationResult,
 } from "@insecur/onboarding";
 import {
   completeBootstrapOperatorClaim,
@@ -35,6 +31,8 @@ import type {
   ListEnvironmentsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSessionOrganizationsRpcInput,
+  ListSessionOrganizationsRpcPayload,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
@@ -65,8 +63,15 @@ import {
   issueInjectionGrantRpc,
   listEnvironmentsRpc,
   listProjectsRpc,
+  listSessionOrganizationsRpc,
   recordInjectionRunCompletedRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
+import {
+  acceptInvitationRpc,
+  createInvitationRpc,
+  createOperatorOrganizationRpc,
+  provisionGuidedOrganizationRpc,
+} from "./rpc/runtime-onboarding-rpc-delegates.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
@@ -189,74 +194,25 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   provisionGuidedOrganization(
     input: ProvisionGuidedOrganizationRpcInput,
   ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
-    return this.#post(input.actorToken, ({ actor }) =>
-      provisionGuidedOrganization({
-        userId: actor.userId,
-        instanceId: input.instanceId,
-        // The hop token only mints for an already-admitted, resolved actor.
-        isAdmitted: true,
-        ...(input.organizationDisplayName !== undefined
-          ? { organizationDisplayName: input.organizationDisplayName }
-          : {}),
-        ...(input.projectDisplayName !== undefined
-          ? { projectDisplayName: input.projectDisplayName }
-          : {}),
-        ...(input.teamDisplayName !== undefined ? { teamDisplayName: input.teamDisplayName } : {}),
-        ...(input.environmentDisplayName !== undefined
-          ? { environmentDisplayName: input.environmentDisplayName }
-          : {}),
-        ...(input.resourceIds !== undefined ? { resourceIds: input.resourceIds } : {}),
-        request: { requestId: input.requestId },
-      }),
-    );
+    return provisionGuidedOrganizationRpc(this.#post.bind(this), input);
   }
 
   createOperatorOrganization(
     input: CreateOperatorOrganizationRpcInput,
   ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
-    return this.#post(input.actorToken, ({ actor }) =>
-      createOperatorOrganization({
-        instanceId: input.instanceId,
-        operatorUserId: actor.userId,
-        ...(input.organizationDisplayName !== undefined
-          ? { organizationDisplayName: input.organizationDisplayName }
-          : {}),
-        ...(input.teamDisplayName !== undefined ? { teamDisplayName: input.teamDisplayName } : {}),
-        ...(input.resourceIds !== undefined ? { resourceIds: input.resourceIds } : {}),
-        request: { requestId: input.requestId },
-      }),
-    );
+    return createOperatorOrganizationRpc(this.#post.bind(this), input);
   }
 
   createInvitation(
     input: CreateInvitationRpcInput,
   ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
-    return this.#post(input.actorToken, ({ actor }) =>
-      createInvitation({
-        actor: { type: "user", userId: actor.userId },
-        organizationId: input.organizationId,
-        inviteeUserId: input.inviteeUserId,
-        rolePreset: input.rolePreset,
-        ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-        ...(input.invitationId !== undefined ? { invitationId: input.invitationId } : {}),
-        ...(input.membershipId !== undefined ? { membershipId: input.membershipId } : {}),
-        request: { requestId: input.requestId },
-      }),
-    );
+    return createInvitationRpc(this.#post.bind(this), input);
   }
 
   acceptInvitation(
     input: AcceptInvitationRpcInput,
   ): Promise<RuntimeRpcResult<AcceptInvitationResult>> {
-    return this.#post(input.actorToken, ({ actor }) =>
-      acceptInvitation({
-        invitationId: input.invitationId,
-        organizationId: input.organizationId,
-        acceptingUserId: actor.userId,
-        ...(input.membershipId !== undefined ? { membershipId: input.membershipId } : {}),
-        request: { requestId: input.requestId },
-      }),
-    );
+    return acceptInvitationRpc(this.#post.bind(this), input);
   }
 
   getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
@@ -304,6 +260,12 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     input: ListEnvironmentsRpcInput,
   ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>> {
     return listEnvironmentsRpc(this.#post.bind(this), input);
+  }
+
+  listSessionOrganizations(
+    input: ListSessionOrganizationsRpcInput,
+  ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>> {
+    return listSessionOrganizationsRpc(this.#post.bind(this), input);
   }
 }
 

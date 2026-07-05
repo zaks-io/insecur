@@ -35,5 +35,9 @@ export function apiClientFor(env: ApiClientEnv, actor: UserActor) {
       const response = await apiFetch("/v1/session/whoami");
       return response.json();
     },
+    sessionMemberships: async (): Promise<unknown> => {
+      const response = await apiFetch("/v1/session/memberships");
+      return response.json();
+    },
   };
 }

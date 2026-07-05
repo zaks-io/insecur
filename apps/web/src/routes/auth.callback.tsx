@@ -3,6 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
 import { completeBrowserLogin, redirectResponse } from "../auth/browser-oauth.js";
 import { formatPkceStateClearCookie } from "../auth/browser-oauth-pkce.js";
+import { SiteFrame } from "../components/site-frame.js";
 import type { WebEnv } from "../env.js";
 
 export const Route = createFileRoute("/auth/callback")({
@@ -23,8 +24,10 @@ export const Route = createFileRoute("/auth/callback")({
 
 function AuthCallbackPage() {
   return (
-    <section className="px-5 py-10 sm:px-8 sm:py-12">
-      <p>Completing sign-in…</p>
-    </section>
+    <SiteFrame>
+      <section className="px-5 py-10 sm:px-8 sm:py-12">
+        <p>Completing sign-in…</p>
+      </section>
+    </SiteFrame>
   );
 }

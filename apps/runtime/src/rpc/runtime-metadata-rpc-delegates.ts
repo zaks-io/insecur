@@ -7,6 +7,8 @@ import type {
   ListEnvironmentsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSessionOrganizationsRpcInput,
+  ListSessionOrganizationsRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   RecordInjectionRunCompletedRpcPayload,
   RuntimeRpcResult,
@@ -21,6 +23,7 @@ import { captureFirstValueFeedbackOperation } from "../operations/capture-first-
 import { getOperationOperation } from "../operations/get-operation-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
+import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
 import type { RuntimeRpcActorContext } from "./runtime-rpc-entry.js";
 
@@ -60,6 +63,15 @@ export function issueInjectionGrantRpc(
       actor: accessActor,
       request: { requestId: input.requestId },
     }),
+  );
+}
+
+export function listSessionOrganizationsRpc(
+  post: PostAuthRpcRunner,
+  input: ListSessionOrganizationsRpcInput,
+): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>> {
+  return post(input.actorToken, ({ accessActor }) =>
+    listSessionOrganizationsOperation({ accessActor }),
   );
 }
 

@@ -249,6 +249,26 @@ export default tseslint.config(
     },
   },
   {
+    // TanStack Router control flow: loaders `throw redirect(...)` (a Response subtype) and
+    // `throw notFound()` by design; the router catches both.
+    files: ["apps/web/src/routes/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/only-throw-error": [
+        "error",
+        {
+          allow: [
+            {
+              from: "package",
+              package: "@tanstack/router-core",
+              name: ["Redirect", "NotFoundError"],
+            },
+            { from: "lib", name: "Response" },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [
       "**/*.test.ts",
       "**/*.test.tsx",

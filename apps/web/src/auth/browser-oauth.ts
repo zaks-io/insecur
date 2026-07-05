@@ -24,7 +24,8 @@ import {
 } from "./browser-oauth-pkce.js";
 import type { WebEnv } from "../env.js";
 
-const DEFAULT_RETURN_TO = "/whoami";
+// Signed-in members land on the console; /orgs resolves the default organization (INS-367).
+const DEFAULT_RETURN_TO = "/orgs";
 
 export interface BrowserLoginStart {
   readonly authorizationUrl: string;
