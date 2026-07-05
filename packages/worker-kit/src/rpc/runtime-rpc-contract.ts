@@ -35,6 +35,19 @@ import type {
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryEnvelope,
 } from "./runtime-delivery-rpc-contract.js";
+import type {
+  ListEnvironmentsRpcInput,
+  ListEnvironmentsRpcPayload,
+  ListProjectsRpcInput,
+  ListProjectsRpcPayload,
+} from "./runtime-metadata-rpc-contract.js";
+import type {
+  CaptureFirstValueFeedbackRpcInput,
+  CaptureFirstValueFeedbackRpcPayload,
+  RecordInjectionRunCompletedRpcInput,
+  RecordInjectionRunCompletedRpcPayload,
+} from "./runtime-operations-rpc-contract.js";
+import type { PostAuthRpcInputBase } from "./runtime-rpc-shared.js";
 
 export type {
   RuntimeDeliveryAllEnvelope,
@@ -43,6 +56,20 @@ export type {
   RuntimeDeliveryEnvelope,
   RuntimeDeliveryPayload,
 } from "./runtime-delivery-rpc-contract.js";
+export type {
+  EnvironmentMetadataRead,
+  ListEnvironmentsRpcInput,
+  ListEnvironmentsRpcPayload,
+  ListProjectsRpcInput,
+  ListProjectsRpcPayload,
+  ProjectMetadataRead,
+} from "./runtime-metadata-rpc-contract.js";
+export type {
+  CaptureFirstValueFeedbackRpcInput,
+  CaptureFirstValueFeedbackRpcPayload,
+  RecordInjectionRunCompletedRpcInput,
+  RecordInjectionRunCompletedRpcPayload,
+} from "./runtime-operations-rpc-contract.js";
 
 /**
  * The RPC contract between the public API Worker and the private Runtime Worker (ADR-0077).
@@ -174,13 +201,6 @@ export interface GetBootstrapStatusRpcInput {
   readonly instanceId: string;
 }
 
-interface PostAuthRpcInputBase {
-  /** Scoped, audience-bound hop token authenticating the forwarded actor (ADR-0077). */
-  readonly actorToken: string;
-  /** API-minted request id, threaded into the Runtime audit rows. */
-  readonly requestId: RequestId;
-}
-
 export interface ProvisionGuidedOrganizationRpcInput extends PostAuthRpcInputBase {
   readonly instanceId: string;
   readonly organizationDisplayName?: DisplayName;
@@ -229,30 +249,6 @@ export interface CompleteBootstrapClaimRpcInput extends PostAuthRpcInputBase {
   readonly bootstrapSecret: string;
   readonly operatorGrantId: string;
   readonly ownerMembershipId: MembershipId;
-}
-
-export interface RecordInjectionRunCompletedRpcInput extends PostAuthRpcInputBase {
-  readonly organizationId: OrganizationId;
-  readonly grantId: InjectionGrantId;
-  readonly childExitCode: number;
-}
-
-export interface RecordInjectionRunCompletedRpcPayload {
-  readonly auditEventId: string;
-  readonly alreadyRecorded: boolean;
-}
-
-export interface CaptureFirstValueFeedbackRpcInput extends PostAuthRpcInputBase {
-  readonly organizationId: OrganizationId;
-  readonly feedbackKind: string;
-  readonly noteCode: string;
-  readonly grantId?: InjectionGrantId;
-  readonly operationId?: OperationId;
-  readonly associatedRequestId?: RequestId;
-}
-
-export interface CaptureFirstValueFeedbackRpcPayload {
-  readonly feedbackId: string;
 }
 
 /**
@@ -305,4 +301,8 @@ export interface RuntimeRpc {
   captureFirstValueFeedback(
     input: CaptureFirstValueFeedbackRpcInput,
   ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>>;
+  listProjects(input: ListProjectsRpcInput): Promise<RuntimeRpcResult<ListProjectsRpcPayload>>;
+  listEnvironments(
+    input: ListEnvironmentsRpcInput,
+  ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>>;
 }

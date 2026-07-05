@@ -18,7 +18,7 @@ import type { RequestId } from "@insecur/domain";
 import type { ApiEnv } from "../../env.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
-export const secretsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+export const projectsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 async function executeSecretWriteByVariableKey(
   context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,
@@ -54,7 +54,41 @@ async function executeSecretWriteByVariableKey(
   });
 }
 
-secretsRoutes.post(
+// Authorize-then-read runs atomically in the Runtime deploy (ADR-0077): the public edge performs
+// zero DB I/O and forwards scoped hop tokens only.
+projectsRoutes.get("/", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const organizationId = parseOrganizationIdParam(
+      requireRouteParam(context.req.param("organizationId"), "organizationId"),
+    );
+
+    return runtimeClientFor(context.env, userActor).listProjects({
+      organizationId,
+      requestId: reqId,
+    });
+  }),
+);
+
+projectsRoutes.get("/:projectId/environments", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const organizationId = parseOrganizationIdParam(
+      requireRouteParam(context.req.param("organizationId"), "organizationId"),
+    );
+    const projectId = parseProjectIdParam(
+      requireRouteParam(context.req.param("projectId"), "projectId"),
+    );
+
+    return runtimeClientFor(context.env, userActor).listEnvironments({
+      organizationId,
+      projectId,
+      requestId: reqId,
+    });
+  }),
+);
+
+projectsRoutes.post(
   "/:projectId/environments/:environmentId/secrets/by-variable-key",
   requireUserActor,
   async (context) =>

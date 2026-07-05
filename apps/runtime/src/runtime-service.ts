@@ -12,15 +12,13 @@ import {
   type CreateOperatorOrganizationResult,
   type ProvisionGuidedOrganizationResult,
 } from "@insecur/onboarding";
-import { issueInjectionGrant } from "@insecur/runtime-injection-issue";
 import {
   completeBootstrapOperatorClaim,
   getBootstrapStatus,
   type BootstrapStatus,
   type CompleteBootstrapOperatorClaimResult,
 } from "@insecur/instance-bootstrap";
-import { resolveAdmittedUserId } from "@insecur/tenant-store";
-import { runWithRuntimeConnection } from "@insecur/tenant-store";
+import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import type { OperationPollResult } from "@insecur/operations";
 import type {
@@ -33,6 +31,10 @@ import type {
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
+  ListEnvironmentsRpcInput,
+  ListEnvironmentsRpcPayload,
+  ListProjectsRpcInput,
+  ListProjectsRpcPayload,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
@@ -54,12 +56,17 @@ import type {
 import type { RuntimeEnv } from "./env.js";
 import { consumeGrantAllOperation } from "./operations/consume-grant-all-operation.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
-import { captureFirstValueFeedbackOperation } from "./operations/capture-first-value-feedback-operation.js";
-import { getOperationOperation } from "./operations/get-operation-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
 import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
-import { recordInjectionRunCompletedOperation } from "./operations/record-injection-run-completed-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
+import {
+  captureFirstValueFeedbackRpc,
+  getOperationRpc,
+  issueInjectionGrantRpc,
+  listEnvironmentsRpc,
+  listProjectsRpc,
+  recordInjectionRunCompletedRpc,
+} from "./rpc/runtime-metadata-rpc-delegates.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
@@ -253,26 +260,13 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   }
 
   getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
-    return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
-      getOperationOperation({ input, auditActor, accessActor }),
-    );
+    return getOperationRpc(this.#post.bind(this), input);
   }
 
   issueInjectionGrant(
     input: IssueInjectionGrantRpcInput,
   ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
-    return this.#post(input.actorToken, ({ accessActor }) =>
-      issueInjectionGrant({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        selector: input.selector,
-        // issueInjectionGrant takes the effective-access actor and resolves issuance scope +
-        // derives the audit actor internally (main #199). Pass accessActor, not auditActor.
-        actor: accessActor,
-        request: { requestId: input.requestId },
-      }),
-    );
+    return issueInjectionGrantRpc(this.#post.bind(this), input);
   }
 
   completeBootstrapOperatorClaim(
@@ -293,17 +287,23 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   recordInjectionRunCompleted(
     input: RecordInjectionRunCompletedRpcInput,
   ): Promise<RuntimeRpcResult<RecordInjectionRunCompletedRpcPayload>> {
-    return this.#post(input.actorToken, ({ auditActor }) =>
-      recordInjectionRunCompletedOperation({ input, auditActor }),
-    );
+    return recordInjectionRunCompletedRpc(this.#post.bind(this), input);
   }
 
   captureFirstValueFeedback(
     input: CaptureFirstValueFeedbackRpcInput,
   ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>> {
-    return this.#post(input.actorToken, (actors) =>
-      captureFirstValueFeedbackOperation(input, actors),
-    );
+    return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
+  }
+
+  listProjects(input: ListProjectsRpcInput): Promise<RuntimeRpcResult<ListProjectsRpcPayload>> {
+    return listProjectsRpc(this.#post.bind(this), input);
+  }
+
+  listEnvironments(
+    input: ListEnvironmentsRpcInput,
+  ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>> {
+    return listEnvironmentsRpc(this.#post.bind(this), input);
   }
 }
 
