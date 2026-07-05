@@ -26,6 +26,12 @@ OIDC, Human Approval Surface, audit/export, runbooks, and the Storage Security G
 production secrets must not be stored or delivered before the Production Delivery baseline and
 Storage Security Gate pass.
 
+The security boundary is deliberately not the same in dev and in production, and the two must
+not be blurred: a local agent can read a development secret it uses, while Protected Environment
+values have no local read path at all. The owning statement of that dev-vs-production divide,
+including what is and is not enforced in each tier, is
+[whitepaper/threat-model.md §2.5](../whitepaper/threat-model.md#25-the-two-tier-boundary-dev-vs-production).
+
 V1 means the reduced production spine decided on 2026-05-25, not "every accepted future-facing
 ADR." V1 keeps:
 

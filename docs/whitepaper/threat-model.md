@@ -21,9 +21,12 @@ Terminology and the authoritative product decisions live in the repo: the produc
 ## 1. What the System Is
 
 insecur is a secrets-custody control plane for teams shipping with coding agents and CI on a
-Cloudflare / GitHub Actions / Vercel stack. It holds the canonical secret, lets code, agents,
-and CI _use_ the secret, and gives no one a plaintext path to _read it back_ through the
-product: not the agent, not CI, not the developer, not the operator's support staff.
+Cloudflare / GitHub Actions / Vercel stack. It holds the canonical secret and lets code, agents,
+and CI _use_ the secret. For Protected Environment values it gives no one a plaintext path to
+_read it back_ through the product: not the agent, not CI, not the developer, not the operator's
+support staff. For development values the boundary is deliberately weaker and is stated plainly
+in [§2.5](#25-the-two-tier-boundary-dev-vs-production): the local agent that uses a dev secret
+can read it, and the protection is a small recoverable blast radius, not unreadability.
 
 The core insight is that in an agent-heavy workflow the dangerous object is the **read path,
 not the storage location**. A `.env` file on disk is dangerous because an agent with shell
@@ -142,6 +145,40 @@ shift root-key custody to the customer, who generates, loads, and escrows their 
 
 This precision is the point of the design, not a caveat to it: the product read path is closed
 structurally, and the claim is scoped to exactly what the structure guarantees.
+
+### 2.5 The two-tier boundary (dev vs production)
+
+This is the owning statement for where insecur draws the line between what it can enforce and
+what it cannot. Every other doc points here rather than restating it. The reason there are two
+tiers is that the two secret classes sit on opposite sides of the machine the developer's agent
+controls, so they can be defended by different means, and only one of them can be defended
+structurally.
+
+The design assumes most agents are cooperative: they do not want to leak a secret, and the job
+is to give them the safe path and remove the rakes they would otherwise step on. A determined
+adversarial agent is a different problem, and insecur is honest about which tier holds against
+one.
+
+|                                 | **Development secret**                                                                                                                                 | **Production / Protected Environment secret**                                                                                                                               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Where plaintext lands           | A child process the local agent controls                                                                                                               | Never on the machine the local agent runs on                                                                                                                                |
+| Cooperative agent               | Safe path provided: diskless, one scoped grant per run, audited                                                                                        | Same, plus a machine credential and approval it cannot self-issue                                                                                                           |
+| Adversarial agent               | **Can exfiltrate it** (`insecur run -- env`, `/proc/self/environ`). Not prevented, and not claimed to be                                               | **Cannot reach it**: no local read path exists to obtain a Protected grant                                                                                                  |
+| What the protection actually is | Small, recoverable blast radius: no plaintext file at rest, no standing credential in the child, single-use revocable audited grants, trivial rotation | Structural: machine-only authorization scope, private decrypt seam, approval-gated promotion, infrastructure boundaries (CI identity, deploy credentials, network position) |
+| Enforced by                     | Design discipline; visibility and recoverability, not a wall                                                                                           | `runtime_injection:grant_issue_protected` (machine-only scope), topology invariant, High-Assurance Challenge on credential minting (§4)                                     |
+
+The seam that matters most is **promotion**: the act of a value crossing from readable-dev into a
+Protected Environment. That crossing is the one an adversarial agent would target, so it is
+gated by a multi-step approval that no single agent-reachable channel can clear (§4, and the
+High-Assurance Challenge machinery in `packages/high-assurance`). Applying weaker controls in dev
+is not a compromise of the model; it is applying the controls that are _possible_ where they are
+possible, and refusing to pretend the dev tier is a wall.
+
+The roadmap direction for narrowing the dev gap is **capability-not-value delivery**: keep the
+plaintext server-side and hand the agent the ability to cause an effect (sign, connect, call)
+rather than the value itself, so "read the env" yields nothing. That is the production model
+extended toward dev, it only covers uses that can be proxied, and it is a larger build than
+injection. It is named here as direction, not a V1 promise.
 
 ---
 

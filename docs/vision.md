@@ -7,10 +7,33 @@ for canonical terms see `../CONTEXT.md`.
 ## What this is
 
 insecur is no-reveal secrets custody for teams shipping with agents and CI. It holds the
-canonical secret, lets your code and your agents use it, and gives nobody a plaintext way to
-read it back: not the agent, not CI, not you. Every other secrets tool is named after a
-fortress. We named this one after the problem, because the job is to remove the specific
-ways secrets leak, not to sell a feeling of safety.
+canonical secret and lets your code and your agents use it. For Protected Environment values
+(the production-grade ones we care about) it gives nobody a plaintext read-back path through the
+product: not the agent, not CI, not you. Every other secrets tool is named after a fortress. We
+named this one after the problem, because the job is to remove the specific ways secrets leak,
+not to sell a feeling of safety.
+
+Be precise about the boundary, because it is not the same in dev and in production, and future
+agents must not blur the two. See the two-tier boundary in
+[`whitepaper/threat-model.md`](whitepaper/threat-model.md) §2.5 for the owning statement.
+
+- **Development secrets:** the injected value lands in a child process the developer's agent
+  controls, so that agent can read it if it tries, and it is not hard to figure out how. We do
+  not claim otherwise. The protection here is a smaller, recoverable blast radius, not
+  unreadability: no plaintext file at rest, no standing credential handed to the child, one
+  short-lived single-use audited grant per run, and trivial rotation. This makes it _easy for a
+  cooperative agent to do the right thing_ and _cheap to recover_ when a careless one slips. It
+  does not stop a determined adversarial agent from exfiltrating a dev secret, and it is not
+  meant to.
+- **Production / Protected Environment secrets:** the readable value never reaches the machine
+  the developer's agent runs on. A local human session, and any agent that inherits it, cannot
+  obtain a Protected Environment injection grant at all. Delivery requires a machine credential
+  bound to that environment, which lives in CI/CD, and promotion into a Protected Environment
+  goes through a multi-step approval no single agent-reachable channel can clear. Here the
+  boundary is enforced by infrastructure we control, not by hoping the local process behaves.
+
+The honest one-line version: we reduce mistakes for well-behaved agents everywhere, and we make
+the environments that matter structurally hard for an adversarial one to reach.
 
 ## Why it exists
 
@@ -40,8 +63,9 @@ authorization, audit, or key-boundary rewrite.
 
 ## Operating principles
 
-- No-reveal is enforced below the API, not by a UI mask or an opt-in secret type. The reveal
-  path does not exist to be bypassed.
+- For Protected Environment values, no-reveal is enforced below the API, not by a UI mask or an
+  opt-in secret type. The reveal path does not exist to be bypassed. Development values are the
+  weaker tier by design (§2.5 of the threat model): a local agent can read the value it uses.
 - Misuse-Resistant Defaults: easy management paths, and the accidental-exposure paths are
   absent, not hidden.
 - Small blast radius: tenant-bound keys, key versions, ciphertext identity binding, no
@@ -89,5 +113,9 @@ are the wrong primitive. The operating plan for proving that wedge lives in
 
 ## North star
 
-A secret that gets used a thousand times by agents and CI, and read back zero times by
-anyone. Named after the problem, until the problem is boring.
+A production secret that gets used a thousand times by agents and CI, and read back zero times
+by anyone, because the readable value never reaches a machine an ordinary session controls. In
+dev we settle for a blast radius so small that reading it back buys nothing. The direction past
+V1 is to shrink even the dev gap by delivering capabilities instead of values: let the agent
+_cause the effect_ without ever holding the plaintext. Named after the problem, until the
+problem is boring.
