@@ -2,7 +2,7 @@
 
 **A design white paper.**
 
-Status: draft for review. Last updated 2026-07-01.
+Status: draft for review. Last updated 2026-07-05.
 
 This document describes what insecur is designed to prevent, the adversaries it models, and the
 structural controls it relies on. It describes the **design and its guarantees** — the properties
@@ -25,7 +25,7 @@ Cloudflare / GitHub Actions / Vercel stack. It holds the canonical secret and le
 and CI _use_ the secret. For Protected Environment values it gives no one a plaintext path to
 _read it back_ through the product: not the agent, not CI, not the developer, not the operator's
 support staff. For development values the boundary is deliberately weaker and is stated plainly
-in [§2.5](#25-the-two-tier-boundary-dev-vs-production): the local agent that uses a dev secret
+in [§2.5](#25-the-custody-boundary-local-dev-and-production): the local agent that uses a dev secret
 can read it, and the protection is a small recoverable blast radius, not unreadability.
 
 The core insight is that in an agent-heavy workflow the dangerous object is the **read path,
@@ -146,26 +146,47 @@ shift root-key custody to the customer, who generates, loads, and escrows their 
 This precision is the point of the design, not a caveat to it: the product read path is closed
 structurally, and the claim is scoped to exactly what the structure guarantees.
 
-### 2.5 The two-tier boundary (dev vs production)
+### 2.5 The custody boundary (local, dev, and production)
 
 This is the owning statement for where insecur draws the line between what it can enforce and
-what it cannot. Every other doc points here rather than restating it. The reason there are two
-tiers is that the two secret classes sit on opposite sides of the machine the developer's agent
-controls, so they can be defended by different means, and only one of them can be defended
-structurally.
+what it cannot. Every other doc points here rather than restating it. The boundary has two
+security classes — development and production — and three tiers. **Local Mode** is the
+account-less local rung: encrypted development custody on the developer's machine before a
+Hosted Instance exists. **Hosted development** is the logged-in dev tier with an off-box store,
+revocable grants, and tamper-resistant audit. **Production / Protected Environment** is the
+no-reveal tier. The two secret classes sit on opposite sides of the machine the developer's
+agent controls, so they can be defended by different means, and only the production class can be
+defended structurally.
 
 The design assumes most agents are cooperative: they do not want to leak a secret, and the job
 is to give them the safe path and remove the rakes they would otherwise step on. A determined
 adversarial agent is a different problem, and insecur is honest about which tier holds against
 one.
 
-|                                 | **Development secret**                                                                                                                                 | **Production / Protected Environment secret**                                                                                                                               |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Where plaintext lands           | A child process the local agent controls                                                                                                               | Never on the machine the local agent runs on                                                                                                                                |
-| Cooperative agent               | Safe path provided: diskless, one scoped grant per run, audited                                                                                        | Same, plus a machine credential and approval it cannot self-issue                                                                                                           |
-| Adversarial agent               | **Can exfiltrate it** (`insecur run -- env`, `/proc/self/environ`). Not prevented, and not claimed to be                                               | **Cannot reach it**: no local read path exists to obtain a Protected grant                                                                                                  |
-| What the protection actually is | Small, recoverable blast radius: no plaintext file at rest, no standing credential in the child, single-use revocable audited grants, trivial rotation | Structural: machine-only authorization scope, private decrypt seam, approval-gated promotion, infrastructure boundaries (CI identity, deploy credentials, network position) |
-| Enforced by                     | Design discipline; visibility and recoverability, not a wall                                                                                           | `runtime_injection:grant_issue_protected` (machine-only scope), topology invariant, High-Assurance Challenge on credential minting (§4)                                     |
+**Local Mode** (account-less local development custody; term owned by
+`docs/context/glossary/instance-onboarding.md`) is explicitly **not** no-reveal custody.
+Plaintext-at-rest never exists — values are encrypted — but the machine root key and ciphertext
+both live on the developer's machine (key in the OS keychain or a documented `0600` fallback
+file, ciphertext in the local store). The cooperative-agent path is the same diskless Runtime
+Injection surface: secrets load into a child process and never land in repo files, shell
+history, or agent transcripts. An adversarial process running as the **same OS user can read the
+local store** (key and ciphertext together) and is **not** claimed to be stopped. What Local
+Mode protects against is casual reach plus key/ciphertext separation so a synced or backed-up
+home directory exposes ciphertext only, not the key. Local Mode has no off-box audit trail and
+no revocable injection grants. Its feature ceiling is fixed: **Protected Environments, Secret
+Sync, machine access, and Teams never exist in Local Mode** (nor Organizations, Users, or
+production delivery). Upgrade to a Hosted Instance when custody must live somewhere the agent
+is not.
+
+|                                 | **Local Mode (account-less dev)**                                                                                                      | **Hosted development secret**                                                                                                                          | **Production / Protected Environment secret**                                                                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Where plaintext lands           | A child process the local agent controls                                                                                               | A child process the local agent controls                                                                                                               | Never on the machine the local agent runs on                                                                                                                                |
+| Where ciphertext and key live   | Both on the developer's machine (keychain or `0600` key file + local encrypted store)                                                  | Off-box Hosted Instance store; root key in operator custody                                                                                            | Off-box; no local decrypt path                                                                                                                                              |
+| Cooperative agent               | Safe diskless injection path; no plaintext files in the repo or transcript                                                             | Safe path: diskless, one scoped grant per run, audited off-box                                                                                         | Same, plus a machine credential and approval it cannot self-issue                                                                                                           |
+| Adversarial agent               | **Can read the local store** (same-user process). Not prevented, and not claimed to be                                                 | **Can exfiltrate the injected value** (`insecur run -- env`, `/proc/self/environ`). Not prevented, and not claimed to be                               | **Cannot reach it**: no local read path exists to obtain a Protected grant                                                                                                  |
+| What the protection actually is | Casual-reach removal; key/ciphertext separation against synced or backed-up home directories; not a wall against a same-user adversary | Small, recoverable blast radius: no plaintext file at rest, no standing credential in the child, single-use revocable audited grants, trivial rotation | Structural: machine-only authorization scope, private decrypt seam, approval-gated promotion, infrastructure boundaries (CI identity, deploy credentials, network position) |
+| Enforced by                     | Design discipline and local encryption; visibility and recoverability, not structural custody                                          | Design discipline; visibility and recoverability, not a wall                                                                                           | `runtime_injection:grant_issue_protected` (machine-only scope), topology invariant, High-Assurance Challenge on credential minting (§4)                                     |
+| Not in this tier                | Off-box audit, revocable grants, Protected Environments, Secret Sync, machine access, Teams, Organizations, Users, production delivery | Protected Environment read path                                                                                                                        | —                                                                                                                                                                           |
 
 The seam that matters most is **promotion**: the act of a value crossing from readable-dev into a
 Protected Environment. That crossing is the one an adversarial agent would target, so it is

@@ -14,8 +14,11 @@ named this one after the problem, because the job is to remove the specific ways
 not to sell a feeling of safety.
 
 Be precise about the boundary, because it is not the same in dev and in production, and future
-agents must not blur the two. See the two-tier boundary in
+agents must not blur the two. See the custody boundary in
 [`whitepaper/threat-model.md`](whitepaper/threat-model.md) §2.5 for the owning statement.
+**Local Mode** is the account-less local rung below hosted development: encrypted custody on
+the developer's machine without a Hosted Instance account, explicitly not no-reveal custody.
+The upgrade pitch is that custody means the store is somewhere the agent isn't.
 
 - **Development secrets:** the injected value lands in a child process the developer's agent
   controls, so that agent can read it if it tries, and it is not hard to figure out how. We do
