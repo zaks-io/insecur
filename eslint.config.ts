@@ -376,5 +376,39 @@ export default tseslint.config(
       "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],
     },
   },
+  // INS-410 authed-document cache boundary. `resolveAuthenticatedApiClient` (bff-api.ts) is the one
+  // chokepoint that both mints the scoped-token BFF client and stamps `Cache-Control: private,
+  // no-store` on the authed console document. Confining the raw `resolveBrowserActor` import to
+  // bff-api.ts makes "a new authed console read that skips the no-store seam" an author-time lint
+  // failure, not just a convention: any other web module that wants an authed API client must go
+  // through the chokepoint, so it cannot render per-user org metadata without the header.
+  {
+    files: ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
+    ignores: [
+      "apps/web/src/server/bff-api.ts",
+      "apps/web/src/auth/resolve-browser-actor.ts",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+    ],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: "error",
+    },
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/auth/resolve-browser-actor", "**/auth/resolve-browser-actor.js"],
+              importNames: ["resolveBrowserActor"],
+              message:
+                "Authed console reads must go through resolveAuthenticatedApiClient (server/bff-api.ts), which stamps Cache-Control: private, no-store on the document (INS-410). Import that helper instead of resolveBrowserActor.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintConfigPrettier,
 );

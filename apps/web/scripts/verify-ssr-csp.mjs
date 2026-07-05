@@ -197,10 +197,31 @@ async function fetchPath(path, headers = {}) {
   });
 }
 
-async function assertRouteHasMatchingCspNonce(path, { headers = {}, expect = [] } = {}) {
+async function assertRouteHasMatchingCspNonce(
+  path,
+  { headers = {}, expect = [], authedDocument = false } = {},
+) {
   const response = await fetchPath(path, headers);
   if (!response.ok) {
     throw new Error(`${path} returned ${response.status}`);
+  }
+
+  // Authed console documents embed per-user org metadata and must never be cached (INS-410); public
+  // SSR pages carry no such directive from this seam. Assert both directions on the real response.
+  const cacheControl = response.headers.get("cache-control");
+  if (authedDocument) {
+    if (cacheControl !== "private, no-store") {
+      throw new Error(
+        `${path} authed console document must send Cache-Control: private, no-store, got ${cacheControl}`,
+      );
+    }
+    if (response.headers.get("vary") !== "Cookie") {
+      throw new Error(`${path} authed console document must send Vary: Cookie`);
+    }
+  } else if (cacheControl?.includes("no-store")) {
+    throw new Error(
+      `${path} is a public SSR page but carries a no-store directive: ${cacheControl}`,
+    );
   }
 
   const csp = response.headers.get("content-security-policy");
@@ -263,9 +284,10 @@ try {
   await assertRouteHasMatchingCspNonce("/");
   await assertRouteHasMatchingCspNonce("/login");
   await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}`);
-  await assertRouteHasMatchingCspNonce("/whoami", { headers: authorization });
+  await assertRouteHasMatchingCspNonce("/whoami", { headers: authorization, authedDocument: true });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}`, {
     headers: authorization,
+    authedDocument: true,
     expect: [
       ORG.displayName,
       ORG.organizationId,
@@ -277,6 +299,7 @@ try {
   });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/audit`, {
     headers: authorization,
+    authedDocument: true,
     expect: [ORG.displayName, 'aria-label="Breadcrumb"'],
   });
 
@@ -286,16 +309,19 @@ try {
   );
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/projects`, {
     headers: authorization,
+    authedDocument: true,
     expect: [PROJECT.displayName, PROJECT.projectId, BARE_PROJECT.displayName, "2 projects"],
   });
   await assertRouteHasMatchingCspNonce(`/orgs/${EMPTY_ORG.organizationId}/projects`, {
     headers: authorization,
+    authedDocument: true,
     expect: ["No projects yet", "insecur init"],
   });
   await assertRouteHasMatchingCspNonce(
     `/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}`,
     {
       headers: authorization,
+      authedDocument: true,
       expect: [
         PROJECT.displayName,
         PROJECT.projectId,
@@ -313,6 +339,7 @@ try {
     `/orgs/${ORG.organizationId}/projects/${BARE_PROJECT.projectId}`,
     {
       headers: authorization,
+      authedDocument: true,
       expect: ["No environments yet", "insecur envs create"],
     },
   );
