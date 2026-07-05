@@ -14,6 +14,8 @@ export interface WebEnv extends SentryBindings {
   readonly WORKOS_CLIENT_ID: string;
   readonly WORKOS_COOKIE_PASSWORD: string;
   readonly SESSION_SIGNING_SECRET: string;
+  readonly TURNSTILE_SITE_KEY: string;
+  readonly TURNSTILE_SECRET_KEY: string;
   readonly INSTANCE_ID?: string;
   /**
    * Enables preview smoke bearer admission through Runtime instead of the WorkOS cookie path.

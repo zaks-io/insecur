@@ -11,6 +11,10 @@ WORKOS_CLIENT_ID=
 WORKOS_COOKIE_PASSWORD=
 SESSION_SIGNING_SECRET=
 
+# Cloudflare Turnstile. Dummy keys are safe for local development and automated tests.
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+
 # Optional local Sentry error reporting. DSNs are public, but keep local files ignored.
 SENTRY_DSN=
 SENTRY_ENVIRONMENT=local

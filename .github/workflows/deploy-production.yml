@@ -93,6 +93,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
           SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
           WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
         run: |
@@ -103,6 +104,7 @@ jobs:
             CLOUDFLARE_API_TOKEN
             RUNTIME_TOKEN_SIGNING_SECRET
             SESSION_SIGNING_SECRET
+            TURNSTILE_SECRET_KEY
             WORKOS_API_KEY
             WORKOS_COOKIE_PASSWORD
           )
@@ -132,10 +134,12 @@ jobs:
 
           jq -n \
             --arg session "$SESSION_SIGNING_SECRET" \
+            --arg turnstile "$TURNSTILE_SECRET_KEY" \
             --arg workos "$WORKOS_API_KEY" \
             --arg cookie "$WORKOS_COOKIE_PASSWORD" \
             '{
               SESSION_SIGNING_SECRET: $session,
+              TURNSTILE_SECRET_KEY: $turnstile,
               WORKOS_API_KEY: $workos,
               WORKOS_COOKIE_PASSWORD: $cookie
             }' |
@@ -157,6 +161,7 @@ jobs:
           SENTRY_PROJECT: insecur
           SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
           INSECUR_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
+          INSECUR_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PRODUCTION_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: ${{ vars.PRODUCTION_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID }}
@@ -172,6 +177,7 @@ jobs:
           required=(
             CLOUDFLARE_ACCOUNT_ID
             CLOUDFLARE_API_TOKEN
+            INSECUR_TURNSTILE_SITE_KEY
             SENTRY_AUTH_TOKEN
           )
           for name in "${required[@]}"; do

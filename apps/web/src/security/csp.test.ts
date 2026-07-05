@@ -12,7 +12,10 @@ describe("csp", () => {
     const nonce = "test-nonce-value";
     const policy = buildContentSecurityPolicy(nonce);
     expect(policy).toContain("connect-src 'self'");
-    expect(policy).toContain("script-src 'self' 'nonce-test-nonce-value'");
+    expect(policy).toContain(
+      "script-src 'self' 'nonce-test-nonce-value' https://challenges.cloudflare.com",
+    );
+    expect(policy).toContain("frame-src 'self' https://challenges.cloudflare.com");
     expect(policy).toContain("style-src 'self' 'nonce-test-nonce-value'");
     expect(policy).not.toContain("script-src 'self';");
   });

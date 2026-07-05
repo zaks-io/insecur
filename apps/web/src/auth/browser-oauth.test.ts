@@ -27,6 +27,8 @@ function createTestEnv(): WebEnv {
     WORKOS_CLIENT_ID: "client_test",
     WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
     SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+    TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+    TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
     API: { fetch: () => Promise.reject(new Error("API binding not used")) } as unknown as Fetcher,
     RUNTIME: {
       resolveAdmission: () => Promise.resolve({ ok: true, value: { userId: null } }),
