@@ -50,7 +50,12 @@ const workosPortMock = vi.hoisted(() => ({
   createWorkOSSessionPortFromEnv: vi.fn(),
 }));
 
+const setResponseHeaderMock = vi.hoisted(() => vi.fn());
+
 vi.mock("./workos-port.js", () => workosPortMock);
+vi.mock("@tanstack/react-start/server", () => ({
+  setResponseHeader: setResponseHeaderMock,
+}));
 
 function sessionRequest(): Request {
   return new Request("https://insecur.test/whoami", {
@@ -108,6 +113,7 @@ describe("hasWorkosSessionCookie", () => {
 describe("resolveBrowserActor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setResponseHeaderMock.mockReset();
     workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
       createFakeWorkOSSessionPort([
         {
@@ -288,6 +294,7 @@ describe("resolveBrowserActor", () => {
       expect(result.failure.reason).toBe("not_admitted");
       expect(result.clearSession).toBe(true);
     }
+    expect(setResponseHeaderMock).toHaveBeenCalledWith("Set-Cookie", expect.any(Array));
   });
 
   it("clears stale browser cookies when refresh succeeds but post-refresh assurance fails", async () => {

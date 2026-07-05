@@ -1,17 +1,35 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@insecur/ui";
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { loadWhoamiProof } from "../server/whoami";
+import { createFileRoute } from "@tanstack/react-router";
+import { getRequest } from "@tanstack/react-start/server";
+import { env } from "cloudflare:workers";
+import { resolveBrowserActor } from "../auth/resolve-browser-actor.js";
+import { unauthenticatedWhoamiRedirect } from "../auth/whoami-auth-gate.js";
+import type { WebEnv } from "../env.js";
+import { loadWhoamiProof, type WhoamiProof } from "../server/whoami";
+
+function authenticatedWhoamiProof(
+  proof: WhoamiProof,
+): Extract<WhoamiProof, { authenticated: true }> {
+  if (!proof.authenticated) {
+    throw new Error("Whoami loader executed without server auth gate");
+  }
+  return proof;
+}
 
 export const Route = createFileRoute("/whoami")({
-  loader: async () => {
-    const proof = await loadWhoamiProof();
-    if (!proof.authenticated) {
-      // TanStack Router redirect objects are the supported navigation control flow.
-      // eslint-disable-next-line @typescript-eslint/only-throw-error -- redirect() is not an Error
-      throw redirect({ to: "/login", search: { returnTo: "/whoami" } });
-    }
-    return proof;
+  server: {
+    handlers: {
+      GET: async () => {
+        const request = getRequest();
+        const resolved = await resolveBrowserActor(request, env as WebEnv);
+        const redirect = unauthenticatedWhoamiRedirect(resolved);
+        if (redirect !== null) {
+          return redirect;
+        }
+      },
+    },
   },
+  loader: async () => authenticatedWhoamiProof(await loadWhoamiProof()),
   component: WhoamiPage,
 });
 

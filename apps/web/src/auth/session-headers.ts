@@ -7,28 +7,35 @@ import {
 import { setResponseHeader } from "@tanstack/react-start/server";
 import type { BrowserSessionRotation, ResolveBrowserActorResult } from "./resolve-browser-actor.js";
 
-function applyBrowserSessionRotation(rotation: BrowserSessionRotation): void {
-  setResponseHeader("Set-Cookie", [
-    formatSessionSetCookie(workosSessionCookieAttributes, rotation.sealedSession),
-    formatSessionSetCookie(insecurCsrfCookieAttributes, rotation.csrfToken),
-  ]);
+export function browserSessionCookieHeadersFromResolveResult(
+  resolved: ResolveBrowserActorResult,
+): readonly string[] {
+  if (!resolved.ok) {
+    if (resolved.clearSession !== true) {
+      return [];
+    }
+    return [
+      formatSessionClearCookie(workosSessionCookieAttributes),
+      formatSessionClearCookie(insecurCsrfCookieAttributes),
+    ];
+  }
+  if (resolved.rotation === undefined) {
+    return [];
+  }
+  return browserSessionRotationCookieHeaders(resolved.rotation);
 }
 
-function applyBrowserSessionClear(): void {
-  setResponseHeader("Set-Cookie", [
-    formatSessionClearCookie(workosSessionCookieAttributes),
-    formatSessionClearCookie(insecurCsrfCookieAttributes),
-  ]);
+function browserSessionRotationCookieHeaders(rotation: BrowserSessionRotation): readonly string[] {
+  return [
+    formatSessionSetCookie(workosSessionCookieAttributes, rotation.sealedSession),
+    formatSessionSetCookie(insecurCsrfCookieAttributes, rotation.csrfToken),
+  ];
 }
 
 export function applyBrowserSessionFromResolveResult(resolved: ResolveBrowserActorResult): void {
-  if (!resolved.ok) {
-    if (resolved.clearSession === true) {
-      applyBrowserSessionClear();
-    }
+  const cookieHeaders = browserSessionCookieHeadersFromResolveResult(resolved);
+  if (cookieHeaders.length === 0) {
     return;
   }
-  if (resolved.rotation !== undefined) {
-    applyBrowserSessionRotation(resolved.rotation);
-  }
+  setResponseHeader("Set-Cookie", [...cookieHeaders]);
 }

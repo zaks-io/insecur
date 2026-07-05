@@ -18,6 +18,7 @@ import {
   createRuntimeAdmittedUserResolver,
   recordAdmissionDeniedAuditForAuthFailure,
 } from "../runtime/admission.js";
+import { applyBrowserSessionFromResolveResult } from "./session-headers.js";
 import type { WebEnv } from "../env.js";
 
 export interface BrowserSessionRotation {
@@ -50,10 +51,17 @@ export async function resolveBrowserActor(
       resolveAdmittedUser,
     );
     if (shouldUseSmokeResult(smokeResult, credentials.workosSealedSession)) {
-      return smokeResult;
+      return finalizeBrowserActorResult(smokeResult);
     }
   }
-  return resolveWorkosCookieActor(credentials.workosSealedSession, env, resolveAdmittedUser);
+  return finalizeBrowserActorResult(
+    await resolveWorkosCookieActor(credentials.workosSealedSession, env, resolveAdmittedUser),
+  );
+}
+
+function finalizeBrowserActorResult(result: ResolveBrowserActorResult): ResolveBrowserActorResult {
+  applyBrowserSessionFromResolveResult(result);
+  return result;
 }
 
 function shouldUseSmokeResult(
@@ -106,11 +114,10 @@ async function resolveAdmittedWorkosContext(
   if (admittedUserId === null) {
     const failure = authFailureForAdmissionDenial(context.user.id);
     await recordAdmissionDeniedAuditForAuthFailure(env, failure, requestId.generate());
-    return {
-      ok: false,
-      failure,
-      ...(rotatedSealedSession === undefined ? {} : { clearSession: true }),
-    };
+    if (rotatedSealedSession === undefined) {
+      return { ok: false, failure };
+    }
+    return { ok: false, failure, clearSession: true };
   }
 
   const actor: UserActor = {
