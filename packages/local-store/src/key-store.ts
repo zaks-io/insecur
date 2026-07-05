@@ -8,14 +8,24 @@ import { MACHINE_ROOT_KEY_ACCOUNT, MACHINE_ROOT_KEY_SERVICE } from "./constants.
 import { createDefaultExecFile } from "./exec-file.js";
 import { resolveKeyStorePaths } from "./paths.js";
 import { resolveKeyStoreBackend } from "./resolve-backend.js";
-import { serializeAsync } from "./serialize-async.js";
+import { serializeAsync, serializeAsyncBySlot } from "./serialize-async.js";
 import type {
   CreateKeyStoreOptions,
   KeyStore,
   KeyStoreAdapter,
   KeyStoreBackend,
   KeyStoreDependencies,
+  KeyStorePaths,
 } from "./types.js";
+
+function buildMachineRootKeySlot(
+  backend: KeyStoreBackend,
+  paths: KeyStorePaths,
+  service: string,
+  account: string,
+): string {
+  return `${backend}\u0000${paths.userConfigDir}\u0000${service}\u0000${account}`;
+}
 
 function createAdapter(
   backend: KeyStoreBackend,
@@ -39,8 +49,10 @@ function createAdapter(
   }
 }
 
-function wrapKeyStore(adapter: KeyStoreAdapter): KeyStore {
-  const getOrCreateMachineRootKey = serializeAsync(() => adapter.getOrCreateMachineRootKey());
+function wrapKeyStore(adapter: KeyStoreAdapter, slot?: string): KeyStore {
+  const getOrCreateMachineRootKey = slot
+    ? serializeAsyncBySlot(slot, () => adapter.getOrCreateMachineRootKey())
+    : serializeAsync(() => adapter.getOrCreateMachineRootKey());
   return {
     backend: adapter.backend,
     notice: adapter.notice,
@@ -62,8 +74,9 @@ export function createKeyStore(options: CreateKeyStoreOptions = {}): KeyStore {
   };
   const backend = resolveKeyStoreBackend(platform, env);
   const adapter = createAdapter(backend, deps, service, account);
+  const slot = buildMachineRootKeySlot(backend, deps.paths, service, account);
 
-  return wrapKeyStore(adapter);
+  return wrapKeyStore(adapter, slot);
 }
 
 export function createKeyStoreFromAdapter(adapter: KeyStoreAdapter): KeyStore {

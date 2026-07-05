@@ -4,8 +4,6 @@ import { promisify } from "node:util";
 
 import type { ExecFileFn, ExecFileOptions as KeyStoreExecFileOptions } from "./types.js";
 
-const promisifiedExecFile = promisify(nodeExecFile);
-
 export const DEFAULT_EXEC_FILE_TIMEOUT_MS = 30_000;
 
 type NodeExecFileOptions = ExecFileOptionsWithStringEncoding & {
@@ -27,7 +25,7 @@ function applyOptionalExecFileFields(
   }
 }
 
-function buildNodeExecFileOptions(options?: KeyStoreExecFileOptions): NodeExecFileOptions {
+export function buildNodeExecFileOptions(options?: KeyStoreExecFileOptions): NodeExecFileOptions {
   const nodeOptions: NodeExecFileOptions = {
     encoding: "utf8",
     maxBuffer: options?.maxBuffer ?? 1024,
@@ -38,6 +36,7 @@ function buildNodeExecFileOptions(options?: KeyStoreExecFileOptions): NodeExecFi
 }
 
 export function createDefaultExecFile(): ExecFileFn {
+  const promisifiedExecFile = promisify(nodeExecFile);
   return async (file, args, options) => {
     const result = await promisifiedExecFile(file, args, buildNodeExecFileOptions(options));
     return {

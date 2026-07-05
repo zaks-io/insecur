@@ -1,6 +1,7 @@
 import { accessSync, constants as fsConstants } from "node:fs";
+import * as crypto from "node:crypto";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createKeyStore } from "./key-store.js";
 import { isLinuxSecretToolAvailable } from "./resolve-backend.js";
@@ -51,9 +52,18 @@ describe("OS keychain integration", () => {
       return;
     }
 
-    const first = await keyStore.getOrCreateMachineRootKey();
-    const second = await createKeyStore(keyStoreOptions).getOrCreateMachineRootKey();
-    expect(second).toBe(first);
-    expect(first).toHaveLength(64);
+    const randomBytesSpy = vi.spyOn(crypto, "randomBytes");
+
+    try {
+      const first = await keyStore.getOrCreateMachineRootKey();
+      expect(randomBytesSpy).toHaveBeenCalledTimes(1);
+
+      const second = await createKeyStore(keyStoreOptions).getOrCreateMachineRootKey();
+      expect(second).toBe(first);
+      expect(first).toHaveLength(64);
+      expect(randomBytesSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      randomBytesSpy.mockRestore();
+    }
   });
 });

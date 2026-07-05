@@ -67,3 +67,47 @@ describe("createKeyStoreFromAdapter", () => {
     expect(maxActive).toBe(1);
   });
 });
+
+describe("cross-instance key creation", () => {
+  it("serializes first-run creation across separate KeyStore instances", async () => {
+    let randomCalls = 0;
+    const configHome = `/tmp/insecur-keystore-cross-${String(Date.now())}`;
+    const options = {
+      platform: "linux" as const,
+      env: { PATH: "/empty" },
+      configHome,
+      randomBytes: (size: number) => {
+        randomCalls += 1;
+        return new Uint8Array(size).fill(randomCalls);
+      },
+    };
+
+    const [first, second] = await Promise.all([
+      createKeyStore(options).getOrCreateMachineRootKey(),
+      createKeyStore(options).getOrCreateMachineRootKey(),
+    ]);
+
+    expect(first).toBe(second);
+    expect(randomCalls).toBe(1);
+  });
+
+  it("reuses persisted material on a later KeyStore instance", async () => {
+    let randomCalls = 0;
+    const configHome = `/tmp/insecur-keystore-reuse-${String(Date.now())}`;
+    const options = {
+      platform: "linux" as const,
+      env: { PATH: "/empty" },
+      configHome,
+      randomBytes: (size: number) => {
+        randomCalls += 1;
+        return new Uint8Array(size).fill(0xcd);
+      },
+    };
+
+    const first = await createKeyStore(options).getOrCreateMachineRootKey();
+    const second = await createKeyStore(options).getOrCreateMachineRootKey();
+
+    expect(second).toBe(first);
+    expect(randomCalls).toBe(1);
+  });
+});
