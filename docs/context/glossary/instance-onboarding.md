@@ -22,6 +22,10 @@ _Avoid_: SaaS when the deployment boundary is meant
 An Instance deployed into customer-controlled Cloudflare infrastructure using the same insecur runtime as a **Hosted Instance**.
 _Avoid_: on-prem, separate product, rewrite when the deployment boundary is meant
 
+**Local Mode**:
+Account-less CLI operation where non-protected development Secrets are stored encrypted on the developer's own machine and used through the ordinary secret-write and Runtime Injection command surface, with no Hosted Instance account. Local Mode's claim is keeping development secrets out of casual agent reach (repo files, shell history, terminal output, agent transcripts); it is explicitly not no-reveal custody, because the local machine cannot enforce a boundary against processes running as the same user. Local Mode is single-seat and machine-scoped: Projects and non-protected development Environments exist locally with client-minted Opaque Resource IDs, while Organization, User, Team, Membership, Protected Environments, Secret Sync, machine access, and production delivery never exist in Local Mode.
+_Avoid_: local vault, offline mode, free tier when the account-less workflow is meant, self-hosted when no Instance exists
+
 **Small-Group Production**:
 The near-term product posture for personal projects and relatively small trusted groups using insecur with production-quality secret protection.
 _Avoid_: public multi-tenant production when broad public onboarding is not meant, dev-only mode
