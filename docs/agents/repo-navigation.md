@@ -38,7 +38,7 @@ the content-ownership table in the Source Of Truth Rules of
 | Storage readiness gate                           | `docs/storage-security-gate.md`                          |
 | Protected change flow                            | `docs/protected-change-orchestration.md`                 |
 | Operation retry, resume, and leases              | `docs/operation-store.md`                                |
-| Agent workflow and Linear rules                  | `docs/agents/workflow.md`                                |
+| Agent workflow values and Linear rules           | `docs/agents/workflow/config.md`                         |
 | Cursor Cloud setup                               | `docs/agents/cursor-cloud-environment.md`                |
 
 ## Code Routing
@@ -78,9 +78,8 @@ ADRs named by that local context.
 
 ## Linear And Workflow Routing
 
-- Use `docs/agents/issue-tracker.md` to understand Linear conventions.
-- Use `docs/agents/autonomous-loop.md` before claiming or updating implementation work.
-- Use `docs/agents/skill-usage.md` to choose a ziw skill.
+- Read `docs/agents/workflow/config.md` first for Linear conventions, labels, statuses, and
+  workflow values; the workflow itself is the shared `ziw-*` skills.
 - Use `skills/ziw-to-issues/SKILL.md` to turn specs, PRDs, or epics into Linear implementation work.
 - Use `skills/ziw-triage/SKILL.md` to audit or repair tracker readiness.
 - Use `skills/ziw-implement/SKILL.md` for one ready issue.

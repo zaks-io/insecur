@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-07-01
+Last updated: 2026-07-05
 
 Workflow lookup table for the shared `ziw-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
@@ -8,7 +8,7 @@ external systems (Linear, GitHub, CI), not here.
 
 ## Verification
 
-- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note. 2026-06-29 (INS-234): refreshed CodeRabbit wiring guidance to match active PR status contexts and orchestrator current-head manual review requests. 2026-07-01: added `pnpm ci:check` as a `pnpm verify` alias and documented docs-only CI short-circuiting. 2026-07-02: documented single-pass duplicate enforcement and workflow-only CI short-circuiting.
+- Scope: refresh of existing config; full re-verify of repo identity, commands, tracker metadata, adapter symlinks, and the agent role names. 2026-06-14 reconciliation against the INS-99 friction log: added the coverage gate (`pnpm test:coverage`), squash merge method, orchestrator merge authority, `code-review-passed` label, `save_issue` quirk, worktree hygiene, and corrected the stale "no hosted CI" note. 2026-06-29 (INS-234): refreshed CodeRabbit wiring guidance to match active PR status contexts and orchestrator current-head manual review requests. 2026-07-01: added `pnpm ci:check` as a `pnpm verify` alias and documented docs-only CI short-circuiting. 2026-07-02: documented single-pass duplicate enforcement and workflow-only CI short-circuiting. 2026-07-05 (INS-406): corrected the dependency policy to match the shared issue-tracker contract; the prior wording parked blocked ready slices in `Backlog`, which no skill scans, so decomposed work was invisible to the orchestrator. The same backwards policy was restated across `docs/agents/workflow.md`, `issue-tracker.md`, `linear-ticketing.md`, `autonomous-loop.md`, `skill-usage.md`, and `environment-adapters.md`; per ziw-setup ("do not duplicate this whole workflow into adapter docs") those six docs are deleted, their repo-specific facts (project/milestone tables, workstream-parent conventions, security baseline) folded in here, and this file is the only repo-side workflow doc. Workflow logic lives in the shared `ziw-*` skills.
 - Last verified: 2026-06-29 (CodeRabbit status context on open PRs; `.coderabbit.yaml` auto-review disabled).
 - Evidence sources: `package.json`, `.npmrc`, git remote/branch, `AGENTS.md`/`CLAUDE.md` symlinks, `.agents/skills/*` + `.claude/skills/*` + root `skills/*` symlinks, live Linear `list_teams`/`list_issue_statuses`/`list_issue_labels`.
 - Safe commands run: `git remote get-url origin`, `git symbolic-ref --short HEAD`, `jq` over `package.json`, `ls -la`/`-ef` symlink checks, `git log`/`diff`/`wc` over skills.
@@ -98,22 +98,31 @@ Type (parent `Type`):
 
 ### Projects
 
-- Customer Discovery & Design Partners
-- First Value Build
-- Production Delivery Foundation
-- Machine Access and CI Trust
-- Runtime Injection Delivery
-- Provider Sync: GitHub and Cloudflare
-- Approval UX and Delivery Policy
-- Audit, Runbooks, and Release Gates
+| Project                                        | Milestones                                                                                                                                                                                                        |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Customer Discovery & Design Partners`         | `Discovery Interviews Complete`; `Design Partners Recruited`; `Supported Repo Onboarding`; `Usage Evidence Review`; `Scope Gate Decision`                                                                         |
+| `First Value Build`                            | `Tooling Baseline`; `Tenant and Security Foundation`; `Guided Onboarding Path`; `Secret Write Path`; `Runtime Injection Path`; `Copyable Proof Complete`                                                          |
+| `Production Delivery Foundation`               | `Instance and Tenant Bootstrap`; `Human Auth and Authorization`; `Tenant-Bound Key Custody`; `Protected Environment Lifecycle`; `Storage Security Gate Ready`                                                     |
+| `Machine Access and CI Trust`                  | `Machine Identity Model`; `GitHub Actions OIDC Federation`; `Environment Deploy Keys`; `Short-Lived Access Tokens`; `Machine Access Audit Coverage`                                                               |
+| `Runtime Injection Delivery`                   | `Profile Model and Resolution`; `Profile-Backed CLI Run`; `Production Runtime Gate Enforcement`; `Deploy Runtime Injection`; `Metadata-Only Operation Output`                                                     |
+| `Provider Sync: GitHub and Cloudflare`         | `App Connections and Boundaries`; `Sync Model and Exact Bindings`; `Explicit Provider Lookup`; `Inline Operation Store`; `GitHub Actions Sync`; `Cloudflare Worker Secret Sync`; `Sync Verify Retry Resume Audit` |
+| `Approval UX and Delivery Policy`              | `Approval State Machine`; `Human Approval Surface`; `High-Assurance Challenges`; `Protected Delivery Configuration Approval`; `Delivery Risk Policy Presets`; `Preview Automation Opt-In`                         |
+| `Audit, Runbooks, and Release Gates`           | `Tenant-Qualified Audit Hardening`; `Tamper-Evident Audit Export`; `Tested Restore Evidence`; `Security Runbooks`; `Release Gate Automation`; `Production Readiness Signoff`                                      |
+| `Local Mode: Account-Less Development Custody` | `Spec and Docs Alignment`; `Local Key Custody and Store`; `Account-Less CLI Loop`; `Agent-Legible Metadata`; `Cloud Migrate Path`                                                                                 |
 
-Project field model, milestones, and parent workstreams: see `docs/agents/linear-ticketing.md`
-and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linear:
-`docs/phasing.md#deferred-scope-parking-lot`.
+- Field model: Project = phase/program; project milestone = delivery gate; parent issue =
+  workstream container mirroring `docs/specs/agent-workstreams.md`; child issue = one-PR work.
+  Every non-container issue in an active project gets a project milestone.
+- Workstream parents are containers: `kind-epic`, kept in `Backlog` with only `zaks-io/insecur`,
+  no readiness/Type/risk label, no milestone. Never dispatched.
+- Deferred scope is repo-tracked, not in Linear: `docs/phasing.md#deferred-scope-parking-lot`.
+  Items listed there get no Linear scaffolding until promoted in the repo docs first.
 
 - Priority policy: no agent priority automation; humans set priority
-- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Blocked implementation issues stay in `Backlog` without `ready-for-agent`. Move to `Todo` and add `ready-for-agent` only after all blockers are `Done` and the issue still satisfies the agent-ready contract.
-- Agent-ready issue body: contract in `docs/agents/linear-ticketing.md#issue-body-contract` and `docs/agents/autonomous-loop.md` (Outcome, Context, In scope, Out of scope, Acceptance criteria, Required checks, Security invariants, Dependencies)
+- Dependency policy: encode order with Linear `blockedBy` / `blocks`; not labels. Dependency-ready `kind-slice` tickets stay in `Todo` with `ready-for-agent`; blockers decide startability, not Linear Backlog placement. No repo deviation from the shared issue-tracker contract (`skills/ziw-setup/references/issue-tracker-contract.md`).
+- Linear Backlog state: `Backlog`
+- Linear Backlog policy: work agents must not work yet because it is uncommitted, intentionally parked, or not shaped correctly; never a dependency holding area; reviewed only on explicit user request
+- Agent-ready issue body: contract in `skills/ziw-setup/references/issue-tracker-contract.md` (Outcome, Context docs, likely files/packages, In scope, Out of scope, Acceptance criteria, Required checks, Security invariants, Dependencies; no estimates configured)
 - Status transition owner: Agent Orchestrator (`ziw-orchestrate`)
 - Labels are signals, not authority: Linear status is the workflow source of truth; Agent Orchestrator owns transitions
 - `save_issue` quirk: a partial-payload `save_issue` (e.g. state/delegate only) can return unchanged state or fail with "title is required". Send an explicit payload with `id` + the fields being changed (`state`, `labels`, etc.) rather than a minimal diff; that path is reliable. Do not retry the minimal payload 2-3 times before switching.
@@ -179,8 +188,9 @@ and `docs/agents/issue-tracker.md`. Deferred scope is repo-tracked, not in Linea
 ## Security Baseline
 
 Never store, print, log, fixture, screenshot, or summarize Sensitive Values anywhere, including
-Linear prose, PR bodies, comments, and tests. No reveal/plaintext-export/debug-decrypt paths. See
-`docs/agents/workflow.md#security-baseline`.
+Linear prose, PR bodies, comments, tests, and screenshots; issue bodies, PR descriptions, and logs
+stay metadata-only. Do not add reveal paths, plaintext exports, local secret files, debug decrypt
+paths, or unsafe development shortcuts.
 
 ## Unknowns
 
