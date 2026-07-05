@@ -82,8 +82,10 @@ project layout with its Environments (`/$projectId/`, the index) / Secrets / Acc
 views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs.
 `/orgs/$orgId/people` is the read-only People register (INS-373): members and pending invitations
 over the same hop to the INS-373 API metadata GETs, rendering zero mutation affordances.
-`/onboarding` is the placeholder the first-run wizard will claim. URLs carry opaque Resource IDs
-only (docs/web-console-ux.md §URLs).
+`/onboarding` is the first-run onboarding wizard (INS-374): Guided Organization Provisioning for
+org-less members, with `?org&project&env` reopening the CLI handoff view; its provisioning
+mutation is a CSRF-checked server function forwarded to `POST /v1/onboarding/personal-organization`
+over the private `API` binding. URLs carry opaque Resource IDs only (docs/web-console-ux.md §URLs).
 
 ## Public Site Worker — `apps/site` (`insecur-site`)
 

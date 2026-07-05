@@ -109,4 +109,32 @@ describe("apiClientFor", () => {
       expect(verified.actor).toEqual(actor);
     }
   });
+
+  it("posts guided provisioning bodies as JSON with the scoped token", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const apiFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), init: init ?? {} });
+      return Response.json({ ok: true, data: {} });
+    });
+    const client = apiClientFor(
+      {
+        API: { fetch: apiFetch } as unknown as Fetcher,
+        SESSION_SIGNING_SECRET: signingSecret,
+      },
+      actor,
+    );
+
+    await client.provisionPersonalOrganization({ organizationDisplayName: "Acme Corp" });
+
+    expect(calls).toHaveLength(1);
+    const call = calls[0];
+    expect(call?.url).toBe("https://insecur-api.internal/v1/onboarding/personal-organization");
+    expect(call?.init.method).toBe("POST");
+    const headers = call?.init.headers as Headers;
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(headers.get("Authorization")).toMatch(/^Bearer\s+\S+$/u);
+    expect(JSON.parse(call?.init.body as string)).toEqual({
+      organizationDisplayName: "Acme Corp",
+    });
+  });
 });

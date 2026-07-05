@@ -57,5 +57,13 @@ export function apiClientFor(env: ApiClientEnv, actor: UserActor) {
       const response = await apiFetch(`/v1/orgs/${encodeURIComponent(organizationId)}/invitations`);
       return response.json();
     },
+    provisionPersonalOrganization: async (body: Record<string, unknown>): Promise<unknown> => {
+      const response = await apiFetch("/v1/onboarding/personal-organization", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return response.json();
+    },
   };
 }
