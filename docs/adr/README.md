@@ -83,6 +83,7 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0077: Capability-Isolated Worker Deploys](0077-capability-isolated-worker-deploys.md)
 - [ADR-0078: Public Site Worker Separate From Web Console BFF](0078-public-site-worker.md)
 - [ADR-0079: Agent-Context Plaintext Prohibition](0079-agent-context-plaintext-prohibition.md)
+- [ADR-0080: Local Mode Is An Account-Less V1 Development Custody Mode](0080-local-mode-accountless-development-custody.md)
 
 ## Superseded
 
