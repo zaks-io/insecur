@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-worktree-create.sh\"",
+            "timeout": 900,
+            "statusMessage": "Creating worktree and running setup:worktree"
+          }
+        ]
+      }
+    ]
+  }
+}
