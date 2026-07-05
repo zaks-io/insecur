@@ -16,12 +16,7 @@ import type {
   RuntimeRpcResult,
 } from "@insecur/worker-kit";
 
-import type { RuntimeRpcActorContext } from "./runtime-rpc-entry.js";
-
-type PostAuthRpcRunner = <T>(
-  actorToken: string,
-  run: (actors: RuntimeRpcActorContext) => Promise<T>,
-) => Promise<RuntimeRpcResult<T>>;
+import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
 
 export function provisionGuidedOrganizationRpc(
   post: PostAuthRpcRunner,

@@ -25,12 +25,7 @@ import { listEnvironmentsOperation } from "../operations/list-environments-opera
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
-import type { RuntimeRpcActorContext } from "./runtime-rpc-entry.js";
-
-type PostAuthRpcRunner = <T>(
-  actorToken: string,
-  run: (actors: RuntimeRpcActorContext) => Promise<T>,
-) => Promise<RuntimeRpcResult<T>>;
+import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
 
 export function listProjectsRpc(
   post: PostAuthRpcRunner,
