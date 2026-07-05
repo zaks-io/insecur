@@ -18,6 +18,10 @@ const negativeDeepPathFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/decrypt-import-boundary-negative-deep-path.fixture.ts",
 );
+const negativeInlineDisableFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/decrypt-import-boundary-negative-inline-disable.fixture.ts",
+);
 const ESLINT_BOUNDARY_TIMEOUT_MS = 30_000;
 const DECRYPT_IMPORT_BOUNDARY_MESSAGE =
   "Decrypt entry points may only be imported from allowlisted egress modules";
@@ -111,6 +115,16 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
     "fails lint for unallowlisted deep-path decrypt imports",
     async () => {
       const output = await runEslintExpectFailure(negativeDeepPathFixture);
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toMatch(/decryptSecretValueForRuntime/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "fails lint for decrypt imports even with an inline eslint-disable comment",
+    async () => {
+      const output = await runEslintExpectFailure(negativeInlineDisableFixture);
       expect(output).toMatch(/no-restricted-imports/);
       expect(output).toMatch(/decryptSecretValueForRuntime/);
     },

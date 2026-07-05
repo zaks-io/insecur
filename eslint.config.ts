@@ -304,6 +304,10 @@ export default tseslint.config(
       "apps/runtime/src/**",
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: "error",
+    },
     rules: {
       "no-restricted-imports": [
         "error",
@@ -330,6 +334,10 @@ export default tseslint.config(
       "**/*.integration.test.ts",
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: "error",
+    },
     rules: {
       "no-restricted-imports": ["error", decryptImportBoundaryOptions],
       "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],
@@ -339,6 +347,10 @@ export default tseslint.config(
   {
     files: ["apps/runtime/src/**/*.ts"],
     ignores: ["**/*.test.ts", "**/*.spec.ts", "**/*.e2e.test.ts", "**/*.integration.test.ts"],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: "error",
+    },
     rules: {
       "no-restricted-imports": ["error", decryptImportBoundaryOptions],
       "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],
