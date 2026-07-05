@@ -5,6 +5,8 @@ export const PUBLIC_PLAIN_TEXT_DEPLOY_VAR_NAMES = [
   "SENTRY_SERVICE",
 ];
 
+export const REQUIRED_PUBLIC_PLAIN_TEXT_DEPLOY_VAR_NAMES = ["SENTRY_RELEASE"];
+
 export function pickDesiredPublicDeployVars(vars = {}) {
   const desired = {};
 
@@ -18,35 +20,55 @@ export function pickDesiredPublicDeployVars(vars = {}) {
   return desired;
 }
 
-export function mergePublicDeployVarBindings(bindings, desiredVars) {
-  const merged = bindings.map((binding) => {
-    if (binding.type !== "plain_text") {
-      return binding;
-    }
-
-    const nextValue = desiredVars[binding.name];
-    if (nextValue === undefined) {
-      return binding;
-    }
-
-    return { ...binding, text: nextValue };
-  });
-
-  const existingPlainTextNames = new Set(
-    merged.filter((binding) => binding.type === "plain_text").map((binding) => binding.name),
-  );
+export function applyPublicDeployVarBindings(bindings, desiredVars) {
+  const merged = [...bindings];
+  const bindingIndexByName = new Map(merged.map((binding, index) => [binding.name, index]));
 
   for (const [name, text] of Object.entries(desiredVars)) {
-    if (existingPlainTextNames.has(name)) {
+    const index = bindingIndexByName.get(name);
+
+    if (index === undefined) {
+      merged.push(createPlainTextBinding(name, text));
+      bindingIndexByName.set(name, merged.length - 1);
       continue;
     }
 
-    merged.push({
-      name,
-      type: "plain_text",
-      text,
-    });
+    const existing = merged[index];
+    if (existing.type === "plain_text") {
+      merged[index] = { ...existing, text };
+    }
   }
 
   return merged;
+}
+
+export function ensureRequiredPublicDeployBindings(bindings, desiredVars) {
+  const merged = applyPublicDeployVarBindings(bindings, desiredVars);
+
+  for (const name of REQUIRED_PUBLIC_PLAIN_TEXT_DEPLOY_VAR_NAMES) {
+    const expected = desiredVars[name];
+    const binding = merged.find(
+      (candidate) => candidate.name === name && candidate.type === "plain_text",
+    );
+
+    if (!expected || binding?.text !== expected) {
+      throw new Error(
+        `Content-only deploy failed to prepare required public plain-text binding ${name}.`,
+      );
+    }
+  }
+
+  return merged;
+}
+
+export function mergePublicDeployVarBindings(bindings, desiredVars) {
+  return applyPublicDeployVarBindings(bindings, desiredVars);
+}
+
+function createPlainTextBinding(name, text) {
+  return {
+    name,
+    type: "plain_text",
+    text,
+  };
 }

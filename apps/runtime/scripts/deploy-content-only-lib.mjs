@@ -6,7 +6,7 @@ import { loadDeployWranglerConfig } from "../../../scripts/wrangler-deploy-confi
 
 import { createCloudflareJson } from "./deploy-content-only-cloudflare.mjs";
 import {
-  mergePublicDeployVarBindings,
+  ensureRequiredPublicDeployBindings,
   pickDesiredPublicDeployVars,
 } from "./deploy-content-only-public-vars.mjs";
 
@@ -18,9 +18,37 @@ const MAIN_MODULE = "index.js";
 const SOURCE_MAP = "index.js.map";
 
 export {
+  applyPublicDeployVarBindings,
+  ensureRequiredPublicDeployBindings,
   mergePublicDeployVarBindings,
   pickDesiredPublicDeployVars,
 } from "./deploy-content-only-public-vars.mjs";
+
+export async function updatePublicDeployVars(
+  cloudflareJson,
+  accountId,
+  scriptName,
+  desiredPublicVars,
+) {
+  const settings = await cloudflareJson(
+    "GET",
+    `/accounts/${accountId}/workers/scripts/${scriptName}/settings`,
+  );
+  const bindings = ensureRequiredPublicDeployBindings(settings.bindings ?? [], desiredPublicVars);
+  const form = new FormData();
+
+  form.append(
+    "settings",
+    new Blob([JSON.stringify({ bindings })], { type: "application/json" }),
+    "settings.json",
+  );
+
+  await cloudflareJson("PATCH", `/accounts/${accountId}/workers/scripts/${scriptName}/settings`, {
+    body: form,
+  });
+
+  return bindings;
+}
 
 export async function runContentOnlyDeploy(options = {}) {
   const context = await createContentOnlyDeployContext(options);
@@ -77,25 +105,6 @@ async function createContentOnlyDeployContext(options) {
     readFileFn: options.readFileFn ?? readFile,
     scriptName,
   };
-}
-
-async function updatePublicDeployVars(cloudflareJson, accountId, scriptName, desiredPublicVars) {
-  const settings = await cloudflareJson(
-    "GET",
-    `/accounts/${accountId}/workers/scripts/${scriptName}/settings`,
-  );
-  const bindings = mergePublicDeployVarBindings(settings.bindings ?? [], desiredPublicVars);
-  const form = new FormData();
-
-  form.append(
-    "settings",
-    new Blob([JSON.stringify({ bindings })], { type: "application/json" }),
-    "settings.json",
-  );
-
-  await cloudflareJson("PATCH", `/accounts/${accountId}/workers/scripts/${scriptName}/settings`, {
-    body: form,
-  });
 }
 
 async function assertDeployedRuntimeConfig(cloudflareJson, accountId, scriptName, config) {

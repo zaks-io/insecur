@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  ensureRequiredPublicDeployBindings,
   mergePublicDeployVarBindings,
   pickDesiredPublicDeployVars,
 } from "./deploy-content-only-public-vars.mjs";
-import { runContentOnlyDeploy } from "./deploy-content-only-lib.mjs";
+import { runContentOnlyDeploy, updatePublicDeployVars } from "./deploy-content-only-lib.mjs";
 
 const PRODUCTION_SETTINGS_BINDINGS = [
   { name: "SENTRY_RELEASE", type: "plain_text", text: "old-sha" },
@@ -104,6 +105,38 @@ test("mergePublicDeployVarBindings backfills missing public plain-text deploy va
   assert.deepEqual(merged[1], bindings[1]);
 });
 
+test("ensureRequiredPublicDeployBindings creates missing SENTRY_RELEASE binding", () => {
+  const bindings = [
+    {
+      name: "INSTANCE_ROOT_KEY_V1",
+      type: "secrets_store_secret",
+      store_id: "store-1",
+      secret_name: "root-key",
+    },
+    { name: "DB", type: "hyperdrive", id: "hyperdrive-1" },
+  ];
+
+  const merged = ensureRequiredPublicDeployBindings(bindings, { SENTRY_RELEASE: "new-sha" });
+
+  assert.equal(merged.find((binding) => binding.name === "SENTRY_RELEASE")?.text, "new-sha");
+});
+
+test("updatePublicDeployVars backfills SENTRY_RELEASE on legacy Workers", async () => {
+  const calls = [];
+  const bindings = await updatePublicDeployVars(
+    createSettingsCloudflareJson({
+      calls,
+      settingsBindings: PRODUCTION_SETTINGS_WITHOUT_RELEASE,
+    }),
+    "account-id",
+    "insecur-runtime",
+    { SENTRY_RELEASE: "new-sha" },
+  );
+
+  assert.equal(bindings.find((binding) => binding.name === "SENTRY_RELEASE")?.text, "new-sha");
+  assert.ok(calls.some((call) => call.method === "PATCH" && call.apiPath.endsWith("/settings")));
+});
+
 test("runContentOnlyDeploy patches public deploy vars after uploading content", async () => {
   const calls = [];
 
@@ -192,4 +225,24 @@ async function respondToSettingsPatch(body) {
 
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), { status });
+}
+
+function createSettingsCloudflareJson({ calls, settingsBindings }) {
+  return async (method, apiPath, init = {}) => {
+    calls.push({ method, apiPath });
+
+    if (apiPath.endsWith("/settings") && method === "GET") {
+      return {
+        ...PRODUCTION_SETTINGS_RESULT,
+        bindings: settingsBindings,
+      };
+    }
+
+    if (apiPath.endsWith("/settings") && method === "PATCH") {
+      await respondToSettingsPatch(init.body);
+      return {};
+    }
+
+    throw new Error(`Unexpected Cloudflare request: ${method} ${apiPath}`);
+  };
 }
