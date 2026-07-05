@@ -37,20 +37,37 @@ Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metad
 /:projectId/environments` lists environment metadata (including `isProtected`). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
 
+Under `/v1/session` (INS-367): `GET /whoami` echoes the verified actor; `GET /memberships` is the
+console org-switcher self-read (the actor's own organizations), forwarded over the `RUNTIME` seam.
+
 ## Web Worker — `apps/web` (`insecur-web`)
 
 Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API Worker only over
 the private `API` Service Binding with a per-request `insecur-api`-audience scoped token. Holds NO
 root-key binding and NO Hyperdrive binding.
 
-| Method | Mount prefix     |
-| ------ | ---------------- |
-| GET    | `/healthz`       |
-| GET    | `/`              |
-| GET    | `/login`         |
-| GET    | `/auth/callback` |
-| POST   | `/logout`        |
-| GET    | `/whoami`        |
+| Method | Mount prefix            |
+| ------ | ----------------------- |
+| GET    | `/healthz`              |
+| GET    | `/`                     |
+| GET    | `/login`                |
+| GET    | `/auth/callback`        |
+| POST   | `/logout`               |
+| GET    | `/whoami`               |
+| GET    | `/onboarding`           |
+| GET    | `/orgs/`                |
+| GET    | `/orgs/$orgId`          |
+| GET    | `/orgs/$orgId/`         |
+| GET    | `/orgs/$orgId/projects` |
+| GET    | `/orgs/$orgId/audit`    |
+| GET    | `/orgs/$orgId/people`   |
+| GET    | `/orgs/$orgId/settings` |
+
+The `/orgs/*` rows are the authed console shell (INS-367): `/orgs/` resolves the default
+organization, `/orgs/$orgId` is the org-scoped layout carrying the five-section sidebar, and the
+section rows are TanStack file routes rendered inside it (`$orgId` is TanStack path-param syntax).
+`/onboarding` is the placeholder the first-run wizard will claim. URLs carry opaque Resource IDs
+only (docs/web-console-ux.md §URLs).
 
 ## Public Site Worker — `apps/site` (`insecur-site`)
 

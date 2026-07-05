@@ -23,6 +23,9 @@ Pre-auth admission resolution uses the same private `RUNTIME` admission seam as 
 ## Owns
 
 - TanStack Start SSR shell and BFF routes/pages.
+- The authed console shell (INS-367): `/orgs/$orgId` layout, five-section sidebar, org switcher
+  backed by `GET /v1/session/memberships`, and Display-Name breadcrumbs over opaque-ID URLs
+  (`docs/web-console-ux.md`).
 - Browser session cookie ownership and CSRF primitives consumption.
 - Minting short-lived scoped tokens for the API hop (never exposed to the browser).
 - Strict Content Security Policy response headers on HTML responses.

@@ -1,9 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
-import { env } from "cloudflare:workers";
-import { apiClientFor } from "@insecur/worker-kit/api-client";
-import { resolveBrowserActor } from "../auth/resolve-browser-actor.js";
-import type { WebEnv } from "../env.js";
+import { resolveAuthenticatedApiClient } from "./bff-api.js";
 
 export type WhoamiProof =
   | { readonly authenticated: false }
@@ -43,19 +39,16 @@ function parseWhoamiProofBody(
 
 export const loadWhoamiProof = createServerFn({ method: "GET" }).handler(
   async (): Promise<WhoamiProof> => {
-    const request = getRequest();
-    const webEnv = env as WebEnv;
-    const resolved = await resolveBrowserActor(request, webEnv);
-    if (!resolved.ok) {
+    const client = await resolveAuthenticatedApiClient();
+    if (client === null) {
       return { authenticated: false };
     }
 
-    const api = apiClientFor(webEnv, resolved.actor);
-    const body: unknown = await api.whoami();
+    const body: unknown = await client.api.whoami();
     return (
       parseWhoamiProofBody(body, {
-        userId: resolved.actor.userId,
-        sessionId: resolved.actor.sessionId,
+        userId: client.actor.userId,
+        sessionId: client.actor.sessionId,
       }) ?? { authenticated: false }
     );
   },

@@ -6,6 +6,7 @@ import { env } from "cloudflare:workers";
 import { useCallback, useState } from "react";
 import { beginBrowserLogin, redirectResponse } from "../auth/browser-oauth.js";
 import { readTurnstileToken, turnstileSiteKey, verifyTurnstileToken } from "../auth/turnstile.js";
+import { SiteFrame } from "../components/site-frame.js";
 import { TurnstileWidget } from "../components/turnstile-widget.js";
 import type { WebEnv } from "../env.js";
 
@@ -52,27 +53,29 @@ function LoginPage() {
   }, []);
 
   return (
-    <section className="px-5 py-10 sm:px-8 sm:py-12">
-      <Card className="max-w-md">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>Continue to the tenant console.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form method="post" className="flex flex-col gap-5">
-            {verificationFailed ? (
-              <p className="text-sm text-destructive" role="alert">
-                Verification failed. Try again.
-              </p>
-            ) : null}
-            <TurnstileWidget siteKey={siteKey} onTokenChange={handleTurnstileToken} />
-            <Button type="submit" disabled={turnstileToken.length === 0}>
-              Continue
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </section>
+    <SiteFrame>
+      <section className="px-5 py-10 sm:px-8 sm:py-12">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Sign in</CardTitle>
+            <CardDescription>Continue to the tenant console.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form method="post" className="flex flex-col gap-5">
+              {verificationFailed ? (
+                <p className="text-sm text-destructive" role="alert">
+                  Verification failed. Try again.
+                </p>
+              ) : null}
+              <TurnstileWidget siteKey={siteKey} onTokenChange={handleTurnstileToken} />
+              <Button type="submit" disabled={turnstileToken.length === 0}>
+                Continue
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </section>
+    </SiteFrame>
   );
 }
 

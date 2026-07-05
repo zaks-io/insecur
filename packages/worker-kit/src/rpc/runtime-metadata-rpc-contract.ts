@@ -8,6 +8,23 @@ import type {
 
 import type { PostAuthRpcInputBase } from "./runtime-rpc-shared.js";
 
+/** Metadata-only organization row for the session memberships read (no slugs). */
+export interface SessionOrganizationRead {
+  readonly organizationId: OrganizationId;
+  readonly displayName: DisplayName;
+}
+
+/**
+ * The distinct Organizations the verified actor holds at least one Membership in, for the console
+ * org switcher and default-org resolution (INS-367). A self-read: it is keyed solely by the
+ * hop-token actor, so it needs no organization input and leaks nothing across tenants.
+ */
+export interface ListSessionOrganizationsRpcPayload {
+  readonly organizations: readonly SessionOrganizationRead[];
+}
+
+export type ListSessionOrganizationsRpcInput = PostAuthRpcInputBase;
+
 /** Metadata-only project row for list reads (no slugs). */
 export interface ProjectMetadataRead {
   readonly projectId: ProjectId;

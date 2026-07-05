@@ -4,6 +4,7 @@ import {
   assertStatus,
   assertTextIncludes,
   requireResponse,
+  expect,
   test,
 } from "../src/fixtures";
 
@@ -33,14 +34,20 @@ test.describe("preview public surfaces @preview", () => {
     assertHeaderContains(webRoot, "content-security-policy", "default-src", "Web root");
     assertHeaderEquals(webRoot, "x-frame-options", "DENY", "Web root");
     assertHeaderEquals(webRoot, "x-content-type-options", "nosniff", "Web root");
-    assertTextIncludes(text ?? "", "insecur web BFF", "Web root");
+    assertTextIncludes(text ?? "", "insecur web console", "Web root");
   });
 
-  test("Web whoami renders unauthenticated fallback @happy-path", async ({ page, preview }) => {
+  test("Web whoami redirects unauthenticated visitors to login @happy-path", async ({
+    page,
+    preview,
+  }) => {
     const response = await page.goto(`${preview.webBaseUrl}/whoami`);
     const text = await page.textContent("body");
 
     assertStatus(response, 200, "Web /whoami unauth");
-    assertTextIncludes(text ?? "", "No admitted browser session was found", "Web /whoami unauth");
+    expect(page.url(), "Web /whoami unauth should land on /login with returnTo").toContain(
+      "/login?returnTo=%2Fwhoami",
+    );
+    assertTextIncludes(text ?? "", "Sign in", "Web /whoami unauth");
   });
 });

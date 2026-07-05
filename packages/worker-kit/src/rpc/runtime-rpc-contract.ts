@@ -40,6 +40,8 @@ import type {
   ListEnvironmentsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSessionOrganizationsRpcInput,
+  ListSessionOrganizationsRpcPayload,
 } from "./runtime-metadata-rpc-contract.js";
 import type {
   CaptureFirstValueFeedbackRpcInput,
@@ -62,7 +64,10 @@ export type {
   ListEnvironmentsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSessionOrganizationsRpcInput,
+  ListSessionOrganizationsRpcPayload,
   ProjectMetadataRead,
+  SessionOrganizationRead,
 } from "./runtime-metadata-rpc-contract.js";
 export type {
   CaptureFirstValueFeedbackRpcInput,
@@ -305,4 +310,7 @@ export interface RuntimeRpc {
   listEnvironments(
     input: ListEnvironmentsRpcInput,
   ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>>;
+  listSessionOrganizations(
+    input: ListSessionOrganizationsRpcInput,
+  ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>>;
 }

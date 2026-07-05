@@ -31,6 +31,12 @@ export {
   type LoadMachineMembershipsInput,
 } from "./load-machine-memberships.js";
 export {
+  loadUserOrganizations,
+  mapUserOrganizationRow,
+  type UserOrganizationQueryRow,
+  type UserOrganizationRow,
+} from "./load-user-organizations.js";
+export {
   MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES,
   filterMachineForbiddenScopes,
   isMachineForbiddenAuthorizationScope,

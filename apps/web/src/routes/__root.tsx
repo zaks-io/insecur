@@ -1,15 +1,18 @@
 import { sentryBrowserConfigScript } from "@insecur/observability";
-import { Button, SiteHeader, SiteShell, Wordmark } from "@insecur/ui";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactNode } from "react";
-import appCss from "../styles.css?url";
+// The design system is the only stylesheet: no app-local CSS (docs/web-console-ux.md §Visual
+// Direction adoption pass). Utility generation for this app's own sources comes from Tailwind's
+// automatic source detection rooted at the app.
+import appCss from "@insecur/ui/styles.css?url";
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "insecur console" },
       { name: "description", content: "insecur tenant web console" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
@@ -27,24 +30,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <SiteShell
-          header={
-            <SiteHeader
-              brand={
-                <a href="/" className="inline-flex items-center text-foreground no-underline">
-                  <Wordmark />
-                </a>
-              }
-              nav={
-                <Button asChild variant="outline" size="sm">
-                  <a href="/whoami">Whoami proof</a>
-                </Button>
-              }
-            />
-          }
-        >
-          {children}
-        </SiteShell>
+        {children}
         {sentryScript ? (
           <script nonce={context?.nonce} dangerouslySetInnerHTML={{ __html: sentryScript }} />
         ) : null}
