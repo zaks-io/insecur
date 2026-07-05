@@ -76,6 +76,34 @@ describe("egress sweep", () => {
     expect(sweepEgressSurfaces(capture, sentinel)).toEqual([]);
   });
 
+  it("flags top-level encodedValueUtf8 outside the delivery object", () => {
+    const sentinel = mintCanarySentinel();
+    const base64url = variantPattern(sentinel, "base64url");
+    const capture: EgressCapture = {
+      httpResponses: [
+        {
+          step: "consume",
+          status: 200,
+          headers: {},
+          bodyText: JSON.stringify({
+            ok: true,
+            encodedValueUtf8: base64url,
+          }),
+        },
+      ],
+      rpcDeliveryPayloadJson: JSON.stringify({ ok: true }),
+    };
+
+    const hits = sweepEgressSurfaces(capture, sentinel);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({
+      surface: "egress",
+      location: "http.consume.body",
+      jsonPath: "encodedValueUtf8",
+      encoding: "base64url",
+    });
+  });
+
   it("flags base64url outside delivery.encodedValueUtf8", () => {
     const sentinel = mintCanarySentinel();
     const base64url = variantPattern(sentinel, "base64url");

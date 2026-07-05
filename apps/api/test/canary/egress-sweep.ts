@@ -85,9 +85,7 @@ function isAllowedEgressPath(encoding: SentinelEncoding, jsonPath: string | unde
   }
 
   return (
-    jsonPath === "encodedValueUtf8" ||
-    jsonPath === "delivery.encodedValueUtf8" ||
-    jsonPath.endsWith(ALLOWED_DELIVERY_FIELD_SUFFIX)
+    jsonPath === "delivery.encodedValueUtf8" || jsonPath.endsWith(ALLOWED_DELIVERY_FIELD_SUFFIX)
   );
 }
 
