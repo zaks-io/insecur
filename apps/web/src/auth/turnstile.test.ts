@@ -102,6 +102,28 @@ describe("verifyTurnstileToken", () => {
     });
   });
 
+  it("fails closed when Siteverify is unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      }),
+    );
+    await expect(verifyTurnstileToken(request(), env, "token")).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+    await expect(verifyTurnstileToken(request(), env, "token")).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+  });
+
   it("fails closed when the token or secret is missing", async () => {
     await expect(verifyTurnstileToken(request(), env, null)).resolves.toEqual({
       ok: false,

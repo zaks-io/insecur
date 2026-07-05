@@ -5,6 +5,7 @@ export const TURNSTILE_LOGIN_ACTION = "web-login";
 
 const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const MAX_TURNSTILE_TOKEN_LENGTH = 2048;
+const SITEVERIFY_TIMEOUT_MS = 5_000;
 
 type TurnstileFailureReason =
   | "configuration"
@@ -83,7 +84,11 @@ async function postSiteverify(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(SITEVERIFY_TIMEOUT_MS),
   });
+  if (!response.ok) {
+    return null;
+  }
   return parseSiteverifyResponse(await response.json());
 }
 
