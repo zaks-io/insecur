@@ -21,6 +21,10 @@ export {
   type AcceptInvitationResult,
   acceptInvitation,
 } from "./accept-invitation.js";
+export {
+  type PendingInvitationListRow,
+  listPendingInvitations,
+} from "./list-pending-invitations.js";
 export { MembershipManagementError } from "./membership-management-error.js";
 export { isInstanceOperator } from "./assert-instance-operator.js";
 export { loadInstanceAnchorOrganizationId } from "./load-instance-anchor-organization-id.js";

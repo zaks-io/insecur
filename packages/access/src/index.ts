@@ -27,6 +27,10 @@ export { hasAuthorizationScope } from "./has-authorization-scope.js";
 export { intersectEffectiveAccessScopes } from "./intersect-effective-access-scopes.js";
 export { loadActorMemberships, type LoadMembershipsInput } from "./load-memberships.js";
 export {
+  loadOrganizationMembers,
+  type OrganizationMemberRow,
+} from "./load-organization-members.js";
+export {
   loadMachineMemberships,
   type LoadMachineMembershipsInput,
 } from "./load-machine-memberships.js";

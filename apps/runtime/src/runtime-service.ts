@@ -29,6 +29,10 @@ import type {
   IssueInjectionGrantRpcInput,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListOrganizationInvitationsRpcInput,
+  ListOrganizationInvitationsRpcPayload,
+  ListOrganizationMembersRpcInput,
+  ListOrganizationMembersRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
@@ -62,6 +66,8 @@ import {
   getOperationRpc,
   issueInjectionGrantRpc,
   listEnvironmentsRpc,
+  listOrganizationInvitationsRpc,
+  listOrganizationMembersRpc,
   listProjectsRpc,
   listSessionOrganizationsRpc,
   recordInjectionRunCompletedRpc,
@@ -266,6 +272,18 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     input: ListSessionOrganizationsRpcInput,
   ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>> {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
+  }
+
+  listOrganizationMembers(
+    input: ListOrganizationMembersRpcInput,
+  ): Promise<RuntimeRpcResult<ListOrganizationMembersRpcPayload>> {
+    return listOrganizationMembersRpc(this.#post.bind(this), input);
+  }
+
+  listOrganizationInvitations(
+    input: ListOrganizationInvitationsRpcInput,
+  ): Promise<RuntimeRpcResult<ListOrganizationInvitationsRpcPayload>> {
+    return listOrganizationInvitationsRpc(this.#post.bind(this), input);
   }
 }
 

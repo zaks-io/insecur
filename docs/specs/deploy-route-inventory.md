@@ -27,6 +27,7 @@ I/O.
 | \*     | `/v1/onboarding`                                   |
 | \*     | `/v1/instance/bootstrap`                           |
 | \*     | `/v1/orgs/:organizationId/invitations`             |
+| \*     | `/v1/orgs/:organizationId/members`                 |
 | \*     | `/v1/orgs/:organizationId/organizations`           |
 | \*     | `/v1/orgs/:organizationId/projects`                |
 | \*     | `/v1/orgs/:organizationId/operations`              |
@@ -39,6 +40,11 @@ Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metad
 
 Under `/v1/session` (INS-367): `GET /whoami` echoes the verified actor; `GET /memberships` is the
 console org-switcher self-read (the actor's own organizations), forwarded over the `RUNTIME` seam.
+
+The People reads (INS-373): `GET /v1/orgs/:organizationId/members` lists membership metadata and
+`GET /v1/orgs/:organizationId/invitations` lists pending-invitation metadata (identifiers, role
+bundle, status, timestamps; invitations carry no token or acceptance secret). Both are
+`organization:read`-gated inside the Runtime deploy.
 
 ## Web Worker — `apps/web` (`insecur-web`)
 
@@ -74,6 +80,8 @@ section rows are TanStack file routes rendered inside it (`$orgId` is TanStack p
 The `/orgs/$orgId/projects/*` rows are the Projects section (INS-370): the project list, the
 project layout with its Environments (`/$projectId/`, the index) / Secrets / Access / Delivery
 views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs.
+`/orgs/$orgId/people` is the read-only People register (INS-373): members and pending invitations
+over the same hop to the INS-373 API metadata GETs, rendering zero mutation affordances.
 `/onboarding` is the placeholder the first-run wizard will claim. URLs carry opaque Resource IDs
 only (docs/web-console-ux.md §URLs).
 

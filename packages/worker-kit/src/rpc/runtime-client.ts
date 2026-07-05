@@ -103,5 +103,7 @@ export function runtimeClientFor(
     listProjects: forward("listProjects"),
     listEnvironments: forward("listEnvironments"),
     listSessionOrganizations: forward("listSessionOrganizations"),
+    listOrganizationMembers: forward("listOrganizationMembers"),
+    listOrganizationInvitations: forward("listOrganizationInvitations"),
   };
 }

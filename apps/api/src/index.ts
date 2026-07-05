@@ -14,6 +14,7 @@ import { authRoutes } from "./routes/v1/auth.js";
 import { designPartnerFeedbackRoutes } from "./routes/v1/design-partner-feedback.js";
 import { instanceBootstrapRoutes } from "./routes/v1/instance-bootstrap.js";
 import { invitationsRoutes } from "./routes/v1/invitations.js";
+import { membersRoutes } from "./routes/v1/members.js";
 import { onboardingRoutes } from "./routes/v1/onboarding.js";
 import { operationsRoutes } from "./routes/v1/operations.js";
 import { organizationsRoutes } from "./routes/v1/organizations.js";
@@ -88,6 +89,7 @@ app.route("/v1/onboarding", onboardingRoutes);
 app.route("/v1/instance/bootstrap", instanceBootstrapRoutes);
 // Tenant-scoped routes are re-homed under /v1/orgs/:organizationId (ADR-0003, tenant.isolation gate).
 app.route("/v1/orgs/:organizationId/invitations", invitationsRoutes);
+app.route("/v1/orgs/:organizationId/members", membersRoutes);
 app.route("/v1/orgs/:organizationId/organizations", organizationsRoutes);
 app.route("/v1/orgs/:organizationId/projects", projectsRoutes);
 app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
