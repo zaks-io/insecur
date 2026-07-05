@@ -27,7 +27,8 @@ export interface EgressSweepHit {
   redactedPrefix: string;
 }
 
-const ALLOWED_DELIVERY_FIELD_SUFFIX = ".delivery.encodedValueUtf8";
+/** JSON paths that may carry base64url on grant-consume egress (ADR-0069 / INS-388). */
+const ALLOWED_DELIVERY_FIELD_SUFFIX = "delivery.encodedValueUtf8";
 
 function variantForEncoding(sentinel: CanarySentinel, encoding: SentinelEncoding): SentinelVariant {
   const variant = sentinel.variants.find((entry) => entry.encoding === encoding);
@@ -84,9 +85,7 @@ function isAllowedEgressPath(encoding: SentinelEncoding, jsonPath: string | unde
     return false;
   }
 
-  return (
-    jsonPath === "delivery.encodedValueUtf8" || jsonPath.endsWith(ALLOWED_DELIVERY_FIELD_SUFFIX)
-  );
+  return jsonPath.endsWith(ALLOWED_DELIVERY_FIELD_SUFFIX);
 }
 
 function sweepSerializedJsonTree(

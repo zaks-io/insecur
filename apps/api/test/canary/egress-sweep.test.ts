@@ -104,6 +104,30 @@ describe("egress sweep", () => {
     });
   });
 
+  it("flags top-level encodedValueUtf8 in the Runtime RPC envelope", () => {
+    const sentinel = mintCanarySentinel();
+    const base64url = variantPattern(sentinel, "base64url");
+    const capture: EgressCapture = {
+      httpResponses: [],
+      rpcDeliveryPayloadJson: JSON.stringify({
+        ok: true,
+        value: {
+          ok: true,
+          encodedValueUtf8: base64url,
+        },
+      }),
+    };
+
+    const hits = sweepEgressSurfaces(capture, sentinel);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({
+      surface: "egress",
+      location: "rpc.delivery",
+      jsonPath: "value.encodedValueUtf8",
+      encoding: "base64url",
+    });
+  });
+
   it("flags base64url outside delivery.encodedValueUtf8", () => {
     const sentinel = mintCanarySentinel();
     const base64url = variantPattern(sentinel, "base64url");
