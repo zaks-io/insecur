@@ -30,11 +30,27 @@ export type ResolveBrowserActorResult =
   | { ok: true; actor: UserActor; rotation?: BrowserSessionRotation }
   | { ok: false; failure: AuthFailure; clearSession?: boolean };
 
+const browserActorResolutionByRequest = new WeakMap<Request, Promise<ResolveBrowserActorResult>>();
+
 /**
  * Resolve the admitted human actor from the browser's WorkOS sealed session cookie.
  * The BFF never forwards browser session material to the API; it mints a scoped hop token instead.
  */
 export async function resolveBrowserActor(
+  request: Request,
+  env: WebEnv,
+): Promise<ResolveBrowserActorResult> {
+  const inflight = browserActorResolutionByRequest.get(request);
+  if (inflight !== undefined) {
+    return inflight;
+  }
+
+  const resolution = resolveBrowserActorUncached(request, env).then(finalizeBrowserActorResult);
+  browserActorResolutionByRequest.set(request, resolution);
+  return resolution;
+}
+
+async function resolveBrowserActorUncached(
   request: Request,
   env: WebEnv,
 ): Promise<ResolveBrowserActorResult> {
@@ -51,12 +67,10 @@ export async function resolveBrowserActor(
       resolveAdmittedUser,
     );
     if (shouldUseSmokeResult(smokeResult, credentials.workosSealedSession)) {
-      return finalizeBrowserActorResult(smokeResult);
+      return smokeResult;
     }
   }
-  return finalizeBrowserActorResult(
-    await resolveWorkosCookieActor(credentials.workosSealedSession, env, resolveAdmittedUser),
-  );
+  return resolveWorkosCookieActor(credentials.workosSealedSession, env, resolveAdmittedUser);
 }
 
 function finalizeBrowserActorResult(result: ResolveBrowserActorResult): ResolveBrowserActorResult {
@@ -93,7 +107,7 @@ async function resolveWorkosCookieActor(
     if (!refreshed.ok) {
       return { ok: false, failure: refreshed.failure, clearSession: true };
     }
-    return await resolveAdmittedWorkosContext(
+    return resolveAdmittedWorkosContextAfterRefresh(
       refreshed.rotated.context,
       refreshed.rotated.sealedSession,
       env,
@@ -101,40 +115,57 @@ async function resolveWorkosCookieActor(
     );
   }
 
-  return resolveAdmittedWorkosContext(session.context, undefined, env, resolveAdmittedUser);
+  return resolveAdmittedWorkosContext(session.context, env, resolveAdmittedUser);
+}
+
+async function resolveAdmittedWorkosContextAfterRefresh(
+  context: { readonly user: { readonly id: string }; readonly sessionId: string },
+  rotatedSealedSession: string,
+  env: WebEnv,
+  resolveAdmittedUser: AdmittedUserResolver,
+): Promise<ResolveBrowserActorResult> {
+  const admitted = await resolveAdmittedActorFromWorkosContext(context, env, resolveAdmittedUser);
+  if (!admitted.ok) {
+    return { ...admitted, clearSession: true };
+  }
+
+  return {
+    ok: true,
+    actor: admitted.actor,
+    rotation: {
+      sealedSession: rotatedSealedSession,
+      csrfToken: generateCsrfToken(),
+    },
+  };
 }
 
 async function resolveAdmittedWorkosContext(
   context: { readonly user: { readonly id: string }; readonly sessionId: string },
-  rotatedSealedSession: string | undefined,
   env: WebEnv,
   resolveAdmittedUser: AdmittedUserResolver,
 ): Promise<ResolveBrowserActorResult> {
+  return resolveAdmittedActorFromWorkosContext(context, env, resolveAdmittedUser);
+}
+
+async function resolveAdmittedActorFromWorkosContext(
+  context: { readonly user: { readonly id: string }; readonly sessionId: string },
+  env: WebEnv,
+  resolveAdmittedUser: AdmittedUserResolver,
+): Promise<{ ok: true; actor: UserActor } | { ok: false; failure: AuthFailure }> {
   const admittedUserId = await resolveAdmittedUser(context.user.id);
   if (admittedUserId === null) {
     const failure = authFailureForAdmissionDenial(context.user.id);
     await recordAdmissionDeniedAuditForAuthFailure(env, failure, requestId.generate());
-    if (rotatedSealedSession === undefined) {
-      return { ok: false, failure };
-    }
-    return { ok: false, failure, clearSession: true };
+    return { ok: false, failure };
   }
 
-  const actor: UserActor = {
-    type: "user",
-    userId: admittedUserId,
-    workosUserId: context.user.id,
-    sessionId: context.sessionId,
-  };
-  if (rotatedSealedSession === undefined) {
-    return { ok: true, actor };
-  }
   return {
     ok: true,
-    actor,
-    rotation: {
-      sealedSession: rotatedSealedSession,
-      csrfToken: generateCsrfToken(),
+    actor: {
+      type: "user",
+      userId: admittedUserId,
+      workosUserId: context.user.id,
+      sessionId: context.sessionId,
     },
   };
 }

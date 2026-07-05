@@ -344,4 +344,40 @@ describe("resolveBrowserActor", () => {
       expect(result.clearSession).toBeUndefined();
     }
   });
+
+  it("resolves once per request so a stale cookie is not re-authenticated after refresh", async () => {
+    const expiredSession = "sealed-session-expired-memo";
+    const rotatedSession = "sealed-session-rotated-memo";
+    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
+      createFakeWorkOSSessionPort([
+        {
+          sessionData: expiredSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh_memo",
+          authenticateFailure: "expired",
+          rotatedSessionData: rotatedSession,
+          authFactors: [{ type: "totp" }],
+        },
+        {
+          sessionData: rotatedSession,
+          userId: workosUserId,
+          sessionId: "session_web_refresh_memo",
+          authFactors: [{ type: "totp" }],
+        },
+      ]),
+    );
+    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const request = new Request("https://insecur.test/whoami", {
+      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
+    });
+    const env = createTestEnv(runtime);
+
+    const first = await resolveBrowserActor(request, env);
+    const second = await resolveBrowserActor(request, env);
+
+    expect(first.ok).toBe(true);
+    expect(second).toEqual(first);
+    expect(workosPortMock.createWorkOSSessionPortFromEnv).toHaveBeenCalledTimes(1);
+    expect(setResponseHeaderMock).toHaveBeenCalledTimes(1);
+  });
 });
