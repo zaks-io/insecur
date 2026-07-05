@@ -2,8 +2,11 @@ import type {
   DisplayName,
   EnvironmentId,
   EnvironmentLifecycleStage,
+  InvitationId,
+  MembershipId,
   OrganizationId,
   ProjectId,
+  UserId,
 } from "@insecur/domain";
 
 import type { PostAuthRpcInputBase } from "./runtime-rpc-shared.js";
@@ -59,4 +62,51 @@ export interface ListEnvironmentsRpcPayload {
 export interface ListEnvironmentsRpcInput extends PostAuthRpcInputBase {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
+}
+
+/**
+ * Metadata-only membership row for the org People read (INS-373). `displayName` comes from the
+ * member's user admission and is null when none was recorded; `projectId` is null for
+ * organization-tier memberships. No emails, no auth material.
+ */
+export interface OrganizationMemberRead {
+  readonly membershipId: MembershipId;
+  readonly organizationId: OrganizationId;
+  readonly userId: UserId;
+  readonly displayName: DisplayName | null;
+  readonly rolePreset: string;
+  readonly projectId: ProjectId | null;
+  readonly createdAt: string;
+}
+
+export interface ListOrganizationMembersRpcPayload {
+  readonly members: readonly OrganizationMemberRead[];
+}
+
+export interface ListOrganizationMembersRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+}
+
+/**
+ * Metadata-only pending invitation row (INS-373). Invitees are already-admitted users, so an
+ * invitation carries no token or acceptance secret anywhere in the model — this envelope exposes
+ * identifiers, the role bundle, status, and timestamps only.
+ */
+export interface OrganizationInvitationRead {
+  readonly invitationId: InvitationId;
+  readonly organizationId: OrganizationId;
+  readonly inviteeUserId: UserId;
+  readonly inviteeDisplayName: DisplayName | null;
+  readonly rolePreset: string;
+  readonly status: "pending";
+  readonly projectId: ProjectId | null;
+  readonly createdAt: string;
+}
+
+export interface ListOrganizationInvitationsRpcPayload {
+  readonly invitations: readonly OrganizationInvitationRead[];
+}
+
+export interface ListOrganizationInvitationsRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
 }

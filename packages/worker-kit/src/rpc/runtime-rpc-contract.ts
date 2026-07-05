@@ -38,6 +38,10 @@ import type {
 import type {
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListOrganizationInvitationsRpcInput,
+  ListOrganizationInvitationsRpcPayload,
+  ListOrganizationMembersRpcInput,
+  ListOrganizationMembersRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
@@ -50,31 +54,6 @@ import type {
   RecordInjectionRunCompletedRpcPayload,
 } from "./runtime-operations-rpc-contract.js";
 import type { PostAuthRpcInputBase } from "./runtime-rpc-shared.js";
-
-export type {
-  RuntimeDeliveryAllEnvelope,
-  RuntimeDeliveryAllPayload,
-  RuntimeDeliveryEntryPayload,
-  RuntimeDeliveryEnvelope,
-  RuntimeDeliveryPayload,
-} from "./runtime-delivery-rpc-contract.js";
-export type {
-  EnvironmentMetadataRead,
-  ListEnvironmentsRpcInput,
-  ListEnvironmentsRpcPayload,
-  ListProjectsRpcInput,
-  ListProjectsRpcPayload,
-  ListSessionOrganizationsRpcInput,
-  ListSessionOrganizationsRpcPayload,
-  ProjectMetadataRead,
-  SessionOrganizationRead,
-} from "./runtime-metadata-rpc-contract.js";
-export type {
-  CaptureFirstValueFeedbackRpcInput,
-  CaptureFirstValueFeedbackRpcPayload,
-  RecordInjectionRunCompletedRpcInput,
-  RecordInjectionRunCompletedRpcPayload,
-} from "./runtime-operations-rpc-contract.js";
 
 /**
  * The RPC contract between the public API Worker and the private Runtime Worker (ADR-0077).
@@ -313,4 +292,10 @@ export interface RuntimeRpc {
   listSessionOrganizations(
     input: ListSessionOrganizationsRpcInput,
   ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>>;
+  listOrganizationMembers(
+    input: ListOrganizationMembersRpcInput,
+  ): Promise<RuntimeRpcResult<ListOrganizationMembersRpcPayload>>;
+  listOrganizationInvitations(
+    input: ListOrganizationInvitationsRpcInput,
+  ): Promise<RuntimeRpcResult<ListOrganizationInvitationsRpcPayload>>;
 }

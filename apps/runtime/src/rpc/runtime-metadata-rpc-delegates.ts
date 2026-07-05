@@ -5,6 +5,10 @@ import type {
   IssueInjectionGrantRpcInput,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListOrganizationInvitationsRpcInput,
+  ListOrganizationInvitationsRpcPayload,
+  ListOrganizationMembersRpcInput,
+  ListOrganizationMembersRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
@@ -22,6 +26,8 @@ import {
 import { captureFirstValueFeedbackOperation } from "../operations/capture-first-value-feedback-operation.js";
 import { getOperationOperation } from "../operations/get-operation-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
+import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
+import { listOrganizationMembersOperation } from "../operations/list-organization-members-operation.js";
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
@@ -67,6 +73,24 @@ export function listSessionOrganizationsRpc(
 ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>> {
   return post(input.actorToken, ({ accessActor }) =>
     listSessionOrganizationsOperation({ accessActor }),
+  );
+}
+
+export function listOrganizationMembersRpc(
+  post: PostAuthRpcRunner,
+  input: ListOrganizationMembersRpcInput,
+): Promise<RuntimeRpcResult<ListOrganizationMembersRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listOrganizationMembersOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listOrganizationInvitationsRpc(
+  post: PostAuthRpcRunner,
+  input: ListOrganizationInvitationsRpcInput,
+): Promise<RuntimeRpcResult<ListOrganizationInvitationsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listOrganizationInvitationsOperation({ input, auditActor, accessActor }),
   );
 }
 

@@ -47,5 +47,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     listProjects: vi.fn(),
     listEnvironments: vi.fn(),
     listSessionOrganizations: vi.fn(),
+    listOrganizationMembers: vi.fn(),
+    listOrganizationInvitations: vi.fn(),
   };
 }
