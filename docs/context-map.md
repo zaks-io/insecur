@@ -49,7 +49,6 @@ apps/api
 apps/runtime
   -> packages/worker-kit
 packages/cli
-  -> packages/local-store
   -> packages/machine-auth
   -> packages/tenant-keyring
   -> packages/instance-bootstrap

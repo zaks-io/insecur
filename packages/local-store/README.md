@@ -35,3 +35,10 @@ the macOS `add-generic-password` argv visibility window.
 
 This package must not add bundled native keychain libraries or production
 dependencies with lifecycle scripts.
+
+## Integration Tests
+
+The OS keychain integration test is opt-in only. Set
+`INSECUR_LOCAL_STORE_OS_INTEGRATION=1` to run it locally; routine `pnpm test`
+skips it. The test uses dedicated service/account identifiers and an isolated
+config directory so it never touches production Local Mode custody slots.
