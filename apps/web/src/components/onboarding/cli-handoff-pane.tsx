@@ -14,14 +14,17 @@ export function CliHandoffPane({
   workspace,
   organizationName,
   projectName,
+  environmentName,
 }: {
   workspace: ProvisionedWorkspace;
   organizationName?: string | undefined;
   projectName?: string | undefined;
+  environmentName?: string | undefined;
 }) {
   const rows = workspaceReceiptRows(workspace, {
     ...(organizationName === undefined ? {} : { organizationName }),
     ...(projectName === undefined ? {} : { projectName }),
+    ...(environmentName === undefined ? {} : { environmentName }),
   });
 
   return (

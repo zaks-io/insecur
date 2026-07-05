@@ -59,26 +59,23 @@ function useCreateProjectForm(props: CreateProjectStepProps) {
 
   const submit = async (event: SyntheticEvent) => {
     event.preventDefault();
+    // Trimmed once here so the sent names, the receipt, and the recap all show the same value.
+    const names = {
+      organizationName: props.organizationName.trim(),
+      projectName: props.value.trim(),
+    };
     const issue = workspaceNameError(props.value);
+    // A new validation verdict always replaces the previous notice, server-voiced or inline.
+    setError(issue === undefined ? undefined : ERRORS[issue]);
+    setFailure(undefined);
     if (issue !== undefined) {
-      setError(ERRORS[issue]);
       return;
     }
-    setError(undefined);
-    setFailure(undefined);
     setSubmitting(true);
-    const outcome = await submitProvisioning({
-      organizationName: props.organizationName,
-      projectName: props.value,
-      resourceIds: props.resourceIds,
-    });
+    const outcome = await submitProvisioning({ ...names, resourceIds: props.resourceIds });
     setSubmitting(false);
     if (outcome.ok) {
-      props.onProvisioned({
-        workspace: outcome.workspace,
-        organizationName: props.organizationName.trim(),
-        projectName: props.value.trim(),
-      });
+      props.onProvisioned({ workspace: outcome.workspace, ...names });
       return;
     }
     setFailure(provisionErrorVoice(outcome.code));

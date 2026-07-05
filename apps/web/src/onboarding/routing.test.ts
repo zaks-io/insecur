@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideOnboardingRoute, parseHandoffSearch } from "./routing.js";
+import { decideOnboardingRoute, parseHandoffSearch, verifiedHandoffNames } from "./routing.js";
 
 const workspace = {
   organizationId: `org_${"0".repeat(25)}1`,
@@ -31,6 +31,39 @@ describe("parseHandoffSearch", () => {
     { org: workspace.projectId, project: workspace.projectId, env: workspace.environmentId },
   ])("falls back to the plain wizard entry on %j", (search) => {
     expect(parseHandoffSearch(search)).toBeUndefined();
+  });
+});
+
+describe("verifiedHandoffNames", () => {
+  const projects = [
+    { projectId: workspace.projectId, displayName: "Payments" },
+    { projectId: `prj_${"0".repeat(25)}8`, displayName: "Other" },
+  ];
+  const environments = [{ environmentId: workspace.environmentId, displayName: "Development" }];
+
+  it("returns membership-truth Display Names when both IDs verify", () => {
+    expect(verifiedHandoffNames(projects, environments, workspace)).toEqual({
+      projectName: "Payments",
+      environmentName: "Development",
+    });
+  });
+
+  it("refuses a project the member's reads do not contain", () => {
+    expect(
+      verifiedHandoffNames(projects, environments, {
+        ...workspace,
+        projectId: `prj_${"0".repeat(25)}7`,
+      }),
+    ).toBeNull();
+  });
+
+  it("refuses an environment outside the verified project", () => {
+    expect(
+      verifiedHandoffNames(projects, environments, {
+        ...workspace,
+        environmentId: `env_${"0".repeat(25)}7`,
+      }),
+    ).toBeNull();
   });
 });
 

@@ -37,7 +37,7 @@ export function cliHandoffCommands(workspace: ProvisionedWorkspace): readonly Cl
 
 export interface WorkspaceReceiptRow {
   readonly label: string;
-  /** Known in the live wizard flow; a reloaded handoff may only recover the organization name. */
+  /** From the live wizard flow or the membership-truth reads; never from the URL. */
   readonly displayName?: string;
   readonly id: string;
 }
@@ -45,7 +45,11 @@ export interface WorkspaceReceiptRow {
 /** The metadata receipt above the commands: what exists now, by Display Name and opaque ID. */
 export function workspaceReceiptRows(
   workspace: ProvisionedWorkspace,
-  names: { readonly organizationName?: string; readonly projectName?: string },
+  names: {
+    readonly organizationName?: string;
+    readonly projectName?: string;
+    readonly environmentName?: string;
+  },
 ): readonly WorkspaceReceiptRow[] {
   return [
     {
@@ -58,6 +62,10 @@ export function workspaceReceiptRows(
       ...(names.projectName === undefined ? {} : { displayName: names.projectName }),
       id: workspace.projectId,
     },
-    { label: "Environment", displayName: "Development", id: workspace.environmentId },
+    {
+      label: "Environment",
+      ...(names.environmentName === undefined ? {} : { displayName: names.environmentName }),
+      id: workspace.environmentId,
+    },
   ];
 }

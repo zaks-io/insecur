@@ -10,10 +10,13 @@ import { loginRedirectHref } from "../console/login-redirect.js";
 import {
   decideOnboardingRoute,
   parseHandoffSearch,
+  verifiedHandoffNames,
   type OnboardingSearch,
+  type VerifiedHandoffNames,
 } from "../onboarding/routing.js";
 import type { ProvisionedWorkspace } from "../onboarding/provisioning.js";
 import type { OnboardingStepId } from "../onboarding/steps.js";
+import { loadOrgProjects, loadProjectEnvironments } from "../server/console-projects.js";
 import { loadConsoleSession } from "../server/console-session.js";
 
 /**
@@ -39,7 +42,17 @@ export const Route = createFileRoute("/onboarding")({
     if (decision.kind === "redirect-console") {
       throw redirect({ href: decision.href });
     }
-    return decision;
+    if (decision.kind !== "handoff") {
+      return decision;
+    }
+    // The receipt claims these resources exist, so the URL's project/env IDs are verified
+    // against the member's own metadata reads (INS-362); an unverifiable pair falls back to
+    // the console rather than rendering unproven IDs into terminal commands.
+    const names = await loadHandoffNames(decision.workspace);
+    if (names === null) {
+      throw redirect({ href: `/orgs/${decision.workspace.organizationId}` });
+    }
+    return { ...decision, ...names };
   },
   component: OnboardingPage,
 });
@@ -56,15 +69,39 @@ function onboardingReturnTo(workspace: ProvisionedWorkspace | undefined): string
   return `/onboarding?${params.toString()}`;
 }
 
+async function loadHandoffNames(
+  workspace: ProvisionedWorkspace,
+): Promise<VerifiedHandoffNames | null> {
+  const projects = await loadOrgProjects({
+    data: { organizationId: workspace.organizationId },
+  });
+  if (projects.kind !== "ok") {
+    return null;
+  }
+  const environments = await loadProjectEnvironments({
+    data: { organizationId: workspace.organizationId, projectId: workspace.projectId },
+  });
+  if (environments.kind !== "ok") {
+    return null;
+  }
+  return verifiedHandoffNames(projects.value, environments.value, workspace);
+}
+
 function OnboardingPage() {
   const decision = Route.useLoaderData();
   const navigate = useNavigate();
   const [completed, setCompleted] = useState<ProvisionedHandoff>();
   const [formStep, setFormStep] = useState<OnboardingStepId>("name-organization");
 
-  // The live wizard result wins over loader data so the receipt keeps both Display Names; a
-  // reloaded handoff link recovers the organization name from the memberships read.
-  const handoff = completed ?? (decision.kind === "handoff" ? decision : undefined);
+  // The live wizard result wins over loader data; a reloaded handoff link recovers every
+  // Display Name from the membership-truth reads instead. The auto-created dev Environment
+  // keeps its provisioning default Display Name, so the live flow can state it.
+  const handoff =
+    completed !== undefined
+      ? { ...completed, environmentName: "Development" }
+      : decision.kind === "handoff"
+        ? decision
+        : undefined;
 
   const navigateToHandoff = (workspace: ProvisionedWorkspace) => {
     void navigate({
@@ -95,7 +132,8 @@ function OnboardingPage() {
         <CliHandoffPane
           workspace={handoff.workspace}
           organizationName={handoff.organizationName}
-          projectName={"projectName" in handoff ? handoff.projectName : undefined}
+          projectName={handoff.projectName}
+          environmentName={handoff.environmentName}
         />
       )}
     </OnboardingFrame>

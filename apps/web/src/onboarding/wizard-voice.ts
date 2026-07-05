@@ -52,8 +52,8 @@ const VOICE_BY_CODE: Record<string, WizardErrorVoice> = {
 export function provisionErrorVoice(code: string): WizardErrorVoice {
   return (
     VOICE_BY_CODE[code] ?? {
-      headline: "Setup didn't complete",
-      detail: `Nothing was created. Try again; if this keeps happening, mention code ${code}.`,
+      headline: "We couldn't confirm the result",
+      detail: `Try again; a retry can never create your workspace twice. If it already went through, you'll be offered the CLI handoff. If this keeps happening, mention code ${code}.`,
       action: "retry",
     }
   );

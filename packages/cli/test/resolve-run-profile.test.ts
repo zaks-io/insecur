@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   assertRunModeExclusive,
+  isExplicitProfilePositional,
   reconcileProfileRunCommand,
   resolveProfileRunInput,
   resolveProfileRunLookup,
@@ -214,6 +215,55 @@ describe("reconcileProfileRunCommand project profile selection", () => {
       profileSelector: "typo-profile",
       command: ["npm", "start"],
     });
+  });
+
+  it("keeps an explicitly typed typo'd profile in --variable-key mode so the mode error stays loud", () => {
+    // `insecur run staging-typo --variable-key K -- npm test`: the user asked for a profile;
+    // silently exec'ing `staging-typo npm test` would swallow the typo.
+    expect(
+      reconcileProfileRunCommand({
+        flags,
+        context: {
+          projectConfig: null,
+          userConfig: { profiles: {} },
+          scope: createContext({}).scope,
+        },
+        variableKey: "APP_SECRET",
+        explicitProfilePositional: true,
+        positionalProfile: "staging-typo",
+        args: ["staging-typo", "npm", "test"],
+      }),
+    ).toEqual({
+      profileSelector: "staging-typo",
+      command: ["npm", "test"],
+    });
+  });
+});
+
+describe("isExplicitProfilePositional", () => {
+  it("is false when the positional only appears after the -- separator (wizard handoff shape)", () => {
+    expect(
+      isExplicitProfilePositional(
+        ["node", "insecur", "run", "--variable-key", "K", "--", "printenv", "APP_SECRET"],
+        "printenv",
+      ),
+    ).toBe(false);
+  });
+
+  it("is true when the positional was typed before the -- separator", () => {
+    expect(
+      isExplicitProfilePositional(
+        ["node", "insecur", "run", "staging-typo", "--variable-key", "K", "--", "npm", "test"],
+        "staging-typo",
+      ),
+    ).toBe(true);
+  });
+
+  it("is true without a separator, and false without a positional", () => {
+    expect(
+      isExplicitProfilePositional(["node", "insecur", "run", "staging", "npm", "test"], "staging"),
+    ).toBe(true);
+    expect(isExplicitProfilePositional(["node", "insecur", "run"], undefined)).toBe(false);
   });
 });
 

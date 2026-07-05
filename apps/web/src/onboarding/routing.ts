@@ -62,3 +62,31 @@ export function decideOnboardingRoute(
   }
   return { kind: "wizard" };
 }
+
+/** Display Names for a handoff's project and environment, verified against membership truth. */
+export interface VerifiedHandoffNames {
+  readonly projectName: string;
+  readonly environmentName: string;
+}
+
+/**
+ * A reopened handoff link may carry any format-valid project/env IDs; the receipt claims they
+ * exist, so they must be verified against the member's own metadata reads (INS-362), not taken
+ * from the URL. `null` means the pair does not exist in this organization and the link falls
+ * back to the console.
+ */
+export function verifiedHandoffNames(
+  projects: readonly { readonly projectId: string; readonly displayName: string }[],
+  environments: readonly { readonly environmentId: string; readonly displayName: string }[],
+  workspace: ProvisionedWorkspace,
+): VerifiedHandoffNames | null {
+  const project = projects.find((entry) => entry.projectId === workspace.projectId);
+  if (project === undefined) {
+    return null;
+  }
+  const environment = environments.find((entry) => entry.environmentId === workspace.environmentId);
+  if (environment === undefined) {
+    return null;
+  }
+  return { projectName: project.displayName, environmentName: environment.displayName };
+}

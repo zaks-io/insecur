@@ -40,6 +40,7 @@ describe("workspaceReceiptRows", () => {
     const rows = workspaceReceiptRows(workspace, {
       organizationName: "Acme Corp",
       projectName: "Payments",
+      environmentName: "Development",
     });
     expect(rows).toEqual([
       { label: "Organization", displayName: "Acme Corp", id: workspace.organizationId },
@@ -48,9 +49,10 @@ describe("workspaceReceiptRows", () => {
     ]);
   });
 
-  it("keeps the IDs and drops unknown names on a reloaded handoff", () => {
+  it("keeps the IDs and drops unknown names, never inventing them", () => {
     const rows = workspaceReceiptRows(workspace, { organizationName: "Acme Corp" });
     expect(rows[1]).toEqual({ label: "Project", id: workspace.projectId });
+    expect(rows[2]).toEqual({ label: "Environment", id: workspace.environmentId });
     expect(rows.map((row) => row.id)).toEqual([
       workspace.organizationId,
       workspace.projectId,

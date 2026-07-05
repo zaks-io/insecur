@@ -184,16 +184,33 @@ export function parseRunCommandArgv(input: {
   };
 }
 
+/** The `--variable-key` fold applies only when the positional was not an explicitly typed profile. */
+function hasVariableKeyFold(input: {
+  readonly variableKey?: string;
+  readonly explicitProfilePositional?: boolean;
+}): boolean {
+  return (
+    input.variableKey !== undefined &&
+    input.variableKey !== "" &&
+    input.explicitProfilePositional !== true
+  );
+}
+
 /**
  * When Commander binds the child executable as `[profile]`, fold it back into the command: a
  * selector that resolves to no real profile is the command head whenever another run mode is
  * already selected, by `--variable-key` (the wizard's CLI handoff runs profile-less) or by an
- * ambient project/scope profile.
+ * ambient project/scope profile. The `--variable-key` fold is deliberately narrow: it never
+ * applies when the user explicitly typed a profile before the `--` separator
+ * (`explicitProfilePositional`), so a typo'd profile stays a loud mode-exclusivity error instead
+ * of silently becoming the child executable.
  */
 export function reconcileProfileRunCommand(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
   readonly variableKey?: string;
+  /** True when the `[profile]` positional appeared before the `--` separator in raw argv. */
+  readonly explicitProfilePositional?: boolean;
   readonly positionalProfile?: string;
   readonly args: readonly string[];
 }): {
@@ -220,14 +237,32 @@ export function reconcileProfileRunCommand(input: {
     return parsed;
   }
 
-  const variableKeyMode = input.variableKey !== undefined && input.variableKey !== "";
-  if (!variableKeyMode && !hasAmbientProfileRunSelection(input.context)) {
+  if (!hasVariableKeyFold(input) && !hasAmbientProfileRunSelection(input.context)) {
     return parsed;
   }
 
   return {
     command: [parsed.profileSelector, ...parsed.command],
   };
+}
+
+/**
+ * Did the user explicitly type the `[profile]` positional before `--`? Commander strips the
+ * separator from `command.args`, so `run staging -- npm test` and `run --variable-key K -- npm
+ * test` bind identical shapes; raw argv is the only place the difference survives.
+ */
+export function isExplicitProfilePositional(
+  rawArgs: readonly string[],
+  positionalProfile: string | undefined,
+): boolean {
+  if (positionalProfile === undefined || positionalProfile === "") {
+    return false;
+  }
+  const separatorIndex = rawArgs.indexOf("--");
+  if (separatorIndex === -1) {
+    return true;
+  }
+  return rawArgs.slice(0, separatorIndex).includes(positionalProfile);
 }
 
 export function assertRunModeExclusive(input: {

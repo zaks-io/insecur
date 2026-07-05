@@ -155,6 +155,26 @@ describe("provisionWorkspaceForRequest", () => {
     expect(deps.calls).toHaveLength(0);
   });
 
+  it("collapses a throwing hop (non-JSON 5xx) to the metadata-safe unexpected-response code", async () => {
+    const csrfToken = generateCsrfToken();
+    const request = wizardMutationRequest(csrfToken);
+    const deps = provisionDeps({
+      request,
+      handlers: {
+        [PROVISION_PATH]: () =>
+          new Response("<html>internal upstream error page</html>", { status: 502 }),
+      },
+    });
+
+    const outcome = await provisionWorkspaceForRequest(
+      { cookieHeader: request.headers.get("Cookie"), resolveApi: deps.resolveApi },
+      submission(csrfToken),
+    );
+
+    // The SyntaxError from response.json() must never surface; only the catalogued code does.
+    expect(outcome).toEqual({ ok: false, code: "web.unexpected_response" });
+  });
+
   it("passes the create-only clean conflict through to the continue-forward voice", async () => {
     const csrfToken = generateCsrfToken();
     const request = wizardMutationRequest(csrfToken);

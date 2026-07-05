@@ -42,10 +42,17 @@ export async function provisionWorkspaceForRequest(
     return { ok: false, code: projectName.code };
   }
 
-  const body: unknown = await api.provisionPersonalOrganization({
-    organizationDisplayName: organizationName.value,
-    projectDisplayName: projectName.value,
-    resourceIds: data.resourceIds,
-  });
-  return parseProvisionOutcome(body);
+  // Any throw on the hop (binding failure, non-JSON 5xx body) collapses to the metadata-safe
+  // code: a raw SyntaxError can carry internal response-body fragments and must never serialize
+  // into the server-fn response.
+  try {
+    const body: unknown = await api.provisionPersonalOrganization({
+      organizationDisplayName: organizationName.value,
+      projectDisplayName: projectName.value,
+      resourceIds: data.resourceIds,
+    });
+    return parseProvisionOutcome(body);
+  } catch {
+    return { ok: false, code: "web.unexpected_response" };
+  }
 }

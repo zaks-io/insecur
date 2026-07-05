@@ -37,9 +37,13 @@ describe("provisionErrorVoice", () => {
     expect(provisionErrorVoice("web.csrf_rejected").action).toBe("retry");
   });
 
-  it("falls back to a retry that names the code, never wire text", () => {
+  it("falls back to a non-committal retry that names the code, never wire text", () => {
+    // After a lost response the commit state is unknowable; the voice must not claim
+    // "nothing was created" (INS-374 review).
     const voice = provisionErrorVoice("secret.value_too_large");
     expect(voice.action).toBe("retry");
     expect(voice.detail).toContain("secret.value_too_large");
+    expect(voice.headline).toBe("We couldn't confirm the result");
+    expect(voice.detail).not.toContain("Nothing was created");
   });
 });
