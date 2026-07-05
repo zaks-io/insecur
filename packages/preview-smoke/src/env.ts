@@ -7,6 +7,8 @@ export interface PreviewConfig {
   expectedSha: string;
   inviteeUserId: string;
   inviteeWorkosUserId: string;
+  noScopeUserId: string;
+  noScopeWorkosUserId: string;
   ownerUserId: string;
   ownerWorkosUserId: string;
   signingSecret: string;
@@ -23,6 +25,8 @@ export function loadPreviewConfig(): PreviewConfig {
     expectedSha: requireEnv("SMOKE_EXPECTED_DEPLOY_SHA", "GITHUB_SHA"),
     inviteeUserId: requireEnv("SMOKE_INVITEE_ADMITTED_USER_ID"),
     inviteeWorkosUserId: requireEnv("SMOKE_INVITEE_WORKOS_USER_ID"),
+    noScopeUserId: requireEnv("SMOKE_NO_SCOPE_ADMITTED_USER_ID"),
+    noScopeWorkosUserId: requireEnv("SMOKE_NO_SCOPE_WORKOS_USER_ID"),
     ownerUserId: requireEnv("SMOKE_ADMITTED_USER_ID"),
     ownerWorkosUserId: requireEnv("SMOKE_WORKOS_USER_ID"),
     signingSecret,

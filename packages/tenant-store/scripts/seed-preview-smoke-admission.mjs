@@ -20,6 +20,12 @@ const inviteeActor = {
   userId: requireEnv("SMOKE_INVITEE_ADMITTED_USER_ID"),
   workosUserId: requireEnv("SMOKE_INVITEE_WORKOS_USER_ID"),
 };
+const noScopeActor = {
+  admissionId: process.env.SMOKE_NO_SCOPE_USER_ADMISSION_ID ?? "uad_0000000000000000000000SMK3",
+  displayName: "Preview smoke no-scope user",
+  userId: requireEnv("SMOKE_NO_SCOPE_ADMITTED_USER_ID"),
+  workosUserId: requireEnv("SMOKE_NO_SCOPE_WORKOS_USER_ID"),
+};
 const operatorGrantId = process.env.SMOKE_INSTANCE_OPERATOR_ID ?? "iop_00000000000000000000000SMK";
 
 const sql = postgres(databaseUrl, { prepare: false, max: 1 });
@@ -32,6 +38,7 @@ try {
   `;
   await upsertAdmission(ownerActor);
   await upsertAdmission(inviteeActor);
+  await upsertAdmission(noScopeActor);
   await sql`
     INSERT INTO instance_operators (id, instance_id, user_id, grant_origin)
     VALUES (${operatorGrantId}, ${instanceId}, ${ownerActor.userId}, ${"admin"})
@@ -49,6 +56,8 @@ try {
       ownerWorkosUserId: ownerActor.workosUserId,
       inviteeUserId: inviteeActor.userId,
       inviteeWorkosUserId: inviteeActor.workosUserId,
+      noScopeUserId: noScopeActor.userId,
+      noScopeWorkosUserId: noScopeActor.workosUserId,
       operatorGrantId,
     }) + "\n",
   );
