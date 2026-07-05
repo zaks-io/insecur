@@ -30,7 +30,7 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
 const ACTOR = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
-const PREVIEW_PROTECTED_ID = "env_00000000000000000000000071";
+const PREVIEW_PROTECTED_ID = "env_00000000000000000000000084";
 
 describeIntegration("environment lifecycle write guard", () => {
   beforeAll(async () => {

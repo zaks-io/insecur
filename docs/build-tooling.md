@@ -647,6 +647,10 @@ only through the
 session cookie. Playwright writes preview artifacts under `preview-smoke-artifacts/`: an HTML
 report, JSON results, JUnit XML, and failure traces/screenshots/videos when applicable. GitHub
 Actions uploads those artifacts and uses Playwright's GitHub reporter for failure annotations.
+Local runs load ignored `.env.preview` and `.env.local` files before validating required smoke
+variables, and may use `SESSION_SIGNING_SECRET` as the local alias for
+`SMOKE_SESSION_SIGNING_SECRET`. The value still has to match the API/Web workers under test; a random
+value is useful only when the same local process or shell starts those workers with that value.
 
 ### Staging deploy: `deploy-staging`
 
