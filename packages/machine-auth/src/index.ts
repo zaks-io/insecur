@@ -40,3 +40,39 @@ export {
   recordGitHubActionsOidcExchangeSuccess,
   recordGitHubActionsOidcExchangeDenied,
 } from "./record-github-actions-oidc-exchange-audit.js";
+export {
+  DEPLOY_KEY_SECRET_ALGORITHM,
+  hashDeployKeySecret,
+  verifyDeployKeySecret,
+  type DeployKeySecretVerifierMaterial,
+} from "./deploy-key-secret.js";
+export type { EnvironmentDeployKeyAuthMethodRow } from "./environment-deploy-key-auth-method-row.js";
+export {
+  DEPLOY_KEY_ALLOWED_CREDENTIAL_SCOPES,
+  DEPLOY_KEY_FORBIDDEN_EXAMPLE_SCOPES,
+  collectDeployKeyOverbroadCredentialScopes,
+  isDeployKeyAllowedCredentialScope,
+  isDeployKeyCredentialScopeBundle,
+} from "./deploy-key-credential-scopes.js";
+export {
+  buildEnvironmentDeployKeyMetadata,
+  type EnvironmentDeployKeyMetadata,
+} from "./environment-deploy-key-metadata.js";
+export { loadActiveEnvironmentDeployKeyAuthMethods } from "./load-environment-deploy-key-auth-methods.js";
+export {
+  matchEnvironmentDeployKey,
+  type EnvironmentDeployKeyMatchFailureReason,
+  type EnvironmentDeployKeyMatchResult,
+} from "./match-environment-deploy-key.js";
+export {
+  exchangeEnvironmentDeployKey,
+  resolveDeployKeyExchangeRuntimePolicyKeyId,
+  type ExchangeEnvironmentDeployKeyInput,
+  type ExchangeEnvironmentDeployKeyResult,
+} from "./exchange-environment-deploy-key.js";
+export {
+  recordEnvironmentDeployKeyExchangeSuccess,
+  recordEnvironmentDeployKeyExchangeDenied,
+  mapDeployKeyDenialToReasonCode,
+  type DeployKeyExchangeDenialKind,
+} from "./record-environment-deploy-key-exchange-audit.js";

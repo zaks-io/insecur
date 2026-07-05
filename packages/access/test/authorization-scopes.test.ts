@@ -14,8 +14,8 @@ describe("AUTHORIZATION_SCOPES", () => {
     expect(isAuthorizationScope("not.a.real.scope")).toBe(false);
   });
 
-  it("does not treat protected issuance as a credential scope until W7 binds it", () => {
+  it("treats protected issuance as a machine credential scope for deploy keys", () => {
     expect(isCredentialScope(AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue)).toBe(true);
-    expect(isCredentialScope(AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected)).toBe(false);
+    expect(isCredentialScope(AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected)).toBe(true);
   });
 });

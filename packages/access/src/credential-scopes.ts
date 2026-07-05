@@ -7,6 +7,7 @@ import { AUTHORIZATION_SCOPES } from "./authorization-scopes.js";
 export const CREDENTIAL_SCOPES = {
   runtimeInjectionRun: AUTHORIZATION_SCOPES.runtimeInjectionRun,
   runtimeInjectionGrantIssue: AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
+  runtimeInjectionGrantIssueProtected: AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected,
   runtimeInjectionGrantConsume: AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume,
   secretNonProtectedWrite: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
   secretRead: AUTHORIZATION_SCOPES.secretRead,
@@ -26,6 +27,7 @@ export function isCredentialScope(value: string): value is CredentialScope {
 export const RUNTIME_INJECTION_CREDENTIAL_SCOPE_BUNDLE = [
   CREDENTIAL_SCOPES.runtimeInjectionRun,
   CREDENTIAL_SCOPES.runtimeInjectionGrantIssue,
+  CREDENTIAL_SCOPES.runtimeInjectionGrantIssueProtected,
   CREDENTIAL_SCOPES.runtimeInjectionGrantConsume,
 ] as const satisfies readonly CredentialScope[];
 

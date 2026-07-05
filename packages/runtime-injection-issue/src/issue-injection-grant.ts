@@ -28,6 +28,7 @@ import {
   assertRuntimeInjectionAccess,
   resolveIssueGrantRequiredScope,
 } from "./assert-runtime-injection-access.js";
+import { assertRuntimePolicyKeyAllowsGrantSelector } from "./assert-runtime-policy-key-grant-binding.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import {
   assertSingleIssueSelectorCount,
@@ -163,6 +164,8 @@ export async function executeIssueInjectionGrant(
   );
 
   assertSingleIssueSelectorCount(input.selector);
+
+  await assertRuntimePolicyKeyAllowsGrantSelector(input.actor, coordinate, input.selector);
 
   const resolvedBindings = await resolveInjectionGrantBindings(coordinate, input.selector);
   const grantId = injectionGrantId.generate();

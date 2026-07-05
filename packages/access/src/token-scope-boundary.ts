@@ -1,4 +1,4 @@
-import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import type { EnvironmentId, OrganizationId, ProjectId, RuntimePolicyId } from "@insecur/domain";
 import type { AuthorizationScope } from "./authorization-scopes.js";
 import type { ResourceCoordinate } from "./resolve-effective-access.js";
 
@@ -7,6 +7,7 @@ export interface TokenScope {
   organizationId: OrganizationId;
   projectId: ProjectId;
   environmentId?: EnvironmentId;
+  runtimePolicyKeyId?: RuntimePolicyId;
 }
 
 export function tokenScopeCoversCoordinate(

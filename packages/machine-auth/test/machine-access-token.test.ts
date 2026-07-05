@@ -5,6 +5,7 @@ import {
   machineIdentityId,
   organizationId,
   projectId,
+  runtimePolicyId,
 } from "@insecur/domain";
 import {
   decodeSignedHs256PayloadBody,
@@ -19,6 +20,7 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
+const POLICY_KEY = runtimePolicyId.brand("rp_00000000000000000000000001");
 const SECRET = "test-machine-access-signing-secret";
 
 function decodeMachineAccessPayload(accessToken: string): Record<string, unknown> {
@@ -66,6 +68,7 @@ describe("machine access token", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
+      runtimePolicyKeyId: POLICY_KEY,
       credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
       signingSecret: SECRET,
       ttlSeconds: 60,
@@ -76,6 +79,7 @@ describe("machine access token", () => {
     if (verified.ok) {
       expect(verified.token.machineIdentityId).toBe(MACHINE);
       expect(verified.token.environmentId).toBe(ENV);
+      expect(verified.token.runtimePolicyKeyId).toBe(POLICY_KEY);
       expect(verified.token.credentialScopes).toEqual([CREDENTIAL_SCOPES.runtimeInjectionRun]);
     }
   });
