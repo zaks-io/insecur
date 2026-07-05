@@ -25,13 +25,21 @@ function applyOptionalExecFileFields(
   }
 }
 
+export function resolveExecFileOptions(options?: KeyStoreExecFileOptions): KeyStoreExecFileOptions {
+  return {
+    timeoutMs: DEFAULT_EXEC_FILE_TIMEOUT_MS,
+    ...options,
+  };
+}
+
 export function buildNodeExecFileOptions(options?: KeyStoreExecFileOptions): NodeExecFileOptions {
+  const resolvedOptions = resolveExecFileOptions(options);
   const nodeOptions: NodeExecFileOptions = {
     encoding: "utf8",
-    maxBuffer: options?.maxBuffer ?? 1024,
-    timeout: options?.timeoutMs ?? DEFAULT_EXEC_FILE_TIMEOUT_MS,
+    maxBuffer: resolvedOptions.maxBuffer ?? 1024,
+    timeout: resolvedOptions.timeoutMs ?? DEFAULT_EXEC_FILE_TIMEOUT_MS,
   };
-  applyOptionalExecFileFields(nodeOptions, options);
+  applyOptionalExecFileFields(nodeOptions, resolvedOptions);
   return nodeOptions;
 }
 

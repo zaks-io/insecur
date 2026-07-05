@@ -8,7 +8,7 @@ import { MACHINE_ROOT_KEY_ACCOUNT, MACHINE_ROOT_KEY_SERVICE } from "./constants.
 import { createDefaultExecFile } from "./exec-file.js";
 import { resolveKeyStorePaths } from "./paths.js";
 import { resolveKeyStoreBackend } from "./resolve-backend.js";
-import { serializeAsync, serializeAsyncBySlot } from "./serialize-async.js";
+import { serializeAsync, singleFlightBySlot } from "./serialize-async.js";
 import type {
   CreateKeyStoreOptions,
   KeyStore,
@@ -51,7 +51,7 @@ function createAdapter(
 
 function wrapKeyStore(adapter: KeyStoreAdapter, slot?: string): KeyStore {
   const getOrCreateMachineRootKey = slot
-    ? serializeAsyncBySlot(slot, () => adapter.getOrCreateMachineRootKey())
+    ? singleFlightBySlot(slot, () => adapter.getOrCreateMachineRootKey())
     : serializeAsync(() => adapter.getOrCreateMachineRootKey());
   return {
     backend: adapter.backend,
