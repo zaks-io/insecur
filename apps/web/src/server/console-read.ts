@@ -30,6 +30,14 @@ export async function consoleRead<T>(
   if (client === null) {
     return { kind: "unauthenticated" };
   }
-  const value = await read(client.api);
+  // Fail closed: a transport error or a non-JSON/malformed body (e.g. `response.json()` throwing on
+  // a 5xx HTML page) collapses to the same metadata-safe not-found as a parsed null, never a 500
+  // loader error. Only a resolved actor with no readable value reaches the browser as `denied`.
+  let value: T | null;
+  try {
+    value = await read(client.api);
+  } catch {
+    return { kind: "denied" };
+  }
   return value === null ? { kind: "denied" } : { kind: "ok", value };
 }

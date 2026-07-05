@@ -32,7 +32,7 @@ export function parseSessionMembershipsBody(body: unknown): readonly ConsoleOrga
  */
 export function defaultOrgPath(organizations: readonly ConsoleOrganization[]): string {
   const first = organizations[0];
-  return first === undefined ? "/onboarding" : `/orgs/${first.organizationId}`;
+  return first === undefined ? "/onboarding" : `/orgs/${encodeURIComponent(first.organizationId)}`;
 }
 
 /** The active organization for an org-scoped route, or `undefined` when the actor is no member. */

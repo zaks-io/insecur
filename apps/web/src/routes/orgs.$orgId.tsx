@@ -12,7 +12,7 @@ export const Route = createFileRoute("/orgs/$orgId")({
   loader: async ({ params, location }) => {
     const session = await loadConsoleSession();
     if (!session.authenticated) {
-      throw redirect({ href: loginRedirectHref(location.pathname) });
+      throw redirect({ href: loginRedirectHref(location.href) });
     }
     // Metadata-safe denial: a non-member org ID is indistinguishable from a nonexistent one.
     const activeOrg = findConsoleOrganization(session.organizations, params.orgId);

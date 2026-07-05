@@ -167,6 +167,29 @@ const mf = new Miniflare({
   ],
 });
 
+// Inline-style ban: the nonce CSP allows no `style` attribute in server-rendered markup. The
+// character class covers both quote styles so a single-quoted `style='...'` cannot slip past the
+// double-quote-only original (INS-412 item 1). `\snew RegExp` per call would recompile; hoist it.
+const INLINE_STYLE_ATTR = /<[a-z][^>]*\sstyle=["']/i;
+
+// Self-test the ban regex before trusting it against real HTML: prove it flags both quote styles
+// (the item-1 regression was that only double quotes were caught) and ignores a bare `styleX` word.
+function assertInlineStyleBanRegex() {
+  const mustFlag = [`<div style="color:red">`, `<div style='color:red'>`, `<span  style="x">`];
+  const mustPass = [`<div class="style">`, `<div data-style="x">`, `<div>styled</div>`];
+  for (const html of mustFlag) {
+    if (!INLINE_STYLE_ATTR.test(html)) {
+      throw new Error(`inline-style ban regex failed to flag: ${html}`);
+    }
+  }
+  for (const html of mustPass) {
+    if (INLINE_STYLE_ATTR.test(html)) {
+      throw new Error(`inline-style ban regex wrongly flagged: ${html}`);
+    }
+  }
+  console.log("ok inline-style ban regex catches single- and double-quoted style attributes");
+}
+
 async function fetchPath(path, headers = {}) {
   return mf.dispatchFetch(`http://web.local${path}`, {
     headers: { accept: "text/html", ...headers },
@@ -198,8 +221,9 @@ async function assertRouteHasMatchingCspNonce(path, { headers = {}, expect = [] 
   if (!html.includes(`nonce="${nonce}"`) && !html.includes(`nonce='${nonce}'`)) {
     throw new Error(`${path} inline scripts missing matching nonce attribute`);
   }
-  // The nonce CSP blocks style attributes entirely: server-rendered markup must not carry any.
-  if (/<[a-z][^>]*\sstyle="/i.test(html)) {
+  // The nonce CSP blocks style attributes entirely: server-rendered markup must not carry any,
+  // whether double- or single-quoted.
+  if (INLINE_STYLE_ATTR.test(html)) {
     throw new Error(`${path} server-rendered HTML carries an inline style attribute`);
   }
   for (const needle of expect) {
@@ -234,6 +258,7 @@ async function assertUnauthenticatedConsoleRedirect(path) {
 }
 
 try {
+  assertInlineStyleBanRegex();
   const authorization = { Authorization: `Bearer ${await mintSmokeCredential()}` };
   await assertRouteHasMatchingCspNonce("/");
   await assertRouteHasMatchingCspNonce("/login");

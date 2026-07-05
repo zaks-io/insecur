@@ -18,7 +18,7 @@ export const Route = createFileRoute("/orgs/$orgId/projects/$projectId")({
   loader: async ({ params, location }) => {
     const read = await loadOrgProjects({ data: { organizationId: params.orgId } });
     if (read.kind === "unauthenticated") {
-      throw redirect({ href: loginRedirectHref(location.pathname) });
+      throw redirect({ href: loginRedirectHref(location.href) });
     }
     if (read.kind === "denied") {
       throw notFound();
