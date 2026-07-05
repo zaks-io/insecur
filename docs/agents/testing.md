@@ -87,7 +87,7 @@ To run the full DB-backed loop with no cloud credentials, only Docker:
 pnpm dev:db:reset   # Docker Compose Postgres 17, migrated
 pnpm test:rls       # forced-RLS tenant isolation + DB-backed package integration
 pnpm test:e2e       # First Value loop through the real Worker routes
-pnpm test:canary    # no-plaintext canary gate (Postgres columns + console output)
+pnpm test:canary    # no-plaintext canary gate (Postgres + console + HTTP/RPC egress)
 ```
 
 `pnpm test:rls` runs the forced-RLS tenant-store suites plus every workspace package-level
@@ -140,10 +140,12 @@ runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which s
 ([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) runs after `test:e2e` via
 `apps/api/test/canary/no-plaintext-canary.test.ts`: it drives the real route stack with a
 fresh high-entropy sentinel, then sweeps every `public` schema column from live
-`information_schema` (migration-role connection) and captured in-process console output for
-raw, base64, base64url, and hex encodings. Deployed worker logs, R2, KV, Queues, Durable
-Objects, traces, and analytics are not swept until their sweep adapters land (see sweep-adapter
-rule below). The Plaintext Metadata Allowlist conformance gate
+`information_schema` (migration-role connection), captured in-process console output, and
+serialized First Value HTTP/RPC egress for raw, base64, base64url, and hex encodings. On egress,
+base64url is permitted only at JSON paths ending in `delivery.encodedValueUtf8` (the designed
+grant-consume delivery field); any other encoding or path fails. Deployed worker logs, R2, KV,
+Queues, Durable Objects, traces, and analytics are not swept until their sweep adapters land (see
+sweep-adapter rule below). The Plaintext Metadata Allowlist conformance gate
 ([ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)) runs in
 the unit layer via `packages/tenant-store/test/plaintext-metadata-conformance.test.ts` inside
 `pnpm verify`, and in the integration layer via
@@ -181,4 +183,5 @@ Surfaces the canary gate cannot enumerate structurally — R2 export files, Queu
 Durable Object state, KV, traces, analytics sinks, local CLI config — must register a checked-in
 sweep adapter when they land. A non-enumerable surface landing without an adapter is a
 review-blocking violation from that point on. The registry mechanism is built with the first
-such surface; today the gate sweeps Postgres columns and in-process console output only.
+such surface; today the gate sweeps Postgres columns, in-process console output, and serialized
+First Value HTTP/RPC egress (with the `delivery.encodedValueUtf8` allowance above).
