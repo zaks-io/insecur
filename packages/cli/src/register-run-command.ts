@@ -1,7 +1,23 @@
 import type { Command, Command as CommanderCommand } from "commander";
 import { runRunCommand } from "./commands/run.js";
-import { reconcileProfileRunCommand } from "./commands/resolve-run-profile.js";
+import {
+  isExplicitProfilePositional,
+  reconcileProfileRunCommand,
+} from "./commands/resolve-run-profile.js";
 import type { GlobalCliFlags } from "./cli-options.js";
+
+/**
+ * Commander sets `rawArgs` on the parsing command at runtime but leaves it out of the public
+ * typings. Guarded structural access; if a commander upgrade ever drops it, the wizard-shape
+ * commander regression test fails loudly rather than this silently misclassifying.
+ */
+function commandRawArgs(command: CommanderCommand | null | undefined): readonly string[] {
+  if (command === null || command === undefined) {
+    return [];
+  }
+  const raw = (command as unknown as { rawArgs?: unknown }).rawArgs;
+  return Array.isArray(raw) && raw.every((token) => typeof token === "string") ? raw : [];
+}
 
 export function registerRunCommand(
   program: Command,
@@ -34,6 +50,11 @@ export function registerRunCommand(
       const parsed = reconcileProfileRunCommand({
         flags,
         context,
+        ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
+        explicitProfilePositional: isExplicitProfilePositional(
+          commandRawArgs(command.parent),
+          profileArg,
+        ),
         ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
         args: command.args,
       });

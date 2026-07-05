@@ -19,5 +19,6 @@ export {
 export { Badge } from "#components/ui/badge";
 export { Breadcrumbs, BreadcrumbItem } from "#components/ui/breadcrumbs";
 export { ConsolePlaceholder } from "#components/ui/console-placeholder";
+export { Input } from "#components/ui/input";
 export { SwitcherMenu, SwitcherMenuItem, SwitcherMenuMark } from "#components/ui/switcher-menu";
 export { Wordmark } from "#components/brand/wordmark";
