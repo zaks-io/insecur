@@ -627,8 +627,43 @@ Preview and production deploys require `SENTRY_AUTH_TOKEN` in the GitHub Environ
 uploads source maps during deploy. Web and Site upload hidden Vite source maps through the official
 Sentry Vite plugin and delete client `.map` files before asset deployment. API and Runtime use
 Wrangler `--upload-source-maps` plus `sentry-cli sourcemaps upload` against the Wrangler output
-directory. Sentry events should therefore show the deployed Git SHA as their release instead of an
-opaque Cloudflare script version.
+directory. Web and Site also run `sentry-cli sourcemaps upload` against `dist/server` so the
+TanStack Start Worker bundle resolves in Sentry. Sentry events should therefore show the deployed
+Git SHA as their release instead of an opaque Cloudflare script version.
+
+#### Sentry auth token setup (human step)
+
+Create the token outside the repo and store it only in GitHub Environment secrets:
+
+1. In Sentry, open **Settings → Auth Tokens** for org `zaksio`.
+2. Create an auth token with at least **Project: Read & Write** and **Release: Admin** for project
+   `insecur`. Do not grant broader org-admin scopes than needed for release and source-map upload.
+3. Add the token value to GitHub Environment secrets as `SENTRY_AUTH_TOKEN` in both `Preview` and
+   `Production`. Never commit the token, paste it into Linear, or print it in workflow logs.
+4. Deploy workflows already set `SENTRY_ORG=zaksio`, `SENTRY_PROJECT=insecur`, and
+   `SENTRY_RELEASE` to the deployed commit SHA. No additional repo variables are required.
+
+Local builds skip source-map upload when `SENTRY_AUTH_TOKEN` is unset. Preview and production deploy
+workflows set `INSECUR_REQUIRE_SENTRY_SOURCEMAPS=true`, so a missing or malformed upload
+configuration fails closed instead of silently skipping upload.
+
+#### Sentry source-map verification
+
+After preview or production deploy, CI runs `node scripts/sentry-verify-release-sourcemaps.mjs`,
+which lists artifacts on the deployed `SENTRY_RELEASE` and fails when no `.map` files were
+uploaded.
+
+To confirm readable stacks in the Sentry UI after a deploy:
+
+1. Open the preview or production app and trigger a handled error from a route you control, or wait
+   for the next real error on the deployed release.
+2. In Sentry, filter Issues by release equal to the deployed commit SHA (`SENTRY_RELEASE`).
+3. Open the issue stack trace and confirm frames point at original TypeScript paths (for example
+   `apps/web/src/...`) rather than minified `index.js` offsets only.
+
+If automated verification passes but stack traces stay minified, check that the issue release
+matches `SENTRY_RELEASE` and that the Worker or client bundle for that deploy uploaded maps for the
+same release name.
 
 Preview routes are fixed custom domains:
 

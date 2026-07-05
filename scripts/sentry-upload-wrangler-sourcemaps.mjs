@@ -3,16 +3,14 @@ import { spawnSync } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
-const sourceMapDir = path.resolve(process.cwd(), process.argv[2] ?? "dist");
+import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 
-if (!process.env.SENTRY_AUTH_TOKEN) {
+const sourceMapDir = path.resolve(process.cwd(), process.argv[2] ?? "dist");
+const config = resolveSentrySourcemapConfig();
+
+if (config.action === "skip") {
   console.log("SENTRY_AUTH_TOKEN is not set; skipping Sentry source map upload.");
   process.exit(0);
-}
-
-const release = process.env.SENTRY_RELEASE ?? process.env.INSECUR_DEPLOY_SHA;
-if (!release) {
-  throw new Error("SENTRY_RELEASE or INSECUR_DEPLOY_SHA is required for Sentry source map upload.");
 }
 
 if (!(await hasSourceMap(sourceMapDir))) {
@@ -24,17 +22,17 @@ await runSentryCli([
   "sourcemaps",
   "upload",
   "--org",
-  process.env.SENTRY_ORG ?? "zaksio",
+  config.org,
   "--project",
-  process.env.SENTRY_PROJECT ?? "insecur",
+  config.project,
   "--release",
-  release,
+  config.release,
   "--strip-prefix",
   path.resolve(sourceMapDir, ".."),
   sourceMapDir,
 ]);
 
-async function hasSourceMap(directory) {
+export async function hasSourceMap(directory) {
   try {
     const entries = await readdir(directory, { withFileTypes: true });
     for (const entry of entries) {
@@ -55,7 +53,7 @@ async function hasSourceMap(directory) {
   }
 }
 
-function runSentryCli(args) {
+export function runSentryCli(args) {
   const command = process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli";
   const result = spawnSync(command, args, { stdio: "inherit" });
 
