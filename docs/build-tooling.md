@@ -703,7 +703,9 @@ Jobs:
 
 - **Vulnerability scan:** syft SBOM + grype via `scripts/ci/sbom-grype.sh none` (report only, no `--fail-on`).
 - **SAST full scan:** semgrep with `config: auto`.
-- **Secret scan history:** gitleaks over full git history (`gitleaks-detect.sh git`).
+- **Secret scan history:** gitleaks over default-branch HEAD history only (`gitleaks-detect.sh git` with
+  `GITLEAKS_LOG_OPTS=HEAD`). Open or draft PR refs must not fail the scheduled default-branch scan; PR
+  checks still run gitleaks on the current tree via `gitleaks-detect.sh detect` in `CI`.
 - **Dependency scan:** covered by the syft + grype job, which builds a CycloneDX SBOM over the full
   dependency tree and matches it against grype's advisory database.
 - **Report criticals:** opt-in metadata-only Linear filing gated behind repository variable
