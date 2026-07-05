@@ -173,7 +173,9 @@ function prepareSentryEvent<TEvent extends SentryEventLike>(
   event.breadcrumbs = [];
   event.extra = {};
   if (service) {
-    event.tags = { ...event.tags, service };
+    event.tags = { service };
+  } else {
+    delete event.tags;
   }
   return event;
 }

@@ -62,6 +62,7 @@ describe("observability sentry config", () => {
         request: { headers: { authorization: "Bearer token" } },
         breadcrumbs: [{ message: "secret-ish path" }],
         extra: { raw: "payload" },
+        tags: { variableKey: "SECRET_BEARING_TAG" },
       }),
     ).toEqual({
       message: "[redacted by insecur]",
