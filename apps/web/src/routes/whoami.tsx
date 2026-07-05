@@ -1,30 +1,40 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@insecur/ui";
 import { createFileRoute } from "@tanstack/react-router";
-import { loadWhoamiProof } from "../server/whoami";
+import { getRequest } from "@tanstack/react-start/server";
+import { env } from "cloudflare:workers";
+import { resolveBrowserActor } from "../auth/resolve-browser-actor.js";
+import { unauthenticatedWhoamiRedirect } from "../auth/whoami-auth-gate.js";
+import type { WebEnv } from "../env.js";
+import { loadWhoamiProof, type WhoamiProof } from "../server/whoami";
+
+function authenticatedWhoamiProof(
+  proof: WhoamiProof,
+): Extract<WhoamiProof, { authenticated: true }> {
+  if (!proof.authenticated) {
+    throw new Error("Whoami loader executed without server auth gate");
+  }
+  return proof;
+}
 
 export const Route = createFileRoute("/whoami")({
-  loader: () => loadWhoamiProof(),
+  server: {
+    handlers: {
+      GET: async () => {
+        const request = getRequest();
+        const resolved = await resolveBrowserActor(request, env as WebEnv);
+        const redirect = unauthenticatedWhoamiRedirect(resolved);
+        if (redirect !== null) {
+          return redirect;
+        }
+      },
+    },
+  },
+  loader: async () => authenticatedWhoamiProof(await loadWhoamiProof()),
   component: WhoamiPage,
 });
 
 function WhoamiPage() {
   const proof = Route.useLoaderData();
-
-  if (!proof.authenticated) {
-    return (
-      <section className="px-5 py-10 sm:px-8 sm:py-12">
-        <Card className="max-w-3xl">
-          <CardHeader>
-            <CardTitle>Session proof</CardTitle>
-            <CardDescription>No admitted browser session was found.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>Sign in through WorkOS to exercise the BFF hop.</p>
-          </CardContent>
-        </Card>
-      </section>
-    );
-  }
 
   return (
     <section className="px-5 py-10 sm:px-8 sm:py-12">

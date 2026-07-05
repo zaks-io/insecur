@@ -48,3 +48,20 @@ export function formatSessionSetCookie(attributes: SessionCookieAttributes, valu
   }
   return parts.join("; ");
 }
+
+/** Clears a session cookie without logging prior values. */
+export function formatSessionClearCookie(attributes: SessionCookieAttributes): string {
+  const parts = [
+    `${attributes.name}=`,
+    `Path=${attributes.path}`,
+    formatSameSite(attributes.sameSite),
+    "Max-Age=0",
+  ];
+  if (attributes.httpOnly) {
+    parts.push("HttpOnly");
+  }
+  if (attributes.secure) {
+    parts.push("Secure");
+  }
+  return parts.join("; ");
+}

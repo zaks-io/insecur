@@ -37,10 +37,13 @@ export {
   type WorkOSAuthFactorType,
 } from "./mfa-posture.js";
 export {
+  authenticateWorkOSAuthorizationCode,
   authenticateWorkOSSession,
   refreshWorkOSSession,
   type RefreshWorkOSSessionResult,
   type RefreshWorkOSSessionSuccess,
+  type ResolveWorkOSAuthorizationCodeResult,
+  type ResolveWorkOSAuthorizationCodeSuccess,
   type ResolveWorkOSSessionResult,
 } from "./resolve-workos-session.js";
 export {
@@ -57,6 +60,7 @@ export {
   type SessionAssuranceResult,
 } from "./session-assurance.js";
 export {
+  formatSessionClearCookie,
   formatSessionSetCookie,
   insecurCsrfCookieAttributes,
   type SessionCookieAttributes,

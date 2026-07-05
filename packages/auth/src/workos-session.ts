@@ -115,16 +115,21 @@ async function authenticateAuthorizationCodeWithWorkOS(
       clientId: config.clientId,
       code: input.code,
       codeVerifier: input.codeVerifier,
+      session: {
+        sealSession: true,
+        cookiePassword: config.cookiePassword,
+      },
       ...(input.ipAddress === undefined ? {} : { ipAddress: input.ipAddress }),
       ...(input.userAgent === undefined ? {} : { userAgent: input.userAgent }),
     });
     const sessionId = sessionIdFromAccessToken(result.accessToken);
-    if (sessionId === null) {
+    if (sessionId === null || result.sealedSession === undefined) {
       return { authenticated: false, reason: "invalid" };
     }
     const authFactors = await listAuthFactorsForUser(workos, result.user.id);
     return {
       authenticated: true,
+      sealedSession: result.sealedSession,
       context: contextFromAuthenticate(
         result.user,
         sessionId,

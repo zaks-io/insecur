@@ -39,11 +39,14 @@ Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API
 the private `API` Service Binding with a per-request `insecur-api`-audience scoped token. Holds NO
 root-key binding and NO Hyperdrive binding.
 
-| Method | Mount prefix |
-| ------ | ------------ |
-| GET    | `/healthz`   |
-| GET    | `/`          |
-| GET    | `/whoami`    |
+| Method | Mount prefix     |
+| ------ | ---------------- |
+| GET    | `/healthz`       |
+| GET    | `/`              |
+| GET    | `/login`         |
+| GET    | `/auth/callback` |
+| POST   | `/logout`        |
+| GET    | `/whoami`        |
 
 ## Public Site Worker — `apps/site` (`insecur-site`)
 

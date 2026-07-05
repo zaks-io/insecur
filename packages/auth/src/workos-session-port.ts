@@ -52,6 +52,7 @@ export type WorkOSAuthorizationCodeResult =
   | {
       readonly authenticated: true;
       readonly context: WorkOSSessionContext;
+      readonly sealedSession: string;
     }
   | {
       readonly authenticated: false;
