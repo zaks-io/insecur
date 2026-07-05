@@ -19,7 +19,7 @@ export function pickDesiredPublicDeployVars(vars = {}) {
 }
 
 export function mergePublicDeployVarBindings(bindings, desiredVars) {
-  return bindings.map((binding) => {
+  const merged = bindings.map((binding) => {
     if (binding.type !== "plain_text") {
       return binding;
     }
@@ -31,4 +31,22 @@ export function mergePublicDeployVarBindings(bindings, desiredVars) {
 
     return { ...binding, text: nextValue };
   });
+
+  const existingPlainTextNames = new Set(
+    merged.filter((binding) => binding.type === "plain_text").map((binding) => binding.name),
+  );
+
+  for (const [name, text] of Object.entries(desiredVars)) {
+    if (existingPlainTextNames.has(name)) {
+      continue;
+    }
+
+    merged.push({
+      name,
+      type: "plain_text",
+      text,
+    });
+  }
+
+  return merged;
 }

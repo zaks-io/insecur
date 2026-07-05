@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadDeployWranglerConfig } from "../../../scripts/wrangler-deploy-config.mjs";
 
+import { createCloudflareJson } from "./deploy-content-only-cloudflare.mjs";
 import {
   mergePublicDeployVarBindings,
   pickDesiredPublicDeployVars,
@@ -162,28 +163,6 @@ async function putScriptContent(cloudflareJson, accountId, scriptName, readFileF
   await cloudflareJson("PUT", `/accounts/${accountId}/workers/scripts/${scriptName}/content`, {
     body: form,
   });
-}
-
-function createCloudflareJson(apiToken, fetchFn) {
-  return async function cloudflareJson(method, apiPath, init = {}) {
-    const response = await fetchFn(`https://api.cloudflare.com/client/v4${apiPath}`, {
-      method,
-      ...init,
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        ...init.headers,
-      },
-    });
-    const text = await response.text();
-    const payload = text ? JSON.parse(text) : {};
-    if (!response.ok || payload.success === false) {
-      const messages = (payload.errors ?? [])
-        .map((error) => `${error.code ?? "unknown"} ${error.message ?? ""}`.trim())
-        .join("; ");
-      throw new Error(`Cloudflare ${method} ${apiPath} failed: ${messages || response.statusText}`);
-    }
-    return payload.result;
-  };
 }
 
 function assertObservability(actual, expected) {
