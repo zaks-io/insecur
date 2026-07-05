@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatEgressSweepHits,
   simulateEgressLeak,
+  simulateRpcEgressLeak,
   sweepEgressSurfaces,
   type EgressCapture,
 } from "./egress-sweep.js";
@@ -134,7 +135,7 @@ describe("egress sweep", () => {
     expect(formatEgressSweepHits(hits)).toContain("http.issue.body");
   });
 
-  it("detects a deliberately planted plaintext sentinel in an unexpected response field (negative control)", () => {
+  it("detects a deliberately planted plaintext sentinel in an unexpected HTTP response field (negative control)", () => {
     const sentinel = mintCanarySentinel();
     const { hits, rawHit } = simulateEgressLeak(sentinel);
 
@@ -142,6 +143,18 @@ describe("egress sweep", () => {
     expect(rawHit?.surface).toBe("egress");
     expect(rawHit?.location).toBe("http.consume.body");
     expect(rawHit?.jsonPath).toBe("debug");
+    expect(rawHit?.encoding).toBe("raw");
+    expect(hits.length).toBeGreaterThan(0);
+  });
+
+  it("detects a deliberately planted plaintext sentinel in an unexpected Runtime RPC field (negative control)", () => {
+    const sentinel = mintCanarySentinel();
+    const { hits, rawHit } = simulateRpcEgressLeak(sentinel);
+
+    expect(rawHit).toBeDefined();
+    expect(rawHit?.surface).toBe("egress");
+    expect(rawHit?.location).toBe("rpc.delivery");
+    expect(rawHit?.jsonPath).toBe("value.debug");
     expect(rawHit?.encoding).toBe("raw");
     expect(hits.length).toBeGreaterThan(0);
   });

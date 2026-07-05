@@ -161,6 +161,15 @@ function browserSentryOptions<TRouter, TIntegration>(
   };
 }
 
+/**
+ * Redact Sentry events to metadata-only before they leave the worker/browser.
+ *
+ * Tag policy (INS-388): caller-supplied `event.tags` are dropped. Only the configured
+ * `service` tag is retained so deploy identity survives without inheriting arbitrary
+ * key/value pairs that upstream SDK hooks or error paths may attach. Tradeoff: custom
+ * Sentry tags for debugging (for example release channel or route name) must be added
+ * through an explicit allowlist change here, not by callers at capture time.
+ */
 function prepareSentryEvent<TEvent extends SentryEventLike>(
   event: TEvent,
   service: string | undefined,

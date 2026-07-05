@@ -9,7 +9,12 @@ import {
 } from "../../../../packages/tenant-store/test/rls/test-ids.js";
 import { startConsoleCapture } from "./console-capture.js";
 import { driveFirstValueWithSentinel } from "./drive-first-value.js";
-import { formatEgressSweepHits, simulateEgressLeak, sweepEgressSurfaces } from "./egress-sweep.js";
+import {
+  formatEgressSweepHits,
+  simulateEgressLeak,
+  simulateRpcEgressLeak,
+  sweepEgressSurfaces,
+} from "./egress-sweep.js";
 import {
   formatSweepHits,
   simulateEncryptionBypassLeak,
@@ -82,6 +87,18 @@ describeIntegration("no-plaintext canary (real DB, real crypto, HTTP routes)", (
     expect(rawHit?.surface).toBe("egress");
     expect(rawHit?.location).toBe("http.consume.body");
     expect(rawHit?.jsonPath).toBe("debug");
+    expect(rawHit?.encoding).toBe("raw");
+    expect(rawHit?.redactedPrefix).toBe(sentinel.redactedPrefix);
+  });
+
+  it("detects a deliberately leaked plaintext sentinel in serialized Runtime RPC egress (negative control)", () => {
+    const sentinel = mintCanarySentinel();
+    const { rawHit } = simulateRpcEgressLeak(sentinel);
+
+    expect(rawHit).toBeDefined();
+    expect(rawHit?.surface).toBe("egress");
+    expect(rawHit?.location).toBe("rpc.delivery");
+    expect(rawHit?.jsonPath).toBe("value.debug");
     expect(rawHit?.encoding).toBe("raw");
     expect(rawHit?.redactedPrefix).toBe(sentinel.redactedPrefix);
   });

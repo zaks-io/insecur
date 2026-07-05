@@ -13,4 +13,4 @@ Operational telemetry (application logs, errors, traces, performance) is hybrid:
 
 ## Consequences
 
-Redaction is allowlist-by-construction, not scrub-by-denylist, so the safety property holds even when new code paths emit events. The external sink is a subprocessor held to the same allowlist as the audit log. The main regression risk is a misconfigured SDK re-enabling auto-capture, so "telemetry auto-capture disabled" belongs in the security release gate (ADR-0008).
+Redaction is allowlist-by-construction, not scrub-by-denylist, so the safety property holds even when new code paths emit events. The external sink is a subprocessor held to the same allowlist as the audit log. The main regression risk is a misconfigured SDK re-enabling auto-capture, so "telemetry auto-capture disabled" belongs in the security release gate (ADR-0008). Sentry `beforeSend` (`prepareSentryEvent` in `@insecur/observability`) drops caller-supplied tags and retains only the configured `service` tag so error paths cannot smuggle Sensitive Values into off-platform grouping metadata.

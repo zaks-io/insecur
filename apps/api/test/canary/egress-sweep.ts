@@ -208,3 +208,30 @@ export function simulateEgressLeak(sentinel: CanarySentinel): {
   const hits = sweepEgressSurfaces(capture, sentinel);
   return { hits, rawHit: findEgressEncodingHit(hits, "raw") };
 }
+
+/** Negative control: plant the raw sentinel in an unexpected Runtime RPC field. */
+export function simulateRpcEgressLeak(sentinel: CanarySentinel): {
+  hits: EgressSweepHit[];
+  rawHit: EgressSweepHit | undefined;
+} {
+  const rawVariant = variantForEncoding(sentinel, "raw");
+  const expectedEncoded = variantForEncoding(sentinel, "base64url");
+  const capture: EgressCapture = {
+    httpResponses: [],
+    rpcDeliveryPayloadJson: JSON.stringify({
+      ok: true,
+      value: {
+        ok: true,
+        delivery: {
+          grantId: "igr_NEGATIVE_CONTROL",
+          variableKey: "CANARY_NEGATIVE",
+          encodedValueUtf8: expectedEncoded.pattern,
+        },
+        debug: rawVariant.pattern,
+      },
+    }),
+  };
+
+  const hits = sweepEgressSurfaces(capture, sentinel);
+  return { hits, rawHit: findEgressEncodingHit(hits, "raw") };
+}
