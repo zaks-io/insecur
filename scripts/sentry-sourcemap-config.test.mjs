@@ -12,6 +12,28 @@ import {
   releaseHasSourceMapArtifacts,
 } from "./sentry-verify-release-sourcemaps.mjs";
 
+test("deploy workflows read SENTRY_AUTH_TOKEN from repository or environment secrets", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const workflows = [
+    ".github/workflows/deploy-preview.yml",
+    ".github/workflows/deploy-production.yml",
+  ];
+
+  for (const workflowPath of workflows) {
+    const source = await readFile(new URL(`../${workflowPath}`, import.meta.url), "utf8");
+    assert.match(
+      source,
+      /SENTRY_AUTH_TOKEN:\s*\$\{\{\s*secrets\.SENTRY_AUTH_TOKEN\s*\}\}/,
+      `${workflowPath} must read secrets.SENTRY_AUTH_TOKEN`,
+    );
+    assert.doesNotMatch(
+      source,
+      /secrets\.PREVIEW_SENTRY_AUTH_TOKEN|secrets\.PRODUCTION_SENTRY_AUTH_TOKEN/,
+      `${workflowPath} must not require environment-prefixed Sentry token secret names`,
+    );
+  }
+});
+
 test("resolveSentrySourcemapConfig skips when auth token is absent", () => {
   assert.deepEqual(resolveSentrySourcemapConfig({}), {
     action: "skip",
@@ -25,7 +47,7 @@ test("resolveSentrySourcemapConfig fails closed when upload is required", () => 
       resolveSentrySourcemapConfig({
         INSECUR_REQUIRE_SENTRY_SOURCEMAPS: "true",
       }),
-    /SENTRY_AUTH_TOKEN is required/u,
+    /repository Actions secret SENTRY_AUTH_TOKEN/u,
   );
 });
 

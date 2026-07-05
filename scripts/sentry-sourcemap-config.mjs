@@ -11,7 +11,7 @@ export function resolveSentrySourcemapConfig(env = process.env) {
   if (!authToken) {
     if (requireUpload) {
       throw new Error(
-        "SENTRY_AUTH_TOKEN is required for Sentry source map upload. Store the token in the Preview or Production GitHub Environment secrets.",
+        "SENTRY_AUTH_TOKEN is required for Sentry source map upload. Store the token as the repository Actions secret SENTRY_AUTH_TOKEN (or an optional Preview/Production environment override).",
       );
     }
     return { action: "skip", reason: "missing_auth_token" };

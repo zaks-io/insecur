@@ -106,7 +106,11 @@ jobs:
           missing=0
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is not configured in the Preview GitHub Environment."
+              if [ "$name" = "SENTRY_AUTH_TOKEN" ]; then
+                echo "::error::$name is not configured for this deploy job. Add the repository Actions secret or an optional Preview environment override."
+              else
+                echo "::error::$name is not configured in the Preview GitHub Environment."
+              fi
               missing=1
             fi
           done
@@ -203,7 +207,11 @@ jobs:
           )
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is not configured in the Preview GitHub Environment."
+              if [ "$name" = "SENTRY_AUTH_TOKEN" ]; then
+                echo "::error::$name is not configured for this deploy job. Add the repository Actions secret or an optional Preview environment override."
+              else
+                echo "::error::$name is not configured in the Preview GitHub Environment."
+              fi
               exit 1
             fi
           done

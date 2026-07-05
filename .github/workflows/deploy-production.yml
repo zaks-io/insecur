@@ -177,7 +177,11 @@ jobs:
           )
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is not configured in the Production GitHub Environment."
+              if [ "$name" = "SENTRY_AUTH_TOKEN" ]; then
+                echo "::error::$name is not configured for this deploy job. Add the repository Actions secret or an optional Production environment override."
+              else
+                echo "::error::$name is not configured in the Production GitHub Environment."
+              fi
               exit 1
             fi
           done
