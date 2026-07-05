@@ -11,6 +11,7 @@
     "deploy:preview:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs node ../../scripts/wrangler-with-deploy-config.mjs dist/server/wrangler.json -- deploy --env preview --dry-run --outdir dist --keep-vars --upload-source-maps",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "node scripts/verify-ssr-csp.mjs",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .wrangler .output"
   },

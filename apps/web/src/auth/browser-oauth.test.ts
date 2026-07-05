@@ -4,8 +4,8 @@ import {
   INSECUR_CSRF_HEADER,
   WORKOS_SESSION_COOKIE,
 } from "@insecur/auth";
-import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFakeWebEnv } from "../../test/support/fake-web-env.js";
 import {
   beginBrowserLogin,
   completeBrowserLogin,
@@ -13,43 +13,26 @@ import {
   redirectResponse,
 } from "./browser-oauth.js";
 import { formatPkceStateClearCookie, INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
-import type { WebEnv } from "../env.js";
 
-const workosUserId = "user_01workos";
-const sealedSession = "sealed-browser-login";
 const authorizationCode = "code_browser_login";
 const codeVerifier = "verifier_browser_login";
 const oauthState = "state_browser_login";
 
-function createTestEnv(): WebEnv {
+vi.mock("./workos-port.js", async () => {
+  const { createFakeWorkOSSessionPort } = await import("@insecur/auth/testing");
+  const { fakeSessionEntry } = await import("../../test/support/fake-browser-session.js");
   return {
-    WORKOS_API_KEY: "sk_test",
-    WORKOS_CLIENT_ID: "client_test",
-    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-    TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
-    TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
-    API: { fetch: () => Promise.reject(new Error("API binding not used")) } as unknown as Fetcher,
-    RUNTIME: {
-      resolveAdmission: () => Promise.resolve({ ok: true, value: { userId: null } }),
-      recordAdmissionDenied: () => Promise.resolve({ ok: true, value: { recorded: true } }),
-    },
+    createWorkOSSessionPortFromEnv: () =>
+      createFakeWorkOSSessionPort([
+        fakeSessionEntry({
+          sessionData: "sealed-browser-login",
+          sessionId: "session_browser",
+          authorizationCode: "code_browser_login",
+          codeVerifier: "verifier_browser_login",
+        }),
+      ]),
   };
-}
-
-vi.mock("./workos-port.js", () => ({
-  createWorkOSSessionPortFromEnv: () =>
-    createFakeWorkOSSessionPort([
-      {
-        sessionData: sealedSession,
-        userId: workosUserId,
-        sessionId: "session_browser",
-        authorizationCode,
-        codeVerifier,
-        authFactors: [{ type: "totp" }],
-      },
-    ]),
-}));
+});
 
 function encodePkceCookie(roundTrip: {
   state: string;
@@ -62,7 +45,7 @@ function encodePkceCookie(roundTrip: {
 describe("beginBrowserLogin", () => {
   it("redirects to WorkOS with a PKCE state cookie", async () => {
     const request = new Request("https://insecur.test/login?returnTo=/whoami");
-    const started = await beginBrowserLogin(request, createTestEnv());
+    const started = await beginBrowserLogin(request, createFakeWebEnv());
 
     const url = new URL(started.authorizationUrl);
     expect(url.origin).toBe("https://workos.test");
@@ -89,7 +72,7 @@ describe("completeBrowserLogin", () => {
       },
     );
 
-    const completed = await completeBrowserLogin(request, createTestEnv());
+    const completed = await completeBrowserLogin(request, createFakeWebEnv());
 
     expect(completed.ok).toBe(true);
     if (completed.ok) {
@@ -122,7 +105,7 @@ describe("completeBrowserLogin", () => {
       },
     );
 
-    const completed = await completeBrowserLogin(request, createTestEnv());
+    const completed = await completeBrowserLogin(request, createFakeWebEnv());
 
     expect(completed.ok).toBe(false);
     if (!completed.ok) {

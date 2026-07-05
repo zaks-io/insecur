@@ -9,5 +9,5 @@
       "@insecur/worker-kit/api-client": ["../../packages/worker-kit/src/rpc/api-client.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "vite.config.ts"]
 }

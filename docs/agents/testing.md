@@ -106,6 +106,13 @@ write → grant issue → grant consume.
 It self-gates on `integrationDatabaseReady`, so it skips cleanly when no runtime DB is
 configured (e.g. in `pnpm verify`), and the fast unit path is unaffected.
 
+`pnpm test:e2e` also runs the Web BFF's SSR/CSP smoke (`apps/web/scripts/verify-ssr-csp.mjs` via
+`@insecur/web` `test:e2e`, which builds the worker first): it boots `dist/server` under Miniflare
+with stubbed `API`/`RUNTIME` bindings and asserts every SSR surface renders with a matching CSP
+nonce, no inline style attributes, and the unauthenticated console redirect. It needs no database;
+it stays out of `pnpm verify` because the vite build + Miniflare boot is too slow for that hot
+path. The unit-level companion is the authed-SSR harness in `apps/web/test/support/`.
+
 ## Layer boundaries
 
 - **Unit vs integration**: DB-backed package integration suites live alongside unit tests but are
