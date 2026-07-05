@@ -19,6 +19,42 @@ const { Miniflare } = await import(
 const SESSION_SIGNING_SECRET = "b".repeat(32);
 const USER_ID = "usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
 const ORG = { organizationId: "org_01JZ8E2QYQAAAAAAAAAAAAAAAA", displayName: "Acme Corp" };
+// A second membership whose project list is empty, to exercise the empty-state invitation.
+const EMPTY_ORG = { organizationId: "org_01JZ8E2QYQBBBBBBBBBBBBBBBB", displayName: "Blank Co" };
+
+const PROJECT = {
+  projectId: "prj_01JZ8EDQ2R7V0X3Z6C9D1F4G5H",
+  organizationId: ORG.organizationId,
+  displayName: "Payments API",
+  createdAt: "2026-07-01T00:00:00.000Z",
+};
+// A project with zero environments, to exercise the environments empty state.
+const BARE_PROJECT = {
+  projectId: "prj_01JZ8EDQ2R7V0X3Z6C9D1F4G5J",
+  organizationId: ORG.organizationId,
+  displayName: "Bare Project",
+  createdAt: "2026-07-02T00:00:00.000Z",
+};
+const ENVIRONMENTS = [
+  {
+    environmentId: "env_01JZ8E4R2P7M9N3K5T8V1X6Z0A",
+    organizationId: ORG.organizationId,
+    projectId: PROJECT.projectId,
+    displayName: "production",
+    lifecycleStage: "production",
+    isProtected: true,
+    createdAt: "2026-07-01T00:00:00.000Z",
+  },
+  {
+    environmentId: "env_01JZ8E4R2P7M9N3K5T8V1X6Z0B",
+    organizationId: ORG.organizationId,
+    projectId: PROJECT.projectId,
+    displayName: "dev",
+    lifecycleStage: "development",
+    isProtected: false,
+    createdAt: "2026-07-01T00:00:00.000Z",
+  },
+];
 
 const base64Url = (bytes) =>
   Buffer.from(bytes)
@@ -92,7 +128,25 @@ const mf = new Miniflare({
         API: async (request) => {
           const url = new URL(request.url);
           if (url.pathname === "/v1/session/memberships") {
-            return Response.json({ ok: true, data: { organizations: [ORG] } });
+            return Response.json({ ok: true, data: { organizations: [ORG, EMPTY_ORG] } });
+          }
+          if (url.pathname === `/v1/orgs/${ORG.organizationId}/projects`) {
+            return Response.json({ ok: true, data: { projects: [PROJECT, BARE_PROJECT] } });
+          }
+          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/projects`) {
+            return Response.json({ ok: true, data: { projects: [] } });
+          }
+          if (
+            url.pathname ===
+            `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/environments`
+          ) {
+            return Response.json({ ok: true, data: { environments: ENVIRONMENTS } });
+          }
+          if (
+            url.pathname ===
+            `/v1/orgs/${ORG.organizationId}/projects/${BARE_PROJECT.projectId}/environments`
+          ) {
+            return Response.json({ ok: true, data: { environments: [] } });
           }
           if (url.pathname === "/v1/session/whoami") {
             return Response.json({
@@ -157,6 +211,19 @@ async function assertRouteHasMatchingCspNonce(path, { headers = {}, expect = [] 
   console.log(`ok ${path} nonce=${nonce}`);
 }
 
+/** Metadata-safe denial: a non-member or nonexistent resource must read as a 404, nothing more. */
+async function assertNotFound(path, headers) {
+  const response = await fetchPath(path, headers);
+  if (response.status !== 404) {
+    throw new Error(`${path} expected a metadata-safe 404, got ${response.status}`);
+  }
+  const html = await response.text();
+  if (!html.includes("Not found")) {
+    throw new Error(`${path} 404 page is missing its copy`);
+  }
+  console.log(`ok ${path} -> 404`);
+}
+
 async function assertUnauthenticatedConsoleRedirect(path) {
   const response = await fetchPath(path);
   const location = response.headers.get("location") ?? "";
@@ -187,6 +254,50 @@ try {
     headers: authorization,
     expect: [ORG.displayName, 'aria-label="Breadcrumb"'],
   });
+
+  // Projects section (INS-370): authorized renders, protection badge, empty states, denials.
+  await assertUnauthenticatedConsoleRedirect(
+    `/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}`,
+  );
+  await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/projects`, {
+    headers: authorization,
+    expect: [PROJECT.displayName, PROJECT.projectId, BARE_PROJECT.displayName, "2 projects"],
+  });
+  await assertRouteHasMatchingCspNonce(`/orgs/${EMPTY_ORG.organizationId}/projects`, {
+    headers: authorization,
+    expect: ["No projects yet", "insecur init"],
+  });
+  await assertRouteHasMatchingCspNonce(
+    `/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}`,
+    {
+      headers: authorization,
+      expect: [
+        PROJECT.displayName,
+        PROJECT.projectId,
+        ">Environments<",
+        ">Secrets<",
+        ">Access<",
+        ">Delivery<",
+        ">Protected<",
+        ENVIRONMENTS[0].environmentId,
+        ENVIRONMENTS[1].displayName,
+      ],
+    },
+  );
+  await assertRouteHasMatchingCspNonce(
+    `/orgs/${ORG.organizationId}/projects/${BARE_PROJECT.projectId}`,
+    {
+      headers: authorization,
+      expect: ["No environments yet", "insecur envs create"],
+    },
+  );
+  // A project ID outside the member's org and an org outside the membership set are
+  // indistinguishable from nonexistence.
+  await assertNotFound(
+    `/orgs/${ORG.organizationId}/projects/prj_01JZ8EDQ2R7V0X3Z6C9D1F4G5X`,
+    authorization,
+  );
+  await assertNotFound(`/orgs/org_01JZ8E2QYQCCCCCCCCCCCCCCCC/projects`, authorization);
 } finally {
   await mf.dispose();
 }

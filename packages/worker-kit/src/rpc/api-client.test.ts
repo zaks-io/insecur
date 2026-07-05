@@ -45,6 +45,30 @@ describe("apiClientFor", () => {
     expect((init.headers as Headers).get("Authorization")).toMatch(/^Bearer\s+\S+$/u);
   });
 
+  it("targets the metadata read paths with URL-encoded ids", async () => {
+    const apiFetch = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => Response.json({ ok: true, data: {} }),
+    );
+    const client = apiClientFor(
+      {
+        API: { fetch: apiFetch } as unknown as Fetcher,
+        SESSION_SIGNING_SECRET: signingSecret,
+      },
+      actor,
+    );
+
+    await client.orgProjects("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
+    await client.projectEnvironments("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
+
+    const urls = apiFetch.mock.calls.map((call) => call[0]);
+    expect(urls[0]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects",
+    );
+    expect(urls[1]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects/prj_01%2F..%2Fevil/environments",
+    );
+  });
+
   it("reuses the minted token across calls on the same client", async () => {
     const authorizations: string[] = [];
     const apiFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {

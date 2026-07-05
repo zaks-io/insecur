@@ -11,14 +11,16 @@ import {
   SwitcherMenuMark,
   Wordmark,
 } from "@insecur/ui";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useMatch } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { ConsoleOrganization } from "../console/organizations.js";
+import { activeProjectView, projectBreadcrumbs } from "../console/project-nav.js";
 import {
   activeConsoleSection,
   CONSOLE_SECTIONS,
   consoleBreadcrumbs,
   consoleSectionPath,
+  type ConsoleBreadcrumb,
   type ConsoleSection,
 } from "../console/sections.js";
 
@@ -64,23 +66,20 @@ function ConsoleSections({
   );
 }
 
-function ConsoleBreadcrumbBar({
-  activeOrg,
-  section,
-}: {
-  activeOrg: ConsoleOrganization;
-  section: ConsoleSection;
-}) {
+function ConsoleBreadcrumbBar({ crumbs }: { crumbs: readonly ConsoleBreadcrumb[] }) {
   return (
     <div className="border-b border-ink/20 px-5 py-3 sm:px-8">
       <Breadcrumbs>
-        {consoleBreadcrumbs(activeOrg, section).map((crumb) =>
+        {/* Linked crumbs key by href: Display Names are user-controlled and can collide with
+            fixed crumbs (a project named "Projects"); hrefs are unique per trail level, and the
+            single current crumb (no href) can't collide with them. */}
+        {crumbs.map((crumb) =>
           crumb.href === undefined ? (
             <BreadcrumbItem key={crumb.label} current>
               {crumb.label}
             </BreadcrumbItem>
           ) : (
-            <BreadcrumbItem key={crumb.label} asChild>
+            <BreadcrumbItem key={crumb.href} asChild>
               <Link to={crumb.href}>{crumb.label}</Link>
             </BreadcrumbItem>
           ),
@@ -88,6 +87,27 @@ function ConsoleBreadcrumbBar({
       </Breadcrumbs>
     </div>
   );
+}
+
+/**
+ * Breadcrumb trail for the current console page: the section trail by default, extended with the
+ * project's Display Name (and view label) when a project route is matched underneath the shell.
+ */
+function useConsoleBreadcrumbs(
+  activeOrg: ConsoleOrganization,
+  section: ConsoleSection,
+  pathname: string,
+): readonly ConsoleBreadcrumb[] {
+  const projectMatch = useMatch({
+    from: "/orgs/$orgId/projects/$projectId",
+    shouldThrow: false,
+  });
+  const project = projectMatch?.loaderData?.project;
+  if (project === undefined) {
+    return consoleBreadcrumbs(activeOrg, section);
+  }
+  const view = activeProjectView(pathname, activeOrg.organizationId, project.projectId);
+  return projectBreadcrumbs(activeOrg, project, view);
 }
 
 /**
@@ -105,6 +125,7 @@ export function ConsoleFrame({
 }) {
   const { pathname } = useLocation();
   const section = activeConsoleSection(pathname, activeOrg.organizationId);
+  const crumbs = useConsoleBreadcrumbs(activeOrg, section, pathname);
 
   return (
     <ConsoleShell
@@ -131,7 +152,7 @@ export function ConsoleFrame({
       }
       sidebar={<ConsoleSections activeOrg={activeOrg} section={section} />}
     >
-      <ConsoleBreadcrumbBar activeOrg={activeOrg} section={section} />
+      <ConsoleBreadcrumbBar crumbs={crumbs} />
       {children}
     </ConsoleShell>
   );

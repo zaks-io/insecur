@@ -16,6 +16,7 @@ export {
   ConsoleNav,
   ConsoleNavItem,
 } from "#components/layout/console-shell";
+export { Badge } from "#components/ui/badge";
 export { Breadcrumbs, BreadcrumbItem } from "#components/ui/breadcrumbs";
 export { ConsolePlaceholder } from "#components/ui/console-placeholder";
 export { SwitcherMenu, SwitcherMenuItem, SwitcherMenuMark } from "#components/ui/switcher-menu";
