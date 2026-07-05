@@ -90,10 +90,15 @@ Review gate (no parent):
 
 - `code-review-passed` — "Code review has passed and all feedback has been resolved". The merge-gate marker. Use this exact kebab-case slug; the display name is title-case ("Code review passed") and searching by the display string returns empty. Apply it to the issue when Agent Review is clean for the current PR head; the supporting evidence (head SHA + both reviewer verdicts) goes in an issue comment.
 
+Scope (no parent):
+
+- `frontend`
+
 ### Label Policies
 
 - `ready-for-agent`: no further human refinement is needed before agent handoff; does not mean unblocked or startable.
 - `remote-cursor`: approved to run in the remote Cursor environment; does not mean unblocked or startable.
+- `frontend`: UI/web scope partition so concurrent orchestrator runs can include/exclude frontend work by label. Apply at filing time (`ziw-to-issues`) to slices whose primary deliverable is `apps/web` UI, the onboarding wizard, or another browser-facing surface. Backend read slices the UI depends on do not get it. Not a readiness or startability signal.
 - `kind-slice`: the only dispatchable kind. `kind-spec` and `kind-epic` are containers for To Issues and never run as implementation work.
 - Readiness-label query policy: `ready-for-agent` and `ready-for-human` queues exclude `Done` unless the user explicitly asks to audit Done cleanup.
 - Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, `zaks-io/insecur`, configured estimate, complete agent-ready body, no active blockers, no active claim, no open PR, clear file footprint, and delivery headroom. Issue-assigned Cursor work also requires `remote-cursor`.
