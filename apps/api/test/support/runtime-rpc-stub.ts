@@ -44,5 +44,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     recordInjectionRunCompleted: vi.fn(),
     captureFirstValueFeedback: vi.fn(),
     completeBootstrapOperatorClaim: vi.fn(),
+    listProjects: vi.fn(),
+    listEnvironments: vi.fn(),
   };
 }

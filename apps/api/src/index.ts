@@ -17,8 +17,8 @@ import { invitationsRoutes } from "./routes/v1/invitations.js";
 import { onboardingRoutes } from "./routes/v1/onboarding.js";
 import { operationsRoutes } from "./routes/v1/operations.js";
 import { organizationsRoutes } from "./routes/v1/organizations.js";
+import { projectsRoutes } from "./routes/v1/projects.js";
 import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
-import { secretsRoutes } from "./routes/v1/secrets.js";
 import { sessionRoutes } from "./routes/v1/session.js";
 import type { ApiEnv } from "./env.js";
 import { logUnhandledApiError } from "./log-unhandled-error.js";
@@ -89,7 +89,7 @@ app.route("/v1/instance/bootstrap", instanceBootstrapRoutes);
 // Tenant-scoped routes are re-homed under /v1/orgs/:organizationId (ADR-0003, tenant.isolation gate).
 app.route("/v1/orgs/:organizationId/invitations", invitationsRoutes);
 app.route("/v1/orgs/:organizationId/organizations", organizationsRoutes);
-app.route("/v1/orgs/:organizationId/projects", secretsRoutes);
+app.route("/v1/orgs/:organizationId/projects", projectsRoutes);
 app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
 app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
 app.route("/v1/orgs/:organizationId/design-partner-feedback", designPartnerFeedbackRoutes);

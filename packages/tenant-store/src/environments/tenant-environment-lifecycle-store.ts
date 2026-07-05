@@ -6,8 +6,9 @@ import {
   userId,
   type EnvironmentId,
   type OrganizationId,
+  type ProjectId,
 } from "@insecur/domain";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { environments } from "../db/schema/tenant-hierarchy.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
@@ -19,6 +20,18 @@ import type {
   EnvironmentLifecycleRow,
   UpdateEnvironmentLifecycleMetadataInput,
 } from "./types.js";
+
+const environmentLifecycleSelect = {
+  id: environments.id,
+  orgId: environments.orgId,
+  projectId: environments.projectId,
+  displayName: environments.displayName,
+  lifecycleStage: environments.lifecycleStage,
+  isProtected: environments.isProtected,
+  previewNonProductionConfirmedAt: environments.previewNonProductionConfirmedAt,
+  previewNonProductionConfirmedByUserId: environments.previewNonProductionConfirmedByUserId,
+  createdAt: environments.createdAt,
+} as const;
 
 function toEnvironmentLifecycleRow(row: {
   id: string;
@@ -64,17 +77,7 @@ export class TenantEnvironmentLifecycleStore {
     environmentIdValue: EnvironmentId,
   ): Promise<EnvironmentLifecycleRow | null> {
     const rows = await this.db
-      .select({
-        id: environments.id,
-        orgId: environments.orgId,
-        projectId: environments.projectId,
-        displayName: environments.displayName,
-        lifecycleStage: environments.lifecycleStage,
-        isProtected: environments.isProtected,
-        previewNonProductionConfirmedAt: environments.previewNonProductionConfirmedAt,
-        previewNonProductionConfirmedByUserId: environments.previewNonProductionConfirmedByUserId,
-        createdAt: environments.createdAt,
-      })
+      .select(environmentLifecycleSelect)
       .from(environments)
       .where(
         and(eq(environments.orgId, organizationIdValue), eq(environments.id, environmentIdValue)),
@@ -86,6 +89,24 @@ export class TenantEnvironmentLifecycleStore {
       return null;
     }
     return toEnvironmentLifecycleRow(row);
+  }
+
+  async listByProject(
+    organizationIdValue: OrganizationId,
+    projectIdValue: ProjectId,
+  ): Promise<readonly EnvironmentLifecycleRow[]> {
+    const rows = await this.db
+      .select(environmentLifecycleSelect)
+      .from(environments)
+      .where(
+        and(
+          eq(environments.orgId, organizationIdValue),
+          eq(environments.projectId, projectIdValue),
+        ),
+      )
+      .orderBy(asc(environments.displayName), asc(environments.id));
+
+    return rows.map((row) => toEnvironmentLifecycleRow(row));
   }
 
   async create(input: CreateEnvironmentLifecycleInput): Promise<EnvironmentLifecycleRow> {

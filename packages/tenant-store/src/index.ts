@@ -167,6 +167,8 @@ export {
   isEnvironmentLifecycleImmutableViolation,
   rethrowEnvironmentLifecycleDbError,
 } from "./environments/rethrow-environment-lifecycle-db-error.js";
+export { TenantProjectMetadataStore } from "./projects/tenant-project-metadata-store.js";
+export type { ProjectMetadataRow } from "./projects/types.js";
 export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
 export type {
   CreateEnvironmentLifecycleInput,

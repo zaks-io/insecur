@@ -100,5 +100,7 @@ export function runtimeClientFor(
     consumeGrantAll: forward("consumeGrantAll"),
     recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),
     captureFirstValueFeedback: forward("captureFirstValueFeedback"),
+    listProjects: forward("listProjects"),
+    listEnvironments: forward("listEnvironments"),
   };
 }

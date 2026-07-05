@@ -33,6 +33,10 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/runtime-injection`       |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback` |
 
+Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `GET
+/:projectId/environments` lists environment metadata (including `isProtected`). `POST
+/:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+
 ## Web Worker — `apps/web` (`insecur-web`)
 
 Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API Worker only over
