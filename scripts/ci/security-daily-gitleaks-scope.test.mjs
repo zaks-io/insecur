@@ -2,28 +2,87 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { parse as parseYaml } from "yaml";
 
 const workflowPath = join(process.cwd(), ".github", "workflows", "security-daily.yml");
+const REQUIRED_GITLEAKS_LOG_OPTS = "HEAD";
 
-test("security-daily gitleaks history scan is scoped to default-branch HEAD", () => {
-  const workflow = readFileSync(workflowPath, "utf8");
+function readSecurityDailyGitleaksLogOpts(workflowSource) {
+  const workflow = parseYaml(workflowSource);
+  const steps = workflow?.jobs?.["secret-scan-history"]?.steps;
+  assert.ok(Array.isArray(steps), "secret-scan-history job must define steps");
 
-  const historyJob = workflow.slice(workflow.indexOf("secret-scan-history:"));
-  assert.match(
-    historyJob,
-    /GITLEAKS_LOG_OPTS:\s*HEAD/,
-    "secret-scan-history must set GITLEAKS_LOG_OPTS=HEAD so open PR refs cannot fail the scheduled scan",
+  const gitleaksStep = steps.find((step) => step?.name === "Scan git history for secrets");
+  assert.ok(gitleaksStep, 'secret-scan-history must include a "Scan git history for secrets" step');
+
+  const logOpts = gitleaksStep?.env?.GITLEAKS_LOG_OPTS;
+  assert.ok(
+    typeof logOpts === "string" && logOpts.length > 0,
+    "GITLEAKS_LOG_OPTS must be a non-empty string in the gitleaks history step",
   );
 
+  return logOpts;
+}
+
+function assertExactHeadLogOpts(workflowSource) {
+  const logOpts = readSecurityDailyGitleaksLogOpts(workflowSource);
+  assert.equal(
+    logOpts,
+    REQUIRED_GITLEAKS_LOG_OPTS,
+    `GITLEAKS_LOG_OPTS must be exactly "${REQUIRED_GITLEAKS_LOG_OPTS}" so open PR refs cannot widen the scheduled scan`,
+  );
+  return logOpts;
+}
+
+test("security-daily gitleaks history scan sets GITLEAKS_LOG_OPTS to exactly HEAD", () => {
+  const workflow = readFileSync(workflowPath, "utf8");
+  assertExactHeadLogOpts(workflow);
+
+  const historyJob = workflow.slice(workflow.indexOf("secret-scan-history:"));
   const gitleaksStep = historyJob.slice(historyJob.indexOf("Scan git history for secrets"));
   assert.match(
     gitleaksStep,
     /gitleaks-detect\.sh git/,
     "secret-scan-history must run gitleaks in git history mode",
   );
-  assert.doesNotMatch(
-    gitleaksStep.slice(0, gitleaksStep.indexOf("Summarize critical gitleaks findings")),
-    /GITLEAKS_LOG_OPTS:\s*""|GITLEAKS_LOG_OPTS:\s*''/,
-    "GITLEAKS_LOG_OPTS must not be blanked in the gitleaks history step",
-  );
 });
+
+test("widened GITLEAKS_LOG_OPTS fixtures fail the exact HEAD scope assertion", () => {
+  const widenedFixtures = [
+    {
+      name: "HEAD --all suffix widens scan refs",
+      value: "HEAD --all",
+    },
+    {
+      name: "bare --all widens scan refs",
+      value: "--all",
+    },
+  ];
+
+  for (const fixture of widenedFixtures) {
+    const workflowSource = fixtureWorkflow(fixture.value);
+    assert.throws(
+      () => assertExactHeadLogOpts(workflowSource),
+      (error) => {
+        assert.match(
+          String(error?.message ?? error),
+          new RegExp(`must be exactly "${REQUIRED_GITLEAKS_LOG_OPTS}"`),
+        );
+        return true;
+      },
+      `${fixture.name}: widened GITLEAKS_LOG_OPTS must fail the regression check`,
+    );
+  }
+});
+
+function fixtureWorkflow(gitleaksLogOpts) {
+  return `
+jobs:
+  secret-scan-history:
+    steps:
+      - name: Scan git history for secrets
+        env:
+          GITLEAKS_LOG_OPTS: ${JSON.stringify(gitleaksLogOpts)}
+        run: bash scripts/ci/gitleaks-detect.sh git
+`;
+}
