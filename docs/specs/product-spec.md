@@ -1,6 +1,6 @@
 # Canonical Product Spec
 
-Last updated: 2026-06-11.
+Last updated: 2026-07-05.
 
 This is the linear implementation-facing specification for the currently decided insecur product.
 It consolidates accepted ADRs, scope decisions, and operational constraints so agents can build from
@@ -28,9 +28,11 @@ Storage Security Gate pass.
 
 The security boundary is deliberately not the same in dev and in production, and the two must
 not be blurred: a local agent can read a development secret it uses, while Protected Environment
-values have no local read path at all. The owning statement of that dev-vs-production divide,
-including what is and is not enforced in each tier, is
-[whitepaper/threat-model.md §2.5](../whitepaper/threat-model.md#25-the-two-tier-boundary-dev-vs-production).
+values have no local read path at all. The owning statement of that divide — including
+**Local Mode** (account-less local development custody), hosted development, and production —
+and what is and is not enforced in each tier, is
+[whitepaper/threat-model.md §2.5](../whitepaper/threat-model.md#25-the-custody-boundary-local-dev-and-production);
+this spec does not restate that tier table.
 
 V1 means the reduced production spine decided on 2026-05-25, not "every accepted future-facing
 ADR." V1 keeps:
