@@ -39,5 +39,15 @@ export function apiClientFor(env: ApiClientEnv, actor: UserActor) {
       const response = await apiFetch("/v1/session/memberships");
       return response.json();
     },
+    orgProjects: async (organizationId: string): Promise<unknown> => {
+      const response = await apiFetch(`/v1/orgs/${encodeURIComponent(organizationId)}/projects`);
+      return response.json();
+    },
+    projectEnvironments: async (organizationId: string, projectId: string): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/environments`,
+      );
+      return response.json();
+    },
   };
 }

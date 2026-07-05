@@ -46,26 +46,34 @@ Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API
 the private `API` Service Binding with a per-request `insecur-api`-audience scoped token. Holds NO
 root-key binding and NO Hyperdrive binding.
 
-| Method | Mount prefix            |
-| ------ | ----------------------- |
-| GET    | `/healthz`              |
-| GET    | `/`                     |
-| GET    | `/login`                |
-| GET    | `/auth/callback`        |
-| POST   | `/logout`               |
-| GET    | `/whoami`               |
-| GET    | `/onboarding`           |
-| GET    | `/orgs/`                |
-| GET    | `/orgs/$orgId`          |
-| GET    | `/orgs/$orgId/`         |
-| GET    | `/orgs/$orgId/projects` |
-| GET    | `/orgs/$orgId/audit`    |
-| GET    | `/orgs/$orgId/people`   |
-| GET    | `/orgs/$orgId/settings` |
+| Method | Mount prefix                                |
+| ------ | ------------------------------------------- |
+| GET    | `/healthz`                                  |
+| GET    | `/`                                         |
+| GET    | `/login`                                    |
+| GET    | `/auth/callback`                            |
+| POST   | `/logout`                                   |
+| GET    | `/whoami`                                   |
+| GET    | `/onboarding`                               |
+| GET    | `/orgs/`                                    |
+| GET    | `/orgs/$orgId`                              |
+| GET    | `/orgs/$orgId/`                             |
+| GET    | `/orgs/$orgId/projects/`                    |
+| GET    | `/orgs/$orgId/projects/$projectId`          |
+| GET    | `/orgs/$orgId/projects/$projectId/`         |
+| GET    | `/orgs/$orgId/projects/$projectId/secrets`  |
+| GET    | `/orgs/$orgId/projects/$projectId/access`   |
+| GET    | `/orgs/$orgId/projects/$projectId/delivery` |
+| GET    | `/orgs/$orgId/audit`                        |
+| GET    | `/orgs/$orgId/people`                       |
+| GET    | `/orgs/$orgId/settings`                     |
 
 The `/orgs/*` rows are the authed console shell (INS-367): `/orgs/` resolves the default
 organization, `/orgs/$orgId` is the org-scoped layout carrying the five-section sidebar, and the
 section rows are TanStack file routes rendered inside it (`$orgId` is TanStack path-param syntax).
+The `/orgs/$orgId/projects/*` rows are the Projects section (INS-370): the project list, the
+project layout with its Environments (`/$projectId/`, the index) / Secrets / Access / Delivery
+views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs.
 `/onboarding` is the placeholder the first-run wizard will claim. URLs carry opaque Resource IDs
 only (docs/web-console-ux.md §URLs).
 

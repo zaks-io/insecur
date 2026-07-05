@@ -1,3 +1,5 @@
+import { parseSuccessEnvelopeList } from "./envelope.js";
+
 /** One organization the signed-in member can enter: opaque ID for the URL, Display Name for UI. */
 export interface ConsoleOrganization {
   readonly organizationId: string;
@@ -15,28 +17,12 @@ function parseOrganizationEntry(entry: unknown): ConsoleOrganization | null {
   return { organizationId, displayName };
 }
 
-function organizationsFromEnvelope(body: unknown): unknown {
-  if (typeof body !== "object" || body === null) {
-    return undefined;
-  }
-  const envelope = body as Record<string, unknown>;
-  if (envelope.ok !== true || typeof envelope.data !== "object" || envelope.data === null) {
-    return undefined;
-  }
-  return (envelope.data as Record<string, unknown>).organizations;
-}
-
 /**
  * Parse the `GET /v1/session/memberships` envelope from the API hop. Returns `null` when the body
  * is not the expected success envelope so the caller can fail closed.
  */
 export function parseSessionMembershipsBody(body: unknown): readonly ConsoleOrganization[] | null {
-  const organizations = organizationsFromEnvelope(body);
-  if (!Array.isArray(organizations)) {
-    return null;
-  }
-  const parsed = organizations.map(parseOrganizationEntry);
-  return parsed.every((entry): entry is ConsoleOrganization => entry !== null) ? parsed : null;
+  return parseSuccessEnvelopeList(body, "organizations", parseOrganizationEntry);
 }
 
 /**

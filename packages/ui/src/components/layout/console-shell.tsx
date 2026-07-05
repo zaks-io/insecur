@@ -60,11 +60,32 @@ export function ConsoleTopbar({
   );
 }
 
-/** Sidebar section list: a column on desktop, a scrollable strip on small screens. */
-export function ConsoleNav({ className, children, ...props }: ComponentProps<"nav">) {
+/**
+ * Console section list. `vertical` (the sidebar default) is a column on desktop and a scrollable
+ * strip on small screens; `horizontal` stays a row at every width, for in-page sub-navigation
+ * rails like a project's view tabs.
+ */
+export function ConsoleNav({
+  orientation = "vertical",
+  className,
+  children,
+  ...props
+}: ComponentProps<"nav"> & { orientation?: "vertical" | "horizontal" }) {
   return (
-    <nav data-slot="console-nav" className={cn(className)} {...props}>
-      <ul className="flex flex-row overflow-x-auto md:flex-col md:py-3">{children}</ul>
+    <nav
+      data-slot="console-nav"
+      data-orientation={orientation}
+      className={cn(className)}
+      {...props}
+    >
+      <ul
+        className={cn(
+          "flex flex-row overflow-x-auto",
+          orientation === "vertical" && "md:flex-col md:py-3",
+        )}
+      >
+        {children}
+      </ul>
     </nav>
   );
 }
