@@ -78,6 +78,10 @@ function finalizeBrowserActorResult(result: ResolveBrowserActorResult): ResolveB
   return result;
 }
 
+function postRefreshBrowserActorFailure(failure: AuthFailure): ResolveBrowserActorResult {
+  return { ok: false, failure, clearSession: true };
+}
+
 function shouldUseSmokeResult(
   smokeResult: ResolveBrowserActorResult,
   workosSealedSession: string | undefined,
@@ -105,7 +109,7 @@ async function resolveWorkosCookieActor(
     }
     const refreshed = await refreshWorkOSSession(workos, workosSealedSession);
     if (!refreshed.ok) {
-      return { ok: false, failure: refreshed.failure, clearSession: true };
+      return postRefreshBrowserActorFailure(refreshed.failure);
     }
     return resolveAdmittedWorkosContextAfterRefresh(
       refreshed.rotated.context,
@@ -126,7 +130,7 @@ async function resolveAdmittedWorkosContextAfterRefresh(
 ): Promise<ResolveBrowserActorResult> {
   const admitted = await resolveAdmittedActorFromWorkosContext(context, env, resolveAdmittedUser);
   if (!admitted.ok) {
-    return { ...admitted, clearSession: true };
+    return postRefreshBrowserActorFailure(admitted.failure);
   }
 
   return {
