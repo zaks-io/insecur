@@ -27,8 +27,25 @@ export interface EgressSweepHit {
   redactedPrefix: string;
 }
 
-/** JSON paths that may carry base64url on grant-consume egress (ADR-0069 / INS-388). */
-const ALLOWED_DELIVERY_FIELD_SUFFIX = "delivery.encodedValueUtf8";
+const DELIVERY_PARENT_SEGMENT = "delivery";
+const DELIVERY_VALUE_SEGMENT = "encodedValueUtf8";
+
+function isDeliveryEncodedValuePath(jsonPath: string): boolean {
+  const segments = jsonPath.split(".");
+  if (segments.length < 2) {
+    return false;
+  }
+
+  return segments.at(-2) === DELIVERY_PARENT_SEGMENT && segments.at(-1) === DELIVERY_VALUE_SEGMENT;
+}
+
+function isAllowedEgressPath(encoding: SentinelEncoding, jsonPath: string | undefined): boolean {
+  if (encoding !== "base64url" || jsonPath === undefined) {
+    return false;
+  }
+
+  return isDeliveryEncodedValuePath(jsonPath);
+}
 
 function variantForEncoding(sentinel: CanarySentinel, encoding: SentinelEncoding): SentinelVariant {
   const variant = sentinel.variants.find((entry) => entry.encoding === encoding);
@@ -78,14 +95,6 @@ function findPatternPaths(value: unknown, pattern: string, path = ""): string[] 
   }
 
   return [];
-}
-
-function isAllowedEgressPath(encoding: SentinelEncoding, jsonPath: string | undefined): boolean {
-  if (encoding !== "base64url" || jsonPath === undefined) {
-    return false;
-  }
-
-  return jsonPath.endsWith(ALLOWED_DELIVERY_FIELD_SUFFIX);
 }
 
 function sweepSerializedJsonTree(
