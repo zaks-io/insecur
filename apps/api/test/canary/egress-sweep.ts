@@ -30,8 +30,9 @@ export interface EgressSweepHit {
 const DELIVERY_PARENT_SEGMENT = "delivery";
 const DELIVERY_VALUE_SEGMENT = "encodedValueUtf8";
 
-function isDeliveryEncodedValuePath(jsonPath: string): boolean {
-  const segments = jsonPath.split(".");
+type JsonPathSegments = readonly string[];
+
+function isDeliveryEncodedValuePathSegments(segments: JsonPathSegments): boolean {
   if (segments.length < 2) {
     return false;
   }
@@ -39,12 +40,54 @@ function isDeliveryEncodedValuePath(jsonPath: string): boolean {
   return segments.at(-2) === DELIVERY_PARENT_SEGMENT && segments.at(-1) === DELIVERY_VALUE_SEGMENT;
 }
 
-function isAllowedEgressPath(encoding: SentinelEncoding, jsonPath: string | undefined): boolean {
-  if (encoding !== "base64url" || jsonPath === undefined) {
+function isAllowedEgressPath(encoding: SentinelEncoding, segments: JsonPathSegments): boolean {
+  if (encoding !== "base64url") {
     return false;
   }
 
-  return isDeliveryEncodedValuePath(jsonPath);
+  return isDeliveryEncodedValuePathSegments(segments);
+}
+
+/** Render carried path segments for diagnostics only; never parse this string back. */
+function renderJsonPath(segments: JsonPathSegments): string {
+  if (segments.length === 0) {
+    return "<root>";
+  }
+
+  return segments.reduce<string>((path, segment) => {
+    if (segment.startsWith("[")) {
+      return `${path}${segment}`;
+    }
+    if (segment.includes(".")) {
+      const bracketed = `["${segment.replace(/"/g, '\\"')}"]`;
+      return path ? `${path}${bracketed}` : bracketed;
+    }
+    return path ? `${path}.${segment}` : segment;
+  }, "");
+}
+
+function findPatternPathSegments(
+  value: unknown,
+  pattern: string,
+  segments: JsonPathSegments = [],
+): JsonPathSegments[] {
+  if (typeof value === "string") {
+    return value.includes(pattern) ? [segments] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) =>
+      findPatternPathSegments(entry, pattern, [...segments, `[${index}]`]),
+    );
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, entry]) =>
+      findPatternPathSegments(entry, pattern, [...segments, key]),
+    );
+  }
+
+  return [];
 }
 
 function variantForEncoding(sentinel: CanarySentinel, encoding: SentinelEncoding): SentinelVariant {
@@ -76,27 +119,6 @@ export function captureHttpResponse(
   };
 }
 
-function findPatternPaths(value: unknown, pattern: string, path = ""): string[] {
-  if (typeof value === "string") {
-    return value.includes(pattern) ? [path || "<root>"] : [];
-  }
-
-  if (Array.isArray(value)) {
-    return value.flatMap((entry, index) =>
-      findPatternPaths(entry, pattern, path ? `${path}[${index}]` : `[${index}]`),
-    );
-  }
-
-  if (value && typeof value === "object") {
-    return Object.entries(value).flatMap(([key, entry]) => {
-      const childPath = path ? `${path}.${key}` : key;
-      return findPatternPaths(entry, pattern, childPath);
-    });
-  }
-
-  return [];
-}
-
 function sweepSerializedJsonTree(
   location: string,
   serialized: string,
@@ -112,21 +134,21 @@ function sweepSerializedJsonTree(
   }
 
   for (const variant of sentinel.variants) {
-    const paths =
+    const pathSegments: JsonPathSegments[] =
       typeof parsed === "string"
         ? parsed.includes(variant.pattern)
-          ? ["<text>"]
+          ? [["<text>"]]
           : []
-        : findPatternPaths(parsed, variant.pattern);
+        : findPatternPathSegments(parsed, variant.pattern);
 
-    for (const jsonPath of paths) {
-      if (isAllowedEgressPath(variant.encoding, jsonPath)) {
+    for (const segments of pathSegments) {
+      if (isAllowedEgressPath(variant.encoding, segments)) {
         continue;
       }
       hits.push({
         surface: "egress",
         location,
-        jsonPath,
+        jsonPath: renderJsonPath(segments),
         encoding: variant.encoding,
         redactedPrefix: sentinel.redactedPrefix,
       });
