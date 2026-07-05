@@ -30,8 +30,25 @@ export function encodePkceRoundTrip(roundTrip: PkceRoundTrip): string {
   return bytesToBase64Url(new TextEncoder().encode(JSON.stringify(roundTrip)));
 }
 
+const RELATIVE_APP_PATH_BASE = "https://insecur.invalid";
+
+/**
+ * Accepts only same-origin app paths for post-login redirects. Backslashes are rejected outright
+ * because the WHATWG URL parser treats `\` as `/` for special schemes, so `Location: /\evil.com`
+ * resolves to `https://evil.com` (open redirect). The parse-and-resolve check backstops the string
+ * checks against any other parser quirk that could escape the app origin.
+ */
 function isRelativeAppPath(value: string): boolean {
-  return value.startsWith("/") && !value.startsWith("//");
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+    return false;
+  }
+  let resolved: URL;
+  try {
+    resolved = new URL(value, RELATIVE_APP_PATH_BASE);
+  } catch {
+    return false;
+  }
+  return resolved.origin === RELATIVE_APP_PATH_BASE;
 }
 
 function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTrip | null {
