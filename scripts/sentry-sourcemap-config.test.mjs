@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
-import { hasSourceMap } from "./sentry-upload-wrangler-sourcemaps.mjs";
+import { hasSourceMap, uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
 import {
   isSourceMapArtifact,
   parseReleaseFilesList,
   releaseHasSourceMapArtifacts,
+  verifyReleaseSourcemaps,
 } from "./sentry-verify-release-sourcemaps.mjs";
 
 test("deploy workflows read SENTRY_AUTH_TOKEN from repository or environment secrets", async () => {
@@ -100,6 +101,7 @@ test("hasSourceMap finds nested map files", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "insecur-sentry-maps-"));
   try {
     const nested = path.join(root, "server");
+    await mkdir(nested, { recursive: true });
     await writeFile(path.join(nested, "index.js"), "console.log('x');\n");
     await writeFile(path.join(nested, "index.js.map"), '{"version":3}\n');
     assert.equal(await hasSourceMap(root), true);
@@ -107,6 +109,60 @@ test("hasSourceMap finds nested map files", async () => {
   } finally {
     await rm(root, { force: true, recursive: true });
   }
+});
+
+test("uploadWranglerSourcemaps skips when auth token is absent", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "insecur-sentry-upload-skip-"));
+  try {
+    assert.deepEqual(await uploadWranglerSourcemaps(root, {}), {
+      action: "skip",
+      reason: "missing_auth_token",
+    });
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("uploadWranglerSourcemaps fails closed when required maps are missing", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "insecur-sentry-upload-required-"));
+  try {
+    await assert.rejects(
+      () =>
+        uploadWranglerSourcemaps(root, {
+          INSECUR_REQUIRE_SENTRY_SOURCEMAPS: "true",
+          SENTRY_AUTH_TOKEN: "token-value",
+          SENTRY_RELEASE: "release-1",
+        }),
+      /No source maps found in .* required Sentry source map upload cannot be skipped/u,
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("uploadWranglerSourcemaps skips missing maps when upload is not required", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "insecur-sentry-upload-optional-"));
+  try {
+    assert.deepEqual(
+      await uploadWranglerSourcemaps(root, {
+        SENTRY_AUTH_TOKEN: "token-value",
+        SENTRY_RELEASE: "release-1",
+      }),
+      {
+        action: "skip",
+        reason: "missing_source_maps",
+      },
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("verifyReleaseSourcemaps skips when auth token is absent", () => {
+  assert.deepEqual(verifyReleaseSourcemaps({}), {
+    action: "skip",
+    reason: "missing_auth_token",
+  });
 });
 
 test("parseReleaseFilesList ignores blank lines", () => {
@@ -131,7 +187,7 @@ test("worker deploy scripts upload wrangler source maps after deploy", async () 
   ];
 
   for (const [packagePath, mapDir] of packages) {
-    const pkg = JSON.parse(await readPackage(packagePath));
+    const pkg = await readPackage(packagePath);
     for (const scriptName of ["deploy", "deploy:preview"]) {
       const script = pkg.scripts[scriptName];
       assert.match(

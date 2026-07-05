@@ -653,7 +653,10 @@ Create the token outside the repo and store it only in the approved GitHub Actio
 
 Local builds skip source-map upload when `SENTRY_AUTH_TOKEN` is unset. Preview and production deploy
 workflows set `INSECUR_REQUIRE_SENTRY_SOURCEMAPS=true`, so a missing or malformed upload
-configuration fails closed instead of silently skipping upload.
+configuration fails closed instead of silently skipping upload. When upload is required, each deploy
+step also fails closed if its Wrangler/Vite output directory contains no `.map` files. After all
+deploy steps finish, `scripts/sentry-verify-release-sourcemaps.mjs` checks the combined Sentry
+release for uploaded map artifacts.
 
 #### Sentry source-map verification
 
