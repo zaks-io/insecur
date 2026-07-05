@@ -5,6 +5,7 @@ import {
   workspaceNameError,
   type OnboardingResourceIds,
   type ProvisionOutcome,
+  type ProvisionedWorkspace,
 } from "../../onboarding/provisioning.js";
 import { provisionErrorVoice, type WizardErrorVoice } from "../../onboarding/wizard-voice.js";
 import { provisionOnboardingWorkspace } from "../../server/onboarding.js";
@@ -26,6 +27,9 @@ interface CreateProjectStepProps {
   onEditOrganization: () => void;
   resourceIds: OnboardingResourceIds;
   onProvisioned: (handoff: ProvisionedHandoff) => void;
+  /** Clean-conflict path (ADR-0063): the workspace exists but this render can't vouch for its
+   * Display Names, so the caller reopens the handoff from the loader's membership truth. */
+  onContinueToHandoff: (workspace: ProvisionedWorkspace) => void;
 }
 
 async function submitProvisioning(data: {
@@ -47,14 +51,10 @@ function useCreateProjectForm(props: CreateProjectStepProps) {
   const [failure, setFailure] = useState<WizardErrorVoice>();
   const [submitting, setSubmitting] = useState(false);
 
-  const handoffFromMintedIds = (): ProvisionedHandoff => ({
-    workspace: {
-      organizationId: props.resourceIds.organizationId,
-      projectId: props.resourceIds.projectId,
-      environmentId: props.resourceIds.developmentEnvironmentId,
-    },
-    organizationName: props.organizationName.trim(),
-    projectName: props.value.trim(),
+  const mintedWorkspace = (): ProvisionedWorkspace => ({
+    organizationId: props.resourceIds.organizationId,
+    projectId: props.resourceIds.projectId,
+    environmentId: props.resourceIds.developmentEnvironmentId,
   });
 
   const submit = async (event: SyntheticEvent) => {
@@ -84,7 +84,7 @@ function useCreateProjectForm(props: CreateProjectStepProps) {
     setFailure(provisionErrorVoice(outcome.code));
   };
 
-  return { error, failure, submitting, submit, handoffFromMintedIds };
+  return { error, failure, submitting, submit, mintedWorkspace };
 }
 
 /**
@@ -122,7 +122,7 @@ export function CreateProjectStep(props: CreateProjectStepProps) {
           <FailureNotice
             failure={form.failure}
             onContinueToHandoff={() => {
-              props.onProvisioned(form.handoffFromMintedIds());
+              props.onContinueToHandoff(form.mintedWorkspace());
             }}
           />
         )}

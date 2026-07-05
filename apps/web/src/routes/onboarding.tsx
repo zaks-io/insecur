@@ -66,23 +66,31 @@ function OnboardingPage() {
   // reloaded handoff link recovers the organization name from the memberships read.
   const handoff = completed ?? (decision.kind === "handoff" ? decision : undefined);
 
-  const handleProvisioned = (result: ProvisionedHandoff) => {
-    setCompleted(result);
+  const navigateToHandoff = (workspace: ProvisionedWorkspace) => {
     void navigate({
       to: "/onboarding",
       search: {
-        org: result.workspace.organizationId,
-        project: result.workspace.projectId,
-        env: result.workspace.environmentId,
+        org: workspace.organizationId,
+        project: workspace.projectId,
+        env: workspace.environmentId,
       },
       replace: true,
     });
   };
 
+  const handleProvisioned = (result: ProvisionedHandoff) => {
+    setCompleted(result);
+    navigateToHandoff(result.workspace);
+  };
+
   return (
     <OnboardingFrame currentStep={handoff === undefined ? formStep : "cli-handoff"}>
       {handoff === undefined ? (
-        <OnboardingWizard onProvisioned={handleProvisioned} onStepChange={setFormStep} />
+        <OnboardingWizard
+          onProvisioned={handleProvisioned}
+          onContinueToHandoff={navigateToHandoff}
+          onStepChange={setFormStep}
+        />
       ) : (
         <CliHandoffPane
           workspace={handoff.workspace}

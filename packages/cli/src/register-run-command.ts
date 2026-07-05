@@ -34,6 +34,7 @@ export function registerRunCommand(
       const parsed = reconcileProfileRunCommand({
         flags,
         context,
+        ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
         ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
         args: command.args,
       });

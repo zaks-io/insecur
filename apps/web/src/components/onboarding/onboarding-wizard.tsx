@@ -21,9 +21,11 @@ type FormStepId = "name-organization" | "create-project";
  */
 export function OnboardingWizard({
   onProvisioned,
+  onContinueToHandoff,
   onStepChange,
 }: {
   onProvisioned: (handoff: ProvisionedHandoff) => void;
+  onContinueToHandoff: (workspace: ProvisionedWorkspace) => void;
   onStepChange: (step: FormStepId) => void;
 }) {
   const [resourceIds] = useState(mintOnboardingResourceIds);
@@ -58,6 +60,7 @@ export function OnboardingWizard({
       }}
       resourceIds={resourceIds}
       onProvisioned={onProvisioned}
+      onContinueToHandoff={onContinueToHandoff}
     />
   );
 }

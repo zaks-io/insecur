@@ -163,6 +163,58 @@ describe("reconcileProfileRunCommand project profile selection", () => {
       command: ["npm", "test"],
     });
   });
+
+  it("treats an unknown commander positional as the child executable in --variable-key mode with no profiles at all", () => {
+    // The wizard's CLI handoff (INS-374): fresh user, no config, no ambient profile.
+    expect(
+      reconcileProfileRunCommand({
+        flags,
+        context: {
+          projectConfig: null,
+          userConfig: { profiles: {} },
+          scope: createContext({}).scope,
+        },
+        variableKey: "APP_SECRET",
+        positionalProfile: "printenv",
+        args: ["printenv", "APP_SECRET"],
+      }),
+    ).toEqual({
+      command: ["printenv", "APP_SECRET"],
+    });
+  });
+
+  it("keeps a resolvable positional profile in --variable-key mode so mode exclusivity still errors", () => {
+    expect(
+      reconcileProfileRunCommand({
+        flags,
+        context: createContext({}),
+        variableKey: "APP_SECRET",
+        positionalProfile: "staging",
+        args: ["staging", "npm", "test"],
+      }),
+    ).toEqual({
+      profileSelector: "staging",
+      command: ["npm", "test"],
+    });
+  });
+
+  it("keeps an unresolvable positional when neither --variable-key nor an ambient profile selects a mode", () => {
+    expect(
+      reconcileProfileRunCommand({
+        flags,
+        context: {
+          projectConfig: null,
+          userConfig: { profiles: {} },
+          scope: createContext({}).scope,
+        },
+        positionalProfile: "typo-profile",
+        args: ["typo-profile", "npm", "start"],
+      }),
+    ).toEqual({
+      profileSelector: "typo-profile",
+      command: ["npm", "start"],
+    });
+  });
 });
 
 describe("resolveProfileRunInput project profile selection", () => {

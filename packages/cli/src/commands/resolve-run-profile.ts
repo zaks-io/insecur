@@ -184,10 +184,16 @@ export function parseRunCommandArgv(input: {
   };
 }
 
-/** When Commander binds the child executable as `[profile]`, fall back to project scope profileId. */
+/**
+ * When Commander binds the child executable as `[profile]`, fold it back into the command: a
+ * selector that resolves to no real profile is the command head whenever another run mode is
+ * already selected, by `--variable-key` (the wizard's CLI handoff runs profile-less) or by an
+ * ambient project/scope profile.
+ */
 export function reconcileProfileRunCommand(input: {
   readonly flags: GlobalCliFlags;
   readonly context: ResolvedCliContext;
+  readonly variableKey?: string;
   readonly positionalProfile?: string;
   readonly args: readonly string[];
 }): {
@@ -214,7 +220,8 @@ export function reconcileProfileRunCommand(input: {
     return parsed;
   }
 
-  if (!hasAmbientProfileRunSelection(input.context)) {
+  const variableKeyMode = input.variableKey !== undefined && input.variableKey !== "";
+  if (!variableKeyMode && !hasAmbientProfileRunSelection(input.context)) {
     return parsed;
   }
 

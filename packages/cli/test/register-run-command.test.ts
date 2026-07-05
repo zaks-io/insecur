@@ -55,4 +55,60 @@ describe("registerRunCommand", () => {
       }),
     );
   });
+
+  it("parses the wizard's profile-less CLI handoff run command as pasted (INS-374)", async () => {
+    runRunCommandMock.mockClear();
+    const program = new Command();
+    registerRunCommand(program, {
+      globalFlags: () => ({
+        host: "https://insecur.test",
+        orgId: undefined,
+        projectId: undefined,
+        envId: undefined,
+        profile: undefined,
+        profileId: undefined,
+        configDir: undefined,
+        json: true,
+        quiet: true,
+        verbose: false,
+      }),
+      resolveApi: async () => ({
+        api: {} as never,
+        context: {
+          projectConfig: null,
+          userConfig: { profiles: {} },
+          scope: {
+            host: "https://insecur.test",
+            orgId: undefined,
+            projectId: undefined,
+            envId: undefined,
+            profileId: undefined,
+            profileSlug: undefined,
+            profile: undefined,
+          },
+        },
+      }),
+    });
+
+    await program.parseAsync([
+      "node",
+      "insecur",
+      "run",
+      "--variable-key",
+      "APP_SECRET",
+      "--",
+      "printenv",
+      "APP_SECRET",
+    ]);
+
+    expect(runRunCommandMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      {
+        variableKey: "APP_SECRET",
+        command: ["printenv", "APP_SECRET"],
+      },
+    );
+  });
 });
