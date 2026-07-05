@@ -9,8 +9,8 @@ export type KeyStoreErrorCode = (typeof KEY_STORE_ERROR_CODES)[keyof typeof KEY_
 export class KeyStoreError extends Error {
   readonly code: KeyStoreErrorCode;
 
-  constructor(code: KeyStoreErrorCode, message: string) {
-    super(message);
+  constructor(code: KeyStoreErrorCode, message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "KeyStoreError";
     this.code = code;
   }

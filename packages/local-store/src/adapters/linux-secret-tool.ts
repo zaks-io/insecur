@@ -40,6 +40,7 @@ export function createLinuxSecretToolAdapter(
           throw new KeyStoreError(
             KEY_STORE_ERROR_CODES.adapterFailed,
             "Linux secret-tool lookup failed",
+            { cause: error },
           );
         }
       }
@@ -52,10 +53,11 @@ export function createLinuxSecretToolAdapter(
           ["store", "--label=insecur machine root key", "service", service, "account", account],
           { input: keyHex },
         );
-      } catch {
+      } catch (error) {
         throw new KeyStoreError(
           KEY_STORE_ERROR_CODES.adapterFailed,
           "Linux secret-tool store failed",
+          { cause: error },
         );
       }
 

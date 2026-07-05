@@ -34,7 +34,7 @@ export function resolveKeyStoreBackend(
     case "win32":
       return "windows-dpapi";
     case "linux":
-      return isExecutableOnPath("secret-tool", env) ? "linux-secret-tool" : "file-fallback";
+      return isLinuxSecretToolAvailable(env) ? "linux-secret-tool" : "file-fallback";
     default:
       return "file-fallback";
   }

@@ -77,10 +77,11 @@ export function createWindowsDpapiAdapter(deps: KeyStoreDependencies): KeyStoreA
       if (await dpapiFileExists(filePath)) {
         try {
           return await readDpapiProtectedKey(deps, filePath);
-        } catch {
+        } catch (error) {
           throw new KeyStoreError(
             KEY_STORE_ERROR_CODES.adapterFailed,
             "Windows DPAPI key lookup failed",
+            { cause: error },
           );
         }
       }
@@ -98,6 +99,7 @@ export function createWindowsDpapiAdapter(deps: KeyStoreDependencies): KeyStoreA
         throw new KeyStoreError(
           KEY_STORE_ERROR_CODES.adapterFailed,
           "Windows DPAPI key store failed",
+          { cause: error },
         );
       }
 

@@ -8,6 +8,7 @@ import { MACHINE_ROOT_KEY_ACCOUNT, MACHINE_ROOT_KEY_SERVICE } from "./constants.
 import { createDefaultExecFile } from "./exec-file.js";
 import { resolveKeyStorePaths } from "./paths.js";
 import { resolveKeyStoreBackend } from "./resolve-backend.js";
+import { serializeAsync } from "./serialize-async.js";
 import type {
   CreateKeyStoreOptions,
   KeyStore,
@@ -38,6 +39,15 @@ function createAdapter(
   }
 }
 
+function wrapKeyStore(adapter: KeyStoreAdapter): KeyStore {
+  const getOrCreateMachineRootKey = serializeAsync(() => adapter.getOrCreateMachineRootKey());
+  return {
+    backend: adapter.backend,
+    notice: adapter.notice,
+    getOrCreateMachineRootKey,
+  };
+}
+
 export function createKeyStore(options: CreateKeyStoreOptions = {}): KeyStore {
   const service = options.service ?? MACHINE_ROOT_KEY_SERVICE;
   const account = options.account ?? MACHINE_ROOT_KEY_ACCOUNT;
@@ -53,17 +63,9 @@ export function createKeyStore(options: CreateKeyStoreOptions = {}): KeyStore {
   const backend = resolveKeyStoreBackend(platform, env);
   const adapter = createAdapter(backend, deps, service, account);
 
-  return {
-    backend: adapter.backend,
-    notice: adapter.notice,
-    getOrCreateMachineRootKey: () => adapter.getOrCreateMachineRootKey(),
-  };
+  return wrapKeyStore(adapter);
 }
 
 export function createKeyStoreFromAdapter(adapter: KeyStoreAdapter): KeyStore {
-  return {
-    backend: adapter.backend,
-    notice: adapter.notice,
-    getOrCreateMachineRootKey: () => adapter.getOrCreateMachineRootKey(),
-  };
+  return wrapKeyStore(adapter);
 }

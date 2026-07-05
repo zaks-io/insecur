@@ -4,14 +4,6 @@ import type { KeyStoreAdapter, KeyStoreDependencies } from "../types.js";
 
 const MACOS_SECURITY = "/usr/bin/security";
 
-function isNotFoundError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-  const code = "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
-  return code === "ENOENT" || code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
-}
-
 function isSecurityItemMissing(stderr: string): boolean {
   const normalized = stderr.toLowerCase();
   return (
@@ -33,7 +25,7 @@ function readLookupStderr(error: unknown): string {
 }
 
 function isMissingKeychainItem(error: unknown): boolean {
-  return isNotFoundError(error) || isSecurityItemMissing(readLookupStderr(error));
+  return isSecurityItemMissing(readLookupStderr(error));
 }
 
 async function lookupMacosKey(
@@ -55,7 +47,9 @@ async function lookupMacosKey(
     if (isMissingKeychainItem(error)) {
       return null;
     }
-    throw new KeyStoreError(KEY_STORE_ERROR_CODES.adapterFailed, "macOS keychain lookup failed");
+    throw new KeyStoreError(KEY_STORE_ERROR_CODES.adapterFailed, "macOS keychain lookup failed", {
+      cause: error,
+    });
   }
 }
 
@@ -76,8 +70,10 @@ async function storeMacosKey(
       "-w",
       keyHex,
     ]);
-  } catch {
-    throw new KeyStoreError(KEY_STORE_ERROR_CODES.adapterFailed, "macOS keychain store failed");
+  } catch (error) {
+    throw new KeyStoreError(KEY_STORE_ERROR_CODES.adapterFailed, "macOS keychain store failed", {
+      cause: error,
+    });
   }
 }
 

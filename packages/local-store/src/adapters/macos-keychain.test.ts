@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createMacosKeychainAdapter } from "./macos-keychain.js";
+import { KEY_STORE_ERROR_CODES } from "../errors.js";
 import type { ExecFileFn, KeyStoreDependencies } from "../types.js";
 
 const FAKE_KEY_HEX = "ab".repeat(32);
@@ -75,6 +76,23 @@ describe("macOS keychain adapter", () => {
         "-w",
         FAKE_KEY_HEX,
       ],
+    });
+  });
+
+  it("propagates exec maxBuffer failures instead of storing a replacement key", async () => {
+    const execFile: ExecFileFn = () => {
+      const error = new Error("maxBuffer exceeded") as NodeJS.ErrnoException;
+      error.code = "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
+      return Promise.reject(error);
+    };
+
+    const adapter = createMacosKeychainAdapter(
+      createDeps(execFile),
+      "insecur",
+      "machine-root-key-v1",
+    );
+    await expect(adapter.getOrCreateMachineRootKey()).rejects.toMatchObject({
+      code: KEY_STORE_ERROR_CODES.adapterFailed,
     });
   });
 });

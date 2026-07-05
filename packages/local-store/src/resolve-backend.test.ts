@@ -1,8 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 
-import { isLinuxSecretToolAvailable, resolveKeyStoreBackend } from "./resolve-backend.js";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { resolveKeyStoreBackend } from "./resolve-backend.js";
 
 describe("resolveKeyStoreBackend", () => {
+  let tempBinDir = "";
+
+  afterEach(async () => {
+    if (tempBinDir !== "") {
+      await rm(tempBinDir, { recursive: true, force: true });
+      tempBinDir = "";
+    }
+  });
+
   it("selects macOS keychain on darwin", () => {
     expect(resolveKeyStoreBackend("darwin", {})).toBe("macos-keychain");
   });
@@ -11,14 +24,13 @@ describe("resolveKeyStoreBackend", () => {
     expect(resolveKeyStoreBackend("win32", {})).toBe("windows-dpapi");
   });
 
-  it("selects secret-tool on linux when the binary is on PATH", () => {
-    expect(
-      resolveKeyStoreBackend("linux", {
-        PATH: `${process.env.PATH ?? ""}:/usr/bin`,
-      }),
-    ).toBe(
-      isLinuxSecretToolAvailable({ PATH: "/usr/bin" }) ? "linux-secret-tool" : "file-fallback",
-    );
+  it("selects secret-tool on linux when secret-tool is on PATH", async () => {
+    tempBinDir = await mkdtemp(path.join(os.tmpdir(), "insecur-secret-tool-"));
+    const secretToolPath = path.join(tempBinDir, "secret-tool");
+    await writeFile(secretToolPath, "#!/bin/sh\n", "utf8");
+    await chmod(secretToolPath, 0o755);
+
+    expect(resolveKeyStoreBackend("linux", { PATH: tempBinDir })).toBe("linux-secret-tool");
   });
 
   it("falls back to the key file when secret-tool is absent on linux", () => {

@@ -8,7 +8,6 @@ import { isLinuxSecretToolAvailable } from "./resolve-backend.js";
 const INTEGRATION_OPT_IN_ENV = "INSECUR_LOCAL_STORE_OS_INTEGRATION";
 const INTEGRATION_SERVICE = "insecur-integration-test";
 const INTEGRATION_ACCOUNT = "machine-root-key-integration-v1";
-const FAKE_KEY_HEX = "ab".repeat(32);
 
 function integrationOptInEnabled(env: NodeJS.ProcessEnv): boolean {
   return env[INTEGRATION_OPT_IN_ENV] === "1";
@@ -42,10 +41,8 @@ describe("OS keychain integration", () => {
     }
 
     const configHome = `${process.env.INSECUR_CONFIG_HOME ?? "/tmp"}/insecur-keystore-integration-${String(Date.now())}`;
-    const randomBytes = () => new Uint8Array(32).fill(0xab);
     const keyStoreOptions = {
       configHome,
-      randomBytes,
       service: INTEGRATION_SERVICE,
       account: INTEGRATION_ACCOUNT,
     };
@@ -56,8 +53,7 @@ describe("OS keychain integration", () => {
 
     const first = await keyStore.getOrCreateMachineRootKey();
     const second = await createKeyStore(keyStoreOptions).getOrCreateMachineRootKey();
-    expect(first).toBe(FAKE_KEY_HEX);
-    expect(second).toBe(FAKE_KEY_HEX);
+    expect(second).toBe(first);
     expect(first).toHaveLength(64);
   });
 });

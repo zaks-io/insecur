@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createFakeKeyStore } from "./fake-key-store.js";
-import { createKeyStore } from "./key-store.js";
+import { createKeyStore, createKeyStoreFromAdapter } from "./key-store.js";
 import { FILE_FALLBACK_NOTICE } from "./notices.js";
 
 const FAKE_KEY_HEX = "ab".repeat(32);
@@ -42,5 +42,28 @@ describe("createFakeKeyStore", () => {
     const keyStore = createFakeKeyStore({ keyHex: FAKE_KEY_HEX, backend: "file-fallback" });
     await expect(keyStore.getOrCreateMachineRootKey()).resolves.toBe(FAKE_KEY_HEX);
     expect(keyStore.backend).toBe("file-fallback");
+  });
+});
+
+describe("createKeyStoreFromAdapter", () => {
+  it("serializes concurrent getOrCreateMachineRootKey calls", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const keyStore = createKeyStoreFromAdapter({
+      backend: "file-fallback",
+      notice: null,
+      getOrCreateMachineRootKey: async () => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => {
+          setTimeout(resolve, 10);
+        });
+        active -= 1;
+        return FAKE_KEY_HEX;
+      },
+    });
+
+    await Promise.all([keyStore.getOrCreateMachineRootKey(), keyStore.getOrCreateMachineRootKey()]);
+    expect(maxActive).toBe(1);
   });
 });

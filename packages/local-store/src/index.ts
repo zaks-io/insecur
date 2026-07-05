@@ -30,7 +30,7 @@ export type {
   KeyStoreNotice,
   KeyStorePaths,
 } from "./types.js";
-export { createDefaultExecFile } from "./exec-file.js";
+export { createDefaultExecFile, DEFAULT_EXEC_FILE_TIMEOUT_MS } from "./exec-file.js";
 export { createFileFallbackAdapter, writePrivateKeyFile } from "./adapters/file-fallback.js";
 export { createLinuxSecretToolAdapter } from "./adapters/linux-secret-tool.js";
 export { createMacosKeychainAdapter } from "./adapters/macos-keychain.js";

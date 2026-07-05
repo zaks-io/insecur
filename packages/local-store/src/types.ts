@@ -9,11 +9,13 @@ export interface KeyStoreNotice {
   readonly summary: string;
 }
 
-export interface KeyStore {
+export interface KeyStoreAdapter {
   readonly backend: KeyStoreBackend;
   readonly notice: KeyStoreNotice | null;
   getOrCreateMachineRootKey(): Promise<string>;
 }
+
+export type KeyStore = KeyStoreAdapter;
 
 export interface ExecFileResult {
   stdout: string;
@@ -24,6 +26,7 @@ export interface ExecFileOptions {
   readonly input?: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly maxBuffer?: number;
+  readonly timeoutMs?: number;
   readonly windowsHide?: boolean;
 }
 
@@ -55,10 +58,4 @@ export interface CreateKeyStoreOptions {
   readonly configHome?: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly randomBytes?: (size: number) => Uint8Array;
-}
-
-export interface KeyStoreAdapter {
-  readonly backend: KeyStoreBackend;
-  readonly notice: KeyStoreNotice | null;
-  getOrCreateMachineRootKey(): Promise<string>;
 }

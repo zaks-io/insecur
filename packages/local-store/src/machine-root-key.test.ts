@@ -34,4 +34,10 @@ describe("machine root key material", () => {
     expect(generateMachineRootKeyHex(() => bytes)).toBe("cd".repeat(32));
     expect(bytesToMachineRootKeyHex(bytes)).toBe("cd".repeat(32));
   });
+
+  it("rejects byte buffers with the wrong length", () => {
+    expect(() => {
+      bytesToMachineRootKeyHex(new Uint8Array(16));
+    }).toThrow(KeyStoreError);
+  });
 });

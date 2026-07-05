@@ -4,6 +4,12 @@ import { MACHINE_ROOT_KEY_BYTE_LENGTH, MACHINE_ROOT_KEY_HEX_LENGTH } from "./con
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "./errors.js";
 
 export function bytesToMachineRootKeyHex(bytes: Uint8Array): string {
+  if (bytes.length !== MACHINE_ROOT_KEY_BYTE_LENGTH) {
+    throw new KeyStoreError(
+      KEY_STORE_ERROR_CODES.invalidMaterial,
+      "machine root key material has invalid byte length",
+    );
+  }
   return Buffer.from(bytes).toString("hex");
 }
 

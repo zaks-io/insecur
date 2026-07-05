@@ -4,7 +4,7 @@ export const MACHINE_ROOT_KEY_SERVICE = "insecur";
 /** Stable account name for the machine root key across OS keystores. */
 export const MACHINE_ROOT_KEY_ACCOUNT = "machine-root-key-v1";
 
-/** Instance root key hex length (32 bytes). Matches `@insecur/crypto` conventions. */
+/** Machine-local root key hex length (32 bytes). Matches `@insecur/crypto` instance root key shape. */
 export const MACHINE_ROOT_KEY_HEX_LENGTH = 64;
 
 export const MACHINE_ROOT_KEY_BYTE_LENGTH = 32;
