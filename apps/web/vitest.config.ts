@@ -19,10 +19,14 @@ export default defineConfig({
         find: "@insecur/domain",
         replacement: path.join(repoRoot, "packages/domain/src/index.ts"),
       },
+      {
+        find: "@insecur/worker-kit/api-client",
+        replacement: path.join(repoRoot, "packages/worker-kit/src/rpc/api-client.ts"),
+      },
     ],
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "test/**/*.test.ts"],
   },
 });

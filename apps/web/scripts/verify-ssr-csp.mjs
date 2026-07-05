@@ -1,8 +1,14 @@
-// SSR / CSP conformance probe for the built Web BFF (run `pnpm build` first, then
-// `node scripts/verify-ssr-csp.mjs`). Boots dist/server under Miniflare with stubbed API/RUNTIME
-// bindings and asserts every SSR surface (public pages and the authed console shell) renders with
-// a matching CSP nonce and zero inline style attributes. Miniflare is used directly because
-// `unstable_dev` cannot carry function service bindings or an RPC entrypoint stub.
+// SSR / CSP conformance probe for the built Web BFF. Boots dist/server under Miniflare with
+// stubbed API/RUNTIME bindings and asserts every SSR surface (public pages and the authed console
+// shell) renders with a matching CSP nonce and zero inline style attributes. Miniflare is used
+// directly because `unstable_dev` cannot carry function service bindings or an RPC entrypoint stub.
+//
+// Gate wiring (INS-369): runs as `@insecur/web` `test:e2e` (turbo `@insecur/web#test:e2e` depends
+// on `build`), so `pnpm test:e2e` and CI's postgres-integration job execute it against the real
+// built worker — the same layer as the API Worker's e2e loop. It is deliberately NOT part of
+// `pnpm verify`: the full vite build + wrangler dry-run + Miniflare boot is too slow for the
+// pre-push/verify hot path. Run manually with `pnpm --filter @insecur/web build && node
+// scripts/verify-ssr-csp.mjs`.
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);

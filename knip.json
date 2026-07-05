@@ -52,9 +52,9 @@
       "ignoreDependencies": ["cloudflare"]
     },
     "apps/web": {
-      "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
-      "project": ["src/**/*.{ts,tsx}"],
-      "ignoreDependencies": ["cloudflare"]
+      "entry": ["vitest*.config.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.{ts,tsx}", "test/**/*.ts"],
+      "ignoreDependencies": ["cloudflare", "miniflare"]
     },
     ".": {
       "entry": [

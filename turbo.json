@@ -83,6 +83,10 @@
         "INSECUR_TEST_SKIP_MIGRATE"
       ]
     },
+    "@insecur/web#test:e2e": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
     "typegen": {
       "cache": false,
       "outputs": []
