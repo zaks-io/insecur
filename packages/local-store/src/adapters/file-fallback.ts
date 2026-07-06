@@ -1,4 +1,4 @@
-import { chmod, mkdir, open, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, open, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "../errors.js";
@@ -47,13 +47,23 @@ async function readPrivateKeyFile(filePath: string): Promise<string | null> {
   }
 }
 
+async function removePartialKeyFile(filePath: string): Promise<void> {
+  try {
+    await unlink(filePath);
+  } catch {
+    // Best-effort cleanup after a partial exclusive create.
+  }
+}
+
 export async function writePrivateKeyFileExclusive(
   filePath: string,
   keyHex: string,
 ): Promise<"created" | "exists"> {
   await ensurePrivateKeyDirectory(path.dirname(filePath));
+  let createdFile = false;
   try {
     const handle = await open(filePath, "wx", PRIVATE_FILE_MODE);
+    createdFile = true;
     try {
       await handle.writeFile(keyHex, "utf8");
     } finally {
@@ -64,6 +74,9 @@ export async function writePrivateKeyFileExclusive(
   } catch (error) {
     if (isErrnoCode(error, "EEXIST")) {
       return "exists";
+    }
+    if (createdFile) {
+      await removePartialKeyFile(filePath);
     }
     throw error;
   }

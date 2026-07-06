@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import { createFakeKeyStore } from "./fake-key-store.js";
 import { createKeyStore, createKeyStoreFromAdapter } from "./key-store.js";
@@ -7,6 +11,15 @@ import { FILE_FALLBACK_NOTICE } from "./notices.js";
 const FAKE_KEY_HEX = "ab".repeat(32);
 
 describe("createKeyStore", () => {
+  let tempDir = "";
+
+  afterEach(async () => {
+    if (tempDir !== "") {
+      await rm(tempDir, { recursive: true, force: true });
+      tempDir = "";
+    }
+  });
+
   it("prefers macOS keychain before file fallback on darwin", () => {
     const keyStore = createKeyStore({
       platform: "darwin",
@@ -25,11 +38,12 @@ describe("createKeyStore", () => {
     expect(keyStore.notice).toBeNull();
   });
 
-  it("uses file fallback with a notice when linux has no secret-tool", () => {
+  it("uses file fallback with a notice when linux has no secret-tool", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-keystore-"));
     const keyStore = createKeyStore({
       platform: "linux",
       env: { PATH: "/empty" },
-      configHome: "/tmp/insecur-keystore-test",
+      configHome: tempDir,
       randomBytes: () => new Uint8Array(32).fill(0xab),
     });
     expect(keyStore.backend).toBe("file-fallback");
@@ -69,18 +83,31 @@ describe("createKeyStoreFromAdapter", () => {
 });
 
 describe("cross-instance key creation", () => {
-  it("serializes first-run creation across separate KeyStore instances", async () => {
-    let randomCalls = 0;
-    const configHome = `/tmp/insecur-keystore-cross-${String(Date.now())}`;
-    const options = {
+  let tempDir = "";
+
+  afterEach(async () => {
+    if (tempDir !== "") {
+      await rm(tempDir, { recursive: true, force: true });
+      tempDir = "";
+    }
+  });
+
+  async function createFileFallbackOptions(randomBytes: (size: number) => Uint8Array) {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-keystore-"));
+    return {
       platform: "linux" as const,
       env: { PATH: "/empty" },
-      configHome,
-      randomBytes: (size: number) => {
-        randomCalls += 1;
-        return new Uint8Array(size).fill(randomCalls);
-      },
+      configHome: tempDir,
+      randomBytes,
     };
+  }
+
+  it("serializes first-run creation across separate KeyStore instances", async () => {
+    let randomCalls = 0;
+    const options = await createFileFallbackOptions((size: number) => {
+      randomCalls += 1;
+      return new Uint8Array(size).fill(randomCalls);
+    });
 
     const [first, second] = await Promise.all([
       createKeyStore(options).getOrCreateMachineRootKey(),
@@ -93,16 +120,10 @@ describe("cross-instance key creation", () => {
 
   it("reuses persisted material on a later KeyStore instance", async () => {
     let randomCalls = 0;
-    const configHome = `/tmp/insecur-keystore-reuse-${String(Date.now())}`;
-    const options = {
-      platform: "linux" as const,
-      env: { PATH: "/empty" },
-      configHome,
-      randomBytes: (size: number) => {
-        randomCalls += 1;
-        return new Uint8Array(size).fill(0xcd);
-      },
-    };
+    const options = await createFileFallbackOptions((size: number) => {
+      randomCalls += 1;
+      return new Uint8Array(size).fill(0xcd);
+    });
 
     const first = await createKeyStore(options).getOrCreateMachineRootKey();
     const second = await createKeyStore(options).getOrCreateMachineRootKey();

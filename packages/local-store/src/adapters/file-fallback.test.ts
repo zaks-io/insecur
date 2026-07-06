@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { access, mkdtemp, open, readFile, rm, stat, unlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createFileFallbackAdapter,
@@ -66,6 +66,32 @@ describe("file fallback adapter", () => {
 
     const adapter = createFileFallbackAdapter(deps);
     await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(existing);
+  });
+
+  it("removes a partial key file when exclusive create fails after open", async () => {
+    await createDeps();
+    const filePath = path.join(tempDir, "machine-root-key");
+    const probePath = path.join(tempDir, "probe");
+    const probe = await open(probePath, "wx");
+    const fileHandleProto = Object.getPrototypeOf(probe) as {
+      writeFile: (typeof probe)["writeFile"];
+    };
+    await probe.close();
+    await unlink(probePath);
+
+    const originalWriteFile = fileHandleProto.writeFile;
+    fileHandleProto.writeFile = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("write failed")) as (typeof probe)["writeFile"];
+
+    try {
+      await expect(writePrivateKeyFileExclusive(filePath, FAKE_KEY_HEX)).rejects.toThrow(
+        "write failed",
+      );
+      await expect(access(filePath)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      fileHandleProto.writeFile = originalWriteFile;
+    }
   });
 
   it("returns the persisted key when exclusive create loses a race", async () => {
