@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   assembleSecurityEvidenceBundle,
@@ -101,7 +101,24 @@ function writePassingEvidenceSet(evidenceDir: string): void {
   });
 }
 
+// Backup export freshness compares real `now` against a 48h window derived from
+// export_timestamp (2026-07-04T00:00Z → deadline 2026-07-06T00:00Z). Freeze a
+// deterministic clock strictly inside that window so the fixed fixtures stay
+// non-expired regardless of the real wall-clock date. The policy expiry is derived
+// from export_timestamp (not now), so freezing here does not perturb the
+// expires_at === policyExpiresAt equality the evaluator also asserts.
+const FROZEN_NOW = new Date("2026-07-05T00:00:00.000Z");
+
 describe("assembleSecurityEvidenceBundle", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("returns the documented bundle shape with skeleton control ids", () => {
     const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-release-gate-"));
     writePassingEvidenceSet(evidenceDir);
