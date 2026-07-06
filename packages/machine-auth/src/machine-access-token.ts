@@ -1,4 +1,10 @@
-import type { EnvironmentId, MachineIdentityId, OrganizationId, ProjectId } from "@insecur/domain";
+import type {
+  EnvironmentId,
+  MachineIdentityId,
+  OrganizationId,
+  ProjectId,
+  RuntimePolicyId,
+} from "@insecur/domain";
 import type { CredentialScope } from "@insecur/access";
 import { MACHINE_ACCESS_TOKEN_TTL_SECONDS, MACHINE_ACCESS_TOKEN_TYP } from "./constants.js";
 import {
@@ -14,6 +20,7 @@ interface MachineAccessTokenPayload {
   readonly org: string;
   readonly prj: string;
   readonly env?: string;
+  readonly rp?: string;
   readonly scopes: readonly string[];
   readonly exp: number;
   readonly iat: number;
@@ -25,6 +32,7 @@ export interface MintMachineAccessTokenInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId?: EnvironmentId;
+  readonly runtimePolicyKeyId?: RuntimePolicyId;
   readonly credentialScopes: readonly CredentialScope[];
   readonly signingSecret: string;
   readonly ttlSeconds?: number;
@@ -40,6 +48,7 @@ export interface VerifiedMachineAccessToken {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId?: EnvironmentId;
+  readonly runtimePolicyKeyId?: RuntimePolicyId;
   readonly credentialScopes: readonly CredentialScope[];
   readonly expiresAtEpoch: number;
 }
@@ -59,6 +68,7 @@ export async function mintMachineAccessToken(
     org: input.organizationId,
     prj: input.projectId,
     ...(input.environmentId !== undefined ? { env: input.environmentId } : {}),
+    ...(input.runtimePolicyKeyId !== undefined ? { rp: input.runtimePolicyKeyId } : {}),
     scopes: [...input.credentialScopes].sort(),
     exp: expiresAtEpoch,
     iat: issuedAt,
@@ -110,6 +120,7 @@ function parseMachineAccessTokenPayload(
     iat: value.iat,
     typ: value.typ,
     ...(typeof value.env === "string" ? { env: value.env } : {}),
+    ...(typeof value.rp === "string" ? { rp: value.rp } : {}),
   };
 }
 
@@ -133,6 +144,7 @@ function verifiedTokenFromPayload(
       organizationId: payload.org as OrganizationId,
       projectId: payload.prj as ProjectId,
       ...(payload.env !== undefined ? { environmentId: payload.env as EnvironmentId } : {}),
+      ...(payload.rp !== undefined ? { runtimePolicyKeyId: payload.rp as RuntimePolicyId } : {}),
       credentialScopes: payload.scopes as CredentialScope[],
       expiresAtEpoch: payload.exp,
     },

@@ -7,8 +7,9 @@ surfaces ([product-spec §10](specs/product-spec.md)), stack (ADR-0051), the no-
 (ADR-0052), onboarding model (ADR-0040/0063), step-up model (ADR-0032), workstream boundary
 ([W9](specs/agent-workstreams.md)).
 
-Design target: the full management-parity console. V1 (metadata browsing + Human Approval Surface,
-per product-spec §10) is carved out of this design, not designed separately.
+Design target: the full management-parity console. V1 (metadata browsing, Human Approval Surface,
+and the first-run onboarding wizard, per product-spec §10) is carved out of this design, not
+designed separately.
 
 ## Center Of Gravity: Oversight-First
 

@@ -95,6 +95,64 @@ describe("resolveEffectiveAccess for machine actors", () => {
     expect(loadMachineMemberships).toHaveBeenCalledTimes(1);
   });
 
+  it("intersects protected issuance when membership and deploy-key credential both carry it", async () => {
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(async () => [
+      machineMembership({
+        authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+      }),
+    ]);
+
+    const actor = machineActor({
+      tokenScopeEnvironmentId: ENV_A,
+      credentialScopes: [
+        CREDENTIAL_SCOPES.runtimeInjectionGrantIssueProtected,
+        CREDENTIAL_SCOPES.runtimeInjectionRun,
+      ],
+    });
+
+    const result = await resolveEffectiveAccess(
+      actor,
+      { organizationId: ORG_A, projectId: PROJECT_A, environmentId: ENV_A },
+      { loadMachineMemberships },
+    );
+
+    expect(
+      hasAuthorizationScope(result, AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected),
+    ).toBe(true);
+    expect(hasAuthorizationScope(result, AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue)).toBe(
+      false,
+    );
+  });
+
+  it("denies protected issuance when deploy-key credential lacks grant_issue_protected", async () => {
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(async () => [
+      machineMembership({
+        authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+      }),
+    ]);
+
+    const actor = machineActor({
+      tokenScopeEnvironmentId: ENV_A,
+      credentialScopes: [
+        CREDENTIAL_SCOPES.runtimeInjectionRun,
+        CREDENTIAL_SCOPES.runtimeInjectionGrantIssue,
+      ],
+    });
+
+    const result = await resolveEffectiveAccess(
+      actor,
+      { organizationId: ORG_A, projectId: PROJECT_A, environmentId: ENV_A },
+      { loadMachineMemberships },
+    );
+
+    expect(
+      hasAuthorizationScope(result, AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected),
+    ).toBe(false);
+    expect(hasAuthorizationScope(result, AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue)).toBe(
+      false,
+    );
+  });
+
   it("denies approval authority for machine credentials", async () => {
     const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(async () => [
       machineMembership({

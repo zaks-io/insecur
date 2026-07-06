@@ -6,7 +6,7 @@ function actorCacheKey(actor: ActorRef): string {
   if (actor.type === "user") {
     return `user:${actor.userId}`;
   }
-  return `machine:${actor.machineIdentityId}:${actor.tokenScope.organizationId}:${actor.tokenScope.projectId}:${actor.tokenScope.environmentId ?? ""}:${[...actor.credentialScopes].sort().join(",")}`;
+  return `machine:${actor.machineIdentityId}:${actor.tokenScope.organizationId}:${actor.tokenScope.projectId}:${actor.tokenScope.environmentId ?? ""}:${actor.tokenScope.runtimePolicyKeyId ?? ""}:${[...actor.credentialScopes].sort().join(",")}`;
 }
 
 /** Request-scoped Effective Access cache (never shared across requests). */

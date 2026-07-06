@@ -13,18 +13,21 @@
     "test:integration": "vitest run --config vitest.rls.config.ts",
     "test:rls": "vitest run --config vitest.rls.config.ts",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "bootstrap:ceremony": "node --import tsx/esm scripts/run-bootstrap-ceremony.ts"
   },
   "dependencies": {
     "@insecur/access": "workspace:*",
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
-    "@insecur/tenant-store": "workspace:*"
+    "@insecur/tenant-store": "workspace:*",
+    "@insecur/token-signing": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

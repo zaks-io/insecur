@@ -77,6 +77,7 @@ export const auditEventId = createResourceIdHelpers("aud", "AuditEventId");
 export const operationId = createResourceIdHelpers("op", "OperationId");
 export const requestId = createResourceIdHelpers("req", "RequestId");
 export const userId = createResourceIdHelpers("usr", "UserId");
+export const userAdmissionId = createResourceIdHelpers("uad", "UserAdmissionId");
 export const stagedChangeId = createResourceIdHelpers("stg", "StagedChangeId");
 export const invitationId = createResourceIdHelpers("inv", "InvitationId");
 export const machineIdentityId = createResourceIdHelpers("mach", "MachineIdentityId");

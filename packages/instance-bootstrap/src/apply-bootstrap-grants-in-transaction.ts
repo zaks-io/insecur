@@ -1,10 +1,20 @@
 import { BUILT_IN_ROLE_PRESETS } from "@insecur/access";
-import type { MembershipId, OrganizationId, TeamId, UserId } from "@insecur/domain";
-import type { TenantScopedSql } from "@insecur/tenant-store";
+import {
+  userAdmissionId,
+  type MembershipId,
+  type OrganizationId,
+  type TeamId,
+  type UserId,
+} from "@insecur/domain";
+import {
+  insertActiveUserAdmissionInTransaction,
+  type TenantScopedSql,
+} from "@insecur/tenant-store";
 
 export interface ApplyBootstrapGrantsInput {
   instanceId: string;
   grantUserId: UserId;
+  grantWorkosUserId: string;
   operatorGrantId: string;
   ownerMembershipId: MembershipId;
   organizationId: OrganizationId;
@@ -21,6 +31,17 @@ export async function applyBootstrapGrantsInTransaction(
     WHERE instance_id = ${input.instanceId}
       AND consumed_at IS NULL
   `;
+
+  // Login resolves actors solely through active user_admissions rows (INS-180), so the claim must
+  // admit the granted human atomically with the grants or the operator can never sign in (INS-419).
+  // A pre-existing admission for this WorkOS subject violates the unique key and rolls back the
+  // whole claim; the first-operator ceremony only runs against a freshly bootstrapped instance.
+  await insertActiveUserAdmissionInTransaction(sql, {
+    admissionId: userAdmissionId.generate(),
+    instanceId: input.instanceId,
+    userId: input.grantUserId,
+    workosUserId: input.grantWorkosUserId,
+  });
 
   await sql`
     INSERT INTO instance_operators (id, instance_id, user_id, grant_origin)

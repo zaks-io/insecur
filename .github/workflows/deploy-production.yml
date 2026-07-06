@@ -22,7 +22,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy Production
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 25
     environment:
@@ -93,6 +93,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           RUNTIME_TOKEN_SIGNING_SECRET: ${{ secrets.RUNTIME_TOKEN_SIGNING_SECRET }}
           SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
           WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
         run: |
@@ -103,6 +104,7 @@ jobs:
             CLOUDFLARE_API_TOKEN
             RUNTIME_TOKEN_SIGNING_SECRET
             SESSION_SIGNING_SECRET
+            TURNSTILE_SECRET_KEY
             WORKOS_API_KEY
             WORKOS_COOKIE_PASSWORD
           )
@@ -132,10 +134,12 @@ jobs:
 
           jq -n \
             --arg session "$SESSION_SIGNING_SECRET" \
+            --arg turnstile "$TURNSTILE_SECRET_KEY" \
             --arg workos "$WORKOS_API_KEY" \
             --arg cookie "$WORKOS_COOKIE_PASSWORD" \
             '{
               SESSION_SIGNING_SECRET: $session,
+              TURNSTILE_SECRET_KEY: $turnstile,
               WORKOS_API_KEY: $workos,
               WORKOS_COOKIE_PASSWORD: $cookie
             }' |
@@ -152,12 +156,15 @@ jobs:
           INSECUR_DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
           INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
+          INSECUR_REQUIRE_SENTRY_SOURCEMAPS: "true"
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: zaksio
           SENTRY_PROJECT: insecur
           SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
           INSECUR_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
+          INSECUR_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
+          INSECUR_WORKOS_AUTHKIT_ORIGIN: ${{ vars.WORKOS_AUTHKIT_ORIGIN }}
           INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PRODUCTION_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: ${{ vars.PRODUCTION_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID }}
           INSECUR_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID: ${{ vars.PRODUCTION_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID }}
@@ -172,14 +179,27 @@ jobs:
           required=(
             CLOUDFLARE_ACCOUNT_ID
             CLOUDFLARE_API_TOKEN
+            INSECUR_TURNSTILE_SITE_KEY
             SENTRY_AUTH_TOKEN
           )
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is not configured in the Production GitHub Environment."
+              if [ "$name" = "SENTRY_AUTH_TOKEN" ]; then
+                echo "::error::$name is not configured for this deploy job. Add the repository Actions secret or an optional Production environment override."
+              else
+                echo "::error::$name is not configured in the Production GitHub Environment."
+              fi
               exit 1
             fi
           done
 
           pnpm deploy:production
           echo "base_url=https://app.insecur.cloud" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Sentry source maps for production release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: zaksio
+          SENTRY_PROJECT: insecur
+          SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: node scripts/sentry-verify-release-sourcemaps.mjs

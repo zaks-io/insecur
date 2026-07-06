@@ -40,6 +40,7 @@ const env = {
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
   SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+  RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
   RUNTIME: createRuntimeRpcStub(),
   WORKOS_TEST_FAKE_SESSIONS: [
     {
@@ -144,6 +145,57 @@ describe("worker session routes", () => {
         sessionId: "session_cli_test",
       },
     });
+  });
+
+  it("returns auth.required for unauthenticated session memberships", async () => {
+    const response = await app.request("/v1/session/memberships", { method: "GET" }, env);
+    expect(response.status).toBe(401);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: { code: "auth.required" },
+    });
+  });
+
+  it("forwards the memberships read over the RUNTIME seam and returns the organizations", async () => {
+    const runtime = createRuntimeRpcStub();
+    runtime.listSessionOrganizations.mockResolvedValue({
+      ok: true,
+      value: {
+        organizations: [
+          { organizationId: "org_00000000000000000000000001", displayName: "Acme Corp" },
+        ] as never,
+      },
+    });
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_memberships_test",
+      },
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+
+    const response = await app.request(
+      "/v1/session/memberships",
+      { method: "GET", headers: { Authorization: `Bearer ${minted.credential}` } },
+      { ...env, RUNTIME: runtime },
+    );
+
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: true,
+      data: {
+        organizations: [
+          { organizationId: "org_00000000000000000000000001", displayName: "Acme Corp" },
+        ],
+      },
+    });
+    const input = runtime.listSessionOrganizations.mock.calls[0]?.[0];
+    expect(input?.actorToken).toEqual(expect.any(String));
+    expect(input?.requestId).toEqual(expect.any(String));
   });
 
   it("redirects CLI PKCE authorization requests to WorkOS AuthKit", async () => {

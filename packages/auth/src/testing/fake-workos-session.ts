@@ -67,7 +67,11 @@ function authenticateFakeAuthorizationCode(
   if (entry.authorizationCodeFailure !== undefined) {
     return Promise.resolve({ authenticated: false, reason: entry.authorizationCodeFailure });
   }
-  return Promise.resolve({ authenticated: true, context: contextFromEntry(entry) });
+  return Promise.resolve({
+    authenticated: true,
+    context: contextFromEntry(entry),
+    sealedSession: entry.sessionData,
+  });
 }
 
 export function createFakeWorkOSSessionPort(

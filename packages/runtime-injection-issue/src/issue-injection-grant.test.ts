@@ -1,5 +1,6 @@
 import {
   AUTHORIZATION_SCOPES,
+  CREDENTIAL_SCOPES,
   resolveEffectiveAccess,
   type LoadMachineMembershipsFn,
 } from "@insecur/access";
@@ -16,6 +17,8 @@ import {
   organizationId,
   parseVariableKey,
   projectId,
+  runtimePolicyId,
+  INJECTION_ERROR_CODES,
 } from "@insecur/domain";
 import { assertProjectEnvironmentCoordinate } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -81,7 +84,7 @@ const baseMachineInput = {
       projectId: PROJECT,
       environmentId: ENV,
     },
-    credentialScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+    credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionGrantIssueProtected],
   },
 };
 
@@ -110,6 +113,22 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   class MockTenantSecretVersionStore {
     getCurrentVersion = vi.fn().mockResolvedValue({ secretVersionId: "sv_test" });
   }
+  class MockTenantRuntimeInjectionPolicyStore {
+    getPolicyById = vi.fn().mockResolvedValue({
+      policyId: runtimePolicyId.brand("rp_00000000000000000000000001"),
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      displayName: "deploy-policy",
+      activeVersionId: "rpv_00000000000000000000000001",
+      disabledAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    getVersionById = vi.fn().mockResolvedValue({
+      variableKeys: ["TEST_KEY"],
+      secretIds: [],
+    });
+  }
   const assertProjectEnvironmentCoordinate = vi.fn((db: MockTransactionDb, coordinate: unknown) => {
     void db;
     void coordinate;
@@ -127,6 +146,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
     ),
     TenantInjectionGrantStore: MockTenantInjectionGrantStore,
     TenantSecretVersionStore: MockTenantSecretVersionStore,
+    TenantRuntimeInjectionPolicyStore: MockTenantRuntimeInjectionPolicyStore,
     resolveSecretForRead: vi.fn().mockResolvedValue({
       secretId: "sec_test",
       variableKey: "TEST_KEY" as never,
@@ -235,5 +255,75 @@ describe("issueInjectionGrant machine actors", () => {
       }),
     );
     expect(committedGrants).toHaveLength(1);
+  });
+
+  it("denies protected grant issue when deploy-key credential lacks grant_issue_protected", async () => {
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(() =>
+      Promise.resolve([
+        {
+          membershipId: MACHINE_MEMBERSHIP,
+          organizationId: ORG,
+          projectId: PROJECT,
+          machineIdentityId: MACHINE,
+          authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+        },
+      ]),
+    );
+    mockMachineAccess(loadMachineMemberships);
+
+    await expect(
+      executeIssueInjectionGrant({
+        ...baseMachineInput,
+        actor: {
+          ...baseMachineInput.actor,
+          credentialScopes: [
+            CREDENTIAL_SCOPES.runtimeInjectionRun,
+            CREDENTIAL_SCOPES.runtimeInjectionGrantIssue,
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    expect(committedGrants).toHaveLength(0);
+  });
+
+  it("denies grant issue when the bound runtime policy key does not allow the selector", async () => {
+    const loadMachineMemberships: LoadMachineMembershipsFn = vi.fn(() =>
+      Promise.resolve([
+        {
+          membershipId: MACHINE_MEMBERSHIP,
+          organizationId: ORG,
+          projectId: PROJECT,
+          machineIdentityId: MACHINE,
+          authorizationScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantIssueProtected],
+        },
+      ]),
+    );
+    mockMachineAccess(loadMachineMemberships);
+
+    await expect(
+      executeIssueInjectionGrant({
+        ...baseMachineInput,
+        actor: {
+          ...baseMachineInput.actor,
+          tokenScope: {
+            ...baseMachineInput.actor.tokenScope,
+            runtimePolicyKeyId: runtimePolicyId.brand("rp_00000000000000000000000001"),
+          },
+        },
+        selector: {
+          kind: "variable_key",
+          variableKey: (() => {
+            const parsed = parseVariableKey("OTHER_KEY");
+            if (!parsed.ok) {
+              throw new Error("test variable key fixture must be valid");
+            }
+            return parsed.value;
+          })(),
+        },
+      }),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    expect(committedGrants).toHaveLength(0);
   });
 });

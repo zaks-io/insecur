@@ -16,7 +16,7 @@ import { integrationDatabaseReady } from "../../tenant-store/test/rls/integratio
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 
 export const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
-export const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000071";
+export const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000085";
 
 export function describeInjectionGrantIntegration(title: string, suite: () => void): void {
   describeIntegration(title, () => {

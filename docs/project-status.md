@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-07-03
+Last updated: 2026-07-05
 
 This is a code and runtime status snapshot. It says what is delivered now, what was
 verified, and what is still missing. It is not the normative product spec. When this
@@ -237,6 +237,12 @@ The CLI has local profile/config resolution, safe secret input paths, masked TTY
 stdin/generation paths for secret values, metadata-only output rendering, child-process
 environment construction, and HTTP clients for the First Value API routes.
 
+Installer scripts are served by the Public Site Worker at `/install.sh` and `/install.ps1`
+(`apps/site/src/install-sh.ts`, `apps/site/src/install-ps1.ts`): they fetch the `cli-v*`
+GitHub Release binaries and verify them against `SHA256SUMS` before installing. The public
+`curl | sh` path stays dead until the draft release is published and the repo is public;
+until then end-to-end verification uses the `INSECUR_INSTALL_BASE_URL` fixture override.
+
 Current login implementation:
 
 - default `insecur login`: native-client WorkOS AuthKit PKCE loopback flow
@@ -455,6 +461,35 @@ These are concrete missing product/code surfaces, not tracker hypotheticals:
   login loop and configuring the WorkOS redirect URI.
 - Production deploy/decrypt smoke.
 
+## Build Order
+
+Working implementation sequence within V1 scope. Non-binding for finer release boundaries; see
+[phasing.md](phasing.md) for the decided scope cut-line and [roadmap.md](roadmap.md) for milestone
+exit gates.
+
+1. **First Value** — guided Personal Organization provisioning, first Project, non-protected
+   development Environment, service-generated Blind Secret Write, `run --variable-key`, Diskless
+   Development Secret Use, and copyable First Value Proof.
+2. **Local Mode** — account-less encrypted local development custody behind the ordinary CLI
+   command surface (ADR-0080). Standalone-useful after First Value. Feature ceiling: Projects and
+   non-protected development Environments only; no Protected Environments, Secret Sync, machine
+   access, Teams, or Organizations locally.
+3. **Production foundation** — tenant-first schema, organization/project memberships, role
+   enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key
+   versions, protected promotion/rollback, and security gates.
+4. **Machine access and CI trust** — machine identities and GitHub Actions OIDC federation for
+   short-lived CI access.
+5. **Approval UX and delivery policy** — Human Approval Surface for protected gates plus Delivery
+   Risk Policy Presets for explicit non-protected preview/development automation.
+6. **Runtime Injection Delivery** — profile-backed `insecur run` for deploy and local command
+   injection.
+7. **Provider Sync: GitHub and Cloudflare** — OAuth app connections and sync engines for GitHub
+   and direct Cloudflare Worker secrets.
+8. **Audit, runbooks, and release gates** — audit export, tested restore evidence, security
+   runbooks, and production release gates.
+9. **Deferred scope** — tracked in [phasing.md#deferred-scope-parking-lot](phasing.md#deferred-scope-parking-lot),
+   not in Linear until promoted in the repo docs.
+
 ## Source Pointers
 
 - Worker route/deploy ownership: [specs/deploy-route-inventory.md](specs/deploy-route-inventory.md)
@@ -465,3 +500,4 @@ These are concrete missing product/code surfaces, not tracker hypotheticals:
 - First Value e2e: [../apps/api/test/e2e/first-value-loop.e2e.test.ts](../apps/api/test/e2e/first-value-loop.e2e.test.ts)
 - Preview deploy task: [../package.json](../package.json) and [../turbo.json](../turbo.json)
 - Root-key runbook: [runbooks/instance-root-key-bootstrap.md](runbooks/instance-root-key-bootstrap.md)
+- First-owner admission seed (interim, INS-419): [runbooks/seed-owner-admission.md](runbooks/seed-owner-admission.md)

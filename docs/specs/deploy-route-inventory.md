@@ -27,11 +27,26 @@ I/O.
 | \*     | `/v1/onboarding`                                   |
 | \*     | `/v1/instance/bootstrap`                           |
 | \*     | `/v1/orgs/:organizationId/invitations`             |
+| \*     | `/v1/orgs/:organizationId/members`                 |
 | \*     | `/v1/orgs/:organizationId/organizations`           |
 | \*     | `/v1/orgs/:organizationId/projects`                |
 | \*     | `/v1/orgs/:organizationId/operations`              |
 | \*     | `/v1/orgs/:organizationId/runtime-injection`       |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback` |
+
+Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `GET
+/:projectId/environments` lists environment metadata (including `isProtected`); `GET
+/:projectId/secrets` lists the secrets × environments matrix metadata (presence, version,
+last-set actor/time; INS-363). `POST
+/:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+
+Under `/v1/session` (INS-367): `GET /whoami` echoes the verified actor; `GET /memberships` is the
+console org-switcher self-read (the actor's own organizations), forwarded over the `RUNTIME` seam.
+
+The People reads (INS-373): `GET /v1/orgs/:organizationId/members` lists membership metadata and
+`GET /v1/orgs/:organizationId/invitations` lists pending-invitation metadata (identifiers, role
+bundle, status, timestamps; invitations carry no token or acceptance secret). Both are
+`organization:read`-gated inside the Runtime deploy.
 
 ## Web Worker — `apps/web` (`insecur-web`)
 
@@ -39,21 +54,57 @@ Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API
 the private `API` Service Binding with a per-request `insecur-api`-audience scoped token. Holds NO
 root-key binding and NO Hyperdrive binding.
 
-| Method | Mount prefix |
-| ------ | ------------ |
-| GET    | `/healthz`   |
-| GET    | `/`          |
-| GET    | `/whoami`    |
+| Method | Mount prefix                                |
+| ------ | ------------------------------------------- |
+| GET    | `/healthz`                                  |
+| GET    | `/`                                         |
+| GET    | `/login`                                    |
+| GET    | `/auth/callback`                            |
+| POST   | `/logout`                                   |
+| GET    | `/whoami`                                   |
+| GET    | `/onboarding`                               |
+| GET    | `/orgs/`                                    |
+| GET    | `/orgs/$orgId`                              |
+| GET    | `/orgs/$orgId/`                             |
+| GET    | `/orgs/$orgId/projects/`                    |
+| GET    | `/orgs/$orgId/projects/$projectId`          |
+| GET    | `/orgs/$orgId/projects/$projectId/`         |
+| GET    | `/orgs/$orgId/projects/$projectId/secrets`  |
+| GET    | `/orgs/$orgId/projects/$projectId/access`   |
+| GET    | `/orgs/$orgId/projects/$projectId/delivery` |
+| GET    | `/orgs/$orgId/audit`                        |
+| GET    | `/orgs/$orgId/people`                       |
+| GET    | `/orgs/$orgId/settings`                     |
+
+The `/orgs/*` rows are the authed console shell (INS-367): `/orgs/` resolves the default
+organization, `/orgs/$orgId` is the org-scoped layout carrying the five-section sidebar, and the
+section rows are TanStack file routes rendered inside it (`$orgId` is TanStack path-param syntax).
+The `/orgs/$orgId/projects/*` rows are the Projects section (INS-370): the project list, the
+project layout with its Environments (`/$projectId/`, the index) / Secrets / Access / Delivery
+views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs.
+`/orgs/$orgId/people` is the read-only People register (INS-373): members and pending invitations
+over the same hop to the INS-373 API metadata GETs, rendering zero mutation affordances.
+`/onboarding` is the first-run onboarding wizard (INS-374): Guided Organization Provisioning for
+org-less members, with `?org&project&env` reopening the CLI handoff view; its provisioning
+mutation is a CSRF-checked server function forwarded to `POST /v1/onboarding/personal-organization`
+over the private `API` binding. URLs carry opaque Resource IDs only (docs/web-console-ux.md §URLs).
 
 ## Public Site Worker — `apps/site` (`insecur-site`)
 
 Public marketing/legal/security surface (ADR-0078). Holds no auth session, database, keyring, API,
 Runtime, or product-control-plane binding.
 
-| Method | Mount prefix |
-| ------ | ------------ |
-| GET    | `/healthz`   |
-| GET    | `/`          |
+`/install.sh` and `/install.ps1` are the CLI installer scripts, served as static text with no
+capability: they download the published `cli-v*` GitHub Release binaries and refuse to install
+anything that fails SHA-256 verification against the release's `SHA256SUMS`. Both answer GET and
+HEAD; other methods get 405.
+
+| Method | Mount prefix   |
+| ------ | -------------- |
+| GET    | `/healthz`     |
+| GET    | `/`            |
+| GET    | `/install.sh`  |
+| GET    | `/install.ps1` |
 
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 

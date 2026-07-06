@@ -74,18 +74,18 @@ export async function exchangeCliPkceSession(
     return { ok: false, failure: authenticated.failure };
   }
 
-  const userId = await input.resolveAdmittedUser(authenticated.context.user.id);
+  const userId = await input.resolveAdmittedUser(authenticated.session.context.user.id);
   if (userId === null) {
     return {
       ok: false,
-      failure: authFailureForAdmissionDenial(authenticated.context.user.id),
+      failure: authFailureForAdmissionDenial(authenticated.session.context.user.id),
     };
   }
 
   return mintCliExchangeResult(input, {
     type: "user",
     userId,
-    workosUserId: authenticated.context.user.id,
-    sessionId: authenticated.context.sessionId,
+    workosUserId: authenticated.session.context.user.id,
+    sessionId: authenticated.session.context.sessionId,
   });
 }

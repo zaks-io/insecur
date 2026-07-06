@@ -1,4 +1,3 @@
-import { isCredentialScope, type CredentialScope } from "@insecur/access";
 import {
   environmentId,
   machineAuthMethodId,
@@ -9,6 +8,7 @@ import {
 import type { OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
 import type { GitHubActionsOidcAuthMethodRow } from "./github-actions-oidc-auth-method-row.js";
+import { parseCredentialScopeRows } from "./parse-credential-scope-rows.js";
 
 interface GithubActionsOidcAuthMethodDbRow {
   id: string;
@@ -25,21 +25,10 @@ interface GithubActionsOidcAuthMethodDbRow {
   status: string;
 }
 
-function parseCredentialScopes(scopes: string[]): readonly CredentialScope[] | null {
-  const parsed: CredentialScope[] = [];
-  for (const scope of scopes) {
-    if (!isCredentialScope(scope)) {
-      return null;
-    }
-    parsed.push(scope);
-  }
-  return parsed.length > 0 ? parsed : null;
-}
-
 function toAuthMethodRow(
   row: GithubActionsOidcAuthMethodDbRow,
 ): GitHubActionsOidcAuthMethodRow | null {
-  const credentialScopes = parseCredentialScopes(row.credential_scopes);
+  const credentialScopes = parseCredentialScopeRows(row.credential_scopes);
   if (credentialScopes === null) {
     return null;
   }

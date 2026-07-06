@@ -64,6 +64,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant policy consume-all", 
     const writtenB = await writeTestSecret(keyB, plaintextB);
 
     await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      await sql`UPDATE runtime_injection_policies SET active_version_id = NULL WHERE id = ${POLICY_ID}`;
       await sql`DELETE FROM runtime_injection_policy_versions WHERE policy_id = ${POLICY_ID}`;
       await sql`DELETE FROM runtime_injection_policies WHERE id = ${POLICY_ID}`;
     });

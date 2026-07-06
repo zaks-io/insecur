@@ -45,6 +45,36 @@ describe("apiClientFor", () => {
     expect((init.headers as Headers).get("Authorization")).toMatch(/^Bearer\s+\S+$/u);
   });
 
+  it("targets the metadata read paths with URL-encoded ids", async () => {
+    const apiFetch = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => Response.json({ ok: true, data: {} }),
+    );
+    const client = apiClientFor(
+      {
+        API: { fetch: apiFetch } as unknown as Fetcher,
+        SESSION_SIGNING_SECRET: signingSecret,
+      },
+      actor,
+    );
+
+    await client.orgProjects("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
+    await client.projectEnvironments("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
+    await client.orgMembers("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
+    await client.orgInvitations("org_01/../evil");
+
+    const urls = apiFetch.mock.calls.map((call) => call[0]);
+    expect(urls[0]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects",
+    );
+    expect(urls[1]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects/prj_01%2F..%2Fevil/environments",
+    );
+    expect(urls[2]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/members",
+    );
+    expect(urls[3]).toBe("https://insecur-api.internal/v1/orgs/org_01%2F..%2Fevil/invitations");
+  });
+
   it("reuses the minted token across calls on the same client", async () => {
     const authorizations: string[] = [];
     const apiFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -78,5 +108,33 @@ describe("apiClientFor", () => {
     if (verified.ok) {
       expect(verified.actor).toEqual(actor);
     }
+  });
+
+  it("posts guided provisioning bodies as JSON with the scoped token", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const apiFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), init: init ?? {} });
+      return Response.json({ ok: true, data: {} });
+    });
+    const client = apiClientFor(
+      {
+        API: { fetch: apiFetch } as unknown as Fetcher,
+        SESSION_SIGNING_SECRET: signingSecret,
+      },
+      actor,
+    );
+
+    await client.provisionPersonalOrganization({ organizationDisplayName: "Acme Corp" });
+
+    expect(calls).toHaveLength(1);
+    const call = calls[0];
+    expect(call?.url).toBe("https://insecur-api.internal/v1/onboarding/personal-organization");
+    expect(call?.init.method).toBe("POST");
+    const headers = call?.init.headers as Headers;
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(headers.get("Authorization")).toMatch(/^Bearer\s+\S+$/u);
+    expect(JSON.parse(call?.init.body as string)).toEqual({
+      organizationDisplayName: "Acme Corp",
+    });
   });
 });

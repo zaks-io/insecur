@@ -1,6 +1,6 @@
 # Canonical Product Spec
 
-Last updated: 2026-06-11.
+Last updated: 2026-07-05.
 
 This is the linear implementation-facing specification for the currently decided insecur product.
 It consolidates accepted ADRs, scope decisions, and operational constraints so agents can build from
@@ -26,6 +26,14 @@ OIDC, Human Approval Surface, audit/export, runbooks, and the Storage Security G
 production secrets must not be stored or delivered before the Production Delivery baseline and
 Storage Security Gate pass.
 
+The security boundary is deliberately not the same in dev and in production, and the two must
+not be blurred: a local agent can read a development secret it uses, while Protected Environment
+values have no local read path at all. The owning statement of that divide — including
+**Local Mode** (account-less local development custody), hosted development, and production —
+and what is and is not enforced in each tier, is
+[whitepaper/threat-model.md §2.5](../whitepaper/threat-model.md#25-the-custody-boundary-local-dev-and-production);
+this spec does not restate that tier table.
+
 V1 means the reduced production spine decided on 2026-05-25, not "every accepted future-facing
 ADR." V1 keeps:
 
@@ -40,8 +48,8 @@ ADR." V1 keeps:
 - Machine identities and GitHub Actions OIDC for short-lived CI access.
 - Cloudflare and GitHub provider sync, plus profile-based `insecur run` for local and deploy
   injection.
-- BFF/session-cookie web security, with V1 web limited to metadata browsing and the Human Approval
-  Surface.
+- BFF/session-cookie web security, with V1 web limited to metadata browsing, the Human Approval
+  Surface, and the first-run onboarding wizard.
 - Full CI, real Postgres RLS tests, security gates, and supply-chain hardening.
 
 Deferred scope lives in [docs/phasing.md](../phasing.md#deferred-scope-parking-lot). While an item
@@ -615,8 +623,11 @@ Resolver.
 
 The browser is never a Secret Reveal surface. The long-term web target has management parity with
 the CLI except reveal; it can accept Sensitive Values through masked write-only input, but never
-returns or renders stored Sensitive Values. V1 web scope is narrower: metadata browsing plus the
-Human Approval Surface. Full web management parity is deferred past V1.
+returns or renders stored Sensitive Values. V1 web scope is narrower: metadata browsing, the Human
+Approval Surface, and the first-run onboarding wizard (Guided Organization Provisioning with an
+optional first Blind Secret Write and CLI handoff, per
+[web-console-ux.md](../web-console-ux.md)). Full web management parity beyond that wizard is
+deferred past V1.
 
 The Human Approval Surface handles Protected Environment approval, High-Assurance Challenges,
 Risk-Broadening Delivery Changes, protected delivery configuration approval, and Cloudflare Worker

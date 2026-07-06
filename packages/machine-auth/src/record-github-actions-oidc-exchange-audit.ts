@@ -1,6 +1,5 @@
 import {
   PRODUCTION_AUDIT_EVENT_CODES,
-  type AuditActorRef,
   type AuditEventDetails,
   writeAuditEvent,
 } from "@insecur/audit";
@@ -15,14 +14,10 @@ import {
   type MachineIdentityId,
   type RequestId,
 } from "@insecur/domain";
+import { machineAuthExchangeAuditActor } from "./machine-auth-exchange-audit.js";
+import { machineAuthExchangeTenantScope } from "./machine-auth-exchange-tenant-scope.js";
+import { recordMachineAuthExchangeDenied } from "./record-machine-auth-exchange-denied.js";
 import type { OidcTrustMatchFailureReason } from "./match-github-actions-oidc-trust.js";
-
-function auditActorForExchange(input: { machineIdentityId?: MachineIdentityId }): AuditActorRef {
-  if (input.machineIdentityId !== undefined) {
-    return { type: "machine", machineIdentityId: input.machineIdentityId };
-  }
-  return { type: "ci_exchange" };
-}
 
 function oidcDenialDetail(reason: OidcTrustMatchFailureReason | "malformed"): AuditEventDetails {
   return { oidcDenialKind: `auth.oidc_denial.${reason}` };
@@ -38,7 +33,7 @@ export async function recordGitHubActionsOidcExchangeSuccess(input: {
   await writeAuditEvent({
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.machineGithubActionsOidcExchanged,
     outcome: "success",
-    actor: auditActorForExchange({ machineIdentityId: input.machineIdentityId }),
+    actor: machineAuthExchangeAuditActor({ machineIdentityId: input.machineIdentityId }),
     organizationId: input.organizationId,
     projectId: input.projectId,
     ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
@@ -59,18 +54,11 @@ export async function recordGitHubActionsOidcExchangeDenied(input: {
   oidcDenialKind: OidcTrustMatchFailureReason | "malformed";
   request?: { requestId: RequestId };
 }): Promise<void> {
-  await writeAuditEvent({
+  await recordMachineAuthExchangeDenied({
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.machineGithubActionsOidcExchangeDenied,
-    outcome: "denied",
-    actor: auditActorForExchange(
-      input.machineIdentityId !== undefined ? { machineIdentityId: input.machineIdentityId } : {},
-    ),
-    organizationId: input.organizationId,
-    ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
-    denial: { reasonCode: input.reasonCode },
+    ...machineAuthExchangeTenantScope(input),
+    reasonCode: input.reasonCode,
     details: oidcDenialDetail(input.oidcDenialKind),
-    ...(input.request !== undefined ? { request: input.request } : {}),
   });
 }
 
