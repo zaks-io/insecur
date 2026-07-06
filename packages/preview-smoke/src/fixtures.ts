@@ -9,6 +9,7 @@ import { loadPreviewConfig, type PreviewConfig } from "./env";
 
 interface PreviewWorkerFixtures {
   inviteeBearer: string;
+  noScopeBearer: string;
   ownerBearer: string;
   preview: PreviewConfig;
   previewIdentityReady: boolean;
@@ -23,6 +24,19 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
           sessionId: "session_preview_smoke_invitee",
           signingSecret: preview.signingSecret,
           workosUserId: preview.inviteeWorkosUserId,
+        }),
+      );
+    },
+    { scope: "worker" },
+  ],
+  noScopeBearer: [
+    async ({ preview }, use) => {
+      await use(
+        await mintBearer({
+          rawUserId: preview.noScopeUserId,
+          sessionId: "session_preview_smoke_no_scope",
+          signingSecret: preview.signingSecret,
+          workosUserId: preview.noScopeWorkosUserId,
         }),
       );
     },
