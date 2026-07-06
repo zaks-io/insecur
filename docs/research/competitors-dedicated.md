@@ -133,8 +133,8 @@ Summary and wedge analysis live in [competitive-landscape.md](competitive-landsc
   Jul 1 2026. Remaining options are HCP Dedicated or self-host.
 - **Pricing:** Community free self-host. Enterprise self-host contact-sales (per node).
   HCP Dedicated: Dev ~$0.616/hr (~$450/mo, 25-client hard cap, no HA); Essentials ~$1.578/hr
-  small cluster (~$1,152/mo) + ~~$72.92/mo per client; Standard ~$1.843/hr (~~$1,345/mo) +
-  ~$72.92/client, adds replication + Secrets Sync + Sentinel.
+  small cluster (~$1,152/mo) + \~$72.92/mo per client; Standard ~$1.843/hr (\~$1,345/mo) +
+  \~$72.92/client, adds replication + Secrets Sync + Sentinel.
 - **Storage:** KV v1/v2 (versioned). Dynamic secrets (DBs, AWS/Azure/GCP IAM, SSH, PKI, K8s).
 - **RBAC:** HCL path policies (Community); namespaces + Sentinel (Enterprise).
 - **Secrets Sync destinations (Enterprise / HCP Standard only):** AWS SM, Azure KV, GCP SM,
