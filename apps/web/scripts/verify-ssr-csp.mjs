@@ -218,10 +218,15 @@ async function assertRouteHasMatchingCspNonce(
     if (response.headers.get("vary") !== "Cookie") {
       throw new Error(`${path} authed console document must send Vary: Cookie`);
     }
-  } else if (cacheControl?.includes("no-store")) {
-    throw new Error(
-      `${path} is a public SSR page but carries a no-store directive: ${cacheControl}`,
-    );
+  } else {
+    if (cacheControl?.includes("no-store")) {
+      throw new Error(
+        `${path} is a public SSR page but carries a no-store directive: ${cacheControl}`,
+      );
+    }
+    if (response.headers.get("vary") === "Cookie") {
+      throw new Error(`${path} is a public SSR page but carries Vary: Cookie`);
+    }
   }
 
   const csp = response.headers.get("content-security-policy");
