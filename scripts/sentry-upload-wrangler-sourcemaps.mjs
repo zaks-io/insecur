@@ -1,68 +1,96 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
-const sourceMapDir = path.resolve(process.cwd(), process.argv[2] ?? "dist");
+import { runCliMain } from "./cli-exit.mjs";
+import { runSentryCli } from "./sentry-cli.mjs";
+import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 
-if (!process.env.SENTRY_AUTH_TOKEN) {
-  console.log("SENTRY_AUTH_TOKEN is not set; skipping Sentry source map upload.");
-  process.exit(0);
-}
+export async function uploadWranglerSourcemaps(sourceMapDir, env = process.env) {
+  const config = resolveSentrySourcemapConfig(env);
 
-const release = process.env.SENTRY_RELEASE ?? process.env.INSECUR_DEPLOY_SHA;
-if (!release) {
-  throw new Error("SENTRY_RELEASE or INSECUR_DEPLOY_SHA is required for Sentry source map upload.");
-}
+  if (config.action === "skip") {
+    console.log("SENTRY_AUTH_TOKEN is not set; skipping Sentry source map upload.");
+    return { action: "skip", reason: "missing_auth_token" };
+  }
 
-if (!(await hasSourceMap(sourceMapDir))) {
-  console.log(`No source maps found in ${sourceMapDir}; skipping Sentry source map upload.`);
-  process.exit(0);
-}
-
-await runSentryCli([
-  "sourcemaps",
-  "upload",
-  "--org",
-  process.env.SENTRY_ORG ?? "zaksio",
-  "--project",
-  process.env.SENTRY_PROJECT ?? "insecur",
-  "--release",
-  release,
-  "--strip-prefix",
-  path.resolve(sourceMapDir, ".."),
-  sourceMapDir,
-]);
-
-async function hasSourceMap(directory) {
-  try {
-    const entries = await readdir(directory, { withFileTypes: true });
-    for (const entry of entries) {
-      const entryPath = path.join(directory, entry.name);
-      if (entry.isDirectory() && (await hasSourceMap(entryPath))) {
-        return true;
-      }
-      if (entry.isFile() && entry.name.endsWith(".map")) {
-        return true;
-      }
+  if (!(await hasSourceMap(sourceMapDir))) {
+    if (env.INSECUR_REQUIRE_SENTRY_SOURCEMAPS === "true") {
+      throw new Error(
+        `No source maps found in ${sourceMapDir}; required Sentry source map upload cannot be skipped.`,
+      );
     }
-    return false;
+    console.log(`No source maps found in ${sourceMapDir}; skipping Sentry source map upload.`);
+    return { action: "skip", reason: "missing_source_maps" };
+  }
+
+  runSentryCli(
+    [
+      "sourcemaps",
+      "upload",
+      "--org",
+      config.org,
+      "--project",
+      config.project,
+      "--release",
+      config.release,
+      "--strip-prefix",
+      path.resolve(sourceMapDir, ".."),
+      sourceMapDir,
+    ],
+    config,
+    { env },
+  );
+
+  return { action: "upload", release: config.release, sourceMapDir };
+}
+
+export async function hasSourceMap(directory) {
+  const pending = [directory];
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+    const entries = await readDirectoryEntries(current, directory);
+    if (entries === null) {
+      return false;
+    }
+    if (directoryContainsMap(entries, current, pending)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function readDirectoryEntries(directory, rootDirectory) {
+  try {
+    return await readdir(directory, { withFileTypes: true });
   } catch (error) {
     if (error?.code === "ENOENT") {
-      return false;
+      return directory === rootDirectory ? null : [];
     }
     throw error;
   }
 }
 
-function runSentryCli(args) {
-  const command = process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli";
-  const result = spawnSync(command, args, { stdio: "inherit" });
+function directoryContainsMap(entries, currentDirectory, pending) {
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith(".map")) {
+      return true;
+    }
+    if (entry.isDirectory()) {
+      pending.push(path.join(currentDirectory, entry.name));
+    }
+  }
+  return false;
+}
 
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(`sentry-cli ${args[0]} failed with exit code ${result.status}.`);
-  }
+async function main() {
+  const sourceMapDir = path.resolve(process.cwd(), process.argv[2] ?? "dist");
+  await uploadWranglerSourcemaps(sourceMapDir);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCliMain(main);
 }
