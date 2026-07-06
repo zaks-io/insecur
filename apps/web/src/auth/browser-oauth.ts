@@ -96,6 +96,11 @@ export async function beginBrowserLogin(request: Request, env: WebEnv): Promise<
     returnTo,
   };
   const workos = createWorkOSSessionPortFromEnv(env);
+  // This URL is the off-origin target the login form 303-redirects to. With no custom WorkOS
+  // apiHostname configured (packages/auth/src/workos-session.ts), the SDK returns an
+  // api.workos.com URL that then bounces to the tenant's hosted *.authkit.app domain. Both hops
+  // must stay allowlisted in the CSP `form-action` directive via WORKOS_AUTHKIT_ORIGIN — see
+  // apps/web/src/security/csp.ts. If the WorkOS host ever changes, update that env var too.
   const authorizationUrl = workos.createAuthorizationUrl({
     redirectUri: browserCallbackUrl(request),
     state,

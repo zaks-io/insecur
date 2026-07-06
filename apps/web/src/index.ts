@@ -12,9 +12,22 @@ const sentryServerEntry = wrapFetchWithSentry({
   },
 });
 
-function withSecurityHeaders(response: Response, nonce: string, sentryDsn?: string): Response {
+function withSecurityHeaders(
+  response: Response,
+  nonce: string,
+  options: {
+    sentryDsn?: string | undefined;
+    workosAuthkitOrigin?: string | undefined;
+  } = {},
+): Response {
   const headers = new Headers(response.headers);
-  headers.set("Content-Security-Policy", buildContentSecurityPolicy(nonce, { sentryDsn }));
+  headers.set(
+    "Content-Security-Policy",
+    buildContentSecurityPolicy(nonce, {
+      sentryDsn: options.sentryDsn,
+      workosAuthkitOrigin: options.workosAuthkitOrigin,
+    }),
+  );
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "no-referrer");
@@ -47,7 +60,10 @@ const handler = {
     const nonce = generateCspNonce();
     const sentry = sentryBrowserConfig(env);
     const response = await sentryServerEntry.fetch(request, { context: { nonce, sentry } });
-    return withSecurityHeaders(response, nonce, sentry?.dsn);
+    return withSecurityHeaders(response, nonce, {
+      sentryDsn: sentry?.dsn,
+      workosAuthkitOrigin: env.WORKOS_AUTHKIT_ORIGIN,
+    });
   },
 } satisfies ExportedHandler<WebEnv>;
 
