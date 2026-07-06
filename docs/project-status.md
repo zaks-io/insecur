@@ -494,3 +494,4 @@ exit gates.
 - First Value e2e: [../apps/api/test/e2e/first-value-loop.e2e.test.ts](../apps/api/test/e2e/first-value-loop.e2e.test.ts)
 - Preview deploy task: [../package.json](../package.json) and [../turbo.json](../turbo.json)
 - Root-key runbook: [runbooks/instance-root-key-bootstrap.md](runbooks/instance-root-key-bootstrap.md)
+- First-owner admission seed (interim, INS-417): [runbooks/seed-owner-admission.md](runbooks/seed-owner-admission.md)
