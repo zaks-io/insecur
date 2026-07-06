@@ -204,6 +204,22 @@ test("releaseHasArtifactBundleSourcemaps requires uploaded files for the release
   );
 });
 
+test("releaseHasArtifactBundleSourcemaps accepts query-scoped bundles without associations", () => {
+  const release = "release-1";
+  const uploadedBundle = { bundleId: "bundle-1", fileCount: 3 };
+
+  assert.equal(releaseHasArtifactBundleSourcemaps([uploadedBundle], release), true);
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps([{ ...uploadedBundle, associations: [] }], release),
+    true,
+  );
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps([{ ...uploadedBundle, associations: undefined }], release),
+    true,
+  );
+  assert.equal(countReleaseArtifactBundleFiles([uploadedBundle], release), 3);
+});
+
 test("buildArtifactBundlesUrl queries artifact bundles for the deployed release", () => {
   assert.equal(
     buildArtifactBundlesUrl(
