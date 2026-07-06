@@ -39,11 +39,5 @@ export async function listPendingHighAssuranceChallengesOperation({
     challenges,
   );
 
-  if (challenges.length > 0 && visible.length === 0) {
-    throw Object.assign(new Error("Missing required permission."), {
-      code: "auth.insufficient_scope" as const,
-    });
-  }
-
   return { challenges: visible };
 }

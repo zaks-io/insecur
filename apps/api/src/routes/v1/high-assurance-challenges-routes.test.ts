@@ -1,5 +1,7 @@
 import { mintEphemeralSessionCredential } from "@insecur/auth";
 import { testSessionSigningSecret } from "@insecur/auth/testing";
+import { CREDENTIAL_SCOPES } from "@insecur/access";
+import { mintMachineAccessToken } from "@insecur/machine-auth";
 import {
   AUTH_ERROR_CODES,
   HIGH_ASSURANCE_ERROR_CODES,
@@ -45,6 +47,8 @@ const orgId = organizationId.brand("org_00000000000000000000000001");
 const otherOrgId = organizationId.brand("org_00000000000000000000000002");
 const operationIdValue = operationId.brand("op_00000000000000000000000001");
 const projectIdValue = projectId.brand("prj_00000000000000000000000001");
+const machineId = machineIdentityId.brand("mach_00000000000000000000000002");
+const machineAccessSigningSecret = "machine-access-signing-secret-00000000";
 
 let runtime: RuntimeRpcStub;
 
@@ -56,6 +60,7 @@ function makeEnv() {
     SESSION_SIGNING_SECRET: testSessionSigningSecret(),
     INSTANCE_ID: "inst_LOCAL_DEV",
     RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
+    MACHINE_ACCESS_SIGNING_SECRET: machineAccessSigningSecret,
     RUNTIME: runtime,
   };
 }
@@ -98,6 +103,21 @@ async function authHeaders(env: ReturnType<typeof makeEnv>): Promise<Record<stri
   });
   return {
     Authorization: `Bearer ${minted.credential}`,
+  };
+}
+
+async function machineAuthHeaders(
+  env: ReturnType<typeof makeEnv>,
+): Promise<Record<string, string>> {
+  const minted = await mintMachineAccessToken({
+    machineIdentityId: machineId,
+    organizationId: orgId,
+    projectId: projectIdValue,
+    credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
+    signingSecret: env.MACHINE_ACCESS_SIGNING_SECRET,
+  });
+  return {
+    Authorization: `Bearer ${minted.accessToken}`,
   };
 }
 
@@ -180,6 +200,24 @@ describe("high-assurance challenge worker routes", () => {
         ok: false,
         error: { code: AUTH_ERROR_CODES.insufficientScope },
       });
+    });
+
+    it("returns an empty inbox when the caller lacks approval scope on visible projects", async () => {
+      const env = makeEnv();
+      runtime.listPendingHighAssuranceChallenges.mockResolvedValue({
+        ok: true,
+        value: { challenges: [] },
+      });
+
+      const response = await app.request(
+        listPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: true, data: { challenges: [] } });
     });
   });
 
@@ -376,6 +414,72 @@ describe("high-assurance challenge worker routes", () => {
       expect(runtime.denyHighAssuranceChallenge).toHaveBeenCalledWith(
         expect.objectContaining({ organizationId: otherOrgId }),
       );
+    });
+  });
+
+  describe("machine actor rejection", () => {
+    it("rejects machine session credentials on list without reaching Runtime RPC", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        listPath,
+        { method: "GET", headers: await machineAuthHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.invalid },
+      });
+      expect(runtime.listPendingHighAssuranceChallenges).not.toHaveBeenCalled();
+    });
+
+    it("rejects machine session credentials on clear without reaching Runtime RPC", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        clearPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await machineAuthHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId: projectIdValue,
+            freshStepUpFactor: "totp",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.invalid },
+      });
+      expect(runtime.clearHighAssuranceChallenge).not.toHaveBeenCalled();
+    });
+
+    it("rejects machine session credentials on deny without reaching Runtime RPC", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        denyPath,
+        {
+          method: "POST",
+          headers: await machineAuthHeaders(env),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.invalid },
+      });
+      expect(runtime.denyHighAssuranceChallenge).not.toHaveBeenCalled();
     });
   });
 });

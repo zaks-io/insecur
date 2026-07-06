@@ -58,9 +58,7 @@ export async function getHighAssuranceChallengeOperation({
     challenge.environmentId,
   );
   if (!hasHighAssuranceReviewScope(access)) {
-    throw Object.assign(new Error("Missing required permission."), {
-      code: "auth.insufficient_scope" as const,
-    });
+    throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
   }
 
   return { challenge };
