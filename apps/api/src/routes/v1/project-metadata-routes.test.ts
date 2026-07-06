@@ -29,6 +29,7 @@ const workosUserId = WORKOS_USER_ID;
 const orgId = organizationId.brand("org_00000000000000000000000001");
 const otherOrgId = organizationId.brand("org_00000000000000000000000002");
 const projectIdValue = projectId.brand("prj_00000000000000000000000001");
+const otherProjectId = projectId.brand("prj_00000000000000000000000002");
 const environmentIdValue = environmentId.brand("env_00000000000000000000000001");
 
 let runtime: RuntimeRpcStub;
@@ -49,7 +50,7 @@ const listProjectsPath = `/v1/orgs/${orgId}/projects`;
 const crossTenantProjectsPath = `/v1/orgs/${otherOrgId}/projects`;
 const listEnvironmentsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments`;
 const listProjectSecretsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/secrets`;
-const crossTenantProjectSecretsPath = `/v1/orgs/${otherOrgId}/projects/${projectIdValue}/secrets`;
+const crossTenantProjectSecretsPath = `/v1/orgs/${otherOrgId}/projects/${otherProjectId}/secrets`;
 
 function testDisplayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -339,6 +340,33 @@ describe("project metadata worker routes", () => {
       expect(serialized).not.toMatch(/ciphertext|valueUtf8|plaintext|password|wrapped/i);
     });
 
+    it("denies cross-tenant secrets matrix reads for another organization and project", async () => {
+      const env = makeEnv();
+      runtime.listProjectSecrets.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "organization membership required"),
+      );
+
+      const response = await app.request(
+        crossTenantProjectSecretsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.insufficientScope },
+      });
+      expect(runtime.listProjectSecrets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: otherOrgId,
+          projectId: otherProjectId,
+        }),
+      );
+      expect(JSON.stringify(body)).not.toMatch(/ciphertext|valueUtf8|plaintext|password|wrapped/i);
+    });
+
     it("maps insufficient-scope denials to auth.insufficient_scope", async () => {
       const env = makeEnv();
       runtime.listProjectSecrets.mockResolvedValue(
@@ -374,27 +402,6 @@ describe("project metadata worker routes", () => {
         ok: false,
         error: { code: "validation.invalid_opaque_resource_id" },
       });
-    });
-
-    it("tenant-qualifies cross-tenant reads through the Runtime seam", async () => {
-      const env = makeEnv();
-      runtime.listProjectSecrets.mockResolvedValue(
-        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "organization membership required"),
-      );
-
-      const response = await app.request(
-        crossTenantProjectSecretsPath,
-        { method: "GET", headers: await authHeaders(env) },
-        env,
-      );
-
-      expect(response.status).toBe(403);
-      expect(runtime.listProjectSecrets).toHaveBeenCalledWith(
-        expect.objectContaining({
-          organizationId: otherOrgId,
-          projectId: projectIdValue,
-        }),
-      );
     });
   });
 });
