@@ -53,6 +53,6 @@ export function publicDeployVarsAlreadyMatch(bindings, desiredPublicVars) {
 function inheritBinding(binding) {
   return {
     name: binding.name,
-    type: binding.type,
+    type: "inherit",
   };
 }

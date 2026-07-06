@@ -109,34 +109,20 @@ test("prepareBindingsForSettingsPatch inherits custody bindings without GET-only
       text: "new-sha",
     },
   );
-  assert.deepEqual(
-    patchBindings.find((binding) => binding.name === "CF_VERSION_METADATA"),
-    {
-      name: "CF_VERSION_METADATA",
-      type: "version_metadata",
-    },
-  );
-  assert.deepEqual(
-    patchBindings.find((binding) => binding.name === "INSTANCE_ROOT_KEY_V1"),
-    {
-      name: "INSTANCE_ROOT_KEY_V1",
-      type: "secrets_store_secret",
-    },
-  );
-  assert.deepEqual(
-    patchBindings.find((binding) => binding.name === "DB"),
-    {
-      name: "DB",
-      type: "hyperdrive",
-    },
-  );
-  assert.deepEqual(
-    patchBindings.find((binding) => binding.name === "RUNTIME_TOKEN_SIGNING_SECRET"),
-    {
-      name: "RUNTIME_TOKEN_SIGNING_SECRET",
-      type: "secret_text",
-    },
-  );
+  for (const name of [
+    "CF_VERSION_METADATA",
+    "SENTRY_DSN",
+    "SENTRY_ENVIRONMENT",
+    "SENTRY_SERVICE",
+    "INSTANCE_ROOT_KEY_V1",
+    "DB",
+    "RUNTIME_TOKEN_SIGNING_SECRET",
+  ]) {
+    assert.deepEqual(
+      patchBindings.find((binding) => binding.name === name),
+      inheritBinding(name),
+    );
+  }
 });
 
 test("publicDeployVarsAlreadyMatch skips PATCH when release is current", () => {
@@ -289,19 +275,17 @@ async function respondToSettingsPatch(body) {
   );
 
   assert.equal(releaseBinding?.text, "new-sha");
-  assert.deepEqual(rootKeyBinding, {
-    name: "INSTANCE_ROOT_KEY_V1",
-    type: "secrets_store_secret",
-  });
-  assert.deepEqual(hyperdriveBinding, {
-    name: "DB",
-    type: "hyperdrive",
-  });
-  assert.deepEqual(versionMetadataBinding, {
-    name: "CF_VERSION_METADATA",
-    type: "version_metadata",
-  });
+  assert.deepEqual(rootKeyBinding, inheritBinding("INSTANCE_ROOT_KEY_V1"));
+  assert.deepEqual(hyperdriveBinding, inheritBinding("DB"));
+  assert.deepEqual(versionMetadataBinding, inheritBinding("CF_VERSION_METADATA"));
   return jsonResponse({ success: true, result: {} });
+}
+
+function inheritBinding(name) {
+  return {
+    name,
+    type: "inherit",
+  };
 }
 
 function jsonResponse(payload, status = 200) {
