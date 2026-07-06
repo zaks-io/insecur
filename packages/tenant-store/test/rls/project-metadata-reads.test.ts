@@ -4,6 +4,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { closeRuntimeSql, withTenantScope } from "../../src/index.js";
 import { TenantEnvironmentLifecycleStore } from "../../src/environments/tenant-environment-lifecycle-store.js";
 import { TenantProjectMetadataStore } from "../../src/projects/tenant-project-metadata-store.js";
+import { TenantSecretMatrixMetadataStore } from "../../src/secrets/tenant-secret-matrix-metadata-store.js";
 import { describeRls, getRuntimeDatabaseUrl } from "./describe-rls.js";
 import { seedTenantBaseline } from "./seed.js";
 import { TEST_ORG_A_ID, TEST_ORG_B_ID, TEST_PROJECT_A_ID, TEST_PROJECT_B_ID } from "./test-ids.js";
@@ -66,6 +67,40 @@ describeRls("project and environment metadata reads (real Postgres)", () => {
     const rows = await withTenantScope(
       { kind: "organization", organizationId: orgA },
       async ({ db }) => new TenantEnvironmentLifecycleStore(db).listByProject(orgA, projectB),
+    );
+
+    expect(rows).toEqual([]);
+  });
+
+  it("scopes secret matrix metadata reads to the current organization and project", async () => {
+    const orgA = organizationId.brand(TEST_ORG_A_ID);
+    const projectA = projectId.brand(TEST_PROJECT_A_ID);
+    const rows = await withTenantScope(
+      { kind: "organization", organizationId: orgA },
+      async ({ db }) =>
+        new TenantSecretMatrixMetadataStore(db).listByProject({
+          organizationId: orgA,
+          projectId: projectA,
+        }),
+    );
+
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.secretId.startsWith("sec_"))).toBe(true);
+    expect(rows.every((row) => row.secretVersionId.startsWith("sv_"))).toBe(true);
+    expect(rows.every((row) => row.versionNumber >= 1)).toBe(true);
+    expect(JSON.stringify(rows)).not.toMatch(/ciphertext|valueUtf8|wrapped/i);
+  });
+
+  it("returns no secret matrix rows for a project outside the scoped organization", async () => {
+    const orgA = organizationId.brand(TEST_ORG_A_ID);
+    const projectB = projectId.brand(TEST_PROJECT_B_ID);
+    const rows = await withTenantScope(
+      { kind: "organization", organizationId: orgA },
+      async ({ db }) =>
+        new TenantSecretMatrixMetadataStore(db).listByProject({
+          organizationId: orgA,
+          projectId: projectB,
+        }),
     );
 
     expect(rows).toEqual([]);

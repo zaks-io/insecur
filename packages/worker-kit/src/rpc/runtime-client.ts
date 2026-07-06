@@ -102,6 +102,7 @@ export function runtimeClientFor(
     captureFirstValueFeedback: forward("captureFirstValueFeedback"),
     listProjects: forward("listProjects"),
     listEnvironments: forward("listEnvironments"),
+    listProjectSecrets: forward("listProjectSecrets"),
     listSessionOrganizations: forward("listSessionOrganizations"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),

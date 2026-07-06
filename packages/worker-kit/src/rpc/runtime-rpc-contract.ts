@@ -42,6 +42,8 @@ import type {
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
   ListOrganizationMembersRpcPayload,
+  ListProjectSecretsRpcInput,
+  ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
@@ -289,6 +291,9 @@ export interface RuntimeRpc {
   listEnvironments(
     input: ListEnvironmentsRpcInput,
   ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>>;
+  listProjectSecrets(
+    input: ListProjectSecretsRpcInput,
+  ): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>>;
   listSessionOrganizations(
     input: ListSessionOrganizationsRpcInput,
   ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>>;

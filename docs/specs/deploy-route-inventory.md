@@ -35,7 +35,9 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback` |
 
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `GET
-/:projectId/environments` lists environment metadata (including `isProtected`). `POST
+/:projectId/environments` lists environment metadata (including `isProtected`); `GET
+/:projectId/secrets` lists the secrets × environments matrix metadata (presence, version,
+last-set actor/time; INS-363). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
 
 Under `/v1/session` (INS-367): `GET /whoami` echoes the verified actor; `GET /memberships` is the

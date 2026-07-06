@@ -46,6 +46,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     completeBootstrapOperatorClaim: vi.fn(),
     listProjects: vi.fn(),
     listEnvironments: vi.fn(),
+    listProjectSecrets: vi.fn(),
     listSessionOrganizations: vi.fn(),
     listOrganizationMembers: vi.fn(),
     listOrganizationInvitations: vi.fn(),

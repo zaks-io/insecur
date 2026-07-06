@@ -3,10 +3,14 @@ import type {
   EnvironmentId,
   EnvironmentLifecycleStage,
   InvitationId,
+  MachineIdentityId,
   MembershipId,
   OrganizationId,
   ProjectId,
+  SecretId,
+  SecretVersionId,
   UserId,
+  VariableKey,
 } from "@insecur/domain";
 
 import type { PostAuthRpcInputBase } from "./runtime-rpc-shared.js";
@@ -60,6 +64,45 @@ export interface ListEnvironmentsRpcPayload {
 }
 
 export interface ListEnvironmentsRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+}
+
+/** Metadata-only actor reference for matrix last-set cells. */
+export interface SecretMatrixLastSetActorRead {
+  readonly actorType: "user" | "machine" | "ci_exchange";
+  readonly userId?: UserId;
+  readonly machineIdentityId?: MachineIdentityId;
+}
+
+/** One secret × environment matrix cell (metadata only; no values or ciphertext). */
+export interface SecretMatrixCellRead {
+  readonly environmentId: EnvironmentId;
+  readonly present: boolean;
+  readonly secretId?: SecretId;
+  readonly versionNumber?: number;
+  readonly secretVersionId?: SecretVersionId;
+  readonly lifecycleState?: "draft" | "live" | "retained" | "discarded";
+  readonly lastSetAt?: string;
+  readonly lastSetActor?: SecretMatrixLastSetActorRead;
+}
+
+/** Matrix row keyed by Variable Key with one cell per project environment column. */
+export interface SecretMatrixRowRead {
+  readonly variableKey: VariableKey;
+  readonly cells: readonly SecretMatrixCellRead[];
+}
+
+/**
+ * Secrets × environments matrix metadata for the console headline view (INS-363). Columns carry
+ * protection flags; cells expose presence, current version, and last-set actor/time only.
+ */
+export interface ListProjectSecretsRpcPayload {
+  readonly environments: readonly EnvironmentMetadataRead[];
+  readonly rows: readonly SecretMatrixRowRead[];
+}
+
+export interface ListProjectSecretsRpcInput extends PostAuthRpcInputBase {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
 }
