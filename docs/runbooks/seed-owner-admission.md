@@ -5,7 +5,7 @@ first User: login resolves the WorkOS subject against persisted `user_admissions
 rows, Guided Organization Provisioning only runs for admitted Users, and the
 Instance Bootstrap operator claim itself requires an already-admitted actor
 (`requireUserActor`), so the first human can never get in without a seeded
-admission row. INS-417 tracks the product fix (the bootstrap ceremony must admit
+admission row. INS-419 tracks the product fix (the bootstrap ceremony must admit
 the WorkOS subject presenting the valid Bootstrap Secret). Until that ships, the
 first owner admission for each environment's database is seeded manually with the
 steps below.
@@ -21,7 +21,7 @@ is the same upsert for a real human owner.
   scratch (prelaunch posture is recreate, not migrate).
 - **Non-triggers:** admitting additional teammates into an environment where an
   Instance Operator already exists (use Invitations once that surface ships);
-  anything after INS-417 lands (use the real bootstrap ceremony instead and
+  anything after INS-419 lands (use the real bootstrap ceremony instead and
   delete this runbook).
 
 ## preconditions
