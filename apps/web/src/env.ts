@@ -13,7 +13,17 @@ export interface WebEnv extends SentryBindings {
   readonly WORKOS_API_KEY: string;
   readonly WORKOS_CLIENT_ID: string;
   readonly WORKOS_COOKIE_PASSWORD: string;
+  /**
+   * Per-environment WorkOS authorization origin(s) the browser login form's POST redirect chain
+   * traverses, as a space/comma-separated list of https origins (e.g.
+   * `https://api.workos.com https://<tenant>.authkit.app`). Threaded into the CSP `form-action`
+   * directive so every off-origin hop in the redirect chain is allowed (INS-417). Absent/invalid
+   * config fails closed to `form-action 'self'`.
+   */
+  readonly WORKOS_AUTHKIT_ORIGIN?: string;
   readonly SESSION_SIGNING_SECRET: string;
+  readonly TURNSTILE_SITE_KEY: string;
+  readonly TURNSTILE_SECRET_KEY: string;
   readonly INSTANCE_ID?: string;
   /**
    * Enables preview smoke bearer admission through Runtime instead of the WorkOS cookie path.

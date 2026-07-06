@@ -50,11 +50,22 @@ Implementation note: the gate contract is defined here; the harness lives in
     with zero per-feature action. This enumeration structurally includes operation records and
     audit rows, named here explicitly because they are the highest-risk metadata surfaces.
   - **In-process console output** captured during the run.
+  - **Serialized HTTP egress** from the First Value loop: write, grant-issue, and grant-consume
+    response bodies and headers.
+  - **Serialized Runtime-to-API RPC delivery** from `consumeGrant` (the envelope captured before
+    the API unwraps it to the HTTP response).
 
-  The sweep asserts no sentinel appears anywhere, matching each sentinel raw and in its common
-  transport encodings (base64, base64url, hex), since a persisted encoding of a Sensitive Value is
-  still plaintext persistence. Ciphertext columns pass by construction: a correctly encrypted
-  sentinel is not substring-matchable.
+  The persistence and console sweeps assert no sentinel appears anywhere, matching each sentinel
+  raw and in its common transport encodings (base64, base64url, hex), since a persisted encoding
+  of a Sensitive Value is still plaintext persistence. Ciphertext columns pass by construction: a
+  correctly encrypted sentinel is not substring-matchable.
+
+  The egress sweep uses the same four encodings. By design, grant consume returns the decrypted
+  value only as base64url UTF-8 in `delivery.encodedValueUtf8`. The egress sweep therefore
+  permits base64url **only** at JSON paths ending in `delivery.encodedValueUtf8` (for example
+  `delivery.encodedValueUtf8` on the HTTP consume body and `value.delivery.encodedValueUtf8` on
+  the Runtime RPC envelope `{ ok: true, value: { delivery: { encodedValueUtf8 } } }`). Any raw,
+  base64, or hex hit, or any base64url hit outside that delivery field, fails the gate.
 
 - **Connection.** The harness connects directly with the migration/admin connection
   (`DATABASE_URL_MIGRATION`), exactly as the RLS harness already connects outside the store for
@@ -74,16 +85,16 @@ Implementation note: the gate contract is defined here; the harness lives in
   first non-enumerable surface, and a non-enumerable surface landing without an adapter is a
   review-blocking violation of this rule from that point on.
 - **Honest evidence scope.** The gate proves exactly: Postgres columns (including operation
-  records and audit rows), and in-process captured console output. It does not prove deployed
-  worker logs, which belong to the preview-smoke layer or a future adapter, and it does not prove
-  R2, KV, Durable Objects, Queues, traces, or analytics until their adapters exist. Docs that cite
-  canary evidence must cite `pnpm test:canary` for the enumerated surfaces and mark the rest as
-  pending adapters or preview-layer coverage, never swapping one fictional evidence citation for
-  another.
+  records and audit rows), in-process captured console output, and serialized First Value HTTP/RPC
+  egress with the `delivery.encodedValueUtf8` allowance above. It does not prove deployed worker
+  logs, which belong to the preview-smoke layer or a future adapter, and it does not prove R2, KV,
+  Durable Objects, Queues, traces, or analytics until their adapters exist. Docs that cite canary
+  evidence must cite `pnpm test:canary` for the enumerated surfaces and mark the rest as pending
+  adapters or preview-layer coverage, never swapping one fictional evidence citation for another.
 
-The existing ad-hoc `not.toContain` assertions in `first-value-loop.e2e.test.ts` stay. They check
-HTTP response bodies, which are not persisted surfaces and therefore outside the sweep; the gate
-generalizes their pattern to persistence and logging rather than replacing them.
+The existing ad-hoc `not.toContain` assertions in `first-value-loop.e2e.test.ts` stay as
+per-response regression guards. The canary gate generalizes their pattern structurally across
+persistence, logging, and serialized egress rather than replacing them.
 
 ## Options Considered
 

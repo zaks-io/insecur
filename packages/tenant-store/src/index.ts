@@ -48,6 +48,12 @@ export {
   SecretVersionStoreNotFoundError,
 } from "./secrets/errors.js";
 export { TenantSecretVersionStore } from "./secrets/tenant-secret-version-store.js";
+export { TenantSecretMatrixMetadataStore } from "./secrets/tenant-secret-matrix-metadata-store.js";
+export type {
+  ListSecretMatrixByProjectInput,
+  SecretMatrixLastSetActorRow,
+  SecretMatrixSecretRow,
+} from "./secrets/secret-matrix-metadata-types.js";
 export {
   SECRET_VERSION_LIFECYCLE_STATES,
   parseSecretVersionLifecycleState,
@@ -167,6 +173,8 @@ export {
   isEnvironmentLifecycleImmutableViolation,
   rethrowEnvironmentLifecycleDbError,
 } from "./environments/rethrow-environment-lifecycle-db-error.js";
+export { TenantProjectMetadataStore } from "./projects/tenant-project-metadata-store.js";
+export type { ProjectMetadataRow } from "./projects/types.js";
 export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
 export type {
   CreateEnvironmentLifecycleInput,

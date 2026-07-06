@@ -15,9 +15,15 @@ import {
   parseDisplayName,
   type DisplayName,
   teamId,
+  userId,
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
+import {
+  closeRuntimeSql,
+  resolveAdmittedUserId,
+  seedActiveUserAdmission,
+  withTenantScope,
+} from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
@@ -67,6 +73,17 @@ const DENIAL_AUDIT_OPERATOR_GRANT_ID = "iop_00000000000000000000000006";
 const DENIAL_AUDIT_MEM_ID = "mem_00000000000000000000000072";
 const DENIAL_AUDIT_USER_ID = "usr_00000000000000000000000072";
 const DENIAL_AUDIT_OTHER_USER_ID = "usr_00000000000000000000000071";
+
+const PREADMITTED_INSTANCE_ID = "inst_BOOTSTRAP_PREADMITTED_TEST";
+const PREADMITTED_ORG_ID = "org_00000000000000000000000065";
+const PREADMITTED_TEAM_ID = "team_00000000000000000000000065";
+const PREADMITTED_CLAIM_ID = "boc_00000000000000000000000008";
+const PREADMITTED_OPERATOR_GRANT_ID = "iop_00000000000000000000000009";
+const PREADMITTED_MEM_ID = "mem_00000000000000000000000065";
+const PREADMITTED_USER_ID = "usr_00000000000000000000000065";
+const PREADMITTED_EXISTING_USER_ID = "usr_00000000000000000000000064";
+const PREADMITTED_WORKOS_USER_ID = "workos_user_preadmitted_test";
+const PREADMITTED_ADMISSION_ID = "uad_00000000000000000000000065";
 
 const DENIAL_AUDIT_ROLLBACK_INSTANCE_ID = "inst_BOOTSTRAP_DENIAL_AUDIT_ROLLBACK";
 const DENIAL_AUDIT_ROLLBACK_ORG_ID = "org_00000000000000000000000071";
@@ -150,6 +167,7 @@ describeIntegration("bootstrap operator claim", () => {
     await cleanupBootstrapFixture(FK_INSTANCE_B);
     await cleanupBootstrapFixture(DENIAL_AUDIT_INSTANCE_ID);
     await cleanupBootstrapFixture(DENIAL_AUDIT_ROLLBACK_INSTANCE_ID);
+    await cleanupBootstrapFixture(PREADMITTED_INSTANCE_ID);
     bootstrapSecret = randomBytes(32).toString("base64url");
 
     await runInstanceBootstrap({
@@ -175,6 +193,7 @@ describeIntegration("bootstrap operator claim", () => {
     await cleanupBootstrapFixture(FK_INSTANCE_B);
     await cleanupBootstrapFixture(DENIAL_AUDIT_INSTANCE_ID);
     await cleanupBootstrapFixture(DENIAL_AUDIT_ROLLBACK_INSTANCE_ID);
+    await cleanupBootstrapFixture(PREADMITTED_INSTANCE_ID);
     await closeRuntimeSql();
   });
 
@@ -223,6 +242,9 @@ describeIntegration("bootstrap operator claim", () => {
     });
     expect(operators).toEqual([]);
     expect(await loadClaimStatus(BOOTSTRAP_INSTANCE_ID)).toBe("pending");
+    expect(
+      await resolveAdmittedUserId(BOOTSTRAP_INSTANCE_ID, testUserActor(CLAIM_USER_ID).workosUserId),
+    ).toBeNull();
   });
 
   it("completes the claim once and grants owner Effective Access", async () => {
@@ -244,6 +266,11 @@ describeIntegration("bootstrap operator claim", () => {
     const grantUserIds = await loadBootstrapGrantUserIds(BOOTSTRAP_INSTANCE_ID, BOOTSTRAP_ORG_ID);
     expect(grantUserIds.operatorUserIds).toEqual([CLAIM_USER_ID]);
     expect(grantUserIds.membershipUserIds).toEqual([CLAIM_USER_ID]);
+
+    // The exact resolution login performs (INS-180): the claimed operator must be admitted.
+    expect(await resolveAdmittedUserId(BOOTSTRAP_INSTANCE_ID, claimActor.workosUserId)).toBe(
+      claimActor.userId,
+    );
 
     const effectiveAccess = await resolveEffectiveAccess(
       { type: "user", userId: claimActor.userId },
@@ -306,6 +333,54 @@ describeIntegration("bootstrap operator claim", () => {
     expect(grantUserIds.membershipUserIds).toEqual([CLAIM_USER_ID]);
     expect(grantUserIds.operatorUserIds).not.toContain(OTHER_USER_ID);
     expect(grantUserIds.membershipUserIds).not.toContain(OTHER_USER_ID);
+  });
+
+  it("fails closed when the claiming WorkOS subject already has an admission", async () => {
+    const preadmittedSecret = randomBytes(32).toString("base64url");
+
+    await runInstanceBootstrap({
+      instanceId: PREADMITTED_INSTANCE_ID,
+      instanceDisplayName: testDisplayName("Preadmitted bootstrap instance"),
+      organizationDisplayName: testDisplayName("Preadmitted bootstrap org"),
+      defaultTeamDisplayName: testDisplayName("Default"),
+      resourceIds: {
+        organizationId: organizationId.brand(PREADMITTED_ORG_ID),
+        defaultTeamId: teamId.brand(PREADMITTED_TEAM_ID),
+        claimId: PREADMITTED_CLAIM_ID,
+      },
+      bootstrapSecret: preadmittedSecret,
+      workosClientId: "client_test_bootstrap",
+    });
+
+    await seedActiveUserAdmission({
+      admissionId: PREADMITTED_ADMISSION_ID,
+      instanceId: PREADMITTED_INSTANCE_ID,
+      userId: userId.brand(PREADMITTED_EXISTING_USER_ID),
+      workosUserId: PREADMITTED_WORKOS_USER_ID,
+    });
+
+    await expect(
+      completeBootstrapOperatorClaim({
+        instanceId: PREADMITTED_INSTANCE_ID,
+        actor: testUserActor(PREADMITTED_USER_ID, {
+          workosUserId: PREADMITTED_WORKOS_USER_ID,
+        }),
+        bootstrapSecret: preadmittedSecret,
+        operatorGrantId: PREADMITTED_OPERATOR_GRANT_ID,
+        ownerMembershipId: membershipId.brand(PREADMITTED_MEM_ID),
+      }),
+    ).rejects.toMatchObject({ code: "23505" });
+
+    expect(await loadClaimStatus(PREADMITTED_INSTANCE_ID)).toBe("pending");
+    const grantUserIds = await loadBootstrapGrantUserIds(
+      PREADMITTED_INSTANCE_ID,
+      PREADMITTED_ORG_ID,
+    );
+    expect(grantUserIds.operatorUserIds).toEqual([]);
+    expect(grantUserIds.membershipUserIds).toEqual([]);
+    expect(await resolveAdmittedUserId(PREADMITTED_INSTANCE_ID, PREADMITTED_WORKOS_USER_ID)).toBe(
+      PREADMITTED_EXISTING_USER_ID,
+    );
   });
 
   it("records already-claimed denial audit inside the CAS transaction", async () => {
@@ -447,6 +522,12 @@ describeIntegration("bootstrap operator claim", () => {
       `;
     });
     expect(operators).toEqual([]);
+    expect(
+      await resolveAdmittedUserId(
+        ROLLBACK_INSTANCE_ID,
+        testUserActor(ROLLBACK_USER_ID).workosUserId,
+      ),
+    ).toBeNull();
 
     const retryResult = await completeBootstrapOperatorClaim({
       instanceId: ROLLBACK_INSTANCE_ID,
@@ -461,6 +542,12 @@ describeIntegration("bootstrap operator claim", () => {
     const grantUserIds = await loadBootstrapGrantUserIds(ROLLBACK_INSTANCE_ID, ROLLBACK_ORG_ID);
     expect(grantUserIds.operatorUserIds).toEqual([ROLLBACK_USER_ID]);
     expect(grantUserIds.membershipUserIds).toEqual([ROLLBACK_USER_ID]);
+    expect(
+      await resolveAdmittedUserId(
+        ROLLBACK_INSTANCE_ID,
+        testUserActor(ROLLBACK_USER_ID).workosUserId,
+      ),
+    ).toBe(testUserActor(ROLLBACK_USER_ID).userId);
   });
 
   it("rolls back claim consumption when post-grant Effective Access assertion fails", async () => {
@@ -511,6 +598,12 @@ describeIntegration("bootstrap operator claim", () => {
     );
     expect(grantUserIds.operatorUserIds).toEqual([]);
     expect(grantUserIds.membershipUserIds).toEqual([]);
+    expect(
+      await resolveAdmittedUserId(
+        ASSERTION_ROLLBACK_INSTANCE_ID,
+        testUserActor(ASSERTION_ROLLBACK_USER_ID).workosUserId,
+      ),
+    ).toBeNull();
   });
 
   it("rejects bootstrap claims whose first organization is not on the same instance", async () => {

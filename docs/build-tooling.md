@@ -622,13 +622,59 @@ deploys use ordinary Turbo filters:
 pnpm deploy:preview --filter @insecur/web
 ```
 
-Preview and production deploys require `SENTRY_AUTH_TOKEN` in the GitHub Environment. CI sets
+Preview and production deploys require `SENTRY_AUTH_TOKEN` in the approved GitHub Actions secret
+store. Deploy jobs reference `secrets.SENTRY_AUTH_TOKEN`, which GitHub resolves from a repository
+secret or, if present, an environment-scoped override in `Preview` / `Production`. The current
+approved store is the repository secret named `SENTRY_AUTH_TOKEN`; environment-scoped copies are
+optional and only needed when preview and production must use different tokens. CI sets
 `SENTRY_RELEASE` to the deployed commit SHA, materializes that value into every Worker config, and
 uploads source maps during deploy. Web and Site upload hidden Vite source maps through the official
 Sentry Vite plugin and delete client `.map` files before asset deployment. API and Runtime use
 Wrangler `--upload-source-maps` plus `sentry-cli sourcemaps upload` against the Wrangler output
-directory. Sentry events should therefore show the deployed Git SHA as their release instead of an
-opaque Cloudflare script version.
+directory. Web and Site also run `sentry-cli sourcemaps upload` against `dist/server` so the
+TanStack Start Worker bundle resolves in Sentry. Sentry events should therefore show the deployed
+Git SHA as their release instead of an opaque Cloudflare script version.
+
+#### Sentry auth token setup (human step)
+
+Create the token outside the repo and store it only in the approved GitHub Actions secret store:
+
+1. In Sentry, open **Settings → Auth Tokens** for org `zaksio`.
+2. Create an auth token with at least **Project: Read & Write** and **Release: Admin** for project
+   `insecur`. Do not grant broader org-admin scopes than needed for release and source-map upload.
+3. Add the token value as a **repository Actions secret** named `SENTRY_AUTH_TOKEN`. Preview and
+   Production deploy jobs inherit repository secrets automatically because they reference the
+   `Preview` / `Production` environments but read `secrets.SENTRY_AUTH_TOKEN` without an
+   environment-specific name. Add environment-scoped `SENTRY_AUTH_TOKEN` secrets only when preview
+   and production must use different tokens. Never commit the token, paste it into Linear, or print
+   it in workflow logs.
+4. Deploy workflows already set `SENTRY_ORG=zaksio`, `SENTRY_PROJECT=insecur`, and
+   `SENTRY_RELEASE` to the deployed commit SHA. No additional repo variables are required.
+
+Local builds skip source-map upload when `SENTRY_AUTH_TOKEN` is unset. Preview and production deploy
+workflows set `INSECUR_REQUIRE_SENTRY_SOURCEMAPS=true`, so a missing or malformed upload
+configuration fails closed instead of silently skipping upload. When upload is required, each deploy
+step also fails closed if its Wrangler/Vite output directory contains no `.map` files. After all
+deploy steps finish, `scripts/sentry-verify-release-sourcemaps.mjs` checks the combined Sentry
+release for uploaded map artifacts.
+
+#### Sentry source-map verification
+
+After preview or production deploy, CI runs `node scripts/sentry-verify-release-sourcemaps.mjs`,
+which lists artifacts on the deployed `SENTRY_RELEASE` and fails when no `.map` files were
+uploaded.
+
+To confirm readable stacks in the Sentry UI after a deploy:
+
+1. Open the preview or production app and trigger a handled error from a route you control, or wait
+   for the next real error on the deployed release.
+2. In Sentry, filter Issues by release equal to the deployed commit SHA (`SENTRY_RELEASE`).
+3. Open the issue stack trace and confirm frames point at original TypeScript paths (for example
+   `apps/web/src/...`) rather than minified `index.js` offsets only.
+
+If automated verification passes but stack traces stay minified, check that the issue release
+matches `SENTRY_RELEASE` and that the Worker or client bundle for that deploy uploaded maps for the
+same release name.
 
 Preview routes are fixed custom domains:
 
@@ -687,7 +733,8 @@ separate production site workflow.
    route attachments.
 
 The production deploy uses the same Sentry release/source-map path as Preview and requires
-`SENTRY_AUTH_TOKEN` in the `Production` GitHub Environment.
+`SENTRY_AUTH_TOKEN` in the approved GitHub Actions secret store (repository secret by default;
+environment-scoped override optional).
 
 The identity that executes this deploy is the CI machine token. The operator's personal credentials
 are never the deploy credential (ADR-0029 amendment, ADR-0004). The Cloudflare token must be able
@@ -703,7 +750,9 @@ Jobs:
 
 - **Vulnerability scan:** syft SBOM + grype via `scripts/ci/sbom-grype.sh none` (report only, no `--fail-on`).
 - **SAST full scan:** semgrep with `config: auto`.
-- **Secret scan history:** gitleaks over full git history (`gitleaks-detect.sh git`).
+- **Secret scan history:** gitleaks over default-branch HEAD history only (`gitleaks-detect.sh git` with
+  `GITLEAKS_LOG_OPTS=HEAD`). Open or draft PR refs must not fail the scheduled default-branch scan; PR
+  checks still run gitleaks on the current tree via `gitleaks-detect.sh detect` in `CI`.
 - **Dependency scan:** covered by the syft + grype job, which builds a CycloneDX SBOM over the full
   dependency tree and matches it against grype's advisory database.
 - **Report criticals:** opt-in metadata-only Linear filing gated behind repository variable

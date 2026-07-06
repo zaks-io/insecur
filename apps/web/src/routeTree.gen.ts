@@ -10,14 +10,32 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WhoamiRouteImport } from './routes/whoami'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LogoutRouteImport } from './routes/logout'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrgsIndexRouteImport } from './routes/orgs.index'
+import { Route as OrgsOrgIdRouteImport } from './routes/orgs.$orgId'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as OrgsOrgIdIndexRouteImport } from './routes/orgs.$orgId.index'
+import { Route as OrgsOrgIdSettingsRouteImport } from './routes/orgs.$orgId.settings'
+import { Route as OrgsOrgIdPeopleRouteImport } from './routes/orgs.$orgId.people'
+import { Route as OrgsOrgIdAuditRouteImport } from './routes/orgs.$orgId.audit'
+import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs.$orgId.projects.index'
+import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs.$orgId.projects.$projectId'
+import { Route as OrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/orgs.$orgId.projects.$projectId.index'
+import { Route as OrgsOrgIdProjectsProjectIdSecretsRouteImport } from './routes/orgs.$orgId.projects.$projectId.secrets'
+import { Route as OrgsOrgIdProjectsProjectIdDeliveryRouteImport } from './routes/orgs.$orgId.projects.$projectId.delivery'
+import { Route as OrgsOrgIdProjectsProjectIdAccessRouteImport } from './routes/orgs.$orgId.projects.$projectId.access'
 
 const WhoamiRoute = WhoamiRouteImport.update({
   id: '/whoami',
   path: '/whoami',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LogoutRoute = LogoutRouteImport.update({
@@ -35,48 +53,206 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgsIndexRoute = OrgsIndexRouteImport.update({
+  id: '/orgs/',
+  path: '/orgs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrgsOrgIdRoute = OrgsOrgIdRouteImport.update({
+  id: '/orgs/$orgId',
+  path: '/orgs/$orgId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgsOrgIdIndexRoute = OrgsOrgIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
+const OrgsOrgIdSettingsRoute = OrgsOrgIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
+const OrgsOrgIdPeopleRoute = OrgsOrgIdPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
+const OrgsOrgIdAuditRoute = OrgsOrgIdAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
+const OrgsOrgIdProjectsIndexRoute = OrgsOrgIdProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
+const OrgsOrgIdProjectsProjectIdRoute =
+  OrgsOrgIdProjectsProjectIdRouteImport.update({
+    id: '/projects/$projectId',
+    path: '/projects/$projectId',
+    getParentRoute: () => OrgsOrgIdRoute,
+  } as any)
+const OrgsOrgIdProjectsProjectIdIndexRoute =
+  OrgsOrgIdProjectsProjectIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
+  } as any)
+const OrgsOrgIdProjectsProjectIdSecretsRoute =
+  OrgsOrgIdProjectsProjectIdSecretsRouteImport.update({
+    id: '/secrets',
+    path: '/secrets',
+    getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
+  } as any)
+const OrgsOrgIdProjectsProjectIdDeliveryRoute =
+  OrgsOrgIdProjectsProjectIdDeliveryRouteImport.update({
+    id: '/delivery',
+    path: '/delivery',
+    getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
+  } as any)
+const OrgsOrgIdProjectsProjectIdAccessRoute =
+  OrgsOrgIdProjectsProjectIdAccessRouteImport.update({
+    id: '/access',
+    path: '/access',
+    getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
+  '/orgs/': typeof OrgsIndexRoute
+  '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
+  '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
+  '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
+  '/orgs/$orgId/': typeof OrgsOrgIdIndexRoute
+  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRouteWithChildren
+  '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
+  '/orgs/$orgId/projects/$projectId/access': typeof OrgsOrgIdProjectsProjectIdAccessRoute
+  '/orgs/$orgId/projects/$projectId/delivery': typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
+  '/orgs/$orgId/projects/$projectId/secrets': typeof OrgsOrgIdProjectsProjectIdSecretsRoute
+  '/orgs/$orgId/projects/$projectId/': typeof OrgsOrgIdProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/orgs': typeof OrgsIndexRoute
+  '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
+  '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
+  '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
+  '/orgs/$orgId': typeof OrgsOrgIdIndexRoute
+  '/orgs/$orgId/projects': typeof OrgsOrgIdProjectsIndexRoute
+  '/orgs/$orgId/projects/$projectId/access': typeof OrgsOrgIdProjectsProjectIdAccessRoute
+  '/orgs/$orgId/projects/$projectId/delivery': typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
+  '/orgs/$orgId/projects/$projectId/secrets': typeof OrgsOrgIdProjectsProjectIdSecretsRoute
+  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
+  '/orgs/': typeof OrgsIndexRoute
+  '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
+  '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
+  '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
+  '/orgs/$orgId/': typeof OrgsOrgIdIndexRoute
+  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRouteWithChildren
+  '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
+  '/orgs/$orgId/projects/$projectId/access': typeof OrgsOrgIdProjectsProjectIdAccessRoute
+  '/orgs/$orgId/projects/$projectId/delivery': typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
+  '/orgs/$orgId/projects/$projectId/secrets': typeof OrgsOrgIdProjectsProjectIdSecretsRoute
+  '/orgs/$orgId/projects/$projectId/': typeof OrgsOrgIdProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/logout' | '/whoami' | '/auth/callback'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/logout'
+    | '/onboarding'
+    | '/whoami'
+    | '/auth/callback'
+    | '/orgs/$orgId'
+    | '/orgs/'
+    | '/orgs/$orgId/audit'
+    | '/orgs/$orgId/people'
+    | '/orgs/$orgId/settings'
+    | '/orgs/$orgId/'
+    | '/orgs/$orgId/projects/$projectId'
+    | '/orgs/$orgId/projects/'
+    | '/orgs/$orgId/projects/$projectId/access'
+    | '/orgs/$orgId/projects/$projectId/delivery'
+    | '/orgs/$orgId/projects/$projectId/secrets'
+    | '/orgs/$orgId/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/logout' | '/whoami' | '/auth/callback'
-  id: '__root__' | '/' | '/login' | '/logout' | '/whoami' | '/auth/callback'
+  to:
+    | '/'
+    | '/login'
+    | '/logout'
+    | '/onboarding'
+    | '/whoami'
+    | '/auth/callback'
+    | '/orgs'
+    | '/orgs/$orgId/audit'
+    | '/orgs/$orgId/people'
+    | '/orgs/$orgId/settings'
+    | '/orgs/$orgId'
+    | '/orgs/$orgId/projects'
+    | '/orgs/$orgId/projects/$projectId/access'
+    | '/orgs/$orgId/projects/$projectId/delivery'
+    | '/orgs/$orgId/projects/$projectId/secrets'
+    | '/orgs/$orgId/projects/$projectId'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/logout'
+    | '/onboarding'
+    | '/whoami'
+    | '/auth/callback'
+    | '/orgs/$orgId'
+    | '/orgs/'
+    | '/orgs/$orgId/audit'
+    | '/orgs/$orgId/people'
+    | '/orgs/$orgId/settings'
+    | '/orgs/$orgId/'
+    | '/orgs/$orgId/projects/$projectId'
+    | '/orgs/$orgId/projects/'
+    | '/orgs/$orgId/projects/$projectId/access'
+    | '/orgs/$orgId/projects/$projectId/delivery'
+    | '/orgs/$orgId/projects/$projectId/secrets'
+    | '/orgs/$orgId/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
+  OnboardingRoute: typeof OnboardingRoute
   WhoamiRoute: typeof WhoamiRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  OrgsOrgIdRoute: typeof OrgsOrgIdRouteWithChildren
+  OrgsIndexRoute: typeof OrgsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -86,6 +262,13 @@ declare module '@tanstack/react-router' {
       path: '/whoami'
       fullPath: '/whoami'
       preLoaderRoute: typeof WhoamiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logout': {
@@ -109,6 +292,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orgs/': {
+      id: '/orgs/'
+      path: '/orgs'
+      fullPath: '/orgs/'
+      preLoaderRoute: typeof OrgsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orgs/$orgId': {
+      id: '/orgs/$orgId'
+      path: '/orgs/$orgId'
+      fullPath: '/orgs/$orgId'
+      preLoaderRoute: typeof OrgsOrgIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -116,15 +313,133 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orgs/$orgId/': {
+      id: '/orgs/$orgId/'
+      path: '/'
+      fullPath: '/orgs/$orgId/'
+      preLoaderRoute: typeof OrgsOrgIdIndexRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/orgs/$orgId/settings': {
+      id: '/orgs/$orgId/settings'
+      path: '/settings'
+      fullPath: '/orgs/$orgId/settings'
+      preLoaderRoute: typeof OrgsOrgIdSettingsRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/orgs/$orgId/people': {
+      id: '/orgs/$orgId/people'
+      path: '/people'
+      fullPath: '/orgs/$orgId/people'
+      preLoaderRoute: typeof OrgsOrgIdPeopleRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/orgs/$orgId/audit': {
+      id: '/orgs/$orgId/audit'
+      path: '/audit'
+      fullPath: '/orgs/$orgId/audit'
+      preLoaderRoute: typeof OrgsOrgIdAuditRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/orgs/$orgId/projects/': {
+      id: '/orgs/$orgId/projects/'
+      path: '/projects'
+      fullPath: '/orgs/$orgId/projects/'
+      preLoaderRoute: typeof OrgsOrgIdProjectsIndexRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/orgs/$orgId/projects/$projectId': {
+      id: '/orgs/$orgId/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/orgs/$orgId/projects/$projectId'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/orgs/$orgId/projects/$projectId/': {
+      id: '/orgs/$orgId/projects/$projectId/'
+      path: '/'
+      fullPath: '/orgs/$orgId/projects/$projectId/'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdIndexRouteImport
+      parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
+    }
+    '/orgs/$orgId/projects/$projectId/secrets': {
+      id: '/orgs/$orgId/projects/$projectId/secrets'
+      path: '/secrets'
+      fullPath: '/orgs/$orgId/projects/$projectId/secrets'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdSecretsRouteImport
+      parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
+    }
+    '/orgs/$orgId/projects/$projectId/delivery': {
+      id: '/orgs/$orgId/projects/$projectId/delivery'
+      path: '/delivery'
+      fullPath: '/orgs/$orgId/projects/$projectId/delivery'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdDeliveryRouteImport
+      parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
+    }
+    '/orgs/$orgId/projects/$projectId/access': {
+      id: '/orgs/$orgId/projects/$projectId/access'
+      path: '/access'
+      fullPath: '/orgs/$orgId/projects/$projectId/access'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdAccessRouteImport
+      parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
+    }
   }
 }
+
+interface OrgsOrgIdProjectsProjectIdRouteChildren {
+  OrgsOrgIdProjectsProjectIdAccessRoute: typeof OrgsOrgIdProjectsProjectIdAccessRoute
+  OrgsOrgIdProjectsProjectIdDeliveryRoute: typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
+  OrgsOrgIdProjectsProjectIdSecretsRoute: typeof OrgsOrgIdProjectsProjectIdSecretsRoute
+  OrgsOrgIdProjectsProjectIdIndexRoute: typeof OrgsOrgIdProjectsProjectIdIndexRoute
+}
+
+const OrgsOrgIdProjectsProjectIdRouteChildren: OrgsOrgIdProjectsProjectIdRouteChildren =
+  {
+    OrgsOrgIdProjectsProjectIdAccessRoute:
+      OrgsOrgIdProjectsProjectIdAccessRoute,
+    OrgsOrgIdProjectsProjectIdDeliveryRoute:
+      OrgsOrgIdProjectsProjectIdDeliveryRoute,
+    OrgsOrgIdProjectsProjectIdSecretsRoute:
+      OrgsOrgIdProjectsProjectIdSecretsRoute,
+    OrgsOrgIdProjectsProjectIdIndexRoute: OrgsOrgIdProjectsProjectIdIndexRoute,
+  }
+
+const OrgsOrgIdProjectsProjectIdRouteWithChildren =
+  OrgsOrgIdProjectsProjectIdRoute._addFileChildren(
+    OrgsOrgIdProjectsProjectIdRouteChildren,
+  )
+
+interface OrgsOrgIdRouteChildren {
+  OrgsOrgIdAuditRoute: typeof OrgsOrgIdAuditRoute
+  OrgsOrgIdPeopleRoute: typeof OrgsOrgIdPeopleRoute
+  OrgsOrgIdSettingsRoute: typeof OrgsOrgIdSettingsRoute
+  OrgsOrgIdIndexRoute: typeof OrgsOrgIdIndexRoute
+  OrgsOrgIdProjectsProjectIdRoute: typeof OrgsOrgIdProjectsProjectIdRouteWithChildren
+  OrgsOrgIdProjectsIndexRoute: typeof OrgsOrgIdProjectsIndexRoute
+}
+
+const OrgsOrgIdRouteChildren: OrgsOrgIdRouteChildren = {
+  OrgsOrgIdAuditRoute: OrgsOrgIdAuditRoute,
+  OrgsOrgIdPeopleRoute: OrgsOrgIdPeopleRoute,
+  OrgsOrgIdSettingsRoute: OrgsOrgIdSettingsRoute,
+  OrgsOrgIdIndexRoute: OrgsOrgIdIndexRoute,
+  OrgsOrgIdProjectsProjectIdRoute: OrgsOrgIdProjectsProjectIdRouteWithChildren,
+  OrgsOrgIdProjectsIndexRoute: OrgsOrgIdProjectsIndexRoute,
+}
+
+const OrgsOrgIdRouteWithChildren = OrgsOrgIdRoute._addFileChildren(
+  OrgsOrgIdRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
+  OnboardingRoute: OnboardingRoute,
   WhoamiRoute: WhoamiRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  OrgsOrgIdRoute: OrgsOrgIdRouteWithChildren,
+  OrgsIndexRoute: OrgsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -180,6 +180,7 @@ export default tseslint.config(
       "packages/tenant-store/vitest.rls.config.ts",
       "packages/tenant-store/drizzle.config.ts",
       "packages/tenant-store/scripts/**/*.ts",
+      "packages/instance-bootstrap/scripts/**/*.ts",
       "packages/backup-restore/test/**/*.ts",
       "packages/backup-restore/vitest.config.ts",
       "packages/worker-kit/src/**/*.test.ts",
@@ -198,7 +199,12 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    files: ["packages/cli/**/*.ts", "packages/*/scripts/**/*.mjs", "scripts/**/*.{ts,mjs}"],
+    files: [
+      "packages/cli/**/*.ts",
+      "packages/*/scripts/**/*.mjs",
+      "apps/*/scripts/**/*.mjs",
+      "scripts/**/*.{ts,mjs}",
+    ],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -246,6 +252,26 @@ export default tseslint.config(
       complexity: "off",
       "max-lines-per-function": "off",
       "max-statements": "off",
+    },
+  },
+  {
+    // TanStack Router control flow: loaders `throw redirect(...)` (a Response subtype) and
+    // `throw notFound()` by design; the router catches both.
+    files: ["apps/web/src/routes/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/only-throw-error": [
+        "error",
+        {
+          allow: [
+            {
+              from: "package",
+              package: "@tanstack/router-core",
+              name: ["Redirect", "NotFoundError"],
+            },
+            { from: "lib", name: "Response" },
+          ],
+        },
+      ],
     },
   },
   {
@@ -304,6 +330,10 @@ export default tseslint.config(
       "apps/runtime/src/**",
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: "error",
+    },
     rules: {
       "no-restricted-imports": [
         "error",
@@ -330,6 +360,10 @@ export default tseslint.config(
       "**/*.integration.test.ts",
       ...DECRYPT_IMPORT_ALLOWLIST,
     ],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: "error",
+    },
     rules: {
       "no-restricted-imports": ["error", decryptImportBoundaryOptions],
       "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],
@@ -339,6 +373,10 @@ export default tseslint.config(
   {
     files: ["apps/runtime/src/**/*.ts"],
     ignores: ["**/*.test.ts", "**/*.spec.ts", "**/*.e2e.test.ts", "**/*.integration.test.ts"],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: "error",
+    },
     rules: {
       "no-restricted-imports": ["error", decryptImportBoundaryOptions],
       "no-restricted-syntax": ["error", ...decryptDynamicImportSyntaxRules],

@@ -1,0 +1,132 @@
+import type {
+  CaptureFirstValueFeedbackRpcInput,
+  CaptureFirstValueFeedbackRpcPayload,
+  GetOperationRpcInput,
+  IssueInjectionGrantRpcInput,
+  ListEnvironmentsRpcInput,
+  ListEnvironmentsRpcPayload,
+  ListOrganizationInvitationsRpcInput,
+  ListOrganizationInvitationsRpcPayload,
+  ListOrganizationMembersRpcInput,
+  ListOrganizationMembersRpcPayload,
+  ListProjectSecretsRpcInput,
+  ListProjectSecretsRpcPayload,
+  ListProjectsRpcInput,
+  ListProjectsRpcPayload,
+  ListSessionOrganizationsRpcInput,
+  ListSessionOrganizationsRpcPayload,
+  RecordInjectionRunCompletedRpcInput,
+  RecordInjectionRunCompletedRpcPayload,
+  RuntimeRpcResult,
+} from "@insecur/worker-kit";
+import type { OperationPollResult } from "@insecur/operations";
+import {
+  issueInjectionGrant,
+  type IssueInjectionGrantResult,
+} from "@insecur/runtime-injection-issue";
+
+import { captureFirstValueFeedbackOperation } from "../operations/capture-first-value-feedback-operation.js";
+import { getOperationOperation } from "../operations/get-operation-operation.js";
+import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
+import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
+import { listOrganizationMembersOperation } from "../operations/list-organization-members-operation.js";
+import { listProjectSecretsOperation } from "../operations/list-project-secrets-operation.js";
+import { listProjectsOperation } from "../operations/list-projects-operation.js";
+import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
+import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
+import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
+
+export function listProjectsRpc(
+  post: PostAuthRpcRunner,
+  input: ListProjectsRpcInput,
+): Promise<RuntimeRpcResult<ListProjectsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listProjectsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function getOperationRpc(
+  post: PostAuthRpcRunner,
+  input: GetOperationRpcInput,
+): Promise<RuntimeRpcResult<OperationPollResult>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    getOperationOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function issueInjectionGrantRpc(
+  post: PostAuthRpcRunner,
+  input: IssueInjectionGrantRpcInput,
+): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
+  return post(input.actorToken, ({ accessActor }) =>
+    issueInjectionGrant({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      selector: input.selector,
+      actor: accessActor,
+      request: { requestId: input.requestId },
+    }),
+  );
+}
+
+export function listSessionOrganizationsRpc(
+  post: PostAuthRpcRunner,
+  input: ListSessionOrganizationsRpcInput,
+): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>> {
+  return post(input.actorToken, ({ accessActor }) =>
+    listSessionOrganizationsOperation({ accessActor }),
+  );
+}
+
+export function listOrganizationMembersRpc(
+  post: PostAuthRpcRunner,
+  input: ListOrganizationMembersRpcInput,
+): Promise<RuntimeRpcResult<ListOrganizationMembersRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listOrganizationMembersOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listOrganizationInvitationsRpc(
+  post: PostAuthRpcRunner,
+  input: ListOrganizationInvitationsRpcInput,
+): Promise<RuntimeRpcResult<ListOrganizationInvitationsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listOrganizationInvitationsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listEnvironmentsRpc(
+  post: PostAuthRpcRunner,
+  input: ListEnvironmentsRpcInput,
+): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listEnvironmentsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listProjectSecretsRpc(
+  post: PostAuthRpcRunner,
+  input: ListProjectSecretsRpcInput,
+): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listProjectSecretsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function recordInjectionRunCompletedRpc(
+  post: PostAuthRpcRunner,
+  input: RecordInjectionRunCompletedRpcInput,
+): Promise<RuntimeRpcResult<RecordInjectionRunCompletedRpcPayload>> {
+  return post(input.actorToken, ({ auditActor }) =>
+    recordInjectionRunCompletedOperation({ input, auditActor }),
+  );
+}
+
+export function captureFirstValueFeedbackRpc(
+  post: PostAuthRpcRunner,
+  input: CaptureFirstValueFeedbackRpcInput,
+): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>> {
+  return post(input.actorToken, (actors) => captureFirstValueFeedbackOperation(input, actors));
+}

@@ -217,13 +217,20 @@ function isConfiguredPublicHostname(value) {
   return Boolean(value);
 }
 
+// Remove block comments and full-line `//` comments so a route string mentioned in a doc
+// comment never registers as a mount. Trailing `//` comments are left alone: stripping them
+// blindly would eat `https://...` inside string literals, and a route call never follows one.
+function stripComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 // Extract public mount prefixes from a Hono composition root by reading its `app.route(...)`,
 // `app.<method>(...)`, `app.on(...)`, `app.mount(...)`, and public-surface `app.use(...)` calls.
 function extractPublicRoutes(indexPath) {
   if (!isFile(indexPath)) {
     return [];
   }
-  const source = readFileSync(indexPath, "utf8");
+  const source = stripComments(readFileSync(indexPath, "utf8"));
   const mounts = new Set();
   const patterns = [
     /app\.(route|all|get|post|put|delete|patch|options|head|mount|use)\(\s*["'`]([^"'`]+)["'`]/g,
@@ -260,8 +267,17 @@ function extractPublicRoutes(indexPath) {
       mounts.add("*");
     }
   }
-  if (/pathname\s*===\s*["'`]\/healthz["'`]/.test(source)) {
-    mounts.add("/healthz");
+  // Plain fetch handlers (no Hono router) declare public routes as
+  // `if (...pathname === "/...")` branches; require the `if (` context so a bare
+  // pathname string in dead code or a variable never registers as a mount.
+  const pathnameLiteralPattern =
+    /if\s*\((?:[^()]|\([^()]*\))*?pathname\s*===\s*["'`](\/[^"'`]*)["'`]/g;
+  let pathnameMatch;
+  while ((pathnameMatch = pathnameLiteralPattern.exec(source)) !== null) {
+    const prefix = pathnameMatch[1];
+    if (isPublicMount(prefix)) {
+      mounts.add(prefix);
+    }
   }
   return [...mounts].sort();
 }

@@ -16,6 +16,10 @@ Run `apps/api` and `apps/runtime` alongside (`pnpm dev:workers`) for end-to-end 
 Copy `apps/web/.dev.vars.example` to `apps/web/.dev.vars` and align WorkOS/session secrets with
 `apps/api/.dev.vars`.
 
+The example file uses Cloudflare Turnstile dummy keys for local login. Preview and production need
+`TURNSTILE_SITE_KEY` as a GitHub Environment variable and `TURNSTILE_SECRET_KEY` as a GitHub
+Environment secret.
+
 ## Proof route
 
 `GET /whoami` — server-rendered page that resolves the browser WorkOS session, hops to

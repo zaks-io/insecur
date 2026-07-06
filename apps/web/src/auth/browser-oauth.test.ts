@@ -4,8 +4,8 @@ import {
   INSECUR_CSRF_HEADER,
   WORKOS_SESSION_COOKIE,
 } from "@insecur/auth";
-import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFakeWebEnv } from "../../test/support/fake-web-env.js";
 import {
   beginBrowserLogin,
   completeBrowserLogin,
@@ -13,41 +13,41 @@ import {
   redirectResponse,
 } from "./browser-oauth.js";
 import { formatPkceStateClearCookie, INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
-import type { WebEnv } from "../env.js";
+import { loginFailureRedirectPath } from "./login-error.js";
 
-const workosUserId = "user_01workos";
-const sealedSession = "sealed-browser-login";
-const authorizationCode = "code_browser_login";
-const codeVerifier = "verifier_browser_login";
+// Single-source the PKCE exchange literals so the fake WorkOS port and the test assertions can
+// never silently diverge: the mock factory is hoisted above the imports, so it reads these through
+// vi.hoisted rather than re-typing the strings.
+const pkceLiterals = vi.hoisted(() => ({
+  authorizationCode: "code_browser_login",
+  enrollmentBlockedCode: "code_browser_mfa_enrollment",
+  codeVerifier: "verifier_browser_login",
+}));
+const { authorizationCode, enrollmentBlockedCode, codeVerifier } = pkceLiterals;
 const oauthState = "state_browser_login";
 
-function createTestEnv(): WebEnv {
+vi.mock("./workos-port.js", async () => {
+  const { createFakeWorkOSSessionPort } = await import("@insecur/auth/testing");
+  const { fakeSessionEntry } = await import("../../test/support/fake-browser-session.js");
   return {
-    WORKOS_API_KEY: "sk_test",
-    WORKOS_CLIENT_ID: "client_test",
-    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-    API: { fetch: () => Promise.reject(new Error("API binding not used")) } as unknown as Fetcher,
-    RUNTIME: {
-      resolveAdmission: () => Promise.resolve({ ok: true, value: { userId: null } }),
-      recordAdmissionDenied: () => Promise.resolve({ ok: true, value: { recorded: true } }),
-    },
+    createWorkOSSessionPortFromEnv: () =>
+      createFakeWorkOSSessionPort([
+        fakeSessionEntry({
+          sessionData: "sealed-browser-login",
+          sessionId: "session_browser",
+          authorizationCode: pkceLiterals.authorizationCode,
+          codeVerifier: pkceLiterals.codeVerifier,
+        }),
+        fakeSessionEntry({
+          sessionData: "sealed-browser-enrollment-blocked",
+          sessionId: "session_browser_enrollment",
+          authorizationCode: pkceLiterals.enrollmentBlockedCode,
+          codeVerifier: pkceLiterals.codeVerifier,
+          authorizationCodeFailure: "mfa_enrollment",
+        }),
+      ]),
   };
-}
-
-vi.mock("./workos-port.js", () => ({
-  createWorkOSSessionPortFromEnv: () =>
-    createFakeWorkOSSessionPort([
-      {
-        sessionData: sealedSession,
-        userId: workosUserId,
-        sessionId: "session_browser",
-        authorizationCode,
-        codeVerifier,
-        authFactors: [{ type: "totp" }],
-      },
-    ]),
-}));
+});
 
 function encodePkceCookie(roundTrip: {
   state: string;
@@ -60,7 +60,7 @@ function encodePkceCookie(roundTrip: {
 describe("beginBrowserLogin", () => {
   it("redirects to WorkOS with a PKCE state cookie", async () => {
     const request = new Request("https://insecur.test/login?returnTo=/whoami");
-    const started = await beginBrowserLogin(request, createTestEnv());
+    const started = await beginBrowserLogin(request, createFakeWebEnv());
 
     const url = new URL(started.authorizationUrl);
     expect(url.origin).toBe("https://workos.test");
@@ -87,7 +87,7 @@ describe("completeBrowserLogin", () => {
       },
     );
 
-    const completed = await completeBrowserLogin(request, createTestEnv());
+    const completed = await completeBrowserLogin(request, createFakeWebEnv());
 
     expect(completed.ok).toBe(true);
     if (completed.ok) {
@@ -106,6 +106,34 @@ describe("completeBrowserLogin", () => {
     }
   });
 
+  it("surfaces a session-assurance failure so the callback can name it on /login", async () => {
+    // The silent /login loop (INS-421): the code exchange succeeds at WorkOS but the assurance
+    // gate rejects the session. The reason must survive to the callback redirect.
+    const roundTrip = {
+      state: oauthState,
+      codeVerifier,
+      returnTo: "/whoami",
+    };
+    const request = new Request(
+      `https://insecur.test/auth/callback?code=${enrollmentBlockedCode}&state=${oauthState}`,
+      {
+        headers: {
+          Cookie: `${INSECUR_OAUTH_PKCE_COOKIE}=${encodePkceCookie(roundTrip)}`,
+        },
+      },
+    );
+
+    const completed = await completeBrowserLogin(request, createFakeWebEnv());
+
+    expect(completed.ok).toBe(false);
+    if (!completed.ok) {
+      expect(completed.failure.reason).toBe("mfa_enrollment");
+      expect(loginFailureRedirectPath(completed.failure.reason)).toBe(
+        "/login?error=mfa_enrollment",
+      );
+    }
+  });
+
   it("rejects callbacks with a mismatched OAuth state", async () => {
     const request = new Request(
       `https://insecur.test/auth/callback?code=${authorizationCode}&state=wrong_state`,
@@ -120,11 +148,13 @@ describe("completeBrowserLogin", () => {
       },
     );
 
-    const completed = await completeBrowserLogin(request, createTestEnv());
+    const completed = await completeBrowserLogin(request, createFakeWebEnv());
 
     expect(completed.ok).toBe(false);
     if (!completed.ok) {
       expect(completed.failure.reason).toBe("invalid");
+      // Non-assurance reasons collapse to the generic code: nothing else leaks into the URL.
+      expect(loginFailureRedirectPath(completed.failure.reason)).toBe("/login?error=signin");
     }
   });
 });
@@ -175,10 +205,12 @@ describe("logoutBrowserSession", () => {
 
 describe("redirectResponse", () => {
   it("can clear the PKCE round-trip cookie on login failure redirects", () => {
-    const response = redirectResponse("/login", [formatPkceStateClearCookie()]);
+    const response = redirectResponse(loginFailureRedirectPath("mfa_enrollment"), [
+      formatPkceStateClearCookie(),
+    ]);
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/login");
+    expect(response.headers.get("Location")).toBe("/login?error=mfa_enrollment");
     expect(
       response.headers.getSetCookie().some((header) => header.includes(INSECUR_OAUTH_PKCE_COOKIE)),
     ).toBe(true);

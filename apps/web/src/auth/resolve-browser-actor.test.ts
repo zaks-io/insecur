@@ -1,50 +1,19 @@
-import { mintEphemeralSessionCredential, WORKOS_SESSION_COOKIE } from "@insecur/auth";
-import { createFakeWorkOSSessionPort, testSessionSigningSecret } from "@insecur/auth/testing";
-import { requestId, userId } from "@insecur/domain";
+import { createFakeWorkOSSessionPort, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WebEnv } from "../env.js";
-import type { RuntimeAdmissionRpc } from "../runtime/admission-types.js";
+import {
+  FAKE_ADMITTED_USER_ID,
+  FAKE_SEALED_SESSION,
+  FAKE_WORKOS_USER_ID,
+  fakeSessionEntry,
+  mintFakeSmokeBearer,
+} from "../../test/support/fake-browser-session.js";
+import {
+  createFakeRuntimeAdmissionBinding,
+  createFakeWebEnv,
+  FAKE_INSTANCE_ID,
+} from "../../test/support/fake-web-env.js";
+import { ssrRequest } from "../../test/support/ssr-request.js";
 import { hasWorkosSessionCookie, resolveBrowserActor } from "./resolve-browser-actor.js";
-
-const instanceId = "inst_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
-const workosUserId = "user_01workos";
-const sealedSession = "sealed-session-admitted-test";
-const signingSecret = testSessionSigningSecret();
-const admittedUserId = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
-
-function createTestRuntime(admissions: Readonly<Record<string, ReturnType<typeof userId.brand>>>) {
-  const admitted = new Map(Object.entries(admissions));
-  const deniedCalls: {
-    instanceId: string;
-    workosUserId: string;
-    requestId: ReturnType<typeof requestId.brand>;
-  }[] = [];
-  const runtime: RuntimeAdmissionRpc = {
-    resolveAdmission: (input) =>
-      Promise.resolve({
-        ok: true,
-        value: { userId: admitted.get(input.workosUserId) ?? null },
-      }),
-    recordAdmissionDenied: (input) => {
-      deniedCalls.push(input);
-      return Promise.resolve({ ok: true, value: { recorded: true } });
-    },
-  };
-  return { runtime, deniedCalls };
-}
-
-function createTestEnv(runtime: RuntimeAdmissionRpc, overrides: Partial<WebEnv> = {}): WebEnv {
-  return {
-    WORKOS_API_KEY: "sk_test",
-    WORKOS_CLIENT_ID: "client_test",
-    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-    SESSION_SIGNING_SECRET: signingSecret,
-    INSTANCE_ID: instanceId,
-    API: { fetch: () => Promise.reject(new Error("API binding not used")) } as unknown as Fetcher,
-    RUNTIME: runtime,
-    ...overrides,
-  };
-}
 
 const workosPortMock = vi.hoisted(() => ({
   createWorkOSSessionPortFromEnv: vi.fn(),
@@ -57,56 +26,23 @@ vi.mock("@tanstack/react-start/server", () => ({
   setResponseHeader: setResponseHeaderMock,
 }));
 
+const sessionEntry = fakeSessionEntry({ sessionId: "session_web" });
+
 function sessionRequest(): Request {
-  return new Request("https://insecur.test/whoami", {
-    headers: {
-      Cookie: `${WORKOS_SESSION_COOKIE}=${sealedSession}`,
-    },
-  });
-}
-
-function bearerRequest(credential: string): Request {
-  return new Request("https://insecur.test/whoami", {
-    headers: {
-      Authorization: `Bearer ${credential}`,
-    },
-  });
-}
-
-function sessionAndBearerRequest(credential: string): Request {
-  return new Request("https://insecur.test/whoami", {
-    headers: {
-      Authorization: `Bearer ${credential}`,
-      Cookie: `${WORKOS_SESSION_COOKIE}=${sealedSession}`,
-    },
-  });
-}
-
-async function smokeCredential(ttlSeconds?: number): Promise<string> {
-  const minted = await mintEphemeralSessionCredential({
-    actor: {
-      type: "user",
-      userId: admittedUserId,
-      workosUserId,
-      sessionId: "session_web_smoke",
-    },
-    signingSecret,
-    ...(ttlSeconds === undefined ? {} : { ttlSeconds }),
-  });
-  return minted.credential;
+  return ssrRequest("/whoami", { sessionCookie: FAKE_SEALED_SESSION });
 }
 
 describe("hasWorkosSessionCookie", () => {
   it("detects the WorkOS sealed session cookie", () => {
-    const request = new Request("https://insecur.test/whoami", {
-      headers: { Cookie: "wos-session=sealed; insecur_csrf=abc" },
+    const request = ssrRequest("/whoami", {
+      sessionCookie: "sealed",
+      headers: { Cookie: "insecur_csrf=abc" },
     });
     expect(hasWorkosSessionCookie(request)).toBe(true);
   });
 
   it("returns false when the session cookie is absent", () => {
-    const request = new Request("https://insecur.test/whoami");
-    expect(hasWorkosSessionCookie(request)).toBe(false);
+    expect(hasWorkosSessionCookie(ssrRequest("/whoami"))).toBe(false);
   });
 });
 
@@ -115,23 +51,12 @@ describe("resolveBrowserActor", () => {
     vi.clearAllMocks();
     setResponseHeaderMock.mockReset();
     workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
-      createFakeWorkOSSessionPort([
-        {
-          sessionData: sealedSession,
-          userId: workosUserId,
-          sessionId: "session_web",
-          authFactors: [{ type: "totp" }],
-        },
-      ]),
+      createFakeWorkOSSessionPort([sessionEntry]),
     );
   });
 
   it("returns missing when neither WorkOS cookie nor accepted smoke bearer is present", async () => {
-    const { runtime } = createTestRuntime({});
-    const result = await resolveBrowserActor(
-      new Request("https://insecur.test/whoami"),
-      createTestEnv(runtime),
-    );
+    const result = await resolveBrowserActor(ssrRequest("/whoami"), createFakeWebEnv());
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -140,51 +65,63 @@ describe("resolveBrowserActor", () => {
   });
 
   it("forwards denied-admission audit metadata over the Runtime binding", async () => {
-    const { runtime, deniedCalls } = createTestRuntime({});
-    const result = await resolveBrowserActor(sessionRequest(), createTestEnv(runtime));
+    const { runtime, deniedCalls } = createFakeRuntimeAdmissionBinding();
+    const result = await resolveBrowserActor(
+      sessionRequest(),
+      createFakeWebEnv({ RUNTIME: runtime }),
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.failure.reason).toBe("not_admitted");
-      expect(result.failure.admissionDenial?.workosUserId).toBe(workosUserId);
+      expect(result.failure.admissionDenial?.workosUserId).toBe(FAKE_WORKOS_USER_ID);
     }
     expect(deniedCalls).toHaveLength(1);
-    expect(deniedCalls[0]?.instanceId).toBe(instanceId);
-    expect(deniedCalls[0]?.workosUserId).toBe(workosUserId);
+    expect(deniedCalls[0]?.instanceId).toBe(FAKE_INSTANCE_ID);
+    expect(deniedCalls[0]?.workosUserId).toBe(FAKE_WORKOS_USER_ID);
     expect(deniedCalls[0]?.requestId).toMatch(/^req_/u);
   });
 
   it("returns an admitted actor when Runtime admission resolves a user", async () => {
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
-    const result = await resolveBrowserActor(sessionRequest(), createTestEnv(runtime));
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.actor.userId).toBe(admittedUserId);
-      expect(result.actor.workosUserId).toBe(workosUserId);
-    }
-  });
-
-  it("accepts a smoke bearer only when preview smoke credentials are enabled", async () => {
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
+    });
     const result = await resolveBrowserActor(
-      bearerRequest(await smokeCredential()),
-      createTestEnv(runtime, { PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" }),
+      sessionRequest(),
+      createFakeWebEnv({ RUNTIME: runtime }),
     );
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.actor.userId).toBe(admittedUserId);
-      expect(result.actor.workosUserId).toBe(workosUserId);
+      expect(result.actor.userId).toBe(FAKE_ADMITTED_USER_ID);
+      expect(result.actor.workosUserId).toBe(FAKE_WORKOS_USER_ID);
+    }
+  });
+
+  it("accepts a smoke bearer only when preview smoke credentials are enabled", async () => {
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
+    });
+    const result = await resolveBrowserActor(
+      ssrRequest("/whoami", { bearer: await mintFakeSmokeBearer() }),
+      createFakeWebEnv({ RUNTIME: runtime, PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.actor.userId).toBe(FAKE_ADMITTED_USER_ID);
+      expect(result.actor.workosUserId).toBe(FAKE_WORKOS_USER_ID);
       expect(result.actor.sessionId).toBe("session_web_smoke");
     }
   });
 
   it("does not accept a smoke bearer when preview smoke credentials are disabled", async () => {
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
+    });
     const result = await resolveBrowserActor(
-      bearerRequest(await smokeCredential()),
-      createTestEnv(runtime),
+      ssrRequest("/whoami", { bearer: await mintFakeSmokeBearer() }),
+      createFakeWebEnv({ RUNTIME: runtime }),
     );
 
     expect(result.ok).toBe(false);
@@ -194,16 +131,24 @@ describe("resolveBrowserActor", () => {
   });
 
   it("rejects invalid and expired smoke bearers when preview smoke credentials are enabled", async () => {
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
-    const env = createTestEnv(runtime, { PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" });
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
+    });
+    const env = createFakeWebEnv({ RUNTIME: runtime, PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" });
 
-    const invalid = await resolveBrowserActor(bearerRequest("not-a-session-token"), env);
+    const invalid = await resolveBrowserActor(
+      ssrRequest("/whoami", { bearer: "not-a-session-token" }),
+      env,
+    );
     expect(invalid.ok).toBe(false);
     if (!invalid.ok) {
       expect(invalid.failure.reason).toBe("invalid");
     }
 
-    const expired = await resolveBrowserActor(bearerRequest(await smokeCredential(0)), env);
+    const expired = await resolveBrowserActor(
+      ssrRequest("/whoami", { bearer: await mintFakeSmokeBearer(0) }),
+      env,
+    );
     expect(expired.ok).toBe(false);
     if (!expired.ok) {
       expect(expired.failure.reason).toBe("expired");
@@ -211,47 +156,50 @@ describe("resolveBrowserActor", () => {
   });
 
   it("falls back to the WorkOS cookie when preview receives an invalid smoke bearer", async () => {
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
+    });
     const result = await resolveBrowserActor(
-      sessionAndBearerRequest("not-a-session-token"),
-      createTestEnv(runtime, { PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" }),
+      ssrRequest("/whoami", { sessionCookie: FAKE_SEALED_SESSION, bearer: "not-a-session-token" }),
+      createFakeWebEnv({ RUNTIME: runtime, PREVIEW_SMOKE_SESSION_CREDENTIALS: "true" }),
     );
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.actor.userId).toBe(admittedUserId);
-      expect(result.actor.workosUserId).toBe(workosUserId);
+      expect(result.actor.userId).toBe(FAKE_ADMITTED_USER_ID);
+      expect(result.actor.workosUserId).toBe(FAKE_WORKOS_USER_ID);
       expect(result.actor.sessionId).toBe("session_web");
     }
   });
 
-  it("refreshes an expired sealed session and returns rotation cookies", async () => {
-    const expiredSession = "sealed-session-expired-refresh";
-    const rotatedSession = "sealed-session-rotated";
+  function useRefreshableSession(sessionId: string, options: Partial<FakeWorkOSSessionEntry> = {}) {
+    const expiredSession = `sealed-session-expired-${sessionId}`;
+    const rotatedSession = `sealed-session-rotated-${sessionId}`;
     workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
       createFakeWorkOSSessionPort([
-        {
+        fakeSessionEntry({
           sessionData: expiredSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh",
+          sessionId,
           authenticateFailure: "expired",
           rotatedSessionData: rotatedSession,
-          authFactors: [{ type: "totp" }],
-        },
-        {
-          sessionData: rotatedSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh",
-          authFactors: [{ type: "totp" }],
-        },
+          ...options,
+        }),
+        fakeSessionEntry({ sessionData: rotatedSession, sessionId, ...options }),
       ]),
     );
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
-    const request = new Request("https://insecur.test/whoami", {
-      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
+    return { expiredSession, rotatedSession };
+  }
+
+  it("refreshes an expired sealed session and returns rotation cookies", async () => {
+    const { expiredSession, rotatedSession } = useRefreshableSession("session_web_refresh");
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
     });
 
-    const result = await resolveBrowserActor(request, createTestEnv(runtime));
+    const result = await resolveBrowserActor(
+      ssrRequest("/whoami", { sessionCookie: expiredSession }),
+      createFakeWebEnv({ RUNTIME: runtime }),
+    );
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -262,32 +210,13 @@ describe("resolveBrowserActor", () => {
   });
 
   it("clears stale browser cookies when refresh succeeds but admission fails", async () => {
-    const expiredSession = "sealed-session-expired-denied";
-    const rotatedSession = "sealed-session-rotated-denied";
-    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
-      createFakeWorkOSSessionPort([
-        {
-          sessionData: expiredSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh_denied",
-          authenticateFailure: "expired",
-          rotatedSessionData: rotatedSession,
-          authFactors: [{ type: "totp" }],
-        },
-        {
-          sessionData: rotatedSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh_denied",
-          authFactors: [{ type: "totp" }],
-        },
-      ]),
-    );
-    const { runtime } = createTestRuntime({});
-    const request = new Request("https://insecur.test/whoami", {
-      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
-    });
+    const { expiredSession } = useRefreshableSession("session_web_refresh_denied");
+    const { runtime } = createFakeRuntimeAdmissionBinding();
 
-    const result = await resolveBrowserActor(request, createTestEnv(runtime));
+    const result = await resolveBrowserActor(
+      ssrRequest("/whoami", { sessionCookie: expiredSession }),
+      createFakeWebEnv({ RUNTIME: runtime }),
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -299,34 +228,17 @@ describe("resolveBrowserActor", () => {
   });
 
   it("clears stale browser cookies when refresh succeeds but post-refresh assurance fails", async () => {
-    const expiredSession = "sealed-session-expired-assurance";
-    const rotatedSession = "sealed-session-rotated-assurance";
-    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
-      createFakeWorkOSSessionPort([
-        {
-          sessionData: expiredSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh_assurance",
-          authenticateFailure: "expired",
-          rotatedSessionData: rotatedSession,
-          authenticationMethod: "MagicAuth",
-          authFactors: [{ type: "totp" }],
-        },
-        {
-          sessionData: rotatedSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh_assurance",
-          authenticationMethod: "MagicAuth",
-          authFactors: [{ type: "totp" }],
-        },
-      ]),
-    );
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
-    const request = new Request("https://insecur.test/whoami", {
-      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
+    const { expiredSession } = useRefreshableSession("session_web_refresh_assurance", {
+      authenticationMethod: "MagicAuth",
+    });
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
     });
 
-    const result = await resolveBrowserActor(request, createTestEnv(runtime));
+    const result = await resolveBrowserActor(
+      ssrRequest("/whoami", { sessionCookie: expiredSession }),
+      createFakeWebEnv({ RUNTIME: runtime }),
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -336,8 +248,11 @@ describe("resolveBrowserActor", () => {
   });
 
   it("does not clear browser cookies when admission fails without refresh", async () => {
-    const { runtime } = createTestRuntime({});
-    const result = await resolveBrowserActor(sessionRequest(), createTestEnv(runtime));
+    const { runtime } = createFakeRuntimeAdmissionBinding();
+    const result = await resolveBrowserActor(
+      sessionRequest(),
+      createFakeWebEnv({ RUNTIME: runtime }),
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -347,31 +262,12 @@ describe("resolveBrowserActor", () => {
   });
 
   it("resolves once per request so a stale cookie is not re-authenticated after refresh", async () => {
-    const expiredSession = "sealed-session-expired-memo";
-    const rotatedSession = "sealed-session-rotated-memo";
-    workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>
-      createFakeWorkOSSessionPort([
-        {
-          sessionData: expiredSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh_memo",
-          authenticateFailure: "expired",
-          rotatedSessionData: rotatedSession,
-          authFactors: [{ type: "totp" }],
-        },
-        {
-          sessionData: rotatedSession,
-          userId: workosUserId,
-          sessionId: "session_web_refresh_memo",
-          authFactors: [{ type: "totp" }],
-        },
-      ]),
-    );
-    const { runtime } = createTestRuntime({ [workosUserId]: admittedUserId });
-    const request = new Request("https://insecur.test/whoami", {
-      headers: { Cookie: `${WORKOS_SESSION_COOKIE}=${expiredSession}` },
+    const { expiredSession } = useRefreshableSession("session_web_refresh_memo");
+    const { runtime } = createFakeRuntimeAdmissionBinding({
+      [FAKE_WORKOS_USER_ID]: FAKE_ADMITTED_USER_ID,
     });
-    const env = createTestEnv(runtime);
+    const request = ssrRequest("/whoami", { sessionCookie: expiredSession });
+    const env = createFakeWebEnv({ RUNTIME: runtime });
 
     const first = await resolveBrowserActor(request, env);
     const second = await resolveBrowserActor(request, env);
@@ -379,6 +275,17 @@ describe("resolveBrowserActor", () => {
     expect(first.ok).toBe(true);
     expect(second).toEqual(first);
     expect(workosPortMock.createWorkOSSessionPortFromEnv).toHaveBeenCalledTimes(1);
-    expect(setResponseHeaderMock).toHaveBeenCalledTimes(1);
+    // The finalize path runs exactly once despite two resolutions (per-request memoization), so its
+    // response-header side effects fire once each: the rotation Set-Cookie plus the authed-document
+    // Cache-Control/Vary (INS-410). A second call must not re-emit any of them.
+    const setCookieCalls = setResponseHeaderMock.mock.calls.filter(
+      ([name]) => name === "Set-Cookie",
+    );
+    const cacheControlCalls = setResponseHeaderMock.mock.calls.filter(
+      ([name]) => name === "Cache-Control",
+    );
+    expect(setCookieCalls).toHaveLength(1);
+    expect(cacheControlCalls).toHaveLength(1);
+    expect(setResponseHeaderMock).toHaveBeenCalledTimes(3);
   });
 });

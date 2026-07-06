@@ -26,6 +26,10 @@
       "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "packages/local-store": {
+      "entry": ["src/**/*.test.ts", "src/os-keychain.integration-child.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "packages/high-assurance": {
       "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
@@ -52,9 +56,9 @@
       "ignoreDependencies": ["cloudflare"]
     },
     "apps/web": {
-      "entry": ["vitest*.config.ts", "src/**/*.test.ts"],
-      "project": ["src/**/*.{ts,tsx}"],
-      "ignoreDependencies": ["cloudflare"]
+      "entry": ["vitest*.config.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.{ts,tsx}", "test/**/*.ts"],
+      "ignoreDependencies": ["cloudflare", "miniflare"]
     },
     ".": {
       "entry": [

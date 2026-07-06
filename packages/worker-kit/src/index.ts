@@ -47,10 +47,6 @@ export type {
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
-  CaptureFirstValueFeedbackRpcInput,
-  CaptureFirstValueFeedbackRpcPayload,
-  RecordInjectionRunCompletedRpcInput,
-  RecordInjectionRunCompletedRpcPayload,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
@@ -59,17 +55,47 @@ export type {
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RuntimeGeneratedSecretInput,
-  RuntimeDeliveryAllEnvelope,
-  RuntimeDeliveryAllPayload,
-  RuntimeDeliveryEntryPayload,
-  RuntimeDeliveryEnvelope,
-  RuntimeDeliveryPayload,
   RuntimeRpc,
   RuntimeRpcError,
   RuntimeRpcResult,
   RuntimeSecretWritePayload,
   WriteSecretRpcInput,
 } from "./rpc/runtime-rpc-contract.js";
+export type {
+  EnvironmentMetadataRead,
+  ListEnvironmentsRpcInput,
+  ListEnvironmentsRpcPayload,
+  ListOrganizationInvitationsRpcInput,
+  ListOrganizationInvitationsRpcPayload,
+  ListOrganizationMembersRpcInput,
+  ListOrganizationMembersRpcPayload,
+  ListProjectSecretsRpcInput,
+  ListProjectSecretsRpcPayload,
+  ListProjectsRpcInput,
+  ListProjectsRpcPayload,
+  ListSessionOrganizationsRpcInput,
+  ListSessionOrganizationsRpcPayload,
+  OrganizationInvitationRead,
+  OrganizationMemberRead,
+  ProjectMetadataRead,
+  SecretMatrixCellRead,
+  SecretMatrixLastSetActorRead,
+  SecretMatrixRowRead,
+  SessionOrganizationRead,
+} from "./rpc/runtime-metadata-rpc-contract.js";
+export type {
+  CaptureFirstValueFeedbackRpcInput,
+  CaptureFirstValueFeedbackRpcPayload,
+  RecordInjectionRunCompletedRpcInput,
+  RecordInjectionRunCompletedRpcPayload,
+} from "./rpc/runtime-operations-rpc-contract.js";
+export type {
+  RuntimeDeliveryAllEnvelope,
+  RuntimeDeliveryAllPayload,
+  RuntimeDeliveryEntryPayload,
+  RuntimeDeliveryEnvelope,
+  RuntimeDeliveryPayload,
+} from "./rpc/runtime-delivery-rpc-contract.js";
 export { RuntimeRpcResultError, unwrapRuntimeResult } from "./rpc/unwrap-runtime-result.js";
 export { apiClientFor, type ApiClientEnv } from "./rpc/api-client.js";
 export {

@@ -5,41 +5,26 @@ alwaysApply: true
 
 # Insecur Cursor Protocol
 
-Follow the shared repo protocol. Do not create a Cursor-only workflow.
-
-Composer 2.5 is the preferred workhorse for agent-ready implementation tickets in this repo. Use it
-for well-scoped implementation work, while the orchestrator handles review, quality gates, and
-escalation.
+Follow the shared repo protocol. Do not create a Cursor-only workflow. Workflow logic lives in the
+shared `ziw-*` skills under `skills/*/SKILL.md`; repo-specific workflow values live in
+`docs/agents/workflow/config.md`.
 
 Read these before implementation work:
 
 - `AGENTS.md`
+- `docs/agents/workflow/config.md`
 - `CONTEXT-MAP.md`
 - `docs/agents/repo-navigation.md`
-- `docs/agents/environment-adapters.md`
-- `docs/agents/workflow.md`
-- `docs/agents/skill-usage.md`
-- `docs/agents/autonomous-loop.md`
-- `docs/agents/issue-tracker.md`
-- the relevant `skills/*/SKILL.md`
+- the relevant `skills/*/SKILL.md` (`ziw-implement` for implementation work)
 - the Linear issue body and linked context docs
 
 Use `docs/agents/repo-navigation.md` to find the current status doc, package owner, local context
 file, and spec before broad searching.
 
-Linear work must use team `INS` and label `zaks-io/insecur`.
-
-Only implement issues that are:
-
-- `Todo`
-- `ready-for-agent`
-- unblocked
-- scoped to one PR
-
-Before opening a PR, run or request `skills/ziw-code-review/SKILL.md` on the branch when
-the environment supports it. Address blocking findings before PR handoff.
-
-Use branch names like `ins-123-short-slug`. Open PRs titled `INS-123: Short summary`.
+Implement one Linear issue per branch and PR per `ziw-implement`; startable-work criteria, branch
+and PR conventions, and Linear state handling come from the config. Before opening a PR, run or
+request `skills/ziw-code-review/SKILL.md` on the branch when the environment supports it, and
+address blocking findings before PR handoff.
 
 When the orchestrator sends `Changes Requested` feedback, continue in the same thread, branch, and
 PR. Read the PR review comments, push fixes to the same PR, and move the issue back to `In Review`

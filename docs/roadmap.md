@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-27.
+Last updated: 2026-07-05.
 
 High-level milestone sequencing for handing implementation to a fleet of agents. This document
 owns the milestone order and each milestone's exit gate, nothing else: scope boundaries are owned
@@ -44,17 +44,31 @@ and masked secret input are landed (INS-32, INS-33, INS-226).
 Exit gate: the First Value Proof passes end to end through `insecur secrets set --generate` plus
 `insecur run`; `pnpm test:e2e` and, once enabled, the preview smoke are green.
 
-## M2 — Design-partner validation
+## M2 — Local Mode
+
+Goal: account-less development custody on the developer's machine through the ordinary CLI loop.
+
+Owned by [adr/0080-local-mode-accountless-development-custody.md](adr/0080-local-mode-accountless-development-custody.md)
+and the `Local Mode: Account-Less Development Custody` Linear project. Follows M1; useful
+standalone without a Hosted Instance account. Feature ceiling: Projects and non-protected
+development Environments only — no Protected Environments, Secret Sync, machine access, Teams, or
+Organizations locally.
+
+Exit gate: unauthenticated `insecur init` defaults to Local Mode; local `secrets set` / `run` work
+through the real contract seams; `projects migrate` reconciles to the Hosted Instance with
+verified-then-clean semantics.
+
+## M3 — Design-partner validation
 
 Goal: evidence that the agent-era no-reveal wedge pulls, before building the moat behind it.
 
 Owned by the `Customer Discovery & Design Partners` Linear project (INS-3/5/6/7/8). Starts as soon
-as M1 ships and runs alongside M3; it gates further feature investment, not engineering work
+as M1 ships and runs alongside M4; it gates further feature investment, not engineering work
 already in flight.
 
 Exit gate: documented evidence review and an explicit go/no-go on the V1 scope.
 
-## M3 — Production delivery foundation
+## M4 — Production delivery foundation
 
 Goal: the substrate that makes valuable secrets storable at all.
 
@@ -66,7 +80,7 @@ key readiness enforcement, Storage Security Gate checks, and protected environme
 Exit gate: the [storage-security-gate.md](storage-security-gate.md) foundation control rows have
 real evidence.
 
-## M4 — The differentiated wedge: machine access, approvals, provider sync
+## M5 — The differentiated wedge: machine access, approvals, provider sync
 
 Goal: the capabilities that separate insecur from commodity secret managers.
 
@@ -80,7 +94,7 @@ actor-type branch (ADR-0038).
 Exit gate: protected delivery and sync paths pass their workstream test evidence in
 [specs/agent-workstreams.md](specs/agent-workstreams.md).
 
-## M5 — Small-Group Production live
+## M6 — Small-Group Production live
 
 Goal: first real tenants with valuable secrets.
 
@@ -93,7 +107,7 @@ release-gate evidence bundle.
 Exit gate: the `small_group_production` profile in
 [production-mvp-acceptance.md](production-mvp-acceptance.md) passes.
 
-## M6 — Broad public signup and deferred promotions
+## M7 — Broad public signup and deferred promotions
 
 Parked until explicitly promoted from the [phasing.md](phasing.md) parking lot: public onboarding
 abuse controls, Signup Lockdown, Tenant Suspension, Service Access, Customer-Managed Key Custody,

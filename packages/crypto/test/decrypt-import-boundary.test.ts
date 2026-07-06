@@ -18,6 +18,10 @@ const negativeDeepPathFixture = path.join(
   repoRoot,
   "scripts/lint-fixtures/decrypt-import-boundary-negative-deep-path.fixture.ts",
 );
+const negativeInlineDisableFixture = path.join(
+  repoRoot,
+  "scripts/lint-fixtures/decrypt-import-boundary-negative-inline-disable.fixture.ts",
+);
 const ESLINT_BOUNDARY_TIMEOUT_MS = 30_000;
 const DECRYPT_IMPORT_BOUNDARY_MESSAGE =
   "Decrypt entry points may only be imported from allowlisted egress modules";
@@ -118,6 +122,16 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
   );
 
   it(
+    "fails lint for decrypt imports even with an inline eslint-disable comment",
+    async () => {
+      const output = await runEslintExpectFailure(negativeInlineDisableFixture);
+      expect(output).toMatch(/no-restricted-imports/);
+      expect(output).toMatch(/decryptSecretValueForRuntime/);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
     "fails lint for decrypt imports in unallowlisted backup-restore sibling modules",
     async () => {
       const output = await runEslintExpectFailure(
@@ -191,6 +205,57 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
       ]);
 
       expect(restrictedRules).toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  // Regression guard (INS-410): a per-app `no-restricted-imports` block scoped to apps/web/src/**
+  // once shallow-merged over the shared ADR-0071 decrypt boundary and silently dropped it for every
+  // web src file, because flat-config replaces the `rules` object per matched file. Assert the
+  // resolved config for a web src module still carries the decrypt boundary, and prove it live: a
+  // static decrypt import placed in apps/web/src must fail lint. Any future web-scoped rules block
+  // that clobbers the boundary breaks both assertions instead of failing closed silently.
+  it(
+    "applies decrypt boundary to apps/web src modules",
+    async () => {
+      const config = await readLintConfigFor(path.join(repoRoot, "apps/web/src/server/bff-api.ts"));
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "fails lint for a static decrypt import placed in apps/web src",
+    async () => {
+      const fixturePath = path.join(
+        repoRoot,
+        "apps/web/src/.decrypt-import-boundary-negative.fixture.ts",
+      );
+      writeFileSync(
+        fixturePath,
+        [
+          'import { decryptSecretValueForRuntime } from "@insecur/crypto";',
+          "",
+          "export function webSrcDecryptImport(): typeof decryptSecretValueForRuntime {",
+          "  return decryptSecretValueForRuntime;",
+          "}",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      try {
+        const output = await runEslintExpectFailure(fixturePath);
+        expect(output).toMatch(/no-restricted-imports/);
+        expect(output).toMatch(/decryptSecretValueForRuntime/);
+      } finally {
+        unlinkSync(fixturePath);
+      }
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );

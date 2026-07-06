@@ -24,7 +24,8 @@ import {
 } from "./browser-oauth-pkce.js";
 import type { WebEnv } from "../env.js";
 
-const DEFAULT_RETURN_TO = "/whoami";
+// Signed-in members land on the console; /orgs resolves the default organization (INS-367).
+const DEFAULT_RETURN_TO = "/orgs";
 
 export interface BrowserLoginStart {
   readonly authorizationUrl: string;
@@ -95,6 +96,11 @@ export async function beginBrowserLogin(request: Request, env: WebEnv): Promise<
     returnTo,
   };
   const workos = createWorkOSSessionPortFromEnv(env);
+  // This URL is the off-origin target the login form 303-redirects to. With no custom WorkOS
+  // apiHostname configured (packages/auth/src/workos-session.ts), the SDK returns an
+  // api.workos.com URL that then bounces to the tenant's hosted *.authkit.app domain. Both hops
+  // must stay allowlisted in the CSP `form-action` directive via WORKOS_AUTHKIT_ORIGIN — see
+  // apps/web/src/security/csp.ts. If the WorkOS host ever changes, update that env var too.
   const authorizationUrl = workos.createAuthorizationUrl({
     redirectUri: browserCallbackUrl(request),
     state,
@@ -183,12 +189,16 @@ export function logoutBrowserSession(request: Request): BrowserLogoutResult {
   };
 }
 
-export function redirectResponse(location: string, setCookieHeaders: readonly string[]): Response {
+export function redirectResponse(
+  location: string,
+  setCookieHeaders: readonly string[],
+  status = 302,
+): Response {
   const headers = new Headers({ Location: location, "Cache-Control": "no-store" });
   for (const cookie of setCookieHeaders) {
     headers.append("Set-Cookie", cookie);
   }
-  return new Response(null, { status: 302, headers });
+  return new Response(null, { status, headers });
 }
 
 export function responseWithSetCookies(

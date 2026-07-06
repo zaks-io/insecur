@@ -100,3 +100,7 @@ Production Secret Delivery and Secret Sync are blocked until the [Storage Securi
 - **Provider Sync: GitHub and Cloudflare** — OAuth app connections and sync engines for GitHub and direct Cloudflare Worker secrets
 - **Audit, runbooks, and release gates** — audit export, tested restore evidence, security runbooks, and production release gates
 - **Deferred scope** — tracked in [docs/phasing.md](docs/phasing.md#deferred-scope-parking-lot), not in Linear until promoted in the repo docs
+
+## License
+
+[Apache-2.0](LICENSE)

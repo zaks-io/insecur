@@ -114,6 +114,8 @@ jobs:
         id: gitleaks
         continue-on-error: true
         env:
+          # Scope to checked-out default-branch HEAD only; do not scan open PR refs.
+          GITLEAKS_LOG_OPTS: HEAD
           GITLEAKS_REPORT_PATH: ${{ runner.temp }}/gitleaks.json
         run: bash scripts/ci/gitleaks-detect.sh git
 

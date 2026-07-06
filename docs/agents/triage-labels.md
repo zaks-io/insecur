@@ -1,27 +1,29 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+This is a short adapter for agents that only need the readiness vocabulary.
+`docs/agents/workflow/config.md` is the source of truth for the full Linear
+label set, statuses, repo routing, worker routing, review evidence, and policy.
 
-| Label in mattpocock/skills | Label in our tracker | Meaning                                  |
-| -------------------------- | -------------------- | ---------------------------------------- |
-| `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue  |
-| `needs-info`               | `needs-info`         | Waiting on reporter for more information |
-| `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
-| `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
-| `wontfix`                  | `wontfix`            | Will not be actioned                     |
+| Label in shared skills | Label in our tracker | Meaning                                  |
+| ---------------------- | -------------------- | ---------------------------------------- |
+| `needs-triage`         | `needs-triage`       | Maintainer needs to evaluate this issue  |
+| `needs-info`           | `needs-info`         | Waiting on reporter for more information |
+| `ready-for-agent`      | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
+| `ready-for-human`      | `ready-for-human`    | Requires human implementation            |
+| `wontfix`              | `wontfix`            | Will not be actioned                     |
 
-When a skill mentions a role, such as "apply the AFK-ready triage label", use the corresponding label string from this table.
-
-Edit the right-hand column to match whatever vocabulary this repo actually uses if the label names change.
+When a skill mentions a readiness role, use the corresponding label string from
+this table. If live Linear metadata disagrees with this file, follow
+`docs/agents/workflow/config.md` and treat this file as stale.
 
 ## Repo label
 
 Every Linear issue for this repo should also carry `zaks-io/insecur`. This is a repo routing label,
 not one of the five triage roles.
 
-## Full label set and IDs
+## Full Label Set
 
-This file covers only the readiness roles plus the repo routing label. For the complete verified
-label set (readiness, risk, type, repo routing, remote-worker) with Linear IDs, statuses, and
-project IDs, see `docs/agents/workflow/config.md`. That config is the workflow lookup table; keep it
-in sync with live Linear `INS` metadata.
+The config owns Kind (`kind-spec`, `kind-epic`, `kind-slice`), Risk, Type,
+repo routing (`zaks-io/insecur`), worker routing (`remote-cursor`), review
+evidence (`code-review-passed`), dependency policy, and query rules. Keep this
+file small; do not duplicate the workflow config here.

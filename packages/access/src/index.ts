@@ -27,9 +27,19 @@ export { hasAuthorizationScope } from "./has-authorization-scope.js";
 export { intersectEffectiveAccessScopes } from "./intersect-effective-access-scopes.js";
 export { loadActorMemberships, type LoadMembershipsInput } from "./load-memberships.js";
 export {
+  loadOrganizationMembers,
+  type OrganizationMemberRow,
+} from "./load-organization-members.js";
+export {
   loadMachineMemberships,
   type LoadMachineMembershipsInput,
 } from "./load-machine-memberships.js";
+export {
+  loadUserOrganizations,
+  mapUserOrganizationRow,
+  type UserOrganizationQueryRow,
+  type UserOrganizationRow,
+} from "./load-user-organizations.js";
 export {
   MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES,
   filterMachineForbiddenScopes,
