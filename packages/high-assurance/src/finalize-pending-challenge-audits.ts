@@ -4,6 +4,7 @@ import type {
   OperationPollResult,
 } from "@insecur/operations";
 import { challengeAuditScopeFromBoundEvidence } from "./high-assurance-challenge-audit-scope.js";
+import { optionalHighAssuranceEvidenceScopeFields } from "./optional-high-assurance-evidence-scope-fields.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 import {
   recordHighAssuranceChallengeCleared,
@@ -58,13 +59,7 @@ export async function finalizePendingRequestAudit(
     challengeId: evidence.challengeId,
     riskReasonCode: evidence.riskReasonCode,
     auditEventId: evidence.requestAuditEventId,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...(evidence.requestingUserId !== undefined
-      ? { requestingUserId: evidence.requestingUserId }
-      : {}),
-    ...(evidence.requestingMachineIdentityId !== undefined
-      ? { requestingMachineIdentityId: evidence.requestingMachineIdentityId }
-      : {}),
+    ...optionalHighAssuranceEvidenceScopeFields(evidence),
     ...optionalAuditRequest(input.request),
   });
 }
@@ -85,12 +80,7 @@ async function finalizePendingClearAudit(
     riskReasonCode: evidence.riskReasonCode,
     clearAuthenticationMethodCode: evidence.clearAuthenticationMethodCode,
     auditEventId: evidence.clearAuditEventId,
-    ...(evidence.requestingUserId !== undefined
-      ? { requestingUserId: evidence.requestingUserId }
-      : {}),
-    ...(evidence.requestingMachineIdentityId !== undefined
-      ? { requestingMachineIdentityId: evidence.requestingMachineIdentityId }
-      : {}),
+    ...optionalHighAssuranceEvidenceScopeFields(evidence),
   });
 }
 

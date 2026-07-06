@@ -36,6 +36,30 @@ export interface OperationHighAssuranceChallengeEvidence {
   readonly consumeAuditEventId?: AuditEventId;
 }
 
+export type HighAssuranceChallengeLifecycleState =
+  | "not_required"
+  | "required"
+  | "pending"
+  | "cleared"
+  | "expired"
+  | "consumed";
+
+/** Metadata-only review row for Human Approval Surface inbox/detail reads. */
+export interface HighAssuranceChallengeReviewItem {
+  readonly operationId: OperationId;
+  readonly intentCode: string;
+  readonly challengeId: string;
+  readonly projectId: ProjectId;
+  readonly environmentId?: EnvironmentId;
+  readonly riskReasonCode: string;
+  readonly requestedAt: string;
+  readonly expiresAt: string;
+  readonly requestingUserId?: UserId;
+  readonly requestingMachineIdentityId?: MachineIdentityId;
+  readonly status: HighAssuranceChallengeLifecycleState;
+  readonly hasClearedEvidence: boolean;
+}
+
 export interface OperationRetryMetadata {
   readonly attempt: number;
   readonly nextRetryAt?: string;

@@ -1,6 +1,7 @@
-import type { InjectionGrantId, OrganizationId } from "@insecur/domain";
+import type { InjectionGrantId, OperationId, OrganizationId } from "@insecur/domain";
 import {
   parseGrantIdParam,
+  parseOperationIdParam,
   parseOrganizationIdParam,
   requireRouteParam,
 } from "@insecur/worker-kit";
@@ -19,5 +20,17 @@ export function parseOrganizationAndGrantRouteParams(context: Context): {
   return {
     organizationId: parseOrganizationRouteParam(context),
     grantId: parseGrantIdParam(requireRouteParam(context.req.param("grantId"), "grantId")),
+  };
+}
+
+export function parseOrganizationAndOperationRouteParams(context: Context): {
+  organizationId: OrganizationId;
+  operationId: OperationId;
+} {
+  return {
+    organizationId: parseOrganizationRouteParam(context),
+    operationId: parseOperationIdParam(
+      requireRouteParam(context.req.param("operationId"), "operationId"),
+    ),
   };
 }

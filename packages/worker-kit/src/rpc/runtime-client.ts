@@ -106,5 +106,9 @@ export function runtimeClientFor(
     listSessionOrganizations: forward("listSessionOrganizations"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
+    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
+    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
+    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
+    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
   };
 }

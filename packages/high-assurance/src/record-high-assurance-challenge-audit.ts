@@ -1,115 +1,23 @@
-import {
-  PRODUCTION_AUDIT_EVENT_CODES,
-  type AuditEventActorRef,
-  type AuditEventDetails,
-  type AuditEventInput,
-  writeAuditEvent,
-  writeAuditEventWithId,
-} from "@insecur/audit";
-import {
-  brandOpaqueResourceIdForPrefix,
-  type AuditEventId,
-  type EnvironmentId,
-  type KnownErrorCode,
-  type MachineIdentityId,
-  type OperationId,
-  type OrganizationId,
-  type ProjectId,
-  type RequestId,
-  type UserId,
+import { PRODUCTION_AUDIT_EVENT_CODES, writeAuditEvent } from "@insecur/audit";
+import type {
+  AuditEventId,
+  EnvironmentId,
+  KnownErrorCode,
+  MachineIdentityId,
+  OperationId,
+  OrganizationId,
+  ProjectId,
+  RequestId,
+  UserId,
 } from "@insecur/domain";
-
-function challengeAuditDetails(input: {
-  challengeId: string;
-  riskReasonCode: string;
-  requestingUserId?: UserId;
-  requestingMachineIdentityId?: MachineIdentityId;
-  clearingUserId?: UserId;
-}): AuditEventDetails {
-  return {
-    challengeId: input.challengeId,
-    riskReasonCode: input.riskReasonCode,
-    ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
-    ...(input.requestingMachineIdentityId !== undefined
-      ? { requestingMachineIdentityId: input.requestingMachineIdentityId }
-      : {}),
-    ...(input.clearingUserId !== undefined ? { clearingUserId: input.clearingUserId } : {}),
-  };
-}
-
-interface ChallengeAuditScope {
-  organizationId: OrganizationId;
-  projectId?: ProjectId;
-  environmentId?: EnvironmentId;
-  operationId: OperationId;
-  request?: { requestId: RequestId };
-}
-
-function scopedAuditFields(scope: ChallengeAuditScope) {
-  return {
-    organizationId: scope.organizationId,
-    ...(scope.projectId !== undefined ? { projectId: scope.projectId } : {}),
-    operation: { operationId: scope.operationId },
-    ...(scope.environmentId !== undefined ? { environmentId: scope.environmentId } : {}),
-    ...(scope.request !== undefined ? { request: scope.request } : {}),
-  };
-}
-
-function userActor(userId: UserId | undefined): AuditEventActorRef {
-  return userId !== undefined
-    ? { type: "user" as const, userId }
-    : { type: "user" as const, userId: null };
-}
-
-function challengeRequestActor(input: {
-  requestingUserId?: UserId;
-  requestingMachineIdentityId?: MachineIdentityId;
-}): AuditEventActorRef {
-  if (input.requestingMachineIdentityId !== undefined) {
-    return { type: "machine", machineIdentityId: input.requestingMachineIdentityId };
-  }
-  return userActor(input.requestingUserId);
-}
-
-function operationResource(operationId: OperationId) {
-  return {
-    type: "operation" as const,
-    id: brandOpaqueResourceIdForPrefix("op", operationId),
-  };
-}
-
-async function writeChallengeAuditEvent(
-  event: AuditEventInput,
-  auditEventId?: AuditEventId,
-): Promise<{ auditEventId: string }> {
-  if (auditEventId !== undefined) {
-    const result = await writeAuditEventWithId(event, auditEventId);
-    return { auditEventId: result.auditEventId };
-  }
-
-  const result = await writeAuditEvent(event);
-  return { auditEventId: result.auditEventId };
-}
-
-function buildChallengeRequestActorSuccessAuditEvent(
-  eventCode: AuditEventInput["eventCode"],
-  input: ChallengeAuditScope & {
-    requestingUserId?: UserId;
-    requestingMachineIdentityId?: MachineIdentityId;
-    challengeId: string;
-    riskReasonCode: string;
-    clearingUserId?: UserId;
-  },
-): AuditEventInput {
-  return {
-    eventCode,
-    outcome: "success",
-    actor: challengeRequestActor(input),
-    ...scopedAuditFields(input),
-    resource: operationResource(input.operationId),
-    details: challengeAuditDetails(input),
-  };
-}
+import {
+  buildChallengeRequestActorSuccessAuditEvent,
+  challengeAuditDetails,
+  challengeRequestActor,
+  operationResource,
+  scopedAuditFields,
+  writeChallengeAuditEvent,
+} from "./challenge-audit-helpers.js";
 
 export async function recordHighAssuranceChallengeRequested(input: {
   organizationId: OrganizationId;
@@ -211,6 +119,35 @@ export async function recordHighAssuranceChallengeClearDenied(input: {
     ...(input.riskReasonCode !== undefined
       ? { details: { riskReasonCode: input.riskReasonCode } }
       : {}),
+  });
+}
+
+export async function recordHighAssuranceChallengeDenied(input: {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId?: EnvironmentId;
+  readonly operationId: OperationId;
+  readonly denyingUserId: UserId;
+  readonly challengeId: string;
+  readonly riskReasonCode: string;
+  readonly requestingUserId?: UserId;
+  readonly requestingMachineIdentityId?: MachineIdentityId;
+  readonly request?: { requestId: RequestId };
+}): Promise<void> {
+  await writeAuditEvent({
+    eventCode: PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeDenied,
+    outcome: "success",
+    actor: { type: "user", userId: input.denyingUserId },
+    ...scopedAuditFields(input),
+    resource: operationResource(input.operationId),
+    details: challengeAuditDetails({
+      challengeId: input.challengeId,
+      riskReasonCode: input.riskReasonCode,
+      ...(input.requestingUserId !== undefined ? { requestingUserId: input.requestingUserId } : {}),
+      ...(input.requestingMachineIdentityId !== undefined
+        ? { requestingMachineIdentityId: input.requestingMachineIdentityId }
+        : {}),
+    }),
   });
 }
 

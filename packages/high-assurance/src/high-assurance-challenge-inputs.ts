@@ -54,3 +54,12 @@ export interface GetHighAssuranceChallengeStatusInput {
   readonly operationId: OperationId;
   readonly now?: string;
 }
+
+export interface DenyHighAssuranceChallengeInput {
+  readonly organizationId: OrganizationId;
+  readonly operationId: OperationId;
+  readonly denyingUserId: UserId;
+  readonly requiredScopes?: readonly AuthorizationScope[];
+  readonly denyingUserAccess?: EffectiveAccessResult;
+  readonly request?: { requestId: RequestId };
+}

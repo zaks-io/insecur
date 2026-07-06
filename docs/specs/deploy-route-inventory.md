@@ -19,20 +19,21 @@ Public edge. Authenticates humans/agents, forwards keyring-bound work AND all no
 the `RUNTIME` Service Binding. Holds NO root-key binding and NO Hyperdrive binding; performs zero DB
 I/O.
 
-| Method | Mount prefix                                       |
-| ------ | -------------------------------------------------- |
-| GET    | `/healthz`                                         |
-| \*     | `/v1/auth`                                         |
-| \*     | `/v1/session`                                      |
-| \*     | `/v1/onboarding`                                   |
-| \*     | `/v1/instance/bootstrap`                           |
-| \*     | `/v1/orgs/:organizationId/invitations`             |
-| \*     | `/v1/orgs/:organizationId/members`                 |
-| \*     | `/v1/orgs/:organizationId/organizations`           |
-| \*     | `/v1/orgs/:organizationId/projects`                |
-| \*     | `/v1/orgs/:organizationId/operations`              |
-| \*     | `/v1/orgs/:organizationId/runtime-injection`       |
-| \*     | `/v1/orgs/:organizationId/design-partner-feedback` |
+| Method | Mount prefix                                         |
+| ------ | ---------------------------------------------------- |
+| GET    | `/healthz`                                           |
+| \*     | `/v1/auth`                                           |
+| \*     | `/v1/session`                                        |
+| \*     | `/v1/onboarding`                                     |
+| \*     | `/v1/instance/bootstrap`                             |
+| \*     | `/v1/orgs/:organizationId/invitations`               |
+| \*     | `/v1/orgs/:organizationId/members`                   |
+| \*     | `/v1/orgs/:organizationId/organizations`             |
+| \*     | `/v1/orgs/:organizationId/projects`                  |
+| \*     | `/v1/orgs/:organizationId/operations`                |
+| \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
+| \*     | `/v1/orgs/:organizationId/runtime-injection`         |
+| \*     | `/v1/orgs/:organizationId/design-partner-feedback`   |
 
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `GET
 /:projectId/environments` lists environment metadata (including `isProtected`); `GET
@@ -47,6 +48,14 @@ The People reads (INS-373): `GET /v1/orgs/:organizationId/members` lists members
 `GET /v1/orgs/:organizationId/invitations` lists pending-invitation metadata (identifiers, role
 bundle, status, timestamps; invitations carry no token or acceptance secret). Both are
 `organization:read`-gated inside the Runtime deploy.
+
+Under `/v1/orgs/:organizationId/high-assurance-challenges` (INS-361): `GET /` lists pending
+High-Assurance Challenge metadata for the Human Approval Surface; `GET /:operationId` returns one
+challenge's metadata evidence; `POST /:operationId/clear` clears with operation-bound fresh step-up
+evidence (`freshStepUpFactor` in body, WorkOS auth factors resolved server-side); `POST
+/:operationId/deny` denies the bounded operation. All four are human-actor-only (`requireUserActor`)
+and authorize inside the Runtime deploy (`approval:approve` for clear, `approval:reject` for deny,
+either approval scope for list/get after `organization:read`).
 
 ## Web Worker — `apps/web` (`insecur-web`)
 

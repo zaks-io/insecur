@@ -260,6 +260,9 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@insecur/high-assurance':
+        specifier: workspace:*
+        version: link:../../packages/high-assurance
       '@insecur/instance-bootstrap':
         specifier: workspace:*
         version: link:../../packages/instance-bootstrap

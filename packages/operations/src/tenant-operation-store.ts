@@ -173,6 +173,35 @@ export class TenantOperationStore {
     );
   }
 
+  async listPendingHighAssuranceChallenges(
+    organizationId: OrganizationId,
+  ): Promise<OperationPollResult[]> {
+    const rows = await this.sql<OperationRow[]>`
+      SELECT
+        id,
+        org_id,
+        state,
+        intent_code,
+        idempotency_key,
+        progress,
+        execution_deadline,
+        created_at,
+        updated_at
+      FROM operations
+      WHERE org_id = ${organizationId}
+        AND state = 'waiting_for_human'
+        AND (progress->'highAssuranceChallenge') IS NOT NULL
+        AND (progress->'highAssuranceChallenge'->>'clearedAt') IS NULL
+        AND (progress->'highAssuranceChallenge'->>'consumedAt') IS NULL
+      ORDER BY created_at ASC
+    `;
+
+    const operations = rows.map((row) => toOperationPollResult(row));
+    return await Promise.all(
+      operations.map((operation) => resolveOperationLiveness(this.sql, operation)),
+    );
+  }
+
   /**
    * Clears lease binding metadata after the lease row is released, including on terminal operations.
    */

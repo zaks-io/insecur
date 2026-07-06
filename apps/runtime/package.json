@@ -24,6 +24,7 @@
     "@insecur/auth": "workspace:*",
     "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/high-assurance": "workspace:*",
     "@insecur/instance-bootstrap": "workspace:*",
     "@insecur/onboarding": "workspace:*",
     "@insecur/operations": "workspace:*",
