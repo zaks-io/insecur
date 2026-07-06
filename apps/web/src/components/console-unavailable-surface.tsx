@@ -13,8 +13,9 @@ export function ConsoleUnavailableSurface({
   /** When true, render inline inside an existing console/onboarding frame. */
   framed?: boolean;
 }) {
+  const sectionClassName = framed ? "px-5 py-8 sm:px-8 sm:py-10" : "px-5 py-10 sm:px-8 sm:py-12";
   const panel = (
-    <section className={framed ? "px-5 py-10 sm:px-8 sm:py-12" : "px-5 py-10 sm:px-8 sm:py-12"}>
+    <section className={sectionClassName}>
       <div className="max-w-xl border-2 border-ink px-6 py-6">
         <p className="font-mono text-xs text-muted-foreground">Service unavailable</p>
         <h1 className="mt-1 font-display text-2xl leading-tight">We couldn't reach insecur</h1>
