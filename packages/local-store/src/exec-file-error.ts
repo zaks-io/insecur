@@ -1,6 +1,6 @@
 function readExecFailureCode(error: unknown): string | number | undefined {
   if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as NodeJS.ErrnoException & { code?: string | number }).code;
+    const code = (error as { code?: unknown }).code;
     if (typeof code === "string" || typeof code === "number") {
       return code;
     }

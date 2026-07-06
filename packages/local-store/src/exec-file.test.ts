@@ -1,5 +1,8 @@
+import { StringDecoder } from "node:string_decoder";
+
 import { describe, expect, it } from "vitest";
 
+import { appendSpawnStreamChunk } from "./exec-file-spawn.js";
 import {
   buildNodeExecFileOptions,
   createDefaultExecFile,
@@ -108,5 +111,25 @@ describe("createDefaultExecFile", () => {
         { input: "stdin-marker-payload", maxBuffer: 128, timeoutMs: 5_000 },
       ),
     ).rejects.toMatchObject({ code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" });
+  });
+
+  it("decodes split multibyte UTF-8 stdout chunks without corruption", () => {
+    const decoder = new StringDecoder("utf8");
+    const globe = Buffer.from("f09f8c8d", "hex");
+    const first = appendSpawnStreamChunk({
+      chunk: globe.subarray(0, 1),
+      decoder,
+      accumulated: "",
+      bytesRead: 0,
+      maxBuffer: 16,
+    });
+    const second = appendSpawnStreamChunk({
+      chunk: globe.subarray(1),
+      decoder,
+      accumulated: first.text,
+      bytesRead: first.bytesRead,
+      maxBuffer: 16,
+    });
+    expect(second.text + decoder.end()).toBe("🌍");
   });
 });
