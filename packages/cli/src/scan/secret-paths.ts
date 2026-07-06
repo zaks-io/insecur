@@ -17,7 +17,7 @@ const BASENAME_KIND: Readonly<Record<string, ScanFindingKind>> = {
   ".yarnrc.yml": "auth-token-file",
 };
 
-export function isDotenvPath(relativePath: string): boolean {
+function isDotenvPath(relativePath: string): boolean {
   const name = basename(relativePath);
   return name === ".env" || name.startsWith(".env.");
 }
