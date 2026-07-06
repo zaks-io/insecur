@@ -4,7 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { buildSentryCliEnv, SENTRY_CLI_TIMEOUT_MS } from "./sentry-cli.mjs";
+import {
+  buildSentryCliEnv,
+  resolveSentryCliInvocation,
+  SENTRY_CLI_TIMEOUT_MS,
+} from "./sentry-cli.mjs";
 import { runPostDeploySentrySourcemaps } from "./post-deploy-sentry-sourcemaps.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 import { hasSourceMap, uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
@@ -251,6 +255,30 @@ test("buildSentryCliEnv preserves proxy and CA runtime vars while overlaying Sen
 test("SENTRY_CLI_TIMEOUT_MS is a positive finite timeout", () => {
   assert.equal(Number.isFinite(SENTRY_CLI_TIMEOUT_MS), true);
   assert.ok(SENTRY_CLI_TIMEOUT_MS > 0);
+});
+
+test("resolveSentryCliInvocation uses the repo-installed @sentry/cli launcher", () => {
+  const invocation = resolveSentryCliInvocation();
+
+  assert.equal(invocation.command, process.execPath);
+  assert.match(invocation.argsPrefix[0], /@sentry\/cli[/\\]bin[/\\]sentry-cli$/u);
+});
+
+test("resolveSentryCliInvocation fails clearly when @sentry/cli is missing", () => {
+  assert.throws(
+    () =>
+      resolveSentryCliInvocation({
+        resolveFrom: import.meta.url,
+        require: {
+          resolve() {
+            throw Object.assign(new Error("Cannot find module '@sentry/cli/bin/sentry-cli'"), {
+              code: "MODULE_NOT_FOUND",
+            });
+          },
+        },
+      }),
+    /sentry-cli is not installed/u,
+  );
 });
 
 test("runPostDeploySentrySourcemaps labels upload failures for operators", async () => {

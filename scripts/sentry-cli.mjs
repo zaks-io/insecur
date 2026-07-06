@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { accessSync } from "node:fs";
+import { createRequire } from "node:module";
+import { constants as fsConstants } from "node:fs";
 
 export const SENTRY_CLI_TIMEOUT_MS = 300_000;
 
@@ -53,10 +56,21 @@ export function buildSentryCliEnv(config, baseEnv = process.env) {
   return childEnv;
 }
 
+export function resolveSentryCliInvocation(options = {}) {
+  const execPath = options.execPath ?? process.execPath;
+  const scriptPath = resolveSentryCliScriptPath(options);
+  assertSentryCliScriptExists(scriptPath);
+
+  return {
+    command: execPath,
+    argsPrefix: [scriptPath],
+  };
+}
+
 export function runSentryCli(args, config, options = {}) {
-  const command = process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli";
+  const { command, argsPrefix } = options.invocation ?? resolveSentryCliInvocation(options);
   const timeout = options.timeout ?? SENTRY_CLI_TIMEOUT_MS;
-  const result = spawnSync(command, args, {
+  const result = spawnSync(command, [...argsPrefix, ...args], {
     stdio: resolveSentryCliStdio(options),
     encoding: options.encoding,
     env: buildSentryCliEnv(config, options.env ?? process.env),
@@ -65,6 +79,37 @@ export function runSentryCli(args, config, options = {}) {
 
   assertSentryCliSucceeded(result, args, timeout);
   return result;
+}
+
+function resolveSentryCliScriptPath(options = {}) {
+  const resolveFrom = options.resolveFrom ?? import.meta.url;
+  const requireFrom = options.require ?? createRequire(resolveFrom);
+
+  try {
+    return requireFrom.resolve("@sentry/cli/bin/sentry-cli");
+  } catch (error) {
+    if (error?.code === "MODULE_NOT_FOUND") {
+      throw new Error(
+        "sentry-cli is not installed. Run pnpm install so the @sentry/cli devDependency is available.",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+}
+
+function assertSentryCliScriptExists(scriptPath) {
+  try {
+    accessSync(scriptPath, fsConstants.F_OK);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      throw new Error(
+        "sentry-cli is not installed. Run pnpm install so the @sentry/cli devDependency is available.",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 }
 
 function resolveSentryCliStdio(options) {
@@ -81,6 +126,12 @@ function assertSentryCliSucceeded(result, args, timeout) {
   if (result.error) {
     if (result.error.code === "ETIMEDOUT") {
       throw new Error(`sentry-cli ${args[0]} timed out after ${timeout}ms.`);
+    }
+    if (result.error.code === "ENOENT") {
+      throw new Error(
+        "sentry-cli could not be executed. Run pnpm install so the @sentry/cli devDependency is available.",
+        { cause: result.error },
+      );
     }
     throw result.error;
   }
