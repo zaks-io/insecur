@@ -31,6 +31,7 @@ async function loadProjectSecretJoinRows(
       secretId: secrets.id,
       environmentId: secrets.environmentId,
       variableKey: secrets.variableKey,
+      currentVersionId: secrets.currentVersionId,
       liveVersionId: secretVersions.id,
       liveVersionNumberFromRow: secretVersions.versionNumber,
       liveLifecycleState: secretVersions.lifecycleState,
@@ -133,9 +134,13 @@ async function loadLastSetMetadata(
     if (!row.resourceId || lastSetBySecretId.has(row.resourceId)) {
       continue;
     }
+    const lastSetActor = toLastSetActor(row);
+    if (!lastSetActor) {
+      continue;
+    }
     lastSetBySecretId.set(row.resourceId, {
       lastSetAt: row.createdAt,
-      lastSetActor: toLastSetActor(row),
+      lastSetActor,
     });
   }
 

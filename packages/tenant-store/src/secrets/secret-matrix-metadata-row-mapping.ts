@@ -24,6 +24,7 @@ export interface ProjectSecretJoinRow {
   readonly secretId: string;
   readonly environmentId: string;
   readonly variableKey: string;
+  readonly currentVersionId: string | null;
   readonly liveVersionId: string | null;
   readonly liveVersionNumberFromRow: number | null;
   readonly liveLifecycleState: string | null;
@@ -35,8 +36,11 @@ export function toLastSetActor(row: {
   actorType: string;
   actorUserId: string | null;
   actorMachineIdentityId: string | null;
-}): SecretMatrixLastSetActorRow {
-  if (row.actorType === "machine" && row.actorMachineIdentityId) {
+}): SecretMatrixLastSetActorRow | null {
+  if (row.actorType === "machine") {
+    if (!row.actorMachineIdentityId) {
+      return null;
+    }
     return {
       actorType: "machine",
       userId: null,
@@ -50,11 +54,14 @@ export function toLastSetActor(row: {
       machineIdentityId: null,
     };
   }
-  return {
-    actorType: "ci_exchange",
-    userId: null,
-    machineIdentityId: null,
-  };
+  if (row.actorType === "ci_exchange") {
+    return {
+      actorType: "ci_exchange",
+      userId: null,
+      machineIdentityId: null,
+    };
+  }
+  return null;
 }
 
 function parseStoredSecretVersionId(
@@ -82,6 +89,10 @@ export function toResolvedVersionRow(
   };
 }
 
+function hasLiveVersionPointer(row: ProjectSecretJoinRow): boolean {
+  return row.currentVersionId !== null;
+}
+
 function toLiveVersion(row: ProjectSecretJoinRow): ResolvedSecretVersionRow | null {
   if (!row.liveVersionId || row.liveVersionNumberFromRow === null || !row.liveLifecycleState) {
     return null;
@@ -92,6 +103,16 @@ function toLiveVersion(row: ProjectSecretJoinRow): ResolvedSecretVersionRow | nu
     row.liveLifecycleState,
     row.livePublishedAt ?? row.liveCreatedAt ?? new Date(0),
   );
+}
+
+function resolveVersionForMatrixRow(
+  row: ProjectSecretJoinRow,
+  draftVersions: ReadonlyMap<string, ResolvedSecretVersionRow>,
+): ResolvedSecretVersionRow | null {
+  if (!hasLiveVersionPointer(row)) {
+    return draftVersions.get(row.secretId) ?? null;
+  }
+  return toLiveVersion(row);
 }
 
 function resolveLastSet(
@@ -122,7 +143,7 @@ export function toSecretMatrixRow(
     return null;
   }
 
-  const resolvedVersion = toLiveVersion(row) ?? draftVersions.get(row.secretId);
+  const resolvedVersion = resolveVersionForMatrixRow(row, draftVersions);
   if (!resolvedVersion) {
     return null;
   }

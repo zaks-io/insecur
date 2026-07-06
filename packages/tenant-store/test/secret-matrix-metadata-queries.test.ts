@@ -62,6 +62,7 @@ describe("listSecretMatrixRowsByProject", () => {
           secretId: secret,
           environmentId: ENV,
           variableKey: VARIABLE_KEY,
+          currentVersionId: "sv_00000000000000000000000001",
           liveVersionId: "sv_00000000000000000000000001",
           liveVersionNumberFromRow: 2,
           liveLifecycleState: "live",
@@ -109,6 +110,7 @@ describe("listSecretMatrixRowsByProject", () => {
           secretId: secretId.brand("sec_00000000000000000000000001"),
           environmentId: ENV,
           variableKey: VARIABLE_KEY,
+          currentVersionId: "secv_00000000000000000000000001",
           liveVersionId: "secv_00000000000000000000000001",
           liveVersionNumberFromRow: 2,
           liveLifecycleState: "live",
@@ -131,6 +133,7 @@ describe("listSecretMatrixRowsByProject", () => {
           secretId: secret,
           environmentId: ENV,
           variableKey: VARIABLE_KEY,
+          currentVersionId: null,
           liveVersionId: null,
           liveVersionNumberFromRow: null,
           liveLifecycleState: null,
@@ -157,6 +160,84 @@ describe("listSecretMatrixRowsByProject", () => {
     expect(rows[0]).toMatchObject({
       versionNumber: 1,
       lifecycleState: "draft",
+    });
+  });
+
+  it("does not fall back to draft when the live pointer is malformed", async () => {
+    const secret = secretId.brand("sec_00000000000000000000000003");
+    const db = createMatrixDb({
+      joinRows: [
+        {
+          secretId: secret,
+          environmentId: ENV,
+          variableKey: VARIABLE_KEY,
+          currentVersionId: "secv_00000000000000000000000001",
+          liveVersionId: "secv_00000000000000000000000001",
+          liveVersionNumberFromRow: 2,
+          liveLifecycleState: "live",
+          livePublishedAt: new Date("2026-06-24T01:00:00.000Z"),
+          liveCreatedAt: new Date("2026-06-24T00:00:00.000Z"),
+        },
+      ],
+      draftRows: [
+        {
+          secretId: secret,
+          secretVersionId: "sv_00000000000000000000000002",
+          versionNumber: 1,
+          lifecycleState: "draft",
+          createdAt: new Date("2026-06-25T00:00:00.000Z"),
+        },
+      ],
+    });
+
+    await expect(
+      listSecretMatrixRowsByProject(db, { organizationId: ORG, projectId: PROJECT }),
+    ).resolves.toEqual([]);
+  });
+
+  it("skips malformed machine last-set actors and uses the next valid audit event", async () => {
+    const secret = secretId.brand("sec_00000000000000000000000004");
+    const db = createMatrixDb({
+      joinRows: [
+        {
+          secretId: secret,
+          environmentId: ENV,
+          variableKey: VARIABLE_KEY,
+          currentVersionId: "sv_00000000000000000000000001",
+          liveVersionId: "sv_00000000000000000000000001",
+          liveVersionNumberFromRow: 2,
+          liveLifecycleState: "live",
+          livePublishedAt: new Date("2026-06-24T01:00:00.000Z"),
+          liveCreatedAt: new Date("2026-06-24T00:00:00.000Z"),
+        },
+      ],
+      auditRows: [
+        {
+          resourceId: secret,
+          actorType: "machine",
+          actorUserId: null,
+          actorMachineIdentityId: null,
+          createdAt: new Date("2026-06-24T02:00:00.000Z"),
+        },
+        {
+          resourceId: secret,
+          actorType: "user",
+          actorUserId: "usr_00000000000000000000000001",
+          actorMachineIdentityId: null,
+          createdAt: new Date("2026-06-24T01:00:00.000Z"),
+        },
+      ],
+    });
+
+    const rows = await listSecretMatrixRowsByProject(db, {
+      organizationId: ORG,
+      projectId: PROJECT,
+    });
+
+    expect(rows[0]?.lastSetActor).toEqual({
+      actorType: "user",
+      userId: "usr_00000000000000000000000001",
+      machineIdentityId: null,
     });
   });
 });
