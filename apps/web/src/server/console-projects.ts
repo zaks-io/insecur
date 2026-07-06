@@ -1,18 +1,32 @@
 import { createServerFn } from "@tanstack/react-start";
+import { parseConsoleReadEnvelope } from "../console/envelope.js";
 import {
   parseOrgProjectsBody,
   parseProjectEnvironmentsBody,
   type ConsoleEnvironment,
   type ConsoleProject,
 } from "../console/projects.js";
-import { consoleRead, orgIdInput, requiredId, type ConsoleRead } from "./console-read.js";
+import {
+  consoleRead,
+  envelopeParseToReadResult,
+  orgIdInput,
+  requiredId,
+  type ConsoleRead,
+} from "./console-read.js";
 
 /** `GET /v1/orgs/:organizationId/projects` through the BFF scoped-token hop (ADR-0051). */
 export const loadOrgProjects = createServerFn({ method: "GET" })
   .validator(orgIdInput)
   .handler(
     ({ data }): Promise<ConsoleRead<readonly ConsoleProject[]>> =>
-      consoleRead(async (api) => parseOrgProjectsBody(await api.orgProjects(data.organizationId))),
+      consoleRead(async (api) =>
+        envelopeParseToReadResult(
+          parseConsoleReadEnvelope(
+            await api.orgProjects(data.organizationId),
+            parseOrgProjectsBody,
+          ),
+        ),
+      ),
   );
 
 /** `GET .../projects/:projectId/environments` through the BFF scoped-token hop (ADR-0051). */
@@ -27,8 +41,11 @@ export const loadProjectEnvironments = createServerFn({ method: "GET" })
   .handler(
     ({ data }): Promise<ConsoleRead<readonly ConsoleEnvironment[]>> =>
       consoleRead(async (api) =>
-        parseProjectEnvironmentsBody(
-          await api.projectEnvironments(data.organizationId, data.projectId),
+        envelopeParseToReadResult(
+          parseConsoleReadEnvelope(
+            await api.projectEnvironments(data.organizationId, data.projectId),
+            parseProjectEnvironmentsBody,
+          ),
         ),
       ),
   );

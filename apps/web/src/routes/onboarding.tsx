@@ -10,13 +10,13 @@ import {
 import {
   decideOnboardingRoute,
   parseHandoffSearch,
-  verifiedHandoffNames,
   type OnboardingSearch,
-  type VerifiedHandoffNames,
 } from "../onboarding/routing.js";
+import { loadHandoffNames } from "../onboarding/handoff-load.js";
 import type { ProvisionedWorkspace } from "../onboarding/provisioning.js";
 import type { OnboardingStepId } from "../onboarding/steps.js";
 import { requireConsoleSession } from "../console/route-guards.js";
+import { throwConsoleUnavailable } from "../console/unavailable.js";
 import { loadOrgProjects, loadProjectEnvironments } from "../server/console-projects.js";
 import { loadConsoleSession } from "../server/console-session.js";
 
@@ -49,11 +49,17 @@ export const Route = createFileRoute("/onboarding")({
     // The receipt claims these resources exist, so the URL's project/env IDs are verified
     // against the member's own metadata reads (INS-362); an unverifiable pair falls back to
     // the console rather than rendering unproven IDs into terminal commands.
-    const names = await loadHandoffNames(decision.workspace);
-    if (names === null) {
+    const namesLoad = await loadHandoffNames(decision.workspace, {
+      loadOrgProjects,
+      loadProjectEnvironments,
+    });
+    if (namesLoad.kind === "unavailable") {
+      throwConsoleUnavailable();
+    }
+    if (namesLoad.kind === "unverified") {
       throw redirect({ href: `/orgs/${decision.workspace.organizationId}` });
     }
-    return { ...decision, ...names };
+    return { ...decision, ...namesLoad.names };
   },
   component: OnboardingPage,
   errorComponent: ConsoleRouteError,
@@ -69,24 +75,6 @@ function onboardingReturnTo(workspace: ProvisionedWorkspace | undefined): string
     env: workspace.environmentId,
   });
   return `/onboarding?${params.toString()}`;
-}
-
-async function loadHandoffNames(
-  workspace: ProvisionedWorkspace,
-): Promise<VerifiedHandoffNames | null> {
-  const projects = await loadOrgProjects({
-    data: { organizationId: workspace.organizationId },
-  });
-  if (projects.kind !== "ok") {
-    return null;
-  }
-  const environments = await loadProjectEnvironments({
-    data: { organizationId: workspace.organizationId, projectId: workspace.projectId },
-  });
-  if (environments.kind !== "ok") {
-    return null;
-  }
-  return verifiedHandoffNames(projects.value, environments.value, workspace);
 }
 
 function OnboardingPage() {

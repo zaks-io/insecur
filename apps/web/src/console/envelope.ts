@@ -21,6 +21,31 @@ export function isAuthErrorEnvelope(body: unknown): boolean {
   return code?.startsWith("auth.") ?? false;
 }
 
+/** Classified outcome of parsing one API envelope for an authed console metadata read. */
+export type ConsoleEnvelopeParse<T> =
+  | { readonly kind: "ok"; readonly value: T }
+  | { readonly kind: "denied" }
+  | { readonly kind: "unavailable" };
+
+/**
+ * Parse a console metadata envelope: success values pass through, `auth.*` errors stay denied,
+ * and other structured API failures become unavailable so the shell can retry (INS-415).
+ */
+export function parseConsoleReadEnvelope<T>(
+  body: unknown,
+  parse: (body: unknown) => T | null,
+): ConsoleEnvelopeParse<T> {
+  const value = parse(body);
+  if (value !== null) {
+    return { kind: "ok", value };
+  }
+  const code = readApiErrorCode(body);
+  if (code === null) {
+    return { kind: "denied" };
+  }
+  return isAuthErrorEnvelope(body) ? { kind: "denied" } : { kind: "unavailable" };
+}
+
 /**
  * Extract one `data` field from a `{ ok: true, data: { ... } }` API success envelope. Returns
  * `undefined` for anything else (error envelopes, malformed bodies) so callers fail closed; the

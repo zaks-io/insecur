@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isAuthErrorEnvelope, readApiErrorCode } from "./envelope.js";
+import { isAuthErrorEnvelope, parseConsoleReadEnvelope, readApiErrorCode } from "./envelope.js";
+import { parseOrgProjectsBody } from "./projects.js";
 
 describe("readApiErrorCode", () => {
   it("reads auth and non-auth error codes from API envelopes", () => {
@@ -24,5 +25,31 @@ describe("isAuthErrorEnvelope", () => {
     expect(
       isAuthErrorEnvelope({ ok: false, error: { code: "store.runtime_config_missing" } }),
     ).toBe(false);
+  });
+});
+
+describe("parseConsoleReadEnvelope", () => {
+  it("maps non-auth structured error envelopes to unavailable", () => {
+    const body = { ok: false, error: { code: "store.runtime_config_missing" } };
+
+    expect(parseConsoleReadEnvelope(body, parseOrgProjectsBody)).toEqual({ kind: "unavailable" });
+  });
+
+  it("keeps auth error envelopes denied and success envelopes ok", () => {
+    expect(
+      parseConsoleReadEnvelope(
+        { ok: false, error: { code: "auth.required" } },
+        parseOrgProjectsBody,
+      ),
+    ).toEqual({ kind: "denied" });
+    expect(
+      parseConsoleReadEnvelope({ ok: true, data: { projects: [] } }, parseOrgProjectsBody),
+    ).toEqual({
+      kind: "ok",
+      value: [],
+    });
+    expect(parseConsoleReadEnvelope({ not: "an envelope" }, parseOrgProjectsBody)).toEqual({
+      kind: "denied",
+    });
   });
 });
