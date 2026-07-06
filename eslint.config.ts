@@ -180,6 +180,7 @@ export default tseslint.config(
       "packages/tenant-store/vitest.rls.config.ts",
       "packages/tenant-store/drizzle.config.ts",
       "packages/tenant-store/scripts/**/*.ts",
+      "packages/instance-bootstrap/scripts/**/*.ts",
       "packages/backup-restore/test/**/*.ts",
       "packages/backup-restore/vitest.config.ts",
       "packages/worker-kit/src/**/*.test.ts",
