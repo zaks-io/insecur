@@ -13,15 +13,17 @@ import {
   redirectResponse,
 } from "./browser-oauth.js";
 import { formatPkceStateClearCookie, INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
+import { loginFailureRedirectPath } from "./login-error.js";
 
 // Single-source the PKCE exchange literals so the fake WorkOS port and the test assertions can
 // never silently diverge: the mock factory is hoisted above the imports, so it reads these through
 // vi.hoisted rather than re-typing the strings.
 const pkceLiterals = vi.hoisted(() => ({
   authorizationCode: "code_browser_login",
+  enrollmentBlockedCode: "code_browser_mfa_enrollment",
   codeVerifier: "verifier_browser_login",
 }));
-const { authorizationCode, codeVerifier } = pkceLiterals;
+const { authorizationCode, enrollmentBlockedCode, codeVerifier } = pkceLiterals;
 const oauthState = "state_browser_login";
 
 vi.mock("./workos-port.js", async () => {
@@ -35,6 +37,13 @@ vi.mock("./workos-port.js", async () => {
           sessionId: "session_browser",
           authorizationCode: pkceLiterals.authorizationCode,
           codeVerifier: pkceLiterals.codeVerifier,
+        }),
+        fakeSessionEntry({
+          sessionData: "sealed-browser-enrollment-blocked",
+          sessionId: "session_browser_enrollment",
+          authorizationCode: pkceLiterals.enrollmentBlockedCode,
+          codeVerifier: pkceLiterals.codeVerifier,
+          authorizationCodeFailure: "mfa_enrollment",
         }),
       ]),
   };
@@ -97,6 +106,34 @@ describe("completeBrowserLogin", () => {
     }
   });
 
+  it("surfaces a session-assurance failure so the callback can name it on /login", async () => {
+    // The silent /login loop (INS-421): the code exchange succeeds at WorkOS but the assurance
+    // gate rejects the session. The reason must survive to the callback redirect.
+    const roundTrip = {
+      state: oauthState,
+      codeVerifier,
+      returnTo: "/whoami",
+    };
+    const request = new Request(
+      `https://insecur.test/auth/callback?code=${enrollmentBlockedCode}&state=${oauthState}`,
+      {
+        headers: {
+          Cookie: `${INSECUR_OAUTH_PKCE_COOKIE}=${encodePkceCookie(roundTrip)}`,
+        },
+      },
+    );
+
+    const completed = await completeBrowserLogin(request, createFakeWebEnv());
+
+    expect(completed.ok).toBe(false);
+    if (!completed.ok) {
+      expect(completed.failure.reason).toBe("mfa_enrollment");
+      expect(loginFailureRedirectPath(completed.failure.reason)).toBe(
+        "/login?error=mfa_enrollment",
+      );
+    }
+  });
+
   it("rejects callbacks with a mismatched OAuth state", async () => {
     const request = new Request(
       `https://insecur.test/auth/callback?code=${authorizationCode}&state=wrong_state`,
@@ -116,6 +153,8 @@ describe("completeBrowserLogin", () => {
     expect(completed.ok).toBe(false);
     if (!completed.ok) {
       expect(completed.failure.reason).toBe("invalid");
+      // Non-assurance reasons collapse to the generic code: nothing else leaks into the URL.
+      expect(loginFailureRedirectPath(completed.failure.reason)).toBe("/login?error=signin");
     }
   });
 });
@@ -166,10 +205,12 @@ describe("logoutBrowserSession", () => {
 
 describe("redirectResponse", () => {
   it("can clear the PKCE round-trip cookie on login failure redirects", () => {
-    const response = redirectResponse("/login", [formatPkceStateClearCookie()]);
+    const response = redirectResponse(loginFailureRedirectPath("mfa_enrollment"), [
+      formatPkceStateClearCookie(),
+    ]);
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/login");
+    expect(response.headers.get("Location")).toBe("/login?error=mfa_enrollment");
     expect(
       response.headers.getSetCookie().some((header) => header.includes(INSECUR_OAUTH_PKCE_COOKIE)),
     ).toBe(true);

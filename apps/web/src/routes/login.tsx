@@ -5,6 +5,11 @@ import { getRequest } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
 import { useCallback, useState } from "react";
 import { beginBrowserLogin, redirectResponse } from "../auth/browser-oauth.js";
+import {
+  loginErrorMessage,
+  parseLoginErrorCode,
+  type LoginErrorCode,
+} from "../auth/login-error.js";
 import { readTurnstileToken, turnstileSiteKey, verifyTurnstileToken } from "../auth/turnstile.js";
 import { SiteFrame } from "../components/site-frame.js";
 import { TurnstileWidget } from "../components/turnstile-widget.js";
@@ -12,7 +17,7 @@ import type { WebEnv } from "../env.js";
 
 interface LoginChallenge {
   readonly siteKey: string;
-  readonly verificationFailed: boolean;
+  readonly errorCode: LoginErrorCode | null;
 }
 
 const loadLoginChallenge = createServerFn({ method: "GET" }).handler((): LoginChallenge => {
@@ -20,7 +25,7 @@ const loadLoginChallenge = createServerFn({ method: "GET" }).handler((): LoginCh
   const url = new URL(request.url);
   return {
     siteKey: turnstileSiteKey(env as WebEnv),
-    verificationFailed: url.searchParams.get("error") === "verification",
+    errorCode: parseLoginErrorCode(url.searchParams.get("error")),
   };
 });
 
@@ -46,7 +51,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { siteKey, verificationFailed } = Route.useLoaderData();
+  const { siteKey, errorCode } = Route.useLoaderData();
   const [turnstileToken, setTurnstileToken] = useState("");
   const handleTurnstileToken = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -62,9 +67,9 @@ function LoginPage() {
           </CardHeader>
           <CardContent>
             <form method="post" className="flex flex-col gap-5">
-              {verificationFailed ? (
+              {errorCode !== null ? (
                 <p className="text-sm text-destructive" role="alert">
-                  Verification failed. Try again.
+                  {loginErrorMessage(errorCode)}
                 </p>
               ) : null}
               <TurnstileWidget siteKey={siteKey} onTokenChange={handleTurnstileToken} />
