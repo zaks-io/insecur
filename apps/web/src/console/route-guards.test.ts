@@ -1,6 +1,6 @@
 import { isRedirect } from "@tanstack/react-router";
 import { describe, expect, it } from "vitest";
-import { ConsoleUnavailable } from "./unavailable.js";
+import { isConsoleUnavailable } from "./unavailable.js";
 import { requireConsoleRead, requireConsoleSession } from "./route-guards.js";
 import type { ConsoleRead } from "../server/console-read.js";
 import type { ConsoleSession } from "../server/console-session.js";
@@ -18,9 +18,14 @@ describe("requireConsoleSession", () => {
     }
   });
 
-  it("throws ConsoleUnavailable for a resolved session with an API outage", () => {
+  it("throws the outage sentinel for a resolved session with an API outage", () => {
     const session: ConsoleSession = { kind: "unavailable" };
-    expect(() => requireConsoleSession(session, "/orgs")).toThrow(ConsoleUnavailable);
+    try {
+      requireConsoleSession(session, "/orgs");
+      expect.unreachable("expected outage sentinel");
+    } catch (error) {
+      expect(isConsoleUnavailable(error)).toBe(true);
+    }
   });
 
   it("returns authenticated session data when the read succeeds", () => {
@@ -43,9 +48,14 @@ describe("requireConsoleRead", () => {
     }
   });
 
-  it("throws ConsoleUnavailable when the API hop fails after session resolution", () => {
+  it("throws the outage sentinel when the API hop fails after session resolution", () => {
     const read: ConsoleRead<{ projects: [] }> = { kind: "unavailable" };
-    expect(() => requireConsoleRead(read, "/orgs/org_01/projects")).toThrow(ConsoleUnavailable);
+    try {
+      requireConsoleRead(read, "/orgs/org_01/projects");
+      expect.unreachable("expected outage sentinel");
+    } catch (error) {
+      expect(isConsoleUnavailable(error)).toBe(true);
+    }
   });
 
   it("returns ok values", () => {
