@@ -131,7 +131,7 @@ Authentication and authorization should follow boring, current best practice:
 - Provider authorization callbacks re-check Organization Access after the provider returns and verify the provider account, installation, team, repository, project, worker, or resource identity before storing credentials.
 - Provider authorization callbacks fail closed when state is replayed, the user lost access, the organization is suspended, the operation was canceled or superseded, or the provider identity does not match the pending connection boundary.
 - Access tokens are short-lived and scoped. Bearer tokens are accepted only in the `Authorization` header, never query strings.
-- Human CLI credentials are memory/session-only by default. The CLI should not write access tokens, refresh tokens, session tokens, deploy keys, bootstrap secrets, or OIDC tokens to disk.
+- Human CLI session credentials persist only as a sealed record under the OS-keychain-backed machine root key (ADR-0007, 2026-07-06 amendment). The CLI never writes plaintext access tokens, refresh tokens, session tokens, deploy keys, bootstrap secrets, or OIDC tokens to disk.
 - Deploy keys are environment-scoped auth methods for Runtime Injection automation. A deploy key belongs to one organization, project, and environment, exchanges for a short-lived access token, and cannot grant cross-environment access or Secret Sync.
 - Deploy keys are attached to Runtime Policy Key IDs and cannot choose their own secret set, command shape, or Command Fingerprint at exchange time.
 - Deploy key expiration and rotation are configurable through a Deploy Key Rotation Policy; explicitly non-expiring keys are allowed but must be visible as higher-risk in status, plan, and audit output.
@@ -306,7 +306,7 @@ The CLI should remain easy for agents:
 - Errors should be stable and specific enough for agents to recover without leaking tenant/resource existence.
 - Mutating commands support `--dry-run` where possible and produce stable exit codes.
 - Long-running operations such as sync and rotation return operation IDs that can be polled.
-- Local config should be safe to commit; user credentials are memory/session-only and live in provider/OIDC exchanges, safe stdin flows, or session-only child environments.
+- Local config should be safe to commit; user credentials live in provider/OIDC exchanges, safe stdin flows, session child environments, or the sealed keychain-backed session record — never plaintext on disk.
 - The CLI should support profile selection for developers working across organizations.
 
 ## Sync Execution Runtime

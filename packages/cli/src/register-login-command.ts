@@ -45,9 +45,13 @@ export function registerLoginCommand(
 ): void {
   program
     .command("login")
-    .description("Authenticate with WorkOS AuthKit PKCE and mint a memory-only CLI credential")
+    .description("Authenticate with WorkOS AuthKit PKCE and mint a short-lived CLI credential")
     .option("--no-open", "print the WorkOS login URL instead of opening a browser")
     .option("--callback-port <port>", "localhost callback port for PKCE login")
+    .option(
+      "--no-persist",
+      "keep the session credential in process memory only instead of the sealed local session store",
+    )
     .option(
       "--shell",
       "start a managed interactive shell with the session credential in the child environment only",
@@ -58,12 +62,14 @@ export function registerLoginCommand(
       const options = command.opts<{
         shell?: boolean;
         open?: boolean;
+        persist?: boolean;
         callbackPort?: string;
       }>();
       const callbackPort = parseLoginCallbackPort(options.callbackPort);
       process.exitCode = await runLoginCommand(flags, api, context, {
         shell: options.shell === true,
         openBrowser: options.open !== false,
+        persist: options.persist !== false,
         ...(callbackPort === undefined || Number.isNaN(callbackPort) ? {} : { callbackPort }),
       });
     });
