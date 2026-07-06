@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { createLinuxSecretToolAdapter } from "./linux-secret-tool.js";
@@ -7,15 +9,16 @@ const FAKE_KEY_HEX = "ab".repeat(32);
 const deterministicRandomBytes = () => new Uint8Array(32).fill(0xab);
 
 function createDeps(execFile: ExecFileFn): KeyStoreDependencies {
+  const userConfigDir = `/tmp/insecur-test-${randomUUID()}`;
   return {
     execFile,
     platform: "linux",
     env: { PATH: "/usr/bin" },
     randomBytes: deterministicRandomBytes,
     paths: {
-      userConfigDir: "/tmp/insecur-test",
-      machineRootKeyFilePath: "/tmp/insecur-test/machine-root-key",
-      machineRootKeyDpapiFilePath: "/tmp/insecur-test/machine-root-key.dpapi",
+      userConfigDir,
+      machineRootKeyFilePath: `${userConfigDir}/machine-root-key`,
+      machineRootKeyDpapiFilePath: `${userConfigDir}/machine-root-key.dpapi`,
     },
   };
 }
@@ -48,7 +51,7 @@ describe("linux secret-tool adapter", () => {
       }
       if (args[0] === "lookup") {
         lookupCount += 1;
-        if (lookupCount <= 2) {
+        if (lookupCount <= 4) {
           const error = new Error("missing") as NodeJS.ErrnoException & { stderr?: string };
           error.stderr = "No matching results";
           return Promise.reject(error);
@@ -64,8 +67,8 @@ describe("linux secret-tool adapter", () => {
       "machine-root-key-v1",
     );
     await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(FAKE_KEY_HEX);
-    expect(calls[2]?.args[0]).toBe("store");
-    expect(calls[2]?.input).toBe(FAKE_KEY_HEX);
-    expect(calls[3]?.args[0]).toBe("lookup");
+    expect(calls[4]?.args[0]).toBe("store");
+    expect(calls[4]?.input).toBe(FAKE_KEY_HEX);
+    expect(calls[5]?.args[0]).toBe("lookup");
   });
 });

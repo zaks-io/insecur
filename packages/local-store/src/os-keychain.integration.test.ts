@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { accessSync, constants as fsConstants } from "node:fs";
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +16,7 @@ import { resetSingleFlightCacheForTests } from "./serialize-async.js";
 import type { KeyStoreBackend } from "./types.js";
 
 const INTEGRATION_OPT_IN_ENV = "INSECUR_LOCAL_STORE_OS_INTEGRATION";
+const INTEGRATION_KEY_DIGEST_ENV = "INSECUR_INTEGRATION_KEY_DIGEST";
 const packageSrcDir = path.dirname(fileURLToPath(import.meta.url));
 
 function integrationOptInEnabled(env: NodeJS.ProcessEnv): boolean {
@@ -38,6 +39,10 @@ function platformAdapterAvailable(env: NodeJS.ProcessEnv): boolean {
     default:
       return false;
   }
+}
+
+function digestMachineRootKeyHex(keyHex: string): string {
+  return createHash("sha256").update(keyHex, "utf8").digest("hex");
 }
 
 async function cleanupIntegrationSlot(
@@ -70,34 +75,39 @@ async function cleanupIntegrationSlot(
   }
 }
 
-function readBackKeyInChildProcess(
+function assertChildProcessReadBackMatchesDigest(
   keyStoreOptions: {
     configHome: string;
     service: string;
     account: string;
   },
-  readbackPath: string,
+  expectedDigest: string,
 ): void {
   const child = spawnSync(
     process.execPath,
     [
       "--input-type=module",
       "-e",
-      `import { writeFile } from "node:fs/promises";
+      `import { createHash } from "node:crypto";
 import { createKeyStore } from ${JSON.stringify(path.join(packageSrcDir, "key-store.js"))};
 const options = ${JSON.stringify(keyStoreOptions)};
+const expectedDigest = process.env[${JSON.stringify(INTEGRATION_KEY_DIGEST_ENV)}];
 const key = await createKeyStore(options).getOrCreateMachineRootKey();
-await writeFile(${JSON.stringify(readbackPath)}, key, { mode: 0o600 });`,
+const digest = createHash("sha256").update(key, "utf8").digest("hex");
+process.exit(digest === expectedDigest ? 0 : 1);`,
     ],
     {
-      env: process.env,
+      env: {
+        ...process.env,
+        [INTEGRATION_KEY_DIGEST_ENV]: expectedDigest,
+      },
       encoding: "utf8",
     },
   );
 
-  if (child.status !== 0) {
-    throw new Error("integration child process failed");
-  }
+  expect(child.status).toBe(0);
+  expect(child.stdout).toBe("");
+  expect(child.stderr).toBe("");
 }
 
 describe("OS keychain integration", () => {
@@ -115,7 +125,6 @@ describe("OS keychain integration", () => {
       process.env.INSECUR_CONFIG_HOME ?? "/tmp",
       `insecur-keystore-integration-${randomUUID()}`,
     );
-    const readbackPath = path.join(configHome, ".integration-readback");
     const keyStoreOptions = {
       configHome,
       service,
@@ -138,13 +147,10 @@ describe("OS keychain integration", () => {
       expect(sameProcessSecond).toBe(first);
       expect(randomBytesSpy).toHaveBeenCalledTimes(1);
 
-      readBackKeyInChildProcess(keyStoreOptions, readbackPath);
-      const childReadback = await readFile(readbackPath, "utf8");
-      expect(childReadback).toBe(first);
+      assertChildProcessReadBackMatchesDigest(keyStoreOptions, digestMachineRootKeyHex(first));
       expect(first).toHaveLength(64);
     } finally {
       randomBytesSpy.mockRestore();
-      await rm(readbackPath, { force: true });
       await cleanupIntegrationSlot(keyStore.backend, service, account, configHome);
       await rm(configHome, { recursive: true, force: true });
     }

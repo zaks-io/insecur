@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { createMacosKeychainAdapter } from "./macos-keychain.js";
@@ -8,15 +10,16 @@ const FAKE_KEY_HEX = "ab".repeat(32);
 const deterministicRandomBytes = () => new Uint8Array(32).fill(0xab);
 
 function createDeps(execFile: ExecFileFn): KeyStoreDependencies {
+  const userConfigDir = `/tmp/insecur-test-${randomUUID()}`;
   return {
     execFile,
     platform: "darwin",
     env: {},
     randomBytes: deterministicRandomBytes,
     paths: {
-      userConfigDir: "/tmp/insecur-test",
-      machineRootKeyFilePath: "/tmp/insecur-test/machine-root-key",
-      machineRootKeyDpapiFilePath: "/tmp/insecur-test/machine-root-key.dpapi",
+      userConfigDir,
+      machineRootKeyFilePath: `${userConfigDir}/machine-root-key`,
+      machineRootKeyDpapiFilePath: `${userConfigDir}/machine-root-key.dpapi`,
     },
   };
 }
@@ -52,7 +55,7 @@ describe("macOS keychain adapter", () => {
       calls.push({ file, args });
       if (args[0] === "find-generic-password") {
         lookupCount += 1;
-        if (lookupCount <= 2) {
+        if (lookupCount <= 4) {
           const error = new Error("not found") as NodeJS.ErrnoException & { stderr?: string };
           error.stderr = "The specified item could not be found in the keychain.";
           return Promise.reject(error);
@@ -68,8 +71,8 @@ describe("macOS keychain adapter", () => {
       "machine-root-key-v1",
     );
     await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(FAKE_KEY_HEX);
-    expect(calls).toHaveLength(4);
-    expect(calls[2]).toEqual({
+    expect(calls).toHaveLength(6);
+    expect(calls[4]).toEqual({
       file: "/usr/bin/security",
       args: [
         "add-generic-password",

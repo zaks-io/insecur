@@ -17,22 +17,26 @@ export async function getOrCreateMachineRootKeyWithCrossProcessLock(
   }
 
   const lockPath = resolveMachineRootKeyLockPath(deps.paths.userConfigDir);
-  return withMachineRootKeyCreationLock(lockPath, async () => {
-    const raced = await lookup();
-    if (raced !== null) {
-      return raced;
-    }
+  return withMachineRootKeyCreationLock(
+    lockPath,
+    async () => {
+      const raced = await lookup();
+      if (raced !== null) {
+        return raced;
+      }
 
-    const keyHex = generateMachineRootKeyHex(deps.randomBytes);
-    await persist(keyHex);
+      const keyHex = generateMachineRootKeyHex(deps.randomBytes);
+      await persist(keyHex);
 
-    const persisted = await lookup();
-    if (persisted === null) {
-      throw new KeyStoreError(
-        KEY_STORE_ERROR_CODES.adapterFailed,
-        "machine root key store did not persist",
-      );
-    }
-    return persisted;
-  });
+      const persisted = await lookup();
+      if (persisted === null) {
+        throw new KeyStoreError(
+          KEY_STORE_ERROR_CODES.adapterFailed,
+          "machine root key store did not persist",
+        );
+      }
+      return persisted;
+    },
+    lookup,
+  );
 }
