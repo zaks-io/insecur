@@ -67,13 +67,35 @@ describe("csp", () => {
     expect(policy).not.toContain("/authorize");
   });
 
-  it.each(["http://tenant.authkit.app", "not a url", "", "   "])(
-    "fails closed to form-action 'self' for an unsafe AuthKit origin: %s",
-    (workosAuthkitOrigin) => {
+  it("keeps the valid origin and drops a wildcard host in a mixed list", () => {
+    const policy = buildContentSecurityPolicy("test-nonce-value", {
+      workosAuthkitOrigin: "https://a.com https://*.b.com",
+    });
+    expect(policy).toContain("form-action 'self' https://a.com;");
+    expect(policy).not.toContain("*.b.com");
+    expect(policy).not.toContain("*");
+  });
+
+  it.each([
+    ["http scheme", "http://tenant.authkit.app"],
+    ["not a url", "not a url"],
+    ["empty", ""],
+    ["whitespace only", "   "],
+    ["wildcard host", "https://*.authkit.app"],
+    ["semicolon in host", "https://evil.com;"],
+    ["backtick in host", "https://ev`il.com"],
+    ["brace in host", "https://ev{il}.com"],
+    ["quote in host", 'https://ev"il.com'],
+  ])(
+    "fails closed to form-action 'self' for an unsafe AuthKit origin (%s)",
+    (_label, workosAuthkitOrigin) => {
       const policy = buildContentSecurityPolicy("test-nonce-value", { workosAuthkitOrigin });
       expect(policy).toContain("form-action 'self';");
       expect(policy).not.toContain("authkit.app");
+      expect(policy).not.toContain("evil");
       expect(policy).not.toContain("*");
+      // The directive must not be terminated early or carry any injected token.
+      expect(policy).not.toContain(";;");
     },
   );
 

@@ -51,7 +51,15 @@ export function buildContentSecurityPolicy(
   return `${CSP_BASE_DIRECTIVES}; form-action ${formAction.join(" ")}; connect-src ${connectSrc.join(" ")}; frame-src ${frameSrc.join(" ")}; script-src ${scriptSrc.join(" ")}; style-src 'self' 'nonce-${nonce}'`;
 }
 
-/** Parse a single configured URL to its https origin, or undefined if unset, non-https, or malformed. */
+// A safe https origin for a CSP source: https scheme, an RFC-3986 host (letters/digits/dot/hyphen),
+// an optional numeric port, and nothing else. The WHATWG URL parser accepts hosts containing `*`,
+// `;`, quotes, and braces, and reflects them into `url.origin`; without this guard a value like
+// `https://*.authkit.app` would emit a wildcard and `https://evil.com;` would prematurely terminate
+// the form-action directive. Rejecting anything outside this charset keeps every emitted source an
+// exact origin and preserves the no-wildcard guarantee.
+const SAFE_HTTPS_ORIGIN = /^https:\/\/[a-z0-9.-]+(:\d+)?$/i;
+
+/** Parse a single configured URL to a strict https origin, or undefined if unset, non-https, malformed, or not an exact origin. */
 function httpsOrigin(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
@@ -59,7 +67,10 @@ function httpsOrigin(value: string | undefined): string | undefined {
 
   try {
     const url = new URL(value);
-    return url.protocol === "https:" ? url.origin : undefined;
+    if (url.protocol !== "https:") {
+      return undefined;
+    }
+    return SAFE_HTTPS_ORIGIN.test(url.origin) ? url.origin : undefined;
   } catch {
     return undefined;
   }
