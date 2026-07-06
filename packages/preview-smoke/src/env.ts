@@ -141,7 +141,7 @@ function stripInlineEnvComment(value: string): string {
 function envOrDefault(name: string, fallback: string): string {
   const value = process.env[name];
   if (value !== undefined && value.trim() !== "") {
-    return value;
+    return value.trim();
   }
   return fallback;
 }
