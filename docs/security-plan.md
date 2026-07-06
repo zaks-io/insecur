@@ -161,8 +161,8 @@ Agent/DX requirements:
 
 - CLI auth must work in non-interactive environments.
 - Browser login may exist for humans, but CI and agents should use OIDC or a narrow bootstrap auth method.
-- Human CLI credentials are memory/session-only; no access token, refresh token, or session token is written to disk.
-- The CLI may launch an authenticated subshell or one-shot command with a short-lived token in the child environment, but must not persist that token.
+- Human CLI session credentials persist only as a sealed record under the OS-keychain-backed machine root key (ADR-0007, 2026-07-06 amendment); no plaintext access token, refresh token, or session token is written to disk.
+- The CLI may launch an authenticated subshell or one-shot command with a short-lived token in the child environment; that child-environment token is never persisted.
 - Deploy automation may use environment-scoped deploy keys for Runtime Injection. Deploy keys exchange for short-lived access tokens and cannot cross project or environment boundaries.
 - Deploy keys are attached to an explicit allowlist of Runtime Policy Key IDs.
 - Deploy keys cannot request arbitrary secrets, secret sets, command shapes, or Command Fingerprints.

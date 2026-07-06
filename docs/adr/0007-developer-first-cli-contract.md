@@ -33,3 +33,35 @@ V1 is configuration-driven and does not require general search over Sensitive Me
 Provider sync remains the native-platform delivery path for Cloudflare, Vercel, and GitHub. Runtime injection remains the just-in-time path for deploys and local commands that can read secrets from environment variables. Protected Promotion must preflight Provider Value Size Limits for enabled affected syncs and fail with `sync.provider_value_too_large` before publish when a promoted value cannot fit.
 
 Sensitive Values are accepted only through safe input paths. Human TTY secret writes use a masked prompt when no explicit input mode is provided, while non-interactive secret writes must fail with `secret.input_required` unless the caller chooses service generation or stdin input. V1 managed Secret values are valid UTF-8 text only; invalid UTF-8 fails with `secret.invalid_encoding`, with no binary mode, implicit base64 decoding, or replacement-character decoding. Managed Secret value size is measured in encoded UTF-8 bytes after validation, not characters, and values over 64 KiB fail with `secret.value_too_large` before write. The 64 KiB storage limit is not a provider compatibility guarantee; Secret Sync adapters enforce destination-specific Provider Value Size Limits and fail the whole write set with `sync.provider_value_too_large` before provider write when any binding is too large. Secret Sync must not automatically compress, truncate, chunk, implicitly encode, or otherwise transform values to fit provider caps. Exact value byte length for Protected Environment Secrets is Sensitive Metadata; low-privilege and automation-safe output shows `over_limit`, provider cap, destination type, and opaque IDs instead. Stdin input preserves the decoded value exactly, including trailing newlines and multiline content, with no trimming or normalization. Zero-length Sensitive Values fail by default with `secret.empty_value` and require an explicit empty-value control such as `--allow-empty` or an API equivalent. The CLI must not support `--value <secret>`, `--value-file <path>`, `--token <secret>`, `--client-secret <secret>`, or equivalent argument or named local value-file forms for Sensitive Values. Local file ingress exists only through development-only Secret Import.
+
+## Amendment (2026-07-06): Persisted sessions under OS-keychain-backed local custody
+
+The memory/session-only default above made the CLI structurally unusable for coding agents and
+other drivers that run each CLI invocation in a fresh process: `insecur login` minted a credential
+whose lifetime was one shell, so every subsequent command in a new process saw no session. This
+amendment replaces the no-persistence default with sealed local session persistence.
+
+- `insecur login` persists the session record (session credential, Session ID, expiry, host) by
+  default. `--no-persist` restores the memory-only behavior, and `--shell` keeps its existing
+  child-environment semantics.
+- The record is never plaintext at rest. It is sealed with AES-256-GCM under the machine root key
+  held by the ADR-0080 `KeyStore` seam (macOS Keychain, Windows DPAPI, Linux `secret-tool`, with
+  the documented 0600 file fallback and its `local_store.file_fallback_active` notice), and the
+  sealed record file is itself written 0600 under the insecur user config directory.
+- Credential resolution order is fixed: process memory, then `INSECUR_SESSION_TOKEN`, then the
+  persisted record. A persisted record is used only when its stored host exactly matches the host
+  the command will call, so a persisted credential is never sent to a different host. Expired,
+  host-mismatched, or unreadable records are ignored and the command fails with `auth.required`.
+- `insecur logout` removes the persisted record and clears process memory.
+
+Persistence widens convenience, not authority. The persisted credential is the same short-lived
+PKCE session credential the login minted, High-Assurance step-up gates (ADR-0032) still fail
+closed with exit `10`, and agents still cannot clear them. Attribution is a property of the minted
+session token, not of where it is stored: when ADR-0032's Derived Agent Sessions land, an
+agent-context login persists the agent-marked session it minted.
+
+The default CLI session lifetime moves from 15 minutes to 24 hours
+(`CLI_SESSION_TTL_SECONDS`) so one human login covers a working day of agent and CI-adjacent
+activity. Session length is deliberately not the security boundary for high-risk work: every
+high-risk action is gated per-action by a fresh High-Assurance Challenge (ADR-0032) regardless of
+session age, and `insecur logout` revokes the persisted credential locally at any time.

@@ -19,8 +19,8 @@ A bearer credential associated with machine access.
 _Avoid_: API key when referring to insecur-issued automation access
 
 **Ephemeral CLI Credential**:
-A short-lived credential held only in process memory or a child shell environment for one CLI session.
-_Avoid_: saved token, credential cache, CLI token when it is memory/session-only
+A short-lived credential held in process memory, a child shell environment, or the sealed keychain-backed local session store (ADR-0007, 2026-07-06 amendment).
+_Avoid_: plaintext token file, credential cache, long-lived token when the credential is a short-lived session
 
 **Environment Deploy Key**:
 An Insecur-specific machine auth method scoped to one organization, project, and environment for runtime injection.

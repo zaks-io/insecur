@@ -7,11 +7,11 @@ export const INSECUR_CSRF_COOKIE = "insecur_csrf";
 /** Header carrying the CSRF token for browser-originating mutations. */
 export const INSECUR_CSRF_HEADER = "x-insecur-csrf";
 
-/** Response header for memory-only CLI session credentials (never logged). */
+/** Response header for short-lived CLI session credentials (never logged). */
 export const INSECUR_SESSION_CREDENTIAL_HEADER = "x-insecur-session-credential";
 
-/** Default CLI ephemeral session lifetime (15 minutes). */
-export const CLI_SESSION_TTL_SECONDS = 900;
+/** Default CLI session lifetime (24 hours); high-risk actions are gated per-action by High-Assurance Challenges (ADR-0032), not by session length. */
+export const CLI_SESSION_TTL_SECONDS = 86_400;
 
 /**
  * Token audience for the public API Worker deploy. The CLI/agent/CI bearer and the
