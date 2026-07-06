@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import { loadDeployWranglerConfig } from "../../../scripts/wrangler-deploy-config.mjs";
 
+import {
+  prepareBindingsForSettingsPatch,
+  publicDeployVarsAlreadyMatch,
+} from "./deploy-content-only-bindings.mjs";
 import { createCloudflareJson } from "./deploy-content-only-cloudflare.mjs";
 import {
   ensureRequiredPublicDeployBindings,
@@ -34,12 +38,22 @@ export async function updatePublicDeployVars(
     "GET",
     `/accounts/${accountId}/workers/scripts/${scriptName}/settings`,
   );
-  const bindings = ensureRequiredPublicDeployBindings(settings.bindings ?? [], desiredPublicVars);
-  const form = new FormData();
+  const existingBindings = settings.bindings ?? [];
 
+  if (publicDeployVarsAlreadyMatch(existingBindings, desiredPublicVars)) {
+    return ensureRequiredPublicDeployBindings(existingBindings, desiredPublicVars);
+  }
+
+  const { merged, patchBindings } = prepareBindingsForSettingsPatch(
+    existingBindings,
+    desiredPublicVars,
+  );
+  ensureRequiredPublicDeployBindings(merged, desiredPublicVars);
+
+  const form = new FormData();
   form.append(
     "settings",
-    new Blob([JSON.stringify({ bindings })], { type: "application/json" }),
+    new Blob([JSON.stringify({ bindings: patchBindings })], { type: "application/json" }),
     "settings.json",
   );
 
@@ -47,7 +61,7 @@ export async function updatePublicDeployVars(
     body: form,
   });
 
-  return bindings;
+  return merged;
 }
 
 export async function runContentOnlyDeploy(options = {}) {

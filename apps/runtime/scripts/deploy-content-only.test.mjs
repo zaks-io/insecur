@@ -2,29 +2,43 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  prepareBindingsForSettingsPatch,
+  publicDeployVarsAlreadyMatch,
+} from "./deploy-content-only-bindings.mjs";
+import {
   ensureRequiredPublicDeployBindings,
   mergePublicDeployVarBindings,
   pickDesiredPublicDeployVars,
 } from "./deploy-content-only-public-vars.mjs";
 import { runContentOnlyDeploy, updatePublicDeployVars } from "./deploy-content-only-lib.mjs";
 
-const PRODUCTION_SETTINGS_BINDINGS = [
+const PRODUCTION_GET_SETTINGS_BINDINGS = [
+  { name: "CF_VERSION_METADATA", type: "version_metadata" },
+  {
+    name: "SENTRY_DSN",
+    type: "plain_text",
+    text: "https://example.ingest.sentry.io/1",
+  },
+  { name: "SENTRY_ENVIRONMENT", type: "plain_text", text: "production" },
   { name: "SENTRY_RELEASE", type: "plain_text", text: "old-sha" },
+  { name: "SENTRY_SERVICE", type: "plain_text", text: "insecur-runtime" },
   {
     name: "INSTANCE_ROOT_KEY_V1",
     type: "secrets_store_secret",
     store_id: "00000000000000000000000000000001",
     secret_name: "INSECUR_PUBLIC_PRODUCTION_ROOT_KEY_PLACEHOLDER_V1",
+    resource_id: "read-only-from-get",
   },
   {
     name: "DB",
     type: "hyperdrive",
     id: "00000000000000000000000000000002",
+    hyperdrive_id: "00000000000000000000000000000002",
   },
   { name: "RUNTIME_TOKEN_SIGNING_SECRET", type: "secret_text" },
 ];
 
-const PRODUCTION_SETTINGS_WITHOUT_RELEASE = PRODUCTION_SETTINGS_BINDINGS.filter(
+const PRODUCTION_SETTINGS_WITHOUT_RELEASE = PRODUCTION_GET_SETTINGS_BINDINGS.filter(
   (binding) => binding.name !== "SENTRY_RELEASE",
 );
 
@@ -82,27 +96,58 @@ test("mergePublicDeployVarBindings updates release vars without touching custody
   assert.deepEqual(merged[3], bindings[3]);
 });
 
-test("mergePublicDeployVarBindings backfills missing public plain-text deploy vars", () => {
-  const bindings = [
+test("prepareBindingsForSettingsPatch inherits custody bindings without GET-only fields", () => {
+  const { patchBindings } = prepareBindingsForSettingsPatch(PRODUCTION_GET_SETTINGS_BINDINGS, {
+    SENTRY_RELEASE: "new-sha",
+  });
+
+  assert.deepEqual(
+    patchBindings.find((binding) => binding.name === "SENTRY_RELEASE"),
+    {
+      name: "SENTRY_RELEASE",
+      type: "plain_text",
+      text: "new-sha",
+    },
+  );
+  assert.deepEqual(
+    patchBindings.find((binding) => binding.name === "CF_VERSION_METADATA"),
+    {
+      name: "CF_VERSION_METADATA",
+      type: "version_metadata",
+    },
+  );
+  assert.deepEqual(
+    patchBindings.find((binding) => binding.name === "INSTANCE_ROOT_KEY_V1"),
     {
       name: "INSTANCE_ROOT_KEY_V1",
       type: "secrets_store_secret",
-      store_id: "store-1",
-      secret_name: "root-key",
     },
-    { name: "DB", type: "hyperdrive", id: "hyperdrive-1" },
-  ];
+  );
+  assert.deepEqual(
+    patchBindings.find((binding) => binding.name === "DB"),
+    {
+      name: "DB",
+      type: "hyperdrive",
+    },
+  );
+  assert.deepEqual(
+    patchBindings.find((binding) => binding.name === "RUNTIME_TOKEN_SIGNING_SECRET"),
+    {
+      name: "RUNTIME_TOKEN_SIGNING_SECRET",
+      type: "secret_text",
+    },
+  );
+});
 
-  const merged = mergePublicDeployVarBindings(bindings, { SENTRY_RELEASE: "new-sha" });
-  const releaseBinding = merged.find((binding) => binding.name === "SENTRY_RELEASE");
-
-  assert.deepEqual(releaseBinding, {
-    name: "SENTRY_RELEASE",
-    type: "plain_text",
-    text: "new-sha",
-  });
-  assert.deepEqual(merged[0], bindings[0]);
-  assert.deepEqual(merged[1], bindings[1]);
+test("publicDeployVarsAlreadyMatch skips PATCH when release is current", () => {
+  assert.equal(
+    publicDeployVarsAlreadyMatch(PRODUCTION_GET_SETTINGS_BINDINGS, { SENTRY_RELEASE: "old-sha" }),
+    true,
+  );
+  assert.equal(
+    publicDeployVarsAlreadyMatch(PRODUCTION_GET_SETTINGS_BINDINGS, { SENTRY_RELEASE: "new-sha" }),
+    false,
+  );
 });
 
 test("ensureRequiredPublicDeployBindings creates missing SENTRY_RELEASE binding", () => {
@@ -137,6 +182,25 @@ test("updatePublicDeployVars backfills SENTRY_RELEASE on legacy Workers", async 
   assert.ok(calls.some((call) => call.method === "PATCH" && call.apiPath.endsWith("/settings")));
 });
 
+test("updatePublicDeployVars skips PATCH when public deploy vars already match", async () => {
+  const calls = [];
+  const bindings = await updatePublicDeployVars(
+    createSettingsCloudflareJson({
+      calls,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+    }),
+    "account-id",
+    "insecur-runtime",
+    { SENTRY_RELEASE: "old-sha" },
+  );
+
+  assert.equal(bindings.find((binding) => binding.name === "SENTRY_RELEASE")?.text, "old-sha");
+  assert.equal(
+    calls.some((call) => call.method === "PATCH" && call.apiPath.endsWith("/settings")),
+    false,
+  );
+});
+
 test("runContentOnlyDeploy patches public deploy vars after uploading content", async () => {
   const calls = [];
 
@@ -145,7 +209,7 @@ test("runContentOnlyDeploy patches public deploy vars after uploading content", 
     readFileFn: createReadFileStub(),
     fetchFn: createContentOnlyDeployFetchHandler({
       calls,
-      settingsBindings: PRODUCTION_SETTINGS_BINDINGS,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
     }),
   });
 
@@ -216,10 +280,27 @@ async function respondToSettingsPatch(body) {
   const settingsBlob = body.get("settings");
   const settings = JSON.parse(await settingsBlob.text());
   const releaseBinding = settings.bindings.find((binding) => binding.name === "SENTRY_RELEASE");
+  const rootKeyBinding = settings.bindings.find(
+    (binding) => binding.name === "INSTANCE_ROOT_KEY_V1",
+  );
+  const hyperdriveBinding = settings.bindings.find((binding) => binding.name === "DB");
+  const versionMetadataBinding = settings.bindings.find(
+    (binding) => binding.name === "CF_VERSION_METADATA",
+  );
 
   assert.equal(releaseBinding?.text, "new-sha");
-  assert.ok(settings.bindings.some((binding) => binding.name === "INSTANCE_ROOT_KEY_V1"));
-  assert.ok(settings.bindings.some((binding) => binding.type === "hyperdrive"));
+  assert.deepEqual(rootKeyBinding, {
+    name: "INSTANCE_ROOT_KEY_V1",
+    type: "secrets_store_secret",
+  });
+  assert.deepEqual(hyperdriveBinding, {
+    name: "DB",
+    type: "hyperdrive",
+  });
+  assert.deepEqual(versionMetadataBinding, {
+    name: "CF_VERSION_METADATA",
+    type: "version_metadata",
+  });
   return jsonResponse({ success: true, result: {} });
 }
 
