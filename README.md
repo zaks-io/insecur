@@ -1,5 +1,13 @@
 # insecur
 
+[![CI](https://github.com/zaks-io/insecur/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zaks-io/insecur/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Finsecur.cloud%2Fbadges%2Fcoverage.json)](https://github.com/zaks-io/insecur/actions/workflows/ci.yml)
+[![Deploy Preview](https://github.com/zaks-io/insecur/actions/workflows/deploy-preview.yml/badge.svg)](https://github.com/zaks-io/insecur/actions/workflows/deploy-preview.yml)
+[![Deploy Production](https://github.com/zaks-io/insecur/actions/workflows/deploy-production.yml/badge.svg?branch=main)](https://github.com/zaks-io/insecur/actions/workflows/deploy-production.yml)
+[![CLI](https://img.shields.io/github/v/tag/zaks-io/insecur?filter=cli-v*&sort=semver&label=cli)](https://github.com/zaks-io/insecur/releases?q=cli-v&expanded=true)
+[![security-daily](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml/badge.svg)](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 A multi-tenant secrets manager for developers and agents working in the Cloudflare + GitHub Actions stack, with Vercel kept as an additive provider adapter behind the same port model. The first wedge is replacing plaintext local secret files with diskless development secret use through the `insecur` CLI; the production path adds Cloudflare Workers, Hyperdrive-backed Neon Postgres with Row-Level Security, envelope encryption with WebCrypto, OAuth app connections, runtime injection, and provider sync without revealing plaintext secrets by default.
 
 insecur's v1 product focus is narrow: store secrets securely as the source of truth, replace `.env` files for local development with just-in-time runtime injection, sync secrets to Cloudflare and GitHub when those platforms need native secrets, and keep developers and agents away from steady-state plaintext secret files. The Vercel sync adapter is deferred past V1.

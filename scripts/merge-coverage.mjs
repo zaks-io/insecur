@@ -20,6 +20,34 @@ const thresholds = {
   statements: 74,
 };
 
+function formatPct(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function coverageBadgeColor(linesPct) {
+  const threshold = thresholds.lines;
+  if (linesPct < threshold) {
+    return "red";
+  }
+  if (linesPct < threshold + 5) {
+    return "yellow";
+  }
+  if (linesPct < 90) {
+    return "yellowgreen";
+  }
+  return "brightgreen";
+}
+
+function coverageBadge(summary) {
+  const linesPct = summary.lines.pct;
+  return {
+    schemaVersion: 1,
+    label: "coverage",
+    message: `${formatPct(linesPct)}% lines`,
+    color: coverageBadgeColor(linesPct),
+  };
+}
+
 function readWorkspaceCoverageReports() {
   const coverageReports = [];
 
@@ -99,6 +127,15 @@ reports.create("lcovonly").execute(reportContext);
 reports.create("text-summary").execute(reportContext);
 
 const summary = coverageMap.getCoverageSummary().toJSON();
+writeFileSync(
+  join(coverageDir, "coverage-summary.json"),
+  `${JSON.stringify({ summary, thresholds }, null, 2)}\n`,
+);
+writeFileSync(
+  join(coverageDir, "coverage-badge.json"),
+  `${JSON.stringify(coverageBadge(summary), null, 2)}\n`,
+);
+
 const failures = Object.entries(thresholds).filter(([metric, threshold]) => {
   return summary[metric].pct < threshold;
 });
