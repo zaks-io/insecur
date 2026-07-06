@@ -47,11 +47,11 @@ export function detectSecretFileKindByName(name: string): ScanFindingKind | null
     return "credential-json";
   }
 
-  if (/credentials/i.test(name) && name.endsWith(".json")) {
+  if (/credentials/i.test(name) && /\.json$/iu.test(name)) {
     return "credential-json";
   }
 
-  if (name.endsWith(".pem")) {
+  if (/\.pem$/iu.test(name)) {
     return "private-key-file";
   }
 
