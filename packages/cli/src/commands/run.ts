@@ -64,7 +64,7 @@ async function runVariableKeyPath(
   context: ResolvedCliContext,
   commandOptions: RunCommandOptions,
 ): Promise<number> {
-  const credential = requireSessionCredential();
+  const credential = await requireSessionCredential(context.scope.host);
   const runScope = requireSecretWriteScope(context.scope);
   const variableKey = parseVariableKeyOrThrow(commandOptions.variableKey ?? "");
   const command = requireRunCommand(commandOptions.command);

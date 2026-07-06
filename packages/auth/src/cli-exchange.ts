@@ -58,7 +58,7 @@ async function mintCliExchangeResult(
 }
 
 /**
- * Exchanges a WorkOS AuthKit authorization code plus PKCE verifier for a memory-only
+ * Exchanges a WorkOS AuthKit authorization code plus PKCE verifier for a short-lived
  * CLI credential. Native clients use this instead of copying browser session material.
  */
 export async function exchangeCliPkceSession(

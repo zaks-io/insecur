@@ -6,13 +6,16 @@ import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { asEchoId, buildEnvelopeMeta } from "../output/target-echo.js";
 import { setMemorySession } from "../session/memory-session.js";
+import { defaultSessionStore, type SessionStore } from "../session/persisted-session.js";
 import { runBrowserPkceLogin } from "./login-pkce.js";
 import { runManagedLoginShell } from "./login-shell.js";
 
 export interface LoginCommandOptions {
   readonly shell: boolean;
   readonly openBrowser: boolean;
+  readonly persist: boolean;
   readonly callbackPort?: number;
+  readonly sessionStore?: SessionStore;
 }
 
 async function exchangeLoginSession(
@@ -43,22 +46,33 @@ interface MemoryLoginResult {
   readonly requestId: Parameters<typeof buildEnvelopeMeta>[0]["requestId"];
 }
 
-function completeMemoryLogin(result: MemoryLoginResult): void {
-  setMemorySession({
+async function persistLoginSession(result: MemoryLoginResult, store: SessionStore): Promise<void> {
+  await store.save({
     credential: result.credential,
     sessionId: result.sessionId,
     expiresAt: result.expiresAt,
+    host: result.host,
   });
+  const notice = store.notice();
+  if (notice !== null && !result.flags.quiet) {
+    process.stderr.write(`${notice.summary}\n`);
+  }
+}
+
+function renderLoginSuccess(result: MemoryLoginResult, persisted: boolean): void {
   const resolvedTargets: ResolvedTargetEcho[] = [
     { type: "session", id: asEchoId(result.sessionId) },
   ];
   renderSuccess(
     successEnvelope(
-      { sessionId: result.sessionId, expiresAt: result.expiresAt, host: result.host },
+      { sessionId: result.sessionId, expiresAt: result.expiresAt, host: result.host, persisted },
       buildEnvelopeMeta({ requestId: result.requestId, resolvedTargets }),
     ),
     result.flags,
-    () => `Logged in (session ${result.sessionId}, expires ${result.expiresAt}).`,
+    () =>
+      `Logged in (session ${result.sessionId}, expires ${result.expiresAt}${
+        persisted ? "" : ", memory-only"
+      }).`,
   );
 }
 
@@ -83,13 +97,18 @@ export async function runLoginCommand(
       expiresAt,
     });
   }
-  completeMemoryLogin({
+  const result: MemoryLoginResult = {
     flags,
     host,
     credential: exchanged.credential,
     sessionId,
     expiresAt,
     requestId: exchanged.envelope.meta?.requestId,
-  });
+  };
+  setMemorySession({ credential: result.credential, sessionId, expiresAt });
+  if (commandOptions.persist) {
+    await persistLoginSession(result, commandOptions.sessionStore ?? defaultSessionStore());
+  }
+  renderLoginSuccess(result, commandOptions.persist);
   return 0;
 }

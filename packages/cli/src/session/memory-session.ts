@@ -1,4 +1,4 @@
-/** Process-memory session store; never persisted to disk by the CLI. */
+/** Process-memory session store; the sealed on-disk record lives in persisted-session.ts. */
 export interface MemorySession {
   readonly credential: string;
   readonly sessionId: string;

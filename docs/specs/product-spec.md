@@ -446,9 +446,13 @@ Trace: [ADR-0007](../adr/0007-developer-first-cli-contract.md),
 
 The CLI is the primary interface for developers, agents, and CI. A committed non-secret
 `.insecur.json` stores host, Organization ID, Project ID, Environment ID, profile ID, branch to
-Environment defaults, and other opaque selectors. CLI credentials are memory/session-only by
-default. Human login uses an authenticated shell or one-shot command with short-lived tokens stored
-only in process memory or a child process environment for that shell session.
+Environment defaults, and other opaque selectors. `insecur login` persists the short-lived session
+credential sealed under the machine root key held by the OS-keychain-backed `KeyStore` seam
+(ADR-0080), never plaintext at rest; `--no-persist` keeps the credential memory-only. Credential
+resolution order is process memory, then `INSECUR_SESSION_TOKEN`, then the persisted record, and a
+persisted record is used only for its stored host. `insecur logout` removes the persisted record.
+Authenticated shells and one-shot commands keep short-lived tokens in process memory or the child
+process environment for that shell session (ADR-0007, 2026-07-06 amendment).
 
 CLI commands must be scriptable: stable `--json`, stable error codes, predictable exit codes,
 `--dry-run` for mutations, idempotency keys for high-risk writes, operation IDs for work that must

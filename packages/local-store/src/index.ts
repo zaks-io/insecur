@@ -16,6 +16,7 @@ export {
   generateMachineRootKeyHex,
 } from "./machine-root-key.js";
 export { FILE_FALLBACK_NOTICE } from "./notices.js";
+export { SEALED_RECORD_V1_PREFIX, sealLocalRecord, unsealLocalRecord } from "./sealed-record.js";
 export { resolveKeyStorePaths, resolveUserConfigHome } from "./paths.js";
 export { isLinuxSecretToolAvailable, resolveKeyStoreBackend } from "./resolve-backend.js";
 export type {
