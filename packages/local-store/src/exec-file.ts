@@ -53,7 +53,7 @@ function applyChildProcessFailureExtras(error: Error, extras?: ChildProcessFailu
     (error as NodeJS.ErrnoException & { signal?: NodeJS.Signals | null }).signal = extras.signal;
   }
   if (extras?.code !== undefined && extras.code !== null) {
-    (error as NodeJS.ErrnoException).code = String(extras.code);
+    Object.assign(error, { code: extras.code });
   }
   return error;
 }
@@ -79,6 +79,19 @@ function requireSpawnStdio(child: ReturnType<typeof spawn>): {
   return { stdin, stdout, stderr };
 }
 
+function rejectSpawnMaxBufferExceeded(
+  child: ReturnType<typeof spawn>,
+  reject: (error: Error) => void,
+): void {
+  child.kill();
+  rejectChildProcessFailure(
+    reject,
+    Object.assign(new Error("child process stdio maxBuffer exceeded"), {
+      code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
+    }),
+  );
+}
+
 function attachSpawnOutputHandlers(
   child: ReturnType<typeof spawn>,
   maxBuffer: number,
@@ -86,26 +99,27 @@ function attachSpawnOutputHandlers(
 ): { stdout: string; stderr: string } {
   const output = { stdout: "", stderr: "" };
   let stdoutBytes = 0;
+  let stderrBytes = 0;
   const { stdout, stderr } = requireSpawnStdio(child);
 
   stdout.on("data", (chunk: Buffer | string) => {
     const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
     stdoutBytes += Buffer.byteLength(text, "utf8");
     if (stdoutBytes > maxBuffer) {
-      child.kill();
-      rejectChildProcessFailure(
-        reject,
-        Object.assign(new Error("child process stdout maxBuffer exceeded"), {
-          code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
-        }),
-      );
+      rejectSpawnMaxBufferExceeded(child, reject);
       return;
     }
     output.stdout += text;
   });
 
   stderr.on("data", (chunk: Buffer | string) => {
-    output.stderr += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    stderrBytes += Buffer.byteLength(text, "utf8");
+    if (stderrBytes > maxBuffer) {
+      rejectSpawnMaxBufferExceeded(child, reject);
+      return;
+    }
+    output.stderr += text;
   });
 
   return output;

@@ -20,4 +20,18 @@ describe("sanitizeChildProcessFailureCause", () => {
     expect(sanitized).not.toHaveProperty("spawnargs");
     expect((sanitized as NodeJS.ErrnoException).code).toBe("ERR_CHILD_PROCESS_FAILED");
   });
+
+  it("preserves numeric exit codes and stderr diagnostics on sanitized failures", () => {
+    const raw = Object.assign(new Error("child process exited with failure"), {
+      code: 2,
+      stderr: "lookup miss\n",
+    });
+
+    const sanitized = sanitizeChildProcessFailureCause(raw);
+    expect(sanitized).toMatchObject({
+      message: "child process execFile failed",
+      code: 2,
+      stderr: "lookup miss\n",
+    });
+  });
 });

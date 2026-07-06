@@ -67,12 +67,46 @@ describe("createDefaultExecFile", () => {
       run(process.execPath, ["-e", "process.exit(2)"], { input: marker, timeoutMs: 5_000 }),
     ).rejects.toMatchObject({
       message: "child process execFile failed",
+      code: 2,
     });
     await expect(
       run(process.execPath, ["-e", "process.exit(2)"], { input: marker, timeoutMs: 5_000 }),
-    ).rejects.not.toSatisfy((error: unknown) => {
-      const serialized = JSON.stringify(error);
-      return serialized.includes(marker);
+    ).rejects.toSatisfy((error: unknown) => {
+      if (!(error instanceof Error)) {
+        return true;
+      }
+      const leakSurface = `${error.message}\n${error.stack ?? ""}`;
+      return !leakSurface.includes(marker);
     });
+  });
+
+  it("preserves sanitized stderr diagnostics from stdin child process failures", async () => {
+    const run = createDefaultExecFile();
+    const diagnostic = "adapter-diagnostic-message";
+    await expect(
+      run(
+        process.execPath,
+        ["-e", `console.error(${JSON.stringify(diagnostic)});process.exit(3)`],
+        {
+          input: "stdin-marker-payload",
+          timeoutMs: 5_000,
+        },
+      ),
+    ).rejects.toMatchObject({
+      message: "child process execFile failed",
+      code: 3,
+      stderr: `${diagnostic}\n`,
+    });
+  });
+
+  it("enforces maxBuffer on stderr for stdin child processes", async () => {
+    const run = createDefaultExecFile();
+    await expect(
+      run(
+        process.execPath,
+        ["-e", "process.stderr.write('x'.repeat(2048));process.stdin.resume();"],
+        { input: "stdin-marker-payload", maxBuffer: 128, timeoutMs: 5_000 },
+      ),
+    ).rejects.toMatchObject({ code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" });
   });
 });
