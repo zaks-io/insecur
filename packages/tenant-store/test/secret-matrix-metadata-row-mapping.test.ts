@@ -2,6 +2,8 @@ import { environmentId, secretId, type VariableKey } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveLiveVersion,
+  resolveVersionForMatrixRow,
   toLastSetActor,
   toSecretMatrixRow,
   type ProjectSecretJoinRow,
@@ -37,7 +39,31 @@ describe("toLastSetActor", () => {
     ).toBeNull();
   });
 
-  it("preserves ci_exchange actors without relabeling malformed machine rows", () => {
+  it("returns null for machine actors with an invalid machine identity id", () => {
+    expect(
+      toLastSetActor({
+        actorType: "machine",
+        actorUserId: null,
+        actorMachineIdentityId: "not-a-machine-id",
+      }),
+    ).toBeNull();
+  });
+
+  it("does not relabel malformed machine actors as ci_exchange", () => {
+    expect(
+      toLastSetActor({
+        actorType: "machine",
+        actorUserId: null,
+        actorMachineIdentityId: null,
+      }),
+    ).not.toEqual({
+      actorType: "ci_exchange",
+      userId: null,
+      machineIdentityId: null,
+    });
+  });
+
+  it("preserves explicit ci_exchange actors", () => {
     expect(
       toLastSetActor({
         actorType: "ci_exchange",
@@ -49,6 +75,87 @@ describe("toLastSetActor", () => {
       userId: null,
       machineIdentityId: null,
     });
+  });
+});
+
+describe("resolveLiveVersion", () => {
+  it("classifies secrets without a current version pointer as absent", () => {
+    expect(resolveLiveVersion(joinRow())).toEqual({ kind: "absent" });
+  });
+
+  it("classifies a dangling current version pointer as malformed", () => {
+    expect(
+      resolveLiveVersion(
+        joinRow({
+          currentVersionId: "sv_00000000000000000000000001",
+          liveVersionId: null,
+        }),
+      ),
+    ).toEqual({ kind: "malformed" });
+  });
+
+  it("classifies a current/live version id mismatch as malformed", () => {
+    expect(
+      resolveLiveVersion(
+        joinRow({
+          currentVersionId: "sv_00000000000000000000000001",
+          liveVersionId: "sv_00000000000000000000000002",
+          liveVersionNumberFromRow: 2,
+          liveLifecycleState: "live",
+          livePublishedAt: new Date("2026-06-24T01:00:00.000Z"),
+          liveCreatedAt: new Date("2026-06-24T00:00:00.000Z"),
+        }),
+      ),
+    ).toEqual({ kind: "malformed" });
+  });
+
+  it("classifies invalid stored live version ids as malformed", () => {
+    expect(
+      resolveLiveVersion(
+        joinRow({
+          currentVersionId: "secv_00000000000000000000000001",
+          liveVersionId: "secv_00000000000000000000000001",
+          liveVersionNumberFromRow: 2,
+          liveLifecycleState: "live",
+          livePublishedAt: new Date("2026-06-24T01:00:00.000Z"),
+          liveCreatedAt: new Date("2026-06-24T00:00:00.000Z"),
+        }),
+      ),
+    ).toEqual({ kind: "malformed" });
+  });
+});
+
+describe("resolveVersionForMatrixRow", () => {
+  const draftVersion: ResolvedSecretVersionRow = {
+    secretVersionId: "sv_00000000000000000000000002" as ResolvedSecretVersionRow["secretVersionId"],
+    versionNumber: 1,
+    lifecycleState: "draft",
+    lastSetAt: new Date("2026-06-25T00:00:00.000Z"),
+  };
+
+  it("falls back to draft only when the live version is absent", () => {
+    expect(
+      resolveVersionForMatrixRow(
+        joinRow({ secretId: "sec_00000000000000000000000002" }),
+        new Map([["sec_00000000000000000000000002", draftVersion]]),
+      ),
+    ).toEqual(draftVersion);
+  });
+
+  it("returns null for malformed live metadata even when a draft exists", () => {
+    expect(
+      resolveVersionForMatrixRow(
+        joinRow({
+          currentVersionId: "secv_00000000000000000000000001",
+          liveVersionId: "secv_00000000000000000000000001",
+          liveVersionNumberFromRow: 2,
+          liveLifecycleState: "live",
+          livePublishedAt: new Date("2026-06-24T01:00:00.000Z"),
+          liveCreatedAt: new Date("2026-06-24T00:00:00.000Z"),
+        }),
+        new Map([["sec_00000000000000000000000001", draftVersion]]),
+      ),
+    ).toBeNull();
   });
 });
 
