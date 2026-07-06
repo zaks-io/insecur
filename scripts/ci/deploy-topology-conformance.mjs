@@ -260,8 +260,15 @@ function extractPublicRoutes(indexPath) {
       mounts.add("*");
     }
   }
-  if (/pathname\s*===\s*["'`]\/healthz["'`]/.test(source)) {
-    mounts.add("/healthz");
+  // Plain fetch handlers (no Hono router) declare public routes as
+  // `pathname === "/..."` branches; extract every such literal.
+  const pathnameLiteralPattern = /pathname\s*===\s*["'`](\/[^"'`]*)["'`]/g;
+  let pathnameMatch;
+  while ((pathnameMatch = pathnameLiteralPattern.exec(source)) !== null) {
+    const prefix = pathnameMatch[1];
+    if (isPublicMount(prefix)) {
+      mounts.add(prefix);
+    }
   }
   return [...mounts].sort();
 }
