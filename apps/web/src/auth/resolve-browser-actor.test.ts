@@ -275,6 +275,17 @@ describe("resolveBrowserActor", () => {
     expect(first.ok).toBe(true);
     expect(second).toEqual(first);
     expect(workosPortMock.createWorkOSSessionPortFromEnv).toHaveBeenCalledTimes(1);
-    expect(setResponseHeaderMock).toHaveBeenCalledTimes(1);
+    // The finalize path runs exactly once despite two resolutions (per-request memoization), so its
+    // response-header side effects fire once each: the rotation Set-Cookie plus the authed-document
+    // Cache-Control/Vary (INS-410). A second call must not re-emit any of them.
+    const setCookieCalls = setResponseHeaderMock.mock.calls.filter(
+      ([name]) => name === "Set-Cookie",
+    );
+    const cacheControlCalls = setResponseHeaderMock.mock.calls.filter(
+      ([name]) => name === "Cache-Control",
+    );
+    expect(setCookieCalls).toHaveLength(1);
+    expect(cacheControlCalls).toHaveLength(1);
+    expect(setResponseHeaderMock).toHaveBeenCalledTimes(3);
   });
 });

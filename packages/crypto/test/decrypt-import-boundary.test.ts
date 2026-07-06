@@ -209,6 +209,57 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );
 
+  // Regression guard (INS-410): a per-app `no-restricted-imports` block scoped to apps/web/src/**
+  // once shallow-merged over the shared ADR-0071 decrypt boundary and silently dropped it for every
+  // web src file, because flat-config replaces the `rules` object per matched file. Assert the
+  // resolved config for a web src module still carries the decrypt boundary, and prove it live: a
+  // static decrypt import placed in apps/web/src must fail lint. Any future web-scoped rules block
+  // that clobbers the boundary breaks both assertions instead of failing closed silently.
+  it(
+    "applies decrypt boundary to apps/web src modules",
+    async () => {
+      const config = await readLintConfigFor(path.join(repoRoot, "apps/web/src/server/bff-api.ts"));
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).toContain(DECRYPT_IMPORT_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "fails lint for a static decrypt import placed in apps/web src",
+    async () => {
+      const fixturePath = path.join(
+        repoRoot,
+        "apps/web/src/.decrypt-import-boundary-negative.fixture.ts",
+      );
+      writeFileSync(
+        fixturePath,
+        [
+          'import { decryptSecretValueForRuntime } from "@insecur/crypto";',
+          "",
+          "export function webSrcDecryptImport(): typeof decryptSecretValueForRuntime {",
+          "  return decryptSecretValueForRuntime;",
+          "}",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      try {
+        const output = await runEslintExpectFailure(fixturePath);
+        expect(output).toMatch(/no-restricted-imports/);
+        expect(output).toMatch(/decryptSecretValueForRuntime/);
+      } finally {
+        unlinkSync(fixturePath);
+      }
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
   it("keeps the allowlisted decrypt egress modules", () => {
     expect(readDecryptImportAllowlist()).toEqual([
       "packages/runtime-injection/src/decrypt-grant-secret.ts",

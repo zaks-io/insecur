@@ -33,6 +33,7 @@ function browserSessionRotationCookieHeaders(rotation: BrowserSessionRotation): 
 }
 
 export function applyBrowserSessionFromResolveResult(resolved: ResolveBrowserActorResult): void {
+  applyAuthedDocumentCacheHeaders(resolved);
   const cookieHeaders = browserSessionCookieHeadersFromResolveResult(resolved);
   if (cookieHeaders.length === 0) {
     return;
@@ -41,14 +42,20 @@ export function applyBrowserSessionFromResolveResult(resolved: ResolveBrowserAct
 }
 
 /**
- * Per-request cache directive for authed console SSR documents. These 200 HTML responses embed
- * per-user org metadata (display names, opaque IDs), so they must never be cached by an
- * intermediary or the browser cache. Emitted from the single authed-read chokepoint
- * (`resolveAuthenticatedApiClient`) so a new authed console route inherits the header without a
- * per-route copy; `Vary: Cookie` keeps a shared cache from serving one actor's document to another.
- * Redirect and Set-Cookie responses set their own `no-store` (browser-oauth.ts) and are unaffected.
+ * Per-request cache directive for authed console SSR documents. A successful browser-actor
+ * resolution means an authed console document is being rendered; its 200 HTML embeds per-user org
+ * metadata (display names, opaque IDs), so it must never be cached by an intermediary or the
+ * browser cache. Emitting here — the finalize path every actor resolution runs through
+ * (`finalizeBrowserActorResult`) — makes "any successful authed resolution stamps no-store" a
+ * structural invariant: no session primitive needs fencing, because any loader that resolves an
+ * actor at all gets the header. Fires only on `ok`; the unauthenticated and INS-412 fail-closed
+ * paths render a redirect/login that owns its own `no-store` (browser-oauth.ts), so they are left
+ * alone. `Vary: Cookie` keeps a shared cache from serving one actor's document to another.
  */
-export function applyAuthedDocumentCacheHeaders(): void {
+function applyAuthedDocumentCacheHeaders(resolved: ResolveBrowserActorResult): void {
+  if (!resolved.ok) {
+    return;
+  }
   setResponseHeader("Cache-Control", "private, no-store");
   setResponseHeader("Vary", "Cookie");
 }
