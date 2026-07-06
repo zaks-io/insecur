@@ -118,6 +118,7 @@ describe("no credential persistence", () => {
     await runLoginCommand(flags, createMockApi(), mockContext(), {
       shell: false,
       openBrowser: false,
+      persist: false,
     });
     expect(getMemorySession()?.credential).toBe(sensitiveCredential);
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
@@ -131,6 +132,7 @@ describe("no credential persistence", () => {
     await runLoginCommand(flags, createMockApi(), mockContext(), {
       shell: false,
       openBrowser: false,
+      persist: false,
     });
     projectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-"));
     const isolatedHome = await createIsolatedHome("insecur-cli-init-home-");

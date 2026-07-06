@@ -101,7 +101,6 @@ export async function runProfilePolicyPath(
   context: ResolvedCliContext,
   commandOptions: RunCommandOptions,
 ): Promise<number> {
-  const credential = requireSessionCredential();
   const profileRun = resolveProfileRunInput({
     flags,
     context,
@@ -112,6 +111,7 @@ export async function runProfilePolicyPath(
       ? {}
       : { policyIdOverride: commandOptions.policyIdOverride }),
   });
+  const credential = await requireSessionCredential(profileRun.host);
   const command = requireRunCommand(commandOptions.command);
   const { issueData, delivery } = await issueAndConsumePolicyGrant({
     api,

@@ -5,6 +5,7 @@ import { parseGlobalOptions } from "./cli-options.js";
 import { runInitCommand, DEFAULT_INIT_PROFILE_SLUG } from "./commands/init.js";
 import { registerLoginCommand } from "./register-login-command.js";
 import { registerAuditCommands } from "./audit-commands.js";
+import { runLogoutCommand } from "./commands/logout.js";
 import { runShellCommand } from "./commands/shell.js";
 import { registerRunCommand } from "./register-run-command.js";
 import { loadAndResolveCliContext } from "./config/load-cli-context.js";
@@ -46,10 +47,18 @@ function buildProgram(): Command {
   const program = attachGlobalOptions(new Command());
   program
     .name("insecur")
-    .description("insecur CLI — metadata-only, memory/session-only auth")
+    .description("insecur CLI — metadata-only output, sealed local session auth")
     .version(cliVersion());
 
   registerLoginCommand(program, { globalFlags, resolveApi });
+
+  program
+    .command("logout")
+    .description("Clear the persisted CLI session")
+    .action(async function logoutAction(_args, command: CommanderCommand) {
+      const flags = globalFlags(command);
+      process.exitCode = await runLogoutCommand(flags);
+    });
 
   program
     .command("shell")

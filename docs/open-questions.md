@@ -73,8 +73,8 @@ ship. Full counsel punch list in [research/legal-liability.md](research/legal-li
   remote shells, with the cross-device consent-phishing treatment) is decided in ADR-0010's
   2026-07-04 amendment; loopback PKCE stays the default on browser-reachable machines. The
   implemented INS-31 login (a WorkOS cookie-exchange bridge in
-  `packages/cli/src/commands/login.ts`) does not realize the device flow yet. The
-  memory/session-only token posture is decided (ADR-0007).
+  `packages/cli/src/commands/login.ts`) does not realize the device flow yet. Token custody is
+  decided (ADR-0007, 2026-07-06 amendment: keychain-sealed persisted sessions by default).
 - **Approval notification channels are decided in ADR-0017** (browser/mobile push primary,
   in-app and email fallback, email alert-only). Open: timing of the Capacitor-wrapped mobile app
   for native push (reference: the founder's existing Capacitor project). Push Device Registration

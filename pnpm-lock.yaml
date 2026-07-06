@@ -604,6 +604,9 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/local-store':
+        specifier: workspace:*
+        version: link:../local-store
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.4
