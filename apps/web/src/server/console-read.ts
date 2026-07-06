@@ -7,6 +7,7 @@ import { resolveAuthenticatedApiClient, type BffApiClient } from "./bff-api.js";
  */
 export type ConsoleRead<T> =
   | { readonly kind: "unauthenticated" }
+  | { readonly kind: "unavailable" }
   | { readonly kind: "denied" }
   | { readonly kind: "ok"; readonly value: T };
 
@@ -31,13 +32,13 @@ export async function consoleRead<T>(
     return { kind: "unauthenticated" };
   }
   // Fail closed: a transport error or a non-JSON/malformed body (e.g. `response.json()` throwing on
-  // a 5xx HTML page) collapses to the same metadata-safe not-found as a parsed null, never a 500
-  // loader error. Only a resolved actor with no readable value reaches the browser as `denied`.
+  // a 5xx HTML page) returns `unavailable` when the session resolved, so the shell can retry
+  // without a login redirect (INS-415). Only a resolved actor with a parsed null reaches `denied`.
   let value: T | null;
   try {
     value = await read(client.api);
   } catch {
-    return { kind: "denied" };
+    return { kind: "unavailable" };
   }
   return value === null ? { kind: "denied" } : { kind: "ok", value };
 }

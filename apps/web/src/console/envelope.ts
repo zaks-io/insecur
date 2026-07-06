@@ -1,3 +1,26 @@
+/** Read the stable `error.code` from an API envelope, or `null` when the body is not an error. */
+export function readApiErrorCode(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
+  const envelope = body as Record<string, unknown>;
+  if (envelope.ok !== false) {
+    return null;
+  }
+  const error = envelope.error;
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+  const code = (error as Record<string, unknown>).code;
+  return typeof code === "string" ? code : null;
+}
+
+/** True when the API returned an authentication failure the console should treat as logged-out. */
+export function isAuthErrorEnvelope(body: unknown): boolean {
+  const code = readApiErrorCode(body);
+  return code?.startsWith("auth.") ?? false;
+}
+
 /**
  * Extract one `data` field from a `{ ok: true, data: { ... } }` API success envelope. Returns
  * `undefined` for anything else (error envelopes, malformed bodies) so callers fail closed; the

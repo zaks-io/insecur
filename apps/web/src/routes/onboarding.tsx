@@ -1,12 +1,12 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { ConsoleRouteError } from "../components/console-route-error.js";
 import { CliHandoffPane } from "../components/onboarding/cli-handoff-pane.js";
 import { OnboardingFrame } from "../components/onboarding/onboarding-frame.js";
 import {
   OnboardingWizard,
   type ProvisionedHandoff,
 } from "../components/onboarding/onboarding-wizard.js";
-import { loginRedirectHref } from "../console/login-redirect.js";
 import {
   decideOnboardingRoute,
   parseHandoffSearch,
@@ -16,6 +16,7 @@ import {
 } from "../onboarding/routing.js";
 import type { ProvisionedWorkspace } from "../onboarding/provisioning.js";
 import type { OnboardingStepId } from "../onboarding/steps.js";
+import { requireConsoleSession } from "../console/route-guards.js";
 import { loadOrgProjects, loadProjectEnvironments } from "../server/console-projects.js";
 import { loadConsoleSession } from "../server/console-session.js";
 
@@ -33,11 +34,11 @@ export const Route = createFileRoute("/onboarding")({
   }),
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ deps }) => {
-    const session = await loadConsoleSession();
+    const session = requireConsoleSession(
+      await loadConsoleSession(),
+      onboardingReturnTo(parseHandoffSearch(deps.search)),
+    );
     const workspace = parseHandoffSearch(deps.search);
-    if (!session.authenticated) {
-      throw redirect({ href: loginRedirectHref(onboardingReturnTo(workspace)) });
-    }
     const decision = decideOnboardingRoute(session.organizations, workspace);
     if (decision.kind === "redirect-console") {
       throw redirect({ href: decision.href });
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/onboarding")({
     return { ...decision, ...names };
   },
   component: OnboardingPage,
+  errorComponent: ConsoleRouteError,
 });
 
 function onboardingReturnTo(workspace: ProvisionedWorkspace | undefined): string {

@@ -1,24 +1,23 @@
 import { Badge } from "@insecur/ui";
-import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
-import { loginRedirectHref } from "../console/login-redirect.js";
+import { createFileRoute } from "@tanstack/react-router";
+import { ConsoleFramedRouteError } from "../components/console-route-error.js";
 import { shortDate, type ConsoleEnvironment } from "../console/projects.js";
+import { requireConsoleRead } from "../console/route-guards.js";
 import { CliInvitation } from "../components/cli-invitation.js";
 import { loadProjectEnvironments } from "../server/console-projects.js";
 
 export const Route = createFileRoute("/orgs/$orgId/projects/$projectId/")({
   loader: async ({ params, location }) => {
-    const read = await loadProjectEnvironments({
-      data: { organizationId: params.orgId, projectId: params.projectId },
-    });
-    if (read.kind === "unauthenticated") {
-      throw redirect({ href: loginRedirectHref(location.href) });
-    }
-    if (read.kind === "denied") {
-      throw notFound();
-    }
-    return { environments: read.value };
+    const environments = requireConsoleRead(
+      await loadProjectEnvironments({
+        data: { organizationId: params.orgId, projectId: params.projectId },
+      }),
+      location.href,
+    );
+    return { environments };
   },
   component: ProjectEnvironmentsPage,
+  errorComponent: ConsoleFramedRouteError,
 });
 
 const HEADER_CELL = "px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase";

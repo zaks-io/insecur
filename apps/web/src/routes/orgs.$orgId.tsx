@@ -1,19 +1,17 @@
 import { Button } from "@insecur/ui";
-import { createFileRoute, notFound, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, notFound, Outlet } from "@tanstack/react-router";
 import { ConsoleFrame } from "../components/console-frame.js";
+import { ConsoleRouteError } from "../components/console-route-error.js";
 import { SiteFrame } from "../components/site-frame.js";
-import { loginRedirectHref } from "../console/login-redirect.js";
 import { findConsoleOrganization } from "../console/organizations.js";
+import { requireConsoleSession } from "../console/route-guards.js";
 import { loadConsoleSession } from "../server/console-session.js";
 
 export const Route = createFileRoute("/orgs/$orgId")({
   // One memberships read per org entry; section switches inside the shell reuse it briefly.
   staleTime: 30_000,
   loader: async ({ params, location }) => {
-    const session = await loadConsoleSession();
-    if (!session.authenticated) {
-      throw redirect({ href: loginRedirectHref(location.href) });
-    }
+    const session = requireConsoleSession(await loadConsoleSession(), location.href);
     // Metadata-safe denial: a non-member org ID is indistinguishable from a nonexistent one.
     const activeOrg = findConsoleOrganization(session.organizations, params.orgId);
     if (activeOrg === undefined) {
@@ -23,6 +21,7 @@ export const Route = createFileRoute("/orgs/$orgId")({
   },
   component: OrgLayout,
   notFoundComponent: OrgNotFound,
+  errorComponent: ConsoleRouteError,
 });
 
 function OrgLayout() {
