@@ -22,5 +22,7 @@ export async function resolveAuthenticatedApiClient(): Promise<{
   if (!resolved.ok) {
     return null;
   }
+  // The authed-document no-store cache directive (INS-410) is stamped in resolveBrowserActor's
+  // finalize path, so any successful actor resolution carries it, not just this BFF chokepoint.
   return { api: apiClientFor(webEnv, resolved.actor), actor: resolved.actor };
 }

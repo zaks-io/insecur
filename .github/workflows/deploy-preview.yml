@@ -58,6 +58,7 @@ jobs:
           PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
+          WORKOS_AUTHKIT_ORIGIN: ${{ vars.WORKOS_AUTHKIT_ORIGIN }}
           PREVIEW_POSTGRES_RUNTIME_ROLE: ${{ vars.PREVIEW_POSTGRES_RUNTIME_ROLE }}
           PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
           PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID }}
@@ -90,6 +91,7 @@ jobs:
             PREVIEW_INSTANCE_ID
             TURNSTILE_SITE_KEY
             WORKOS_CLIENT_ID
+            WORKOS_AUTHKIT_ORIGIN
             PREVIEW_POSTGRES_RUNTIME_ROLE
             PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID
             PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID
@@ -110,7 +112,11 @@ jobs:
           missing=0
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is not configured in the Preview GitHub Environment."
+              if [ "$name" = "SENTRY_AUTH_TOKEN" ]; then
+                echo "::error::$name is not configured for this deploy job. Add the repository Actions secret or an optional Preview environment override."
+              else
+                echo "::error::$name is not configured in the Preview GitHub Environment."
+              fi
               missing=1
             fi
           done
@@ -135,6 +141,7 @@ jobs:
           INSECUR_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           INSECUR_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
+          INSECUR_WORKOS_AUTHKIT_ORIGIN: ${{ vars.WORKOS_AUTHKIT_ORIGIN }}
           INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID }}
           INSECUR_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID }}
@@ -175,6 +182,7 @@ jobs:
           INSECUR_DEPLOY_SHA: ${{ github.sha }}
           INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
           INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
+          INSECUR_REQUIRE_SENTRY_SOURCEMAPS: "true"
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: zaksio
           SENTRY_PROJECT: insecur
@@ -182,6 +190,7 @@ jobs:
           INSECUR_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           INSECUR_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
+          INSECUR_WORKOS_AUTHKIT_ORIGIN: ${{ vars.WORKOS_AUTHKIT_ORIGIN }}
           INSECUR_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_IP_NAMESPACE_ID }}
           INSECUR_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID }}
           INSECUR_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID: ${{ vars.PREVIEW_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID }}
@@ -211,7 +220,11 @@ jobs:
           )
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is not configured in the Preview GitHub Environment."
+              if [ "$name" = "SENTRY_AUTH_TOKEN" ]; then
+                echo "::error::$name is not configured for this deploy job. Add the repository Actions secret or an optional Preview environment override."
+              else
+                echo "::error::$name is not configured in the Preview GitHub Environment."
+              fi
               exit 1
             fi
           done
@@ -254,6 +267,14 @@ jobs:
 
           pnpm deploy:preview
           echo "base_url=https://app.preview.insecur.cloud" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Sentry source maps for preview release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: zaksio
+          SENTRY_PROJECT: insecur
+          SENTRY_RELEASE: ${{ github.sha }}
+        run: node scripts/sentry-verify-release-sourcemaps.mjs
 
       - name: Run preview application smoke
         env:

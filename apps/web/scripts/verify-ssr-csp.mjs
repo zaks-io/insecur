@@ -120,6 +120,9 @@ const mf = new Miniflare({
         TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
         TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
         INSTANCE_ID: "inst_LOCAL_DEV",
+        // Stands in for the per-environment WorkOS redirect chain (SDK host + hosted AuthKit domain)
+        // so the /login CSP form-action can be asserted to allow every off-origin hop (INS-417).
+        WORKOS_AUTHKIT_ORIGIN: "https://api.workos.com https://tenant-ssr-csp.authkit.app",
         // Ephemeral smoke credentials stand in for the WorkOS cookie so the authed console shell
         // can be exercised without a live IdP (same mechanism preview smoke uses).
         PREVIEW_SMOKE_SESSION_CREDENTIALS: "true",
@@ -197,10 +200,36 @@ async function fetchPath(path, headers = {}) {
   });
 }
 
-async function assertRouteHasMatchingCspNonce(path, { headers = {}, expect = [] } = {}) {
+async function assertRouteHasMatchingCspNonce(
+  path,
+  { headers = {}, expect = [], authedDocument = false } = {},
+) {
   const response = await fetchPath(path, headers);
   if (!response.ok) {
     throw new Error(`${path} returned ${response.status}`);
+  }
+
+  // Authed console documents embed per-user org metadata and must never be cached (INS-410); public
+  // SSR pages carry no such directive from this seam. Assert both directions on the real response.
+  const cacheControl = response.headers.get("cache-control");
+  if (authedDocument) {
+    if (cacheControl !== "private, no-store") {
+      throw new Error(
+        `${path} authed console document must send Cache-Control: private, no-store, got ${cacheControl}`,
+      );
+    }
+    if (response.headers.get("vary") !== "Cookie") {
+      throw new Error(`${path} authed console document must send Vary: Cookie`);
+    }
+  } else {
+    if (cacheControl?.includes("no-store")) {
+      throw new Error(
+        `${path} is a public SSR page but carries a no-store directive: ${cacheControl}`,
+      );
+    }
+    if (response.headers.get("vary") === "Cookie") {
+      throw new Error(`${path} is a public SSR page but carries Vary: Cookie`);
+    }
   }
 
   const csp = response.headers.get("content-security-policy");
@@ -248,6 +277,39 @@ async function assertNotFound(path, headers) {
   console.log(`ok ${path} -> 404`);
 }
 
+// The login form 303-redirects through the off-origin WorkOS chain (api.workos.com then the hosted
+// AuthKit domain). Chromium enforces `form-action` against every URL in the submission redirect
+// chain, so `/login` must allowlist every configured redirect origin in addition to 'self', and
+// never widen to a wildcard (INS-417).
+async function assertLoginFormActionAllowsAuthkit(expectedOrigins) {
+  const response = await fetchPath("/login");
+  const csp = response.headers.get("content-security-policy");
+  if (!csp) {
+    throw new Error("/login missing Content-Security-Policy header");
+  }
+  const formAction = csp
+    .split(";")
+    .map((directive) => directive.trim())
+    .find((directive) => directive.startsWith("form-action"));
+  if (!formAction) {
+    throw new Error(`/login CSP missing form-action directive: ${csp}`);
+  }
+  if (!formAction.includes("'self'")) {
+    throw new Error(`/login form-action must include 'self': ${formAction}`);
+  }
+  for (const origin of expectedOrigins) {
+    if (!formAction.includes(origin)) {
+      throw new Error(
+        `/login form-action must allow the configured redirect origin ${origin}: ${formAction}`,
+      );
+    }
+  }
+  if (formAction.includes("*")) {
+    throw new Error(`/login form-action must never contain a wildcard: ${formAction}`);
+  }
+  console.log(`ok /login form-action allows ${expectedOrigins.join(" ")} (no wildcard)`);
+}
+
 async function assertUnauthenticatedConsoleRedirect(path) {
   const response = await fetchPath(path);
   const location = response.headers.get("location") ?? "";
@@ -262,10 +324,15 @@ try {
   const authorization = { Authorization: `Bearer ${await mintSmokeCredential()}` };
   await assertRouteHasMatchingCspNonce("/");
   await assertRouteHasMatchingCspNonce("/login");
+  await assertLoginFormActionAllowsAuthkit([
+    "https://api.workos.com",
+    "https://tenant-ssr-csp.authkit.app",
+  ]);
   await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}`);
-  await assertRouteHasMatchingCspNonce("/whoami", { headers: authorization });
+  await assertRouteHasMatchingCspNonce("/whoami", { headers: authorization, authedDocument: true });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}`, {
     headers: authorization,
+    authedDocument: true,
     expect: [
       ORG.displayName,
       ORG.organizationId,
@@ -277,6 +344,7 @@ try {
   });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/audit`, {
     headers: authorization,
+    authedDocument: true,
     expect: [ORG.displayName, 'aria-label="Breadcrumb"'],
   });
 
@@ -286,16 +354,19 @@ try {
   );
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/projects`, {
     headers: authorization,
+    authedDocument: true,
     expect: [PROJECT.displayName, PROJECT.projectId, BARE_PROJECT.displayName, "2 projects"],
   });
   await assertRouteHasMatchingCspNonce(`/orgs/${EMPTY_ORG.organizationId}/projects`, {
     headers: authorization,
+    authedDocument: true,
     expect: ["No projects yet", "insecur init"],
   });
   await assertRouteHasMatchingCspNonce(
     `/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}`,
     {
       headers: authorization,
+      authedDocument: true,
       expect: [
         PROJECT.displayName,
         PROJECT.projectId,
@@ -313,6 +384,7 @@ try {
     `/orgs/${ORG.organizationId}/projects/${BARE_PROJECT.projectId}`,
     {
       headers: authorization,
+      authedDocument: true,
       expect: ["No environments yet", "insecur envs create"],
     },
   );
