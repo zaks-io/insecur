@@ -70,7 +70,7 @@ The Decision bullet above originally listed five Built-In Role presets: owner, a
 
 ## References
 
-- Infisical local reference: `/Users/isaacsuttell/src/infisical`
+- Infisical (reference implementation): https://github.com/Infisical/infisical
 - OAuth 2.0 Security Best Current Practice: RFC 9700
 - OWASP Authentication Cheat Sheet
 - OWASP Session Management Cheat Sheet
