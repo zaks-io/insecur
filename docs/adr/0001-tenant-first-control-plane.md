@@ -56,7 +56,7 @@ The current pre-v1 schema should be treated as disposable learning code, not a p
 
 Every data access path needs an object-level authorization check that starts from the authenticated actor and resolves through organization/project membership. A route that can load a row by ID without organization context is a bug.
 
-The CLI needs a committed, non-secret project config so agents can run commands without repeating host, organization, project, and environment flags. Secret-bearing credentials are memory/session-only and must not be persisted by the CLI; use provider/OIDC exchanges, safe stdin flows, or session-only child environments instead of project config or user config.
+The CLI needs a committed, non-secret project config so agents can run commands without repeating host, organization, project, and environment flags. Secret-bearing credentials never live in project config or user config; they stay in provider/OIDC exchanges, safe stdin flows, session-only child environments, or the sealed keychain-backed session record, never plaintext on disk (ADR-0007, 2026-07-06 amendment).
 
 Provider app connections add setup work per provider, but they improve user control: users can revoke Vercel and GitHub through their app installation flows, and revoke Cloudflare by deleting the scoped Cloudflare API token at the provider.
 
