@@ -237,6 +237,12 @@ The CLI has local profile/config resolution, safe secret input paths, masked TTY
 stdin/generation paths for secret values, metadata-only output rendering, child-process
 environment construction, and HTTP clients for the First Value API routes.
 
+Installer scripts are served by the Public Site Worker at `/install.sh` and `/install.ps1`
+(`apps/site/src/install-sh.ts`, `apps/site/src/install-ps1.ts`): they fetch the `cli-v*`
+GitHub Release binaries and verify them against `SHA256SUMS` before installing. The public
+`curl | sh` path stays dead until the draft release is published and the repo is public;
+until then end-to-end verification uses the `INSECUR_INSTALL_BASE_URL` fixture override.
+
 Current login implementation:
 
 - default `insecur login`: native-client WorkOS AuthKit PKCE loopback flow

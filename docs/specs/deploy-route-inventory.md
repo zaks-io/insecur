@@ -94,10 +94,17 @@ over the private `API` binding. URLs carry opaque Resource IDs only (docs/web-co
 Public marketing/legal/security surface (ADR-0078). Holds no auth session, database, keyring, API,
 Runtime, or product-control-plane binding.
 
-| Method | Mount prefix |
-| ------ | ------------ |
-| GET    | `/healthz`   |
-| GET    | `/`          |
+`/install.sh` and `/install.ps1` are the CLI installer scripts, served as static text with no
+capability: they download the published `cli-v*` GitHub Release binaries and refuse to install
+anything that fails SHA-256 verification against the release's `SHA256SUMS`. Both answer GET and
+HEAD; other methods get 405.
+
+| Method | Mount prefix   |
+| ------ | -------------- |
+| GET    | `/healthz`     |
+| GET    | `/`            |
+| GET    | `/install.sh`  |
+| GET    | `/install.ps1` |
 
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 
