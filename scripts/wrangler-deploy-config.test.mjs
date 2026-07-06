@@ -357,6 +357,12 @@ test("Turbo build and deploy tasks pass through Sentry release upload env", asyn
     for (const envName of ["SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"]) {
       assert.ok(passThroughEnv.includes(envName), `${taskName} must pass ${envName}`);
     }
+    if (!taskName.includes("dry-run")) {
+      assert.ok(
+        passThroughEnv.includes("INSECUR_REQUIRE_SENTRY_SOURCEMAPS"),
+        `${taskName} must pass INSECUR_REQUIRE_SENTRY_SOURCEMAPS`,
+      );
+    }
   }
 });
 

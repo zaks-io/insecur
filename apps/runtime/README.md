@@ -22,13 +22,16 @@ src/rpc/*                      Hop-token verification + RpcResult error mapping 
 wrangler.jsonc                 secrets_store_secrets: [INSTANCE_ROOT_KEY_V1]; hop-token secret via
                                encrypted Worker secret in deploy (not plaintext var)
 scripts/deploy-content-only.mjs
-                               Production CI deploy: upload code only, preserve deployed bindings
+                               Production CI deploy entrypoint
+scripts/deploy-content-only-lib.mjs
+                               Upload code and refresh public deploy vars while preserving bindings
 ```
 
 Production CI intentionally does not run `wrangler deploy` for this Worker. Wrangler treats the
 Secrets Store binding association as a Secrets Store write, which would give CI authority to mutate
 root-key custody. Instead, CI builds the same Worker bundle, verifies the deployed Runtime bindings
-and settings match `wrangler.jsonc`, and uploads only script content.
+and settings match `wrangler.jsonc`, uploads only script content, and patches public plain-text
+deploy vars such as `SENTRY_RELEASE` so runtime errors report the same release as uploaded maps.
 
 ## The seam
 
