@@ -4,17 +4,35 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { buildSentryCliEnv, SENTRY_CLI_TIMEOUT_MS } from "./sentry-cli.mjs";
+import {
+  buildArtifactBundlesUrl,
+  countReleaseArtifactBundleFiles,
+  fetchReleaseArtifactBundles,
+  parseArtifactBundlesPayload,
+  releaseHasArtifactBundleSourcemaps,
+  waitForReleaseArtifactBundles,
+} from "./sentry-artifact-bundles.mjs";
+import {
+  buildSentryCliEnv,
+  resolveSentryCliInvocation,
+  SENTRY_CLI_TIMEOUT_MS,
+} from "./sentry-cli.mjs";
 import { runPostDeploySentrySourcemaps } from "./post-deploy-sentry-sourcemaps.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 import { hasSourceMap, uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
-import {
-  isSourceMapArtifact,
-  listReleaseFiles,
-  parseReleaseFilesList,
-  releaseHasSourceMapArtifacts,
-  verifyReleaseSourcemaps,
-} from "./sentry-verify-release-sourcemaps.mjs";
+import { verifyReleaseSourcemaps } from "./sentry-verify-release-sourcemaps.mjs";
+
+const verifySourcemapEnv = {
+  SENTRY_AUTH_TOKEN: "token-value",
+  SENTRY_RELEASE: "release-1",
+};
+
+const noUploadedArtifactBundlePattern =
+  /has no uploaded artifact bundle source maps for project insecur/u;
+
+function resolveImmediately() {
+  return Promise.resolve();
+}
 
 test("deploy workflows read SENTRY_AUTH_TOKEN from repository or environment secrets", async () => {
   const { readFile } = await import("node:fs/promises");
@@ -161,29 +179,77 @@ test("uploadWranglerSourcemaps skips missing maps when upload is not required", 
   }
 });
 
-test("verifyReleaseSourcemaps skips when auth token is absent", () => {
-  assert.deepEqual(verifyReleaseSourcemaps({}), {
+test("verifyReleaseSourcemaps skips when auth token is absent", async () => {
+  assert.deepEqual(await verifyReleaseSourcemaps({}), {
     action: "skip",
     reason: "missing_auth_token",
   });
 });
 
-test("parseReleaseFilesList ignores blank lines", () => {
-  assert.deepEqual(parseReleaseFilesList("~/index.js\n\n~/index.js.map\n"), [
-    "~/index.js",
-    "~/index.js.map",
-  ]);
+test("parseArtifactBundlesPayload accepts array and paginated payloads", () => {
+  assert.deepEqual(parseArtifactBundlesPayload([{ bundleId: "a" }]), [{ bundleId: "a" }]);
+  assert.deepEqual(parseArtifactBundlesPayload({ data: [{ bundleId: "b" }] }), [{ bundleId: "b" }]);
+  assert.deepEqual(parseArtifactBundlesPayload({}), []);
 });
 
-test("releaseHasSourceMapArtifacts requires at least one map artifact", () => {
-  assert.equal(releaseHasSourceMapArtifacts(["~/index.js", "~/assets/client.js"]), false);
-  assert.equal(releaseHasSourceMapArtifacts(["~/index.js.map"]), true);
-  assert.equal(isSourceMapArtifact("~/index.js.map"), true);
-  assert.equal(isSourceMapArtifact("~/assets/sourcemap-report.json"), false);
+test("releaseHasArtifactBundleSourcemaps requires uploaded files for the release", () => {
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps(
+      [{ fileCount: 0, associations: [{ release: "release-1" }] }],
+      "release-1",
+    ),
+    false,
+  );
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps(
+      [{ fileCount: 3, associations: [{ release: "other-release" }] }],
+      "release-1",
+    ),
+    false,
+  );
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps(
+      [{ fileCount: 2, associations: [{ release: "release-1" }] }],
+      "release-1",
+    ),
+    true,
+  );
 });
 
-test("listReleaseFiles parses mocked sentry-cli stdout", () => {
-  const files = listReleaseFiles(
+test("releaseHasArtifactBundleSourcemaps accepts query-scoped bundles without associations", () => {
+  const release = "release-1";
+  const uploadedBundle = { bundleId: "bundle-1", fileCount: 3 };
+
+  assert.equal(releaseHasArtifactBundleSourcemaps([uploadedBundle], release), true);
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps([{ ...uploadedBundle, associations: [] }], release),
+    true,
+  );
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps([{ ...uploadedBundle, associations: undefined }], release),
+    true,
+  );
+  assert.equal(countReleaseArtifactBundleFiles([uploadedBundle], release), 3);
+});
+
+test("buildArtifactBundlesUrl queries artifact bundles for the deployed release", () => {
+  assert.equal(
+    buildArtifactBundlesUrl(
+      {
+        action: "upload",
+        authToken: "token-value",
+        org: "zaksio",
+        project: "insecur",
+        release: "release-1",
+      },
+      { SENTRY_URL: "https://sentry.example/" },
+    ),
+    "https://sentry.example/api/0/projects/zaksio/insecur/files/artifact-bundles/?query=release-1",
+  );
+});
+
+test("fetchReleaseArtifactBundles parses artifact bundle payloads", async () => {
+  const bundles = await fetchReleaseArtifactBundles(
     {
       action: "upload",
       authToken: "token-value",
@@ -193,34 +259,166 @@ test("listReleaseFiles parses mocked sentry-cli stdout", () => {
     },
     {},
     {
-      runCli: () => ({
-        stdout: " ~/index.js.map \n~/assets/app.js\n",
-        status: 0,
-      }),
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify([
+            {
+              bundleId: "bundle-1",
+              fileCount: 4,
+              associations: [{ release: "release-1", dist: null }],
+            },
+          ]),
+          { status: 200 },
+        ),
     },
   );
 
-  assert.deepEqual(files, ["~/index.js.map", "~/assets/app.js"]);
+  assert.equal(bundles.length, 1);
+  assert.equal(countReleaseArtifactBundleFiles(bundles, "release-1"), 4);
 });
 
-test("verifyReleaseSourcemaps succeeds with mocked map list", () => {
-  const result = verifyReleaseSourcemaps(
+test("fetchReleaseArtifactBundles times out stalled Sentry responses", async () => {
+  const abortError = new Error("The operation was aborted");
+  abortError.name = "TimeoutError";
+
+  await assert.rejects(
+    () =>
+      fetchReleaseArtifactBundles(
+        {
+          action: "upload",
+          authToken: "token-value",
+          org: "zaksio",
+          project: "insecur",
+          release: "release-1",
+        },
+        {},
+        {
+          requestTimeoutMs: 50,
+          fetchFn: async (_url, init) =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener("abort", () => reject(abortError));
+            }),
+        },
+      ),
+    /Sentry artifact bundle lookup timed out after 50ms for release release-1\./u,
+  );
+});
+
+test("waitForReleaseArtifactBundles polls until bundles appear", async () => {
+  let attempts = 0;
+  const bundles = await waitForReleaseArtifactBundles(
     {
-      SENTRY_AUTH_TOKEN: "token-value",
-      SENTRY_RELEASE: "release-1",
+      action: "upload",
+      authToken: "token-value",
+      org: "zaksio",
+      project: "insecur",
+      release: "release-1",
     },
+    {},
     {
-      runCli: () => ({
-        stdout: "~/worker/index.js.map\n",
-        status: 0,
-      }),
+      maxWaitMs: 1_000,
+      pollIntervalMs: 10,
+      sleepFn: resolveImmediately,
+      fetchBundles: async () => {
+        attempts += 1;
+        if (attempts < 2) {
+          return [];
+        }
+        return [{ fileCount: 1, associations: [{ release: "release-1" }] }];
+      },
     },
   );
+
+  assert.equal(attempts, 2);
+  assert.equal(releaseHasArtifactBundleSourcemaps(bundles, "release-1"), true);
+});
+
+test("waitForReleaseArtifactBundles returns last bundles when maxWaitMs elapses", async () => {
+  let currentTime = 0;
+  const lastEmptyBundles = [{ fileCount: 0, associations: [{ release: "release-1" }] }];
+  let fetchCount = 0;
+
+  const bundles = await waitForReleaseArtifactBundles(
+    {
+      action: "upload",
+      authToken: "token-value",
+      org: "zaksio",
+      project: "insecur",
+      release: "release-1",
+    },
+    {},
+    {
+      maxWaitMs: 100,
+      pollIntervalMs: 25,
+      nowFn: () => currentTime,
+      sleepFn: (durationMs) => {
+        currentTime += durationMs;
+        return Promise.resolve();
+      },
+      fetchBundles: async () => {
+        fetchCount += 1;
+        return lastEmptyBundles;
+      },
+    },
+  );
+
+  assert.ok(fetchCount >= 2);
+  assert.deepEqual(bundles, lastEmptyBundles);
+  assert.equal(releaseHasArtifactBundleSourcemaps(bundles, "release-1"), false);
+});
+
+test("verifyReleaseSourcemaps fails closed when artifact bundle lookup finds no uploads", async () => {
+  let currentTime = 0;
+  const immediateDeadlineOptions = {
+    maxWaitMs: 1,
+    pollIntervalMs: 1,
+    nowFn: () => currentTime,
+    sleepFn: (durationMs) => {
+      currentTime += durationMs;
+      return Promise.resolve();
+    },
+    fetchBundles: async () => [],
+  };
+
+  await assert.rejects(
+    () => verifyReleaseSourcemaps(verifySourcemapEnv, immediateDeadlineOptions),
+    noUploadedArtifactBundlePattern,
+  );
+
+  await assert.rejects(
+    () =>
+      verifyReleaseSourcemaps(verifySourcemapEnv, {
+        ...immediateDeadlineOptions,
+        fetchBundles: async () => [{ fileCount: 0, associations: [{ release: "release-1" }] }],
+      }),
+    noUploadedArtifactBundlePattern,
+  );
+
+  await assert.rejects(
+    () =>
+      verifyReleaseSourcemaps(verifySourcemapEnv, {
+        ...immediateDeadlineOptions,
+        fetchBundles: async () => [{ fileCount: 3, associations: [{ release: "other-release" }] }],
+      }),
+    noUploadedArtifactBundlePattern,
+  );
+});
+
+test("verifyReleaseSourcemaps succeeds with mocked artifact bundle lookup", async () => {
+  const result = await verifyReleaseSourcemaps(verifySourcemapEnv, {
+    fetchBundles: async () => [
+      {
+        bundleId: "bundle-1",
+        fileCount: 2,
+        associations: [{ release: "release-1", dist: null }],
+      },
+    ],
+  });
 
   assert.deepEqual(result, {
     action: "verify",
     release: "release-1",
-    mapCount: 1,
+    fileCount: 2,
   });
 });
 
@@ -251,6 +449,30 @@ test("buildSentryCliEnv preserves proxy and CA runtime vars while overlaying Sen
 test("SENTRY_CLI_TIMEOUT_MS is a positive finite timeout", () => {
   assert.equal(Number.isFinite(SENTRY_CLI_TIMEOUT_MS), true);
   assert.ok(SENTRY_CLI_TIMEOUT_MS > 0);
+});
+
+test("resolveSentryCliInvocation uses the repo-installed @sentry/cli launcher", () => {
+  const invocation = resolveSentryCliInvocation();
+
+  assert.equal(invocation.command, process.execPath);
+  assert.match(invocation.argsPrefix[0], /@sentry\/cli[/\\]bin[/\\]sentry-cli$/u);
+});
+
+test("resolveSentryCliInvocation fails clearly when @sentry/cli is missing", () => {
+  assert.throws(
+    () =>
+      resolveSentryCliInvocation({
+        resolveFrom: import.meta.url,
+        require: {
+          resolve() {
+            throw Object.assign(new Error("Cannot find module '@sentry/cli/bin/sentry-cli'"), {
+              code: "MODULE_NOT_FOUND",
+            });
+          },
+        },
+      }),
+    /sentry-cli is not installed/u,
+  );
 });
 
 test("runPostDeploySentrySourcemaps labels upload failures for operators", async () => {

@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
 
-import { runSentryCli } from "./sentry-cli.mjs";
+import {
+  countReleaseArtifactBundleFiles,
+  releaseHasArtifactBundleSourcemaps,
+  waitForReleaseArtifactBundles,
+} from "./sentry-artifact-bundles.mjs";
+import { runCliMain } from "./cli-exit.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 
-export function verifyReleaseSourcemaps(env = process.env, options = {}) {
+export async function verifyReleaseSourcemaps(env = process.env, options = {}) {
   const config = resolveSentrySourcemapConfig(env);
 
   if (config.action === "skip") {
@@ -12,53 +17,24 @@ export function verifyReleaseSourcemaps(env = process.env, options = {}) {
     return { action: "skip", reason: "missing_auth_token" };
   }
 
-  const files = listReleaseFiles(config, env, options);
-  if (!releaseHasSourceMapArtifacts(files)) {
+  const bundles = await waitForReleaseArtifactBundles(config, env, options);
+  if (!releaseHasArtifactBundleSourcemaps(bundles, config.release)) {
     throw new Error(
-      `Sentry release ${config.release} has no uploaded source map artifacts for project ${config.project}.`,
+      `Sentry release ${config.release} has no uploaded artifact bundle source maps for project ${config.project}.`,
     );
   }
 
-  const mapCount = files.filter(isSourceMapArtifact).length;
-  console.log(`Verified Sentry release ${config.release} has ${mapCount} source map artifact(s).`);
-  return { action: "verify", release: config.release, mapCount };
-}
-
-export function listReleaseFiles(config, env = process.env, options = {}) {
-  const runCli = options.runCli ?? runSentryCli;
-  const result = runCli(
-    ["releases", "files", config.release, "list", "--org", config.org, "--project", config.project],
-    config,
-    { encoding: "utf8", env },
+  const fileCount = countReleaseArtifactBundleFiles(bundles, config.release);
+  console.log(
+    `Verified Sentry release ${config.release} has ${fileCount} artifact bundle file(s) across uploaded source map bundle(s).`,
   );
-
-  return parseReleaseFilesList(result.stdout);
+  return { action: "verify", release: config.release, fileCount };
 }
 
-export function parseReleaseFilesList(stdout) {
-  return stdout
-    .split(/\r?\n/u)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-}
-
-export function isSourceMapArtifact(fileName) {
-  return fileName.endsWith(".map");
-}
-
-export function releaseHasSourceMapArtifacts(files) {
-  return files.some(isSourceMapArtifact);
-}
-
-function main() {
-  verifyReleaseSourcemaps();
+async function main() {
+  await verifyReleaseSourcemaps();
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try {
-    main();
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
+  runCliMain(main);
 }

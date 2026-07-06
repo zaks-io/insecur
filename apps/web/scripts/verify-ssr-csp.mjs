@@ -120,6 +120,9 @@ const mf = new Miniflare({
         TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
         TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
         INSTANCE_ID: "inst_LOCAL_DEV",
+        // Stands in for the per-environment WorkOS redirect chain (SDK host + hosted AuthKit domain)
+        // so the /login CSP form-action can be asserted to allow every off-origin hop (INS-417).
+        WORKOS_AUTHKIT_ORIGIN: "https://api.workos.com https://tenant-ssr-csp.authkit.app",
         // Ephemeral smoke credentials stand in for the WorkOS cookie so the authed console shell
         // can be exercised without a live IdP (same mechanism preview smoke uses).
         PREVIEW_SMOKE_SESSION_CREDENTIALS: "true",
@@ -274,6 +277,39 @@ async function assertNotFound(path, headers) {
   console.log(`ok ${path} -> 404`);
 }
 
+// The login form 303-redirects through the off-origin WorkOS chain (api.workos.com then the hosted
+// AuthKit domain). Chromium enforces `form-action` against every URL in the submission redirect
+// chain, so `/login` must allowlist every configured redirect origin in addition to 'self', and
+// never widen to a wildcard (INS-417).
+async function assertLoginFormActionAllowsAuthkit(expectedOrigins) {
+  const response = await fetchPath("/login");
+  const csp = response.headers.get("content-security-policy");
+  if (!csp) {
+    throw new Error("/login missing Content-Security-Policy header");
+  }
+  const formAction = csp
+    .split(";")
+    .map((directive) => directive.trim())
+    .find((directive) => directive.startsWith("form-action"));
+  if (!formAction) {
+    throw new Error(`/login CSP missing form-action directive: ${csp}`);
+  }
+  if (!formAction.includes("'self'")) {
+    throw new Error(`/login form-action must include 'self': ${formAction}`);
+  }
+  for (const origin of expectedOrigins) {
+    if (!formAction.includes(origin)) {
+      throw new Error(
+        `/login form-action must allow the configured redirect origin ${origin}: ${formAction}`,
+      );
+    }
+  }
+  if (formAction.includes("*")) {
+    throw new Error(`/login form-action must never contain a wildcard: ${formAction}`);
+  }
+  console.log(`ok /login form-action allows ${expectedOrigins.join(" ")} (no wildcard)`);
+}
+
 async function assertUnauthenticatedConsoleRedirect(path) {
   const response = await fetchPath(path);
   const location = response.headers.get("location") ?? "";
@@ -288,6 +324,10 @@ try {
   const authorization = { Authorization: `Bearer ${await mintSmokeCredential()}` };
   await assertRouteHasMatchingCspNonce("/");
   await assertRouteHasMatchingCspNonce("/login");
+  await assertLoginFormActionAllowsAuthkit([
+    "https://api.workos.com",
+    "https://tenant-ssr-csp.authkit.app",
+  ]);
   await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}`);
   await assertRouteHasMatchingCspNonce("/whoami", { headers: authorization, authedDocument: true });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}`, {
