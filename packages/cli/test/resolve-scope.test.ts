@@ -115,6 +115,11 @@ describe("resolveCliScope precedence", () => {
     expect(scopeFromFlags.envId).toBe(VALID_ENV_FLAG);
   });
 
+  it("defaults host to the API Worker origin, not the marketing apex", () => {
+    const scope = resolveCliScope(baseFlags, null, emptyUser);
+    expect(scope.host).toBe("https://api.insecur.cloud");
+  });
+
   it("ignores malformed env scope when valid flags are set", () => {
     process.env.INSECUR_ORG = "org_invalid";
     process.env.INSECUR_PROJECT = "prj_invalid";
