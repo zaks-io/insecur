@@ -34,5 +34,6 @@ describe("badgeJsonResponse", () => {
 
     expect(response.status).toBe(405);
     expect(response.headers.get("Allow")).toBe("GET, HEAD");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 });

@@ -80,16 +80,13 @@ jobs:
             exit 1
           fi
 
-          ci_run_id="$(
-            jq -r --arg sha "$DEPLOY_SHA" \
-              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.created_at) | last | .id // empty' \
+          latest_run="$(
+            jq --arg sha "$DEPLOY_SHA" \
+              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.created_at) | last // {}' \
               <<<"$runs_json"
           )"
-          ci_run_url="$(
-            jq -r --arg sha "$DEPLOY_SHA" \
-              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.created_at) | last | .html_url // empty' \
-              <<<"$runs_json"
-          )"
+          ci_run_id="$(jq -r '.id // empty' <<<"$latest_run")"
+          ci_run_url="$(jq -r '.html_url // empty' <<<"$latest_run")"
 
           if [ -z "$ci_run_id" ]; then
             echo "::error::Could not resolve the successful CI run id for $DEPLOY_SHA."

@@ -14,7 +14,10 @@ export function staticTextResponse(body: string, contentType: string, method: st
     return new Response(null, { headers });
   }
   if (method !== "GET") {
-    return new Response("method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+    return new Response("method not allowed", {
+      status: 405,
+      headers: { Allow: "GET, HEAD", ...SECURITY_HEADERS },
+    });
   }
   return new Response(bytes, { headers });
 }

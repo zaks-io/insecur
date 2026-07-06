@@ -29,7 +29,10 @@ function coverageBadgeColor(linesPct) {
   if (linesPct < threshold) {
     return "red";
   }
-  if (linesPct < threshold + 5) {
+  // Keep yellow limited to the first five points above the enforced floor, but
+  // reserve a visible yellowgreen band before the 90% brightgreen target.
+  const yellowCeiling = Math.min(threshold + 5, 89);
+  if (linesPct < yellowCeiling) {
     return "yellow";
   }
   if (linesPct < 90) {
