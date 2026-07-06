@@ -9,6 +9,8 @@ import type {
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
   ListOrganizationMembersRpcPayload,
+  ListProjectSecretsRpcInput,
+  ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
@@ -28,6 +30,7 @@ import { getOperationOperation } from "../operations/get-operation-operation.js"
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
 import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
 import { listOrganizationMembersOperation } from "../operations/list-organization-members-operation.js";
+import { listProjectSecretsOperation } from "../operations/list-project-secrets-operation.js";
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
@@ -100,6 +103,15 @@ export function listEnvironmentsRpc(
 ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     listEnvironmentsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listProjectSecretsRpc(
+  post: PostAuthRpcRunner,
+  input: ListProjectSecretsRpcInput,
+): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listProjectSecretsOperation({ input, auditActor, accessActor }),
   );
 }
 

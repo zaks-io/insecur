@@ -20,6 +20,17 @@ import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
 export const projectsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
+function parseProjectScopedRouteParams(
+  context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,
+) {
+  return {
+    organizationId: parseOrganizationIdParam(
+      requireRouteParam(context.req.param("organizationId"), "organizationId"),
+    ),
+    projectId: parseProjectIdParam(requireRouteParam(context.req.param("projectId"), "projectId")),
+  };
+}
+
 async function executeSecretWriteByVariableKey(
   context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,
   reqId: RequestId,
@@ -73,14 +84,22 @@ projectsRoutes.get("/", requireUserActor, async (context) =>
 projectsRoutes.get("/:projectId/environments", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
-    const organizationId = parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
-    );
-    const projectId = parseProjectIdParam(
-      requireRouteParam(context.req.param("projectId"), "projectId"),
-    );
+    const { organizationId, projectId } = parseProjectScopedRouteParams(context);
 
     return runtimeClientFor(context.env, userActor).listEnvironments({
+      organizationId,
+      projectId,
+      requestId: reqId,
+    });
+  }),
+);
+
+projectsRoutes.get("/:projectId/secrets", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const { organizationId, projectId } = parseProjectScopedRouteParams(context);
+
+    return runtimeClientFor(context.env, userActor).listProjectSecrets({
       organizationId,
       projectId,
       requestId: reqId,

@@ -69,6 +69,8 @@ export type {
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
   ListOrganizationMembersRpcPayload,
+  ListProjectSecretsRpcInput,
+  ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
@@ -76,6 +78,9 @@ export type {
   OrganizationInvitationRead,
   OrganizationMemberRead,
   ProjectMetadataRead,
+  SecretMatrixCellRead,
+  SecretMatrixLastSetActorRead,
+  SecretMatrixRowRead,
   SessionOrganizationRead,
 } from "./rpc/runtime-metadata-rpc-contract.js";
 export type {

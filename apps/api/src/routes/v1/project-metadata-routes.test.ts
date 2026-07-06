@@ -6,8 +6,11 @@ import {
   organizationId,
   parseDisplayName,
   projectId,
+  secretId,
+  secretVersionId,
   userId,
   type DisplayName,
+  type VariableKey,
 } from "@insecur/domain";
 import type { KnownErrorCode } from "@insecur/domain";
 import type { RuntimeRpcResult } from "@insecur/worker-kit";
@@ -45,6 +48,7 @@ function makeEnv() {
 const listProjectsPath = `/v1/orgs/${orgId}/projects`;
 const crossTenantProjectsPath = `/v1/orgs/${otherOrgId}/projects`;
 const listEnvironmentsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments`;
+const listProjectSecretsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/secrets`;
 
 function testDisplayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -69,6 +73,32 @@ const metadataOnlyEnvironment = {
   lifecycleStage: "development" as const,
   isProtected: false,
   createdAt: "2026-06-24T00:00:00.000Z",
+};
+
+const matrixVariableKey = "DATABASE_URL" as VariableKey;
+
+const metadataOnlySecretsMatrix = {
+  environments: [metadataOnlyEnvironment],
+  rows: [
+    {
+      variableKey: matrixVariableKey,
+      cells: [
+        {
+          environmentId: environmentIdValue,
+          present: true,
+          secretId: secretId.brand("sec_00000000000000000000000001"),
+          versionNumber: 2,
+          secretVersionId: secretVersionId.brand("sv_00000000000000000000000001"),
+          lifecycleState: "live" as const,
+          lastSetAt: "2026-06-24T01:00:00.000Z",
+          lastSetActor: {
+            actorType: "user" as const,
+            userId: admittedUserId,
+          },
+        },
+      ],
+    },
+  ],
 };
 
 function rpcFailure(
@@ -104,6 +134,10 @@ describe("project metadata worker routes", () => {
     runtime.listEnvironments.mockResolvedValue({
       ok: true,
       value: { environments: [metadataOnlyEnvironment] },
+    });
+    runtime.listProjectSecrets.mockResolvedValue({
+      ok: true,
+      value: metadataOnlySecretsMatrix,
     });
   });
 
@@ -263,6 +297,77 @@ describe("project metadata worker routes", () => {
 
       expect(response.status).toBe(400);
       expect(runtime.listEnvironments).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: "validation.invalid_opaque_resource_id" },
+      });
+    });
+  });
+
+  describe("GET /v1/orgs/:organizationId/projects/:projectId/secrets", () => {
+    it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
+      const response = await app.request(listProjectSecretsPath, { method: "GET" }, env);
+
+      expect(response.status).toBe(401);
+      expect(runtime.listProjectSecrets).not.toHaveBeenCalled();
+    });
+
+    it("forwards the read and returns metadata-only matrix rows without ciphertext", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        listProjectSecretsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.listProjectSecrets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: metadataOnlySecretsMatrix,
+      });
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toMatch(/ciphertext|valueUtf8|plaintext|password|wrapped/i);
+    });
+
+    it("maps insufficient-scope denials to auth.insufficient_scope", async () => {
+      const env = makeEnv();
+      runtime.listProjectSecrets.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "actor lacks secret:read"),
+      );
+
+      const response = await app.request(
+        listProjectSecretsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.insufficientScope },
+      });
+    });
+
+    it("rejects invalid project id parameters", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        `/v1/orgs/${orgId}/projects/not-a-project-id/secrets`,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(runtime.listProjectSecrets).not.toHaveBeenCalled();
       const body: unknown = await response.json();
       expect(body).toMatchObject({
         ok: false,
