@@ -19,7 +19,7 @@ export interface ResolvedCliScope {
   readonly profile: CliUserProfile | undefined;
 }
 
-const DEFAULT_HOST = "https://insecur.cloud";
+const DEFAULT_HOST = "https://api.insecur.cloud";
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name];
