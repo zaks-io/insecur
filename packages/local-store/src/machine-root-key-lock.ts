@@ -1,18 +1,20 @@
+import { randomUUID } from "node:crypto";
 import { access, mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import { MACHINE_ROOT_KEY_CREATE_LOCK_FILE_NAME } from "./constants.js";
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "./errors.js";
+import {
+  isMetadataStale,
+  LOCK_STALE_MS,
+  lockMetadataIdentityMatches,
+  type LockMetadata,
+  parseLockMetadata,
+} from "./machine-root-key-lock-metadata.js";
 
 const LOCK_FILE_MODE = 0o600;
 const LOCK_POLL_MS = 50;
 const LOCK_MAX_WAIT_MS = 30_000;
-const LOCK_STALE_MS = 30_000;
-
-interface LockMetadata {
-  readonly pid: number;
-  readonly acquiredAt: number;
-}
 
 function isErrnoCode(error: unknown, code: string): boolean {
   return (
@@ -29,15 +31,6 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-function isPidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function resolveMachineRootKeyLockPath(userConfigDir: string): string {
   return path.join(userConfigDir, MACHINE_ROOT_KEY_CREATE_LOCK_FILE_NAME);
 }
@@ -49,30 +42,16 @@ async function ensureLockDirectory(lockPath: string): Promise<void> {
 async function readLockMetadata(lockPath: string): Promise<LockMetadata | null> {
   try {
     const raw = await readFile(lockPath, "utf8");
-    const parsed: unknown = JSON.parse(raw);
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "pid" in parsed &&
-      "acquiredAt" in parsed &&
-      typeof (parsed as LockMetadata).pid === "number" &&
-      typeof (parsed as LockMetadata).acquiredAt === "number"
-    ) {
-      return parsed as LockMetadata;
-    }
+    return parseLockMetadata(JSON.parse(raw) as unknown);
   } catch {
     return null;
   }
-  return null;
 }
 
 export async function isStaleMachineRootKeyLock(lockPath: string): Promise<boolean> {
   const metadata = await readLockMetadata(lockPath);
   if (metadata !== null) {
-    if (!isPidAlive(metadata.pid)) {
-      return true;
-    }
-    return Date.now() - metadata.acquiredAt > LOCK_STALE_MS;
+    return isMetadataStale(metadata);
   }
 
   try {
@@ -86,26 +65,33 @@ export async function isStaleMachineRootKeyLock(lockPath: string): Promise<boole
   }
 }
 
-async function tryAcquireLock(lockPath: string): Promise<"acquired" | "exists"> {
+async function tryAcquireLock(
+  lockPath: string,
+): Promise<{ status: "acquired"; token: string } | { status: "exists" }> {
+  const token = randomUUID();
   await ensureLockDirectory(lockPath);
   try {
     const handle = await open(lockPath, "wx", LOCK_FILE_MODE);
     try {
-      const metadata: LockMetadata = { pid: process.pid, acquiredAt: Date.now() };
+      const metadata: LockMetadata = { pid: process.pid, acquiredAt: Date.now(), token };
       await handle.writeFile(JSON.stringify(metadata), "utf8");
     } finally {
       await handle.close();
     }
-    return "acquired";
+    return { status: "acquired", token };
   } catch (error) {
     if (isErrnoCode(error, "EEXIST")) {
-      return "exists";
+      return { status: "exists" };
     }
     throw error;
   }
 }
 
-async function releaseLock(lockPath: string): Promise<void> {
+async function releaseLock(lockPath: string, holderToken: string): Promise<void> {
+  const current = await readLockMetadata(lockPath);
+  if (current?.token !== holderToken) {
+    return;
+  }
   try {
     await unlink(lockPath);
   } catch (error) {
@@ -115,7 +101,17 @@ async function releaseLock(lockPath: string): Promise<void> {
   }
 }
 
-async function removeStaleLock(lockPath: string): Promise<void> {
+async function removeStaleLockIfMatches(
+  lockPath: string,
+  staleSnapshot: LockMetadata,
+): Promise<void> {
+  const current = await readLockMetadata(lockPath);
+  if (!lockMetadataIdentityMatches(current, staleSnapshot)) {
+    return;
+  }
+  if (current === null || !isMetadataStale(current)) {
+    return;
+  }
   try {
     await unlink(lockPath);
   } catch (error) {
@@ -134,6 +130,7 @@ async function reconcileOrNull<T>(reconcile?: () => Promise<T | null>): Promise<
 
 async function runWhenLockAcquired<T>(
   lockPath: string,
+  holderToken: string,
   operation: () => Promise<T>,
   reconcile?: () => Promise<T | null>,
 ): Promise<T> {
@@ -144,24 +141,53 @@ async function runWhenLockAcquired<T>(
   try {
     return await operation();
   } finally {
-    await releaseLock(lockPath);
+    await releaseLock(lockPath, holderToken);
   }
+}
+
+async function waitForTokenizedStaleLock<T>(
+  lockPath: string,
+  staleSnapshot: LockMetadata,
+  reconcile?: () => Promise<T | null>,
+): Promise<"retry" | T> {
+  const persisted = await reconcileOrNull(reconcile);
+  if (persisted !== null) {
+    return persisted;
+  }
+  await removeStaleLockIfMatches(lockPath, staleSnapshot);
+  return "retry";
+}
+
+async function waitForLegacyStaleLock<T>(
+  lockPath: string,
+  reconcile?: () => Promise<T | null>,
+): Promise<"retry" | T> {
+  const persisted = await reconcileOrNull(reconcile);
+  if (persisted !== null) {
+    return persisted;
+  }
+  if (await isStaleMachineRootKeyLock(lockPath)) {
+    try {
+      await unlink(lockPath);
+    } catch (error) {
+      if (!isErrnoCode(error, "ENOENT")) {
+        throw error;
+      }
+    }
+  }
+  return "retry";
 }
 
 async function waitForActiveLock<T>(
   lockPath: string,
   reconcile?: () => Promise<T | null>,
 ): Promise<"retry" | T> {
-  if (await isStaleMachineRootKeyLock(lockPath)) {
-    const persisted = await reconcileOrNull(reconcile);
-    if (persisted !== null) {
-      return persisted;
-    }
-    if (!(await isStaleMachineRootKeyLock(lockPath))) {
-      return "retry";
-    }
-    await removeStaleLock(lockPath);
-    return "retry";
+  const staleSnapshot = await readLockMetadata(lockPath);
+  if (staleSnapshot !== null && isMetadataStale(staleSnapshot)) {
+    return waitForTokenizedStaleLock(lockPath, staleSnapshot, reconcile);
+  }
+  if (staleSnapshot === null && (await isStaleMachineRootKeyLock(lockPath))) {
+    return waitForLegacyStaleLock(lockPath, reconcile);
   }
 
   try {
@@ -191,8 +217,8 @@ export async function withMachineRootKeyCreationLock<T>(
     }
 
     const outcome = await tryAcquireLock(lockPath);
-    if (outcome === "acquired") {
-      return runWhenLockAcquired(lockPath, operation, reconcile);
+    if (outcome.status === "acquired") {
+      return runWhenLockAcquired(lockPath, outcome.token, operation, reconcile);
     }
 
     const contention = await waitForActiveLock(lockPath, reconcile);

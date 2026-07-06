@@ -44,4 +44,35 @@ describe("createDefaultExecFile", () => {
       run(process.execPath, ["-e", "setTimeout(() => {}, 60_000)"], { timeoutMs: 100 }),
     ).rejects.toMatchObject({ killed: true });
   });
+
+  it("writes stdin to argv-only child processes without shell strings", async () => {
+    const run = createDefaultExecFile();
+    const marker = "stdin-marker-payload";
+    const result = await run(
+      process.execPath,
+      [
+        "-e",
+        "let body='';process.stdin.on('data',(chunk)=>{body+=chunk});process.stdin.on('end',()=>{process.stdout.write(String(body.length))});",
+      ],
+      { input: marker, timeoutMs: 5_000 },
+    );
+    expect(result.stdout).toBe(String(marker.length));
+    expect(result.stderr).toBe("");
+  });
+
+  it("sanitizes stdin child process failures without echoing input", async () => {
+    const run = createDefaultExecFile();
+    const marker = "stdin-marker-payload";
+    await expect(
+      run(process.execPath, ["-e", "process.exit(2)"], { input: marker, timeoutMs: 5_000 }),
+    ).rejects.toMatchObject({
+      message: "child process execFile failed",
+    });
+    await expect(
+      run(process.execPath, ["-e", "process.exit(2)"], { input: marker, timeoutMs: 5_000 }),
+    ).rejects.not.toSatisfy((error: unknown) => {
+      const serialized = JSON.stringify(error);
+      return serialized.includes(marker);
+    });
+  });
 });

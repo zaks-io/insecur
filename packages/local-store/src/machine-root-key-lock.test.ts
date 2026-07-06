@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -79,10 +79,15 @@ describe("withMachineRootKeyCreationLock", () => {
   it("does not delete a lock re-acquired while reconciling a stale lock", async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
     const lockPath = resolveMachineRootKeyLockPath(tempDir);
-    await writeFile(lockPath, JSON.stringify({ pid: 9_999_999, acquiredAt: 0 }), {
-      encoding: "utf8",
-      mode: 0o600,
-    });
+    const staleToken = "stale-lock-token";
+    await writeFile(
+      lockPath,
+      JSON.stringify({ pid: 9_999_999, acquiredAt: 0, token: staleToken }),
+      {
+        encoding: "utf8",
+        mode: 0o600,
+      },
+    );
 
     let reconcileCalls = 0;
     await expect(
@@ -94,7 +99,11 @@ describe("withMachineRootKeyCreationLock", () => {
           if (reconcileCalls === 2) {
             await writeFile(
               lockPath,
-              JSON.stringify({ pid: process.pid, acquiredAt: Date.now() }),
+              JSON.stringify({
+                pid: process.pid,
+                acquiredAt: Date.now(),
+                token: "fresh-holder-token",
+              }),
               { encoding: "utf8", mode: 0o600 },
             );
             return null;
@@ -106,5 +115,31 @@ describe("withMachineRootKeyCreationLock", () => {
         },
       ),
     ).resolves.toBe("found");
+
+    const remaining = JSON.parse(await readFile(lockPath, "utf8")) as { token?: string };
+    expect(remaining.token).toBe("fresh-holder-token");
+  });
+
+  it("releases only the lock token held by this caller", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+
+    await withMachineRootKeyCreationLock(lockPath, async () => {
+      const metadata = JSON.parse(await readFile(lockPath, "utf8")) as { token?: string };
+      await writeFile(
+        lockPath,
+        JSON.stringify({
+          pid: process.pid,
+          acquiredAt: Date.now(),
+          token: "other-holder-token",
+        }),
+        { encoding: "utf8", mode: 0o600 },
+      );
+      expect(metadata.token).toBeDefined();
+      return "done";
+    });
+
+    const remaining = JSON.parse(await readFile(lockPath, "utf8")) as { token?: string };
+    expect(remaining.token).toBe("other-holder-token");
   });
 });
