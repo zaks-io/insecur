@@ -182,6 +182,25 @@ describe("insecur scan", () => {
     const report = await buildScanReport({ rootDir: root, maxFileBytes: 256 });
     expect(report.summary.oversizedFiles).toContain(".npmrc");
   });
+
+  it("detects extensionless private-key files via PEM content fallback", async () => {
+    const root = await mkdtemp(join(tmpdir(), "insecur-scan-ext-key-"));
+    const border = "-".repeat(5);
+    const body = [
+      `${border}BEGIN PRIVATE KEY${border}`,
+      "SENTINEL_EXTENSIONLESS_KEY_METADATA_ONLY",
+      `${border}END PRIVATE KEY${border}`,
+      "",
+    ].join("\n");
+    await writeFile(join(root, "id_rsa"), body, "utf8");
+
+    const report = await buildScanReport({ rootDir: root });
+    const finding = report.findings.find(
+      (candidate) => candidate.file === "id_rsa" && candidate.kind === "private-key-file",
+    );
+    expect(finding).toBeDefined();
+    expect(finding?.confidence).toBe("likely-secret");
+  });
 });
 
 describe("insecur scan no-reveal", () => {

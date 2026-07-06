@@ -749,7 +749,7 @@ Rules:
 - Never prints, logs, or serializes discovered values, line content, or entropy scores.
 - Ignores `.gitignore` entirely; gitignored `.env` files are still reported.
 - Skips `node_modules`, `.git`, `dist`, `build`, `.next`, and common cache/coverage directories.
-- Detects `.env` / `.env.*`, PEM/private-key files (including `.key`), `service-account*.json`, `*credentials*.json`, `.npmrc` / `.yarnrc` entries containing `_authToken` or `npmAuthToken`, and `.netrc`.
+- Detects `.env` / `.env.*`, PEM/private-key files (including `.key` and extensionless OpenSSH names like `id_rsa`), `service-account*.json`, `*credentials*.json`, `.npmrc` / `.yarnrc` entries containing `_authToken` or `npmAuthToken`, and `.netrc`.
 - Human output includes a summary line (`Found N likely secrets across M files in Xms.`) plus key names only; unreadable and oversized candidate files are listed separately.
 - `--json` summary includes `unreadableFiles` and `oversizedFiles` (paths only) so a clean result distinguishes scanned files from secret-path candidates that could not be read or exceeded the size guard.
 - `--json` returns findings and summary through the standard metadata-only envelope.

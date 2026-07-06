@@ -11,6 +11,9 @@ const SECRET_BASENAME_PATTERNS = [
   /.*credentials\.json$/iu,
 ] as const;
 
+/** OpenSSH-style private keys often ship without an extension (e.g. `id_rsa`). */
+const EXTENSIONLESS_PRIVATE_KEY_BASENAME_PATTERNS = [/^id_(?:rsa|dsa|ecdsa|ed25519)$/iu] as const;
+
 const BASENAME_KIND: Readonly<Record<string, ScanFindingKind>> = {
   ".netrc": "netrc-file",
   ".npmrc": "auth-token-file",
@@ -29,6 +32,9 @@ export function mightBeSecretPath(relativePath: string): boolean {
   }
   const name = basename(relativePath);
   if (SECRET_BASENAMES.has(name)) {
+    return true;
+  }
+  if (EXTENSIONLESS_PRIVATE_KEY_BASENAME_PATTERNS.some((pattern) => pattern.test(name))) {
     return true;
   }
   return SECRET_BASENAME_PATTERNS.some((pattern) => pattern.test(name));

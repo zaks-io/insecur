@@ -11,5 +11,8 @@ describe("secret path name matching", () => {
 
     expect(mightBeSecretPath("server.key")).toBe(true);
     expect(detectSecretFileKindByName("server.key")).toBe("private-key-file");
+
+    expect(mightBeSecretPath("id_rsa")).toBe(true);
+    expect(detectSecretFileKindByName("id_rsa")).toBeNull();
   });
 });
