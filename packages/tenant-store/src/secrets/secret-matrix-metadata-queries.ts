@@ -5,7 +5,10 @@ import { auditEvents, secretVersions, secrets } from "../db/schema/tenant-secret
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { SECRET_VERSION_LIFECYCLE_STATES } from "./lifecycle-states.js";
 import {
+  shouldSkipMalformedMachineAuditRow,
   toLastSetActor,
+} from "./secret-matrix-last-set-actor-mapping.js";
+import {
   toResolvedVersionRow,
   toSecretMatrixRow,
   type ProjectSecretJoinRow,
@@ -132,6 +135,9 @@ async function loadLastSetMetadata(
   >();
   for (const row of rows) {
     if (!row.resourceId || lastSetBySecretId.has(row.resourceId)) {
+      continue;
+    }
+    if (shouldSkipMalformedMachineAuditRow(row)) {
       continue;
     }
     const lastSetActor = toLastSetActor(row);

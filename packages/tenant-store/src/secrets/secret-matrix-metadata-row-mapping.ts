@@ -1,11 +1,4 @@
-import {
-  environmentId,
-  machineIdentityId,
-  parseVariableKey,
-  secretId,
-  secretVersionId,
-  userId,
-} from "@insecur/domain";
+import { environmentId, parseVariableKey, secretId, secretVersionId } from "@insecur/domain";
 
 import { parseSecretVersionLifecycleState } from "./lifecycle-states.js";
 import type {
@@ -36,52 +29,6 @@ export type LiveVersionResolution =
   | { readonly kind: "absent" }
   | { readonly kind: "malformed" }
   | { readonly kind: "resolved"; readonly version: ResolvedSecretVersionRow };
-
-export function parseMachineLastSetActor(
-  actorMachineIdentityId: string | null,
-): SecretMatrixLastSetActorRow | null {
-  if (!actorMachineIdentityId) {
-    return null;
-  }
-  const parsedMachineIdentityId = machineIdentityId.parse(actorMachineIdentityId);
-  if (!parsedMachineIdentityId.ok) {
-    return null;
-  }
-  return {
-    actorType: "machine",
-    userId: null,
-    machineIdentityId: parsedMachineIdentityId.value,
-  };
-}
-
-export function parseCiExchangeLastSetActor(): SecretMatrixLastSetActorRow {
-  return {
-    actorType: "ci_exchange",
-    userId: null,
-    machineIdentityId: null,
-  };
-}
-
-export function toLastSetActor(row: {
-  actorType: string;
-  actorUserId: string | null;
-  actorMachineIdentityId: string | null;
-}): SecretMatrixLastSetActorRow | null {
-  if (row.actorType === "machine") {
-    return parseMachineLastSetActor(row.actorMachineIdentityId);
-  }
-  if (row.actorType === "user") {
-    return {
-      actorType: "user",
-      userId: row.actorUserId ? userId.brand(row.actorUserId) : null,
-      machineIdentityId: null,
-    };
-  }
-  if (row.actorType === "ci_exchange") {
-    return parseCiExchangeLastSetActor();
-  }
-  return null;
-}
 
 function parseStoredSecretVersionId(
   raw: string,

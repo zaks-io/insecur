@@ -2,11 +2,8 @@ import { environmentId, secretId, type VariableKey } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
 import {
-  parseCiExchangeLastSetActor,
-  parseMachineLastSetActor,
   resolveLiveVersion,
   resolveVersionForMatrixRow,
-  toLastSetActor,
   toSecretMatrixRow,
   type ProjectSecretJoinRow,
   type ResolvedSecretVersionRow,
@@ -29,62 +26,6 @@ function joinRow(overrides: Partial<ProjectSecretJoinRow> = {}): ProjectSecretJo
     ...overrides,
   };
 }
-
-describe("parseMachineLastSetActor", () => {
-  it("returns null when the machine identity id is missing", () => {
-    expect(parseMachineLastSetActor(null)).toBeNull();
-  });
-
-  it("returns null when the machine identity id is invalid", () => {
-    expect(parseMachineLastSetActor("not-a-machine-id")).toBeNull();
-  });
-});
-
-describe("toLastSetActor", () => {
-  it("returns null for machine actors without a machine identity id", () => {
-    expect(
-      toLastSetActor({
-        actorType: "machine",
-        actorUserId: null,
-        actorMachineIdentityId: null,
-      }),
-    ).toBeNull();
-  });
-
-  it("returns null for machine actors with an invalid machine identity id", () => {
-    expect(
-      toLastSetActor({
-        actorType: "machine",
-        actorUserId: null,
-        actorMachineIdentityId: "not-a-machine-id",
-      }),
-    ).toBeNull();
-  });
-
-  it("does not relabel malformed machine actors as ci_exchange", () => {
-    expect(
-      toLastSetActor({
-        actorType: "machine",
-        actorUserId: null,
-        actorMachineIdentityId: null,
-      }),
-    ).not.toEqual({
-      actorType: "ci_exchange",
-      userId: null,
-      machineIdentityId: null,
-    });
-  });
-
-  it("preserves explicit ci_exchange actors", () => {
-    expect(
-      toLastSetActor({
-        actorType: "ci_exchange",
-        actorUserId: null,
-        actorMachineIdentityId: null,
-      }),
-    ).toEqual(parseCiExchangeLastSetActor());
-  });
-});
 
 describe("resolveLiveVersion", () => {
   it("classifies secrets without a current version pointer as absent", () => {
