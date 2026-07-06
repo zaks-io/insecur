@@ -747,10 +747,11 @@ Rules:
 - Offline, read-only, and metadata-only: no auth, no network, and no config requirement.
 - Walks the project tree from the current working directory (or `--config-dir`) and reports likely secret-bearing files and dotenv keys an agent with read access could find.
 - Never prints, logs, or serializes discovered values, line content, or entropy scores.
-- Respects no `.gitignore` rules (gitignored `.env` files are still reported).
+- Ignores `.gitignore` entirely; gitignored `.env` files are still reported.
 - Skips `node_modules`, `.git`, `dist`, `build`, `.next`, and common cache/coverage directories.
 - Detects `.env` / `.env.*`, PEM/private-key files, `service-account*.json`, `*credentials*.json`, `.npmrc` / `.yarnrc` entries containing `_authToken`, and `.netrc`.
-- Human output includes a summary line: `Found N likely secrets across M files in Xms. That's how long an agent would need.` plus key names only.
+- Human output includes a summary line (`Found N likely secrets across M files in Xms.`) plus key names only; unreadable candidate files are listed separately.
+- `--json` summary includes `unreadableFiles` (paths only) so a clean result distinguishes scanned files from secret-path candidates that could not be read.
 - `--json` returns findings and summary through the standard metadata-only envelope.
 - Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
 - `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready).

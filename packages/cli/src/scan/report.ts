@@ -6,21 +6,21 @@ import {
   type ClassifiedDotenvEntry,
 } from "./classifiers.js";
 import { parseDotenvKeys } from "./dotenv-parser.js";
-import { isDotenvPath, mightBeSecretPath } from "./secret-paths.js";
+import { mightBeSecretPath } from "./secret-paths.js";
 import type { ScanFinding, ScanFindingKind, ScanOptions, ScanReport } from "./types.js";
 import { walkProjectFiles, type WalkedFile } from "./walker.js";
 
-const CONTENT_HEAD_BYTES = 512;
+interface ReadFileResult {
+  readonly content: string | null;
+  readonly unreadable: boolean;
+}
 
-async function readFileContent(absolutePath: string, relativePath: string): Promise<string | null> {
+async function readFileContent(absolutePath: string): Promise<ReadFileResult> {
   try {
     const buffer = await readFile(absolutePath);
-    if (isDotenvPath(relativePath)) {
-      return buffer.toString("utf8");
-    }
-    return buffer.toString("utf8", 0, Math.min(buffer.length, CONTENT_HEAD_BYTES));
+    return { content: buffer.toString("utf8"), unreadable: false };
   } catch {
-    return null;
+    return { content: null, unreadable: true };
   }
 }
 
@@ -54,52 +54,87 @@ interface FileScanResult {
   readonly entryCount: number;
 }
 
-async function scanWalkedFile(file: WalkedFile): Promise<FileScanResult | null> {
+type ScanWalkOutcome =
+  | { readonly status: "unreadable" }
+  | { readonly status: "skipped" }
+  | { readonly status: "scanned"; readonly result: FileScanResult };
+
+async function scanWalkedFile(file: WalkedFile): Promise<ScanWalkOutcome> {
   if (!mightBeSecretPath(file.relativePath)) {
-    return null;
+    return { status: "skipped" };
   }
 
-  const content = await readFileContent(file.absolutePath, file.relativePath);
-  if (content === null) {
-    return null;
+  const readResult = await readFileContent(file.absolutePath);
+  if (readResult.unreadable || readResult.content === null) {
+    return { status: "unreadable" };
   }
 
-  const kind = detectSecretFileKind(file.relativePath, content);
+  const kind = detectSecretFileKind(file.relativePath, readResult.content);
   if (!kind) {
-    return null;
+    return { status: "skipped" };
   }
 
   if (kind === "dotenv-entry") {
-    const entries = parseDotenvKeys(content);
-    const classified = classifyDotenvFile(file.relativePath, content, entries);
+    const entries = parseDotenvKeys(readResult.content);
+    const classified = classifyDotenvFile(file.relativePath, readResult.content, entries);
     return {
-      entryCount: entries.length,
-      findings: classified.map((entry) => toDotenvFinding(file.relativePath, entry)),
+      status: "scanned",
+      result: {
+        entryCount: entries.length,
+        findings: classified.map((entry) => toDotenvFinding(file.relativePath, entry)),
+      },
     };
   }
 
   return {
-    entryCount: 1,
-    findings: [toWholeFileFinding(file.relativePath, kind)],
+    status: "scanned",
+    result: {
+      entryCount: 1,
+      findings: [toWholeFileFinding(file.relativePath, kind)],
+    },
   };
+}
+
+function applyScanOutcome(
+  outcome: ScanWalkOutcome,
+  file: WalkedFile,
+  state: {
+    findings: ScanFinding[];
+    unreadableFiles: string[];
+    totalEntries: { value: number };
+    filesWithFindings: Set<string>;
+  },
+): void {
+  if (outcome.status === "unreadable") {
+    state.unreadableFiles.push(file.relativePath);
+    return;
+  }
+  if (outcome.status === "skipped") {
+    return;
+  }
+
+  state.totalEntries.value += outcome.result.entryCount;
+  for (const finding of outcome.result.findings) {
+    state.filesWithFindings.add(finding.file);
+    state.findings.push(finding);
+  }
 }
 
 export async function buildScanReport(options: ScanOptions): Promise<ScanReport> {
   const startedAt = performance.now();
   const walkedFiles = await walkProjectFiles(options);
   const findings: ScanFinding[] = [];
-  let totalEntries = 0;
+  const unreadableFiles: string[] = [];
   const filesWithFindings = new Set<string>();
+  const totalEntries = { value: 0 };
 
   for (const file of walkedFiles) {
-    const result = await scanWalkedFile(file);
-    if (!result) continue;
-
-    totalEntries += result.entryCount;
-    for (const finding of result.findings) {
-      filesWithFindings.add(finding.file);
-      findings.push(finding);
-    }
+    applyScanOutcome(await scanWalkedFile(file), file, {
+      findings,
+      unreadableFiles,
+      totalEntries,
+      filesWithFindings,
+    });
   }
 
   const likelySecrets = findings.filter((finding) => finding.confidence === "likely-secret").length;
@@ -110,7 +145,8 @@ export async function buildScanReport(options: ScanOptions): Promise<ScanReport>
     summary: {
       filesScanned: walkedFiles.length,
       filesWithFindings: filesWithFindings.size,
-      totalEntries,
+      unreadableFiles,
+      totalEntries: totalEntries.value,
       likelySecrets,
       migratableCount,
       elapsedMs: Math.round(performance.now() - startedAt),
@@ -133,13 +169,26 @@ function formatFindingLines(findings: readonly ScanFinding[]): string[] {
   return lines;
 }
 
+function formatUnreadableLines(unreadableFiles: readonly string[]): string[] {
+  if (unreadableFiles.length === 0) {
+    return [];
+  }
+  return [
+    "",
+    `Unreadable files (${String(unreadableFiles.length)}):`,
+    ...unreadableFiles.map((file) => `  ${file}`),
+  ];
+}
+
 export function formatScanHumanReport(report: ScanReport): string {
   const { summary, findings } = report;
   const lines = [
-    `Found ${String(summary.likelySecrets)} likely secrets across ${String(summary.filesWithFindings)} files in ${String(summary.elapsedMs)}ms. That's how long an agent would need.`,
+    `Found ${String(summary.likelySecrets)} likely secrets across ${String(summary.filesWithFindings)} files in ${String(summary.elapsedMs)}ms.`,
     "",
-    `Files scanned: ${String(summary.filesScanned)} | Entries: ${String(summary.totalEntries)} | Likely secrets: ${String(summary.likelySecrets)} | Migratable: ${String(summary.migratableCount)}`,
+    `Files scanned: ${String(summary.filesScanned)} | Entries: ${String(summary.totalEntries)} | Likely secrets: ${String(summary.likelySecrets)} | Migratable: ${String(summary.migratableCount)} | Unreadable: ${String(summary.unreadableFiles.length)}`,
   ];
+
+  lines.push(...formatUnreadableLines(summary.unreadableFiles));
 
   if (findings.length > 0) {
     lines.push(...formatFindingLines(findings));
@@ -150,5 +199,5 @@ export function formatScanHumanReport(report: ScanReport): string {
 
 export function formatScanStrictQuietSummary(report: ScanReport): string {
   const { summary } = report;
-  return `insecur scan: likely_secrets=${String(summary.likelySecrets)} files=${String(summary.filesWithFindings)} migratable=${String(summary.migratableCount)} elapsed_ms=${String(summary.elapsedMs)}`;
+  return `insecur scan: likely_secrets=${String(summary.likelySecrets)} files=${String(summary.filesWithFindings)} migratable=${String(summary.migratableCount)} unreadable=${String(summary.unreadableFiles.length)} elapsed_ms=${String(summary.elapsedMs)}`;
 }

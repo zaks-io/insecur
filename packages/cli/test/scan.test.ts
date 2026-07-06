@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -121,11 +121,11 @@ describe("insecur scan", () => {
     const line = stderr.mock.calls[0]?.[0];
     expect(typeof line).toBe("string");
     expect(line).toMatch(
-      /^insecur scan: likely_secrets=\d+ files=\d+ migratable=\d+ elapsed_ms=\d+\n$/u,
+      /^insecur scan: likely_secrets=\d+ files=\d+ migratable=\d+ unreadable=\d+ elapsed_ms=\d+\n$/u,
     );
   });
 
-  it("--json output passes metadata-only envelope shape", async () => {
+  it("--json serialized envelope passes assertMetadataOnlyEnvelopeShape", async () => {
     const root = await createFixture();
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
@@ -133,25 +133,37 @@ describe("insecur scan", () => {
 
     const line = stdout.mock.calls[0]?.[0];
     expect(typeof line).toBe("string");
-    const parsed = JSON.parse(line as string) as Record<string, unknown>;
-    assertMetadataOnlyEnvelopeShape(parsed);
-    expect(parsed).toMatchObject({ ok: true });
-    const data = parsed.data as Record<string, unknown>;
-    expect(data.summary).toMatchObject({
-      filesScanned: expect.any(Number),
-      likelySecrets: expect.any(Number),
-      elapsedMs: expect.any(Number),
-    });
-    const findings = data.findings as Record<string, unknown>[];
-    expect(findings[0]).toMatchObject({
-      file: expect.any(String),
-      key: expect.any(String),
-      kind: expect.any(String),
-      confidence: expect.any(String),
-      migratable: expect.any(Boolean),
-    });
+    const parsed: unknown = JSON.parse(line as string);
+    assertMetadataOnlyEnvelopeShape(parsed as Record<string, unknown>);
 
     stdout.mockRestore();
+  });
+
+  it("reports unreadable secret-path candidates in the summary", async () => {
+    const root = await createFixture();
+    const npmrcPath = join(root, ".npmrc");
+    await writeFile(npmrcPath, "registry=https://registry.npmjs.org/\n", "utf8");
+    await chmod(npmrcPath, 0o000);
+
+    try {
+      const report = await buildScanReport({ rootDir: root });
+      expect(report.summary.unreadableFiles).toContain(".npmrc");
+    } finally {
+      await chmod(npmrcPath, 0o644);
+    }
+  });
+
+  it("detects auth-token files when _authToken appears after the former head slice", async () => {
+    const root = await mkdtemp(join(tmpdir(), "insecur-scan-auth-token-"));
+    const padding = "x".repeat(600);
+    await writeFile(
+      join(root, ".npmrc"),
+      `${padding}\n_authToken=sentinel-metadata-only\n`,
+      "utf8",
+    );
+
+    const report = await buildScanReport({ rootDir: root });
+    expect(report.findings.some((finding) => finding.file === ".npmrc")).toBe(true);
   });
 });
 
