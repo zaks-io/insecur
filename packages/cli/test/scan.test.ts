@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { successEnvelope } from "@insecur/domain";
+import { assertMetadataOnlyEnvelopeShape } from "@insecur/domain";
 import { runScanCommand } from "../src/commands/scan.js";
 import { EXIT_ACTION_REQUIRED } from "../src/output/exit-codes.js";
 import { buildScanReport } from "../src/scan/report.js";
@@ -127,26 +127,31 @@ describe("insecur scan", () => {
 
   it("--json output passes metadata-only envelope shape", async () => {
     const root = await createFixture();
-    const report = await buildScanReport({ rootDir: root });
-    const envelope = successEnvelope({
-      findings: report.findings,
-      summary: report.summary,
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await runScanCommand({ ...baseFlags, configDir: root, json: true }, {});
+
+    const line = stdout.mock.calls[0]?.[0];
+    expect(typeof line).toBe("string");
+    const parsed = JSON.parse(line as string) as Record<string, unknown>;
+    assertMetadataOnlyEnvelopeShape(parsed);
+    expect(parsed).toMatchObject({ ok: true });
+    const data = parsed.data as Record<string, unknown>;
+    expect(data.summary).toMatchObject({
+      filesScanned: expect.any(Number),
+      likelySecrets: expect.any(Number),
+      elapsedMs: expect.any(Number),
     });
-    expect(envelope.ok).toBe(true);
-    if (envelope.ok) {
-      expect(envelope.data.summary).toMatchObject({
-        filesScanned: expect.any(Number),
-        likelySecrets: expect.any(Number),
-        elapsedMs: expect.any(Number),
-      });
-      expect(envelope.data.findings[0]).toMatchObject({
-        file: expect.any(String),
-        key: expect.any(String),
-        kind: expect.any(String),
-        confidence: expect.any(String),
-        migratable: expect.any(Boolean),
-      });
-    }
+    const findings = data.findings as Record<string, unknown>[];
+    expect(findings[0]).toMatchObject({
+      file: expect.any(String),
+      key: expect.any(String),
+      kind: expect.any(String),
+      confidence: expect.any(String),
+      migratable: expect.any(Boolean),
+    });
+
+    stdout.mockRestore();
   });
 });
 
