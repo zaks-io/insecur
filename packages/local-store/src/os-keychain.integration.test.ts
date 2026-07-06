@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { accessSync, constants as fsConstants } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,7 +18,13 @@ import type { KeyStoreBackend } from "./types.js";
 
 const INTEGRATION_OPT_IN_ENV = "INSECUR_LOCAL_STORE_OS_INTEGRATION";
 const INTEGRATION_KEY_DIGEST_ENV = "INSECUR_INTEGRATION_KEY_DIGEST";
+const INTEGRATION_CONFIG_HOME_ENV = "INSECUR_INTEGRATION_CONFIG_HOME";
+const INTEGRATION_SERVICE_ENV = "INSECUR_INTEGRATION_SERVICE";
+const INTEGRATION_ACCOUNT_ENV = "INSECUR_INTEGRATION_ACCOUNT";
 const packageSrcDir = path.dirname(fileURLToPath(import.meta.url));
+const workspaceRoot = path.resolve(packageSrcDir, "../../..");
+const integrationChildScript = path.join(packageSrcDir, "os-keychain.integration-child.ts");
+const tsxEsmImport = createRequire(path.join(workspaceRoot, "package.json")).resolve("tsx/esm");
 
 function integrationOptInEnabled(env: NodeJS.ProcessEnv): boolean {
   return env[INTEGRATION_OPT_IN_ENV] === "1";
@@ -83,27 +90,16 @@ function assertChildProcessReadBackMatchesDigest(
   },
   expectedDigest: string,
 ): void {
-  const child = spawnSync(
-    process.execPath,
-    [
-      "--input-type=module",
-      "-e",
-      `import { createHash } from "node:crypto";
-import { createKeyStore } from ${JSON.stringify(path.join(packageSrcDir, "key-store.js"))};
-const options = ${JSON.stringify(keyStoreOptions)};
-const expectedDigest = process.env[${JSON.stringify(INTEGRATION_KEY_DIGEST_ENV)}];
-const key = await createKeyStore(options).getOrCreateMachineRootKey();
-const digest = createHash("sha256").update(key, "utf8").digest("hex");
-process.exit(digest === expectedDigest ? 0 : 1);`,
-    ],
-    {
-      env: {
-        ...process.env,
-        [INTEGRATION_KEY_DIGEST_ENV]: expectedDigest,
-      },
-      encoding: "utf8",
+  const child = spawnSync(process.execPath, ["--import", tsxEsmImport, integrationChildScript], {
+    env: {
+      ...process.env,
+      [INTEGRATION_KEY_DIGEST_ENV]: expectedDigest,
+      [INTEGRATION_CONFIG_HOME_ENV]: keyStoreOptions.configHome,
+      [INTEGRATION_SERVICE_ENV]: keyStoreOptions.service,
+      [INTEGRATION_ACCOUNT_ENV]: keyStoreOptions.account,
     },
-  );
+    encoding: "utf8",
+  });
 
   expect(child.status).toBe(0);
   expect(child.stdout).toBe("");

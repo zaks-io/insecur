@@ -75,4 +75,36 @@ describe("withMachineRootKeyCreationLock", () => {
       ),
     ).resolves.toBe("existing");
   });
+
+  it("does not delete a lock re-acquired while reconciling a stale lock", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+    await writeFile(lockPath, JSON.stringify({ pid: 9_999_999, acquiredAt: 0 }), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+
+    let reconcileCalls = 0;
+    await expect(
+      withMachineRootKeyCreationLock(
+        lockPath,
+        () => Promise.resolve("created"),
+        async () => {
+          reconcileCalls += 1;
+          if (reconcileCalls === 2) {
+            await writeFile(
+              lockPath,
+              JSON.stringify({ pid: process.pid, acquiredAt: Date.now() }),
+              { encoding: "utf8", mode: 0o600 },
+            );
+            return null;
+          }
+          if (reconcileCalls >= 3) {
+            return "found";
+          }
+          return null;
+        },
+      ),
+    ).resolves.toBe("found");
+  });
 });

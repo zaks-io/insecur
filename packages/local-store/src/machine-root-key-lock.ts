@@ -157,6 +157,9 @@ async function waitForActiveLock<T>(
     if (persisted !== null) {
       return persisted;
     }
+    if (!(await isStaleMachineRootKeyLock(lockPath))) {
+      return "retry";
+    }
     await removeStaleLock(lockPath);
     return "retry";
   }
