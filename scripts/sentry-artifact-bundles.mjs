@@ -1,6 +1,7 @@
 export const DEFAULT_SENTRY_API_BASE_URL = "https://sentry.io";
 export const DEFAULT_VERIFY_MAX_WAIT_MS = 90_000;
 export const DEFAULT_VERIFY_POLL_INTERVAL_MS = 5_000;
+export const DEFAULT_VERIFY_REQUEST_TIMEOUT_MS = 30_000;
 
 export function resolveSentryApiBaseUrl(env = process.env) {
   const configured = optional(env.SENTRY_URL);
@@ -15,21 +16,34 @@ export function buildArtifactBundlesUrl(config, env = process.env) {
 
 export async function fetchReleaseArtifactBundles(config, env = process.env, options = {}) {
   const fetchFn = options.fetchFn ?? fetch;
-  const response = await fetchFn(buildArtifactBundlesUrl(config, env), {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${config.authToken}`,
-    },
-    signal: options.signal,
-  });
+  const requestTimeoutMs = resolveRequestTimeoutMs(options, env);
+  const signal = composeFetchAbortSignal(options.signal, requestTimeoutMs);
 
-  if (!response.ok) {
-    throw new Error(
-      `Sentry artifact bundle lookup failed with HTTP ${response.status} for release ${config.release}.`,
-    );
+  try {
+    const response = await fetchFn(buildArtifactBundlesUrl(config, env), {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${config.authToken}`,
+      },
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Sentry artifact bundle lookup failed with HTTP ${response.status} for release ${config.release}.`,
+      );
+    }
+
+    return parseArtifactBundlesPayload(await response.json());
+  } catch (error) {
+    if (isFetchAbortError(error)) {
+      throw new Error(
+        `Sentry artifact bundle lookup timed out after ${requestTimeoutMs}ms for release ${config.release}.`,
+        { cause: error },
+      );
+    }
+    throw error;
   }
-
-  return parseArtifactBundlesPayload(await response.json());
 }
 
 export function parseArtifactBundlesPayload(payload) {
@@ -69,7 +83,8 @@ export async function waitForReleaseArtifactBundles(config, env = process.env, o
   );
   const fetchBundles = options.fetchBundles ?? fetchReleaseArtifactBundles;
   const sleepFn = options.sleepFn ?? sleep;
-  const deadline = Date.now() + maxWaitMs;
+  const nowFn = options.nowFn ?? Date.now;
+  const deadline = nowFn() + maxWaitMs;
   let lastBundles = [];
 
   while (true) {
@@ -78,12 +93,46 @@ export async function waitForReleaseArtifactBundles(config, env = process.env, o
       return lastBundles;
     }
 
-    if (Date.now() >= deadline) {
+    if (nowFn() >= deadline) {
       return lastBundles;
     }
 
     await sleepFn(pollIntervalMs);
   }
+}
+
+function resolveRequestTimeoutMs(options, env) {
+  return resolvePositiveInt(
+    options.requestTimeoutMs,
+    env.INSECUR_SENTRY_VERIFY_REQUEST_TIMEOUT_MS,
+    DEFAULT_VERIFY_REQUEST_TIMEOUT_MS,
+  );
+}
+
+function composeFetchAbortSignal(existingSignal, requestTimeoutMs) {
+  const signals = [];
+
+  if (existingSignal) {
+    signals.push(existingSignal);
+  }
+
+  if (requestTimeoutMs !== undefined) {
+    signals.push(AbortSignal.timeout(requestTimeoutMs));
+  }
+
+  if (signals.length === 0) {
+    return undefined;
+  }
+
+  if (signals.length === 1) {
+    return signals[0];
+  }
+
+  return AbortSignal.any(signals);
+}
+
+function isFetchAbortError(error) {
+  return error?.name === "TimeoutError" || error?.code === "ABORT_ERR";
 }
 
 function bundleHasUploadedFiles(bundle) {

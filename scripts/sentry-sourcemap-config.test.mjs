@@ -22,6 +22,18 @@ import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 import { hasSourceMap, uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
 import { verifyReleaseSourcemaps } from "./sentry-verify-release-sourcemaps.mjs";
 
+const verifySourcemapEnv = {
+  SENTRY_AUTH_TOKEN: "token-value",
+  SENTRY_RELEASE: "release-1",
+};
+
+const noUploadedArtifactBundlePattern =
+  /has no uploaded artifact bundle source maps for project insecur/u;
+
+function resolveImmediately() {
+  return Promise.resolve();
+}
+
 test("deploy workflows read SENTRY_AUTH_TOKEN from repository or environment secrets", async () => {
   const { readFile } = await import("node:fs/promises");
   const workflows = [
@@ -265,6 +277,33 @@ test("fetchReleaseArtifactBundles parses artifact bundle payloads", async () => 
   assert.equal(countReleaseArtifactBundleFiles(bundles, "release-1"), 4);
 });
 
+test("fetchReleaseArtifactBundles times out stalled Sentry responses", async () => {
+  const abortError = new Error("The operation was aborted");
+  abortError.name = "TimeoutError";
+
+  await assert.rejects(
+    () =>
+      fetchReleaseArtifactBundles(
+        {
+          action: "upload",
+          authToken: "token-value",
+          org: "zaksio",
+          project: "insecur",
+          release: "release-1",
+        },
+        {},
+        {
+          requestTimeoutMs: 50,
+          fetchFn: async (_url, init) =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener("abort", () => reject(abortError));
+            }),
+        },
+      ),
+    /Sentry artifact bundle lookup timed out after 50ms for release release-1\./u,
+  );
+});
+
 test("waitForReleaseArtifactBundles polls until bundles appear", async () => {
   let attempts = 0;
   const bundles = await waitForReleaseArtifactBundles(
@@ -279,7 +318,7 @@ test("waitForReleaseArtifactBundles polls until bundles appear", async () => {
     {
       maxWaitMs: 1_000,
       pollIntervalMs: 10,
-      sleepFn: async () => {},
+      sleepFn: resolveImmediately,
       fetchBundles: async () => {
         attempts += 1;
         if (attempts < 2) {
@@ -294,22 +333,87 @@ test("waitForReleaseArtifactBundles polls until bundles appear", async () => {
   assert.equal(releaseHasArtifactBundleSourcemaps(bundles, "release-1"), true);
 });
 
-test("verifyReleaseSourcemaps succeeds with mocked artifact bundle lookup", async () => {
-  const result = await verifyReleaseSourcemaps(
+test("waitForReleaseArtifactBundles returns last bundles when maxWaitMs elapses", async () => {
+  let currentTime = 0;
+  const lastEmptyBundles = [{ fileCount: 0, associations: [{ release: "release-1" }] }];
+  let fetchCount = 0;
+
+  const bundles = await waitForReleaseArtifactBundles(
     {
-      SENTRY_AUTH_TOKEN: "token-value",
-      SENTRY_RELEASE: "release-1",
+      action: "upload",
+      authToken: "token-value",
+      org: "zaksio",
+      project: "insecur",
+      release: "release-1",
     },
+    {},
     {
-      fetchBundles: async () => [
-        {
-          bundleId: "bundle-1",
-          fileCount: 2,
-          associations: [{ release: "release-1", dist: null }],
-        },
-      ],
+      maxWaitMs: 100,
+      pollIntervalMs: 25,
+      nowFn: () => currentTime,
+      sleepFn: (durationMs) => {
+        currentTime += durationMs;
+        return Promise.resolve();
+      },
+      fetchBundles: async () => {
+        fetchCount += 1;
+        return lastEmptyBundles;
+      },
     },
   );
+
+  assert.ok(fetchCount >= 2);
+  assert.deepEqual(bundles, lastEmptyBundles);
+  assert.equal(releaseHasArtifactBundleSourcemaps(bundles, "release-1"), false);
+});
+
+test("verifyReleaseSourcemaps fails closed when artifact bundle lookup finds no uploads", async () => {
+  let currentTime = 0;
+  const immediateDeadlineOptions = {
+    maxWaitMs: 1,
+    pollIntervalMs: 1,
+    nowFn: () => currentTime,
+    sleepFn: (durationMs) => {
+      currentTime += durationMs;
+      return Promise.resolve();
+    },
+    fetchBundles: async () => [],
+  };
+
+  await assert.rejects(
+    () => verifyReleaseSourcemaps(verifySourcemapEnv, immediateDeadlineOptions),
+    noUploadedArtifactBundlePattern,
+  );
+
+  await assert.rejects(
+    () =>
+      verifyReleaseSourcemaps(verifySourcemapEnv, {
+        ...immediateDeadlineOptions,
+        fetchBundles: async () => [{ fileCount: 0, associations: [{ release: "release-1" }] }],
+      }),
+    noUploadedArtifactBundlePattern,
+  );
+
+  await assert.rejects(
+    () =>
+      verifyReleaseSourcemaps(verifySourcemapEnv, {
+        ...immediateDeadlineOptions,
+        fetchBundles: async () => [{ fileCount: 3, associations: [{ release: "other-release" }] }],
+      }),
+    noUploadedArtifactBundlePattern,
+  );
+});
+
+test("verifyReleaseSourcemaps succeeds with mocked artifact bundle lookup", async () => {
+  const result = await verifyReleaseSourcemaps(verifySourcemapEnv, {
+    fetchBundles: async () => [
+      {
+        bundleId: "bundle-1",
+        fileCount: 2,
+        associations: [{ release: "release-1", dist: null }],
+      },
+    ],
+  });
 
   assert.deepEqual(result, {
     action: "verify",
