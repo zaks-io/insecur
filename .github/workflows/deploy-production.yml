@@ -156,6 +156,7 @@ jobs:
           INSECUR_DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
           INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
+          INSECUR_REQUIRE_SENTRY_SOURCEMAPS: "true"
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: zaksio
           SENTRY_PROJECT: insecur
@@ -182,10 +183,22 @@ jobs:
           )
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is not configured in the Production GitHub Environment."
+              if [ "$name" = "SENTRY_AUTH_TOKEN" ]; then
+                echo "::error::$name is not configured for this deploy job. Add the repository Actions secret or an optional Production environment override."
+              else
+                echo "::error::$name is not configured in the Production GitHub Environment."
+              fi
               exit 1
             fi
           done
 
           pnpm deploy:production
           echo "base_url=https://app.insecur.cloud" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Sentry source maps for production release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: zaksio
+          SENTRY_PROJECT: insecur
+          SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: node scripts/sentry-verify-release-sourcemaps.mjs
