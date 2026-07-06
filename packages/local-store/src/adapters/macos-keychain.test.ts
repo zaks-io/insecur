@@ -45,14 +45,19 @@ describe("macOS keychain adapter", () => {
     await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(existing);
   });
 
-  it("stores a generated key with add-generic-password argv arrays", async () => {
+  it("stores with create-only argv arrays and re-reads the persisted key", async () => {
     const calls: { file: string; args: readonly string[] }[] = [];
+    let lookupCount = 0;
     const execFile: ExecFileFn = (file, args) => {
       calls.push({ file, args });
       if (args[0] === "find-generic-password") {
-        const error = new Error("not found") as NodeJS.ErrnoException & { stderr?: string };
-        error.stderr = "The specified item could not be found in the keychain.";
-        return Promise.reject(error);
+        lookupCount += 1;
+        if (lookupCount <= 2) {
+          const error = new Error("not found") as NodeJS.ErrnoException & { stderr?: string };
+          error.stderr = "The specified item could not be found in the keychain.";
+          return Promise.reject(error);
+        }
+        return Promise.resolve({ stdout: `${FAKE_KEY_HEX}\n`, stderr: "" });
       }
       return Promise.resolve({ stdout: "", stderr: "" });
     };
@@ -63,12 +68,11 @@ describe("macOS keychain adapter", () => {
       "machine-root-key-v1",
     );
     await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(FAKE_KEY_HEX);
-    expect(calls).toHaveLength(2);
-    expect(calls[1]).toEqual({
+    expect(calls).toHaveLength(4);
+    expect(calls[2]).toEqual({
       file: "/usr/bin/security",
       args: [
         "add-generic-password",
-        "-U",
         "-s",
         "insecur",
         "-a",
@@ -77,6 +81,37 @@ describe("macOS keychain adapter", () => {
         FAKE_KEY_HEX,
       ],
     });
+  });
+
+  it("does not attach raw child-process causes on sensitive store failures", async () => {
+    const sensitiveKey = FAKE_KEY_HEX;
+    const execFile: ExecFileFn = (file, args) => {
+      if (args[0] === "find-generic-password") {
+        const error = new Error("not found") as NodeJS.ErrnoException & { stderr?: string };
+        error.stderr = "The specified item could not be found in the keychain.";
+        return Promise.reject(error);
+      }
+      const raw = new Error(
+        `Command failed: /usr/bin/security add-generic-password -w ${sensitiveKey}`,
+      ) as NodeJS.ErrnoException & { cmd?: string };
+      raw.code = "ERR_CHILD_PROCESS_FAILED";
+      raw.cmd = `/usr/bin/security add-generic-password -w ${sensitiveKey}`;
+      return Promise.reject(raw);
+    };
+
+    const adapter = createMacosKeychainAdapter(
+      createDeps(execFile),
+      "insecur",
+      "machine-root-key-v1",
+    );
+    const error = await adapter.getOrCreateMachineRootKey().catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      code: KEY_STORE_ERROR_CODES.adapterFailed,
+      message: "macOS keychain store failed",
+    });
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).cause).toBeUndefined();
+    expect(String(error)).not.toContain(sensitiveKey);
   });
 
   it("propagates exec maxBuffer failures instead of storing a replacement key", async () => {

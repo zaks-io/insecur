@@ -2,7 +2,8 @@ import { chmod, mkdir, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "../errors.js";
-import { assertMachineRootKeyHex, generateMachineRootKeyHex } from "../machine-root-key.js";
+import { getOrCreateMachineRootKeyWithCrossProcessLock } from "../machine-root-key-custody.js";
+import { assertMachineRootKeyHex } from "../machine-root-key.js";
 import { FILE_FALLBACK_NOTICE } from "../notices.js";
 import type { KeyStoreAdapter, KeyStoreDependencies } from "../types.js";
 
@@ -74,32 +75,10 @@ export async function writePrivateKeyFile(filePath: string, keyHex: string): Pro
   await chmod(filePath, PRIVATE_FILE_MODE);
 }
 
-async function createOrReadFallbackKey(
-  deps: KeyStoreDependencies,
-  filePath: string,
-): Promise<string> {
-  const existing = await readPrivateKeyFile(filePath);
-  if (existing !== null) {
-    return existing;
-  }
-
-  const keyHex = generateMachineRootKeyHex(deps.randomBytes);
-  try {
-    const outcome = await writePrivateKeyFileExclusive(filePath, keyHex);
-    if (outcome === "created") {
-      return keyHex;
-    }
-
-    const persisted = await readPrivateKeyFile(filePath);
-    if (persisted === null) {
-      throw adapterFailed("file fallback key store failed");
-    }
-    return persisted;
-  } catch (error) {
-    if (error instanceof KeyStoreError) {
-      throw error;
-    }
-    throw adapterFailed("file fallback key store failed", error);
+async function persistFallbackKey(filePath: string, keyHex: string): Promise<void> {
+  const outcome = await writePrivateKeyFileExclusive(filePath, keyHex);
+  if (outcome === "exists") {
+    return;
   }
 }
 
@@ -108,7 +87,12 @@ export function createFileFallbackAdapter(deps: KeyStoreDependencies): KeyStoreA
     backend: "file-fallback",
     notice: FILE_FALLBACK_NOTICE,
     async getOrCreateMachineRootKey() {
-      return createOrReadFallbackKey(deps, deps.paths.machineRootKeyFilePath);
+      const filePath = deps.paths.machineRootKeyFilePath;
+      return getOrCreateMachineRootKeyWithCrossProcessLock(
+        deps,
+        () => readPrivateKeyFile(filePath),
+        (keyHex) => persistFallbackKey(filePath, keyHex),
+      );
     },
   };
 }

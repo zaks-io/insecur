@@ -15,4 +15,7 @@ export const MACHINE_ROOT_KEY_FILE_NAME = "machine-root-key";
 /** Relative path under the insecur user config directory for the Windows DPAPI blob. */
 export const MACHINE_ROOT_KEY_DPAPI_FILE_NAME = "machine-root-key.dpapi";
 
+/** Cross-process lock file used during first-run machine root key creation. */
+export const MACHINE_ROOT_KEY_CREATE_LOCK_FILE_NAME = ".machine-root-key-v1.create.lock";
+
 export const USER_CONFIG_DIR_NAME = ".insecur";

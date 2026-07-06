@@ -35,13 +35,15 @@ describe("windows DPAPI adapter", () => {
     };
   }
 
-  it("invokes powershell.exe with argv arrays and stdin for protect", async () => {
+  it("invokes powershell.exe with argv arrays and stdin for protect, then re-reads", async () => {
     let protectInput = "";
+    let protectCalls = 0;
     const execFile: ExecFileFn = (file, args, options) => {
       expect(file).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
       expect(args[0]).toBe("-NoProfile");
       if (typeof options?.input === "string") {
         protectInput = options.input;
+        protectCalls += 1;
         return mkdir(tempDir, { recursive: true })
           .then(() =>
             writeFile(path.join(tempDir, "machine-root-key.dpapi"), "protected-blob", "utf8"),
@@ -53,8 +55,9 @@ describe("windows DPAPI adapter", () => {
 
     const deps = await createDeps(execFile);
     const adapter = createWindowsDpapiAdapter(deps);
-    await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(FAKE_KEY_HEX);
+    await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe("cd".repeat(32));
     expect(protectInput).toBe(FAKE_KEY_HEX);
+    expect(protectCalls).toBe(1);
   });
 
   it("reads an existing DPAPI blob through powershell unprotect", async () => {

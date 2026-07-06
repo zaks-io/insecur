@@ -14,6 +14,10 @@ Adapters may read key material from a child process stdout. The insecur process
 must never log that stdout, include it in thrown errors, or emit it through
 CLI/JSON output paths.
 
+Sensitive argv commands (for example macOS `add-generic-password -w`) must not
+attach raw child-process failures as `KeyStoreError.cause`, because Node can
+embed the command argv in the error object.
+
 ## File Fallback
 
 The `0600` key file stores raw hex key material on disk. It is selected only when

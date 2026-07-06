@@ -2,7 +2,9 @@ import { access, mkdir, readFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "../errors.js";
-import { assertMachineRootKeyHex, generateMachineRootKeyHex } from "../machine-root-key.js";
+import { sanitizeChildProcessFailureCause } from "../exec-file-error.js";
+import { getOrCreateMachineRootKeyWithCrossProcessLock } from "../machine-root-key-custody.js";
+import { assertMachineRootKeyHex } from "../machine-root-key.js";
 import type { KeyStoreAdapter, KeyStoreDependencies } from "../types.js";
 
 const WINDOWS_SYSTEM_ROOT = process.env.SystemRoot ?? "C:\\Windows";
@@ -74,36 +76,39 @@ export function createWindowsDpapiAdapter(deps: KeyStoreDependencies): KeyStoreA
     async getOrCreateMachineRootKey() {
       const filePath = deps.paths.machineRootKeyDpapiFilePath;
 
-      if (await dpapiFileExists(filePath)) {
-        try {
-          return await readDpapiProtectedKey(deps, filePath);
-        } catch (error) {
-          throw new KeyStoreError(
-            KEY_STORE_ERROR_CODES.adapterFailed,
-            "Windows DPAPI key lookup failed",
-            { cause: error },
-          );
-        }
-      }
-
-      await mkdir(deps.paths.userConfigDir, { recursive: true });
-      const keyHex = generateMachineRootKeyHex(deps.randomBytes);
-
-      try {
-        await writeDpapiProtectedKey(deps, keyHex, filePath);
-        await assertDpapiBlobWritten(filePath);
-      } catch (error) {
-        if (error instanceof KeyStoreError) {
-          throw error;
-        }
-        throw new KeyStoreError(
-          KEY_STORE_ERROR_CODES.adapterFailed,
-          "Windows DPAPI key store failed",
-          { cause: error },
-        );
-      }
-
-      return keyHex;
+      return getOrCreateMachineRootKeyWithCrossProcessLock(
+        deps,
+        async () => {
+          if (!(await dpapiFileExists(filePath))) {
+            return null;
+          }
+          try {
+            return await readDpapiProtectedKey(deps, filePath);
+          } catch (error) {
+            throw new KeyStoreError(
+              KEY_STORE_ERROR_CODES.adapterFailed,
+              "Windows DPAPI key lookup failed",
+              { cause: sanitizeChildProcessFailureCause(error) },
+            );
+          }
+        },
+        async (keyHex) => {
+          await mkdir(deps.paths.userConfigDir, { recursive: true });
+          try {
+            await writeDpapiProtectedKey(deps, keyHex, filePath);
+            await assertDpapiBlobWritten(filePath);
+          } catch (error) {
+            if (error instanceof KeyStoreError) {
+              throw error;
+            }
+            throw new KeyStoreError(
+              KEY_STORE_ERROR_CODES.adapterFailed,
+              "Windows DPAPI key store failed",
+              { cause: sanitizeChildProcessFailureCause(error) },
+            );
+          }
+        },
+      );
     },
   };
 }

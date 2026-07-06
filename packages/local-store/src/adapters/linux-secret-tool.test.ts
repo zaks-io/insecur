@@ -37,8 +37,9 @@ describe("linux secret-tool adapter", () => {
     await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(existing);
   });
 
-  it("stores a generated key via secret-tool store stdin", async () => {
+  it("stores via secret-tool stdin and re-reads the persisted key", async () => {
     const calls: { file: string; args: readonly string[]; input?: string }[] = [];
+    let lookupCount = 0;
     const execFile: ExecFileFn = (file, args, options) => {
       if (typeof options?.input === "string") {
         calls.push({ file, args, input: options.input });
@@ -46,9 +47,13 @@ describe("linux secret-tool adapter", () => {
         calls.push({ file, args });
       }
       if (args[0] === "lookup") {
-        const error = new Error("missing") as NodeJS.ErrnoException & { stderr?: string };
-        error.stderr = "No matching results";
-        return Promise.reject(error);
+        lookupCount += 1;
+        if (lookupCount <= 2) {
+          const error = new Error("missing") as NodeJS.ErrnoException & { stderr?: string };
+          error.stderr = "No matching results";
+          return Promise.reject(error);
+        }
+        return Promise.resolve({ stdout: `${FAKE_KEY_HEX}\n`, stderr: "" });
       }
       return Promise.resolve({ stdout: "", stderr: "" });
     };
@@ -59,7 +64,8 @@ describe("linux secret-tool adapter", () => {
       "machine-root-key-v1",
     );
     await expect(adapter.getOrCreateMachineRootKey()).resolves.toBe(FAKE_KEY_HEX);
-    expect(calls[1]?.args[0]).toBe("store");
-    expect(calls[1]?.input).toBe(FAKE_KEY_HEX);
+    expect(calls[2]?.args[0]).toBe("store");
+    expect(calls[2]?.input).toBe(FAKE_KEY_HEX);
+    expect(calls[3]?.args[0]).toBe("lookup");
   });
 });

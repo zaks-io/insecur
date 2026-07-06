@@ -1,5 +1,9 @@
 const flightsBySlot = new Map<string, Promise<unknown>>();
 
+export function resetSingleFlightCacheForTests(): void {
+  flightsBySlot.clear();
+}
+
 export function serializeAsync<T>(operation: () => Promise<T>): () => Promise<T> {
   let tail: Promise<unknown> = Promise.resolve();
 

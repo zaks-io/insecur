@@ -1,5 +1,7 @@
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "../errors.js";
-import { assertMachineRootKeyHex, generateMachineRootKeyHex } from "../machine-root-key.js";
+import { sanitizeChildProcessFailureCause } from "../exec-file-error.js";
+import { getOrCreateMachineRootKeyWithCrossProcessLock } from "../machine-root-key-custody.js";
+import { assertMachineRootKeyHex } from "../machine-root-key.js";
 import type { KeyStoreAdapter, KeyStoreDependencies } from "../types.js";
 
 const MACOS_SECURITY = "/usr/bin/security";
@@ -11,6 +13,10 @@ function isSecurityItemMissing(stderr: string): boolean {
     normalized.includes("secitemcopymatching") ||
     normalized.includes("the specified item could not be found")
   );
+}
+
+function isDuplicateKeychainItem(stderr: string): boolean {
+  return stderr.toLowerCase().includes("already exists");
 }
 
 function readLookupStderr(error: unknown): string {
@@ -26,6 +32,10 @@ function readLookupStderr(error: unknown): string {
 
 function isMissingKeychainItem(error: unknown): boolean {
   return isSecurityItemMissing(readLookupStderr(error));
+}
+
+function isDuplicateKeychainItemError(error: unknown): boolean {
+  return isDuplicateKeychainItem(readLookupStderr(error));
 }
 
 async function lookupMacosKey(
@@ -48,7 +58,7 @@ async function lookupMacosKey(
       return null;
     }
     throw new KeyStoreError(KEY_STORE_ERROR_CODES.adapterFailed, "macOS keychain lookup failed", {
-      cause: error,
+      cause: sanitizeChildProcessFailureCause(error),
     });
   }
 }
@@ -62,7 +72,6 @@ async function storeMacosKey(
   try {
     await deps.execFile(MACOS_SECURITY, [
       "add-generic-password",
-      "-U",
       "-s",
       service,
       "-a",
@@ -71,9 +80,10 @@ async function storeMacosKey(
       keyHex,
     ]);
   } catch (error) {
-    throw new KeyStoreError(KEY_STORE_ERROR_CODES.adapterFailed, "macOS keychain store failed", {
-      cause: error,
-    });
+    if (isDuplicateKeychainItemError(error)) {
+      return;
+    }
+    throw new KeyStoreError(KEY_STORE_ERROR_CODES.adapterFailed, "macOS keychain store failed");
   }
 }
 
@@ -86,14 +96,11 @@ export function createMacosKeychainAdapter(
     backend: "macos-keychain",
     notice: null,
     async getOrCreateMachineRootKey() {
-      const existing = await lookupMacosKey(deps, service, account);
-      if (existing !== null) {
-        return existing;
-      }
-
-      const keyHex = generateMachineRootKeyHex(deps.randomBytes);
-      await storeMacosKey(deps, service, account, keyHex);
-      return keyHex;
+      return getOrCreateMachineRootKeyWithCrossProcessLock(
+        deps,
+        () => lookupMacosKey(deps, service, account),
+        (keyHex) => storeMacosKey(deps, service, account, keyHex),
+      );
     },
   };
 }
