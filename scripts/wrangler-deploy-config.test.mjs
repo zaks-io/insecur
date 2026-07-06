@@ -32,6 +32,7 @@ const DEPLOY_ENV = {
   INSECUR_RUNTIME_ROOT_KEY_STORE_ID: "root-key-store-live",
   INSECUR_TURNSTILE_SITE_KEY: "turnstile-live",
   INSECUR_WORKOS_CLIENT_ID: "workos-live",
+  INSECUR_WORKOS_AUTHKIT_ORIGIN: "https://tenant-live.authkit.app",
 };
 
 test("materializes API production deploy identifiers", () => {
@@ -72,6 +73,7 @@ test("materializes Web preview deploy identifiers", () => {
   assert.equal(config.env.preview.vars.INSTANCE_ID, "instance-live");
   assert.equal(config.env.preview.vars.TURNSTILE_SITE_KEY, "turnstile-live");
   assert.equal(config.env.preview.vars.WORKOS_CLIENT_ID, "workos-live");
+  assert.equal(config.env.preview.vars.WORKOS_AUTHKIT_ORIGIN, "https://tenant-live.authkit.app");
   assert.equal(config.env.preview.vars.DEPLOY_SHA, "abc123");
   assert.equal(config.env.preview.vars.SENTRY_RELEASE, "abc123");
 });
@@ -88,6 +90,7 @@ test("materializes generated Web preview deploy config", () => {
   assert.equal(config.vars.INSTANCE_ID, "instance-live");
   assert.equal(config.vars.TURNSTILE_SITE_KEY, "turnstile-live");
   assert.equal(config.vars.WORKOS_CLIENT_ID, "workos-live");
+  assert.equal(config.vars.WORKOS_AUTHKIT_ORIGIN, "https://tenant-live.authkit.app");
   assert.equal(config.vars.DEPLOY_SHA, "abc123");
   assert.equal(config.vars.SENTRY_RELEASE, "abc123");
 });
@@ -439,6 +442,7 @@ function webConfig() {
           INSTANCE_ID: "INSTANCE_ID_PREVIEW_PLACEHOLDER",
           TURNSTILE_SITE_KEY: "TURNSTILE_SITE_KEY_PREVIEW_PLACEHOLDER",
           WORKOS_CLIENT_ID: "WORKOS_CLIENT_ID_PREVIEW_PLACEHOLDER",
+          WORKOS_AUTHKIT_ORIGIN: "WORKOS_AUTHKIT_ORIGIN_PREVIEW_PLACEHOLDER",
         },
       },
     },
@@ -450,6 +454,7 @@ function webConfig() {
       INSTANCE_ID: "INSTANCE_ID_PLACEHOLDER",
       TURNSTILE_SITE_KEY: "TURNSTILE_SITE_KEY_PLACEHOLDER",
       WORKOS_CLIENT_ID: "WORKOS_CLIENT_ID_PLACEHOLDER",
+      WORKOS_AUTHKIT_ORIGIN: "WORKOS_AUTHKIT_ORIGIN_PLACEHOLDER",
     },
   };
 }
@@ -495,6 +500,7 @@ function generatedWebPreviewConfig() {
       INSTANCE_ID: "INSTANCE_ID_PREVIEW_PLACEHOLDER",
       TURNSTILE_SITE_KEY: "TURNSTILE_SITE_KEY_PREVIEW_PLACEHOLDER",
       WORKOS_CLIENT_ID: "WORKOS_CLIENT_ID_PREVIEW_PLACEHOLDER",
+      WORKOS_AUTHKIT_ORIGIN: "WORKOS_AUTHKIT_ORIGIN_PREVIEW_PLACEHOLDER",
     },
   };
 }

@@ -21,6 +21,7 @@
     "SENTRY_SERVICE": "insecur-web",
     "TURNSTILE_SITE_KEY": "turnstile_PUBLIC_PRODUCTION_PLACEHOLDER",
     "WORKOS_CLIENT_ID": "client_PUBLIC_PRODUCTION_PLACEHOLDER",
+    "WORKOS_AUTHKIT_ORIGIN": "authkit_PUBLIC_PRODUCTION_PLACEHOLDER",
   },
   "observability": {
     "enabled": true,
@@ -69,6 +70,7 @@
         "TURNSTILE_SITE_KEY": "turnstile_PUBLIC_PREVIEW_PLACEHOLDER",
         "PREVIEW_SMOKE_SESSION_CREDENTIALS": "true",
         "WORKOS_CLIENT_ID": "client_PUBLIC_PREVIEW_PLACEHOLDER",
+        "WORKOS_AUTHKIT_ORIGIN": "authkit_PUBLIC_PREVIEW_PLACEHOLDER",
       },
       "services": [
         {

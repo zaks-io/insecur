@@ -263,6 +263,7 @@ function materializeWebConfig(scope, context) {
   scope.vars.INSTANCE_ID = requireDeployEnv("INSECUR_INSTANCE_ID", context);
   scope.vars.TURNSTILE_SITE_KEY = requireDeployEnv("INSECUR_TURNSTILE_SITE_KEY", context);
   scope.vars.WORKOS_CLIENT_ID = requireDeployEnv("INSECUR_WORKOS_CLIENT_ID", context);
+  scope.vars.WORKOS_AUTHKIT_ORIGIN = requireDeployEnv("INSECUR_WORKOS_AUTHKIT_ORIGIN", context);
 }
 
 function materializeDeployIdentity(scope, context) {
