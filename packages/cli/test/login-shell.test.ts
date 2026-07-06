@@ -134,6 +134,7 @@ describe("login --shell managed session", () => {
     const exitCode = await runLoginCommand(flags, createMockApi(), mockContext(), {
       shell: true,
       openBrowser: false,
+      persist: false,
     });
 
     expect(exitCode).toBe(0);
@@ -191,6 +192,7 @@ describe("login --shell managed session", () => {
     const exitCode = await runLoginCommand(flags, api, mockContext(), {
       shell: false,
       openBrowser: false,
+      persist: false,
     });
 
     expect(exitCode).toBe(0);
@@ -208,6 +210,7 @@ describe("login --shell managed session", () => {
     await runLoginCommand({ ...flags, quiet: false }, createMockApi(), mockContext(), {
       shell: true,
       openBrowser: false,
+      persist: false,
     });
 
     const stderrOutput = stderr.mock.calls.map((call) => String(call[0])).join("");
@@ -223,6 +226,7 @@ describe("login --shell managed session", () => {
       runLoginCommand({ ...flags, json: true }, createMockApi(), mockContext(), {
         shell: true,
         openBrowser: false,
+        persist: false,
       }),
     ).rejects.toMatchObject({
       exitCode: EXIT_VALIDATION,
@@ -237,6 +241,7 @@ describe("login --shell managed session", () => {
     const exitCode = await runLoginCommand(flags, createMockApi(), mockContext(), {
       shell: true,
       openBrowser: false,
+      persist: false,
     });
 
     expect(exitCode).toBe(42);

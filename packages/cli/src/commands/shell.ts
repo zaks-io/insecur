@@ -13,13 +13,13 @@ export async function runShellCommand(
   profileSelector: string,
   context: ResolvedCliContext,
 ): Promise<number> {
-  const credential = requireSessionCredential();
   const { profileId, profile } = resolveProfile(
     context.userConfig,
     { selector: profileSelector },
     { required: true },
   );
   const { host } = profile;
+  const credential = await requireSessionCredential(host);
   const resolvedTargets = [buildCliProfileResolvedTarget(profileId, profile)];
   if (flags.json) {
     renderSuccess(

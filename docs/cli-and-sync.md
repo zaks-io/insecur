@@ -655,7 +655,7 @@ Notes:
   code and URL, the human approves from any browser, and the session lands in the remote process
   memory or managed shell. The session is the human's own, with the same lifetime and step-up
   rules as browser login; `--agent` mints it agent-marked (see Agent Attribution).
-- Human CLI auth is memory/session-only by default; no session token, refresh token, or access token is saved to disk.
+- Human CLI login persists the session credential as a sealed record under the OS-keychain-backed machine root key (`--no-persist` opts out; `insecur logout` removes it); no plaintext session token, refresh token, or access token is ever saved to disk (ADR-0007, 2026-07-06 amendment).
 - `insecur shell <profile-slug-or-id>` launches a subshell with a short-lived session token in that child environment and clears it when the shell exits.
 - `insecur agent shell -- <command>` and `insecur agent env` derive an agent-marked child session
   from the live human session for agent-harness process trees (see Agent Attribution).
