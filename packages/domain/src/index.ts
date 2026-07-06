@@ -50,6 +50,7 @@ export {
   operationId,
   requestId,
   userId,
+  userAdmissionId,
   stagedChangeId,
   invitationId,
   machineIdentityId,

@@ -17,7 +17,7 @@ import {
   teamId,
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
+import { closeRuntimeSql, resolveAdmittedUserId, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import {
@@ -223,6 +223,9 @@ describeIntegration("bootstrap operator claim", () => {
     });
     expect(operators).toEqual([]);
     expect(await loadClaimStatus(BOOTSTRAP_INSTANCE_ID)).toBe("pending");
+    expect(
+      await resolveAdmittedUserId(BOOTSTRAP_INSTANCE_ID, testUserActor(CLAIM_USER_ID).workosUserId),
+    ).toBeNull();
   });
 
   it("completes the claim once and grants owner Effective Access", async () => {
@@ -244,6 +247,11 @@ describeIntegration("bootstrap operator claim", () => {
     const grantUserIds = await loadBootstrapGrantUserIds(BOOTSTRAP_INSTANCE_ID, BOOTSTRAP_ORG_ID);
     expect(grantUserIds.operatorUserIds).toEqual([CLAIM_USER_ID]);
     expect(grantUserIds.membershipUserIds).toEqual([CLAIM_USER_ID]);
+
+    // The exact resolution login performs (INS-180): the claimed operator must be admitted.
+    expect(await resolveAdmittedUserId(BOOTSTRAP_INSTANCE_ID, claimActor.workosUserId)).toBe(
+      claimActor.userId,
+    );
 
     const effectiveAccess = await resolveEffectiveAccess(
       { type: "user", userId: claimActor.userId },
@@ -447,6 +455,12 @@ describeIntegration("bootstrap operator claim", () => {
       `;
     });
     expect(operators).toEqual([]);
+    expect(
+      await resolveAdmittedUserId(
+        ROLLBACK_INSTANCE_ID,
+        testUserActor(ROLLBACK_USER_ID).workosUserId,
+      ),
+    ).toBeNull();
 
     const retryResult = await completeBootstrapOperatorClaim({
       instanceId: ROLLBACK_INSTANCE_ID,
@@ -461,6 +475,12 @@ describeIntegration("bootstrap operator claim", () => {
     const grantUserIds = await loadBootstrapGrantUserIds(ROLLBACK_INSTANCE_ID, ROLLBACK_ORG_ID);
     expect(grantUserIds.operatorUserIds).toEqual([ROLLBACK_USER_ID]);
     expect(grantUserIds.membershipUserIds).toEqual([ROLLBACK_USER_ID]);
+    expect(
+      await resolveAdmittedUserId(
+        ROLLBACK_INSTANCE_ID,
+        testUserActor(ROLLBACK_USER_ID).workosUserId,
+      ),
+    ).toBe(testUserActor(ROLLBACK_USER_ID).userId);
   });
 
   it("rolls back claim consumption when post-grant Effective Access assertion fails", async () => {
@@ -511,6 +531,12 @@ describeIntegration("bootstrap operator claim", () => {
     );
     expect(grantUserIds.operatorUserIds).toEqual([]);
     expect(grantUserIds.membershipUserIds).toEqual([]);
+    expect(
+      await resolveAdmittedUserId(
+        ASSERTION_ROLLBACK_INSTANCE_ID,
+        testUserActor(ASSERTION_ROLLBACK_USER_ID).workosUserId,
+      ),
+    ).toBeNull();
   });
 
   it("rejects bootstrap claims whose first organization is not on the same instance", async () => {

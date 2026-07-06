@@ -72,6 +72,7 @@ export async function executeBootstrapClaimInTransaction(
   await applyBootstrapGrantsInTransaction(sql, {
     instanceId: input.instanceId,
     grantUserId,
+    grantWorkosUserId: input.actor.workosUserId,
     operatorGrantId: input.operatorGrantId,
     ownerMembershipId: input.ownerMembershipId,
     organizationId: claimedOrganizationId,
