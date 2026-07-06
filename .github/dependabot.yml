@@ -9,6 +9,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
       - dependencies
       - zaks-io/insecur
@@ -19,6 +23,75 @@ updates:
       interval: weekly
     cooldown:
       default-days: 3
+    # Keep package/catalog ranges stable when pnpm-lock.yaml can advance inside them.
+    versioning-strategy: increase-if-necessary
+    groups:
+      cloudflare-workers:
+        applies-to: version-updates
+        patterns:
+          - "@cloudflare/*"
+          - "wrangler"
+          - "workerd"
+          - "miniflare"
+        update-types:
+          - minor
+          - patch
+      app-runtime:
+        applies-to: version-updates
+        patterns:
+          - "hono"
+          - "postgres"
+          - "drizzle-*"
+        update-types:
+          - minor
+          - patch
+      react-ui:
+        applies-to: version-updates
+        patterns:
+          - "react"
+          - "react-dom"
+          - "tailwind*"
+          - "vite-tsconfig-paths"
+        update-types:
+          - minor
+          - patch
+      test-build-tooling:
+        applies-to: version-updates
+        dependency-type: development
+        patterns:
+          - "@eslint/*"
+          - "@vitest/*"
+          - "eslint*"
+          - "jscpd"
+          - "knip"
+          - "lefthook"
+          - "prettier"
+          - "tsx"
+          - "turbo"
+          - "typescript"
+          - "typescript-eslint"
+          - "vite"
+          - "vitest"
+          - "yaml"
+        update-types:
+          - minor
+          - patch
+      production-minor-patch:
+        applies-to: version-updates
+        dependency-type: production
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      development-minor-patch:
+        applies-to: version-updates
+        dependency-type: development
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     ignore:
       # @types/node tracks the declared Node runtime major. A Node major upgrade is planned
       # human-owned work that updates engines, .node-version/.nvmrc, CI, and this rule together.
