@@ -55,24 +55,25 @@ function toEnvironmentMetadataRead(row: {
 }
 
 function toLastSetActorRead(
-  actor: SecretMatrixSecretRow["lastSetActor"],
+  actor: NonNullable<SecretMatrixSecretRow["lastSetActor"]>,
 ): SecretMatrixLastSetActorRead | undefined {
-  if (!actor) {
-    return undefined;
+  switch (actor.actorType) {
+    case "machine":
+      if (!actor.machineIdentityId) {
+        return undefined;
+      }
+      return {
+        actorType: "machine",
+        machineIdentityId: actor.machineIdentityId,
+      };
+    case "user":
+      return {
+        actorType: "user",
+        ...(actor.userId !== null ? { userId: actor.userId } : {}),
+      };
+    case "ci_exchange":
+      return { actorType: "ci_exchange" };
   }
-  if (actor.actorType === "machine" && actor.machineIdentityId) {
-    return {
-      actorType: "machine",
-      machineIdentityId: actor.machineIdentityId,
-    };
-  }
-  if (actor.actorType === "user") {
-    return {
-      actorType: "user",
-      ...(actor.userId !== null ? { userId: actor.userId } : {}),
-    };
-  }
-  return { actorType: "ci_exchange" };
 }
 
 function toPresentCell(row: SecretMatrixSecretRow): SecretMatrixCellRead {

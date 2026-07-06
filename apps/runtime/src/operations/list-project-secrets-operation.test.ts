@@ -175,4 +175,47 @@ describe("listProjectSecretsOperation", () => {
     expect(TenantSecretMatrixMetadataStore).toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toMatch(/ciphertext|valueUtf8|plaintext|password/i);
   });
+
+  it("omits lastSetActor instead of relabeling malformed machine metadata as ci_exchange", async () => {
+    listByProjectEnvironments.mockResolvedValue([
+      {
+        environmentId: envA,
+        organizationId: organization,
+        projectId: project,
+        displayName: "Staging",
+        lifecycleStage: "staging",
+        isProtected: false,
+        previewNonProductionOptDown: null,
+        createdAt: new Date("2026-06-24T00:00:00.000Z"),
+      },
+    ]);
+    listByProjectSecrets.mockResolvedValue([
+      {
+        secretId: secretId.brand("sec_00000000000000000000000001"),
+        environmentId: envA,
+        variableKey,
+        versionNumber: 1,
+        secretVersionId: secretVersionId.brand("sv_00000000000000000000000001"),
+        lifecycleState: "live",
+        lastSetAt: new Date("2026-06-24T01:00:00.000Z"),
+        lastSetActor: { actorType: "machine", userId: null, machineIdentityId: null },
+      },
+    ]);
+
+    const result = await listProjectSecretsOperation({
+      input: {
+        organizationId: organization,
+        projectId: project,
+        actorToken: "verified-by-rpc-entry",
+        requestId: request,
+      },
+      auditActor: { type: "user", userId: actorUserId },
+      accessActor: { type: "user", userId: actorUserId },
+    });
+
+    const cell = result.rows[0]?.cells[0];
+    expect(cell).toMatchObject({ present: true, versionNumber: 1 });
+    expect(cell).not.toHaveProperty("lastSetActor");
+    expect(JSON.stringify(cell)).not.toContain("ci_exchange");
+  });
 });

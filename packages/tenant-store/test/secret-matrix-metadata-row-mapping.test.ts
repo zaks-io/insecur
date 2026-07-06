@@ -2,6 +2,8 @@ import { environmentId, secretId, type VariableKey } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
 import {
+  parseCiExchangeLastSetActor,
+  parseMachineLastSetActor,
   resolveLiveVersion,
   resolveVersionForMatrixRow,
   toLastSetActor,
@@ -27,6 +29,16 @@ function joinRow(overrides: Partial<ProjectSecretJoinRow> = {}): ProjectSecretJo
     ...overrides,
   };
 }
+
+describe("parseMachineLastSetActor", () => {
+  it("returns null when the machine identity id is missing", () => {
+    expect(parseMachineLastSetActor(null)).toBeNull();
+  });
+
+  it("returns null when the machine identity id is invalid", () => {
+    expect(parseMachineLastSetActor("not-a-machine-id")).toBeNull();
+  });
+});
 
 describe("toLastSetActor", () => {
   it("returns null for machine actors without a machine identity id", () => {
@@ -70,11 +82,7 @@ describe("toLastSetActor", () => {
         actorUserId: null,
         actorMachineIdentityId: null,
       }),
-    ).toEqual({
-      actorType: "ci_exchange",
-      userId: null,
-      machineIdentityId: null,
-    });
+    ).toEqual(parseCiExchangeLastSetActor());
   });
 });
 

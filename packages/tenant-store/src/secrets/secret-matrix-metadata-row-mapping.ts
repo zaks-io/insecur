@@ -37,41 +37,50 @@ export type LiveVersionResolution =
   | { readonly kind: "malformed" }
   | { readonly kind: "resolved"; readonly version: ResolvedSecretVersionRow };
 
+export function parseMachineLastSetActor(
+  actorMachineIdentityId: string | null,
+): SecretMatrixLastSetActorRow | null {
+  if (!actorMachineIdentityId) {
+    return null;
+  }
+  const parsedMachineIdentityId = machineIdentityId.parse(actorMachineIdentityId);
+  if (!parsedMachineIdentityId.ok) {
+    return null;
+  }
+  return {
+    actorType: "machine",
+    userId: null,
+    machineIdentityId: parsedMachineIdentityId.value,
+  };
+}
+
+export function parseCiExchangeLastSetActor(): SecretMatrixLastSetActorRow {
+  return {
+    actorType: "ci_exchange",
+    userId: null,
+    machineIdentityId: null,
+  };
+}
+
 export function toLastSetActor(row: {
   actorType: string;
   actorUserId: string | null;
   actorMachineIdentityId: string | null;
 }): SecretMatrixLastSetActorRow | null {
-  switch (row.actorType) {
-    case "machine": {
-      if (!row.actorMachineIdentityId) {
-        return null;
-      }
-      const parsedMachineIdentityId = machineIdentityId.parse(row.actorMachineIdentityId);
-      if (!parsedMachineIdentityId.ok) {
-        return null;
-      }
-      return {
-        actorType: "machine",
-        userId: null,
-        machineIdentityId: parsedMachineIdentityId.value,
-      };
-    }
-    case "user":
-      return {
-        actorType: "user",
-        userId: row.actorUserId ? userId.brand(row.actorUserId) : null,
-        machineIdentityId: null,
-      };
-    case "ci_exchange":
-      return {
-        actorType: "ci_exchange",
-        userId: null,
-        machineIdentityId: null,
-      };
-    default:
-      return null;
+  if (row.actorType === "machine") {
+    return parseMachineLastSetActor(row.actorMachineIdentityId);
   }
+  if (row.actorType === "user") {
+    return {
+      actorType: "user",
+      userId: row.actorUserId ? userId.brand(row.actorUserId) : null,
+      machineIdentityId: null,
+    };
+  }
+  if (row.actorType === "ci_exchange") {
+    return parseCiExchangeLastSetActor();
+  }
+  return null;
 }
 
 function parseStoredSecretVersionId(
