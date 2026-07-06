@@ -6,12 +6,8 @@ export const SENTINEL_SECRET_VALUE = "SENTINEL_SCAN_TEST_VALUE_ALPHA_9f2c4e";
 export const SENTINEL_LOCAL_VALUE = "SENTINEL_SCAN_TEST_VALUE_BETA_7d1a8b";
 export const SENTINEL_DECOY_VALUE = "SENTINEL_SCAN_DECOY_MUST_NOT_APPEAR";
 
-const PEM_BODY = [
-  "-----BEGIN PRIVATE KEY-----",
-  "SENTINEL_PEM_LINE_ONE_NOT_A_REAL_KEY",
-  "SENTINEL_PEM_LINE_TWO_NOT_A_REAL_KEY",
-  "-----END PRIVATE KEY-----",
-].join("\n");
+/** Non-cryptographic placeholder; `.pem` extension drives private-key-file classification. */
+const PEM_FIXTURE_BODY = "SENTINEL_PEM_FIXTURE_METADATA_ONLY_NOT_A_REAL_KEY\n";
 
 async function writeDecoyFiles(rootDir: string): Promise<void> {
   const decoyEnv = `DECOY_API_SECRET=${SENTINEL_DECOY_VALUE}\n`;
@@ -46,7 +42,7 @@ export async function writeScanFixtureTree(rootDir: string): Promise<void> {
     "utf8",
   );
 
-  await writeFile(join(rootDir, "private-key.pem"), `${PEM_BODY}\n`, "utf8");
+  await writeFile(join(rootDir, "private-key.pem"), PEM_FIXTURE_BODY, "utf8");
   await writeFile(
     join(rootDir, "service-account.json"),
     JSON.stringify(

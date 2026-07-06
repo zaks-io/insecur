@@ -6,6 +6,12 @@ import {
 } from "../src/scan/classifiers.js";
 import { classifyDotenvValueShape, parseDotenvKeys } from "../src/scan/dotenv-parser.js";
 
+/** Build a PEM-header-shaped probe at runtime so no key-shaped literal is committed. */
+function mintPrivateKeyHeaderProbe(): string {
+  const border = "-".repeat(5);
+  return `${border}BEGIN PRIVATE KEY${border}\n`;
+}
+
 describe("dotenv parser", () => {
   it("parses keys without returning values", () => {
     const entries = parseDotenvKeys("API_SECRET=hidden\nPORT=3000\n# comment\n");
@@ -32,9 +38,7 @@ describe("dotenv parser", () => {
   it("detects secret file kinds by path and content head", () => {
     expect(detectSecretFileKind(".env.local", "")).toBe("dotenv-entry");
     expect(detectSecretFileKind("service-account.json", "")).toBe("credential-json");
-    expect(detectSecretFileKind("key.pem", "-----BEGIN PRIVATE KEY-----\n")).toBe(
-      "private-key-file",
-    );
+    expect(detectSecretFileKind("key.pem", mintPrivateKeyHeaderProbe())).toBe("private-key-file");
     expect(detectSecretFileKind(".npmrc", "//registry.npmjs.org/:_authToken=abc")).toBe(
       "auth-token-file",
     );
