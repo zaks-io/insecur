@@ -5,6 +5,14 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  buildArtifactBundlesUrl,
+  countReleaseArtifactBundleFiles,
+  fetchReleaseArtifactBundles,
+  parseArtifactBundlesPayload,
+  releaseHasArtifactBundleSourcemaps,
+  waitForReleaseArtifactBundles,
+} from "./sentry-artifact-bundles.mjs";
+import {
   buildSentryCliEnv,
   resolveSentryCliInvocation,
   SENTRY_CLI_TIMEOUT_MS,
@@ -12,13 +20,7 @@ import {
 import { runPostDeploySentrySourcemaps } from "./post-deploy-sentry-sourcemaps.mjs";
 import { resolveSentrySourcemapConfig } from "./sentry-sourcemap-config.mjs";
 import { hasSourceMap, uploadWranglerSourcemaps } from "./sentry-upload-wrangler-sourcemaps.mjs";
-import {
-  isSourceMapArtifact,
-  listReleaseFiles,
-  parseReleaseFilesList,
-  releaseHasSourceMapArtifacts,
-  verifyReleaseSourcemaps,
-} from "./sentry-verify-release-sourcemaps.mjs";
+import { verifyReleaseSourcemaps } from "./sentry-verify-release-sourcemaps.mjs";
 
 test("deploy workflows read SENTRY_AUTH_TOKEN from repository or environment secrets", async () => {
   const { readFile } = await import("node:fs/promises");
@@ -165,29 +167,61 @@ test("uploadWranglerSourcemaps skips missing maps when upload is not required", 
   }
 });
 
-test("verifyReleaseSourcemaps skips when auth token is absent", () => {
-  assert.deepEqual(verifyReleaseSourcemaps({}), {
+test("verifyReleaseSourcemaps skips when auth token is absent", async () => {
+  assert.deepEqual(await verifyReleaseSourcemaps({}), {
     action: "skip",
     reason: "missing_auth_token",
   });
 });
 
-test("parseReleaseFilesList ignores blank lines", () => {
-  assert.deepEqual(parseReleaseFilesList("~/index.js\n\n~/index.js.map\n"), [
-    "~/index.js",
-    "~/index.js.map",
-  ]);
+test("parseArtifactBundlesPayload accepts array and paginated payloads", () => {
+  assert.deepEqual(parseArtifactBundlesPayload([{ bundleId: "a" }]), [{ bundleId: "a" }]);
+  assert.deepEqual(parseArtifactBundlesPayload({ data: [{ bundleId: "b" }] }), [{ bundleId: "b" }]);
+  assert.deepEqual(parseArtifactBundlesPayload({}), []);
 });
 
-test("releaseHasSourceMapArtifacts requires at least one map artifact", () => {
-  assert.equal(releaseHasSourceMapArtifacts(["~/index.js", "~/assets/client.js"]), false);
-  assert.equal(releaseHasSourceMapArtifacts(["~/index.js.map"]), true);
-  assert.equal(isSourceMapArtifact("~/index.js.map"), true);
-  assert.equal(isSourceMapArtifact("~/assets/sourcemap-report.json"), false);
+test("releaseHasArtifactBundleSourcemaps requires uploaded files for the release", () => {
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps(
+      [{ fileCount: 0, associations: [{ release: "release-1" }] }],
+      "release-1",
+    ),
+    false,
+  );
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps(
+      [{ fileCount: 3, associations: [{ release: "other-release" }] }],
+      "release-1",
+    ),
+    false,
+  );
+  assert.equal(
+    releaseHasArtifactBundleSourcemaps(
+      [{ fileCount: 2, associations: [{ release: "release-1" }] }],
+      "release-1",
+    ),
+    true,
+  );
 });
 
-test("listReleaseFiles parses mocked sentry-cli stdout", () => {
-  const files = listReleaseFiles(
+test("buildArtifactBundlesUrl queries artifact bundles for the deployed release", () => {
+  assert.equal(
+    buildArtifactBundlesUrl(
+      {
+        action: "upload",
+        authToken: "token-value",
+        org: "zaksio",
+        project: "insecur",
+        release: "release-1",
+      },
+      { SENTRY_URL: "https://sentry.example/" },
+    ),
+    "https://sentry.example/api/0/projects/zaksio/insecur/files/artifact-bundles/?query=release-1",
+  );
+});
+
+test("fetchReleaseArtifactBundles parses artifact bundle payloads", async () => {
+  const bundles = await fetchReleaseArtifactBundles(
     {
       action: "upload",
       authToken: "token-value",
@@ -197,34 +231,74 @@ test("listReleaseFiles parses mocked sentry-cli stdout", () => {
     },
     {},
     {
-      runCli: () => ({
-        stdout: " ~/index.js.map \n~/assets/app.js\n",
-        status: 0,
-      }),
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify([
+            {
+              bundleId: "bundle-1",
+              fileCount: 4,
+              associations: [{ release: "release-1", dist: null }],
+            },
+          ]),
+          { status: 200 },
+        ),
     },
   );
 
-  assert.deepEqual(files, ["~/index.js.map", "~/assets/app.js"]);
+  assert.equal(bundles.length, 1);
+  assert.equal(countReleaseArtifactBundleFiles(bundles, "release-1"), 4);
 });
 
-test("verifyReleaseSourcemaps succeeds with mocked map list", () => {
-  const result = verifyReleaseSourcemaps(
+test("waitForReleaseArtifactBundles polls until bundles appear", async () => {
+  let attempts = 0;
+  const bundles = await waitForReleaseArtifactBundles(
+    {
+      action: "upload",
+      authToken: "token-value",
+      org: "zaksio",
+      project: "insecur",
+      release: "release-1",
+    },
+    {},
+    {
+      maxWaitMs: 1_000,
+      pollIntervalMs: 10,
+      sleepFn: async () => {},
+      fetchBundles: async () => {
+        attempts += 1;
+        if (attempts < 2) {
+          return [];
+        }
+        return [{ fileCount: 1, associations: [{ release: "release-1" }] }];
+      },
+    },
+  );
+
+  assert.equal(attempts, 2);
+  assert.equal(releaseHasArtifactBundleSourcemaps(bundles, "release-1"), true);
+});
+
+test("verifyReleaseSourcemaps succeeds with mocked artifact bundle lookup", async () => {
+  const result = await verifyReleaseSourcemaps(
     {
       SENTRY_AUTH_TOKEN: "token-value",
       SENTRY_RELEASE: "release-1",
     },
     {
-      runCli: () => ({
-        stdout: "~/worker/index.js.map\n",
-        status: 0,
-      }),
+      fetchBundles: async () => [
+        {
+          bundleId: "bundle-1",
+          fileCount: 2,
+          associations: [{ release: "release-1", dist: null }],
+        },
+      ],
     },
   );
 
   assert.deepEqual(result, {
     action: "verify",
     release: "release-1",
-    mapCount: 1,
+    fileCount: 2,
   });
 });
 
