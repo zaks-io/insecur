@@ -102,6 +102,27 @@ describe("listSecretMatrixRowsByProject", () => {
     expect(JSON.stringify(rows)).not.toMatch(/ciphertext|valueUtf8|wrapped/i);
   });
 
+  it("skips rows whose stored secret version id is not a valid sv_ opaque id", async () => {
+    const db = createMatrixDb({
+      joinRows: [
+        {
+          secretId: secretId.brand("sec_00000000000000000000000001"),
+          environmentId: ENV,
+          variableKey: VARIABLE_KEY,
+          liveVersionId: "secv_00000000000000000000000001",
+          liveVersionNumberFromRow: 2,
+          liveLifecycleState: "live",
+          livePublishedAt: new Date("2026-06-24T01:00:00.000Z"),
+          liveCreatedAt: new Date("2026-06-24T00:00:00.000Z"),
+        },
+      ],
+    });
+
+    await expect(
+      listSecretMatrixRowsByProject(db, { organizationId: ORG, projectId: PROJECT }),
+    ).resolves.toEqual([]);
+  });
+
   it("falls back to the latest draft version when no live version exists", async () => {
     const secret = secretId.brand("sec_00000000000000000000000002");
     const db = createMatrixDb({

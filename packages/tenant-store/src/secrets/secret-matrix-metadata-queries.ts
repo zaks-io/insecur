@@ -1,20 +1,16 @@
-import {
-  environmentId,
-  machineIdentityId,
-  parseVariableKey,
-  secretId,
-  secretVersionId,
-  userId,
-  type SecretId,
-} from "@insecur/domain";
+import { secretId, type SecretId } from "@insecur/domain";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { auditEvents, secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
+import { SECRET_VERSION_LIFECYCLE_STATES } from "./lifecycle-states.js";
 import {
-  parseSecretVersionLifecycleState,
-  SECRET_VERSION_LIFECYCLE_STATES,
-} from "./lifecycle-states.js";
+  toLastSetActor,
+  toResolvedVersionRow,
+  toSecretMatrixRow,
+  type ProjectSecretJoinRow,
+  type ResolvedSecretVersionRow,
+} from "./secret-matrix-metadata-row-mapping.js";
 import type {
   ListSecretMatrixByProjectInput,
   SecretMatrixLastSetActorRow,
@@ -25,106 +21,6 @@ const SECRET_WRITE_EVENT_CODES = [
   "secret.non_protected_write",
   "secret.protected_draft_write",
 ] as const;
-
-interface ResolvedSecretVersionRow {
-  readonly secretVersionId: ReturnType<typeof secretVersionId.brand>;
-  readonly versionNumber: number;
-  readonly lifecycleState: ReturnType<typeof parseSecretVersionLifecycleState>;
-  readonly lastSetAt: Date;
-}
-
-interface ProjectSecretJoinRow {
-  readonly secretId: string;
-  readonly environmentId: string;
-  readonly variableKey: string;
-  readonly liveVersionId: string | null;
-  readonly liveVersionNumberFromRow: number | null;
-  readonly liveLifecycleState: string | null;
-  readonly livePublishedAt: Date | null;
-  readonly liveCreatedAt: Date | null;
-}
-
-function toLastSetActor(row: {
-  actorType: string;
-  actorUserId: string | null;
-  actorMachineIdentityId: string | null;
-}): SecretMatrixLastSetActorRow {
-  if (row.actorType === "machine" && row.actorMachineIdentityId) {
-    return {
-      actorType: "machine",
-      userId: null,
-      machineIdentityId: machineIdentityId.brand(row.actorMachineIdentityId),
-    };
-  }
-  if (row.actorType === "user") {
-    return {
-      actorType: "user",
-      userId: row.actorUserId ? userId.brand(row.actorUserId) : null,
-      machineIdentityId: null,
-    };
-  }
-  return {
-    actorType: "ci_exchange",
-    userId: null,
-    machineIdentityId: null,
-  };
-}
-
-function toLiveVersion(row: ProjectSecretJoinRow): ResolvedSecretVersionRow | null {
-  if (!row.liveVersionId || row.liveVersionNumberFromRow === null || !row.liveLifecycleState) {
-    return null;
-  }
-  return {
-    secretVersionId: secretVersionId.brand(row.liveVersionId),
-    versionNumber: row.liveVersionNumberFromRow,
-    lifecycleState: parseSecretVersionLifecycleState(row.liveLifecycleState),
-    lastSetAt: row.livePublishedAt ?? row.liveCreatedAt ?? new Date(0),
-  };
-}
-
-function resolveLastSet(
-  secretIdValue: string,
-  resolvedVersion: ResolvedSecretVersionRow,
-  lastSetBySecretId: ReadonlyMap<
-    string,
-    { lastSetAt: Date; lastSetActor: SecretMatrixLastSetActorRow }
-  >,
-): Pick<SecretMatrixSecretRow, "lastSetAt" | "lastSetActor"> {
-  const lastSet = lastSetBySecretId.get(secretIdValue);
-  if (!lastSet) {
-    return { lastSetAt: resolvedVersion.lastSetAt, lastSetActor: null };
-  }
-  return { lastSetAt: lastSet.lastSetAt, lastSetActor: lastSet.lastSetActor };
-}
-
-function toSecretMatrixRow(
-  row: ProjectSecretJoinRow,
-  draftVersions: ReadonlyMap<string, ResolvedSecretVersionRow>,
-  lastSetBySecretId: ReadonlyMap<
-    string,
-    { lastSetAt: Date; lastSetActor: SecretMatrixLastSetActorRow }
-  >,
-): SecretMatrixSecretRow | null {
-  const parsedKey = parseVariableKey(row.variableKey);
-  if (!parsedKey.ok) {
-    return null;
-  }
-
-  const resolvedVersion = toLiveVersion(row) ?? draftVersions.get(row.secretId);
-  if (!resolvedVersion) {
-    return null;
-  }
-
-  return {
-    secretId: secretId.brand(row.secretId),
-    environmentId: environmentId.brand(row.environmentId),
-    variableKey: parsedKey.value,
-    versionNumber: resolvedVersion.versionNumber,
-    secretVersionId: resolvedVersion.secretVersionId,
-    lifecycleState: resolvedVersion.lifecycleState,
-    ...resolveLastSet(row.secretId, resolvedVersion, lastSetBySecretId),
-  };
-}
 
 async function loadProjectSecretJoinRows(
   db: TenantScopedDb,
@@ -184,12 +80,16 @@ async function loadLatestDraftVersions(
     if (latestDraftBySecretId.has(row.secretId)) {
       continue;
     }
-    latestDraftBySecretId.set(row.secretId, {
-      secretVersionId: secretVersionId.brand(row.secretVersionId),
-      versionNumber: row.versionNumber,
-      lifecycleState: parseSecretVersionLifecycleState(row.lifecycleState),
-      lastSetAt: row.createdAt,
-    });
+    const resolved = toResolvedVersionRow(
+      row.secretVersionId,
+      row.versionNumber,
+      row.lifecycleState,
+      row.createdAt,
+    );
+    if (!resolved) {
+      continue;
+    }
+    latestDraftBySecretId.set(row.secretId, resolved);
   }
 
   return latestDraftBySecretId;

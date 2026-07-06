@@ -84,7 +84,10 @@ describeRls("project and environment metadata reads (real Postgres)", () => {
         }),
     );
 
+    expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((row) => row.secretId.startsWith("sec_"))).toBe(true);
+    expect(rows.every((row) => row.secretVersionId.startsWith("sv_"))).toBe(true);
+    expect(rows.every((row) => row.versionNumber >= 1)).toBe(true);
     expect(JSON.stringify(rows)).not.toMatch(/ciphertext|valueUtf8|wrapped/i);
   });
 
