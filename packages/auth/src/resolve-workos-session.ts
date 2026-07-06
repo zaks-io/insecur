@@ -13,8 +13,7 @@ import type {
 } from "./workos-session-port.js";
 
 export type ResolveWorkOSSessionResult =
-  | { ok: true; context: WorkOSSessionContext }
-  | { ok: false; failure: AuthFailure };
+  { ok: true; context: WorkOSSessionContext } | { ok: false; failure: AuthFailure };
 
 function authFailureForAssuranceReason(reason: SessionAssuranceFailureReason): AuthFailure {
   switch (reason) {
@@ -111,8 +110,7 @@ export interface RefreshWorkOSSessionSuccess {
 }
 
 export type RefreshWorkOSSessionResult =
-  | { ok: true; rotated: RefreshWorkOSSessionSuccess }
-  | { ok: false; failure: AuthFailure };
+  { ok: true; rotated: RefreshWorkOSSessionSuccess } | { ok: false; failure: AuthFailure };
 
 export async function refreshWorkOSSession(
   workos: WorkOSSessionPort,

@@ -13,11 +13,7 @@ export interface FakeWorkOSSessionEntry {
   readonly authorizationCode?: string;
   readonly codeVerifier?: string;
   readonly authorizationCodeFailure?:
-    | "expired"
-    | "invalid"
-    | "missing"
-    | "mfa_enrollment"
-    | "mfa_challenge";
+    "expired" | "invalid" | "missing" | "mfa_enrollment" | "mfa_challenge";
   readonly email?: string;
   readonly authenticationMethod?: string;
   readonly authFactors?: readonly WorkOSAuthFactorSummary[];

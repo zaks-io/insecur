@@ -9,8 +9,7 @@ export type InjectionGrantIssueSelector =
   | { kind: "policy_id"; policyId: import("@insecur/domain").RuntimePolicyId };
 
 export type InjectionGrantConsumeSelector =
-  | { kind: "variable_key"; variableKey: VariableKey }
-  | { kind: "secret_id"; secretId: SecretId };
+  { kind: "variable_key"; variableKey: VariableKey } | { kind: "secret_id"; secretId: SecretId };
 
 function invalidConsumeSelectorError(): InjectionGrantError {
   return new InjectionGrantError(

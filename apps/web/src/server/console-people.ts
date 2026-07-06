@@ -19,18 +19,17 @@ export interface ConsolePeople {
  */
 export const loadOrgPeople = createServerFn({ method: "GET" })
   .validator(orgIdInput)
-  .handler(
-    ({ data }): Promise<ConsoleRead<ConsolePeople>> =>
-      consoleRead(async (api) => {
-        const [membersBody, invitationsBody] = await Promise.all([
-          api.orgMembers(data.organizationId),
-          api.orgInvitations(data.organizationId),
-        ]);
-        const members = parseOrgMembersBody(membersBody);
-        const invitations = parseOrgInvitationsBody(invitationsBody);
-        if (members === null || invitations === null) {
-          return null;
-        }
-        return { members, invitations };
-      }),
+  .handler(({ data }): Promise<ConsoleRead<ConsolePeople>> =>
+    consoleRead(async (api) => {
+      const [membersBody, invitationsBody] = await Promise.all([
+        api.orgMembers(data.organizationId),
+        api.orgInvitations(data.organizationId),
+      ]);
+      const members = parseOrgMembersBody(membersBody);
+      const invitations = parseOrgInvitationsBody(invitationsBody);
+      if (members === null || invitations === null) {
+        return null;
+      }
+      return { members, invitations };
+    }),
   );

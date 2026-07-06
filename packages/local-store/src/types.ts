@@ -1,8 +1,5 @@
 export type KeyStoreBackend =
-  | "macos-keychain"
-  | "windows-dpapi"
-  | "linux-secret-tool"
-  | "file-fallback";
+  "macos-keychain" | "windows-dpapi" | "linux-secret-tool" | "file-fallback";
 
 export interface KeyStoreNotice {
   readonly code: "local_store.file_fallback_active";

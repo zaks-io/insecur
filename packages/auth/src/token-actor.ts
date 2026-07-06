@@ -30,8 +30,7 @@ export function readActorClaims(claims: TokenClaims): ActorClaims | null {
 }
 
 export type ActorFromClaimsResult =
-  | { ok: true; actor: UserActor }
-  | { ok: false; reason: "expired" | "invalid" };
+  { ok: true; actor: UserActor } | { ok: false; reason: "expired" | "invalid" };
 
 /**
  * Validate the lifetime and rebuild the {@link UserActor} from already typ/aud-checked claims.

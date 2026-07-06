@@ -1,8 +1,7 @@
 import { stdin, stdout } from "node:process";
 
 type MaskedPromptResult =
-  | { readonly done: true; readonly value: Uint8Array }
-  | { readonly done: false };
+  { readonly done: true; readonly value: Uint8Array } | { readonly done: false };
 
 function popMaskedByte(chunks: Buffer[]): void {
   if (chunks.length === 0) {

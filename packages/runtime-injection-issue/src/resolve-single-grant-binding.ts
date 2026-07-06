@@ -27,8 +27,7 @@ function grantDeniedForUnresolvedSelector(error: unknown): never {
 export async function resolveBindingForSelector(
   coordinate: GrantCoordinate,
   selector:
-    | { kind: "variable_key"; variableKey: VariableKey }
-    | { kind: "secret_id"; secretId: SecretId },
+    { kind: "variable_key"; variableKey: VariableKey } | { kind: "secret_id"; secretId: SecretId },
 ): Promise<ResolvedInjectionGrantBinding> {
   return withTenantScope(
     { kind: "organization", organizationId: coordinate.organizationId },

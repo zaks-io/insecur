@@ -44,8 +44,7 @@ interface ExchangeEnvironmentDeployKeyFailure {
 }
 
 export type ExchangeEnvironmentDeployKeyResult =
-  | ExchangeEnvironmentDeployKeySuccess
-  | ExchangeEnvironmentDeployKeyFailure;
+  ExchangeEnvironmentDeployKeySuccess | ExchangeEnvironmentDeployKeyFailure;
 
 export interface ExchangeEnvironmentDeployKeyInput {
   readonly organizationId: OrganizationId;
