@@ -26,6 +26,7 @@ describe("INSTALL_SH", () => {
   it("downloads with fail-loud, https-pinned transport", () => {
     expect(INSTALL_SH).toContain("curl --fail");
     expect(INSTALL_SH).toContain('--proto "$ALLOWED_PROTO"');
+    expect(INSTALL_SH).toContain('--proto-redir "$ALLOWED_PROTO"');
     expect(INSTALL_SH).toContain('ALLOWED_PROTO="=https"');
     expect(INSTALL_SH).toContain("--https-only");
   });
@@ -47,6 +48,7 @@ describe("INSTALL_PS1", () => {
     expect(INSTALL_PS1).toContain("Set-StrictMode -Version Latest");
     expect(INSTALL_PS1).toContain("$Repo = 'zaks-io/insecur'");
     expect(INSTALL_PS1).toContain("insecur-windows-x64.exe");
+    expect(INSTALL_PS1).toContain("PROCESSOR_ARCHITEW6432");
   });
 
   it("verifies checksums before installing", () => {
@@ -68,19 +70,24 @@ describe("INSTALL_PS1", () => {
 });
 
 describe("installScriptResponse", () => {
-  it("serves GET with body, content type, cache, and nosniff headers", async () => {
+  it("serves GET with body, content type, cache, and the site security headers", async () => {
     const response = installScriptResponse(INSTALL_SH, INSTALL_SH_CONTENT_TYPE, "GET");
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/x-shellscript; charset=utf-8");
     expect(response.headers.get("Cache-Control")).toBe("public, max-age=300, s-maxage=300");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(await response.text()).toBe(INSTALL_SH);
   });
 
-  it("serves HEAD with headers and an empty body", async () => {
+  it("serves HEAD with the GET body's Content-Length and an empty body", async () => {
     const response = installScriptResponse(INSTALL_PS1, INSTALL_PS1_CONTENT_TYPE, "HEAD");
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    expect(response.headers.get("Content-Length")).toBe(
+      String(new TextEncoder().encode(INSTALL_PS1).byteLength),
+    );
     expect(await response.text()).toBe("");
   });
 

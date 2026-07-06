@@ -82,7 +82,7 @@ detect_target() {
 download() {
   url="$1"; out="$2"
   if have curl; then
-    curl --fail --silent --show-error --location --proto "$ALLOWED_PROTO" --tlsv1.2 --output "$out" "$url"
+    curl --fail --silent --show-error --location --proto "$ALLOWED_PROTO" --proto-redir "$ALLOWED_PROTO" --tlsv1.2 --output "$out" "$url"
   elif have wget; then
     if [ "$ALLOWED_PROTO" = "=https" ]; then
       wget --quiet --https-only --output-document="$out" "$url"

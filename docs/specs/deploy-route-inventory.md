@@ -94,7 +94,8 @@ Runtime, or product-control-plane binding.
 
 `/install.sh` and `/install.ps1` are the CLI installer scripts, served as static text with no
 capability: they download the published `cli-v*` GitHub Release binaries and refuse to install
-anything that fails SHA-256 verification against the release's `SHA256SUMS`.
+anything that fails SHA-256 verification against the release's `SHA256SUMS`. Both answer GET and
+HEAD; other methods get 405.
 
 | Method | Mount prefix   |
 | ------ | -------------- |

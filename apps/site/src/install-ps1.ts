@@ -24,7 +24,9 @@ $InstallDir = if ($env:INSECUR_INSTALL_DIR) { $env:INSECUR_INSTALL_DIR } else { 
 
 function Fail($msg) { Write-Error "insecur: $msg"; exit 1 }
 
-$arch = $env:PROCESSOR_ARCHITECTURE
+# 32-bit PowerShell on 64-bit Windows reports x86; PROCESSOR_ARCHITEW6432 carries
+# the native architecture under WOW64, and the x64 binary runs fine there.
+$arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 if ($arch -ne 'AMD64') {
   Fail "no prebuilt Windows binary for $arch. See https://github.com/$Repo/releases"
 }

@@ -10,27 +10,7 @@ import {
   installScriptResponse,
 } from "./install-scripts.js";
 import { INSTALL_SH } from "./install-sh.js";
-
-const SECURITY_HEADERS: Record<string, string> = {
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  // Placeholder site: keep it out of search indexes until launch (belt-and-suspenders with the
-  // per-page robots meta). Remove when the public site goes live.
-  "X-Robots-Tag": "noindex, nofollow",
-};
-
-function withSecurityHeaders(response: Response): Response {
-  const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
-    headers.set(name, value);
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
+import { withSecurityHeaders } from "./security-headers.js";
 
 const sentryServerEntry = wrapFetchWithSentry({
   fetch(request, opts) {
