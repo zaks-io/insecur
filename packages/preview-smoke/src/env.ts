@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import {
+  PREVIEW_SMOKE_NO_SCOPE_ADMITTED_USER_ID,
+  PREVIEW_SMOKE_NO_SCOPE_WORKOS_USER_ID,
+} from "./preview-smoke-no-scope-actor.js";
+
 export interface PreviewConfig {
   apiBaseUrl: string;
   databaseUrl: string;
@@ -25,8 +30,14 @@ export function loadPreviewConfig(): PreviewConfig {
     expectedSha: requireEnv("SMOKE_EXPECTED_DEPLOY_SHA", "GITHUB_SHA"),
     inviteeUserId: requireEnv("SMOKE_INVITEE_ADMITTED_USER_ID"),
     inviteeWorkosUserId: requireEnv("SMOKE_INVITEE_WORKOS_USER_ID"),
-    noScopeUserId: requireEnv("SMOKE_NO_SCOPE_ADMITTED_USER_ID"),
-    noScopeWorkosUserId: requireEnv("SMOKE_NO_SCOPE_WORKOS_USER_ID"),
+    noScopeUserId: envOrDefault(
+      "SMOKE_NO_SCOPE_ADMITTED_USER_ID",
+      PREVIEW_SMOKE_NO_SCOPE_ADMITTED_USER_ID,
+    ),
+    noScopeWorkosUserId: envOrDefault(
+      "SMOKE_NO_SCOPE_WORKOS_USER_ID",
+      PREVIEW_SMOKE_NO_SCOPE_WORKOS_USER_ID,
+    ),
     ownerUserId: requireEnv("SMOKE_ADMITTED_USER_ID"),
     ownerWorkosUserId: requireEnv("SMOKE_WORKOS_USER_ID"),
     signingSecret,
@@ -125,6 +136,14 @@ function stripInlineEnvComment(value: string): string {
     return value.slice(0, hashIndex).trimEnd();
   }
   return value;
+}
+
+function envOrDefault(name: string, fallback: string): string {
+  const value = process.env[name];
+  if (value !== undefined && value.trim() !== "") {
+    return value;
+  }
+  return fallback;
 }
 
 function requireEnv(...names: string[]): string {
