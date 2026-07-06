@@ -51,7 +51,7 @@ function resolveDotenvConfidence(
     return "likely-secret";
   }
   if (keyConfidence !== null) {
-    return keyConfidence === "possible" && shape.length < 4 ? null : keyConfidence;
+    return shape.length < 4 ? null : keyConfidence;
   }
   return shape.looksSecretLike ? "possible" : null;
 }
@@ -111,7 +111,7 @@ export function detectSecretFileKind(
   const name = basename(relativePath);
   const byName = detectSecretFileKindByName(name);
   if (byName === "auth-token-file") {
-    return contentHead.includes("_authToken") ? byName : null;
+    return isAuthTokenFileContent(contentHead) ? byName : null;
   }
   if (byName) {
     return byName;
@@ -151,6 +151,10 @@ export function classifyWholeFileFinding(
 
 function isPemContent(content: string): boolean {
   return /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/u.test(content);
+}
+
+function isAuthTokenFileContent(content: string): boolean {
+  return content.includes("_authToken") || content.includes("npmAuthToken");
 }
 
 function isBenignConfigValue(value: string): boolean {

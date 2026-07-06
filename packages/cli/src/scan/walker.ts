@@ -32,11 +32,17 @@ export interface WalkOptions {
   readonly maxFileBytes?: number;
 }
 
+export interface WalkProjectFilesResult {
+  readonly files: readonly WalkedFile[];
+  readonly oversizedFiles: readonly string[];
+}
+
 interface WalkState {
   readonly maxDepth: number;
   readonly maxFiles: number;
   readonly maxFileBytes: number;
   readonly results: WalkedFile[];
+  readonly oversizedFiles: string[];
 }
 
 interface DirVisit {
@@ -63,7 +69,10 @@ async function tryAppendFile(
 
   if (sizeBytes <= state.maxFileBytes) {
     state.results.push({ absolutePath, relativePath, sizeBytes });
+    return;
   }
+
+  state.oversizedFiles.push(relativePath);
 }
 
 async function processEntry(state: WalkState, visit: DirVisit, entry: Dirent): Promise<void> {
@@ -107,14 +116,15 @@ async function visitDir(state: WalkState, visit: DirVisit): Promise<void> {
   }
 }
 
-export async function walkProjectFiles(options: WalkOptions): Promise<readonly WalkedFile[]> {
+export async function walkProjectFiles(options: WalkOptions): Promise<WalkProjectFilesResult> {
   const state: WalkState = {
     maxDepth: options.maxDepth ?? DEFAULT_MAX_DEPTH,
     maxFiles: options.maxFiles ?? DEFAULT_MAX_FILES,
     maxFileBytes: options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,
     results: [],
+    oversizedFiles: [],
   };
 
   await visitDir(state, { dirPath: options.rootDir, relativeDir: "", depth: 0 });
-  return state.results;
+  return { files: state.results, oversizedFiles: state.oversizedFiles };
 }

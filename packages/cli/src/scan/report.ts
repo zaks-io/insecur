@@ -122,7 +122,7 @@ function applyScanOutcome(
 
 export async function buildScanReport(options: ScanOptions): Promise<ScanReport> {
   const startedAt = performance.now();
-  const walkedFiles = await walkProjectFiles(options);
+  const { files: walkedFiles, oversizedFiles } = await walkProjectFiles(options);
   const findings: ScanFinding[] = [];
   const unreadableFiles: string[] = [];
   const filesWithFindings = new Set<string>();
@@ -146,6 +146,7 @@ export async function buildScanReport(options: ScanOptions): Promise<ScanReport>
       filesScanned: walkedFiles.length,
       filesWithFindings: filesWithFindings.size,
       unreadableFiles,
+      oversizedFiles,
       totalEntries: totalEntries.value,
       likelySecrets,
       migratableCount,
@@ -180,15 +181,27 @@ function formatUnreadableLines(unreadableFiles: readonly string[]): string[] {
   ];
 }
 
+function formatOversizedLines(oversizedFiles: readonly string[]): string[] {
+  if (oversizedFiles.length === 0) {
+    return [];
+  }
+  return [
+    "",
+    `Oversized files (${String(oversizedFiles.length)}):`,
+    ...oversizedFiles.map((file) => `  ${file}`),
+  ];
+}
+
 export function formatScanHumanReport(report: ScanReport): string {
   const { summary, findings } = report;
   const lines = [
     `Found ${String(summary.likelySecrets)} likely secrets across ${String(summary.filesWithFindings)} files in ${String(summary.elapsedMs)}ms.`,
     "",
-    `Files scanned: ${String(summary.filesScanned)} | Entries: ${String(summary.totalEntries)} | Likely secrets: ${String(summary.likelySecrets)} | Migratable: ${String(summary.migratableCount)} | Unreadable: ${String(summary.unreadableFiles.length)}`,
+    `Files scanned: ${String(summary.filesScanned)} | Entries: ${String(summary.totalEntries)} | Likely secrets: ${String(summary.likelySecrets)} | Migratable: ${String(summary.migratableCount)} | Unreadable: ${String(summary.unreadableFiles.length)} | Oversized: ${String(summary.oversizedFiles.length)}`,
   ];
 
   lines.push(...formatUnreadableLines(summary.unreadableFiles));
+  lines.push(...formatOversizedLines(summary.oversizedFiles));
 
   if (findings.length > 0) {
     lines.push(...formatFindingLines(findings));
@@ -199,5 +212,5 @@ export function formatScanHumanReport(report: ScanReport): string {
 
 export function formatScanStrictQuietSummary(report: ScanReport): string {
   const { summary } = report;
-  return `insecur scan: likely_secrets=${String(summary.likelySecrets)} files=${String(summary.filesWithFindings)} migratable=${String(summary.migratableCount)} unreadable=${String(summary.unreadableFiles.length)} elapsed_ms=${String(summary.elapsedMs)}`;
+  return `insecur scan: likely_secrets=${String(summary.likelySecrets)} files=${String(summary.filesWithFindings)} migratable=${String(summary.migratableCount)} unreadable=${String(summary.unreadableFiles.length)} oversized=${String(summary.oversizedFiles.length)} elapsed_ms=${String(summary.elapsedMs)}`;
 }

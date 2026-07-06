@@ -23,6 +23,7 @@ interface ScanSummary {
   readonly filesScanned: number;
   readonly filesWithFindings: number;
   readonly unreadableFiles: readonly string[];
+  readonly oversizedFiles: readonly string[];
   readonly totalEntries: number;
   readonly likelySecrets: number;
   readonly migratableCount: number;

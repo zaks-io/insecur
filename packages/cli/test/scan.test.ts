@@ -121,8 +121,17 @@ describe("insecur scan", () => {
     const line = stderr.mock.calls[0]?.[0];
     expect(typeof line).toBe("string");
     expect(line).toMatch(
-      /^insecur scan: likely_secrets=\d+ files=\d+ migratable=\d+ unreadable=\d+ elapsed_ms=\d+\n$/u,
+      /^insecur scan: likely_secrets=\d+ files=\d+ migratable=\d+ unreadable=\d+ oversized=\d+ elapsed_ms=\d+\n$/u,
     );
+  });
+
+  it("rejects --json with --strict --quiet", async () => {
+    const root = await createFixture();
+    await expect(
+      runScanCommand({ ...baseFlags, configDir: root, json: true, quiet: true }, { strict: true }),
+    ).rejects.toMatchObject({
+      message: "insecur scan --strict --quiet cannot be combined with --json.",
+    });
   });
 
   it("--json serialized envelope passes assertMetadataOnlyEnvelopeShape", async () => {
@@ -164,6 +173,14 @@ describe("insecur scan", () => {
 
     const report = await buildScanReport({ rootDir: root });
     expect(report.findings.some((finding) => finding.file === ".npmrc")).toBe(true);
+  });
+
+  it("reports oversized files in the summary", async () => {
+    const root = await mkdtemp(join(tmpdir(), "insecur-scan-oversized-"));
+    await writeFile(join(root, ".npmrc"), "x".repeat(300), "utf8");
+
+    const report = await buildScanReport({ rootDir: root, maxFileBytes: 256 });
+    expect(report.summary.oversizedFiles).toContain(".npmrc");
   });
 });
 

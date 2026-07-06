@@ -8,5 +8,8 @@ describe("secret path name matching", () => {
 
     expect(mightBeSecretPath("key.PEM")).toBe(true);
     expect(detectSecretFileKindByName("key.PEM")).toBe("private-key-file");
+
+    expect(mightBeSecretPath("server.key")).toBe(true);
+    expect(detectSecretFileKindByName("server.key")).toBe("private-key-file");
   });
 });

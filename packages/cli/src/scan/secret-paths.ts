@@ -5,6 +5,7 @@ const SECRET_BASENAMES = new Set([".netrc", ".npmrc", ".yarnrc", ".yarnrc.yml"])
 
 const SECRET_BASENAME_PATTERNS = [
   /\.pem$/iu,
+  /\.key$/iu,
   /^service-account.*\.json$/iu,
   /credentials.*\.json$/iu,
   /.*credentials\.json$/iu,
@@ -51,7 +52,7 @@ export function detectSecretFileKindByName(name: string): ScanFindingKind | null
     return "credential-json";
   }
 
-  if (/\.pem$/iu.test(name)) {
+  if (/\.(?:pem|key)$/iu.test(name)) {
     return "private-key-file";
   }
 

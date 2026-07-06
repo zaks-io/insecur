@@ -26,6 +26,8 @@ describe("dotenv parser", () => {
   it("classifies benign values as non-findings", () => {
     expect(classifyDotenvEntry("PORT", "3000")).toBeNull();
     expect(classifyDotenvEntry("NODE_ENV", "development")).toBeNull();
+    expect(classifyDotenvEntry("API_SECRET", "")).toBeNull();
+    expect(classifyDotenvEntry("DATABASE_PASSWORD", "   ")).toBeNull();
   });
 
   it("classifies secret-shaped values as findings", () => {
@@ -40,6 +42,9 @@ describe("dotenv parser", () => {
     expect(detectSecretFileKind("service-account.json", "")).toBe("credential-json");
     expect(detectSecretFileKind("key.pem", mintPrivateKeyHeaderProbe())).toBe("private-key-file");
     expect(detectSecretFileKind(".npmrc", "//registry.npmjs.org/:_authToken=abc")).toBe(
+      "auth-token-file",
+    );
+    expect(detectSecretFileKind(".yarnrc.yml", "npmAuthToken: sentinel-metadata-only\n")).toBe(
       "auth-token-file",
     );
     expect(detectSecretFileKind(".npmrc", "registry=https://registry.npmjs.org/")).toBeNull();
