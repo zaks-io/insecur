@@ -133,6 +133,13 @@ export interface RetryOperationInput {
 export interface CancelOperationInput {
   readonly organizationId: OrganizationId;
   readonly operationId: OperationId;
+  /**
+   * When set, CAS UPDATE also requires uncleared, unconsumed high-assurance challenge
+   * evidence with the given challenge id (prevents deny-after-clear races).
+   */
+  readonly highAssuranceDenyCas?: {
+    readonly challengeId: string;
+  };
 }
 
 export interface OperationPollResult {

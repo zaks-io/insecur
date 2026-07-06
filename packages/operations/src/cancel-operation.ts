@@ -21,6 +21,9 @@ export async function cancelOperation(
         nextState: "canceled",
         progressPatch: {},
         legalFromStates: CANCELABLE_OPERATION_STATES,
+        ...(input.highAssuranceDenyCas === undefined
+          ? {}
+          : { highAssuranceDenyCas: input.highAssuranceDenyCas }),
         notAllowedError: {
           code: OPERATION_ERROR_CODES.notCancelable,
           message: (state) => `operation in state ${state} cannot be canceled`,

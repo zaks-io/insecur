@@ -52,7 +52,8 @@ bundle, status, timestamps; invitations carry no token or acceptance secret). Bo
 Under `/v1/orgs/:organizationId/high-assurance-challenges` (INS-361): `GET /` lists pending
 High-Assurance Challenge metadata for the Human Approval Surface; `GET /:operationId` returns one
 challenge's metadata evidence; `POST /:operationId/clear` clears with operation-bound fresh step-up
-evidence (`freshStepUpFactor` in body, WorkOS auth factors resolved server-side); `POST
+evidence (`stepUpCode` and `stepUpCodeVerifier` in body, exchanged server-side via WorkOS/AuthKit for the
+same user/session); `POST
 /:operationId/deny` denies the bounded operation. All four are human-actor-only (`requireUserActor`)
 and authorize inside the Runtime deploy (`approval:approve` for clear, `approval:reject` for deny,
 either approval scope for list/get after `organization:read`).

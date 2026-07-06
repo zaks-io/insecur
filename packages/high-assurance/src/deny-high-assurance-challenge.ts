@@ -1,5 +1,11 @@
 import { AUTHORIZATION_SCOPES } from "@insecur/access";
-import { cancelOperation, getOperation, type OperationPollResult } from "@insecur/operations";
+import {
+  cancelOperation,
+  getOperation,
+  OPERATION_ERROR_CODES,
+  OperationStoreError,
+  type OperationPollResult,
+} from "@insecur/operations";
 import type { DenyHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
 import { challengeAuditScopeFromBoundEvidence } from "./high-assurance-challenge-audit-scope.js";
 import {
@@ -86,10 +92,25 @@ export async function denyHighAssuranceChallenge(
   });
   const evidence = assertDenyablePendingChallenge(operation, input);
 
-  const mutation = await cancelOperation({
-    organizationId: input.organizationId,
-    operationId: input.operationId,
-  });
+  let mutation;
+  try {
+    mutation = await cancelOperation({
+      organizationId: input.organizationId,
+      operationId: input.operationId,
+      highAssuranceDenyCas: { challengeId: evidence.challengeId },
+    });
+  } catch (error) {
+    if (
+      error instanceof OperationStoreError &&
+      error.code === OPERATION_ERROR_CODES.staleTransition
+    ) {
+      throw new HighAssuranceChallengeError(
+        HIGH_ASSURANCE_ERROR_CODES.alreadyConsumed,
+        "high-assurance challenge evidence is already cleared",
+      );
+    }
+    throw error;
+  }
 
   await recordHighAssuranceChallengeDenied({
     ...challengeAuditScopeFromBoundEvidence(input, evidence),

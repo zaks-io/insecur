@@ -43,6 +43,13 @@ export interface ApplyTransitionInput {
   highAssuranceConsumeCas?: {
     challengeId: string;
   };
+  /**
+   * When set, CAS UPDATE also requires uncleared, unconsumed high-assurance challenge
+   * evidence with the given challenge id (prevents deny-after-clear races).
+   */
+  highAssuranceDenyCas?: {
+    challengeId: string;
+  };
 }
 
 function assertApplyTransitionAllowed(

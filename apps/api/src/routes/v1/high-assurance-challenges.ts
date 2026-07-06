@@ -8,8 +8,11 @@ import {
   requireUserActor,
   runtimeClientFor,
   createAuthContext,
+  AuthFailureError,
   type AuthVariables,
 } from "@insecur/worker-kit";
+import { resolveHighAssuranceClearAssuranceFromWorkOSStepUp, type UserActor } from "@insecur/auth";
+import { errorEnvelope, requestId, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
 import {
@@ -17,35 +20,58 @@ import {
   parseOrganizationRouteParam,
 } from "./parse-org-route-params.js";
 
-import type { FreshStepUpFactorType } from "@insecur/auth";
-
 export const highAssuranceChallengesRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();
 
-function parseFreshStepUpFactor(value: unknown): FreshStepUpFactorType | undefined {
-  if (value === "totp" || value === "generic_otp" || value === "passkey") {
-    return value;
-  }
-  return undefined;
+function requestHeaderValue(
+  context: { req: { header: (name: string) => string | undefined } },
+  name: string,
+) {
+  const value = context.req.header(name);
+  return value === undefined || value.trim() === "" ? undefined : value;
+}
+
+function requestHeadersForStepUp(context: {
+  req: { header: (name: string) => string | undefined };
+}): {
+  readonly ipAddress?: string;
+  readonly userAgent?: string;
+} {
+  const ipAddress = requestHeaderValue(context, "cf-connecting-ip");
+  const userAgent = requestHeaderValue(context, "user-agent");
+  return {
+    ...(ipAddress === undefined ? {} : { ipAddress }),
+    ...(userAgent === undefined ? {} : { userAgent }),
+  };
 }
 
 async function resolveSessionAssuranceForClear(
   env: ApiEnv,
-  userActor: { readonly workosUserId: string },
+  userActor: UserActor,
   body: Record<string, unknown>,
+  requestHeaders: {
+    readonly ipAddress?: string;
+    readonly userAgent?: string;
+  },
 ) {
+  const stepUpCode = readRequiredString(body, "stepUpCode");
+  const stepUpCodeVerifier = readRequiredString(body, "stepUpCodeVerifier");
   const { workos } = createAuthContext(env);
-  const authFactors = await workos.listAuthFactors(userActor.workosUserId);
-  const freshStepUpFactor = parseFreshStepUpFactor(body.freshStepUpFactor);
-  const authenticationMethod = readOptionalString(body, "authenticationMethod");
-
-  return {
-    authFactors,
-    ...(authenticationMethod !== undefined ? { authenticationMethod } : {}),
-    ...(freshStepUpFactor !== undefined ? { freshStepUpFactor } : {}),
-  };
+  const resolved = await resolveHighAssuranceClearAssuranceFromWorkOSStepUp({
+    workos,
+    actor: userActor,
+    stepUpCode,
+    stepUpCodeVerifier,
+    ...(requestHeaders.ipAddress === undefined ? {} : { ipAddress: requestHeaders.ipAddress }),
+    ...(requestHeaders.userAgent === undefined ? {} : { userAgent: requestHeaders.userAgent }),
+  });
+  if (!resolved.ok) {
+    const reqId = requestId.generate();
+    throw new AuthFailureError(resolved.failure, reqId);
+  }
+  return resolved.sessionAssurance;
 }
 
 highAssuranceChallengesRoutes.get("/", requireUserActor, async (context) =>
@@ -81,12 +107,34 @@ highAssuranceChallengesRoutes.post("/:operationId/clear", requireUserActor, asyn
     const environmentId =
       environmentIdRaw !== undefined ? parseEnvironmentIdParam(environmentIdRaw) : undefined;
 
+    let sessionAssurance;
+    try {
+      sessionAssurance = await resolveSessionAssuranceForClear(
+        context.env,
+        userActor,
+        body,
+        requestHeadersForStepUp(context),
+      );
+    } catch (error) {
+      if (error instanceof AuthFailureError) {
+        throw error;
+      }
+      return context.json(
+        errorEnvelope({
+          code: VALIDATION_ERROR_CODES.invalidCommandInput,
+          message: error instanceof Error ? error.message : "invalid clear request body",
+          retryable: false,
+        }),
+        400,
+      );
+    }
+
     return runtimeClientFor(context.env, userActor).clearHighAssuranceChallenge({
       organizationId,
       operationId,
       projectId,
       ...(environmentId !== undefined ? { environmentId } : {}),
-      sessionAssurance: await resolveSessionAssuranceForClear(context.env, userActor, body),
+      sessionAssurance,
       requestId: reqId,
     });
   }),

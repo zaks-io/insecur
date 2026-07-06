@@ -13,6 +13,9 @@ function buildQuery(strings: TemplateStringsArray, values: readonly unknown[]): 
 export function createFakeTenantSql(handler: FakeSqlHandler): TenantScopedSql {
   const fakeSql = async <T>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T> => {
     const query = buildQuery(strings, values);
+    if (query.trim() === "") {
+      return [] as T;
+    }
     return handler(query, values) as T;
   };
 

@@ -1,11 +1,12 @@
 import { mintEphemeralSessionCredential } from "@insecur/auth";
-import { testSessionSigningSecret } from "@insecur/auth/testing";
+import { testSessionSigningSecret, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
 import { CREDENTIAL_SCOPES } from "@insecur/access";
 import { mintMachineAccessToken } from "@insecur/machine-auth";
 import {
   AUTH_ERROR_CODES,
   HIGH_ASSURANCE_ERROR_CODES,
   OPERATION_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
   machineIdentityId,
   operationId,
   organizationId,
@@ -25,23 +26,54 @@ import app from "../../index.js";
 
 vi.mock("@insecur/worker-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/worker-kit")>();
+  const { createFakeWorkOSSessionPort } = await import("@insecur/auth/testing");
   return {
     ...actual,
-    createAuthContext: (env: Parameters<typeof actual.createAuthContext>[0]) => {
-      const base = actual.createAuthContext(env);
-      return {
-        ...base,
-        workos: {
-          ...base.workos,
-          listAuthFactors: vi.fn(() => Promise.resolve([{ type: "totp" as const }])),
-        },
-      };
+    createAuthContext: (
+      env: Parameters<typeof actual.createAuthContext>[0],
+      options?: Parameters<typeof actual.createAuthContext>[1],
+    ) => {
+      const fakeSessions = (
+        env as { readonly WORKOS_TEST_FAKE_SESSIONS?: readonly FakeWorkOSSessionEntry[] }
+      ).WORKOS_TEST_FAKE_SESSIONS;
+      return actual.createAuthContext(env, {
+        ...options,
+        ...(fakeSessions === undefined
+          ? {}
+          : { workos: createFakeWorkOSSessionPort(fakeSessions) }),
+      });
     },
   };
 });
 
 const admittedUserId = userId.brand(ADMITTED_USER_ID_RAW);
 const workosUserId = WORKOS_USER_ID;
+const sessionId = "session_high_assurance_test";
+const stepUpCode = "code_step_up_totp";
+const stepUpCodeVerifier = "verifier_step_up_totp";
+
+function workosFakeSessions(): readonly FakeWorkOSSessionEntry[] {
+  return [
+    {
+      sessionData: "sealed_hac_clear",
+      userId: workosUserId,
+      sessionId,
+      authorizationCode: stepUpCode,
+      codeVerifier: stepUpCodeVerifier,
+      authenticationMethod: "Password",
+      authFactors: [{ type: "totp" }],
+    },
+  ];
+}
+
+function clearRequestBody(overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    projectId: projectIdValue,
+    stepUpCode,
+    stepUpCodeVerifier,
+    ...overrides,
+  });
+}
 
 const orgId = organizationId.brand("org_00000000000000000000000001");
 const otherOrgId = organizationId.brand("org_00000000000000000000000002");
@@ -62,6 +94,7 @@ function makeEnv() {
     RUNTIME_TOKEN_SIGNING_SECRET: "runtime-hop-secret-00000000000000000000000000",
     MACHINE_ACCESS_SIGNING_SECRET: machineAccessSigningSecret,
     RUNTIME: runtime,
+    WORKOS_TEST_FAKE_SESSIONS: workosFakeSessions(),
   };
 }
 
@@ -97,7 +130,7 @@ async function authHeaders(env: ReturnType<typeof makeEnv>): Promise<Record<stri
       type: "user",
       userId: admittedUserId,
       workosUserId,
-      sessionId: "session_high_assurance_test",
+      sessionId,
     },
     signingSecret: env.SESSION_SIGNING_SECRET,
   });
@@ -264,8 +297,74 @@ describe("high-assurance challenge worker routes", () => {
   });
 
   describe("POST /v1/orgs/:organizationId/high-assurance-challenges/:operationId/clear", () => {
-    it("forwards fresh step-up evidence to the Runtime clear RPC", async () => {
+    it("forwards server-verified step-up evidence to the Runtime clear RPC", async () => {
       const env = makeEnv();
+      const response = await app.request(
+        clearPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: clearRequestBody(),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.clearHighAssuranceChallenge).toHaveBeenCalledTimes(1);
+      const clearCall = runtime.clearHighAssuranceChallenge.mock.calls[0]?.[0];
+      expect(clearCall).toMatchObject({
+        organizationId: orgId,
+        operationId: operationIdValue,
+        projectId: projectIdValue,
+      });
+      expect(clearCall?.sessionAssurance).toMatchObject({
+        freshStepUpFactor: "totp",
+        authenticationMethod: "Password",
+      });
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          operationId: operationIdValue,
+          challengeId: metadataOnlyChallenge.challengeId,
+          clearingUserId: admittedUserId,
+        },
+      });
+    });
+
+    it("rejects clear without server-verified step-up PKCE fields", async () => {
+      const env = makeEnv();
+
+      const response = await app.request(
+        clearPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId: projectIdValue,
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(400);
+      expect(runtime.clearHighAssuranceChallenge).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId },
+      });
+    });
+
+    it("rejects client-supplied step-up factor without WorkOS exchange", async () => {
+      const env = makeEnv();
+
       const response = await app.request(
         clearPath,
         {
@@ -282,56 +381,8 @@ describe("high-assurance challenge worker routes", () => {
         env,
       );
 
-      expect(response.status).toBe(200);
-      expect(runtime.clearHighAssuranceChallenge).toHaveBeenCalledTimes(1);
-      const clearCall = runtime.clearHighAssuranceChallenge.mock.calls[0]?.[0];
-      expect(clearCall).toMatchObject({
-        organizationId: orgId,
-        operationId: operationIdValue,
-        projectId: projectIdValue,
-      });
-      expect(clearCall?.sessionAssurance).toMatchObject({ freshStepUpFactor: "totp" });
-      const body: unknown = await response.json();
-      expect(body).toMatchObject({
-        ok: true,
-        data: {
-          operationId: operationIdValue,
-          challengeId: metadataOnlyChallenge.challengeId,
-          clearingUserId: admittedUserId,
-        },
-      });
-    });
-
-    it("maps stale or missing step-up to high_assurance.session_assurance_failed", async () => {
-      const env = makeEnv();
-      runtime.clearHighAssuranceChallenge.mockResolvedValue(
-        rpcFailure(
-          HIGH_ASSURANCE_ERROR_CODES.sessionAssuranceFailed,
-          "session assurance failed: fresh_step_up_required",
-        ),
-      );
-
-      const response = await app.request(
-        clearPath,
-        {
-          method: "POST",
-          headers: {
-            ...(await authHeaders(env)),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            projectId: projectIdValue,
-          }),
-        },
-        env,
-      );
-
-      expect(response.status).toBe(401);
-      const body: unknown = await response.json();
-      expect(body).toMatchObject({
-        ok: false,
-        error: { code: HIGH_ASSURANCE_ERROR_CODES.sessionAssuranceFailed },
-      });
+      expect(response.status).toBe(400);
+      expect(runtime.clearHighAssuranceChallenge).not.toHaveBeenCalled();
     });
 
     it("maps actor mismatch to high_assurance.actor_mismatch", async () => {
@@ -348,10 +399,7 @@ describe("high-assurance challenge worker routes", () => {
             ...(await authHeaders(env)),
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            projectId: projectIdValue,
-            freshStepUpFactor: "passkey",
-          }),
+          body: clearRequestBody(),
         },
         env,
       );
@@ -445,10 +493,7 @@ describe("high-assurance challenge worker routes", () => {
             ...(await machineAuthHeaders(env)),
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            projectId: projectIdValue,
-            freshStepUpFactor: "totp",
-          }),
+          body: clearRequestBody(),
         },
         env,
       );
