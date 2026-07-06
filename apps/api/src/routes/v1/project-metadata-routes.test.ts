@@ -49,6 +49,7 @@ const listProjectsPath = `/v1/orgs/${orgId}/projects`;
 const crossTenantProjectsPath = `/v1/orgs/${otherOrgId}/projects`;
 const listEnvironmentsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments`;
 const listProjectSecretsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/secrets`;
+const crossTenantProjectSecretsPath = `/v1/orgs/${otherOrgId}/projects/${projectIdValue}/secrets`;
 
 function testDisplayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -373,6 +374,27 @@ describe("project metadata worker routes", () => {
         ok: false,
         error: { code: "validation.invalid_opaque_resource_id" },
       });
+    });
+
+    it("tenant-qualifies cross-tenant reads through the Runtime seam", async () => {
+      const env = makeEnv();
+      runtime.listProjectSecrets.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "organization membership required"),
+      );
+
+      const response = await app.request(
+        crossTenantProjectSecretsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      expect(runtime.listProjectSecrets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: otherOrgId,
+          projectId: projectIdValue,
+        }),
+      );
     });
   });
 });
