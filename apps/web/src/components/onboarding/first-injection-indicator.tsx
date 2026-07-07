@@ -45,6 +45,10 @@ export function FirstInjectionIndicator({ organizationId }: { organizationId: st
         const outcome = await loadFirstValueUsage({ data: organizationId });
         if (!cancelled && outcome.ok && outcome.status.firstInjectionObserved) {
           setObserved(true);
+          if (intervalRef.current !== undefined) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = undefined;
+          }
         }
       } catch {
         // Keep polling on transient failures; the indicator is best-effort.
