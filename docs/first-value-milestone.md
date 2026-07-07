@@ -27,7 +27,13 @@ The First Value Milestone owns the integration of:
 
 The milestone does not own:
 
-- A dev-only database, file store, auth bypass, local plaintext cache, or alternate Secret model.
+- Shortcut scaffolding: a dev-only database, file store, auth bypass, local plaintext cache, or
+  alternate Secret model invented outside the real product seams.
+- **Local Mode** ([ADR-0080](adr/0080-local-mode-accountless-development-custody.md)): account-less,
+  machine-scoped development custody is a first-class backend behind the same Secret Version Store,
+  Injection Grant, and audit seams, but it is out of scope for First Value. First Value proves the
+  hosted Diskless Development Secret Use path through Guided Organization Provisioning; Local Mode is
+  a separate V1 milestone with its own spec in `docs/cli-and-sync.md`.
 - Provider App Connections, Secret Sync, provider lookup, or provider credentials.
 - Protected Environments, Promotion, Approval Requests, or Human Approval Surface flows.
 - Machine Identity credentials, GitHub Actions OIDC, or Environment Deploy Keys.
