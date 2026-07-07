@@ -19,6 +19,7 @@ import {
 } from "./output/unexpected-cli-error.js";
 import { registerScanCommand } from "./register-scan-command.js";
 import { registerSecretsCommands } from "./register-secrets-commands.js";
+import { registerConfigCommands } from "./register-config-commands.js";
 import { cliVersion } from "./version.js";
 
 function attachGlobalOptions(command: Command): Command {
@@ -93,6 +94,7 @@ function buildProgram(): Command {
   registerAuditCommands(program, globalFlags);
   registerSecretsCommands(program, { globalFlags, resolveApi });
   registerScanCommand(program, { globalFlags });
+  registerConfigCommands(program, globalFlags);
 
   return program;
 }

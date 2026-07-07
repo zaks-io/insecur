@@ -15,6 +15,10 @@ const FORBIDDEN_CONFIG_KEYS: readonly string[] = [
 
 const FORBIDDEN_CONFIG_KEY_SET = new Set<string>(FORBIDDEN_CONFIG_KEYS);
 
+export function isForbiddenConfigKey(key: string): boolean {
+  return FORBIDDEN_CONFIG_KEY_SET.has(key);
+}
+
 export function assertNoForbiddenConfigKeys(
   record: Record<string, unknown>,
   path = "config",
