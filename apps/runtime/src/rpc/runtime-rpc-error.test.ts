@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import { RuntimeActorTokenError, toRuntimeRpcError } from "./runtime-rpc-error.js";
 import { RuntimeTokenSigningSecretConfigError } from "@insecur/worker-kit";
+import { AuditExportKeysNotConfiguredError } from "../crypto/audit-export-keys-not-configured-error.js";
 
 const SENTINEL = "sentinel-plaintext-must-not-cross-seam";
 const RUNTIME_RPC_GENERIC_MESSAGE = "runtime request failed";
@@ -63,6 +64,13 @@ describe("toRuntimeRpcError", () => {
     const mapped = toRuntimeRpcError(new RootKeyNotConfiguredError());
     expect(mapped.code).toBe(VALIDATION_ERROR_CODES.invalidOpaqueResourceId);
     expect(mapped.message).not.toContain("root");
+  });
+
+  it("hides audit-export key misconfiguration behind a generic validation failure", () => {
+    const mapped = toRuntimeRpcError(new AuditExportKeysNotConfiguredError());
+    expect(mapped.code).toBe(VALIDATION_ERROR_CODES.invalidOpaqueResourceId);
+    expect(mapped.message).toBe("runtime audit export keys are unavailable");
+    expect(mapped.message).not.toContain("private");
   });
 
   it("carries tenant data key readiness failures with an allowlisted safe message", () => {

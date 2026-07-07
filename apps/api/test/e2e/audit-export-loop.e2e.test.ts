@@ -12,7 +12,6 @@ import {
 import {
   createTestAuditExportKeyProviders,
   testAuditExportRuntimeBindings,
-  testAuditExportRuntimeEnvVars,
 } from "../../../../packages/audit/test/support/test-audit-export-keys.js";
 import { assertAuditExportJsonlIsMetadataOnly } from "../../../../packages/audit/test/support/assert-audit-export-jsonl-metadata-only.js";
 import {
@@ -79,10 +78,6 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
     await seedMetadataViewerMembership();
     const keys = await createTestAuditExportKeyProviders();
     auditExportBindings = await testAuditExportRuntimeBindings();
-    const auditExportEnvVars = await testAuditExportRuntimeEnvVars();
-    for (const [name, value] of Object.entries(auditExportEnvVars)) {
-      process.env[name] = value;
-    }
     signingPublicKey = keys.signingPublicKey;
     hmacSecret = keys.hmacSecret;
     verificationKeys = new StaticAuditExportVerificationKeys();
