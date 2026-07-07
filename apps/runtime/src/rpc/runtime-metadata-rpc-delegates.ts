@@ -1,6 +1,8 @@
 import type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,
+  FirstValueUsageStatusRpcPayload,
+  QueryFirstValueUsageRpcInput,
   CancelOperationRpcInput,
   CancelOperationRpcPayload,
   CreateEnvironmentRpcInput,
@@ -36,6 +38,7 @@ import {
 } from "@insecur/runtime-injection-issue";
 
 import { captureFirstValueFeedbackOperation } from "../operations/capture-first-value-feedback-operation.js";
+import { queryFirstValueUsageOperation } from "../operations/query-first-value-usage-operation.js";
 import { getOperationOperation } from "../operations/get-operation-operation.js";
 import { cancelOperationOperation } from "../operations/cancel-operation-operation.js";
 import { listAuditEventsOperation } from "../operations/list-audit-events-operation.js";
@@ -189,4 +192,13 @@ export function captureFirstValueFeedbackRpc(
   input: CaptureFirstValueFeedbackRpcInput,
 ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>> {
   return post(input.actorToken, (actors) => captureFirstValueFeedbackOperation(input, actors));
+}
+
+export function queryFirstValueUsageRpc(
+  post: PostAuthRpcRunner,
+  input: QueryFirstValueUsageRpcInput,
+): Promise<RuntimeRpcResult<FirstValueUsageStatusRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    queryFirstValueUsageOperation({ input, auditActor, accessActor }),
+  );
 }

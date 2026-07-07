@@ -35,6 +35,7 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback`   |
+| GET    | `/v1/orgs/:organizationId/first-value-usage`         |
 
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /`
 creates a project with a client-minted opaque ID and Display Name; `GET
@@ -44,6 +45,11 @@ copy from another environment in the same project); `GET
 /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version,
 last-set actor/time; INS-363). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+
+Under `/v1/orgs/:organizationId/first-value-usage` (INS-379): `GET /` returns metadata-only
+First Value usage counters for the onboarding handoff indicator (`secretWrites`, `grantConsumed`,
+`runCompleted`, `firstInjectionObserved`). Authorize-then-read requires `organization:read` inside
+the Runtime deploy.
 
 Under `/v1/orgs/:organizationId/audit-events` (INS-364): `GET /` lists tenant-qualified audit
 events with metadata-only envelopes. Query filters: `actorUserId`, `actorMachineIdentityId`,
