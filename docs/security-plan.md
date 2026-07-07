@@ -577,7 +577,7 @@ Agent/DX requirements:
 
 - `insecur connections list --json` never returns credentials.
 - `insecur sync plan --json` shows target changes without exposing values.
-- `insecur sync run --operation <id>` is resumable.
+- `insecur syncs run <sync-id> --operation <id>` resumes a step-up-cleared `waiting_for_human` operation; `insecur operations retry <id>` resumes an `incomplete` sync operation.
 - Operation records store operation IDs and target metadata, never Sensitive Values.
 - Operation status should expose enough state for agents to distinguish running, blocked, incomplete (cause `retryable` or `action_required`, including waiting for reauthorization), succeeded, completed_with_warnings, and canceled states.
 - Provider errors are normalized enough for agents to decide whether to retry, reauth, or stop.

@@ -345,7 +345,7 @@ Rules:
   `USERPROFILE`, `HOMEDRIVE`, `HOMEPATH`). Authenticated shells deliberately receive only
   `INSECUR_SESSION_TOKEN` plus profile metadata. Runtime Injection commands receive only the
   requested injected variable value plus the approved baseline.
-- `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
+- `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required. `INSECUR_ORG`, `INSECUR_PROJECT`, and `INSECUR_ENV` accept opaque resource IDs only, exactly like the `--org-id`, `--project-id`, and `--env-id` flags they stand in for; they never accept Display Names or slugs.
 - Prefer `insecur login --shell` or `insecur shell <profile-slug-or-id>` when a child shell
   needs the short-lived session token. Use `insecur run --variable-key <key> -- <command>` for
   one-shot Runtime Injection; run children do not inherit CLI/browser exchange credentials.
@@ -486,7 +486,7 @@ CLI command design should make safe management paths short and predictable while
 - `4`: authorization denied
 - `5`: not found or intentionally indistinguishable forbidden/not found
 - `6`: conflict or idempotency mismatch
-- `7`: provider error
+- `7`: action required: provider error, or `scan --strict` findings
 - `8`: rate limited or retryable upstream failure
 - `9`: operation incomplete
 - `10`: human step-up required (a High-Assurance Challenge the acting credential cannot satisfy)
@@ -679,7 +679,7 @@ human derives an agent-marked child session from their live human session:
 ```bash
 insecur agent shell -- claude          # spawn harness with agent session in child env
 insecur agent env                      # print exports for harnesses launched another way
-insecur login --device --agent         # remote/cloud agents: mint agent-marked directly
+insecur login --device --agent-session         # remote/cloud agents: mint agent-marked directly
 ```
 
 The derived session carries the same Effective Access as the parent (V1), is marked as an Agent
@@ -746,7 +746,7 @@ insecur login
 insecur login --no-open
 insecur login --callback-port 49152
 insecur login --device
-insecur login --device --agent
+insecur login --device --agent-session
 insecur shell prof_01JZ8E6H2R7M4T0V9X3C5D8F1G
 insecur agent shell -- claude
 insecur agent env
@@ -765,7 +765,9 @@ Notes:
   human's browser cannot reach (cloud agents, devcontainers, Codespaces): the CLI prints a short
   code and URL, the human approves from any browser, and the session lands in the remote process
   memory or managed shell. The session is the human's own, with the same lifetime and step-up
-  rules as browser login; `--agent` mints it agent-marked (see Agent Attribution).
+  rules as browser login; `--agent-session` mints it agent-marked (see Agent Attribution). The
+  boolean is named `--agent-session`, not `--agent`, because the global `--agent <name>` flag is
+  the value-taking Tier 3 attribution tag; one flag never carries two arities.
 - Human CLI login persists the session credential as a sealed record under the OS-keychain-backed machine root key (`--no-persist` opts out; `insecur logout` removes it); no plaintext session token, refresh token, or access token is ever saved to disk (ADR-0007, 2026-07-06 amendment).
 - `insecur shell <profile-slug-or-id>` launches a subshell with a short-lived session token in that child environment and clears it when the shell exits.
 - `insecur agent shell -- <command>` and `insecur agent env` derive an agent-marked child session
@@ -793,6 +795,10 @@ Rules:
 - Creating, updating, disabling, or rotating a deploy key is audited.
 - Deploy key values are accepted only through safe sensitive input paths and are never stored by the CLI.
 - Secret Sync is server-side and uses the App Connection for provider authorization; it does not use deploy keys.
+- The `deploy-keys` command shape is deliberately unspecified: a created deploy key is a Sensitive
+  Value, and how it is delivered to the automation destination without violating the no-reveal
+  output contract needs its own decision before commands are specced. The lifecycle rules above
+  bind any future shape; do not invent a command surface ahead of that decision.
 
 ### Project Defaults
 
@@ -805,6 +811,27 @@ insecur config show --json
 insecur config set default-env-id env_01JZ8E5B6Q1N4M7T0V3X9Z2C8D
 insecur config set branch-env.main env_01JZ8E4R2P7M9N3K5T8V1X6Z0A
 ```
+
+### CLI Profiles
+
+```bash
+insecur profiles list --json
+insecur profiles create --slug staging-deploy --org-id org_... --project-id prj_... --env-id env_...
+insecur profiles rename prof_01JZ8E6H2R7M4T0V9X3C5D8F1G --slug preview-deploy
+insecur profiles rm prof_01JZ8E8M5Q2R7V0X3Z6C9D1F4G
+```
+
+Rules:
+
+- Profile commands manage local user config only; they make no server calls and never touch
+  Sensitive Values. Hand-editing `~/.insecur/config.json` remains valid, but these commands are the
+  supported path so agents never have to edit JSON credentials-adjacent files.
+- `create` client-mints the opaque profile ID and enforces local slug uniqueness
+  (`cli.profile_slug_in_use`, exit `6`); `rename` changes the slug or Display Name, never the ID.
+- `rm` deletes only the local selector record; it is not destructive to any server resource and
+  accepts slug or opaque ID.
+- `insecur init` provisioning a default profile is the guided path; these commands are the manual
+  one.
 
 ### Projects And Environments
 
@@ -828,6 +855,11 @@ Rules:
 - `projects migrate` is one-way Local Mode→cloud reconciliation only; semantics are normative in [Local Mode](#local-mode). Requires authentication, `--org-id`, and scoped `--confirm-migrate`; generic `--yes` is rejected.
 
 ### Shared Secret Sources
+
+Deferred past V1: Shared Secret Sources are parked in the
+[deferred scope parking lot](phasing.md#deferred-scope-parking-lot); INS-438 is Canceled. The
+contract below is kept add-back-ready. Do not build it or create Linear scaffolding while the
+parking-lot row exists.
 
 ```bash
 insecur shared-secrets create --shared-secret-id ss_01JZ8EAQ1N4M7T0V3X9Z2C8D5F --display-name-stdin --value-stdin
@@ -868,7 +900,7 @@ Rules:
 - `--json` returns findings and summary through the standard metadata-only envelope.
 - Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
 - `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready); it cannot be combined with `--json`.
-- Migratable dotenv findings include remediation `insecur secrets set <KEY> --value-stdin`; values are never inlined in suggested commands.
+- Migratable dotenv findings include remediation `insecur secrets set --variable-key <KEY> --value-stdin`, matching the real `secrets set` argument shape; values are never inlined in suggested commands.
 
 ### Secrets
 
@@ -883,7 +915,7 @@ insecur secrets promote \
   --comment "Promote staged production config"
 insecur secrets rm sec_01JZ8EDZ9S4V7X0C3F6H9K2M5P --comment "Remove unused key"
 insecur secrets versions sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --json
-insecur secrets rollback sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --to-version 12 --promote --comment "Emergency rollback"
+insecur secrets rollback sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --to-version-id sv_01JZ8EVR4P7M9N3K5T8V1X6Z0A --promote --comment "Emergency rollback"
 insecur approvals list --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A --json
 # Approval itself happens only in the authenticated web app Human Approval Surface.
 # The CLI shows metadata-only status and polls with: insecur operations wait <operation-id>
@@ -1146,7 +1178,7 @@ insecur connections disconnect conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K
 
 Rules:
 
-- `list`, `status`, and `show` never return provider credentials.
+- `list` and `status` never return provider credentials. There is no separate `show` verb; `status` is the single per-connection read.
 - `create` starts a provider authorization flow or records a scoped provider token through a safe input path.
 - Provider tokens are accepted through stdin or masked prompt only; `--token <value>` is not supported.
 - Production app connection credentials require the Storage Security Gate before they can be used for Secret Sync.
@@ -1248,7 +1280,17 @@ insecur operations get op_123 --json
 insecur operations wait op_123 --json
 insecur operations wait op_123 --timeout 600 --json
 insecur operations cancel op_123
+insecur operations retry op_123
 ```
+
+There is exactly one resume verb per operation state, never two spellings for the same action:
+
+- `operations retry <op-id>` resumes an `incomplete` sync operation under the same operation ID: it
+  re-claims the sync target lease, revalidates, and writes only pending or failed bindings.
+- Step-up resume is not `retry`. A `waiting_for_human` bounded operation is resumed by re-executing
+  the original command carrying `--operation <op-id>` under the original acting credential (for
+  example `insecur syncs run <sync-id> --operation op_...`), which atomically consumes the
+  single-use cleared evidence (ADR-0032). `operations retry` rejects `waiting_for_human` operations.
 
 `operations wait` accepts `--timeout <seconds>`; on expiry it fails with the client-side code
 `operation.wait_timeout` at exit `9`, carrying the operation's current state in the envelope and
