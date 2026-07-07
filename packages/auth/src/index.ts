@@ -28,11 +28,14 @@ export {
   validateCsrfToken,
 } from "./csrf.js";
 export {
+  APPROVAL_PASSKEY_ENROLLED_METADATA_KEY,
   HIGH_ASSURANCE_AUTHENTICATION_METHODS,
+  hasApprovalPasskey,
   hasEligibleEnrolledMfaFactor,
   INSUFFICIENT_ASSURANCE_AUTHENTICATION_METHODS,
   isHighAssuranceAuthenticationMethod,
   isSmsAuthFactor,
+  parseApprovalPasskeyEnrolledMetadata,
   type WorkOSAuthFactorSummary,
   type WorkOSAuthFactorType,
 } from "./mfa-posture.js";

@@ -1,6 +1,10 @@
 import { OauthException, WorkOS } from "@workos-inc/node";
 import { base64UrlToBytes } from "@insecur/domain";
 import type { WorkOSAuthFactorSummary } from "./mfa-posture.js";
+import {
+  APPROVAL_PASSKEY_ENROLLED_METADATA_KEY,
+  parseApprovalPasskeyEnrolledMetadata,
+} from "./mfa-posture.js";
 import type { WorkOSAuthConfig } from "./workos-config.js";
 import type {
   WorkOSAuthorizationCodeInput,
@@ -41,6 +45,28 @@ async function listAuthFactorsForUser(
 ): Promise<readonly WorkOSAuthFactorSummary[]> {
   const page = await workos.multiFactorAuth.listUserAuthFactors({ userId });
   return page.data.map((factor: { type: string }) => ({ type: factor.type }));
+}
+
+async function userHasRegisteredPasskeyWithWorkOS(
+  workos: WorkOS,
+  userId: string,
+): Promise<boolean> {
+  const user = await workos.userManagement.getUser(userId);
+  return parseApprovalPasskeyEnrolledMetadata(user.metadata);
+}
+
+async function recordUserApprovalPasskeyEnrollmentWithWorkOS(
+  workos: WorkOS,
+  userId: string,
+): Promise<void> {
+  const user = await workos.userManagement.getUser(userId);
+  await workos.userManagement.updateUser({
+    userId,
+    metadata: {
+      ...user.metadata,
+      [APPROVAL_PASSKEY_ENROLLED_METADATA_KEY]: "true",
+    },
+  });
 }
 
 function contextFromAuthenticate(
@@ -102,6 +128,8 @@ function createAuthorizationUrlWithWorkOS(
     codeChallenge: input.codeChallenge,
     codeChallengeMethod: input.codeChallengeMethod,
     ...(input.screenHint === undefined ? {} : { screenHint: input.screenHint }),
+    ...(input.loginHint === undefined ? {} : { loginHint: input.loginHint }),
+    ...(input.maxAge === undefined ? {} : { maxAge: input.maxAge }),
   });
 }
 
@@ -208,5 +236,8 @@ export function createWorkOSSessionPort(config: WorkOSAuthConfig): WorkOSSession
     refreshSealedSession: (sessionData) =>
       refreshSealedSessionWithWorkOS(workos, config, sessionData),
     listAuthFactors: (userId) => listAuthFactorsForUser(workos, userId),
+    userHasRegisteredPasskey: (userId) => userHasRegisteredPasskeyWithWorkOS(workos, userId),
+    recordUserApprovalPasskeyEnrollment: (userId) =>
+      recordUserApprovalPasskeyEnrollmentWithWorkOS(workos, userId),
   };
 }

@@ -39,6 +39,9 @@ export interface WorkOSAuthorizationUrlInput {
   readonly codeChallenge: string;
   readonly codeChallengeMethod: "S256";
   readonly screenHint?: "sign-in" | "sign-up";
+  readonly loginHint?: string;
+  /** Forces re-authentication in AuthKit; used to surface passkey enrollment for signed-in members. */
+  readonly maxAge?: number;
 }
 
 export interface WorkOSAuthorizationCodeInput {
@@ -68,4 +71,6 @@ export interface WorkOSSessionPort {
   authenticateSealedSession(sessionData: string): Promise<WorkOSSessionAuthenticateResult>;
   refreshSealedSession(sessionData: string): Promise<WorkOSSessionRefreshResult>;
   listAuthFactors(userId: string): Promise<readonly WorkOSAuthFactorSummary[]>;
+  userHasRegisteredPasskey(userId: string): Promise<boolean>;
+  recordUserApprovalPasskeyEnrollment(userId: string): Promise<void>;
 }

@@ -70,6 +70,8 @@ root-key binding and NO Hyperdrive binding.
 | GET    | `/`                                         |
 | GET    | `/login`                                    |
 | GET    | `/auth/callback`                            |
+| GET    | `/auth/enroll-passkey`                      |
+| GET    | `/auth/enroll-passkey/callback`             |
 | POST   | `/logout`                                   |
 | GET    | `/whoami`                                   |
 | GET    | `/onboarding`                               |
@@ -97,7 +99,9 @@ over the same hop to the INS-373 API metadata GETs, rendering zero mutation affo
 `/onboarding` is the first-run onboarding wizard (INS-374): Guided Organization Provisioning for
 org-less members, with `?org&project&env` reopening the CLI handoff view; its provisioning
 mutation is a CSRF-checked server function forwarded to `POST /v1/onboarding/personal-organization`
-over the private `API` binding. URLs carry opaque Resource IDs only (docs/web-console-ux.md §URLs).
+over the private `API` binding. Step 2 enrolls an approval passkey through `GET /auth/enroll-passkey`
+(AuthKit redirect/ceremony) and `GET /auth/enroll-passkey/callback` (server-verified completion);
+the console shell shows a dismissible-per-session nudge until a passkey exists (INS-378). URLs carry opaque Resource IDs only (docs/web-console-ux.md §URLs).
 
 ## Public Site Worker — `apps/site` (`insecur-site`)
 

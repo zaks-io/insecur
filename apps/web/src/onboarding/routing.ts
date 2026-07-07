@@ -6,6 +6,7 @@ export interface OnboardingSearch {
   readonly org?: string;
   readonly project?: string;
   readonly env?: string;
+  readonly passkey?: "failed";
 }
 
 /**
@@ -31,7 +32,7 @@ export function parseHandoffSearch(search: OnboardingSearch): ProvisionedWorkspa
 }
 
 export type OnboardingRouteDecision =
-  | { readonly kind: "wizard" }
+  | { readonly kind: "wizard"; readonly passkeyEnrolled?: boolean }
   | {
       readonly kind: "handoff";
       readonly workspace: ProvisionedWorkspace;

@@ -16,7 +16,7 @@ export interface OnboardingStep {
 export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   { id: "name-organization", railLabel: "Name your organization", enabled: true },
   // INS-378: approval passkey enrollment claims this slot.
-  { id: "enroll-passkey", railLabel: "Approval passkey", enabled: false },
+  { id: "enroll-passkey", railLabel: "Approval passkey", enabled: true },
   { id: "create-project", railLabel: "First project", enabled: true },
   // INS-379: optional blind secret write claims this slot.
   { id: "first-secret", railLabel: "First secret", enabled: false },

@@ -10,13 +10,16 @@ import {
 import {
   decideOnboardingRoute,
   parseHandoffSearch,
+  type OnboardingRouteDecision,
   type OnboardingSearch,
+  type VerifiedHandoffNames,
 } from "../onboarding/routing.js";
 import { loadHandoffNames } from "../onboarding/handoff-load.js";
 import type { ProvisionedWorkspace } from "../onboarding/provisioning.js";
 import type { OnboardingStepId } from "../onboarding/steps.js";
 import { requireConsoleSession } from "../console/route-guards.js";
 import { throwConsoleUnavailable } from "../console/unavailable.js";
+import { loadApprovalPasskeyPosture } from "../server/approval-passkey-posture.js";
 import { loadOrgProjects, loadProjectEnvironments } from "../server/console-projects.js";
 import { loadConsoleSession } from "../server/console-session.js";
 
@@ -31,6 +34,7 @@ export const Route = createFileRoute("/onboarding")({
     ...(typeof search.org === "string" ? { org: search.org } : {}),
     ...(typeof search.project === "string" ? { project: search.project } : {}),
     ...(typeof search.env === "string" ? { env: search.env } : {}),
+    ...(search.passkey === "failed" ? { passkey: "failed" as const } : {}),
   }),
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ deps }) => {
@@ -44,7 +48,11 @@ export const Route = createFileRoute("/onboarding")({
       throw redirect({ href: decision.href });
     }
     if (decision.kind !== "handoff") {
-      return decision;
+      const passkeyPosture = await loadApprovalPasskeyPosture();
+      return {
+        ...decision,
+        passkeyEnrolled: passkeyPosture.kind === "authenticated" && passkeyPosture.enrolled,
+      };
     }
     // The receipt claims these resources exist, so the URL's project/env IDs are verified
     // against the member's own metadata reads (INS-362); an unverifiable pair falls back to
@@ -77,21 +85,27 @@ function onboardingReturnTo(workspace: ProvisionedWorkspace | undefined): string
   return `/onboarding?${params.toString()}`;
 }
 
+type OnboardingLoaderData =
+  | (Extract<OnboardingRouteDecision, { kind: "wizard" }> & { passkeyEnrolled: boolean })
+  | (Extract<OnboardingRouteDecision, { kind: "handoff" }> & VerifiedHandoffNames);
+
+function resolveOnboardingHandoff(
+  completed: ProvisionedHandoff | undefined,
+  decision: OnboardingLoaderData,
+) {
+  if (completed !== undefined) {
+    return { ...completed, environmentName: "Development" };
+  }
+  return decision.kind === "handoff" ? decision : undefined;
+}
+
 function OnboardingPage() {
   const decision = Route.useLoaderData();
+  const search = Route.useSearch();
   const navigate = useNavigate();
   const [completed, setCompleted] = useState<ProvisionedHandoff>();
   const [formStep, setFormStep] = useState<OnboardingStepId>("name-organization");
-
-  // The live wizard result wins over loader data; a reloaded handoff link recovers every
-  // Display Name from the membership-truth reads instead. The auto-created dev Environment
-  // keeps its provisioning default Display Name, so the live flow can state it.
-  const handoff =
-    completed !== undefined
-      ? { ...completed, environmentName: "Development" }
-      : decision.kind === "handoff"
-        ? decision
-        : undefined;
+  const handoff = resolveOnboardingHandoff(completed, decision);
 
   const navigateToHandoff = (workspace: ProvisionedWorkspace) => {
     void navigate({
@@ -114,6 +128,9 @@ function OnboardingPage() {
     <OnboardingFrame currentStep={handoff === undefined ? formStep : "cli-handoff"}>
       {handoff === undefined ? (
         <OnboardingWizard
+          enrollmentReturnTo="/onboarding"
+          enrollmentError={search.passkey === "failed"}
+          passkeyEnrolled={decision.kind === "wizard" ? decision.passkeyEnrolled : false}
           onProvisioned={handleProvisioned}
           onContinueToHandoff={navigateToHandoff}
           onStepChange={setFormStep}

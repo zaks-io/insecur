@@ -7,6 +7,9 @@ export interface PkceRoundTrip {
   readonly state: string;
   readonly codeVerifier: string;
   readonly returnTo: string;
+  /** Present for passkey-enrollment round trips: binds the callback to the initiating WorkOS user. */
+  readonly workosUserId?: string;
+  readonly flow?: "login" | "passkey-enrollment";
 }
 
 export async function createPkcePair(): Promise<{
@@ -75,7 +78,13 @@ function isRelativeAppPath(value: string): boolean {
   return resolved.origin === RELATIVE_APP_PATH_BASE;
 }
 
-function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTrip | null {
+function isValidPkceFlow(flow: string | undefined): flow is PkceRoundTrip["flow"] {
+  return flow === undefined || flow === "login" || flow === "passkey-enrollment";
+}
+
+function parsePkceStringFields(
+  parsed: Partial<PkceRoundTrip>,
+): Pick<PkceRoundTrip, "state" | "codeVerifier" | "returnTo"> | null {
   if (
     typeof parsed.state !== "string" ||
     typeof parsed.codeVerifier !== "string" ||
@@ -88,6 +97,24 @@ function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTri
     state: parsed.state,
     codeVerifier: parsed.codeVerifier,
     returnTo: parsed.returnTo,
+  };
+}
+
+function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTrip | null {
+  const core = parsePkceStringFields(parsed);
+  if (core === null) {
+    return null;
+  }
+  if (parsed.workosUserId !== undefined && typeof parsed.workosUserId !== "string") {
+    return null;
+  }
+  if (!isValidPkceFlow(parsed.flow)) {
+    return null;
+  }
+  return {
+    ...core,
+    ...(parsed.workosUserId === undefined ? {} : { workosUserId: parsed.workosUserId }),
+    ...(parsed.flow === undefined ? {} : { flow: parsed.flow }),
   };
 }
 

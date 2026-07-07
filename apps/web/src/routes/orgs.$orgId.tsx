@@ -5,9 +5,13 @@ import { ConsoleRouteError } from "../components/console-route-error.js";
 import { SiteFrame } from "../components/site-frame.js";
 import { findConsoleOrganization } from "../console/organizations.js";
 import { requireConsoleSession } from "../console/route-guards.js";
+import { loadApprovalPasskeyPosture } from "../server/approval-passkey-posture.js";
 import { loadConsoleSession } from "../server/console-session.js";
 
 export const Route = createFileRoute("/orgs/$orgId")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(search.passkey === "failed" ? { passkey: "failed" as const } : {}),
+  }),
   // One memberships read per org entry; section switches inside the shell reuse it briefly.
   staleTime: 30_000,
   loader: async ({ params, location }) => {
@@ -17,7 +21,12 @@ export const Route = createFileRoute("/orgs/$orgId")({
     if (activeOrg === undefined) {
       throw notFound();
     }
-    return { organizations: session.organizations, activeOrg };
+    const passkeyPosture = await loadApprovalPasskeyPosture();
+    return {
+      organizations: session.organizations,
+      activeOrg,
+      passkeyEnrolled: passkeyPosture.kind === "authenticated" && passkeyPosture.enrolled,
+    };
   },
   component: OrgLayout,
   notFoundComponent: OrgNotFound,
@@ -25,9 +34,15 @@ export const Route = createFileRoute("/orgs/$orgId")({
 });
 
 function OrgLayout() {
-  const { organizations, activeOrg } = Route.useLoaderData();
+  const { organizations, activeOrg, passkeyEnrolled } = Route.useLoaderData();
+  const search = Route.useSearch();
   return (
-    <ConsoleFrame organizations={organizations} activeOrg={activeOrg}>
+    <ConsoleFrame
+      organizations={organizations}
+      activeOrg={activeOrg}
+      passkeyEnrolled={passkeyEnrolled}
+      enrollmentError={search.passkey === "failed"}
+    >
       <Outlet />
     </ConsoleFrame>
   );
