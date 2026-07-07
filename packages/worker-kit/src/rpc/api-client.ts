@@ -1,4 +1,6 @@
 import { INSECUR_API_TOKEN_AUDIENCE, mintScopedAccessToken, type UserActor } from "@insecur/auth";
+import { fetchAuditEvents, type ListAuditEventsQuery } from "./api-client-audit-events.js";
+import { fetchProvisionPersonalOrganization } from "./api-client-onboarding.js";
 
 /**
  * Bindings the Web BFF needs to reach the public API Worker over its private Service Binding
@@ -57,13 +59,9 @@ export function apiClientFor(env: ApiClientEnv, actor: UserActor) {
       const response = await apiFetch(`/v1/orgs/${encodeURIComponent(organizationId)}/invitations`);
       return response.json();
     },
-    provisionPersonalOrganization: async (body: Record<string, unknown>): Promise<unknown> => {
-      const response = await apiFetch("/v1/onboarding/personal-organization", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      return response.json();
-    },
+    listAuditEvents: (organizationId: string, query: ListAuditEventsQuery = {}) =>
+      fetchAuditEvents(apiFetch, organizationId, query),
+    provisionPersonalOrganization: (body: Record<string, unknown>) =>
+      fetchProvisionPersonalOrganization(apiFetch, body),
   };
 }

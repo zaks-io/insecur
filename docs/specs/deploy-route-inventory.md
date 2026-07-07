@@ -108,6 +108,9 @@ project layout with its Environments (`/$projectId/`, the index) / Secrets / Acc
 views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs.
 `/orgs/$orgId/people` is the read-only People register (INS-373): members and pending invitations
 over the same hop to the INS-373 API metadata GETs, rendering zero mutation affordances.
+`/orgs/$orgId/audit` is the filterable metadata event log (INS-376): actor/project/environment/
+event-type/time-range filters and cursor pagination over `GET /v1/orgs/:organizationId/audit-events`,
+with shareable filter state in URL search params.
 `/onboarding` is the first-run onboarding wizard (INS-374): Guided Organization Provisioning for
 org-less members, with `?org&project&env` reopening the CLI handoff view; its provisioning
 mutation is a CSRF-checked server function forwarded to `POST /v1/onboarding/personal-organization`
