@@ -4,7 +4,11 @@ import {
   classifyDotenvKeyName,
   detectSecretFileKind,
 } from "../src/scan/classifiers.js";
-import { classifyDotenvValueShape, parseDotenvKeys } from "../src/scan/dotenv-parser.js";
+import {
+  classifyDotenvValueShape,
+  extractDotenvValue,
+  parseDotenvKeys,
+} from "../src/scan/dotenv-parser.js";
 
 /** Build a PEM-header-shaped probe at runtime so no key-shaped literal is committed. */
 function mintPrivateKeyHeaderProbe(): string {
@@ -57,5 +61,14 @@ describe("dotenv parser", () => {
     const shape = classifyDotenvValueShape('"quoted-value"');
     expect(shape.unquoted).toBe("quoted-value");
     expect(shape.length).toBe(12);
+  });
+
+  it("strips shell-style inline comments from unquoted dotenv values", () => {
+    expect(classifyDotenvValueShape("3000 # development port").unquoted).toBe("3000");
+    expect(classifyDotenvEntry("PORT", "3000 # development port")).toBeNull();
+    expect(classifyDotenvValueShape("value#hash").unquoted).toBe("value#hash");
+    expect(classifyDotenvValueShape('"keep # hash"').unquoted).toBe("keep # hash");
+    expect(extractDotenvValue("PORT=3000 # local dev")).toBe("3000");
+    expect(extractDotenvValue('API_SECRET="keep # hash" # ignored')).toBe("keep # hash");
   });
 });

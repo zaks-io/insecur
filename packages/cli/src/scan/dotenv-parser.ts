@@ -84,17 +84,51 @@ export function extractDotenvValue(line: string): string | null {
   if (eqIndex <= 0) {
     return null;
   }
-  return body.slice(eqIndex + 1);
+  return parseDotenvValuePortion(body.slice(eqIndex + 1));
+}
+
+function parseDotenvValuePortion(raw: string): string {
+  const value = raw.trimStart();
+
+  if (value.startsWith('"')) {
+    return parseQuotedDotenvValue(value, '"');
+  }
+  if (value.startsWith("'")) {
+    return parseQuotedDotenvValue(value, "'");
+  }
+
+  return stripUnquotedDotenvSuffix(value);
+}
+
+function parseQuotedDotenvValue(value: string, quote: '"' | "'"): string {
+  for (let index = 1; index < value.length; index += 1) {
+    if (value[index] === quote) {
+      return value.slice(1, index);
+    }
+  }
+
+  return value.slice(1);
+}
+
+function stripUnquotedDotenvSuffix(value: string): string {
+  let end = value.length;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value.charAt(index);
+    if (/\s/u.test(char)) {
+      end = index;
+      break;
+    }
+    if (char === "#" && (index === 0 || /\s/u.test(value.charAt(index - 1)))) {
+      end = index;
+      break;
+    }
+  }
+
+  return value.slice(0, end).trimEnd();
 }
 
 function stripQuotes(value: string): string {
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1);
-  }
-  return value;
+  return parseDotenvValuePortion(value);
 }
 
 function hasKnownSecretPrefix(value: string): boolean {
