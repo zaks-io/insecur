@@ -34,7 +34,7 @@ export async function runRunPoliciesDisableCommand(
   const credential = await requireSessionCredential(context.scope.host);
   const projectScope = requireProjectScope(context.scope);
   const environmentId = parseEnvironmentId(commandOptions.envId, "--env-id");
-  const policyId = parseRuntimePolicyId(commandOptions.policyId);
+  const policyId = parseRuntimePolicyId(commandOptions.policyId, "--policy-id");
   const operationId =
     commandOptions.operationId === undefined
       ? undefined

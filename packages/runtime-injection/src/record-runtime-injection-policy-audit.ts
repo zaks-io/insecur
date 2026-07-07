@@ -1,11 +1,12 @@
 import {
   PRODUCTION_AUDIT_EVENT_CODES,
   writeAuditEvent,
-  type AuditEventCode,
   type AuditRequestRef,
 } from "@insecur/audit";
 import {
+  AUDIT_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
+  readErrorCode,
   type AuthErrorCode,
   type EnvironmentId,
   type KnownErrorCode,
@@ -117,9 +118,6 @@ export async function recordRuntimeInjectionPolicyDisableDenied(
   });
 }
 
-export function toPolicyAuditReasonCode(error: unknown): AuditEventCode | KnownErrorCode {
-  if (error instanceof Error && "code" in error && typeof error.code === "string") {
-    return error.code;
-  }
-  return PRODUCTION_AUDIT_EVENT_CODES.runtimeInjectionPolicyCreateDenied;
+export function toPolicyAuditReasonCode(error: unknown): KnownErrorCode | AuthErrorCode {
+  return readErrorCode(error) ?? AUDIT_ERROR_CODES.eventInvalid;
 }

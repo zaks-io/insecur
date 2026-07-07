@@ -108,6 +108,15 @@ describe("gateProtectedRuntimeInjectionPolicyChange", () => {
     });
     await expect(rejection).rejects.not.toBeInstanceOf(HighAssuranceHandoffError);
 
+    expect(requireRuntimeInjectionPolicyChangeEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        operationId: OP,
+      }),
+      GATE_INPUT.onDenied,
+    );
     expect(GATE_INPUT.onDenied).toHaveBeenCalled();
   });
 

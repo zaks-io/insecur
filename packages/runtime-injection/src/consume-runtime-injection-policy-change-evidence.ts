@@ -1,5 +1,5 @@
 import { AUTHORIZATION_SCOPES, type UserActorRef } from "@insecur/access";
-import type { OperationId, OrganizationId, ProjectId } from "@insecur/domain";
+import type { EnvironmentId, OperationId, OrganizationId, ProjectId } from "@insecur/domain";
 import {
   consumeHighAssuranceEvidence,
   HIGH_ASSURANCE_ERROR_CODES,
@@ -11,6 +11,7 @@ import { getOperation } from "@insecur/operations";
 export interface ConsumeRuntimeInjectionPolicyChangeEvidenceInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
   readonly operationId: OperationId;
   readonly actor: UserActorRef;
 }
@@ -24,7 +25,7 @@ function assertPolicyChangeRiskReason(riskReasonCode: string | undefined): void 
   }
 }
 
-async function consumeRuntimeInjectionPolicyChangeEvidence(
+export async function consumeRuntimeInjectionPolicyChangeEvidence(
   input: ConsumeRuntimeInjectionPolicyChangeEvidenceInput,
 ): Promise<void> {
   const operation = await getOperation({
@@ -36,6 +37,7 @@ async function consumeRuntimeInjectionPolicyChangeEvidence(
   await consumeHighAssuranceEvidence({
     organizationId: input.organizationId,
     projectId: input.projectId,
+    environmentId: input.environmentId,
     operationId: input.operationId,
     resumingUserId: input.actor.userId,
     clearingUserId: input.actor.userId,

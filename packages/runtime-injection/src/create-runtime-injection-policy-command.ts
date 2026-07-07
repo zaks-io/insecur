@@ -72,8 +72,9 @@ export async function createRuntimeInjectionPolicyCommand(
     environmentId: input.environmentId,
   });
 
+  let created;
   try {
-    return await persistCreatedRuntimeInjectionPolicy(input, auditScope, effectiveAccess);
+    created = await persistCreatedRuntimeInjectionPolicyRow(input, effectiveAccess);
   } catch (error) {
     await recordRuntimeInjectionPolicyCreateDenied({
       ...auditScope,
@@ -83,20 +84,32 @@ export async function createRuntimeInjectionPolicyCommand(
     });
     throw error;
   }
+
+  const audit = await recordRuntimeInjectionPolicyCreated({
+    ...auditScope,
+    policyId: created.policy.policyId,
+    policyVersionId: created.activeVersion.policyVersionId,
+  });
+
+  return {
+    policyId: runtimePolicyId.brand(created.policy.policyId),
+    policyVersionId: created.activeVersion.policyVersionId,
+    displayName: input.displayName,
+    activeVersion: toRuntimeInjectionPolicyVersionRead(created.activeVersion),
+    auditEventId: audit.auditEventId,
+  };
 }
 
-async function persistCreatedRuntimeInjectionPolicy(
+async function persistCreatedRuntimeInjectionPolicyRow(
   input: CreateRuntimeInjectionPolicyCommandInput,
-  auditScope: Awaited<ReturnType<typeof runPolicyMutationGate>>,
   effectiveAccess: Awaited<ReturnType<typeof resolveEffectiveAccess>>,
-): Promise<CreateRuntimeInjectionPolicyResult> {
-  const policyVersionIdValue = runtimePolicyVersionId.generate();
-  const created = await createAuthorizedRuntimeInjectionPolicy({
+): Promise<Awaited<ReturnType<typeof createAuthorizedRuntimeInjectionPolicy>>> {
+  return createAuthorizedRuntimeInjectionPolicy({
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
     policyId: input.policyId,
-    policyVersionId: policyVersionIdValue,
+    policyVersionId: runtimePolicyVersionId.generate(),
     displayName: input.displayName,
     version: {
       secretIds: input.secretIds,
@@ -115,18 +128,4 @@ async function persistCreatedRuntimeInjectionPolicy(
       environmentId: input.environmentId,
     },
   });
-
-  const audit = await recordRuntimeInjectionPolicyCreated({
-    ...auditScope,
-    policyId: created.policy.policyId,
-    policyVersionId: created.activeVersion.policyVersionId,
-  });
-
-  return {
-    policyId: runtimePolicyId.brand(created.policy.policyId),
-    policyVersionId: created.activeVersion.policyVersionId,
-    displayName: input.displayName,
-    activeVersion: toRuntimeInjectionPolicyVersionRead(created.activeVersion),
-    auditEventId: audit.auditEventId,
-  };
 }
