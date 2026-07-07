@@ -64,6 +64,20 @@ describe("insecur scan --agent-transcripts", () => {
       .sort();
     expect(confirmedKeys).toContain("API_SECRET");
     expect(confirmedKeys).toContain("DATABASE_PASSWORD");
+
+    const decoyPath = join(
+      layout.homeDir,
+      ".cursor",
+      "projects",
+      "workspace",
+      "agent-transcripts",
+      "decoy.jsonl",
+    );
+    const decoyFindings = report.findings.filter((finding) => finding.sourcePath === decoyPath);
+    expect(decoyFindings).toHaveLength(0);
+    for (const finding of report.findings) {
+      expect(finding.valueFingerprint).not.toContain(SENTINEL_DECOY_VALUE);
+    }
   });
 
   it("exits cleanly with metadata-only warnings when default discovery paths are missing", async () => {

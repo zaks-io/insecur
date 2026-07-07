@@ -20,13 +20,11 @@ export function registerScanCommand(
       "--transcript-path <path>",
       "explicit transcript or log file to scan (repeatable)",
       collectRepeatedOption,
-      [],
     )
     .option(
       "--transcript-glob <pattern>",
       "glob pattern for exported transcript files (repeatable)",
       collectRepeatedOption,
-      [],
     )
     .action(async function scanAction(_args, command: CommanderCommand) {
       const flags = deps.globalFlags(command);
@@ -49,6 +47,6 @@ export function registerScanCommand(
     });
 }
 
-function collectRepeatedOption(value: string, previous: string[]): string[] {
-  return [...previous, value];
+function collectRepeatedOption(value: string, previous: string[] | undefined): string[] {
+  return [...(previous ?? []), value];
 }

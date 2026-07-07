@@ -1,13 +1,18 @@
 import type { TranscriptFinding, TranscriptScanReport } from "./types.js";
+import {
+  createTranscriptReportFingerprintKey,
+  formatTranscriptHumanFingerprint,
+} from "./fingerprint.js";
 
 function formatNextSteps(steps: readonly string[]): string {
   return steps.join(", ");
 }
 
-function formatFindingLine(finding: TranscriptFinding): string[] {
+function formatFindingLine(finding: TranscriptFinding, reportKey: Buffer): string[] {
+  const displayFingerprint = formatTranscriptHumanFingerprint(finding.valueFingerprint, reportKey);
   const lines = [
     `  [${finding.findingKind}] ${finding.provider} :: ${finding.sourcePath}`,
-    `    detector=${finding.detectorId} confidence=${finding.confidence} shape=${finding.valueShape} fp=${finding.valueFingerprint}`,
+    `    detector=${finding.detectorId} confidence=${finding.confidence} shape=${finding.valueShape} fp=${displayFingerprint}`,
   ];
   if (finding.sessionId) {
     lines.push(`    session=${finding.sessionId}`);
@@ -39,6 +44,7 @@ function formatWarningLines(report: TranscriptScanReport): string[] {
 }
 
 export function formatTranscriptScanHumanReport(report: TranscriptScanReport): string {
+  const reportKey = createTranscriptReportFingerprintKey();
   const { summary, findings } = report;
   const lines = [
     `Found ${String(summary.exposureCount)} transcript exposures (${String(summary.confirmedCount)} confirmed, ${String(summary.heuristicCount)} heuristic) in ${String(summary.elapsedMs)}ms.`,
@@ -53,7 +59,7 @@ export function formatTranscriptScanHumanReport(report: TranscriptScanReport): s
   if (findings.length > 0) {
     lines.push("", "Findings:");
     for (const finding of findings) {
-      lines.push(...formatFindingLine(finding));
+      lines.push(...formatFindingLine(finding, reportKey));
     }
   }
 
