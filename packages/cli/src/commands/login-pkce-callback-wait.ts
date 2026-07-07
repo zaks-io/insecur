@@ -20,6 +20,9 @@ export async function waitForLoginCallbackWithTimeout(
       waitForCode,
       new Promise<string>((_resolve, reject) => {
         timeoutHandle = setTimeout(() => {
+          void waitForCode.catch(() => {
+            // Late loopback callbacks after timeout must not surface as unhandled rejections.
+          });
           reject(
             new CliError(
               {
