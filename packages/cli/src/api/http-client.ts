@@ -7,7 +7,9 @@ import type {
   CreateProjectData,
   EnvironmentListData,
   GuidedOrganizationProvisionData,
+  ListEnvironmentSecretsData,
   ListProjectSecretsData,
+  ListSecretVersionsData,
   ProjectListData,
   SecretWriteByVariableKeyData,
   SessionOrganizationListData,
@@ -35,6 +37,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     exchangeCliPkceSession: (input) => exchangeCliPkceSession(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
+    listEnvironmentSecrets: (input) => listEnvironmentSecrets(base, input),
+    listSecretVersions: (input) => listSecretVersions(base, input),
     issueInjectionGrant: (input) => issueInjectionGrant(base, input),
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
@@ -194,6 +198,30 @@ async function listProjectSecrets(
   return authorizedJsonRequest<ListProjectSecretsData>(
     base,
     `/v1/orgs/${input.organizationId}/projects/${input.projectId}/secrets`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function listEnvironmentSecrets(
+  base: string,
+  input: Parameters<ApiClient["listEnvironmentSecrets"]>[0],
+) {
+  return authorizedJsonRequest<ListEnvironmentSecretsData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function listSecretVersions(
+  base: string,
+  input: Parameters<ApiClient["listSecretVersions"]>[0],
+) {
+  return authorizedJsonRequest<ListSecretVersionsData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets/${input.secretId}/versions`,
     input.bearerCredential,
     { method: "GET" },
   );

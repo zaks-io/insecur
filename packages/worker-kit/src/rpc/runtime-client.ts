@@ -108,6 +108,8 @@ export function runtimeClientFor(
     listEnvironments: forward("listEnvironments"),
     createEnvironment: forward("createEnvironment"),
     listProjectSecrets: forward("listProjectSecrets"),
+    listEnvironmentSecrets: forward("listEnvironmentSecrets"),
+    listSecretVersions: forward("listSecretVersions"),
     listSessionOrganizations: forward("listSessionOrganizations"),
     revokeCliSession: forward("revokeCliSession"),
     listOrganizationMembers: forward("listOrganizationMembers"),

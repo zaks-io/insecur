@@ -12,7 +12,8 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
-import type { ListProjectSecretsData, NavigationApiClient } from "./navigation-api-types.js";
+import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { SecretsApiClient } from "./secrets-api-types.js";
 import type { AuditApiClient } from "./audit-api-types.js";
 
 export type {
@@ -23,6 +24,8 @@ export type {
   ProjectListData,
   SessionOrganizationListData,
 } from "./navigation-api-types.js";
+
+export type { ListEnvironmentSecretsData, ListSecretVersionsData } from "./secrets-api-types.js";
 
 export type {
   ExportTenantAuditData,
@@ -48,6 +51,13 @@ export interface OperationCancelData extends OperationPollData {
 export interface CliSessionExchangeData {
   readonly sessionId: string;
   readonly expiresAt: string;
+}
+
+interface CliAuthorizationUrlInput {
+  readonly redirectUri: string;
+  readonly state: string;
+  readonly codeChallenge: string;
+  readonly codeChallengeMethod: "S256";
 }
 
 export interface GuidedOrganizationProvisionData {
@@ -115,14 +125,7 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-interface CliAuthorizationUrlInput {
-  readonly redirectUri: string;
-  readonly state: string;
-  readonly codeChallenge: string;
-  readonly codeChallengeMethod: "S256";
-}
-
-export interface ApiClient extends NavigationApiClient, AuditApiClient {
+export interface ApiClient extends NavigationApiClient, SecretsApiClient, AuditApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
@@ -163,15 +166,6 @@ export interface ApiClient extends NavigationApiClient, AuditApiClient {
     ),
   ): Promise<
     | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  listProjectSecrets(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly projectId: ProjectId;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<ListProjectSecretsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
   issueInjectionGrant(

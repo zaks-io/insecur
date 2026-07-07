@@ -1,8 +1,9 @@
 import { secretId, type SecretId } from "@insecur/domain";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { auditEvents, secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
+import { loadSecretsWithCurrentVersionJoin } from "./secret-current-version-join.js";
 import { SECRET_VERSION_LIFECYCLE_STATES } from "./lifecycle-states.js";
 import {
   shouldSkipMalformedMachineAuditRow,
@@ -29,25 +30,21 @@ async function loadProjectSecretJoinRows(
   db: TenantScopedDb,
   input: ListSecretMatrixByProjectInput,
 ): Promise<readonly ProjectSecretJoinRow[]> {
-  return db
-    .select({
-      secretId: secrets.id,
-      environmentId: secrets.environmentId,
-      variableKey: secrets.variableKey,
-      currentVersionId: secrets.currentVersionId,
-      liveVersionId: secretVersions.id,
-      liveVersionNumberFromRow: secretVersions.versionNumber,
-      liveLifecycleState: secretVersions.lifecycleState,
-      livePublishedAt: secretVersions.publishedAt,
-      liveCreatedAt: secretVersions.createdAt,
-    })
-    .from(secrets)
-    .leftJoin(
-      secretVersions,
-      and(eq(secrets.orgId, secretVersions.orgId), eq(secrets.currentVersionId, secretVersions.id)),
-    )
-    .where(and(eq(secrets.orgId, input.organizationId), eq(secrets.projectId, input.projectId)))
-    .orderBy(asc(secrets.variableKey), asc(secrets.environmentId));
+  const rows = await loadSecretsWithCurrentVersionJoin(
+    db,
+    and(eq(secrets.orgId, input.organizationId), eq(secrets.projectId, input.projectId)),
+  );
+  return rows.map((row) => ({
+    secretId: row.secretId,
+    environmentId: row.environmentId,
+    variableKey: row.variableKey,
+    currentVersionId: row.currentVersionId,
+    liveVersionId: row.versionId,
+    liveVersionNumberFromRow: row.versionNumber,
+    liveLifecycleState: row.lifecycleState,
+    livePublishedAt: row.publishedAt,
+    liveCreatedAt: row.versionCreatedAt,
+  }));
 }
 
 async function loadLatestDraftVersions(
