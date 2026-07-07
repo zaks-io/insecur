@@ -10,6 +10,7 @@
     "clean": "rm -rf ../../preview-smoke-artifacts"
   },
   "dependencies": {
+    "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
     "postgres": "catalog:"
