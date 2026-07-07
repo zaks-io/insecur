@@ -84,6 +84,12 @@ describe("decideOnboardingRoute", () => {
     });
   });
 
+  it("keeps the wizard on first-secret when the deep link carries wizardStep", () => {
+    expect(decideOnboardingRoute(memberships, workspace, "first-secret")).toEqual({
+      kind: "wizard",
+    });
+  });
+
   it("sends members with an organization and no handoff back to their console", () => {
     expect(decideOnboardingRoute(memberships, undefined)).toEqual({
       kind: "redirect-console",
