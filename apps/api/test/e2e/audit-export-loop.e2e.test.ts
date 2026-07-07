@@ -206,11 +206,6 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
         type: "secret",
         id: brandOpaqueResourceIdForPrefix("sec", TEST_SECRET_B_ID),
       },
-      details: {
-        noteId: "note_cross_tenant",
-        noteHash: "hash_cross_tenant",
-        noteLength: 12,
-      },
     });
 
     const response = await app.request(
@@ -223,6 +218,6 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
     const body = (await response.json()) as { ok: boolean; data: { jsonl: string } };
     expect(body.ok).toBe(true);
     expect(body.data.jsonl).not.toContain(TEST_ORG_B_ID);
-    expect(body.data.jsonl).not.toContain("note_cross_tenant");
+    expect(body.data.jsonl).not.toContain(TEST_SECRET_B_ID);
   });
 });
