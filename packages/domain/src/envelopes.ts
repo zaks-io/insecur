@@ -59,9 +59,7 @@ export const FORBIDDEN_ENVELOPE_KEYS = [
 ] as const;
 
 export type MetadataEnvelopeValidationReason =
-  | "forbidden_key"
-  | "binary_payload"
-  | "unsupported_value";
+  "forbidden_key" | "binary_payload" | "unsupported_value";
 
 const FORBIDDEN_KEY_SET = new Set<string>(FORBIDDEN_ENVELOPE_KEYS);
 

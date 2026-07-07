@@ -37,12 +37,7 @@ export interface OperationHighAssuranceChallengeEvidence {
 }
 
 export type HighAssuranceChallengeLifecycleState =
-  | "not_required"
-  | "required"
-  | "pending"
-  | "cleared"
-  | "expired"
-  | "consumed";
+  "not_required" | "required" | "pending" | "cleared" | "expired" | "consumed";
 
 /** Metadata-only review row for Human Approval Surface inbox/detail reads. */
 export interface HighAssuranceChallengeReviewItem {

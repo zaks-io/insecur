@@ -4,11 +4,7 @@
  * slice (INS-379) plug in by flipping `enabled` without renumbering or reflowing the wizard.
  */
 export type OnboardingStepId =
-  | "name-organization"
-  | "enroll-passkey"
-  | "create-project"
-  | "first-secret"
-  | "cli-handoff";
+  "name-organization" | "enroll-passkey" | "create-project" | "first-secret" | "cli-handoff";
 
 export interface OnboardingStep {
   readonly id: OnboardingStepId;

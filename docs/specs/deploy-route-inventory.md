@@ -109,12 +109,16 @@ capability: they download the published `cli-v*` GitHub Release binaries and ref
 anything that fails SHA-256 verification against the release's `SHA256SUMS`. Both answer GET and
 HEAD; other methods get 405.
 
-| Method | Mount prefix   |
-| ------ | -------------- |
-| GET    | `/healthz`     |
-| GET    | `/`            |
-| GET    | `/install.sh`  |
-| GET    | `/install.ps1` |
+`/badges/coverage.json` is a static Shields-compatible badge endpoint populated from the successful
+CI coverage artifact during production deploy. It exposes only aggregate unit-coverage metadata.
+
+| Method | Mount prefix            |
+| ------ | ----------------------- |
+| GET    | `/healthz`              |
+| GET    | `/`                     |
+| GET    | `/badges/coverage.json` |
+| GET    | `/install.sh`           |
+| GET    | `/install.ps1`          |
 
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 

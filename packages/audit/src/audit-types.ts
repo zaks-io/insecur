@@ -39,9 +39,7 @@ interface AuditCiExchangeActorRef {
 export type AuditActorRef = AuditUserActorRef | AuditMachineActorRef | AuditCiExchangeActorRef;
 
 export type AuditEventActorRef =
-  | AuditEventUserActorRef
-  | AuditMachineActorRef
-  | AuditCiExchangeActorRef;
+  AuditEventUserActorRef | AuditMachineActorRef | AuditCiExchangeActorRef;
 
 export type AuditResourceType =
   | "organization"

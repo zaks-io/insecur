@@ -37,8 +37,7 @@ export async function mintEphemeralSessionCredential(
 }
 
 export type VerifyEphemeralSessionResult =
-  | { ok: true; actor: UserActor }
-  | { ok: false; reason: "expired" | "invalid" };
+  { ok: true; actor: UserActor } | { ok: false; reason: "expired" | "invalid" };
 
 export async function verifyEphemeralSessionCredential(
   credential: string,
