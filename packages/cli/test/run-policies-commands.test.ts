@@ -1,0 +1,196 @@
+import {
+  AUTH_ERROR_CODES,
+  RUNTIME_POLICY_ERROR_CODES,
+  organizationId,
+  projectId,
+  runtimePolicyId,
+  secretId,
+} from "@insecur/domain";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ApiClient } from "../src/api/types.js";
+import { runRunPoliciesCreateCommand } from "../src/commands/run-policies-create.js";
+import { runRunPoliciesShowCommand } from "../src/commands/run-policies-show.js";
+import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
+import { EXIT_CONFLICT, EXIT_STEP_UP } from "../src/output/exit-codes.js";
+
+const ORG_ID = organizationId.brand("org_00000000000000000000000001");
+const PROJECT_ID = projectId.brand("prj_00000000000000000000000001");
+const POLICY_ID = runtimePolicyId.brand("rp_00000000000000000000000001");
+const SECRET_ID = secretId.brand("sec_00000000000000000000000001");
+
+const context: ResolvedCliContext = {
+  scope: {
+    host: "https://insecur.test",
+    orgId: ORG_ID,
+    projectId: PROJECT_ID,
+    envId: undefined,
+    profileSlug: undefined,
+    profileId: undefined,
+    configDir: "/tmp",
+  },
+  configPath: "/tmp/.insecur.json",
+};
+
+function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient {
+  return {
+    createRuntimeInjectionPolicy: vi.fn(),
+    getRuntimeInjectionPolicy: vi.fn(),
+    disableRuntimeInjectionPolicy: vi.fn(),
+    ...overrides,
+  } as unknown as ApiClient;
+}
+
+vi.mock("../src/auth/require-session.js", () => ({
+  requireSessionCredential: vi.fn(async () => "test-credential"),
+}));
+
+vi.mock("../src/input/read-display-name-stdin.js", () => ({
+  readDisplayNameFromStdin: vi.fn(async () => "dev-web"),
+}));
+
+describe("run-policies CLI commands", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("create fails with validation error on duplicate display name instead of suffixing", async () => {
+    const api = createMockApi({
+      createRuntimeInjectionPolicy: vi.fn(async () => ({
+        ok: false as const,
+        httpStatus: 409,
+        envelope: {
+          ok: false as const,
+          error: {
+            code: RUNTIME_POLICY_ERROR_CODES.displayNameInUse,
+            message: "display name already in use in environment",
+            retryable: false,
+          },
+        },
+      })),
+    });
+
+    await expect(
+      runRunPoliciesCreateCommand({ json: false, quiet: false, verbose: false }, api, context, {
+        policyId: POLICY_ID,
+        envId: "env_00000000000000000000000001",
+        displayNameStdin: true,
+        command: "npm run deploy",
+        commandFingerprint: undefined,
+        secretIds: SECRET_ID,
+        operationId: undefined,
+      }),
+    ).rejects.toMatchObject({ code: RUNTIME_POLICY_ERROR_CODES.displayNameInUse });
+  });
+
+  it("create returns step-up exit code when high-assurance challenge is required", async () => {
+    const api = createMockApi({
+      createRuntimeInjectionPolicy: vi.fn(async () => ({
+        ok: false as const,
+        httpStatus: 403,
+        envelope: {
+          ok: false as const,
+          error: {
+            code: AUTH_ERROR_CODES.highAssuranceRequired,
+            message: "high-assurance challenge required",
+            retryable: false,
+          },
+          meta: { operationId: "op_00000000000000000000000001" },
+        },
+      })),
+    });
+
+    const exitCode = await runRunPoliciesCreateCommand(
+      { json: true, quiet: false, verbose: false },
+      api,
+      context,
+      {
+        policyId: POLICY_ID,
+        envId: "env_00000000000000000000000001",
+        displayNameStdin: true,
+        command: "npm run deploy",
+        commandFingerprint: undefined,
+        secretIds: SECRET_ID,
+        operationId: undefined,
+      },
+    );
+    expect(exitCode).toBe(EXIT_STEP_UP);
+  });
+
+  it("show --json returns metadata-only policy payload", async () => {
+    const api = createMockApi({
+      getRuntimeInjectionPolicy: vi.fn(async () => ({
+        ok: true as const,
+        envelope: {
+          ok: true as const,
+          data: {
+            policyId: POLICY_ID,
+            organizationId: ORG_ID,
+            projectId: PROJECT_ID,
+            environmentId: "env_00000000000000000000000001" as never,
+            displayName: "dev-web" as never,
+            disabledAt: null,
+            createdAt: "2026-06-24T00:00:00.000Z",
+            activeVersion: {
+              policyVersionId: "rpv_00000000000000000000000001" as never,
+              versionNumber: 1,
+              displayNameSnapshot: "dev-web" as never,
+              secretIds: [SECRET_ID],
+              variableKeys: [],
+              command: "npm run deploy",
+              commandFingerprint: null,
+              ttlSeconds: 300,
+              deliveryMode: "environment_variables",
+              createdAt: "2026-06-24T00:00:00.000Z",
+            },
+          },
+        },
+      })),
+    });
+
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const exitCode = await runRunPoliciesShowCommand(
+      { json: true, quiet: false, verbose: false },
+      api,
+      context,
+      POLICY_ID,
+    );
+    expect(exitCode).toBe(0);
+    const output = stdout.mock.calls.map((call) => String(call[0])).join("");
+    expect(output).toContain('"secretIds"');
+    expect(output).not.toContain("encodedValueUtf8");
+    stdout.mockRestore();
+  });
+
+  it("create duplicate name maps to conflict exit code in json mode", async () => {
+    const api = createMockApi({
+      createRuntimeInjectionPolicy: vi.fn(async () => ({
+        ok: false as const,
+        httpStatus: 409,
+        envelope: {
+          ok: false as const,
+          error: {
+            code: RUNTIME_POLICY_ERROR_CODES.displayNameInUse,
+            message: "display name already in use in environment",
+            retryable: false,
+          },
+        },
+      })),
+    });
+
+    const exitCode = await runRunPoliciesCreateCommand(
+      { json: true, quiet: false, verbose: false },
+      api,
+      context,
+      {
+        policyId: POLICY_ID,
+        envId: "env_00000000000000000000000001",
+        displayNameStdin: true,
+        command: "npm run deploy",
+        commandFingerprint: undefined,
+        secretIds: SECRET_ID,
+        operationId: undefined,
+      },
+    );
+    expect(exitCode).toBe(EXIT_CONFLICT);
+  });
+});

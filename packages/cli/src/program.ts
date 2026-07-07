@@ -23,6 +23,7 @@ import { registerSecretsCommands } from "./register-secrets-commands.js";
 import { registerConfigCommands } from "./register-config-commands.js";
 import { registerNavigationCommands } from "./register-navigation-commands.js";
 import { registerOperationsCommands } from "./register-operations-commands.js";
+import { registerRunPoliciesCommands } from "./register-run-policies-commands.js";
 import { cliVersion } from "./version.js";
 
 function attachGlobalOptions(command: Command): Command {
@@ -46,6 +47,11 @@ function globalFlags(command: CommanderCommand): GlobalCliFlags {
 async function resolveApi(flags: GlobalCliFlags) {
   const context = await loadAndResolveCliContext(flags);
   return { api: createHttpApiClientForHost(context.scope.host), context };
+}
+
+function registerWorkflowCommands(program: Command): void {
+  registerOperationsCommands(program, { globalFlags, resolveApi });
+  registerRunPoliciesCommands(program, { globalFlags, resolveApi });
 }
 
 function buildProgram(): Command {
@@ -101,7 +107,7 @@ function buildProgram(): Command {
   registerGuideCommand(program);
   registerConfigCommands(program, globalFlags);
   registerNavigationCommands(program, { globalFlags, resolveApi });
-  registerOperationsCommands(program, { globalFlags, resolveApi });
+  registerWorkflowCommands(program);
 
   return program;
 }

@@ -1,12 +1,14 @@
 import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import {
+  parseInjectionGrantConsumeSelector,
+  parseInjectionGrantIssueSelector,
+} from "./parse-injection-grant-selector.js";
+import {
   encodeRequestValueUtf8,
   parseEnvironmentIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
-  parseInjectionGrantConsumeSelector,
-  parseInjectionGrantIssueSelector,
   parseInvitationIdParam,
   parseJsonBody,
   parseOperationIdParam,

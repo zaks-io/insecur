@@ -19,8 +19,11 @@
     "@insecur/audit": "workspace:*",
     "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/high-assurance": "workspace:*",
+    "@insecur/operations": "workspace:*",
     "@insecur/runtime-injection-issue": "workspace:*",
-    "@insecur/tenant-store": "workspace:*"
+    "@insecur/tenant-store": "workspace:*",
+    "@insecur/worker-kit": "workspace:*"
   },
   "devDependencies": {
     "eslint": "catalog:",

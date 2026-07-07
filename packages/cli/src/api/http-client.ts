@@ -26,6 +26,11 @@ import {
   recordInjectionRunCompleted,
 } from "./http-client-runtime-injection.js";
 import { cancelOperation, getOperation } from "./http-client-operations.js";
+import {
+  createRuntimeInjectionPolicy,
+  disableRuntimeInjectionPolicy,
+  getRuntimeInjectionPolicy,
+} from "./http-client-run-policies.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
   const base = host.endsWith("/") ? host.slice(0, -1) : host;
@@ -48,6 +53,9 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     getOperation: (input) => getOperation(base, input),
     cancelOperation: (input) => cancelOperation(base, input),
     revokeCliSession: (input) => revokeCliSession(base, input),
+    createRuntimeInjectionPolicy: (input) => createRuntimeInjectionPolicy(base, input),
+    getRuntimeInjectionPolicy: (input) => getRuntimeInjectionPolicy(base, input),
+    disableRuntimeInjectionPolicy: (input) => disableRuntimeInjectionPolicy(base, input),
   };
 }
 

@@ -10,6 +10,7 @@ export {
   HIGH_ASSURANCE_ERROR_CODES,
   HighAssuranceChallengeError,
 } from "./high-assurance-challenge-error.js";
+export { HighAssuranceHandoffError } from "./high-assurance-handoff-error.js";
 export type {
   HighAssuranceChallengeLifecycleState,
   HighAssuranceChallengeStatus,
