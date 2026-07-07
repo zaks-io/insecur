@@ -775,6 +775,12 @@ While the Semgrep release policy is being tightened, `semgrep --config auto` fin
 the Actions output and stored in the attestation bundle as metadata-only report data, but Semgrep
 `ERROR` severity alone is not release-blocking.
 
+Published-release guard: when a manual dispatch targets a commit whose
+`packages/cli/package.json` still points at a `cli-v*` tag that already exists as a published
+(non-draft) GitHub release, the workflow exits successfully without building binaries or mutating
+release assets. The prepare step logs a notice that the CLI version must be bumped before a new
+draft can be prepared. Draft releases may still be updated in place.
+
 ### Daily security scan: `security-daily`
 
 Trigger: scheduled `cron` (daily at 06:00 UTC) or `workflow_dispatch`. Runs the same scanner families as `CI` on a schedule. Findings are reported in the workflow log; the jobs do not fail the repository on severity by default.
