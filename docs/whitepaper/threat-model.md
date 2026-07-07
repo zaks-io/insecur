@@ -370,7 +370,7 @@ Structural claims are worth nothing if a refactor can silently erase them. These
 | Decrypt output only in allowlisted modules                       | ESLint restricted-import boundary (`eslint.config.ts`, ADR-0071)                                                                |
 | Public/contract packages off the crypto graph                    | Package-boundary conformance gate                                                                                               |
 | Protected injection scope is machine-only                        | Registry conformance suite in `packages/access`                                                                                 |
-| No plaintext in any DB column or console                         | `pnpm test:canary` in the postgres-integration job (ADR-0069)                                                                   |
+| No plaintext in any DB column or console                         | `pnpm test:canary` in the `Verify` DB-backed step (ADR-0069)                                                                    |
 | Cross-tenant / RLS isolation                                     | Real-Postgres suite as `NOBYPASSRLS` role (ADR-0054)                                                                            |
 | Unregistered column ⇒ presumed sensitive                         | Plaintext Metadata Allowlist gate (ADR-0070)                                                                                    |
 | Distinct runtime vs migration DB roles                           | CI assertion                                                                                                                    |

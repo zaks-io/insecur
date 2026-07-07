@@ -8,11 +8,13 @@ import {
   asRecord,
   authHeaders,
   mintSmokeSentinel,
+  NEGATIVE_PROBE_DENIED_AUDIT_EXPECTATIONS,
   postJson,
   readJsonResponse,
   redactorFor,
   requireString,
   test,
+  verifyDeniedAuditEvidence,
 } from "../src/fixtures";
 
 const NONEXISTENT_ENVIRONMENT_ID = environmentId.brand("env_00000000000000000000NEXST9");
@@ -88,6 +90,16 @@ test.describe("preview negative authorization probes @preview @negative @custody
       const body = await readJsonResponse(response, "No-scope grant issue", text);
       assertEnvelopeError(body, AUTH_ERROR_CODES.insufficientScope, "No-scope grant issue");
       assertDeniedBodyFreeOfSensitiveValues(text, redactor, "No-scope grant issue");
+    });
+
+    await test.step("audit_events.verify_denied_evidence", async () => {
+      const auditEvidence = await verifyDeniedAuditEvidence({
+        databaseUrl: preview.databaseUrl,
+        expectations: NEGATIVE_PROBE_DENIED_AUDIT_EXPECTATIONS,
+        organizationId: coords.organizationId,
+        redactor,
+      });
+      pushVerifiedAuditAnnotation(test.info(), auditEvidence.verifiedDeniedEventCodes);
     });
   });
 
@@ -169,4 +181,14 @@ function assertDeniedBodyFreeOfSensitiveValues(
   if (redacted.includes("[redacted]")) {
     throw new Error(`${label} response body leaked a sensitive value after redaction.`);
   }
+}
+
+function pushVerifiedAuditAnnotation(
+  testInfo: { annotations: { push: (annotation: { description: string; type: string }) => void } },
+  verifiedDeniedEventCodes: string[],
+): void {
+  testInfo.annotations.push({
+    description: verifiedDeniedEventCodes.join(", "),
+    type: "audit.verified_event_codes",
+  });
 }

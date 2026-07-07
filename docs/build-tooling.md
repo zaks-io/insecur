@@ -159,7 +159,7 @@ Remote cache trust model is ADR-0053. Full file:
 Notes that an implementing agent must not change without understanding them:
 
 - Turborepo hashes each task's inputs including the source of workspace packages a task's package depends on, so a cached `typecheck`/`lint`/`test` result is invalidated when an upstream package's source changes. Because packages import each other's `./src` directly (Just-in-Time packages, no `dist`), an upstream type error surfaces in the downstream `typecheck` on the next run rather than returning a stale cached pass. These tasks declare no `dependsOn`; ordering falls out of the input hash, not an explicit transit node.
-- `test:rls` has `cache: false` because it runs against live database state — Docker Compose Postgres locally and in CI's `postgres-integration` job (ADR-0065) — and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
+- `test:rls` has `cache: false` because it runs against live database state — Docker Compose Postgres locally and in CI's DB-backed `Verify` step (ADR-0065) — and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
 - `globalDependencies` includes the root `eslint.config.ts`, Prettier config, and `.prettierignore` so a rule change busts every cached `lint`.
 - `envMode: strict` means a task only sees environment variables it declares. Declare new inputs in the task `env` array, do not relax the mode.
 - Workspace packages are Just-in-Time internal packages: their `package.json` `exports` point directly at `./src/*.ts` and they have no `build` step or `dist/`. Consumers (Vitest, Wrangler, tsc under `moduleResolution: "Bundler"`) resolve and compile that source directly. Checks therefore declare no `dependsOn`, never `^build`. Node and Workers ambient types come from root `@types/node` + `@cloudflare/workers-types` devDependencies plus `lib: ["ES2022","DOM"]` in `tsconfig.base.json`; packages that use Workers binding globals (`Fetcher`, `WorkerEntrypoint`) set `types: ["node","@cloudflare/workers-types"]`. The only remaining `build` outputs are the app Worker bundles (Wrangler dry-run/deploy) and the `@insecur/cli` binary. `pnpm verify` must pass from a clean checkout with no prebuild.
@@ -212,7 +212,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
 ```
 
 `verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the
-security scanners and the DB-backed `postgres-integration` job: the blocking duplicate zero gate
+scheduled security scanners and the hosted DB-backed `Verify` step: the blocking duplicate zero gate
 with annotations, knip, actionlint (optional-local), the actions-pin conformance gate
 (`conformance:actions-pin` — asserts third-party GitHub Actions are pinned to full commit SHAs), the
 deploy-topology conformance gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability
@@ -488,7 +488,7 @@ pnpm-lock.yaml
 
 ## lefthook.yml
 
-Pre-commit catches per-file issues on staged files (format, lint, typecheck, staged secret scan). Pre-push runs the full deterministic CI gate so the high-churn failures — lint, types, tests, format, duplicates, knip, actionlint, coverage thresholds — are caught locally instead of after a CI round-trip: `pnpm verify` is the local superset (it includes knip and actionlint inline), while CI's `Verify` job runs the overlapping blocking conformance and turbo lint/typecheck/test floor with CI-only remote cache writes; knip and actionlint stay separate CI jobs. `pnpm test:coverage` is CI's `Coverage` job. Security scanners (semgrep, grype, gitleaks history) stay CI-only because they are low-frequency and do not belong in the push hot path. `--no-verify` is an accepted human escape hatch because CI branch protection is the real enforcement boundary, not the hook.
+Pre-commit catches per-file issues on staged files (format, lint, typecheck, staged secret scan). Pre-push runs the full deterministic local gate so the high-churn failures — lint, types, tests, format, duplicates, knip, actionlint, and coverage thresholds — are caught locally instead of after a CI round-trip: `pnpm verify` includes knip and actionlint inline, while `pnpm test:coverage` runs the coverage ratchet. CI's required `Verify` job runs the overlapping blocking gate with CI-only remote cache writes, current-tree gitleaks, and path-scoped DB-backed tests. Security scanners that are slower or redundant on every PR update (semgrep, grype, gitleaks history) stay CI-only through `security-daily`. `--no-verify` is an accepted human escape hatch because CI branch protection is the real enforcement boundary, not the hook.
 
 The `format-and-lint` group runs Prettier then ESLint sequentially on the same TypeScript files so `eslint --fix` operates on Prettier's output and the two do not race when re-staging. Independent jobs run in parallel.
 
@@ -537,8 +537,8 @@ Three layers, each defined by where its Postgres comes from and what failure cla
 The agent-facing one-command loop is documented in [docs/agents/testing.md](agents/testing.md).
 
 1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage across the covered workspace targets, then `scripts/merge-coverage.mjs` merges their `coverage-final.json` files and enforces the repo-wide ratchet thresholds; it excludes integration and RLS suites so it stays DB-less. Each covered workspace has a Turbo `test:coverage` task with `coverage/**` outputs, so repeated pushes can restore unchanged workspace reports from cache while changed packages recompute independently. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
-2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `postgres-integration` job (INS-144/INS-266) with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe and runs on every pull request. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
-3. **Shared preview smoke.** `Deploy Preview` preflights the shared preview Worker set (`runtime`, `api`, `web`, and `site`) before any preview mutation, deploys through Turbo package tasks, then runs `pnpm smoke:preview`, which delegates to `@insecur/preview-smoke`. The smoke is a Playwright Test suite that verifies API/Web/Site deploy identities against the current SHA, drives the current happy paths over deployed HTTP routes, and sweeps preview Postgres for the generated sentinel through the migration credential. This is the only layer that can catch a broken deploy, a missing binding, a bad secret, or a route that only fails in the deployed Cloudflare shape. It is not a per-PR workflow: PRs use Docker Compose Postgres in the `CI` workflow's `postgres-integration` job.
+2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `Verify` job for DB/runtime path changes with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
+3. **Shared preview smoke.** `Deploy Preview` preflights the shared preview Worker set (`runtime`, `api`, `web`, and `site`) before any preview mutation, deploys through Turbo package tasks, then runs `pnpm smoke:preview`, which delegates to `@insecur/preview-smoke`. The smoke is a Playwright Test suite that verifies API/Web/Site deploy identities against the current SHA, drives the current happy paths over deployed HTTP routes, and sweeps preview Postgres for the generated sentinel through the migration credential. This is the only layer that can catch a broken deploy, a missing binding, a bad secret, or a route that only fails in the deployed Cloudflare shape. It is not a per-PR workflow: DB/runtime PRs use Docker Compose Postgres in the `CI` workflow's `Verify` job.
 
 Docker Compose Postgres is the substrate for the authoritative integration+RLS gate and uses the
 same major version as the stable Neon target, currently Postgres 17 (ADR-0060), so the integration
@@ -546,51 +546,71 @@ layer and the Neon-backed preview environment do not drift.
 
 ## CI Topology (ADR-0029)
 
-GitHub Actions on Blacksmith-hosted runners (ADR-0061). Every job sets `runs-on` to a Blacksmith runner label (e.g. `blacksmith-4vcpu-ubuntu-2404`), not `ubuntu-latest`; the Blacksmith GitHub App must be installed on the org. Every job installs with `pnpm install --frozen-lockfile` on Node 24 and reads the remote cache; only CI writes it.
+GitHub Actions on Blacksmith-hosted runners (ADR-0061). Every job sets `runs-on` to a Blacksmith runner label (e.g. `blacksmith-4vcpu-ubuntu-2404`), not `ubuntu-latest`; the Blacksmith GitHub App must be installed on the org. Product and workflow-config checks install with `pnpm install --frozen-lockfile` on Node 24 and read the remote cache; only CI writes it.
 
 ### Required status-check workflow: `CI` (`ci.yml`)
 
-Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets. Branch protection keys on the job names within this workflow (`Verify`, `Coverage`, ...), not the workflow name, so the jobs are the required checks.
+Trigger: `pull_request` and `merge_group`. Runs the deterministic floor with no secrets. Branch protection keys on the `Verify` job name, not the workflow name.
 
-The `Detect changes` job classifies pull request paths into two check classes:
+The `Detect changes` job classifies pull request paths into three check classes:
 
 - `product_code`: any non-doc, non-workflow-config path.
-- `workflow_config`: `.github/workflows/**` or `.github/actionlint.yaml`.
+- `workflow_config`: `.github/workflows/**`, `.github/actions/**`, or `.github/actionlint.yaml`.
+- `db_backed`: DB/runtime paths that should run Docker Compose Postgres, RLS, e2e, and canary
+  tests.
 
-On docs-only PRs, code-heavy required jobs complete with explicit no-op steps instead of installing
-dependencies or running build/test/scanner work. On workflow-only PRs, the required jobs stay green
-but product-only work skips; `Verify` runs targeted workflow formatting plus the actions-pin
-conformance gate, and `Actionlint` runs the workflow lint job. `merge_group` and `push` events always
-run the full gate. The gitleaks `Secret scan` job still runs on docs-only and workflow-only PRs
-because either can leak secrets.
+`db_backed` is intentionally an allowlist for the packages and scripts that own DB/RLS/e2e/canary
+behavior. Changes to non-DB surfaces such as `packages/crypto`, `packages/domain`, or unrelated
+`scripts/ci/*` files still run the product-code hot path but do not start Docker Compose unless they
+also touch a listed DB/runtime path; use the focused DB command stack manually when a non-listed
+change is intended to affect RLS, e2e, or no-plaintext canary behavior.
 
-The `Verify` job runs a hand-rolled subset aligned with `pnpm verify` (not a literal `pnpm verify` invocation, so knip and actionlint stay in their own jobs and CI can enable remote Turbo cache writes only when secrets are present):
+On docs-only PRs, the required `Verify` job completes with an explicit no-op step instead of
+installing dependencies or running build/test/scanner work. On workflow-only PRs, product-only work
+skips; `Verify` runs targeted workflow formatting, the actions-pin conformance gate, and
+`actionlint`. `merge_group` and `push` events always run the full gate.
+
+The `Verify` job runs the PR hot path in one job so CI pays setup and install once. It always runs
+current-tree secret scanning first:
+
+```
+bash scripts/ci/install-gitleaks.sh
+bash scripts/ci/gitleaks-detect.sh detect
+```
+
+For product-code changes, `Verify` then runs:
 
 ```
 pnpm duplicates:ci
+pnpm knip
 pnpm format:check
 pnpm conformance:actions-pin
 pnpm conformance:topology
 pnpm conformance:packages
 pnpm conformance:site-boundary
+pnpm conformance:cli-release-boundary
 pnpm test:scripts
 pnpm exec turbo run lint typecheck test --cache=local:rw,remote:<r|rw>
+pnpm test:coverage
 ```
 
 `pnpm conformance:packages` asserts public/API and contract packages have no production dependency path to `@insecur/crypto`. The gate also fails closed if this command is removed from the hosted `Verify` job.
 
-Other required jobs in the same workflow: `Coverage` (`pnpm test:coverage`), `Knip`, `Actionlint`, `Postgres tests (integration + RLS + e2e)`, `Secret scan (gitleaks)`, `SAST (semgrep)`, and `SBOM and vulnerability scan (syft + grype)` (which also serves as the dependency-CVE gate).
+Knip, coverage, actionlint, and current-tree gitleaks stay on the hot path, but they are no longer
+separate jobs. DB-backed tests run in the same `Verify` job only when the PR touches DB/runtime
+paths. Semgrep, gitleaks history, and SBOM/grype dependency-CVE scanning run in `security-daily` or
+by manual dispatch during prelaunch build-out.
 
-These jobs are required status checks on the protected branch. They run for forked pull requests too,
-because they touch no secrets. Docs-only and workflow-only PRs keep the required job names green
-while skipping irrelevant product-code work; merge queue runs stay full validation.
+`Verify` is the only required status check on the protected branch. It runs for forked pull requests
+too, because it touches no secrets. Docs-only and workflow-only PRs keep `Verify` green while
+skipping irrelevant product-code work; merge queue runs stay full validation.
 
 ### PR Database Policy
 
 PRs must not create Neon branches, Hyperdrive configs, or per-PR Worker deploys. The repository
 cannot support unbounded preview environments in Neon, and fork isolation is simpler when PR checks
-stay secretless. The authoritative PR database gate is `CI` → `Postgres tests (integration + RLS +
-e2e)`, which runs:
+stay secretless. For DB/runtime path changes, the authoritative PR database gate is the `Verify`
+job's DB-backed step, which runs:
 
 ```
 pnpm dev:db:reset
@@ -742,6 +762,19 @@ to write Worker scripts and upload Worker assets. It must not need Secrets Store
 Workers Routes write access for routine production deploys. Root-key custody changes and custom
 domain route changes are operator-controlled Cloudflare changes.
 
+### CLI release: `cli-release`
+
+Trigger: `workflow_dispatch` only. CLI releases are manual while the release-attestation policy is
+being tightened. A manual dispatch still verifies that the selected commit has a completed
+successful `CI` run before it builds release assets, runs repo security attestation, attaches the
+attestation bundle, and prepares the draft release.
+
+The manual trigger is an operator pause on automatic releases, not a bypass of the release security
+gate. The workflow must continue to fail if source CI is not green or if release attestation fails.
+While the Semgrep release policy is being tightened, `semgrep --config auto` findings are logged in
+the Actions output and stored in the attestation bundle as metadata-only report data, but Semgrep
+`ERROR` severity alone is not release-blocking.
+
 ### Daily security scan: `security-daily`
 
 Trigger: scheduled `cron` (daily at 06:00 UTC) or `workflow_dispatch`. Runs the same scanner families as `CI` on a schedule. Findings are reported in the workflow log; the jobs do not fail the repository on severity by default.
@@ -793,16 +826,16 @@ Two distinct database credentials exist:
 - `DATABASE_URL_RUNTIME`: the `NOBYPASSRLS` runtime role. This is what `test:rls` and the running product use.
 - `DATABASE_URL_MIGRATION`: the elevated migration URL, used only to apply migrations.
 
-Locally and in CI's `postgres-integration` job, `pnpm dev:db:reset` provisions both roles on Docker Compose Postgres and writes both URLs to `.env.local`. PR validation uses these local credentials only.
+Locally and in CI's DB-backed `Verify` step, `pnpm dev:db:reset` provisions both roles on Docker Compose Postgres and writes both URLs to `.env.local`. PR validation uses these local credentials only.
 
-Connecting `test:rls` as the migration role silently disables RLS and turns the suite green while testing nothing (ADR-0054). The `postgres-integration` job must therefore run the `assert:rls-credentials` step before trusting `test:rls`, failing the build if either assertion does not hold:
+Connecting `test:rls` as the migration role silently disables RLS and turns the suite green while testing nothing (ADR-0054). The DB-backed `Verify` step must therefore run the `assert:rls-credentials` step before trusting `test:rls`, failing the build if either assertion does not hold:
 
 1. `DATABASE_URL_RUNTIME` and `DATABASE_URL_MIGRATION` are not equal.
 2. The runtime role does not bypass RLS. Connect as the runtime role and assert `SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user` returns `false`.
 
 ## Fork Isolation
 
-A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. There is no per-PR secret-bearing preview workflow. `test:rls` runs against Docker Compose Postgres in the secretless `postgres-integration` job (ADR-0065), so it runs for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
+A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. There is no per-PR secret-bearing preview workflow. `test:rls` runs against Docker Compose Postgres in the secretless DB-backed `Verify` step for DB/runtime path changes (ADR-0065), so it can run for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
 
 ## Code Review Gate
 
@@ -835,4 +868,4 @@ The build-tooling layer is complete when all of the following are verifiable:
 - The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated
   Linear filing for critical findings is disabled by default; `report-criticals` skips unless
   `LINEAR_SECURITY_REPORTING_ENABLED=true` and fails closed when enabled without configuration.
-- Branch protection has administrator bypass disabled and requires the `CI` workflow's checks plus review approval.
+- Branch protection has administrator bypass disabled and requires the `CI` workflow's `Verify` check plus review approval.
