@@ -358,7 +358,7 @@ After writing the config, update short agent adapters when present:
 - repo-local skill usage docs
 
 Adapters should say to read `docs/agents/workflow/config.md` before using the
-ziw skills. Keep them short and use
+workflow skills. Keep them short and use
 [references/agent-workflow.md](references/agent-workflow.md) as the adapter
 contract.
 
