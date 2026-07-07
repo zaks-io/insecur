@@ -39,6 +39,10 @@ function makeEnv() {
 
 const basePath = `/v1/orgs/${orgId}/webhook-subscriptions`;
 
+/** Low-entropy fixture only; never a real signing secret. */
+const TEST_WEBHOOK_SIGNING_SECRET_SENTINEL = "webhook-signing-secret-test-sentinel";
+const TEST_ROTATED_SIGNING_SECRET_SENTINEL = "hmac-secret-do-not-use";
+
 function displayName(raw: string) {
   const parsed = parseDisplayName(raw);
   if (!parsed.ok) {
@@ -96,7 +100,7 @@ describe("webhook subscription worker routes", () => {
     });
     runtime.createWebhookSubscription.mockResolvedValue({
       ok: true,
-      value: { ...subscriptionRead, signingSecret: "signing-secret-b64" },
+      value: { ...subscriptionRead, signingSecret: TEST_WEBHOOK_SIGNING_SECRET_SENTINEL },
     });
     runtime.updateWebhookSubscription.mockResolvedValue({
       ok: true,
@@ -108,7 +112,7 @@ describe("webhook subscription worker routes", () => {
     });
     runtime.rotateWebhookSigningSecret.mockResolvedValue({
       ok: true,
-      value: { signingSecret: "rotated-secret-b64" },
+      value: { signingSecret: TEST_ROTATED_SIGNING_SECRET_SENTINEL },
     });
   });
 
@@ -168,7 +172,7 @@ describe("webhook subscription worker routes", () => {
     const body: unknown = await response.json();
     expect(body).toMatchObject({
       ok: true,
-      data: { signingSecret: "signing-secret-b64" },
+      data: { signingSecret: TEST_WEBHOOK_SIGNING_SECRET_SENTINEL },
     });
   });
 
