@@ -567,4 +567,55 @@ describe("casApplyOperationTransition", () => {
       retryable: true,
     });
   });
+
+  it("fails compare-and-set when deny targets already-cleared challenge evidence", async () => {
+    const challengeEvidence = {
+      challengeId: "challenge_test_token_001",
+      riskReasonCode: "high_assurance.risk.agent_step_up",
+      projectId: PRJ,
+      requestingMachineIdentityId: "mach_00000000000000000000000001",
+      requestedAt: "2026-07-03T00:00:00.000Z",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+      requestAuditEventId: "aud_00000000000000000000000001",
+      clearedAt: "2026-07-03T00:05:00.000Z",
+      clearingUserId: "usr_00000000000000000000000001",
+      clearAuthenticationMethodCode: "auth.assurance.passkey",
+      clearAuditEventId: "aud_00000000000000000000000002",
+    };
+    const current = sampleOperation({
+      state: "waiting_for_human",
+      progress: { highAssuranceChallenge: challengeEvidence },
+    });
+
+    const sql = createFakeTenantSql((query) => {
+      if (queryIncludes(query, "from sync_target_leases", "held_by_operation_id")) {
+        return [];
+      }
+      if (
+        queryIncludes(query, "update operations") ||
+        queryIncludes(query, "highassurancechallenge", "clearedat")
+      ) {
+        return [];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+
+    await expect(
+      casApplyOperationTransition(sql, current, {
+        organizationId: ORG,
+        operationId: OP,
+        nextState: "canceled",
+        progressPatch: {},
+        legalFromStates: new Set(["waiting_for_human"]),
+        highAssuranceDenyCas: { challengeId: "challenge_test_token_001" },
+        notAllowedError: {
+          code: OPERATION_ERROR_CODES.notCancelable,
+          message: () => "not cancelable",
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: OPERATION_ERROR_CODES.staleTransition,
+      retryable: true,
+    });
+  });
 });

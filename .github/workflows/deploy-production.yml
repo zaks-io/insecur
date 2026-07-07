@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
@@ -41,7 +41,7 @@ jobs:
           version: 10.19.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -54,6 +54,7 @@ jobs:
         run: echo "deployed_at=$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" >> "$GITHUB_OUTPUT"
 
       - name: Require passing CI for deployed commit
+        id: source_ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -79,7 +80,48 @@ jobs:
             exit 1
           fi
 
-          echo "Found $passing_runs completed successful CI workflow run(s) for $DEPLOY_SHA."
+          latest_run="$(
+            jq --arg sha "$DEPLOY_SHA" \
+              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.created_at) | last // {}' \
+              <<<"$runs_json"
+          )"
+          ci_run_id="$(jq -r '.id // empty' <<<"$latest_run")"
+          ci_run_url="$(jq -r '.html_url // empty' <<<"$latest_run")"
+
+          if [ -z "$ci_run_id" ]; then
+            echo "::error::Could not resolve the successful CI run id for $DEPLOY_SHA."
+            exit 1
+          fi
+
+          echo "ci_run_id=$ci_run_id" >> "$GITHUB_OUTPUT"
+          echo "Found $passing_runs completed successful CI workflow run(s) for $DEPLOY_SHA. Using $ci_run_url."
+
+      - name: Download coverage badge evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ steps.source_ci.outputs.ci_run_id }}
+        run: |
+          set -euo pipefail
+
+          rm -rf coverage-report
+          mkdir -p coverage-report apps/site/src/generated
+          if ! gh run download "$CI_RUN_ID" --name coverage-report --dir coverage-report; then
+            echo "::notice::CI run $CI_RUN_ID has no coverage-report artifact; preserving the currently published coverage badge if available."
+          fi
+
+          badge_source="$(find coverage-report -type f -name coverage-badge.json | head -n1 || true)"
+          if [ -z "$badge_source" ] || [ ! -s "$badge_source" ]; then
+            if curl --fail --silent --show-error --location \
+              --output apps/site/src/generated/coverage-badge.json \
+              https://insecur.cloud/badges/coverage.json; then
+              echo "Preserved the currently published coverage badge."
+            else
+              echo "::notice::No published coverage badge exists yet; deploying the checked-in unknown badge."
+            fi
+            exit 0
+          fi
+
+          cp "$badge_source" apps/site/src/generated/coverage-badge.json
 
       - name: Migrate production database
         env:

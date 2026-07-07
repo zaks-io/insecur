@@ -1,14 +1,12 @@
 import {
   handleRoute,
-  parseOperationIdParam,
-  parseOrganizationIdParam,
-  requireRouteParam,
   requireUserActor,
   runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
 import type { ApiEnv } from "../../env.js";
+import { parseOrganizationAndOperationRouteParams } from "./parse-org-route-params.js";
 
 export const operationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -18,12 +16,7 @@ export const operationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVari
 operationsRoutes.get("/:operationId", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
-    const organizationId = parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
-    );
-    const operationId = parseOperationIdParam(
-      requireRouteParam(context.req.param("operationId"), "operationId"),
-    );
+    const { organizationId, operationId } = parseOrganizationAndOperationRouteParams(context);
 
     return runtimeClientFor(context.env, userActor).getOperation({
       organizationId,

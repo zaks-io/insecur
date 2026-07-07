@@ -1,12 +1,7 @@
 import type { EnvironmentId, OperationId, ProjectId, UserId } from "@insecur/domain";
 
 export type HighAssuranceChallengeLifecycleState =
-  | "not_required"
-  | "required"
-  | "pending"
-  | "cleared"
-  | "expired"
-  | "consumed";
+  "not_required" | "required" | "pending" | "cleared" | "expired" | "consumed";
 
 /** Metadata-only challenge status for approval policy and polling surfaces. */
 export interface HighAssuranceChallengeStatus {

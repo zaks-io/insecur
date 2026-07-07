@@ -32,9 +32,7 @@ export interface BootstrapStatusComplete extends BootstrapStatusBase {
 }
 
 export type BootstrapStatus =
-  | BootstrapStatusNotBootstrapped
-  | BootstrapStatusAwaitingClaim
-  | BootstrapStatusComplete;
+  BootstrapStatusNotBootstrapped | BootstrapStatusAwaitingClaim | BootstrapStatusComplete;
 
 export interface BootstrapResourceIds {
   organizationId: OrganizationId;

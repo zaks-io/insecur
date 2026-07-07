@@ -4,9 +4,11 @@ import type {
   OperationPollResult,
 } from "@insecur/operations";
 import { challengeAuditScopeFromBoundEvidence } from "./high-assurance-challenge-audit-scope.js";
+import { optionalHighAssuranceEvidenceScopeFields } from "./optional-high-assurance-evidence-scope-fields.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 import {
   recordHighAssuranceChallengeCleared,
+  recordHighAssuranceChallengeDenied,
   recordHighAssuranceChallengeRequested,
 } from "./record-high-assurance-challenge-audit.js";
 
@@ -47,6 +49,24 @@ export function hasPersistedClearAuditLinkage(
   );
 }
 
+export function hasPersistedDenyAuditLinkage(
+  operation: OperationPollResult,
+): operation is OperationPollResult & {
+  progress: OperationPollResult["progress"] & {
+    highAssuranceChallenge: OperationHighAssuranceChallengeEvidence & {
+      denyAuditEventId: AuditEventId;
+      denyingUserId: UserId;
+    };
+  };
+} {
+  const evidence = operation.progress.highAssuranceChallenge;
+  return (
+    operation.state === "canceled" &&
+    evidence?.denyAuditEventId !== undefined &&
+    evidence.denyingUserId !== undefined
+  );
+}
+
 export async function finalizePendingRequestAudit(
   input: ChallengeAuditFinalizationInput,
   evidence: OperationHighAssuranceChallengeEvidence & { requestAuditEventId: AuditEventId },
@@ -58,13 +78,7 @@ export async function finalizePendingRequestAudit(
     challengeId: evidence.challengeId,
     riskReasonCode: evidence.riskReasonCode,
     auditEventId: evidence.requestAuditEventId,
-    ...(evidence.environmentId !== undefined ? { environmentId: evidence.environmentId } : {}),
-    ...(evidence.requestingUserId !== undefined
-      ? { requestingUserId: evidence.requestingUserId }
-      : {}),
-    ...(evidence.requestingMachineIdentityId !== undefined
-      ? { requestingMachineIdentityId: evidence.requestingMachineIdentityId }
-      : {}),
+    ...optionalHighAssuranceEvidenceScopeFields(evidence),
     ...optionalAuditRequest(input.request),
   });
 }
@@ -85,12 +99,25 @@ async function finalizePendingClearAudit(
     riskReasonCode: evidence.riskReasonCode,
     clearAuthenticationMethodCode: evidence.clearAuthenticationMethodCode,
     auditEventId: evidence.clearAuditEventId,
-    ...(evidence.requestingUserId !== undefined
-      ? { requestingUserId: evidence.requestingUserId }
-      : {}),
-    ...(evidence.requestingMachineIdentityId !== undefined
-      ? { requestingMachineIdentityId: evidence.requestingMachineIdentityId }
-      : {}),
+    ...optionalHighAssuranceEvidenceScopeFields(evidence),
+  });
+}
+
+export async function finalizePendingDenyAudit(
+  input: ChallengeAuditFinalizationInput,
+  evidence: OperationHighAssuranceChallengeEvidence & {
+    denyAuditEventId: AuditEventId;
+    denyingUserId: UserId;
+  },
+): Promise<void> {
+  await recordHighAssuranceChallengeDenied({
+    ...challengeAuditScopeFromBoundEvidence(input, evidence),
+    denyingUserId: evidence.denyingUserId,
+    challengeId: evidence.challengeId,
+    riskReasonCode: evidence.riskReasonCode,
+    auditEventId: evidence.denyAuditEventId,
+    ...optionalHighAssuranceEvidenceScopeFields(evidence),
+    ...optionalAuditRequest(input.request),
   });
 }
 

@@ -90,6 +90,18 @@ export type {
   RecordInjectionRunCompletedRpcPayload,
 } from "./rpc/runtime-operations-rpc-contract.js";
 export type {
+  ClearHighAssuranceChallengeRpcInput,
+  ClearHighAssuranceChallengeRpcPayload,
+  DenyHighAssuranceChallengeRpcInput,
+  DenyHighAssuranceChallengeRpcPayload,
+  GetHighAssuranceChallengeRpcInput,
+  GetHighAssuranceChallengeRpcPayload,
+  HighAssuranceChallengeLifecycleState,
+  HighAssuranceChallengeReviewItem,
+  ListPendingHighAssuranceChallengesRpcInput,
+  ListPendingHighAssuranceChallengesRpcPayload,
+} from "./rpc/runtime-high-assurance-rpc-contract.js";
+export type {
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryAllPayload,
   RuntimeDeliveryEntryPayload,

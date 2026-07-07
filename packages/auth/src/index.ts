@@ -54,6 +54,13 @@ export {
   type HighAssuranceChallengeClearFailureReason,
 } from "./high-assurance-challenge-clear-assurance.js";
 export {
+  buildHighAssuranceClearAssuranceFromWorkOSContext,
+  deriveFreshStepUpFactorFromWorkOSContext,
+  resolveHighAssuranceClearAssuranceFromWorkOSStepUp,
+  type ResolveHighAssuranceClearAssuranceFromWorkOSStepUpInput,
+  type ResolveHighAssuranceClearAssuranceFromWorkOSStepUpResult,
+} from "./high-assurance-clear-step-up.js";
+export {
   evaluateSessionAssurance,
   type EvaluateSessionAssuranceInput,
   type SessionAssuranceFailureReason,

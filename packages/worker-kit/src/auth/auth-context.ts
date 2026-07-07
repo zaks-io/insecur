@@ -5,10 +5,7 @@ import { createAuthConfig } from "./config.js";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
 
 export type AuthConfigField =
-  | "workos.clientId"
-  | "workos.apiKey"
-  | "workos.cookiePassword"
-  | "sessionSigningSecret";
+  "workos.clientId" | "workos.apiKey" | "workos.cookiePassword" | "sessionSigningSecret";
 
 export class AuthConfigError extends Error {
   readonly field: AuthConfigField;

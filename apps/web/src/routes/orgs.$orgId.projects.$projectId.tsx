@@ -1,30 +1,21 @@
 import { Button, ConsoleNav, ConsoleNavItem } from "@insecur/ui";
-import {
-  createFileRoute,
-  Link,
-  notFound,
-  Outlet,
-  redirect,
-  useLocation,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, Outlet, useLocation } from "@tanstack/react-router";
+import { ConsoleFramedRouteError } from "../components/console-route-error.js";
 import { activeProjectView, PROJECT_VIEWS, projectViewPath } from "../console/project-nav.js";
 import { findConsoleProject, shortDate } from "../console/projects.js";
-import { loginRedirectHref } from "../console/login-redirect.js";
+import { requireConsoleRead } from "../console/route-guards.js";
 import { loadOrgProjects } from "../server/console-projects.js";
 
 export const Route = createFileRoute("/orgs/$orgId/projects/$projectId")({
   // One projects read per project entry; view switches inside the sub-nav reuse it briefly.
   staleTime: 30_000,
   loader: async ({ params, location }) => {
-    const read = await loadOrgProjects({ data: { organizationId: params.orgId } });
-    if (read.kind === "unauthenticated") {
-      throw redirect({ href: loginRedirectHref(location.href) });
-    }
-    if (read.kind === "denied") {
-      throw notFound();
-    }
+    const projects = requireConsoleRead(
+      await loadOrgProjects({ data: { organizationId: params.orgId } }),
+      location.href,
+    );
     // Metadata-safe denial: a project outside the member's org reads as nonexistent.
-    const project = findConsoleProject(read.value, params.projectId);
+    const project = findConsoleProject(projects, params.projectId);
     if (project === undefined) {
       throw notFound();
     }
@@ -32,6 +23,7 @@ export const Route = createFileRoute("/orgs/$orgId/projects/$projectId")({
   },
   component: ProjectLayout,
   notFoundComponent: ProjectNotFound,
+  errorComponent: ConsoleFramedRouteError,
 });
 
 function ProjectViewTabs({ orgId, projectId }: { orgId: string; projectId: string }) {

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { parse as parseYaml } from "yaml";
+
 import {
   assertDependencyCruiserRules,
   graphModuleFileName,
@@ -170,21 +172,33 @@ export async function assertPackageBoundaryConformance(packages) {
 
 export function assertHostedCiVerifyRunsPackageBoundaryConformance() {
   const workflow = readFileSync(CI_WORKFLOW_PATH, "utf8");
-  const verifyJobMatch = workflow.match(
-    /^\s+verify:\s*\n[\s\S]*?^\s+run:\s*\|\s*\n((?:\s{10}.*\n)+)/m,
-  );
-  if (!verifyJobMatch) {
-    throw new Error(
-      "package-boundary conformance: could not locate CI Verify job run block in .github/workflows/ci.yml",
-    );
-  }
-
-  const verifyCommands = verifyJobMatch[1];
-  if (!/\bpnpm\s+conformance:packages\b/.test(verifyCommands)) {
+  if (!ciVerifyStepsRunPackageBoundaryConformance(workflow)) {
     throw new Error(
       "package-boundary conformance: hosted CI Verify must run `pnpm conformance:packages` (INS-307)",
     );
   }
+}
+
+export function ciVerifyStepsRunPackageBoundaryConformance(workflowSource) {
+  return ciVerifyStepsRunCommand(workflowSource, /\bpnpm\s+conformance:packages\b/);
+}
+
+export function ciVerifyStepsRunCommand(workflowSource, commandPattern) {
+  const workflow = parseYaml(workflowSource);
+  const verifySteps = workflow?.jobs?.verify?.steps;
+  if (!Array.isArray(verifySteps)) {
+    throw new Error(
+      "package-boundary conformance: could not locate CI Verify job steps in .github/workflows/ci.yml",
+    );
+  }
+
+  return verifySteps.some((step) => {
+    if (!step || typeof step !== "object" || typeof step.run !== "string") {
+      return false;
+    }
+    commandPattern.lastIndex = 0;
+    return commandPattern.test(step.run);
+  });
 }
 
 export async function runPackageBoundaryConformance() {

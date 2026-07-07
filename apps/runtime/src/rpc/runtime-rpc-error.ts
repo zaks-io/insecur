@@ -10,6 +10,7 @@ import { RootKeyNotConfiguredError } from "@insecur/crypto";
 import { GuidedOrganizationProvisionError, MembershipManagementError } from "@insecur/onboarding";
 import { OperationStoreError } from "@insecur/operations";
 import { BootstrapError } from "@insecur/instance-bootstrap";
+import { HighAssuranceChallengeError } from "@insecur/high-assurance";
 import type { RuntimeRpcError } from "@insecur/worker-kit";
 import { RuntimeTokenSigningSecretConfigError, safePublicErrorMessage } from "@insecur/worker-kit";
 
@@ -47,7 +48,8 @@ type DomainError =
   | GuidedOrganizationProvisionError
   | MembershipManagementError
   | OperationStoreError
-  | BootstrapError;
+  | BootstrapError
+  | HighAssuranceChallengeError;
 
 const DOMAIN_ERROR_TYPES = [
   InjectionGrantError,
@@ -59,6 +61,7 @@ const DOMAIN_ERROR_TYPES = [
   MembershipManagementError,
   OperationStoreError,
   BootstrapError,
+  HighAssuranceChallengeError,
 ] as const;
 
 function isDomainError(error: unknown): error is DomainError {

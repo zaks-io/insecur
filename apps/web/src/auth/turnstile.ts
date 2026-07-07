@@ -8,15 +8,10 @@ const MAX_TURNSTILE_TOKEN_LENGTH = 2048;
 const SITEVERIFY_TIMEOUT_MS = 5_000;
 
 type TurnstileFailureReason =
-  | "configuration"
-  | "missing_token"
-  | "invalid_token"
-  | "rejected"
-  | "unavailable";
+  "configuration" | "missing_token" | "invalid_token" | "rejected" | "unavailable";
 
 export type TurnstileVerificationResult =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly reason: TurnstileFailureReason };
+  { readonly ok: true } | { readonly ok: false; readonly reason: TurnstileFailureReason };
 
 interface TurnstileSiteverifyResponse {
   readonly success?: unknown;

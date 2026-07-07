@@ -14,6 +14,7 @@ export type {
   HighAssuranceChallengeLifecycleState,
   HighAssuranceChallengeStatus,
 } from "./high-assurance-challenge-types.js";
+export type { HighAssuranceChallengeReviewItem } from "@insecur/operations";
 export {
   computeChallengeExpiresAt,
   generateChallengeId,
@@ -44,8 +45,19 @@ export {
   type GetHighAssuranceChallengeStatusInput,
 } from "./get-high-assurance-challenge-status.js";
 export {
+  listPendingHighAssuranceChallenges,
+  type ListPendingHighAssuranceChallengesInput,
+} from "./list-pending-high-assurance-challenges.js";
+export {
+  denyHighAssuranceChallenge,
+  DENY_HIGH_ASSURANCE_CHALLENGE_REQUIRED_SCOPES,
+  type DenyHighAssuranceChallengeInput,
+} from "./deny-high-assurance-challenge.js";
+export { toHighAssuranceChallengeReviewItem } from "./to-high-assurance-challenge-review-item.js";
+export {
   recordHighAssuranceChallengeCleared,
   recordHighAssuranceChallengeClearDenied,
+  recordHighAssuranceChallengeDenied,
   recordHighAssuranceChallengeRequestDenied,
   recordHighAssuranceChallengeRequested,
   recordHighAssuranceEvidenceConsumeDenied,

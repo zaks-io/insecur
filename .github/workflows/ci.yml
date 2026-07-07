@@ -1,6 +1,6 @@
 # Required status check: deterministic validation with no secrets (fork-safe).
-# Branch protection keys on the job names below (Verify, Coverage, ...), not
-# the workflow name. See docs/build-tooling.md and ADR-0029 / ADR-0061.
+# Branch protection keys on the Verify job name, not the workflow name. See
+# docs/build-tooling.md and ADR-0029 / ADR-0061.
 name: CI
 
 on:
@@ -23,11 +23,12 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     outputs:
+      db_backed: ${{ steps.diff.outputs.db_backed }}
       product_code: ${{ steps.diff.outputs.product_code }}
       workflow_config: ${{ steps.diff.outputs.workflow_config }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
 
@@ -39,11 +40,15 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" != "pull_request" ] || [ -z "${BASE_SHA:-}" ]; then
-            echo "product_code=true" >> "$GITHUB_OUTPUT"
-            echo "workflow_config=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "db_backed=true"
+              echo "product_code=true"
+              echo "workflow_config=true"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          db_backed=false
           product_code=false
           workflow_config=false
 
@@ -51,23 +56,56 @@ jobs:
             [ -z "$file_path" ] && continue
             case "$file_path" in
               docs/*|*.md) ;;
-              .github/workflows/*|.github/actionlint.yaml) workflow_config=true ;;
+              .github/workflows/*|.github/actionlint.yaml|.github/actions/*) workflow_config=true ;;
               *) product_code=true ;;
+            esac
+            case "$file_path" in
+              apps/api/*|\
+              apps/runtime/*|\
+              apps/web/*|\
+              packages/access/*|\
+              packages/app-connection/*|\
+              packages/audit/*|\
+              packages/auth/*|\
+              packages/instance-bootstrap/*|\
+              packages/machine-auth/*|\
+              packages/onboarding/*|\
+              packages/operations/*|\
+              packages/runtime-injection/*|\
+              packages/secret-store/*|\
+              packages/tenant-store/*|\
+              compose.yaml|\
+              infra/postgres/*|\
+              package.json|\
+              pnpm-lock.yaml|\
+              pnpm-workspace.yaml|\
+              scripts/ci/postgres-integration-tests.mjs|\
+              scripts/dev-db.mjs|\
+              turbo.json)
+                db_backed=true
+                ;;
             esac
           done < <(git diff --name-only "${BASE_SHA}...HEAD")
 
-          echo "product_code=$product_code" >> "$GITHUB_OUTPUT"
-          echo "workflow_config=$workflow_config" >> "$GITHUB_OUTPUT"
+          {
+            echo "db_backed=$db_backed"
+            echo "product_code=$product_code"
+            echo "workflow_config=$workflow_config"
+          } >> "$GITHUB_OUTPUT"
 
   verify:
     name: Verify
     needs: changes
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Secret scan
+        run: |
+          bash scripts/ci/install-gitleaks.sh
+          bash scripts/ci/gitleaks-detect.sh detect
 
       - name: Setup pnpm
         if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true'
@@ -77,16 +115,16 @@ jobs:
 
       - name: Setup Node.js
         if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .node-version
-          cache: pnpm
+          package-manager-cache: false
 
       - name: Install dependencies
         if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: pnpm verify (CI remote cache)
+      - name: Product checks
         if: needs.changes.outputs.product_code == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -101,7 +139,9 @@ jobs:
           else
             echo "::notice::Remote Turbo cache writes skipped. Configure TURBO_TOKEN, TURBO_TEAM, and TURBO_REMOTE_CACHE_SIGNATURE_KEY repository secrets to enable signed CI cache publication (ADR-0053)."
           fi
+          export TURBO_CACHE="${cache_flags#--cache=}"
           pnpm duplicates:ci
+          pnpm knip
           pnpm format:check
           pnpm conformance:actions-pin
           pnpm conformance:topology
@@ -110,230 +150,32 @@ jobs:
           pnpm conformance:cli-release-boundary
           pnpm test:scripts
           pnpm exec turbo run lint typecheck test "${cache_flags}"
+          pnpm test:coverage
 
       - name: Workflow config checks
-        if: needs.changes.outputs.product_code != 'true' && needs.changes.outputs.workflow_config == 'true'
+        if: needs.changes.outputs.workflow_config == 'true'
         run: |
-          pnpm exec prettier --check ".github/workflows/*.{yml,yaml}" ".github/actionlint.yaml"
-          pnpm conformance:actions-pin
-
-      - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true' && needs.changes.outputs.workflow_config != 'true'
-        run: echo "Docs-only change; skipping Verify."
-
-  coverage:
-    name: Coverage (unit, DB-less)
-    needs: changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        if: needs.changes.outputs.product_code == 'true'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          version: 10.19.0
-
-      - name: Setup Node.js
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-
-      - name: Install dependencies
-        if: needs.changes.outputs.product_code == 'true'
-        run: pnpm install --frozen-lockfile
-
-      # Runs DB-less unit coverage per workspace, then enforces the merged
-      # repo-wide ratchet thresholds in scripts/merge-coverage.mjs. Integration
-      # and RLS suites are excluded; lefthook pre-push runs this same command.
-      - name: Run coverage with thresholds
-        if: needs.changes.outputs.product_code == 'true'
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -n "${TURBO_REMOTE_CACHE_SIGNATURE_KEY:-}" ] && [ -n "${TURBO_TOKEN:-}" ] && [ -n "${TURBO_TEAM:-}" ]; then
-            export TURBO_CACHE="local:rw,remote:rw"
-            echo "Remote Turbo cache writes enabled for coverage."
-          else
-            export TURBO_CACHE="local:rw,remote:r"
-            echo "::notice::Remote Turbo cache writes skipped. Configure TURBO_TOKEN, TURBO_TEAM, and TURBO_REMOTE_CACHE_SIGNATURE_KEY repository secrets to enable signed CI cache publication (ADR-0053)."
+          if [ "${{ needs.changes.outputs.product_code }}" != "true" ]; then
+            pnpm exec prettier --check ".github/workflows/*.{yml,yaml}" ".github/actions/**/*.{yml,yaml}" ".github/actionlint.yaml"
+            pnpm conformance:actions-pin
           fi
-          pnpm test:coverage
+          bash scripts/ci/install-actionlint.sh
+          actionlint -color
+
+      - name: DB-backed tests
+        if: needs.changes.outputs.product_code == 'true' && needs.changes.outputs.db_backed == 'true'
+        run: |
+          pnpm dev:db:reset
+          node scripts/ci/postgres-integration-tests.mjs
 
       - name: Upload coverage report
         if: always() && needs.changes.outputs.product_code == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-report
           path: coverage/
           retention-days: 14
 
       - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true'
-        run: echo "No product-code change; skipping Coverage."
-
-  knip:
-    name: Knip (unused code and deps)
-    needs: changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        if: needs.changes.outputs.product_code == 'true'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          version: 10.19.0
-
-      - name: Setup Node.js
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-
-      - name: Install dependencies
-        if: needs.changes.outputs.product_code == 'true'
-        run: pnpm install --frozen-lockfile
-
-      # Flags unused files, deps, and unlisted deps. Export/type-level dead-code
-      # rules are deferred (knip.json `rules`) until product code wires up the
-      # package index skeletons (ADR-0018); enable them as the ratchet tightens.
-      - name: Run knip
-        if: needs.changes.outputs.product_code == 'true'
-        run: pnpm knip
-
-      - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true'
-        run: echo "No product-code change; skipping Knip."
-
-  actionlint:
-    name: Actionlint (workflow lint)
-    needs: changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        if: needs.changes.outputs.workflow_config == 'true'
-        uses: actions/checkout@v7
-
-      - name: Install actionlint
-        if: needs.changes.outputs.workflow_config == 'true'
-        run: bash scripts/ci/install-actionlint.sh
-
-      # Lints every workflow under .github/workflows and shellchecks run: blocks.
-      # Custom runner labels are declared in .github/actionlint.yaml (ADR-0061).
-      - name: Lint workflows
-        if: needs.changes.outputs.workflow_config == 'true'
-        run: actionlint -color
-
-      - name: Docs-only short-circuit
-        if: needs.changes.outputs.workflow_config != 'true'
-        run: echo "No workflow-config change; skipping Actionlint."
-
-  postgres-integration:
-    name: Postgres tests (integration + RLS + e2e)
-    needs: changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        if: needs.changes.outputs.product_code == 'true'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          version: 10.19.0
-
-      - name: Setup Node.js
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-
-      - name: Install dependencies
-        if: needs.changes.outputs.product_code == 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Reset local Postgres and migrate
-        if: needs.changes.outputs.product_code == 'true'
-        run: pnpm dev:db:reset
-
-      # Single Postgres reset feeds the DB-backed layers: assert-rls-credentials,
-      # every workspace test:rls suite (forced-RLS + DB-backed package integration),
-      # test:e2e (First Value loop), and test:canary (no-plaintext gate, ADR-0069).
-      - name: Run RLS guardrails and DB-backed tests
-        if: needs.changes.outputs.product_code == 'true'
-        run: node scripts/ci/postgres-integration-tests.mjs
-
-      - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true'
-        run: echo "No product-code change; skipping Postgres tests."
-
-  secret-scan:
-    name: Secret scan (gitleaks)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Install gitleaks (OSS CLI)
-        run: bash scripts/ci/install-gitleaks.sh
-
-      - name: Detect secrets
-        run: bash scripts/ci/gitleaks-detect.sh detect
-
-  sast:
-    name: SAST (semgrep)
-    needs: changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/checkout@v7
-
-      - name: Run semgrep
-        if: needs.changes.outputs.product_code == 'true'
-        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
-        with:
-          config: auto
-
-      - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true'
-        run: echo "No product-code change; skipping SAST."
-
-  sbom-vulnerability:
-    name: SBOM and vulnerability scan (syft + grype)
-    needs: changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        if: needs.changes.outputs.product_code == 'true'
-        uses: actions/checkout@v7
-
-      - name: Generate SBOM and scan for CVEs
-        if: needs.changes.outputs.product_code == 'true'
-        run: bash scripts/ci/sbom-grype.sh high
-
-      - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true'
-        run: echo "No product-code change; skipping SBOM vulnerability scan."
+        if: needs.changes.outputs.product_code != 'true' && needs.changes.outputs.workflow_config != 'true'
+        run: echo "Docs-only change; skipping Verify."

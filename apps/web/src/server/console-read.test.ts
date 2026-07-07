@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { parseConsoleReadEnvelope } from "../console/envelope.js";
+import { parseOrgProjectsBody } from "../console/projects.js";
 import type { BffApiClient } from "./bff-api.js";
-import { consoleRead } from "./console-read.js";
+import { consoleRead, envelopeParseToReadResult } from "./console-read.js";
 
 const resolveMock = vi.hoisted(() => ({ resolveAuthenticatedApiClient: vi.fn() }));
 
@@ -39,17 +41,17 @@ describe("consoleRead fail-closed contract", () => {
     expect(result).toEqual({ kind: "ok", value: { projects: [] } });
   });
 
-  it("collapses a transport rejection to denied instead of throwing a loader error", async () => {
+  it("maps a transport rejection to unavailable instead of throwing a loader error", async () => {
     resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(FAKE_CLIENT);
 
     const result = await consoleRead(async () => {
       throw new TypeError("network error: fetch failed");
     });
 
-    expect(result).toEqual({ kind: "denied" });
+    expect(result).toEqual({ kind: "unavailable" });
   });
 
-  it("collapses a JSON-parse rejection (non-JSON 5xx body) to denied, never a 500", async () => {
+  it("maps a JSON-parse rejection (non-JSON 5xx body) to unavailable, never a 500", async () => {
     resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(FAKE_CLIENT);
 
     const result = await consoleRead(async () => {
@@ -58,6 +60,17 @@ describe("consoleRead fail-closed contract", () => {
       return { unreached: true };
     });
 
-    expect(result).toEqual({ kind: "denied" });
+    expect(result).toEqual({ kind: "unavailable" });
+  });
+
+  it("maps a structured non-auth API error envelope to unavailable", async () => {
+    resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(FAKE_CLIENT);
+    const body = { ok: false, error: { code: "store.runtime_config_missing" } };
+
+    const result = await consoleRead(async () =>
+      envelopeParseToReadResult(parseConsoleReadEnvelope(body, parseOrgProjectsBody)),
+    );
+
+    expect(result).toEqual({ kind: "unavailable" });
   });
 });
