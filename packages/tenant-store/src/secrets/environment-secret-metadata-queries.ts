@@ -115,6 +115,9 @@ function toSecretVersionMetadataRow(
     return null;
   }
   const lifecycleState = parseSecretVersionLifecycleState(row.lifecycleState);
+  // isPublished is the current delivery-eligible Published Version (lifecycle "live").
+  // publishedAt is retained after supersede to "retained" for rollback history; those rows
+  // must not surface as published even when publishedAt is non-null (ADR-0076 / glossary).
   return {
     secretVersionId: parsedVersionId.value,
     versionNumber: row.versionNumber,
