@@ -10,6 +10,7 @@ import {
 
 export interface ScanCommandOptions {
   readonly strict?: boolean;
+  readonly machine?: boolean;
   readonly agentTranscripts?: boolean;
   readonly transcriptPaths?: readonly string[];
   readonly transcriptGlobs?: readonly string[];
@@ -29,6 +30,8 @@ export async function runScanCommand(
   const result = await runScan({
     rootDir,
     mode,
+    ...(commandOptions.machine === true ? { machine: true } : {}),
+    ...(commandOptions.homeDir !== undefined ? { homeDir: commandOptions.homeDir } : {}),
     ...(mode === "agent-transcripts"
       ? {
           transcript: {
