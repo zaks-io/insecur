@@ -50,6 +50,8 @@ Runtime deploy.
 
 Under `/v1/session` (INS-367): `GET /whoami` echoes the verified actor; `GET /memberships` is the
 console org-switcher self-read (the actor's own organizations), forwarded over the `RUNTIME` seam.
+`POST /revoke` ends the calling actor's own CLI session (INS-436), forwarded over the `RUNTIME` seam;
+unauthenticated callers receive a metadata-only success no-op.
 
 The People reads (INS-373): `GET /v1/orgs/:organizationId/members` lists membership metadata and
 `GET /v1/orgs/:organizationId/invitations` lists pending-invitation metadata (identifiers, role

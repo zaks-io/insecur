@@ -2259,6 +2259,57 @@
     ],
     "primaryKeys": []
   },
+  "revoked_cli_sessions": {
+    "columns": {
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "session_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "revoked_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "revoked_cli_sessions_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": [
+      {
+        "columns": ["instance_id", "session_id"],
+        "name": "revoked_cli_sessions_instance_id_session_id_pk"
+      }
+    ]
+  },
   "runtime_injection_policies": {
     "columns": {
       "id": {

@@ -17,8 +17,12 @@ import type {
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   RecordInjectionRunCompletedRpcPayload,
+  RevokeCliSessionRpcInput,
+  RevokeCliSessionRpcPayload,
   RuntimeRpcResult,
 } from "@insecur/worker-kit";
 import type { OperationPollResult } from "@insecur/operations";
@@ -36,8 +40,13 @@ import { listOrganizationMembersOperation } from "../operations/list-organizatio
 import { listProjectSecretsOperation } from "../operations/list-project-secrets-operation.js";
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
+import {
+  isCliSessionRevokedOperation,
+  revokeCliSessionOperation,
+} from "../operations/revoke-cli-session-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
 import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
+import { withRuntimeRpcUnauthEntry } from "./runtime-rpc-unauthenticated-entry.js";
 
 export function listProjectsRpc(
   post: PostAuthRpcRunner,
@@ -80,6 +89,21 @@ export function listSessionOrganizationsRpc(
   return post(input.actorToken, ({ accessActor }) =>
     listSessionOrganizationsOperation({ accessActor }),
   );
+}
+
+export function revokeCliSessionRpc(
+  post: PostAuthRpcRunner,
+  input: RevokeCliSessionRpcInput,
+): Promise<RuntimeRpcResult<RevokeCliSessionRpcPayload>> {
+  return post(input.actorToken, ({ actor }) =>
+    revokeCliSessionOperation({ instanceId: input.instanceId, actor }),
+  );
+}
+
+export function isCliSessionRevokedUnauth(
+  input: IsCliSessionRevokedRpcInput,
+): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>> {
+  return withRuntimeRpcUnauthEntry(() => isCliSessionRevokedOperation(input));
 }
 
 export function listOrganizationMembersRpc(

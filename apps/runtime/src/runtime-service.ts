@@ -47,6 +47,9 @@ import type {
   CaptureFirstValueFeedbackRpcInput,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RevokeCliSessionRpcInput,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryEnvelope,
   RuntimeRpcResult,
@@ -78,6 +81,8 @@ import {
   listProjectsRpc,
   listSessionOrganizationsRpc,
   recordInjectionRunCompletedRpc,
+  revokeCliSessionRpc,
+  isCliSessionRevokedUnauth,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
 import {
   acceptInvitationRpc,
@@ -202,6 +207,12 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return this.#pre(() => getBootstrapStatus(input.instanceId));
   }
 
+  isCliSessionRevoked(
+    input: IsCliSessionRevokedRpcInput,
+  ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>> {
+    return isCliSessionRevokedUnauth(input);
+  }
+
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
 
   provisionGuidedOrganization(
@@ -275,6 +286,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
+  }
+
+  revokeCliSession(input: RevokeCliSessionRpcInput) {
+    return revokeCliSessionRpc(this.#post.bind(this), input);
   }
 
   listOrganizationMembers(input: ListOrganizationMembersRpcInput) {

@@ -182,4 +182,11 @@ export interface ApiClient {
       }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
+  revokeCliSession(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<{ readonly revoked: boolean }> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
 }

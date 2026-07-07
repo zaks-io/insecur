@@ -51,6 +51,12 @@ export const PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP = {
     status: { category: "status-code" },
     updated_at: { category: "timestamp" },
   },
+  revoked_cli_sessions: {
+    instance_id: { category: "opaque-id" },
+    revoked_at: { category: "timestamp" },
+    session_id: { category: "opaque-id" },
+    user_id: { category: "actor-id" },
+  },
   user_admissions: {
     created_at: { category: "timestamp" },
     display_name: { category: "display-name" },

@@ -153,6 +153,23 @@ export interface GetBootstrapStatusRpcInput {
   readonly instanceId: string;
 }
 
+/** PRE-AUTH: whether a CLI session id has been revoked for this instance. */
+export interface IsCliSessionRevokedRpcInput {
+  readonly instanceId: string;
+  readonly sessionId: string;
+}
+export interface IsCliSessionRevokedRpcPayload {
+  readonly revoked: boolean;
+}
+
+/** POST-AUTH: revoke the calling actor's own CLI session (self-only). */
+export interface RevokeCliSessionRpcInput extends PostAuthRpcInputBase {
+  readonly instanceId: string;
+}
+export interface RevokeCliSessionRpcPayload {
+  readonly revoked: boolean;
+}
+
 export interface ProvisionGuidedOrganizationRpcInput extends PostAuthRpcInputBase {
   readonly instanceId: string;
   readonly organizationDisplayName?: DisplayName;

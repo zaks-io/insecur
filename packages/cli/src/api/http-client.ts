@@ -29,6 +29,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
     recordInjectionRunCompleted: (input) => recordInjectionRunCompleted(base, input),
+    revokeCliSession: (input) => revokeCliSession(base, input),
   };
 }
 
@@ -115,6 +116,24 @@ async function writeSecretByVariableKey(
     body,
   );
   const envelope = parseEnvelope<SecretWriteByVariableKeyData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+interface RevokeCliSessionData {
+  readonly revoked: boolean;
+}
+
+async function revokeCliSession(base: string, input: Parameters<ApiClient["revokeCliSession"]>[0]) {
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    "/v1/session/revoke",
+    input.bearerCredential,
+    {},
+  );
+  const envelope = parseEnvelope<RevokeCliSessionData>(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
   }

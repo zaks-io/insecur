@@ -27,6 +27,15 @@ export async function recordAdmissionDeniedViaBinding(
   unwrapRuntimeResult(await runtime.recordAdmissionDenied(input));
 }
 
+/** Whether the CLI session id has been revoked for this instance (ADR-0077 pre-auth seam). */
+export async function isCliSessionRevokedViaBinding(
+  runtime: RuntimeAdmissionRpc,
+  input: { instanceId: string; sessionId: string },
+): Promise<boolean> {
+  const payload = unwrapRuntimeResult(await runtime.isCliSessionRevoked(input));
+  return payload.revoked;
+}
+
 /** The production resolver: edge-side glue that reaches the persisted store over the binding. */
 export function createRuntimeAdmittedUserResolver(env: AuthWorkerEnv): AdmittedUserResolver {
   const instanceId = resolveInstanceId(env);

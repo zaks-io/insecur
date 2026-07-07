@@ -2,6 +2,8 @@ import { successEnvelope } from "@insecur/domain";
 import {
   handleRoute,
   requireUserActor,
+  resolveInstanceId,
+  resolveRequestUserActor,
   runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
@@ -30,5 +32,26 @@ sessionRoutes.get("/memberships", requireUserActor, async (context) =>
     return runtimeClientFor(context.env, userActor).listSessionOrganizations({
       requestId: reqId,
     });
+  }),
+);
+
+// Revokes only the calling actor's own CLI session (INS-436). Optional auth: unauthenticated
+// callers get a metadata-only success no-op so `insecur logout` is idempotent without a session.
+sessionRoutes.post("/revoke", async (context) =>
+  handleRoute(context, async (reqId) => {
+    const resolved = await resolveRequestUserActor({
+      env: context.env,
+      authorizationHeader: context.req.header("Authorization"),
+      cookieHeader: null,
+      csrfHeader: null,
+    });
+    if (!resolved.ok) {
+      return { revoked: false };
+    }
+    const revoked = await runtimeClientFor(context.env, resolved.actor).revokeCliSession({
+      instanceId: resolveInstanceId(context.env),
+      requestId: reqId,
+    });
+    return { revoked: revoked.revoked };
   }),
 );
