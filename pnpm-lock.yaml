@@ -227,6 +227,9 @@ importers:
       '@insecur/access':
         specifier: workspace:*
         version: link:../../packages/access
+      '@insecur/agent-attribution':
+        specifier: workspace:*
+        version: link:../../packages/agent-attribution
       '@insecur/machine-auth':
         specifier: workspace:*
         version: link:../../packages/machine-auth
