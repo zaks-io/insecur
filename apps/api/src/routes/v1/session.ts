@@ -9,6 +9,7 @@ import { parseRequestCredentials, readSessionCredentialMetadata } from "@insecur
 import {
   handleRoute,
   requireUserActor,
+  requireUserActorForWhoami,
   runtimeClientFor,
   type AuthVariables,
 } from "@insecur/worker-kit";
@@ -97,7 +98,7 @@ function parseWhoamiQueryParams(context: SessionRouteContext) {
   };
 }
 
-sessionRoutes.get("/whoami", requireUserActor, async (context) =>
+sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
     const credentials = parseRequestCredentials({

@@ -174,7 +174,11 @@ export {
   type AuthContext,
   type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
-export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
+export {
+  requireUserActor,
+  requireUserActorForWhoami,
+  type AuthVariables,
+} from "./auth/middleware.js";
 export { recordAdmissionDeniedAuditForAuthFailure } from "./auth/record-admission-denied-audit.js";
 
 export { AbuseLimitError } from "./abuse/abuse-limit-error.js";
