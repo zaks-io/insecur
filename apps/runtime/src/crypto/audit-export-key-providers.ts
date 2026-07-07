@@ -7,6 +7,7 @@ import {
 import { base64UrlToBytes } from "@insecur/domain";
 import type { SecretsStoreSecretBinding } from "@insecur/crypto";
 import type { RuntimeEnv } from "../env.js";
+import { AuditExportKeysNotConfiguredError } from "./audit-export-keys-not-configured-error.js";
 
 const DEFAULT_HMAC_CUSTODY_REF = "escrow-record://instance/runtime/audit-hmac/v1";
 const DEFAULT_SIGNING_CUSTODY_REF = "escrow-record://instance/runtime/audit-signing/v1";
@@ -14,6 +15,10 @@ const DEFAULT_SIGNING_CUSTODY_REF = "escrow-record://instance/runtime/audit-sign
 interface AuditExportSigningKeyMaterial {
   readonly privateKeyPkcs8Base64Url: string;
   readonly publicKeyRawBase64Url: string;
+}
+
+function allowsPlaintextAuditExportKeyEnvFallback(env: RuntimeEnv): boolean {
+  return env.SENTRY_ENVIRONMENT !== "production";
 }
 
 function readEnvString(name: string): string | undefined {
@@ -58,13 +63,13 @@ async function resolveHmacSecret(env: RuntimeEnv): Promise<string> {
   if (fromBinding !== undefined) {
     return fromBinding;
   }
-  const fromEnv = readEnvString("INSECUR_AUDIT_EXPORT_HMAC_SECRET");
-  if (fromEnv !== undefined) {
-    return fromEnv;
+  if (allowsPlaintextAuditExportKeyEnvFallback(env)) {
+    const fromEnv = readEnvString("INSECUR_AUDIT_EXPORT_HMAC_SECRET");
+    if (fromEnv !== undefined) {
+      return fromEnv;
+    }
   }
-  throw new Error(
-    "audit export HMAC key is not configured (AUDIT_EXPORT_HMAC_KEY_V1 or INSECUR_AUDIT_EXPORT_HMAC_SECRET)",
-  );
+  throw new AuditExportKeysNotConfiguredError();
 }
 
 async function resolveSigningKeyMaterial(env: RuntimeEnv): Promise<AuditExportSigningKeyMaterial> {
@@ -72,16 +77,16 @@ async function resolveSigningKeyMaterial(env: RuntimeEnv): Promise<AuditExportSi
   if (fromBinding !== undefined) {
     return parseSigningKeyMaterial(fromBinding);
   }
-  const privateKeyPkcs8Base64Url = readEnvString(
-    "INSECUR_AUDIT_EXPORT_SIGNING_PRIVATE_KEY_PKCS8_BASE64URL",
-  );
-  const publicKeyRawBase64Url = readEnvString("INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY");
-  if (privateKeyPkcs8Base64Url !== undefined && publicKeyRawBase64Url !== undefined) {
-    return { privateKeyPkcs8Base64Url, publicKeyRawBase64Url };
+  if (allowsPlaintextAuditExportKeyEnvFallback(env)) {
+    const privateKeyPkcs8Base64Url = readEnvString(
+      "INSECUR_AUDIT_EXPORT_SIGNING_PRIVATE_KEY_PKCS8_BASE64URL",
+    );
+    const publicKeyRawBase64Url = readEnvString("INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY");
+    if (privateKeyPkcs8Base64Url !== undefined && publicKeyRawBase64Url !== undefined) {
+      return { privateKeyPkcs8Base64Url, publicKeyRawBase64Url };
+    }
   }
-  throw new Error(
-    "audit export signing key is not configured (AUDIT_EXPORT_SIGNING_KEY_V1 or INSECUR_AUDIT_EXPORT_SIGNING_* env)",
-  );
+  throw new AuditExportKeysNotConfiguredError();
 }
 
 export async function resolveAuditExportKeyProviders(env: RuntimeEnv): Promise<{
