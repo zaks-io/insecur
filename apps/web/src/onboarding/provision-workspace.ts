@@ -1,5 +1,5 @@
-import { AUTH_ERROR_CODES, parseDisplayName } from "@insecur/domain";
-import { isWizardMutationCsrfValid } from "./csrf-check.js";
+import { parseDisplayName } from "@insecur/domain";
+import { isWizardMutationGateFailure, openWizardMutationApi } from "./wizard-mutation-gate.js";
 import {
   parseProvisionOutcome,
   type ProvisionOutcome,
@@ -24,14 +24,11 @@ export async function provisionWorkspaceForRequest(
   },
   data: ProvisionSubmission,
 ): Promise<ProvisionOutcome> {
-  if (!isWizardMutationCsrfValid(deps.cookieHeader, data.csrfToken)) {
-    return { ok: false, code: "web.csrf_rejected" };
+  const opened = await openWizardMutationApi(deps, data.csrfToken);
+  if (isWizardMutationGateFailure(opened)) {
+    return opened;
   }
-
-  const api = await deps.resolveApi();
-  if (api === null) {
-    return { ok: false, code: AUTH_ERROR_CODES.required };
-  }
+  const api = opened.api;
 
   const organizationName = parseDisplayName(data.organizationName);
   if (!organizationName.ok) {
