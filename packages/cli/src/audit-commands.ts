@@ -1,12 +1,18 @@
 import { Command, type Command as CommanderCommand } from "commander";
 import { runAuditVerifyCommand } from "./commands/audit-verify.js";
 import type { GlobalCliFlags } from "./cli-options.js";
+import { registerAuditTailCommand } from "./register-audit-tail-command.js";
 
 export function registerAuditCommands(
   program: Command,
-  globalFlags: (command: CommanderCommand) => GlobalCliFlags,
+  deps: {
+    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
+    readonly resolveApi: Parameters<typeof registerAuditTailCommand>[1]["resolveApi"];
+  },
 ): void {
-  const audit = program.command("audit").description("Audit export verification");
+  const audit = program.command("audit").description("Audit event feed and export verification");
+
+  registerAuditTailCommand(audit, deps);
 
   audit
     .command("verify")
@@ -19,7 +25,7 @@ export function registerAuditCommands(
       "env var holding the published audit export signing public key",
     )
     .action(async function auditVerifyAction(jsonlPath: string, command: CommanderCommand) {
-      const flags = globalFlags(command);
+      const flags = deps.globalFlags(command);
       const options = command.opts<{
         manifest: string;
         hmacSecretEnv?: string;
