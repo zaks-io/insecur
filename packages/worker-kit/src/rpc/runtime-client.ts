@@ -87,6 +87,12 @@ export function runtimeClientFor(
       )) as ClientMethod<K>;
   }
 
+  return buildAuthenticatedRuntimeClient(forward);
+}
+
+function buildAuthenticatedRuntimeClient(
+  forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
+): AuthenticatedRuntimeClient {
   return {
     provisionGuidedOrganization: forward("provisionGuidedOrganization"),
     createOperatorOrganization: forward("createOperatorOrganization"),
@@ -105,6 +111,8 @@ export function runtimeClientFor(
     listEnvironments: forward("listEnvironments"),
     createEnvironment: forward("createEnvironment"),
     listProjectSecrets: forward("listProjectSecrets"),
+    listEnvironmentSecrets: forward("listEnvironmentSecrets"),
+    listSecretVersions: forward("listSecretVersions"),
     listSessionOrganizations: forward("listSessionOrganizations"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
