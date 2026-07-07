@@ -27,6 +27,8 @@ const DEPLOY_ENV = {
   INSECUR_DEPLOY_RUN_ID: "123456789",
   INSECUR_DEPLOY_SHA: "abc123",
   INSECUR_INSTANCE_ID: "instance-live",
+  INSECUR_RUNTIME_AUDIT_EXPORT_HMAC_SECRET_NAME: "audit-hmac-secret-live",
+  INSECUR_RUNTIME_AUDIT_EXPORT_SIGNING_SECRET_NAME: "audit-signing-secret-live",
   INSECUR_RUNTIME_HYPERDRIVE_ID: "hyperdrive-live",
   INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME: "root-key-secret-live",
   INSECUR_RUNTIME_ROOT_KEY_STORE_ID: "root-key-store-live",

@@ -31,6 +31,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
     "@insecur/access": "workspace:*",
+    "@insecur/audit": "workspace:*",
     "@insecur/machine-auth": "workspace:*",
     "@insecur/runtime": "workspace:*",
     "eslint": "catalog:",
