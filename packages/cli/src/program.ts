@@ -59,10 +59,11 @@ function buildProgram(): Command {
 
   program
     .command("logout")
-    .description("Clear the persisted CLI session")
+    .description("End the CLI session locally and revoke the server session")
     .action(async function logoutAction(_args, command: CommanderCommand) {
       const flags = globalFlags(command);
-      process.exitCode = await runLogoutCommand(flags);
+      const { api, context } = await resolveApi(flags);
+      process.exitCode = await runLogoutCommand(flags, api, context);
     });
 
   program
@@ -114,7 +115,11 @@ export async function runCli(argv: readonly string[]): Promise<number> {
   } catch (error) {
     if (error instanceof CliError) {
       const flags = globalFlags(program);
-      renderEnvelope(errorEnvelope(error.toErrorBody()), flags, () => "");
+      const envelope =
+        error.data === undefined
+          ? errorEnvelope(error.toErrorBody())
+          : { ...errorEnvelope(error.toErrorBody()), data: error.data };
+      renderEnvelope(envelope, flags, () => "");
       return error.exitCode;
     }
     const flags = globalFlags(program);

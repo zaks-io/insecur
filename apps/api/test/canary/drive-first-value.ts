@@ -23,11 +23,7 @@ import {
   type EgressCapture,
   type EgressHttpResponse,
 } from "./egress-sweep.js";
-import {
-  createFakeRuntimeBinding,
-  wrapRuntimeRpcBinding,
-  type FakeRuntimeEnv,
-} from "../support/fake-runtime-binding.js";
+import { createFakeRuntimeBinding, type FakeRuntimeEnv } from "../support/fake-runtime-binding.js";
 
 const ADMITTED_USER_ID = TEST_USER_ID;
 const WORKOS_USER_ID = TEST_WORKOS_USER_ID;
@@ -50,13 +46,18 @@ function createCapturingRuntimeBinding(
   onConsumeGrant: (payloadJson: string) => void,
 ): RuntimeRpc {
   const binding = createFakeRuntimeBinding(env);
-  return wrapRuntimeRpcBinding(binding, {
-    consumeGrant: async (input) => {
-      const result = await binding.consumeGrant(input);
-      onConsumeGrant(JSON.stringify(result));
-      return result;
+  return new Proxy(binding, {
+    get(target, property, receiver) {
+      if (property === "consumeGrant") {
+        return async (input: Parameters<RuntimeRpc["consumeGrant"]>[0]) => {
+          const result = await target.consumeGrant(input);
+          onConsumeGrant(JSON.stringify(result));
+          return result;
+        };
+      }
+      return Reflect.get(target, property, receiver);
     },
-  });
+  }) as RuntimeRpc;
 }
 
 async function authHeaders(): Promise<Record<string, string>> {

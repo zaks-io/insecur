@@ -12,16 +12,23 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
-import type { AuditEventsPage, AuditExportBundle } from "@insecur/audit";
-import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { ListProjectSecretsData, NavigationApiClient } from "./navigation-api-types.js";
+import type { AuditApiClient } from "./audit-api-types.js";
 
 export type {
   CreateEnvironmentData,
   CreateProjectData,
   EnvironmentListData,
+  ListProjectSecretsData,
   ProjectListData,
   SessionOrganizationListData,
 } from "./navigation-api-types.js";
+
+export type {
+  ExportTenantAuditData,
+  ListAuditEventsData,
+  ListAuditEventsFiltersInput,
+} from "./audit-api-types.js";
 
 export interface OperationPollData {
   readonly operationId: OperationId;
@@ -41,26 +48,6 @@ export interface OperationCancelData extends OperationPollData {
 export interface CliSessionExchangeData {
   readonly sessionId: string;
   readonly expiresAt: string;
-}
-
-export interface ListAuditEventsFiltersInput {
-  readonly actorUserId?: string;
-  readonly actorMachineIdentityId?: string;
-  readonly projectId?: string;
-  readonly environmentId?: string;
-  readonly eventCode?: string;
-  readonly createdAtFrom?: string;
-  readonly createdAtTo?: string;
-}
-
-export type ListAuditEventsData = AuditEventsPage;
-export type ExportTenantAuditData = AuditExportBundle;
-
-interface CliAuthorizationUrlInput {
-  readonly redirectUri: string;
-  readonly state: string;
-  readonly codeChallenge: string;
-  readonly codeChallengeMethod: "S256";
 }
 
 export interface GuidedOrganizationProvisionData {
@@ -128,7 +115,14 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient {
+interface CliAuthorizationUrlInput {
+  readonly redirectUri: string;
+  readonly state: string;
+  readonly codeChallenge: string;
+  readonly codeChallengeMethod: "S256";
+}
+
+export interface ApiClient extends NavigationApiClient, AuditApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
@@ -169,6 +163,15 @@ export interface ApiClient extends NavigationApiClient {
     ),
   ): Promise<
     | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  listProjectSecrets(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<ListProjectSecretsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
   issueInjectionGrant(
@@ -239,25 +242,11 @@ export interface ApiClient extends NavigationApiClient {
     | { ok: true; envelope: ApiSuccess<OperationCancelData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
-  listAuditEvents(input: {
+  revokeCliSession(input: {
     readonly host: string;
     readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly pageSize?: number;
-    readonly cursor?: string;
-    readonly filters?: ListAuditEventsFiltersInput;
   }): Promise<
-    | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  exportTenantAudit(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly from: string;
-    readonly to: string;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<ExportTenantAuditData> }
+    | { ok: true; envelope: ApiSuccess<{ readonly revoked: boolean }> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }

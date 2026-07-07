@@ -2,6 +2,7 @@
  * Drizzle schema source of truth (ADR-0037). Plain table definitions only.
  */
 /* Stryker disable ObjectLiteral */
+import { primaryKey } from "drizzle-orm/pg-core";
 import {
   boolean,
   check,
@@ -140,6 +141,19 @@ export const userAdmissions = pgTable(
     ),
     uniqueIndex("user_admissions_one_user_per_instance").on(table.instanceId, table.userId),
   ],
+);
+
+export const revokedCliSessions = pgTable(
+  "revoked_cli_sessions",
+  {
+    instanceId: text("instance_id")
+      .notNull()
+      .references(() => instances.id),
+    sessionId: text("session_id").notNull(),
+    userId: text("user_id").notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.instanceId, table.sessionId] })],
 );
 
 export const PROVIDER_APP_REGISTRATION_STATUSES = ["configured", "pending_setup"] as const;

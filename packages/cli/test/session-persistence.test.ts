@@ -173,6 +173,9 @@ function createMockApi(): ApiClient {
     async consumeInjectionGrantAll() {
       throw new Error("not used");
     },
+    async revokeCliSession() {
+      return { ok: true, envelope: successEnvelope({ revoked: true }) };
+    },
   };
 }
 
@@ -208,7 +211,9 @@ describe("login and logout persistence", () => {
     clearMemorySession();
     await expect(requireSessionCredential(host, store)).resolves.toBe(sensitiveCredential);
 
-    await runLogoutCommand(flags, store);
+    await runLogoutCommand(flags, createMockApi(), mockContext(), {
+      sessionStore: store,
+    });
     await expect(requireSessionCredential(host, store)).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.required,
     } satisfies Partial<CliError>);

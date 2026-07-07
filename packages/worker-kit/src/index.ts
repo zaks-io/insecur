@@ -47,6 +47,8 @@ export type {
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   CancelOperationRpcInput,
   CancelOperationRpcPayload,
   IssueInjectionGrantRpcInput,
@@ -57,6 +59,8 @@ export type {
   RecordAbuseDeniedRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RevokeCliSessionRpcInput,
+  RevokeCliSessionRpcPayload,
   RuntimeGeneratedSecretInput,
   RuntimeRpc,
   RuntimeRpcError,
@@ -173,6 +177,7 @@ export {
   type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
 export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
+export { resolveRequestUserActor } from "./auth/resolve-request-user-actor.js";
 export { recordAdmissionDeniedAuditForAuthFailure } from "./auth/record-admission-denied-audit.js";
 
 export { AbuseLimitError } from "./abuse/abuse-limit-error.js";

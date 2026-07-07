@@ -47,37 +47,19 @@ export type AuthenticatedRuntimeClient = {
   [K in PostAuthMethodName]: ClientMethod<K>;
 };
 
-type ClientForwarder = <K extends PostAuthMethodName>(method: K) => ClientMethod<K>;
-
-function authenticatedRuntimeClientMethods(forward: ClientForwarder): AuthenticatedRuntimeClient {
-  return {
-    provisionGuidedOrganization: forward("provisionGuidedOrganization"),
-    createOperatorOrganization: forward("createOperatorOrganization"),
-    createInvitation: forward("createInvitation"),
-    acceptInvitation: forward("acceptInvitation"),
-    getOperation: forward("getOperation"),
-    cancelOperation: forward("cancelOperation"),
-    issueInjectionGrant: forward("issueInjectionGrant"),
-    completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
-    writeSecret: forward("writeSecret"),
-    consumeGrant: forward("consumeGrant"),
-    consumeGrantAll: forward("consumeGrantAll"),
-    recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),
-    captureFirstValueFeedback: forward("captureFirstValueFeedback"),
-    listProjects: forward("listProjects"),
-    createProject: forward("createProject"),
-    listEnvironments: forward("listEnvironments"),
-    createEnvironment: forward("createEnvironment"),
-    listProjectSecrets: forward("listProjectSecrets"),
-    listSessionOrganizations: forward("listSessionOrganizations"),
-    listOrganizationMembers: forward("listOrganizationMembers"),
-    listOrganizationInvitations: forward("listOrganizationInvitations"),
-    listAuditEvents: forward("listAuditEvents"),
-    exportTenantAudit: forward("exportTenantAudit"),
-    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
-    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
-    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
-    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
+/** Mint-once hop token, call the named binding method, unwrap into the API error seam. */
+function createRuntimeForward(
+  env: RuntimeClientEnv,
+  actorToken: () => Promise<string>,
+): <K extends PostAuthMethodName>(method: K) => ClientMethod<K> {
+  return function forward<K extends PostAuthMethodName>(method: K): ClientMethod<K> {
+    const rpc = env.RUNTIME[method] as unknown as (
+      input: Record<string, unknown>,
+    ) => Promise<RuntimeRpcResult<unknown>>;
+    return (async (input: Record<string, unknown>) =>
+      unwrapRuntimeResult(
+        await rpc({ ...input, actorToken: await actorToken() }),
+      )) as ClientMethod<K>;
   };
 }
 
@@ -105,21 +87,36 @@ export function runtimeClientFor(
       signingSecret: env.RUNTIME_TOKEN_SIGNING_SECRET,
     }).then((minted) => minted.token));
 
-  /**
-   * Mint-once, call the named binding method with the hop token, unwrap into the API error seam.
-   * The binding method is widened to one concrete call signature for the dispatch: an indexed access
-   * over the union of `RuntimeRpc` methods otherwise collapses to an unusable parameter intersection.
-   * The precise per-method types are preserved at the call site by the {@link ClientMethod} return.
-   */
-  function forward<K extends PostAuthMethodName>(method: K): ClientMethod<K> {
-    const rpc = env.RUNTIME[method] as unknown as (
-      input: Record<string, unknown>,
-    ) => Promise<RuntimeRpcResult<unknown>>;
-    return (async (input: Record<string, unknown>) =>
-      unwrapRuntimeResult(
-        await rpc({ ...input, actorToken: await actorToken() }),
-      )) as ClientMethod<K>;
-  }
+  const forward = createRuntimeForward(env, actorToken);
 
-  return authenticatedRuntimeClientMethods(forward);
+  return {
+    provisionGuidedOrganization: forward("provisionGuidedOrganization"),
+    createOperatorOrganization: forward("createOperatorOrganization"),
+    createInvitation: forward("createInvitation"),
+    acceptInvitation: forward("acceptInvitation"),
+    getOperation: forward("getOperation"),
+    cancelOperation: forward("cancelOperation"),
+    issueInjectionGrant: forward("issueInjectionGrant"),
+    completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
+    writeSecret: forward("writeSecret"),
+    consumeGrant: forward("consumeGrant"),
+    consumeGrantAll: forward("consumeGrantAll"),
+    recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),
+    captureFirstValueFeedback: forward("captureFirstValueFeedback"),
+    listProjects: forward("listProjects"),
+    createProject: forward("createProject"),
+    listEnvironments: forward("listEnvironments"),
+    createEnvironment: forward("createEnvironment"),
+    listProjectSecrets: forward("listProjectSecrets"),
+    listSessionOrganizations: forward("listSessionOrganizations"),
+    revokeCliSession: forward("revokeCliSession"),
+    listOrganizationMembers: forward("listOrganizationMembers"),
+    listOrganizationInvitations: forward("listOrganizationInvitations"),
+    listAuditEvents: forward("listAuditEvents"),
+    exportTenantAudit: forward("exportTenantAudit"),
+    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
+    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
+    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
+    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
+  };
 }

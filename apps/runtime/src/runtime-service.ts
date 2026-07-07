@@ -2,14 +2,9 @@ import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers"
 import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
-import type {
-  CreateInvitationResult,
-  CreateOperatorOrganizationResult,
-  ProvisionGuidedOrganizationResult,
-} from "@insecur/onboarding";
+import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
 import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
-import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -44,6 +39,9 @@ import type {
   CaptureFirstValueFeedbackRpcInput,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RevokeCliSessionRpcInput,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryEnvelope,
   RuntimeRpcResult,
@@ -79,7 +77,9 @@ import {
   listProjectsRpc,
   listSessionOrganizationsRpc,
   recordInjectionRunCompletedRpc,
+  revokeCliSessionRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
+import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
 import {
   acceptInvitationRpc,
   createInvitationRpc,
@@ -204,23 +204,23 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return this.#pre(() => getBootstrapStatus(input.instanceId));
   }
 
+  isCliSessionRevoked(
+    input: IsCliSessionRevokedRpcInput,
+  ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>> {
+    return this.#pre(() => isCliSessionRevokedOperation(input));
+  }
+
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
 
-  provisionGuidedOrganization(
-    input: ProvisionGuidedOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
+  provisionGuidedOrganization(input: ProvisionGuidedOrganizationRpcInput) {
     return provisionGuidedOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createOperatorOrganization(
-    input: CreateOperatorOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
+  createOperatorOrganization(input: CreateOperatorOrganizationRpcInput) {
     return createOperatorOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createInvitation(
-    input: CreateInvitationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
+  createInvitation(input: CreateInvitationRpcInput) {
     return createInvitationRpc(this.#post.bind(this), input);
   }
 
@@ -269,6 +269,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
   }
+  revokeCliSession(input: RevokeCliSessionRpcInput) {
+    return revokeCliSessionRpc(this.#post.bind(this), input);
+  }
+
   listOrganizationMembers(input: ListOrganizationMembersRpcInput) {
     return listOrganizationMembersRpc(this.#post.bind(this), input);
   }
