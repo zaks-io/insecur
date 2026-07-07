@@ -47,6 +47,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     listAuditEvents: (input) => listAuditEvents(base, input),
     getOperation: (input) => getOperation(base, input),
     cancelOperation: (input) => cancelOperation(base, input),
+    revokeCliSession: (input) => revokeCliSession(base, input),
   };
 }
 
@@ -213,4 +214,22 @@ async function createEnvironment(
     input.bearerCredential,
     { method: "POST", body },
   );
+}
+
+interface RevokeCliSessionData {
+  readonly revoked: boolean;
+}
+
+async function revokeCliSession(base: string, input: Parameters<ApiClient["revokeCliSession"]>[0]) {
+  const { response, body: responseBody } = await postAuthorizedJson(
+    base,
+    "/v1/session/revoke",
+    input.bearerCredential,
+    {},
+  );
+  const envelope = parseEnvelope<RevokeCliSessionData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
 }

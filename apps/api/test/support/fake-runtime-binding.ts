@@ -7,6 +7,10 @@ import type { RuntimeRpc } from "@insecur/worker-kit";
  * actual Runtime implementation against the same Postgres and crypto - no mock of the keyring path,
  * and (after ADR-0077 Option B) no mock of admission/onboarding/operations either. The cloud smoke
  * layer drives the real binding over HTTP separately.
+ *
+ * Methods are bound to the service instance: `runtimeClientFor` extracts `env.RUNTIME[method]` and
+ * invokes it without a receiver, so returning the raw class instance would drop `this` and break
+ * private `#post` / `#withConnection` on post-auth RPCs.
  */
 export interface FakeRuntimeEnv {
   readonly INSTANCE_ROOT_KEY_V1: { get: () => Promise<string> };
@@ -16,20 +20,17 @@ export interface FakeRuntimeEnv {
 export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc {
   const ctx = { waitUntil: () => undefined, passThroughOnException: () => undefined };
   const service = new RuntimeService(ctx as never, runtimeEnv as never);
-  return {
-    consumeGrant: (input) => service.consumeGrant(input),
-    writeSecret: (input) => service.writeSecret(input),
-    resolveAdmission: (input) => service.resolveAdmission(input),
-    recordAdmissionDenied: (input) => service.recordAdmissionDenied(input),
-    recordAbuseDenied: (input) => service.recordAbuseDenied(input),
-    getBootstrapStatus: (input) => service.getBootstrapStatus(input),
-    provisionGuidedOrganization: (input) => service.provisionGuidedOrganization(input),
-    createOperatorOrganization: (input) => service.createOperatorOrganization(input),
-    createInvitation: (input) => service.createInvitation(input),
-    acceptInvitation: (input) => service.acceptInvitation(input),
-    getOperation: (input) => service.getOperation(input),
-    cancelOperation: (input) => service.cancelOperation(input),
-    issueInjectionGrant: (input) => service.issueInjectionGrant(input),
-    completeBootstrapOperatorClaim: (input) => service.completeBootstrapOperatorClaim(input),
-  };
+  return bindRuntimeRpcMethods(service);
+}
+
+function bindRuntimeRpcMethods(service: RuntimeService): RuntimeRpc {
+  return new Proxy(service, {
+    get(target, property, receiver) {
+      const value: unknown = Reflect.get(target, property, receiver);
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+      return value;
+    },
+  }) as RuntimeRpc;
 }

@@ -259,4 +259,11 @@ export interface ApiClient extends NavigationApiClient {
     | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
+  revokeCliSession(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<{ readonly revoked: boolean }> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
 }

@@ -59,10 +59,11 @@ function buildProgram(): Command {
 
   program
     .command("logout")
-    .description("Clear the persisted CLI session")
+    .description("End the CLI session locally and revoke the server session")
     .action(async function logoutAction(_args, command: CommanderCommand) {
       const flags = globalFlags(command);
-      process.exitCode = await runLogoutCommand(flags);
+      const { api, context } = await resolveApi(flags);
+      process.exitCode = await runLogoutCommand(flags, api, context);
     });
 
   program

@@ -90,6 +90,7 @@ describe("requireUserActor admission-denied request id", () => {
     const failingRuntime: FakeAdmissionRuntime = {
       deniedCalls: [],
       resolveAdmission: () => Promise.resolve({ ok: true, value: { userId: null } }),
+      isCliSessionRevoked: () => Promise.resolve({ ok: true, value: { revoked: false } }),
       recordAdmissionDenied: () => Promise.reject(new Error("binding down")),
     };
 

@@ -155,6 +155,10 @@ export type {
   UpsertSensitiveMetadataInput,
 } from "./sensitive-metadata/types.js";
 export {
+  isCliSessionRevoked,
+  revokeCliSession,
+} from "./cli-sessions/tenant-revoked-cli-session-store.js";
+export {
   insertActiveUserAdmissionInTransaction,
   resolveActiveUserAdmission,
   resolveAdmittedUserId,
