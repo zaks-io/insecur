@@ -9,6 +9,7 @@ export {
 export {
   encodeRequestValueUtf8,
   parseEnvironmentIdParam,
+  parseSecretIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
   parseInjectionGrantConsumeSelector,
@@ -71,8 +72,12 @@ export type {
 } from "./rpc/runtime-audit-rpc-contract.js";
 export type {
   EnvironmentMetadataRead,
+  EnvironmentSecretCurrentVersionRead,
+  EnvironmentSecretRead,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListEnvironmentSecretsRpcInput,
+  ListEnvironmentSecretsRpcPayload,
   ListOrganizationInvitationsRpcInput,
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
@@ -81,6 +86,8 @@ export type {
   ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSecretVersionsRpcInput,
+  ListSecretVersionsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
   OrganizationInvitationRead,
@@ -89,6 +96,7 @@ export type {
   SecretMatrixCellRead,
   SecretMatrixLastSetActorRead,
   SecretMatrixRowRead,
+  SecretVersionMetadataRead,
   SessionOrganizationRead,
 } from "./rpc/runtime-metadata-rpc-contract.js";
 export type {

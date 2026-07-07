@@ -39,7 +39,11 @@ I/O.
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `GET
 /:projectId/environments` lists environment metadata (including `isProtected`); `GET
 /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version,
-last-set actor/time; INS-363). `POST
+last-set actor/time; INS-363). `GET
+/:projectId/environments/:environmentId/secrets` lists environment-scoped Secret Shape metadata
+(variable key, opaque secret id, display name, current version pointer; INS-434). `GET
+/:projectId/environments/:environmentId/secrets/:secretId/versions` lists per-version metadata for
+one Secret (version ids, timestamps, current/published markers; INS-434). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
 
 Under `/v1/orgs/:organizationId/audit-events` (INS-364): `GET /` lists tenant-qualified audit

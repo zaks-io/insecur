@@ -54,6 +54,12 @@ export type {
   SecretMatrixLastSetActorRow,
   SecretMatrixSecretRow,
 } from "./secrets/secret-matrix-metadata-types.js";
+export type {
+  EnvironmentSecretMetadataRow,
+  ListEnvironmentSecretsInput,
+  ListSecretVersionMetadataInput,
+  SecretVersionMetadataRow,
+} from "./secrets/environment-secret-metadata-types.js";
 export {
   SECRET_VERSION_LIFECYCLE_STATES,
   parseSecretVersionLifecycleState,

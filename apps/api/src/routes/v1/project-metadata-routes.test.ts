@@ -50,6 +50,9 @@ const listProjectsPath = `/v1/orgs/${orgId}/projects`;
 const crossTenantProjectsPath = `/v1/orgs/${otherOrgId}/projects`;
 const listEnvironmentsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments`;
 const listProjectSecretsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/secrets`;
+const listEnvironmentSecretsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/${environmentIdValue}/secrets`;
+const listSecretVersionsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/${environmentIdValue}/secrets/sec_00000000000000000000000001/versions`;
+const crossTenantEnvironmentSecretsPath = `/v1/orgs/${otherOrgId}/projects/${otherProjectId}/environments/${environmentIdValue}/secrets`;
 const crossTenantProjectSecretsPath = `/v1/orgs/${otherOrgId}/projects/${otherProjectId}/secrets`;
 
 function testDisplayName(raw: string): DisplayName {
@@ -103,6 +106,36 @@ const metadataOnlySecretsMatrix = {
   ],
 };
 
+const metadataOnlyEnvironmentSecret = {
+  secretId: secretId.brand("sec_00000000000000000000000001"),
+  variableKey: matrixVariableKey,
+  displayName: testDisplayName("DATABASE_URL"),
+  currentVersion: {
+    secretVersionId: secretVersionId.brand("sv_00000000000000000000000001"),
+    versionNumber: 2,
+    lifecycleState: "live" as const,
+    createdAt: "2026-06-24T01:00:00.000Z",
+    publishedAt: "2026-06-24T01:00:00.000Z",
+  },
+  createdAt: "2026-06-24T00:00:00.000Z",
+};
+
+const metadataOnlySecretVersions = {
+  secretId: secretId.brand("sec_00000000000000000000000001"),
+  variableKey: matrixVariableKey,
+  versions: [
+    {
+      secretVersionId: secretVersionId.brand("sv_00000000000000000000000001"),
+      versionNumber: 2,
+      lifecycleState: "live" as const,
+      createdAt: "2026-06-24T01:00:00.000Z",
+      publishedAt: "2026-06-24T01:00:00.000Z",
+      isCurrent: true,
+      isPublished: true,
+    },
+  ],
+};
+
 function rpcFailure(
   code: KnownErrorCode,
   message: string,
@@ -140,6 +173,14 @@ describe("project metadata worker routes", () => {
     runtime.listProjectSecrets.mockResolvedValue({
       ok: true,
       value: metadataOnlySecretsMatrix,
+    });
+    runtime.listEnvironmentSecrets.mockResolvedValue({
+      ok: true,
+      value: { secrets: [metadataOnlyEnvironmentSecret] },
+    });
+    runtime.listSecretVersions.mockResolvedValue({
+      ok: true,
+      value: metadataOnlySecretVersions,
     });
   });
 
@@ -402,6 +443,83 @@ describe("project metadata worker routes", () => {
         ok: false,
         error: { code: "validation.invalid_opaque_resource_id" },
       });
+    });
+  });
+
+  describe("GET /v1/orgs/:organizationId/projects/:projectId/environments/:environmentId/secrets", () => {
+    it("forwards the env-scoped read and returns metadata-only secrets without values", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        listEnvironmentSecretsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.listEnvironmentSecrets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+          environmentId: environmentIdValue,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: { secrets: [metadataOnlyEnvironmentSecret] },
+      });
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toMatch(/ciphertext|valueUtf8|plaintext|password|wrapped/i);
+    });
+
+    it("denies cross-tenant environment secret list reads", async () => {
+      const env = makeEnv();
+      runtime.listEnvironmentSecrets.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "organization membership required"),
+      );
+
+      const response = await app.request(
+        crossTenantEnvironmentSecretsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      expect(runtime.listEnvironmentSecrets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: otherOrgId,
+          projectId: otherProjectId,
+          environmentId: environmentIdValue,
+        }),
+      );
+    });
+  });
+
+  describe("GET /v1/orgs/:organizationId/projects/:projectId/environments/:environmentId/secrets/:secretId/versions", () => {
+    it("forwards the versions read and returns metadata-only version rows", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        listSecretVersionsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.listSecretVersions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+          environmentId: environmentIdValue,
+          secretId: secretId.brand("sec_00000000000000000000000001"),
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: metadataOnlySecretVersions,
+      });
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toMatch(/ciphertext|valueUtf8|plaintext|password|wrapped/i);
     });
   });
 });

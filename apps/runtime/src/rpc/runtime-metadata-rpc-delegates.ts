@@ -7,6 +7,8 @@ import type {
   ListAuditEventsRpcPayload,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListEnvironmentSecretsRpcInput,
+  ListEnvironmentSecretsRpcPayload,
   ListOrganizationInvitationsRpcInput,
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
@@ -15,6 +17,8 @@ import type {
   ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSecretVersionsRpcInput,
+  ListSecretVersionsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
   RecordInjectionRunCompletedRpcInput,
@@ -31,9 +35,11 @@ import { captureFirstValueFeedbackOperation } from "../operations/capture-first-
 import { getOperationOperation } from "../operations/get-operation-operation.js";
 import { listAuditEventsOperation } from "../operations/list-audit-events-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
+import { listEnvironmentSecretsOperation } from "../operations/list-environment-secrets-operation.js";
 import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
 import { listOrganizationMembersOperation } from "../operations/list-organization-members-operation.js";
 import { listProjectSecretsOperation } from "../operations/list-project-secrets-operation.js";
+import { listSecretVersionsOperation } from "../operations/list-secret-versions-operation.js";
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
@@ -124,6 +130,24 @@ export function listProjectSecretsRpc(
 ): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     listProjectSecretsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listEnvironmentSecretsRpc(
+  post: PostAuthRpcRunner,
+  input: ListEnvironmentSecretsRpcInput,
+): Promise<RuntimeRpcResult<ListEnvironmentSecretsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listEnvironmentSecretsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listSecretVersionsRpc(
+  post: PostAuthRpcRunner,
+  input: ListSecretVersionsRpcInput,
+): Promise<RuntimeRpcResult<ListSecretVersionsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listSecretVersionsOperation({ input, auditActor, accessActor }),
   );
 }
 
