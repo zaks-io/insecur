@@ -51,6 +51,23 @@ describe("loadApprovalPasskeyPosture fail-closed contract", () => {
     await expect(loadApprovalPasskeyPosture()).resolves.toEqual({ kind: "unauthenticated" });
   });
 
+  it("returns unauthenticated when passkey metadata lookup throws", async () => {
+    workosMock.createWorkOSSessionPortFromEnv.mockReturnValue({
+      userHasRegisteredPasskey: () => Promise.reject(new Error("WorkOS unavailable")),
+    });
+    workosMock.authenticateWorkOSSession.mockResolvedValue({
+      ok: true,
+      context: {
+        user: { id: "user_01workos" },
+        sessionId: "session_password",
+        authFactors: [{ type: "totp" }],
+        authenticationMethod: "Password",
+      },
+    });
+
+    await expect(loadApprovalPasskeyPosture()).resolves.toEqual({ kind: "unauthenticated" });
+  });
+
   it("accepts password sessions when AuthKit enrollment metadata is present", async () => {
     workosMock.createWorkOSSessionPortFromEnv.mockReturnValue({
       userHasRegisteredPasskey: () => Promise.resolve(true),
