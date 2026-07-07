@@ -1,5 +1,5 @@
 import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
-import { VALIDATION_ERROR_CODES } from "@insecur/domain";
+import { CLI_ERROR_CODES } from "@insecur/domain";
 import type { ResolvedCliScope } from "../config/resolve-scope.js";
 import { CliError } from "../output/cli-error.js";
 
@@ -22,7 +22,7 @@ export function requireSecretWriteScope(scope: ResolvedCliScope): ResolvedSecret
       missing.push("environment");
     }
     throw new CliError({
-      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      code: CLI_ERROR_CODES.parentScopeUnresolved,
       message: `Missing ${missing.join(", ")} scope. Run insecur init or pass --org-id, --project-id, and --env-id.`,
       retryable: false,
     });
