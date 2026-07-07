@@ -19,7 +19,7 @@ export interface CandidateMatch {
 }
 
 const KNOWN_PREFIX_PATTERN =
-  /\b(?:AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|ghu_[A-Za-z0-9]{20,}|ghs_[A-Za-z0-9]{20,}|ghr_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,})\b/gu;
+  /\b(?:AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|ghu_[A-Za-z0-9]{20,}|ghs_[A-Za-z0-9]{20,}|ghr_[A-Za-z0-9]{20,}|sk-(?:(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}|[A-Za-z0-9]{20,})|xox[baprs]-[A-Za-z0-9-]{10,})\b/gu;
 
 const DOTENV_ASSIGNMENT_PATTERN =
   /\b([A-Z][A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|KEY|AUTH|CREDENTIAL)[A-Z0-9_]*)\s*=\s*([^\s"'`,;}{]{8,})/gu;
