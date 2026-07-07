@@ -19,7 +19,7 @@ import {
   requestId,
   userId,
 } from "@insecur/domain";
-import { closeRuntimeSql } from "@insecur/tenant-store";
+import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseReady } from "../../../../packages/tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../../../packages/tenant-store/test/rls/seed.js";
@@ -42,6 +42,23 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const ORG_B = organizationId.brand(TEST_ORG_B_ID);
 const RUNTIME_TOKEN_SIGNING_SECRET = "audit-export-e2e-runtime-hop-secret-000000000000";
+const TEST_MEM_METADATA_VIEWER_A_ID = "mem_00000000000000000000000004";
+
+async function seedMetadataViewerMembership(): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+    await sql`
+      INSERT INTO memberships (id, org_id, team_id, user_id, role_preset)
+      VALUES (
+        ${TEST_MEM_METADATA_VIEWER_A_ID},
+        ${TEST_ORG_A_ID},
+        NULL,
+        ${TEST_USER_ID},
+        ${"metadata-viewer"}
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+  });
+}
 
 describeIntegration("audit export loop (real DB, HTTP routes)", () => {
   let auditExportEnvVars: Record<string, string>;
@@ -51,6 +68,7 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
 
   beforeAll(async () => {
     await seedTenantBaseline();
+    await seedMetadataViewerMembership();
     const keys = await createTestAuditExportKeyProviders();
     auditExportEnvVars = {
       INSECUR_AUDIT_EXPORT_HMAC_SECRET: keys.hmacSecret,

@@ -27,3 +27,24 @@ export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc
     },
   });
 }
+
+/**
+ * Override selected RPC methods on an in-process binding. Object spread cannot be used here: the
+ * binding is a Proxy over class-prototype methods, so `{ ...binding, consumeGrant }` drops every
+ * other Runtime RPC entrypoint (writeSecret, resolveAdmission, and the metadata reads).
+ */
+export function wrapRuntimeRpcBinding<T extends RuntimeRpc>(binding: T, overrides: Partial<T>): T {
+  return new Proxy(binding, {
+    get(target, property, receiver) {
+      const override = overrides[property as keyof T];
+      if (override !== undefined) {
+        return override;
+      }
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+      return value;
+    },
+  });
+}
