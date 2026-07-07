@@ -7,6 +7,8 @@ import type {
   CreateProjectData,
   EnvironmentListData,
   GuidedOrganizationProvisionData,
+  ListEnvironmentSecretsData,
+  ListSecretVersionsData,
   ProjectListData,
   SecretWriteByVariableKeyData,
   SessionOrganizationListData,
@@ -14,6 +16,7 @@ import type {
 import {
   parseEnvelope,
   postAuthorizedJson,
+  getAuthorizedJson,
   postJson,
   readCliCredentialHeader,
 } from "./http-client-envelope.js";
@@ -33,6 +36,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     exchangeCliPkceSession: (input) => exchangeCliPkceSession(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
+    listEnvironmentSecrets: (input) => listEnvironmentSecrets(base, input),
+    listSecretVersions: (input) => listSecretVersions(base, input),
     issueInjectionGrant: (input) => issueInjectionGrant(base, input),
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
@@ -131,6 +136,40 @@ async function writeSecretByVariableKey(
     body,
   );
   const envelope = parseEnvelope<SecretWriteByVariableKeyData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+async function listEnvironmentSecrets(
+  base: string,
+  input: Parameters<ApiClient["listEnvironmentSecrets"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets`;
+  const { response, body: responseBody } = await getAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+  );
+  const envelope = parseEnvelope<ListEnvironmentSecretsData>(responseBody);
+  if (!envelope.ok) {
+    return { ok: false as const, envelope, httpStatus: response.status };
+  }
+  return { ok: true as const, envelope };
+}
+
+async function listSecretVersions(
+  base: string,
+  input: Parameters<ApiClient["listSecretVersions"]>[0],
+) {
+  const path = `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets/${input.secretId}/versions`;
+  const { response, body: responseBody } = await getAuthorizedJson(
+    base,
+    path,
+    input.bearerCredential,
+  );
+  const envelope = parseEnvelope<ListSecretVersionsData>(responseBody);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
   }

@@ -2,7 +2,6 @@ import type {
   EnvironmentId,
   InjectionGrantId,
   MembershipId,
-  OperationId,
   OrganizationId,
   ProjectId,
   RuntimePolicyId,
@@ -12,8 +11,10 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
-import type { AuditEventsPage } from "@insecur/audit";
+import type { AuditApiClient } from "./audit-api-types.js";
 import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { OperationsApiClient } from "./operations-api-types.js";
+import type { SecretsApiClient } from "./secrets-api-types.js";
 
 export type {
   CreateEnvironmentData,
@@ -23,37 +24,19 @@ export type {
   SessionOrganizationListData,
 } from "./navigation-api-types.js";
 
-export interface OperationPollData {
-  readonly operationId: OperationId;
-  readonly organizationId: OrganizationId;
-  readonly state: string;
-  readonly intentCode: string;
-  readonly progress: Record<string, unknown>;
-  readonly executionDeadline?: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
+export type { OperationCancelData, OperationPollData } from "./operations-api-types.js";
 
-export interface OperationCancelData extends OperationPollData {
-  readonly auditEventId: string;
-}
+export type {
+  ListAuditEventsData,
+  ListAuditEventsFiltersInput,
+} from "./audit-api-types.js";
+
+export type { ListEnvironmentSecretsData, ListSecretVersionsData } from "./secrets-api-types.js";
 
 export interface CliSessionExchangeData {
   readonly sessionId: string;
   readonly expiresAt: string;
 }
-
-export interface ListAuditEventsFiltersInput {
-  readonly actorUserId?: string;
-  readonly actorMachineIdentityId?: string;
-  readonly projectId?: string;
-  readonly environmentId?: string;
-  readonly eventCode?: string;
-  readonly createdAtFrom?: string;
-  readonly createdAtTo?: string;
-}
-
-export type ListAuditEventsData = AuditEventsPage;
 
 interface CliAuthorizationUrlInput {
   readonly redirectUri: string;
@@ -127,7 +110,7 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient {
+export interface ApiClient extends NavigationApiClient, AuditApiClient, OperationsApiClient, SecretsApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
@@ -218,35 +201,6 @@ export interface ApiClient extends NavigationApiClient {
           readonly alreadyRecorded: boolean;
         }>;
       }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  getOperation(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly operationId: OperationId;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<OperationPollData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  cancelOperation(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly operationId: OperationId;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<OperationCancelData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  listAuditEvents(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly pageSize?: number;
-    readonly cursor?: string;
-    readonly filters?: ListAuditEventsFiltersInput;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }

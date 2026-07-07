@@ -25,6 +25,8 @@ import type {
   CreateProjectRpcPayload,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListEnvironmentSecretsRpcInput,
+  ListEnvironmentSecretsRpcPayload,
   ListOrganizationInvitationsRpcInput,
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
@@ -33,6 +35,8 @@ import type {
   ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSecretVersionsRpcInput,
+  ListSecretVersionsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
 } from "./runtime-metadata-rpc-contract.js";
@@ -140,6 +144,12 @@ export interface RuntimeRpc {
   listProjectSecrets(
     input: ListProjectSecretsRpcInput,
   ): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>>;
+  listEnvironmentSecrets(
+    input: ListEnvironmentSecretsRpcInput,
+  ): Promise<RuntimeRpcResult<ListEnvironmentSecretsRpcPayload>>;
+  listSecretVersions(
+    input: ListSecretVersionsRpcInput,
+  ): Promise<RuntimeRpcResult<ListSecretVersionsRpcPayload>>;
   listSessionOrganizations(
     input: ListSessionOrganizationsRpcInput,
   ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>>;

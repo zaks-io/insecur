@@ -139,6 +139,58 @@ export interface ListProjectSecretsRpcInput extends PostAuthRpcInputBase {
   readonly projectId: ProjectId;
 }
 
+/** Metadata-only current-version pointer for one environment-scoped Secret Shape. */
+export interface EnvironmentSecretCurrentVersionRead {
+  readonly secretVersionId: SecretVersionId;
+  readonly versionNumber: number;
+  readonly lifecycleState: "draft" | "live" | "retained" | "discarded";
+  readonly createdAt: string;
+  readonly publishedAt?: string;
+}
+
+/** One Secret Shape row in a single Environment (metadata only; no values or ciphertext). */
+export interface EnvironmentSecretRead {
+  readonly secretId: SecretId;
+  readonly variableKey: VariableKey;
+  readonly displayName: DisplayName;
+  readonly currentVersion?: EnvironmentSecretCurrentVersionRead;
+  readonly createdAt: string;
+}
+
+export interface ListEnvironmentSecretsRpcPayload {
+  readonly secrets: readonly EnvironmentSecretRead[];
+}
+
+export interface ListEnvironmentSecretsRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+}
+
+/** Metadata-only Secret Version row for the versions read (no values or ciphertext). */
+export interface SecretVersionMetadataRead {
+  readonly secretVersionId: SecretVersionId;
+  readonly versionNumber: number;
+  readonly lifecycleState: "draft" | "live" | "retained" | "discarded";
+  readonly createdAt: string;
+  readonly publishedAt?: string;
+  readonly isCurrent: boolean;
+  readonly isPublished: boolean;
+}
+
+export interface ListSecretVersionsRpcPayload {
+  readonly secretId: SecretId;
+  readonly variableKey: VariableKey;
+  readonly versions: readonly SecretVersionMetadataRead[];
+}
+
+export interface ListSecretVersionsRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly secretId: SecretId;
+}
+
 /**
  * Metadata-only membership row for the org People read (INS-373). `displayName` comes from the
  * member's user admission and is null when none was recorded; `projectId` is null for

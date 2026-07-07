@@ -16,20 +16,13 @@ export interface FakeRuntimeEnv {
 export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc {
   const ctx = { waitUntil: () => undefined, passThroughOnException: () => undefined };
   const service = new RuntimeService(ctx as never, runtimeEnv as never);
-  return {
-    consumeGrant: (input) => service.consumeGrant(input),
-    writeSecret: (input) => service.writeSecret(input),
-    resolveAdmission: (input) => service.resolveAdmission(input),
-    recordAdmissionDenied: (input) => service.recordAdmissionDenied(input),
-    recordAbuseDenied: (input) => service.recordAbuseDenied(input),
-    getBootstrapStatus: (input) => service.getBootstrapStatus(input),
-    provisionGuidedOrganization: (input) => service.provisionGuidedOrganization(input),
-    createOperatorOrganization: (input) => service.createOperatorOrganization(input),
-    createInvitation: (input) => service.createInvitation(input),
-    acceptInvitation: (input) => service.acceptInvitation(input),
-    getOperation: (input) => service.getOperation(input),
-    cancelOperation: (input) => service.cancelOperation(input),
-    issueInjectionGrant: (input) => service.issueInjectionGrant(input),
-    completeBootstrapOperatorClaim: (input) => service.completeBootstrapOperatorClaim(input),
-  };
+  return new Proxy(service as RuntimeRpc, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+      return value;
+    },
+  });
 }
