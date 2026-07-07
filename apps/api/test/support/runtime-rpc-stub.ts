@@ -58,6 +58,8 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     listEnvironments: vi.fn(),
     createEnvironment: vi.fn(),
     listProjectSecrets: vi.fn(),
+    listEnvironmentSecrets: vi.fn(),
+    listSecretVersions: vi.fn(),
     listSessionOrganizations: vi.fn(),
     revokeCliSession: vi.fn(() => Promise.resolve(ok({ revoked: true }))),
     resolveSessionWhoami: vi.fn(() => Promise.resolve(defaultResolveSessionWhoami)),

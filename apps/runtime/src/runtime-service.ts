@@ -25,6 +25,7 @@ import type {
   CreateProjectRpcInput,
   ListAuditEventsRpcInput,
   ListEnvironmentsRpcInput,
+  ListEnvironmentSecretsRpcInput,
   ListOrganizationInvitationsRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
   GetHighAssuranceChallengeRpcInput,
@@ -33,6 +34,7 @@ import type {
   ListOrganizationMembersRpcInput,
   ListProjectSecretsRpcInput,
   ListProjectsRpcInput,
+  ListSecretVersionsRpcInput,
   ListSessionOrganizationsRpcInput,
   ResolveSessionWhoamiRpcInput,
   ProvisionGuidedOrganizationRpcInput,
@@ -75,9 +77,11 @@ import {
   listAuditEventsRpc,
   listEnvironmentsRpc,
   createProjectRpc,
+  listEnvironmentSecretsRpc,
   listOrganizationInvitationsRpc,
   listOrganizationMembersRpc,
   listProjectSecretsRpc,
+  listSecretVersionsRpc,
   listProjectsRpc,
   listSessionOrganizationsRpc,
   resolveSessionWhoamiRpc,
@@ -286,6 +290,14 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   listProjectSecrets(input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.#post.bind(this), input);
+  }
+
+  listEnvironmentSecrets(input: ListEnvironmentSecretsRpcInput) {
+    return listEnvironmentSecretsRpc(this.#post.bind(this), input);
+  }
+
+  listSecretVersions(input: ListSecretVersionsRpcInput) {
+    return listSecretVersionsRpc(this.#post.bind(this), input);
   }
 
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {

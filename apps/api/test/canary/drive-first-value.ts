@@ -132,6 +132,39 @@ async function issueRuntimeInjectionGrant(
   };
 }
 
+async function listEnvironmentSecrets(
+  headers: Record<string, string>,
+  workerEnv: Record<string, unknown>,
+): Promise<EgressHttpResponse> {
+  const response = await app.request(
+    `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${ENV_A}/secrets`,
+    { method: "GET", headers },
+    workerEnv,
+  );
+  const bodyText = await response.text();
+  if (response.status !== 200) {
+    throw new Error(`canary secrets list failed with status ${response.status}`);
+  }
+  return captureHttpResponse("list-secrets", response, bodyText);
+}
+
+async function listSecretVersions(
+  headers: Record<string, string>,
+  secretId: string,
+  workerEnv: Record<string, unknown>,
+): Promise<EgressHttpResponse> {
+  const response = await app.request(
+    `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${ENV_A}/secrets/${secretId}/versions`,
+    { method: "GET", headers },
+    workerEnv,
+  );
+  const bodyText = await response.text();
+  if (response.status !== 200) {
+    throw new Error(`canary secret versions list failed with status ${response.status}`);
+  }
+  return captureHttpResponse("list-versions", response, bodyText);
+}
+
 async function consumeRuntimeInjectionGrant(input: {
   headers: Record<string, string>;
   grantId: string;
@@ -164,23 +197,33 @@ async function consumeRuntimeInjectionGrant(input: {
   return captureHttpResponse("consume", consumeResponse, bodyText);
 }
 
+function createCanaryWorkerEnv(): {
+  workerEnv: Record<string, unknown>;
+  getRpcDeliveryPayloadJson: () => string;
+} {
+  let rpcDeliveryPayloadJson = "";
+  return {
+    workerEnv: {
+      WORKOS_API_KEY: "sk_test",
+      WORKOS_CLIENT_ID: "client_test",
+      WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
+      SESSION_SIGNING_SECRET: testSessionSigningSecret(),
+      INSTANCE_ID: TEST_INSTANCE_ID,
+      RUNTIME_TOKEN_SIGNING_SECRET,
+      RUNTIME: createCapturingRuntimeBinding(runtimeEnv, (payloadJson) => {
+        rpcDeliveryPayloadJson = payloadJson;
+      }),
+    },
+    getRpcDeliveryPayloadJson: () => rpcDeliveryPayloadJson,
+  };
+}
+
 /**
  * Drive Blind Secret Write → grant issue → grant consume with a canary sentinel
  * through the real Worker route stack, capturing serialized HTTP and RPC egress.
  */
 export async function driveFirstValueWithSentinel(sentinelValue: string): Promise<EgressCapture> {
-  let rpcDeliveryPayloadJson = "";
-  const workerEnv = {
-    WORKOS_API_KEY: "sk_test",
-    WORKOS_CLIENT_ID: "client_test",
-    WORKOS_COOKIE_PASSWORD: "cookie-password-at-least-32-characters",
-    SESSION_SIGNING_SECRET: testSessionSigningSecret(),
-    INSTANCE_ID: TEST_INSTANCE_ID,
-    RUNTIME_TOKEN_SIGNING_SECRET,
-    RUNTIME: createCapturingRuntimeBinding(runtimeEnv, (payloadJson) => {
-      rpcDeliveryPayloadJson = payloadJson;
-    }),
-  };
+  const { workerEnv, getRpcDeliveryPayloadJson } = createCanaryWorkerEnv();
 
   const headers = await authHeaders();
   const variableKey = uniqueVariableKey("CANARY");
@@ -190,6 +233,12 @@ export async function driveFirstValueWithSentinel(sentinelValue: string): Promis
     sentinelValue,
     workerEnv,
   );
+  const secretIdValue = (JSON.parse(writeResponse.bodyText) as { data: { secretId: string } }).data
+    .secretId;
+
+  const listSecretsResponse = await listEnvironmentSecrets(headers, workerEnv);
+  const listVersionsResponse = await listSecretVersions(headers, secretIdValue, workerEnv);
+
   const { grantId, response: issueResponse } = await issueRuntimeInjectionGrant(
     headers,
     variableKey,
@@ -203,12 +252,19 @@ export async function driveFirstValueWithSentinel(sentinelValue: string): Promis
     workerEnv,
   });
 
+  const rpcDeliveryPayloadJson = getRpcDeliveryPayloadJson();
   if (!rpcDeliveryPayloadJson) {
     throw new Error("canary did not capture Runtime consumeGrant RPC delivery payload");
   }
 
   return {
-    httpResponses: [writeResponse, issueResponse, consumeResponse],
+    httpResponses: [
+      writeResponse,
+      listSecretsResponse,
+      listVersionsResponse,
+      issueResponse,
+      consumeResponse,
+    ],
     rpcDeliveryPayloadJson,
   };
 }
