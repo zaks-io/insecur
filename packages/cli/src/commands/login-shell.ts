@@ -1,3 +1,4 @@
+import { CLI_ERROR_CODES } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_VALIDATION } from "../output/exit-codes.js";
@@ -16,7 +17,7 @@ function assertLoginShellCompatible(flags: GlobalCliFlags): void {
   if (flags.json) {
     throw new CliError(
       {
-        code: "cli.validation_error",
+        code: CLI_ERROR_CODES.validationError,
         message: "insecur login --shell cannot be combined with --json.",
         retryable: false,
       },
