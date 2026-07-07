@@ -1,5 +1,5 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
-import { AUTH_ERROR_CODES, INJECTION_ERROR_CODES } from "@insecur/domain";
+import { AUTH_ERROR_CODES } from "@insecur/domain";
 
 import {
   assertAuditRowsMetadataOnly,
@@ -20,7 +20,6 @@ import type {
   FirstValueAuditVerificationInput,
   FirstValueAuditVerificationResult,
 } from "./audit-verification-types.js";
-import type { Sentinel } from "./redaction.js";
 
 export type {
   DeniedAuditExpectation,
@@ -78,13 +77,6 @@ export const NEGATIVE_PROBE_DENIED_AUDIT_EXPECTATIONS = [
   },
 ] as const satisfies readonly DeniedAuditExpectation[];
 
-export function replayDeniedAuditExpectation(): DeniedAuditExpectation {
-  return {
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
-    resultCode: INJECTION_ERROR_CODES.grantDenied,
-  };
-}
-
 export function annotateVerifiedAuditEventCodes(
   annotate: (annotation: { description: string; type: string }) => void,
   result: Pick<
@@ -96,22 +88,6 @@ export function annotateVerifiedAuditEventCodes(
     description: [...result.verifiedEventCodes, ...result.verifiedDeniedEventCodes].join(", "),
     type: "audit.verified_event_codes",
   });
-}
-
-export function sweepRecordsForSentinel(
-  records: readonly unknown[],
-  sentinel: Sentinel,
-): { encoding: string; recordLabel: string }[] {
-  const hits: { encoding: string; recordLabel: string }[] = [];
-  for (const [index, record] of records.entries()) {
-    const serialized = JSON.stringify(record);
-    for (const variant of sentinel.variants) {
-      if (serialized.includes(variant.pattern)) {
-        hits.push({ encoding: variant.encoding, recordLabel: `record_${String(index)}` });
-      }
-    }
-  }
-  return hits;
 }
 
 async function verifyFeedbackEvidence(
