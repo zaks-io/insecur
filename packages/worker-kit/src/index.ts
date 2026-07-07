@@ -178,16 +178,12 @@ export {
   type AuthContext,
   type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
-<<<<<<< HEAD
-export { requireUserActor, requireUserActorForWhoami, type AuthVariables } from "./auth/middleware.js";
-export { resolveRequestUserActor } from "./auth/resolve-request-user-actor.js";
-=======
 export {
   requireUserActor,
   requireUserActorForWhoami,
   type AuthVariables,
 } from "./auth/middleware.js";
->>>>>>> e026469 (fix(whoami): bind id lookup to ancestry and accept scoped session metadata)
+export { resolveRequestUserActor } from "./auth/resolve-request-user-actor.js";
 export { recordAdmissionDeniedAuditForAuthFailure } from "./auth/record-admission-denied-audit.js";
 
 export { AbuseLimitError } from "./abuse/abuse-limit-error.js";

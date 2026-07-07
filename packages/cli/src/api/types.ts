@@ -13,13 +13,15 @@ import type {
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { AuditEventsPage } from "@insecur/audit";
-import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { ListProjectSecretsData, NavigationApiClient } from "./navigation-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
+import type { LogoutApiClient } from "./logout-api-types.js";
 
 export type {
   CreateEnvironmentData,
   CreateProjectData,
   EnvironmentListData,
+  ListProjectSecretsData,
   ProjectListData,
   SessionOrganizationListData,
 } from "./navigation-api-types.js";
@@ -128,7 +130,7 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient, WhoamiApiClient {
+export interface ApiClient extends NavigationApiClient, WhoamiApiClient, LogoutApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
@@ -169,6 +171,15 @@ export interface ApiClient extends NavigationApiClient, WhoamiApiClient {
     ),
   ): Promise<
     | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  listProjectSecrets(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<ListProjectSecretsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
   issueInjectionGrant(
@@ -248,13 +259,6 @@ export interface ApiClient extends NavigationApiClient, WhoamiApiClient {
     readonly filters?: ListAuditEventsFiltersInput;
   }): Promise<
     | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  revokeCliSession(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<{ readonly revoked: boolean }> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }
