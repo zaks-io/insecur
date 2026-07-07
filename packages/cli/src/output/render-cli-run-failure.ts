@@ -1,4 +1,5 @@
 import { errorEnvelope } from "@insecur/domain";
+import { CommanderError } from "commander";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { CliError } from "./cli-error.js";
 import { EXIT_UNEXPECTED } from "./exit-codes.js";
@@ -11,6 +12,9 @@ export function renderCliRunFailure(error: unknown, flags: GlobalCliFlags): numb
     const cliError = commanderUsageCliError(error);
     renderEnvelope(errorEnvelope(cliError.toErrorBody()), flags, () => "");
     return cliError.exitCode;
+  }
+  if (error instanceof CommanderError && error.exitCode === 0) {
+    return 0;
   }
   if (error instanceof CliError) {
     const envelope =

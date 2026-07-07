@@ -145,4 +145,50 @@ describe("CLI usage errors", () => {
       expect(output.stderr).not.toContain('"ok"');
     });
   });
+
+  describe("commander success exits", () => {
+    it("exits 0 for --version without an error envelope", async () => {
+      const output = captureOutput();
+
+      const exitCode = await runCli(["node", "insecur", "--version"]);
+
+      expect(exitCode).toBe(0);
+      expect(output.stdout).toMatch(/\d+\.\d+\.\d+/);
+      expect(output.stderr).toBe("");
+      expect(output.stderr).not.toContain('"ok"');
+    });
+
+    it("exits 0 for --help without an error envelope", async () => {
+      const output = captureOutput();
+
+      const exitCode = await runCli(["node", "insecur", "--help"]);
+
+      expect(exitCode).toBe(0);
+      expect(output.stdout).toContain("Usage: insecur");
+      expect(output.stderr).toBe("");
+      expect(output.stderr).not.toContain('"ok"');
+    });
+
+    it("exits 0 for --version --json without an error envelope", async () => {
+      const output = captureOutput();
+
+      const exitCode = await runCli(["node", "insecur", "--version", "--json"]);
+
+      expect(exitCode).toBe(0);
+      expect(output.stdout).toMatch(/\d+\.\d+\.\d+/);
+      expect(output.stderr).toBe("");
+      expect(output.stderr).not.toContain('"ok":false');
+    });
+
+    it("exits 0 for --help --json without an error envelope", async () => {
+      const output = captureOutput();
+
+      const exitCode = await runCli(["node", "insecur", "--help", "--json"]);
+
+      expect(exitCode).toBe(0);
+      expect(output.stdout).toContain("Usage: insecur");
+      expect(output.stderr).toBe("");
+      expect(output.stderr).not.toContain('"ok":false');
+    });
+  });
 });
