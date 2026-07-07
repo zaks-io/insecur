@@ -375,6 +375,62 @@ describe("runImportCommand", () => {
     } satisfies Partial<CliError>);
     expect(api.writeSecretByVariableKey).not.toHaveBeenCalled();
   });
+
+  it("reports written variable keys when a mid-loop write fails", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const keys = Array.from({ length: 10 }, (_, index) => `KEY_${String(index)}`);
+    const filePath = await writeEnvFile(`${keys.map((key) => `${key}=value-${key}\n`).join("")}`);
+    let writeAttempt = 0;
+    const api = createMockApi({
+      writeSecretByVariableKey: vi.fn(async (input: { variableKey: string }) => {
+        writeAttempt += 1;
+        if (writeAttempt === 5) {
+          return {
+            ok: false as const,
+            envelope: {
+              ok: false as const,
+              error: {
+                code: "operation.internal_error" as const,
+                message: "Upstream write failed.",
+                retryable: true,
+              },
+            },
+            httpStatus: 500,
+          };
+        }
+        return {
+          ok: true as const,
+          envelope: {
+            ok: true as const,
+            data: {
+              secretId: SECRET_ID,
+              secretVersionId: VERSION_ID,
+              variableKey: input.variableKey,
+              createdSecretShape: true,
+              auditEventId: "aud_01TEST00000000000000000001",
+            },
+            meta: { requestId: "req_test" as never },
+          },
+        };
+      }),
+    });
+
+    await expect(
+      runImportCommand(flags, api, mockContext, { filePath, dryRun: false }),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining("KEY_0, KEY_1, KEY_2, KEY_3"),
+      data: {
+        writtenVariableKeys: ["KEY_0", "KEY_1", "KEY_2", "KEY_3"],
+        completedWriteCount: 4,
+        attemptedWriteCount: 10,
+      },
+    } satisfies Partial<CliError>);
+    expect(api.writeSecretByVariableKey).toHaveBeenCalledTimes(5);
+  });
 });
 
 describe("runLocalFilesRmCommand", () => {

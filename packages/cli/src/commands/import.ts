@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { successEnvelope } from "@insecur/domain";
+import { successEnvelope, type ErrorBody } from "@insecur/domain";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
@@ -23,26 +23,47 @@ export interface ImportCommandOptions {
   readonly variableKeyPrefix?: string;
 }
 
+interface ImportWriteResult {
+  variableKey: string;
+  secretId: string;
+  secretVersionId: string;
+  createdSecretShape: boolean;
+}
+
+function throwImportWriteFailure(input: {
+  readonly error: ErrorBody;
+  readonly writeResults: readonly ImportWriteResult[];
+  readonly attemptedWriteCount: number;
+}): never {
+  const writtenVariableKeys = input.writeResults.map((entry) => entry.variableKey);
+  const partialMessage =
+    writtenVariableKeys.length === 0
+      ? ""
+      : ` Import preflight had passed, but ${String(writtenVariableKeys.length)} secret(s) were written before this failure: ${writtenVariableKeys.join(", ")}. Re-run import will fail on those keys with import.existing_secret.`;
+  throw new CliError(
+    {
+      ...input.error,
+      message: `${input.error.message}${partialMessage}`,
+    },
+    undefined,
+    writtenVariableKeys.length === 0
+      ? undefined
+      : {
+          writtenVariableKeys,
+          completedWriteCount: writtenVariableKeys.length,
+          attemptedWriteCount: input.attemptedWriteCount,
+        },
+  );
+}
+
 async function executeImportWrites(input: {
   readonly api: ApiClient;
   readonly context: ResolvedCliContext;
   readonly credential: string;
   readonly plan: SecretImportPlan;
-}): Promise<
-  readonly {
-    variableKey: string;
-    secretId: string;
-    secretVersionId: string;
-    createdSecretShape: boolean;
-  }[]
-> {
+}): Promise<readonly ImportWriteResult[]> {
   const writeScope = requireSecretWriteScope(input.context.scope);
-  const writeResults: {
-    variableKey: string;
-    secretId: string;
-    secretVersionId: string;
-    createdSecretShape: boolean;
-  }[] = [];
+  const writeResults: ImportWriteResult[] = [];
 
   for (const write of input.plan.writes) {
     const result = await input.api.writeSecretByVariableKey({
@@ -55,7 +76,11 @@ async function executeImportWrites(input: {
       valueUtf8: write.valueUtf8,
     });
     if (!result.ok) {
-      throw new CliError(result.envelope.error);
+      throwImportWriteFailure({
+        error: result.envelope.error,
+        writeResults,
+        attemptedWriteCount: input.plan.writes.length,
+      });
     }
     writeResults.push({
       variableKey: result.envelope.data.variableKey,

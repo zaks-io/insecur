@@ -31,4 +31,32 @@ describe("parseDotenvImportFile", () => {
       "postgres://example",
     );
   });
+
+  it("parses escaped double-quoted values without silent truncation", () => {
+    const result = parseDotenvImportFile('TOKEN="ab\\"cd"\n');
+    expect(result.parseIssues).toEqual([]);
+    expect(new TextDecoder().decode(result.entries[0]?.valueUtf8 ?? new Uint8Array())).toBe(
+      'ab"cd',
+    );
+  });
+
+  it("keeps unquoted values with internal whitespace", () => {
+    const result = parseDotenvImportFile("KEY=hello world\n");
+    expect(result.parseIssues).toEqual([]);
+    expect(new TextDecoder().decode(result.entries[0]?.valueUtf8 ?? new Uint8Array())).toBe(
+      "hello world",
+    );
+  });
+
+  it("rejects unterminated double quotes instead of importing a truncated value", () => {
+    const result = parseDotenvImportFile('KEY="abc\n');
+    expect(result.entries).toEqual([]);
+    expect(result.parseIssues).toEqual([{ lineNumber: 1, code: "import.parse_error" }]);
+  });
+
+  it("rejects trailing garbage after a closing quote", () => {
+    const result = parseDotenvImportFile('KEY="abc" trailing\n');
+    expect(result.entries).toEqual([]);
+    expect(result.parseIssues).toEqual([{ lineNumber: 1, code: "import.parse_error" }]);
+  });
 });

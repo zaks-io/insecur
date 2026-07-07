@@ -16,7 +16,7 @@ export function registerImportCommands(
   program
     .command("import")
     .description(
-      "Import secrets from a local dotenv file into a development environment (create-only)",
+      "Import secrets from a local dotenv file into a development environment (create-only; all-or-nothing preflight)",
     )
     .argument("<file>", "local dotenv file to import")
     .option("--dry-run", "run Import Preflight and return a metadata-only Secret Import Plan")
