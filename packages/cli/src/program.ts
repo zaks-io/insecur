@@ -94,7 +94,7 @@ function buildProgram(): Command {
       });
     });
 
-  registerAuditCommands(program, globalFlags);
+  registerAuditCommands(program, { globalFlags, resolveApi });
   registerSecretsCommands(program, { globalFlags, resolveApi });
   registerScanCommand(program, { globalFlags });
   registerGuideCommand(program);
