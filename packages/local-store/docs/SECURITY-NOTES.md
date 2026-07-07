@@ -37,3 +37,11 @@ Wrapped Current Versions persist as opaque ciphertext bytes plus key-version
 metadata only. No Sensitive Value plaintext is written to the SQLite file,
 temporary files, or error paths. Decrypt is exported only through
 `decryptLocalSecretForInjection` for Local Mode `run` injection.
+
+## Injection Grant Consume
+
+`tryConsumeGrant` runs entirely inside `BEGIN IMMEDIATE`. The write lock
+serializes overlapping consumers against the same SQLite file, and the one-use
+claim is a single conditional `UPDATE ... WHERE consumed_at IS NULL` (no separate
+pre-classify/mark path). Local Mode is single-process today; cross-connection
+tests prove a second SQLite handle sees `already_consumed` after the first claim.

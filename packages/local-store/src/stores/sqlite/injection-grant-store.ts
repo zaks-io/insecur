@@ -18,6 +18,11 @@ import type { LocalSqliteDatabase } from "../../sqlite/connection.js";
 import { withSqliteTransaction } from "../../sqlite/transaction.js";
 import { nowIso, parseJsonArray } from "./helpers.js";
 
+type ConsumeFailure = "not_found" | "expired" | "already_consumed" | "binding_not_allowed";
+
+type ConsumeOutcome =
+  { ok: true; grant: LocalConsumedInjectionGrantRow } | { ok: false; failure: ConsumeFailure };
+
 export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore {
   constructor(private readonly database: LocalSqliteDatabase) {}
 
@@ -44,37 +49,36 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
     return Promise.resolve();
   }
 
+  /**
+   * One-use consume runs entirely inside `BEGIN IMMEDIATE`: the write lock serializes
+   * overlapping consumers, and the conditional `UPDATE ... WHERE consumed_at IS NULL`
+   * is the single atomic claim primitive (no separate pre-classify/mark split).
+   */
   tryConsumeGrant(
     projectIdValue: ProjectId,
     grantIdValue: InjectionGrantId,
     secretIdValue: SecretId,
     variableKey: VariableKey,
-  ): Promise<
-    | { ok: true; grant: LocalConsumedInjectionGrantRow }
-    | { ok: false; failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed" }
-  > {
+  ): Promise<ConsumeOutcome> {
     return Promise.resolve(
-      this.consumeGrantInTransaction(projectIdValue, grantIdValue, secretIdValue, variableKey),
+      this.atomicConsumeGrantInTransaction(
+        projectIdValue,
+        grantIdValue,
+        secretIdValue,
+        variableKey,
+      ),
     );
   }
 
-  private consumeGrantInTransaction(
+  private atomicConsumeGrantInTransaction(
     projectIdValue: ProjectId,
     grantIdValue: InjectionGrantId,
     secretIdValue: SecretId,
     variableKey: VariableKey,
-  ):
-    | { ok: true; grant: LocalConsumedInjectionGrantRow }
-    | { ok: false; failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed" } {
-    let outcome:
-      | { ok: true; grant: LocalConsumedInjectionGrantRow }
-      | {
-          ok: false;
-          failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed";
-        }
-      | undefined;
+  ): ConsumeOutcome {
+    let outcome: ConsumeOutcome | undefined;
     withSqliteTransaction(this.database, () => {
-      outcome = this.consumeLoadedGrantRow(
+      outcome = this.consumeGrantRowUnderLock(
         this.getGrantRow(grantIdValue, projectIdValue),
         secretIdValue,
         variableKey,
@@ -86,13 +90,11 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
     return outcome;
   }
 
-  private consumeLoadedGrantRow(
+  private consumeGrantRowUnderLock(
     row: GrantDbRow | null,
     secretIdValue: SecretId,
     variableKey: VariableKey,
-  ):
-    | { ok: true; grant: LocalConsumedInjectionGrantRow }
-    | { ok: false; failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed" } {
+  ): ConsumeOutcome {
     if (!row) {
       return { ok: false, failure: "not_found" };
     }
@@ -106,7 +108,15 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
     if (!binding) {
       return { ok: false, failure: "binding_not_allowed" };
     }
-    if (!this.markGrantConsumed(injectionGrantId.brand(row.id), projectId.brand(row.project_id))) {
+    const consumedAt = nowIso();
+    const claimed = this.database
+      .prepare(
+        `UPDATE injection_grants
+         SET consumed_at = ?
+         WHERE id = ? AND project_id = ? AND consumed_at IS NULL AND expires_at > ?`,
+      )
+      .run(consumedAt, row.id, row.project_id, consumedAt);
+    if (claimed.changes !== 1) {
       return { ok: false, failure: "already_consumed" };
     }
     return {
@@ -157,17 +167,6 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
       return null;
     }
     return { secretVersionIdValue };
-  }
-
-  private markGrantConsumed(grantIdValue: InjectionGrantId, projectIdValue: ProjectId): boolean {
-    const updated = this.database
-      .prepare(
-        `UPDATE injection_grants
-         SET consumed_at = ?
-         WHERE id = ? AND project_id = ? AND consumed_at IS NULL`,
-      )
-      .run(nowIso(), grantIdValue, projectIdValue);
-    return updated.changes === 1;
   }
 }
 
