@@ -1,5 +1,6 @@
 import type { Command, Command as CommanderCommand } from "commander";
 import { runSecretsSetCommand } from "./commands/secrets-set.js";
+import { registerImportCommands } from "./register-import-commands.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 
 export function registerSecretsCommands(
@@ -42,4 +43,6 @@ export function registerSecretsCommands(
         allowEmpty: options.allowEmpty === true,
       });
     });
+
+  registerImportCommands(program, deps);
 }

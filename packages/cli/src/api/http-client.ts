@@ -7,6 +7,7 @@ import type {
   CreateProjectData,
   EnvironmentListData,
   GuidedOrganizationProvisionData,
+  ListProjectSecretsData,
   ProjectListData,
   SecretWriteByVariableKeyData,
   SessionOrganizationListData,
@@ -41,6 +42,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     listProjects: (input) => listProjects(base, input),
     createProject: (input) => createProject(base, input),
     listEnvironments: (input) => listEnvironments(base, input),
+    listProjectSecrets: (input) => listProjectSecrets(base, input),
     createEnvironment: (input) => createEnvironment(base, input),
     listAuditEvents: (input) => listAuditEvents(base, input),
     getOperation: (input) => getOperation(base, input),
@@ -177,6 +179,18 @@ async function listEnvironments(base: string, input: Parameters<ApiClient["listE
   return authorizedJsonRequest<EnvironmentListData>(
     base,
     `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function listProjectSecrets(
+  base: string,
+  input: Parameters<ApiClient["listProjectSecrets"]>[0],
+) {
+  return authorizedJsonRequest<ListProjectSecretsData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/secrets`,
     input.bearerCredential,
     { method: "GET" },
   );

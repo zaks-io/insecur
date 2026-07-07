@@ -1,4 +1,12 @@
-import type { DisplayName, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import type {
+  DisplayName,
+  EnvironmentId,
+  OrganizationId,
+  ProjectId,
+  SecretId,
+  SecretVersionId,
+  VariableKey,
+} from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 
 type ApiSuccess<T> = SuccessEnvelope<T>;
@@ -48,6 +56,30 @@ export interface CreateEnvironmentData {
   readonly isProtected: boolean;
   readonly createdAt: string;
   readonly copiedShapeCount: number;
+}
+
+export interface ListProjectSecretsData {
+  readonly environments: readonly {
+    readonly environmentId: EnvironmentId;
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly displayName: DisplayName;
+    readonly lifecycleStage: string;
+    readonly isProtected: boolean;
+    readonly createdAt: string;
+  }[];
+  readonly rows: readonly {
+    readonly variableKey: VariableKey;
+    readonly cells: readonly {
+      readonly environmentId: EnvironmentId;
+      readonly present: boolean;
+      readonly secretId?: SecretId;
+      readonly versionNumber?: number;
+      readonly secretVersionId?: SecretVersionId;
+      readonly lifecycleState?: "draft" | "live" | "retained" | "discarded";
+      readonly lastSetAt?: string;
+    }[];
+  }[];
 }
 
 export interface NavigationApiClient {

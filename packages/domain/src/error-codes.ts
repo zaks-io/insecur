@@ -211,6 +211,16 @@ export const PROVIDER_APP_REGISTRATION_ERROR_CODES = {
 export type ProviderAppRegistrationErrorCode =
   (typeof PROVIDER_APP_REGISTRATION_ERROR_CODES)[keyof typeof PROVIDER_APP_REGISTRATION_ERROR_CODES];
 
+/** Client-side Secret Import preflight failures. */
+export const IMPORT_ERROR_CODES = {
+  unsupportedEnvironment: "import.unsupported_environment",
+  existingSecret: "import.existing_secret",
+  parseError: "import.parse_error",
+  duplicateVariableKey: "import.duplicate_variable_key",
+} as const;
+
+export type ImportErrorCode = (typeof IMPORT_ERROR_CODES)[keyof typeof IMPORT_ERROR_CODES];
+
 /** Client-side CLI resolution and selector failures. */
 export const CLI_ERROR_CODES = {
   profileNotFound: "cli.profile_not_found",
@@ -246,6 +256,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   OPERATION_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
+  IMPORT_ERROR_CODES,
   CLI_ERROR_CODES,
 ] as const;
 
@@ -266,5 +277,6 @@ export type KnownErrorCode =
   | OperationErrorCode
   | AppConnectionErrorCode
   | ProviderAppRegistrationErrorCode
+  | ImportErrorCode
   | CliErrorCode
   | (string & {});
