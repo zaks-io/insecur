@@ -8,6 +8,7 @@ export interface RunCommandOptions {
   readonly policyIdOverride?: string;
   readonly variableKey?: string;
   readonly command: readonly string[];
+  readonly watch?: boolean;
 }
 
 export function requireRunCommand(command: readonly string[]): readonly string[] {

@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { constants as osConstants } from "node:os";
 import { base64UrlToBytes, INJECTION_ERROR_CODES, type VariableKey } from "@insecur/domain";
 import { buildCliChildEnv } from "../auth/child-env.js";
@@ -41,20 +41,28 @@ function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | nul
   return 128 + signalNumber;
 }
 
-export function spawnCommand(
+export function spawnCommandManaged(
   command: readonly string[],
   childEnv: NodeJS.ProcessEnv,
-): Promise<number> {
+): { readonly child: ChildProcess; readonly exitCode: Promise<number> } {
   const executable = command[0];
   if (executable === undefined) {
-    throw new Error("spawnCommand requires a validated command");
+    throw new Error("spawnCommandManaged requires a validated command");
   }
   const args = command.slice(1);
-  return new Promise<number>((resolve, reject) => {
-    const child = spawn(executable, args, { env: childEnv, stdio: "inherit", shell: false });
+  const child = spawn(executable, args, { env: childEnv, stdio: "inherit", shell: false });
+  const exitCode = new Promise<number>((resolve, reject) => {
     child.on("error", reject);
     child.on("close", (code, signal) => {
       resolve(exitCodeForChildClose(code, signal));
     });
   });
+  return { child, exitCode };
+}
+
+export function spawnCommand(
+  command: readonly string[],
+  childEnv: NodeJS.ProcessEnv,
+): Promise<number> {
+  return spawnCommandManaged(command, childEnv).exitCode;
 }
