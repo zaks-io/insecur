@@ -31,6 +31,7 @@ describe("dotenv parser", () => {
     expect(classifyDotenvEntry("PORT", "3000")).toBeNull();
     expect(classifyDotenvEntry("NODE_ENV", "development")).toBeNull();
     expect(classifyDotenvEntry("API_SECRET", "")).toBeNull();
+    expect(classifyDotenvEntry("API_SECRET", "development")).toBeNull();
     expect(classifyDotenvEntry("DATABASE_PASSWORD", "   ")).toBeNull();
     expect(classifyDotenvEntry("REDIS_KEY", "http://localhost:3000")).toBeNull();
     expect(classifyDotenvEntry("my_pass", "https://example.test")).toBeNull();

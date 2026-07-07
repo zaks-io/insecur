@@ -18,7 +18,7 @@ function assertScanOutputFlagsCompatible(flags: GlobalCliFlags, strict: boolean)
   if (strict && flags.quiet && flags.json) {
     throw new CliError(
       {
-        code: "cli.validation_error",
+        code: "validation.invalid_command_input",
         message: "insecur scan --strict --quiet cannot be combined with --json.",
         retryable: false,
       },
