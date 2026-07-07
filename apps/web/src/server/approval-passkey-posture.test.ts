@@ -10,6 +10,14 @@ vi.mock("../auth/workos-port.js", () => ({
   createWorkOSSessionPortFromEnv: workosMock.createWorkOSSessionPortFromEnv,
 }));
 
+vi.mock("@insecur/auth", async () => {
+  const actual = await vi.importActual<typeof import("@insecur/auth")>("@insecur/auth");
+  return {
+    ...actual,
+    authenticateWorkOSSession: workosMock.authenticateWorkOSSession,
+  };
+});
+
 vi.mock("@tanstack/react-start/server", () => ({
   getRequest: () =>
     new Request("https://insecur.test/orgs/org_01", {
@@ -36,9 +44,30 @@ const { loadApprovalPasskeyPosture } = await import("./approval-passkey-posture.
 describe("loadApprovalPasskeyPosture fail-closed contract", () => {
   it("returns unauthenticated when WorkOS session lookup throws", async () => {
     workosMock.createWorkOSSessionPortFromEnv.mockReturnValue({
-      authenticateSealedSession: () => Promise.reject(new Error("WorkOS unavailable")),
+      userHasRegisteredPasskey: () => Promise.reject(new Error("WorkOS unavailable")),
     });
+    workosMock.authenticateWorkOSSession.mockRejectedValue(new Error("WorkOS unavailable"));
 
     await expect(loadApprovalPasskeyPosture()).resolves.toEqual({ kind: "unauthenticated" });
+  });
+
+  it("accepts password sessions when AuthKit enrollment metadata is present", async () => {
+    workosMock.createWorkOSSessionPortFromEnv.mockReturnValue({
+      userHasRegisteredPasskey: () => Promise.resolve(true),
+    });
+    workosMock.authenticateWorkOSSession.mockResolvedValue({
+      ok: true,
+      context: {
+        user: { id: "user_01workos" },
+        sessionId: "session_password",
+        authFactors: [{ type: "totp" }],
+        authenticationMethod: "Password",
+      },
+    });
+
+    await expect(loadApprovalPasskeyPosture()).resolves.toEqual({
+      kind: "authenticated",
+      enrolled: true,
+    });
   });
 });

@@ -113,19 +113,18 @@ async function exchangeEnrollmentAuthorizationCode(
     return { ok: false, failure: authFailureForReason("invalid") };
   }
 
-  let factors;
-  try {
-    factors = await workos.listAuthFactors(context.user.id);
-  } catch {
-    return { ok: false, failure: authFailureForReason("invalid") };
-  }
   const enrolled = hasApprovalPasskey({
-    authFactors: factors,
     ...(context.authenticationMethod !== undefined
       ? { authenticationMethod: context.authenticationMethod }
       : {}),
   });
   if (!enrolled) {
+    return { ok: false, failure: authFailureForReason("invalid") };
+  }
+
+  try {
+    await workos.recordUserApprovalPasskeyEnrollment(context.user.id);
+  } catch {
     return { ok: false, failure: authFailureForReason("invalid") };
   }
 

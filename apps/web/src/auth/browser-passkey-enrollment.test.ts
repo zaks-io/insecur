@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createFakeWebEnv } from "../../test/support/fake-web-env.js";
 import {
   beginBrowserPasskeyEnrollment,
@@ -9,8 +9,7 @@ import {
 import { INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
 import { WORKOS_SESSION_COOKIE } from "@insecur/auth";
-import { createFakeWorkOSSessionPort } from "@insecur/auth/testing";
-import { fakeSessionEntry } from "../../test/support/fake-browser-session.js";
+import { resetFakeRegisteredPasskeysForTests } from "@insecur/auth/testing";
 
 const pkceLiterals = vi.hoisted(() => ({
   enrollmentCode: "code_passkey_enroll",
@@ -38,7 +37,6 @@ vi.mock("./workos-port.js", async () => {
         authorizationCode: pkceLiterals.enrollmentCode,
         codeVerifier: pkceLiterals.codeVerifier,
         authenticationMethod: "Passkey",
-        authFactors: [{ type: "passkey" }],
       }),
       fakeSessionEntry({
         sessionData: "sealed-still-password",
@@ -66,6 +64,10 @@ function encodePkceCookie(roundTrip: {
 }
 
 describe("beginBrowserPasskeyEnrollment", () => {
+  beforeEach(() => {
+    resetFakeRegisteredPasskeysForTests();
+  });
+
   it("redirects to WorkOS with enrollment PKCE state for a signed-in member", async () => {
     const request = new Request("https://insecur.test/auth/enroll-passkey?returnTo=/onboarding", {
       headers: {
@@ -92,6 +94,10 @@ describe("beginBrowserPasskeyEnrollment", () => {
 });
 
 describe("completeBrowserPasskeyEnrollment", () => {
+  beforeEach(() => {
+    resetFakeRegisteredPasskeysForTests();
+  });
+
   it("exchanges a valid callback and refreshes the browser session", async () => {
     const roundTrip = {
       state: oauthState,
@@ -191,23 +197,7 @@ describe("completeBrowserPasskeyEnrollment", () => {
     });
   });
 
-  it("returns a controlled failure when auth factor lookup throws", async () => {
-    const basePort = createFakeWorkOSSessionPort([
-      fakeSessionEntry({
-        sessionData: pkceLiterals.sealedSession,
-        sessionId: "session_password",
-        userId: "user_01workos",
-        authorizationCode: pkceLiterals.enrollmentCode,
-        codeVerifier: pkceLiterals.codeVerifier,
-        authenticationMethod: "Passkey",
-        authFactors: [{ type: "passkey" }],
-      }),
-    ]);
-    vi.mocked(createWorkOSSessionPortFromEnv).mockReturnValueOnce({
-      ...basePort,
-      listAuthFactors: () => Promise.reject(new Error("WorkOS unavailable")),
-    });
-
+  it("records AuthKit enrollment metadata after a passkey authenticationMethod callback", async () => {
     const roundTrip = {
       state: oauthState,
       codeVerifier: pkceLiterals.codeVerifier,
@@ -226,10 +216,9 @@ describe("completeBrowserPasskeyEnrollment", () => {
 
     const completed = await completeBrowserPasskeyEnrollment(request, createFakeWebEnv());
 
-    expect(completed).toEqual({
-      ok: false,
-      failure: expect.objectContaining({ reason: "invalid" }),
-    });
+    expect(completed.ok).toBe(true);
+    const port = createWorkOSSessionPortFromEnv(createFakeWebEnv());
+    await expect(port.userHasRegisteredPasskey("user_01workos")).resolves.toBe(true);
   });
 });
 

@@ -1,40 +1,48 @@
 import { describe, expect, it } from "vitest";
-import { hasApprovalPasskey, hasEnrolledPasskeyFactor } from "./mfa-posture.js";
+import {
+  APPROVAL_PASSKEY_ENROLLED_METADATA_KEY,
+  hasApprovalPasskey,
+  parseApprovalPasskeyEnrolledMetadata,
+} from "./mfa-posture.js";
 
-describe("hasEnrolledPasskeyFactor", () => {
-  it("accepts a passkey auth factor row", () => {
-    expect(hasEnrolledPasskeyFactor([{ type: "passkey" }])).toBe(true);
+describe("parseApprovalPasskeyEnrolledMetadata", () => {
+  it("accepts the AuthKit enrollment metadata marker", () => {
+    expect(
+      parseApprovalPasskeyEnrolledMetadata({
+        [APPROVAL_PASSKEY_ENROLLED_METADATA_KEY]: "true",
+      }),
+    ).toBe(true);
   });
 
-  it("rejects totp-only enrollment", () => {
-    expect(hasEnrolledPasskeyFactor([{ type: "totp" }])).toBe(false);
+  it("rejects missing or legacy MFA-only metadata", () => {
+    expect(parseApprovalPasskeyEnrolledMetadata(undefined)).toBe(false);
+    expect(parseApprovalPasskeyEnrolledMetadata({ totp_enrolled: "true" })).toBe(false);
   });
 });
 
 describe("hasApprovalPasskey", () => {
-  it("accepts passkey sign-in without a separate factor row", () => {
+  it("accepts passkey sign-in from AuthKit session authentication data", () => {
     expect(
       hasApprovalPasskey({
         authenticationMethod: "Passkey",
-        authFactors: [],
       }),
     ).toBe(true);
   });
 
-  it("accepts password sessions with an enrolled passkey factor", () => {
+  it("accepts password sessions after AuthKit enrollment metadata is recorded", () => {
     expect(
       hasApprovalPasskey({
         authenticationMethod: "Password",
-        authFactors: [{ type: "passkey" }],
+        registeredPasskey: true,
       }),
     ).toBe(true);
   });
 
-  it("rejects password sessions with only totp factors", () => {
+  it("rejects password sessions without AuthKit passkey enrollment evidence", () => {
     expect(
       hasApprovalPasskey({
         authenticationMethod: "Password",
-        authFactors: [{ type: "totp" }],
+        registeredPasskey: false,
       }),
     ).toBe(false);
   });

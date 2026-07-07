@@ -6,6 +6,12 @@ import type {
   WorkOSSessionRefreshResult,
 } from "../workos-session-port.js";
 
+const registeredPasskeysByUser = new Map<string, boolean>();
+
+export function resetFakeRegisteredPasskeysForTests(): void {
+  registeredPasskeysByUser.clear();
+}
+
 export interface FakeWorkOSSessionEntry {
   readonly sessionData: string;
   readonly userId: string;
@@ -23,6 +29,7 @@ export interface FakeWorkOSSessionEntry {
   readonly rotatedSessionData?: string;
   readonly authenticateFailure?: "expired" | "invalid" | "missing";
   readonly refreshFailure?: "expired" | "invalid" | "missing" | "mfa_enrollment";
+  readonly registeredPasskey?: boolean;
 }
 
 function contextFromEntry(entry: FakeWorkOSSessionEntry): WorkOSSessionContext {
@@ -81,54 +88,83 @@ function authenticateFakeAuthorizationCode(
   });
 }
 
+function seedRegisteredPasskeys(entries: readonly FakeWorkOSSessionEntry[]): void {
+  for (const entry of entries) {
+    if (entry.registeredPasskey) {
+      registeredPasskeysByUser.set(entry.userId, true);
+    }
+  }
+}
+
+function authenticateFakeSealedSession(
+  bySession: Map<string, FakeWorkOSSessionEntry>,
+  sessionData: string,
+): Promise<WorkOSSessionAuthenticateResult> {
+  const entry = bySession.get(sessionData);
+  if (entry === undefined) {
+    return Promise.resolve({ authenticated: false, reason: "invalid" });
+  }
+  if (entry.authenticateFailure !== undefined) {
+    return Promise.resolve({ authenticated: false, reason: entry.authenticateFailure });
+  }
+  return Promise.resolve({
+    authenticated: true,
+    context: contextFromEntry(entry),
+  });
+}
+
+function refreshFakeSealedSession(
+  bySession: Map<string, FakeWorkOSSessionEntry>,
+  sessionData: string,
+): Promise<WorkOSSessionRefreshResult> {
+  const entry = bySession.get(sessionData);
+  if (entry === undefined) {
+    return Promise.resolve({ refreshed: false, reason: "invalid" });
+  }
+  if (entry.refreshFailure !== undefined) {
+    return Promise.resolve({ refreshed: false, reason: entry.refreshFailure });
+  }
+  const rotated = entry.rotatedSessionData ?? `${sessionData}_rotated`;
+  const rotatedEntry: FakeWorkOSSessionEntry = {
+    ...entry,
+    sessionData: rotated,
+  };
+  bySession.set(rotated, rotatedEntry);
+  return Promise.resolve({
+    refreshed: true,
+    sealedSession: rotated,
+    context: contextFromEntry(rotatedEntry),
+  });
+}
+
 export function createFakeWorkOSSessionPort(
   entries: readonly FakeWorkOSSessionEntry[],
 ): WorkOSSessionPort {
   const bySession = new Map(entries.map((entry) => [entry.sessionData, entry]));
+  seedRegisteredPasskeys(entries);
 
   return {
     createAuthorizationUrl: fakeAuthorizationUrl,
 
     authenticateAuthorizationCode: (input) => authenticateFakeAuthorizationCode(entries, input),
 
-    authenticateSealedSession(sessionData: string): Promise<WorkOSSessionAuthenticateResult> {
-      const entry = bySession.get(sessionData);
-      if (entry === undefined) {
-        return Promise.resolve({ authenticated: false, reason: "invalid" });
-      }
-      if (entry.authenticateFailure !== undefined) {
-        return Promise.resolve({ authenticated: false, reason: entry.authenticateFailure });
-      }
-      return Promise.resolve({
-        authenticated: true,
-        context: contextFromEntry(entry),
-      });
-    },
+    authenticateSealedSession: (sessionData) =>
+      authenticateFakeSealedSession(bySession, sessionData),
 
-    refreshSealedSession(sessionData: string): Promise<WorkOSSessionRefreshResult> {
-      const entry = bySession.get(sessionData);
-      if (entry === undefined) {
-        return Promise.resolve({ refreshed: false, reason: "invalid" });
-      }
-      if (entry.refreshFailure !== undefined) {
-        return Promise.resolve({ refreshed: false, reason: entry.refreshFailure });
-      }
-      const rotated = entry.rotatedSessionData ?? `${sessionData}_rotated`;
-      const rotatedEntry: FakeWorkOSSessionEntry = {
-        ...entry,
-        sessionData: rotated,
-      };
-      bySession.set(rotated, rotatedEntry);
-      return Promise.resolve({
-        refreshed: true,
-        sealedSession: rotated,
-        context: contextFromEntry(rotatedEntry),
-      });
-    },
+    refreshSealedSession: (sessionData) => refreshFakeSealedSession(bySession, sessionData),
 
     listAuthFactors(userId: string): Promise<readonly WorkOSAuthFactorSummary[]> {
       const entry = [...bySession.values()].find((candidate) => candidate.userId === userId);
       return Promise.resolve(entry?.authFactors ?? []);
+    },
+
+    userHasRegisteredPasskey(userId: string): Promise<boolean> {
+      return Promise.resolve(registeredPasskeysByUser.get(userId) === true);
+    },
+
+    recordUserApprovalPasskeyEnrollment(userId: string): Promise<void> {
+      registeredPasskeysByUser.set(userId, true);
+      return Promise.resolve();
     },
   };
 }

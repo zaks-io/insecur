@@ -71,4 +71,6 @@ export interface WorkOSSessionPort {
   authenticateSealedSession(sessionData: string): Promise<WorkOSSessionAuthenticateResult>;
   refreshSealedSession(sessionData: string): Promise<WorkOSSessionRefreshResult>;
   listAuthFactors(userId: string): Promise<readonly WorkOSAuthFactorSummary[]>;
+  userHasRegisteredPasskey(userId: string): Promise<boolean>;
+  recordUserApprovalPasskeyEnrollment(userId: string): Promise<void>;
 }

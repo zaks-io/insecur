@@ -36,13 +36,15 @@ export const loadApprovalPasskeyPosture = createServerFn({ method: "GET" }).hand
         return { kind: "unauthenticated" };
       }
 
+      const registeredPasskey = await workos.userHasRegisteredPasskey(session.context.user.id);
+
       return {
         kind: "authenticated",
         enrolled: hasApprovalPasskey({
-          authFactors: session.context.authFactors,
           ...(session.context.authenticationMethod !== undefined
             ? { authenticationMethod: session.context.authenticationMethod }
             : {}),
+          registeredPasskey,
         }),
       };
     } catch {
