@@ -13,6 +13,10 @@
     "typecheck": "tsc --noEmit",
     "clean": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\""
   },
+  "dependencies": {
+    "@insecur/crypto": "workspace:*",
+    "@insecur/domain": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "eslint": "catalog:",

@@ -2,11 +2,12 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import {
+  LOCAL_STORE_DB_FILE_NAME,
   MACHINE_ROOT_KEY_DPAPI_FILE_NAME,
   MACHINE_ROOT_KEY_FILE_NAME,
   USER_CONFIG_DIR_NAME,
 } from "./constants.js";
-import type { KeyStorePaths } from "./types.js";
+import type { KeyStorePaths, LocalStorePaths } from "./types.js";
 
 export function resolveUserConfigHome(env: NodeJS.ProcessEnv = process.env): string {
   const override = env.INSECUR_CONFIG_HOME;
@@ -34,5 +35,16 @@ export function resolveKeyStorePaths(
     userConfigDir: baseDir,
     machineRootKeyFilePath: path.join(baseDir, MACHINE_ROOT_KEY_FILE_NAME),
     machineRootKeyDpapiFilePath: path.join(baseDir, MACHINE_ROOT_KEY_DPAPI_FILE_NAME),
+  };
+}
+
+export function resolveLocalStorePaths(
+  configHome?: string,
+  env: NodeJS.ProcessEnv = process.env,
+): LocalStorePaths {
+  const keyStorePaths = resolveKeyStorePaths(configHome, env);
+  return {
+    ...keyStorePaths,
+    databaseFilePath: path.join(keyStorePaths.userConfigDir, LOCAL_STORE_DB_FILE_NAME),
   };
 }

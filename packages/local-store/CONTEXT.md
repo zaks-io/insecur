@@ -6,8 +6,8 @@ reading map, not an independent glossary.
 ## Role
 
 This package owns Local Mode machine root key custody behind a substitutable
-`KeyStore` seam. It provides OS keychain adapters without bundled native
-dependencies and a documented weaker file fallback.
+`KeyStore` seam and the encrypted local Secret Version Store behind the same
+contract seams as hosted storage (current versions only).
 
 ## Read First
 
@@ -23,17 +23,21 @@ dependencies and a documented weaker file fallback.
 ## Adjacent Terms
 
 - Keyring
+- Secret Version Store
+- Injection Grant
 - Instance root key conventions in `packages/crypto/CONTEXT.md`
 
 ## Owns
 
 - `KeyStore` get-or-create machine root key seam.
 - macOS, Windows DPAPI, Linux `secret-tool`, and file-fallback adapters.
-- Stable service/account naming for machine root key storage.
-- Metadata-only file-fallback notice.
+- Encrypted SQLite local store for Projects, Environments, Secret Shapes, and wrapped Current Versions.
+- Local contract seams: `LocalSecretVersionStore`, `LocalInjectionGrantStore`, `LocalProjectMetadataStore`, `LocalAuditWriter`.
+- Machine-scoped organization sentinel for ciphertext identity binding.
+- `decryptLocalSecretForInjection` (injection read path only).
 
 ## Does Not Own
 
-- Encrypted local store persistence.
 - CLI command wiring.
-- Secret Version lifecycle or encryption envelopes.
+- Passphrase or daemon unlock modes (rejected in ADR-0080).
+- Version history, backup, or export.

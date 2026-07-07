@@ -266,6 +266,7 @@ describe("decrypt-import lint boundary (ADR-0071)", () => {
       "packages/backup-restore/src/recovery-canary.ts",
       "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
       "packages/app-connection/src/decrypt-cloudflare-connection-boundary-for-validation.ts",
+      "packages/local-store/src/decrypt-local-secret-for-injection.ts",
     ]);
   });
 
