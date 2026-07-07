@@ -18,7 +18,7 @@ SSH sessions. The CLI prints a short user code and verification URL; the human a
 browser through the same WorkOS AuthKit path (hosted login, MFA, passkeys); the resulting session
 is the human's own, held per ADR-0007's session custody (2026-07-06 amendment: sealed
 keychain-backed persistence, never plaintext on disk), with the same lifetime and step-up rules as
-loopback PKCE login. `--agent` mints the session agent-marked per the ADR-0032 amendment of
+loopback PKCE login. `--agent-session` mints the session agent-marked per the ADR-0032 amendment of
 2026-07-04. The loopback PKCE flow remains the default on machines the human's browser can reach.
 
 Device-authorization flows carry a known cross-device consent phishing surface (an attacker
