@@ -15,6 +15,7 @@ export interface LoginCommandOptions {
   readonly openBrowser: boolean;
   readonly persist: boolean;
   readonly callbackPort?: number;
+  readonly callbackTimeoutSeconds?: number;
   readonly sessionStore?: SessionStore;
 }
 
@@ -33,6 +34,9 @@ async function exchangeLoginSession(
       ...(commandOptions.callbackPort === undefined
         ? {}
         : { callbackPort: commandOptions.callbackPort }),
+      ...(commandOptions.callbackTimeoutSeconds === undefined
+        ? {}
+        : { callbackTimeoutSeconds: commandOptions.callbackTimeoutSeconds }),
     },
   });
 }

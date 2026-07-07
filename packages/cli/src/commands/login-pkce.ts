@@ -6,10 +6,17 @@ import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED, EXIT_VALIDATION } from "../output/exit-codes.js";
+import {
+  DEFAULT_LOGIN_CALLBACK_TIMEOUT_SECONDS,
+  waitForLoginCallbackWithTimeout,
+} from "./login-pkce-callback-wait.js";
+
+export { DEFAULT_LOGIN_CALLBACK_TIMEOUT_SECONDS } from "./login-pkce-callback-wait.js";
 
 interface BrowserPkceLoginOptions {
   readonly openBrowser: boolean;
   readonly callbackPort?: number;
+  readonly callbackTimeoutSeconds?: number;
 }
 
 export interface BrowserPkceLoginInput {
@@ -212,6 +219,8 @@ export async function runBrowserPkceLogin(
 ): Promise<BrowserPkceLoginResult> {
   const state = createState();
   const pkce = createPkcePair();
+  const callbackTimeoutSeconds =
+    input.options.callbackTimeoutSeconds ?? DEFAULT_LOGIN_CALLBACK_TIMEOUT_SECONDS;
   const callback = await createCallbackServer(state, input.options.callbackPort ?? 0);
   try {
     const authorizationUrl = input.api.createCliAuthorizationUrl({
@@ -224,7 +233,11 @@ export async function runBrowserPkceLogin(
     if (!opened || !input.flags.quiet) {
       process.stderr.write(`Open this URL to complete WorkOS login:\n${authorizationUrl}\n`);
     }
-    const code = await callback.waitForCode;
+    const code = await waitForLoginCallbackWithTimeout(
+      callback.waitForCode,
+      callbackTimeoutSeconds,
+      authorizationUrl,
+    );
     return await input.api.exchangeCliPkceSession({
       host: input.host,
       code,
