@@ -362,12 +362,10 @@ describe("insecur scan no-reveal", () => {
     const report = await buildScanReport({ rootDir: root });
     const migratable = report.findings.filter((finding) => finding.migratable);
     expect(migratable.length).toBeGreaterThan(0);
-    const remediationPattern = new RegExp(
-      `^insecur secrets set ${variableKeyFlag} [A-Z0-9_]+ ${valueStdinFlag}$`,
-      "u",
-    );
     for (const finding of migratable) {
-      expect(finding.remediation).toMatch(remediationPattern);
+      expect(finding.remediation).toBe(
+        `insecur secrets set ${variableKeyFlag} ${finding.key} ${valueStdinFlag}`,
+      );
       expect(finding.remediation).not.toContain("=");
     }
   });
