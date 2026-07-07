@@ -2,7 +2,11 @@ import type { ConsoleAuditActor, ConsoleAuditEvent } from "./audit-events.js";
 
 function detailString(details: ConsoleAuditEvent["details"], key: string): string | undefined {
   const value = details?.[key];
-  return typeof value === "string" ? value : undefined;
+  return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+function shortHarnessName(harnessName: string): string {
+  return harnessName.replace(/^agent\.harness\./u, "");
 }
 
 function formatBaseActor(actor: ConsoleAuditActor): string {
@@ -15,26 +19,42 @@ function formatBaseActor(actor: ConsoleAuditActor): string {
   return "ci_exchange";
 }
 
+function formatUserActorChain(userId: string, details: ConsoleAuditEvent["details"]): string {
+  const agentSessionId = detailString(details, "agentSessionId");
+  if (agentSessionId !== undefined) {
+    const harnessName = detailString(details, "harnessName");
+    const harness = harnessName === undefined ? "agent" : shortHarnessName(harnessName);
+    return `agent ${agentSessionId} (${harness}) · under ${userId}`;
+  }
+  const agentAttributionTag = detailString(details, "agentAttributionTag");
+  if (agentAttributionTag !== undefined) {
+    return `${userId} · via ${agentAttributionTag} (unverified)`;
+  }
+  return userId;
+}
+
+function formatMachineActorChain(
+  machineIdentityId: string,
+  details: ConsoleAuditEvent["details"],
+): string {
+  const githubRunId = detailString(details, "githubRunId");
+  if (githubRunId !== undefined) {
+    return `${githubRunId} · ${machineIdentityId}`;
+  }
+  return machineIdentityId;
+}
+
 /**
- * Plain-text actor label for audit rows (docs/web-console-ux.md §Actor Rendering). The shared
- * principal-chain component replaces this in a later slice; Home adopts it then.
+ * Principal-chain actor label for audit rows (docs/web-console-ux.md §Actor Rendering). Metadata
+ * only; never includes Sensitive Values.
  */
 export function formatConsoleAuditActorLabel(event: ConsoleAuditEvent): string {
-  const agentSessionId = detailString(event.details, "agentSessionId");
-  const harnessName = detailString(event.details, "harnessName");
-  if (agentSessionId !== undefined && harnessName !== undefined) {
-    const under =
-      event.actor.actorType === "user" && event.actor.userId !== undefined
-        ? ` · under ${event.actor.userId}`
-        : "";
-    return `agent ${agentSessionId} (${harnessName})${under}`;
+  const { actor, details } = event;
+  if (actor.actorType === "user") {
+    return formatUserActorChain(actor.userId ?? "user", details);
   }
-
-  const agentAttributionTag = detailString(event.details, "agentAttributionTag");
-  if (event.actor.actorType === "user" && agentAttributionTag !== undefined) {
-    const userLabel = event.actor.userId ?? "user";
-    return `${userLabel} · via ${agentAttributionTag} (unverified)`;
+  if (actor.actorType === "machine") {
+    return formatMachineActorChain(actor.machineIdentityId ?? "machine", details);
   }
-
-  return formatBaseActor(event.actor);
+  return "ci_exchange";
 }

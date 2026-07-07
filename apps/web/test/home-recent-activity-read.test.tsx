@@ -135,10 +135,14 @@ describe("RecentActivityFeedContent render", () => {
             auditEventId: AUDIT_EVENT.auditEventId,
             eventCode: AUDIT_EVENT.eventCode,
             outcome: "success",
+            resultCode: AUDIT_EVENT.resultCode,
             actor: AUDIT_EVENT.actor,
             projectId: null,
             environmentId: null,
             resource: null,
+            relatedResource: null,
+            requestId: null,
+            operationId: null,
             details: AUDIT_EVENT.details,
             createdAt: AUDIT_EVENT.createdAt,
           },
@@ -146,7 +150,7 @@ describe("RecentActivityFeedContent render", () => {
       />,
     );
     expect(withEvents).toContain("secret.non_protected_write");
-    expect(withEvents).toContain("agent.harness.claude_code");
+    expect(withEvents).toContain("claude_code");
 
     const empty = renderToStaticMarkup(<RecentActivityFeedContent orgId={ORG_ID} events={[]} />);
     expect(empty).toContain("No activity yet");

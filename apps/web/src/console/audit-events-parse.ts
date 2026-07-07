@@ -89,22 +89,48 @@ function parseAuditEventScalars(entry: Record<string, unknown>): {
   auditEventId: string;
   eventCode: string;
   outcome: "success" | "denied";
+  resultCode: string;
   projectId: string | null;
   environmentId: string | null;
+  requestId: string | null;
+  operationId: string | null;
   createdAt: string;
 } | null {
-  const { auditEventId, eventCode, outcome, projectId, environmentId, createdAt } = entry;
+  const {
+    auditEventId,
+    eventCode,
+    outcome,
+    resultCode,
+    projectId,
+    environmentId,
+    requestId,
+    operationId,
+    createdAt,
+  } = entry;
   if (
     typeof auditEventId !== "string" ||
     typeof eventCode !== "string" ||
     (outcome !== "success" && outcome !== "denied") ||
+    typeof resultCode !== "string" ||
     !nullableString(projectId) ||
     !nullableString(environmentId) ||
+    !nullableString(requestId) ||
+    !nullableString(operationId) ||
     typeof createdAt !== "string"
   ) {
     return null;
   }
-  return { auditEventId, eventCode, outcome, projectId, environmentId, createdAt };
+  return {
+    auditEventId,
+    eventCode,
+    outcome,
+    resultCode,
+    projectId,
+    environmentId,
+    requestId,
+    operationId,
+    createdAt,
+  };
 }
 
 function parseOptionalAuditResource(value: unknown): ConsoleAuditResource | null | undefined {
@@ -124,14 +150,17 @@ function isOptionalFieldValid(raw: unknown, parsed: unknown): boolean {
 function parseAuditEventRelations(entry: Record<string, unknown>): {
   actor: ConsoleAuditActor;
   resource: ConsoleAuditResource | null;
+  relatedResource: ConsoleAuditResource | null;
   details: ConsoleAuditEvent["details"];
 } | null {
   const parsedActor = parseAuditActor(entry.actor);
   const parsedResource = parseOptionalAuditResource(entry.resource);
+  const parsedRelatedResource = parseOptionalAuditResource(entry.relatedResource);
   const parsedDetails = parseAuditDetails(entry.details);
   if (
     parsedActor === null ||
     !isOptionalFieldValid(entry.resource, parsedResource) ||
+    !isOptionalFieldValid(entry.relatedResource, parsedRelatedResource) ||
     !isOptionalFieldValid(entry.details, parsedDetails)
   ) {
     return null;
@@ -139,6 +168,7 @@ function parseAuditEventRelations(entry: Record<string, unknown>): {
   return {
     actor: parsedActor,
     resource: parsedResource ?? null,
+    relatedResource: parsedRelatedResource ?? null,
     details: parsedDetails ?? null,
   };
 }

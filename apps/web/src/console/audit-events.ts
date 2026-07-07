@@ -8,7 +8,7 @@ export type {
   ConsoleAuditResource,
   ConsoleRecentActivity,
 } from "./audit-events-types.js";
-export { HOME_RECENT_ACTIVITY_PAGE_SIZE } from "./audit-events-types.js";
+export { HOME_RECENT_ACTIVITY_PAGE_SIZE, CONSOLE_AUDIT_PAGE_SIZE } from "./audit-events-types.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
