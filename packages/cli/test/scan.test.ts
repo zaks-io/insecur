@@ -188,6 +188,17 @@ describe("insecur scan", () => {
     expect(report.summary.unreadableFiles).toContain("broken.link");
   });
 
+  it("does not follow symlinks that escape the scan root", async () => {
+    const outer = await mkdtemp(join(tmpdir(), "insecur-scan-outer-"));
+    const root = await mkdtemp(join(tmpdir(), "insecur-scan-root-"));
+    await writeFile(join(outer, "escaped.env"), "API_KEY=sentinel-metadata-only\n", "utf8");
+    await symlink(join(outer, "escaped.env"), join(root, "escape.link"));
+
+    const report = await buildScanReport({ rootDir: root });
+    expect(report.findings.some((finding) => finding.file === "escape.link")).toBe(false);
+    expect(report.summary.unreadableFiles).toContain("escape.link");
+  });
+
   it("detects auth-token files when _authToken appears after the former head slice", async () => {
     const root = await mkdtemp(join(tmpdir(), "insecur-scan-auth-token-"));
     const padding = "x".repeat(600);

@@ -1,6 +1,6 @@
-import { readdir, stat } from "node:fs/promises";
+import { readdir, realpath, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 
 const DEFAULT_MAX_DEPTH = 8;
 const DEFAULT_MAX_FILES = 10_000;
@@ -39,12 +39,29 @@ export interface WalkProjectFilesResult {
 }
 
 interface WalkState {
+  readonly canonicalRoot: string;
   readonly maxDepth: number;
   readonly maxFiles: number;
   readonly maxFileBytes: number;
   readonly results: WalkedFile[];
   readonly oversizedFiles: string[];
   readonly unreadablePaths: string[];
+}
+
+function isWithinScanRoot(resolvedPath: string, canonicalRoot: string): boolean {
+  const normalizedResolved =
+    resolvedPath.length > 1 && resolvedPath.endsWith(sep)
+      ? resolvedPath.slice(0, -1)
+      : resolvedPath;
+  const normalizedRoot =
+    canonicalRoot.length > 1 && canonicalRoot.endsWith(sep)
+      ? canonicalRoot.slice(0, -1)
+      : canonicalRoot;
+
+  return (
+    normalizedResolved === normalizedRoot ||
+    normalizedResolved.startsWith(`${normalizedRoot}${sep}`)
+  );
 }
 
 interface DirVisit {
@@ -78,20 +95,52 @@ async function tryAppendFile(
   state.oversizedFiles.push(relativePath);
 }
 
-async function processSymbolicLink(
+function markUnreadable(state: WalkState, entryRelative: string): void {
+  state.unreadablePaths.push(entryRelative);
+}
+
+async function isSymlinkTargetWithinRoot(
+  state: WalkState,
+  absolutePath: string,
+  entryRelative: string,
+): Promise<boolean> {
+  try {
+    const resolvedPath = await realpath(absolutePath);
+    if (!isWithinScanRoot(resolvedPath, state.canonicalRoot)) {
+      markUnreadable(state, entryRelative);
+      return false;
+    }
+    return true;
+  } catch {
+    markUnreadable(state, entryRelative);
+    return false;
+  }
+}
+
+function entryPaths(
+  visit: DirVisit,
+  entry: Dirent,
+): { readonly entryRelative: string; readonly absolutePath: string } {
+  const entryRelative =
+    visit.relativeDir.length > 0 ? join(visit.relativeDir, entry.name) : entry.name;
+  return {
+    entryRelative,
+    absolutePath: join(visit.dirPath, entry.name),
+  };
+}
+
+async function followResolvedSymlinkTarget(
   state: WalkState,
   visit: DirVisit,
   entry: Dirent,
 ): Promise<void> {
-  const entryRelative =
-    visit.relativeDir.length > 0 ? join(visit.relativeDir, entry.name) : entry.name;
-  const absolutePath = join(visit.dirPath, entry.name);
+  const { entryRelative, absolutePath } = entryPaths(visit, entry);
 
   let entryStat;
   try {
     entryStat = await stat(absolutePath);
   } catch {
-    state.unreadablePaths.push(entryRelative);
+    markUnreadable(state, entryRelative);
     return;
   }
 
@@ -111,7 +160,21 @@ async function processSymbolicLink(
     return;
   }
 
-  state.unreadablePaths.push(entryRelative);
+  markUnreadable(state, entryRelative);
+}
+
+async function processSymbolicLink(
+  state: WalkState,
+  visit: DirVisit,
+  entry: Dirent,
+): Promise<void> {
+  const { entryRelative, absolutePath } = entryPaths(visit, entry);
+
+  if (!(await isSymlinkTargetWithinRoot(state, absolutePath, entryRelative))) {
+    return;
+  }
+
+  await followResolvedSymlinkTarget(state, visit, entry);
 }
 
 async function processEntry(state: WalkState, visit: DirVisit, entry: Dirent): Promise<void> {
@@ -163,7 +226,9 @@ async function visitDir(state: WalkState, visit: DirVisit): Promise<void> {
 }
 
 export async function walkProjectFiles(options: WalkOptions): Promise<WalkProjectFilesResult> {
+  const canonicalRoot = await realpath(options.rootDir);
   const state: WalkState = {
+    canonicalRoot,
     maxDepth: options.maxDepth ?? DEFAULT_MAX_DEPTH,
     maxFiles: options.maxFiles ?? DEFAULT_MAX_FILES,
     maxFileBytes: options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,
@@ -172,7 +237,7 @@ export async function walkProjectFiles(options: WalkOptions): Promise<WalkProjec
     unreadablePaths: [],
   };
 
-  await visitDir(state, { dirPath: options.rootDir, relativeDir: "", depth: 0 });
+  await visitDir(state, { dirPath: canonicalRoot, relativeDir: "", depth: 0 });
   return {
     files: state.results,
     oversizedFiles: state.oversizedFiles,
