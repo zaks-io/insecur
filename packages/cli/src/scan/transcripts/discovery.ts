@@ -67,6 +67,7 @@ async function collectFromGlobPattern(
   pattern: string,
   roots: DiscoveryRoots,
   state: CollectState,
+  options: { readonly reportInvalidPattern: boolean },
 ): Promise<void> {
   try {
     for await (const match of glob(pattern)) {
@@ -76,7 +77,13 @@ async function collectFromGlobPattern(
       }
     }
   } catch {
-    return;
+    if (options.reportInvalidPattern) {
+      state.warnings.push({
+        code: "transcript.glob_invalid",
+        message: "Explicit transcript glob pattern is invalid.",
+        sourcePath: pattern,
+      });
+    }
   }
 }
 
@@ -104,7 +111,7 @@ async function collectAutoDiscovered(roots: DiscoveryRoots, state: CollectState)
     }
 
     for (const pattern of relativeDiscoveryPattern(provider, roots)) {
-      await collectFromGlobPattern(pattern, roots, state);
+      await collectFromGlobPattern(pattern, roots, state, { reportInvalidPattern: false });
       if (state.limitReached) {
         return;
       }
@@ -146,7 +153,7 @@ async function collectGlobPatterns(
     if (state.limitReached) {
       break;
     }
-    await collectFromGlobPattern(pattern, roots, state);
+    await collectFromGlobPattern(pattern, roots, state, { reportInvalidPattern: true });
   }
 }
 
