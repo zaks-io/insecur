@@ -742,6 +742,19 @@ to write Worker scripts and upload Worker assets. It must not need Secrets Store
 Workers Routes write access for routine production deploys. Root-key custody changes and custom
 domain route changes are operator-controlled Cloudflare changes.
 
+### CLI release: `cli-release`
+
+Trigger: `workflow_dispatch` only. CLI releases are manual while the release-attestation policy is
+being tightened. A manual dispatch still verifies that the selected commit has a completed
+successful `CI` run before it builds release assets, runs repo security attestation, attaches the
+attestation bundle, and prepares the draft release.
+
+The manual trigger is an operator pause on automatic releases, not a bypass of the release security
+gate. The workflow must continue to fail if source CI is not green or if release attestation fails.
+While the Semgrep release policy is being tightened, `semgrep --config auto` findings are logged in
+the Actions output and stored in the attestation bundle as metadata-only report data, but Semgrep
+`ERROR` severity alone is not release-blocking.
+
 ### Daily security scan: `security-daily`
 
 Trigger: scheduled `cron` (daily at 06:00 UTC) or `workflow_dispatch`. Runs the same scanner families as `CI` on a schedule. Findings are reported in the workflow log; the jobs do not fail the repository on severity by default.
