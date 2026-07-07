@@ -57,7 +57,7 @@ insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-pro
 
 `insecur login --shell` completes a WorkOS AuthKit PKCE loopback login and starts an interactive
 child shell with `INSECUR_SESSION_TOKEN` in that child environment only. The credential is not
-printed, not written to disk, and not handed off through `eval` or `source`. First Value does not
+printed, not written to disk as plaintext, and not handed off through `eval` or `source`. First Value does not
 require an existing CLI profile before `insecur init` provisions one.
 
 The sequence uses normal product primitives:
@@ -106,7 +106,9 @@ Rules:
 
 ### User Config
 
-User config lives outside repositories, such as `~/.insecur/config.json`.
+User config lives outside repositories, such as `~/.insecur/config.json`. A sealed human CLI
+session record (`session.v1.sealed`) may also live in that directory; it is not part of
+`config.json` and holds no plaintext credential material.
 
 It may contain:
 
@@ -228,9 +230,13 @@ Machine-auth credentials:
 
 Rules:
 
-- `INSECUR_SESSION_TOKEN` is never written by insecur to disk.
+- `INSECUR_SESSION_TOKEN` is never persisted as plaintext. Authenticated child shells receive it
+  in process memory only; insecur never writes session tokens, refresh tokens, or access tokens to
+  disk in plaintext.
+- Human CLI login persists the session credential as a sealed local record
+  (`session.v1.sealed`) under the OS-keychain-backed machine root key by default (24h TTL;
+  exact-host matching; `--no-persist` opts out; `insecur logout` removes the record).
 - Machine-auth credentials are supplied by CI/provider contexts and must not be persisted by the CLI.
-- Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
 - Child process environments are deny-by-default. CLI-managed children inherit only this
   non-sensitive baseline when present: `PATH`, `SHELL`, `TERM`, `HOME`, `USER`, `LOGNAME`, locale
   variables (`LANG`, `LC_ALL`, `LC_CTYPE`, `LC_MESSAGES`), temp directory variables (`TMPDIR`,
