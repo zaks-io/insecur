@@ -3,12 +3,7 @@ import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
-import {
-  completeBootstrapOperatorClaim,
-  getBootstrapStatus,
-  type BootstrapStatus,
-  type CompleteBootstrapOperatorClaimResult,
-} from "@insecur/instance-bootstrap";
+import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
 import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
 import type {
   AcceptInvitationRpcInput,
