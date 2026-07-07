@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { loginRedirectHref } from "../console/login-redirect.js";
+import { ConsoleRouteError } from "../components/console-route-error.js";
 import { defaultOrgPath } from "../console/organizations.js";
+import { requireConsoleSession } from "../console/route-guards.js";
 import { loadConsoleSession } from "../server/console-session.js";
 
 /**
@@ -10,10 +11,8 @@ import { loadConsoleSession } from "../server/console-session.js";
  */
 export const Route = createFileRoute("/orgs/")({
   loader: async () => {
-    const session = await loadConsoleSession();
-    if (!session.authenticated) {
-      throw redirect({ href: loginRedirectHref("/orgs") });
-    }
+    const session = requireConsoleSession(await loadConsoleSession(), "/orgs");
     throw redirect({ href: defaultOrgPath(session.organizations) });
   },
+  errorComponent: ConsoleRouteError,
 });
