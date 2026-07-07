@@ -362,6 +362,67 @@ describe("high-assurance challenge worker routes", () => {
       });
     });
 
+    it("maps missing auth configuration to 503 via the global handler", async () => {
+      const env = {
+        ...makeEnv(),
+        WORKOS_CLIENT_ID: "",
+      };
+
+      const response = await app.request(
+        clearPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: clearRequestBody(),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(503);
+      expect(runtime.clearHighAssuranceChallenge).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.configInvalid },
+      });
+    });
+
+    it("rethrows WorkOS server failures as 500 without mapping them to validation errors", async () => {
+      const baseSession = workosFakeSessions()[0];
+      if (baseSession === undefined) {
+        throw new Error("expected fake WorkOS session fixture");
+      }
+      const env = {
+        ...makeEnv(),
+        WORKOS_TEST_FAKE_SESSIONS: [
+          {
+            ...baseSession,
+            authorizationCodeThrow: new Error("WorkOS upstream unavailable"),
+          },
+        ],
+      };
+
+      const response = await app.request(
+        clearPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: clearRequestBody(),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(500);
+      expect(await response.text()).toBe("Internal Server Error");
+      expect(runtime.clearHighAssuranceChallenge).not.toHaveBeenCalled();
+    });
+
     it("rejects client-supplied step-up factor without WorkOS exchange", async () => {
       const env = makeEnv();
 
