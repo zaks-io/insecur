@@ -16,5 +16,5 @@ export interface FakeRuntimeEnv {
 export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc {
   const ctx = { waitUntil: () => undefined, passThroughOnException: () => undefined };
   const service = new RuntimeService(ctx as never, runtimeEnv as never);
-  return service as unknown as RuntimeRpc;
+  return service satisfies RuntimeRpc;
 }

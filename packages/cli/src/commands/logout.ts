@@ -2,12 +2,18 @@ import { successEnvelope } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
+import { EXIT_UNEXPECTED } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 import { clearMemorySession, resolveSessionCredential } from "../session/memory-session.js";
 import { defaultSessionStore, type SessionStore } from "../session/persisted-session.js";
 
 export interface LogoutCommandOptions {
   readonly sessionStore?: SessionStore;
+}
+
+interface RevokeAttemptResult {
+  readonly serverRevoked: boolean;
+  readonly revokeFailed: boolean;
 }
 
 async function tryResolveCredential(
@@ -21,6 +27,41 @@ async function tryResolveCredential(
   return (await store.load(host))?.credential;
 }
 
+async function attemptRevokeCliSession(
+  api: ApiClient,
+  host: string,
+  credential: string,
+): Promise<RevokeAttemptResult> {
+  try {
+    const revokeResult = await api.revokeCliSession({ host, bearerCredential: credential });
+    if (!revokeResult.ok) {
+      return { serverRevoked: false, revokeFailed: true };
+    }
+    const serverRevoked = revokeResult.envelope.data.revoked;
+    return { serverRevoked, revokeFailed: !serverRevoked };
+  } catch {
+    return { serverRevoked: false, revokeFailed: true };
+  }
+}
+
+function formatLogoutHumanMessage(data: {
+  readonly revoked: boolean;
+  readonly removed: boolean;
+  readonly revokeAttempted: boolean;
+}): string {
+  if (!data.revokeAttempted) {
+    return data.removed ? "No active session; persisted session removed." : "No active session.";
+  }
+  if (data.revoked) {
+    return data.removed
+      ? "Logged out; server session revoked and persisted session removed."
+      : "Logged out; server session revoked.";
+  }
+  return data.removed
+    ? "Logged out locally; server session was not revoked. Persisted session removed."
+    : "Logged out locally; server session was not revoked.";
+}
+
 export async function runLogoutCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
@@ -31,19 +72,22 @@ export async function runLogoutCommand(
   const { host } = context.scope;
   const credential = await tryResolveCredential(host, store);
 
-  if (credential !== undefined) {
-    await api.revokeCliSession({ host, bearerCredential: credential });
-  }
+  const revokeAttempt =
+    credential === undefined
+      ? { serverRevoked: false, revokeFailed: false }
+      : await attemptRevokeCliSession(api, host, credential);
 
   clearMemorySession();
   const removed = await store.clear();
-  renderSuccess(successEnvelope({ revoked: credential !== undefined, removed }), flags, (data) => {
-    if (data.revoked) {
-      return data.removed
-        ? "Logged out; server session revoked and persisted session removed."
-        : "Logged out; server session revoked.";
-    }
-    return data.removed ? "No active session; persisted session removed." : "No active session.";
-  });
-  return 0;
+  const revokeAttempted = credential !== undefined;
+  renderSuccess(
+    successEnvelope({
+      revoked: revokeAttempt.serverRevoked,
+      removed,
+      revokeAttempted,
+    }),
+    flags,
+    (data) => formatLogoutHumanMessage(data),
+  );
+  return revokeAttempt.revokeFailed ? EXIT_UNEXPECTED : 0;
 }

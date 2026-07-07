@@ -5,7 +5,7 @@ import { runLogoutCommand } from "../src/commands/logout.js";
 import type { ApiClient } from "../src/api/types.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { CliError } from "../src/output/cli-error.js";
-import { EXIT_AUTH_REQUIRED } from "../src/output/exit-codes.js";
+import { EXIT_AUTH_REQUIRED, EXIT_UNEXPECTED } from "../src/output/exit-codes.js";
 import { clearMemorySession, setMemorySession } from "../src/session/memory-session.js";
 import { createSessionStore } from "../src/session/persisted-session.js";
 import { createFakeKeyStore, generateMachineRootKeyHex } from "@insecur/local-store";
@@ -115,6 +115,65 @@ describe("logout command", () => {
       host,
       bearerCredential: sensitiveCredential,
     });
+    await expect(
+      runInitCommand(flags, createMockApi(), mockContext(), { profileSlug: "local-dev" }),
+    ).rejects.toMatchObject({
+      exitCode: EXIT_AUTH_REQUIRED,
+      code: AUTH_ERROR_CODES.required,
+    } satisfies Partial<CliError>);
+  });
+
+  it("exits nonzero when the server reports revoked:false but still clears local state", async () => {
+    const stdoutChunks: string[] = [];
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdoutChunks.push(String(chunk));
+      return true;
+    });
+    setMemorySession({
+      credential: sensitiveCredential,
+      sessionId: "sess_logout",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    const revoke = vi.fn(async () => ({
+      ok: true as const,
+      envelope: successEnvelope({ revoked: false }),
+    }));
+    const exitCode = await runLogoutCommand(flags, createMockApi(revoke), mockContext());
+    expect(exitCode).toBe(EXIT_UNEXPECTED);
+    expect(revoke).toHaveBeenCalledOnce();
+    const output = stdoutChunks.join("");
+    expect(output).toContain('"revoked":false');
+    expect(output).not.toMatch(/server session revoked/i);
+    await expect(
+      runInitCommand(flags, createMockApi(), mockContext(), { profileSlug: "local-dev" }),
+    ).rejects.toMatchObject({
+      exitCode: EXIT_AUTH_REQUIRED,
+      code: AUTH_ERROR_CODES.required,
+    } satisfies Partial<CliError>);
+    stdoutSpy.mockRestore();
+  });
+
+  it("clears local state when revoke fails with a network error", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "insecur-cli-logout-"));
+    const store = createSessionStore({
+      keyStore: createFakeKeyStore({ keyHex: generateMachineRootKeyHex() }),
+      sessionFilePath: path.join(dir, SESSION_FILE_NAME),
+    });
+    await store.save({
+      credential: sensitiveCredential,
+      sessionId: "sess_logout",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      host,
+    });
+    const revoke = vi.fn(async () => {
+      throw new Error("network unreachable");
+    });
+    const exitCode = await runLogoutCommand(flags, createMockApi(revoke), mockContext(), {
+      sessionStore: store,
+    });
+    expect(exitCode).toBe(EXIT_UNEXPECTED);
+    expect(revoke).toHaveBeenCalledOnce();
+    expect(await store.load(host)).toBeUndefined();
     await expect(
       runInitCommand(flags, createMockApi(), mockContext(), { profileSlug: "local-dev" }),
     ).rejects.toMatchObject({
