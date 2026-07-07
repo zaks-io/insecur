@@ -26,10 +26,7 @@ export type {
 
 export type { OperationCancelData, OperationPollData } from "./operations-api-types.js";
 
-export type {
-  ListAuditEventsData,
-  ListAuditEventsFiltersInput,
-} from "./audit-api-types.js";
+export type { ListAuditEventsData, ListAuditEventsFiltersInput } from "./audit-api-types.js";
 
 export type { ListEnvironmentSecretsData, ListSecretVersionsData } from "./secrets-api-types.js";
 
@@ -110,7 +107,8 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient, AuditApiClient, OperationsApiClient, SecretsApiClient {
+export interface ApiClient
+  extends NavigationApiClient, AuditApiClient, OperationsApiClient, SecretsApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
