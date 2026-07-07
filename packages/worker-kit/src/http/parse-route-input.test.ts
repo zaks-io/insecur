@@ -528,3 +528,21 @@ describe("parseOperatorOrganizationResourceIds", () => {
     );
   });
 });
+
+import { parseWebhookSubscriptionIdParam } from "./parse-webhook-route-input.js";
+
+const VALID_WEBHOOK_SUBSCRIPTION = "whsub_01TEST00000000000000000001";
+
+describe("parseWebhookSubscriptionIdParam", () => {
+  it("parses valid webhook subscription ids", () => {
+    expect(parseWebhookSubscriptionIdParam(VALID_WEBHOOK_SUBSCRIPTION)).toBe(
+      VALID_WEBHOOK_SUBSCRIPTION,
+    );
+  });
+
+  it("rejects invalid webhook subscription ids", () => {
+    expect(() => parseWebhookSubscriptionIdParam("not-a-subscription")).toThrow(
+      "Invalid webhook subscription id.",
+    );
+  });
+});

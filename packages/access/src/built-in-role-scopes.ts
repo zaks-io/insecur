@@ -32,6 +32,8 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.projectConfigure,
     AUTHORIZATION_SCOPES.connectionRead,
     AUTHORIZATION_SCOPES.connectionManage,
+    AUTHORIZATION_SCOPES.webhookRead,
+    AUTHORIZATION_SCOPES.webhookManage,
     AUTHORIZATION_SCOPES.approvalApprove,
     AUTHORIZATION_SCOPES.approvalReject,
   ],
@@ -71,6 +73,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.environmentRead,
     AUTHORIZATION_SCOPES.secretRead,
     AUTHORIZATION_SCOPES.connectionRead,
+    AUTHORIZATION_SCOPES.webhookRead,
   ],
 };
 

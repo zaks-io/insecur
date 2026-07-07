@@ -8,6 +8,27 @@ import type { RuntimeRpc, RuntimeRpcResult } from "./runtime-rpc-contract.js";
 import { validateRuntimeTokenSigningSecret } from "./runtime-token-signing-secret.js";
 import { unwrapRuntimeResult } from "./unwrap-runtime-result.js";
 
+function webhookRuntimeClientMethods(
+  forward: ReturnType<typeof createRuntimeForward>,
+): Pick<
+  AuthenticatedRuntimeClient,
+  | "createWebhookSubscription"
+  | "listWebhookSubscriptions"
+  | "updateWebhookSubscription"
+  | "deleteWebhookSubscription"
+  | "rotateWebhookSigningSecret"
+  | "listWebhookEventCodes"
+> {
+  return {
+    createWebhookSubscription: forward("createWebhookSubscription"),
+    listWebhookSubscriptions: forward("listWebhookSubscriptions"),
+    updateWebhookSubscription: forward("updateWebhookSubscription"),
+    deleteWebhookSubscription: forward("deleteWebhookSubscription"),
+    rotateWebhookSigningSecret: forward("rotateWebhookSigningSecret"),
+    listWebhookEventCodes: forward("listWebhookEventCodes"),
+  };
+}
+
 /**
  * The binding fields the authenticated Runtime client needs (ADR-0077): the private Service Binding
  * to the Runtime Worker and the HMAC secret it mints the scoped hop token with. `ApiEnv` satisfies
@@ -119,5 +140,6 @@ export function runtimeClientFor(
     getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
     clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
     denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
+    ...webhookRuntimeClientMethods(forward),
   };
 }

@@ -18,6 +18,7 @@ import {
   uniqueIndex,
 } from "./pg-core.js";
 import { organizations, projects, teams } from "./tenant-hierarchy.js";
+import { orgScopedNamedResourceBaseColumns } from "./tenant-org-scoped-named-resource.js";
 import { orgEnvironmentForeignKey, orgProjectForeignKey } from "./tenant-org-scope-foreign-keys.js";
 import { operations } from "./tenant-secrets.js";
 export const invitations = pgTable(
@@ -91,12 +92,7 @@ export const syncTargetLeases = pgTable(
 export const machineIdentities = pgTable(
   "machine_identities",
   {
-    id: text("id").primaryKey(),
-    orgId: text("org_id")
-      .notNull()
-      .references(() => organizations.id),
-    displayName: text("display_name").notNull(),
-    status: text("status").notNull().default("active"),
+    ...orgScopedNamedResourceBaseColumns(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [unique("machine_identities_org_id_id_key").on(table.orgId, table.id)],

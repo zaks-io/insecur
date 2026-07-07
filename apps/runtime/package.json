@@ -26,6 +26,7 @@
     "@insecur/domain": "workspace:*",
     "@insecur/high-assurance": "workspace:*",
     "@insecur/instance-bootstrap": "workspace:*",
+    "@insecur/notifications": "workspace:*",
     "@insecur/onboarding": "workspace:*",
     "@insecur/operations": "workspace:*",
     "@insecur/observability": "workspace:*",

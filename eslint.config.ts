@@ -18,6 +18,7 @@ const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/backup-restore/src/recovery-canary.ts",
   "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
   "packages/app-connection/src/decrypt-cloudflare-connection-boundary-for-validation.ts",
+  "packages/notifications/src/decrypt-webhook-signing-secret.ts",
   "packages/local-store/src/decrypt-local-secret-for-injection.ts",
 ] as const;
 
@@ -155,6 +156,9 @@ export default tseslint.config(
       "packages/audit/test/**/*.ts",
       "packages/audit/vitest.config.ts",
       "packages/audit/vitest.rls.config.ts",
+      "packages/notifications/test/**/*.ts",
+      "packages/notifications/vitest.config.ts",
+      "packages/notifications/vitest.rls.config.ts",
       "packages/operations/test/**/*.ts",
       "packages/operations/vitest.config.ts",
       "packages/operations/vitest.rls.config.ts",

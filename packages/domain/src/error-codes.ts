@@ -235,6 +235,17 @@ export const CLI_ERROR_CODES = {
 
 export type CliErrorCode = (typeof CLI_ERROR_CODES)[keyof typeof CLI_ERROR_CODES];
 
+/** Webhook subscription and event notification delivery errors (INS-453). */
+export const NOTIFICATION_ERROR_CODES = {
+  invalidEventCode: "notification.invalid_event_code",
+  subscriptionNotFound: "notification.subscription_not_found",
+  deliveryFailed: "notification.delivery_failed",
+  signingSecretMissing: "notification.signing_secret_missing",
+} as const;
+
+export type NotificationErrorCode =
+  (typeof NOTIFICATION_ERROR_CODES)[keyof typeof NOTIFICATION_ERROR_CODES];
+
 /**
  * Every `*_ERROR_CODES` catalog in this module. Append new catalogs here and to
  * `KnownErrorCode` so `known-error-code-catalog.ts` lockstep coverage cannot miss them.
@@ -258,6 +269,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   IMPORT_ERROR_CODES,
   CLI_ERROR_CODES,
+  NOTIFICATION_ERROR_CODES,
 ] as const;
 
 export type KnownErrorCode =
@@ -279,4 +291,5 @@ export type KnownErrorCode =
   | ProviderAppRegistrationErrorCode
   | ImportErrorCode
   | CliErrorCode
+  | NotificationErrorCode
   | (string & {});
