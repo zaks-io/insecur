@@ -26,9 +26,10 @@ Pre-auth admission resolution uses the same private `RUNTIME` admission seam as 
 - The authed console shell (INS-367): `/orgs/$orgId` layout, five-section sidebar, org switcher
   backed by `GET /v1/session/memberships`, and Display-Name breadcrumbs over opaque-ID URLs
   (`docs/web-console-ux.md`).
-- The first-run onboarding wizard (INS-374): `/onboarding` steps 1/3/5 with placeholder slots for
-  the passkey (INS-378) and blind-write (INS-379) slices, a CSRF-checked provisioning server fn
-  over the API hop, and the CLI handoff pane pre-filled with real opaque IDs.
+- The first-run onboarding wizard (INS-374): `/onboarding` steps 1–4 with placeholder slot for
+  the blind-write (INS-379) slice, approval passkey enrollment (INS-378) via `/auth/enroll-passkey`,
+  a CSRF-checked provisioning server fn over the API hop, and the CLI handoff pane pre-filled with
+  real opaque IDs.
 - Browser session cookie ownership and CSRF primitives consumption.
 - Minting short-lived scoped tokens for the API hop (never exposed to the browser).
 - Strict Content Security Policy response headers on HTML responses.

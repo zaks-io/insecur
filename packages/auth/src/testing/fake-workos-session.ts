@@ -48,6 +48,12 @@ function fakeAuthorizationUrl(input: Parameters<WorkOSSessionPort["createAuthori
   if (input.screenHint !== undefined) {
     params.set("screen_hint", input.screenHint);
   }
+  if (input.loginHint !== undefined) {
+    params.set("login_hint", input.loginHint);
+  }
+  if (input.maxAge !== undefined) {
+    params.set("max_age", String(input.maxAge));
+  }
   return `https://workos.test/authorize?${params.toString()}`;
 }
 

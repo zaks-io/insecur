@@ -1,10 +1,9 @@
 import { useState } from "react";
+import type { ProvisionedWorkspace } from "../../onboarding/provisioning.js";
 import {
-  mintOnboardingResourceIds,
-  type ProvisionedWorkspace,
-} from "../../onboarding/provisioning.js";
-import { CreateProjectStep } from "./create-project-step.js";
-import { NameOrganizationStep } from "./name-organization-step.js";
+  createOnboardingResourceIds,
+  renderOnboardingWizardStep,
+} from "./onboarding-wizard-steps.js";
 
 export interface ProvisionedHandoff {
   readonly workspace: ProvisionedWorkspace;
@@ -12,23 +11,28 @@ export interface ProvisionedHandoff {
   readonly projectName: string;
 }
 
-type FormStepId = "name-organization" | "create-project";
+export type FormStepId = "name-organization" | "enroll-passkey" | "create-project";
 
 /**
- * Steps 1 and 3 of the first-run wizard: collect the two Display Names, then provision. IDs are
- * minted once per wizard session, making the create-only call idempotent across retries
- * (ADR-0063).
+ * Steps 1–3 of the first-run wizard: organization name, optional approval passkey enrollment,
+ * then first project provisioning (ADR-0063).
  */
 export function OnboardingWizard({
+  enrollmentReturnTo,
+  enrollmentError,
+  passkeyEnrolled,
   onProvisioned,
   onContinueToHandoff,
   onStepChange,
 }: {
+  enrollmentReturnTo: string;
+  enrollmentError: boolean;
+  passkeyEnrolled: boolean;
   onProvisioned: (handoff: ProvisionedHandoff) => void;
   onContinueToHandoff: (workspace: ProvisionedWorkspace) => void;
   onStepChange: (step: FormStepId) => void;
 }) {
-  const [resourceIds] = useState(mintOnboardingResourceIds);
+  const [resourceIds] = useState(createOnboardingResourceIds);
   const [step, setStep] = useState<FormStepId>("name-organization");
   const [organizationName, setOrganizationName] = useState("");
   const [projectName, setProjectName] = useState("");
@@ -38,29 +42,17 @@ export function OnboardingWizard({
     onStepChange(next);
   };
 
-  if (step === "name-organization") {
-    return (
-      <NameOrganizationStep
-        value={organizationName}
-        onChange={setOrganizationName}
-        onContinue={() => {
-          goTo("create-project");
-        }}
-      />
-    );
-  }
-
-  return (
-    <CreateProjectStep
-      organizationName={organizationName}
-      value={projectName}
-      onChange={setProjectName}
-      onEditOrganization={() => {
-        goTo("name-organization");
-      }}
-      resourceIds={resourceIds}
-      onProvisioned={onProvisioned}
-      onContinueToHandoff={onContinueToHandoff}
-    />
-  );
+  return renderOnboardingWizardStep(step, {
+    organizationName,
+    projectName,
+    resourceIds,
+    enrollmentReturnTo,
+    enrollmentError,
+    passkeyEnrolled,
+    setOrganizationName,
+    setProjectName,
+    goTo,
+    onProvisioned,
+    onContinueToHandoff,
+  });
 }

@@ -16,11 +16,13 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrgsIndexRouteImport } from './routes/orgs.index'
 import { Route as OrgsOrgIdRouteImport } from './routes/orgs.$orgId'
+import { Route as AuthEnrollPasskeyRouteImport } from './routes/auth.enroll-passkey'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as OrgsOrgIdIndexRouteImport } from './routes/orgs.$orgId.index'
 import { Route as OrgsOrgIdSettingsRouteImport } from './routes/orgs.$orgId.settings'
 import { Route as OrgsOrgIdPeopleRouteImport } from './routes/orgs.$orgId.people'
 import { Route as OrgsOrgIdAuditRouteImport } from './routes/orgs.$orgId.audit'
+import { Route as AuthEnrollPasskeyCallbackRouteImport } from './routes/auth.enroll-passkey.callback'
 import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs.$orgId.projects.index'
 import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs.$orgId.projects.$projectId'
 import { Route as OrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/orgs.$orgId.projects.$projectId.index'
@@ -63,6 +65,11 @@ const OrgsOrgIdRoute = OrgsOrgIdRouteImport.update({
   path: '/orgs/$orgId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthEnrollPasskeyRoute = AuthEnrollPasskeyRouteImport.update({
+  id: '/auth/enroll-passkey',
+  path: '/auth/enroll-passkey',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
@@ -88,6 +95,12 @@ const OrgsOrgIdAuditRoute = OrgsOrgIdAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => OrgsOrgIdRoute,
 } as any)
+const AuthEnrollPasskeyCallbackRoute =
+  AuthEnrollPasskeyCallbackRouteImport.update({
+    id: '/callback',
+    path: '/callback',
+    getParentRoute: () => AuthEnrollPasskeyRoute,
+  } as any)
 const OrgsOrgIdProjectsIndexRoute = OrgsOrgIdProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
@@ -131,8 +144,10 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/enroll-passkey': typeof AuthEnrollPasskeyRouteWithChildren
   '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
   '/orgs/': typeof OrgsIndexRoute
+  '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
   '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
@@ -151,7 +166,9 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/enroll-passkey': typeof AuthEnrollPasskeyRouteWithChildren
   '/orgs': typeof OrgsIndexRoute
+  '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
   '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
@@ -170,8 +187,10 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/enroll-passkey': typeof AuthEnrollPasskeyRouteWithChildren
   '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
   '/orgs/': typeof OrgsIndexRoute
+  '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
   '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
@@ -192,8 +211,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/whoami'
     | '/auth/callback'
+    | '/auth/enroll-passkey'
     | '/orgs/$orgId'
     | '/orgs/'
+    | '/auth/enroll-passkey/callback'
     | '/orgs/$orgId/audit'
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
@@ -212,7 +233,9 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/whoami'
     | '/auth/callback'
+    | '/auth/enroll-passkey'
     | '/orgs'
+    | '/auth/enroll-passkey/callback'
     | '/orgs/$orgId/audit'
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
@@ -230,8 +253,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/whoami'
     | '/auth/callback'
+    | '/auth/enroll-passkey'
     | '/orgs/$orgId'
     | '/orgs/'
+    | '/auth/enroll-passkey/callback'
     | '/orgs/$orgId/audit'
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
@@ -251,6 +276,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   WhoamiRoute: typeof WhoamiRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthEnrollPasskeyRoute: typeof AuthEnrollPasskeyRouteWithChildren
   OrgsOrgIdRoute: typeof OrgsOrgIdRouteWithChildren
   OrgsIndexRoute: typeof OrgsIndexRoute
 }
@@ -306,6 +332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/enroll-passkey': {
+      id: '/auth/enroll-passkey'
+      path: '/auth/enroll-passkey'
+      fullPath: '/auth/enroll-passkey'
+      preLoaderRoute: typeof AuthEnrollPasskeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -340,6 +373,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orgs/$orgId/audit'
       preLoaderRoute: typeof OrgsOrgIdAuditRouteImport
       parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/auth/enroll-passkey/callback': {
+      id: '/auth/enroll-passkey/callback'
+      path: '/callback'
+      fullPath: '/auth/enroll-passkey/callback'
+      preLoaderRoute: typeof AuthEnrollPasskeyCallbackRouteImport
+      parentRoute: typeof AuthEnrollPasskeyRoute
     }
     '/orgs/$orgId/projects/': {
       id: '/orgs/$orgId/projects/'
@@ -385,6 +425,17 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthEnrollPasskeyRouteChildren {
+  AuthEnrollPasskeyCallbackRoute: typeof AuthEnrollPasskeyCallbackRoute
+}
+
+const AuthEnrollPasskeyRouteChildren: AuthEnrollPasskeyRouteChildren = {
+  AuthEnrollPasskeyCallbackRoute: AuthEnrollPasskeyCallbackRoute,
+}
+
+const AuthEnrollPasskeyRouteWithChildren =
+  AuthEnrollPasskeyRoute._addFileChildren(AuthEnrollPasskeyRouteChildren)
 
 interface OrgsOrgIdProjectsProjectIdRouteChildren {
   OrgsOrgIdProjectsProjectIdAccessRoute: typeof OrgsOrgIdProjectsProjectIdAccessRoute
@@ -438,6 +489,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   WhoamiRoute: WhoamiRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthEnrollPasskeyRoute: AuthEnrollPasskeyRouteWithChildren,
   OrgsOrgIdRoute: OrgsOrgIdRouteWithChildren,
   OrgsIndexRoute: OrgsIndexRoute,
 }

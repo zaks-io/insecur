@@ -39,6 +39,9 @@ export interface WorkOSAuthorizationUrlInput {
   readonly codeChallenge: string;
   readonly codeChallengeMethod: "S256";
   readonly screenHint?: "sign-in" | "sign-up";
+  readonly loginHint?: string;
+  /** Forces re-authentication in AuthKit; used to surface passkey enrollment for signed-in members. */
+  readonly maxAge?: number;
 }
 
 export interface WorkOSAuthorizationCodeInput {

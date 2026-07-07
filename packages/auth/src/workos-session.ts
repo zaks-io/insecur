@@ -102,6 +102,8 @@ function createAuthorizationUrlWithWorkOS(
     codeChallenge: input.codeChallenge,
     codeChallengeMethod: input.codeChallengeMethod,
     ...(input.screenHint === undefined ? {} : { screenHint: input.screenHint }),
+    ...(input.loginHint === undefined ? {} : { loginHint: input.loginHint }),
+    ...(input.maxAge === undefined ? {} : { maxAge: input.maxAge }),
   });
 }
 

@@ -29,7 +29,9 @@ export {
 } from "./csrf.js";
 export {
   HIGH_ASSURANCE_AUTHENTICATION_METHODS,
+  hasApprovalPasskey,
   hasEligibleEnrolledMfaFactor,
+  hasEnrolledPasskeyFactor,
   INSUFFICIENT_ASSURANCE_AUTHENTICATION_METHODS,
   isHighAssuranceAuthenticationMethod,
   isSmsAuthFactor,

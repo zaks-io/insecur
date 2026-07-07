@@ -13,6 +13,7 @@ import {
 } from "@insecur/ui";
 import { Link, useLocation, useMatch } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { ApprovalPasskeyNudge } from "./approval-passkey-nudge.js";
 import type { ConsoleOrganization } from "../console/organizations.js";
 import { activeProjectView, projectBreadcrumbs } from "../console/project-nav.js";
 import {
@@ -117,10 +118,12 @@ function useConsoleBreadcrumbs(
 export function ConsoleFrame({
   organizations,
   activeOrg,
+  passkeyEnrolled,
   children,
 }: {
   organizations: readonly ConsoleOrganization[];
   activeOrg: ConsoleOrganization;
+  passkeyEnrolled: boolean;
   children: ReactNode;
 }) {
   const { pathname } = useLocation();
@@ -152,6 +155,10 @@ export function ConsoleFrame({
       }
       sidebar={<ConsoleSections activeOrg={activeOrg} section={section} />}
     >
+      <ApprovalPasskeyNudge
+        enrolled={passkeyEnrolled}
+        returnTo={`/orgs/${activeOrg.organizationId}`}
+      />
       <ConsoleBreadcrumbBar crumbs={crumbs} />
       {children}
     </ConsoleShell>

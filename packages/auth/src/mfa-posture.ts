@@ -42,3 +42,22 @@ export function isInsufficientAssuranceAuthenticationMethod(
     INSUFFICIENT_ASSURANCE_AUTHENTICATION_METHODS.has(authenticationMethod)
   );
 }
+
+export function hasEnrolledPasskeyFactor(factors: readonly WorkOSAuthFactorSummary[]): boolean {
+  return factors.some((factor) => factor.type === "passkey");
+}
+
+/**
+ * Whether the human has an approval passkey enrolled for High-Assurance Challenge step-up.
+ * Passkey sign-in satisfies this without a separate factor row; password sessions require a
+ * passkey factor from WorkOS (docs/web-console-ux.md §First-Run Onboarding step 2).
+ */
+export function hasApprovalPasskey(input: {
+  readonly authenticationMethod?: string;
+  readonly authFactors: readonly WorkOSAuthFactorSummary[];
+}): boolean {
+  if (isHighAssuranceAuthenticationMethod(input.authenticationMethod)) {
+    return true;
+  }
+  return hasEnrolledPasskeyFactor(input.authFactors);
+}
