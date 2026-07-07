@@ -32,8 +32,7 @@ export type ProviderAppRegistrationId = Brand<string, "ProviderAppRegistrationId
 export type FirstValueFeedbackId = Brand<string, "FirstValueFeedbackId">;
 
 type ParseBrandedIdResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; code: "validation.invalid_opaque_resource_id" };
+  { ok: true; value: T } | { ok: false; code: "validation.invalid_opaque_resource_id" };
 
 function createResourceIdHelpers<TBrand extends string>(
   prefix: OpaqueResourceIdPrefix,

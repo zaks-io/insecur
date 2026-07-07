@@ -204,8 +204,7 @@ type InjectionGrantSelectorInput =
   | { kind: "secret_id"; secretId: SecretId };
 
 export type InjectionGrantIssueSelectorInput =
-  | InjectionGrantSelectorInput
-  | { kind: "policy_id"; policyId: RuntimePolicyId };
+  InjectionGrantSelectorInput | { kind: "policy_id"; policyId: RuntimePolicyId };
 
 export type InjectionGrantConsumeSelectorInput = InjectionGrantSelectorInput;
 

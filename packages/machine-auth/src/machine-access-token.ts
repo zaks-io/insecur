@@ -54,8 +54,7 @@ export interface VerifiedMachineAccessToken {
 }
 
 export type VerifyMachineAccessTokenResult =
-  | { ok: true; token: VerifiedMachineAccessToken }
-  | { ok: false; reason: "expired" | "invalid" };
+  { ok: true; token: VerifiedMachineAccessToken } | { ok: false; reason: "expired" | "invalid" };
 
 export async function mintMachineAccessToken(
   input: MintMachineAccessTokenInput,

@@ -43,11 +43,7 @@ export interface InjectionGrantRow {
 }
 
 export type InjectionGrantConsumeFailure =
-  | "not_found"
-  | "expired"
-  | "already_consumed"
-  | "binding_not_allowed"
-  | "consume_mode_mismatch";
+  "not_found" | "expired" | "already_consumed" | "binding_not_allowed" | "consume_mode_mismatch";
 
 export interface ConsumedInjectionGrantRow {
   grantId: InjectionGrantId;

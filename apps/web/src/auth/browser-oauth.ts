@@ -38,8 +38,7 @@ interface BrowserLoginCompleteSuccess {
 }
 
 export type BrowserLoginCompleteResult =
-  | { ok: true; value: BrowserLoginCompleteSuccess }
-  | { ok: false; failure: AuthFailure };
+  { ok: true; value: BrowserLoginCompleteSuccess } | { ok: false; failure: AuthFailure };
 
 export interface BrowserLogoutResult {
   readonly status: number;

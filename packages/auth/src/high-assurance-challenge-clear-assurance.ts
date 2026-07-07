@@ -12,12 +12,10 @@ import {
 export type FreshStepUpFactorType = "totp" | "generic_otp" | "passkey";
 
 export type HighAssuranceChallengeClearFailureReason =
-  | SessionAssuranceFailureReason
-  | "fresh_step_up_required";
+  SessionAssuranceFailureReason | "fresh_step_up_required";
 
 export type HighAssuranceChallengeClearAssuranceResult =
-  | { ok: true }
-  | { ok: false; reason: HighAssuranceChallengeClearFailureReason };
+  { ok: true } | { ok: false; reason: HighAssuranceChallengeClearFailureReason };
 
 export interface EvaluateHighAssuranceChallengeClearInput {
   readonly authenticationMethod?: string;

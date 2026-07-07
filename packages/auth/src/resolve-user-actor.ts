@@ -12,8 +12,7 @@ import type { InsecurAuthConfig } from "./workos-config.js";
 import type { UserActor } from "./user-actor.js";
 
 export type ResolveUserActorResult =
-  | { ok: true; actor: UserActor }
-  | { ok: false; failure: AuthFailure };
+  { ok: true; actor: UserActor } | { ok: false; failure: AuthFailure };
 
 export interface ResolveUserActorInput {
   readonly credentials: ParsedRequestCredentials;
