@@ -7,7 +7,6 @@ import {
 import {
   brandOpaqueResourceIdForPrefix,
   type AuthErrorCode,
-  type DisplayName,
   type EnvironmentId,
   type KnownErrorCode,
   type OpaqueResourceId,
@@ -40,7 +39,6 @@ export async function recordRuntimeInjectionPolicyCreated(
   input: PolicyAuditScope & {
     readonly policyId: RuntimePolicyId;
     readonly policyVersionId: RuntimePolicyVersionId;
-    readonly displayName: DisplayName;
   },
 ): Promise<{ auditEventId: string }> {
   const result = await writeAuditEvent({
@@ -53,7 +51,6 @@ export async function recordRuntimeInjectionPolicyCreated(
     resource: policyResource(input.policyId),
     details: {
       policyVersionId: input.policyVersionId,
-      displayName: input.displayName,
     },
     ...(input.request !== undefined ? { request: input.request } : {}),
   });
@@ -94,7 +91,7 @@ export async function recordRuntimeInjectionPolicyDisabled(
     environmentId: input.environmentId,
     resource: policyResource(input.policyId),
     details: {
-      comment: input.comment,
+      commentLength: input.comment.length,
     },
     ...(input.request !== undefined ? { request: input.request } : {}),
   });
