@@ -1,4 +1,5 @@
 import type { OrganizationId } from "@insecur/domain";
+import type { AuditEventStoreRow } from "./audit-event-store-row.js";
 import type {
   AUDIT_EXPORT_HASH_ALGORITHM,
   AUDIT_EXPORT_SCHEMA_VERSION,
@@ -22,24 +23,28 @@ export type AuditExportFailureCode =
 
 export type AuditExportIntegrityStatus = "valid" | "invalid" | "missing";
 
-export interface AuditExportEventPayload {
+type AuditExportEventAttributedFields = Pick<
+  AuditEventStoreRow,
+  | "actor_type"
+  | "actor_user_id"
+  | "actor_machine_identity_id"
+  | "project_id"
+  | "environment_id"
+  | "resource_type"
+  | "resource_id"
+  | "related_resource_type"
+  | "related_resource_id"
+  | "request_id"
+  | "operation_id"
+  | "details"
+>;
+
+export interface AuditExportEventPayload extends AuditExportEventAttributedFields {
   readonly id: string;
   readonly organization_id: string;
   readonly event_code: string;
   readonly outcome: "success" | "denied";
   readonly result_code: string;
-  readonly actor_type: string;
-  readonly actor_user_id: string | null;
-  readonly actor_machine_identity_id: string | null;
-  readonly project_id: string | null;
-  readonly environment_id: string | null;
-  readonly resource_type: string | null;
-  readonly resource_id: string | null;
-  readonly related_resource_type: string | null;
-  readonly related_resource_id: string | null;
-  readonly request_id: string | null;
-  readonly operation_id: string | null;
-  readonly details: Record<string, string | number | boolean | null> | null;
   readonly recorded_at: string;
 }
 

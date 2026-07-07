@@ -62,6 +62,14 @@ export type {
   WriteSecretRpcInput,
 } from "./rpc/runtime-rpc-contract.js";
 export type {
+  AuditEventActorRead,
+  AuditEventRead,
+  AuditEventResourceRead,
+  ListAuditEventsFiltersRpcInput,
+  ListAuditEventsRpcInput,
+  ListAuditEventsRpcPayload,
+} from "./rpc/runtime-audit-rpc-contract.js";
+export type {
   EnvironmentMetadataRead,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,

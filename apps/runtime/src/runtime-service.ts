@@ -27,6 +27,7 @@ import type {
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
+  ListAuditEventsRpcInput,
   ListEnvironmentsRpcInput,
   ListOrganizationInvitationsRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
@@ -69,6 +70,7 @@ import {
   captureFirstValueFeedbackRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
+  listAuditEventsRpc,
   listEnvironmentsRpc,
   listOrganizationInvitationsRpc,
   listOrganizationMembersRpc,
@@ -281,6 +283,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   listOrganizationInvitations(input: ListOrganizationInvitationsRpcInput) {
     return listOrganizationInvitationsRpc(this.#post.bind(this), input);
+  }
+
+  listAuditEvents(input: ListAuditEventsRpcInput) {
+    return listAuditEventsRpc(this.#post.bind(this), input);
   }
 
   listPendingHighAssuranceChallenges(input: ListPendingHighAssuranceChallengesRpcInput) {

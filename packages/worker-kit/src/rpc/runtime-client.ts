@@ -106,6 +106,7 @@ export function runtimeClientFor(
     listSessionOrganizations: forward("listSessionOrganizations"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
+    listAuditEvents: forward("listAuditEvents"),
     listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
     getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
     clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),

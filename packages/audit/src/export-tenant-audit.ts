@@ -1,7 +1,6 @@
 import type {
   AuditEventId,
   EnvironmentId,
-  KnownErrorCode,
   MachineIdentityId,
   OpaqueResourceId,
   OperationId,
@@ -13,7 +12,7 @@ import type {
 import { withTenantScope, type TenantScopedSql } from "@insecur/tenant-store";
 import { buildAuditExport } from "./build-audit-export.js";
 import { toAuditExportEventPayload } from "./audit-export-event.js";
-import type { AuditEventCode } from "./audit-event-codes.js";
+import type { AuditEventStoreRow } from "./audit-event-store-row.js";
 import type { AuditActorType, AuditResourceType } from "./audit-types.js";
 import type {
   AuditExportBundle,
@@ -23,28 +22,7 @@ import type {
   AuditExportTimeRange,
 } from "./audit-export-types.js";
 
-interface AuditEventRow {
-  id: string;
-  org_id: string;
-  event_code: AuditEventCode;
-  outcome: "success" | "denied";
-  result_code: KnownErrorCode;
-  actor_type: string;
-  actor_user_id: string | null;
-  actor_machine_identity_id: string | null;
-  project_id: string | null;
-  environment_id: string | null;
-  resource_type: string | null;
-  resource_id: string | null;
-  related_resource_type: string | null;
-  related_resource_id: string | null;
-  request_id: string | null;
-  operation_id: string | null;
-  details: Record<string, string | number | boolean | null> | null;
-  created_at: Date;
-}
-
-function mapAuditEventRow(row: AuditEventRow): AuditExportEventPayload {
+function mapAuditEventRow(row: AuditEventStoreRow): AuditExportEventPayload {
   return toAuditExportEventPayload({
     id: row.id as AuditEventId,
     orgId: row.org_id as OrganizationId,
@@ -73,8 +51,8 @@ async function queryAuditExportEvents(
     readonly organizationId: OrganizationId;
     readonly timeRange: AuditExportTimeRange;
   },
-): Promise<AuditEventRow[]> {
-  return sql<AuditEventRow[]>`
+): Promise<AuditEventStoreRow[]> {
+  return sql<AuditEventStoreRow[]>`
         SELECT
           id,
           org_id,
