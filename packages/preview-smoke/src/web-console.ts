@@ -11,7 +11,7 @@ import {
 
 const INLINE_STYLE_ATTR = /<[a-z][^>]*\sstyle=["']/iu;
 
-export interface AuthedConsolePageExpectation {
+interface AuthedConsolePageExpectation {
   /** When true, the page must render the console shell instead of the public site frame. */
   readonly consoleShell?: boolean;
   readonly expectedText?: readonly string[];
@@ -41,13 +41,13 @@ export async function gotoAuthedWebPage(
   return page.goto(`${webBaseUrl}${path}`, { waitUntil: "domcontentloaded" });
 }
 
-export function assertNoLoginRedirect(pageUrl: string, label: string): void {
+function assertNoLoginRedirect(pageUrl: string, label: string): void {
   if (pageUrl.includes("/login")) {
     throw new Error(`${label} unexpectedly redirected to login: ${pageUrl}`);
   }
 }
 
-export function assertConsoleShell(html: string, label: string): void {
+function assertConsoleShell(html: string, label: string): void {
   if (!html.includes('data-slot="console-shell"')) {
     throw new Error(`${label} did not render the authenticated console shell`);
   }
