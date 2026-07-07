@@ -39,6 +39,7 @@ import type {
   ListProjectSecretsRpcInput,
   ListProjectsRpcInput,
   ListSessionOrganizationsRpcInput,
+  ResolveSessionWhoamiRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
@@ -81,6 +82,7 @@ import {
   listProjectSecretsRpc,
   listProjectsRpc,
   listSessionOrganizationsRpc,
+  resolveSessionWhoamiRpc,
   recordInjectionRunCompletedRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
 import {
@@ -288,6 +290,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
+  }
+
+  resolveSessionWhoami(input: ResolveSessionWhoamiRpcInput) {
+    return resolveSessionWhoamiRpc(this.#post.bind(this), input);
   }
 
   listOrganizationMembers(input: ListOrganizationMembersRpcInput) {

@@ -54,6 +54,9 @@ const noopApi: ApiClient = {
   consumeInjectionGrantAll: async () => {
     throw new Error("not used");
   },
+  sessionWhoami: async () => {
+    throw new Error("not used");
+  },
 };
 
 describe("auth-required errors", () => {

@@ -107,6 +107,7 @@ export function runtimeClientFor(
     createEnvironment: forward("createEnvironment"),
     listProjectSecrets: forward("listProjectSecrets"),
     listSessionOrganizations: forward("listSessionOrganizations"),
+    resolveSessionWhoami: forward("resolveSessionWhoami"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
     listAuditEvents: forward("listAuditEvents"),

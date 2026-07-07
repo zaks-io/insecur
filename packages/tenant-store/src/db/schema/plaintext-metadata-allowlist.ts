@@ -2,6 +2,7 @@
  * Plaintext Metadata Allowlist registry (ADR-0070).
  * Every column of every user table must appear here with an explicit category.
  */
+import { PLAINTEXT_METADATA_ALLOWLIST_AGENT_SESSIONS } from "./plaintext-metadata-allowlist-agent-sessions.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_APP_CONNECTIONS } from "./plaintext-metadata-allowlist-app-connections.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP } from "./plaintext-metadata-allowlist-instance-bootstrap.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION } from "./plaintext-metadata-allowlist-runtime-injection.js";
@@ -36,6 +37,7 @@ export type PlaintextMetadataAllowlist = Readonly<
 /** Machine-readable registry (ADR-0070); column additions require an explicit registry diff in the same PR. */
 export const PLAINTEXT_METADATA_ALLOWLIST = {
   ...PLAINTEXT_METADATA_ALLOWLIST_APP_CONNECTIONS,
+  ...PLAINTEXT_METADATA_ALLOWLIST_AGENT_SESSIONS,
   audit_events: {
     actor_machine_identity_id: { category: "actor-id" },
     actor_type: { category: "type-code" },

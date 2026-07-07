@@ -248,6 +248,18 @@ export default tseslint.config(
     },
   },
   {
+    files: ["apps/runtime/src/runtime-service.ts"],
+    rules: {
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["packages/worker-kit/src/rpc/runtime-client.ts"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 55, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: ["packages/secret-store-contracts/src/is-valid-utf8.ts"],
     rules: {
       complexity: "off",

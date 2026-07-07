@@ -23,6 +23,8 @@ import type {
   ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
+  ResolveSessionWhoamiRpcInput,
+  ResolveSessionWhoamiRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   RecordInjectionRunCompletedRpcPayload,
   RuntimeRpcResult,
@@ -45,6 +47,7 @@ import { listOrganizationMembersOperation } from "../operations/list-organizatio
 import { listProjectSecretsOperation } from "../operations/list-project-secrets-operation.js";
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
+import { resolveSessionWhoamiOperation } from "../operations/resolve-session-whoami-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
 import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
 
@@ -107,6 +110,13 @@ export function listSessionOrganizationsRpc(
   return post(input.actorToken, ({ accessActor }) =>
     listSessionOrganizationsOperation({ accessActor }),
   );
+}
+
+export function resolveSessionWhoamiRpc(
+  post: PostAuthRpcRunner,
+  input: ResolveSessionWhoamiRpcInput,
+): Promise<RuntimeRpcResult<ResolveSessionWhoamiRpcPayload>> {
+  return post(input.actorToken, (actors) => resolveSessionWhoamiOperation(input, actors));
 }
 
 export function listOrganizationMembersRpc(
