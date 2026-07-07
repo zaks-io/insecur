@@ -17,6 +17,7 @@ import {
   issueInjectionGrant,
   recordInjectionRunCompleted,
 } from "./http-client-runtime-injection.js";
+import { cancelOperation, getOperation } from "./http-client-operations.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
   const base = host.endsWith("/") ? host.slice(0, -1) : host;
@@ -29,6 +30,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
     recordInjectionRunCompleted: (input) => recordInjectionRunCompleted(base, input),
+    getOperation: (input) => getOperation(base, input),
+    cancelOperation: (input) => cancelOperation(base, input),
   };
 }
 

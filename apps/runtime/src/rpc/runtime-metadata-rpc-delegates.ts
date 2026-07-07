@@ -1,6 +1,8 @@
 import type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
   ListAuditEventsRpcInput,
@@ -29,6 +31,7 @@ import {
 
 import { captureFirstValueFeedbackOperation } from "../operations/capture-first-value-feedback-operation.js";
 import { getOperationOperation } from "../operations/get-operation-operation.js";
+import { cancelOperationOperation } from "../operations/cancel-operation-operation.js";
 import { listAuditEventsOperation } from "../operations/list-audit-events-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
 import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
@@ -54,6 +57,15 @@ export function getOperationRpc(
 ): Promise<RuntimeRpcResult<OperationPollResult>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     getOperationOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function cancelOperationRpc(
+  post: PostAuthRpcRunner,
+  input: CancelOperationRpcInput,
+): Promise<RuntimeRpcResult<CancelOperationRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    cancelOperationOperation({ input, auditActor, accessActor }),
   );
 }
 

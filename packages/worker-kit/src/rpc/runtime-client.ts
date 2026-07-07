@@ -93,6 +93,7 @@ export function runtimeClientFor(
     createInvitation: forward("createInvitation"),
     acceptInvitation: forward("acceptInvitation"),
     getOperation: forward("getOperation"),
+    cancelOperation: forward("cancelOperation"),
     issueInjectionGrant: forward("issueInjectionGrant"),
     completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
     writeSecret: forward("writeSecret"),

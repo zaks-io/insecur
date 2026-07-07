@@ -28,6 +28,7 @@ export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc
     createInvitation: (input) => service.createInvitation(input),
     acceptInvitation: (input) => service.acceptInvitation(input),
     getOperation: (input) => service.getOperation(input),
+    cancelOperation: (input) => service.cancelOperation(input),
     issueInjectionGrant: (input) => service.issueInjectionGrant(input),
     completeBootstrapOperatorClaim: (input) => service.completeBootstrapOperatorClaim(input),
   };

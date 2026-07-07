@@ -46,6 +46,8 @@ export type {
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,

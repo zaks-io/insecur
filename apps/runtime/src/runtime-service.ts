@@ -25,6 +25,8 @@ import type {
   CreateInvitationRpcInput,
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
   ListAuditEventsRpcInput,
@@ -68,6 +70,7 @@ import {
 } from "./rpc/runtime-high-assurance-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
+  cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
   listAuditEventsRpc,
@@ -230,6 +233,12 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
     return getOperationRpc(this.#post.bind(this), input);
+  }
+
+  cancelOperation(
+    input: CancelOperationRpcInput,
+  ): Promise<RuntimeRpcResult<CancelOperationRpcPayload>> {
+    return cancelOperationRpc(this.#post.bind(this), input);
   }
 
   issueInjectionGrant(

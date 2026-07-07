@@ -20,6 +20,7 @@ import {
 import { registerScanCommand } from "./register-scan-command.js";
 import { registerSecretsCommands } from "./register-secrets-commands.js";
 import { registerConfigCommands } from "./register-config-commands.js";
+import { registerOperationsCommands } from "./register-operations-commands.js";
 import { cliVersion } from "./version.js";
 
 function attachGlobalOptions(command: Command): Command {
@@ -95,6 +96,7 @@ function buildProgram(): Command {
   registerSecretsCommands(program, { globalFlags, resolveApi });
   registerScanCommand(program, { globalFlags });
   registerConfigCommands(program, globalFlags);
+  registerOperationsCommands(program, { globalFlags, resolveApi });
 
   return program;
 }
