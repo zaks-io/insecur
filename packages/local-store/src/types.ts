@@ -39,6 +39,10 @@ export interface KeyStorePaths {
   readonly machineRootKeyDpapiFilePath: string;
 }
 
+export interface LocalStorePaths extends KeyStorePaths {
+  readonly databaseFilePath: string;
+}
+
 export interface KeyStoreDependencies {
   readonly execFile: ExecFileFn;
   readonly platform: NodeJS.Platform;

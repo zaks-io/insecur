@@ -211,6 +211,7 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
       expect(KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST).toEqual([
         "packages/tenant-keyring/src/**",
         "packages/backup-restore/src/recovery-canary.ts",
+        "packages/local-store/src/**",
       ]);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,

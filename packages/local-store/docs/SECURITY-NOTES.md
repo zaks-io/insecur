@@ -23,3 +23,17 @@ embed the command argv in the error object.
 The `0600` key file stores raw hex key material on disk. It is selected only when
 no OS keystore adapter is available. Callers should surface
 `local_store.file_fallback_active` as metadata-only posture guidance.
+
+## Local Audit Trail
+
+`LocalAuditWriter` persists metadata-only events in the local SQLite store for
+developer convenience. The trail is **tamperable**: any same-user process with
+filesystem access can insert, modify, or delete rows. It is not a security
+control and must not be used for custody or compliance claims.
+
+## Local Store Ciphertext
+
+Wrapped Current Versions persist as opaque ciphertext bytes plus key-version
+metadata only. No Sensitive Value plaintext is written to the SQLite file,
+temporary files, or error paths. Decrypt is exported only through
+`decryptLocalSecretForInjection` for Local Mode `run` injection.

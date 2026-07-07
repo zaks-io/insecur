@@ -52,7 +52,7 @@ context for a specific task.
 | `packages/operations/CONTEXT.md`              | Operation Store and Sync Target Serialization.                 |
 | `packages/worker-kit/CONTEXT.md`              | Shared Worker HTTP/auth/RPC composition glue.                  |
 | `packages/cli/CONTEXT.md`                     | CLI commands, local config, safe input, and child execution.   |
-| `packages/local-store/CONTEXT.md`             | Local Mode machine root key custody (`KeyStore` seam).         |
+| `packages/local-store/CONTEXT.md`             | Local Mode machine root key custody and encrypted local store. |
 
 ## Reading Rules
 

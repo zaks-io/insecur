@@ -18,6 +18,7 @@ const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/backup-restore/src/recovery-canary.ts",
   "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
   "packages/app-connection/src/decrypt-cloudflare-connection-boundary-for-validation.ts",
+  "packages/local-store/src/decrypt-local-secret-for-injection.ts",
 ] as const;
 
 const DECRYPT_ENTRY_POINT_NAMES = [
