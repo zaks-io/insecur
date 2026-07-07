@@ -24,6 +24,7 @@ import type {
   CreateEnvironmentRpcInput,
   CreateProjectRpcInput,
   ListAuditEventsRpcInput,
+  ExportTenantAuditRpcInput,
   ListEnvironmentsRpcInput,
   ListOrganizationInvitationsRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
@@ -72,6 +73,7 @@ import {
   issueInjectionGrantRpc,
   createEnvironmentRpc,
   listAuditEventsRpc,
+  exportTenantAuditRpc,
   listEnvironmentsRpc,
   createProjectRpc,
   listOrganizationInvitationsRpc,
@@ -89,6 +91,7 @@ import {
   createOperatorOrganizationRpc,
   provisionGuidedOrganizationRpc,
 } from "./rpc/runtime-onboarding-rpc-delegates.js";
+import { completeBootstrapOperatorClaimRpc } from "./rpc/runtime-bootstrap-rpc-delegates.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
@@ -243,53 +246,34 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return issueInjectionGrantRpc(this.#post.bind(this), input);
   }
 
-  completeBootstrapOperatorClaim(
-    input: CompleteBootstrapClaimRpcInput,
-  ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
-    return this.#post(input.actorToken, ({ actor }) =>
-      completeBootstrapOperatorClaim({
-        instanceId: input.instanceId,
-        actor,
-        bootstrapSecret: input.bootstrapSecret,
-        operatorGrantId: input.operatorGrantId,
-        ownerMembershipId: input.ownerMembershipId,
-        request: { requestId: input.requestId },
-      }),
-    );
+  completeBootstrapOperatorClaim(input: CompleteBootstrapClaimRpcInput) {
+    return completeBootstrapOperatorClaimRpc(this.#post.bind(this), input);
   }
 
   recordInjectionRunCompleted(input: RecordInjectionRunCompletedRpcInput) {
     return recordInjectionRunCompletedRpc(this.#post.bind(this), input);
   }
-
   captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
     return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
   }
-
   listProjects(input: ListProjectsRpcInput) {
     return listProjectsRpc(this.#post.bind(this), input);
   }
-
   createProject(input: CreateProjectRpcInput) {
     return createProjectRpc(this.#post.bind(this), input);
   }
-
   listEnvironments(input: ListEnvironmentsRpcInput) {
     return listEnvironmentsRpc(this.#post.bind(this), input);
   }
-
   createEnvironment(input: CreateEnvironmentRpcInput) {
     return createEnvironmentRpc(this.#post.bind(this), input);
   }
-
   listProjectSecrets(input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.#post.bind(this), input);
   }
-
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
   }
-
   revokeCliSession(input: RevokeCliSessionRpcInput) {
     return revokeCliSessionRpc(this.#post.bind(this), input);
   }
@@ -297,27 +281,24 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   listOrganizationMembers(input: ListOrganizationMembersRpcInput) {
     return listOrganizationMembersRpc(this.#post.bind(this), input);
   }
-
   listOrganizationInvitations(input: ListOrganizationInvitationsRpcInput) {
     return listOrganizationInvitationsRpc(this.#post.bind(this), input);
   }
-
   listAuditEvents(input: ListAuditEventsRpcInput) {
     return listAuditEventsRpc(this.#post.bind(this), input);
   }
-
+  exportTenantAudit(input: ExportTenantAuditRpcInput) {
+    return exportTenantAuditRpc(this.#post.bind(this), this.env, input);
+  }
   listPendingHighAssuranceChallenges(input: ListPendingHighAssuranceChallengesRpcInput) {
     return listPendingHighAssuranceChallengesRpc(this.#post.bind(this), input);
   }
-
   getHighAssuranceChallenge(input: GetHighAssuranceChallengeRpcInput) {
     return getHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
-
   clearHighAssuranceChallenge(input: ClearHighAssuranceChallengeRpcInput) {
     return clearHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
-
   denyHighAssuranceChallenge(input: DenyHighAssuranceChallengeRpcInput) {
     return denyHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }

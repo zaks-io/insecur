@@ -12,7 +12,7 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
-import type { AuditEventsPage } from "@insecur/audit";
+import type { AuditEventsPage, AuditExportBundle } from "@insecur/audit";
 import type { ListProjectSecretsData, NavigationApiClient } from "./navigation-api-types.js";
 
 export type {
@@ -55,6 +55,7 @@ export interface ListAuditEventsFiltersInput {
 }
 
 export type ListAuditEventsData = AuditEventsPage;
+export type ExportTenantAuditData = AuditExportBundle;
 
 interface CliAuthorizationUrlInput {
   readonly redirectUri: string;
@@ -257,6 +258,16 @@ export interface ApiClient extends NavigationApiClient {
     readonly filters?: ListAuditEventsFiltersInput;
   }): Promise<
     | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  exportTenantAudit(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly from: string;
+    readonly to: string;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<ExportTenantAuditData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
   revokeCliSession(input: {

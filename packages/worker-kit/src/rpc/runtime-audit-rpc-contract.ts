@@ -1,3 +1,4 @@
+import type { AuditExportManifest } from "@insecur/audit";
 import type {
   AuditEventId,
   EnvironmentId,
@@ -60,4 +61,15 @@ export interface ListAuditEventsRpcInput extends PostAuthRpcInputBase {
   readonly filters?: ListAuditEventsFiltersRpcInput;
   readonly pageSize?: number;
   readonly cursor?: string;
+}
+
+export interface ExportTenantAuditRpcPayload {
+  readonly jsonl: string;
+  readonly manifest: AuditExportManifest;
+}
+
+export interface ExportTenantAuditRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly from: string;
+  readonly to: string;
 }
