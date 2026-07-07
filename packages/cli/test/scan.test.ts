@@ -1,10 +1,12 @@
 import { chmod, mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Command } from "commander";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { assertMetadataOnlyEnvelopeShape } from "@insecur/domain";
 import { runScanCommand } from "../src/commands/scan.js";
 import { EXIT_ACTION_REQUIRED } from "../src/output/exit-codes.js";
+import { registerSecretsCommands } from "../src/register-secrets-commands.js";
 import { buildScanReport } from "../src/scan/report.js";
 import {
   SENTINEL_DECOY_VALUE,
@@ -12,6 +14,16 @@ import {
   SENTINEL_SECRET_VALUE,
   writeScanFixtureTree,
 } from "./fixtures/scan-fixture.js";
+
+function secretsSetRegisteredOptionLongs(program: Command): readonly string[] {
+  const secrets = program.commands.find((command) => command.name() === "secrets");
+  const set = secrets?.commands.find((command) => command.name() === "set");
+  return (
+    set?.options
+      .map((option) => option.long)
+      .filter((long): long is string => long !== undefined) ?? []
+  );
+}
 
 describe("insecur scan", () => {
   let fixtureDir: string;
@@ -331,13 +343,29 @@ describe("insecur scan no-reveal", () => {
   });
 
   it("remediation strings route values via --value-stdin only", async () => {
+    const program = new Command();
+    registerSecretsCommands(program, {
+      globalFlags: () => baseFlags,
+      resolveApi: async () => ({
+        api: {} as never,
+        context: {} as never,
+      }),
+    });
+    const registeredLongs = secretsSetRegisteredOptionLongs(program);
+    const variableKeyFlag = registeredLongs.find((long) => long === "--variable-key");
+    const valueStdinFlag = registeredLongs.find((long) => long === "--value-stdin");
+    expect(variableKeyFlag).toBe("--variable-key");
+    expect(valueStdinFlag).toBe("--value-stdin");
+
     const root = await mkdtemp(join(tmpdir(), "insecur-scan-remediation-"));
     await writeScanFixtureTree(root);
     const report = await buildScanReport({ rootDir: root });
     const migratable = report.findings.filter((finding) => finding.migratable);
     expect(migratable.length).toBeGreaterThan(0);
     for (const finding of migratable) {
-      expect(finding.remediation).toMatch(/^insecur secrets set [A-Z0-9_]+ --value-stdin$/u);
+      expect(finding.remediation).toBe(
+        `insecur secrets set ${variableKeyFlag} ${finding.key} ${valueStdinFlag}`,
+      );
       expect(finding.remediation).not.toContain("=");
     }
   });
