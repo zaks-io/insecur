@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/cloudflare";
 
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import {
+  completeBootstrapOperatorClaim,
   getBootstrapStatus,
   type BootstrapStatus,
   type CompleteBootstrapOperatorClaimResult,
@@ -90,7 +91,6 @@ import {
 import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
 import {
   acceptInvitationRpc,
-  completeBootstrapClaimRpc,
   createInvitationRpc,
   createOperatorOrganizationRpc,
   provisionGuidedOrganizationRpc,
@@ -184,6 +184,8 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     );
   }
 
+  // --- Pre-auth identity/metadata methods (no hop token; trusted by the private binding) ---
+
   resolveAdmission(
     input: ResolveAdmissionRpcInput,
   ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
@@ -191,42 +193,52 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
       userId: await resolveAdmittedUserId(input.instanceId, input.workosUserId),
     }));
   }
+
   recordAdmissionDenied(
     input: RecordAdmissionDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>> {
     return this.#pre(() => recordAdmissionDeniedOperation(input));
   }
+
   recordAbuseDenied(
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>> {
     return this.#pre(() => recordAbuseDeniedOperation(input));
   }
+
   getBootstrapStatus(
     input: GetBootstrapStatusRpcInput,
   ): Promise<RuntimeRpcResult<BootstrapStatus>> {
     return this.#pre(() => getBootstrapStatus(input.instanceId));
   }
+
   isCliSessionRevoked(
     input: IsCliSessionRevokedRpcInput,
   ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>> {
     return this.#pre(() => isCliSessionRevokedOperation(input));
   }
 
+  // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
+
   provisionGuidedOrganization(input: ProvisionGuidedOrganizationRpcInput) {
     return provisionGuidedOrganizationRpc(this.#post.bind(this), input);
   }
+
   createOperatorOrganization(input: CreateOperatorOrganizationRpcInput) {
     return createOperatorOrganizationRpc(this.#post.bind(this), input);
   }
+
   createInvitation(input: CreateInvitationRpcInput) {
     return createInvitationRpc(this.#post.bind(this), input);
   }
+
   acceptInvitation(input: AcceptInvitationRpcInput) {
     return acceptInvitationRpc(this.#post.bind(this), input);
   }
   getOperation(input: GetOperationRpcInput) {
     return getOperationRpc(this.#post.bind(this), input);
   }
+
   cancelOperation(input: CancelOperationRpcInput) {
     return cancelOperationRpc(this.#post.bind(this), input);
   }
@@ -240,30 +252,46 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   completeBootstrapOperatorClaim(
     input: CompleteBootstrapClaimRpcInput,
   ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
-    return completeBootstrapClaimRpc(this.#post.bind(this), input);
+    return this.#post(input.actorToken, ({ actor }) =>
+      completeBootstrapOperatorClaim({
+        instanceId: input.instanceId,
+        actor,
+        bootstrapSecret: input.bootstrapSecret,
+        operatorGrantId: input.operatorGrantId,
+        ownerMembershipId: input.ownerMembershipId,
+        request: { requestId: input.requestId },
+      }),
+    );
   }
 
   recordInjectionRunCompleted(input: RecordInjectionRunCompletedRpcInput) {
     return recordInjectionRunCompletedRpc(this.#post.bind(this), input);
   }
+
   captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
     return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
   }
+
   queryFirstValueUsage(input: QueryFirstValueUsageRpcInput) {
     return queryFirstValueUsageRpc(this.#post.bind(this), input);
   }
+
   listProjects(input: ListProjectsRpcInput) {
     return listProjectsRpc(this.#post.bind(this), input);
   }
+
   createProject(input: CreateProjectRpcInput) {
     return createProjectRpc(this.#post.bind(this), input);
   }
+
   listEnvironments(input: ListEnvironmentsRpcInput) {
     return listEnvironmentsRpc(this.#post.bind(this), input);
   }
+
   createEnvironment(input: CreateEnvironmentRpcInput) {
     return createEnvironmentRpc(this.#post.bind(this), input);
   }
+
   listProjectSecrets(input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.#post.bind(this), input);
   }
@@ -279,9 +307,11 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
   }
+
   revokeCliSession(input: RevokeCliSessionRpcInput) {
     return revokeCliSessionRpc(this.#post.bind(this), input);
   }
+
   listOrganizationMembers(input: ListOrganizationMembersRpcInput) {
     return listOrganizationMembersRpc(this.#post.bind(this), input);
   }
@@ -289,18 +319,23 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   listOrganizationInvitations(input: ListOrganizationInvitationsRpcInput) {
     return listOrganizationInvitationsRpc(this.#post.bind(this), input);
   }
+
   listAuditEvents(input: ListAuditEventsRpcInput) {
     return listAuditEventsRpc(this.#post.bind(this), input);
   }
+
   listPendingHighAssuranceChallenges(input: ListPendingHighAssuranceChallengesRpcInput) {
     return listPendingHighAssuranceChallengesRpc(this.#post.bind(this), input);
   }
+
   getHighAssuranceChallenge(input: GetHighAssuranceChallengeRpcInput) {
     return getHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
+
   clearHighAssuranceChallenge(input: ClearHighAssuranceChallengeRpcInput) {
     return clearHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
+
   denyHighAssuranceChallenge(input: DenyHighAssuranceChallengeRpcInput) {
     return denyHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
