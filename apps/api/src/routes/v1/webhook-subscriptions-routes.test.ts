@@ -39,7 +39,11 @@ function makeEnv() {
 
 const basePath = `/v1/orgs/${orgId}/webhook-subscriptions`;
 
+<<<<<<< HEAD
 /** Low-entropy fixture only; never a real signing secret (gitleaks-safe). */
+=======
+/** Low-entropy fixture only; never a real signing secret. */
+>>>>>>> 5a1bdba (fix(api): use low-entropy sentinels in webhook route tests for gitleaks)
 const TEST_WEBHOOK_SIGNING_SECRET_SENTINEL = "webhook-signing-secret-test-sentinel";
 const TEST_ROTATED_SIGNING_SECRET_SENTINEL = "hmac-secret-do-not-use";
 
