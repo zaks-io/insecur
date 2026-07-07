@@ -10,7 +10,7 @@ import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { projectConfigPath, resolveProjectRoot } from "../config/paths.js";
 import type { CliUserProfile } from "../config/user-config.js";
 
-export interface ConfigShowProfile {
+interface ConfigShowProfile {
   readonly profileId: CliProfileId;
   readonly slug: string;
   readonly displayName: DisplayName;
