@@ -47,6 +47,22 @@ export type AuthenticatedRuntimeClient = {
   [K in PostAuthMethodName]: ClientMethod<K>;
 };
 
+/** Mint-once hop token, call the named binding method, unwrap into the API error seam. */
+function createRuntimeForward(
+  env: RuntimeClientEnv,
+  actorToken: () => Promise<string>,
+): <K extends PostAuthMethodName>(method: K) => ClientMethod<K> {
+  return function forward<K extends PostAuthMethodName>(method: K): ClientMethod<K> {
+    const rpc = env.RUNTIME[method] as unknown as (
+      input: Record<string, unknown>,
+    ) => Promise<RuntimeRpcResult<unknown>>;
+    return (async (input: Record<string, unknown>) =>
+      unwrapRuntimeResult(
+        await rpc({ ...input, actorToken: await actorToken() }),
+      )) as ClientMethod<K>;
+  };
+}
+
 /**
  * The single API-side Runtime RPC seam (ADR-0077). The public edge does zero DB I/O: a route parses
  * HTTP, then forwards the non-keyring DB work through this client. We mint one scoped, audience-bound
@@ -71,28 +87,8 @@ export function runtimeClientFor(
       signingSecret: env.RUNTIME_TOKEN_SIGNING_SECRET,
     }).then((minted) => minted.token));
 
-  /**
-   * Mint-once, call the named binding method with the hop token, unwrap into the API error seam.
-   * The binding method is widened to one concrete call signature for the dispatch: an indexed access
-   * over the union of `RuntimeRpc` methods otherwise collapses to an unusable parameter intersection.
-   * The precise per-method types are preserved at the call site by the {@link ClientMethod} return.
-   */
-  function forward<K extends PostAuthMethodName>(method: K): ClientMethod<K> {
-    const rpc = env.RUNTIME[method] as unknown as (
-      input: Record<string, unknown>,
-    ) => Promise<RuntimeRpcResult<unknown>>;
-    return (async (input: Record<string, unknown>) =>
-      unwrapRuntimeResult(
-        await rpc({ ...input, actorToken: await actorToken() }),
-      )) as ClientMethod<K>;
-  }
+  const forward = createRuntimeForward(env, actorToken);
 
-  return buildAuthenticatedRuntimeClient(forward);
-}
-
-function buildAuthenticatedRuntimeClient(
-  forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
-): AuthenticatedRuntimeClient {
   return {
     provisionGuidedOrganization: forward("provisionGuidedOrganization"),
     createOperatorOrganization: forward("createOperatorOrganization"),

@@ -2,11 +2,7 @@ import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers"
 import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
-import type {
-  CreateInvitationResult,
-  CreateOperatorOrganizationResult,
-  ProvisionGuidedOrganizationResult,
-} from "@insecur/onboarding";
+import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import {
   completeBootstrapOperatorClaim,
   getBootstrapStatus,
@@ -14,7 +10,6 @@ import {
   type CompleteBootstrapOperatorClaimResult,
 } from "@insecur/instance-bootstrap";
 import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
-import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -223,21 +218,15 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
 
-  provisionGuidedOrganization(
-    input: ProvisionGuidedOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
+  provisionGuidedOrganization(input: ProvisionGuidedOrganizationRpcInput) {
     return provisionGuidedOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createOperatorOrganization(
-    input: CreateOperatorOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
+  createOperatorOrganization(input: CreateOperatorOrganizationRpcInput) {
     return createOperatorOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createInvitation(
-    input: CreateInvitationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
+  createInvitation(input: CreateInvitationRpcInput) {
     return createInvitationRpc(this.#post.bind(this), input);
   }
 
