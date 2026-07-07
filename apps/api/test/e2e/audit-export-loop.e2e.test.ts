@@ -34,6 +34,7 @@ import {
   TEST_ORG_A_ID,
   TEST_ORG_B_ID,
   TEST_PROJECT_A_ID,
+  TEST_SECRET_B_ID,
   TEST_USER_ID,
   TEST_WORKOS_USER_ID,
 } from "../../../../packages/tenant-store/test/rls/test-ids.js";
@@ -203,7 +204,7 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
       organizationId: ORG_B,
       resource: {
         type: "secret",
-        id: brandOpaqueResourceIdForPrefix("sec", "00000000000000000000000099"),
+        id: brandOpaqueResourceIdForPrefix("sec", TEST_SECRET_B_ID),
       },
       details: {
         noteId: "note_cross_tenant",
