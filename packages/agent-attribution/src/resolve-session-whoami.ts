@@ -172,6 +172,7 @@ function toSessionWhoamiAttribution(
 export async function resolveSessionWhoami(
   input: ResolveSessionWhoamiInput,
 ): Promise<ResolveSessionWhoamiResult> {
+  // Context membership and coordinate validation must finish before any Tier-2 write.
   const resolvedContext = await resolveContext(input.userId, input);
   const attributionResult = await resolveAttributionTier(buildAttributionInput(input));
 
