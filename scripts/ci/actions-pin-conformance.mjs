@@ -1,22 +1,36 @@
 #!/usr/bin/env node
-// Fail when a third-party GitHub Action is referenced by floating tag instead of commit SHA.
-// First-party actions/* may stay on @vN per supply-chain posture (ADR-0056, INS-280).
+// Fail when a GitHub Action is referenced by floating tag instead of commit SHA.
+// Local ./.github/actions/* composite actions are exempt.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const workflowsDir = join(repoRoot, ".github", "workflows");
+const githubDir = join(repoRoot, ".github");
 const usesPattern = /^\s*uses:\s+([^\s#]+)(?:\s+#\s*(.+))?$/;
 const shaPattern = /^[0-9a-f]{40}$/i;
+const workflowFilePattern = /\.ya?ml$/;
 
 const failures = [];
 
-const workflowFilePattern = /\.ya?ml$/;
+function collectYamlFiles(dir) {
+  const files = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectYamlFiles(path));
+      continue;
+    }
+    if (workflowFilePattern.test(entry.name)) {
+      files.push(path);
+    }
+  }
+  return files;
+}
 
-for (const fileName of readdirSync(workflowsDir).filter((name) => workflowFilePattern.test(name))) {
-  const filePath = join(workflowsDir, fileName);
+for (const filePath of collectYamlFiles(githubDir)) {
+  const relPath = filePath.slice(repoRoot.length + 1);
   const lines = readFileSync(filePath, "utf8").split("\n");
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -30,18 +44,13 @@ for (const fileName of readdirSync(workflowsDir).filter((name) => workflowFilePa
       continue;
     }
 
-    const [owner] = actionRef.split("/");
-    if (owner === "actions") {
-      continue;
-    }
-
     const ref = actionRef.includes("@") ? actionRef.slice(actionRef.lastIndexOf("@") + 1) : "";
     if (shaPattern.test(ref)) {
       continue;
     }
 
     failures.push(
-      `${fileName}:${index + 1}: third-party action ${actionRef} must be pinned to a full commit SHA` +
+      `${relPath}:${index + 1}: action ${actionRef} must be pinned to a full commit SHA` +
         (comment ? ` (comment: ${comment.trim()})` : ""),
     );
   }
