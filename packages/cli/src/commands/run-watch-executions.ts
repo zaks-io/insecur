@@ -4,7 +4,12 @@ import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { resolveProjectRoot } from "../config/paths.js";
 import type { ResolvedProfileRunInput } from "./resolve-run-profile.js";
-import { buildPolicyRunChildEnv, buildRunChildEnv, decodeDeliveryValue } from "./run-child.js";
+import {
+  buildPolicyRunChildEnv,
+  buildRunChildEnv,
+  decodeDeliveryValue,
+  wipeInjectedEnvKeys,
+} from "./run-child.js";
 import {
   issueAndConsumePolicyGrant,
   issueAndConsumeVariableKeyGrant,
@@ -95,11 +100,13 @@ export async function runVariableKeyWatchPath(input: {
         variableKey: input.variableKey,
       });
       let decodedValue: string | undefined = decodeDeliveryValue(grant.delivery.encodedValueUtf8);
+      const childEnv = buildRunChildEnv(input.variableKey, decodedValue);
       return {
         grantId: grant.issueData.grantId,
-        childEnv: buildRunChildEnv(input.variableKey, decodedValue),
+        childEnv,
         releaseSensitiveValues: () => {
           decodedValue = undefined;
+          wipeInjectedEnvKeys(childEnv, [input.variableKey]);
         },
         onChildCompleted: async (childExitCode) => {
           await completeVariableKeyWatchIteration({
@@ -129,36 +136,48 @@ export async function runProfilePolicyWatchPath(input: {
   return runWatchLoop({
     command: input.command,
     watchRoot: resolveProjectRoot(input.flags.configDir),
-    executeIteration: async () => {
-      const grant = await issueAndConsumePolicyGrant({
+    executeIteration: () => executeProfilePolicyWatchIteration(input),
+  });
+}
+
+async function executeProfilePolicyWatchIteration(input: {
+  readonly flags: GlobalCliFlags;
+  readonly api: ApiClient;
+  readonly credential: string;
+  readonly profileRun: ResolvedProfileRunInput;
+}) {
+  const grant = await issueAndConsumePolicyGrant({
+    api: input.api,
+    credential: input.credential,
+    host: input.profileRun.host,
+    runScope: input.profileRun.runScope,
+    policyId: input.profileRun.policyId,
+  });
+  let decodedEntries = grant.delivery.entries.map((entry) => ({
+    variableKey: entry.variableKey,
+    encodedValueUtf8: entry.encodedValueUtf8,
+  }));
+  const childEnv = buildPolicyRunChildEnv(decodedEntries);
+  return {
+    grantId: grant.issueData.grantId,
+    childEnv,
+    releaseSensitiveValues: () => {
+      wipeInjectedEnvKeys(
+        childEnv,
+        decodedEntries.map((entry) => entry.variableKey),
+      );
+      decodedEntries = [];
+    },
+    onChildCompleted: async (childExitCode: number) => {
+      await completeProfileWatchIteration({
+        flags: input.flags,
         api: input.api,
         credential: input.credential,
-        host: input.profileRun.host,
-        runScope: input.profileRun.runScope,
-        policyId: input.profileRun.policyId,
+        profileRun: input.profileRun,
+        childExitCode,
+        issueData: grant.issueData,
+        delivery: grant.delivery,
       });
-      let decodedEntries = grant.delivery.entries.map((entry) => ({
-        variableKey: entry.variableKey,
-        encodedValueUtf8: entry.encodedValueUtf8,
-      }));
-      return {
-        grantId: grant.issueData.grantId,
-        childEnv: buildPolicyRunChildEnv(decodedEntries),
-        releaseSensitiveValues: () => {
-          decodedEntries = [];
-        },
-        onChildCompleted: async (childExitCode) => {
-          await completeProfileWatchIteration({
-            flags: input.flags,
-            api: input.api,
-            credential: input.credential,
-            profileRun: input.profileRun,
-            childExitCode,
-            issueData: grant.issueData,
-            delivery: grant.delivery,
-          });
-        },
-      };
     },
-  });
+  };
 }

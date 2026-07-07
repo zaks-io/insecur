@@ -22,6 +22,7 @@ export interface RunWatchLoopInput {
 }
 
 const WATCH_DEBOUNCE_MS = 100;
+const CHILD_KILL_ESCALATION_MS = 5_000;
 
 function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | null): number {
   if (code !== null) {
@@ -39,51 +40,111 @@ function terminateChild(child: ChildProcess): void {
     return;
   }
   child.kill("SIGTERM");
+  const escalationTimer = setTimeout(() => {
+    if (child.exitCode == null && child.signalCode == null) {
+      child.kill("SIGKILL");
+    }
+  }, CHILD_KILL_ESCALATION_MS);
+  child.once("close", () => {
+    clearTimeout(escalationTimer);
+  });
 }
 
 function createFilesystemRestartSignal(watchRoot: string): {
   readonly waitForRestart: () => Promise<void>;
   readonly dispose: () => void;
 } {
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-  let pendingResolve: (() => void) | undefined;
-  let disposed = false;
+  const state = createRestartSignalState();
+  const watcher = attachFilesystemRestartWatcher(watchRoot, state);
 
+  return {
+    waitForRestart: () => waitForFilesystemRestart(state),
+    dispose: () => {
+      disposeFilesystemRestartSignal(state, watcher);
+    },
+  };
+}
+
+interface RestartSignalState {
+  debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  pendingResolve: (() => void) | undefined;
+  pendingRestart: boolean;
+  disposed: boolean;
+}
+
+function createRestartSignalState(): RestartSignalState {
+  return {
+    debounceTimer: undefined,
+    pendingResolve: undefined,
+    pendingRestart: false,
+    disposed: false,
+  };
+}
+
+function signalFilesystemRestart(state: RestartSignalState): void {
+  if (state.pendingResolve !== undefined) {
+    state.pendingResolve();
+    state.pendingResolve = undefined;
+    return;
+  }
+  state.pendingRestart = true;
+}
+
+function attachFilesystemRestartWatcher(
+  watchRoot: string,
+  state: RestartSignalState,
+): ReturnType<typeof watch> {
   const watcher = watch(watchRoot, { recursive: true }, () => {
-    if (disposed) {
+    if (state.disposed) {
       return;
     }
-    if (debounceTimer !== undefined) {
-      clearTimeout(debounceTimer);
+    if (state.debounceTimer !== undefined) {
+      clearTimeout(state.debounceTimer);
     }
-    debounceTimer = setTimeout(() => {
-      debounceTimer = undefined;
-      pendingResolve?.();
-      pendingResolve = undefined;
+    state.debounceTimer = setTimeout(() => {
+      state.debounceTimer = undefined;
+      signalFilesystemRestart(state);
     }, WATCH_DEBOUNCE_MS);
   });
 
-  return {
-    waitForRestart: () =>
-      new Promise<void>((resolve) => {
-        pendingResolve = resolve;
-      }),
-    dispose: () => {
-      disposed = true;
-      if (debounceTimer !== undefined) {
-        clearTimeout(debounceTimer);
-      }
-      watcher.close();
-      pendingResolve = undefined;
-    },
-  };
+  watcher.on("error", () => {
+    if (state.disposed) {
+      return;
+    }
+    signalFilesystemRestart(state);
+  });
+
+  return watcher;
+}
+
+function waitForFilesystemRestart(state: RestartSignalState): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (state.pendingRestart) {
+      state.pendingRestart = false;
+      resolve();
+      return;
+    }
+    state.pendingResolve = resolve;
+  });
+}
+
+function disposeFilesystemRestartSignal(
+  state: RestartSignalState,
+  watcher: ReturnType<typeof watch>,
+): void {
+  state.disposed = true;
+  if (state.debounceTimer !== undefined) {
+    clearTimeout(state.debounceTimer);
+  }
+  watcher.close();
+  state.pendingResolve = undefined;
 }
 
 async function raceChildExitOrRestart(input: {
   readonly exitCode: Promise<number>;
   readonly waitForRestart: () => Promise<void>;
 }): Promise<"restart" | { readonly kind: "exit"; readonly exitCode: number }> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let settled = false;
     const settleRestart = (): void => {
       if (settled) {
@@ -99,8 +160,15 @@ async function raceChildExitOrRestart(input: {
       settled = true;
       resolve({ kind: "exit", exitCode });
     };
+    const settleFailure = (error: unknown): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(error instanceof Error ? error : new Error("Child process failed", { cause: error }));
+    };
 
-    void input.exitCode.then(settleExit);
+    void input.exitCode.then(settleExit, settleFailure);
     void input.waitForRestart().then(settleRestart);
   });
 }
@@ -112,24 +180,29 @@ async function runWatchCycle(input: {
 }): Promise<number | "restart"> {
   const iteration = await input.executeIteration();
   const managed = spawnCommandManaged(input.command, iteration.childEnv);
-  const outcome = await raceChildExitOrRestart({
-    exitCode: managed.exitCode,
-    waitForRestart: input.waitForRestart,
-  });
+  try {
+    const outcome = await raceChildExitOrRestart({
+      exitCode: managed.exitCode,
+      waitForRestart: input.waitForRestart,
+    });
 
-  if (outcome === "restart") {
-    terminateChild(managed.child);
-    const interruptedExitCode = await managed.exitCode.catch(() =>
-      exitCodeForChildClose(null, "SIGTERM"),
-    );
+    if (outcome === "restart") {
+      terminateChild(managed.child);
+      const interruptedExitCode = await managed.exitCode.catch(() =>
+        exitCodeForChildClose(null, "SIGTERM"),
+      );
+      iteration.releaseSensitiveValues();
+      await iteration.onChildCompleted(interruptedExitCode);
+      return "restart";
+    }
+
     iteration.releaseSensitiveValues();
-    await iteration.onChildCompleted(interruptedExitCode);
-    return "restart";
+    await iteration.onChildCompleted(outcome.exitCode);
+    return outcome.exitCode;
+  } catch (error) {
+    iteration.releaseSensitiveValues();
+    throw error;
   }
-
-  iteration.releaseSensitiveValues();
-  await iteration.onChildCompleted(outcome.exitCode);
-  return outcome.exitCode;
 }
 
 export async function runWatchLoop(input: RunWatchLoopInput): Promise<number> {

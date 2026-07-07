@@ -30,6 +30,13 @@ export function buildPolicyRunChildEnv(
   return buildCliChildEnv({ extraEnv });
 }
 
+/** Drop injected Sensitive Value keys from an in-memory child env object. */
+export function wipeInjectedEnvKeys(env: NodeJS.ProcessEnv, keys: readonly VariableKey[]): void {
+  for (const key of keys) {
+    Reflect.deleteProperty(env, key);
+  }
+}
+
 function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | null): number {
   if (code !== null) {
     return code;

@@ -1,5 +1,8 @@
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { INJECTION_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
 
@@ -74,6 +77,17 @@ function spawnManagedChild(exitCode: number, waitForKill = false) {
     });
   }
   return { child, exitCode: exitCodePromise };
+}
+
+function spawnManagedChildSpawnError(error: Error) {
+  const child = new EventEmitter() as EventEmitter &
+    ChildProcess & {
+      kill: ReturnType<typeof vi.fn>;
+    };
+  child.kill = vi.fn();
+  const exitCode = Promise.reject(error);
+  void exitCode.catch(() => undefined);
+  return { child, exitCode };
 }
 
 describe("assertRunWatchDevelopmentEnvironment", () => {
@@ -219,5 +233,67 @@ describe("runWatchLoop", () => {
 
     expect(issueCount).toBe(2);
     expect(spawnCommandManagedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects when the child process fails to spawn", async () => {
+    const spawnError = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
+    spawnCommandManagedMock.mockImplementation(() => spawnManagedChildSpawnError(spawnError));
+
+    await expect(
+      runWatchLoop({
+        command: ["missing-executable"],
+        watchRoot: process.cwd(),
+        waitForRestartSignal: async () => pendingForever(),
+        executeIteration: async () => ({
+          grantId: "igr_spawn" as never,
+          childEnv: { API_KEY: "secret" },
+          releaseSensitiveValues: () => undefined,
+          onChildCompleted: async () => undefined,
+        }),
+      }),
+    ).rejects.toThrow("spawn ENOENT");
+
+    expect(spawnCommandManagedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("consumes a latched restart when a file change arrives before waitForRestart is pending", async () => {
+    vi.useFakeTimers();
+    const watchRoot = await mkdtemp(join(tmpdir(), "insecur-watch-"));
+    let iterations = 0;
+    let spawnCount = 0;
+
+    spawnCommandManagedMock.mockImplementation(() => {
+      spawnCount += 1;
+      return spawnManagedChild(0, spawnCount === 1);
+    });
+
+    try {
+      const exitCodePromise = runWatchLoop({
+        command: ["node", "-e", "0"],
+        watchRoot,
+        executeIteration: async () => {
+          iterations += 1;
+          if (iterations === 1) {
+            await writeFile(join(watchRoot, "change.txt"), "x");
+            await vi.advanceTimersByTimeAsync(150);
+          }
+          return {
+            grantId: `igr_${String(iterations)}` as never,
+            childEnv: {},
+            releaseSensitiveValues: () => undefined,
+            onChildCompleted: async () => undefined,
+          };
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      const exitCode = await exitCodePromise;
+
+      expect(exitCode).toBe(0);
+      expect(spawnCommandManagedMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+      await rm(watchRoot, { recursive: true, force: true });
+    }
   });
 });
