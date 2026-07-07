@@ -13,8 +13,9 @@ import type {
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { AuditEventsPage } from "@insecur/audit";
-import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { ListProjectSecretsData, NavigationApiClient } from "./navigation-api-types.js";
 import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
+import type { SessionApiClient } from "./session-api-types.js";
 
 export type {
   CreateEnvironmentData,
@@ -129,7 +130,7 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient, RunPoliciesApiClient {
+export interface ApiClient extends NavigationApiClient, RunPoliciesApiClient, SessionApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
@@ -258,13 +259,6 @@ export interface ApiClient extends NavigationApiClient, RunPoliciesApiClient {
     readonly filters?: ListAuditEventsFiltersInput;
   }): Promise<
     | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  revokeCliSession(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<{ readonly revoked: boolean }> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }
