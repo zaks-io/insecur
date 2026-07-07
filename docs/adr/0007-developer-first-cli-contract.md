@@ -4,7 +4,7 @@ Date: 2026-05-23
 
 Status: Accepted
 
-The CLI is the primary interface for developers, agents, and CI. It will use a committed non-secret `.insecur.json` for host, organization ID, project ID, environment ID, profile ID, and branch-to-environment ID defaults. Credential values are memory/session-only and are not persisted by the CLI.
+The CLI is the primary interface for developers, agents, and CI. It will use a committed non-secret `.insecur.json` for host, organization ID, project ID, environment ID, profile ID, and branch-to-environment ID defaults. Credential values are never persisted as plaintext. Human CLI session credentials may be persisted only as sealed local records under the OS-keychain-backed KeyStore (see 2026-07-06 amendment); machine-auth credentials are not persisted by the CLI.
 
 CLI Profiles are non-secret selectors for host, organization, project, environment, and default runtime policy by opaque ID with a local CLI Profile Slug for ergonomics. `insecur run <profile-slug-or-id> -- <command>` is the preferred deploy and local command path because it injects approved secrets into the child process without creating local secret files or returning plaintext to the caller.
 
@@ -14,7 +14,7 @@ V1 supports migration from local secret files, not export to them. A local `.env
 
 Import does not modify the source file. The CLI may offer a separate explicit local removal command after import, but that command uses ordinary filesystem deletion and must not be described as secure shredding.
 
-The CLI does not persist credentials by default. Human login is memory/session-only: use an authenticated subshell or a one-shot command, with short-lived tokens stored only in process memory or a child process environment for that shell session.
+Human login persists a sealed session record by default; `--no-persist` keeps the credential memory-only. Use an authenticated subshell or a one-shot command; child shells receive short-lived tokens in process environment only, and no plaintext session token is written to disk.
 
 Production Runtime Injection depends on the Storage Security Gate. Production-capable CLI runtime
 injection must fail closed until tenant-bound encryption for Secrets, Provider Credentials, and

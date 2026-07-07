@@ -57,7 +57,7 @@ insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-pro
 
 `insecur login --shell` completes a WorkOS AuthKit PKCE loopback login and starts an interactive
 child shell with `INSECUR_SESSION_TOKEN` in that child environment only. The credential is not
-printed, not written to disk, and not handed off through `eval` or `source`. First Value does not
+printed, not written to disk as plaintext, and not handed off through `eval` or `source`. First Value does not
 require an existing CLI profile before `insecur init` provisions one.
 
 The sequence uses normal product primitives:
@@ -75,6 +75,105 @@ environment, proves possession with an HMAC challenge, prints metadata-only JSON
 with `{"ok":false,...}` on failure. It never prints the Sensitive Value or a raw digest.
 
 This gives the user a working example they can run immediately and then adapt into their own application code. It proves that the caller can create and use a generated non-protected development secret without seeing it in command output or local secret files. It does not prove that an arbitrary child process or active local malware cannot read an injected development value after Runtime Injection crosses the Runtime Trust Boundary.
+
+The hosted first-run path above requires authentication. **Local Mode** is the account-less alternative: unauthenticated `insecur init` defaults to Local Mode and uses the same `secrets set` / `run` command surface with an encrypted machine-local store. Local Mode behavior is normative in [Local Mode](#local-mode) below; the decision record is [ADR-0080](adr/0080-local-mode-accountless-development-custody.md).
+
+## Local Mode
+
+Local Mode is account-less CLI operation where non-protected development Secrets are stored encrypted on the developer's machine and used through the ordinary `init` / `secrets set` / `run` command surface, with no Hosted Instance account. It is a first-class custody backend behind the same contract seams (Secret Version Store, Injection Grant, audit writer, encryption envelope), not shortcut scaffolding. The glossary term is authoritative in [instance-onboarding.md](context/glossary/instance-onboarding.md).
+
+### Selection And Defaults
+
+- Per-project mode is the existing `host` field in committed project config. Local projects set `"host": "local"`; hosted projects set `"host": "https://insecur.cloud"` or another Instance URL.
+- An unauthenticated `insecur init` defaults to Local Mode and prints a one-line notice that the project is local and how to migrate later. Authenticated `insecur init` follows the hosted Guided First Run defaults unless the caller passes `--host local`.
+- Local Mode supports Projects and non-protected development Environments only. Protected Environments, Organization/User/Team/Membership objects, Secret Sync, machine identities, provider App Connections, and production delivery are structurally inexpressible locally and fail with `local.cloud_feature_unavailable` plus remediation carrying the exact upgrade commands.
+- Opaque resource IDs are client-minted with the same formats as hosted create commands. The local store validates format and enforces project-scoped uniqueness.
+
+### Local Store And Key Custody
+
+- The machine-local root key lives in the OS keychain via shell-outs to OS-shipped tooling, behind one `KeyStore` seam, with a documented `0600` key-file fallback ([ADR-0080](adr/0080-local-mode-accountless-development-custody.md)).
+- The encrypted local store implements the Secret Version Store, Injection Grant, and audit seams for Current Versions only. No local version history, backup, or export command shapes exist.
+- No Sensitive Values appear in CLI output, JSON, logs, operation records, caches, or committed config. No raw digests and no string-similarity comparisons ever appear in any output; possession checks return metadata-only verdicts ([ADR-0080](adr/0080-local-mode-accountless-development-custody.md)).
+
+Preferred Local Mode command sequence:
+
+```bash
+insecur init
+insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
+insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
+```
+
+### Committed Config As Secret Shape Manifest
+
+In Local Mode the committed `.insecur.json` owns the project's Secret Shapes (non-secret metadata only). After migration to a Hosted Instance the server owns shapes, like any cloud project.
+
+Local project config example:
+
+```json
+{
+  "host": "local",
+  "projectId": "prj_01JZ8E3A0K7J5T9Q2R4S6V8W0X",
+  "defaultEnvId": "env_01JZ8E3W4C8M2H6N9P1Q3R5T7V",
+  "secretShapes": [
+    {
+      "variableKey": "DATABASE_URL",
+      "displayName": "Database URL",
+      "required": true
+    },
+    {
+      "variableKey": "INSECUR_PROOF_SECRET",
+      "displayName": "First value proof",
+      "generationHint": "random:32"
+    }
+  ]
+}
+```
+
+Rules:
+
+- `secretShapes` entries are Secret Shape metadata only: Variable Key, optional Display Name, description, required status, and generation hint. No Sensitive Values.
+- `secrets set --variable-key` creates or updates the matching Secret Shape entry in committed config when the shape did not exist.
+- A fresh clone on a second machine auto-adopts the project: the CLI resolves the development Environment from config, reports exactly which Variable Keys lack values on this machine (`local.value_missing_on_machine`), and prints the exact `secrets set` commands to fill them. Output is metadata-only.
+
+### CLI Profiles For Local Projects
+
+CLI Profiles may select a local project. A local profile sets `"host": "local"` and omits `orgId`; it still selects project, environment, and optional default Runtime Policy Key by opaque ID.
+
+```json
+{
+  "slug": "local-dev",
+  "displayName": "Local development",
+  "host": "local",
+  "projectId": "prj_01JZ8E3A0K7J5T9Q2R4S6V8W0X",
+  "envId": "env_01JZ8E3W4C8M2H6N9P1Q3R5T7V"
+}
+```
+
+### Migrate To Cloud
+
+Migration is explicit, per-project, human-confirmed, and one-way forever. There is no cloud→local path; any export that would move hosted secrets onto disk is a reveal path and must not exist.
+
+```bash
+insecur login
+insecur projects migrate --org-id org_01JZ8E2QYQ6M7F4K9A2B3C4D5E --confirm-migrate
+```
+
+`--confirm-migrate` is a scoped confirmation; generic `--yes` cannot satisfy it (see [Global Flags](#global-flags)).
+
+Reconcile semantics:
+
+1. **Create missing remote resources** by replaying client-minted IDs from local project and environment metadata.
+2. **Already in sync** when remote possession checks prove every local Current Version is present remotely; the command reports success as a no-op.
+3. **Divergence fails loud** with `migrate.remote_diverged` when a remote Secret exists but its value does not match the local candidate; nothing is written remotely or deleted locally.
+4. **Possession check** compares each Secret through a server-side check: candidate value in, metadata-only verdict out. Mismatch returns `secret.possession_mismatch`. Raw digests and string-similarity metrics are prohibited ([ADR-0080](adr/0080-local-mode-accountless-development-custody.md)).
+5. **Verified-then-clean** local deletion runs only after every value is proven present remotely via the possession check. Any failure leaves local state intact and the command re-runnable.
+6. **Config flips last**: `.insecur.json` changes `host` to the cloud Instance URL and drops local-only fields only after verified remote presence and local cleanup succeed.
+
+A machine may hold local and cloud projects side by side indefinitely.
+
+### Local Mode Capability Ceiling
+
+Commands that require Organization scope, Protected Environments, Secret Sync, machine identities, provider setup, or other hosted-only capabilities fail with `local.cloud_feature_unavailable`. Remediation states what Local Mode cannot do and carries the exact upgrade commands (`insecur login`, `insecur projects migrate`, and the hosted command that would satisfy the request).
 
 ## Local Configuration
 
@@ -100,13 +199,16 @@ Rules:
 
 - No Sensitive Values.
 - Store opaque IDs as durable resource selectors in committed project config. Variable Keys are application delivery keys; Display Names are normal labels, not selectors.
+- `"host": "local"` selects Local Mode for the project; hosted projects use an Instance URL. Local projects omit `orgId` and may include `secretShapes` as the committed Secret Shape manifest ([Local Mode](#local-mode)).
 - `--org-id`, `--project-id`, and `--env-id` flags override config.
 - `gitBranchToEnvironment` overrides `defaultEnvId` unless `--env-id` is passed.
 - Monorepos can pass `--config-dir <path>`.
 
 ### User Config
 
-User config lives outside repositories, such as `~/.insecur/config.json`.
+User config lives outside repositories, such as `~/.insecur/config.json`. A sealed human CLI
+session record (`session.v1.sealed`) may also live in that directory; it is not part of
+`config.json` and holds no plaintext credential material.
 
 It may contain:
 
@@ -151,7 +253,8 @@ Example profile shape:
 Profile rules:
 
 - CLI Profiles are selectors only; they do not contain Sensitive Values.
-- A profile selects organization, project, environment, and default Runtime Policy Key by opaque ID.
+- A profile selects organization (when hosted), project, environment, and default Runtime Policy Key by opaque ID.
+- Local profiles set `"host": "local"` and omit `orgId` ([Local Mode](#local-mode)).
 - A CLI Profile is not a secret group. It may choose the default Runtime Injection Policy for a local context, but the policy owns the exact secret bindings for one workflow.
 - CLI Profile Slugs are user-editable lower-kebab local aliases and must be unique inside the user's local CLI configuration.
 - CLI Profile Display Names are user-editable freeform labels and are not command selectors.
@@ -228,9 +331,13 @@ Machine-auth credentials:
 
 Rules:
 
-- `INSECUR_SESSION_TOKEN` is never written by insecur to disk.
+- `INSECUR_SESSION_TOKEN` is never persisted as plaintext. Authenticated child shells receive it
+  in process memory only; insecur never writes session tokens, refresh tokens, or access tokens to
+  disk in plaintext.
+- Human CLI login persists the session credential as a sealed local record
+  (`session.v1.sealed`) under the OS-keychain-backed machine root key by default (24h TTL;
+  exact-host matching; `--no-persist` opts out; `insecur logout` removes the record).
 - Machine-auth credentials are supplied by CI/provider contexts and must not be persisted by the CLI.
-- Human CLI login should require login for each shell session unless the user explicitly keeps a shell alive.
 - Child process environments are deny-by-default. CLI-managed children inherit only this
   non-sensitive baseline when present: `PATH`, `SHELL`, `TERM`, `HOME`, `USER`, `LOGNAME`, locale
   variables (`LANG`, `LC_ALL`, `LC_CTYPE`, `LC_MESSAGES`), temp directory variables (`TMPDIR`,
@@ -238,7 +345,7 @@ Rules:
   `USERPROFILE`, `HOMEDRIVE`, `HOMEPATH`). Authenticated shells deliberately receive only
   `INSECUR_SESSION_TOKEN` plus profile metadata. Runtime Injection commands receive only the
   requested injected variable value plus the approved baseline.
-- `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required.
+- `INSECUR_PROFILE` names a CLI Profile Slug; use `--profile-id` when an opaque profile ID is required. `INSECUR_ORG`, `INSECUR_PROJECT`, and `INSECUR_ENV` accept opaque resource IDs only, exactly like the `--org-id`, `--project-id`, and `--env-id` flags they stand in for; they never accept Display Names or slugs.
 - Prefer `insecur login --shell` or `insecur shell <profile-slug-or-id>` when a child shell
   needs the short-lived session token. Use `insecur run --variable-key <key> -- <command>` for
   one-shot Runtime Injection; run children do not inherit CLI/browser exchange credentials.
@@ -274,7 +381,7 @@ Mutating or long-running commands should also support:
 - `--idempotency-key <key>`
 - `--operation <id>`
 
-`--yes` answers ordinary prompts only. It must not satisfy scoped high-risk confirmations such as destructive managed-copy deletion or unknown provider overwrite confirmation.
+`--yes` answers ordinary prompts only. It must not satisfy scoped high-risk confirmations such as destructive managed-copy deletion, unknown provider overwrite confirmation, or Local Mode cloud migration (`--confirm-migrate`).
 
 ## Output Shape
 
@@ -379,7 +486,7 @@ CLI command design should make safe management paths short and predictable while
 - `4`: authorization denied
 - `5`: not found or intentionally indistinguishable forbidden/not found
 - `6`: conflict or idempotency mismatch
-- `7`: provider error
+- `7`: action required: provider error, or `scan --strict` findings
 - `8`: rate limited or retryable upstream failure
 - `9`: operation incomplete
 - `10`: human step-up required (a High-Assurance Challenge the acting credential cannot satisfy)
@@ -532,6 +639,10 @@ a resource-existence oracle, even where their exit codes differ.
 | `sync.target_busy`                          | `8`  | `n/a (client-side)` | Retryable lease contention.                                                                                                                             |
 | `sync.overwrite_status_unknown`             | `2`  | `n/a (client-side)` | Warning code; exits `2` only when required operation-scoped confirmation is absent, otherwise the run proceeds.                                         |
 | `sync.provider_delete_incomplete`           | `0`  | `n/a (client-side)` | Warning code on a `completed_with_warnings` operation; not a failure.                                                                                   |
+| `local.cloud_feature_unavailable`           | `4`  | `n/a (client-side)` | Hosted-only capability invoked in Local Mode; remediation carries exact upgrade commands.                                                               |
+| `local.value_missing_on_machine`            | `2`  | `n/a (client-side)` | Second-machine auto-adopt reports Variable Keys without local values; remediation lists exact `secrets set` commands.                                   |
+| `migrate.remote_diverged`                   | `6`  | `409`               | Remote Secret exists but possession check failed during migrate reconcile; nothing written.                                                             |
+| `secret.possession_mismatch`                | `6`  | `409`               | Server-side possession check verdict: candidate value does not match stored Secret; metadata-only, no digests or similarity scores.                     |
 
 Mappings without a dotted code: a client-minted resource ID that already exists in the tenant returns a conflict at exit `6` (see Identification Model), and Display Name Resolution returns exit `5` for zero matches and exit `2` for two or more matches (ADR-0035).
 
@@ -568,7 +679,7 @@ human derives an agent-marked child session from their live human session:
 ```bash
 insecur agent shell -- claude          # spawn harness with agent session in child env
 insecur agent env                      # print exports for harnesses launched another way
-insecur login --device --agent         # remote/cloud agents: mint agent-marked directly
+insecur login --device --agent-session         # remote/cloud agents: mint agent-marked directly
 ```
 
 The derived session carries the same Effective Access as the parent (V1), is marked as an Agent
@@ -635,7 +746,7 @@ insecur login
 insecur login --no-open
 insecur login --callback-port 49152
 insecur login --device
-insecur login --device --agent
+insecur login --device --agent-session
 insecur shell prof_01JZ8E6H2R7M4T0V9X3C5D8F1G
 insecur agent shell -- claude
 insecur agent env
@@ -654,7 +765,9 @@ Notes:
   human's browser cannot reach (cloud agents, devcontainers, Codespaces): the CLI prints a short
   code and URL, the human approves from any browser, and the session lands in the remote process
   memory or managed shell. The session is the human's own, with the same lifetime and step-up
-  rules as browser login; `--agent` mints it agent-marked (see Agent Attribution).
+  rules as browser login; `--agent-session` mints it agent-marked (see Agent Attribution). The
+  boolean is named `--agent-session`, not `--agent`, because the global `--agent <name>` flag is
+  the value-taking Tier 3 attribution tag; one flag never carries two arities.
 - Human CLI login persists the session credential as a sealed record under the OS-keychain-backed machine root key (`--no-persist` opts out; `insecur logout` removes it); no plaintext session token, refresh token, or access token is ever saved to disk (ADR-0007, 2026-07-06 amendment).
 - `insecur shell <profile-slug-or-id>` launches a subshell with a short-lived session token in that child environment and clears it when the shell exits.
 - `insecur agent shell -- <command>` and `insecur agent env` derive an agent-marked child session
@@ -682,6 +795,10 @@ Rules:
 - Creating, updating, disabling, or rotating a deploy key is audited.
 - Deploy key values are accepted only through safe sensitive input paths and are never stored by the CLI.
 - Secret Sync is server-side and uses the App Connection for provider authorization; it does not use deploy keys.
+- The `deploy-keys` command shape is deliberately unspecified: a created deploy key is a Sensitive
+  Value, and how it is delivered to the automation destination without violating the no-reveal
+  output contract needs its own decision before commands are specced. The lifecycle rules above
+  bind any future shape; do not invent a command surface ahead of that decision.
 
 ### Project Defaults
 
@@ -695,6 +812,27 @@ insecur config set default-env-id env_01JZ8E5B6Q1N4M7T0V3X9Z2C8D
 insecur config set branch-env.main env_01JZ8E4R2P7M9N3K5T8V1X6Z0A
 ```
 
+### CLI Profiles
+
+```bash
+insecur profiles list --json
+insecur profiles create --slug staging-deploy --org-id org_... --project-id prj_... --env-id env_...
+insecur profiles rename prof_01JZ8E6H2R7M4T0V9X3C5D8F1G --slug preview-deploy
+insecur profiles rm prof_01JZ8E8M5Q2R7V0X3Z6C9D1F4G
+```
+
+Rules:
+
+- Profile commands manage local user config only; they make no server calls and never touch
+  Sensitive Values. Hand-editing `~/.insecur/config.json` remains valid, but these commands are the
+  supported path so agents never have to edit JSON credentials-adjacent files.
+- `create` client-mints the opaque profile ID and enforces local slug uniqueness
+  (`cli.profile_slug_in_use`, exit `6`); `rename` changes the slug or Display Name, never the ID.
+- `rm` deletes only the local selector record; it is not destructive to any server resource and
+  accepts slug or opaque ID.
+- `insecur init` provisioning a default profile is the guided path; these commands are the manual
+  one.
+
 ### Projects And Environments
 
 ```bash
@@ -704,6 +842,7 @@ insecur projects create --project-id prj_01JZ8EDQ2R7V0X3Z6C9D1F4G5H --display-na
 insecur envs list --json
 insecur envs create --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A --display-name-stdin
 insecur envs create --env-id env_01JZ8E3W4C8M2H6N9P1Q3R5T7V --display-name-stdin --copy-shapes-from-env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A
+insecur projects migrate --org-id org_01JZ8E2QYQ6M7F4K9A2B3C4D5E --confirm-migrate
 ```
 
 Rules:
@@ -713,8 +852,14 @@ Rules:
 - Protected Environment secret values are never copied into another Environment.
 - Development values must be set as Environment Defaults or generated through explicit non-protected workflows.
 - Environment inheritance is not supported.
+- `projects migrate` is one-way Local Mode→cloud reconciliation only; semantics are normative in [Local Mode](#local-mode). Requires authentication, `--org-id`, and scoped `--confirm-migrate`; generic `--yes` is rejected.
 
 ### Shared Secret Sources
+
+Deferred past V1: Shared Secret Sources are parked in the
+[deferred scope parking lot](phasing.md#deferred-scope-parking-lot); INS-438 is Canceled. The
+contract below is kept add-back-ready. Do not build it or create Linear scaffolding while the
+parking-lot row exists.
 
 ```bash
 insecur shared-secrets create --shared-secret-id ss_01JZ8EAQ1N4M7T0V3X9Z2C8D5F --display-name-stdin --value-stdin
@@ -755,7 +900,7 @@ Rules:
 - `--json` returns findings and summary through the standard metadata-only envelope.
 - Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
 - `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready); it cannot be combined with `--json`.
-- Migratable dotenv findings include remediation `insecur secrets set <KEY> --value-stdin`; values are never inlined in suggested commands.
+- Migratable dotenv findings include remediation `insecur secrets set --variable-key <KEY> --value-stdin`, matching the real `secrets set` argument shape; values are never inlined in suggested commands.
 
 ### Secrets
 
@@ -770,7 +915,7 @@ insecur secrets promote \
   --comment "Promote staged production config"
 insecur secrets rm sec_01JZ8EDZ9S4V7X0C3F6H9K2M5P --comment "Remove unused key"
 insecur secrets versions sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --json
-insecur secrets rollback sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --to-version 12 --promote --comment "Emergency rollback"
+insecur secrets rollback sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --to-version-id sv_01JZ8EVR4P7M9N3K5T8V1X6Z0A --promote --comment "Emergency rollback"
 insecur approvals list --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A --json
 # Approval itself happens only in the authenticated web app Human Approval Surface.
 # The CLI shows metadata-only status and polls with: insecur operations wait <operation-id>
@@ -1033,7 +1178,7 @@ insecur connections disconnect conn_01JZ8EHM8S3V6X0Z2C5D8F1G4K
 
 Rules:
 
-- `list`, `status`, and `show` never return provider credentials.
+- `list` and `status` never return provider credentials. There is no separate `show` verb; `status` is the single per-connection read.
 - `create` starts a provider authorization flow or records a scoped provider token through a safe input path.
 - Provider tokens are accepted through stdin or masked prompt only; `--token <value>` is not supported.
 - Production app connection credentials require the Storage Security Gate before they can be used for Secret Sync.
@@ -1135,7 +1280,17 @@ insecur operations get op_123 --json
 insecur operations wait op_123 --json
 insecur operations wait op_123 --timeout 600 --json
 insecur operations cancel op_123
+insecur operations retry op_123
 ```
+
+There is exactly one resume verb per operation state, never two spellings for the same action:
+
+- `operations retry <op-id>` resumes an `incomplete` sync operation under the same operation ID: it
+  re-claims the sync target lease, revalidates, and writes only pending or failed bindings.
+- Step-up resume is not `retry`. A `waiting_for_human` bounded operation is resumed by re-executing
+  the original command carrying `--operation <op-id>` under the original acting credential (for
+  example `insecur syncs run <sync-id> --operation op_...`), which atomically consumes the
+  single-use cleared evidence (ADR-0032). `operations retry` rejects `waiting_for_human` operations.
 
 `operations wait` accepts `--timeout <seconds>`; on expiry it fails with the client-side code
 `operation.wait_timeout` at exit `9`, carrying the operation's current state in the envelope and
@@ -1516,6 +1671,8 @@ CLI:
 - `import .env --dry-run --json` returns a metadata-only Secret Import Plan with no Blind Secret Writes and no created Secrets, Secret Shapes, or Secret Versions.
 - `import .env` does not rewrite, redact, truncate, rename, or automatically delete the source file.
 - `local-files rm .env` deletes only after explicit confirmation and does not claim secure erasure.
+- Local Mode tests cover unauthenticated `init` defaulting to `"host": "local"` with a one-line notice, client-minted opaque IDs, encrypted local store behind Secret Version Store / Injection Grant seams, committed `secretShapes` manifest behavior, second-machine auto-adopt with `local.value_missing_on_machine` metadata-only reporting, local CLI Profiles without `orgId`, `local.cloud_feature_unavailable` remediation with exact upgrade commands, migrate reconcile (create-missing via ID replay, `already in sync` no-op, `migrate.remote_diverged` and `secret.possession_mismatch` on divergence with nothing written), verified-then-clean local deletion, config host flip last, scoped `--confirm-migrate` rejection of generic `--yes`, and no cloud→local path.
+- Possession-check and migrate output tests prove no raw digests and no string-similarity comparisons in any CLI or API output.
 - `pull`, `export`, dotenv generation, JSON secret file output, and equivalent local plaintext file output commands are invalid V1 command shapes.
 - `run` injects values into the child process without printing them.
 - The First Value Proof command sequence uses only normal `secrets set --generate` and `run --variable-key` commands, creates or updates only non-protected development resources, exercises non-protected `secrets set --variable-key` create-or-update behavior, runs the copyable verifier from `examples/first-value-proof/verify.mjs`, requires no provider connection, and returns metadata-only success/failure with no Sensitive Value, raw digest, child-process environment, local plaintext file, or provider state.
