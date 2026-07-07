@@ -31,6 +31,7 @@ export {
 } from "./org-id-rls-conformance.js";
 export { loadUserSchemaTables } from "./schema-tables.js";
 export * from "./tenant-collaboration.js";
+export * from "./tenant-agent-sessions.js";
 export * from "./tenant-hierarchy.js";
 export * from "./tenant-integrations.js";
 export * from "./tenant-secrets.js";

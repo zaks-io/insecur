@@ -4,7 +4,6 @@ import { createHttpApiClientForHost } from "./api/http-client.js";
 import { parseGlobalOptions } from "./cli-options.js";
 import { runInitCommand, DEFAULT_INIT_PROFILE_SLUG } from "./commands/init.js";
 import { registerLoginCommand } from "./register-login-command.js";
-import { registerAuditCommands } from "./audit-commands.js";
 import { runLogoutCommand } from "./commands/logout.js";
 import { runShellCommand } from "./commands/shell.js";
 import { registerRunCommand } from "./register-run-command.js";
@@ -19,10 +18,8 @@ import {
 } from "./output/unexpected-cli-error.js";
 import { registerGuideCommand } from "./register-guide-command.js";
 import { registerScanCommand } from "./register-scan-command.js";
-import { registerSecretsCommands } from "./register-secrets-commands.js";
 import { registerConfigCommands } from "./register-config-commands.js";
-import { registerNavigationCommands } from "./register-navigation-commands.js";
-import { registerOperationsCommands } from "./register-operations-commands.js";
+import { registerApiBackedCommands } from "./register-api-backed-commands.js";
 import { cliVersion } from "./version.js";
 
 function attachGlobalOptions(command: Command): Command {
@@ -34,6 +31,7 @@ function attachGlobalOptions(command: Command): Command {
     .option("--profile <slug>", "CLI profile slug")
     .option("--profile-id <id>", "CLI profile opaque id")
     .option("--config-dir <path>", "directory containing .insecur.json")
+    .option("--agent <name>", "agent attribution tag (Tier 3)")
     .option("--json", "metadata-only JSON output")
     .option("--quiet", "suppress non-essential human output")
     .option("--verbose", "verbose logging");
@@ -95,13 +93,10 @@ function buildProgram(): Command {
       });
     });
 
-  registerAuditCommands(program, { globalFlags, resolveApi });
-  registerSecretsCommands(program, { globalFlags, resolveApi });
   registerScanCommand(program, { globalFlags });
   registerGuideCommand(program);
   registerConfigCommands(program, globalFlags);
-  registerNavigationCommands(program, { globalFlags, resolveApi });
-  registerOperationsCommands(program, { globalFlags, resolveApi });
+  registerApiBackedCommands(program, { globalFlags, resolveApi });
 
   return program;
 }

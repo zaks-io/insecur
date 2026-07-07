@@ -110,6 +110,7 @@ export function runtimeClientFor(
     listProjectSecrets: forward("listProjectSecrets"),
     listSessionOrganizations: forward("listSessionOrganizations"),
     revokeCliSession: forward("revokeCliSession"),
+    resolveSessionWhoami: forward("resolveSessionWhoami"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
     listAuditEvents: forward("listAuditEvents"),

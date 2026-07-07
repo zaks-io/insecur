@@ -43,6 +43,10 @@ import type {
   RecordInjectionRunCompletedRpcPayload,
 } from "./runtime-operations-rpc-contract.js";
 import type {
+  ResolveSessionWhoamiRpcInput,
+  ResolveSessionWhoamiRpcPayload,
+} from "./runtime-session-whoami-rpc-contract.js";
+import type {
   ClearHighAssuranceChallengeRpcInput,
   ClearHighAssuranceChallengeRpcPayload,
   DenyHighAssuranceChallengeRpcInput,
@@ -153,6 +157,9 @@ export interface RuntimeRpc {
   revokeCliSession(
     input: RevokeCliSessionRpcInput,
   ): Promise<RuntimeRpcResult<RevokeCliSessionRpcPayload>>;
+  resolveSessionWhoami(
+    input: ResolveSessionWhoamiRpcInput,
+  ): Promise<RuntimeRpcResult<ResolveSessionWhoamiRpcPayload>>;
   listOrganizationMembers(
     input: ListOrganizationMembersRpcInput,
   ): Promise<RuntimeRpcResult<ListOrganizationMembersRpcPayload>>;

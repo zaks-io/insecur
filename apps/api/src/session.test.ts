@@ -143,8 +143,13 @@ describe("worker session routes", () => {
         actorType: "user",
         userId: admittedUserId,
         sessionId: "session_cli_test",
+        sessionValid: true,
+        resolvedContext: {},
+        attribution: { tier: "none" },
       },
     });
+    const data = (body as { data?: { sessionExpiresAt?: string } }).data;
+    expect(typeof data?.sessionExpiresAt).toBe("string");
   });
 
   it("returns auth.required for unauthenticated session memberships", async () => {

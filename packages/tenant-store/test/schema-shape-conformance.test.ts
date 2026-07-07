@@ -19,6 +19,7 @@ import {
 } from "../src/db/schema/schema-tables.js";
 import * as instanceBootstrapSchema from "../src/db/schema/instance-bootstrap.js";
 import * as tenantCollaborationSchema from "../src/db/schema/tenant-collaboration.js";
+import * as tenantAgentSessionsSchema from "../src/db/schema/tenant-agent-sessions.js";
 import * as tenantHierarchySchema from "../src/db/schema/tenant-hierarchy.js";
 import * as tenantIntegrationsSchema from "../src/db/schema/tenant-integrations.js";
 import * as tenantSecretsSchema from "../src/db/schema/tenant-secrets.js";
@@ -30,6 +31,7 @@ const USER_SCHEMA_MODULES = {
   "./tenant-hierarchy.js": tenantHierarchySchema,
   "./instance-bootstrap.js": instanceBootstrapSchema,
   "./tenant-collaboration.js": tenantCollaborationSchema,
+  "./tenant-agent-sessions.js": tenantAgentSessionsSchema,
   "./tenant-integrations.js": tenantIntegrationsSchema,
   "./tenant-secrets.js": tenantSecretsSchema,
 } as const satisfies Record<
