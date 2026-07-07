@@ -98,6 +98,8 @@ const pre = vi.fn(async (run) => ({
 
 describe("runtime rpc delegate seams", () => {
   beforeEach(() => {
+    vi.mocked(post).mockClear();
+    vi.mocked(pre).mockClear();
     vi.mocked(consumeGrantOperation).mockResolvedValue({ delivery: "ok" } as never);
     vi.mocked(consumeGrantAllOperation).mockResolvedValue({ deliveries: [] } as never);
     vi.mocked(writeSecretOperation).mockResolvedValue({ secretId: "sec_test" } as never);
