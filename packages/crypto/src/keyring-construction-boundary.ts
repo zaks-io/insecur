@@ -19,7 +19,7 @@ export const KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS = [
 export const KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST = [
   "packages/tenant-keyring/src/**",
   "packages/backup-restore/src/recovery-canary.ts",
-  "packages/local-store/src/**",
+  "packages/local-store/src/crypto/local-keyring.ts",
 ] as const;
 
 /** Runtime keyring-context exports fenced outside `apps/runtime/src/**`. */

@@ -211,7 +211,7 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
       expect(KEYRING_CONSTRUCTION_VALUE_IMPORT_ALLOWLIST).toEqual([
         "packages/tenant-keyring/src/**",
         "packages/backup-restore/src/recovery-canary.ts",
-        "packages/local-store/src/**",
+        "packages/local-store/src/crypto/local-keyring.ts",
       ]);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
@@ -249,6 +249,38 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
       ]);
 
       expect(restrictedRules).not.toContain(KEYRING_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "does not apply the keyring boundary to the local-store keyring construction module",
+    async () => {
+      const config = await readLintConfigFor(
+        path.join(repoRoot, "packages/local-store/src/crypto/local-keyring.ts"),
+      );
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).not.toContain(KEYRING_BOUNDARY_MESSAGE);
+    },
+    ESLINT_BOUNDARY_TIMEOUT_MS,
+  );
+
+  it(
+    "applies the keyring boundary to other local-store modules",
+    async () => {
+      const config = await readLintConfigFor(
+        path.join(repoRoot, "packages/local-store/src/crypto/encrypt-local-secret.ts"),
+      );
+      const restrictedRules = JSON.stringify([
+        config.rules?.["no-restricted-imports"],
+        config.rules?.["no-restricted-syntax"],
+      ]);
+
+      expect(restrictedRules).toContain(KEYRING_BOUNDARY_MESSAGE);
     },
     ESLINT_BOUNDARY_TIMEOUT_MS,
   );

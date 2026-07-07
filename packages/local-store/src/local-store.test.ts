@@ -4,6 +4,7 @@ import path from "node:path";
 
 import {
   environmentId,
+  injectionGrantId,
   projectId,
   secretId,
   secretVersionId,
@@ -24,6 +25,7 @@ import { SqliteLocalStore } from "./stores/sqlite-local-store.js";
 import type { LocalSecretVersionStore } from "./contracts/secret-version-store.js";
 import type { LocalProjectMetadataStore } from "./contracts/project-metadata-store.js";
 import type { LocalAuditWriter } from "./contracts/audit-writer.js";
+import type { LocalInjectionGrantStore } from "./contracts/injection-grant-store.js";
 
 const PROJECT_A = projectId.brand("prj_01JZ8E4X5D9N3J7P2Q4R6S8T0W");
 const ENV_A = environmentId.brand("env_01JZ8E6Z7F1P5L9R4T6U8V0W2Y");
@@ -31,6 +33,10 @@ const SECRET_A = secretId.brand("sec_01JZ8E8B9H3R7N1T6V8W0X2Y4A");
 const SECRET_B = secretId.brand("sec_01JZ8E9C0I4S8O2U7W9X1Y3Z5B");
 const VERSION_A = secretVersionId.brand("sv_01TEST00000000000000000001");
 const VERSION_B = secretVersionId.brand("sv_01TEST00000000000000000002");
+const GRANT_A = injectionGrantId.brand("igr_01TEST00000000000000000001");
+const GRANT_B = injectionGrantId.brand("igr_01TEST00000000000000000002");
+const VARIABLE_KEY = brandValue<string, "VariableKey">("INSECUR_PROOF_SECRET");
+const OTHER_VARIABLE_KEY = brandValue<string, "VariableKey">("OTHER_SECRET");
 
 const SENSITIVE_PLAINTEXT = new TextEncoder().encode("local-mode-sensitive-value");
 const REPLACED_PLAINTEXT = new TextEncoder().encode("replaced-sensitive-value");
@@ -54,6 +60,7 @@ interface TestHarness {
   secretVersions: LocalSecretVersionStore;
   projects: LocalProjectMetadataStore;
   audit: LocalAuditWriter;
+  injectionGrants: LocalInjectionGrantStore;
 }
 
 function createHarness(): TestHarness {
@@ -83,6 +90,7 @@ function createHarness(): TestHarness {
     secretVersions: store.secretVersions,
     projects: store.projects,
     audit: store.audit,
+    injectionGrants: store.injectionGrants,
   };
 }
 
@@ -267,5 +275,113 @@ describe("SqliteLocalStore", () => {
     const fileBytes = readFileSync(harness.databasePath);
     const fileText = new TextDecoder().decode(fileBytes);
     expect(fileText).not.toContain(new TextDecoder().decode(SENSITIVE_PLAINTEXT));
+  });
+
+  describe("injectionGrants", () => {
+    async function insertGrant(grantIdValue: typeof GRANT_A, expiresAt: Date): Promise<void> {
+      await harness.injectionGrants.insertGrant({
+        grantId: grantIdValue,
+        projectId: PROJECT_A,
+        environmentId: ENV_A,
+        bindings: [
+          {
+            secretId: SECRET_A,
+            secretVersionId: VERSION_A,
+            variableKey: VARIABLE_KEY,
+          },
+        ],
+        expiresAt,
+      });
+    }
+
+    it("inserts and consumes a grant on the happy path", async () => {
+      await seedProjectAndEnvironment(harness);
+      await insertGrant(GRANT_A, new Date(Date.now() + 60_000));
+
+      const consumed = await harness.injectionGrants.tryConsumeGrant(
+        PROJECT_A,
+        GRANT_A,
+        SECRET_A,
+        VARIABLE_KEY,
+      );
+      expect(consumed).toEqual({
+        ok: true,
+        grant: {
+          grantId: GRANT_A,
+          projectId: PROJECT_A,
+          environmentId: ENV_A,
+          secretId: SECRET_A,
+          secretVersionId: VERSION_A,
+          variableKey: VARIABLE_KEY,
+        },
+      });
+    });
+
+    it("rejects expired grants", async () => {
+      await seedProjectAndEnvironment(harness);
+      await insertGrant(GRANT_A, new Date(Date.now() - 1_000));
+
+      const consumed = await harness.injectionGrants.tryConsumeGrant(
+        PROJECT_A,
+        GRANT_A,
+        SECRET_A,
+        VARIABLE_KEY,
+      );
+      expect(consumed).toEqual({ ok: false, failure: "expired" });
+    });
+
+    it("rejects already-consumed grants", async () => {
+      await seedProjectAndEnvironment(harness);
+      await insertGrant(GRANT_A, new Date(Date.now() + 60_000));
+
+      const first = await harness.injectionGrants.tryConsumeGrant(
+        PROJECT_A,
+        GRANT_A,
+        SECRET_A,
+        VARIABLE_KEY,
+      );
+      expect(first.ok).toBe(true);
+
+      const second = await harness.injectionGrants.tryConsumeGrant(
+        PROJECT_A,
+        GRANT_A,
+        SECRET_A,
+        VARIABLE_KEY,
+      );
+      expect(second).toEqual({ ok: false, failure: "already_consumed" });
+    });
+
+    it("rejects binding mismatches for secret id and variable key", async () => {
+      await seedProjectAndEnvironment(harness);
+      await insertGrant(GRANT_A, new Date(Date.now() + 60_000));
+
+      const wrongSecret = await harness.injectionGrants.tryConsumeGrant(
+        PROJECT_A,
+        GRANT_A,
+        SECRET_B,
+        VARIABLE_KEY,
+      );
+      expect(wrongSecret).toEqual({ ok: false, failure: "binding_not_allowed" });
+
+      const wrongVariable = await harness.injectionGrants.tryConsumeGrant(
+        PROJECT_A,
+        GRANT_A,
+        SECRET_A,
+        OTHER_VARIABLE_KEY,
+      );
+      expect(wrongVariable).toEqual({ ok: false, failure: "binding_not_allowed" });
+    });
+
+    it("rejects unknown grants", async () => {
+      await seedProjectAndEnvironment(harness);
+
+      const consumed = await harness.injectionGrants.tryConsumeGrant(
+        PROJECT_A,
+        GRANT_B,
+        SECRET_A,
+        VARIABLE_KEY,
+      );
+      expect(consumed).toEqual({ ok: false, failure: "not_found" });
+    });
   });
 });

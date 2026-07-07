@@ -15,6 +15,7 @@ import type {
   LocalInsertInjectionGrantInput,
 } from "../../contracts/types.js";
 import type { LocalSqliteDatabase } from "../../sqlite/connection.js";
+import { withSqliteTransaction } from "../../sqlite/transaction.js";
 import { nowIso, parseJsonArray } from "./helpers.js";
 
 export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore {
@@ -52,27 +53,63 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
     | { ok: true; grant: LocalConsumedInjectionGrantRow }
     | { ok: false; failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed" }
   > {
-    const failure = this.classifyGrantFailure(
-      projectIdValue,
-      grantIdValue,
-      secretIdValue,
-      variableKey,
+    return Promise.resolve(
+      this.consumeGrantInTransaction(projectIdValue, grantIdValue, secretIdValue, variableKey),
     );
-    if (failure !== null) {
-      return Promise.resolve({ ok: false, failure });
+  }
+
+  private consumeGrantInTransaction(
+    projectIdValue: ProjectId,
+    grantIdValue: InjectionGrantId,
+    secretIdValue: SecretId,
+    variableKey: VariableKey,
+  ):
+    | { ok: true; grant: LocalConsumedInjectionGrantRow }
+    | { ok: false; failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed" } {
+    let outcome:
+      | { ok: true; grant: LocalConsumedInjectionGrantRow }
+      | {
+          ok: false;
+          failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed";
+        }
+      | undefined;
+    withSqliteTransaction(this.database, () => {
+      outcome = this.consumeLoadedGrantRow(
+        this.getGrantRow(grantIdValue, projectIdValue),
+        secretIdValue,
+        variableKey,
+      );
+    });
+    if (outcome === undefined) {
+      throw new Error("injection grant consume transaction did not set an outcome");
     }
-    const row = this.getGrantRow(grantIdValue, projectIdValue);
+    return outcome;
+  }
+
+  private consumeLoadedGrantRow(
+    row: GrantDbRow | null,
+    secretIdValue: SecretId,
+    variableKey: VariableKey,
+  ):
+    | { ok: true; grant: LocalConsumedInjectionGrantRow }
+    | { ok: false; failure: "not_found" | "expired" | "already_consumed" | "binding_not_allowed" } {
     if (!row) {
-      return Promise.resolve({ ok: false, failure: "not_found" });
+      return { ok: false, failure: "not_found" };
+    }
+    if (row.consumed_at !== null) {
+      return { ok: false, failure: "already_consumed" };
+    }
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      return { ok: false, failure: "expired" };
     }
     const binding = this.resolveBinding(row, secretIdValue, variableKey);
     if (!binding) {
-      return Promise.resolve({ ok: false, failure: "binding_not_allowed" });
+      return { ok: false, failure: "binding_not_allowed" };
     }
-    if (!this.markGrantConsumed(grantIdValue, projectIdValue)) {
-      return Promise.resolve({ ok: false, failure: "already_consumed" });
+    if (!this.markGrantConsumed(injectionGrantId.brand(row.id), projectId.brand(row.project_id))) {
+      return { ok: false, failure: "already_consumed" };
     }
-    return Promise.resolve({
+    return {
       ok: true,
       grant: {
         grantId: injectionGrantId.brand(row.id),
@@ -82,7 +119,7 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
         secretVersionId: secretVersionId.brand(binding.secretVersionIdValue),
         variableKey,
       },
-    });
+    };
   }
 
   private getGrantRow(
@@ -99,28 +136,6 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
         )
         .get(grantIdValue, projectIdValue) as GrantDbRow | undefined) ?? null
     );
-  }
-
-  private classifyGrantFailure(
-    projectIdValue: ProjectId,
-    grantIdValue: InjectionGrantId,
-    secretIdValue: SecretId,
-    variableKey: VariableKey,
-  ): "not_found" | "expired" | "already_consumed" | "binding_not_allowed" | null {
-    const row = this.getGrantRow(grantIdValue, projectIdValue);
-    if (!row) {
-      return "not_found";
-    }
-    if (row.consumed_at !== null) {
-      return "already_consumed";
-    }
-    if (new Date(row.expires_at).getTime() <= Date.now()) {
-      return "expired";
-    }
-    if (!this.resolveBinding(row, secretIdValue, variableKey)) {
-      return "binding_not_allowed";
-    }
-    return null;
   }
 
   private resolveBinding(
