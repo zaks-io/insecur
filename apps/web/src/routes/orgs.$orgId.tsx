@@ -9,6 +9,9 @@ import { loadApprovalPasskeyPosture } from "../server/approval-passkey-posture.j
 import { loadConsoleSession } from "../server/console-session.js";
 
 export const Route = createFileRoute("/orgs/$orgId")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(search.passkey === "failed" ? { passkey: "failed" as const } : {}),
+  }),
   // One memberships read per org entry; section switches inside the shell reuse it briefly.
   staleTime: 30_000,
   loader: async ({ params, location }) => {
@@ -32,11 +35,13 @@ export const Route = createFileRoute("/orgs/$orgId")({
 
 function OrgLayout() {
   const { organizations, activeOrg, passkeyEnrolled } = Route.useLoaderData();
+  const search = Route.useSearch();
   return (
     <ConsoleFrame
       organizations={organizations}
       activeOrg={activeOrg}
       passkeyEnrolled={passkeyEnrolled}
+      enrollmentError={search.passkey === "failed"}
     >
       <Outlet />
     </ConsoleFrame>

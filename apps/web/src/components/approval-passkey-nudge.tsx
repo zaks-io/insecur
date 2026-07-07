@@ -14,9 +14,11 @@ export function approvalPasskeyEnrollmentHref(returnTo: string): string {
 export function ApprovalPasskeyNudge({
   enrolled,
   returnTo,
+  enrollmentError = false,
 }: {
   enrolled: boolean;
   returnTo: string;
+  enrollmentError?: boolean;
 }) {
   const [dismissed, setDismissed] = useState(() => readDismissedFromSession());
 
@@ -37,10 +39,17 @@ export function ApprovalPasskeyNudge({
       role="status"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          <span className="font-medium">Approval passkey not set up.</span> Enroll a passkey so your
-          first production approval is one tap, not a ceremony under pressure.
-        </p>
+        <div className="space-y-2">
+          {enrollmentError ? (
+            <p className="text-destructive" role="alert">
+              Passkey enrollment didn't complete. Try again or dismiss for now.
+            </p>
+          ) : null}
+          <p>
+            <span className="font-medium">Approval passkey not set up.</span> Enroll a passkey so
+            your first production approval is one tap, not a ceremony under pressure.
+          </p>
+        </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button asChild size="sm">
             <a href={approvalPasskeyEnrollmentHref(returnTo)}>Enroll passkey</a>

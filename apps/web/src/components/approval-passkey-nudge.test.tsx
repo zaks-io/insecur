@@ -31,4 +31,11 @@ describe("ApprovalPasskeyNudge", () => {
     expect(html).toContain("Approval passkey not set up");
     expect(html).toContain(approvalPasskeyEnrollmentHref("/orgs/org_01"));
   });
+
+  it("surfaces enrollment failure when redirected back from AuthKit", () => {
+    const html = renderToStaticMarkup(
+      <ApprovalPasskeyNudge enrolled={false} returnTo="/orgs/org_01" enrollmentError />,
+    );
+    expect(html).toContain("Passkey enrollment didn");
+  });
 });

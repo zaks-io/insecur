@@ -4,6 +4,7 @@ import {
   beginBrowserPasskeyEnrollment,
   completeBrowserPasskeyEnrollment,
   enrollmentFailureRedirectPath,
+  resolveEnrollmentFailureRedirect,
 } from "./browser-passkey-enrollment.js";
 import { INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
 import { WORKOS_SESSION_COOKIE } from "@insecur/auth";
@@ -141,5 +142,33 @@ describe("completeBrowserPasskeyEnrollment", () => {
 describe("enrollmentFailureRedirectPath", () => {
   it("names enrollment failure on the return path", () => {
     expect(enrollmentFailureRedirectPath("/onboarding")).toBe("/onboarding?passkey=failed");
+    expect(enrollmentFailureRedirectPath("/orgs/org_01")).toBe("/orgs/org_01?passkey=failed");
+  });
+});
+
+describe("resolveEnrollmentFailureRedirect", () => {
+  it("returns the org console when enrollment started from the nudge", () => {
+    const roundTrip = {
+      state: oauthState,
+      codeVerifier: "verifier_no_passkey",
+      returnTo: "/orgs/org_01",
+      workosUserId: "user_01workos",
+      flow: "passkey-enrollment" as const,
+    };
+    const request = new Request(
+      `https://insecur.test/auth/enroll-passkey/callback?code=code_no_passkey&state=${oauthState}`,
+      {
+        headers: {
+          Cookie: `${INSECUR_OAUTH_PKCE_COOKIE}=${encodePkceCookie(roundTrip)}`,
+        },
+      },
+    );
+
+    expect(resolveEnrollmentFailureRedirect(request)).toBe("/orgs/org_01?passkey=failed");
+  });
+
+  it("falls back to onboarding when the PKCE round-trip is missing", () => {
+    const request = new Request("https://insecur.test/auth/enroll-passkey/callback");
+    expect(resolveEnrollmentFailureRedirect(request)).toBe("/onboarding?passkey=failed");
   });
 });

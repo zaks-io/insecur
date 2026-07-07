@@ -155,3 +155,14 @@ export function enrollmentFailureRedirectPath(returnTo: string): string {
   url.searchParams.set("passkey", "failed");
   return `${url.pathname}${url.search}`;
 }
+
+/** Redirect target after a failed enrollment callback; honors the PKCE round-trip returnTo. */
+export function resolveEnrollmentFailureRedirect(request: Request): string {
+  const callback = readPkceOAuthCallback(
+    request,
+    (roundTrip) => roundTrip.flow === "passkey-enrollment",
+  );
+  return enrollmentFailureRedirectPath(
+    callback?.roundTrip.returnTo ?? DEFAULT_ENROLLMENT_RETURN_TO,
+  );
+}

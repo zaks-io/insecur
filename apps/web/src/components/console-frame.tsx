@@ -111,6 +111,32 @@ function useConsoleBreadcrumbs(
   return projectBreadcrumbs(activeOrg, project, view);
 }
 
+function ConsolePasskeyNudge({
+  organizationId,
+  enrolled,
+  enrollmentError,
+}: {
+  organizationId: string;
+  enrolled: boolean;
+  enrollmentError: boolean;
+}) {
+  return (
+    <ApprovalPasskeyNudge
+      enrolled={enrolled}
+      returnTo={`/orgs/${organizationId}`}
+      enrollmentError={enrollmentError}
+    />
+  );
+}
+
+interface ConsoleFrameProps {
+  organizations: readonly ConsoleOrganization[];
+  activeOrg: ConsoleOrganization;
+  passkeyEnrolled: boolean;
+  enrollmentError?: boolean;
+  children: ReactNode;
+}
+
 /**
  * The authed console frame (INS-367): topbar with the org switcher, the five-section sidebar, and
  * a Display-Name breadcrumb trail over opaque-ID URLs (docs/web-console-ux.md §Navigation, §URLs).
@@ -119,13 +145,9 @@ export function ConsoleFrame({
   organizations,
   activeOrg,
   passkeyEnrolled,
+  enrollmentError = false,
   children,
-}: {
-  organizations: readonly ConsoleOrganization[];
-  activeOrg: ConsoleOrganization;
-  passkeyEnrolled: boolean;
-  children: ReactNode;
-}) {
+}: ConsoleFrameProps) {
   const { pathname } = useLocation();
   const section = activeConsoleSection(pathname, activeOrg.organizationId);
   const crumbs = useConsoleBreadcrumbs(activeOrg, section, pathname);
@@ -155,9 +177,10 @@ export function ConsoleFrame({
       }
       sidebar={<ConsoleSections activeOrg={activeOrg} section={section} />}
     >
-      <ApprovalPasskeyNudge
+      <ConsolePasskeyNudge
+        organizationId={activeOrg.organizationId}
         enrolled={passkeyEnrolled}
-        returnTo={`/orgs/${activeOrg.organizationId}`}
+        enrollmentError={enrollmentError}
       />
       <ConsoleBreadcrumbBar crumbs={crumbs} />
       {children}
