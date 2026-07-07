@@ -50,6 +50,8 @@ const DEV_ENV_ID = "env_01TEST0000000000000000001";
 const PREVIEW_ENV_ID = "env_01TEST0000000000000000002";
 const SECRET_ID = "sec_01TEST00000000000000000001";
 const VERSION_ID = "sv_01TEST00000000000000000001";
+const POLICY_ID = "rp_01TEST00000000000000000001";
+const PROFILE_ID = "prof_01TEST00000000000000000001";
 const SENSITIVE_VALUE = "super-secret-runtime-value";
 const NON_EXPIRED_SESSION_EXPIRES_AT = "2999-01-01T00:00:00.000Z";
 
@@ -82,6 +84,32 @@ const mockContext: ResolvedCliContext = {
     orgId: ORG_ID as never,
     projectId: PROJECT_ID as never,
     envId: DEV_ENV_ID as never,
+    profileId: undefined,
+    profileSlug: undefined,
+    profile: undefined,
+  },
+};
+
+const profileMockContext: ResolvedCliContext = {
+  projectConfig,
+  userConfig: {
+    profiles: {
+      [PROFILE_ID]: {
+        slug: "local-dev",
+        displayName: "Local development" as never,
+        host: flags.host,
+        orgId: ORG_ID as never,
+        projectId: PROJECT_ID as never,
+        envId: DEV_ENV_ID as never,
+        defaultRunPolicyId: POLICY_ID as never,
+      },
+    },
+  },
+  scope: {
+    host: flags.host,
+    orgId: undefined,
+    projectId: undefined,
+    envId: undefined,
     profileId: undefined,
     profileSlug: undefined,
     profile: undefined,
@@ -186,6 +214,77 @@ function createMockApi(overrides: Partial<ApiClient> = {}): ApiClient & {
     consumeInjectionGrantAll: async () => {
       throw new Error("not used");
     },
+    recordInjectionRunCompleted,
+    ...overrides,
+  };
+}
+
+function createMockPolicyApi(overrides: Partial<ApiClient> = {}): ApiClient & {
+  issueInjectionGrant: ReturnType<typeof vi.fn>;
+  consumeInjectionGrantAll: ReturnType<typeof vi.fn>;
+  recordInjectionRunCompleted: ReturnType<typeof vi.fn>;
+} {
+  let grantCounter = 0;
+  const issueInjectionGrant = vi.fn(async () => {
+    grantCounter += 1;
+    return {
+      ok: true as const,
+      envelope: {
+        ok: true as const,
+        data: {
+          grantId: `igr_01TEST00000000000000000${String(grantCounter).padStart(3, "0")}`,
+          expiresAt: "2026-01-01T00:05:00.000Z",
+        },
+        meta: { requestId: `req_issue_${String(grantCounter)}` as never },
+      },
+    };
+  });
+  const consumeInjectionGrantAll = vi.fn(async (input: { grantId: string }) => ({
+    ok: true as const,
+    envelope: {
+      ok: true as const,
+      delivery: {
+        grantId: input.grantId,
+        entries: [
+          {
+            variableKey: "API_KEY",
+            secretId: SECRET_ID,
+            secretVersionId: VERSION_ID,
+            encodedValueUtf8: bytesToBase64Url(new TextEncoder().encode(SENSITIVE_VALUE)),
+          },
+        ],
+        auditEventId: "aud_consume",
+      },
+      meta: { requestId: "req_consume" as never },
+    },
+  }));
+  const recordInjectionRunCompleted = vi.fn(async () => ({
+    ok: true as const,
+    envelope: {
+      ok: true as const,
+      data: {
+        auditEventId: "aud_run_completed",
+        alreadyRecorded: false,
+      },
+      meta: { requestId: "req_run_completed" as never },
+    },
+  }));
+  return {
+    createCliAuthorizationUrl: () => "https://insecur.test/v1/auth/cli/authorize",
+    exchangeCliPkceSession: async () => {
+      throw new Error("not used");
+    },
+    provisionPersonalOrganization: async () => {
+      throw new Error("not used");
+    },
+    writeSecretByVariableKey: async () => {
+      throw new Error("not used");
+    },
+    issueInjectionGrant,
+    consumeInjectionGrant: async () => {
+      throw new Error("not used");
+    },
+    consumeInjectionGrantAll,
     recordInjectionRunCompleted,
     ...overrides,
   };
@@ -330,6 +429,135 @@ describe("runRunCommand --watch", () => {
     await expect(
       runRunCommand(flags, api, mockContext, {
         variableKey: "API_KEY",
+        watch: true,
+        command: ["node", "-e", "0"],
+      }),
+    ).rejects.toMatchObject({
+      code: INJECTION_ERROR_CODES.grantDenied,
+      exitCode: EXIT_FORBIDDEN,
+    });
+
+    expect(spawnCommandManagedMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("runRunCommand --watch profile-backed policy path", () => {
+  let stdout = "";
+
+  afterEach(() => {
+    clearMemorySession();
+    delete process.env.API_KEY;
+    restartWaits = 0;
+    spawnCommandManagedMock.mockReset();
+    stdout = "";
+  });
+
+  it("issues and consumes a distinct policy grant on each watch restart", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockPolicyApi();
+    const consumedGrantIds: string[] = [];
+    api.consumeInjectionGrantAll.mockImplementation(async (input: { grantId: string }) => {
+      consumedGrantIds.push(input.grantId);
+      return {
+        ok: true as const,
+        envelope: {
+          ok: true as const,
+          delivery: {
+            grantId: input.grantId,
+            entries: [
+              {
+                variableKey: "API_KEY",
+                secretId: SECRET_ID,
+                secretVersionId: VERSION_ID,
+                encodedValueUtf8: bytesToBase64Url(new TextEncoder().encode(SENSITIVE_VALUE)),
+              },
+            ],
+            auditEventId: "aud_consume",
+          },
+          meta: { requestId: "req_consume" as never },
+        },
+      };
+    });
+
+    let spawnCount = 0;
+    spawnCommandManagedMock.mockImplementation(() => {
+      spawnCount += 1;
+      return spawnManagedChild(spawnCount === 1);
+    });
+
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdout += String(chunk);
+      return true;
+    });
+
+    const exitCode = await runRunCommand(flags, api, profileMockContext, {
+      profileSelector: "local-dev",
+      watch: true,
+      command: ["node", "-e", "0"],
+    });
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).toHaveBeenCalledTimes(2);
+    expect(api.issueInjectionGrant).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: ORG_ID,
+        projectId: PROJECT_ID,
+        environmentId: DEV_ENV_ID,
+        policyId: POLICY_ID,
+      }),
+    );
+    expect(api.consumeInjectionGrantAll).toHaveBeenCalledTimes(2);
+    expect(consumedGrantIds[0]).not.toBe(consumedGrantIds[1]);
+    expect(stdout).not.toContain(SENSITIVE_VALUE);
+  });
+
+  it("halts the profile-policy watch loop on grant issuance failure without spawning a child with stale values", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    let issueCount = 0;
+    const api = createMockPolicyApi({
+      issueInjectionGrant: vi.fn(async () => {
+        issueCount += 1;
+        if (issueCount === 2) {
+          return {
+            ok: false as const,
+            envelope: {
+              ok: false as const,
+              error: {
+                code: INJECTION_ERROR_CODES.grantDenied,
+                message: "Injection grant denied.",
+                retryable: false,
+              },
+            },
+            httpStatus: 403,
+          };
+        }
+        return {
+          ok: true as const,
+          envelope: {
+            ok: true as const,
+            data: {
+              grantId: "igr_01TEST00000000000000000001",
+              expiresAt: "2026-01-01T00:05:00.000Z",
+            },
+            meta: { requestId: "req_issue" as never },
+          },
+        };
+      }),
+    });
+
+    spawnCommandManagedMock.mockImplementation(() => spawnManagedChild(true));
+
+    await expect(
+      runRunCommand(flags, api, profileMockContext, {
+        profileSelector: "local-dev",
         watch: true,
         command: ["node", "-e", "0"],
       }),
