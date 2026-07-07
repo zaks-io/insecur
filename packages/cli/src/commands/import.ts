@@ -10,6 +10,7 @@ import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import {
   assertImportTargetEnvironment,
+  formatImportPlanHuman,
   runImportPreflight,
   secretImportPlanForOutput,
   throwImportPreflightFailure,
@@ -93,17 +94,12 @@ async function executeImportWrites(input: {
   return writeResults;
 }
 
-function renderImportPlan(
-  flags: GlobalCliFlags,
-  plan: SecretImportPlan,
-  dryRun: boolean,
-  formatHuman: () => string,
-): void {
+function renderImportPlan(flags: GlobalCliFlags, plan: SecretImportPlan, dryRun: boolean): void {
   const output = successEnvelope(
     { plan: secretImportPlanForOutput(plan, { dryRun }) },
     buildEnvelopeMeta({}),
   );
-  renderSuccess(output, flags, formatHuman);
+  renderSuccess(output, flags, () => formatImportPlanHuman(plan, { dryRun }));
 }
 
 async function loadImportPlan(input: {
@@ -165,26 +161,12 @@ function completeImportCommand(input: {
   readonly plan: SecretImportPlan;
 }): Promise<number> {
   if (!input.plan.ready) {
-    if (input.flags.json || input.commandOptions.dryRun) {
-      renderImportPlan(
-        input.flags,
-        input.plan,
-        input.commandOptions.dryRun,
-        () =>
-          "Import preflight failed. See the Secret Import Plan for line numbers and error codes.",
-      );
-    }
+    renderImportPlan(input.flags, input.plan, input.commandOptions.dryRun);
     throwImportPreflightFailure(input.plan);
   }
 
   if (input.commandOptions.dryRun) {
-    renderImportPlan(
-      input.flags,
-      input.plan,
-      true,
-      () =>
-        `Import preflight passed for ${String(input.plan.writes.length)} secret(s). No writes were sent (dry run).`,
-    );
+    renderImportPlan(input.flags, input.plan, true);
     return Promise.resolve(0);
   }
 

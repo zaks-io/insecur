@@ -301,6 +301,51 @@ describe("runImportCommand", () => {
     expect(api.writeSecretByVariableKey).not.toHaveBeenCalled();
   });
 
+  it("prints metadata-only preflight issues in human mode", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const api = createMockApi({
+      listProjectSecrets: vi.fn(async () => ({
+        ok: true as const,
+        envelope: {
+          ok: true as const,
+          data: {
+            environments: [
+              developmentEnvironment(ENV_ID, ENVIRONMENT_LIFECYCLE_STAGES.development, false),
+            ],
+            rows: [
+              {
+                variableKey: "API_KEY" as never,
+                cells: [
+                  { environmentId: ENV_ID as never, present: true, secretId: SECRET_ID as never },
+                ],
+              },
+            ],
+          },
+        },
+      })),
+    });
+    const filePath = await writeEnvFile("API_KEY=alpha\nOTHER_KEY=beta\n");
+    const humanFlags = { ...flags, json: false, quiet: false };
+
+    await expect(
+      runImportCommand(humanFlags, api, mockContext, { filePath, dryRun: false }),
+    ).rejects.toMatchObject({
+      code: IMPORT_ERROR_CODES.existingSecret,
+    } satisfies Partial<CliError>);
+
+    const output = stdout.mock.calls.map((call) => String(call[0])).join("");
+    expect(output).toContain("Issues:");
+    expect(output).toContain("API_KEY: import.existing_secret");
+    expect(output).not.toContain("alpha");
+    expect(output).not.toContain("beta");
+    stdout.mockRestore();
+  });
+
   it("prepends --variable-key-prefix without normalization", async () => {
     setMemorySession({
       credential: "credential_test",

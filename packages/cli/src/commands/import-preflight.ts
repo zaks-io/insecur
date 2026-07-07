@@ -174,6 +174,31 @@ export async function runImportPreflight(input: {
   });
 }
 
+export function formatImportPlanHuman(
+  plan: SecretImportPlan,
+  options: { readonly dryRun: boolean },
+): string {
+  if (plan.ready && options.dryRun) {
+    return `Import preflight passed for ${String(plan.writes.length)} secret(s). No writes were sent (dry run).`;
+  }
+
+  const lines: string[] = [buildPreflightFailureMessage(plan)];
+  if (plan.issues.length > 0) {
+    lines.push("");
+    lines.push("Issues:");
+    for (const issue of plan.issues) {
+      if (issue.lineNumber !== undefined) {
+        lines.push(`  line ${String(issue.lineNumber)}: ${issue.code}`);
+      } else if (issue.variableKey !== undefined) {
+        lines.push(`  ${issue.variableKey}: ${issue.code}`);
+      } else {
+        lines.push(`  ${issue.code}`);
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
 export function secretImportPlanForOutput(
   plan: SecretImportPlan,
   options: { readonly dryRun: boolean },
