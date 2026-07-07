@@ -71,6 +71,8 @@ export type {
   ListAuditEventsFiltersRpcInput,
   ListAuditEventsRpcInput,
   ListAuditEventsRpcPayload,
+  ExportTenantAuditRpcInput,
+  ExportTenantAuditRpcPayload,
 } from "./rpc/runtime-audit-rpc-contract.js";
 export type {
   CreateEnvironmentRpcInput,

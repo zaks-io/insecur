@@ -47,6 +47,40 @@ export type AuthenticatedRuntimeClient = {
   [K in PostAuthMethodName]: ClientMethod<K>;
 };
 
+type ClientForwarder = <K extends PostAuthMethodName>(method: K) => ClientMethod<K>;
+
+function authenticatedRuntimeClientMethods(forward: ClientForwarder): AuthenticatedRuntimeClient {
+  return {
+    provisionGuidedOrganization: forward("provisionGuidedOrganization"),
+    createOperatorOrganization: forward("createOperatorOrganization"),
+    createInvitation: forward("createInvitation"),
+    acceptInvitation: forward("acceptInvitation"),
+    getOperation: forward("getOperation"),
+    cancelOperation: forward("cancelOperation"),
+    issueInjectionGrant: forward("issueInjectionGrant"),
+    completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
+    writeSecret: forward("writeSecret"),
+    consumeGrant: forward("consumeGrant"),
+    consumeGrantAll: forward("consumeGrantAll"),
+    recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),
+    captureFirstValueFeedback: forward("captureFirstValueFeedback"),
+    listProjects: forward("listProjects"),
+    createProject: forward("createProject"),
+    listEnvironments: forward("listEnvironments"),
+    createEnvironment: forward("createEnvironment"),
+    listProjectSecrets: forward("listProjectSecrets"),
+    listSessionOrganizations: forward("listSessionOrganizations"),
+    listOrganizationMembers: forward("listOrganizationMembers"),
+    listOrganizationInvitations: forward("listOrganizationInvitations"),
+    listAuditEvents: forward("listAuditEvents"),
+    exportTenantAudit: forward("exportTenantAudit"),
+    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
+    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
+    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
+    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
+  };
+}
+
 /**
  * The single API-side Runtime RPC seam (ADR-0077). The public edge does zero DB I/O: a route parses
  * HTTP, then forwards the non-keyring DB work through this client. We mint one scoped, audience-bound
@@ -87,32 +121,5 @@ export function runtimeClientFor(
       )) as ClientMethod<K>;
   }
 
-  return {
-    provisionGuidedOrganization: forward("provisionGuidedOrganization"),
-    createOperatorOrganization: forward("createOperatorOrganization"),
-    createInvitation: forward("createInvitation"),
-    acceptInvitation: forward("acceptInvitation"),
-    getOperation: forward("getOperation"),
-    cancelOperation: forward("cancelOperation"),
-    issueInjectionGrant: forward("issueInjectionGrant"),
-    completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
-    writeSecret: forward("writeSecret"),
-    consumeGrant: forward("consumeGrant"),
-    consumeGrantAll: forward("consumeGrantAll"),
-    recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),
-    captureFirstValueFeedback: forward("captureFirstValueFeedback"),
-    listProjects: forward("listProjects"),
-    createProject: forward("createProject"),
-    listEnvironments: forward("listEnvironments"),
-    createEnvironment: forward("createEnvironment"),
-    listProjectSecrets: forward("listProjectSecrets"),
-    listSessionOrganizations: forward("listSessionOrganizations"),
-    listOrganizationMembers: forward("listOrganizationMembers"),
-    listOrganizationInvitations: forward("listOrganizationInvitations"),
-    listAuditEvents: forward("listAuditEvents"),
-    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
-    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
-    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
-    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
-  };
+  return authenticatedRuntimeClientMethods(forward);
 }

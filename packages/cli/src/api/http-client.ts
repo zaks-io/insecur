@@ -18,6 +18,7 @@ import {
   readCliCredentialHeader,
 } from "./http-client-envelope.js";
 import { listAuditEvents } from "./http-client-audit-events.js";
+import { exportTenantAudit } from "./http-client-audit-export.js";
 import {
   consumeInjectionGrant,
   consumeInjectionGrantAll,
@@ -43,6 +44,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     listEnvironments: (input) => listEnvironments(base, input),
     createEnvironment: (input) => createEnvironment(base, input),
     listAuditEvents: (input) => listAuditEvents(base, input),
+    exportTenantAudit: (input) => exportTenantAudit(base, input),
     getOperation: (input) => getOperation(base, input),
     cancelOperation: (input) => cancelOperation(base, input),
   };
