@@ -86,6 +86,10 @@ export function parseEnvironmentIdParam(raw: string): EnvironmentId {
   return parseValue(raw, parseEnvironmentResourceId, "Invalid environment id.");
 }
 
+export function parseSecretIdParam(raw: string): SecretId {
+  return parseValue(raw, parseSecretResourceId, "Invalid secret id.");
+}
+
 export function parseGrantIdParam(raw: string): InjectionGrantId {
   return parseValue(raw, parseGrantResourceId, "Invalid injection grant id.");
 }
