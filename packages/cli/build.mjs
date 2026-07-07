@@ -18,6 +18,9 @@ const result = await build({
   define: { __INSECUR_CLI_VERSION__: JSON.stringify(packageJson.version) },
   entryPoints: ["src/index.ts"],
   format: "esm",
+  loader: {
+    ".md": "text",
+  },
   logLevel: "info",
   metafile: true,
   outfile: outFile,

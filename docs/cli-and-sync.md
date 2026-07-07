@@ -902,6 +902,7 @@ Rules:
 - Skips `node_modules`, `.git`, `dist`, `build`, `.next`, and common cache/coverage directories.
 - Detects `.env` / `.env.*`, PEM/private-key files (including `.key` and extensionless OpenSSH names like `id_rsa`), `service-account*.json`, `*credentials*.json`, `.npmrc` / `.yarnrc` entries containing `_authToken` or `npmAuthToken`, and `.netrc`.
 - Human output includes a summary line (`Found N likely secrets across M files in Xms.`) plus key names only; unreadable and oversized candidate files are listed separately.
+- Human output ends with: `To fix: run \`insecur guide migrate-env\` and follow it, or hand it to your agent.`
 - `--json` summary includes `unreadableFiles` and `oversizedFiles` (paths only) so a clean result distinguishes scanned files from secret-path candidates that could not be read or exceeded the size guard.
 - `--json` returns findings and summary through the standard metadata-only envelope.
 - Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
@@ -919,6 +920,23 @@ Rules:
 - Human and `--json` output never print raw secret values or transcript excerpts; each finding includes redacted `valueShape` and stable local `valueFingerprint` metadata only.
 - Findings include provider/tool, source path, session/conversation id and timestamp when parseable, detector id, confidence, and suggested next steps (`rotate_or_revoke`, `migrate_to_insecur` when migratable, `clean_local_transcripts`, `mark_false_positive`, `ignore`); insecur does not execute these automatically.
 - Exit `0` by default even when exposures exist; `--strict` exits `7` (action-required) when exposures exist; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
+
+### Guide
+
+```bash
+insecur guide
+insecur guide migrate-env
+```
+
+Rules:
+
+- Offline and unauthenticated: no network, no session, and no `.insecur.json` requirement to read guides.
+- `insecur guide` lists available topics with one-line descriptions.
+- `insecur guide <topic>` prints the topic markdown to stdout and exits `0`.
+- Unknown topics exit `2` (validation) with a message listing valid topics.
+- Guide markdown is bundled into the CLI binary at build time (not read from the repo at runtime).
+- Guide output is deliberately **not** wrapped in the metadata-only JSON envelope — the markdown itself is the machine-readable format agents should consume. Global `--json` does not change guide output shape.
+- The `migrate-env` topic is the safe ordering playbook for moving disk secrets into insecur: login/init, scan and `insecur secrets set --value-stdin` per migratable key, switch to `insecur run`, verify the app before any destructive disk edit, then strip values and run `insecur scan --strict`. Non-migratable findings (private keys, credential JSON) are manual follow-up only.
 
 ### Secrets
 
