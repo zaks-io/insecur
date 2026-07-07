@@ -7,7 +7,10 @@ import {
   resolveEnrollmentFailureRedirect,
 } from "./browser-passkey-enrollment.js";
 import { INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
+import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
 import { WORKOS_SESSION_COOKIE } from "@insecur/auth";
+import { createFakeWorkOSSessionPort } from "@insecur/auth/testing";
+import { fakeSessionEntry } from "../../test/support/fake-browser-session.js";
 
 const pkceLiterals = vi.hoisted(() => ({
   enrollmentCode: "code_passkey_enroll",
@@ -19,35 +22,36 @@ const oauthState = "state_passkey_enroll";
 vi.mock("./workos-port.js", async () => {
   const { createFakeWorkOSSessionPort } = await import("@insecur/auth/testing");
   const { fakeSessionEntry } = await import("../../test/support/fake-browser-session.js");
+  const createDefaultPort = () =>
+    createFakeWorkOSSessionPort([
+      fakeSessionEntry({
+        sessionData: "sealed-password-session",
+        sessionId: "session_password",
+        email: "member@example.com",
+        authenticationMethod: "Password",
+        authFactors: [{ type: "totp" }],
+      }),
+      fakeSessionEntry({
+        sessionData: pkceLiterals.sealedSession,
+        sessionId: "session_password",
+        userId: "user_01workos",
+        authorizationCode: pkceLiterals.enrollmentCode,
+        codeVerifier: pkceLiterals.codeVerifier,
+        authenticationMethod: "Passkey",
+        authFactors: [{ type: "passkey" }],
+      }),
+      fakeSessionEntry({
+        sessionData: "sealed-still-password",
+        sessionId: "session_password",
+        userId: "user_01workos",
+        authorizationCode: "code_no_passkey",
+        codeVerifier: "verifier_no_passkey",
+        authenticationMethod: "Password",
+        authFactors: [{ type: "totp" }],
+      }),
+    ]);
   return {
-    createWorkOSSessionPortFromEnv: () =>
-      createFakeWorkOSSessionPort([
-        fakeSessionEntry({
-          sessionData: "sealed-password-session",
-          sessionId: "session_password",
-          email: "member@example.com",
-          authenticationMethod: "Password",
-          authFactors: [{ type: "totp" }],
-        }),
-        fakeSessionEntry({
-          sessionData: pkceLiterals.sealedSession,
-          sessionId: "session_password",
-          userId: "user_01workos",
-          authorizationCode: pkceLiterals.enrollmentCode,
-          codeVerifier: pkceLiterals.codeVerifier,
-          authenticationMethod: "Passkey",
-          authFactors: [{ type: "passkey" }],
-        }),
-        fakeSessionEntry({
-          sessionData: "sealed-still-password",
-          sessionId: "session_password",
-          userId: "user_01workos",
-          authorizationCode: "code_no_passkey",
-          codeVerifier: "verifier_no_passkey",
-          authenticationMethod: "Password",
-          authFactors: [{ type: "totp" }],
-        }),
-      ]),
+    createWorkOSSessionPortFromEnv: vi.fn(createDefaultPort),
   };
 });
 
@@ -136,6 +140,96 @@ describe("completeBrowserPasskeyEnrollment", () => {
     const completed = await completeBrowserPasskeyEnrollment(request, createFakeWebEnv());
 
     expect(completed.ok).toBe(false);
+  });
+
+  it("rejects callbacks when the PKCE round-trip omits workosUserId", async () => {
+    const roundTrip = {
+      state: oauthState,
+      codeVerifier: pkceLiterals.codeVerifier,
+      returnTo: "/onboarding",
+      flow: "passkey-enrollment" as const,
+    };
+    const request = new Request(
+      `https://insecur.test/auth/enroll-passkey/callback?code=${pkceLiterals.enrollmentCode}&state=${oauthState}`,
+      {
+        headers: {
+          Cookie: `${INSECUR_OAUTH_PKCE_COOKIE}=${encodePkceCookie(roundTrip)}`,
+        },
+      },
+    );
+
+    const completed = await completeBrowserPasskeyEnrollment(request, createFakeWebEnv());
+
+    expect(completed).toEqual({
+      ok: false,
+      failure: expect.objectContaining({ reason: "invalid" }),
+    });
+  });
+
+  it("rejects callbacks when the enrolled user does not match the round-trip binding", async () => {
+    const roundTrip = {
+      state: oauthState,
+      codeVerifier: pkceLiterals.codeVerifier,
+      returnTo: "/onboarding",
+      workosUserId: "user_other",
+      flow: "passkey-enrollment" as const,
+    };
+    const request = new Request(
+      `https://insecur.test/auth/enroll-passkey/callback?code=${pkceLiterals.enrollmentCode}&state=${oauthState}`,
+      {
+        headers: {
+          Cookie: `${INSECUR_OAUTH_PKCE_COOKIE}=${encodePkceCookie(roundTrip)}`,
+        },
+      },
+    );
+
+    const completed = await completeBrowserPasskeyEnrollment(request, createFakeWebEnv());
+
+    expect(completed).toEqual({
+      ok: false,
+      failure: expect.objectContaining({ reason: "invalid" }),
+    });
+  });
+
+  it("returns a controlled failure when auth factor lookup throws", async () => {
+    const basePort = createFakeWorkOSSessionPort([
+      fakeSessionEntry({
+        sessionData: pkceLiterals.sealedSession,
+        sessionId: "session_password",
+        userId: "user_01workos",
+        authorizationCode: pkceLiterals.enrollmentCode,
+        codeVerifier: pkceLiterals.codeVerifier,
+        authenticationMethod: "Passkey",
+        authFactors: [{ type: "passkey" }],
+      }),
+    ]);
+    vi.mocked(createWorkOSSessionPortFromEnv).mockReturnValueOnce({
+      ...basePort,
+      listAuthFactors: () => Promise.reject(new Error("WorkOS unavailable")),
+    });
+
+    const roundTrip = {
+      state: oauthState,
+      codeVerifier: pkceLiterals.codeVerifier,
+      returnTo: "/onboarding",
+      workosUserId: "user_01workos",
+      flow: "passkey-enrollment" as const,
+    };
+    const request = new Request(
+      `https://insecur.test/auth/enroll-passkey/callback?code=${pkceLiterals.enrollmentCode}&state=${oauthState}`,
+      {
+        headers: {
+          Cookie: `${INSECUR_OAUTH_PKCE_COOKIE}=${encodePkceCookie(roundTrip)}`,
+        },
+      },
+    );
+
+    const completed = await completeBrowserPasskeyEnrollment(request, createFakeWebEnv());
+
+    expect(completed).toEqual({
+      ok: false,
+      failure: expect.objectContaining({ reason: "invalid" }),
+    });
   });
 });
 

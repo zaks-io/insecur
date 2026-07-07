@@ -6,7 +6,7 @@ import {
 import { CreateProjectStep } from "./create-project-step.js";
 import { EnrollPasskeyStep } from "./enroll-passkey-step.js";
 import { NameOrganizationStep } from "./name-organization-step.js";
-import type { FormStepId, ProvisionedHandoff } from "./onboarding-wizard.js";
+import type { FormStepId, ProvisionedHandoff } from "./onboarding-wizard-types.js";
 
 interface WizardStepInput {
   readonly organizationName: string;

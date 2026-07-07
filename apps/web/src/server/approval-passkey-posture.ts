@@ -19,30 +19,34 @@ export type ApprovalPasskeyPosture =
  */
 export const loadApprovalPasskeyPosture = createServerFn({ method: "GET" }).handler(
   async (): Promise<ApprovalPasskeyPosture> => {
-    const request = getRequest();
-    const credentials = parseRequestCredentials({
-      authorizationHeader: request.headers.get("Authorization"),
-      cookieHeader: request.headers.get("Cookie"),
-      csrfHeader: request.headers.get("x-insecur-csrf") ?? undefined,
-    });
-    if (credentials.workosSealedSession === undefined) {
+    try {
+      const request = getRequest();
+      const credentials = parseRequestCredentials({
+        authorizationHeader: request.headers.get("Authorization"),
+        cookieHeader: request.headers.get("Cookie"),
+        csrfHeader: request.headers.get("x-insecur-csrf") ?? undefined,
+      });
+      if (credentials.workosSealedSession === undefined) {
+        return { kind: "unauthenticated" };
+      }
+
+      const workos = createWorkOSSessionPortFromEnv(env as WebEnv);
+      const session = await authenticateWorkOSSession(workos, credentials.workosSealedSession);
+      if (!session.ok) {
+        return { kind: "unauthenticated" };
+      }
+
+      return {
+        kind: "authenticated",
+        enrolled: hasApprovalPasskey({
+          authFactors: session.context.authFactors,
+          ...(session.context.authenticationMethod !== undefined
+            ? { authenticationMethod: session.context.authenticationMethod }
+            : {}),
+        }),
+      };
+    } catch {
       return { kind: "unauthenticated" };
     }
-
-    const workos = createWorkOSSessionPortFromEnv(env as WebEnv);
-    const session = await authenticateWorkOSSession(workos, credentials.workosSealedSession);
-    if (!session.ok) {
-      return { kind: "unauthenticated" };
-    }
-
-    return {
-      kind: "authenticated",
-      enrolled: hasApprovalPasskey({
-        authFactors: session.context.authFactors,
-        ...(session.context.authenticationMethod !== undefined
-          ? { authenticationMethod: session.context.authenticationMethod }
-          : {}),
-      }),
-    };
   },
 );

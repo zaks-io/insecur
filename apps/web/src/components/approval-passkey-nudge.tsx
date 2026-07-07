@@ -1,10 +1,29 @@
 import { Button } from "@insecur/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const DISMISS_KEY = "insecur:approval-passkey-nudge-dismissed";
 
 export function approvalPasskeyEnrollmentHref(returnTo: string): string {
   return `/auth/enroll-passkey?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+function useApprovalPasskeyNudgeDismissal() {
+  const [dismissed, setDismissed] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setDismissed(readDismissedFromSession());
+    setReady(true);
+  }, []);
+
+  const dismiss = () => {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(DISMISS_KEY, "1");
+    }
+    setDismissed(true);
+  };
+
+  return { ready, dismissed, dismiss };
 }
 
 /**
@@ -20,18 +39,11 @@ export function ApprovalPasskeyNudge({
   returnTo: string;
   enrollmentError?: boolean;
 }) {
-  const [dismissed, setDismissed] = useState(() => readDismissedFromSession());
+  const { ready, dismissed, dismiss } = useApprovalPasskeyNudgeDismissal();
 
-  if (enrolled || dismissed) {
+  if (!ready || enrolled || dismissed) {
     return null;
   }
-
-  const dismiss = () => {
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem(DISMISS_KEY, "1");
-    }
-    setDismissed(true);
-  };
 
   return (
     <div

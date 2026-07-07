@@ -109,11 +109,16 @@ async function exchangeEnrollmentAuthorizationCode(
   }
 
   const { context, sealedSession } = exchanged.session;
-  if (roundTrip.workosUserId !== undefined && context.user.id !== roundTrip.workosUserId) {
+  if (roundTrip.workosUserId === undefined || context.user.id !== roundTrip.workosUserId) {
     return { ok: false, failure: authFailureForReason("invalid") };
   }
 
-  const factors = await workos.listAuthFactors(context.user.id);
+  let factors;
+  try {
+    factors = await workos.listAuthFactors(context.user.id);
+  } catch {
+    return { ok: false, failure: authFailureForReason("invalid") };
+  }
   const enrolled = hasApprovalPasskey({
     authFactors: factors,
     ...(context.authenticationMethod !== undefined

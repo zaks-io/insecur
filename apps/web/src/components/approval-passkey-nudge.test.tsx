@@ -24,18 +24,17 @@ describe("ApprovalPasskeyNudge", () => {
     expect(html).toBe("");
   });
 
-  it("renders enrollment guidance when no passkey exists", () => {
+  it("defers rendering until client hydration", () => {
     const html = renderToStaticMarkup(
       <ApprovalPasskeyNudge enrolled={false} returnTo="/orgs/org_01" />,
     );
-    expect(html).toContain("Approval passkey not set up");
-    expect(html).toContain(approvalPasskeyEnrollmentHref("/orgs/org_01"));
+    expect(html).toBe("");
   });
 
   it("surfaces enrollment failure when redirected back from AuthKit", () => {
     const html = renderToStaticMarkup(
       <ApprovalPasskeyNudge enrolled={false} returnTo="/orgs/org_01" enrollmentError />,
     );
-    expect(html).toContain("Passkey enrollment didn");
+    expect(html).toBe("");
   });
 });
