@@ -29,6 +29,13 @@ export class SqliteLocalAuditWriter implements LocalAuditWriter {
     return Promise.resolve({ auditEventId: id });
   }
 
+  readRawDetailsJsonRows(): string[] {
+    const rows = this.database
+      .prepare(`SELECT details_json FROM local_audit_events ORDER BY created_at ASC`)
+      .all() as { details_json: string }[];
+    return rows.map((row) => row.details_json);
+  }
+
   listEvents(projectIdFilter?: string): Promise<readonly LocalAuditEventRow[]> {
     const rows =
       projectIdFilter === undefined

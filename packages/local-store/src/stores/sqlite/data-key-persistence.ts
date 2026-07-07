@@ -34,7 +34,7 @@ export class SqliteLocalDataKeyPersistence implements LocalDataKeyPersistence {
     organizationDataKeyVersion: number;
     rootKeyVersion: number;
     wrappedStorageRef: string;
-  }): void {
+  }): string {
     this.database
       .prepare(
         `INSERT OR IGNORE INTO organization_data_keys
@@ -42,6 +42,7 @@ export class SqliteLocalDataKeyPersistence implements LocalDataKeyPersistence {
          VALUES (?, ?, ?)`,
       )
       .run(row.organizationDataKeyVersion, row.rootKeyVersion, row.wrappedStorageRef);
+    return this.requireOrganizationDataKeyRef(row.organizationDataKeyVersion);
   }
 
   getProjectDataKey(projectIdValue: ProjectId, version: number) {
@@ -75,7 +76,7 @@ export class SqliteLocalDataKeyPersistence implements LocalDataKeyPersistence {
     projectDataKeyVersion: number;
     rootKeyVersion: number;
     wrappedStorageRef: string;
-  }): void {
+  }): string {
     this.database
       .prepare(
         `INSERT OR IGNORE INTO project_data_keys
@@ -83,5 +84,22 @@ export class SqliteLocalDataKeyPersistence implements LocalDataKeyPersistence {
          VALUES (?, ?, ?, ?)`,
       )
       .run(row.projectId, row.projectDataKeyVersion, row.rootKeyVersion, row.wrappedStorageRef);
+    return this.requireProjectDataKeyRef(row.projectId, row.projectDataKeyVersion);
+  }
+
+  private requireOrganizationDataKeyRef(version: number): string {
+    const persisted = this.getOrganizationDataKey(version);
+    if (!persisted) {
+      throw new Error("organization data key was not persisted");
+    }
+    return persisted.wrappedStorageRef;
+  }
+
+  private requireProjectDataKeyRef(projectIdValue: ProjectId, version: number): string {
+    const persisted = this.getProjectDataKey(projectIdValue, version);
+    if (!persisted) {
+      throw new Error("project data key was not persisted");
+    }
+    return persisted.wrappedStorageRef;
   }
 }

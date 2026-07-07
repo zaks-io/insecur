@@ -32,9 +32,9 @@ interface OrganizationDataKeyRow {
 
 export interface LocalDataKeyPersistence {
   getOrganizationDataKey(version: KeyVersion): OrganizationDataKeyRow | null;
-  saveOrganizationDataKey(row: OrganizationDataKeyRow): void;
+  saveOrganizationDataKey(row: OrganizationDataKeyRow): string;
   getProjectDataKey(projectId: ProjectId, version: KeyVersion): ProjectDataKeyRow | null;
-  saveProjectDataKey(row: ProjectDataKeyRow): void;
+  saveProjectDataKey(row: ProjectDataKeyRow): string;
 }
 
 /**
@@ -59,12 +59,11 @@ export class PersistingLocalDataKeySource implements TenantDataKeySource {
       organizationId: LOCAL_MODE_ORGANIZATION_ID,
       keyVersion: organizationDataKeyVersion,
     }).then((minted) => minted.wrappedStorageRef);
-    this.persistence.saveOrganizationDataKey({
+    return this.persistence.saveOrganizationDataKey({
       organizationDataKeyVersion,
       rootKeyVersion,
       wrappedStorageRef,
     });
-    return wrappedStorageRef;
   }
 
   private async ensureProjectDataKey(
@@ -83,13 +82,12 @@ export class PersistingLocalDataKeySource implements TenantDataKeySource {
       projectId,
       keyVersion: projectDataKeyVersion,
     }).then((minted) => minted.wrappedStorageRef);
-    this.persistence.saveProjectDataKey({
+    return this.persistence.saveProjectDataKey({
       projectId,
       projectDataKeyVersion,
       rootKeyVersion,
       wrappedStorageRef,
     });
-    return wrappedStorageRef;
   }
 
   async getActiveOrganizationVersions(

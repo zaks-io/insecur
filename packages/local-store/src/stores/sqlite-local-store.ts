@@ -43,8 +43,8 @@ export class SqliteLocalStore
     organizationDataKeyVersion: number;
     rootKeyVersion: number;
     wrappedStorageRef: string;
-  }): void {
-    this.dataKeys.saveOrganizationDataKey(row);
+  }): string {
+    return this.dataKeys.saveOrganizationDataKey(row);
   }
 
   getProjectDataKey(
@@ -54,8 +54,8 @@ export class SqliteLocalStore
     return this.dataKeys.getProjectDataKey(projectIdValue, version);
   }
 
-  saveProjectDataKey(row: Parameters<LocalDataKeyPersistence["saveProjectDataKey"]>[0]): void {
-    this.dataKeys.saveProjectDataKey(row);
+  saveProjectDataKey(row: Parameters<LocalDataKeyPersistence["saveProjectDataKey"]>[0]): string {
+    return this.dataKeys.saveProjectDataKey(row);
   }
 
   createProject(...args: Parameters<LocalProjectMetadataStore["createProject"]>) {
@@ -122,5 +122,10 @@ export class SqliteLocalStore
 
   readRawCiphertext(secretIdValue: SecretId): Uint8Array | null {
     return this.secretVersionsStore.readRawCiphertext(secretIdValue);
+  }
+
+  readAuditDetailsJsonRows(): readonly string[] {
+    const rows = this.auditWriter.readRawDetailsJsonRows();
+    return rows;
   }
 }

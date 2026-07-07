@@ -241,9 +241,14 @@ describe("SqliteLocalStore", () => {
     );
   });
 
-  it("records tamperable metadata-only audit events", async () => {
+  it("does not persist sensitive plaintext in audit rows after a secret write", async () => {
     await seedProjectAndEnvironment(harness);
-    const { auditEventId: id } = await harness.audit.writeEvent({
+    await writeWrappedCurrentVersion(harness, {
+      secretVersionIdValue: VERSION_A,
+      plaintext: SENSITIVE_PLAINTEXT,
+    });
+    const plaintextLiteral = new TextDecoder().decode(SENSITIVE_PLAINTEXT);
+    await harness.audit.writeEvent({
       eventCode: "secret.write.completed",
       outcome: "success",
       projectId: PROJECT_A,
@@ -251,11 +256,10 @@ describe("SqliteLocalStore", () => {
       secretId: SECRET_A,
       details: { variableKey: "INSECUR_PROOF_SECRET" },
     });
-    const events = await harness.audit.listEvents(PROJECT_A);
-    expect(events).toHaveLength(1);
-    expect(events[0]?.auditEventId).toBe(id);
-    expect(events[0]?.details).toEqual({ variableKey: "INSECUR_PROOF_SECRET" });
-    expect(JSON.stringify(events)).not.toContain(new TextDecoder().decode(SENSITIVE_PLAINTEXT));
+    const auditDetailsRows = harness.sqlite.readAuditDetailsJsonRows();
+    expect(auditDetailsRows).toHaveLength(1);
+    expect(auditDetailsRows[0]).not.toContain(plaintextLiteral);
+    expect(auditDetailsRows.join("")).not.toContain(plaintextLiteral);
   });
 
   it("does not write plaintext sensitive values into the sqlite file bytes", async () => {

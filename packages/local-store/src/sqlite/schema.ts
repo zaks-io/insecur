@@ -1,4 +1,4 @@
-export const LOCAL_STORE_SCHEMA_VERSION = 2;
+export const LOCAL_STORE_SCHEMA_VERSION = 3;
 
 export const LOCAL_STORE_SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS organization_data_keys (
 );
 
 CREATE TABLE IF NOT EXISTS project_data_keys (
-  project_id TEXT NOT NULL,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   project_data_key_version INTEGER NOT NULL,
   root_key_version INTEGER NOT NULL,
   wrapped_storage_ref TEXT NOT NULL,
@@ -96,10 +96,11 @@ CREATE TABLE IF NOT EXISTS local_audit_events (
   id TEXT PRIMARY KEY NOT NULL,
   event_code TEXT NOT NULL,
   outcome TEXT NOT NULL,
-  project_id TEXT,
+  project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
   environment_id TEXT,
   secret_id TEXT,
   details_json TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (project_id, environment_id) REFERENCES environments(project_id, id) ON DELETE SET NULL
 );
 `;
