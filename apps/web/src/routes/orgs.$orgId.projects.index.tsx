@@ -1,22 +1,20 @@
-import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
-import { loginRedirectHref } from "../console/login-redirect.js";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ConsoleFramedRouteError } from "../components/console-route-error.js";
 import { shortDate, type ConsoleProject } from "../console/projects.js";
+import { requireConsoleRead } from "../console/route-guards.js";
 import { CliInvitation } from "../components/cli-invitation.js";
 import { loadOrgProjects } from "../server/console-projects.js";
 
 export const Route = createFileRoute("/orgs/$orgId/projects/")({
   loader: async ({ params, location }) => {
-    const read = await loadOrgProjects({ data: { organizationId: params.orgId } });
-    if (read.kind === "unauthenticated") {
-      throw redirect({ href: loginRedirectHref(location.href) });
-    }
-    // Metadata-safe denial: a non-member org reads as nonexistent (bubbles to the org 404).
-    if (read.kind === "denied") {
-      throw notFound();
-    }
-    return { projects: read.value };
+    const projects = requireConsoleRead(
+      await loadOrgProjects({ data: { organizationId: params.orgId } }),
+      location.href,
+    );
+    return { projects };
   },
   component: ProjectsIndexPage,
+  errorComponent: ConsoleFramedRouteError,
 });
 
 function ProjectRegister({

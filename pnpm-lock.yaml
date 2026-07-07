@@ -867,6 +867,9 @@ importers:
 
   packages/preview-smoke:
     dependencies:
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../audit
       '@insecur/auth':
         specifier: workspace:*
         version: link:../auth

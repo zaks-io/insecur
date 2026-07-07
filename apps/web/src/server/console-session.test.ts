@@ -34,7 +34,7 @@ describe("loadConsoleSession fail-closed contract", () => {
   it("returns unauthenticated when the session does not resolve", async () => {
     resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(null);
 
-    await expect(loadConsoleSession()).resolves.toEqual({ authenticated: false });
+    await expect(loadConsoleSession()).resolves.toEqual({ kind: "unauthenticated" });
   });
 
   it("returns the parsed organizations for a well-formed membership envelope", async () => {
@@ -43,28 +43,28 @@ describe("loadConsoleSession fail-closed contract", () => {
     );
 
     await expect(loadConsoleSession()).resolves.toEqual({
-      authenticated: true,
+      kind: "authenticated",
       organizations: [MEMBER_ORG],
     });
   });
 
-  it("fails closed to unauthenticated on an unparseable envelope", async () => {
+  it("fails closed to unauthenticated on an auth.required envelope", async () => {
     resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(
       fakeClient(() => Promise.resolve({ ok: false, error: { code: "auth.required" } })),
     );
 
-    await expect(loadConsoleSession()).resolves.toEqual({ authenticated: false });
+    await expect(loadConsoleSession()).resolves.toEqual({ kind: "unauthenticated" });
   });
 
-  it("fails closed to unauthenticated when the read rejects, never a 500 loader error", async () => {
+  it("returns unavailable when the read rejects, never a 500 loader error", async () => {
     resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(
       fakeClient(() => Promise.reject(new TypeError("network error: fetch failed"))),
     );
 
-    await expect(loadConsoleSession()).resolves.toEqual({ authenticated: false });
+    await expect(loadConsoleSession()).resolves.toEqual({ kind: "unavailable" });
   });
 
-  it("fails closed when the response body parse throws (non-JSON 5xx), never a 500", async () => {
+  it("returns unavailable when the response body parse throws (non-JSON 5xx), never a 500", async () => {
     resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(
       fakeClient(() => {
         // Stand-in for `await response.json()` throwing on an HTML 5xx error page.
@@ -73,6 +73,16 @@ describe("loadConsoleSession fail-closed contract", () => {
       }),
     );
 
-    await expect(loadConsoleSession()).resolves.toEqual({ authenticated: false });
+    await expect(loadConsoleSession()).resolves.toEqual({ kind: "unavailable" });
+  });
+
+  it("returns unavailable on a non-auth error envelope when the session resolved", async () => {
+    resolveMock.resolveAuthenticatedApiClient.mockResolvedValueOnce(
+      fakeClient(() =>
+        Promise.resolve({ ok: false, error: { code: "store.runtime_config_missing" } }),
+      ),
+    );
+
+    await expect(loadConsoleSession()).resolves.toEqual({ kind: "unavailable" });
   });
 });

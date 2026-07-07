@@ -9,6 +9,8 @@ onlyBuiltDependencies:
   - sharp
   - workerd
 strictDepBuilds: true
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - esbuild

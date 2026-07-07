@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { INJECTION_ERROR_CODES } from "@insecur/domain";
 
 import {
+  annotateVerifiedAuditEventCodes,
   asRecord,
   assertEnvelopeData,
   assertEnvelopeError,
@@ -20,6 +21,7 @@ import {
   requireString,
   runPlaintextSweep,
   test,
+  verifyFirstValueAuditEvidence,
 } from "../src/fixtures";
 
 test("preview first-value and membership happy path @preview @happy-path @custody", async ({
@@ -42,6 +44,7 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     projectId: "",
   };
   let grantId = "";
+  let feedbackId = "";
 
   await test.step("onboarding.personal_organization", async () => {
     const body = await postJson({
@@ -215,7 +218,25 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     });
     const data = assertEnvelopeData(body, "Design-partner feedback");
 
-    requireString(data.feedbackId, "design partner feedback feedbackId");
+    feedbackId = requireString(data.feedbackId, "design partner feedback feedbackId");
+  });
+
+  await test.step("audit_events.verify_first_value_evidence", async () => {
+    const auditEvidence = await verifyFirstValueAuditEvidence({
+      databaseUrl: preview.databaseUrl,
+      feedbackId,
+      grantId,
+      ...(operationId === undefined ? {} : { operationId }),
+      organizationId: coords.organizationId,
+      redactor,
+    });
+    annotateVerifiedAuditEventCodes(
+      (annotation) => test.info().annotations.push(annotation),
+      auditEvidence,
+    );
+    if (!auditEvidence.feedbackPresent) {
+      throw new Error("Expected design-partner feedback evidence in first_value_feedback.");
+    }
   });
 
   await test.step("plaintext_sweep.postgres", async () => {

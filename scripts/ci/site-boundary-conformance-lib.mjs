@@ -7,7 +7,10 @@ import {
   REPO_ROOT,
 } from "./dependency-cruiser-graph.mjs";
 import { parseJsonc } from "../jsonc.mjs";
-import { readWorkspacePackages } from "./package-boundary-conformance-lib.mjs";
+import {
+  ciVerifyStepsRunCommand,
+  readWorkspacePackages,
+} from "./package-boundary-conformance-lib.mjs";
 
 const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
 const SITE_WRANGLER_PATH = path.join(REPO_ROOT, "apps", "site", "wrangler.jsonc");
@@ -161,19 +164,15 @@ async function assertSiteBoundaryNegativeProbe() {
 
 export function assertHostedCiVerifyRunsSiteBoundaryConformance() {
   const workflow = readFileSync(CI_WORKFLOW_PATH, "utf8");
-  const verifyJobMatch = workflow.match(
-    /^\s+verify:\s*\n[\s\S]*?^\s+run:\s*\|\s*\n((?:\s{10}.*\n)+)/m,
-  );
-  if (!verifyJobMatch) {
-    throw new Error(
-      "site-boundary conformance: could not locate CI Verify job run block in .github/workflows/ci.yml",
-    );
-  }
-  if (!/\bpnpm\s+conformance:site-boundary\b/.test(verifyJobMatch[1])) {
+  if (!ciVerifyStepsRunSiteBoundaryConformance(workflow)) {
     throw new Error(
       "site-boundary conformance: hosted CI Verify must run `pnpm conformance:site-boundary`",
     );
   }
+}
+
+export function ciVerifyStepsRunSiteBoundaryConformance(workflowSource) {
+  return ciVerifyStepsRunCommand(workflowSource, /\bpnpm\s+conformance:site-boundary\b/);
 }
 
 export async function runSiteBoundaryConformance() {

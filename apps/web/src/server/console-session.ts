@@ -1,11 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { parseSessionMembershipsBody, type ConsoleOrganization } from "../console/organizations.js";
+import { isAuthErrorEnvelope } from "../console/envelope.js";
 import { resolveAuthenticatedApiClient } from "./bff-api.js";
 
 export type ConsoleSession =
-  | { readonly authenticated: false }
+  | { readonly kind: "unauthenticated" }
+  | { readonly kind: "unavailable" }
   | {
-      readonly authenticated: true;
+      readonly kind: "authenticated";
       readonly organizations: readonly ConsoleOrganization[];
     };
 
@@ -23,23 +25,26 @@ export const loadConsoleSession = createServerFn({ method: "GET" }).handler(
   async (): Promise<ConsoleSession> => {
     const client = await resolveAuthenticatedApiClient();
     if (client === null) {
-      return { authenticated: false };
+      return { kind: "unauthenticated" };
     }
 
     // Fail closed on the read itself, not only on the parse: a transport error or a non-JSON 5xx
-    // body (`sessionMemberships()` throwing) must land on the same unauthenticated fallback the
-    // console shell already renders, never an unhandled 500 loader error. Mirrors the shared
-    // consoleRead helper's guard (INS-412 item 6); this loader is the one read that predates it.
+    // body (`sessionMemberships()` throwing) must not surface as an unhandled 500 loader error.
+    // When the browser session resolves but the API hop is down, return `unavailable` so the shell
+    // can offer retry without clearing cookies or bouncing to login (INS-415).
     let body: unknown;
     try {
       body = await client.api.sessionMemberships();
     } catch {
-      return { authenticated: false };
+      return { kind: "unavailable" };
     }
     const organizations = parseSessionMembershipsBody(body);
     if (organizations === null) {
-      return { authenticated: false };
+      if (isAuthErrorEnvelope(body)) {
+        return { kind: "unauthenticated" };
+      }
+      return { kind: "unavailable" };
     }
-    return { authenticated: true, organizations };
+    return { kind: "authenticated", organizations };
   },
 );
