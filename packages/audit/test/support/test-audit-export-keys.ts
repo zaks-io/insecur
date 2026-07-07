@@ -75,3 +75,23 @@ export async function testAuditExportRuntimeEnvVars(): Promise<Record<string, st
     INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY: keys.signingPublicKey,
   };
 }
+
+/** Secrets Store bindings for in-process RuntimeService composition (e2e / integration). */
+export async function testAuditExportRuntimeBindings(): Promise<{
+  readonly AUDIT_EXPORT_HMAC_KEY_V1: { get: () => Promise<string> };
+  readonly AUDIT_EXPORT_SIGNING_KEY_V1: { get: () => Promise<string> };
+}> {
+  const keys = await createTestAuditExportKeyProviders();
+  const signingMaterial = JSON.stringify({
+    privateKeyPkcs8Base64Url: keys.signingPrivateKeyPkcs8Base64Url,
+    publicKeyRawBase64Url: keys.signingPublicKey,
+  });
+  return {
+    AUDIT_EXPORT_HMAC_KEY_V1: {
+      get: async () => keys.hmacSecret,
+    },
+    AUDIT_EXPORT_SIGNING_KEY_V1: {
+      get: async () => signingMaterial,
+    },
+  };
+}
