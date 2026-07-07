@@ -1,11 +1,13 @@
 import { join } from "node:path";
 
 import { configDefaults, defineConfig } from "vitest/config";
+import { markdownTextPlugin } from "./packages/cli/test/markdown-text-plugin.js";
 
 const root = process.cwd();
 
 export default defineConfig({
   root,
+  plugins: [markdownTextPlugin()],
   test: {
     environment: "node",
     include: ["{src,test}/**/*.test.ts"],

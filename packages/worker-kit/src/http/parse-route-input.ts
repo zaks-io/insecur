@@ -122,6 +122,16 @@ export function parseOptionalInvitationId(raw: string | undefined): InvitationId
   return parseOptionalValue(raw, parseInvitationResourceId, "Invalid invitation id.");
 }
 
+export function parseRequiredDisplayName(raw: string): DisplayName {
+  const parsed = parseOptionalDisplayName(raw);
+  if (parsed === undefined) {
+    throw Object.assign(new Error("Invalid display name."), {
+      code: VALIDATION_ERROR_CODES.invalidDisplayName,
+    });
+  }
+  return parsed;
+}
+
 export function parseOptionalDisplayName(raw: string | undefined): DisplayName | undefined {
   return parseOptionalValue(raw, parseDisplayName, "Invalid display name.");
 }

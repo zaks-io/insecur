@@ -36,8 +36,11 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback`   |
 
-Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `GET
-/:projectId/environments` lists environment metadata (including `isProtected`); `GET
+Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /`
+creates a project with a client-minted opaque ID and Display Name; `GET
+/:projectId/environments` lists environment metadata (including `isProtected`); `POST
+/:projectId/environments` creates a non-protected development environment (optional Secret Shape
+copy from another environment in the same project); `GET
 /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version,
 last-set actor/time; INS-363). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.

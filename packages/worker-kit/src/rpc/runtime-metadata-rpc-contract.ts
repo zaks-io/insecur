@@ -48,6 +48,19 @@ export interface ListProjectsRpcInput extends PostAuthRpcInputBase {
   readonly organizationId: OrganizationId;
 }
 
+export interface CreateProjectRpcPayload {
+  readonly projectId: ProjectId;
+  readonly organizationId: OrganizationId;
+  readonly displayName: DisplayName;
+  readonly createdAt: string;
+}
+
+export interface CreateProjectRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly displayName: DisplayName;
+}
+
 /** Metadata-only environment row for list reads (includes protection flag). */
 export interface EnvironmentMetadataRead {
   readonly environmentId: EnvironmentId;
@@ -66,6 +79,25 @@ export interface ListEnvironmentsRpcPayload {
 export interface ListEnvironmentsRpcInput extends PostAuthRpcInputBase {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
+}
+
+export interface CreateEnvironmentRpcPayload {
+  readonly environmentId: EnvironmentId;
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly displayName: DisplayName;
+  readonly lifecycleStage: EnvironmentLifecycleStage;
+  readonly isProtected: boolean;
+  readonly createdAt: string;
+  readonly copiedShapeCount: number;
+}
+
+export interface CreateEnvironmentRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly displayName: DisplayName;
+  readonly copyShapesFromEnvironmentId?: EnvironmentId;
 }
 
 /** Metadata-only actor reference for matrix last-set cells. */

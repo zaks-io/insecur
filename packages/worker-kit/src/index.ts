@@ -18,6 +18,7 @@ export {
   parseOperationIdParam,
   parseRequestIdParam,
   parseOptionalDisplayName,
+  parseRequiredDisplayName,
   parseOptionalInvitationId,
   parseOptionalMembershipId,
   parseOptionalSecretId,
@@ -72,6 +73,10 @@ export type {
   ListAuditEventsRpcPayload,
 } from "./rpc/runtime-audit-rpc-contract.js";
 export type {
+  CreateEnvironmentRpcInput,
+  CreateEnvironmentRpcPayload,
+  CreateProjectRpcInput,
+  CreateProjectRpcPayload,
   EnvironmentMetadataRead,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,

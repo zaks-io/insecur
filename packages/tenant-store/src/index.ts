@@ -60,6 +60,7 @@ export {
   type SecretVersionLifecycleState,
 } from "./secrets/lifecycle-states.js";
 export { resolveSecretForRead } from "./secrets/resolve-secret-for-read.js";
+export { copyEnvironmentSecretShapes } from "./secrets/copy-environment-secret-shapes.js";
 export type {
   ResolveSecretForReadInput,
   ResolvedSecretForRead,
