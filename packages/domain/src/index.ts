@@ -34,6 +34,9 @@ export {
   type ProviderCredentialId,
   type ProviderAppRegistrationId,
   type FirstValueFeedbackId,
+  type WebhookSubscriptionId,
+  type WebhookSigningSecretId,
+  type InAppEventNotificationId,
   organizationId,
   projectId,
   environmentId,
@@ -59,6 +62,9 @@ export {
   providerCredentialId,
   providerAppRegistrationId,
   firstValueFeedbackId,
+  webhookSubscriptionId,
+  webhookSigningSecretId,
+  inAppEventNotificationId,
 } from "./resource-ids.js";
 export {
   type DisplayName,
@@ -141,6 +147,8 @@ export {
   type ValidationErrorCode,
   CLI_ERROR_CODES,
   type CliErrorCode,
+  NOTIFICATION_ERROR_CODES,
+  type NotificationErrorCode,
 } from "./error-codes.js";
 export {
   DEFAULT_UNKNOWN_ERROR_CODE,

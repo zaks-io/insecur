@@ -174,6 +174,30 @@ CREATE POLICY provider_credentials_tenant_isolation ON provider_credentials
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS webhook_subscriptions_tenant_isolation ON webhook_subscriptions;
+CREATE POLICY webhook_subscriptions_tenant_isolation ON webhook_subscriptions
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS webhook_subscription_event_types_tenant_isolation ON webhook_subscription_event_types;
+CREATE POLICY webhook_subscription_event_types_tenant_isolation ON webhook_subscription_event_types
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS webhook_signing_secrets_tenant_isolation ON webhook_signing_secrets;
+CREATE POLICY webhook_signing_secrets_tenant_isolation ON webhook_signing_secrets
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS in_app_event_notifications_tenant_isolation ON in_app_event_notifications;
+CREATE POLICY in_app_event_notifications_tenant_isolation ON in_app_event_notifications
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS first_value_feedback_tenant_isolation ON first_value_feedback;
 CREATE POLICY first_value_feedback_tenant_isolation ON first_value_feedback
   FOR ALL
@@ -218,6 +242,10 @@ BEGIN
         'machine_identity_environment_deploy_keys',
         'app_connections',
         'provider_credentials',
+        'webhook_subscriptions',
+        'webhook_subscription_event_types',
+        'webhook_signing_secrets',
+        'in_app_event_notifications',
         'sensitive_metadata_fields'
       )
   LOOP

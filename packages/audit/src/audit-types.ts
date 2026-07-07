@@ -53,6 +53,7 @@ export type AuditResourceType =
   | "injection_grant"
   | "operation"
   | "app_connection"
+  | "webhook_subscription"
   | "secret_sync"
   | "approval_request"
   | "organization_data_key"

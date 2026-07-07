@@ -131,6 +131,10 @@ export {
   writeAuditEventWithId,
 } from "./write-audit-event.js";
 export {
+  setAuditNotificationEmitter,
+  type AuditNotificationEmitter,
+} from "./audit-notification-emitter.js";
+export {
   AUDIT_EXPORT_CHAIN_GENESIS,
   AUDIT_EXPORT_HASH_ALGORITHM,
   AUDIT_EXPORT_SCHEMA_VERSION,

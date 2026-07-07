@@ -23,6 +23,7 @@ import { operationsRoutes } from "./routes/v1/operations.js";
 import { organizationsRoutes } from "./routes/v1/organizations.js";
 import { projectsRoutes } from "./routes/v1/projects.js";
 import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
+import { webhookSubscriptionsRoutes } from "./routes/v1/webhook-subscriptions.js";
 import { sessionRoutes } from "./routes/v1/session.js";
 import type { ApiEnv } from "./env.js";
 import { logUnhandledApiError } from "./log-unhandled-error.js";
@@ -99,6 +100,7 @@ app.route("/v1/orgs/:organizationId/audit-events", auditEventsRoutes);
 app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
 app.route("/v1/orgs/:organizationId/high-assurance-challenges", highAssuranceChallengesRoutes);
 app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
+app.route("/v1/orgs/:organizationId/webhook-subscriptions", webhookSubscriptionsRoutes);
 app.route("/v1/orgs/:organizationId/design-partner-feedback", designPartnerFeedbackRoutes);
 app.route("/v1/orgs/:organizationId/first-value-usage", firstValueUsageRoutes);
 

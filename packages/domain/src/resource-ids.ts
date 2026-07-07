@@ -30,6 +30,9 @@ export type AppConnectionId = Brand<string, "AppConnectionId">;
 export type ProviderCredentialId = Brand<string, "ProviderCredentialId">;
 export type ProviderAppRegistrationId = Brand<string, "ProviderAppRegistrationId">;
 export type FirstValueFeedbackId = Brand<string, "FirstValueFeedbackId">;
+export type WebhookSubscriptionId = Brand<string, "WebhookSubscriptionId">;
+export type WebhookSigningSecretId = Brand<string, "WebhookSigningSecretId">;
+export type InAppEventNotificationId = Brand<string, "InAppEventNotificationId">;
 
 type ParseBrandedIdResult<T> =
   { ok: true; value: T } | { ok: false; code: "validation.invalid_opaque_resource_id" };
@@ -88,3 +91,6 @@ export const providerAppRegistrationId = createResourceIdHelpers(
   "ProviderAppRegistrationId",
 );
 export const firstValueFeedbackId = createResourceIdHelpers("fvb", "FirstValueFeedbackId");
+export const webhookSubscriptionId = createResourceIdHelpers("whsub", "WebhookSubscriptionId");
+export const webhookSigningSecretId = createResourceIdHelpers("whsec", "WebhookSigningSecretId");
+export const inAppEventNotificationId = createResourceIdHelpers("inev", "InAppEventNotificationId");

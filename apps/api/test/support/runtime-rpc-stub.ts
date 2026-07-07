@@ -63,5 +63,11 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     getHighAssuranceChallenge: vi.fn(),
     clearHighAssuranceChallenge: vi.fn(),
     denyHighAssuranceChallenge: vi.fn(),
+    createWebhookSubscription: vi.fn(),
+    listWebhookSubscriptions: vi.fn(),
+    updateWebhookSubscription: vi.fn(),
+    deleteWebhookSubscription: vi.fn(),
+    rotateWebhookSigningSecret: vi.fn(),
+    listWebhookEventCodes: vi.fn(),
   };
 }
