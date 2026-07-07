@@ -4,8 +4,14 @@ import {
   queryTenantAuditEventsInTenantScope,
   writeAuditEvent,
 } from "@insecur/audit";
-import { assertMetadataOnlyValue } from "@insecur/domain";
-import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
+import {
+  assertMetadataOnlyValue,
+  auditEventId,
+  environmentId,
+  organizationId,
+  projectId,
+  userId,
+} from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bindJsonb, closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
@@ -77,9 +83,8 @@ describeIntegration("queryTenantAuditEvents", () => {
   });
 
   it("filters by actor, project, environment, event code, and time range", async () => {
-    const suffix = Date.now().toString(36);
-    const matchingId = `aud_test_match_${suffix}`;
-    const otherId = `aud_test_other_${suffix}`;
+    const matchingId = auditEventId.generate();
+    const otherId = auditEventId.generate();
 
     await insertAuditEvent({
       id: matchingId,
@@ -88,7 +93,10 @@ describeIntegration("queryTenantAuditEvents", () => {
       createdAt: "2026-07-01T10:00:00.000Z",
       projectId: PROJECT,
       environmentId: ENV,
-      details: { agentSessionId: "ags_test_000000000000000000000001", harnessName: "claude-code" },
+      details: {
+        agentSessionId: "ags_00000000000000000000000011",
+        harnessName: "agent.harness.claude_code",
+      },
     });
     await insertAuditEvent({
       id: otherId,
@@ -115,17 +123,16 @@ describeIntegration("queryTenantAuditEvents", () => {
     const matched = page.events.find((event) => event.auditEventId === matchingId);
     expect(matched?.actor).toMatchObject({ actorType: "user", userId: USER });
     expect(matched?.details).toMatchObject({
-      agentSessionId: "ags_test_000000000000000000000001",
-      harnessName: "claude-code",
+      agentSessionId: "ags_00000000000000000000000011",
+      harnessName: "agent.harness.claude_code",
     });
     assertMetadataOnlyValue(page);
     expect(JSON.stringify(page)).not.toMatch(/hunter2|secret-value/i);
   });
 
   it("paginates stably in reverse chronological order", async () => {
-    const suffix = Date.now().toString(36);
-    const olderId = `aud_test_page_old_${suffix}`;
-    const newerId = `aud_test_page_new_${suffix}`;
+    const olderId = auditEventId.generate();
+    const newerId = auditEventId.generate();
 
     await insertAuditEvent({
       id: olderId,
@@ -140,9 +147,15 @@ describeIntegration("queryTenantAuditEvents", () => {
       createdAt: "2026-07-03T10:00:00.000Z",
     });
 
+    const paginationFilters = {
+      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunCompleted,
+      createdAtFrom: "2026-07-02T00:00:00.000Z",
+      createdAtTo: "2026-07-04T00:00:00.000Z",
+    };
+
     const firstPage = await queryTenantAuditEvents({
       organizationId: ORG_A,
-      filters: { eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunCompleted },
+      filters: paginationFilters,
       pageSize: 1,
     });
 
@@ -151,7 +164,7 @@ describeIntegration("queryTenantAuditEvents", () => {
 
     const secondPage = await queryTenantAuditEvents({
       organizationId: ORG_A,
-      filters: { eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunCompleted },
+      filters: paginationFilters,
       pageSize: 1,
       cursor: firstPage.nextCursor ?? undefined,
     });
@@ -163,8 +176,7 @@ describeIntegration("queryTenantAuditEvents", () => {
   });
 
   it("returns no cross-tenant rows under forced RLS", async () => {
-    const suffix = Date.now().toString(36);
-    const orgBEventId = `aud_test_org_b_${suffix}`;
+    const orgBEventId = auditEventId.generate();
 
     await insertAuditEvent({
       id: orgBEventId,

@@ -55,7 +55,7 @@ const metadataOnlyAuditEvent = {
   operationId: null,
   details: {
     agentSessionId: "ags_00000000000000000000000011",
-    harnessName: "claude-code",
+    harnessName: "agent.harness.claude_code",
   },
   createdAt: "2026-07-01T00:00:00.000Z",
 };
