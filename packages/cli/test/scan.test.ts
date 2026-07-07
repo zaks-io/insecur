@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -159,6 +159,21 @@ describe("insecur scan", () => {
       expect(report.summary.unreadableFiles).toContain(".npmrc");
     } finally {
       await chmod(npmrcPath, 0o644);
+    }
+  });
+
+  it("reports unreadable directories in the summary", async () => {
+    const root = await mkdtemp(join(tmpdir(), "insecur-scan-walker-dir-"));
+    const secretsDir = join(root, "secrets");
+    await mkdir(secretsDir);
+    await writeFile(join(secretsDir, ".env"), "API_SECRET=sentinel-metadata-only\n", "utf8");
+    await chmod(secretsDir, 0o000);
+
+    try {
+      const report = await buildScanReport({ rootDir: root });
+      expect(report.summary.unreadableFiles).toContain("secrets");
+    } finally {
+      await chmod(secretsDir, 0o755);
     }
   });
 

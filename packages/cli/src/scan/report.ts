@@ -120,22 +120,38 @@ function applyScanOutcome(
   }
 }
 
+function mergeUnreadablePaths(...groups: readonly (readonly string[])[]): readonly string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const group of groups) {
+    for (const path of group) {
+      if (!seen.has(path)) {
+        seen.add(path);
+        merged.push(path);
+      }
+    }
+  }
+  return merged;
+}
+
 export async function buildScanReport(options: ScanOptions): Promise<ScanReport> {
   const startedAt = performance.now();
-  const { files: walkedFiles, oversizedFiles } = await walkProjectFiles(options);
+  const { files: walkedFiles, oversizedFiles, unreadablePaths } = await walkProjectFiles(options);
   const findings: ScanFinding[] = [];
-  const unreadableFiles: string[] = [];
+  const scanUnreadableFiles: string[] = [];
   const filesWithFindings = new Set<string>();
   const totalEntries = { value: 0 };
 
   for (const file of walkedFiles) {
     applyScanOutcome(await scanWalkedFile(file), file, {
       findings,
-      unreadableFiles,
+      unreadableFiles: scanUnreadableFiles,
       totalEntries,
       filesWithFindings,
     });
   }
+
+  const unreadableFiles = mergeUnreadablePaths(unreadablePaths, scanUnreadableFiles);
 
   const likelySecrets = findings.filter((finding) => finding.confidence === "likely-secret").length;
   const migratableCount = findings.filter((finding) => finding.migratable).length;

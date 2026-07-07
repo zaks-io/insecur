@@ -1,5 +1,10 @@
 import { basename } from "node:path";
-import { classifyDotenvValueShape, extractDotenvValue, type DotenvEntry } from "./dotenv-parser.js";
+import {
+  classifyDotenvValueShape,
+  extractDotenvValue,
+  isObviouslyNonSecret,
+  type DotenvEntry,
+} from "./dotenv-parser.js";
 import { detectSecretFileKindByName } from "./secret-paths.js";
 import type { ScanConfidence, ScanFindingKind } from "./types.js";
 
@@ -62,7 +67,7 @@ export function classifyDotenvEntry(key: string, value: string): ClassifiedDoten
   if (confidence === null) {
     return null;
   }
-  if (confidence === "possible" && isBenignConfigValue(shape.unquoted)) {
+  if (confidence === "possible" && isObviouslyNonSecret(shape.unquoted)) {
     return null;
   }
 
@@ -155,17 +160,4 @@ function isPemContent(content: string): boolean {
 
 function isAuthTokenFileContent(content: string): boolean {
   return content.includes("_authToken") || content.includes("npmAuthToken");
-}
-
-function isBenignConfigValue(value: string): boolean {
-  const lower = value.toLowerCase();
-  return (
-    lower === "true" ||
-    lower === "false" ||
-    lower === "development" ||
-    lower === "production" ||
-    lower === "test" ||
-    lower === "staging" ||
-    /^\d+$/u.test(value)
-  );
 }

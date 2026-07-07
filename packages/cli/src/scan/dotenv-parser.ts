@@ -112,7 +112,8 @@ function hasMixedCharset(value: string): boolean {
   return (hasAlpha && hasDigit) || (hasAlpha && hasSpecial) || (hasDigit && hasSpecial);
 }
 
-function isObviouslyNonSecret(value: string): boolean {
+/** Returns true when a dotenv value shape is obviously non-secret (metadata-only check). */
+export function isObviouslyNonSecret(value: string): boolean {
   const lower = value.toLowerCase();
   const benign = new Set([
     "true",

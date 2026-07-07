@@ -28,6 +28,9 @@ describe("dotenv parser", () => {
     expect(classifyDotenvEntry("NODE_ENV", "development")).toBeNull();
     expect(classifyDotenvEntry("API_SECRET", "")).toBeNull();
     expect(classifyDotenvEntry("DATABASE_PASSWORD", "   ")).toBeNull();
+    expect(classifyDotenvEntry("REDIS_KEY", "http://localhost:3000")).toBeNull();
+    expect(classifyDotenvEntry("my_pass", "https://example.test")).toBeNull();
+    expect(classifyDotenvEntry("MYTOKEN", "localhost")).toBeNull();
   });
 
   it("classifies secret-shaped values as findings", () => {
