@@ -15,6 +15,7 @@ import {
 import { withTenantScope } from "@insecur/tenant-store";
 
 import { resolveAttributionTier } from "./agent-session-store.js";
+import { pickWhoamiAttributionFields } from "./whoami-fields.js";
 
 export interface ResolveSessionWhoamiInput {
   readonly userId: UserId;
@@ -164,10 +165,7 @@ function buildAttributionInput(input: ResolveSessionWhoamiInput) {
     ...(input.derivedAgentSessionId !== undefined
       ? { derivedAgentSessionId: input.derivedAgentSessionId }
       : {}),
-    ...(input.agentSessionId !== undefined ? { agentSessionId: input.agentSessionId } : {}),
-    ...(input.agentTag !== undefined ? { agentTag: input.agentTag } : {}),
-    ...(input.harnessName !== undefined ? { harnessName: input.harnessName } : {}),
-    ...(input.ancestryKey !== undefined ? { ancestryKey: input.ancestryKey } : {}),
+    ...pickWhoamiAttributionFields(input),
   };
 }
 

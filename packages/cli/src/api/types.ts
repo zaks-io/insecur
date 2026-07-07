@@ -10,6 +10,8 @@ import type {
   SecretVersionId,
   TeamId,
   VariableKey,
+  AgentSessionId,
+  SessionWhoamiData,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { AuditEventsPage } from "@insecur/audit";
@@ -247,6 +249,20 @@ export interface ApiClient extends NavigationApiClient {
     readonly filters?: ListAuditEventsFiltersInput;
   }): Promise<
     | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  sessionWhoami(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId?: OrganizationId;
+    readonly projectId?: ProjectId;
+    readonly environmentId?: EnvironmentId;
+    readonly agentSessionId?: AgentSessionId;
+    readonly agentTag?: string;
+    readonly harnessName?: string;
+    readonly ancestryKey?: string;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<SessionWhoamiData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }

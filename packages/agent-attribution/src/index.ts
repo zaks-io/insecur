@@ -14,3 +14,9 @@ export {
   type ResolveSessionWhoamiInput,
   type ResolveSessionWhoamiResult,
 } from "./resolve-session-whoami.js";
+export {
+  pickWhoamiAttributionFields,
+  pickWhoamiContextFields,
+  pickWhoamiOptionalFields,
+  type WhoamiOptionalFields,
+} from "./whoami-fields.js";
