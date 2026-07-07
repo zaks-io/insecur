@@ -9,6 +9,8 @@ export const TEST_TEAM_B_ID = "team_00000000000000000000000002";
 export const TEST_MEM_A_ID = "mem_00000000000000000000000001";
 export const TEST_MEM_B_ID = "mem_00000000000000000000000002";
 export const TEST_MEM_CROSS_ORG_ID = "mem_00000000000000000000000099";
+/** Org A metadata-viewer membership for audit export / metadata detail read e2e. */
+export const TEST_MEM_METADATA_VIEWER_A_ID = "mem_00000000000000000000000008";
 export const TEST_USER_ID = "usr_00000000000000000000000001";
 /** WorkOS External Subject paired with TEST_USER_ID in baseline admission seed rows. */
 export const TEST_WORKOS_USER_ID = "user_01workos_rls_baseline";
