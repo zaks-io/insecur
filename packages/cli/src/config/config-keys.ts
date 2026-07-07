@@ -28,6 +28,13 @@ export function parseWritableProjectConfigKey(rawKey: string): WritableProjectCo
         retryable: false,
       });
     }
+    if (isForbiddenConfigKey(branch)) {
+      throw new CliError({
+        code: VALIDATION_ERROR_CODES.invalidCommandInput,
+        message: `Config key is forbidden: ${rawKey}`,
+        retryable: false,
+      });
+    }
     return { kind: "branch-env", branch };
   }
   throw new CliError({

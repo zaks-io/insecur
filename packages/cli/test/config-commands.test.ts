@@ -253,4 +253,33 @@ describe("config show and set commands", () => {
     expect(JSON.parse(raw)).toMatchObject({ defaultEnvId: ENV_ID });
     expect(raw).not.toMatch(/accessToken/);
   });
+
+  it("rejects forbidden branch names in branch-env keys before writing", async () => {
+    context = await setupTestContext();
+
+    const exitCode = await runCli([
+      "node",
+      "insecur",
+      "config",
+      "set",
+      "branch-env.accessToken",
+      ENV_ID_ALT,
+      "--json",
+      "--config-dir",
+      context.projectDir,
+    ]);
+
+    expect(exitCode).toBe(EXIT_VALIDATION);
+    const parsed = JSON.parse(context.stderr.value) as {
+      ok: boolean;
+      error: { code: string; message: string };
+    };
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error.code).toBe(VALIDATION_ERROR_CODES.invalidCommandInput);
+    expect(parsed.error.message).toMatch(/forbidden/i);
+
+    const raw = await readFile(path.join(context.projectDir, PROJECT_CONFIG_FILE), "utf8");
+    expect(JSON.parse(raw)).toMatchObject({ defaultEnvId: ENV_ID });
+    expect(JSON.parse(raw).gitBranchToEnvironment).toBeUndefined();
+  });
 });
