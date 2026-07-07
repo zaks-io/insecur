@@ -250,7 +250,6 @@ export interface ApiClient extends NavigationApiClient, WhoamiApiClient {
     | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
-<<<<<<< HEAD
   revokeCliSession(input: {
     readonly host: string;
     readonly bearerCredential: string;
@@ -258,6 +257,4 @@ export interface ApiClient extends NavigationApiClient, WhoamiApiClient {
     | { ok: true; envelope: ApiSuccess<{ readonly revoked: boolean }> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
-=======
->>>>>>> 8dc6c63 (fix(INS-430): stabilize ancestry key and gate registration on context validation)
 }

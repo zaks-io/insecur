@@ -44,6 +44,18 @@ export async function findActiveAgentSession(input: {
 }): Promise<ActiveAgentSession | null> {
   const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
     if (input.agentSessionId !== undefined) {
+      if (input.ancestryKey !== undefined) {
+        return await sql<AgentSessionRow[]>`
+          SELECT id, user_id, human_session_id, harness_name, ancestry_key, tier
+          FROM agent_sessions
+          WHERE id = ${input.agentSessionId}
+            AND human_session_id = ${input.humanSessionId}
+            AND user_id = ${input.userId}
+            AND ancestry_key = ${input.ancestryKey}
+            AND closed_at IS NULL
+          LIMIT 1
+        `;
+      }
       return await sql<AgentSessionRow[]>`
         SELECT id, user_id, human_session_id, harness_name, ancestry_key, tier
         FROM agent_sessions
@@ -162,10 +174,14 @@ async function resolveRegisteredById(
   if (input.agentSessionId === undefined) {
     return null;
   }
+  const requestAncestry = input.ancestryKey?.trim();
   const registered = await findActiveAgentSession({
     humanSessionId: input.humanSessionId,
     userId: input.userId,
     agentSessionId: input.agentSessionId,
+    ...(requestAncestry !== undefined && requestAncestry !== ""
+      ? { ancestryKey: requestAncestry }
+      : {}),
   });
   return registered === null ? null : registeredAttributionResult(registered);
 }
