@@ -44,8 +44,7 @@ interface ExchangeGitHubActionsOidcFailure {
 }
 
 export type ExchangeGitHubActionsOidcResult =
-  | ExchangeGitHubActionsOidcSuccess
-  | ExchangeGitHubActionsOidcFailure;
+  ExchangeGitHubActionsOidcSuccess | ExchangeGitHubActionsOidcFailure;
 
 export interface ExchangeGitHubActionsOidcInput {
   readonly organizationId: OrganizationId;

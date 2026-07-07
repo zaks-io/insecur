@@ -6,11 +6,7 @@ import { collectDeployKeyOverbroadCredentialScopes } from "./deploy-key-credenti
 import type { EnvironmentDeployKeyAuthMethodRow } from "./environment-deploy-key-auth-method-row.js";
 
 export type EnvironmentDeployKeyMatchFailureReason =
-  | "invalid"
-  | "disabled"
-  | "expired"
-  | "wrong_environment"
-  | "overbroad_scope";
+  "invalid" | "disabled" | "expired" | "wrong_environment" | "overbroad_scope";
 
 export type EnvironmentDeployKeyMatchResult =
   | { ok: true; authMethod: EnvironmentDeployKeyAuthMethodRow }

@@ -21,11 +21,7 @@ import { machineAuthExchangeTenantScope } from "./machine-auth-exchange-tenant-s
 import { recordMachineAuthExchangeDenied } from "./record-machine-auth-exchange-denied.js";
 
 export type DeployKeyExchangeDenialKind =
-  | "invalid"
-  | "disabled"
-  | "expired"
-  | "wrong_environment"
-  | "overbroad_scope";
+  "invalid" | "disabled" | "expired" | "wrong_environment" | "overbroad_scope";
 
 function deployKeyDenialDetail(kind: DeployKeyExchangeDenialKind): AuditEventDetails {
   return { deployKeyDenialKind: `auth.deploy_key_denial.${kind}` };

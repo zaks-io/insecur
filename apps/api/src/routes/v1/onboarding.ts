@@ -18,10 +18,7 @@ export const onboardingRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVari
 function optionalDisplayName(
   body: Record<string, unknown>,
   field:
-    | "organizationDisplayName"
-    | "projectDisplayName"
-    | "teamDisplayName"
-    | "environmentDisplayName",
+    "organizationDisplayName" | "projectDisplayName" | "teamDisplayName" | "environmentDisplayName",
 ) {
   const displayName = parseOptionalDisplayName(readOptionalString(body, field));
   return displayName === undefined ? {} : { [field]: displayName };

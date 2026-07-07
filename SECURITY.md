@@ -41,7 +41,7 @@ this section together when the public surface changes.
 
 | Surface         | Production endpoint                                  | Preview endpoint                    | Public route groups                                                                                                          |
 | --------------- | ---------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Public Site     | `https://insecur.cloud`, `https://www.insecur.cloud` | `https://preview.insecur.cloud`     | `GET /`, `GET /healthz`, `GET /install.sh`, `GET /install.ps1`                                                               |
+| Public Site     | `https://insecur.cloud`, `https://www.insecur.cloud` | `https://preview.insecur.cloud`     | `GET /`, `GET /healthz`, `GET /badges/coverage.json`, `GET /install.sh`, `GET /install.ps1`                                  |
 | Web Console BFF | `https://app.insecur.cloud`                          | `https://app.preview.insecur.cloud` | `GET /healthz`, `GET /`, `GET /login`, `GET /auth/callback`, `POST /logout`, `GET /whoami`, `GET /onboarding`, `GET /orgs/*` |
 | API             | `https://api.insecur.cloud`                          | `https://api.preview.insecur.cloud` | `GET /healthz`, `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/instance/bootstrap`, `/v1/orgs/:organizationId/*`          |
 | Runtime         | None                                                 | None                                | No public routes. Direct fetches return `404`; access is only through private Cloudflare Service Binding RPC.                |

@@ -17,16 +17,12 @@ import {
 /** `GET /v1/orgs/:organizationId/projects` through the BFF scoped-token hop (ADR-0051). */
 export const loadOrgProjects = createServerFn({ method: "GET" })
   .validator(orgIdInput)
-  .handler(
-    ({ data }): Promise<ConsoleRead<readonly ConsoleProject[]>> =>
-      consoleRead(async (api) =>
-        envelopeParseToReadResult(
-          parseConsoleReadEnvelope(
-            await api.orgProjects(data.organizationId),
-            parseOrgProjectsBody,
-          ),
-        ),
+  .handler(({ data }): Promise<ConsoleRead<readonly ConsoleProject[]>> =>
+    consoleRead(async (api) =>
+      envelopeParseToReadResult(
+        parseConsoleReadEnvelope(await api.orgProjects(data.organizationId), parseOrgProjectsBody),
       ),
+    ),
   );
 
 /** `GET .../projects/:projectId/environments` through the BFF scoped-token hop (ADR-0051). */
@@ -38,14 +34,13 @@ export const loadProjectEnvironments = createServerFn({ method: "GET" })
       projectId: requiredId(projectId, "projectId"),
     };
   })
-  .handler(
-    ({ data }): Promise<ConsoleRead<readonly ConsoleEnvironment[]>> =>
-      consoleRead(async (api) =>
-        envelopeParseToReadResult(
-          parseConsoleReadEnvelope(
-            await api.projectEnvironments(data.organizationId, data.projectId),
-            parseProjectEnvironmentsBody,
-          ),
+  .handler(({ data }): Promise<ConsoleRead<readonly ConsoleEnvironment[]>> =>
+    consoleRead(async (api) =>
+      envelopeParseToReadResult(
+        parseConsoleReadEnvelope(
+          await api.projectEnvironments(data.organizationId, data.projectId),
+          parseProjectEnvironmentsBody,
         ),
       ),
+    ),
   );

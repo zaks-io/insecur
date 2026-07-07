@@ -7,13 +7,10 @@ import {
 } from "./mfa-posture.js";
 
 export type SessionAssuranceFailureReason =
-  | "sms_not_allowed"
-  | "mfa_enrollment"
-  | "insufficient_assurance";
+  "sms_not_allowed" | "mfa_enrollment" | "insufficient_assurance";
 
 export type SessionAssuranceResult =
-  | { ok: true }
-  | { ok: false; reason: SessionAssuranceFailureReason };
+  { ok: true } | { ok: false; reason: SessionAssuranceFailureReason };
 
 export interface EvaluateSessionAssuranceInput {
   readonly authenticationMethod?: string;

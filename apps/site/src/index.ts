@@ -2,7 +2,9 @@ import { cloudflareSentryOptions, sentryBrowserConfig } from "@insecur/observabi
 import * as Sentry from "@sentry/cloudflare";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import serverEntry from "@tanstack/react-start/server-entry";
+import { badgeJsonResponse } from "./badge-json-response.js";
 import type { SiteEnv } from "./env.js";
+import coverageBadge from "./generated/coverage-badge.json" with { type: "json" };
 import { INSTALL_PS1 } from "./install-ps1.js";
 import {
   INSTALL_PS1_CONTENT_TYPE,
@@ -38,6 +40,10 @@ const handler = {
 
     if (pathname === "/install.ps1") {
       return installScriptResponse(INSTALL_PS1, INSTALL_PS1_CONTENT_TYPE, request.method);
+    }
+
+    if (pathname === "/badges/coverage.json") {
+      return badgeJsonResponse(coverageBadge, request.method);
     }
 
     if (pathname === "/healthz") {

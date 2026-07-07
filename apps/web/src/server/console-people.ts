@@ -25,21 +25,20 @@ export interface ConsolePeople {
  */
 export const loadOrgPeople = createServerFn({ method: "GET" })
   .validator(orgIdInput)
-  .handler(
-    ({ data }): Promise<ConsoleRead<ConsolePeople>> =>
-      consoleRead(async (api) => {
-        const [membersBody, invitationsBody] = await Promise.all([
-          api.orgMembers(data.organizationId),
-          api.orgInvitations(data.organizationId),
-        ]);
-        const members = parseConsoleReadEnvelope(membersBody, parseOrgMembersBody);
-        const invitations = parseConsoleReadEnvelope(invitationsBody, parseOrgInvitationsBody);
-        if (members.kind === "unavailable" || invitations.kind === "unavailable") {
-          return consoleReadUnavailable;
-        }
-        if (members.kind === "denied" || invitations.kind === "denied") {
-          return null;
-        }
-        return { members: members.value, invitations: invitations.value };
-      }),
+  .handler(({ data }): Promise<ConsoleRead<ConsolePeople>> =>
+    consoleRead(async (api) => {
+      const [membersBody, invitationsBody] = await Promise.all([
+        api.orgMembers(data.organizationId),
+        api.orgInvitations(data.organizationId),
+      ]);
+      const members = parseConsoleReadEnvelope(membersBody, parseOrgMembersBody);
+      const invitations = parseConsoleReadEnvelope(invitationsBody, parseOrgInvitationsBody);
+      if (members.kind === "unavailable" || invitations.kind === "unavailable") {
+        return consoleReadUnavailable;
+      }
+      if (members.kind === "denied" || invitations.kind === "denied") {
+        return null;
+      }
+      return { members: members.value, invitations: invitations.value };
+    }),
   );

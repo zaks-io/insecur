@@ -9,8 +9,7 @@ export type VariableKey = Brand<string, "VariableKey">;
 export const VARIABLE_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 
 export type ParseVariableKeyResult =
-  | { ok: true; value: VariableKey }
-  | { ok: false; code: "validation.invalid_variable_key" };
+  { ok: true; value: VariableKey } | { ok: false; code: "validation.invalid_variable_key" };
 
 export function parseVariableKey(raw: string): ParseVariableKeyResult {
   if (!VARIABLE_KEY_PATTERN.test(raw)) {
