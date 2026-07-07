@@ -114,7 +114,11 @@ export async function runCli(argv: readonly string[]): Promise<number> {
   } catch (error) {
     if (error instanceof CliError) {
       const flags = globalFlags(program);
-      renderEnvelope(errorEnvelope(error.toErrorBody()), flags, () => "");
+      const envelope =
+        error.data === undefined
+          ? errorEnvelope(error.toErrorBody())
+          : { ...errorEnvelope(error.toErrorBody()), data: error.data };
+      renderEnvelope(envelope, flags, () => "");
       return error.exitCode;
     }
     const flags = globalFlags(program);
