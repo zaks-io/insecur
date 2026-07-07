@@ -1,5 +1,6 @@
 import {
   appConnectionId,
+  brandValue,
   CRYPTO_ERROR_CODES,
   organizationId,
   providerCredentialId,
@@ -123,5 +124,18 @@ describe("encryptProviderCredential / decryptProviderCredentialForProviderUse", 
     await expect(
       decryptProviderCredentialForProviderUse(wrongKeyring, identity(), wrapped),
     ).rejects.toBeInstanceOf(DecryptError);
+  });
+
+  it("encrypts webhook signing secrets with whsub/whsec AAD bindings", async () => {
+    const bound = identity({
+      provider: "webhook-signing-secret",
+      appConnectionId: brandValue<string, "AppConnectionId">("whsub_00000000000000000000000001"),
+      credentialId: brandValue<string, "ProviderCredentialId">("whsec_00000000000000000000000001"),
+    });
+    const plaintext = samplePlaintext();
+    const wrapped = await encryptProviderCredential(keyring, bound, plaintext);
+    const decrypted = await decryptProviderCredentialForProviderUse(keyring, bound, wrapped);
+
+    expect(decrypted.unwrapUtf8()).toEqual(plaintext);
   });
 });
