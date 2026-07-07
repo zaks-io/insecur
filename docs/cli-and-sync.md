@@ -76,6 +76,105 @@ with `{"ok":false,...}` on failure. It never prints the Sensitive Value or a raw
 
 This gives the user a working example they can run immediately and then adapt into their own application code. It proves that the caller can create and use a generated non-protected development secret without seeing it in command output or local secret files. It does not prove that an arbitrary child process or active local malware cannot read an injected development value after Runtime Injection crosses the Runtime Trust Boundary.
 
+The hosted first-run path above requires authentication. **Local Mode** is the account-less alternative: unauthenticated `insecur init` defaults to Local Mode and uses the same `secrets set` / `run` command surface with an encrypted machine-local store. Local Mode behavior is normative in [Local Mode](#local-mode) below; the decision record is [ADR-0080](adr/0080-local-mode-accountless-development-custody.md).
+
+## Local Mode
+
+Local Mode is account-less CLI operation where non-protected development Secrets are stored encrypted on the developer's machine and used through the ordinary `init` / `secrets set` / `run` command surface, with no Hosted Instance account. It is a first-class custody backend behind the same contract seams (Secret Version Store, Injection Grant, audit writer, encryption envelope), not shortcut scaffolding. The glossary term is authoritative in [instance-onboarding.md](context/glossary/instance-onboarding.md).
+
+### Selection And Defaults
+
+- Per-project mode is the existing `host` field in committed project config. Local projects set `"host": "local"`; hosted projects set `"host": "https://insecur.cloud"` or another Instance URL.
+- An unauthenticated `insecur init` defaults to Local Mode and prints a one-line notice that the project is local and how to migrate later. Authenticated `insecur init` follows the hosted Guided First Run defaults unless the caller passes `--host local`.
+- Local Mode supports Projects and non-protected development Environments only. Protected Environments, Organization/User/Team/Membership objects, Secret Sync, machine identities, provider App Connections, and production delivery are structurally inexpressible locally and fail with `local.cloud_feature_unavailable` plus remediation carrying the exact upgrade commands.
+- Opaque resource IDs are client-minted with the same formats as hosted create commands. The local store validates format and enforces project-scoped uniqueness.
+
+### Local Store And Key Custody
+
+- The machine-local root key lives in the OS keychain via shell-outs to OS-shipped tooling, behind one `KeyStore` seam, with a documented `0600` key-file fallback ([ADR-0080](adr/0080-local-mode-accountless-development-custody.md)).
+- The encrypted local store implements the Secret Version Store, Injection Grant, and audit seams for Current Versions only. No local version history, backup, or export command shapes exist.
+- No Sensitive Values appear in CLI output, JSON, logs, operation records, caches, or committed config. No raw digests and no string-similarity comparisons ever appear in any output; possession checks return metadata-only verdicts ([ADR-0080](adr/0080-local-mode-accountless-development-custody.md)).
+
+Preferred Local Mode command sequence:
+
+```bash
+insecur init
+insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
+insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
+```
+
+### Committed Config As Secret Shape Manifest
+
+In Local Mode the committed `.insecur.json` owns the project's Secret Shapes (non-secret metadata only). After migration to a Hosted Instance the server owns shapes, like any cloud project.
+
+Local project config example:
+
+```json
+{
+  "host": "local",
+  "projectId": "prj_01JZ8E3A0K7J5T9Q2R4S6V8W0X",
+  "defaultEnvId": "env_01JZ8E3W4C8M2H6N9P1Q3R5T7V",
+  "secretShapes": [
+    {
+      "variableKey": "DATABASE_URL",
+      "displayName": "Database URL",
+      "required": true
+    },
+    {
+      "variableKey": "INSECUR_PROOF_SECRET",
+      "displayName": "First value proof",
+      "generationHint": "random:32"
+    }
+  ]
+}
+```
+
+Rules:
+
+- `secretShapes` entries are Secret Shape metadata only: Variable Key, optional Display Name, description, required status, and generation hint. No Sensitive Values.
+- `secrets set --variable-key` creates or updates the matching Secret Shape entry in committed config when the shape did not exist.
+- A fresh clone on a second machine auto-adopts the project: the CLI resolves the development Environment from config, reports exactly which Variable Keys lack values on this machine (`local.value_missing_on_machine`), and prints the exact `secrets set` commands to fill them. Output is metadata-only.
+
+### CLI Profiles For Local Projects
+
+CLI Profiles may select a local project. A local profile sets `"host": "local"` and omits `orgId`; it still selects project, environment, and optional default Runtime Policy Key by opaque ID.
+
+```json
+{
+  "slug": "local-dev",
+  "displayName": "Local development",
+  "host": "local",
+  "projectId": "prj_01JZ8E3A0K7J5T9Q2R4S6V8W0X",
+  "envId": "env_01JZ8E3W4C8M2H6N9P1Q3R5T7V"
+}
+```
+
+### Migrate To Cloud
+
+Migration is explicit, per-project, human-confirmed, and one-way forever. There is no cloud→local path; any export that would move hosted secrets onto disk is a reveal path and must not exist.
+
+```bash
+insecur login
+insecur projects migrate --org-id org_01JZ8E2QYQ6M7F4K9A2B3C4D5E --confirm-migrate
+```
+
+`--confirm-migrate` is a scoped confirmation; generic `--yes` cannot satisfy it (see [Global Flags](#global-flags)).
+
+Reconcile semantics:
+
+1. **Create missing remote resources** by replaying client-minted IDs from local project and environment metadata.
+2. **Already in sync** when remote possession checks prove every local Current Version is present remotely; the command reports success as a no-op.
+3. **Divergence fails loud** with `migrate.remote_diverged` when a remote Secret exists but its value does not match the local candidate; nothing is written remotely or deleted locally.
+4. **Possession check** compares each Secret through a server-side check: candidate value in, metadata-only verdict out. Mismatch returns `secret.possession_mismatch`. Raw digests and string-similarity metrics are prohibited ([ADR-0080](adr/0080-local-mode-accountless-development-custody.md)).
+5. **Verified-then-clean** local deletion runs only after every value is proven present remotely via the possession check. Any failure leaves local state intact and the command re-runnable.
+6. **Config flips last**: `.insecur.json` changes `host` to the cloud Instance URL and drops local-only fields only after verified remote presence and local cleanup succeed.
+
+A machine may hold local and cloud projects side by side indefinitely.
+
+### Local Mode Capability Ceiling
+
+Commands that require Organization scope, Protected Environments, Secret Sync, machine identities, provider setup, or other hosted-only capabilities fail with `local.cloud_feature_unavailable`. Remediation states what Local Mode cannot do and carries the exact upgrade commands (`insecur login`, `insecur projects migrate`, and the hosted command that would satisfy the request).
+
 ## Local Configuration
 
 ### Project Config
@@ -100,6 +199,7 @@ Rules:
 
 - No Sensitive Values.
 - Store opaque IDs as durable resource selectors in committed project config. Variable Keys are application delivery keys; Display Names are normal labels, not selectors.
+- `"host": "local"` selects Local Mode for the project; hosted projects use an Instance URL. Local projects omit `orgId` and may include `secretShapes` as the committed Secret Shape manifest ([Local Mode](#local-mode)).
 - `--org-id`, `--project-id`, and `--env-id` flags override config.
 - `gitBranchToEnvironment` overrides `defaultEnvId` unless `--env-id` is passed.
 - Monorepos can pass `--config-dir <path>`.
@@ -153,7 +253,8 @@ Example profile shape:
 Profile rules:
 
 - CLI Profiles are selectors only; they do not contain Sensitive Values.
-- A profile selects organization, project, environment, and default Runtime Policy Key by opaque ID.
+- A profile selects organization (when hosted), project, environment, and default Runtime Policy Key by opaque ID.
+- Local profiles set `"host": "local"` and omit `orgId` ([Local Mode](#local-mode)).
 - A CLI Profile is not a secret group. It may choose the default Runtime Injection Policy for a local context, but the policy owns the exact secret bindings for one workflow.
 - CLI Profile Slugs are user-editable lower-kebab local aliases and must be unique inside the user's local CLI configuration.
 - CLI Profile Display Names are user-editable freeform labels and are not command selectors.
@@ -280,7 +381,7 @@ Mutating or long-running commands should also support:
 - `--idempotency-key <key>`
 - `--operation <id>`
 
-`--yes` answers ordinary prompts only. It must not satisfy scoped high-risk confirmations such as destructive managed-copy deletion or unknown provider overwrite confirmation.
+`--yes` answers ordinary prompts only. It must not satisfy scoped high-risk confirmations such as destructive managed-copy deletion, unknown provider overwrite confirmation, or Local Mode cloud migration (`--confirm-migrate`).
 
 ## Output Shape
 
@@ -538,6 +639,10 @@ a resource-existence oracle, even where their exit codes differ.
 | `sync.target_busy`                          | `8`  | `n/a (client-side)` | Retryable lease contention.                                                                                                                             |
 | `sync.overwrite_status_unknown`             | `2`  | `n/a (client-side)` | Warning code; exits `2` only when required operation-scoped confirmation is absent, otherwise the run proceeds.                                         |
 | `sync.provider_delete_incomplete`           | `0`  | `n/a (client-side)` | Warning code on a `completed_with_warnings` operation; not a failure.                                                                                   |
+| `local.cloud_feature_unavailable`           | `4`  | `n/a (client-side)` | Hosted-only capability invoked in Local Mode; remediation carries exact upgrade commands.                                                               |
+| `local.value_missing_on_machine`            | `2`  | `n/a (client-side)` | Second-machine auto-adopt reports Variable Keys without local values; remediation lists exact `secrets set` commands.                                   |
+| `migrate.remote_diverged`                   | `6`  | `409`               | Remote Secret exists but possession check failed during migrate reconcile; nothing written.                                                             |
+| `secret.possession_mismatch`                | `6`  | `409`               | Server-side possession check verdict: candidate value does not match stored Secret; metadata-only, no digests or similarity scores.                     |
 
 Mappings without a dotted code: a client-minted resource ID that already exists in the tenant returns a conflict at exit `6` (see Identification Model), and Display Name Resolution returns exit `5` for zero matches and exit `2` for two or more matches (ADR-0035).
 
@@ -710,6 +815,7 @@ insecur projects create --project-id prj_01JZ8EDQ2R7V0X3Z6C9D1F4G5H --display-na
 insecur envs list --json
 insecur envs create --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A --display-name-stdin
 insecur envs create --env-id env_01JZ8E3W4C8M2H6N9P1Q3R5T7V --display-name-stdin --copy-shapes-from-env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A
+insecur projects migrate --org-id org_01JZ8E2QYQ6M7F4K9A2B3C4D5E --confirm-migrate
 ```
 
 Rules:
@@ -719,6 +825,7 @@ Rules:
 - Protected Environment secret values are never copied into another Environment.
 - Development values must be set as Environment Defaults or generated through explicit non-protected workflows.
 - Environment inheritance is not supported.
+- `projects migrate` is one-way Local Mode→cloud reconciliation only; semantics are normative in [Local Mode](#local-mode). Requires authentication, `--org-id`, and scoped `--confirm-migrate`; generic `--yes` is rejected.
 
 ### Shared Secret Sources
 
@@ -1540,6 +1647,8 @@ CLI:
 - `import .env --dry-run --json` returns a metadata-only Secret Import Plan with no Blind Secret Writes and no created Secrets, Secret Shapes, or Secret Versions.
 - `import .env` does not rewrite, redact, truncate, rename, or automatically delete the source file.
 - `local-files rm .env` deletes only after explicit confirmation and does not claim secure erasure.
+- Local Mode tests cover unauthenticated `init` defaulting to `"host": "local"` with a one-line notice, client-minted opaque IDs, encrypted local store behind Secret Version Store / Injection Grant seams, committed `secretShapes` manifest behavior, second-machine auto-adopt with `local.value_missing_on_machine` metadata-only reporting, local CLI Profiles without `orgId`, `local.cloud_feature_unavailable` remediation with exact upgrade commands, migrate reconcile (create-missing via ID replay, `already in sync` no-op, `migrate.remote_diverged` and `secret.possession_mismatch` on divergence with nothing written), verified-then-clean local deletion, config host flip last, scoped `--confirm-migrate` rejection of generic `--yes`, and no cloud→local path.
+- Possession-check and migrate output tests prove no raw digests and no string-similarity comparisons in any CLI or API output.
 - `pull`, `export`, dotenv generation, JSON secret file output, and equivalent local plaintext file output commands are invalid V1 command shapes.
 - `run` injects values into the child process without printing them.
 - The First Value Proof command sequence uses only normal `secrets set --generate` and `run --variable-key` commands, creates or updates only non-protected development resources, exercises non-protected `secrets set --variable-key` create-or-update behavior, runs the copyable verifier from `examples/first-value-proof/verify.mjs`, requires no provider connection, and returns metadata-only success/failure with no Sensitive Value, raw digest, child-process environment, local plaintext file, or provider state.
