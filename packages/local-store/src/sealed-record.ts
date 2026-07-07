@@ -8,6 +8,7 @@ export const SEALED_RECORD_V1_PREFIX = "insecur.sealed.v1";
 
 const GCM_IV_BYTE_LENGTH = 12;
 const GCM_TAG_BYTE_LENGTH = 16;
+const GCM_OPTIONS = { authTagLength: GCM_TAG_BYTE_LENGTH } as const;
 
 function keyFromHex(machineRootKeyHex: string): Buffer {
   return Buffer.from(assertMachineRootKeyHex(machineRootKeyHex), "hex");
@@ -25,7 +26,7 @@ export function sealLocalRecord(
       "sealed record iv has invalid byte length",
     );
   }
-  const cipher = createCipheriv("aes-256-gcm", keyFromHex(machineRootKeyHex), iv);
+  const cipher = createCipheriv("aes-256-gcm", keyFromHex(machineRootKeyHex), iv, GCM_OPTIONS);
   const ciphertext = Buffer.concat([cipher.update(plaintextUtf8, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return [
@@ -51,7 +52,7 @@ export function unsealLocalRecord(machineRootKeyHex: string, sealed: string): st
   if (iv.length !== GCM_IV_BYTE_LENGTH || tag.length !== GCM_TAG_BYTE_LENGTH) {
     throw invalidSealedRecord("sealed record has invalid format");
   }
-  const decipher = createDecipheriv("aes-256-gcm", keyFromHex(machineRootKeyHex), iv);
+  const decipher = createDecipheriv("aes-256-gcm", keyFromHex(machineRootKeyHex), iv, GCM_OPTIONS);
   decipher.setAuthTag(tag);
   try {
     return Buffer.concat([

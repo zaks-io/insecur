@@ -257,13 +257,36 @@ ensureJsonFile("semgrep.json", {});
 
 const semgrepReport = JSON.parse(readFileSync(join(outDir, "semgrep.json"), "utf8"));
 const semgrepResults = Array.isArray(semgrepReport.results) ? semgrepReport.results : [];
-const semgrepBlocking = semgrepResults.filter((result) => result.extra?.severity === "ERROR");
+const acceptedSemgrepPolicyDeviations = [
+  {
+    check_id_suffix: "dependabot-missing-cooldown",
+    rationale:
+      "ADR-0056 intentionally uses a 3-day Dependabot cooldown aligned with pnpm minimumReleaseAge: 4320.",
+  },
+  {
+    check_id_suffix: "pnpm-minimum-release-age",
+    rationale:
+      "ADR-0056 intentionally uses minimumReleaseAge: 4320 (3 days), not Semgrep's 7-day default.",
+  },
+];
+function semgrepCheckId(result) {
+  return typeof result.check_id === "string" ? result.check_id : "";
+}
+function isAcceptedSemgrepDeviation(result) {
+  const checkId = semgrepCheckId(result);
+  return acceptedSemgrepPolicyDeviations.some((entry) => checkId.endsWith(entry.check_id_suffix));
+}
+const semgrepBlocking = semgrepResults.filter(
+  (result) => result.extra?.severity === "ERROR" && !isAcceptedSemgrepDeviation(result),
+);
 writeFileSync(
   join(outDir, "semgrep-policy.json"),
   `${JSON.stringify(
     {
       blocking_severities: ["ERROR"],
+      accepted_deviations: acceptedSemgrepPolicyDeviations,
       finding_count: semgrepResults.length,
+      accepted_count: semgrepResults.filter(isAcceptedSemgrepDeviation).length,
       blocking_count: semgrepBlocking.length,
       blocking_findings: semgrepBlocking.map((result) => ({
         check_id: result.check_id,
