@@ -1,5 +1,6 @@
 import type { Command, Command as CommanderCommand } from "commander";
 import { runSecretsSetCommand } from "./commands/secrets-set.js";
+import { registerSecretsReadCommands } from "./register-secrets-read-commands.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 
 export function registerSecretsCommands(
@@ -15,6 +16,8 @@ export function registerSecretsCommands(
   const secrets = program
     .command("secrets")
     .description("Blind secret writes and metadata-only management");
+
+  registerSecretsReadCommands(secrets, deps);
 
   secrets
     .command("set")

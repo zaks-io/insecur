@@ -50,6 +50,8 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     listEnvironments: vi.fn(),
     createEnvironment: vi.fn(),
     listProjectSecrets: vi.fn(),
+    listEnvironmentSecrets: vi.fn(),
+    listSecretVersions: vi.fn(),
     listSessionOrganizations: vi.fn(),
     listOrganizationMembers: vi.fn(),
     listOrganizationInvitations: vi.fn(),

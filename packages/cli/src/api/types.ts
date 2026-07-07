@@ -14,6 +14,7 @@ import type {
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { AuditEventsPage } from "@insecur/audit";
 import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { SecretsApiClient } from "./secrets-api-types.js";
 
 export type {
   CreateEnvironmentData,
@@ -22,6 +23,8 @@ export type {
   ProjectListData,
   SessionOrganizationListData,
 } from "./navigation-api-types.js";
+
+export type { ListEnvironmentSecretsData, ListSecretVersionsData } from "./secrets-api-types.js";
 
 export interface OperationPollData {
   readonly operationId: OperationId;
@@ -127,7 +130,7 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient {
+export interface ApiClient extends NavigationApiClient, SecretsApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
