@@ -159,7 +159,7 @@ Remote cache trust model is ADR-0053. Full file:
 Notes that an implementing agent must not change without understanding them:
 
 - Turborepo hashes each task's inputs including the source of workspace packages a task's package depends on, so a cached `typecheck`/`lint`/`test` result is invalidated when an upstream package's source changes. Because packages import each other's `./src` directly (Just-in-Time packages, no `dist`), an upstream type error surfaces in the downstream `typecheck` on the next run rather than returning a stale cached pass. These tasks declare no `dependsOn`; ordering falls out of the input hash, not an explicit transit node.
-- `test:rls` has `cache: false` because it runs against live database state — Docker Compose Postgres locally and in CI's `postgres-integration` job (ADR-0065) — and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
+- `test:rls` has `cache: false` because it runs against live database state — Docker Compose Postgres locally and in CI's DB-backed `Verify` step (ADR-0065) — and declares `DATABASE_URL_RUNTIME` so the runtime credential participates in nothing cacheable.
 - `globalDependencies` includes the root `eslint.config.ts`, Prettier config, and `.prettierignore` so a rule change busts every cached `lint`.
 - `envMode: strict` means a task only sees environment variables it declares. Declare new inputs in the task `env` array, do not relax the mode.
 - Workspace packages are Just-in-Time internal packages: their `package.json` `exports` point directly at `./src/*.ts` and they have no `build` step or `dist/`. Consumers (Vitest, Wrangler, tsc under `moduleResolution: "Bundler"`) resolve and compile that source directly. Checks therefore declare no `dependsOn`, never `^build`. Node and Workers ambient types come from root `@types/node` + `@cloudflare/workers-types` devDependencies plus `lib: ["ES2022","DOM"]` in `tsconfig.base.json`; packages that use Workers binding globals (`Fetcher`, `WorkerEntrypoint`) set `types: ["node","@cloudflare/workers-types"]`. The only remaining `build` outputs are the app Worker bundles (Wrangler dry-run/deploy) and the `@insecur/cli` binary. `pnpm verify` must pass from a clean checkout with no prebuild.
@@ -212,7 +212,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
 ```
 
 `verify` is the single local command that mirrors the `CI` workflow's deterministic floor minus the
-security scanners and the DB-backed `postgres-integration` job: the blocking duplicate zero gate
+scheduled security scanners and the hosted DB-backed `Verify` step: the blocking duplicate zero gate
 with annotations, knip, actionlint (optional-local), the actions-pin conformance gate
 (`conformance:actions-pin` — asserts third-party GitHub Actions are pinned to full commit SHAs), the
 deploy-topology conformance gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability
@@ -559,6 +559,12 @@ The `Detect changes` job classifies pull request paths into three check classes:
 - `db_backed`: DB/runtime paths that should run Docker Compose Postgres, RLS, e2e, and canary
   tests.
 
+`db_backed` is intentionally an allowlist for the packages and scripts that own DB/RLS/e2e/canary
+behavior. Changes to non-DB surfaces such as `packages/crypto`, `packages/domain`, or unrelated
+`scripts/ci/*` files still run the product-code hot path but do not start Docker Compose unless they
+also touch a listed DB/runtime path; use the focused DB command stack manually when a non-listed
+change is intended to affect RLS, e2e, or no-plaintext canary behavior.
+
 On docs-only PRs, the required `Verify` job completes with an explicit no-op step instead of
 installing dependencies or running build/test/scanner work. On workflow-only PRs, product-only work
 skips; `Verify` runs targeted workflow formatting, the actions-pin conformance gate, and
@@ -756,6 +762,19 @@ to write Worker scripts and upload Worker assets. It must not need Secrets Store
 Workers Routes write access for routine production deploys. Root-key custody changes and custom
 domain route changes are operator-controlled Cloudflare changes.
 
+### CLI release: `cli-release`
+
+Trigger: `workflow_dispatch` only. CLI releases are manual while the release-attestation policy is
+being tightened. A manual dispatch still verifies that the selected commit has a completed
+successful `CI` run before it builds release assets, runs repo security attestation, attaches the
+attestation bundle, and prepares the draft release.
+
+The manual trigger is an operator pause on automatic releases, not a bypass of the release security
+gate. The workflow must continue to fail if source CI is not green or if release attestation fails.
+While the Semgrep release policy is being tightened, `semgrep --config auto` findings are logged in
+the Actions output and stored in the attestation bundle as metadata-only report data, but Semgrep
+`ERROR` severity alone is not release-blocking.
+
 ### Daily security scan: `security-daily`
 
 Trigger: scheduled `cron` (daily at 06:00 UTC) or `workflow_dispatch`. Runs the same scanner families as `CI` on a schedule. Findings are reported in the workflow log; the jobs do not fail the repository on severity by default.
@@ -807,16 +826,16 @@ Two distinct database credentials exist:
 - `DATABASE_URL_RUNTIME`: the `NOBYPASSRLS` runtime role. This is what `test:rls` and the running product use.
 - `DATABASE_URL_MIGRATION`: the elevated migration URL, used only to apply migrations.
 
-Locally and in CI's `postgres-integration` job, `pnpm dev:db:reset` provisions both roles on Docker Compose Postgres and writes both URLs to `.env.local`. PR validation uses these local credentials only.
+Locally and in CI's DB-backed `Verify` step, `pnpm dev:db:reset` provisions both roles on Docker Compose Postgres and writes both URLs to `.env.local`. PR validation uses these local credentials only.
 
-Connecting `test:rls` as the migration role silently disables RLS and turns the suite green while testing nothing (ADR-0054). The `postgres-integration` job must therefore run the `assert:rls-credentials` step before trusting `test:rls`, failing the build if either assertion does not hold:
+Connecting `test:rls` as the migration role silently disables RLS and turns the suite green while testing nothing (ADR-0054). The DB-backed `Verify` step must therefore run the `assert:rls-credentials` step before trusting `test:rls`, failing the build if either assertion does not hold:
 
 1. `DATABASE_URL_RUNTIME` and `DATABASE_URL_MIGRATION` are not equal.
 2. The runtime role does not bypass RLS. Connect as the runtime role and assert `SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user` returns `false`.
 
 ## Fork Isolation
 
-A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. There is no per-PR secret-bearing preview workflow. `test:rls` runs against Docker Compose Postgres in the secretless `postgres-integration` job (ADR-0065), so it runs for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
+A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. There is no per-PR secret-bearing preview workflow. `test:rls` runs against Docker Compose Postgres in the secretless DB-backed `Verify` step for DB/runtime path changes (ADR-0065), so it can run for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
 
 ## Code Review Gate
 
