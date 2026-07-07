@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AUTH_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
+import { AUTH_ERROR_CODES, CLI_ERROR_CODES } from "@insecur/domain";
 
 import { runSecretsListCommand } from "../src/commands/secrets-list.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
@@ -147,7 +147,7 @@ describe("runSecretsListCommand", () => {
     await expect(
       runSecretsListCommand({ flags, api, context: contextWithoutEnv }),
     ).rejects.toMatchObject({
-      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      code: CLI_ERROR_CODES.parentScopeUnresolved,
     });
     expect(api.listEnvironmentSecrets).not.toHaveBeenCalled();
   });
