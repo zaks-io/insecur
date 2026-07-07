@@ -1,15 +1,19 @@
 import { AUTH_ERROR_CODES, environmentId } from "@insecur/domain";
 
 import {
+  assertDeniedBodyFreeOfSensitiveValues,
   assertEnvelopeData,
   assertEnvelopeError,
   assertEqual,
+  assertPostDeniedInsufficientScope,
   assertStatus,
   asRecord,
   authHeaders,
   mintSmokeSentinel,
   NEGATIVE_PROBE_DENIED_AUDIT_EXPECTATIONS,
   postJson,
+  probeMetadataReadDenials,
+  probeSessionMembershipsNoScopeIsolation,
   readJsonResponse,
   redactorFor,
   requireString,
@@ -52,44 +56,32 @@ test.describe("preview negative authorization probes @preview @negative @custody
     });
 
     await test.step("secrets.write.no_scope_denied", async () => {
-      const response = await fetch(
-        `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/projects/${coords.projectId}/environments/${coords.environmentId}/secrets/by-variable-key`,
-        {
-          body: JSON.stringify({
-            organizationId: coords.organizationId,
-            value: sentinel.value,
-            variableKey,
-          }),
-          headers: { ...authHeaders(noScopeBearer), "Content-Type": "application/json" },
-          method: "POST",
+      await assertPostDeniedInsufficientScope({
+        bearer: noScopeBearer,
+        body: {
+          organizationId: coords.organizationId,
+          value: sentinel.value,
+          variableKey,
         },
-      );
-      const text = await response.text();
-      assertStatus(response, 403, "No-scope secret write", { bodyText: text, redactor });
-      const body = await readJsonResponse(response, "No-scope secret write", text);
-      assertEnvelopeError(body, AUTH_ERROR_CODES.insufficientScope, "No-scope secret write");
-      assertDeniedBodyFreeOfSensitiveValues(text, redactor, "No-scope secret write");
+        label: "No-scope secret write",
+        redactor,
+        url: `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/projects/${coords.projectId}/environments/${coords.environmentId}/secrets/by-variable-key`,
+      });
     });
 
     await test.step("runtime_injection.grant_issue.no_scope_denied", async () => {
-      const response = await fetch(
-        `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/runtime-injection/grants`,
-        {
-          body: JSON.stringify({
-            environmentId: coords.environmentId,
-            organizationId: coords.organizationId,
-            projectId: coords.projectId,
-            variableKey,
-          }),
-          headers: { ...authHeaders(noScopeBearer), "Content-Type": "application/json" },
-          method: "POST",
+      await assertPostDeniedInsufficientScope({
+        bearer: noScopeBearer,
+        body: {
+          environmentId: coords.environmentId,
+          organizationId: coords.organizationId,
+          projectId: coords.projectId,
+          variableKey,
         },
-      );
-      const text = await response.text();
-      assertStatus(response, 403, "No-scope grant issue", { bodyText: text, redactor });
-      const body = await readJsonResponse(response, "No-scope grant issue", text);
-      assertEnvelopeError(body, AUTH_ERROR_CODES.insufficientScope, "No-scope grant issue");
-      assertDeniedBodyFreeOfSensitiveValues(text, redactor, "No-scope grant issue");
+        label: "No-scope grant issue",
+        redactor,
+        url: `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/runtime-injection/grants`,
+      });
     });
 
     await test.step("audit_events.verify_denied_evidence", async () => {
@@ -100,6 +92,56 @@ test.describe("preview negative authorization probes @preview @negative @custody
         redactor,
       });
       pushVerifiedAuditAnnotation(test.info(), auditEvidence.verifiedDeniedEventCodes);
+    });
+  });
+
+  test("no-scope actor is denied insufficient_scope on authenticated metadata reads", async ({
+    noScopeBearer,
+    ownerBearer,
+    preview,
+  }) => {
+    test.setTimeout(180_000);
+
+    const sentinel = mintSmokeSentinel();
+    const redactor = redactorFor(preview, sentinel, [ownerBearer, noScopeBearer]);
+
+    const coords = await test.step("onboarding.personal_organization", async () => {
+      const body = await postJson({
+        bearer: ownerBearer,
+        body: {},
+        label: "Guided onboarding",
+        redactor,
+        url: `${preview.apiBaseUrl}/v1/onboarding/personal-organization`,
+      });
+      const data = assertEnvelopeData(body, "Guided onboarding");
+
+      return {
+        environmentId: requireString(
+          data.developmentEnvironmentId,
+          "onboarding developmentEnvironmentId",
+        ),
+        organizationId: requireString(data.organizationId, "onboarding organizationId"),
+        projectId: requireString(data.projectId, "onboarding projectId"),
+      };
+    });
+
+    await test.step("session.memberships.no_scope_isolation", async () => {
+      await probeSessionMembershipsNoScopeIsolation({
+        apiBaseUrl: preview.apiBaseUrl,
+        bearer: noScopeBearer,
+        preview,
+        redactor,
+        seededOrganizationId: coords.organizationId,
+      });
+    });
+
+    await test.step("metadata_reads.no_scope_denied", async () => {
+      await probeMetadataReadDenials({
+        apiBaseUrl: preview.apiBaseUrl,
+        bearer: noScopeBearer,
+        coords,
+        redactor,
+      });
     });
   });
 
@@ -171,17 +213,6 @@ test.describe("preview negative authorization probes @preview @negative @custody
     assertEqual(outcomes[0]?.code, outcomes[1]?.code, "Coordinate oracle error code");
   });
 });
-
-function assertDeniedBodyFreeOfSensitiveValues(
-  bodyText: string,
-  redactor: (value: unknown) => string,
-  label: string,
-): void {
-  const redacted = redactor(bodyText);
-  if (redacted.includes("[redacted]")) {
-    throw new Error(`${label} response body leaked a sensitive value after redaction.`);
-  }
-}
 
 function pushVerifiedAuditAnnotation(
   testInfo: { annotations: { push: (annotation: { description: string; type: string }) => void } },
