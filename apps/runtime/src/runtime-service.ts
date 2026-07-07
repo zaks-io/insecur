@@ -79,8 +79,8 @@ import {
   listSessionOrganizationsRpc,
   recordInjectionRunCompletedRpc,
   revokeCliSessionRpc,
-  isCliSessionRevokedUnauth,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
+import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
 import {
   acceptInvitationRpc,
   createInvitationRpc,
@@ -207,7 +207,7 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   isCliSessionRevoked(
     input: IsCliSessionRevokedRpcInput,
   ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>> {
-    return isCliSessionRevokedUnauth(input);
+    return this.#pre(() => isCliSessionRevokedOperation(input));
   }
 
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
