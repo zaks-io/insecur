@@ -16,7 +16,7 @@ import type {
 } from "../../contracts/types.js";
 import type { LocalSqliteDatabase } from "../../sqlite/connection.js";
 import { withSqliteTransaction } from "../../sqlite/transaction.js";
-import { nowIso, parseJsonArray } from "./helpers.js";
+import { assertOpaqueId, nowIso, parseJsonArray } from "./helpers.js";
 
 type ConsumeFailure = "not_found" | "expired" | "already_consumed" | "binding_not_allowed";
 
@@ -29,6 +29,14 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
   insertGrant(input: LocalInsertInjectionGrantInput): Promise<void> {
     if (input.bindings.length === 0) {
       throw new Error("injection grant requires at least one binding");
+    }
+    assertOpaqueId(input.grantId, "grantId");
+    assertOpaqueId(input.projectId, "projectId");
+    assertOpaqueId(input.environmentId, "environmentId");
+    for (const binding of input.bindings) {
+      assertOpaqueId(binding.secretId, "secretId");
+      assertOpaqueId(binding.secretVersionId, "secretVersionId");
+      assertOpaqueId(binding.variableKey, "variableKey");
     }
     this.database
       .prepare(

@@ -16,12 +16,17 @@ import type {
 } from "../../contracts/types.js";
 import type { LocalSqliteDatabase } from "../../sqlite/connection.js";
 import { withSqliteTransaction } from "../../sqlite/transaction.js";
-import { brandVariableKey, nowIso, toWrappedMaterial } from "./helpers.js";
+import { assertOpaqueId, brandVariableKey, nowIso, toWrappedMaterial } from "./helpers.js";
 
 export class SqliteLocalSecretVersionStore implements LocalSecretVersionStore {
   constructor(private readonly database: LocalSqliteDatabase) {}
 
   replaceCurrentVersion(input: LocalReplaceCurrentVersionInput): Promise<void> {
+    assertOpaqueId(input.projectId, "projectId");
+    assertOpaqueId(input.environmentId, "environmentId");
+    assertOpaqueId(input.secretId, "secretId");
+    assertOpaqueId(input.secretVersionId, "secretVersionId");
+    assertOpaqueId(input.variableKey, "variableKey");
     withSqliteTransaction(this.database, () => {
       this.writeCurrentVersion(input, nowIso(), Buffer.from(input.wrapped.ciphertext));
     });

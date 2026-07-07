@@ -14,6 +14,7 @@ import type {
   LocalUpsertSecretShapeInput,
 } from "../../contracts/types.js";
 import type { LocalSqliteDatabase } from "../../sqlite/connection.js";
+import { withSqliteTransaction } from "../../sqlite/transaction.js";
 import { assertOpaqueId, brandVariableKey, nowIso } from "./helpers.js";
 
 export class SqliteLocalProjectMetadataStore implements LocalProjectMetadataStore {
@@ -85,15 +86,26 @@ export class SqliteLocalProjectMetadataStore implements LocalProjectMetadataStor
   }
 
   upsertSecretShape(input: LocalUpsertSecretShapeInput): Promise<LocalSecretShapeRow> {
-    const existing = this.database
-      .prepare(`SELECT secret_id FROM secret_shapes WHERE project_id = ? AND variable_key = ?`)
-      .get(input.projectId, input.variableKey) as { secret_id: string } | undefined;
-    if (existing) {
-      this.updateSecretShape(input);
-      return Promise.resolve(this.toSecretShapeRow(input, existing.secret_id));
+    assertOpaqueId(input.projectId, "projectId");
+    assertOpaqueId(input.secretId, "secretId");
+    assertOpaqueId(input.variableKey, "variableKey");
+    let row: LocalSecretShapeRow | undefined;
+    withSqliteTransaction(this.database, () => {
+      const existing = this.database
+        .prepare(`SELECT secret_id FROM secret_shapes WHERE project_id = ? AND variable_key = ?`)
+        .get(input.projectId, input.variableKey) as { secret_id: string } | undefined;
+      if (existing) {
+        this.updateSecretShape(input);
+        row = this.toSecretShapeRow(input, existing.secret_id);
+        return;
+      }
+      this.insertSecretShape(input);
+      row = this.toSecretShapeRow(input, input.secretId);
+    });
+    if (row === undefined) {
+      throw new Error("secret shape upsert did not produce a row");
     }
-    this.insertSecretShape(input);
-    return Promise.resolve(this.toSecretShapeRow(input, input.secretId));
+    return Promise.resolve(row);
   }
 
   private updateSecretShape(input: LocalUpsertSecretShapeInput): void {

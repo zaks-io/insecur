@@ -34,19 +34,7 @@ export function createLocalStore(options: CreateLocalStoreOptions): LocalStore {
   const paths = resolveLocalStorePaths(options.configHome);
   const databaseFilePath = options.databaseFilePath ?? paths.databaseFilePath;
   const database = openLocalSqliteDatabase(databaseFilePath);
-  const store = new SqliteLocalStore(database);
-  const keyring = createLocalKeyring(options.keyStore, store);
-  return {
-    paths: { ...paths, databaseFilePath },
-    keyring,
-    projects: store,
-    secretVersions: store,
-    injectionGrants: store,
-    audit: store,
-    close() {
-      closeLocalSqliteDatabase(database);
-    },
-  };
+  return assembleLocalStore(database, options.keyStore, { ...paths, databaseFilePath });
 }
 
 export function createLocalStoreForTest(input: {
@@ -54,24 +42,40 @@ export function createLocalStoreForTest(input: {
   database: LocalSqliteDatabase;
   paths?: LocalStorePaths;
 }): LocalStore {
-  const store = new SqliteLocalStore(input.database);
-  const keyring = createLocalKeyring(input.keyStore, store);
-  return {
-    paths:
-      input.paths ??
+  return assembleLocalStore(
+    input.database,
+    input.keyStore,
+    input.paths ??
       ({
         userConfigDir: "/tmp/insecur-test",
         machineRootKeyFilePath: "/tmp/insecur-test/machine-root-key",
         machineRootKeyDpapiFilePath: "/tmp/insecur-test/machine-root-key.dpapi",
         databaseFilePath: "/tmp/insecur-test/local-store.sqlite",
       } satisfies LocalStorePaths),
-    keyring,
-    projects: store,
-    secretVersions: store,
-    injectionGrants: store,
-    audit: store,
-    close() {
-      closeLocalSqliteDatabase(input.database);
-    },
-  };
+  );
+}
+
+function assembleLocalStore(
+  database: LocalSqliteDatabase,
+  keyStore: KeyStore,
+  paths: LocalStorePaths,
+): LocalStore {
+  try {
+    const store = new SqliteLocalStore(database);
+    const keyring = createLocalKeyring(keyStore, store);
+    return {
+      paths,
+      keyring,
+      projects: store,
+      secretVersions: store,
+      injectionGrants: store,
+      audit: store,
+      close() {
+        closeLocalSqliteDatabase(database);
+      },
+    };
+  } catch (error) {
+    closeLocalSqliteDatabase(database);
+    throw error;
+  }
 }

@@ -1,4 +1,4 @@
-export const LOCAL_STORE_SCHEMA_VERSION = 1;
+export const LOCAL_STORE_SCHEMA_VERSION = 2;
 
 export const LOCAL_STORE_SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
@@ -42,12 +42,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS secret_shapes_project_secret_id_idx
 
 CREATE TABLE IF NOT EXISTS secrets (
   id TEXT PRIMARY KEY NOT NULL,
-  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  project_id TEXT NOT NULL,
   environment_id TEXT NOT NULL,
   variable_key TEXT NOT NULL,
   current_version_id TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id, environment_id) REFERENCES environments(project_id, id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS secrets_project_env_variable_key_idx
@@ -85,7 +87,9 @@ CREATE TABLE IF NOT EXISTS injection_grants (
   secret_version_ids_json TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id, environment_id) REFERENCES environments(project_id, id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS local_audit_events (
