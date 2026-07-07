@@ -1,5 +1,9 @@
 import { realpath } from "node:fs/promises";
-import { listMachineScanTargets, resolveScanHomeDir } from "./machine-locations.js";
+import {
+  listMachineScanTargets,
+  resolveScanHomeDir,
+  type MachineScanTarget,
+} from "./machine-locations.js";
 import { scanMachineTarget } from "./machine-scan-target.js";
 import {
   listHomeDotenvTargets,
@@ -23,29 +27,55 @@ function emptyMachineSummary(startedAt: number): ScanReport["summary"] {
     likelySecrets: 0,
     migratableCount: 0,
     elapsedMs: Math.round(performance.now() - startedAt),
-    scope: "machine",
   };
 }
 
-function applyMachineOutcome(
-  outcome: Awaited<ReturnType<typeof scanMachineTarget>>,
-  targetDisplayPath: string,
+function applyScannedOutcome(
+  outcome: Extract<Awaited<ReturnType<typeof scanMachineTarget>>, { status: "scanned" }>,
   state: {
     findings: ScanFinding[];
-    unreadableFiles: string[];
     filesWithFindings: Set<string>;
     totalEntries: { value: number };
   },
 ): void {
-  if (outcome.unreadable) {
-    state.unreadableFiles.push(targetDisplayPath);
-    return;
-  }
   state.totalEntries.value += outcome.entryCount;
   for (const finding of outcome.findings) {
     state.filesWithFindings.add(finding.file);
     state.findings.push(finding);
   }
+}
+
+async function processMachineTarget(
+  target: MachineScanTarget,
+  canonicalHome: string,
+  state: {
+    findings: ScanFinding[];
+    unreadableFiles: string[];
+    filesWithFindings: Set<string>;
+    totalEntries: { value: number };
+    filesScanned: { value: number };
+  },
+): Promise<void> {
+  const resolved = await resolvePathWithinHome(target.absolutePath, canonicalHome);
+  if (resolved.status === "missing") {
+    return;
+  }
+  if (resolved.status === "unreadable") {
+    state.unreadableFiles.push(target.displayPath);
+    return;
+  }
+
+  const outcome = await scanMachineTarget({ ...target, absolutePath: resolved.path });
+  if (outcome.status === "missing") {
+    return;
+  }
+  if (outcome.status === "unreadable") {
+    state.unreadableFiles.push(target.displayPath);
+    return;
+  }
+
+  state.filesScanned.value += 1;
+  applyScannedOutcome(outcome, state);
 }
 
 async function scanMachineTargets(
@@ -56,8 +86,9 @@ async function scanMachineTargets(
     unreadableFiles: string[];
     filesWithFindings: Set<string>;
     totalEntries: { value: number };
+    filesScanned: { value: number };
   },
-): Promise<number> {
+): Promise<void> {
   const fixedAndShellTargets = listMachineScanTargets(homeDir);
   const sshListing = await listSshPrivateKeyTargets(homeDir, canonicalHome);
   const dotenvListing = await listHomeDotenvTargets(homeDir, canonicalHome);
@@ -72,20 +103,8 @@ async function scanMachineTargets(
   const allTargets = [...fixedAndShellTargets, ...sshListing.targets, ...dotenvListing.targets];
 
   for (const target of allTargets) {
-    const resolved = await resolvePathWithinHome(target.absolutePath, canonicalHome);
-    if (resolved === null) {
-      state.unreadableFiles.push(target.displayPath);
-      continue;
-    }
-
-    applyMachineOutcome(
-      await scanMachineTarget({ ...target, absolutePath: resolved }),
-      target.displayPath,
-      state,
-    );
+    await processMachineTarget(target, canonicalHome, state);
   }
-
-  return allTargets.length;
 }
 
 export async function buildMachineScanReport(
@@ -105,9 +124,11 @@ export async function buildMachineScanReport(
     unreadableFiles: [] as string[],
     filesWithFindings: new Set<string>(),
     totalEntries: { value: 0 },
+    filesScanned: { value: 0 },
   };
 
-  const filesScanned = await scanMachineTargets(homeDir, canonicalHome, state);
+  await scanMachineTargets(homeDir, canonicalHome, state);
+
   const likelySecrets = state.findings.filter(
     (finding) => finding.confidence === "likely-secret",
   ).length;
@@ -115,7 +136,7 @@ export async function buildMachineScanReport(
   return {
     findings: state.findings,
     summary: {
-      filesScanned,
+      filesScanned: state.filesScanned.value,
       filesWithFindings: state.filesWithFindings.size,
       unreadableFiles: state.unreadableFiles,
       oversizedFiles: [],
@@ -124,7 +145,6 @@ export async function buildMachineScanReport(
       likelySecrets,
       migratableCount: state.findings.filter((finding) => finding.migratable).length,
       elapsedMs: Math.round(performance.now() - startedAt),
-      scope: "machine",
     },
   };
 }

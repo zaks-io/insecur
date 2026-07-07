@@ -192,6 +192,39 @@ describe("insecur scan --machine", () => {
     expect(report.findings.some((finding) => finding.file.includes("escape-link"))).toBe(false);
   });
 
+  it("skips missing allowlist files without reporting them unreadable", async () => {
+    const projectDir = await mkdtemp(join(tmpdir(), "insecur-machine-sparse-project-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "insecur-machine-sparse-home-"));
+    await writeScanFixtureTree(projectDir);
+
+    const report = await buildScanReport({ rootDir: projectDir, machine: true, homeDir: homeDir });
+    expect(report.summary.unreadableFiles).toEqual([]);
+    expect(report.summary.machine?.filesScanned).toBe(0);
+  });
+
+  it("counts filesScanned only for allowlist files that exist and were read", async () => {
+    const { projectDir: root, homeDir: home } = await createFixture();
+    const report = await buildScanReport({ rootDir: root, machine: true, homeDir: home });
+
+    expect(report.summary.machine?.filesScanned).toBe(7);
+  });
+
+  it("does not scan non-private-key filenames under ~/.ssh", async () => {
+    const projectDir = await mkdtemp(join(tmpdir(), "insecur-machine-ssh-scope-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "insecur-machine-ssh-scope-home-"));
+    await mkdir(join(homeDir, ".ssh"), { recursive: true });
+    await writeFile(
+      join(homeDir, ".ssh", "service-account.json"),
+      JSON.stringify({ type: "service_account" }),
+      "utf8",
+    );
+
+    const report = await buildScanReport({ rootDir: projectDir, machine: true, homeDir: homeDir });
+    expect(report.findings.some((finding) => finding.file === "~/.ssh/service-account.json")).toBe(
+      false,
+    );
+  });
+
   it("documents the allowlist in MACHINE_SCAN_ALLOWLIST_LINES", () => {
     expect(MACHINE_SCAN_ALLOWLIST_LINES.length).toBeGreaterThan(0);
     for (const fixed of MACHINE_SCAN_FIXED_FILES) {

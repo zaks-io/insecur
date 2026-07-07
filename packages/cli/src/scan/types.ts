@@ -36,7 +36,6 @@ interface ScanSummary {
   readonly likelySecrets: number;
   readonly migratableCount: number;
   readonly elapsedMs: number;
-  readonly scope?: ScanFindingScope;
   readonly project?: ScanScopeSummary;
   readonly machine?: ScanScopeSummary;
 }

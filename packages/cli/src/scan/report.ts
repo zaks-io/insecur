@@ -1,4 +1,5 @@
 import { buildMachineScanReport } from "./machine-report.js";
+import { sanitizeScanDisplayPath } from "./scan-display.js";
 import { scanFileAtPath } from "./scan-file.js";
 import { mightBeSecretPath } from "./secret-paths.js";
 import type { ScanFinding, ScanOptions, ScanReport, ScanScopeSummary } from "./types.js";
@@ -182,7 +183,8 @@ function formatFindingLines(findings: readonly ScanFinding[], heading: string): 
   const lines = ["", `${heading}:`];
   for (const finding of findings) {
     const migratableLabel = finding.migratable ? "migratable" : "not migratable";
-    lines.push(`  ${finding.file} :: ${finding.key} [${finding.confidence}, ${migratableLabel}]`);
+    const safeFile = sanitizeScanDisplayPath(finding.file);
+    lines.push(`  ${safeFile} :: ${finding.key} [${finding.confidence}, ${migratableLabel}]`);
     if (finding.remediation) {
       lines.push(`    remediation: ${finding.remediation}`);
     }
@@ -200,7 +202,7 @@ function formatUnreadableLines(unreadableFiles: readonly string[]): string[] {
   return [
     "",
     `Unreadable files (${String(unreadableFiles.length)}):`,
-    ...unreadableFiles.map((file) => `  ${file}`),
+    ...unreadableFiles.map((file) => `  ${sanitizeScanDisplayPath(file)}`),
   ];
 }
 
@@ -211,7 +213,7 @@ function formatOversizedLines(oversizedFiles: readonly string[]): string[] {
   return [
     "",
     `Oversized files (${String(oversizedFiles.length)}):`,
-    ...oversizedFiles.map((file) => `  ${file}`),
+    ...oversizedFiles.map((file) => `  ${sanitizeScanDisplayPath(file)}`),
   ];
 }
 

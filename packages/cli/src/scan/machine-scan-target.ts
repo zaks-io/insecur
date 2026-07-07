@@ -1,5 +1,4 @@
 import { readFile, stat } from "node:fs/promises";
-import { classifyDotenvKeyName } from "./classifiers.js";
 import type { MachineScanTarget } from "./machine-locations.js";
 import {
   awsCredentialsFinding,
@@ -7,22 +6,43 @@ import {
   shellRcFinding,
   toWholeFileFinding,
 } from "./scan-file.js";
+import { isFsEnoent } from "./machine-target-listing.js";
 import { parseShellRcExportKeys } from "./shell-rc-parser.js";
 import type { ScanFinding } from "./types.js";
 
-interface TargetScanOutcome {
-  readonly findings: readonly ScanFinding[];
-  readonly entryCount: number;
-  readonly unreadable: boolean;
-}
+export type TargetScanOutcome =
+  | { readonly status: "missing" }
+  | { readonly status: "unreadable" }
+  | {
+      readonly status: "scanned";
+      readonly findings: readonly ScanFinding[];
+      readonly entryCount: number;
+    };
 
-async function pathExists(absolutePath: string): Promise<boolean> {
+async function statPath(absolutePath: string): Promise<"missing" | "present" | "unreadable"> {
   try {
     await stat(absolutePath);
-    return true;
-  } catch {
-    return false;
+    return "present";
+  } catch (error) {
+    if (isFsEnoent(error)) {
+      return "missing";
+    }
+    return "unreadable";
   }
+}
+
+async function outcomeWhenPresent(
+  absolutePath: string,
+  scanPresent: () => Promise<TargetScanOutcome>,
+): Promise<TargetScanOutcome> {
+  const pathState = await statPath(absolutePath);
+  if (pathState === "missing") {
+    return { status: "missing" };
+  }
+  if (pathState === "unreadable") {
+    return { status: "unreadable" };
+  }
+  return scanPresent();
 }
 
 function isAwsCredentialsPath(displayPath: string): boolean {
@@ -33,91 +53,62 @@ function isDockerConfigPath(displayPath: string): boolean {
   return displayPath === "~/.docker/config.json" || displayPath.endsWith("/.docker/config.json");
 }
 
-async function scanAwsCredentials(
-  displayPath: string,
-  absolutePath: string,
-): Promise<TargetScanOutcome> {
-  if (!(await pathExists(absolutePath))) {
-    return { findings: [], entryCount: 0, unreadable: false };
-  }
-  return {
-    findings: [awsCredentialsFinding(displayPath)],
-    entryCount: 1,
-    unreadable: false,
-  };
+function scanned(
+  findings: readonly ScanFinding[],
+  entryCount = findings.length,
+): TargetScanOutcome {
+  return { status: "scanned", findings, entryCount };
 }
 
-async function scanDockerConfig(
-  displayPath: string,
-  absolutePath: string,
-): Promise<TargetScanOutcome> {
-  if (!(await pathExists(absolutePath))) {
-    return { findings: [], entryCount: 0, unreadable: false };
-  }
-  return {
-    findings: [
-      toWholeFileFinding(displayPath, "machine", "credential-json", { key: "config.json" }),
-    ],
-    entryCount: 1,
-    unreadable: false,
-  };
+async function scanFileAtPathOutcome(target: MachineScanTarget): Promise<TargetScanOutcome> {
+  return outcomeWhenPresent(target.absolutePath, async () => {
+    const result = await scanFileAtPath({
+      displayPath: target.displayPath,
+      absolutePath: target.absolutePath,
+      scope: "machine",
+    });
+    if (result.unreadable) {
+      return { status: "unreadable" };
+    }
+    return scanned(result.findings, result.entryCount);
+  });
 }
 
 async function scanKnownFixedFile(target: MachineScanTarget): Promise<TargetScanOutcome> {
   if (isAwsCredentialsPath(target.displayPath)) {
-    return scanAwsCredentials(target.displayPath, target.absolutePath);
+    return outcomeWhenPresent(target.absolutePath, () =>
+      Promise.resolve(scanned([awsCredentialsFinding(target.displayPath)], 1)),
+    );
   }
   if (isDockerConfigPath(target.displayPath)) {
-    return scanDockerConfig(target.displayPath, target.absolutePath);
+    return outcomeWhenPresent(target.absolutePath, () =>
+      Promise.resolve(
+        scanned(
+          [
+            toWholeFileFinding(target.displayPath, "machine", "credential-json", {
+              key: "config.json",
+            }),
+          ],
+          1,
+        ),
+      ),
+    );
   }
-
-  const result = await scanFileAtPath({
-    displayPath: target.displayPath,
-    absolutePath: target.absolutePath,
-    scope: "machine",
-  });
-  if (result.unreadable && !(await pathExists(target.absolutePath))) {
-    return { findings: [], entryCount: 0, unreadable: false };
-  }
-  return {
-    findings: result.findings,
-    entryCount: result.entryCount,
-    unreadable: result.unreadable,
-  };
-}
-
-function shellRcFindings(displayPath: string, content: string): readonly ScanFinding[] {
-  return parseShellRcExportKeys(content).flatMap((entry) => {
-    const confidence = classifyDotenvKeyName(entry.key);
-    return confidence === null ? [] : [shellRcFinding(displayPath, entry.key, confidence)];
-  });
+  return scanFileAtPathOutcome(target);
 }
 
 async function scanShellRcFile(target: MachineScanTarget): Promise<TargetScanOutcome> {
-  if (!(await pathExists(target.absolutePath))) {
-    return { findings: [], entryCount: 0, unreadable: false };
-  }
-
-  try {
-    const content = (await readFile(target.absolutePath)).toString("utf8");
-    const findings = shellRcFindings(target.displayPath, content);
-    return { findings, entryCount: findings.length, unreadable: false };
-  } catch {
-    return { findings: [], entryCount: 0, unreadable: true };
-  }
-}
-
-async function scanGenericFile(target: MachineScanTarget): Promise<TargetScanOutcome> {
-  const result = await scanFileAtPath({
-    displayPath: target.displayPath,
-    absolutePath: target.absolutePath,
-    scope: "machine",
+  return outcomeWhenPresent(target.absolutePath, async () => {
+    try {
+      const content = (await readFile(target.absolutePath)).toString("utf8");
+      const findings = parseShellRcExportKeys(content).map((entry) =>
+        shellRcFinding(target.displayPath, entry.key, entry.confidence),
+      );
+      return scanned(findings);
+    } catch {
+      return { status: "unreadable" };
+    }
   });
-  return {
-    findings: result.findings,
-    entryCount: result.entryCount,
-    unreadable: result.unreadable,
-  };
 }
 
 export async function scanMachineTarget(target: MachineScanTarget): Promise<TargetScanOutcome> {
@@ -128,7 +119,7 @@ export async function scanMachineTarget(target: MachineScanTarget): Promise<Targ
       return scanShellRcFile(target);
     case "home-dotenv":
     case "ssh-private-key":
-      return scanGenericFile(target);
+      return scanFileAtPathOutcome(target);
     default: {
       const exhaustive: never = target.kind;
       throw new Error(`Unhandled machine scan target kind: ${String(exhaustive)}`);
