@@ -50,7 +50,7 @@ human's own traffic in the same session, so audit and the console cannot answer 
 agents been doing" — a core oversight need for the agent-heavy beachhead user.
 
 This amendment adds the **Derived Agent Session**: launching an agent harness through
-`insecur agent shell -- <command>` (or `insecur agent env`, or `insecur login --device --agent`
+`insecur agent shell -- <command>` (or `insecur agent env`, or `insecur login --device --agent-session`
 for remote shells) derives an agent-marked child session from the live human session. The derived
 session carries the same Effective Access as the parent in V1, has its own opaque session ID, a
 TTL no longer than the parent's, ends when the parent session ends, and cannot satisfy a

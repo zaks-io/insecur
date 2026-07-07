@@ -25,7 +25,7 @@ design may preclude that projection.
    context: generate mode, piped stdin, and server-side source refs are the write paths; metadata-
    only envelopes are the read paths (ADR-0079).
 3. **Attribution without effort.** Three tiers (ADR-0032 amendment 2026-07-04): Derived Agent
-   Sessions (`insecur agent shell`, `insecur login --device --agent`) are token-accurate;
+   Sessions (`insecur agent shell`, `insecur login --device --agent-session`) are token-accurate;
    automatic registration upgrades any detected harness on a bare human token to a
    session-persistent Agent Session keyed to process ancestry, zero agent effort; the
    self-reported Agent Attribution Tag is the per-request fallback. Feeds the console's
@@ -38,7 +38,7 @@ design may preclude that projection.
 ## Remote And Headless Agents
 
 Cloud agents (Claude Code on web, Cursor cloud, Codespaces, devcontainers) get sessions via the
-OAuth device-authorization flow: `insecur login --device [--agent]` prints a short code and URL,
+OAuth device-authorization flow: `insecur login --device [--agent-session]` prints a short code and URL,
 the human approves from any browser, and the session (the human's own, or agent-marked) lands in
 the remote process. CI remains OIDC/deploy-key territory; a cloud dev agent is a human-session
 actor, not a Machine Identity.
