@@ -18,6 +18,10 @@ const { Miniflare } = await import(
 
 const SESSION_SIGNING_SECRET = "b".repeat(32);
 const USER_ID = "usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
+const USER_WORKOS_ID = "user_ssr_csp_check";
+// Org-less member for the first-run onboarding wizard (INS-475).
+const ORG_LESS_USER_ID = "usr_01JZ8E2QYQORGLESS000000000";
+const ORG_LESS_WORKOS_ID = "user_orgless_ssr_csp";
 const ORG = { organizationId: "org_01JZ8E2QYQAAAAAAAAAAAAAAAA", displayName: "Acme Corp" };
 // A second membership whose project list is empty, to exercise the empty-state invitation.
 const EMPTY_ORG = { organizationId: "org_01JZ8E2QYQBBBBBBBBBBBBBBBB", displayName: "Blank Co" };
@@ -56,6 +60,16 @@ const ENVIRONMENTS = [
   },
 ];
 
+const MEMBER = {
+  membershipId: "mem_01JZ8E2QYQ6M7F4K9A2B3C4D5E",
+  userId: USER_ID,
+  displayName: "Acme Owner",
+  rolePreset: "owner",
+  projectId: null,
+  createdAt: "2026-07-01T00:00:00.000Z",
+  organizationId: ORG.organizationId,
+};
+
 const base64Url = (bytes) =>
   Buffer.from(bytes)
     .toString("base64")
@@ -64,12 +78,16 @@ const base64Url = (bytes) =>
     .replace(/=+$/, "");
 
 /** Mint the HS256 ephemeral session credential the preview-smoke path verifies. */
-async function mintSmokeCredential() {
+async function mintSmokeCredential(
+  userId = USER_ID,
+  workosUserId = USER_WORKOS_ID,
+  sessionId = "session_ssr",
+) {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
-    sub: USER_ID,
-    wid: "user_ssr_csp_check",
-    sid: "session_ssr",
+    sub: userId,
+    wid: workosUserId,
+    sid: sessionId,
     exp: now + 300,
     iat: now,
     typ: "insecur_cli_session_v1",
@@ -88,11 +106,35 @@ async function mintSmokeCredential() {
   return `${header}.${body}.${base64Url(new Uint8Array(signature))}`;
 }
 
+/** Decode the admitted user id from a server-minted scoped-token Authorization header. */
+function userIdFromAuth(request) {
+  const auth = request.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) {
+    return USER_ID;
+  }
+  const parts = auth.slice(7).split(".");
+  if (parts.length !== 3) {
+    return USER_ID;
+  }
+  try {
+    const payload = JSON.parse(
+      Buffer.from(parts[1].replaceAll("-", "+").replaceAll("_", "/"), "base64").toString("utf8"),
+    );
+    return typeof payload.sub === "string" ? payload.sub : USER_ID;
+  } catch {
+    return USER_ID;
+  }
+}
+
 const RUNTIME_STUB = `
 import { WorkerEntrypoint } from "cloudflare:workers";
+const ADMISSIONS = {
+  "${USER_WORKOS_ID}": "${USER_ID}",
+  "${ORG_LESS_WORKOS_ID}": "${ORG_LESS_USER_ID}",
+};
 export class RuntimeStub extends WorkerEntrypoint {
-  async resolveAdmission() {
-    return { ok: true, value: { userId: "${USER_ID}" } };
+  async resolveAdmission(input) {
+    return { ok: true, value: { userId: ADMISSIONS[input.workosUserId] ?? null } };
   }
   async recordAdmissionDenied() {
     return { ok: true, value: { recorded: true } };
@@ -130,8 +172,10 @@ const mf = new Miniflare({
       serviceBindings: {
         API: async (request) => {
           const url = new URL(request.url);
+          const actorUserId = userIdFromAuth(request);
           if (url.pathname === "/v1/session/memberships") {
-            return Response.json({ ok: true, data: { organizations: [ORG, EMPTY_ORG] } });
+            const organizations = actorUserId === ORG_LESS_USER_ID ? [] : [ORG, EMPTY_ORG];
+            return Response.json({ ok: true, data: { organizations } });
           }
           if (url.pathname === `/v1/orgs/${ORG.organizationId}/projects`) {
             return Response.json({ ok: true, data: { projects: [PROJECT, BARE_PROJECT] } });
@@ -151,10 +195,16 @@ const mf = new Miniflare({
           ) {
             return Response.json({ ok: true, data: { environments: [] } });
           }
+          if (url.pathname === `/v1/orgs/${ORG.organizationId}/members`) {
+            return Response.json({ ok: true, data: { members: [MEMBER] } });
+          }
+          if (url.pathname === `/v1/orgs/${ORG.organizationId}/invitations`) {
+            return Response.json({ ok: true, data: { invitations: [] } });
+          }
           if (url.pathname === "/v1/session/whoami") {
             return Response.json({
               ok: true,
-              data: { actorType: "user", userId: USER_ID, sessionId: "session_ssr" },
+              data: { actorType: "user", userId: actorUserId, sessionId: "session_ssr" },
             });
           }
           return Response.json({ ok: false, error: { code: "auth.required" } }, { status: 401 });
@@ -319,9 +369,23 @@ async function assertUnauthenticatedConsoleRedirect(path) {
   console.log(`ok ${path} -> ${location}`);
 }
 
+async function assertAuthenticatedRedirect(path, headers, expectedLocation) {
+  const response = await fetchPath(path, headers);
+  const location = response.headers.get("location") ?? "";
+  if (![302, 307].includes(response.status) || location !== expectedLocation) {
+    throw new Error(
+      `${path} expected redirect to ${expectedLocation}, got ${response.status} ${location}`,
+    );
+  }
+  console.log(`ok ${path} -> ${location}`);
+}
+
 try {
   assertInlineStyleBanRegex();
   const authorization = { Authorization: `Bearer ${await mintSmokeCredential()}` };
+  const orglessAuthorization = {
+    Authorization: `Bearer ${await mintSmokeCredential(ORG_LESS_USER_ID, ORG_LESS_WORKOS_ID, "session_orgless")}`,
+  };
   await assertRouteHasMatchingCspNonce("/");
   await assertRouteHasMatchingCspNonce("/login");
   await assertLoginFormActionAllowsAuthkit([
@@ -395,6 +459,85 @@ try {
     authorization,
   );
   await assertNotFound(`/orgs/org_01JZ8E2QYQCCCCCCCCCCCCCCCC/projects`, authorization);
+
+  // Onboarding (INS-475): wizard for org-less members, redirect for org members, CLI handoff deep-link.
+  await assertUnauthenticatedConsoleRedirect("/onboarding");
+  await assertRouteHasMatchingCspNonce("/onboarding", {
+    headers: orglessAuthorization,
+    authedDocument: true,
+    expect: ["First-run setup", "Name your organization"],
+  });
+  await assertAuthenticatedRedirect("/onboarding", authorization, `/orgs/${ORG.organizationId}`);
+  const handoffPath = `/onboarding?org=${ORG.organizationId}&project=${PROJECT.projectId}&env=${ENVIRONMENTS[1].environmentId}`;
+  await assertRouteHasMatchingCspNonce(handoffPath, {
+    headers: authorization,
+    authedDocument: true,
+    expect: [
+      "Ready. The CLI takes it from here.",
+      PROJECT.displayName,
+      ENVIRONMENTS[1].displayName,
+      ORG.displayName,
+    ],
+  });
+
+  // People and Settings org sections (INS-475).
+  await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}/people`);
+  await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/people`, {
+    headers: authorization,
+    authedDocument: true,
+    expect: [
+      ">People<",
+      "Members",
+      "Pending invitations",
+      MEMBER.displayName,
+      'aria-label="Breadcrumb"',
+    ],
+  });
+  await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}/settings`);
+  await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/settings`, {
+    headers: authorization,
+    authedDocument: true,
+    expect: ["Settings", "Organization configuration and policies", 'aria-label="Breadcrumb"'],
+  });
+
+  // Project Secrets, Access, and Delivery placeholders (INS-475).
+  const projectBase = `/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}`;
+  await assertUnauthenticatedConsoleRedirect(`${projectBase}/secrets`);
+  await assertRouteHasMatchingCspNonce(`${projectBase}/secrets`, {
+    headers: authorization,
+    authedDocument: true,
+    expect: [
+      PROJECT.displayName,
+      ">Secrets<",
+      "secrets matrix",
+      'aria-label="Project views"',
+      'aria-label="Breadcrumb"',
+    ],
+  });
+  await assertUnauthenticatedConsoleRedirect(`${projectBase}/access`);
+  await assertRouteHasMatchingCspNonce(`${projectBase}/access`, {
+    headers: authorization,
+    authedDocument: true,
+    expect: [
+      PROJECT.displayName,
+      ">Access<",
+      "Machine Identities",
+      'aria-label="Project views"',
+      'aria-label="Breadcrumb"',
+    ],
+  });
+  await assertUnauthenticatedConsoleRedirect(`${projectBase}/delivery`);
+  await assertRouteHasMatchingCspNonce(`${projectBase}/delivery`, {
+    headers: authorization,
+    authedDocument: true,
+    expect: [
+      PROJECT.displayName,
+      ">Delivery<",
+      "Delivery configuration",
+      'aria-label="Project views"',
+      'aria-label="Breadcrumb"',
+    ],
+  });
 } finally {
   await mf.dispose();
 }
