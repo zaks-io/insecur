@@ -17,7 +17,7 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
 const ADMITTED_USER_ID = TEST_USER_ID;
 const WORKOS_USER_ID = TEST_WORKOS_USER_ID;
-const RUNTIME_TOKEN_SIGNING_SECRET = "test-whoami-e2e-runtime-hop-signing-secret";
+const RUNTIME_TOKEN_SIGNING_SECRET = "test-runtime-token-signing-placeholder";
 const SESSION_ID = "session_whoami_e2e";
 const TEST_ANCESTRY = "test-ancestry-placeholder";
 

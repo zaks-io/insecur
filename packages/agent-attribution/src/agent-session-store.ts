@@ -78,16 +78,7 @@ export async function registerAgentSession(input: {
   readonly harnessName: string;
   readonly ancestryKey: string;
 }): Promise<AgentSessionId> {
-  const existing = await findActiveAgentSession({
-    humanSessionId: input.humanSessionId,
-    userId: input.userId,
-    ancestryKey: input.ancestryKey,
-  });
-  if (existing !== null) {
-    return existing.id;
-  }
-
-  const id = agentSessionId.generate();
+  const candidateId = agentSessionId.generate();
   await withTenantScope({ kind: "service" }, async ({ sql }) => {
     await sql`
       INSERT INTO agent_sessions (
@@ -99,16 +90,27 @@ export async function registerAgentSession(input: {
         tier
       )
       VALUES (
-        ${id},
+        ${candidateId},
         ${input.userId},
         ${input.humanSessionId},
         ${input.harnessName},
         ${input.ancestryKey},
         ${"registered"}
       )
+      ON CONFLICT (human_session_id, ancestry_key) WHERE closed_at IS NULL
+      DO NOTHING
     `;
   });
-  return id;
+
+  const active = await findActiveAgentSession({
+    humanSessionId: input.humanSessionId,
+    userId: input.userId,
+    ancestryKey: input.ancestryKey,
+  });
+  if (active === null) {
+    throw new Error("registerAgentSession: active row missing after insert");
+  }
+  return active.id;
 }
 
 export interface ResolveAttributionTierInput {
