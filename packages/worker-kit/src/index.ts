@@ -117,6 +117,10 @@ export type {
   ListPendingHighAssuranceChallengesRpcPayload,
 } from "./rpc/runtime-high-assurance-rpc-contract.js";
 export type {
+  ResolveSessionWhoamiRpcInput,
+  ResolveSessionWhoamiRpcPayload,
+} from "./rpc/runtime-session-whoami-rpc-contract.js";
+export type {
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryAllPayload,
   RuntimeDeliveryEntryPayload,

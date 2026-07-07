@@ -51,6 +51,16 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     createEnvironment: vi.fn(),
     listProjectSecrets: vi.fn(),
     listSessionOrganizations: vi.fn(),
+    resolveSessionWhoami: vi.fn(() =>
+      Promise.resolve(
+        ok({
+          sessionValid: true as const,
+          sessionExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+          resolvedContext: {},
+          attribution: { tier: "none" as const },
+        }),
+      ),
+    ),
     listOrganizationMembers: vi.fn(),
     listOrganizationInvitations: vi.fn(),
     listAuditEvents: vi.fn(),
