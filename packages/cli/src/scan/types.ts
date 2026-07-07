@@ -3,11 +3,7 @@ export type ScanConfidence = "likely-secret" | "possible";
 
 /** Kind of secret-bearing artifact detected. */
 export type ScanFindingKind =
-  | "dotenv-entry"
-  | "private-key-file"
-  | "credential-json"
-  | "auth-token-file"
-  | "netrc-file";
+  "dotenv-entry" | "private-key-file" | "credential-json" | "auth-token-file" | "netrc-file";
 
 export interface ScanFinding {
   readonly file: string;
