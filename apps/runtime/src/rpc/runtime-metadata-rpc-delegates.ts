@@ -1,6 +1,10 @@
 import type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,
+  CreateEnvironmentRpcInput,
+  CreateEnvironmentRpcPayload,
+  CreateProjectRpcInput,
+  CreateProjectRpcPayload,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
   ListAuditEventsRpcInput,
@@ -35,6 +39,8 @@ import { captureFirstValueFeedbackOperation } from "../operations/capture-first-
 import { getOperationOperation } from "../operations/get-operation-operation.js";
 import { listAuditEventsOperation } from "../operations/list-audit-events-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
+import { createEnvironmentOperation } from "../operations/create-environment-operation.js";
+import { createProjectOperation } from "../operations/create-project-operation.js";
 import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
 import { listOrganizationMembersOperation } from "../operations/list-organization-members-operation.js";
 import { listProjectSecretsOperation } from "../operations/list-project-secrets-operation.js";
@@ -54,6 +60,15 @@ export function listProjectsRpc(
 ): Promise<RuntimeRpcResult<ListProjectsRpcPayload>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     listProjectsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function createProjectRpc(
+  post: PostAuthRpcRunner,
+  input: CreateProjectRpcInput,
+): Promise<RuntimeRpcResult<CreateProjectRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    createProjectOperation({ input, auditActor, accessActor }),
   );
 }
 
@@ -139,6 +154,15 @@ export function listEnvironmentsRpc(
 ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     listEnvironmentsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function createEnvironmentRpc(
+  post: PostAuthRpcRunner,
+  input: CreateEnvironmentRpcInput,
+): Promise<RuntimeRpcResult<CreateEnvironmentRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    createEnvironmentOperation({ input, auditActor, accessActor }),
   );
 }
 

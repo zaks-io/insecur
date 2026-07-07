@@ -2,12 +2,6 @@ import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers"
 import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
-import type {
-  AcceptInvitationResult,
-  CreateInvitationResult,
-  CreateOperatorOrganizationResult,
-  ProvisionGuidedOrganizationResult,
-} from "@insecur/onboarding";
 import {
   completeBootstrapOperatorClaim,
   getBootstrapStatus,
@@ -15,7 +9,6 @@ import {
   type CompleteBootstrapOperatorClaimResult,
 } from "@insecur/instance-bootstrap";
 import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
-import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import type { OperationPollResult } from "@insecur/operations";
 import type {
   AcceptInvitationRpcInput,
@@ -27,6 +20,8 @@ import type {
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
+  CreateEnvironmentRpcInput,
+  CreateProjectRpcInput,
   ListAuditEventsRpcInput,
   ListEnvironmentsRpcInput,
   ListOrganizationInvitationsRpcInput,
@@ -73,8 +68,10 @@ import {
   captureFirstValueFeedbackRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
+  createEnvironmentRpc,
   listAuditEventsRpc,
   listEnvironmentsRpc,
+  createProjectRpc,
   listOrganizationInvitationsRpc,
   listOrganizationMembersRpc,
   listProjectSecretsRpc,
@@ -215,27 +212,19 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
 
-  provisionGuidedOrganization(
-    input: ProvisionGuidedOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
+  provisionGuidedOrganization(input: ProvisionGuidedOrganizationRpcInput) {
     return provisionGuidedOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createOperatorOrganization(
-    input: CreateOperatorOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
+  createOperatorOrganization(input: CreateOperatorOrganizationRpcInput) {
     return createOperatorOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createInvitation(
-    input: CreateInvitationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
+  createInvitation(input: CreateInvitationRpcInput) {
     return createInvitationRpc(this.#post.bind(this), input);
   }
 
-  acceptInvitation(
-    input: AcceptInvitationRpcInput,
-  ): Promise<RuntimeRpcResult<AcceptInvitationResult>> {
+  acceptInvitation(input: AcceptInvitationRpcInput) {
     return acceptInvitationRpc(this.#post.bind(this), input);
   }
 
@@ -243,9 +232,7 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return getOperationRpc(this.#post.bind(this), input);
   }
 
-  issueInjectionGrant(
-    input: IssueInjectionGrantRpcInput,
-  ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
+  issueInjectionGrant(input: IssueInjectionGrantRpcInput) {
     return issueInjectionGrantRpc(this.#post.bind(this), input);
   }
 
@@ -276,8 +263,16 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return listProjectsRpc(this.#post.bind(this), input);
   }
 
+  createProject(input: CreateProjectRpcInput) {
+    return createProjectRpc(this.#post.bind(this), input);
+  }
+
   listEnvironments(input: ListEnvironmentsRpcInput) {
     return listEnvironmentsRpc(this.#post.bind(this), input);
+  }
+
+  createEnvironment(input: CreateEnvironmentRpcInput) {
+    return createEnvironmentRpc(this.#post.bind(this), input);
   }
 
   listProjectSecrets(input: ListProjectSecretsRpcInput) {

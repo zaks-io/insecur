@@ -11,6 +11,15 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
+import type { NavigationApiClient } from "./navigation-api-types.js";
+
+export type {
+  CreateEnvironmentData,
+  CreateProjectData,
+  EnvironmentListData,
+  ProjectListData,
+  SessionOrganizationListData,
+} from "./navigation-api-types.js";
 
 export interface CliSessionExchangeData {
   readonly sessionId: string;
@@ -89,7 +98,7 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient {
+export interface ApiClient extends NavigationApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
