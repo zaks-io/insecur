@@ -12,6 +12,7 @@ import type {
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { SecretsApiClient } from "./secrets-api-types.js";
 
 export type {
   CreateEnvironmentData,
@@ -20,6 +21,8 @@ export type {
   ProjectListData,
   SessionOrganizationListData,
 } from "./navigation-api-types.js";
+
+export type { ListEnvironmentSecretsData, ListSecretVersionsData } from "./secrets-api-types.js";
 
 export interface CliSessionExchangeData {
   readonly sessionId: string;
@@ -47,42 +50,6 @@ export interface SecretWriteByVariableKeyData {
   readonly variableKey: VariableKey;
   readonly createdSecretShape: boolean;
   readonly auditEventId?: string;
-}
-
-interface EnvironmentSecretCurrentVersionData {
-  readonly secretVersionId: SecretVersionId;
-  readonly versionNumber: number;
-  readonly lifecycleState: "draft" | "live" | "retained" | "discarded";
-  readonly createdAt: string;
-  readonly publishedAt?: string;
-}
-
-interface EnvironmentSecretListItemData {
-  readonly secretId: SecretId;
-  readonly variableKey: VariableKey;
-  readonly displayName: string;
-  readonly currentVersion?: EnvironmentSecretCurrentVersionData;
-  readonly createdAt: string;
-}
-
-export interface ListEnvironmentSecretsData {
-  readonly secrets: readonly EnvironmentSecretListItemData[];
-}
-
-interface SecretVersionMetadataItemData {
-  readonly secretVersionId: SecretVersionId;
-  readonly versionNumber: number;
-  readonly lifecycleState: "draft" | "live" | "retained" | "discarded";
-  readonly createdAt: string;
-  readonly publishedAt?: string;
-  readonly isCurrent: boolean;
-  readonly isPublished: boolean;
-}
-
-export interface ListSecretVersionsData {
-  readonly secretId: SecretId;
-  readonly variableKey: VariableKey;
-  readonly versions: readonly SecretVersionMetadataItemData[];
 }
 
 export interface IssueInjectionGrantData {
@@ -134,7 +101,7 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient {
+export interface ApiClient extends NavigationApiClient, SecretsApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
@@ -175,27 +142,6 @@ export interface ApiClient extends NavigationApiClient {
     ),
   ): Promise<
     | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  listEnvironmentSecrets(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly projectId: ProjectId;
-    readonly environmentId: EnvironmentId;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<ListEnvironmentSecretsData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  listSecretVersions(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly projectId: ProjectId;
-    readonly environmentId: EnvironmentId;
-    readonly secretId: SecretId;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<ListSecretVersionsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
   issueInjectionGrant(
