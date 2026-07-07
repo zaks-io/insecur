@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { OPAQUE_RESOURCE_ID_BODY_PATTERN, parseOpaqueResourceId } from "./opaque-resource-id.js";
+import {
+  OPAQUE_RESOURCE_ID_BODY_PATTERN,
+  parseOpaqueResourceId,
+  generateOpaqueResourceIdForPrefix,
+} from "./opaque-resource-id.js";
 import {
   auditEventId,
   cliProfileId,
@@ -66,5 +70,13 @@ describe("opaque resource ID generator", () => {
     expect(req).toMatch(/^req_[0-9A-Z]{26}$/);
     expect(auditEventId.parse(aud).ok).toBe(true);
     expect(requestId.parse(req).ok).toBe(true);
+  });
+
+  it("generateOpaqueResourceIdForPrefix(chlg) matches Crockford body rules", () => {
+    for (let i = 0; i < 100; i += 1) {
+      const id = generateOpaqueResourceIdForPrefix("chlg");
+      expect(id).toMatch(/^chlg_[0-9A-Z]{26}$/);
+      expect(parseOpaqueResourceId(id, "chlg").ok).toBe(true);
+    }
   });
 });
