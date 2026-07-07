@@ -9,6 +9,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "../src/api/types.js";
 import { runRunPoliciesCreateCommand } from "../src/commands/run-policies-create.js";
+import { runRunPoliciesDisableCommand } from "../src/commands/run-policies-disable.js";
 import { runRunPoliciesShowCommand } from "../src/commands/run-policies-show.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { EXIT_CONFLICT, EXIT_STEP_UP } from "../src/output/exit-codes.js";
@@ -192,5 +193,75 @@ describe("run-policies CLI commands", () => {
       },
     );
     expect(exitCode).toBe(EXIT_CONFLICT);
+  });
+
+  it("disable returns step-up exit code when high-assurance challenge is required", async () => {
+    const api = createMockApi({
+      disableRuntimeInjectionPolicy: vi.fn(async () => ({
+        ok: false as const,
+        httpStatus: 403,
+        envelope: {
+          ok: false as const,
+          error: {
+            code: AUTH_ERROR_CODES.highAssuranceRequired,
+            message: "high-assurance challenge required",
+            retryable: false,
+          },
+          meta: { operationId: "op_00000000000000000000000001" },
+        },
+      })),
+    });
+
+    const exitCode = await runRunPoliciesDisableCommand(
+      { json: true, quiet: false, verbose: false },
+      api,
+      context,
+      {
+        policyId: POLICY_ID,
+        envId: "env_00000000000000000000000001",
+        comment: "retire migration flow",
+        operationId: undefined,
+      },
+    );
+    expect(exitCode).toBe(EXIT_STEP_UP);
+  });
+
+  it("disable succeeds and returns exit code zero", async () => {
+    const api = createMockApi({
+      disableRuntimeInjectionPolicy: vi.fn(async () => ({
+        ok: true as const,
+        envelope: {
+          ok: true as const,
+          data: {
+            policyId: POLICY_ID,
+            disabledAt: "2026-06-24T00:00:00.000Z",
+            auditEventId: "aud_00000000000000000000000001",
+          },
+        },
+      })),
+    });
+
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const exitCode = await runRunPoliciesDisableCommand(
+      { json: false, quiet: false, verbose: false },
+      api,
+      context,
+      {
+        policyId: POLICY_ID,
+        envId: "env_00000000000000000000000001",
+        comment: "retire migration flow",
+        operationId: "op_00000000000000000000000001",
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(api.disableRuntimeInjectionPolicy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        policyId: POLICY_ID,
+        comment: "retire migration flow",
+        operationId: "op_00000000000000000000000001",
+      }),
+    );
+    stdout.mockRestore();
   });
 });

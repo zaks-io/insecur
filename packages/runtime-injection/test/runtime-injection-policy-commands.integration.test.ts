@@ -1,4 +1,5 @@
 import {
+  ENVIRONMENT_LIFECYCLE_STAGES,
   environmentId,
   organizationId,
   parseDisplayName,
@@ -9,7 +10,12 @@ import {
   type DisplayName,
 } from "@insecur/domain";
 import { HighAssuranceHandoffError } from "@insecur/high-assurance";
-import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
+import {
+  TenantEnvironmentLifecycleStore,
+  TenantRuntimeInjectionPolicyStore,
+  closeRuntimeSql,
+  withTenantScope,
+} from "@insecur/tenant-store";
 
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
@@ -23,9 +29,8 @@ import {
 import { createRuntimeInjectionPolicyCommand } from "../src/create-runtime-injection-policy-command.js";
 import { disableRuntimeInjectionPolicyCommand } from "../src/runtime-injection-policy-commands.js";
 import { getRuntimeInjectionPolicyShow } from "../src/runtime-injection-policy-commands.js";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
-import * as gateModule from "../src/gate-protected-runtime-injection-policy-change.js";
+import { RuntimeInjectionPolicyError } from "../src/runtime-injection-policy-error.js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
@@ -37,6 +42,7 @@ const REQ = requestId.brand("req_00000000000000000000000001");
 
 const POLICY_ID = "rp_00000000000000000000000010";
 const POLICY_ID_TWO = "rp_00000000000000000000000011";
+const PROTECTED_ENV_ID = "env_00000000000000000000000088";
 
 function displayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -44,6 +50,30 @@ function displayName(raw: string): DisplayName {
     throw new Error(`invalid fixture display name: ${raw}`);
   }
   return parsed.value;
+}
+
+async function ensureProtectedEnvironment(): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+    const store = new TenantEnvironmentLifecycleStore(db);
+    const protectedEnvId = environmentId.brand(PROTECTED_ENV_ID);
+    const existing = await store.getById(ORG_A, protectedEnvId);
+    if (existing !== null) {
+      return;
+    }
+    await store.create({
+      organizationId: ORG_A,
+      projectId: PROJECT_A,
+      environmentId: protectedEnvId,
+      displayName: displayName("protected-preview"),
+      lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.preview,
+    });
+  });
+}
+
+async function cleanupProtectedEnvironment(): Promise<void> {
+  await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+    await sql`DELETE FROM environments WHERE id = ${PROTECTED_ENV_ID}`;
+  });
 }
 
 async function cleanupPolicies(): Promise<void> {
@@ -60,10 +90,12 @@ describeIntegration("runtime injection policy commands (INS-437)", () => {
   beforeAll(async () => {
     await seedTenantBaseline();
     await cleanupPolicies();
+    await ensureProtectedEnvironment();
   });
 
   afterAll(async () => {
     await cleanupPolicies();
+    await cleanupProtectedEnvironment();
     await closeRuntimeSql();
   });
 
@@ -116,27 +148,48 @@ describeIntegration("runtime injection policy commands (INS-437)", () => {
     expect(shown.disabledAt).not.toBeNull();
   });
 
-  it("fail-closes protected policy create without high-assurance evidence", async () => {
-    const gateSpy = vi
-      .spyOn(gateModule, "gateProtectedRuntimeInjectionPolicyChange")
-      .mockRejectedValueOnce(
-        new HighAssuranceHandoffError("op_00000000000000000000000099" as never),
-      );
+  it("fail-closes protected policy create with real high-assurance handoff", async () => {
+    const protectedEnv = environmentId.brand(PROTECTED_ENV_ID);
+    const policyId = runtimePolicyId.brand(POLICY_ID_TWO);
 
-    await expect(
-      createRuntimeInjectionPolicyCommand({
+    let handoffError: unknown;
+    try {
+      await createRuntimeInjectionPolicyCommand({
         actor: OWNER_ACTOR,
         organizationId: ORG_A,
         projectId: PROJECT_A,
-        environmentId: ENV_A,
-        policyId: runtimePolicyId.brand(POLICY_ID_TWO),
+        environmentId: protectedEnv,
+        policyId,
         displayName: displayName("preview-deploy"),
         command: "npm run deploy",
         secretIds: [TEST_SECRET_A_ID],
         requestId: REQ,
-      }),
-    ).rejects.toBeInstanceOf(HighAssuranceHandoffError);
+      });
+      expect.fail("expected HighAssuranceHandoffError");
+    } catch (error) {
+      handoffError = error;
+    }
 
-    gateSpy.mockRestore();
+    expect(handoffError).toBeInstanceOf(HighAssuranceHandoffError);
+    expect(handoffError).toMatchObject({
+      operationId: expect.stringMatching(/^op_/),
+    });
+
+    const policy = await withTenantScope(
+      { kind: "organization", organizationId: ORG_A },
+      async ({ db }) => {
+        const store = new TenantRuntimeInjectionPolicyStore(db);
+        return store.getPolicyById(ORG_A, policyId);
+      },
+    );
+    expect(policy).toBeNull();
+
+    await expect(
+      getRuntimeInjectionPolicyShow({
+        actor: OWNER_ACTOR,
+        organizationId: ORG_A,
+        policyId,
+      }),
+    ).rejects.toBeInstanceOf(RuntimeInjectionPolicyError);
   });
 });
