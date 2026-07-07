@@ -7,10 +7,10 @@ import type {
   UserId,
 } from "@insecur/domain";
 import {
+  HighAssuranceChallengeError,
   HighAssuranceHandoffError,
   HIGH_ASSURANCE_RISK_REASON_CODES,
   requestHighAssuranceChallenge,
-  type HighAssuranceChallengeError,
 } from "@insecur/high-assurance";
 import { createOperation, OPERATION_INTENT_CODES } from "@insecur/operations";
 import { TenantEnvironmentLifecycleStore, withTenantScope } from "@insecur/tenant-store";
@@ -106,7 +106,10 @@ export async function gateProtectedRuntimeInjectionPolicyChange(
       input.onDenied,
     );
   } catch (error) {
-    if (error instanceof HighAssuranceHandoffError) {
+    if (
+      error instanceof HighAssuranceHandoffError ||
+      error instanceof HighAssuranceChallengeError
+    ) {
       throw error;
     }
     throw new HighAssuranceHandoffError(operationId);
