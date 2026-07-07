@@ -46,6 +46,20 @@ describe("dotenv parser", () => {
     expect(classifyDotenvEntry("REDIS_KEY", "https://example.test?api_key=masked")).not.toBeNull();
   });
 
+  it("reports numeric-only values on strong secret key names", () => {
+    expect(classifyDotenvEntry("DATABASE_PASSWORD", "123456")).toMatchObject({
+      confidence: "likely-secret",
+    });
+    expect(classifyDotenvEntry("API_SECRET", "123456789012")).toMatchObject({
+      confidence: "likely-secret",
+    });
+    expect(classifyDotenvEntry("API_SECRET", "0000")).toMatchObject({
+      confidence: "likely-secret",
+    });
+    expect(classifyDotenvEntry("API_SECRET", "development")).toBeNull();
+    expect(classifyDotenvEntry("PORT", "3000")).toBeNull();
+  });
+
   it("classifies secret-shaped values as findings", () => {
     const result = classifyDotenvEntry("API_SECRET", "SENTINEL_ALPHA_9f2c4e8b1d");
     expect(result?.confidence).toBe("likely-secret");

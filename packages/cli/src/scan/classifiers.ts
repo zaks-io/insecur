@@ -67,7 +67,9 @@ export function classifyDotenvEntry(key: string, value: string): ClassifiedDoten
   if (confidence === null) {
     return null;
   }
-  if (isObviouslyNonSecret(shape.unquoted)) {
+  const suppressNumericBenign =
+    confidence === "likely-secret" && classifyDotenvKeyName(key) === "likely-secret";
+  if (isObviouslyNonSecret(shape.unquoted, { suppressNumericBenign })) {
     return null;
   }
 

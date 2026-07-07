@@ -173,7 +173,10 @@ function isPlainBenignUrl(value: string): boolean {
 }
 
 /** Returns true when a dotenv value shape is obviously non-secret (metadata-only check). */
-export function isObviouslyNonSecret(value: string): boolean {
+export function isObviouslyNonSecret(
+  value: string,
+  options?: { readonly suppressNumericBenign?: boolean },
+): boolean {
   const lower = value.toLowerCase();
   const benign = new Set([
     "true",
@@ -189,7 +192,7 @@ export function isObviouslyNonSecret(value: string): boolean {
   if (benign.has(lower)) {
     return true;
   }
-  if (/^\d+$/u.test(value)) {
+  if (!options?.suppressNumericBenign && /^\d+$/u.test(value)) {
     return true;
   }
   return isPlainBenignUrl(value);
