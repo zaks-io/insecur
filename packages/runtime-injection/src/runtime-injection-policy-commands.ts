@@ -121,6 +121,14 @@ export async function disableRuntimeInjectionPolicyCommand(
     ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
   });
 
+  await assertDisableRuntimeInjectionPolicyAccess(input);
+
+  return disableRuntimeInjectionPolicyWithAudit(input, auditScope);
+}
+
+async function assertDisableRuntimeInjectionPolicyAccess(
+  input: DisableRuntimeInjectionPolicyCommandInput,
+): Promise<void> {
   const effectiveAccess = await resolveEffectiveAccess(input.actor, {
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -140,31 +148,29 @@ export async function disableRuntimeInjectionPolicyCommand(
       environmentId: input.environmentId,
     },
   );
-
-  try {
-    return await persistDisabledRuntimeInjectionPolicy(input, auditScope);
-  } catch (error) {
-    await recordRuntimeInjectionPolicyDisableDenied({
-      ...auditScope,
-      policyId: input.policyId,
-      reasonCode: toPolicyAuditReasonCode(error),
-    });
-    throw error;
-  }
 }
 
-async function persistDisabledRuntimeInjectionPolicy(
+async function disableRuntimeInjectionPolicyWithAudit(
   input: DisableRuntimeInjectionPolicyCommandInput,
   auditScope: Awaited<ReturnType<typeof runPolicyMutationGate>>,
 ): Promise<DisableRuntimeInjectionPolicyResult> {
   const disabledAt = new Date();
-  const policy = await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    async ({ db }) => {
-      const store = new TenantRuntimeInjectionPolicyStore(db);
-      return store.disablePolicy(input.organizationId, input.policyId, disabledAt);
-    },
-  );
+  let policy;
+  try {
+    policy = await disableRuntimeInjectionPolicyRow(
+      input.organizationId,
+      input.policyId,
+      disabledAt,
+    );
+  } catch (error) {
+    await recordRuntimeInjectionPolicyDisableDenied({
+      ...auditScope,
+      policyId: input.policyId,
+      reasonCode:
+        error instanceof RuntimeInjectionPolicyError ? error.code : toPolicyAuditReasonCode(error),
+    });
+    throw error;
+  }
 
   const audit = await recordRuntimeInjectionPolicyDisabled({
     ...auditScope,
@@ -177,4 +183,15 @@ async function persistDisabledRuntimeInjectionPolicy(
     disabledAt: toIsoTimestamp(policy.disabledAt ?? disabledAt),
     auditEventId: audit.auditEventId,
   };
+}
+
+async function disableRuntimeInjectionPolicyRow(
+  organizationId: OrganizationId,
+  policyId: RuntimePolicyId,
+  disabledAt: Date,
+) {
+  return withTenantScope({ kind: "organization", organizationId }, async ({ db }) => {
+    const store = new TenantRuntimeInjectionPolicyStore(db);
+    return store.disablePolicy(organizationId, policyId, disabledAt);
+  });
 }

@@ -4,6 +4,7 @@ import type {
   OrganizationId,
   ProjectId,
   RequestId,
+  RuntimePolicyId,
   UserId,
 } from "@insecur/domain";
 import {
@@ -28,7 +29,7 @@ export interface GateProtectedPolicyChangeInput {
   readonly actorUserId: UserId;
   readonly operationId?: OperationId;
   readonly requestId: RequestId;
-  readonly policyId?: string;
+  readonly policyId?: RuntimePolicyId;
   readonly onDenied: (error: HighAssuranceChallengeError) => Promise<void>;
 }
 
@@ -100,6 +101,7 @@ export async function gateProtectedRuntimeInjectionPolicyChange(
       {
         organizationId: input.organizationId,
         projectId: input.projectId,
+        environmentId: input.environmentId,
         operationId,
         actor: { type: "user", userId: input.actorUserId },
       },
@@ -143,7 +145,7 @@ export async function recordProtectedPolicyChangeDenied(
   }
   await recordRuntimeInjectionPolicyDisableDenied({
     ...scope,
-    policyId: input.policyId as never,
+    policyId: input.policyId,
     reasonCode: input.reasonCode,
   });
 }
