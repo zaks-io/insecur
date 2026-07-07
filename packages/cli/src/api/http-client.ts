@@ -24,6 +24,7 @@ import {
   issueInjectionGrant,
   recordInjectionRunCompleted,
 } from "./http-client-runtime-injection.js";
+import { cancelOperation, getOperation } from "./http-client-operations.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
   const base = host.endsWith("/") ? host.slice(0, -1) : host;
@@ -42,6 +43,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     listEnvironments: (input) => listEnvironments(base, input),
     createEnvironment: (input) => createEnvironment(base, input),
     listAuditEvents: (input) => listAuditEvents(base, input),
+    getOperation: (input) => getOperation(base, input),
+    cancelOperation: (input) => cancelOperation(base, input),
   };
 }
 

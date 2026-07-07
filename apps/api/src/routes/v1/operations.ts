@@ -10,6 +10,19 @@ import { parseOrganizationAndOperationRouteParams } from "./parse-org-route-para
 
 export const operationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
+operationsRoutes.post("/:operationId/cancel", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const { organizationId, operationId } = parseOrganizationAndOperationRouteParams(context);
+
+    return runtimeClientFor(context.env, userActor).cancelOperation({
+      organizationId,
+      operationId,
+      requestId: reqId,
+    });
+  }),
+);
+
 // Authorize (organizationRead) then read runs atomically in the Runtime deploy (ADR-0077): the
 // public edge does no DB I/O, and operation IDs are not bearer authority, so the scope gate must
 // stay co-located with the tenant read it guards.

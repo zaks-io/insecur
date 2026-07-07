@@ -242,4 +242,98 @@ describe("operations worker routes", () => {
       });
     });
   });
+
+  describe("POST /v1/orgs/:organizationId/operations/:operationId/cancel", () => {
+    const cancelPath = `/v1/orgs/${orgId}/operations/${operationIdValue}/cancel`;
+
+    const canceledOperation = {
+      operationId: operationIdValue,
+      organizationId: orgId,
+      state: "canceled" as const,
+      intentCode: "sync.run",
+      progress: {},
+      createdAt: "2026-06-24T00:00:00.000Z",
+      updatedAt: "2026-06-24T00:02:00.000Z",
+      auditEventId: auditEventId.brand("aud_00000000000000000000000002"),
+    };
+
+    it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        cancelPath,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      expect(runtime.cancelOperation).not.toHaveBeenCalled();
+    });
+
+    it("forwards cancel to the Runtime Worker and returns metadata-only status", async () => {
+      const env = makeEnv();
+      runtime.cancelOperation.mockResolvedValue({ ok: true, value: canceledOperation });
+
+      const response = await app.request(
+        cancelPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.cancelOperation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          operationId: operationIdValue,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          operationId: operationIdValue,
+          state: "canceled",
+          auditEventId: canceledOperation.auditEventId,
+        },
+      });
+      expect(JSON.stringify(body)).not.toMatch(/valueUtf8|plaintext|secret|password/i);
+    });
+
+    it("maps terminal cancel attempts to operation.not_cancelable", async () => {
+      const env = makeEnv();
+      runtime.cancelOperation.mockResolvedValue(
+        rpcFailure(OPERATION_ERROR_CODES.notCancelable, "not cancelable"),
+      );
+
+      const response = await app.request(
+        cancelPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        },
+        env,
+      );
+
+      expect(response.status).toBe(409);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: OPERATION_ERROR_CODES.notCancelable },
+      });
+    });
+  });
 });

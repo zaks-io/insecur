@@ -40,6 +40,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     createInvitation: vi.fn(),
     acceptInvitation: vi.fn(),
     getOperation: vi.fn(),
+    cancelOperation: vi.fn(),
     issueInjectionGrant: vi.fn(),
     recordInjectionRunCompleted: vi.fn(),
     captureFirstValueFeedback: vi.fn(),

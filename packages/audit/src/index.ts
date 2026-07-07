@@ -80,6 +80,12 @@ export {
 } from "./production-audit-writers.js";
 export { type RecordActionAuditInput, recordActionAudit } from "./record-action-audit.js";
 export {
+  recordOperationCanceled,
+  recordOperationCancelDenied,
+  type RecordOperationCanceledInput,
+  type RecordOperationCancelDeniedInput,
+} from "./record-operation-audit.js";
+export {
   type RecordRuntimeInjectionAuditInput,
   type RuntimeInjectionAuditPhase,
   recordRuntimeInjectionAudit,
