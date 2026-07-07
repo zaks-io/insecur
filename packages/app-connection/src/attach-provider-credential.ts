@@ -26,7 +26,7 @@ import {
   recordConnectionCredentialAttachDenied,
 } from "./record-connection-audit.js";
 import { verifyCloudflareConnectionToken } from "./verify-cloudflare-connection-token.js";
-import { withConnectionManageAccess } from "./with-cloudflare-connection-access.js";
+import { withCloudflareConnectionManageAccess } from "./with-cloudflare-connection-access.js";
 
 export interface AttachProviderCredentialInput {
   readonly actor: UserActorRef;
@@ -88,7 +88,7 @@ async function attachCredentialWithProjectBoundary(
   input: AttachProviderCredentialInput,
 ): Promise<AppConnectionRow> {
   try {
-    return await withConnectionManageAccess({
+    return await withCloudflareConnectionManageAccess({
       actor: input.actor,
       organizationId: input.organizationId,
       projectId: input.projectId,

@@ -8,9 +8,9 @@ import type {
 import type { UserActorRef } from "@insecur/access";
 
 import { disableAppConnection } from "./disable-app-connection.js";
-import { withCloudflareConnectionManageAccess } from "./with-cloudflare-connection-access.js";
+import { withGitHubConnectionManageAccess } from "./with-github-connection-access.js";
 
-export interface DisableCloudflareConnectionInput {
+export interface DisableGitHubConnectionInput {
   readonly actor: UserActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
@@ -20,11 +20,8 @@ export interface DisableCloudflareConnectionInput {
   readonly sensitiveMetadataStore: TenantSensitiveMetadataStore;
 }
 
-export async function disableCloudflareConnection(
-  input: DisableCloudflareConnectionInput,
+export async function disableGitHubConnection(
+  input: DisableGitHubConnectionInput,
 ): Promise<AppConnectionRow> {
-  return disableAppConnection(
-    { ...input, clearActiveCredential: true },
-    withCloudflareConnectionManageAccess,
-  );
+  return disableAppConnection(input, withGitHubConnectionManageAccess);
 }
