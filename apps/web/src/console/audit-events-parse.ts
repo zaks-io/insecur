@@ -20,7 +20,7 @@ function parseAuditDetailValue(value: unknown): string | number | boolean | null
   return undefined;
 }
 
-export function parseAuditDetails(value: unknown): ConsoleAuditEvent["details"] | null | undefined {
+function parseAuditDetails(value: unknown): ConsoleAuditEvent["details"] | null | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -59,7 +59,7 @@ function parseMachineActor(value: Record<string, unknown>): ConsoleAuditActor | 
     : { actorType: "machine", machineIdentityId };
 }
 
-export function parseAuditActor(value: unknown): ConsoleAuditActor | null {
+function parseAuditActor(value: unknown): ConsoleAuditActor | null {
   if (!isRecord(value) || typeof value.actorType !== "string") {
     return null;
   }
@@ -75,7 +75,7 @@ export function parseAuditActor(value: unknown): ConsoleAuditActor | null {
   }
 }
 
-export function parseAuditResource(value: unknown): ConsoleAuditResource | null {
+function parseAuditResource(value: unknown): ConsoleAuditResource | null {
   if (value === null) {
     return null;
   }
