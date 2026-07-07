@@ -1,8 +1,39 @@
+import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import type { Command, Command as CommanderCommand } from "commander";
 import { runOperationsCancelCommand } from "./commands/operations-cancel.js";
 import { runOperationsGetCommand } from "./commands/operations-get.js";
 import { runOperationsWaitCommand } from "./commands/operations-wait.js";
 import type { GlobalCliFlags } from "./cli-options.js";
+import { CliError } from "./output/cli-error.js";
+import { EXIT_VALIDATION } from "./output/exit-codes.js";
+
+export function parseOperationsWaitTimeout(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!/^[1-9][0-9]*$/u.test(value)) {
+    throw new CliError(
+      {
+        code: VALIDATION_ERROR_CODES.invalidCommandInput,
+        message: "--timeout must be a whole number of seconds of at least 1.",
+        retryable: false,
+      },
+      EXIT_VALIDATION,
+    );
+  }
+  const timeoutSeconds = Number(value);
+  if (!Number.isSafeInteger(timeoutSeconds)) {
+    throw new CliError(
+      {
+        code: VALIDATION_ERROR_CODES.invalidCommandInput,
+        message: "--timeout must be a whole number of seconds of at least 1.",
+        retryable: false,
+      },
+      EXIT_VALIDATION,
+    );
+  }
+  return timeoutSeconds;
+}
 
 export function registerOperationsCommands(
   program: Command,
@@ -36,12 +67,11 @@ export function registerOperationsCommands(
     .action(async function operationsWaitAction(operationId: string, command: CommanderCommand) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{ timeout?: string }>();
-      const timeoutSeconds =
-        options.timeout === undefined ? undefined : Number.parseInt(options.timeout, 10);
+      const timeoutSeconds = parseOperationsWaitTimeout(options.timeout);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runOperationsWaitCommand(flags, api, context, {
         operationId,
-        ...(timeoutSeconds === undefined || Number.isNaN(timeoutSeconds) ? {} : { timeoutSeconds }),
+        ...(timeoutSeconds === undefined ? {} : { timeoutSeconds }),
       });
     });
 
