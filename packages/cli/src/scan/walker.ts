@@ -1,6 +1,8 @@
 import { readdir, realpath, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { join, sep } from "node:path";
+import { CliError } from "../output/cli-error.js";
+import { EXIT_VALIDATION } from "../output/exit-codes.js";
 
 const DEFAULT_MAX_DEPTH = 8;
 const DEFAULT_MAX_FILES = 10_000;
@@ -106,21 +108,21 @@ function markUnreadable(state: WalkState, entryRelative: string): void {
   state.unreadablePaths.push(entryRelative);
 }
 
-async function isSymlinkTargetWithinRoot(
+async function resolveSymlinkWithinRoot(
   state: WalkState,
   absolutePath: string,
   entryRelative: string,
-): Promise<boolean> {
+): Promise<string | null> {
   try {
     const resolvedPath = await realpath(absolutePath);
     if (!isWithinScanRoot(resolvedPath, state.canonicalRoot)) {
       markUnreadable(state, entryRelative);
-      return false;
+      return null;
     }
-    return true;
+    return resolvedPath;
   } catch {
     markUnreadable(state, entryRelative);
-    return false;
+    return null;
   }
 }
 
@@ -140,12 +142,13 @@ async function followResolvedSymlinkTarget(
   state: WalkState,
   visit: DirVisit,
   entry: Dirent,
+  resolvedPath: string,
 ): Promise<void> {
-  const { entryRelative, absolutePath } = entryPaths(visit, entry);
+  const { entryRelative } = entryPaths(visit, entry);
 
   let entryStat;
   try {
-    entryStat = await stat(absolutePath);
+    entryStat = await stat(resolvedPath);
   } catch {
     markUnreadable(state, entryRelative);
     return;
@@ -154,7 +157,7 @@ async function followResolvedSymlinkTarget(
   if (entryStat.isDirectory()) {
     if (!SKIP_DIR_NAMES.has(entry.name)) {
       await visitDir(state, {
-        dirPath: absolutePath,
+        dirPath: resolvedPath,
         relativeDir: entryRelative,
         depth: visit.depth + 1,
       });
@@ -163,7 +166,7 @@ async function followResolvedSymlinkTarget(
   }
 
   if (entryStat.isFile()) {
-    await tryAppendFile(state, absolutePath, entryRelative);
+    await tryAppendFile(state, resolvedPath, entryRelative);
     return;
   }
 
@@ -177,11 +180,12 @@ async function processSymbolicLink(
 ): Promise<void> {
   const { entryRelative, absolutePath } = entryPaths(visit, entry);
 
-  if (!(await isSymlinkTargetWithinRoot(state, absolutePath, entryRelative))) {
+  const resolvedPath = await resolveSymlinkWithinRoot(state, absolutePath, entryRelative);
+  if (resolvedPath === null) {
     return;
   }
 
-  await followResolvedSymlinkTarget(state, visit, entry);
+  await followResolvedSymlinkTarget(state, visit, entry, resolvedPath);
 }
 
 async function processEntry(state: WalkState, visit: DirVisit, entry: Dirent): Promise<void> {
@@ -246,7 +250,19 @@ async function visitDir(state: WalkState, visit: DirVisit): Promise<void> {
 }
 
 export async function walkProjectFiles(options: WalkOptions): Promise<WalkProjectFilesResult> {
-  const canonicalRoot = await realpath(options.rootDir);
+  let canonicalRoot: string;
+  try {
+    canonicalRoot = await realpath(options.rootDir);
+  } catch {
+    throw new CliError(
+      {
+        code: "validation.invalid_command_input",
+        message: "insecur scan could not resolve the project root directory.",
+        retryable: false,
+      },
+      EXIT_VALIDATION,
+    );
+  }
   const state: WalkState = {
     canonicalRoot,
     maxDepth: options.maxDepth ?? DEFAULT_MAX_DEPTH,

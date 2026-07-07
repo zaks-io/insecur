@@ -146,6 +146,32 @@ function hasMixedCharset(value: string): boolean {
   return (hasAlpha && hasDigit) || (hasAlpha && hasSpecial) || (hasDigit && hasSpecial);
 }
 
+function hasUrlEmbeddedCredentialsOrTokens(value: string): boolean {
+  if (/^https?:\/\/[^/?#]+@[^/]/iu.test(value)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(value);
+    for (const name of url.searchParams.keys()) {
+      if (/^(?:token|access_token|api[_-]?key|secret|password|auth|credentials?)$/iu.test(name)) {
+        return true;
+      }
+    }
+  } catch {
+    return true;
+  }
+
+  return false;
+}
+
+function isPlainBenignUrl(value: string): boolean {
+  if (!/^https?:\/\//iu.test(value) || hasKnownSecretPrefix(value)) {
+    return false;
+  }
+  return !hasUrlEmbeddedCredentialsOrTokens(value);
+}
+
 /** Returns true when a dotenv value shape is obviously non-secret (metadata-only check). */
 export function isObviouslyNonSecret(value: string): boolean {
   const lower = value.toLowerCase();
@@ -166,5 +192,5 @@ export function isObviouslyNonSecret(value: string): boolean {
   if (/^\d+$/u.test(value)) {
     return true;
   }
-  return /^https?:\/\//iu.test(value) && !hasKnownSecretPrefix(value);
+  return isPlainBenignUrl(value);
 }

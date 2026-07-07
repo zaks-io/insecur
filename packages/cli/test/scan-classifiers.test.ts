@@ -38,6 +38,14 @@ describe("dotenv parser", () => {
     expect(classifyDotenvEntry("MYTOKEN", "localhost")).toBeNull();
   });
 
+  it("does not treat URLs with embedded credentials or token params as benign", () => {
+    expect(classifyDotenvEntry("API_SECRET", "https://user:masked@example.test")).not.toBeNull();
+    expect(
+      classifyDotenvEntry("API_SECRET", "https://example.test?access_token=masked"),
+    ).not.toBeNull();
+    expect(classifyDotenvEntry("REDIS_KEY", "https://example.test?api_key=masked")).not.toBeNull();
+  });
+
   it("classifies secret-shaped values as findings", () => {
     const result = classifyDotenvEntry("API_SECRET", "SENTINEL_ALPHA_9f2c4e8b1d");
     expect(result?.confidence).toBe("likely-secret");

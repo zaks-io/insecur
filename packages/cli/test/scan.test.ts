@@ -222,6 +222,14 @@ describe("insecur scan", () => {
     expect(report.summary.unreadableFiles).toContain("escape.link");
   });
 
+  it("rejects an inaccessible scan root with a validation error", async () => {
+    const missingRoot = join(tmpdir(), "insecur-scan-missing-root");
+    await expect(buildScanReport({ rootDir: missingRoot })).rejects.toMatchObject({
+      code: "validation.invalid_command_input",
+      message: "insecur scan could not resolve the project root directory.",
+    });
+  });
+
   it("reports limitReached when maxFiles stops the walk early", async () => {
     const root = await createFixture();
     const report = await buildScanReport({ rootDir: root, maxFiles: 1 });
