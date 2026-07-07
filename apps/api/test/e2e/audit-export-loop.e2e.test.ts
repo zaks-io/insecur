@@ -9,7 +9,10 @@ import {
   verifyAuditExport,
   writeAuditEvent,
 } from "@insecur/audit";
-import { createTestAuditExportKeyProviders } from "../../../../packages/audit/test/support/test-audit-export-keys.js";
+import {
+  createTestAuditExportKeyProviders,
+  testAuditExportRuntimeEnvVars,
+} from "../../../../packages/audit/test/support/test-audit-export-keys.js";
 import { assertAuditExportJsonlIsMetadataOnly } from "../../../../packages/audit/test/support/assert-audit-export-jsonl-metadata-only.js";
 import {
   brandOpaqueResourceIdForPrefix,
@@ -26,6 +29,7 @@ import { seedTenantBaseline } from "../../../../packages/tenant-store/test/rls/s
 import {
   TEST_ENV_A_ID,
   TEST_INSTANCE_ID,
+  TEST_MEM_METADATA_VIEWER_A_ID,
   TEST_ORG_A_ID,
   TEST_ORG_B_ID,
   TEST_PROJECT_A_ID,
@@ -42,8 +46,6 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const ORG_B = organizationId.brand(TEST_ORG_B_ID);
 const RUNTIME_TOKEN_SIGNING_SECRET = "audit-export-e2e-runtime-hop-secret-000000000000";
-const TEST_MEM_METADATA_VIEWER_A_ID = "mem_00000000000000000000000004";
-
 async function seedMetadataViewerMembership(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
     await sql`
@@ -61,7 +63,6 @@ async function seedMetadataViewerMembership(): Promise<void> {
 }
 
 describeIntegration("audit export loop (real DB, HTTP routes)", () => {
-  let auditExportEnvVars: Record<string, string>;
   let signingPublicKey: string;
   let hmacSecret: string;
   let verificationKeys: StaticAuditExportVerificationKeys;
@@ -70,12 +71,10 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
     await seedTenantBaseline();
     await seedMetadataViewerMembership();
     const keys = await createTestAuditExportKeyProviders();
-    auditExportEnvVars = {
-      INSECUR_AUDIT_EXPORT_HMAC_SECRET: keys.hmacSecret,
-      INSECUR_AUDIT_EXPORT_SIGNING_PRIVATE_KEY_PKCS8_BASE64URL:
-        keys.signingPrivateKeyPkcs8Base64Url,
-      INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY: keys.signingPublicKey,
-    };
+    const auditExportEnvVars = await testAuditExportRuntimeEnvVars();
+    for (const [name, value] of Object.entries(auditExportEnvVars)) {
+      process.env[name] = value;
+    }
     signingPublicKey = keys.signingPublicKey;
     hmacSecret = keys.hmacSecret;
     verificationKeys = new StaticAuditExportVerificationKeys();
@@ -100,7 +99,6 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
           get: (): Promise<string> => Promise.resolve(RLS_TEST_ROOT_KEY_HEX),
         },
         RUNTIME_TOKEN_SIGNING_SECRET,
-        ...auditExportEnvVars,
       }),
     };
   }
