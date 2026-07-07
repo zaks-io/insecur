@@ -1,3 +1,4 @@
+import { buildAncestryKey } from "@insecur/agent-attribution";
 import { mintEphemeralSessionCredential } from "@insecur/auth";
 import { testSessionSigningSecret } from "@insecur/auth/testing";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
@@ -19,7 +20,7 @@ const ADMITTED_USER_ID = TEST_USER_ID;
 const WORKOS_USER_ID = TEST_WORKOS_USER_ID;
 const RUNTIME_TOKEN_SIGNING_SECRET = "test-runtime-token-signing-placeholder";
 const SESSION_ID = "session_whoami_e2e";
-const TEST_ANCESTRY = "test-ancestry-placeholder";
+const DERIVED_ANCESTRY_KEY = buildAncestryKey();
 
 const runtimeEnv = {
   INSTANCE_ROOT_KEY_V1: {
@@ -59,11 +60,11 @@ describeIntegration("session whoami (real DB, RUNTIME seam)", () => {
     await closeRuntimeSql();
   });
 
-  it("auto-registers Tier 2 attribution and reports registered on follow-up read", async () => {
+  it("auto-registers Tier 2 attribution and reuses the row for the derived ancestry key", async () => {
     const headers = await authHeaders();
     const query = new URLSearchParams({
       harnessName: "agent.harness.claude_code",
-      ancestryKey: TEST_ANCESTRY,
+      ancestryKey: DERIVED_ANCESTRY_KEY,
     });
 
     const first = await app.request(
@@ -105,11 +106,38 @@ describeIntegration("session whoami (real DB, RUNTIME seam)", () => {
         SELECT id
         FROM agent_sessions
         WHERE human_session_id = ${SESSION_ID}
-          AND ancestry_key = ${TEST_ANCESTRY}
+          AND ancestry_key = ${DERIVED_ANCESTRY_KEY}
           AND closed_at IS NULL
       `;
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(firstBody.data.attribution.agentSessionId);
+  });
+
+  it("does not register Tier 2 attribution when organization context validation fails", async () => {
+    const headers = await authHeaders();
+    const query = new URLSearchParams({
+      orgId: "org_00000000000000000000000099",
+      harnessName: "agent.harness.claude_code",
+      ancestryKey: DERIVED_ANCESTRY_KEY,
+    });
+
+    const response = await app.request(
+      `/v1/session/whoami?${query.toString()}`,
+      { method: "GET", headers },
+      env,
+    );
+    expect(response.status).toBe(403);
+
+    const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
+      return await sql<{ id: string }[]>`
+        SELECT id
+        FROM agent_sessions
+        WHERE human_session_id = ${SESSION_ID}
+          AND ancestry_key = ${DERIVED_ANCESTRY_KEY}
+          AND closed_at IS NULL
+      `;
+    });
+    expect(rows).toHaveLength(0);
   });
 });

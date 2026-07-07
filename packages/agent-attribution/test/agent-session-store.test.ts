@@ -52,7 +52,7 @@ describe("registerAgentSession", () => {
     const result = await registerAgentSession(input);
 
     expect(result).toBe(existingSessionId);
-    expect(withTenantScope).toHaveBeenCalledTimes(2);
+    expect(withTenantScope).toHaveBeenCalledTimes(1);
     const insertCall = mockSql.mock.calls[0];
     expect(insertCall).toBeDefined();
     expect(insertCall?.[0].join(" ")).toContain("ON CONFLICT");
