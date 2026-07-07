@@ -206,6 +206,23 @@ export interface GetOperationRpcInput extends PostAuthRpcInputBase {
   readonly operationId: OperationId;
 }
 
+export interface CancelOperationRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly operationId: OperationId;
+}
+
+/** Metadata-only cancel outcome for the public API seam. */
+export interface CancelOperationRpcPayload {
+  readonly operationId: OperationId;
+  readonly organizationId: OrganizationId;
+  readonly state: string;
+  readonly intentCode: string;
+  readonly progress: Record<string, unknown>;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly auditEventId: string;
+}
+
 export interface IssueInjectionGrantRpcInput extends PostAuthRpcInputBase {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;

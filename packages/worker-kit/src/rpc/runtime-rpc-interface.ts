@@ -54,6 +54,8 @@ import type {
 } from "./runtime-high-assurance-rpc-contract.js";
 import type {
   AcceptInvitationRpcInput,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   CompleteBootstrapClaimRpcInput,
   ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,
@@ -119,6 +121,9 @@ export interface RuntimeRpc {
     input: AcceptInvitationRpcInput,
   ): Promise<RuntimeRpcResult<AcceptInvitationResult>>;
   getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>>;
+  cancelOperation(
+    input: CancelOperationRpcInput,
+  ): Promise<RuntimeRpcResult<CancelOperationRpcPayload>>;
   issueInjectionGrant(
     input: IssueInjectionGrantRpcInput,
   ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>>;

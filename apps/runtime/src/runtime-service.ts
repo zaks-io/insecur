@@ -2,6 +2,7 @@ import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers"
 import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
+import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import {
   completeBootstrapOperatorClaim,
   getBootstrapStatus,
@@ -9,7 +10,6 @@ import {
   type CompleteBootstrapOperatorClaimResult,
 } from "@insecur/instance-bootstrap";
 import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
-import type { OperationPollResult } from "@insecur/operations";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -18,6 +18,7 @@ import type {
   CreateInvitationRpcInput,
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
+  CancelOperationRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
   CreateEnvironmentRpcInput,
@@ -66,6 +67,7 @@ import {
 } from "./rpc/runtime-high-assurance-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
+  cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
   createEnvironmentRpc,
@@ -227,12 +229,17 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   acceptInvitation(input: AcceptInvitationRpcInput) {
     return acceptInvitationRpc(this.#post.bind(this), input);
   }
-
-  getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
+  getOperation(input: GetOperationRpcInput) {
     return getOperationRpc(this.#post.bind(this), input);
   }
 
-  issueInjectionGrant(input: IssueInjectionGrantRpcInput) {
+  cancelOperation(input: CancelOperationRpcInput) {
+    return cancelOperationRpc(this.#post.bind(this), input);
+  }
+
+  issueInjectionGrant(
+    input: IssueInjectionGrantRpcInput,
+  ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>> {
     return issueInjectionGrantRpc(this.#post.bind(this), input);
   }
 

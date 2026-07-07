@@ -1,62 +1,20 @@
-import { successEnvelope, type VariableKey } from "@insecur/domain";
-import type {
-  ApiClient,
-  InjectionGrantDeliveryData,
-  IssueInjectionGrantData,
-} from "../api/types.js";
+import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
-import { CliError } from "../output/cli-error.js";
-import { renderSuccess } from "../output/render.js";
-import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { parseVariableKeyOrThrow } from "./parse-variable-key.js";
 import { assertRunModeExclusive } from "./resolve-run-profile.js";
 import { buildRunChildEnv, decodeDeliveryValue, spawnCommand } from "./run-child.js";
 import { runProfilePolicyPath } from "./run-profile-policy.js";
-import { buildRunResolvedTargets } from "./run-result.js";
+import { issueAndConsumeVariableKeyGrant } from "./run-injection-grants.js";
+import { renderVariableKeyRunSuccess } from "./run-result.js";
+import { runVariableKeyWatchPath } from "./run-watch-executions.js";
 import {
   recordRunCompletedBestEffort,
   requireRunCommand,
   type RunCommandOptions,
 } from "./run-shared.js";
-import { requireSecretWriteScope, type ResolvedSecretWriteScope } from "./secrets-set-scope.js";
-
-async function issueAndConsumeVariableKeyGrant(input: {
-  readonly api: ApiClient;
-  readonly credential: string;
-  readonly host: string;
-  readonly runScope: ResolvedSecretWriteScope;
-  readonly variableKey: VariableKey;
-}): Promise<{ issueData: IssueInjectionGrantData; delivery: InjectionGrantDeliveryData }> {
-  const issueResult = await input.api.issueInjectionGrant({
-    host: input.host,
-    bearerCredential: input.credential,
-    organizationId: input.runScope.orgId,
-    projectId: input.runScope.projectId,
-    environmentId: input.runScope.envId,
-    variableKey: input.variableKey,
-  });
-  if (!issueResult.ok) {
-    throw new CliError(issueResult.envelope.error);
-  }
-
-  const consumeResult = await input.api.consumeInjectionGrant({
-    host: input.host,
-    bearerCredential: input.credential,
-    organizationId: input.runScope.orgId,
-    grantId: issueResult.envelope.data.grantId,
-    variableKey: input.variableKey,
-  });
-  if (!consumeResult.ok) {
-    throw new CliError(consumeResult.envelope.error);
-  }
-
-  return {
-    issueData: issueResult.envelope.data,
-    delivery: consumeResult.envelope.delivery,
-  };
-}
+import { requireSecretWriteScope } from "./secrets-set-scope.js";
 
 async function runVariableKeyPath(
   flags: GlobalCliFlags,
@@ -68,6 +26,18 @@ async function runVariableKeyPath(
   const runScope = requireSecretWriteScope(context.scope);
   const variableKey = parseVariableKeyOrThrow(commandOptions.variableKey ?? "");
   const command = requireRunCommand(commandOptions.command);
+  if (commandOptions.watch === true) {
+    return runVariableKeyWatchPath({
+      flags,
+      api,
+      context,
+      credential,
+      runScope,
+      variableKey,
+      command,
+    });
+  }
+
   const { issueData, delivery } = await issueAndConsumeVariableKeyGrant({
     api,
     credential,
@@ -90,24 +60,14 @@ async function runVariableKeyPath(
     childExitCode,
   });
 
-  renderSuccess(
-    successEnvelope(
-      {
-        grantId: issueData.grantId,
-        variableKey: delivery.variableKey,
-        secretId: delivery.secretId,
-        secretVersionId: delivery.secretVersionId,
-        childExitCode,
-        ...(delivery.auditEventId !== undefined ? { auditEventId: delivery.auditEventId } : {}),
-      },
-      buildEnvelopeMeta({
-        resolvedTargets: buildRunResolvedTargets(runScope, variableKey, issueData, delivery),
-      }),
-    ),
+  renderVariableKeyRunSuccess({
     flags,
-    (data) =>
-      `Injected ${data.variableKey} via grant ${data.grantId}; child exited with code ${String(data.childExitCode)}.`,
-  );
+    runScope,
+    variableKey,
+    issueData,
+    delivery,
+    childExitCode,
+  });
   return childExitCode;
 }
 

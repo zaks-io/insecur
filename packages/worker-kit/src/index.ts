@@ -49,6 +49,8 @@ export type {
   GetOperationRpcInput,
   IsCliSessionRevokedRpcInput,
   IsCliSessionRevokedRpcPayload,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,

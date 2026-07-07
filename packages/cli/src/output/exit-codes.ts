@@ -25,6 +25,7 @@ export const EXIT_FORBIDDEN = 4;
 export const EXIT_NOT_FOUND = 5;
 export const EXIT_CONFLICT = 6;
 const EXIT_RETRYABLE = 8;
+export const EXIT_WAIT_TIMEOUT = 9;
 export const EXIT_STEP_UP = 10;
 export const EXIT_ACTION_REQUIRED = 7;
 
@@ -74,6 +75,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [OPERATION_ERROR_CODES.terminalState]: EXIT_CONFLICT,
   [OPERATION_ERROR_CODES.notCancelable]: EXIT_CONFLICT,
   [OPERATION_ERROR_CODES.notRetryable]: EXIT_CONFLICT,
+  [OPERATION_ERROR_CODES.waitTimeout]: EXIT_WAIT_TIMEOUT,
   [OPERATION_ERROR_CODES.targetBusy]: EXIT_RETRYABLE,
   [OPERATION_ERROR_CODES.staleFencingToken]: EXIT_CONFLICT,
   [OPERATION_ERROR_CODES.leaseNotHeld]: EXIT_CONFLICT,
