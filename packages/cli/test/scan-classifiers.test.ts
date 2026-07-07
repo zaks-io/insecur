@@ -64,7 +64,7 @@ describe("dotenv parser", () => {
     const result = classifyDotenvEntry("API_SECRET", "SENTINEL_ALPHA_9f2c4e8b1d");
     expect(result?.confidence).toBe("likely-secret");
     expect(result?.migratable).toBe(true);
-    expect(result?.remediation).toBe("insecur secrets set API_SECRET --value-stdin");
+    expect(result?.remediation).toBe("insecur secrets set --variable-key API_SECRET --value-stdin");
   });
 
   it("detects secret file kinds by path and content head", () => {
