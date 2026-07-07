@@ -11,6 +11,7 @@ import {
   postJson,
   readCliCredentialHeader,
 } from "./http-client-envelope.js";
+import { listAuditEvents } from "./http-client-audit-events.js";
 import {
   consumeInjectionGrant,
   consumeInjectionGrantAll,
@@ -29,6 +30,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
     recordInjectionRunCompleted: (input) => recordInjectionRunCompleted(base, input),
+    listAuditEvents: (input) => listAuditEvents(base, input),
   };
 }
 

@@ -84,3 +84,17 @@ export async function postAuthorizedJson(
     body: JSON.stringify(body),
   });
 }
+
+export async function getAuthorizedJson(
+  base: string,
+  path: string,
+  bearerCredential: string,
+): Promise<{ response: Response; body: unknown }> {
+  return postJson(new URL(path, base), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${bearerCredential}`,
+      Accept: "application/json",
+    },
+  });
+}
