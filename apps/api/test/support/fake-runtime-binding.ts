@@ -31,5 +31,8 @@ export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc
     cancelOperation: (input) => service.cancelOperation(input),
     issueInjectionGrant: (input) => service.issueInjectionGrant(input),
     completeBootstrapOperatorClaim: (input) => service.completeBootstrapOperatorClaim(input),
+    listProjectSecrets: (input) => service.listProjectSecrets(input),
+    listEnvironmentSecrets: (input) => service.listEnvironmentSecrets(input),
+    listSecretVersions: (input) => service.listSecretVersions(input),
   };
 }
