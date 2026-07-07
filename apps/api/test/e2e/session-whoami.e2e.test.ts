@@ -60,6 +60,34 @@ describeIntegration("session whoami (real DB, RUNTIME seam)", () => {
     await closeRuntimeSql();
   });
 
+  it("does not register Tier 2 attribution when organization context validation fails", async () => {
+    const headers = await authHeaders();
+    const failedContextAncestryKey = `${DERIVED_ANCESTRY_KEY}-failed-org`;
+    const query = new URLSearchParams({
+      orgId: "org_00000000000000000000000099",
+      harnessName: "agent.harness.claude_code",
+      ancestryKey: failedContextAncestryKey,
+    });
+
+    const response = await app.request(
+      `/v1/session/whoami?${query.toString()}`,
+      { method: "GET", headers },
+      env,
+    );
+    expect(response.status).toBe(403);
+
+    const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
+      return await sql<{ id: string }[]>`
+        SELECT id
+        FROM agent_sessions
+        WHERE human_session_id = ${SESSION_ID}
+          AND ancestry_key = ${failedContextAncestryKey}
+          AND closed_at IS NULL
+      `;
+    });
+    expect(rows).toHaveLength(0);
+  });
+
   it("auto-registers Tier 2 attribution and reuses the row for the derived ancestry key", async () => {
     const headers = await authHeaders();
     const query = new URLSearchParams({
@@ -112,32 +140,5 @@ describeIntegration("session whoami (real DB, RUNTIME seam)", () => {
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(firstBody.data.attribution.agentSessionId);
-  });
-
-  it("does not register Tier 2 attribution when organization context validation fails", async () => {
-    const headers = await authHeaders();
-    const query = new URLSearchParams({
-      orgId: "org_00000000000000000000000099",
-      harnessName: "agent.harness.claude_code",
-      ancestryKey: DERIVED_ANCESTRY_KEY,
-    });
-
-    const response = await app.request(
-      `/v1/session/whoami?${query.toString()}`,
-      { method: "GET", headers },
-      env,
-    );
-    expect(response.status).toBe(403);
-
-    const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
-      return await sql<{ id: string }[]>`
-        SELECT id
-        FROM agent_sessions
-        WHERE human_session_id = ${SESSION_ID}
-          AND ancestry_key = ${DERIVED_ANCESTRY_KEY}
-          AND closed_at IS NULL
-      `;
-    });
-    expect(rows).toHaveLength(0);
   });
 });
