@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { errorEnvelope, successEnvelope } from "@insecur/domain";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "../src/api/types.js";
 import { runBrowserPkceLogin } from "../src/commands/login-pkce.js";
 import type { GlobalCliFlags } from "../src/cli-options.js";
@@ -215,6 +215,42 @@ describe("runBrowserPkceLogin", () => {
     expect(result).toMatchObject({
       ok: false,
       envelope: { error: { code: "auth.invalid" } },
+    });
+  });
+
+  describe("callback timeout", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("fails closed with auth.required when no callback arrives", async () => {
+      let capturedRedirectUri = "";
+      const loginPromise = runBrowserPkceLogin({
+        flags: { ...flags, json: true },
+        api: createMockApi({
+          completeCallback(_callback, input) {
+            capturedRedirectUri = input.redirectUri;
+          },
+        }),
+        host: "https://insecur.test",
+        options: { openBrowser: false, callbackTimeoutSeconds: 1 },
+      });
+      const loginExpectation = expect(loginPromise).rejects.toMatchObject({
+        code: "auth.required",
+        exitCode: EXIT_AUTH_REQUIRED,
+        retryable: true,
+        message: expect.stringContaining("https://insecur.test/v1/auth/cli/authorize"),
+      } satisfies Partial<CliError>);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await loginExpectation;
+
+      const callbackUrl = new URL(capturedRedirectUri);
+      await expect(fetch(callbackUrl)).rejects.toThrow();
     });
   });
 });
