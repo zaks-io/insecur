@@ -132,12 +132,13 @@ export async function recordHighAssuranceChallengeDenied(input: {
   readonly riskReasonCode: string;
   readonly requestingUserId?: UserId;
   readonly requestingMachineIdentityId?: MachineIdentityId;
+  readonly auditEventId?: AuditEventId;
   readonly request?: { requestId: RequestId };
-}): Promise<void> {
-  await writeAuditEvent({
+}): Promise<{ auditEventId: string }> {
+  const event = {
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeDenied,
-    outcome: "success",
-    actor: { type: "user", userId: input.denyingUserId },
+    outcome: "success" as const,
+    actor: { type: "user" as const, userId: input.denyingUserId },
     ...scopedAuditFields(input),
     resource: operationResource(input.operationId),
     details: challengeAuditDetails({
@@ -148,7 +149,9 @@ export async function recordHighAssuranceChallengeDenied(input: {
         ? { requestingMachineIdentityId: input.requestingMachineIdentityId }
         : {}),
     }),
-  });
+  };
+
+  return writeChallengeAuditEvent(event, input.auditEventId);
 }
 
 export async function recordHighAssuranceEvidenceConsumed(input: {

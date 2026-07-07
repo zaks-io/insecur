@@ -1,9 +1,13 @@
 import { AUTHORIZATION_SCOPES } from "@insecur/access";
+import { generateAuditEventId } from "@insecur/audit";
+import type { AuditEventId, UserId } from "@insecur/domain";
 import {
   cancelOperation,
   getOperation,
   OPERATION_ERROR_CODES,
   OperationStoreError,
+  type OperationHighAssuranceChallengeEvidence,
+  type OperationMutationResult,
   type OperationPollResult,
 } from "@insecur/operations";
 import type { DenyHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
@@ -13,6 +17,13 @@ import {
   HighAssuranceChallengeError,
 } from "./high-assurance-challenge-error.js";
 import { isChallengeEvidenceExpired } from "./high-assurance-challenge-helpers.js";
+import {
+  finalizePendingDenyAudit,
+  finalizePendingRequestAudit,
+  hasPersistedDenyAuditLinkage,
+  hasPersistedRequestAuditLinkage,
+} from "./finalize-pending-challenge-audits.js";
+import { optionalAuditRequest } from "./optional-audit-request.js";
 import { optionalHighAssuranceEvidenceScopeFields } from "./optional-high-assurance-evidence-scope-fields.js";
 import { recordHighAssuranceChallengeDenied } from "./record-high-assurance-challenge-audit.js";
 import { assertClearingAuthorizationForEvidence } from "./validate-high-assurance-evidence-assertions.js";
@@ -83,21 +94,54 @@ function assertDenyablePendingChallenge(
   return evidence;
 }
 
-export async function denyHighAssuranceChallenge(
+function assertDenyingActorForDurableDeny(
+  evidence: OperationHighAssuranceChallengeEvidence & { denyingUserId: UserId },
   input: DenyHighAssuranceChallengeInput,
-): Promise<OperationPollResult> {
-  const operation = await getOperation({
-    organizationId: input.organizationId,
-    operationId: input.operationId,
-  });
-  const evidence = assertDenyablePendingChallenge(operation, input);
+): void {
+  if (evidence.denyingUserId !== input.denyingUserId) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.actorMismatch,
+      "denying user does not match bound challenge denial evidence",
+    );
+  }
+}
 
-  let mutation;
+async function recordBoundDenySuccessAudit(
+  input: DenyHighAssuranceChallengeInput,
+  evidence: OperationHighAssuranceChallengeEvidence,
+  denyAuditEventId: AuditEventId,
+): Promise<void> {
+  await recordHighAssuranceChallengeDenied({
+    ...challengeAuditScopeFromBoundEvidence(input, evidence),
+    denyingUserId: input.denyingUserId,
+    challengeId: evidence.challengeId,
+    riskReasonCode: evidence.riskReasonCode,
+    auditEventId: denyAuditEventId,
+    ...optionalHighAssuranceEvidenceScopeFields(evidence),
+    ...optionalAuditRequest(input.request),
+  });
+}
+
+async function persistCanceledDeny(
+  input: DenyHighAssuranceChallengeInput,
+  evidence: OperationHighAssuranceChallengeEvidence,
+): Promise<OperationMutationResult> {
+  const denyAuditEventId = generateAuditEventId();
+
+  let mutation: OperationMutationResult;
   try {
     mutation = await cancelOperation({
       organizationId: input.organizationId,
       operationId: input.operationId,
       highAssuranceDenyCas: { challengeId: evidence.challengeId },
+      progress: {
+        highAssuranceChallenge: {
+          ...evidence,
+          denyingUserId: input.denyingUserId,
+          denyAuditEventId,
+        },
+        auditEventIds: [denyAuditEventId],
+      },
     });
   } catch (error) {
     if (
@@ -112,15 +156,52 @@ export async function denyHighAssuranceChallenge(
     throw error;
   }
 
-  await recordHighAssuranceChallengeDenied({
-    ...challengeAuditScopeFromBoundEvidence(input, evidence),
-    denyingUserId: input.denyingUserId,
-    challengeId: evidence.challengeId,
-    riskReasonCode: evidence.riskReasonCode,
-    ...optionalHighAssuranceEvidenceScopeFields(evidence),
+  if (hasPersistedRequestAuditLinkage(evidence)) {
+    await finalizePendingRequestAudit(input, evidence);
+  }
+  await recordBoundDenySuccessAudit(input, evidence, denyAuditEventId);
+
+  return mutation;
+}
+
+async function completeDurableDeny(
+  operation: OperationPollResult,
+  input: DenyHighAssuranceChallengeInput,
+): Promise<OperationMutationResult> {
+  if (!hasPersistedDenyAuditLinkage(operation)) {
+    throw new HighAssuranceChallengeError(
+      HIGH_ASSURANCE_ERROR_CODES.evidenceMissing,
+      "canceled high-assurance challenge evidence is missing deny audit linkage",
+    );
+  }
+
+  const evidence = operation.progress.highAssuranceChallenge;
+
+  assertDenyingActorForDurableDeny(evidence, input);
+  assertDenyAuthorization(input, operation);
+
+  if (hasPersistedRequestAuditLinkage(evidence)) {
+    await finalizePendingRequestAudit(input, evidence);
+  }
+  await finalizePendingDenyAudit(input, evidence);
+
+  return { operation, created: false };
+}
+
+export async function denyHighAssuranceChallenge(
+  input: DenyHighAssuranceChallengeInput,
+): Promise<OperationPollResult> {
+  const operation = await getOperation({
+    organizationId: input.organizationId,
+    operationId: input.operationId,
   });
 
-  return mutation.operation;
+  if (hasPersistedDenyAuditLinkage(operation)) {
+    return (await completeDurableDeny(operation, input)).operation;
+  }
+
+  const evidence = assertDenyablePendingChallenge(operation, input);
+  return (await persistCanceledDeny(input, evidence)).operation;
 }
 
 export const DENY_HIGH_ASSURANCE_CHALLENGE_REQUIRED_SCOPES = [

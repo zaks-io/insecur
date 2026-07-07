@@ -34,6 +34,8 @@ export interface OperationHighAssuranceChallengeEvidence {
   readonly clearAuditEventId?: AuditEventId;
   readonly consumedAt?: string;
   readonly consumeAuditEventId?: AuditEventId;
+  readonly denyingUserId?: UserId;
+  readonly denyAuditEventId?: AuditEventId;
 }
 
 export type HighAssuranceChallengeLifecycleState =
@@ -135,6 +137,8 @@ export interface CancelOperationInput {
   readonly highAssuranceDenyCas?: {
     readonly challengeId: string;
   };
+  /** Metadata-only progress persisted atomically with cancel (e.g. deny audit linkage). */
+  readonly progress?: OperationProgressInput;
 }
 
 export interface OperationPollResult {

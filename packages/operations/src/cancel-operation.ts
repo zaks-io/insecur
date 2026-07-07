@@ -19,7 +19,7 @@ export async function cancelOperation(
         organizationId: input.organizationId,
         operationId: input.operationId,
         nextState: "canceled",
-        progressPatch: {},
+        progressPatch: input.progress ?? {},
         legalFromStates: CANCELABLE_OPERATION_STATES,
         ...(input.highAssuranceDenyCas === undefined
           ? {}
