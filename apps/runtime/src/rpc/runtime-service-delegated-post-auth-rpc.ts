@@ -9,11 +9,13 @@ import type {
   GetRuntimeInjectionPolicyRpcInput,
   ListAuditEventsRpcInput,
   ListEnvironmentsRpcInput,
+  ListEnvironmentSecretsRpcInput,
   ListOrganizationInvitationsRpcInput,
   ListOrganizationMembersRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
   ListProjectSecretsRpcInput,
   ListProjectsRpcInput,
+  ListSecretVersionsRpcInput,
   ListSessionOrganizationsRpcInput,
   RevokeCliSessionRpcInput,
 } from "@insecur/worker-kit";
@@ -28,10 +30,12 @@ import {
   createEnvironmentRpc,
   listAuditEventsRpc,
   listEnvironmentsRpc,
+  listEnvironmentSecretsRpc,
   createProjectRpc,
   listOrganizationInvitationsRpc,
   listOrganizationMembersRpc,
   listProjectSecretsRpc,
+  listSecretVersionsRpc,
   listProjectsRpc,
   listSessionOrganizationsRpc,
   revokeCliSessionRpc,
@@ -62,6 +66,12 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
   },
   listProjectSecrets(this: RuntimePostAuthRpcHost, input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.postAuthRpc(), input);
+  },
+  listEnvironmentSecrets(this: RuntimePostAuthRpcHost, input: ListEnvironmentSecretsRpcInput) {
+    return listEnvironmentSecretsRpc(this.postAuthRpc(), input);
+  },
+  listSecretVersions(this: RuntimePostAuthRpcHost, input: ListSecretVersionsRpcInput) {
+    return listSecretVersionsRpc(this.postAuthRpc(), input);
   },
   listSessionOrganizations(this: RuntimePostAuthRpcHost, input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.postAuthRpc(), input);

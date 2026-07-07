@@ -7,7 +7,7 @@ import type { HighAssuranceAuthenticationMethodCode } from "./high-assurance-ris
 import { HIGH_ASSURANCE_AUTHENTICATION_METHOD_CODES } from "./high-assurance-risk-reason-codes.js";
 
 export function generateChallengeId(): string {
-  return randomBytes(16).toString("hex");
+  return `chlg_${randomBytes(13).toString("hex").toUpperCase()}`;
 }
 
 export function mapSessionAssuranceToAuthenticationMethodCode(

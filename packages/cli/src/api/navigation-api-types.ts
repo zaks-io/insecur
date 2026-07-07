@@ -129,4 +129,13 @@ export interface NavigationApiClient {
     | { ok: true; envelope: ApiSuccess<CreateEnvironmentData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
+  listProjectSecrets(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<ListProjectSecretsData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
 }

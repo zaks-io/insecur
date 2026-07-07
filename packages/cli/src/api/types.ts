@@ -13,8 +13,9 @@ import type {
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { AuditEventsPage } from "@insecur/audit";
-import type { ListProjectSecretsData, NavigationApiClient } from "./navigation-api-types.js";
+import type { NavigationApiClient } from "./navigation-api-types.js";
 import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
+import type { SecretsApiClient } from "./secrets-api-types.js";
 import type { SessionApiClient } from "./session-api-types.js";
 
 export type {
@@ -25,6 +26,8 @@ export type {
   ProjectListData,
   SessionOrganizationListData,
 } from "./navigation-api-types.js";
+
+export type { ListEnvironmentSecretsData, ListSecretVersionsData } from "./secrets-api-types.js";
 
 export interface OperationPollData {
   readonly operationId: OperationId;
@@ -130,7 +133,8 @@ interface SecretGenerationRequest {
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface ApiClient extends NavigationApiClient, RunPoliciesApiClient, SessionApiClient {
+export interface ApiClient
+  extends NavigationApiClient, SecretsApiClient, RunPoliciesApiClient, SessionApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;
@@ -171,15 +175,6 @@ export interface ApiClient extends NavigationApiClient, RunPoliciesApiClient, Se
     ),
   ): Promise<
     | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  listProjectSecrets(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly projectId: ProjectId;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<ListProjectSecretsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
   issueInjectionGrant(

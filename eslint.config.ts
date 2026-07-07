@@ -242,6 +242,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ["apps/runtime/src/runtime-service.ts"],
+    rules: {
+      "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: ["scripts/security-attest.mjs"],
     rules: {
       "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],

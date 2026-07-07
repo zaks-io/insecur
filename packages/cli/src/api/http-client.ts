@@ -26,6 +26,8 @@ import {
   recordInjectionRunCompleted,
 } from "./http-client-runtime-injection.js";
 import { cancelOperation, getOperation } from "./http-client-operations.js";
+import { listEnvironmentSecrets, listSecretVersions } from "./http-client-secrets-read.js";
+import { revokeCliSession } from "./http-client-session.js";
 import {
   createRuntimeInjectionPolicy,
   disableRuntimeInjectionPolicy,
@@ -39,6 +41,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     exchangeCliPkceSession: (input) => exchangeCliPkceSession(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
+    listEnvironmentSecrets: (input) => listEnvironmentSecrets(base, input),
+    listSecretVersions: (input) => listSecretVersions(base, input),
     issueInjectionGrant: (input) => issueInjectionGrant(base, input),
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
@@ -222,22 +226,4 @@ async function createEnvironment(
     input.bearerCredential,
     { method: "POST", body },
   );
-}
-
-interface RevokeCliSessionData {
-  readonly revoked: boolean;
-}
-
-async function revokeCliSession(base: string, input: Parameters<ApiClient["revokeCliSession"]>[0]) {
-  const { response, body: responseBody } = await postAuthorizedJson(
-    base,
-    "/v1/session/revoke",
-    input.bearerCredential,
-    {},
-  );
-  const envelope = parseEnvelope<RevokeCliSessionData>(responseBody);
-  if (!envelope.ok) {
-    return { ok: false as const, envelope, httpStatus: response.status };
-  }
-  return { ok: true as const, envelope };
 }
