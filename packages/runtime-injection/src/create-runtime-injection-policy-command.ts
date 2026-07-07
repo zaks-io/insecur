@@ -120,7 +120,6 @@ async function persistCreatedRuntimeInjectionPolicy(
     ...auditScope,
     policyId: created.policy.policyId,
     policyVersionId: created.activeVersion.policyVersionId,
-    displayName: input.displayName,
   });
 
   return {
