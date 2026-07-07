@@ -1,5 +1,5 @@
 import type { ListAuditEventsFiltersInput } from "./types.js";
-import { getAuthorizedJson, parseEnvelope } from "./http-client-envelope.js";
+import { authorizedJsonRequest } from "./http-client-metadata.js";
 import type { ApiClient, ListAuditEventsData } from "./types.js";
 
 const AUDIT_EVENT_FILTER_PARAMS: readonly (keyof ListAuditEventsFiltersInput)[] = [
@@ -48,14 +48,7 @@ export async function listAuditEvents(
       ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
       ...(input.filters === undefined ? {} : { filters: input.filters }),
     });
-  const { response, body: responseBody } = await getAuthorizedJson(
-    base,
-    path,
-    input.bearerCredential,
-  );
-  const envelope = parseEnvelope<ListAuditEventsData>(responseBody);
-  if (!envelope.ok) {
-    return { ok: false as const, envelope, httpStatus: response.status };
-  }
-  return { ok: true as const, envelope };
+  return authorizedJsonRequest<ListAuditEventsData>(base, path, input.bearerCredential, {
+    method: "GET",
+  });
 }

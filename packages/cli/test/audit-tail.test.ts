@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { auditEventId, organizationId, userId } from "@insecur/domain";
+import { AUDIT_EVENTS_MAX_PAGE_SIZE } from "@insecur/audit";
+import { auditEventId, organizationId, userId, VALIDATION_ERROR_CODES } from "@insecur/domain";
+import { CliError } from "../src/output/cli-error.js";
 import { createHttpApiClientForHost } from "../src/api/http-client.js";
 import { runAuditTailCommand } from "../src/commands/audit-tail.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
@@ -143,6 +145,26 @@ describe("audit tail CLI", () => {
     expect(output).toContain("secret.non_protected_write");
     expect(output).not.toMatch(/valueUtf8|plaintext|password|secret-value/i);
     expect(output).not.toContain("super-secret-value-must-not-appear");
+  });
+
+  it("rejects --limit above the API page size cap", async () => {
+    process.env.INSECUR_SESSION_TOKEN = "bearer_test";
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    await expect(
+      runAuditTailCommand(
+        { json: true, quiet: true, verbose: false, orgId: ORG },
+        createHttpApiClientForHost("https://insecur.test"),
+        makeContext(),
+        { limit: String(AUDIT_EVENTS_MAX_PAGE_SIZE + 1) },
+      ),
+    ).rejects.toMatchObject({
+      name: "CliError",
+      code: VALIDATION_ERROR_CODES.invalidCommandInput,
+      message: `Invalid audit tail limit. Use an integer from 1 to ${String(AUDIT_EVENTS_MAX_PAGE_SIZE)}.`,
+    } satisfies Partial<CliError>);
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns metadata-only human output without Sensitive Values", async () => {

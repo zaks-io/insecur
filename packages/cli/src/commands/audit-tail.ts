@@ -1,5 +1,5 @@
 import type { AuditEventRead, AuditEventsPage } from "@insecur/audit";
-import { AUDIT_EVENTS_DEFAULT_PAGE_SIZE } from "@insecur/audit";
+import { AUDIT_EVENTS_DEFAULT_PAGE_SIZE, AUDIT_EVENTS_MAX_PAGE_SIZE } from "@insecur/audit";
 import { successEnvelope, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
@@ -17,10 +17,10 @@ function parseLimit(raw: string | undefined): number | undefined {
     return undefined;
   }
   const limit = Number(raw);
-  if (!Number.isInteger(limit) || limit < 1) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > AUDIT_EVENTS_MAX_PAGE_SIZE) {
     throw new CliError({
       code: VALIDATION_ERROR_CODES.invalidCommandInput,
-      message: "Invalid audit tail limit.",
+      message: `Invalid audit tail limit. Use an integer from 1 to ${String(AUDIT_EVENTS_MAX_PAGE_SIZE)}.`,
       retryable: false,
     });
   }
