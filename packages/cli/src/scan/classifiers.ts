@@ -102,10 +102,6 @@ export function classifyDotenvFile(
     }
   }
 
-  if (results.length === 0 && entries.length > 0 && basename(relativePath).startsWith(".env")) {
-    return [];
-  }
-
   return results;
 }
 

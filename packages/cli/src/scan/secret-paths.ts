@@ -21,9 +21,12 @@ const BASENAME_KIND: Readonly<Record<string, ScanFindingKind>> = {
   ".yarnrc.yml": "auth-token-file",
 };
 
-function isDotenvPath(relativePath: string): boolean {
-  const name = basename(relativePath);
+export function isDotenvBasename(name: string): boolean {
   return name === ".env" || name.startsWith(".env.");
+}
+
+function isDotenvPath(relativePath: string): boolean {
+  return isDotenvBasename(basename(relativePath));
 }
 
 export function mightBeSecretPath(relativePath: string): boolean {
@@ -41,7 +44,7 @@ export function mightBeSecretPath(relativePath: string): boolean {
 }
 
 export function detectSecretFileKindByName(name: string): ScanFindingKind | null {
-  if (name === ".env" || name.startsWith(".env.")) {
+  if (isDotenvBasename(name)) {
     return "dotenv-entry";
   }
 
