@@ -36,6 +36,17 @@ function assertScanOutputFlagsCompatible(flags: GlobalCliFlags, strict: boolean)
   }
 }
 
+function hasExplicitTranscriptInput(commandOptions: ScanCommandOptions): boolean {
+  return (
+    (commandOptions.transcriptPaths?.length ?? 0) > 0 ||
+    (commandOptions.transcriptGlobs?.length ?? 0) > 0
+  );
+}
+
+function shouldRunAgentTranscriptScan(commandOptions: ScanCommandOptions): boolean {
+  return commandOptions.agentTranscripts === true || hasExplicitTranscriptInput(commandOptions);
+}
+
 export async function runScanCommand(
   flags: GlobalCliFlags,
   commandOptions: ScanCommandOptions,
@@ -45,7 +56,7 @@ export async function runScanCommand(
 
   const rootDir = resolve(flags.configDir ?? process.cwd());
 
-  if (commandOptions.agentTranscripts === true) {
+  if (shouldRunAgentTranscriptScan(commandOptions)) {
     return runAgentTranscriptScan(flags, commandOptions, rootDir, strict);
   }
 

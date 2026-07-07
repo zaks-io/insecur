@@ -99,6 +99,31 @@ describe("insecur scan --agent-transcripts", () => {
     expect(report.findings.some((finding) => finding.sourcePath === customPath)).toBe(true);
   });
 
+  it("runs transcript scan when --transcript-path is set without --agent-transcripts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "insecur-transcript-path-only-"));
+    const layout = await writeTranscriptScanFixtures(root);
+    const customPath = await writeCustomTranscriptFixture(
+      root,
+      "path-only.jsonl",
+      `value=${SENTINEL_SECRET_VALUE}`,
+    );
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const code = await runScanCommand(
+      { ...baseFlags, configDir: layout.projectRoot },
+      {
+        homeDir: layout.homeDir,
+        transcriptPaths: [customPath],
+      },
+    );
+
+    expect(code).toBe(0);
+    const output = stdout.mock.calls.map((call) => String(call[0])).join("");
+    expect(output).toContain("transcript exposures");
+    expect(output).not.toContain(SENTINEL_SECRET_VALUE);
+    stdout.mockRestore();
+  });
+
   it("exits 0 by default even when transcript exposures exist", async () => {
     const root = await mkdtemp(join(tmpdir(), "insecur-transcript-exit-"));
     const layout = await writeTranscriptScanFixtures(root);

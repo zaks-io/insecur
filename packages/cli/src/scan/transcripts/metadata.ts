@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, sep } from "node:path";
 import type { CollectedTranscriptFile, TranscriptProvider } from "./types.js";
 
 const CURSOR_TRANSCRIPT_SEGMENTS = ["projects", "*", "agent-transcripts"] as const;
@@ -46,16 +46,26 @@ export function inferTranscriptProvider(
   absolutePath: string,
   roots: DiscoveryRoots,
 ): TranscriptProvider {
-  if (absolutePath.startsWith(roots.cursorRoot)) {
+  if (isUnderProviderRoot(absolutePath, roots.cursorRoot)) {
     return "cursor";
   }
-  if (absolutePath.startsWith(roots.claudeRoot)) {
+  if (isUnderProviderRoot(absolutePath, roots.claudeRoot)) {
     return "claude-code";
   }
-  if (absolutePath.startsWith(roots.codexRoot)) {
+  if (isUnderProviderRoot(absolutePath, roots.codexRoot)) {
     return "codex";
   }
   return "custom";
+}
+
+function isUnderProviderRoot(absolutePath: string, root: string): boolean {
+  const normalizedPath =
+    absolutePath.length > 1 && absolutePath.endsWith(sep)
+      ? absolutePath.slice(0, -1)
+      : absolutePath;
+  const normalizedRoot = root.length > 1 && root.endsWith(sep) ? root.slice(0, -1) : root;
+
+  return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}${sep}`);
 }
 
 const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/iu;

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 const MIN_FINGERPRINT_LENGTH = 8;
+const MAX_REVEAL_CHARS_PER_SIDE = 2;
 
 /** Stable SHA-256 fingerprint for correlating repeated findings locally. */
 export function fingerprintSecretValue(value: string): string {
@@ -17,10 +18,9 @@ export function redactValueShape(value: string): string {
     return `(${String(length)} chars)`;
   }
 
-  const prefixLength = Math.min(4, Math.floor(length / 4));
-  const suffixLength = Math.min(4, Math.floor(length / 4));
-  const prefix = value.slice(0, prefixLength);
-  const suffix = value.slice(-suffixLength);
+  const revealPerSide = length <= 8 ? 1 : MAX_REVEAL_CHARS_PER_SIDE;
+  const prefix = value.slice(0, revealPerSide);
+  const suffix = value.slice(-revealPerSide);
   return `${prefix}…${suffix} (${String(length)} chars)`;
 }
 
