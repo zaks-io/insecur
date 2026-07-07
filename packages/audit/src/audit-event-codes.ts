@@ -114,7 +114,6 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.secretProtectedDraftWriteDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeRequestDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeClearDenied,
-  PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceEvidenceConsumeDenied,
   PRODUCTION_AUDIT_EVENT_CODES.connectionCreateDenied,
   PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
