@@ -1,20 +1,13 @@
 name: CLI Release
 
 on:
-  workflow_run:
-    workflows:
-      - CI
-    branches:
-      - main
-    types:
-      - completed
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: cli-release-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: cli-release-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -32,7 +25,7 @@ jobs:
         id: source
         shell: bash
         env:
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Require successful CI for manual release dispatch
@@ -88,16 +81,9 @@ jobs:
           done
 
   detect-release-change:
-    name: Detect CLI release changes
+    name: Prepare manual CLI release
     needs: verify-source-ci
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository
-      )
+    if: github.event_name == 'workflow_dispatch'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
     permissions:
@@ -108,7 +94,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          fetch-depth: 0
           persist-credentials: false
           ref: ${{ needs.verify-source-ci.outputs.source_sha }}
 
@@ -116,101 +101,30 @@ jobs:
         id: detect
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          HEAD_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          VERSION="$(node -p "require('./packages/cli/package.json').version")"
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Invalid package.json version for a release tag: $VERSION"
+            exit 1
+          fi
+          TAG="cli-v$VERSION"
 
-          skip_if_published_release() {
-            local version tag is_draft
-            version="$(node -p "require('./packages/cli/package.json').version")"
-            if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-              echo "::error::Invalid package.json version for a release tag: $version"
-              exit 1
-            fi
-            tag="cli-v$version"
-            if ! gh release view "$tag" >/dev/null 2>&1; then
-              return 1
-            fi
-            is_draft="$(gh release view "$tag" --json isDraft --jq '.isDraft')"
-            if [ "$is_draft" = "true" ]; then
-              return 1
-            fi
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping CLI release: $tag is already published. Bump packages/cli/package.json before preparing a new draft release."
-            return 0
-          }
-
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            if skip_if_published_release; then
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+            if [ "$IS_DRAFT" != "true" ]; then
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::Skipping CLI release: $TAG is already published. Bump packages/cli/package.json before preparing a new draft release."
               exit 0
             fi
-            version="$(node -p "require('./packages/cli/package.json').version")"
-            tag="cli-v$version"
-            if gh release view "$tag" >/dev/null 2>&1; then
-              echo "should_run=true" >> "$GITHUB_OUTPUT"
-              echo "Manual dispatch: updating existing draft release $tag."
-            else
-              echo "should_run=true" >> "$GITHUB_OUTPUT"
-              echo "Manual dispatch: preparing new draft release $tag."
-            fi
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch: updating existing draft release $TAG."
             exit 0
           fi
 
-          parent_sha="$(git rev-parse "${HEAD_SHA}^" 2>/dev/null || true)"
-          if [ -n "$parent_sha" ]; then
-            changed_files="$(git diff --name-only "$parent_sha" "$HEAD_SHA")"
-          else
-            changed_files="$(git diff-tree --root --no-commit-id --name-only -r "$HEAD_SHA")"
-          fi
-
-          matches_release_path() {
-            case "$1" in
-              .github/workflows/cli-release.yml|\
-              .gitleaks.toml|\
-              .node-version|\
-              .npmrc|\
-              .nvmrc|\
-              package.json|\
-              pnpm-lock.yaml|\
-              pnpm-workspace.yaml|\
-              turbo.json|\
-              tsconfig.base.json|\
-              scripts/security-attest.mjs|\
-              scripts/ci/cli-release-boundary-conformance.mjs|\
-              scripts/ci/gitleaks-detect.sh)
-                return 0
-                ;;
-              .github/actions/setup-security-attestation-tools/*|\
-              packages/cli/*|\
-              packages/audit/*|\
-              packages/auth/*|\
-              packages/domain/*|\
-              packages/tenant-store/*|\
-              packages/token-signing/*|\
-              packages/crypto/*|\
-              packages/custody-contracts/*|\
-              patches/*)
-                return 0
-                ;;
-            esac
-            return 1
-          }
-
-          while IFS= read -r file; do
-            if [ -n "$file" ] && matches_release_path "$file"; then
-              if skip_if_published_release; then
-                exit 0
-              fi
-              echo "should_run=true" >> "$GITHUB_OUTPUT"
-              echo "CLI release path changed: $file"
-              exit 0
-            fi
-          done <<< "$changed_files"
-
-          echo "should_run=false" >> "$GITHUB_OUTPUT"
-          echo "No CLI release paths changed."
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "Manual dispatch: preparing new draft release $TAG."
 
   build:
     name: Build ${{ matrix.name }}
