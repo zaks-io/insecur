@@ -277,4 +277,61 @@ describe("createHttpApiClientForHost", () => {
     );
     expect(JSON.stringify(result)).not.toContain(sensitive);
   });
+
+  it("lists audit events from the tenant-scoped audit-events route", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            events: [
+              {
+                auditEventId: "aud_00000000000000000000000011",
+                organizationId: "org_00000000000000000000000011",
+                eventCode: "secret.non_protected_write",
+                outcome: "success",
+                resultCode: "audit.succeeded",
+                actor: {
+                  actorType: "user",
+                  userId: "usr_00000000000000000000000011",
+                },
+                projectId: null,
+                environmentId: null,
+                resource: null,
+                relatedResource: null,
+                requestId: null,
+                operationId: null,
+                details: null,
+                createdAt: "2026-07-01T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.listAuditEvents({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_00000000000000000000000011" as never,
+      pageSize: 5,
+      cursor: "cursor_input",
+      filters: {
+        eventCode: "secret.non_protected_write",
+        createdAtFrom: "2026-07-01T00:00:00.000Z",
+      },
+    });
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    const parsed = new URL(String(url));
+    expect(parsed.pathname).toBe("/v1/orgs/org_00000000000000000000000011/audit-events");
+    expect(parsed.searchParams.get("pageSize")).toBe("5");
+    expect(parsed.searchParams.get("cursor")).toBe("cursor_input");
+    expect(parsed.searchParams.get("eventCode")).toBe("secret.non_protected_write");
+    expect(parsed.searchParams.get("createdAtFrom")).toBe("2026-07-01T00:00:00.000Z");
+    expect((init as RequestInit).method).toBe("GET");
+    expect(JSON.stringify(result)).not.toMatch(/valueUtf8|plaintext|password|secret-value/i);
+  });
 });

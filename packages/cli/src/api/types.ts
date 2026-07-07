@@ -11,6 +11,7 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
+import type { AuditEventsPage } from "@insecur/audit";
 import type { NavigationApiClient } from "./navigation-api-types.js";
 
 export type {
@@ -25,6 +26,18 @@ export interface CliSessionExchangeData {
   readonly sessionId: string;
   readonly expiresAt: string;
 }
+
+export interface ListAuditEventsFiltersInput {
+  readonly actorUserId?: string;
+  readonly actorMachineIdentityId?: string;
+  readonly projectId?: string;
+  readonly environmentId?: string;
+  readonly eventCode?: string;
+  readonly createdAtFrom?: string;
+  readonly createdAtTo?: string;
+}
+
+export type ListAuditEventsData = AuditEventsPage;
 
 interface CliAuthorizationUrlInput {
   readonly redirectUri: string;
@@ -189,6 +202,17 @@ export interface ApiClient extends NavigationApiClient {
           readonly alreadyRecorded: boolean;
         }>;
       }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  listAuditEvents(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly pageSize?: number;
+    readonly cursor?: string;
+    readonly filters?: ListAuditEventsFiltersInput;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }
