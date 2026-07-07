@@ -1,5 +1,10 @@
 import { buildAncestryKey, detectHarnessFromEnv } from "@insecur/agent-attribution";
-import { successEnvelope, type SessionWhoamiData } from "@insecur/domain";
+import {
+  agentSessionId,
+  successEnvelope,
+  type AgentSessionId,
+  type SessionWhoamiData,
+} from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import {
   buildAgentSessionStateKey,
@@ -116,6 +121,14 @@ async function persistRegisteredAgentSession(
   });
 }
 
+function parsePersistedAgentSessionId(raw: string | undefined): AgentSessionId | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const parsed = agentSessionId.parse(raw);
+  return parsed.ok ? parsed.value : undefined;
+}
+
 function buildWhoamiRequest(
   flags: GlobalCliFlags,
   context: ResolvedCliContext,
@@ -124,15 +137,14 @@ function buildWhoamiRequest(
 ) {
   const harnessName = detectHarnessFromEnv(process.env);
   const agentTag = resolveAgentTag(flags);
+  const parsedAgentSessionId = parsePersistedAgentSessionId(persistedAgentSessionId);
   return {
     host: context.scope.host,
     bearerCredential: session.credential,
     ...(context.scope.orgId === undefined ? {} : { organizationId: context.scope.orgId }),
     ...(context.scope.projectId === undefined ? {} : { projectId: context.scope.projectId }),
     ...(context.scope.envId === undefined ? {} : { environmentId: context.scope.envId }),
-    ...(persistedAgentSessionId === undefined
-      ? {}
-      : { agentSessionId: persistedAgentSessionId as never }),
+    ...(parsedAgentSessionId === undefined ? {} : { agentSessionId: parsedAgentSessionId }),
     ...(agentTag === undefined ? {} : { agentTag }),
     ...(harnessName === undefined ? {} : { harnessName }),
     ancestryKey: buildAncestryKey(),

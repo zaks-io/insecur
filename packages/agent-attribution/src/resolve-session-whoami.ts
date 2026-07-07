@@ -1,8 +1,5 @@
 import { assertOrganizationMembership } from "@insecur/access";
 import {
-  environmentId,
-  organizationId,
-  projectId,
   type AgentSessionId,
   type EnvironmentId,
   type OrganizationId,
@@ -91,40 +88,28 @@ async function resolveOrganizationContext(
   actorUserId: UserId,
   orgId: OrganizationId,
 ): Promise<SessionWhoamiResolvedContext> {
-  const orgParsed = organizationId.parse(orgId);
-  if (!orgParsed.ok) {
-    throw Object.assign(new Error("Invalid organization id."), { code: orgParsed.code });
-  }
-  await assertOrganizationMembership({ type: "user", userId: actorUserId }, orgParsed.value);
-  return { organizationId: orgParsed.value };
+  await assertOrganizationMembership({ type: "user", userId: actorUserId }, orgId);
+  return { organizationId: orgId };
 }
 
 async function resolveProjectContext(
   orgContext: SessionWhoamiResolvedContext,
   projectIdValue: ProjectId,
 ): Promise<SessionWhoamiResolvedContext> {
-  const projectParsed = projectId.parse(projectIdValue);
-  if (!projectParsed.ok) {
-    throw Object.assign(new Error("Invalid project id."), { code: projectParsed.code });
-  }
   const orgId = orgContext.organizationId;
   if (orgId === undefined) {
     throw Object.assign(new Error("Project requires organization context."), {
       code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     });
   }
-  await assertProjectInOrganization(orgId, projectParsed.value);
-  return { ...orgContext, projectId: projectParsed.value };
+  await assertProjectInOrganization(orgId, projectIdValue);
+  return { ...orgContext, projectId: projectIdValue };
 }
 
 async function resolveEnvironmentContext(
   projectContext: SessionWhoamiResolvedContext,
   environmentIdValue: EnvironmentId,
 ): Promise<SessionWhoamiResolvedContext> {
-  const environmentParsed = environmentId.parse(environmentIdValue);
-  if (!environmentParsed.ok) {
-    throw Object.assign(new Error("Invalid environment id."), { code: environmentParsed.code });
-  }
   const orgId = projectContext.organizationId;
   const projectIdValue = projectContext.projectId;
   if (orgId === undefined || projectIdValue === undefined) {
@@ -132,8 +117,8 @@ async function resolveEnvironmentContext(
       code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
     });
   }
-  await assertEnvironmentBelongsToProject(orgId, projectIdValue, environmentParsed.value);
-  return { ...projectContext, environmentId: environmentParsed.value };
+  await assertEnvironmentBelongsToProject(orgId, projectIdValue, environmentIdValue);
+  return { ...projectContext, environmentId: environmentIdValue };
 }
 
 async function resolveContext(
@@ -187,10 +172,8 @@ function toSessionWhoamiAttribution(
 export async function resolveSessionWhoami(
   input: ResolveSessionWhoamiInput,
 ): Promise<ResolveSessionWhoamiResult> {
-  const [resolvedContext, attributionResult] = await Promise.all([
-    resolveContext(input.userId, input),
-    resolveAttributionTier(buildAttributionInput(input)),
-  ]);
+  const resolvedContext = await resolveContext(input.userId, input);
+  const attributionResult = await resolveAttributionTier(buildAttributionInput(input));
 
   return {
     sessionValid: true,

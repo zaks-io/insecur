@@ -1,4 +1,4 @@
-import { agentSessionId, userId } from "@insecur/domain";
+import { agentSessionId, organizationId, userId } from "@insecur/domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { resolveAttributionTier, assertOrganizationMembership } = vi.hoisted(() => ({
@@ -76,5 +76,28 @@ describe("resolveSessionWhoami", () => {
 
     expect(result.attribution).toEqual({ tier: "tag-only", tag: "my-agent" });
     expect(assertOrganizationMembership).not.toHaveBeenCalled();
+  });
+
+  it("does not register attribution when organization context validation fails", async () => {
+    const unauthorizedOrg = organizationId.brand("org_00000000000000000000000099");
+    assertOrganizationMembership.mockRejectedValue(
+      Object.assign(new Error("organization membership required"), {
+        code: "auth.insufficient_scope",
+      }),
+    );
+
+    await expect(
+      resolveSessionWhoami({
+        userId: actorUserId,
+        sessionId: "session_human",
+        sessionExpiresAt: "2026-07-08T00:00:00.000Z",
+        agentMarked: false,
+        organizationId: unauthorizedOrg,
+        harnessName: "agent.harness.claude_code",
+        ancestryKey: "42",
+      }),
+    ).rejects.toThrow("organization membership required");
+
+    expect(resolveAttributionTier).not.toHaveBeenCalled();
   });
 });
