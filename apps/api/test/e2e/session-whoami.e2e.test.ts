@@ -19,7 +19,7 @@ const ADMITTED_USER_ID = TEST_USER_ID;
 const WORKOS_USER_ID = TEST_WORKOS_USER_ID;
 const RUNTIME_TOKEN_SIGNING_SECRET = "test-whoami-e2e-runtime-hop-signing-secret";
 const SESSION_ID = "session_whoami_e2e";
-const ANCESTRY_KEY = "whoami-e2e-ancestry";
+const TEST_ANCESTRY = "test-ancestry-placeholder";
 
 const runtimeEnv = {
   INSTANCE_ROOT_KEY_V1: {
@@ -63,7 +63,7 @@ describeIntegration("session whoami (real DB, RUNTIME seam)", () => {
     const headers = await authHeaders();
     const query = new URLSearchParams({
       harnessName: "agent.harness.claude_code",
-      ancestryKey: ANCESTRY_KEY,
+      ancestryKey: TEST_ANCESTRY,
     });
 
     const first = await app.request(
@@ -105,7 +105,7 @@ describeIntegration("session whoami (real DB, RUNTIME seam)", () => {
         SELECT id
         FROM agent_sessions
         WHERE human_session_id = ${SESSION_ID}
-          AND ancestry_key = ${ANCESTRY_KEY}
+          AND ancestry_key = ${TEST_ANCESTRY}
           AND closed_at IS NULL
       `;
     });
