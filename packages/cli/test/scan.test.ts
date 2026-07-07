@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -175,6 +175,17 @@ describe("insecur scan", () => {
     } finally {
       await chmod(secretsDir, 0o755);
     }
+  });
+
+  it("follows symlinks to secret files and reports broken symlinks", async () => {
+    const root = await mkdtemp(join(tmpdir(), "insecur-scan-symlink-"));
+    await writeFile(join(root, "target.env"), "API_KEY=sentinel-metadata-only\n", "utf8");
+    await symlink("target.env", join(root, ".env"));
+    await symlink("missing-target.env", join(root, "broken.link"));
+
+    const report = await buildScanReport({ rootDir: root });
+    expect(report.findings.some((finding) => finding.file === ".env")).toBe(true);
+    expect(report.summary.unreadableFiles).toContain("broken.link");
   });
 
   it("detects auth-token files when _authToken appears after the former head slice", async () => {

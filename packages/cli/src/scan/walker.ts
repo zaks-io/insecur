@@ -78,10 +78,51 @@ async function tryAppendFile(
   state.oversizedFiles.push(relativePath);
 }
 
+async function processSymbolicLink(
+  state: WalkState,
+  visit: DirVisit,
+  entry: Dirent,
+): Promise<void> {
+  const entryRelative =
+    visit.relativeDir.length > 0 ? join(visit.relativeDir, entry.name) : entry.name;
+  const absolutePath = join(visit.dirPath, entry.name);
+
+  let entryStat;
+  try {
+    entryStat = await stat(absolutePath);
+  } catch {
+    state.unreadablePaths.push(entryRelative);
+    return;
+  }
+
+  if (entryStat.isDirectory()) {
+    if (!SKIP_DIR_NAMES.has(entry.name)) {
+      await visitDir(state, {
+        dirPath: absolutePath,
+        relativeDir: entryRelative,
+        depth: visit.depth + 1,
+      });
+    }
+    return;
+  }
+
+  if (entryStat.isFile()) {
+    await tryAppendFile(state, absolutePath, entryRelative);
+    return;
+  }
+
+  state.unreadablePaths.push(entryRelative);
+}
+
 async function processEntry(state: WalkState, visit: DirVisit, entry: Dirent): Promise<void> {
   const entryRelative =
     visit.relativeDir.length > 0 ? join(visit.relativeDir, entry.name) : entry.name;
   const absolutePath = join(visit.dirPath, entry.name);
+
+  if (entry.isSymbolicLink()) {
+    await processSymbolicLink(state, visit, entry);
+    return;
+  }
 
   if (entry.isDirectory()) {
     if (!SKIP_DIR_NAMES.has(entry.name)) {
