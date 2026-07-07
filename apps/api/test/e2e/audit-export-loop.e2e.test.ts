@@ -11,6 +11,7 @@ import {
 } from "@insecur/audit";
 import {
   createTestAuditExportKeyProviders,
+  testAuditExportRuntimeBindings,
   testAuditExportRuntimeEnvVars,
 } from "../../../../packages/audit/test/support/test-audit-export-keys.js";
 import { assertAuditExportJsonlIsMetadataOnly } from "../../../../packages/audit/test/support/assert-audit-export-jsonl-metadata-only.js";
@@ -57,7 +58,11 @@ async function seedMetadataViewerMembership(): Promise<void> {
         ${TEST_USER_ID},
         ${"metadata-viewer"}
       )
-      ON CONFLICT (id) DO NOTHING
+      ON CONFLICT (id) DO UPDATE SET
+        org_id = EXCLUDED.org_id,
+        team_id = EXCLUDED.team_id,
+        user_id = EXCLUDED.user_id,
+        role_preset = EXCLUDED.role_preset
     `;
   });
 }
@@ -66,11 +71,13 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
   let signingPublicKey: string;
   let hmacSecret: string;
   let verificationKeys: StaticAuditExportVerificationKeys;
+  let auditExportBindings: Awaited<ReturnType<typeof testAuditExportRuntimeBindings>>;
 
   beforeAll(async () => {
     await seedTenantBaseline();
     await seedMetadataViewerMembership();
     const keys = await createTestAuditExportKeyProviders();
+    auditExportBindings = await testAuditExportRuntimeBindings();
     const auditExportEnvVars = await testAuditExportRuntimeEnvVars();
     for (const [name, value] of Object.entries(auditExportEnvVars)) {
       process.env[name] = value;
@@ -99,6 +106,7 @@ describeIntegration("audit export loop (real DB, HTTP routes)", () => {
           get: (): Promise<string> => Promise.resolve(RLS_TEST_ROOT_KEY_HEX),
         },
         RUNTIME_TOKEN_SIGNING_SECRET,
+        ...auditExportBindings,
       }),
     };
   }
