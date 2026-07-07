@@ -22,6 +22,23 @@ describe("github repository boundary helpers", () => {
     ).not.toThrow();
   });
 
+  it("rejects empty allowedRepositories", () => {
+    expect(() =>
+      assertGitHubAllowedRepositoriesBoundary({
+        ...BOUNDARY,
+        allowedRepositories: [],
+      }),
+    ).toThrow(AppConnectionError);
+    try {
+      assertGitHubAllowedRepositoriesBoundary({
+        ...BOUNDARY,
+        allowedRepositories: [],
+      });
+    } catch (error) {
+      expect(error).toMatchObject({ code: APP_CONNECTION_ERROR_CODES.boundaryMismatch });
+    }
+  });
+
   it("rejects wildcard repository boundaries", () => {
     expect(isExactRepositoryFullName("insecur-org/*")).toBe(false);
     expect(() =>

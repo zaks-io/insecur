@@ -10,6 +10,7 @@ import type { TenantAppConnectionStore, TenantSensitiveMetadataStore } from "@in
 import type { UserActorRef } from "@insecur/access";
 
 import { AppConnectionError } from "./app-connection-error.js";
+import { assertGitHubAllowedRepositoriesBoundary } from "./assert-repository-in-github-boundary.js";
 import type { GitHubConnectionBoundary } from "./github-app-metadata.js";
 import type { GitHubAppInstallationPort } from "./github-app-port.js";
 import { type MetadataSafeGitHubConnectionValidation } from "./create-github-app-connection.js";
@@ -91,6 +92,7 @@ export async function updateGitHubAppConnection(
           if (connection.status === "disconnected") {
             throw new AppConnectionError(APP_CONNECTION_ERROR_CODES.disconnected);
           }
+          assertGitHubAllowedRepositoriesBoundary(input.boundary);
           return updateActiveGitHubConnection(input, metadata.linkage.providerAppRegistrationId);
         },
       ),

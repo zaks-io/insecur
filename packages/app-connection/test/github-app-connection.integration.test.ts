@@ -28,6 +28,7 @@ import { AppConnectionError } from "../src/app-connection-error.js";
 import { assertRepositoryInGitHubConnectionBoundary } from "../src/github-app-port.js";
 import { createGitHubAppConnection } from "../src/create-github-app-connection.js";
 import { disableGitHubConnection } from "../src/disable-github-connection.js";
+import { updateGitHubAppConnection } from "../src/update-github-app-connection.js";
 import { validateGitHubAppConnection } from "../src/validate-github-app-connection.js";
 import type { GitHubAppInstallationPort } from "../src/github-app-port.js";
 import { toMetadataSafeGitHubConnectionStatus } from "../src/metadata-safe-github-connection-status.js";
@@ -63,6 +64,9 @@ const CONN_GH_C = appConnectionId.brand("conn_01JZ8GH32R7M4T0V9X3C5D8F1G");
 const CONN_GH_D = appConnectionId.brand("conn_01JZ8GH42R7M4T0V9X3C5D8F1G");
 const CONN_GH_E = appConnectionId.brand("conn_01JZ8GH52R7M4T0V9X3C5D8F1G");
 const CONN_GH_F = appConnectionId.brand("conn_01JZ8GH62R7M4T0V9X3C5D8F1G");
+const CONN_GH_G = appConnectionId.brand("conn_01JZ8GH72R7M4T0V9X3C5D8F1G");
+const CONN_GH_H = appConnectionId.brand("conn_01JZ8GH82R7M4T0V9X3C5D8F1G");
+const CONN_GH_I = appConnectionId.brand("conn_01JZ8GH92R7M4T0V9X3C5D8F1G");
 const REG_GH = providerAppRegistrationId.brand("preg_01JZ8GHRE2R7M4T0V9X3C5D8F1");
 const ACTOR = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
 const BOUNDARY = {
@@ -225,6 +229,33 @@ describeRls("github app installation app connection", () => {
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
   });
 
+  it("rejects wildcard repository boundaries during creation", async () => {
+    await expect(
+      withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) =>
+        createGitHubAppConnection({
+          actor: ACTOR,
+          organizationId: ORG_A,
+          projectId: PROJECT_A,
+          instanceId: TEST_INSTANCE_ID,
+          operationId: OP_GH,
+          appConnectionId: CONN_GH_G,
+          providerAppRegistrationId: REG_GH,
+          displayName: testDisplayName("Wildcard GitHub"),
+          setupUserId: ACTOR.userId,
+          boundary: {
+            ...BOUNDARY,
+            allowedRepositories: ["insecur-org/*"],
+          },
+          keyring,
+          githubPort: createSuccessfulGitHubPort(),
+          appConnectionStore: new TenantAppConnectionStore(db),
+          providerAppRegistrationStore: new TenantProviderAppRegistrationStore(db),
+          sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+        }),
+      ),
+    ).rejects.toMatchObject({ code: APP_CONNECTION_ERROR_CODES.boundaryMismatch });
+  });
+
   it("rejects repository targets outside the configured boundary", async () => {
     expect(() =>
       assertRepositoryInGitHubConnectionBoundary(BOUNDARY, "other-org/secret-repo"),
@@ -376,6 +407,108 @@ describeRls("github app installation app connection", () => {
         }),
       ),
     ).rejects.toMatchObject({ code: "connection.disconnected" });
+  });
+
+  it("updates an active connection with new encrypted boundary metadata", async () => {
+    const githubPort = createSuccessfulGitHubPort();
+    const updatedBoundary = {
+      ...BOUNDARY,
+      allowedRepositories: ["insecur-org/api", "insecur-org/docs"],
+    };
+
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+      await createGitHubAppConnection({
+        actor: ACTOR,
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        instanceId: TEST_INSTANCE_ID,
+        operationId: OP_GH,
+        appConnectionId: CONN_GH_H,
+        providerAppRegistrationId: REG_GH,
+        displayName: testDisplayName("GitHub to update"),
+        setupUserId: ACTOR.userId,
+        boundary: BOUNDARY,
+        keyring,
+        githubPort,
+        appConnectionStore: new TenantAppConnectionStore(db),
+        providerAppRegistrationStore: new TenantProviderAppRegistrationStore(db),
+        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+      });
+
+      const validation = await updateGitHubAppConnection({
+        actor: ACTOR,
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        operationId: OP_GH,
+        appConnectionId: CONN_GH_H,
+        boundary: updatedBoundary,
+        keyring,
+        githubPort,
+        appConnectionStore: new TenantAppConnectionStore(db),
+        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+      });
+
+      expect(validation.outcome).toBe("success");
+      expect(validation.repositoriesWithinBoundary).toBe(true);
+      expect(JSON.stringify(validation)).not.toContain("insecur-org/docs");
+    });
+
+    expect(githubPort.verifyInstallation).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        allowedRepositories: updatedBoundary.allowedRepositories,
+      }),
+    );
+  });
+
+  it("rejects updates for disconnected connections", async () => {
+    const githubPort = createSuccessfulGitHubPort();
+
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+      await createGitHubAppConnection({
+        actor: ACTOR,
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        instanceId: TEST_INSTANCE_ID,
+        operationId: OP_GH,
+        appConnectionId: CONN_GH_I,
+        providerAppRegistrationId: REG_GH,
+        displayName: testDisplayName("GitHub update disconnected"),
+        setupUserId: ACTOR.userId,
+        boundary: BOUNDARY,
+        keyring,
+        githubPort,
+        appConnectionStore: new TenantAppConnectionStore(db),
+        providerAppRegistrationStore: new TenantProviderAppRegistrationStore(db),
+        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+      });
+
+      await disableGitHubConnection({
+        actor: ACTOR,
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        appConnectionId: CONN_GH_I,
+        keyring,
+        appConnectionStore: new TenantAppConnectionStore(db),
+        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+      });
+    });
+
+    await expect(
+      withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) =>
+        updateGitHubAppConnection({
+          actor: ACTOR,
+          organizationId: ORG_A,
+          projectId: PROJECT_A,
+          operationId: OP_GH,
+          appConnectionId: CONN_GH_I,
+          boundary: BOUNDARY,
+          keyring,
+          githubPort,
+          appConnectionStore: new TenantAppConnectionStore(db),
+          sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+        }),
+      ),
+    ).rejects.toMatchObject({ code: APP_CONNECTION_ERROR_CODES.disconnected });
   });
 
   it("denies cross-project validation when guessing another project's connection id", async () => {

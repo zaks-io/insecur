@@ -19,6 +19,7 @@ import type {
 import type { UserActorRef } from "@insecur/access";
 
 import { AppConnectionError } from "./app-connection-error.js";
+import { assertGitHubAllowedRepositoriesBoundary } from "./assert-repository-in-github-boundary.js";
 import { runWithAppConnectionChangeEvidence } from "./run-with-app-connection-change-evidence.js";
 import type { GitHubConnectionBoundary } from "./github-app-metadata.js";
 import type {
@@ -152,6 +153,7 @@ export async function createGitHubAppConnection(
     actor: input.actor,
     run: async () => {
       await assertProviderAppRegistrationConfigured(input);
+      assertGitHubAllowedRepositoriesBoundary(input.boundary);
 
       const validationResult = await verifyGitHubInstallation({
         actorUserId: input.actor.userId,
