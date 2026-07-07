@@ -341,8 +341,9 @@ function isAcceptedSemgrepDeviation(finding) {
   );
 }
 const semgrepFindings = semgrepResults.map(semgrepFindingSummary);
-const semgrepBlocking = semgrepFindings.filter((finding) =>
-  SEMGREP_BLOCKING_SEVERITIES.includes(finding.severity),
+const semgrepBlocking = semgrepFindings.filter(
+  (finding) =>
+    SEMGREP_BLOCKING_SEVERITIES.includes(finding.severity) && !isAcceptedSemgrepDeviation(finding),
 );
 const semgrepReportOnly = semgrepFindings.filter((finding) =>
   SEMGREP_REPORT_ONLY_SEVERITIES.includes(finding.severity),
