@@ -44,6 +44,7 @@ export {
   type TenantDataKeyMetadataProvisioner,
   type TenantDataKeyMetadataReader,
 } from "./data-key-metadata.js";
+export { toBufferSource } from "./buffer.js";
 export {
   type ActiveDataKeyVersions,
   type DataKeyVersions,

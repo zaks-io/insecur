@@ -17,6 +17,7 @@ export {
   parseInvitationIdParam,
   parseJsonBody,
   parseOperationIdParam,
+  parseWebhookSubscriptionIdParam,
   parseRequestIdParam,
   parseOptionalDisplayName,
   parseRequiredDisplayName,
@@ -136,6 +137,21 @@ export type {
   ResolveSessionWhoamiRpcInput,
   ResolveSessionWhoamiRpcPayload,
 } from "./rpc/runtime-session-whoami-rpc-contract.js";
+export type {
+  CreateWebhookSubscriptionRpcInput,
+  CreateWebhookSubscriptionRpcPayload,
+  DeleteWebhookSubscriptionRpcInput,
+  DeleteWebhookSubscriptionRpcPayload,
+  ListWebhookEventCodesRpcInput,
+  ListWebhookEventCodesRpcPayload,
+  ListWebhookSubscriptionsRpcInput,
+  ListWebhookSubscriptionsRpcPayload,
+  RotateWebhookSigningSecretRpcInput,
+  RotateWebhookSigningSecretRpcPayload,
+  UpdateWebhookSubscriptionRpcInput,
+  UpdateWebhookSubscriptionRpcPayload,
+  WebhookSubscriptionRead,
+} from "./rpc/runtime-webhook-rpc-contract.js";
 export type {
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryAllPayload,

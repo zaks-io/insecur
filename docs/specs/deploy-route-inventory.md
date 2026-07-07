@@ -31,6 +31,7 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/organizations`             |
 | \*     | `/v1/orgs/:organizationId/projects`                  |
 | \*     | `/v1/orgs/:organizationId/audit-events`              |
+| \*     | `/v1/orgs/:organizationId/webhook-subscriptions`     |
 | \*     | `/v1/orgs/:organizationId/operations`                |
 | \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
@@ -60,6 +61,14 @@ events with metadata-only envelopes. Query filters: `actorUserId`, `actorMachine
 `projectId`, `environmentId`, `eventCode`, `createdAtFrom`, `createdAtTo`, plus cursor pagination
 via `cursor` and bounded `pageSize`. Authorize-then-read requires `metadata:detail_read` inside the
 Runtime deploy.
+
+Under `/v1/orgs/:organizationId/webhook-subscriptions` (INS-453): `GET /event-types` lists
+selectable webhook event codes; `GET /` lists organization webhook subscriptions; `POST /` creates a
+subscription and returns a one-time signing secret; `PATCH /:subscriptionId` updates subscription
+metadata and selected event types; `DELETE /:subscriptionId` disables a subscription; `POST
+/:subscriptionId/rotate-signing-secret` mints a new signing secret and retires the prior active
+secret. Subscription CRUD requires `webhook:manage`; list/event-types require `webhook:read`.
+Delivery runs inside the Runtime deploy (email + in-app channels in V1).
 
 Under `/v1/session` (INS-367, INS-430, INS-436): `GET /whoami` echoes the verified actor plus session
 validity/expiry, resolved org/project/env context (optional `orgId`, `projectId`, `envId` query

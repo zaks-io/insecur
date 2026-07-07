@@ -23,6 +23,7 @@ import * as tenantAgentSessionsSchema from "../src/db/schema/tenant-agent-sessio
 import * as tenantHierarchySchema from "../src/db/schema/tenant-hierarchy.js";
 import * as tenantIntegrationsSchema from "../src/db/schema/tenant-integrations.js";
 import * as tenantSecretsSchema from "../src/db/schema/tenant-secrets.js";
+import * as tenantWebhooksSchema from "../src/db/schema/tenant-webhooks.js";
 import { environments } from "../src/db/schema/tenant-hierarchy.js";
 import { secrets } from "../src/db/schema/tenant-secrets.js";
 import { materializePgTableExtraConfigs } from "./helpers/materialize-pg-table-extra-config.js";
@@ -34,6 +35,7 @@ const USER_SCHEMA_MODULES = {
   "./tenant-agent-sessions.js": tenantAgentSessionsSchema,
   "./tenant-integrations.js": tenantIntegrationsSchema,
   "./tenant-secrets.js": tenantSecretsSchema,
+  "./tenant-webhooks.js": tenantWebhooksSchema,
 } as const satisfies Record<
   (typeof USER_SCHEMA_TABLE_MODULE_PATHS)[number],
   Record<string, unknown>
