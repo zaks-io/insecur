@@ -2,6 +2,8 @@ import {
   parseOnboardingResourceIds,
   type OnboardingResourceIds,
 } from "../../onboarding/provisioning.js";
+import { parseProvisionedWorkspace } from "../../onboarding/parse-provisioned-workspace.js";
+import type { ProvisionedHandoff } from "./onboarding-wizard-types.js";
 
 const STORAGE_KEY = "insecur:onboarding-wizard-draft";
 
@@ -19,6 +21,27 @@ export interface OnboardingWizardDraft {
   readonly organizationName: string;
   readonly projectName: string;
   readonly resourceIds: OnboardingResourceIds;
+  readonly provisionedHandoff?: ProvisionedHandoff;
+}
+
+function parseProvisionedHandoff(value: unknown): ProvisionedHandoff | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const workspace = parseProvisionedWorkspace(record.workspace);
+  if (
+    workspace === null ||
+    typeof record.organizationName !== "string" ||
+    typeof record.projectName !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    workspace,
+    organizationName: record.organizationName,
+    projectName: record.projectName,
+  };
 }
 
 function parseDraftRecord(parsed: Record<string, unknown>): OnboardingWizardDraft | null {
@@ -33,11 +56,13 @@ function parseDraftRecord(parsed: Record<string, unknown>): OnboardingWizardDraf
   ) {
     return null;
   }
+  const provisionedHandoff = parseProvisionedHandoff(parsed.provisionedHandoff);
   return {
     step: step as FormStepId,
     organizationName: parsed.organizationName,
     projectName: parsed.projectName,
     resourceIds,
+    ...(provisionedHandoff === undefined ? {} : { provisionedHandoff }),
   };
 }
 

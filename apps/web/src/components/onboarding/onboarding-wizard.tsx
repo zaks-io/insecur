@@ -15,6 +15,7 @@ export function OnboardingWizard({
   passkeyEnrolled,
   onProvisioned,
   onContinueToHandoff,
+  onEnterFirstSecret,
   onStepChange,
 }: {
   enrollmentReturnTo: string;
@@ -22,9 +23,10 @@ export function OnboardingWizard({
   passkeyEnrolled: boolean;
   onProvisioned: (handoff: ProvisionedHandoff) => void;
   onContinueToHandoff: (workspace: ProvisionedWorkspace) => void;
+  onEnterFirstSecret: (handoff: ProvisionedHandoff) => void;
   onStepChange: (step: FormStepId) => void;
 }) {
-  const wizard = usePersistedOnboardingWizardState(onStepChange, onProvisioned);
+  const wizard = usePersistedOnboardingWizardState(onStepChange, onProvisioned, onEnterFirstSecret);
 
   return renderOnboardingWizardStep(wizard.step, {
     organizationName: wizard.organizationName,

@@ -1,8 +1,5 @@
 import {
-  environmentId,
-  organizationId,
   parseVariableKey,
-  projectId,
   type KnownErrorCode,
   type SecretId,
   type SecretVersionId,
@@ -10,6 +7,7 @@ import {
 } from "@insecur/domain";
 
 import type { ProvisionedWorkspace } from "./provisioning.js";
+import { parseProvisionedWorkspace } from "./parse-provisioned-workspace.js";
 import { parseCataloguedApiFailure } from "./wizard-mutation-gate.js";
 
 /** Metadata-only blind secret write receipt (ADR-0052). No Sensitive Values. */
@@ -38,32 +36,6 @@ export interface BlindSecretWriteSubmission {
   readonly mode: BlindSecretWriteMode;
   /** Present only for paste mode; never logged or echoed back. */
   readonly value?: string;
-}
-
-function parseOpaqueId(raw: unknown, parse: (value: string) => { ok: boolean }): string | null {
-  return typeof raw === "string" && parse(raw).ok ? raw : null;
-}
-
-const parseOrganizationId = (value: string) => organizationId.parse(value);
-const parseProjectId = (value: string) => projectId.parse(value);
-const parseEnvironmentId = (value: string) => environmentId.parse(value);
-
-function parseWorkspace(value: unknown): ProvisionedWorkspace | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-  const record = value as Record<string, unknown>;
-  const organizationIdRaw = parseOpaqueId(record.organizationId, parseOrganizationId);
-  const projectIdRaw = parseOpaqueId(record.projectId, parseProjectId);
-  const environmentIdRaw = parseOpaqueId(record.environmentId, parseEnvironmentId);
-  if (organizationIdRaw === null || projectIdRaw === null || environmentIdRaw === null) {
-    return null;
-  }
-  return {
-    organizationId: organizationIdRaw,
-    projectId: projectIdRaw,
-    environmentId: environmentIdRaw,
-  };
 }
 
 function parsePasteSubmission(
@@ -103,7 +75,7 @@ function parseSubmissionFields(data: unknown): {
     return null;
   }
   const record = data as Record<string, unknown>;
-  const workspace = parseWorkspace(record.workspace);
+  const workspace = parseProvisionedWorkspace(record.workspace);
   const mode = record.mode;
   if (
     typeof record.csrfToken !== "string" ||

@@ -28,6 +28,7 @@ function useHydrateWizardDraft(onStepChange: (step: FormStepId) => void) {
   const [step, setStep] = useState<FormStepId>("name-organization");
   const [organizationName, setOrganizationName] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [provisionedHandoff, setProvisionedHandoff] = useState<ProvisionedHandoff>();
 
   useEffect(() => {
     const draft = readOnboardingWizardDraft();
@@ -36,6 +37,7 @@ function useHydrateWizardDraft(onStepChange: (step: FormStepId) => void) {
       setOrganizationName(draft.organizationName);
       setProjectName(draft.projectName);
       setResourceIds(() => draft.resourceIds);
+      setProvisionedHandoff(draft.provisionedHandoff);
       onStepChange(draft.step);
     }
     setHydrated(true);
@@ -50,16 +52,12 @@ function useHydrateWizardDraft(onStepChange: (step: FormStepId) => void) {
     projectName,
     setProjectName,
     resourceIds,
+    provisionedHandoff,
+    setProvisionedHandoff,
   };
 }
 
-export function usePersistedOnboardingWizardState(
-  onStepChange: (step: FormStepId) => void,
-  onProvisioned: (handoff: ProvisionedHandoff) => void,
-): PersistedWizardState {
-  const draft = useHydrateWizardDraft(onStepChange);
-  const [provisionedHandoff, setProvisionedHandoff] = useState<ProvisionedHandoff>();
-
+function usePersistWizardDraft(draft: ReturnType<typeof useHydrateWizardDraft>) {
   useEffect(() => {
     if (!draft.hydrated) {
       return;
@@ -69,8 +67,27 @@ export function usePersistedOnboardingWizardState(
       organizationName: draft.organizationName,
       projectName: draft.projectName,
       resourceIds: draft.resourceIds,
+      ...(draft.provisionedHandoff === undefined
+        ? {}
+        : { provisionedHandoff: draft.provisionedHandoff }),
     });
-  }, [draft.hydrated, draft.step, draft.organizationName, draft.projectName, draft.resourceIds]);
+  }, [
+    draft.hydrated,
+    draft.step,
+    draft.organizationName,
+    draft.projectName,
+    draft.resourceIds,
+    draft.provisionedHandoff,
+  ]);
+}
+
+export function usePersistedOnboardingWizardState(
+  onStepChange: (step: FormStepId) => void,
+  onProvisioned: (handoff: ProvisionedHandoff) => void,
+  onEnterFirstSecret: (handoff: ProvisionedHandoff) => void,
+): PersistedWizardState {
+  const draft = useHydrateWizardDraft(onStepChange);
+  usePersistWizardDraft(draft);
 
   const goTo = (next: FormStepId) => {
     draft.setStep(next);
@@ -78,8 +95,9 @@ export function usePersistedOnboardingWizardState(
   };
 
   const handleWorkspaceProvisioned = (handoff: ProvisionedHandoff) => {
-    setProvisionedHandoff(handoff);
+    draft.setProvisionedHandoff(handoff);
     goTo("first-secret");
+    onEnterFirstSecret(handoff);
   };
 
   const finishWizard = (handoff: ProvisionedHandoff) => {
@@ -92,7 +110,7 @@ export function usePersistedOnboardingWizardState(
     organizationName: draft.organizationName,
     projectName: draft.projectName,
     resourceIds: draft.resourceIds,
-    provisionedHandoff,
+    provisionedHandoff: draft.provisionedHandoff,
     setOrganizationName: draft.setOrganizationName,
     setProjectName: draft.setProjectName,
     goTo,
