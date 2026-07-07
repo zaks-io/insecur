@@ -28,26 +28,22 @@ import type {
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
   ListEnvironmentsRpcInput,
-  ListEnvironmentsRpcPayload,
   ListOrganizationInvitationsRpcInput,
-  ListOrganizationInvitationsRpcPayload,
+  ListPendingHighAssuranceChallengesRpcInput,
+  GetHighAssuranceChallengeRpcInput,
+  ClearHighAssuranceChallengeRpcInput,
+  DenyHighAssuranceChallengeRpcInput,
   ListOrganizationMembersRpcInput,
-  ListOrganizationMembersRpcPayload,
   ListProjectSecretsRpcInput,
-  ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
-  ListProjectsRpcPayload,
   ListSessionOrganizationsRpcInput,
-  ListSessionOrganizationsRpcPayload,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
   RecordAbuseDeniedRpcInput,
   RecordAbuseDeniedRpcPayload,
   RecordInjectionRunCompletedRpcInput,
-  RecordInjectionRunCompletedRpcPayload,
   CaptureFirstValueFeedbackRpcInput,
-  CaptureFirstValueFeedbackRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RuntimeDeliveryAllEnvelope,
@@ -63,6 +59,12 @@ import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
 import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
+import {
+  clearHighAssuranceChallengeRpc,
+  denyHighAssuranceChallengeRpc,
+  getHighAssuranceChallengeRpc,
+  listPendingHighAssuranceChallengesRpc,
+} from "./rpc/runtime-high-assurance-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
   getOperationRpc,
@@ -249,50 +251,52 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     );
   }
 
-  recordInjectionRunCompleted(
-    input: RecordInjectionRunCompletedRpcInput,
-  ): Promise<RuntimeRpcResult<RecordInjectionRunCompletedRpcPayload>> {
+  recordInjectionRunCompleted(input: RecordInjectionRunCompletedRpcInput) {
     return recordInjectionRunCompletedRpc(this.#post.bind(this), input);
   }
 
-  captureFirstValueFeedback(
-    input: CaptureFirstValueFeedbackRpcInput,
-  ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>> {
+  captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
     return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
   }
 
-  listProjects(input: ListProjectsRpcInput): Promise<RuntimeRpcResult<ListProjectsRpcPayload>> {
+  listProjects(input: ListProjectsRpcInput) {
     return listProjectsRpc(this.#post.bind(this), input);
   }
 
-  listEnvironments(
-    input: ListEnvironmentsRpcInput,
-  ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>> {
+  listEnvironments(input: ListEnvironmentsRpcInput) {
     return listEnvironmentsRpc(this.#post.bind(this), input);
   }
 
-  listProjectSecrets(
-    input: ListProjectSecretsRpcInput,
-  ): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>> {
+  listProjectSecrets(input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.#post.bind(this), input);
   }
 
-  listSessionOrganizations(
-    input: ListSessionOrganizationsRpcInput,
-  ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>> {
+  listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
   }
 
-  listOrganizationMembers(
-    input: ListOrganizationMembersRpcInput,
-  ): Promise<RuntimeRpcResult<ListOrganizationMembersRpcPayload>> {
+  listOrganizationMembers(input: ListOrganizationMembersRpcInput) {
     return listOrganizationMembersRpc(this.#post.bind(this), input);
   }
 
-  listOrganizationInvitations(
-    input: ListOrganizationInvitationsRpcInput,
-  ): Promise<RuntimeRpcResult<ListOrganizationInvitationsRpcPayload>> {
+  listOrganizationInvitations(input: ListOrganizationInvitationsRpcInput) {
     return listOrganizationInvitationsRpc(this.#post.bind(this), input);
+  }
+
+  listPendingHighAssuranceChallenges(input: ListPendingHighAssuranceChallengesRpcInput) {
+    return listPendingHighAssuranceChallengesRpc(this.#post.bind(this), input);
+  }
+
+  getHighAssuranceChallenge(input: GetHighAssuranceChallengeRpcInput) {
+    return getHighAssuranceChallengeRpc(this.#post.bind(this), input);
+  }
+
+  clearHighAssuranceChallenge(input: ClearHighAssuranceChallengeRpcInput) {
+    return clearHighAssuranceChallengeRpc(this.#post.bind(this), input);
+  }
+
+  denyHighAssuranceChallenge(input: DenyHighAssuranceChallengeRpcInput) {
+    return denyHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
 }
 

@@ -34,6 +34,27 @@ export interface OperationHighAssuranceChallengeEvidence {
   readonly clearAuditEventId?: AuditEventId;
   readonly consumedAt?: string;
   readonly consumeAuditEventId?: AuditEventId;
+  readonly denyingUserId?: UserId;
+  readonly denyAuditEventId?: AuditEventId;
+}
+
+export type HighAssuranceChallengeLifecycleState =
+  "not_required" | "required" | "pending" | "cleared" | "expired" | "consumed";
+
+/** Metadata-only review row for Human Approval Surface inbox/detail reads. */
+export interface HighAssuranceChallengeReviewItem {
+  readonly operationId: OperationId;
+  readonly intentCode: string;
+  readonly challengeId: string;
+  readonly projectId: ProjectId;
+  readonly environmentId?: EnvironmentId;
+  readonly riskReasonCode: string;
+  readonly requestedAt: string;
+  readonly expiresAt: string;
+  readonly requestingUserId?: UserId;
+  readonly requestingMachineIdentityId?: MachineIdentityId;
+  readonly status: HighAssuranceChallengeLifecycleState;
+  readonly hasClearedEvidence: boolean;
 }
 
 export interface OperationRetryMetadata {
@@ -109,6 +130,15 @@ export interface RetryOperationInput {
 export interface CancelOperationInput {
   readonly organizationId: OrganizationId;
   readonly operationId: OperationId;
+  /**
+   * When set, CAS UPDATE also requires uncleared, unconsumed high-assurance challenge
+   * evidence with the given challenge id (prevents deny-after-clear races).
+   */
+  readonly highAssuranceDenyCas?: {
+    readonly challengeId: string;
+  };
+  /** Metadata-only progress persisted atomically with cancel (e.g. deny audit linkage). */
+  readonly progress?: OperationProgressInput;
 }
 
 export interface OperationPollResult {

@@ -25,6 +25,8 @@ export {
   type CreateOperationInput,
   type GetOperationInput,
   type OperationHighAssuranceChallengeEvidence,
+  type HighAssuranceChallengeLifecycleState,
+  type HighAssuranceChallengeReviewItem,
   type OperationIncompleteCause,
   type OperationMutationResult,
   type OperationPollResult,
@@ -72,6 +74,7 @@ export { TenantOperationStore, generateOperationId } from "./tenant-operation-st
 export { cancelOperation } from "./cancel-operation.js";
 export { createOperation } from "./create-operation.js";
 export { getOperation } from "./get-operation.js";
+export { listPendingHighAssuranceChallengeOperations } from "./list-pending-high-assurance-challenge-operations.js";
 export { recordOperationProgress } from "./record-operation-progress.js";
 export {
   recordOperationProgressClearHighAssuranceChallenge,

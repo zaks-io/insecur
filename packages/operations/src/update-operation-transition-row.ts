@@ -21,76 +21,56 @@ function buildHighAssuranceConsumeCasClause(
   `;
 }
 
-async function updateStandardOperationTransitionRow(
+function buildHighAssuranceDenyCasClause(
   sql: TenantScopedSql,
-  input: TransitionRowUpdateInput,
-): Promise<OperationRow | undefined> {
-  const rows = await sql<OperationRow[]>`
-    UPDATE operations
-    SET
-      state = ${input.transition.nextState},
-      progress = ${bindJsonb(sql, input.mergedProgress)},
-      execution_deadline = ${input.executionDeadline},
-      updated_at = now()
-    WHERE id = ${input.transition.operationId}
-      AND org_id = ${input.transition.organizationId}
-      AND state = ${input.current.state}
-    RETURNING
-      id,
-      org_id,
-      state,
-      intent_code,
-      idempotency_key,
-      progress,
-      execution_deadline,
-      created_at,
-      updated_at
+  highAssuranceDenyCas: NonNullable<ApplyTransitionInput["highAssuranceDenyCas"]>,
+) {
+  return sql`
+    AND (progress->'highAssuranceChallenge'->>'clearedAt') IS NULL
+    AND (progress->'highAssuranceChallenge'->>'consumedAt') IS NULL
+    AND (progress->'highAssuranceChallenge'->>'challengeId') = ${highAssuranceDenyCas.challengeId}
   `;
-  return rows[0];
 }
 
-async function updateHighAssuranceConsumeOperationTransitionRow(
+function resolveHighAssuranceTransitionCasClause(
   sql: TenantScopedSql,
-  input: TransitionRowUpdateInput,
-  highAssuranceConsumeCas: NonNullable<ApplyTransitionInput["highAssuranceConsumeCas"]>,
-): Promise<OperationRow | undefined> {
-  const consumeCas = buildHighAssuranceConsumeCasClause(sql, highAssuranceConsumeCas);
-  const rows = await sql<OperationRow[]>`
-    UPDATE operations
-    SET
-      state = ${input.transition.nextState},
-      progress = ${bindJsonb(sql, input.mergedProgress)},
-      execution_deadline = ${input.executionDeadline},
-      updated_at = now()
-    WHERE id = ${input.transition.operationId}
-      AND org_id = ${input.transition.organizationId}
-      AND state = ${input.current.state}
-      ${consumeCas}
-    RETURNING
-      id,
-      org_id,
-      state,
-      intent_code,
-      idempotency_key,
-      progress,
-      execution_deadline,
-      created_at,
-      updated_at
-  `;
-  return rows[0];
+  transition: ApplyTransitionInput,
+) {
+  if (transition.highAssuranceConsumeCas !== undefined) {
+    return buildHighAssuranceConsumeCasClause(sql, transition.highAssuranceConsumeCas);
+  }
+  if (transition.highAssuranceDenyCas !== undefined) {
+    return buildHighAssuranceDenyCasClause(sql, transition.highAssuranceDenyCas);
+  }
+  return sql``;
 }
 
 export async function updateOperationTransitionRow(
   sql: TenantScopedSql,
   input: TransitionRowUpdateInput,
 ): Promise<OperationRow | undefined> {
-  if (input.transition.highAssuranceConsumeCas === undefined) {
-    return await updateStandardOperationTransitionRow(sql, input);
-  }
-
-  return await updateHighAssuranceConsumeOperationTransitionRow(
-    sql,
-    input,
-    input.transition.highAssuranceConsumeCas,
-  );
+  const extraWhereClause = resolveHighAssuranceTransitionCasClause(sql, input.transition);
+  const rows = await sql<OperationRow[]>`
+    UPDATE operations
+    SET
+      state = ${input.transition.nextState},
+      progress = ${bindJsonb(sql, input.mergedProgress)},
+      execution_deadline = ${input.executionDeadline},
+      updated_at = now()
+    WHERE id = ${input.transition.operationId}
+      AND org_id = ${input.transition.organizationId}
+      AND state = ${input.current.state}
+      ${extraWhereClause}
+    RETURNING
+      id,
+      org_id,
+      state,
+      intent_code,
+      idempotency_key,
+      progress,
+      execution_deadline,
+      created_at,
+      updated_at
+  `;
+  return rows[0];
 }

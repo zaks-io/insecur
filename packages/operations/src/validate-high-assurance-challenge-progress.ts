@@ -83,12 +83,30 @@ function assertOptionalClearedFields(evidence: OperationHighAssuranceChallengeEv
   if (evidence.clearAuditEventId !== undefined) {
     assertAuditEventId(evidence.clearAuditEventId, "highAssuranceChallenge.clearAuditEventId");
   }
+}
+
+function assertOptionalConsumedFields(evidence: OperationHighAssuranceChallengeEvidence): void {
   if (evidence.consumedAt !== undefined) {
     assertIsoTimestamp(evidence.consumedAt, "highAssuranceChallenge.consumedAt");
   }
   if (evidence.consumeAuditEventId !== undefined) {
     assertAuditEventId(evidence.consumeAuditEventId, "highAssuranceChallenge.consumeAuditEventId");
   }
+}
+
+function assertOptionalDeniedFields(evidence: OperationHighAssuranceChallengeEvidence): void {
+  if (evidence.denyingUserId !== undefined) {
+    assertUserId(evidence.denyingUserId, "highAssuranceChallenge.denyingUserId");
+  }
+  if (evidence.denyAuditEventId !== undefined) {
+    assertAuditEventId(evidence.denyAuditEventId, "highAssuranceChallenge.denyAuditEventId");
+  }
+}
+
+function assertOptionalLifecycleFields(evidence: OperationHighAssuranceChallengeEvidence): void {
+  assertOptionalClearedFields(evidence);
+  assertOptionalConsumedFields(evidence);
+  assertOptionalDeniedFields(evidence);
 }
 
 export function assertHighAssuranceChallengeEvidence(
@@ -118,5 +136,5 @@ export function assertHighAssuranceChallengeEvidence(
   assertIsoTimestamp(evidence.requestedAt, "highAssuranceChallenge.requestedAt");
   assertIsoTimestamp(evidence.expiresAt, "highAssuranceChallenge.expiresAt");
   assertAuditEventId(evidence.requestAuditEventId, "highAssuranceChallenge.requestAuditEventId");
-  assertOptionalClearedFields(evidence);
+  assertOptionalLifecycleFields(evidence);
 }

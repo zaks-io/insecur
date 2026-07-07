@@ -1,12 +1,13 @@
 import type { OperationHighAssuranceChallengeEvidence } from "@insecur/operations";
+import type { OperationId, OrganizationId, RequestId } from "@insecur/domain";
 import type { ClearHighAssuranceChallengeInput } from "./high-assurance-challenge-inputs.js";
 import { optionalAuditRequest } from "./optional-audit-request.js";
 
 export function challengeAuditScopeFromBoundEvidence(
   input: {
-    readonly organizationId: ClearHighAssuranceChallengeInput["organizationId"];
-    readonly operationId: ClearHighAssuranceChallengeInput["operationId"];
-    readonly request?: ClearHighAssuranceChallengeInput["request"];
+    readonly organizationId: OrganizationId;
+    readonly operationId: OperationId;
+    readonly request?: { requestId: RequestId };
   },
   evidence: OperationHighAssuranceChallengeEvidence,
 ) {

@@ -14,6 +14,8 @@ export interface FakeWorkOSSessionEntry {
   readonly codeVerifier?: string;
   readonly authorizationCodeFailure?:
     "expired" | "invalid" | "missing" | "mfa_enrollment" | "mfa_challenge";
+  /** When set, authorization-code exchange throws instead of returning a mapped OAuth failure. */
+  readonly authorizationCodeThrow?: Error;
   readonly email?: string;
   readonly authenticationMethod?: string;
   readonly authFactors?: readonly WorkOSAuthFactorSummary[];
@@ -62,6 +64,9 @@ function authenticateFakeAuthorizationCode(
   }
   if (entry.authorizationCodeFailure !== undefined) {
     return Promise.resolve({ authenticated: false, reason: entry.authorizationCodeFailure });
+  }
+  if (entry.authorizationCodeThrow !== undefined) {
+    throw entry.authorizationCodeThrow;
   }
   return Promise.resolve({
     authenticated: true,

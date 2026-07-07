@@ -224,6 +224,12 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260703.1
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../../packages/access
+      '@insecur/machine-auth':
+        specifier: workspace:*
+        version: link:../../packages/machine-auth
       '@insecur/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -260,6 +266,9 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@insecur/high-assurance':
+        specifier: workspace:*
+        version: link:../../packages/high-assurance
       '@insecur/instance-bootstrap':
         specifier: workspace:*
         version: link:../../packages/instance-bootstrap
