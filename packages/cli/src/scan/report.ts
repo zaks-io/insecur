@@ -214,6 +214,9 @@ function formatOversizedLines(oversizedFiles: readonly string[]): string[] {
   ];
 }
 
+export const SCAN_MIGRATE_ENV_GUIDE_POINTER =
+  "To fix: run `insecur guide migrate-env` and follow it, or hand it to your agent.";
+
 export function formatScanHumanReport(report: ScanReport): string {
   const { summary, findings } = report;
   const lines = [
@@ -228,6 +231,8 @@ export function formatScanHumanReport(report: ScanReport): string {
   if (findings.length > 0) {
     lines.push(...formatFindingLines(findings));
   }
+
+  lines.push("", SCAN_MIGRATE_ENV_GUIDE_POINTER);
 
   return lines.join("\n");
 }
