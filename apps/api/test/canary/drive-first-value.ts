@@ -23,7 +23,11 @@ import {
   type EgressCapture,
   type EgressHttpResponse,
 } from "./egress-sweep.js";
-import { createFakeRuntimeBinding, type FakeRuntimeEnv } from "../support/fake-runtime-binding.js";
+import {
+  createFakeRuntimeBinding,
+  wrapRuntimeRpcBinding,
+  type FakeRuntimeEnv,
+} from "../support/fake-runtime-binding.js";
 
 const ADMITTED_USER_ID = TEST_USER_ID;
 const WORKOS_USER_ID = TEST_WORKOS_USER_ID;
