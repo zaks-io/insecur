@@ -1,10 +1,4 @@
-import { AUTH_ERROR_CODES } from "@insecur/domain";
-import {
-  AUTHORIZATION_SCOPES,
-  assertOrganizationMembership,
-  authorizeScopeOrThrow,
-  type ActorRef,
-} from "@insecur/access";
+import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow, type ActorRef } from "@insecur/access";
 import type { AuditActorRef } from "@insecur/audit";
 import {
   TenantEnvironmentLifecycleStore,
@@ -13,16 +7,12 @@ import {
 } from "@insecur/tenant-store";
 import type { ListEnvironmentsRpcInput, ListEnvironmentsRpcPayload } from "@insecur/worker-kit";
 
+import { assertUserOrganizationMembership } from "./metadata-operation-shared.js";
+
 export interface ListEnvironmentsOperationInput {
   readonly input: ListEnvironmentsRpcInput;
   readonly auditActor: AuditActorRef;
   readonly accessActor: ActorRef;
-}
-
-function insufficientScopeError(): Error & { code: typeof AUTH_ERROR_CODES.insufficientScope } {
-  return Object.assign(new Error("Missing required permission."), {
-    code: AUTH_ERROR_CODES.insufficientScope,
-  });
 }
 
 /**
@@ -34,11 +24,7 @@ export async function listEnvironmentsOperation({
   auditActor,
   accessActor,
 }: ListEnvironmentsOperationInput): Promise<ListEnvironmentsRpcPayload> {
-  if (accessActor.type !== "user") {
-    throw insufficientScopeError();
-  }
-
-  await assertOrganizationMembership(accessActor, input.organizationId);
+  await assertUserOrganizationMembership(accessActor, input.organizationId);
 
   const coordinate = {
     organizationId: input.organizationId,

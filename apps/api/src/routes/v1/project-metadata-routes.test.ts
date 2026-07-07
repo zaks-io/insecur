@@ -404,4 +404,138 @@ describe("project metadata worker routes", () => {
       });
     });
   });
+
+  describe("POST /v1/orgs/:organizationId/projects", () => {
+    const createProjectPath = `/v1/orgs/${orgId}/projects`;
+
+    it("forwards create to the Runtime Worker with opaque id and display name", async () => {
+      const env = makeEnv();
+      runtime.createProject.mockResolvedValue({
+        ok: true,
+        value: {
+          projectId: projectIdValue,
+          organizationId: orgId,
+          displayName: testDisplayName("Created project"),
+          createdAt: "2026-06-24T00:00:00.000Z",
+        },
+      });
+
+      const response = await app.request(
+        createProjectPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId: projectIdValue,
+            displayName: "Created project",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          projectId: projectIdValue,
+          displayName: testDisplayName("Created project"),
+        },
+      });
+    });
+
+    it("tenant-qualifies cross-tenant project creates through the Runtime seam", async () => {
+      const env = makeEnv();
+      runtime.createProject.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "organization membership required"),
+      );
+
+      const response = await app.request(
+        `/v1/orgs/${otherOrgId}/projects`,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId: otherProjectId,
+            displayName: "Foreign project",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      expect(runtime.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationId: otherOrgId }),
+      );
+    });
+  });
+
+  describe("POST /v1/orgs/:organizationId/projects/:projectId/environments", () => {
+    const createEnvironmentPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments`;
+
+    it("forwards environment create with optional shape copy source", async () => {
+      const env = makeEnv();
+      const sourceEnvironmentId = environmentId.brand("env_00000000000000000000000002");
+      runtime.createEnvironment.mockResolvedValue({
+        ok: true,
+        value: {
+          environmentId: environmentIdValue,
+          organizationId: orgId,
+          projectId: projectIdValue,
+          displayName: testDisplayName("Created env"),
+          lifecycleStage: "development",
+          isProtected: false,
+          createdAt: "2026-06-24T00:00:00.000Z",
+          copiedShapeCount: 1,
+        },
+      });
+
+      const response = await app.request(
+        createEnvironmentPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            environmentId: environmentIdValue,
+            displayName: "Created env",
+            copyShapesFromEnvironmentId: sourceEnvironmentId,
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.createEnvironment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+          environmentId: environmentIdValue,
+          copyShapesFromEnvironmentId: sourceEnvironmentId,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          copiedShapeCount: 1,
+        },
+      });
+      expect(JSON.stringify(body)).not.toMatch(/valueUtf8|ciphertext|plaintext|password/i);
+    });
+  });
 });

@@ -27,6 +27,8 @@ import type {
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
+  CreateEnvironmentRpcInput,
+  CreateProjectRpcInput,
   ListAuditEventsRpcInput,
   ListEnvironmentsRpcInput,
   ListOrganizationInvitationsRpcInput,
@@ -70,8 +72,10 @@ import {
   captureFirstValueFeedbackRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
+  createEnvironmentRpc,
   listAuditEventsRpc,
   listEnvironmentsRpc,
+  createProjectRpc,
   listOrganizationInvitationsRpc,
   listOrganizationMembersRpc,
   listProjectSecretsRpc,
@@ -265,8 +269,16 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return listProjectsRpc(this.#post.bind(this), input);
   }
 
+  createProject(input: CreateProjectRpcInput) {
+    return createProjectRpc(this.#post.bind(this), input);
+  }
+
   listEnvironments(input: ListEnvironmentsRpcInput) {
     return listEnvironmentsRpc(this.#post.bind(this), input);
+  }
+
+  createEnvironment(input: CreateEnvironmentRpcInput) {
+    return createEnvironmentRpc(this.#post.bind(this), input);
   }
 
   listProjectSecrets(input: ListProjectSecretsRpcInput) {
