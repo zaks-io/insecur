@@ -30,6 +30,7 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/members`                   |
 | \*     | `/v1/orgs/:organizationId/organizations`             |
 | \*     | `/v1/orgs/:organizationId/projects`                  |
+| \*     | `/v1/orgs/:organizationId/audit-events`              |
 | \*     | `/v1/orgs/:organizationId/operations`                |
 | \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
@@ -40,6 +41,12 @@ Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metad
 /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version,
 last-set actor/time; INS-363). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+
+Under `/v1/orgs/:organizationId/audit-events` (INS-364): `GET /` lists tenant-qualified audit
+events with metadata-only envelopes. Query filters: `actorUserId`, `actorMachineIdentityId`,
+`projectId`, `environmentId`, `eventCode`, `createdAtFrom`, `createdAtTo`, plus cursor pagination
+via `cursor` and bounded `pageSize`. Authorize-then-read requires `metadata:detail_read` inside the
+Runtime deploy.
 
 Under `/v1/session` (INS-367): `GET /whoami` echoes the verified actor; `GET /memberships` is the
 console org-switcher self-read (the actor's own organizations), forwarded over the `RUNTIME` seam.

@@ -3,6 +3,8 @@ import type {
   CaptureFirstValueFeedbackRpcPayload,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
+  ListAuditEventsRpcInput,
+  ListAuditEventsRpcPayload,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
   ListOrganizationInvitationsRpcInput,
@@ -27,6 +29,7 @@ import {
 
 import { captureFirstValueFeedbackOperation } from "../operations/capture-first-value-feedback-operation.js";
 import { getOperationOperation } from "../operations/get-operation-operation.js";
+import { listAuditEventsOperation } from "../operations/list-audit-events-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
 import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
 import { listOrganizationMembersOperation } from "../operations/list-organization-members-operation.js";
@@ -94,6 +97,15 @@ export function listOrganizationInvitationsRpc(
 ): Promise<RuntimeRpcResult<ListOrganizationInvitationsRpcPayload>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     listOrganizationInvitationsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listAuditEventsRpc(
+  post: PostAuthRpcRunner,
+  input: ListAuditEventsRpcInput,
+): Promise<RuntimeRpcResult<ListAuditEventsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listAuditEventsOperation({ input, auditActor, accessActor }),
   );
 }
 

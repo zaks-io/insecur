@@ -16,6 +16,21 @@ export {
   type ProductionAuditEventCode,
 } from "./audit-event-codes.js";
 export {
+  type AuditEventActorRead,
+  type AuditEventRead,
+  type AuditEventResourceRead,
+  type AuditEventsPage,
+} from "./audit-event-read.js";
+export {
+  AUDIT_EVENTS_DEFAULT_PAGE_SIZE,
+  AUDIT_EVENTS_MAX_PAGE_SIZE,
+  encodeAuditEventsCursor,
+  queryTenantAuditEvents,
+  queryTenantAuditEventsInTenantScope,
+  type QueryTenantAuditEventsFilters,
+  type QueryTenantAuditEventsInput,
+} from "./query-tenant-audit-events.js";
+export {
   auditActorMachineIdentityId,
   auditActorToEventActorRef,
   auditActorUserId,

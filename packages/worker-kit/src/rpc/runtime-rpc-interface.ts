@@ -15,6 +15,10 @@ import type {
   RuntimeDeliveryEnvelope,
 } from "./runtime-delivery-rpc-contract.js";
 import type {
+  ListAuditEventsRpcInput,
+  ListAuditEventsRpcPayload,
+} from "./runtime-audit-rpc-contract.js";
+import type {
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
   ListOrganizationInvitationsRpcInput,
@@ -132,6 +136,9 @@ export interface RuntimeRpc {
   listOrganizationInvitations(
     input: ListOrganizationInvitationsRpcInput,
   ): Promise<RuntimeRpcResult<ListOrganizationInvitationsRpcPayload>>;
+  listAuditEvents(
+    input: ListAuditEventsRpcInput,
+  ): Promise<RuntimeRpcResult<ListAuditEventsRpcPayload>>;
   listPendingHighAssuranceChallenges(
     input: ListPendingHighAssuranceChallengesRpcInput,
   ): Promise<RuntimeRpcResult<ListPendingHighAssuranceChallengesRpcPayload>>;

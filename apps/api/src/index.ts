@@ -10,6 +10,7 @@ import {
 import { cloudflareSentryOptions } from "@insecur/observability";
 import { sentry } from "@sentry/hono/cloudflare";
 import { Hono } from "hono";
+import { auditEventsRoutes } from "./routes/v1/audit-events.js";
 import { authRoutes } from "./routes/v1/auth.js";
 import { designPartnerFeedbackRoutes } from "./routes/v1/design-partner-feedback.js";
 import { instanceBootstrapRoutes } from "./routes/v1/instance-bootstrap.js";
@@ -93,6 +94,7 @@ app.route("/v1/orgs/:organizationId/invitations", invitationsRoutes);
 app.route("/v1/orgs/:organizationId/members", membersRoutes);
 app.route("/v1/orgs/:organizationId/organizations", organizationsRoutes);
 app.route("/v1/orgs/:organizationId/projects", projectsRoutes);
+app.route("/v1/orgs/:organizationId/audit-events", auditEventsRoutes);
 app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
 app.route("/v1/orgs/:organizationId/high-assurance-challenges", highAssuranceChallengesRoutes);
 app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
