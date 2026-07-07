@@ -19,6 +19,10 @@ import type {
   ListAuditEventsRpcPayload,
 } from "./runtime-audit-rpc-contract.js";
 import type {
+  CreateEnvironmentRpcInput,
+  CreateEnvironmentRpcPayload,
+  CreateProjectRpcInput,
+  CreateProjectRpcPayload,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
   ListOrganizationInvitationsRpcInput,
@@ -121,9 +125,13 @@ export interface RuntimeRpc {
     input: CaptureFirstValueFeedbackRpcInput,
   ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>>;
   listProjects(input: ListProjectsRpcInput): Promise<RuntimeRpcResult<ListProjectsRpcPayload>>;
+  createProject(input: CreateProjectRpcInput): Promise<RuntimeRpcResult<CreateProjectRpcPayload>>;
   listEnvironments(
     input: ListEnvironmentsRpcInput,
   ): Promise<RuntimeRpcResult<ListEnvironmentsRpcPayload>>;
+  createEnvironment(
+    input: CreateEnvironmentRpcInput,
+  ): Promise<RuntimeRpcResult<CreateEnvironmentRpcPayload>>;
   listProjectSecrets(
     input: ListProjectSecretsRpcInput,
   ): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>>;

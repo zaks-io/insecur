@@ -1,9 +1,15 @@
 import { buildPersonalOrganizationRequestBody } from "./provision-request-body.js";
+import { authorizedJsonRequest } from "./http-client-metadata.js";
 import type {
   ApiClient,
   CliSessionExchangeData,
+  CreateEnvironmentData,
+  CreateProjectData,
+  EnvironmentListData,
   GuidedOrganizationProvisionData,
+  ProjectListData,
   SecretWriteByVariableKeyData,
+  SessionOrganizationListData,
 } from "./types.js";
 import {
   parseEnvelope,
@@ -29,6 +35,11 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
     recordInjectionRunCompleted: (input) => recordInjectionRunCompleted(base, input),
+    listSessionOrganizations: (input) => listSessionOrganizations(base, input),
+    listProjects: (input) => listProjects(base, input),
+    createProject: (input) => createProject(base, input),
+    listEnvironments: (input) => listEnvironments(base, input),
+    createEnvironment: (input) => createEnvironment(base, input),
   };
 }
 
@@ -119,4 +130,68 @@ async function writeSecretByVariableKey(
     return { ok: false as const, envelope, httpStatus: response.status };
   }
   return { ok: true as const, envelope };
+}
+
+async function listSessionOrganizations(
+  base: string,
+  input: Parameters<ApiClient["listSessionOrganizations"]>[0],
+) {
+  return authorizedJsonRequest<SessionOrganizationListData>(
+    base,
+    "/v1/session/memberships",
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function listProjects(base: string, input: Parameters<ApiClient["listProjects"]>[0]) {
+  return authorizedJsonRequest<ProjectListData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function createProject(base: string, input: Parameters<ApiClient["createProject"]>[0]) {
+  return authorizedJsonRequest<CreateProjectData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects`,
+    input.bearerCredential,
+    {
+      method: "POST",
+      body: {
+        projectId: input.projectId,
+        displayName: input.displayName,
+      },
+    },
+  );
+}
+
+async function listEnvironments(base: string, input: Parameters<ApiClient["listEnvironments"]>[0]) {
+  return authorizedJsonRequest<EnvironmentListData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function createEnvironment(
+  base: string,
+  input: Parameters<ApiClient["createEnvironment"]>[0],
+) {
+  const body: Record<string, unknown> = {
+    environmentId: input.environmentId,
+    displayName: input.displayName,
+  };
+  if (input.copyShapesFromEnvironmentId !== undefined) {
+    body.copyShapesFromEnvironmentId = input.copyShapesFromEnvironmentId;
+  }
+  return authorizedJsonRequest<CreateEnvironmentData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments`,
+    input.bearerCredential,
+    { method: "POST", body },
+  );
 }

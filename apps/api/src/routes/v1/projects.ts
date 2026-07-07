@@ -5,8 +5,12 @@ import {
 import {
   handleRoute,
   parseEnvironmentIdParam,
+  parseJsonBody,
   parseOrganizationIdParam,
   parseProjectIdParam,
+  parseRequiredDisplayName,
+  readOptionalString,
+  readRequiredString,
   requireRouteParam,
   requireUserActor,
   runtimeClientFor,
@@ -81,6 +85,23 @@ projectsRoutes.get("/", requireUserActor, async (context) =>
   }),
 );
 
+projectsRoutes.post("/", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const organizationId = parseOrganizationIdParam(
+      requireRouteParam(context.req.param("organizationId"), "organizationId"),
+    );
+    const body = parseJsonBody(await context.req.json());
+
+    return runtimeClientFor(context.env, userActor).createProject({
+      organizationId,
+      projectId: parseProjectIdParam(readRequiredString(body, "projectId")),
+      displayName: parseRequiredDisplayName(readRequiredString(body, "displayName")),
+      requestId: reqId,
+    });
+  }),
+);
+
 projectsRoutes.get("/:projectId/environments", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
@@ -89,6 +110,26 @@ projectsRoutes.get("/:projectId/environments", requireUserActor, async (context)
     return runtimeClientFor(context.env, userActor).listEnvironments({
       organizationId,
       projectId,
+      requestId: reqId,
+    });
+  }),
+);
+
+projectsRoutes.post("/:projectId/environments", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const { organizationId, projectId } = parseProjectScopedRouteParams(context);
+    const body = parseJsonBody(await context.req.json());
+    const copyShapesFromRaw = readOptionalString(body, "copyShapesFromEnvironmentId");
+
+    return runtimeClientFor(context.env, userActor).createEnvironment({
+      organizationId,
+      projectId,
+      environmentId: parseEnvironmentIdParam(readRequiredString(body, "environmentId")),
+      displayName: parseRequiredDisplayName(readRequiredString(body, "displayName")),
+      ...(copyShapesFromRaw !== undefined
+        ? { copyShapesFromEnvironmentId: parseEnvironmentIdParam(copyShapesFromRaw) }
+        : {}),
       requestId: reqId,
     });
   }),
