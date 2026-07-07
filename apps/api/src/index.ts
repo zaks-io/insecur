@@ -21,6 +21,7 @@ import { onboardingRoutes } from "./routes/v1/onboarding.js";
 import { operationsRoutes } from "./routes/v1/operations.js";
 import { organizationsRoutes } from "./routes/v1/organizations.js";
 import { projectsRoutes } from "./routes/v1/projects.js";
+import { runPoliciesRoutes } from "./routes/v1/run-policies.js";
 import { runtimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
 import { sessionRoutes } from "./routes/v1/session.js";
 import type { ApiEnv } from "./env.js";
@@ -98,6 +99,7 @@ app.route("/v1/orgs/:organizationId/audit-events", auditEventsRoutes);
 app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
 app.route("/v1/orgs/:organizationId/high-assurance-challenges", highAssuranceChallengesRoutes);
 app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
+app.route("/v1/orgs/:organizationId/run-policies", runPoliciesRoutes);
 app.route("/v1/orgs/:organizationId/design-partner-feedback", designPartnerFeedbackRoutes);
 
 export default app;

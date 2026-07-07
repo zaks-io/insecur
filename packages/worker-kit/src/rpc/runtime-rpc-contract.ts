@@ -48,6 +48,7 @@ export interface RuntimeRpcError {
   readonly code: KnownErrorCode;
   readonly message: string;
   readonly retryable: boolean;
+  readonly operationId?: OperationId;
 }
 
 export type RuntimeRpcResult<TPayload> =

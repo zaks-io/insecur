@@ -9,11 +9,10 @@ import type {
 } from "@insecur/onboarding";
 import {
   completeBootstrapOperatorClaim,
-  getBootstrapStatus,
   type BootstrapStatus,
   type CompleteBootstrapOperatorClaimResult,
 } from "@insecur/instance-bootstrap";
-import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
+import { runWithRuntimeConnection } from "@insecur/tenant-store";
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
 import type {
   AcceptInvitationRpcInput,
@@ -26,19 +25,6 @@ import type {
   CancelOperationRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
-  CreateEnvironmentRpcInput,
-  CreateProjectRpcInput,
-  ListAuditEventsRpcInput,
-  ListEnvironmentsRpcInput,
-  ListOrganizationInvitationsRpcInput,
-  ListPendingHighAssuranceChallengesRpcInput,
-  GetHighAssuranceChallengeRpcInput,
-  ClearHighAssuranceChallengeRpcInput,
-  DenyHighAssuranceChallengeRpcInput,
-  ListOrganizationMembersRpcInput,
-  ListProjectSecretsRpcInput,
-  ListProjectsRpcInput,
-  ListSessionOrganizationsRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
@@ -56,39 +42,31 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "./env.js";
-import { consumeGrantAllOperation } from "./operations/consume-grant-all-operation.js";
-import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
-import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
-import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
-import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import {
-  clearHighAssuranceChallengeRpc,
-  denyHighAssuranceChallengeRpc,
-  getHighAssuranceChallengeRpc,
-  listPendingHighAssuranceChallengesRpc,
-} from "./rpc/runtime-high-assurance-rpc-delegates.js";
+  consumeGrantAllRpc,
+  consumeGrantRpc,
+  writeSecretRpc,
+} from "./rpc/runtime-keyring-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
   cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
-  createEnvironmentRpc,
-  listAuditEventsRpc,
-  listEnvironmentsRpc,
-  createProjectRpc,
-  listOrganizationInvitationsRpc,
-  listOrganizationMembersRpc,
-  listProjectSecretsRpc,
-  listProjectsRpc,
-  listSessionOrganizationsRpc,
   recordInjectionRunCompletedRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
+import {
+  getBootstrapStatusRpc,
+  recordAbuseDeniedRpc,
+  recordAdmissionDeniedRpc,
+  resolveAdmissionRpc,
+} from "./rpc/runtime-pre-auth-rpc-delegates.js";
 import {
   acceptInvitationRpc,
   createInvitationRpc,
   createOperatorOrganizationRpc,
   provisionGuidedOrganizationRpc,
 } from "./rpc/runtime-onboarding-rpc-delegates.js";
+import { RuntimeServiceDelegatedPostAuthRpc } from "./rpc/runtime-service-delegated-post-auth-rpc.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
@@ -147,6 +125,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return this.#withConnection(() => withRuntimeRpcEntry({ env: this.env, actorToken }, run));
   }
 
+  postAuthRpc() {
+    return this.#post.bind(this);
+  }
+
   /**
    * Pre-auth RPC pipeline: request-scoped connection and the same error envelope, but no hop-token
    * verification — these methods run before an authenticated actor exists and are trusted by the
@@ -159,23 +141,17 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   // --- Keyring-bound methods (decrypt happens here; real-logic operations) ---
 
   consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-    return this.#post(input.actorToken, ({ auditActor }) =>
-      consumeGrantOperation({ env: this.env, input, auditActor }),
-    );
+    return consumeGrantRpc(this.#post.bind(this), this.env, input);
   }
 
   consumeGrantAll(
     input: ConsumeGrantAllRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryAllEnvelope>> {
-    return this.#post(input.actorToken, ({ auditActor }) =>
-      consumeGrantAllOperation({ env: this.env, input, auditActor }),
-    );
+    return consumeGrantAllRpc(this.#post.bind(this), this.env, input);
   }
 
   writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
-    return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
-      writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
-    );
+    return writeSecretRpc(this.#post.bind(this), this.env, input);
   }
 
   // --- Pre-auth identity/metadata methods (no hop token; trusted by the private binding) ---
@@ -183,27 +159,25 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   resolveAdmission(
     input: ResolveAdmissionRpcInput,
   ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
-    return this.#pre(async () => ({
-      userId: await resolveAdmittedUserId(input.instanceId, input.workosUserId),
-    }));
+    return resolveAdmissionRpc(this.#pre.bind(this), input);
   }
 
   recordAdmissionDenied(
     input: RecordAdmissionDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>> {
-    return this.#pre(() => recordAdmissionDeniedOperation(input));
+    return recordAdmissionDeniedRpc(this.#pre.bind(this), input);
   }
 
   recordAbuseDenied(
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>> {
-    return this.#pre(() => recordAbuseDeniedOperation(input));
+    return recordAbuseDeniedRpc(this.#pre.bind(this), input);
   }
 
   getBootstrapStatus(
     input: GetBootstrapStatusRpcInput,
   ): Promise<RuntimeRpcResult<BootstrapStatus>> {
-    return this.#pre(() => getBootstrapStatus(input.instanceId));
+    return getBootstrapStatusRpc(this.#pre.bind(this), input);
   }
 
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
@@ -263,61 +237,11 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   }
 
   captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
-    return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
-  }
-
-  listProjects(input: ListProjectsRpcInput) {
-    return listProjectsRpc(this.#post.bind(this), input);
-  }
-
-  createProject(input: CreateProjectRpcInput) {
-    return createProjectRpc(this.#post.bind(this), input);
-  }
-
-  listEnvironments(input: ListEnvironmentsRpcInput) {
-    return listEnvironmentsRpc(this.#post.bind(this), input);
-  }
-
-  createEnvironment(input: CreateEnvironmentRpcInput) {
-    return createEnvironmentRpc(this.#post.bind(this), input);
-  }
-
-  listProjectSecrets(input: ListProjectSecretsRpcInput) {
-    return listProjectSecretsRpc(this.#post.bind(this), input);
-  }
-
-  listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
-    return listSessionOrganizationsRpc(this.#post.bind(this), input);
-  }
-
-  listOrganizationMembers(input: ListOrganizationMembersRpcInput) {
-    return listOrganizationMembersRpc(this.#post.bind(this), input);
-  }
-
-  listOrganizationInvitations(input: ListOrganizationInvitationsRpcInput) {
-    return listOrganizationInvitationsRpc(this.#post.bind(this), input);
-  }
-
-  listAuditEvents(input: ListAuditEventsRpcInput) {
-    return listAuditEventsRpc(this.#post.bind(this), input);
-  }
-
-  listPendingHighAssuranceChallenges(input: ListPendingHighAssuranceChallengesRpcInput) {
-    return listPendingHighAssuranceChallengesRpc(this.#post.bind(this), input);
-  }
-
-  getHighAssuranceChallenge(input: GetHighAssuranceChallengeRpcInput) {
-    return getHighAssuranceChallengeRpc(this.#post.bind(this), input);
-  }
-
-  clearHighAssuranceChallenge(input: ClearHighAssuranceChallengeRpcInput) {
-    return clearHighAssuranceChallengeRpc(this.#post.bind(this), input);
-  }
-
-  denyHighAssuranceChallenge(input: DenyHighAssuranceChallengeRpcInput) {
-    return denyHighAssuranceChallengeRpc(this.#post.bind(this), input);
+    return captureFirstValueFeedbackRpc(this.postAuthRpc(), input);
   }
 }
+
+Object.assign(RuntimeServiceBase.prototype, RuntimeServiceDelegatedPostAuthRpc);
 
 export const RuntimeService = Sentry.withSentry<
   RuntimeEnv,

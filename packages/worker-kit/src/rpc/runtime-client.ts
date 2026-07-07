@@ -4,6 +4,12 @@ import {
   type UserActor,
 } from "@insecur/auth";
 
+import { buildAuthenticatedRuntimeClientMethods } from "./runtime-client-method-map.js";
+import type {
+  AuthenticatedRuntimeClient,
+  ClientMethod,
+  PostAuthMethodName,
+} from "./runtime-client-types.js";
 import type { RuntimeRpc, RuntimeRpcResult } from "./runtime-rpc-contract.js";
 import { validateRuntimeTokenSigningSecret } from "./runtime-token-signing-secret.js";
 import { unwrapRuntimeResult } from "./unwrap-runtime-result.js";
@@ -18,34 +24,7 @@ export interface RuntimeClientEnv {
   readonly RUNTIME_TOKEN_SIGNING_SECRET: string;
 }
 
-/** The post-auth RPC methods: every `RuntimeRpc` method whose input carries an `actorToken`. */
-type PostAuthMethodName = {
-  [K in keyof RuntimeRpc]: Parameters<RuntimeRpc[K]>[0] extends { readonly actorToken: string }
-    ? K
-    : never;
-}[keyof RuntimeRpc];
-
-/**
- * The payload behind a `RuntimeRpcResult`. Distributes over the result union so the `ok: false`
- * branch (which carries no `value`) drops to `never` and only the success payload survives — a
- * non-distributing `extends { value: infer V }` over the whole union resolves to `never`.
- */
-type UnwrapValue<R> = R extends { readonly ok: true; readonly value: infer V } ? V : never;
-
-/** A post-auth method as the client exposes it: `actorToken` removed, the RPC result unwrapped. */
-type ClientMethod<K extends PostAuthMethodName> = (
-  input: Omit<Parameters<RuntimeRpc[K]>[0], "actorToken">,
-) => Promise<UnwrapValue<Awaited<ReturnType<RuntimeRpc[K]>>>>;
-
-/**
- * An authenticated view of the Runtime over the private binding. Each method is its `RuntimeRpc`
- * counterpart with the `actorToken` removed (the client supplies it) and the `RuntimeRpcResult`
- * unwrapped to the payload (the client throws the shaped error on failure). Routes call it like the
- * Runtime directly: `await runtimeClientFor(env, actor).createInvitation({ ... })`.
- */
-export type AuthenticatedRuntimeClient = {
-  [K in PostAuthMethodName]: ClientMethod<K>;
-};
+export type { AuthenticatedRuntimeClient } from "./runtime-client-types.js";
 
 /**
  * The single API-side Runtime RPC seam (ADR-0077). The public edge does zero DB I/O: a route parses
@@ -87,32 +66,5 @@ export function runtimeClientFor(
       )) as ClientMethod<K>;
   }
 
-  return {
-    provisionGuidedOrganization: forward("provisionGuidedOrganization"),
-    createOperatorOrganization: forward("createOperatorOrganization"),
-    createInvitation: forward("createInvitation"),
-    acceptInvitation: forward("acceptInvitation"),
-    getOperation: forward("getOperation"),
-    cancelOperation: forward("cancelOperation"),
-    issueInjectionGrant: forward("issueInjectionGrant"),
-    completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
-    writeSecret: forward("writeSecret"),
-    consumeGrant: forward("consumeGrant"),
-    consumeGrantAll: forward("consumeGrantAll"),
-    recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),
-    captureFirstValueFeedback: forward("captureFirstValueFeedback"),
-    listProjects: forward("listProjects"),
-    createProject: forward("createProject"),
-    listEnvironments: forward("listEnvironments"),
-    createEnvironment: forward("createEnvironment"),
-    listProjectSecrets: forward("listProjectSecrets"),
-    listSessionOrganizations: forward("listSessionOrganizations"),
-    listOrganizationMembers: forward("listOrganizationMembers"),
-    listOrganizationInvitations: forward("listOrganizationInvitations"),
-    listAuditEvents: forward("listAuditEvents"),
-    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
-    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
-    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
-    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
-  };
+  return buildAuthenticatedRuntimeClientMethods(forward);
 }

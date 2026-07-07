@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./rpc/runtime-run-policies-rpc-contract": "./src/rpc/runtime-run-policies-rpc-contract.ts"
   },
   "scripts": {
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",

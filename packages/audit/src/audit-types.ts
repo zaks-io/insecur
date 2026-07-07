@@ -51,6 +51,7 @@ export type AuditResourceType =
   | "secret"
   | "secret_version"
   | "injection_grant"
+  | "runtime_injection_policy"
   | "operation"
   | "app_connection"
   | "secret_sync"

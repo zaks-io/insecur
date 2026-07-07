@@ -19,6 +19,7 @@ import { SecretWriteError } from "@insecur/secret-store-contracts";
 import { RuntimeConfigMissingError } from "@insecur/tenant-store";
 import { AbuseLimitError } from "../abuse/abuse-limit-error.js";
 import { HTTP_STATUS_BY_CODE } from "./http-status-by-code.js";
+import { RuntimeRpcResultError } from "../rpc/unwrap-runtime-result.js";
 
 // The public edge (API/Web) never imports @insecur/crypto (ADR-0064/0077): crypto and
 // decrypt run only behind the Runtime Worker RPC seam. A crypto failure (DecryptError,
@@ -151,13 +152,17 @@ export function domainErrorEnvelope(
 ): { status: number; body: ErrorEnvelope } {
   const code = knownErrorCodeFromUnknown(error);
   const status = httpStatusForKnownErrorCode(code);
+  const operationId = error instanceof RuntimeRpcResultError ? error.operationId : undefined;
   const body = errorEnvelope(
     {
       code,
       message: safePublicErrorMessage(error, code),
       retryable: retryableForError(error),
     },
-    { requestId },
+    {
+      requestId,
+      ...(operationId !== undefined ? { operationId } : {}),
+    },
   );
   return { status, body };
 }

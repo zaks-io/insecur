@@ -40,3 +40,16 @@ export {
   type CreateAuthorizedRuntimeInjectionPolicyInput,
   type PublishAuthorizedRuntimeInjectionPolicyVersionInput,
 } from "./runtime-injection-policies.js";
+export {
+  createRuntimeInjectionPolicyCommand,
+  type CreateRuntimeInjectionPolicyCommandInput,
+  type CreateRuntimeInjectionPolicyResult,
+  type RuntimeInjectionPolicyVersionRead,
+} from "./create-runtime-injection-policy-command.js";
+export {
+  disableRuntimeInjectionPolicyCommand,
+  getRuntimeInjectionPolicyShow,
+  type DisableRuntimeInjectionPolicyCommandInput,
+  type DisableRuntimeInjectionPolicyResult,
+  type RuntimeInjectionPolicyShowResult,
+} from "./runtime-injection-policy-commands.js";

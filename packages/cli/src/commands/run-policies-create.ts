@@ -1,56 +1,68 @@
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
-import { parseEnvironmentId } from "../config/parse-resource-id.js";
+import {
+  parseEnvironmentId,
+  parseRuntimePolicyId,
+  parseSecretIds,
+} from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { readDisplayNameFromStdin } from "../input/read-display-name-stdin.js";
 import { requireDisplayNameStdinFlag } from "../input/require-display-name-stdin.js";
 import { requireProjectScope } from "./navigation-scope.js";
-import { buildCreateEnvironmentOutput } from "./envs-create-result.js";
-import { CliError } from "../output/cli-error.js";
+import { parseOperationIdOrThrow } from "./operations-scope.js";
+import { handleApiFailure } from "./api-failure.js";
 import { renderSuccess } from "../output/render.js";
 
-export interface EnvsCreateCommandOptions {
+export interface RunPoliciesCreateCommandOptions {
+  readonly policyId: string;
   readonly envId: string;
   readonly displayNameStdin: boolean;
-  readonly copyShapesFromEnvId: string | undefined;
+  readonly command: string;
+  readonly commandFingerprint: string | undefined;
+  readonly secretIds: string;
+  readonly operationId: string | undefined;
 }
 
-export async function runEnvsCreateCommand(
+export async function runRunPoliciesCreateCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
   context: ResolvedCliContext,
-  commandOptions: EnvsCreateCommandOptions,
+  commandOptions: RunPoliciesCreateCommandOptions,
 ): Promise<number> {
   requireDisplayNameStdinFlag(commandOptions.displayNameStdin);
 
   const credential = await requireSessionCredential(context.scope.host);
   const projectScope = requireProjectScope(context.scope);
   const environmentId = parseEnvironmentId(commandOptions.envId, "--env-id");
+  const policyId = parseRuntimePolicyId(commandOptions.policyId, "--policy-id");
   const displayName = await readDisplayNameFromStdin("--display-name-stdin");
-  const copyShapesFromEnvironmentId =
-    commandOptions.copyShapesFromEnvId === undefined
+  const secretIds = parseSecretIds(commandOptions.secretIds, "--secret-ids");
+  const operationId =
+    commandOptions.operationId === undefined
       ? undefined
-      : parseEnvironmentId(commandOptions.copyShapesFromEnvId, "--copy-shapes-from-env-id");
+      : parseOperationIdOrThrow(commandOptions.operationId);
 
-  const result = await api.createEnvironment({
+  const result = await api.createRuntimeInjectionPolicy({
     host: context.scope.host,
     bearerCredential: credential,
     organizationId: projectScope.orgId,
     projectId: projectScope.projectId,
     environmentId,
+    policyId,
     displayName,
-    ...(copyShapesFromEnvironmentId === undefined ? {} : { copyShapesFromEnvironmentId }),
+    command: commandOptions.command,
+    secretIds,
+    ...(commandOptions.commandFingerprint !== undefined
+      ? { commandFingerprint: commandOptions.commandFingerprint }
+      : {}),
+    ...(operationId === undefined ? {} : { operationId }),
   });
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    return handleApiFailure(result.envelope, flags);
   }
 
   const data = result.envelope.data;
-  renderSuccess(
-    buildCreateEnvironmentOutput(data, result.envelope.meta?.requestId),
-    flags,
-    () => `Created environment ${data.environmentId}.`,
-  );
+  renderSuccess(result.envelope, flags, () => `Created runtime injection policy ${data.policyId}.`);
   return 0;
 }
