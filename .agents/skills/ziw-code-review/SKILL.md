@@ -1,7 +1,7 @@
 ---
 name: ziw-code-review
 description: Use for code review before opening a PR, before handing off a branch, or when reviewing the latest committed changes, an explicitly requested working tree, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit.
-when_to_use: Use automatically for code review requests, pre-PR review gates, PR branch review, main drift review, or when another ziw skill asks for ziw-code-review.
+when_to_use: Use automatically for code review requests, pre-PR review gates, PR branch review, main drift review, or when another workflow skill asks for ziw-code-review.
 argument-hint: "[branch|pr-url|range]"
 context: fork
 agent: general-purpose
@@ -197,8 +197,9 @@ non-draft.
 
 Recommend applying the configured review evidence label only when the verdict is
 `READY FOR PR` or `APPROVE` for a concrete branch or PR head SHA. Recommend
-clearing it when there are blocking findings or the reviewed head is not the
-current PR head.
+clearing it when there are blocking findings, the reviewed head is not the
+current PR head, or the evidence itself (PR URL and reviewed head SHA) is
+missing or stale. A label without current evidence is a claim, not proof.
 
 ## Output
 
