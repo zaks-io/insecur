@@ -36,6 +36,7 @@ export interface WalkProjectFilesResult {
   readonly files: readonly WalkedFile[];
   readonly oversizedFiles: readonly string[];
   readonly unreadablePaths: readonly string[];
+  readonly limitReached: boolean;
 }
 
 interface WalkState {
@@ -46,6 +47,11 @@ interface WalkState {
   readonly results: WalkedFile[];
   readonly oversizedFiles: string[];
   readonly unreadablePaths: string[];
+  limitReached: boolean;
+}
+
+function markWalkLimitReached(state: WalkState): void {
+  state.limitReached = true;
 }
 
 function isWithinScanRoot(resolvedPath: string, canonicalRoot: string): boolean {
@@ -76,6 +82,7 @@ async function tryAppendFile(
   relativePath: string,
 ): Promise<void> {
   if (state.results.length >= state.maxFiles) {
+    markWalkLimitReached(state);
     return;
   }
 
@@ -203,8 +210,20 @@ async function processEntry(state: WalkState, visit: DirVisit, entry: Dirent): P
   }
 }
 
+function shouldStopWalkAtDir(state: WalkState, visit: DirVisit): boolean {
+  if (visit.depth > state.maxDepth) {
+    markWalkLimitReached(state);
+    return true;
+  }
+  if (state.results.length >= state.maxFiles) {
+    markWalkLimitReached(state);
+    return true;
+  }
+  return false;
+}
+
 async function visitDir(state: WalkState, visit: DirVisit): Promise<void> {
-  if (visit.depth > state.maxDepth || state.results.length >= state.maxFiles) {
+  if (shouldStopWalkAtDir(state, visit)) {
     return;
   }
 
@@ -219,6 +238,7 @@ async function visitDir(state: WalkState, visit: DirVisit): Promise<void> {
 
   for (const entry of entries) {
     if (state.results.length >= state.maxFiles) {
+      markWalkLimitReached(state);
       break;
     }
     await processEntry(state, visit, entry);
@@ -235,6 +255,7 @@ export async function walkProjectFiles(options: WalkOptions): Promise<WalkProjec
     results: [],
     oversizedFiles: [],
     unreadablePaths: [],
+    limitReached: false,
   };
 
   await visitDir(state, { dirPath: canonicalRoot, relativeDir: "", depth: 0 });
@@ -242,5 +263,6 @@ export async function walkProjectFiles(options: WalkOptions): Promise<WalkProjec
     files: state.results,
     oversizedFiles: state.oversizedFiles,
     unreadablePaths: state.unreadablePaths,
+    limitReached: state.limitReached,
   };
 }

@@ -18,6 +18,16 @@ describe("insecur scan", () => {
 
   const chmodDenyReadIsMeaningful = process.platform !== "win32" && process.getuid?.() !== 0;
   const unreadablePermissionIt = chmodDenyReadIsMeaningful ? it : it.skip;
+  const symlinkIt = process.platform === "win32" ? it.skip : it;
+
+  async function tryCreateSymlink(target: string, linkPath: string): Promise<boolean> {
+    try {
+      await symlink(target, linkPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -50,6 +60,7 @@ describe("insecur scan", () => {
     expect(report.summary.totalEntries).toBeGreaterThanOrEqual(6);
     expect(report.summary.likelySecrets).toBeGreaterThanOrEqual(3);
     expect(report.summary.migratableCount).toBeGreaterThanOrEqual(2);
+    expect(report.summary.limitReached).toBe(false);
 
     const keys = report.findings.map((finding) => finding.key).sort();
     expect(keys).toContain("API_SECRET");
@@ -124,7 +135,7 @@ describe("insecur scan", () => {
     const line = stderr.mock.calls[0]?.[0];
     expect(typeof line).toBe("string");
     expect(line).toMatch(
-      /^insecur scan: likely_secrets=\d+ files=\d+ migratable=\d+ unreadable=\d+ oversized=\d+ elapsed_ms=\d+\n$/u,
+      /^insecur scan: likely_secrets=\d+ files=\d+ migratable=\d+ unreadable=\d+ oversized=\d+ limit_reached=[01] elapsed_ms=\d+\n$/u,
     );
   });
 
@@ -180,26 +191,43 @@ describe("insecur scan", () => {
     }
   });
 
-  it("follows symlinks to secret files and reports broken symlinks", async () => {
+  symlinkIt("follows symlinks to secret files and reports broken symlinks", async ({ skip }) => {
     const root = await mkdtemp(join(tmpdir(), "insecur-scan-symlink-"));
     await writeFile(join(root, "target.env"), "API_KEY=sentinel-metadata-only\n", "utf8");
-    await symlink("target.env", join(root, ".env"));
-    await symlink("missing-target.env", join(root, "broken.link"));
+    if (!(await tryCreateSymlink("target.env", join(root, ".env")))) {
+      skip();
+      return;
+    }
+    if (!(await tryCreateSymlink("missing-target.env", join(root, "broken.link")))) {
+      skip();
+      return;
+    }
 
     const report = await buildScanReport({ rootDir: root });
     expect(report.findings.some((finding) => finding.file === ".env")).toBe(true);
     expect(report.summary.unreadableFiles).toContain("broken.link");
   });
 
-  it("does not follow symlinks that escape the scan root", async () => {
+  symlinkIt("does not follow symlinks that escape the scan root", async ({ skip }) => {
     const outer = await mkdtemp(join(tmpdir(), "insecur-scan-outer-"));
     const root = await mkdtemp(join(tmpdir(), "insecur-scan-root-"));
     await writeFile(join(outer, "escaped.env"), "API_KEY=sentinel-metadata-only\n", "utf8");
-    await symlink(join(outer, "escaped.env"), join(root, "escape.link"));
+    if (!(await tryCreateSymlink(join(outer, "escaped.env"), join(root, "escape.link")))) {
+      skip();
+      return;
+    }
 
     const report = await buildScanReport({ rootDir: root });
     expect(report.findings.some((finding) => finding.file === "escape.link")).toBe(false);
     expect(report.summary.unreadableFiles).toContain("escape.link");
+  });
+
+  it("reports limitReached when maxFiles stops the walk early", async () => {
+    const root = await createFixture();
+    const report = await buildScanReport({ rootDir: root, maxFiles: 1 });
+
+    expect(report.summary.limitReached).toBe(true);
+    expect(report.summary.filesScanned).toBe(1);
   });
 
   it("detects auth-token files when _authToken appears after the former head slice", async () => {
