@@ -8,8 +8,13 @@ import {
   type CreateOperatorOrganizationResult,
   type ProvisionGuidedOrganizationResult,
 } from "@insecur/onboarding";
+import {
+  completeBootstrapOperatorClaim,
+  type CompleteBootstrapOperatorClaimResult,
+} from "@insecur/instance-bootstrap";
 import type {
   AcceptInvitationRpcInput,
+  CompleteBootstrapClaimRpcInput,
   CreateInvitationRpcInput,
   CreateOperatorOrganizationRpcInput,
   ProvisionGuidedOrganizationRpcInput,
@@ -90,6 +95,22 @@ export function acceptInvitationRpc(
       organizationId: input.organizationId,
       acceptingUserId: actor.userId,
       ...(input.membershipId !== undefined ? { membershipId: input.membershipId } : {}),
+      request: { requestId: input.requestId },
+    }),
+  );
+}
+
+export function completeBootstrapClaimRpc(
+  post: PostAuthRpcRunner,
+  input: CompleteBootstrapClaimRpcInput,
+): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
+  return post(input.actorToken, ({ actor }) =>
+    completeBootstrapOperatorClaim({
+      instanceId: input.instanceId,
+      actor,
+      bootstrapSecret: input.bootstrapSecret,
+      operatorGrantId: input.operatorGrantId,
+      ownerMembershipId: input.ownerMembershipId,
       request: { requestId: input.requestId },
     }),
   );

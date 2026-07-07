@@ -13,6 +13,7 @@ import { Hono } from "hono";
 import { auditEventsRoutes } from "./routes/v1/audit-events.js";
 import { authRoutes } from "./routes/v1/auth.js";
 import { designPartnerFeedbackRoutes } from "./routes/v1/design-partner-feedback.js";
+import { firstValueUsageRoutes } from "./routes/v1/first-value-usage.js";
 import { instanceBootstrapRoutes } from "./routes/v1/instance-bootstrap.js";
 import { invitationsRoutes } from "./routes/v1/invitations.js";
 import { highAssuranceChallengesRoutes } from "./routes/v1/high-assurance-challenges.js";
@@ -99,5 +100,6 @@ app.route("/v1/orgs/:organizationId/operations", operationsRoutes);
 app.route("/v1/orgs/:organizationId/high-assurance-challenges", highAssuranceChallengesRoutes);
 app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
 app.route("/v1/orgs/:organizationId/design-partner-feedback", designPartnerFeedbackRoutes);
+app.route("/v1/orgs/:organizationId/first-value-usage", firstValueUsageRoutes);
 
 export default app;

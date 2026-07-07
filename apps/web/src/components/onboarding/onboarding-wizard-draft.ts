@@ -5,9 +5,14 @@ import {
 
 const STORAGE_KEY = "insecur:onboarding-wizard-draft";
 
-export type FormStepId = "name-organization" | "enroll-passkey" | "create-project";
+export type FormStepId = "name-organization" | "enroll-passkey" | "create-project" | "first-secret";
 
-const FORM_STEPS = new Set<FormStepId>(["name-organization", "enroll-passkey", "create-project"]);
+const FORM_STEPS = new Set<FormStepId>([
+  "name-organization",
+  "enroll-passkey",
+  "create-project",
+  "first-secret",
+]);
 
 export interface OnboardingWizardDraft {
   readonly step: FormStepId;
