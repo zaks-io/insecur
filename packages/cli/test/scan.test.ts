@@ -16,6 +16,9 @@ import {
 describe("insecur scan", () => {
   let fixtureDir: string;
 
+  const chmodDenyReadIsMeaningful = process.platform !== "win32" && process.getuid?.() !== 0;
+  const unreadablePermissionIt = chmodDenyReadIsMeaningful ? it : it.skip;
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -148,7 +151,7 @@ describe("insecur scan", () => {
     stdout.mockRestore();
   });
 
-  it("reports unreadable secret-path candidates in the summary", async () => {
+  unreadablePermissionIt("reports unreadable secret-path candidates in the summary", async () => {
     const root = await createFixture();
     const npmrcPath = join(root, ".npmrc");
     await writeFile(npmrcPath, "registry=https://registry.npmjs.org/\n", "utf8");
@@ -162,7 +165,7 @@ describe("insecur scan", () => {
     }
   });
 
-  it("reports unreadable directories in the summary", async () => {
+  unreadablePermissionIt("reports unreadable directories in the summary", async () => {
     const root = await mkdtemp(join(tmpdir(), "insecur-scan-walker-dir-"));
     const secretsDir = join(root, "secrets");
     await mkdir(secretsDir);
