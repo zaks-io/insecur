@@ -264,6 +264,101 @@ describe("runImportCommand", () => {
     expect(api.listProjectSecrets).not.toHaveBeenCalled();
   });
 
+  it("fails all-or-nothing when duplicate final variable keys appear in the source file", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const api = createMockApi();
+    const filePath = await writeEnvFile("API_KEY=alpha\nAPI_KEY=beta\n");
+
+    await expect(
+      runImportCommand(flags, api, mockContext, { filePath, dryRun: false }),
+    ).rejects.toMatchObject({
+      code: IMPORT_ERROR_CODES.duplicateVariableKey,
+    } satisfies Partial<CliError>);
+    expect(api.writeSecretByVariableKey).not.toHaveBeenCalled();
+
+    const parsed: unknown = JSON.parse(stdout.mock.calls[0]?.[0] as string);
+    expect(parsed).toMatchObject({
+      ok: true,
+      data: {
+        plan: expect.objectContaining({
+          ready: false,
+          duplicateVariableKeys: ["API_KEY"],
+          issues: [{ variableKey: "API_KEY", code: IMPORT_ERROR_CODES.duplicateVariableKey }],
+        }),
+      },
+    });
+    expect(JSON.stringify(parsed)).not.toContain("alpha");
+    expect(JSON.stringify(parsed)).not.toContain("beta");
+    stdout.mockRestore();
+  });
+
+  it("fails all-or-nothing when --variable-key-prefix produces duplicate final keys", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const api = createMockApi();
+    const filePath = await writeEnvFile("KEY=alpha\nKEY=beta\n");
+
+    await expect(
+      runImportCommand(flags, api, mockContext, {
+        filePath,
+        dryRun: false,
+        variableKeyPrefix: "LOCAL_",
+      }),
+    ).rejects.toMatchObject({
+      code: IMPORT_ERROR_CODES.duplicateVariableKey,
+    } satisfies Partial<CliError>);
+    expect(api.writeSecretByVariableKey).not.toHaveBeenCalled();
+
+    const parsed: unknown = JSON.parse(stdout.mock.calls[0]?.[0] as string);
+    expect(parsed).toMatchObject({
+      ok: true,
+      data: {
+        plan: expect.objectContaining({
+          ready: false,
+          duplicateVariableKeys: ["LOCAL_KEY"],
+          issues: [{ variableKey: "LOCAL_KEY", code: IMPORT_ERROR_CODES.duplicateVariableKey }],
+        }),
+      },
+    });
+    expect(JSON.stringify(parsed)).not.toContain("alpha");
+    expect(JSON.stringify(parsed)).not.toContain("beta");
+    stdout.mockRestore();
+  });
+
+  it("imports distinct source keys that remain unique after --variable-key-prefix", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const api = createMockApi();
+    const filePath = await writeEnvFile("KEY=alpha\nAPI_KEY=beta\n");
+
+    const exitCode = await runImportCommand(flags, api, mockContext, {
+      filePath,
+      dryRun: false,
+      variableKeyPrefix: "API_",
+    });
+
+    expect(exitCode).toBe(0);
+    expect(api.writeSecretByVariableKey).toHaveBeenCalledTimes(2);
+    expect(api.writeSecretByVariableKey).toHaveBeenCalledWith(
+      expect.objectContaining({ variableKey: "API_KEY" }),
+    );
+    expect(api.writeSecretByVariableKey).toHaveBeenCalledWith(
+      expect.objectContaining({ variableKey: "API_API_KEY" }),
+    );
+  });
+
   it("fails all-or-nothing when an existing secret conflicts", async () => {
     setMemorySession({
       credential: "credential_test",
