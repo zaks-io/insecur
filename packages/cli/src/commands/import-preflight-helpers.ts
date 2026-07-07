@@ -35,7 +35,7 @@ export function assertImportableEnvironment(environment: TargetEnvironmentMetada
   }
 }
 
-export function decodeImportFileUtf8(fileBytes: Uint8Array): string {
+function decodeImportFileUtf8(fileBytes: Uint8Array): string {
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(fileBytes);
   } catch {
@@ -47,7 +47,7 @@ export function decodeImportFileUtf8(fileBytes: Uint8Array): string {
   }
 }
 
-export function validateVariableKeyPrefix(prefix: string | undefined): string | undefined {
+function validateVariableKeyPrefix(prefix: string | undefined): string | undefined {
   if (prefix === undefined) {
     return undefined;
   }
@@ -62,7 +62,7 @@ export function validateVariableKeyPrefix(prefix: string | undefined): string | 
   return prefix;
 }
 
-export function applyVariableKeyPrefix(parsedKey: string, prefix: string | undefined): string {
+function applyVariableKeyPrefix(parsedKey: string, prefix: string | undefined): string {
   return prefix === undefined ? parsedKey : `${prefix}${parsedKey}`;
 }
 
@@ -94,7 +94,7 @@ export function collectDuplicateKeys(
   };
 }
 
-export function existingSecretKeysForEnvironment(
+function existingSecretKeysForEnvironment(
   matrixRows: readonly {
     readonly variableKey: VariableKey;
     readonly cells: readonly { readonly environmentId: EnvironmentId; readonly present: boolean }[];
