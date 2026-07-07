@@ -67,6 +67,8 @@ import type {
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAbuseDeniedRpcInput,
@@ -75,6 +77,8 @@ import type {
   RecordAdmissionDeniedRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RevokeCliSessionRpcInput,
+  RevokeCliSessionRpcPayload,
   RuntimeRpcResult,
   RuntimeSecretWritePayload,
   WriteSecretRpcInput,
@@ -103,6 +107,9 @@ export interface RuntimeRpc {
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>>;
   getBootstrapStatus(input: GetBootstrapStatusRpcInput): Promise<RuntimeRpcResult<BootstrapStatus>>;
+  isCliSessionRevoked(
+    input: IsCliSessionRevokedRpcInput,
+  ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>>;
 
   // Post-auth (carry a scoped hop token; the Runtime rebuilds the actor).
   provisionGuidedOrganization(
@@ -147,6 +154,9 @@ export interface RuntimeRpc {
   listSessionOrganizations(
     input: ListSessionOrganizationsRpcInput,
   ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>>;
+  revokeCliSession(
+    input: RevokeCliSessionRpcInput,
+  ): Promise<RuntimeRpcResult<RevokeCliSessionRpcPayload>>;
   resolveSessionWhoami(
     input: ResolveSessionWhoamiRpcInput,
   ): Promise<RuntimeRpcResult<ResolveSessionWhoamiRpcPayload>>;

@@ -138,6 +138,8 @@ export {
   type AppConnectionErrorCode,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   type ProviderAppRegistrationErrorCode,
+  IMPORT_ERROR_CODES,
+  type ImportErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,

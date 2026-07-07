@@ -51,13 +51,15 @@ events with metadata-only envelopes. Query filters: `actorUserId`, `actorMachine
 via `cursor` and bounded `pageSize`. Authorize-then-read requires `metadata:detail_read` inside the
 Runtime deploy.
 
-Under `/v1/session` (INS-367, INS-430): `GET /whoami` echoes the verified actor plus session
+Under `/v1/session` (INS-367, INS-430, INS-436): `GET /whoami` echoes the verified actor plus session
 validity/expiry, resolved org/project/env context (optional `orgId`, `projectId`, `envId` query
 params), and attribution tier (`derived`, `registered`, `tag-only`, `none`). Optional agent inputs
 are `agentSessionId`, `agentTag`, `harnessName`, and `ancestryKey`; Tier-2 auto-registration runs
 when a harness is detected on a bare human token. Reads beyond the actor claim forward over the
 `RUNTIME` seam. `GET /memberships` is the console org-switcher self-read (the actor's own
-organizations), forwarded over the `RUNTIME` seam.
+organizations), forwarded over the `RUNTIME` seam. `POST /revoke` ends the calling actor's own CLI
+session, forwarded over the `RUNTIME` seam; unauthenticated callers receive a metadata-only success
+no-op.
 
 The People reads (INS-373): `GET /v1/orgs/:organizationId/members` lists membership metadata and
 `GET /v1/orgs/:organizationId/invitations` lists pending-invitation metadata (identifiers, role

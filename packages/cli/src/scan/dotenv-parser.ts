@@ -1,3 +1,5 @@
+import { normalizeDotenvLineBody, splitDotenvAssignmentBody } from "../input/dotenv-line.js";
+
 export interface DotenvEntry {
   readonly key: string;
   readonly lineNumber: number;
@@ -8,9 +10,7 @@ function parseDotenvLine(trimmed: string, lineNumber: number): DotenvEntry | nul
     return null;
   }
 
-  const body = trimmed.startsWith("export ")
-    ? trimmed.slice("export ".length).trimStart()
-    : trimmed;
+  const body = normalizeDotenvLineBody(trimmed);
   const key = parseKeyValueLine(body);
   return key ? { key, lineNumber } : null;
 }
@@ -39,21 +39,8 @@ export function parseDotenvKeys(content: string): readonly DotenvEntry[] {
 
 /** Returns the variable key from a single `KEY=...` line, or null when unparseable. */
 function parseKeyValueLine(line: string): string | null {
-  const eqIndex = line.indexOf("=");
-  if (eqIndex <= 0) {
-    return null;
-  }
-
-  const rawKey = line.slice(0, eqIndex).trim();
-  if (!isValidDotenvKey(rawKey)) {
-    return null;
-  }
-
-  return rawKey;
-}
-
-function isValidDotenvKey(key: string): boolean {
-  return /^[A-Za-z_][A-Za-z0-9_]*$/u.test(key);
+  const assignment = splitDotenvAssignmentBody(line);
+  return assignment?.rawKey ?? null;
 }
 
 /** Classify a dotenv value shape without exposing the value. */
@@ -76,15 +63,11 @@ export function classifyDotenvValueShape(value: string): {
 
 /** Extract value portion from a dotenv line for in-memory classification only. */
 export function extractDotenvValue(line: string): string | null {
-  const trimmed = line.trim();
-  const body = trimmed.startsWith("export ")
-    ? trimmed.slice("export ".length).trimStart()
-    : trimmed;
-  const eqIndex = body.indexOf("=");
-  if (eqIndex <= 0) {
+  const assignment = splitDotenvAssignmentBody(normalizeDotenvLineBody(line.trim()));
+  if (assignment === null) {
     return null;
   }
-  return parseDotenvValuePortion(body.slice(eqIndex + 1));
+  return parseDotenvValuePortion(assignment.valuePortion);
 }
 
 function parseDotenvValuePortion(raw: string): string {

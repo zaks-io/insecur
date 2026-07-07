@@ -223,6 +223,50 @@ describe("worker session routes", () => {
     });
   });
 
+  it("no-ops POST /revoke without authentication", async () => {
+    const response = await app.request(
+      "/v1/session/revoke",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+      env,
+    );
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({ ok: true, data: { revoked: false } });
+  });
+
+  it("forwards POST /revoke over the RUNTIME seam for authenticated callers", async () => {
+    const runtime = createRuntimeRpcStub();
+    runtime.revokeCliSession.mockResolvedValue({ ok: true, value: { revoked: true } });
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_revoke_route",
+      },
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+    const response = await app.request(
+      "/v1/session/revoke",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${minted.credential}`,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      },
+      { ...env, RUNTIME: runtime },
+    );
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({ ok: true, data: { revoked: true } });
+    expect(runtime.revokeCliSession).toHaveBeenCalledOnce();
+    const input = runtime.revokeCliSession.mock.calls[0]?.[0];
+    expect(input?.requestId).toEqual(expect.any(String));
+    expect(input?.instanceId).toBe("inst_LOCAL_DEV");
+  });
+
   it("forwards the memberships read over the RUNTIME seam and returns the organizations", async () => {
     const runtime = createRuntimeRpcStub();
     runtime.listSessionOrganizations.mockResolvedValue({

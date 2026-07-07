@@ -18,8 +18,10 @@ export interface FakeAdmissionRuntime extends RuntimeAdmissionRpc {
  */
 export function createFakeAdmissionRuntime(
   admissions: Readonly<Record<string, UserId>> = {},
+  options: { readonly revokedSessionIds?: ReadonlySet<string> } = {},
 ): FakeAdmissionRuntime {
   const admitted = new Map(Object.entries(admissions));
+  const revokedSessionIds = options.revokedSessionIds ?? new Set<string>();
   const deniedCalls: FakeAdmissionRuntime["deniedCalls"] = [];
   return {
     deniedCalls,
@@ -27,6 +29,11 @@ export function createFakeAdmissionRuntime(
       Promise.resolve({
         ok: true,
         value: { userId: admitted.get(input.workosUserId) ?? null },
+      }),
+    isCliSessionRevoked: (input) =>
+      Promise.resolve({
+        ok: true,
+        value: { revoked: revokedSessionIds.has(input.sessionId) },
       }),
     recordAdmissionDenied: (input) => {
       deniedCalls.push({
