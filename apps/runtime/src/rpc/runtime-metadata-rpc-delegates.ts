@@ -11,6 +11,8 @@ import type {
   CreateProjectRpcPayload,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
+  ExportTenantAuditRpcInput,
+  ExportTenantAuditRpcPayload,
   ListAuditEventsRpcInput,
   ListAuditEventsRpcPayload,
   ListEnvironmentsRpcInput,
@@ -46,6 +48,7 @@ import { queryFirstValueUsageOperation } from "../operations/query-first-value-u
 import { getOperationOperation } from "../operations/get-operation-operation.js";
 import { cancelOperationOperation } from "../operations/cancel-operation-operation.js";
 import { listAuditEventsOperation } from "../operations/list-audit-events-operation.js";
+import { exportTenantAuditOperation } from "../operations/export-tenant-audit-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
 import { createEnvironmentOperation } from "../operations/create-environment-operation.js";
 import { createProjectOperation } from "../operations/create-project-operation.js";
@@ -154,6 +157,16 @@ export function listAuditEventsRpc(
 ): Promise<RuntimeRpcResult<ListAuditEventsRpcPayload>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     listAuditEventsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function exportTenantAuditRpc(
+  post: PostAuthRpcRunner,
+  env: Parameters<typeof exportTenantAuditOperation>[0]["env"],
+  input: ExportTenantAuditRpcInput,
+): Promise<RuntimeRpcResult<ExportTenantAuditRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    exportTenantAuditOperation({ env, input, auditActor, accessActor }),
   );
 }
 

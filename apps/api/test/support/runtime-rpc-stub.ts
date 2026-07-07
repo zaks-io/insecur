@@ -59,6 +59,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     listOrganizationInvitations: vi.fn(),
     listAuditEvents: vi.fn(),
     queryFirstValueUsage: vi.fn(),
+    exportTenantAudit: vi.fn(),
     listPendingHighAssuranceChallenges: vi.fn(),
     getHighAssuranceChallenge: vi.fn(),
     clearHighAssuranceChallenge: vi.fn(),

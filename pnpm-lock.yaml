@@ -227,6 +227,9 @@ importers:
       '@insecur/access':
         specifier: workspace:*
         version: link:../../packages/access
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@insecur/machine-auth':
         specifier: workspace:*
         version: link:../../packages/machine-auth
