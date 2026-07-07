@@ -9,9 +9,18 @@ import {
   formatScanHumanReport,
   formatScanStrictQuietSummary,
 } from "../scan/report.js";
+import {
+  formatTranscriptScanHumanReport,
+  formatTranscriptScanStrictQuietSummary,
+} from "../scan/transcripts/report.js";
+import { buildTranscriptScanReport } from "../scan/transcripts/scanner.js";
 
 export interface ScanCommandOptions {
   readonly strict?: boolean;
+  readonly agentTranscripts?: boolean;
+  readonly transcriptPaths?: readonly string[];
+  readonly transcriptGlobs?: readonly string[];
+  readonly homeDir?: string;
 }
 
 function assertScanOutputFlagsCompatible(flags: GlobalCliFlags, strict: boolean): void {
@@ -35,6 +44,11 @@ export async function runScanCommand(
   assertScanOutputFlagsCompatible(flags, strict);
 
   const rootDir = resolve(flags.configDir ?? process.cwd());
+
+  if (commandOptions.agentTranscripts === true) {
+    return runAgentTranscriptScan(flags, commandOptions, rootDir, strict);
+  }
+
   const report = await buildScanReport({ rootDir });
 
   if (strict && flags.quiet) {
@@ -51,6 +65,44 @@ export async function runScanCommand(
   }
 
   if (strict && report.summary.likelySecrets > 0) {
+    return EXIT_ACTION_REQUIRED;
+  }
+
+  return 0;
+}
+
+async function runAgentTranscriptScan(
+  flags: GlobalCliFlags,
+  commandOptions: ScanCommandOptions,
+  rootDir: string,
+  strict: boolean,
+): Promise<number> {
+  const report = await buildTranscriptScanReport({
+    rootDir,
+    ...(commandOptions.homeDir !== undefined ? { homeDir: commandOptions.homeDir } : {}),
+    ...(commandOptions.transcriptPaths !== undefined
+      ? { transcriptPaths: commandOptions.transcriptPaths }
+      : {}),
+    ...(commandOptions.transcriptGlobs !== undefined
+      ? { transcriptGlobs: commandOptions.transcriptGlobs }
+      : {}),
+  });
+
+  if (strict && flags.quiet) {
+    process.stderr.write(`${formatTranscriptScanStrictQuietSummary(report)}\n`);
+  } else {
+    renderSuccess(
+      successEnvelope({
+        findings: report.findings,
+        warnings: report.warnings,
+        summary: report.summary,
+      }),
+      { json: flags.json, quiet: flags.quiet },
+      () => formatTranscriptScanHumanReport(report),
+    );
+  }
+
+  if (strict && report.summary.exposureCount > 0) {
     return EXIT_ACTION_REQUIRED;
   }
 

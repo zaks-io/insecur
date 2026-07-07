@@ -740,6 +740,12 @@ insecur scan --json
 insecur scan --strict
 insecur scan --strict --quiet
 insecur scan --config-dir /path/to/project
+insecur scan --agent-transcripts
+insecur scan --agent-transcripts --json
+insecur scan --agent-transcripts --strict
+insecur scan --agent-transcripts --transcript-path /path/to/export.jsonl
+insecur scan --agent-transcripts --transcript-glob '/exports/**/*.jsonl'
+insecur scan --agent-transcripts --config-dir /path/to/project
 ```
 
 Rules:
@@ -756,6 +762,18 @@ Rules:
 - Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
 - `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready); it cannot be combined with `--json`.
 - Migratable dotenv findings include remediation `insecur secrets set <KEY> --value-stdin`; values are never inlined in suggested commands.
+
+#### Agent transcript exposure scan (`--agent-transcripts`)
+
+- Offline, read-only, and metadata-only: no auth, no network, no upload of transcripts or candidate values, and no automatic rotation, deletion, or cleanup.
+- Reuses project-secret candidate detection from the project scan, comparing candidate values to local transcript text in process memory only.
+- Auto-discovers well-known local Cursor (`~/.cursor/projects/*/agent-transcripts/`), Claude Code (`~/.claude/projects/**/*.jsonl`), and Codex (`~/.codex/sessions/**/*.jsonl`) transcript locations when they are readable; missing default locations produce metadata-only warnings and exit `0` unless `--strict` finds exposures.
+- Supports explicit `--transcript-path` (repeatable) and `--transcript-glob` for exported logs or unsupported agent tools.
+- Also flags high-confidence secret-shaped values that appear directly in transcripts (`heuristic_transcript_secret`) even when no matching project file is available.
+- Findings distinguish `candidate_match` (confirmed project secret in transcript) from `heuristic_transcript_secret` (high-confidence suspicion).
+- Human and `--json` output never print raw secret values or transcript excerpts; each finding includes redacted `valueShape` and stable local `valueFingerprint` metadata only.
+- Findings include provider/tool, source path, session/conversation id and timestamp when parseable, detector id, confidence, and suggested next steps (`rotate_or_revoke`, `migrate_to_insecur` when migratable, `clean_local_transcripts`, `mark_false_positive`, `ignore`); insecur does not execute these automatically.
+- Exit `0` by default even when exposures exist; `--strict` exits `7` (action-required) when exposures exist; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
 
 ### Secrets
 
