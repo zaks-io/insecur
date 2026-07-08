@@ -23,6 +23,7 @@
     "@insecur/agent-attribution": "workspace:*",
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
+    "@insecur/backup-restore": "workspace:*",
     "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/high-assurance": "workspace:*",

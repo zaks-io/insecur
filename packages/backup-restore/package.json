@@ -11,12 +11,17 @@
     "verify-evidence": "tsx src/cli.ts verify-evidence",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
+    "test:rls": "vitest run --config vitest.rls.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@insecur/audit": "workspace:*",
     "@insecur/crypto": "workspace:*",
-    "@insecur/domain": "workspace:*"
+    "@insecur/domain": "workspace:*",
+    "@insecur/operations": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
