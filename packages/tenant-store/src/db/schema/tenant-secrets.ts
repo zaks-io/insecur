@@ -184,9 +184,14 @@ export const injectionGrants = pgTable(
     policyVersionId: text("policy_version_id"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedReason: text("revoked_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => orgProjectAndEnvironmentForeignKeys(table),
+  (table) => [
+    ...orgProjectAndEnvironmentForeignKeys(table),
+    sql`CHECK (${table.revokedReason} IS NULL OR ${table.revokedReason} IN ('tenant_suspension', 'compromise_version_invalidation'))`,
+  ],
 );
 
 export const auditEvents = pgTable("audit_events", {

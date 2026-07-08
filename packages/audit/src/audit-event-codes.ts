@@ -80,6 +80,8 @@ export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEvent
   FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumeDenied,
+  FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantsRevokeTenantSuspensionDenied,
+  FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantsRevokeCompromiseVersionDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.authCliPkceExchangeDenied,

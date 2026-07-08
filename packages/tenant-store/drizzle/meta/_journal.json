@@ -134,6 +134,13 @@
       "when": 1783900000000,
       "tag": "0018_webhook_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784000000000,
+      "tag": "0019_injection_grant_revocation",
+      "breakpoints": true
     }
   ]
 }

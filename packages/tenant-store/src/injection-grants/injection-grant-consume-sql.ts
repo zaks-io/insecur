@@ -17,6 +17,8 @@ export const injectionGrantRowSelection = {
   policy_version_id: injectionGrants.policyVersionId,
   expires_at: injectionGrants.expiresAt,
   consumed_at: injectionGrants.consumedAt,
+  revoked_at: injectionGrants.revokedAt,
+  revoked_reason: injectionGrants.revokedReason,
 } as const;
 
 function activeInjectionGrantWhere(organizationId: OrganizationId, grantId: InjectionGrantId) {
@@ -24,6 +26,7 @@ function activeInjectionGrantWhere(organizationId: OrganizationId, grantId: Inje
     eq(injectionGrants.id, grantId),
     eq(injectionGrants.orgId, organizationId),
     isNull(injectionGrants.consumedAt),
+    isNull(injectionGrants.revokedAt),
     gt(injectionGrants.expiresAt, sql`now()`),
   );
 }

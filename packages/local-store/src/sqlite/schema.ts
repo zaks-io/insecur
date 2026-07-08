@@ -87,6 +87,8 @@ CREATE TABLE IF NOT EXISTS injection_grants (
   secret_version_ids_json TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
+  revoked_at TEXT,
+  revoked_reason TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (project_id, environment_id) REFERENCES environments(project_id, id) ON DELETE CASCADE

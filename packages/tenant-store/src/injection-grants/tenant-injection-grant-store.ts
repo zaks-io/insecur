@@ -4,6 +4,7 @@ import type {
   ProjectId,
   EnvironmentId,
   SecretId,
+  SecretVersionId,
   VariableKey,
 } from "@insecur/domain";
 import { and, eq } from "drizzle-orm";
@@ -17,12 +18,17 @@ import {
   performConsumeAllUpdate,
   performConsumeUpdate,
 } from "./injection-grant-consume-sql.js";
+import {
+  revokeActiveInjectionGrantsForOrganization,
+  revokeActiveInjectionGrantsForSecretVersion,
+} from "./injection-grant-revoke-sql.js";
 import type {
   ConsumedInjectionGrantRow,
   InjectionGrantConsumeFailure,
   InjectionGrantRow,
   InsertInjectionGrantInput,
 } from "./types.js";
+import { INJECTION_GRANT_REVOCATION_REASONS } from "./types.js";
 
 export type { ConsumedInjectionGrantRow, InjectionGrantConsumeFailure } from "./types.js";
 
@@ -95,6 +101,26 @@ export class TenantInjectionGrantStore {
 
   classifyConsumeAllFailure(grant: InjectionGrantRow | null): InjectionGrantConsumeFailure | null {
     return grantBindings.classifyConsumeAllFailure(grant);
+  }
+
+  async revokeActiveGrantsForOrganization(
+    organizationId: OrganizationId,
+  ): Promise<InjectionGrantId[]> {
+    return revokeActiveInjectionGrantsForOrganization(this.db, {
+      organizationId,
+      reason: INJECTION_GRANT_REVOCATION_REASONS.tenantSuspension,
+    });
+  }
+
+  async revokeActiveGrantsForSecretVersion(
+    organizationId: OrganizationId,
+    secretVersionId: SecretVersionId,
+  ): Promise<InjectionGrantId[]> {
+    return revokeActiveInjectionGrantsForSecretVersion(this.db, {
+      organizationId,
+      secretVersionId,
+      reason: INJECTION_GRANT_REVOCATION_REASONS.compromiseVersionInvalidation,
+    });
   }
 
   async tryConsumeGrant(
