@@ -100,6 +100,21 @@ describeIntegration("session agent derive/register (real DB, RUNTIME seam)", () 
     expect(whoamiBody.data.attribution.tier).toBe("derived");
     expect(whoamiBody.data.attribution.harnessName).toBe("agent.harness.claude_code");
     expect(whoamiBody.data.attribution.agentSessionId).toMatch(/^ags_[0-9A-Z]{26}$/);
+
+    const spoofed = await app.request(
+      "/v1/session/whoami?harnessName=agent.harness.anything",
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${agentCredential}` },
+      },
+      env,
+    );
+    expect(spoofed.status).toBe(200);
+    const spoofedBody = (await spoofed.json()) as {
+      ok: boolean;
+      data: { attribution: { tier: string; harnessName?: string } };
+    };
+    expect(spoofedBody.data.attribution.harnessName).toBe("agent.harness.claude_code");
   });
 
   it("registers an agent session idempotently and reports registered attribution on whoami", async () => {

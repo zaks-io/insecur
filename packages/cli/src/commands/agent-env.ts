@@ -7,6 +7,7 @@ import {
   writeAgentCredentialFile,
   type AgentCredentialStore,
 } from "../auth/agent-credential-store.js";
+import { CLI_SESSION_TOKEN_ENV } from "../auth/child-env.js";
 import {
   buildAgentEnvExports,
   deriveAgentSessionFromHuman,
@@ -28,8 +29,8 @@ function assertMetadataOnlyAgentEnvOutput(exports: Record<string, string>): void
       throw new Error(`agent env exported unexpected key ${key}`);
     }
   }
-  if ("INSECUR_SESSION_TOKEN" in process.env) {
-    // no-op; child sourcing must not print session tokens
+  if (CLI_SESSION_TOKEN_ENV in exports) {
+    throw new Error("agent env must not export session token material");
   }
   const serialized = JSON.stringify(exports);
   for (const forbidden of ['"credential"', '"token"', '"password"', '"secret"', '"plaintext"']) {
