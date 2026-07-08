@@ -27,6 +27,7 @@ Public edge. Authenticates humans/agents, forwards keyring-bound work AND all no
 | POST   | `/v1/onboarding`                                     |
 | GET    | `/v1/orgs/:organizationId/audit-events`              |
 | GET    | `/v1/orgs/:organizationId/audit-export`              |
+| *      | `/v1/orgs/:organizationId/connections`               |
 | POST   | `/v1/orgs/:organizationId/design-partner-feedback`   |
 | GET    | `/v1/orgs/:organizationId/first-value-usage`         |
 | *      | `/v1/orgs/:organizationId/high-assurance-challenges` |
@@ -41,6 +42,8 @@ Public edge. Authenticates humans/agents, forwards keyring-bound work AND all no
 | *      | `/v1/session`                                        |
 
 Under `/v1/orgs/:organizationId/run-policies` (INS-437): `POST /` creates an immutable Runtime Injection Policy Version with exact secret bindings and updates the active pointer; `GET /:policyId` returns metadata-only policy show; `POST /:policyId/disable` disables a policy with audit. Protected Environment mutations require a High-Assurance Challenge (`auth.high_assurance_required` with `meta.operationId` when absent). All three forward over the `RUNTIME` seam.
+
+Under `/v1/orgs/:organizationId/connections` (INS-441): `GET /` lists metadata-only App Connections; `POST /` creates a connection via provider authorization or scoped token input; `GET /:connectionId` returns metadata-only status; `POST /:connectionId/reauth` reauthorizes a connection; `POST /:connectionId/rotate` rotates credential-backed provider credentials (optional `dryRun`); `POST /:connectionId/disconnect` disconnects with audit. Create, credential replacement, reauth, and boundary changes require a High-Assurance Challenge. List/status never return provider credentials. All routes forward over the `RUNTIME` seam.
 
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /` creates a project with a client-minted opaque ID and Display Name; `GET /:projectId/environments` lists environment metadata (including `isProtected`); `POST /:projectId/environments` creates a non-protected development environment (optional Secret Shape copy from another environment in the same project); `GET /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version, last-set actor/time; INS-363). `GET /:projectId/environments/:environmentId/secrets` lists environment-scoped Secret Shape metadata (variable key, opaque secret id, display name, current version pointer; INS-434). `GET /:projectId/environments/:environmentId/secrets/:secretId/versions` lists per-version metadata for one Secret (version ids, timestamps, current/published markers; INS-434). `POST /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
 

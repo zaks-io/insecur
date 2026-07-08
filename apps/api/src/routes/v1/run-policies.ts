@@ -1,7 +1,6 @@
 import {
   handleRoute,
   parseEnvironmentIdParam,
-  parseJsonBody,
   parseOperationIdParam,
   parseProjectIdParam,
   parseRequiredDisplayName,
@@ -17,15 +16,14 @@ import {
 import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
+import { parseOrgScopedMutationBody } from "./parse-org-scoped-mutation-body.js";
 
 const runPoliciesRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 runPoliciesRoutes.post("/", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {
-    const userActor = context.get("userActor");
-    const organizationId = parseOrganizationRouteParam(context);
-    const body = parseJsonBody(await context.req.json());
-    const operationIdRaw = readOptionalString(body, "operationId");
+    const { userActor, organizationId, body, operationIdRaw } =
+      await parseOrgScopedMutationBody(context);
     const commandFingerprintRaw = readOptionalString(body, "commandFingerprint");
 
     return runtimeClientFor(context.env, userActor).createRuntimeInjectionPolicy({
@@ -63,13 +61,11 @@ runPoliciesRoutes.get("/:policyId", requireUserActor, async (context) =>
 
 runPoliciesRoutes.post("/:policyId/disable", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {
-    const userActor = context.get("userActor");
-    const organizationId = parseOrganizationRouteParam(context);
+    const { userActor, organizationId, body, operationIdRaw } =
+      await parseOrgScopedMutationBody(context);
     const policyId = parseRuntimePolicyIdParam(
       requireRouteParam(context.req.param("policyId"), "policyId"),
     );
-    const body = parseJsonBody(await context.req.json());
-    const operationIdRaw = readOptionalString(body, "operationId");
 
     return runtimeClientFor(context.env, userActor).disableRuntimeInjectionPolicy({
       organizationId,

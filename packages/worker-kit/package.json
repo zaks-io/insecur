@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./rpc/runtime-connections-rpc-contract": "./src/rpc/runtime-connections-rpc-contract.ts",
     "./rpc/runtime-run-policies-rpc-contract": "./src/rpc/runtime-run-policies-rpc-contract.ts"
   },
   "scripts": {
