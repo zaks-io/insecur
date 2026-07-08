@@ -36,8 +36,9 @@ mitigation is available.
 ## Public Endpoint Scope
 
 The authoritative route inventory is
-[`docs/specs/deploy-route-inventory.md`](docs/specs/deploy-route-inventory.md). Update that file and
-this section together when the public surface changes.
+[`docs/specs/deploy-route-inventory.md`](docs/specs/deploy-route-inventory.md) (generated via
+`pnpm routes:inventory` from route mounts plus `deploy-route-inventory.sidecar.json`). Regenerate
+that inventory and update this section together when the public surface changes.
 
 | Surface         | Production endpoint                                  | Preview endpoint                    | Public route groups                                                                                                                                    |
 | --------------- | ---------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |

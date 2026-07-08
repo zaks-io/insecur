@@ -13,16 +13,21 @@
 //   (e2) the API Worker declares pre-tenant public-edge rate-limit bindings at top-level and under
 //        env.preview with distinct namespace IDs (INS-278).
 //   (f) each deploy's live public route mounts match docs/specs/deploy-route-inventory.md in both
-//       directions (ADR-0067).
+//       directions (ADR-0067), and the committed inventory matches `pnpm routes:inventory`.
 //   (g) signing secrets are never declared as plaintext wrangler `vars` (INS-276).
 //
 // HARD-FAILS (exit 1) on any violation. Wired into `pnpm verify`.
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { parseJsonc } from "../jsonc.mjs";
+import {
+  collectDeployRouteMounts,
+  listWranglerApps,
+  parseRouteInventory,
+} from "./deploy-routes.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const appsDir = join(repoRoot, "apps");
@@ -34,6 +39,7 @@ const RUNTIME_BINDING = "RUNTIME";
 const RUNTIME_SCRIPT_NAME = "insecur-runtime";
 const RUNTIME_ENTRYPOINT = "RuntimeService";
 const INVENTORY_DOC = join(repoRoot, "docs", "specs", "deploy-route-inventory.md");
+const INVENTORY_SIDECAR = join(repoRoot, "docs", "specs", "deploy-route-inventory.sidecar.json");
 // INS-278: pre-tenant public-edge abuse controls on @insecur/api (production + preview deploys).
 const PUBLIC_EDGE_RATE_LIMIT_BINDINGS = [
   { name: "ONBOARDING_IP", limit: 30, period: 60 },
@@ -79,6 +85,7 @@ function main() {
   assertWebApiServiceBinding(deploys);
   assertApiPublicEdgeRateLimitBindings(deploys);
   assertRouteInventoryMatches(deploys);
+  assertRouteInventoryFresh();
   assertNoPlaintextSigningSecretsInVars(deploys);
 
   report();
@@ -97,36 +104,18 @@ function report() {
 }
 
 function discoverDeploys() {
-  const deploys = [];
-  for (const entry of readdirSync(appsDir)) {
-    const appPath = join(appsDir, entry);
-    const wranglerPath = join(appPath, "wrangler.jsonc");
-    if (!isFile(wranglerPath)) {
-      continue;
-    }
-    const raw = readFileSync(wranglerPath, "utf8");
-    let config;
-    try {
-      config = parseJsonc(raw, wranglerPath);
-    } catch (error) {
-      fail(error instanceof Error ? error.message : String(error));
-      continue;
-    }
-    const rootKeyScopes = findRootKeyScopes(config);
-    const publicHostnameExposures = findPublicHostnameExposures(config);
-    deploys.push({
-      app: entry,
-      name: typeof config.name === "string" ? config.name : entry,
-      config,
-      wranglerPath,
-      raw,
+  return listWranglerApps(appsDir, {
+    onParseError: (error) => fail(error.message),
+  }).map((deploy) => {
+    const rootKeyScopes = findRootKeyScopes(deploy.config);
+    return {
+      ...deploy,
       rootKeyScopes,
       hasRootKey: rootKeyScopes.length > 0,
-      publicHostnameExposures,
-      routes: collectDeployRoutes(appPath, entry),
-    });
-  }
-  return deploys;
+      publicHostnameExposures: findPublicHostnameExposures(deploy.config),
+      routes: collectDeployRouteMounts(deploy.appPath, deploy.app),
+    };
+  });
 }
 
 function findRootKeyScopes(config) {
@@ -214,127 +203,6 @@ function isConfiguredPublicHostname(value) {
   return Boolean(value);
 }
 
-// Remove block comments and full-line `//` comments so a route string mentioned in a doc
-// comment never registers as a mount. Trailing `//` comments are left alone: stripping them
-// blindly would eat `https://...` inside string literals, and a route call never follows one.
-function stripComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-}
-
-// Extract public mount prefixes from a Hono composition root by reading its `app.route(...)`,
-// `app.<method>(...)`, `app.on(...)`, `app.mount(...)`, and public-surface `app.use(...)` calls.
-function extractPublicRoutes(indexPath) {
-  if (!isFile(indexPath)) {
-    return [];
-  }
-  const source = stripComments(readFileSync(indexPath, "utf8"));
-  const mounts = new Set();
-  const patterns = [
-    /app\.(route|all|get|post|put|delete|patch|options|head|mount|use)\(\s*["'`]([^"'`]+)["'`]/g,
-    /app\.on\(\s*(?:\[[^\)]*?\]|["'`][^"'`]+["'`])\s*,\s*["'`]([^"'`]+)["'`]/g,
-  ];
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(source)) !== null) {
-      const callName = match[2] === undefined ? undefined : match[1];
-      if (callName === "use" && isSentryMiddlewareUse(source, match.index)) {
-        continue;
-      }
-      const prefix = match[2] ?? match[1];
-      if (isPublicMount(prefix)) {
-        mounts.add(prefix);
-      }
-    }
-  }
-  const onPathArrayPattern = /app\.on\(\s*(?:\[[^\)]*?\]|["'`][^"'`]+["'`])\s*,\s*\[([^\]]*)\]/g;
-  let arrayMatch;
-  while ((arrayMatch = onPathArrayPattern.exec(source)) !== null) {
-    const paths = arrayMatch[1];
-    for (const pathMatch of paths.matchAll(/["'`]([^"'`]+)["'`]/g)) {
-      const prefix = pathMatch[1];
-      if (isPublicMount(prefix)) {
-        mounts.add(prefix);
-      }
-    }
-  }
-  const pathOmittedUsePattern = /app\.use\(\s*(?!["'`])/g;
-  let useMatch;
-  while ((useMatch = pathOmittedUsePattern.exec(source)) !== null) {
-    if (!isSentryMiddlewareUse(source, useMatch.index)) {
-      mounts.add("*");
-    }
-  }
-  // Plain fetch handlers (no Hono router) declare public routes as
-  // `if (...pathname === "/...")` branches; require the `if (` context so a bare
-  // pathname string in dead code or a variable never registers as a mount.
-  const pathnameLiteralPattern =
-    /if\s*\((?:[^()]|\([^()]*\))*?pathname\s*===\s*["'`](\/[^"'`]*)["'`]/g;
-  let pathnameMatch;
-  while ((pathnameMatch = pathnameLiteralPattern.exec(source)) !== null) {
-    const prefix = pathnameMatch[1];
-    if (isPublicMount(prefix)) {
-      mounts.add(prefix);
-    }
-  }
-  return [...mounts].sort();
-}
-
-function collectDeployRoutes(appPath, appName) {
-  const mounts = new Set([
-    ...extractPublicRoutes(join(appPath, "src", "index.ts")),
-    ...extractTanStackFileRoutes(appPath),
-  ]);
-  if (appName === "site") {
-    for (const route of extractPublicRoutes(join(appPath, "src", "static-site-routes.ts"))) {
-      mounts.add(route);
-    }
-  }
-  if (appName === "api") {
-    for (const route of extractPublicRoutesFromDir(join(appPath, "src", "routes"))) {
-      mounts.add(route);
-    }
-  }
-  return [...mounts].sort();
-}
-
-function extractPublicRoutesFromDir(dirPath) {
-  if (!isDirectory(dirPath)) {
-    return [];
-  }
-  const mounts = new Set();
-  for (const filePath of walkTsFiles(dirPath)) {
-    for (const route of extractPublicRoutes(filePath)) {
-      mounts.add(route);
-    }
-  }
-  return [...mounts];
-}
-
-function walkTsFiles(dirPath) {
-  const files = [];
-  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
-    const fullPath = join(dirPath, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...walkTsFiles(fullPath));
-    } else if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
-
-function isSentryMiddlewareUse(source, callIndex) {
-  const snippet = source.slice(callIndex, callIndex + 160);
-  return (
-    /^app\.use\(\s*sentry\(/.test(snippet) ||
-    /^app\.use\(\s*["'`][^"'`]+["'`]\s*,\s*sentry\(/.test(snippet)
-  );
-}
-
-function isPublicMount(prefix) {
-  return prefix === "*" || prefix.startsWith("/");
-}
-
 function assertSingleRootKeyHolder(deploys) {
   const holders = deploys.filter((deploy) => deploy.hasRootKey);
   if (holders.length === 0) {
@@ -391,55 +259,6 @@ function assertNoServiceAccessSurface(deploys) {
         );
       }
     }
-  }
-}
-
-function normalizeTanStackFileRoute(route) {
-  // TanStack pathless layout segments end with `_` in createFileRoute IDs but not in public URLs.
-  return route
-    .split("/")
-    .map((segment) => (segment.endsWith("_") ? segment.slice(0, -1) : segment))
-    .join("/");
-}
-
-function extractTanStackFileRoutes(appPath) {
-  const routesDir = join(appPath, "src", "routes");
-  if (!isDirectory(routesDir)) {
-    return [];
-  }
-  const mounts = new Set();
-  for (const filePath of listRouteSourceFiles(routesDir)) {
-    const source = readFileSync(filePath, "utf8");
-    for (const match of source.matchAll(/createFileRoute\(\s*["'`]([^"'`]+)["'`]/g)) {
-      const route = normalizeTanStackFileRoute(match[1]);
-      if (isPublicMount(route)) {
-        mounts.add(route);
-      }
-    }
-  }
-  return [...mounts];
-}
-
-function listRouteSourceFiles(directory) {
-  const files = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const entryPath = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listRouteSourceFiles(entryPath));
-      continue;
-    }
-    if (entry.isFile() && (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts"))) {
-      files.push(entryPath);
-    }
-  }
-  return files;
-}
-
-function isDirectory(path) {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
   }
 }
 
@@ -647,6 +466,23 @@ function assertRuntimeBindingShape(deploy, config, { scope, expectedService }) {
   }
 }
 
+function assertRouteInventoryFresh() {
+  if (!isFile(INVENTORY_SIDECAR)) {
+    fail(`route inventory sidecar is missing: ${INVENTORY_SIDECAR}`);
+    return;
+  }
+  const result = spawnSync(process.execPath, ["scripts/routes-inventory.mjs", "--check"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    const message =
+      result.stderr?.trim() ||
+      `${INVENTORY_DOC} is stale; run \`pnpm routes:inventory\` and commit the regenerated file`;
+    fail(message);
+  }
+}
+
 function assertRouteInventoryMatches(deploys) {
   if (!isFile(INVENTORY_DOC)) {
     fail(`route inventory owner doc is missing: ${INVENTORY_DOC}`);
@@ -699,28 +535,6 @@ function collectConfigScopes(config) {
     }
   }
   return scopes;
-}
-
-function parseRouteInventory(doc) {
-  const documentedByDeploy = new Map();
-  const headingPattern = /^## .+$/gm;
-  const headings = [...doc.matchAll(headingPattern)];
-  for (const [index, heading] of headings.entries()) {
-    const title = heading[0];
-    const backticked = [...title.matchAll(/`([^`]+)`/g)];
-    const deployName = backticked.at(-1)?.[1];
-    if (!deployName) {
-      continue;
-    }
-    const bodyStart = heading.index + title.length;
-    const bodyEnd = headings[index + 1]?.index ?? doc.length;
-    const body = doc.slice(bodyStart, bodyEnd);
-    const routes = [...body.matchAll(/^\|\s*[^|]+\|\s*`(\/[^`]*)`\s*\|/gm)].map(
-      (match) => match[1],
-    );
-    documentedByDeploy.set(deployName, new Set(routes.sort()));
-  }
-  return documentedByDeploy;
 }
 
 function isFile(path) {
