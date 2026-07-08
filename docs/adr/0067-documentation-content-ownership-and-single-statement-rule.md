@@ -24,7 +24,7 @@ the product spec's "canonical" are both true, each for the content type it owns.
 | Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](../specs/product-spec.md)                                                                                |
 | Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                                                                        |
 | Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
-| Workstream ownership, seams, and integration order          | [agent-workstreams.md](../specs/agent-workstreams.md)                                                                      |
+| Architecture group ownership, seams, and integration order  | [architecture-groups.md](../specs/architecture-groups.md)                                                                  |
 | Live implementation status                                  | [project-status.md](../project-status.md)                                                                                  |
 | Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence                                                   |
 
@@ -94,8 +94,8 @@ reference to the deterministic resolution above.
 
 - **Keep blanket stop-and-surface for every conflict.** Rejected. It resolves nothing outside the
   spec-vs-ADR pair, and at fleet scale it stalls an agent on every duplicated sentence that has
-  drifted — while [agent-workstreams.md](../specs/agent-workstreams.md) scopes workstream agents to
-  read only the ADRs and area docs linked from their workstream, so a stale restatement is often
+  drifted — while [architecture-groups.md](../specs/architecture-groups.md) scopes architecture group agents to
+  read only the ADRs and area docs linked from their architecture group, so a stale restatement is often
   undetectable by its reader in the first place.
 - **Allow restatement when labeled informative.** Rejected. Labeled copies rot exactly like
   unlabeled ones, and the documentation defect backlog is dominated by restatements that were

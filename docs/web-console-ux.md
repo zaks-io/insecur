@@ -5,7 +5,7 @@ reversible UX choices that ADR-0051 explicitly left below the ADR line: informat
 onboarding flow, and surface design. It does not restate what its owners already decide: scope and
 surfaces ([product-spec §10](specs/product-spec.md)), stack (ADR-0051), the no-reveal boundary
 (ADR-0052), onboarding model (ADR-0040/0063), step-up model (ADR-0032), workstream boundary
-([W9](specs/agent-workstreams.md)).
+([AG9](specs/architecture-groups.md)).
 
 Design target: the full management-parity console. V1 (metadata browsing, Human Approval Surface,
 and the first-run onboarding wizard, per product-spec §10) is carved out of this design, not

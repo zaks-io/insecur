@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-07-05
+Last updated: 2026-07-08
 
 Workflow lookup table for the shared `ziw-*` skills. Values are verified
 unless marked inferred or listed under Unknowns. State authority lives in the
@@ -90,15 +90,34 @@ Review gate (no parent):
 
 - `code-review-passed` — "Code review has passed and all feedback has been resolved". The merge-gate marker. Use this exact kebab-case slug; the display name is title-case ("Code review passed") and searching by the display string returns empty. Apply it to the issue when Agent Review is clean for the current PR head; the supporting evidence (head SHA + both reviewer verdicts) goes in an issue comment.
 
-Scope (no parent):
+Workstream labels (parent `Workstream`; execution lanes, not architecture groups):
 
-- `frontend`
+- `W1` — primary delivery lane. Fill with the highest-value startable implementation slice that
+  advances the current milestone and can run without sharing active files, packages, or blockers
+  with the other workstream lanes.
+- `W2` — verification lane. Fill with smoke, e2e, conformance, release-proof, and regression
+  evidence work. Verification work may validate another lane's output, but should not block that
+  lane's active implementation unless the issue relationship says so.
+- `W3` — independent support lane. Fill with non-overlapping hardening, review-debt, product
+  surface, docs/config, or cleanup slices that can progress while W1 and W2 are active.
+- `W4` through `W8` — reserve execution lanes. Use only when the orchestrator context defines a
+  concrete non-overlapping lane purpose for the current backlog pass. Do not create more persistent
+  workstream labels for team, product-area, or architecture ownership.
 
 ### Label Policies
 
 - `ready-for-agent`: no further human refinement is needed before agent handoff; does not mean unblocked or startable.
 - `remote-cursor`: approved to run in the remote Cursor environment; does not mean unblocked or startable.
-- `frontend`: UI/web scope partition so concurrent orchestrator runs can include/exclude frontend work by label. Apply at filing time (`ziw-to-issues`) to slices whose primary deliverable is `apps/web` UI, the onboarding wizard, or another browser-facing surface. Backend read slices the UI depends on do not get it. Not a readiness or startability signal.
+- `W*`: mutable execution-lane labels for throughput and collision control. They do not encode
+  architecture group, team, product area, dependency order, readiness, or human importance. A
+  dispatchable slice carries at most one `W*` label. Move or remove the label when the lane plan
+  changes.
+- Architecture groups: `AG0` through `AG10` live in
+  `docs/specs/architecture-groups.md`. They are parent containers and context-loading guides, not
+  Workstream labels.
+- Custom workstreams: do not create persistent project/team/scope labels. If an orchestrator run
+  needs a temporary grouping such as a browser-surface pass, state that filter in the orchestrator
+  context for that run or assign one of the reserve `W4` through `W8` lanes for that pass.
 - `kind-slice`: the only dispatchable kind. `kind-spec` and `kind-epic` are containers for To Issues and never run as implementation work.
 - Readiness-label query policy: `ready-for-agent` and `ready-for-human` queues exclude `Done` unless the user explicitly asks to audit Done cleanup.
 - Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, `zaks-io/insecur`, configured estimate, complete agent-ready body, no active blockers, no active claim, no open PR, clear file footprint, and delivery headroom. Issue-assigned Cursor work also requires `remote-cursor`.
@@ -134,9 +153,9 @@ Type (parent `Type`):
 | `Local Mode: Account-Less Development Custody` | `Spec and Docs Alignment`; `Local Key Custody and Store`; `Account-Less CLI Loop`; `Agent-Legible Metadata`; `Cloud Migrate Path`                                                                                 |
 
 - Field model: Project = phase/program; project milestone = delivery gate; parent issue =
-  workstream container mirroring `docs/specs/agent-workstreams.md`; child issue = one-PR work.
-  Every non-container issue in an active project gets a project milestone.
-- Workstream parents are containers: `kind-epic`, kept in `Backlog` with only `zaks-io/insecur`,
+  architecture group container mirroring `docs/specs/architecture-groups.md`; child issue =
+  one-PR work. Every non-container issue in an active project gets a project milestone.
+- Architecture group parents are containers: `kind-epic`, kept in `Backlog` with only `zaks-io/insecur`,
   no readiness/Type/risk label, no milestone. Never dispatched.
 - Deferred scope is repo-tracked, not in Linear: `docs/phasing.md#deferred-scope-parking-lot`.
   Items listed there get no Linear scaffolding until promoted in the repo docs first.
@@ -163,6 +182,12 @@ Type (parent `Type`):
 - Active PR/preview cap: 3 active delivery slots. Count repo-level open PRs, active PR-scoped previews not clearly linked to an already counted PR, and implementation dispatches that have not returned a PR.
 - Capacity drain policy: when active delivery slots are at or over cap, advance, merge, route fixes, clean up previews, or escalate existing PRs/previews before dispatching new work.
 - Dispatch footprint policy: compare predicted files/packages and shared doc/config hotspots against open PRs, active worker branches, and other selected candidates before dispatch.
+- Workstream dispatch policy: prefer at most one active item per `W*` lane by default, then use
+  Linear priority, milestone, blockers, issue readiness, and predicted footprint to choose among
+  candidates. Different `W*` labels are only parallel candidates; do not dispatch across lanes when
+  the candidate would collide with active files, packages, docs/config hotspots, open PRs, or
+  blocker relationships. Leave ready work unassigned when it would collide, even if the active
+  delivery cap has room.
 - PR closure guard: never close draft, active, recently updated, or unclear-ownership PRs only to free capacity; close only with refreshed evidence of duplicate, canceled, abandoned, terminal, or policy-required work.
 - Authoritative issue state: Linear team `INS`
 - Authoritative PR state: GitHub `zaks-io/insecur`

@@ -141,14 +141,7 @@ async function assertDeployedRuntimeConfig(cloudflareJson, accountId, scriptName
   assertObservability(settings.observability, config.observability);
 
   const bindings = settings.bindings ?? [];
-  for (const desiredSecret of config.secrets_store_secrets ?? []) {
-    assertBinding(bindings, {
-      name: desiredSecret.binding,
-      type: "secrets_store_secret",
-      store_id: desiredSecret.store_id,
-      secret_name: desiredSecret.secret_name,
-    });
-  }
+  assertDeployedSecretsStoreSecrets(bindings, config.secrets_store_secrets);
 
   const desiredHyperdrive = only(config.hyperdrive, "hyperdrive");
   assertBinding(bindings, {
@@ -208,6 +201,27 @@ function assertNestedObservability(actual, expected, label) {
     throw new Error(`Refusing content-only deploy: deployed ${label}.enabled drifted.`);
   }
   assertSetEqual(actual?.destinations ?? [], expected.destinations ?? [], `${label}.destinations`);
+}
+
+export function assertDeployedSecretsStoreSecrets(bindings, desiredSecrets) {
+  if (!Array.isArray(desiredSecrets) || desiredSecrets.length === 0) {
+    throw new Error(
+      "Refusing content-only deploy: deploy config must declare non-empty secrets_store_secrets including INSTANCE_ROOT_KEY_V1.",
+    );
+  }
+  if (!desiredSecrets.some((secret) => secret.binding === "INSTANCE_ROOT_KEY_V1")) {
+    throw new Error(
+      "Refusing content-only deploy: deploy config secrets_store_secrets must include INSTANCE_ROOT_KEY_V1.",
+    );
+  }
+  for (const desiredSecret of desiredSecrets) {
+    assertBinding(bindings, {
+      name: desiredSecret.binding,
+      type: "secrets_store_secret",
+      store_id: desiredSecret.store_id,
+      secret_name: desiredSecret.secret_name,
+    });
+  }
 }
 
 function assertBinding(bindings, expected) {

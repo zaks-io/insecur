@@ -10,6 +10,7 @@ export const USER_SCHEMA_TABLE_MODULE_PATHS = [
   "./tenant-hierarchy.js",
   "./instance-bootstrap.js",
   "./tenant-collaboration.js",
+  "./tenant-machine-auth-methods.js",
   "./tenant-agent-sessions.js",
   "./tenant-integrations.js",
   "./tenant-secrets.js",

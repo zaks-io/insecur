@@ -112,7 +112,7 @@ export async function rotateAppConnectionCredentialOperation(
     dryRun: result.dryRun,
     connection: result.connection,
     validation: result.validation,
-    auditEventId: null,
+    auditEventId: result.auditEventId,
   };
 }
 
@@ -133,7 +133,7 @@ export async function reauthAppConnectionOperation(
   return {
     connection: result.connection,
     validation: result.validation,
-    auditEventId: "aud_reauth",
+    auditEventId: result.auditEventId,
   };
 }
 
@@ -151,6 +151,6 @@ export async function disconnectAppConnectionOperation(
   });
   return {
     connection: result.connection,
-    auditEventId: "aud_disconnect",
+    auditEventId: result.auditEventId,
   };
 }

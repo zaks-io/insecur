@@ -71,8 +71,6 @@ export async function testAuditExportRuntimeEnvVars(): Promise<Record<string, st
   const keys = await createTestAuditExportKeyProviders();
   return {
     INSECUR_AUDIT_EXPORT_HMAC_SECRET: keys.hmacSecret,
-    INSECUR_AUDIT_EXPORT_SIGNING_PRIVATE_KEY_PKCS8_BASE64URL: keys.signingPrivateKeyPkcs8Base64Url,
-    INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY: keys.signingPublicKey,
   };
 }
 

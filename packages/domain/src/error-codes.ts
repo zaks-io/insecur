@@ -147,6 +147,7 @@ export type AbuseErrorCode = (typeof ABUSE_ERROR_CODES)[keyof typeof ABUSE_ERROR
 /** Audit event writer validation failures. */
 export const AUDIT_ERROR_CODES = {
   eventInvalid: "audit.event_invalid",
+  exportEntryLimitExceeded: "audit.export_entry_limit_exceeded",
 } as const;
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[keyof typeof AUDIT_ERROR_CODES];

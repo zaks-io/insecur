@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import * as instanceBootstrapSchema from "../src/db/schema/instance-bootstrap.js";
 import * as tenantCollaborationSchema from "../src/db/schema/tenant-collaboration.js";
+import * as tenantMachineAuthMethodsSchema from "../src/db/schema/tenant-machine-auth-methods.js";
 import * as tenantHierarchySchema from "../src/db/schema/tenant-hierarchy.js";
 import * as tenantIntegrationsSchema from "../src/db/schema/tenant-integrations.js";
 import * as tenantSecretsSchema from "../src/db/schema/tenant-secrets.js";
@@ -14,6 +15,7 @@ const SCHEMA_MODULES = {
   "tenant-hierarchy.js": tenantHierarchySchema,
   "instance-bootstrap.js": instanceBootstrapSchema,
   "tenant-collaboration.js": tenantCollaborationSchema,
+  "tenant-machine-auth-methods.js": tenantMachineAuthMethodsSchema,
   "tenant-integrations.js": tenantIntegrationsSchema,
   "tenant-secrets.js": tenantSecretsSchema,
   "tenant-webhooks.js": tenantWebhooksSchema,
@@ -39,9 +41,8 @@ const EXPECTED_TABLE_EXPORTS: Record<string, readonly string[]> = {
     "userAdmissions",
     "providerAppRegistrations",
   ],
-  "tenant-collaboration.js": [
-    "invitations",
-    "syncTargetLeases",
+  "tenant-collaboration.js": ["invitations", "syncTargetLeases"],
+  "tenant-machine-auth-methods.js": [
     "machineIdentities",
     "machineIdentityMemberships",
     "machineIdentityGitHubActionsOidc",

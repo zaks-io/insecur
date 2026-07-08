@@ -17,7 +17,7 @@ never resolves, because the dead executor will never move it. Third, no document
 third party may legitimately move someone else's `running` Operation: cancel is legal but
 terminal, destroying the same-ID resume that ADR-0057 calls the path back for partial writes.
 This ADR pins the missing liveness criterion before the operations, sync-runtime, and CLI
-workstreams encode incompatible ones.
+implementation groups encode incompatible ones.
 
 ## Decision
 

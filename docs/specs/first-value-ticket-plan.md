@@ -19,23 +19,25 @@ Use two Linear projects under team `INS`:
 | `Customer Discovery & Design Partners` | Discovery, design-partner onboarding, evidence review, and scope-gate work. |
 | `First Value Build`                    | Agent-build work for the First Value proof.                                 |
 
-Do not create workstream labels. Use parent issues for workstreams and Linear relationships for
-execution order.
+Use `AG0` through `AG10` parent issues from [architecture-groups.md](architecture-groups.md) for
+architecture ownership containers. Use Linear relationships for execution order. Use `W*`
+Workstream labels only as execution lanes under the policy in
+[workflow/config.md](../agents/workflow/config.md).
 
-## Workstream Parents
+## Architecture Group Parents
 
-Create these parent issues in `First Value Build`. They are workstream containers, not
-agent-ready implementation issues.
+Create these parent issues in `First Value Build`. They are architecture containers, not
+agent-ready implementation issues, and they are not Linear Workstream labels.
 
-| Parent issue                                                       | Scope                                                                         |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `W0 - Tooling, CI, and Supply Chain`                               | Package manager, validation, CI, scanning, supply-chain posture.              |
-| `W1 - Persistence, Tenant Boundary, and Operations State`          | Neon Postgres, RLS, Tenant-Scoped Store, Operation Store-adjacent primitives. |
-| `W2 - Human Identity, Authorization, and Onboarding`               | WorkOS, Memberships, Effective Access, Guided Organization Provisioning.      |
-| `W3 - Key Custody, Keyring, Encryption, and Storage Security Gate` | Key hierarchy, envelope encryption, custody readiness seams.                  |
-| `W4 - Secret Lifecycle and Version Store`                          | Secret Shape, Secret Version Store, non-protected write path.                 |
-| `W5 - CLI, Local Config, and Runtime Injection`                    | CLI framework, local config, one-use Runtime Injection grants.                |
-| `W10 - Audit, Evidence, and Release Gates`                         | Audit writer, telemetry, release-gate support.                                |
+| Parent issue                                                        | Scope                                                                         |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `AG0 - Tooling, CI, and Supply Chain`                               | Package manager, validation, CI, scanning, supply-chain posture.              |
+| `AG1 - Persistence, Tenant Boundary, and Operations State`          | Neon Postgres, RLS, Tenant-Scoped Store, Operation Store-adjacent primitives. |
+| `AG2 - Human Identity, Authorization, and Onboarding`               | WorkOS, Memberships, Effective Access, Guided Organization Provisioning.      |
+| `AG3 - Key Custody, Keyring, Encryption, and Storage Security Gate` | Key hierarchy, envelope encryption, custody readiness seams.                  |
+| `AG4 - Secret Lifecycle and Version Store`                          | Secret Shape, Secret Version Store, non-protected write path.                 |
+| `AG5 - CLI, Local Config, and Runtime Injection`                    | CLI framework, local config, one-use Runtime Injection grants.                |
+| `AG10 - Audit, Evidence, and Release Gates`                         | Audit writer, telemetry, release-gate support.                                |
 
 Parent issues start in `Backlog` and must not carry `ready-for-agent`.
 
@@ -48,28 +50,30 @@ the original publishing order, not a status rule.
 
 ## Ticket Graph
 
+The `Parent` column names the architecture group container. It is not a scheduler priority lane.
+
 | Symbol  | Parent | Type | Initial readiness | Blocked by                         | Outcome                                                                                                                                                                                                                           |
 | ------- | ------ | ---- | ----------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FV-01` | W0     | AFK  | `ready-for-agent` | None                               | Node 24, pnpm 10, catalog, Turbo, ESLint, Prettier, Vitest, and `pnpm verify` baseline.                                                                                                                                           |
-| `FV-02` | W0     | AFK  | blocked           | `FV-01`                            | GitHub Actions `CI` workflow (its `Verify` job runs the blocking conformance and turbo lint/typecheck/test floor, including package-boundary conformance), fork isolation, secret/dependency scanning skeleton, CI cache posture. |
-| `FV-H1` | W1     | HITL | `ready-for-human` | `FV-01`                            | Provision Neon/Hyperdrive dev and CI database inputs, migration/runtime roles, and `NOBYPASSRLS` test credentials.                                                                                                                |
-| `FV-H2` | W2     | HITL | `ready-for-human` | `FV-01`                            | Configure WorkOS AuthKit dev/staging app, redirects, and required non-secret instance identity settings.                                                                                                                          |
-| `FV-H3` | W3     | HITL | `ready-for-human` | `FV-01`                            | Configure Cloudflare Secrets Store root-key secret names and offline escrow evidence; no secret values in Linear.                                                                                                                 |
-| `FV-03` | W0     | AFK  | blocked           | `FV-01`                            | Shared branded IDs, Variable Key validation, metadata-only envelopes, stable errors, package interface stubs.                                                                                                                     |
-| `FV-04` | W1     | AFK  | blocked           | `FV-02`, `FV-03`, `FV-H1`          | Tenant-first schema, migrations, RLS policies, Tenant-Scoped Store, real Postgres RLS tests.                                                                                                                                      |
-| `FV-05` | W10    | AFK  | blocked           | `FV-03`, `FV-04`                   | Audit Event Writer with tenant-qualified metadata-only events and denied-attempt coverage.                                                                                                                                        |
-| `FV-06` | W2     | AFK  | blocked           | `FV-03`, `FV-04`, `FV-05`          | Effective Access Resolver with built-in Role scopes, Membership expansion, and no Role-name route branching.                                                                                                                      |
-| `FV-07` | W2     | AFK  | blocked           | `FV-04`, `FV-H2`                   | WorkOS-backed Worker session composition, actor context, CSRF/session rotation, CLI token exchange contract.                                                                                                                      |
-| `FV-08` | W2     | AFK  | blocked           | `FV-04`, `FV-05`, `FV-06`, `FV-07` | Guided Organization Provisioning for Personal Organization, Default Team, owner Membership, first Project, development Environment.                                                                                               |
-| `FV-09` | W3     | AFK  | blocked           | `FV-03`, `FV-04`, `FV-H3`          | Minimal Keyring and Encryption Envelope with org/project data keys, key versions, AES-GCM identity binding.                                                                                                                       |
-| `FV-10` | W4     | AFK  | blocked           | `FV-04`, `FV-05`, `FV-06`, `FV-09` | Secret Shape, Secret, Secret Version Store, and non-protected Blind Secret Write create-or-update.                                                                                                                                |
-| `FV-11` | W5     | AFK  | blocked           | `FV-04`, `FV-05`, `FV-06`, `FV-10` | Runtime Injection Grant Service with one-use issue/consume for exact Variable Key selection.                                                                                                                                      |
-| `FV-12` | W5     | AFK  | blocked           | `FV-08`, `FV-10`, `FV-11`          | Worker First Value routes compose onboarding, secret write, and runtime injection through package seams only.                                                                                                                     |
-| `FV-13` | W5     | AFK  | blocked           | `FV-07`, `FV-08`, `FV-12`          | CLI `login`, `shell`, `init`, global flags, JSON envelope, and `.insecur.json` with Opaque Resource IDs only.                                                                                                                     |
-| `FV-14` | W5     | AFK  | blocked           | `FV-10`, `FV-12`, `FV-13`          | CLI `secrets set --variable-key` with service generation, stdin, explicit empty value, metadata-only output.                                                                                                                      |
-| `FV-15` | W5     | AFK  | blocked           | `FV-11`, `FV-12`, `FV-13`          | CLI `run --variable-key -- <command>` consumes one grant, injects exact env var, never captures child output.                                                                                                                     |
-| `INS-1` | W5     | AFK  | blocked           | `FV-02`, `FV-13`, `FV-14`, `FV-15` | Copyable First Value Proof passes end to end through ordinary commands and example verifier.                                                                                                                                      |
-| `INS-4` | W10    | AFK  | blocked           | `INS-1`, `FV-05`                   | Product-safe First Value telemetry and feedback capture for validation evidence.                                                                                                                                                  |
+| `FV-01` | AG0    | AFK  | `ready-for-agent` | None                               | Node 24, pnpm 10, catalog, Turbo, ESLint, Prettier, Vitest, and `pnpm verify` baseline.                                                                                                                                           |
+| `FV-02` | AG0    | AFK  | blocked           | `FV-01`                            | GitHub Actions `CI` workflow (its `Verify` job runs the blocking conformance and turbo lint/typecheck/test floor, including package-boundary conformance), fork isolation, secret/dependency scanning skeleton, CI cache posture. |
+| `FV-H1` | AG1    | HITL | `ready-for-human` | `FV-01`                            | Provision Neon/Hyperdrive dev and CI database inputs, migration/runtime roles, and `NOBYPASSRLS` test credentials.                                                                                                                |
+| `FV-H2` | AG2    | HITL | `ready-for-human` | `FV-01`                            | Configure WorkOS AuthKit dev/staging app, redirects, and required non-secret instance identity settings.                                                                                                                          |
+| `FV-H3` | AG3    | HITL | `ready-for-human` | `FV-01`                            | Configure Cloudflare Secrets Store root-key secret names and offline escrow evidence; no secret values in Linear.                                                                                                                 |
+| `FV-03` | AG0    | AFK  | blocked           | `FV-01`                            | Shared branded IDs, Variable Key validation, metadata-only envelopes, stable errors, package interface stubs.                                                                                                                     |
+| `FV-04` | AG1    | AFK  | blocked           | `FV-02`, `FV-03`, `FV-H1`          | Tenant-first schema, migrations, RLS policies, Tenant-Scoped Store, real Postgres RLS tests.                                                                                                                                      |
+| `FV-05` | AG10   | AFK  | blocked           | `FV-03`, `FV-04`                   | Audit Event Writer with tenant-qualified metadata-only events and denied-attempt coverage.                                                                                                                                        |
+| `FV-06` | AG2    | AFK  | blocked           | `FV-03`, `FV-04`, `FV-05`          | Effective Access Resolver with built-in Role scopes, Membership expansion, and no Role-name route branching.                                                                                                                      |
+| `FV-07` | AG2    | AFK  | blocked           | `FV-04`, `FV-H2`                   | WorkOS-backed Worker session composition, actor context, CSRF/session rotation, CLI token exchange contract.                                                                                                                      |
+| `FV-08` | AG2    | AFK  | blocked           | `FV-04`, `FV-05`, `FV-06`, `FV-07` | Guided Organization Provisioning for Personal Organization, Default Team, owner Membership, first Project, development Environment.                                                                                               |
+| `FV-09` | AG3    | AFK  | blocked           | `FV-03`, `FV-04`, `FV-H3`          | Minimal Keyring and Encryption Envelope with org/project data keys, key versions, AES-GCM identity binding.                                                                                                                       |
+| `FV-10` | AG4    | AFK  | blocked           | `FV-04`, `FV-05`, `FV-06`, `FV-09` | Secret Shape, Secret, Secret Version Store, and non-protected Blind Secret Write create-or-update.                                                                                                                                |
+| `FV-11` | AG5    | AFK  | blocked           | `FV-04`, `FV-05`, `FV-06`, `FV-10` | Runtime Injection Grant Service with one-use issue/consume for exact Variable Key selection.                                                                                                                                      |
+| `FV-12` | AG5    | AFK  | blocked           | `FV-08`, `FV-10`, `FV-11`          | Worker First Value routes compose onboarding, secret write, and runtime injection through package seams only.                                                                                                                     |
+| `FV-13` | AG5    | AFK  | blocked           | `FV-07`, `FV-08`, `FV-12`          | CLI `login`, `shell`, `init`, global flags, JSON envelope, and `.insecur.json` with Opaque Resource IDs only.                                                                                                                     |
+| `FV-14` | AG5    | AFK  | blocked           | `FV-10`, `FV-12`, `FV-13`          | CLI `secrets set --variable-key` with service generation, stdin, explicit empty value, metadata-only output.                                                                                                                      |
+| `FV-15` | AG5    | AFK  | blocked           | `FV-11`, `FV-12`, `FV-13`          | CLI `run --variable-key -- <command>` consumes one grant, injects exact env var, never captures child output.                                                                                                                     |
+| `INS-1` | AG5    | AFK  | blocked           | `FV-02`, `FV-13`, `FV-14`, `FV-15` | Copyable First Value Proof passes end to end through ordinary commands and example verifier.                                                                                                                                      |
+| `INS-4` | AG10   | AFK  | blocked           | `INS-1`, `FV-05`                   | Product-safe First Value telemetry and feedback capture for validation evidence.                                                                                                                                                  |
 
 ## Public Interfaces
 
@@ -114,9 +118,9 @@ CLI output.
 ## Existing Issue Cleanup
 
 - Keep `Customer Discovery & Design Partners` for validation work.
-- Move `INS-1` to `First Value Build`, parent it under W5, retitle it to
+- Move `INS-1` to `First Value Build`, parent it under AG5, retitle it to
   `Complete the copyable First Value Proof end to end`, and use it as the final proof ticket.
-- Move `INS-4` to `First Value Build`, parent it under W10, and keep it as
+- Move `INS-4` to `First Value Build`, parent it under AG10, and keep it as
   telemetry/feedback capture.
 - Remove `INS-1 blocks INS-3`; recruiting can start before implementation completes.
 - Set validation dependencies:

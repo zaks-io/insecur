@@ -1,6 +1,6 @@
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
 import {
-  recordInjectionGrantRevocationAudit,
+  recordInjectionGrantRevocationAuditInTenantScope,
   type RecordInjectionGrantRevocationAuditInput,
 } from "@insecur/audit";
 import type { InjectionGrantId, OrganizationId, SecretVersionId } from "@insecur/domain";
@@ -41,25 +41,27 @@ async function revokeActiveGrantsAndAudit(
   revoke: (store: TenantInjectionGrantStore) => Promise<InjectionGrantId[]>,
   audit: Omit<RecordInjectionGrantRevocationAuditInput, keyof RevocationCorrelation | "outcome">,
 ): Promise<{ revokedGrantIds: readonly InjectionGrantId[]; auditEventId?: string }> {
-  const revokedGrantIds = await withTenantScope(
+  return await withTenantScope(
     { kind: "organization", organizationId: correlation.organizationId },
-    async ({ db }) => revoke(new TenantInjectionGrantStore(db)),
+    async ({ db, sql }) => {
+      const revokedGrantIds = await revoke(new TenantInjectionGrantStore(db));
+
+      const auditEvent = await recordInjectionGrantRevocationAuditInTenantScope(sql, {
+        ...audit,
+        outcome: "success",
+        actor: correlation.actor,
+        organizationId: correlation.organizationId,
+        revokedGrantCount: revokedGrantIds.length,
+        ...(correlation.request !== undefined ? { request: correlation.request } : {}),
+        ...(correlation.operation !== undefined ? { operation: correlation.operation } : {}),
+      });
+
+      return {
+        revokedGrantIds,
+        auditEventId: auditEvent.auditEventId,
+      };
+    },
   );
-
-  const auditEvent = await recordInjectionGrantRevocationAudit({
-    ...audit,
-    outcome: "success",
-    actor: correlation.actor,
-    organizationId: correlation.organizationId,
-    revokedGrantCount: revokedGrantIds.length,
-    ...(correlation.request !== undefined ? { request: correlation.request } : {}),
-    ...(correlation.operation !== undefined ? { operation: correlation.operation } : {}),
-  });
-
-  return {
-    revokedGrantIds,
-    ...(auditEvent?.auditEventId !== undefined ? { auditEventId: auditEvent.auditEventId } : {}),
-  };
 }
 
 /**

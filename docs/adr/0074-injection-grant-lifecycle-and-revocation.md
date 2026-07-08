@@ -124,8 +124,8 @@ deletion in V1.
   ADR makes both contract rather than implementation accident before the revocation half ships.
 - Revocation has no shipped representation yet: the grant row carries no revocation marker and the
   consume CAS does not check one. The marker, the CAS predicate, and the two revocation writers
-  land with the suspension and compromise-response work (the grant service is W5 with W7 in
-  [docs/specs/agent-workstreams.md](../specs/agent-workstreams.md)). Pre-launch this is a
+  land with the suspension and compromise-response work (the grant service is AG5 with AG7 in
+  [docs/specs/architecture-groups.md](../specs/architecture-groups.md)). Pre-launch this is a
   recreate-from-scratch schema change, not a migration.
 - The error-code surface is unchanged: no edits to `INJECTION_ERROR_CODES`, the
   [docs/cli-and-sync.md](../cli-and-sync.md) exit table, or `exitCodeForErrorCode`.
