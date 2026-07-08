@@ -3,10 +3,16 @@ import {
   environmentId,
   organizationId,
   projectId,
+  successEnvelope,
   VALIDATION_ERROR_CODES,
 } from "@insecur/domain";
-import { parseRequestCredentials, readSessionCredentialMetadata } from "@insecur/auth";
 import {
+  INSECUR_SESSION_CREDENTIAL_HEADER,
+  mintDerivedAgentSessionCredential,
+} from "@insecur/auth";
+import {
+  createRequestId,
+  domainErrorEnvelope,
   handleRoute,
   requireUserActor,
   requireUserActorForWhoami,
@@ -16,7 +22,14 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ApiApp, ApiEnv } from "../../env.js";
+import {
+  mergeWhoamiAttributionQueryParams,
+  parseOptionalDeriveHarnessName,
+  readHumanSessionMetadata,
+  readRequestSessionMetadata,
+} from "./session-route-helpers.js";
 
 const sessionRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -100,24 +113,29 @@ function parseWhoamiQueryParams(context: SessionRouteContext) {
   };
 }
 
+function parseRegisterAgentBody(
+  body: unknown,
+):
+  | { readonly ok: true; readonly harnessName: string; readonly ancestryKey: string }
+  | { readonly ok: false } {
+  if (body === null || typeof body !== "object") {
+    return { ok: false };
+  }
+  const record = body as Record<string, unknown>;
+  const harnessName = typeof record.harnessName === "string" ? record.harnessName.trim() : "";
+  const ancestryKey = typeof record.ancestryKey === "string" ? record.ancestryKey.trim() : "";
+  if (harnessName === "" || ancestryKey === "") {
+    return { ok: false };
+  }
+  return { ok: true, harnessName, ancestryKey };
+}
+
 sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
-    const credentials = parseRequestCredentials({
-      authorizationHeader: context.req.header("Authorization"),
-      cookieHeader: null,
-      csrfHeader: null,
-    });
-    const bearerCredential = credentials.bearerCredential;
-    if (bearerCredential === undefined) {
-      throw Object.assign(new Error("Authorization required."), { code: "auth.required" });
-    }
-
-    const sessionMetadata = await readSessionCredentialMetadata(
-      bearerCredential,
-      context.env.SESSION_SIGNING_SECRET,
-    );
+    const sessionMetadata = await readRequestSessionMetadata(context);
     const queryParams = parseWhoamiQueryParams(context);
+    const attributionParams = mergeWhoamiAttributionQueryParams(sessionMetadata, queryParams);
 
     const runtimePayload = await runtimeClientFor(context.env, userActor).resolveSessionWhoami({
       requestId: reqId,
@@ -126,7 +144,7 @@ sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
       ...(sessionMetadata.derivedAgentSessionId !== undefined
         ? { derivedAgentSessionId: sessionMetadata.derivedAgentSessionId }
         : {}),
-      ...queryParams,
+      ...attributionParams,
     });
 
     return {
@@ -135,6 +153,55 @@ sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
       sessionId: userActor.sessionId,
       ...runtimePayload,
     };
+  }),
+);
+
+sessionRoutes.post("/agent/derive", requireUserActor, async (context) => {
+  const reqId = createRequestId();
+  try {
+    const userActor = context.get("userActor");
+    const parentSession = await readHumanSessionMetadata(context);
+    const body: unknown = await context.req.json().catch(() => ({}));
+    const harnessName = parseOptionalDeriveHarnessName(body);
+    const minted = await mintDerivedAgentSessionCredential({
+      actor: userActor,
+      signingSecret: context.env.SESSION_SIGNING_SECRET,
+      parentExpiresAt: parentSession.expiresAt,
+      ...(harnessName === undefined ? {} : { harnessName }),
+    });
+    return context.json(
+      successEnvelope(
+        {
+          sessionId: userActor.sessionId,
+          expiresAt: minted.expiresAt,
+          agentSessionId: minted.agentSessionId,
+        },
+        { requestId: reqId },
+      ),
+      200,
+      { [INSECUR_SESSION_CREDENTIAL_HEADER]: minted.credential },
+    );
+  } catch (error) {
+    const { status, body } = domainErrorEnvelope(error, reqId);
+    return context.json(body, status as ContentfulStatusCode);
+  }
+});
+
+sessionRoutes.post("/agent/register", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    await readHumanSessionMetadata(context);
+    const parsed = parseRegisterAgentBody(await context.req.json().catch(() => null));
+    if (!parsed.ok) {
+      throw Object.assign(new Error("harnessName and ancestryKey are required."), {
+        code: VALIDATION_ERROR_CODES.invalidCommandInput,
+      });
+    }
+    return runtimeClientFor(context.env, userActor).registerAgentSession({
+      requestId: reqId,
+      harnessName: parsed.harnessName,
+      ancestryKey: parsed.ancestryKey,
+    });
   }),
 );
 

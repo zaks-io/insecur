@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { applyCommanderUsageSeam } from "./output/commander-usage-error.js";
 import { renderCliRunFailure } from "./output/render-cli-run-failure.js";
+import { registerAgentCommands } from "./register-agent-commands.js";
 import { registerApiBackedCommands } from "./register-api-backed-commands.js";
 import { registerConfigCommands } from "./register-config-commands.js";
 import { registerGuideCommand } from "./register-guide-command.js";
@@ -29,6 +30,7 @@ function buildProgram(): Command {
   registerLoginCommand(program, deps);
   registerLogoutCommand(program, deps);
   registerShellCommand(program, deps);
+  registerAgentCommands(program, deps);
   registerRunCommand(program, deps);
   registerInitCommand(program, deps);
   registerScanCommand(program, { globalFlags: deps.globalFlags });

@@ -21,6 +21,7 @@
   "dependencies": {
     "@insecur/access": "workspace:*",
     "@insecur/agent-attribution": "workspace:*",
+    "@insecur/app-connection": "workspace:*",
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/crypto": "workspace:*",

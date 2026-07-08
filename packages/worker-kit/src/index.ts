@@ -35,6 +35,7 @@ export {
   readSecretValueField,
   requireRouteParam,
 } from "./http/parse-route-input.js";
+export { parseAppConnectionIdParam } from "./http/parse-app-connection-route-input.js";
 export {
   parseInjectionGrantConsumeSelector,
   parseInjectionGrantIssueSelector,
@@ -126,6 +127,7 @@ export type {
   GetRuntimeInjectionPolicyRpcPayload,
   RuntimeInjectionPolicyVersionReadPayload,
 } from "./rpc/runtime-run-policies-rpc-contract.js";
+export type { RuntimeConnectionsRpc } from "./rpc/runtime-connections-rpc-interface.js";
 export type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,
@@ -151,6 +153,8 @@ export type {
 export type {
   ResolveSessionWhoamiRpcInput,
   ResolveSessionWhoamiRpcPayload,
+  RegisterAgentSessionRpcInput,
+  RegisterAgentSessionRpcPayload,
 } from "./rpc/runtime-session-whoami-rpc-contract.js";
 export type {
   CreateWebhookSubscriptionRpcInput,
