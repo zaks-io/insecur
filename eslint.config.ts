@@ -19,6 +19,7 @@ const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
   "packages/app-connection/src/decrypt-cloudflare-connection-boundary-for-validation.ts",
   "packages/app-connection/src/decrypt-github-connection-boundary-for-validation.ts",
+  "packages/secret-sync/src/decrypt-secret-sync-sensitive-metadata.ts",
   "packages/notifications/src/decrypt-webhook-signing-secret.ts",
   "packages/local-store/src/decrypt-local-secret-for-injection.ts",
 ] as const;

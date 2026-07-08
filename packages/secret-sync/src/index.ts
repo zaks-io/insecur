@@ -41,6 +41,10 @@ export {
   SECRET_SYNC_TARGET_WORKER_SCRIPT_FIELD,
 } from "./secret-sync-metadata.js";
 export {
+  decryptSecretSyncBindingDestinationForAuthorizedRead,
+  decryptSecretSyncWorkerScriptTargetForAuthorizedRead,
+} from "./decrypt-secret-sync-sensitive-metadata.js";
+export {
   loadSecretSyncSensitiveMetadata,
   storeSecretSyncBindingDestinations,
   storeSecretSyncWorkerScriptTarget,
