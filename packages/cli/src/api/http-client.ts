@@ -26,6 +26,7 @@ import {
 import { listEnvironmentSecrets, listSecretVersions } from "./http-client-secrets-read.js";
 import { writeSecretByVariableKey } from "./http-client-secrets-write.js";
 import { sessionWhoami } from "./http-client-whoami.js";
+import { deriveAgentSession, registerAgentSession } from "./http-client-agent-session.js";
 import type { ApiClient } from "./types.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
@@ -56,5 +57,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     getRuntimeInjectionPolicy: (input) => getRuntimeInjectionPolicy(base, input),
     disableRuntimeInjectionPolicy: (input) => disableRuntimeInjectionPolicy(base, input),
     sessionWhoami: (input) => sessionWhoami(base, input),
+    deriveAgentSession: (input) => deriveAgentSession(base, input),
+    registerAgentSession: (input) => registerAgentSession(base, input),
   };
 }

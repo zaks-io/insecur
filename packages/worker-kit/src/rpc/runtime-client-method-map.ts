@@ -29,6 +29,7 @@ export function buildAuthenticatedRuntimeClientMethods(
     listSessionOrganizations: forward("listSessionOrganizations"),
     revokeCliSession: forward("revokeCliSession"),
     resolveSessionWhoami: forward("resolveSessionWhoami"),
+    registerAgentSession: forward("registerAgentSession"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
     listAuditEvents: forward("listAuditEvents"),
