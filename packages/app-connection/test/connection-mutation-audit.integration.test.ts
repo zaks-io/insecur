@@ -53,9 +53,12 @@ vi.mock("../src/consume-app-connection-change-evidence.js", () => ({
 
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
-const OP = operationId.brand("op_01JZ8AUD2R7M4T0V9X3C5D8F1");
+const OP = operationId.brand("op_01JZ8AUD2R7M4T0V9X3C5D8F10");
 const ACTOR = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
-const REG_GH = providerAppRegistrationId.brand("preg_01JZ8AUD2R7M4T0V9X3C5D8F1");
+// Shares the same registration id as github-app-connection.integration.test.ts: both
+// files seed the (instanceId, provider, connectionMethod) singleton row for the
+// GitHub app registration, and onConflictDoUpdate never changes the row's id.
+const REG_GH = providerAppRegistrationId.brand("preg_01JZ8GHRE2R7M4T0V9X3C5D8F1");
 const BOUNDARY = {
   allowedAccountId: "cf-account-123",
   allowedWorkerScript: "my-api-production",
@@ -129,7 +132,7 @@ async function expectPersistedConnectionAudit(input: {
   const event = page.events.find((candidate) => candidate.auditEventId === input.auditEventId);
   expect(event).toBeDefined();
   expect(event?.outcome).toBe("success");
-  expect(event?.actor.type).toBe("user");
+  expect(event?.actor.actorType).toBe("user");
   expect(event?.actor.userId).toBe(ACTOR.userId);
   expect(event?.resource).toEqual({
     type: "app_connection",
@@ -155,8 +158,8 @@ describeRls("connection mutation auditEventId persistence", () => {
   });
 
   it("create returns a persisted connection.created audit event id", async () => {
-    const connectionId = appConnectionId.brand("conn_01JZ8AUDCF2R7M4T0V9X3C5D8F1");
-    const credentialId = providerCredentialId.brand("pcred_01JZ8AUDCF2R7M4T0V9X3C5D8F1");
+    const connectionId = appConnectionId.brand("conn_01JZ8AUDCF2R7M4T0V9X3C5D8F");
+    const credentialId = providerCredentialId.brand("pcred_01JZ8AUDCF2R7M4T0V9X3C5D8F");
 
     const result = await withTenantScope(
       { kind: "organization", organizationId: ORG_A },
@@ -188,8 +191,8 @@ describeRls("connection mutation auditEventId persistence", () => {
   });
 
   it("credential attach returns a persisted connection.credential_attached audit event id", async () => {
-    const connectionId = appConnectionId.brand("conn_01JZ8AUDAT2R7M4T0V9X3C5D8F1");
-    const credentialId = providerCredentialId.brand("pcred_01JZ8AUDAT2R7M4T0V9X3C5D8F1");
+    const connectionId = appConnectionId.brand("conn_01JZ8AUDAT2R7M4T0V9X3C5D8F");
+    const credentialId = providerCredentialId.brand("pcred_01JZ8AUDAT2R7M4T0V9X3C5D8F");
 
     const result = await withTenantScope(
       { kind: "organization", organizationId: ORG_A },
@@ -242,7 +245,7 @@ describeRls("connection mutation auditEventId persistence", () => {
   });
 
   it("reauth returns a persisted connection.validated audit event id", async () => {
-    const connectionId = appConnectionId.brand("conn_01JZ8AUDGH2R7M4T0V9X3C5D8F1");
+    const connectionId = appConnectionId.brand("conn_01JZ8AUDGH2R7M4T0V9X3C5D8F");
 
     await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
       await createGitHubAppConnection({
@@ -290,8 +293,8 @@ describeRls("connection mutation auditEventId persistence", () => {
   });
 
   it("disconnect returns a persisted connection.disabled audit event id", async () => {
-    const connectionId = appConnectionId.brand("conn_01JZ8AUDDS2R7M4T0V9X3C5D8F1");
-    const credentialId = providerCredentialId.brand("pcred_01JZ8AUDDS2R7M4T0V9X3C5D8F1");
+    const connectionId = appConnectionId.brand("conn_01JZ8AUDDS2R7M4T0V9X3C5D8F");
+    const credentialId = providerCredentialId.brand("pcred_01JZ8AUDDS2R7M4T0V9X3C5D8F");
 
     await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) =>
       createCloudflareScopedTokenConnection({
