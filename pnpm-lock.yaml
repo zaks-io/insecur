@@ -1000,9 +1000,6 @@ importers:
       '@insecur/operations':
         specifier: workspace:*
         version: link:../operations
-      '@insecur/secret-store':
-        specifier: workspace:*
-        version: link:../secret-store
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store
