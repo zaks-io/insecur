@@ -17,13 +17,23 @@ describe("computeSecretWriteDescriptiveVerdicts", () => {
   it.each([
     { label: "plain text", value: "postgres://user:pass@localhost/db", encodingClass: "utf-8" },
     {
-      label: "hex-shaped",
+      label: "hex-charset payload decodes as base64url",
       value: "0123456789abcdef0123456789abcdef",
-      encodingClass: "hex-shaped",
+      encodingClass: "base64-shaped",
     },
     {
       label: "base64-shaped",
       value: bytesToBase64Url(utf8("hello")),
+      encodingClass: "base64-shaped",
+    },
+    {
+      label: "all-hex-chars even-length valid base64url",
+      value: "AAAA",
+      encodingClass: "base64-shaped",
+    },
+    {
+      label: "all-hex-chars even-length valid base64url (12-byte payload)",
+      value: "0123456789abcdef",
       encodingClass: "base64-shaped",
     },
   ])("classifies encoding as $encodingClass for $label", ({ value, encodingClass }) => {
@@ -72,6 +82,16 @@ describe("computeSecretWriteDescriptiveVerdicts", () => {
   });
 
   it.each([
+    {
+      generationHint: "random:3",
+      value: "AAAA",
+      verdict: "matches",
+    },
+    {
+      generationHint: "random:12",
+      value: "0123456789abcdef",
+      verdict: "matches",
+    },
     {
       generationHint: null,
       value: bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32))),
