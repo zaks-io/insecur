@@ -203,6 +203,8 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "test:rls": "turbo run test:rls",
     "test:e2e": "turbo run test:e2e",
     "test:canary": "turbo run test:canary",
+    "smoke:local": "node scripts/local-smoke.mjs",
+    "smoke:local:docker": "node scripts/local-smoke.mjs --with-docker",
     "dev:db:reset": "node scripts/dev-db.mjs reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -553,12 +555,13 @@ Three layers, each defined by where its Postgres comes from and what failure cla
 The agent-facing one-command loop is documented in [docs/agents/testing.md](agents/testing.md).
 
 1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage across the covered workspace targets, then `scripts/merge-coverage.mjs` merges their `coverage-final.json` files and enforces the repo-wide ratchet thresholds; it excludes integration and RLS suites so it stays DB-less. Each covered workspace has a Turbo `test:coverage` task with `coverage/**` outputs, so repeated pushes can restore unchanged workspace reports from cache while changed packages recompute independently. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
-2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Docker Compose Postgres 17 (ADR-0065; major pinned by ADR-0060). `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` and in the `CI` workflow's `Verify` job for DB/runtime path changes with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
+2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Postgres 17 (ADR-0065; major pinned by ADR-0060). Local laptops and CI use Docker Compose; Cursor Cloud uses the native Postgres 17 service provisioned by `.cursor/start-postgres.sh`. `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm smoke:local` to reset, migrate, and test a configured Postgres service or `pnpm smoke:local:docker` to reset Docker Compose first, and in the `CI` workflow's `Verify` job for DB/runtime path changes with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
 3. **Shared preview smoke.** `Deploy Preview` preflights the shared preview Worker set (`runtime`, `api`, `web`, and `site`) before any preview mutation, deploys through Turbo package tasks, then runs `pnpm smoke:preview`, which delegates to `@insecur/preview-smoke`. The smoke is a Playwright Test suite that verifies API/Web/Site deploy identities against the current SHA, drives the current happy paths over deployed HTTP routes, and sweeps preview Postgres for the generated sentinel through the migration credential. This is the only layer that can catch a broken deploy, a missing binding, a bad secret, or a route that only fails in the deployed Cloudflare shape. It is not a per-PR workflow: DB/runtime PRs use Docker Compose Postgres in the `CI` workflow's `Verify` job.
 
-Docker Compose Postgres is the substrate for the authoritative integration+RLS gate and uses the
-same major version as the stable Neon target, currently Postgres 17 (ADR-0060), so the integration
-layer and the Neon-backed preview environment do not drift.
+Postgres 17 is the substrate for the authoritative integration+RLS gate and uses the same major
+version as the stable Neon target (ADR-0060), so the integration layer and the Neon-backed preview
+environment do not drift. Local laptops and CI get it through Docker Compose; Cursor Cloud gets it
+through the native service in its committed image.
 
 ## CI Topology (ADR-0029)
 
@@ -628,8 +631,7 @@ stay secretless. For DB/runtime path changes, the authoritative PR database gate
 job's DB-backed step, which runs:
 
 ```
-pnpm dev:db:reset
-node scripts/ci/postgres-integration-tests.mjs
+pnpm smoke:local:docker
 ```
 
 The deployed smoke belongs to a separate shared preview workflow, not to `pull_request`. That

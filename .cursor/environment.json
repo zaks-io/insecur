@@ -4,7 +4,22 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  "install": "pnpm install --frozen-lockfile",
-  "start": "sudo service docker start",
+  "user": "node",
+  "install": "pnpm install --frozen-lockfile && pnpm dev:db:env",
+  "start": "pnpm dev:db:env && sudo /usr/local/bin/insecur-start-postgres",
+  "ports": [
+    {
+      "name": "Postgres",
+      "port": 54321
+    },
+    {
+      "name": "API Worker",
+      "port": 8787
+    },
+    {
+      "name": "Runtime Worker / Web Dev",
+      "port": 8788
+    }
+  ],
   "terminals": []
 }
