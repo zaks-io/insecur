@@ -59,7 +59,7 @@ function RejectChallengeForm({
           Reject
         </h2>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-          Deny the bounded operation. Approval with passkey step-up lands in the next slice.
+          Deny the bounded operation. Approval uses passkey step-up in the panel above.
         </p>
       </header>
       <div className="space-y-4 px-4 py-4 sm:px-5">
