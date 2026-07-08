@@ -14,8 +14,11 @@ import type {
 
 /**
  * Pre-auth RPC methods (no hop token; trusted by the private Service Binding boundary).
+ *
+ * Named `RuntimePreAuthRpc` to avoid collision with the narrower `RuntimeAdmissionRpc`
+ * (`Pick<RuntimeRpc, ...>`) auth-binding contract in `../auth/auth-worker-env.ts`.
  */
-export interface RuntimeAdmissionRpc {
+export interface RuntimePreAuthRpc {
   resolveAdmission(
     input: ResolveAdmissionRpcInput,
   ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>>;
