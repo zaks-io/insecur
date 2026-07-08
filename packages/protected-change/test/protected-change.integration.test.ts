@@ -51,10 +51,14 @@ const ORG = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT = projectId.brand(TEST_PROJECT_A_ID);
 const REQUESTER = userId.brand(TEST_USER_ID);
 const APPROVER = REQUESTER;
-const DRAFT_VERSION_ID = "sv_00000000000000000000000099";
-
-const TEST_MACHINE_ID = "mach_00000000000000000000000082";
-const TEST_MACHINE_MEM_ID = "mem_00000000000000000000000082";
+const DRAFT_VERSION_IDS = {
+  fullFlow: "sv_00000000000000000000000099",
+  deniedTransition: "sv_00000000000000000000000100",
+  staleApproval: "sv_00000000000000000000000101",
+  staleExecution: "sv_00000000000000000000000102",
+  blockedExecution: "sv_00000000000000000000000103",
+  invalidDraftExecution: "sv_00000000000000000000000104",
+} as const;
 
 const TEST_ENV_IDS = {
   create: "env_00000000000000000000000082",
@@ -64,14 +68,20 @@ const TEST_ENV_IDS = {
   staleApproval: "env_00000000000000000000000086",
   staleExecution: "env_00000000000000000000000087",
   blockedExecution: "env_00000000000000000000000088",
+  invalidDraftExecution: "env_00000000000000000000000089",
 } as const;
 
 const TEST_SECRET_IDS = {
   fullFlow: "sec_00000000000000000000000082",
+  deniedTransition: "sec_00000000000000000000000086",
   staleApproval: "sec_00000000000000000000000083",
   staleExecution: "sec_00000000000000000000000084",
   blockedExecution: "sec_00000000000000000000000085",
+  invalidDraftExecution: "sec_00000000000000000000000087",
 } as const;
+
+const TEST_MACHINE_ID = "mach_00000000000000000000000082";
+const TEST_MACHINE_MEM_ID = "mem_00000000000000000000000082";
 
 function testDisplayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -226,27 +236,41 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         TEST_ENV_IDS.blockedExecution,
         "Protected Change Blocked Execution Test",
       ),
+      ensureProtectedEnvironment(
+        TEST_ENV_IDS.invalidDraftExecution,
+        "Protected Change Invalid Draft Execution Test",
+      ),
     ]);
     await Promise.all([
       seedDraftSecret({
+        environmentId: TEST_ENV_IDS.deniedTransition,
+        secretId: TEST_SECRET_IDS.deniedTransition,
+        secretVersionId: DRAFT_VERSION_IDS.deniedTransition,
+      }),
+      seedDraftSecret({
         environmentId: TEST_ENV_IDS.fullFlow,
         secretId: TEST_SECRET_IDS.fullFlow,
-        secretVersionId: DRAFT_VERSION_ID,
+        secretVersionId: DRAFT_VERSION_IDS.fullFlow,
       }),
       seedDraftSecret({
         environmentId: TEST_ENV_IDS.staleApproval,
         secretId: TEST_SECRET_IDS.staleApproval,
-        secretVersionId: DRAFT_VERSION_ID,
+        secretVersionId: DRAFT_VERSION_IDS.staleApproval,
       }),
       seedDraftSecret({
         environmentId: TEST_ENV_IDS.staleExecution,
         secretId: TEST_SECRET_IDS.staleExecution,
-        secretVersionId: DRAFT_VERSION_ID,
+        secretVersionId: DRAFT_VERSION_IDS.staleExecution,
       }),
       seedDraftSecret({
         environmentId: TEST_ENV_IDS.blockedExecution,
         secretId: TEST_SECRET_IDS.blockedExecution,
-        secretVersionId: DRAFT_VERSION_ID,
+        secretVersionId: DRAFT_VERSION_IDS.blockedExecution,
+      }),
+      seedDraftSecret({
+        environmentId: TEST_ENV_IDS.invalidDraftExecution,
+        secretId: TEST_SECRET_IDS.invalidDraftExecution,
+        secretVersionId: DRAFT_VERSION_IDS.invalidDraftExecution,
       }),
     ]);
     await seedMachineRequester();
@@ -268,7 +292,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [DRAFT_VERSION_ID as never],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.fullFlow)],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestIdValue,
@@ -278,7 +302,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
     expect(record.state).toBe("proposed");
     expect(record.projectId).toBe(PROJECT);
     expect(record.environmentId).toBe(envId);
-    expect(record.draftVersionIds).toEqual([DRAFT_VERSION_ID]);
+    expect(record.draftVersionIds).toEqual([DRAFT_VERSION_IDS.fullFlow]);
   });
 
   it("audits denied invalid transitions without mutating state", async () => {
@@ -286,18 +310,19 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
     const requestIdValue = requestId.brand("req_00000000000000000000000091");
     const envId = environmentId.brand(TEST_ENV_IDS.deniedTransition);
 
-    await createProtectedChange({
+    const created = await createProtectedChange({
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: envId,
       protectedChangeId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [DRAFT_VERSION_ID as never],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.deniedTransition)],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestIdValue,
       isProtectedEnvironment: true,
     });
+    const fingerprint = await recomputeProtectedChangeImpactFingerprint(created);
 
     await expect(
       approveProtectedChange({
@@ -306,13 +331,12 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         actor: { type: "user", userId: APPROVER },
         auditActor: { type: "user", userId: APPROVER },
         requestId: requestId.brand("req_00000000000000000000000092"),
-        impactReviewFingerprint: "impact-fingerprint-v1",
-        currentImpactFingerprint: "impact-fingerprint-v1",
+        impactReviewFingerprint: fingerprint,
         approvalEvidence: {
           evidenceId: generateApprovalEvidenceId(),
           approverUserId: APPROVER,
           auditEventId: auditEventId.generate(),
-          impactReviewFingerprint: "impact-fingerprint-v1",
+          impactReviewFingerprint: fingerprint,
         },
       }),
     ).rejects.toBeInstanceOf(ProtectedChangeError);
@@ -349,7 +373,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId,
       requester: { machineIdentityId: machine },
-      draftVersionIds: [DRAFT_VERSION_ID as never],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.fullFlow)],
       actor: {
         type: "machine",
         machineIdentityId: machine,
@@ -380,7 +404,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [DRAFT_VERSION_ID as never],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.fullFlow)],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
@@ -461,7 +485,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId: cancelId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [DRAFT_VERSION_ID as never],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.fullFlow)],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
@@ -490,7 +514,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId: rejectId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [DRAFT_VERSION_ID as never],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.fullFlow)],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
@@ -520,7 +544,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId: staleId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [DRAFT_VERSION_ID as never],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.fullFlow)],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
@@ -554,20 +578,19 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_ID)],
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.staleApproval)],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
       isProtectedEnvironment: true,
     });
-    const pending = await submitProtectedChangeForApproval({
+    await submitProtectedChangeForApproval({
       organizationId: ORG,
       protectedChangeId,
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
     });
-    const currentFingerprint = await recomputeProtectedChangeImpactFingerprint(pending);
 
     await expect(
       approveProtectedChange({
@@ -577,7 +600,6 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         auditActor: { type: "user", userId: APPROVER },
         requestId: requestId.generate(),
         impactReviewFingerprint: "sha256:stale-submitted-fingerprint",
-        currentImpactFingerprint: currentFingerprint,
         approvalEvidence: {
           evidenceId: generateApprovalEvidenceId(),
           approverUserId: APPROVER,
@@ -606,6 +628,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
   it("rejects stale execution handoff when approval evidence no longer matches current impact", async () => {
     const protectedChangeId = generateProtectedChangeId();
     const envId = environmentId.brand(TEST_ENV_IDS.staleExecution);
+    const draftVersionId = secretVersionId.brand(DRAFT_VERSION_IDS.staleExecution);
 
     await createProtectedChange({
       organizationId: ORG,
@@ -613,7 +636,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       environmentId: envId,
       protectedChangeId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_ID)],
+      draftVersionIds: [draftVersionId],
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
@@ -636,7 +659,6 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       auditActor: { type: "user", userId: APPROVER },
       requestId: requestId.generate(),
       impactReviewFingerprint: fingerprintAtApproval,
-      currentImpactFingerprint: fingerprintAtApproval,
       approvalEvidence: {
         evidenceId: generateApprovalEvidenceId(),
         approverUserId: APPROVER,
@@ -649,7 +671,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       await sql`
         UPDATE secret_versions
         SET value_byte_length = ${48}
-        WHERE id = ${DRAFT_VERSION_ID}
+        WHERE id = ${draftVersionId}
       `;
     });
 
@@ -694,7 +716,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         environmentId: envId,
         protectedChangeId,
         requester: { userId: REQUESTER },
-        draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_ID)],
+        draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.blockedExecution)],
         actor: { type: "user", userId: REQUESTER },
         auditActor: { type: "user", userId: REQUESTER },
         requestId: requestId.generate(),
@@ -747,6 +769,81 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         }),
       ).rejects.toBeInstanceOf(ProtectedChangeError);
     }
+  });
+
+  it("records invalid_draft_selection when draft targets are gone before execution", async () => {
+    const protectedChangeId = generateProtectedChangeId();
+    const envId = environmentId.brand(TEST_ENV_IDS.invalidDraftExecution);
+    const draftVersionId = secretVersionId.brand(DRAFT_VERSION_IDS.invalidDraftExecution);
+
+    await createProtectedChange({
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: envId,
+      protectedChangeId,
+      requester: { userId: REQUESTER },
+      draftVersionIds: [draftVersionId],
+      actor: { type: "user", userId: REQUESTER },
+      auditActor: { type: "user", userId: REQUESTER },
+      requestId: requestId.generate(),
+      isProtectedEnvironment: true,
+    });
+    const pending = await submitProtectedChangeForApproval({
+      organizationId: ORG,
+      protectedChangeId,
+      actor: { type: "user", userId: REQUESTER },
+      auditActor: { type: "user", userId: REQUESTER },
+      requestId: requestId.generate(),
+    });
+    const fingerprintAtApproval = await recomputeProtectedChangeImpactFingerprint(pending);
+
+    await approveProtectedChange({
+      organizationId: ORG,
+      protectedChangeId,
+      actor: { type: "user", userId: APPROVER },
+      auditActor: { type: "user", userId: APPROVER },
+      requestId: requestId.generate(),
+      impactReviewFingerprint: fingerprintAtApproval,
+      approvalEvidence: {
+        evidenceId: generateApprovalEvidenceId(),
+        approverUserId: APPROVER,
+        auditEventId: auditEventId.generate(),
+        impactReviewFingerprint: fingerprintAtApproval,
+      },
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: ORG }, async ({ sql }) => {
+      await sql`
+        UPDATE secret_versions
+        SET lifecycle_state = ${"live"}
+        WHERE id = ${draftVersionId}
+      `;
+    });
+
+    await expect(
+      beginProtectedChangeExecution({
+        organizationId: ORG,
+        protectedChangeId,
+        actor: { type: "user", userId: REQUESTER },
+        auditActor: { type: "user", userId: REQUESTER },
+        requestId: requestId.generate(),
+        executionOperationId: operationId.generate(),
+      }),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.invalidDraftSelection });
+
+    const auditRows = await withTenantScope(
+      { kind: "organization", organizationId: ORG as never },
+      ({ sql }) =>
+        sql<{ result_code: string }[]>`
+          SELECT result_code
+          FROM audit_events
+          WHERE resource_id = ${protectedChangeId}
+            AND event_code = ${PRODUCTION_AUDIT_EVENT_CODES.protectedChangeTransitionDenied}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+    );
+    expect(auditRows[0]?.result_code).toBe(APPROVAL_ERROR_CODES.invalidDraftSelection);
   });
 
   it("uses Effective Access Resolver scopes instead of role-name shortcuts", () => {

@@ -60,19 +60,27 @@ function transitionDeniedReasonCode(error: unknown): KnownErrorCode | undefined 
   if (isProtectedChangeError(error)) {
     return error.code;
   }
-  if (isApprovalReviewStaleError(error)) {
-    return APPROVAL_ERROR_CODES.reviewStale;
+  const approvalCode = approvalErrorCode(error);
+  if (approvalCode !== undefined) {
+    return approvalCode;
   }
   return undefined;
 }
 
+function approvalErrorCode(error: unknown): KnownErrorCode | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return undefined;
+  }
+  const code = error.code;
+  return Object.values(APPROVAL_ERROR_CODES).includes(
+    code as (typeof APPROVAL_ERROR_CODES)[keyof typeof APPROVAL_ERROR_CODES],
+  )
+    ? (code as KnownErrorCode)
+    : undefined;
+}
+
 export function isApprovalReviewStaleError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === APPROVAL_ERROR_CODES.reviewStale
-  );
+  return approvalErrorCode(error) === APPROVAL_ERROR_CODES.reviewStale;
 }
 
 async function recordTransitionDenied(
@@ -146,16 +154,6 @@ async function assertTransitionAccess(
   }
 }
 
-async function resolveCurrentImpactFingerprint(
-  input: TransitionProtectedChangeRequestInput,
-  current: ProtectedChangeRecord,
-): Promise<string> {
-  if (input.currentImpactFingerprint !== undefined) {
-    return input.currentImpactFingerprint;
-  }
-  return recomputeProtectedChangeImpactFingerprint(current);
-}
-
 async function assertFreshImpactReviewForTransition(
   input: TransitionProtectedChangeRequestInput,
   current: ProtectedChangeRecord,
@@ -164,7 +162,11 @@ async function assertFreshImpactReviewForTransition(
     return;
   }
 
-  const currentFingerprint = await resolveCurrentImpactFingerprint(input, current);
+  // TOCTOU bound (INS-496): impact facts are recomputed in this transaction scope, then the
+  // compare-and-set write runs in a separate call. A concurrent draft/delivery mutation between
+  // the freshness pass and applyTransition is not re-detected here; the window is narrow and
+  // bounded by the protected-change state machine CAS on the row itself.
+  const currentFingerprint = await recomputeProtectedChangeImpactFingerprint(current);
 
   if (input.nextState === "approved") {
     assertImpactReviewFresh({

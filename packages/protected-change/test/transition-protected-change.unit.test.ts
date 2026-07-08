@@ -228,6 +228,40 @@ describe("transitionProtectedChange via public API wrappers", () => {
     });
   });
 
+  it("records invalid_draft_selection on denied execution when recompute fails", async () => {
+    const approved = { ...PENDING_RECORD, state: "approved" as const };
+    storeMocks.getById.mockResolvedValue(approved);
+    storeMocks.getApprovalEvidence.mockResolvedValue({
+      impactReviewFingerprint: "impact-fingerprint-at-approval",
+    });
+    recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockRejectedValue(
+      Object.assign(
+        new Error("Draft version is not a promotable draft in the target environment."),
+        {
+          code: APPROVAL_ERROR_CODES.invalidDraftSelection,
+        },
+      ),
+    );
+
+    await expect(
+      beginProtectedChangeExecution(
+        transitionInput({
+          executionOperationId: "op_00000000000000000000000001" as never,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.invalidDraftSelection });
+
+    expect(storeMocks.applyTransition).not.toHaveBeenCalled();
+    const auditArg = auditMocks.recordProtectedChangeAudit.mock.calls.at(-1)?.[0];
+    expect(auditArg).toMatchObject({
+      action: "execution_started",
+      outcome: "denied",
+      reasonCode: APPROVAL_ERROR_CODES.invalidDraftSelection,
+      fromState: "approved",
+      toState: "executing",
+    });
+  });
+
   it("rejects an approval that is missing its impact-review fingerprint before touching the store", async () => {
     await expect(
       approveProtectedChange(
