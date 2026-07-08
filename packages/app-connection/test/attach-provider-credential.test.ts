@@ -12,17 +12,19 @@ import {
 import { createKeyring } from "@insecur/crypto";
 import { describe, beforeEach, expect, it, vi } from "vitest";
 
-const { requireAppConnectionChangeEvidence, withConnectionManageAccess } = vi.hoisted(() => ({
-  requireAppConnectionChangeEvidence: vi.fn(),
-  withConnectionManageAccess: vi.fn(),
-}));
+const { requireAppConnectionChangeEvidence, withCloudflareConnectionManageAccess } = vi.hoisted(
+  () => ({
+    requireAppConnectionChangeEvidence: vi.fn(),
+    withCloudflareConnectionManageAccess: vi.fn(),
+  }),
+);
 
 vi.mock("../src/consume-app-connection-change-evidence.js", () => ({
   requireAppConnectionChangeEvidence,
 }));
 
 vi.mock("../src/with-cloudflare-connection-access.js", () => ({
-  withConnectionManageAccess,
+  withCloudflareConnectionManageAccess,
 }));
 
 vi.mock("@insecur/audit", async (importOriginal) => {
@@ -133,7 +135,7 @@ describe("attachProviderCredential", () => {
       ),
     ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.evidenceMissing });
 
-    expect(withConnectionManageAccess).not.toHaveBeenCalled();
+    expect(withCloudflareConnectionManageAccess).not.toHaveBeenCalled();
     expect(cloudflarePort.verifyScopedToken).not.toHaveBeenCalled();
     expect(attachActiveProviderCredential).not.toHaveBeenCalled();
   });
@@ -160,7 +162,7 @@ describe("attachProviderCredential", () => {
     const sensitiveMetadataStore = {} as TenantSensitiveMetadataStore;
     const cloudflarePort = successfulCloudflarePort();
 
-    withConnectionManageAccess.mockImplementation(async ({ run }) =>
+    withCloudflareConnectionManageAccess.mockImplementation(async ({ run }) =>
       run(PENDING_CONNECTION, BOUNDARY),
     );
 
@@ -169,7 +171,7 @@ describe("attachProviderCredential", () => {
     );
 
     expect(requireAppConnectionChangeEvidence).toHaveBeenCalledOnce();
-    expect(withConnectionManageAccess).toHaveBeenCalledWith(
+    expect(withCloudflareConnectionManageAccess).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: ACTOR,
         organizationId: ORG,
@@ -225,7 +227,7 @@ describe("attachProviderCredential", () => {
       }),
     };
 
-    withConnectionManageAccess.mockImplementation(async ({ run }) =>
+    withCloudflareConnectionManageAccess.mockImplementation(async ({ run }) =>
       run(PENDING_CONNECTION, BOUNDARY),
     );
 
@@ -248,7 +250,7 @@ describe("attachProviderCredential", () => {
     } as unknown as TenantAppConnectionStore;
     const sensitiveMetadataStore = {} as TenantSensitiveMetadataStore;
 
-    withConnectionManageAccess.mockRejectedValue(
+    withCloudflareConnectionManageAccess.mockRejectedValue(
       new AppConnectionError(APP_CONNECTION_ERROR_CODES.notFound),
     );
 
@@ -270,7 +272,7 @@ describe("attachProviderCredential", () => {
     } as unknown as TenantAppConnectionStore;
     const sensitiveMetadataStore = {} as TenantSensitiveMetadataStore;
 
-    withConnectionManageAccess.mockImplementation(async ({ recordDenied }) => {
+    withCloudflareConnectionManageAccess.mockImplementation(async ({ recordDenied }) => {
       await recordDenied();
       throw new AppConnectionError(AUTH_ERROR_CODES.insufficientScope);
     });

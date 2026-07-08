@@ -35,6 +35,7 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback`   |
+| GET    | `/v1/orgs/:organizationId/first-value-usage`         |
 
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /`
 creates a project with a client-minted opaque ID and Display Name; `GET
@@ -42,8 +43,17 @@ creates a project with a client-minted opaque ID and Display Name; `GET
 /:projectId/environments` creates a non-protected development environment (optional Secret Shape
 copy from another environment in the same project); `GET
 /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version,
-last-set actor/time; INS-363). `POST
+last-set actor/time; INS-363). `GET
+/:projectId/environments/:environmentId/secrets` lists environment-scoped Secret Shape metadata
+(variable key, opaque secret id, display name, current version pointer; INS-434). `GET
+/:projectId/environments/:environmentId/secrets/:secretId/versions` lists per-version metadata for
+one Secret (version ids, timestamps, current/published markers; INS-434). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+
+Under `/v1/orgs/:organizationId/first-value-usage` (INS-379): `GET /` returns metadata-only
+First Value usage counters for the onboarding handoff indicator (`secretWrites`, `grantConsumed`,
+`runCompleted`, `firstInjectionObserved`). Authorize-then-read requires `organization:read` inside
+the Runtime deploy.
 
 Under `/v1/orgs/:organizationId/audit-events` (INS-364): `GET /` lists tenant-qualified audit
 events with metadata-only envelopes. Query filters: `actorUserId`, `actorMachineIdentityId`,
@@ -53,8 +63,6 @@ Runtime deploy.
 
 Under `/v1/session` (INS-367): `GET /whoami` echoes the verified actor; `GET /memberships` is the
 console org-switcher self-read (the actor's own organizations), forwarded over the `RUNTIME` seam.
-`POST /revoke` ends the calling actor's own CLI session (INS-436), forwarded over the `RUNTIME` seam;
-unauthenticated callers receive a metadata-only success no-op.
 
 The People reads (INS-373): `GET /v1/orgs/:organizationId/members` lists membership metadata and
 `GET /v1/orgs/:organizationId/invitations` lists pending-invitation metadata (identifiers, role

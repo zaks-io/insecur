@@ -1,4 +1,4 @@
-import { auditAccessDenialOnFailure } from "@insecur/access";
+import { assertCreateConnectionManageAccess } from "./assert-create-connection-manage-access.js";
 import type { Keyring } from "@insecur/crypto";
 import {
   type AppConnectionId,
@@ -15,14 +15,9 @@ import type {
   TenantSensitiveMetadataStore,
 } from "@insecur/tenant-store";
 import type { UserActorRef } from "@insecur/access";
-
-import {
-  assertConnectionManageScope,
-  isConnectionAccessDenied,
-} from "./assert-connection-access.js";
 import { attachEncryptedCloudflareCredential } from "./attach-encrypted-cloudflare-credential.js";
 import type { CloudflareConnectionBoundary } from "./cloudflare-scoped-token-metadata.js";
-import { requireAppConnectionChangeEvidence } from "./consume-app-connection-change-evidence.js";
+import { runWithAppConnectionChangeEvidence } from "./run-with-app-connection-change-evidence.js";
 import type {
   CloudflareScopedTokenPort,
   CloudflareScopedTokenVerifyResult,
@@ -30,9 +25,7 @@ import type {
 import { persistConnectionValidationSuccess } from "./persist-connection-validation-success.js";
 import {
   recordConnectionCreated,
-  recordConnectionCreateDenied,
   recordConnectionCredentialAttached,
-  toConnectionAuditReasonCode,
 } from "./record-connection-audit.js";
 import { verifyCloudflareConnectionToken } from "./verify-cloudflare-connection-token.js";
 import { storeCloudflareConnectionBoundary } from "./store-cloudflare-connection-boundary.js";
@@ -71,22 +64,7 @@ export interface MetadataSafeCloudflareConnectionResult {
 async function assertCreateConnectionAccess(
   input: CreateCloudflareScopedTokenConnectionInput,
 ): Promise<void> {
-  try {
-    await assertConnectionManageScope(input.actor, input.organizationId, input.projectId);
-  } catch (error) {
-    await auditAccessDenialOnFailure(error, {
-      isAccessDenied: isConnectionAccessDenied,
-      recordDenied: async () => {
-        await recordConnectionCreateDenied({
-          actorUserId: input.actor.userId,
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          reasonCode: toConnectionAuditReasonCode(error),
-        });
-      },
-    });
-    throw error;
-  }
+  await assertCreateConnectionManageAccess(input);
 }
 
 async function verifyCloudflareTokenForCreate(
@@ -196,26 +174,16 @@ export async function createCloudflareScopedTokenConnection(
   input: CreateCloudflareScopedTokenConnectionInput,
 ): Promise<MetadataSafeCloudflareConnectionResult> {
   await assertCreateConnectionAccess(input);
-  await requireAppConnectionChangeEvidence(
-    {
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      operationId: input.operationId,
-      actor: input.actor,
+  return runWithAppConnectionChangeEvidence({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    operationId: input.operationId,
+    actor: input.actor,
+    run: async () => {
+      const validationResult = await verifyCloudflareTokenForCreate(input);
+      await persistCloudflareConnectionDraft(input, validationResult);
+      const activated = await attachEncryptedCredentialForCreate(input);
+      return finalizeCloudflareConnectionCreate(input, validationResult, activated);
     },
-    async (error) => {
-      await recordConnectionCreateDenied({
-        actorUserId: input.actor.userId,
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        reasonCode: error.code,
-      });
-    },
-  );
-
-  const validationResult = await verifyCloudflareTokenForCreate(input);
-  await persistCloudflareConnectionDraft(input, validationResult);
-  const activated = await attachEncryptedCredentialForCreate(input);
-
-  return finalizeCloudflareConnectionCreate(input, validationResult, activated);
+  });
 }

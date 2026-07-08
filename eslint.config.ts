@@ -18,6 +18,7 @@ const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/backup-restore/src/recovery-canary.ts",
   "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
   "packages/app-connection/src/decrypt-cloudflare-connection-boundary-for-validation.ts",
+  "packages/app-connection/src/decrypt-github-connection-boundary-for-validation.ts",
   "packages/local-store/src/decrypt-local-secret-for-injection.ts",
 ] as const;
 
@@ -239,6 +240,12 @@ export default tseslint.config(
     files: ["eslint.config.ts", "packages/tenant-store/src/db/schema/schema-shape.ts"],
     rules: {
       "max-lines": "off",
+    },
+  },
+  {
+    files: ["apps/runtime/src/runtime-service.ts"],
+    rules: {
+      "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
     },
   },
   {

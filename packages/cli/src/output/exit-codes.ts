@@ -102,6 +102,8 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [CLI_ERROR_CODES.profileSlugInUse]: EXIT_CONFLICT,
   [CLI_ERROR_CODES.invalidProfileSlug]: EXIT_VALIDATION,
   [CLI_ERROR_CODES.scopedSelectorNotFound]: EXIT_NOT_FOUND,
+  [CLI_ERROR_CODES.validationError]: EXIT_VALIDATION,
+  [CLI_ERROR_CODES.unexpectedError]: EXIT_UNEXPECTED,
   [IMPORT_ERROR_CODES.unsupportedEnvironment]: EXIT_VALIDATION,
   [IMPORT_ERROR_CODES.existingSecret]: EXIT_CONFLICT,
   [IMPORT_ERROR_CODES.parseError]: EXIT_VALIDATION,

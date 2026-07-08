@@ -25,6 +25,7 @@ import type {
   CreateProjectRpcInput,
   ListAuditEventsRpcInput,
   ListEnvironmentsRpcInput,
+  ListEnvironmentSecretsRpcInput,
   ListOrganizationInvitationsRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
   GetHighAssuranceChallengeRpcInput,
@@ -33,6 +34,7 @@ import type {
   ListOrganizationMembersRpcInput,
   ListProjectSecretsRpcInput,
   ListProjectsRpcInput,
+  ListSecretVersionsRpcInput,
   ListSessionOrganizationsRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
@@ -41,6 +43,7 @@ import type {
   RecordAbuseDeniedRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   CaptureFirstValueFeedbackRpcInput,
+  QueryFirstValueUsageRpcInput,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RevokeCliSessionRpcInput,
@@ -67,6 +70,7 @@ import {
 } from "./rpc/runtime-high-assurance-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
+  queryFirstValueUsageRpc,
   cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
@@ -74,9 +78,11 @@ import {
   listAuditEventsRpc,
   listEnvironmentsRpc,
   createProjectRpc,
+  listEnvironmentSecretsRpc,
   listOrganizationInvitationsRpc,
   listOrganizationMembersRpc,
   listProjectSecretsRpc,
+  listSecretVersionsRpc,
   listProjectsRpc,
   listSessionOrganizationsRpc,
   recordInjectionRunCompletedRpc,
@@ -266,6 +272,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
   }
 
+  queryFirstValueUsage(input: QueryFirstValueUsageRpcInput) {
+    return queryFirstValueUsageRpc(this.#post.bind(this), input);
+  }
+
   listProjects(input: ListProjectsRpcInput) {
     return listProjectsRpc(this.#post.bind(this), input);
   }
@@ -284,6 +294,14 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   listProjectSecrets(input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.#post.bind(this), input);
+  }
+
+  listEnvironmentSecrets(input: ListEnvironmentSecretsRpcInput) {
+    return listEnvironmentSecretsRpc(this.#post.bind(this), input);
+  }
+
+  listSecretVersions(input: ListSecretVersionsRpcInput) {
+    return listSecretVersionsRpc(this.#post.bind(this), input);
   }
 
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {

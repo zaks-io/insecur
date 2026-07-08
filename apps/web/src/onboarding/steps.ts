@@ -19,7 +19,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   { id: "enroll-passkey", railLabel: "Approval passkey", enabled: true },
   { id: "create-project", railLabel: "First project", enabled: true },
   // INS-379: optional blind secret write claims this slot.
-  { id: "first-secret", railLabel: "First secret", enabled: false },
+  { id: "first-secret", railLabel: "First secret", enabled: true },
   { id: "cli-handoff", railLabel: "Hand off to the CLI", enabled: true },
 ];
 
