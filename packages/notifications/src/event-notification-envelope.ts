@@ -43,6 +43,8 @@ export function assertMetadataOnlyEnvelope(envelope: EventNotificationEnvelope):
       throw new Error(`envelope contains disallowed key: ${key}`);
     }
   }
+  // displayNames keys/values are not scanned for forbidden substrings; callers must supply
+  // only non-sensitive human labels (never secret material, ciphertext, or plaintext values).
   for (const value of Object.values(envelope.displayNames)) {
     if (typeof value !== "string") {
       throw new Error("displayNames values must be strings");

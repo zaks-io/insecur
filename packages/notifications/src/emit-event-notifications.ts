@@ -35,6 +35,17 @@ export interface EmitEventNotificationsInput {
   readonly sourceAuditEvent: AuditEventInput;
 }
 
+function logEmissionFailure(
+  input: Pick<EmitEventNotificationsInput, "eventCode" | "organizationId">,
+  error: unknown,
+  context: string,
+): void {
+  const message = error instanceof Error ? error.message : "unknown notification emission failure";
+  console.error(
+    `[event-notifications] ${context} for ${input.eventCode} in ${input.organizationId}: ${message}`,
+  );
+}
+
 export async function emitEventNotificationsForEnvelope(
   input: EmitEventNotificationsInput,
 ): Promise<void> {
@@ -49,19 +60,31 @@ export async function emitEventNotificationsForEnvelope(
     );
 
     for (const subscription of subscriptions) {
+      const delivered = await tryDeliverToSubscription(input, subscription);
       try {
-        await deliverToSubscription(input, subscription);
-        await recordDeliveryAudit(input.sourceAuditEvent, subscription.subscriptionId, "success");
-      } catch {
-        await recordDeliveryAudit(input.sourceAuditEvent, subscription.subscriptionId, "failed");
+        await recordDeliveryAudit(
+          input.sourceAuditEvent,
+          subscription.subscriptionId,
+          delivered ? "success" : "failed",
+        );
+      } catch (error) {
+        logEmissionFailure(input, error, "delivery audit write failed");
       }
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "unknown notification emission failure";
-    console.error(
-      `[event-notifications] delivery failed for ${input.eventCode} in ${input.organizationId}: ${message}`,
-    );
+    logEmissionFailure(input, error, "delivery failed");
+  }
+}
+
+async function tryDeliverToSubscription(
+  input: EmitEventNotificationsInput,
+  subscription: WebhookSubscriptionRow,
+): Promise<boolean> {
+  try {
+    await deliverToSubscription(input, subscription);
+    return true;
+  } catch {
+    return false;
   }
 }
 

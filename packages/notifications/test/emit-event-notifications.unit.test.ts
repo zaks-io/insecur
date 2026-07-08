@@ -1,6 +1,11 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
-import { organizationId, userId } from "@insecur/domain";
+import { organizationId, userId, webhookSubscriptionId } from "@insecur/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../src/record-webhook-audit.js", () => ({
+  recordWebhookDeliverySucceeded: vi.fn(),
+  recordWebhookDeliveryFailed: vi.fn(),
+}));
 
 vi.mock("@insecur/tenant-store", () => ({
   withTenantScope: vi.fn(),
@@ -9,11 +14,42 @@ vi.mock("@insecur/tenant-store", () => ({
   TenantInAppEventNotificationStore: vi.fn(),
 }));
 
-import { withTenantScope, TenantWebhookSubscriptionStore } from "@insecur/tenant-store";
+import {
+  withTenantScope,
+  TenantWebhookSubscriptionStore,
+  TenantWebhookSigningSecretStore,
+} from "@insecur/tenant-store";
+import { recordWebhookDeliveryFailed } from "../src/record-webhook-audit.js";
 import { emitEventNotificationsForEnvelope } from "../src/emit-event-notifications.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const USER = userId.brand("usr_00000000000000000000000001");
+const SUBSCRIPTION = webhookSubscriptionId.brand("whsub_00000000000000000000000001");
+
+function baseEmitInput() {
+  return {
+    keyring: {} as never,
+    organizationId: ORG,
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+    envelope: {
+      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+      timestamp: "2026-07-07T12:00:00.000Z",
+      organizationId: ORG,
+      displayNames: { organization: "Acme" },
+      actor: { type: "user" as const, id: USER },
+      status: "success" as const,
+    },
+    deliveryPorts: {
+      inApp: { persistEventNotification: vi.fn() },
+    },
+    sourceAuditEvent: {
+      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+      outcome: "success" as const,
+      actor: { type: "user" as const, userId: USER },
+      organizationId: ORG,
+    },
+  };
+}
 
 describe("emitEventNotificationsForEnvelope", () => {
   afterEach(() => {
@@ -28,28 +64,7 @@ describe("emitEventNotificationsForEnvelope", () => {
       } as never,
     );
 
-    await emitEventNotificationsForEnvelope({
-      keyring: {} as never,
-      organizationId: ORG,
-      eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
-      envelope: {
-        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
-        timestamp: "2026-07-07T12:00:00.000Z",
-        organizationId: ORG,
-        displayNames: { organization: "Acme" },
-        actor: { type: "user", id: USER },
-        status: "success",
-      },
-      deliveryPorts: {
-        inApp: { persistEventNotification: vi.fn() },
-      },
-      sourceAuditEvent: {
-        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
-        outcome: "success",
-        actor: { type: "user", userId: USER },
-        organizationId: ORG,
-      },
-    });
+    await emitEventNotificationsForEnvelope(baseEmitInput());
 
     expect(TenantWebhookSubscriptionStore).toHaveBeenCalled();
   });
@@ -58,31 +73,39 @@ describe("emitEventNotificationsForEnvelope", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(withTenantScope).mockRejectedValue(new Error("transient DB error"));
 
-    await expect(
-      emitEventNotificationsForEnvelope({
-        keyring: {} as never,
-        organizationId: ORG,
-        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
-        envelope: {
-          eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
-          timestamp: "2026-07-07T12:00:00.000Z",
-          organizationId: ORG,
-          displayNames: { organization: "Acme" },
-          actor: { type: "user", id: USER },
-          status: "success",
-        },
-        deliveryPorts: {
-          inApp: { persistEventNotification: vi.fn() },
-        },
-        sourceAuditEvent: {
-          eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
-          outcome: "success",
-          actor: { type: "user", userId: USER },
-          organizationId: ORG,
-        },
-      }),
-    ).resolves.toBeUndefined();
+    await expect(emitEventNotificationsForEnvelope(baseEmitInput())).resolves.toBeUndefined();
 
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("swallows recordDeliveryAudit failures without rethrowing", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(withTenantScope).mockImplementation(async (_scope, run) => run({ db: {} } as never));
+    vi.mocked(TenantWebhookSubscriptionStore).mockImplementation(
+      class {
+        listActiveByEventCode = vi.fn().mockResolvedValue([
+          {
+            subscriptionId: SUBSCRIPTION,
+            organizationId: ORG,
+            enableInAppChannel: false,
+            enableEmailChannel: false,
+          },
+        ]);
+      } as never,
+    );
+    vi.mocked(TenantWebhookSigningSecretStore).mockImplementation(
+      class {
+        getActiveSecret = vi.fn().mockResolvedValue(null);
+      } as never,
+    );
+    vi.mocked(recordWebhookDeliveryFailed).mockRejectedValue(
+      new Error("nested audit write failed"),
+    );
+
+    await expect(emitEventNotificationsForEnvelope(baseEmitInput())).resolves.toBeUndefined();
+
+    expect(recordWebhookDeliveryFailed).toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
