@@ -2,7 +2,11 @@ import {
   consoleApprovalItemKindFromId,
   type ConsoleApprovalRequestItem,
 } from "./approval-items.js";
-import { isRecord, optionalStringField, requiredStringField } from "./approval-parse-helpers.js";
+import {
+  isRecord,
+  optionalNullableStringField,
+  requiredStringField,
+} from "./approval-parse-helpers.js";
 
 function requiredPendingStatus(value: unknown): "pending" | null {
   return value === "pending" ? "pending" : null;
@@ -44,9 +48,12 @@ export function parseApprovalRequestEntry(entry: unknown): ConsoleApprovalReques
   if (required === null) {
     return null;
   }
-  const operationId = optionalStringField(entry, "operationId");
-  const requestingUserId = optionalStringField(entry, "requestingUserId");
-  const requestingMachineIdentityId = optionalStringField(entry, "requestingMachineIdentityId");
+  const operationId = optionalNullableStringField(entry, "operationId");
+  const requestingUserId = optionalNullableStringField(entry, "requestingUserId");
+  const requestingMachineIdentityId = optionalNullableStringField(
+    entry,
+    "requestingMachineIdentityId",
+  );
   if (!operationId.ok || !requestingUserId.ok || !requestingMachineIdentityId.ok) {
     return null;
   }

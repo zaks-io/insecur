@@ -172,7 +172,7 @@ export async function completeBrowserApprovalStepUp(
   return parseApproveOutcome(response, callback.roundTrip.returnTo);
 }
 
-export function approvalStepUpFailureRedirectPath(returnTo: string): string {
+function approvalStepUpFailureRedirectPath(returnTo: string): string {
   const url = new URL(returnTo, "https://insecur.invalid");
   url.searchParams.set("approve", "failed");
   return `${url.pathname}${url.search}`;

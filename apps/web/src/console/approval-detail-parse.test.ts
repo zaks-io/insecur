@@ -4,6 +4,7 @@ import {
   parseHighAssuranceChallengeDetailEntry,
   parseOrgHighAssuranceChallengeDetailBody,
 } from "./approval-detail-parse.js";
+import { parseOrgApprovalRequestDetailBody } from "./approval-request-detail-parse.js";
 
 const DETAIL_ENTRY = {
   operationId: "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
@@ -46,5 +47,54 @@ describe("parseOrgHighAssuranceChallengeDetailBody", () => {
   it("fails closed on malformed envelopes", () => {
     expect(parseOrgHighAssuranceChallengeDetailBody({ ok: false })).toBeNull();
     expect(parseHighAssuranceChallengeDetailEntry({ ...DETAIL_ENTRY, status: "bogus" })).toBeNull();
+  });
+});
+
+const APPROVAL_REQUEST_DETAIL_ENTRY = {
+  approvalRequestId: "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  purpose: "protected_promotion",
+  status: "pending",
+  projectId: "prj_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  environmentId: "env_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  requestedAt: "2026-07-01T00:00:00.000Z",
+  operationId: null,
+  requestingUserId: "usr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  requestingMachineIdentityId: null,
+  commentLength: 12,
+  rollbackSecretId: null,
+  rollbackToVersionId: null,
+  rollbackPromoteRequested: false,
+  impactReview: {
+    fingerprintAtCreation: "fp-old",
+    currentFingerprint: "fp-current",
+    isStale: true,
+    draftVersions: [],
+    delivery: { runtimeInjectionPolicies: [], providerSyncImpact: [] },
+  },
+};
+
+describe("parseOrgApprovalRequestDetailBody", () => {
+  it("parses metadata evidence for one approval request", () => {
+    expect(
+      parseOrgApprovalRequestDetailBody({
+        ok: true,
+        data: { approvalRequest: APPROVAL_REQUEST_DETAIL_ENTRY },
+      }),
+    ).toMatchObject({
+      kind: "approval_request",
+      id: APPROVAL_REQUEST_DETAIL_ENTRY.approvalRequestId,
+      status: "pending",
+      impactReview: { isStale: true },
+    });
+  });
+
+  it("fails closed on malformed envelopes", () => {
+    expect(parseOrgApprovalRequestDetailBody({ ok: false })).toBeNull();
+    expect(
+      parseOrgApprovalRequestDetailBody({
+        ok: true,
+        data: { approvalRequest: { ...APPROVAL_REQUEST_DETAIL_ENTRY, status: "approved_applied" } },
+      }),
+    ).toBeNull();
   });
 });

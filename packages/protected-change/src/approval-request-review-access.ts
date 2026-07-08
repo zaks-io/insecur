@@ -20,7 +20,7 @@ function insufficientScopeError(): ApprovalRequestError {
   );
 }
 
-export function hasApprovalReviewReadScope(access: EffectiveAccessResult): boolean {
+function hasApprovalReviewReadScope(access: EffectiveAccessResult): boolean {
   return (
     hasAuthorizationScope(access, AUTHORIZATION_SCOPES.approvalApprove) ||
     hasAuthorizationScope(access, AUTHORIZATION_SCOPES.approvalReject)

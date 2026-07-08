@@ -9,8 +9,6 @@ import type {
   ConsoleApprovalRequestImpactReview,
 } from "./approval-request-impact-types.js";
 
-export type { ConsoleApprovalRequestImpactDraftVersion, ConsoleApprovalRequestImpactReview };
-
 function parseImpactDraftVersion(entry: unknown): ConsoleApprovalRequestImpactDraftVersion | null {
   if (!isRecord(entry)) {
     return null;

@@ -1,18 +1,13 @@
 import type { ConsoleApprovalRequestItem } from "./approval-items.js";
 import { parseApprovalRequestEntry } from "./approval-request-items-parse.js";
-import {
-  parseImpactReview,
-  type ConsoleApprovalRequestImpactDraftVersion,
-  type ConsoleApprovalRequestImpactReview,
-} from "./approval-request-impact-parse.js";
+import { parseImpactReview } from "./approval-request-impact-parse.js";
+import type { ConsoleApprovalRequestImpactReview } from "./approval-request-impact-types.js";
 import {
   isRecord,
   optionalNullableStringField,
   optionalNumberField,
   requiredBooleanField,
 } from "./approval-parse-helpers.js";
-
-export type { ConsoleApprovalRequestImpactDraftVersion, ConsoleApprovalRequestImpactReview };
 
 /** Detail read for one pending Approval Request (INS-86). */
 export interface ConsoleApprovalRequestDetail extends ConsoleApprovalRequestItem {
@@ -23,9 +18,7 @@ export interface ConsoleApprovalRequestDetail extends ConsoleApprovalRequestItem
   readonly impactReview: ConsoleApprovalRequestImpactReview;
 }
 
-export function parseApprovalRequestDetailEntry(
-  entry: unknown,
-): ConsoleApprovalRequestDetail | null {
+function parseApprovalRequestDetailEntry(entry: unknown): ConsoleApprovalRequestDetail | null {
   const base = parseApprovalRequestEntry(entry);
   if (base === null || !isRecord(entry)) {
     return null;

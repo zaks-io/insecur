@@ -15,7 +15,7 @@ import { logUnhandledApiError } from "../../log-unhandled-error.js";
 
 const VALIDATION_ERROR_CODE_SET = new Set<string>(Object.values(VALIDATION_ERROR_CODES));
 
-export function readUserRouteValidationErrorCode(error: unknown): ValidationErrorCode | undefined {
+function readUserRouteValidationErrorCode(error: unknown): ValidationErrorCode | undefined {
   const code = readErrorCode(error);
   if (code === undefined || !VALIDATION_ERROR_CODE_SET.has(code)) {
     return undefined;
@@ -23,7 +23,7 @@ export function readUserRouteValidationErrorCode(error: unknown): ValidationErro
   return code as ValidationErrorCode;
 }
 
-export function userRouteValidationErrorResponse(
+function userRouteValidationErrorResponse(
   context: Context,
   error: unknown,
   code: ValidationErrorCode,
