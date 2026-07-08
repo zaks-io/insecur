@@ -2,9 +2,11 @@ export {
   PROTECTED_CHANGE_STATES,
   TERMINAL_PROTECTED_CHANGE_STATES,
   PROTECTED_CHANGE_ACTIVE_STATES,
+  PROTECTED_CHANGE_STATE_CODES,
   isProtectedChangeState,
   isTerminalProtectedChangeState,
   isProtectedChangeTransitionAllowed,
+  protectedChangeStateCode,
   type ProtectedChangeState,
 } from "./protected-change-states.js";
 export { ProtectedChangeError, isProtectedChangeError } from "./protected-change-errors.js";

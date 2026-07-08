@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   isProtectedChangeTransitionAllowed,
+  PROTECTED_CHANGE_STATE_CODES,
+  protectedChangeStateCode,
   TERMINAL_PROTECTED_CHANGE_STATES,
 } from "../src/protected-change-states.js";
 
@@ -33,5 +35,13 @@ describe("protected change state transitions", () => {
       expect(isProtectedChangeTransitionAllowed(state, "pending_approval")).toBe(false);
       expect(isProtectedChangeTransitionAllowed(state, "executing")).toBe(false);
     }
+  });
+
+  it("maps states to stable dotted audit codes", () => {
+    expect(protectedChangeStateCode("proposed")).toBe(PROTECTED_CHANGE_STATE_CODES.proposed);
+    expect(protectedChangeStateCode("pending_approval")).toBe(
+      PROTECTED_CHANGE_STATE_CODES.pending_approval,
+    );
+    expect(protectedChangeStateCode("succeeded")).toBe(PROTECTED_CHANGE_STATE_CODES.succeeded);
   });
 });

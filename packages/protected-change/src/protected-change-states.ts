@@ -57,3 +57,20 @@ export function isProtectedChangeTransitionAllowed(
   }
   return ALLOWED_TRANSITIONS[currentState].includes(nextState);
 }
+
+/** Stable dotted codes for metadata-only audit transition details. */
+export const PROTECTED_CHANGE_STATE_CODES = {
+  proposed: "protected_change.state.proposed",
+  pending_approval: "protected_change.state.pending_approval",
+  approved: "protected_change.state.approved",
+  rejected: "protected_change.state.rejected",
+  stale: "protected_change.state.stale",
+  canceled: "protected_change.state.canceled",
+  executing: "protected_change.state.executing",
+  succeeded: "protected_change.state.succeeded",
+  failed: "protected_change.state.failed",
+} as const satisfies Record<ProtectedChangeState, string>;
+
+export function protectedChangeStateCode(state: ProtectedChangeState): string {
+  return PROTECTED_CHANGE_STATE_CODES[state];
+}

@@ -17,7 +17,7 @@ import {
   protectedChangeAuditEventCode,
   type ProtectedChangeAuditAction,
 } from "./protected-change-audit-codes.js";
-import type { ProtectedChangeState } from "./protected-change-states.js";
+import { protectedChangeStateCode, type ProtectedChangeState } from "./protected-change-states.js";
 
 export type { ProtectedChangeAuditAction };
 
@@ -53,8 +53,12 @@ export async function recordProtectedChangeAudit(
     input.fromState === undefined && input.toState === undefined
       ? undefined
       : {
-          ...(input.fromState === undefined ? {} : { fromState: input.fromState }),
-          ...(input.toState === undefined ? {} : { toState: input.toState }),
+          ...(input.fromState === undefined
+            ? {}
+            : { fromState: protectedChangeStateCode(input.fromState) }),
+          ...(input.toState === undefined
+            ? {}
+            : { toState: protectedChangeStateCode(input.toState) }),
         };
 
   return recordActionAudit({
