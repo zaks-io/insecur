@@ -1,4 +1,3 @@
-import type { EnvironmentId, ProjectId } from "@insecur/domain";
 import type { LocalStore } from "@insecur/local-store";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import type { SecretsApiClient } from "./secrets-api-types.js";
@@ -11,24 +10,9 @@ import {
   recordLocalInjectionRunCompleted,
 } from "../local/local-injection-grants.js";
 import { unsupportedLocalApi } from "./local-client-stubs.js";
+import { requireLocalEnvironmentId, requireLocalProjectId } from "./local-client-scope.js";
 
-function requireLocalProjectId(context: ResolvedCliContext): ProjectId {
-  const projectId = context.scope.projectId;
-  if (projectId === undefined) {
-    throw new Error("local project scope is missing projectId");
-  }
-  return projectId;
-}
-
-function requireLocalEnvironmentId(context: ResolvedCliContext): EnvironmentId {
-  const environmentId = context.scope.envId;
-  if (environmentId === undefined) {
-    throw new Error("local project scope is missing envId");
-  }
-  return environmentId;
-}
-
-export function createLocalSecretsApi(input: {
+export function createLocalSecretsWriteApi(input: {
   readonly store: LocalStore;
   readonly context: ResolvedCliContext;
   readonly flags: GlobalCliFlags;

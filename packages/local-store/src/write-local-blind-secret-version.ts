@@ -18,6 +18,7 @@ export interface WriteLocalBlindSecretVersionInput extends Omit<
   readonly keyring: Keyring;
   readonly ciphertextIdentity: SecretCiphertextIdentity;
   readonly valueUtf8: Uint8Array;
+  readonly allowEmpty?: boolean;
   readonly generationHint?: string | null;
 }
 
@@ -40,7 +41,7 @@ export async function writeLocalBlindSecretVersion(
       : ((await stores.projectMetadata.getSecretShape(input.projectId, input.variableKey))
           ?.generationHint ?? null));
 
-  validateTextSecretValue(input.valueUtf8);
+  validateTextSecretValue(input.valueUtf8, input.allowEmpty === true ? { allowEmpty: true } : {});
   const descriptiveVerdicts = computeSecretWriteDescriptiveVerdicts({
     valueUtf8: input.valueUtf8,
     generationHint,

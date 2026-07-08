@@ -2,7 +2,12 @@ import type { LocalStore } from "@insecur/local-store";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import type { ApiClient } from "./types.js";
 import { createUnsupportedLocalApiMethods } from "./local-client-stubs.js";
-import { createLocalRuntimeInjectionApi, createLocalSecretsApi } from "./local-client-runtime.js";
+import { createLocalNavigationApi } from "./local-client-navigation.js";
+import { createLocalSecretsReadApi } from "./local-client-secrets-read.js";
+import {
+  createLocalRuntimeInjectionApi,
+  createLocalSecretsWriteApi,
+} from "./local-client-runtime.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 
 export interface CreateLocalApiClientInput {
@@ -17,7 +22,9 @@ export function createLocalApiClient(input: CreateLocalApiClientInput): ApiClien
       throw new Error("createCliAuthorizationUrl is not available in Local Mode");
     },
     ...createUnsupportedLocalApiMethods(),
-    ...createLocalSecretsApi(input),
+    ...createLocalNavigationApi(input),
+    ...createLocalSecretsWriteApi(input),
+    ...createLocalSecretsReadApi(input),
     ...createLocalRuntimeInjectionApi(input),
   };
 }

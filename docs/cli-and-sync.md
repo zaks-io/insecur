@@ -385,7 +385,10 @@ Mutating or long-running commands should also support:
 
 ## Output Shape
 
-Human output can be compact prose or tables. JSON output should be stable.
+Human output can be compact prose or tables. Human success output goes to stdout; human error output
+and remediation prose go to stderr. JSON output should be stable. With `--json`, success envelopes are
+written to stdout and error envelopes are written to stderr. Command-specific non-envelope machine
+formats document their own stream behavior.
 
 Success envelope:
 
