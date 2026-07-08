@@ -79,6 +79,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [CRYPTO_ERROR_CODES.tenantDataKeyNotReady, 503],
   [CRYPTO_ERROR_CODES.invalidAadField, 400],
   [AUDIT_ERROR_CODES.eventInvalid, 400],
+  [AUDIT_ERROR_CODES.exportEntryLimitExceeded, 400],
   [HIGH_ASSURANCE_ERROR_CODES.evidenceMissing, 401],
   [HIGH_ASSURANCE_ERROR_CODES.evidenceExpired, 401],
   [HIGH_ASSURANCE_ERROR_CODES.operationMismatch, 404],

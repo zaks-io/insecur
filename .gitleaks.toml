@@ -66,6 +66,12 @@ paths = ['''(?i)^scripts/ci/deploy-topology-conformance\.mjs$''']
 regexes = ['''^INSTANCE_ROOT_KEY_V1$''']
 
 [[rules.allowlists]]
+description = "INSTANCE_ROOT_KEY_V1 binding-name literal in the content-only deploy assertion (a binding name, not a secret value)"
+condition = "and"
+paths = ['''(?i)^apps/runtime/scripts/deploy-content-only-lib\.mjs$''']
+regexes = ['''INSTANCE_ROOT_KEY_V1''']
+
+[[rules.allowlists]]
 description = "Branded opaque secret-id fixtures in worker-kit route parsing unit tests"
 condition = "and"
 paths = ['''(?i)^packages/worker-kit/src/http/parse-route-input\.test\.ts$''']
