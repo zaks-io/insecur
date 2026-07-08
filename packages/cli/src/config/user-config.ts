@@ -8,6 +8,7 @@ import type {
 } from "@insecur/domain";
 import { CLI_ERROR_CODES } from "@insecur/domain";
 import { assertNoForbiddenConfigKeys } from "./forbidden-config-keys.js";
+import { isLocalModeHost } from "./local-mode.js";
 import { parseCliProfileSlug } from "./profiles/profile-slug.js";
 import {
   parseCliProfileId,
@@ -24,7 +25,7 @@ export interface CliUserProfile {
   readonly slug: string;
   readonly displayName: DisplayName;
   readonly host: string;
-  readonly orgId: OrganizationId;
+  readonly orgId?: OrganizationId;
   readonly projectId: ProjectId;
   readonly envId: EnvironmentId;
   readonly defaultRunPolicyId?: RuntimePolicyId;
@@ -45,10 +46,10 @@ function parseProfile(profileId: string, record: Record<string, unknown>): CliUs
     `profiles.${profileId}.displayName`,
   );
   const host = requireNonEmptyString(record.host, `profiles.${profileId}.host`);
-  const orgId = requireNonEmptyString(record.orgId, `profiles.${profileId}.orgId`);
+  const profileContext = `profiles.${profileId}`;
+  const orgId = parseOptionalProfileOrgId(record.orgId, host, profileContext);
   const projectId = requireNonEmptyString(record.projectId, `profiles.${profileId}.projectId`);
   const envId = requireNonEmptyString(record.envId, `profiles.${profileId}.envId`);
-  const profileContext = `profiles.${profileId}`;
   const defaultRunPolicyId = parseOptionalRuntimePolicyId(
     typeof record.defaultRunPolicyId === "string" ? record.defaultRunPolicyId : undefined,
     `${profileContext}.defaultRunPolicyId`,
@@ -57,11 +58,28 @@ function parseProfile(profileId: string, record: Record<string, unknown>): CliUs
     slug,
     displayName: displayName as DisplayName,
     host,
-    orgId: parseOrganizationId(orgId, `${profileContext}.orgId`),
+    ...(orgId === undefined ? {} : { orgId }),
     projectId: parseProjectId(projectId, `${profileContext}.projectId`),
     envId: parseEnvironmentId(envId, `${profileContext}.envId`),
     ...(defaultRunPolicyId === undefined ? {} : { defaultRunPolicyId }),
   };
+}
+
+function parseOptionalProfileOrgId(
+  value: unknown,
+  host: string,
+  profileContext: string,
+): OrganizationId | undefined {
+  if (value === undefined) {
+    if (!isLocalModeHost(host)) {
+      throw new Error(`${profileContext}.orgId is required for hosted profiles`);
+    }
+    return undefined;
+  }
+  return parseOrganizationId(
+    requireNonEmptyString(value, `${profileContext}.orgId`),
+    `${profileContext}.orgId`,
+  );
 }
 
 function parseProfileRecord(profileId: string, profileRecord: unknown): CliUserProfile {

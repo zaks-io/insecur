@@ -237,6 +237,14 @@ export const CLI_ERROR_CODES = {
 
 export type CliErrorCode = (typeof CLI_ERROR_CODES)[keyof typeof CLI_ERROR_CODES];
 
+/** Local Mode client-side capability ceiling failures. */
+export const LOCAL_ERROR_CODES = {
+  cloudFeatureUnavailable: "local.cloud_feature_unavailable",
+  valueMissingOnMachine: "local.value_missing_on_machine",
+} as const;
+
+export type LocalErrorCode = (typeof LOCAL_ERROR_CODES)[keyof typeof LOCAL_ERROR_CODES];
+
 /** Webhook subscription and event notification delivery errors (INS-453). */
 export const NOTIFICATION_ERROR_CODES = {
   invalidEventCode: "notification.invalid_event_code",
@@ -298,6 +306,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   IMPORT_ERROR_CODES,
   CLI_ERROR_CODES,
+  LOCAL_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
   PROTECTED_CHANGE_ERROR_CODES,
   APPROVAL_ERROR_CODES,
@@ -322,6 +331,7 @@ export type KnownErrorCode =
   | ProviderAppRegistrationErrorCode
   | ImportErrorCode
   | CliErrorCode
+  | LocalErrorCode
   | NotificationErrorCode
   | ProtectedChangeErrorCode
   | ApprovalErrorCode

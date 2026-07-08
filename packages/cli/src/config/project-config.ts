@@ -1,5 +1,6 @@
 import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 import { assertNoForbiddenConfigKeys } from "./forbidden-config-keys.js";
+import { isLocalModeHost } from "./local-mode.js";
 import {
   parseCliProfileId,
   parseEnvironmentId,
@@ -8,38 +9,59 @@ import {
 } from "./parse-resource-id.js";
 import { requireNonEmptyString } from "./require-non-empty-string.js";
 import { projectConfigPath, readJsonFile, resolveProjectRoot, writeJsonFile } from "./paths.js";
+import {
+  parseSecretShapeManifest,
+  serializeSecretShapeManifest,
+  type SecretShapeManifestEntry,
+} from "./secret-shape-manifest.js";
 
 export interface InsecurProjectConfig {
   readonly host: string;
-  readonly orgId: OrganizationId;
+  readonly orgId?: OrganizationId;
   readonly projectId: ProjectId;
   readonly defaultEnvId: EnvironmentId;
   readonly profileId: CliProfileId;
+  readonly secretShapes?: readonly SecretShapeManifestEntry[];
   readonly gitBranchToEnvironment?: Readonly<Record<string, EnvironmentId>>;
 }
 
 function parseProjectConfig(record: Record<string, unknown>): InsecurProjectConfig {
   assertNoForbiddenConfigKeys(record, PROJECT_CONFIG_LABEL);
   const host = requireNonEmptyString(record.host, `${PROJECT_CONFIG_LABEL} host`);
-  const orgId = requireNonEmptyString(record.orgId, `${PROJECT_CONFIG_LABEL} orgId`);
-  const projectId = requireNonEmptyString(record.projectId, `${PROJECT_CONFIG_LABEL} projectId`);
+  const projectIdRaw = requireNonEmptyString(record.projectId, `${PROJECT_CONFIG_LABEL} projectId`);
   const defaultEnvId = requireNonEmptyString(
     record.defaultEnvId,
     `${PROJECT_CONFIG_LABEL} defaultEnvId`,
   );
   const profileId = requireNonEmptyString(record.profileId, `${PROJECT_CONFIG_LABEL} profileId`);
   const gitBranchToEnvironment = parseGitBranchMap(record.gitBranchToEnvironment);
+  const secretShapes = parseSecretShapeManifest(record.secretShapes);
+  const orgId = parseOptionalOrgId(record.orgId, host);
   return {
     host,
-    orgId: parseOrganizationId(orgId, `${PROJECT_CONFIG_LABEL} orgId`),
-    projectId: parseProjectId(projectId, `${PROJECT_CONFIG_LABEL} projectId`),
+    ...(orgId === undefined ? {} : { orgId }),
+    projectId: parseProjectId(projectIdRaw, `${PROJECT_CONFIG_LABEL} projectId`),
     defaultEnvId: parseEnvironmentId(defaultEnvId, `${PROJECT_CONFIG_LABEL} defaultEnvId`),
     profileId: parseCliProfileId(profileId, `${PROJECT_CONFIG_LABEL} profileId`),
+    ...(secretShapes.length === 0 ? {} : { secretShapes }),
     ...(gitBranchToEnvironment === undefined ? {} : { gitBranchToEnvironment }),
   };
 }
 
 const PROJECT_CONFIG_LABEL = ".insecur.json";
+
+function parseOptionalOrgId(value: unknown, host: string): OrganizationId | undefined {
+  if (value === undefined) {
+    if (!isLocalModeHost(host)) {
+      throw new Error(`${PROJECT_CONFIG_LABEL} orgId is required for hosted projects`);
+    }
+    return undefined;
+  }
+  return parseOrganizationId(
+    requireNonEmptyString(value, `${PROJECT_CONFIG_LABEL} orgId`),
+    `${PROJECT_CONFIG_LABEL} orgId`,
+  );
+}
 
 function parseGitBranchMap(value: unknown): Readonly<Record<string, EnvironmentId>> | undefined {
   if (value === undefined) {
@@ -80,11 +102,16 @@ export async function writeProjectConfig(
   const filePath = projectConfigPath(root);
   const payload: Record<string, unknown> = {
     host: config.host,
-    orgId: config.orgId,
     projectId: config.projectId,
     defaultEnvId: config.defaultEnvId,
     profileId: config.profileId,
   };
+  if (config.orgId !== undefined) {
+    payload.orgId = config.orgId;
+  }
+  if (config.secretShapes !== undefined && config.secretShapes.length > 0) {
+    payload.secretShapes = serializeSecretShapeManifest(config.secretShapes);
+  }
   if (config.gitBranchToEnvironment !== undefined) {
     payload.gitBranchToEnvironment = config.gitBranchToEnvironment;
   }
