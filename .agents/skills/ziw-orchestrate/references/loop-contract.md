@@ -56,8 +56,8 @@ Each tick:
    `node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> --config <config.json> --state <queue-state.json>`
    when compact queue/config JSON is available. The planner deterministically
    returns active footprint, capacity action, collision-safe dispatch selection,
-   Linear DAG roots/starts, ready-state promotions, hosted-review actions, and
-   human-merge PR label decisions. Use
+   Linear DAG roots/frontier, dispatchable starts, ready-state promotions,
+   hosted-review actions, and human-merge PR label decisions. Use
    `node <skill-dir>/scripts/linear-dag-start.mjs <snapshot.json> --config <config.json>`
    when only the Linear dependency frontier is needed. Never dispatch an issue
    whose snapshot or tracker state shows an incomplete blocker. Use tracker
@@ -78,15 +78,17 @@ Each tick:
    not starve new dispatch.
 5. Act on at most a bounded slice of work this tick: advance returned PRs, active
    previews, and stuck draft PRs first. Optimize delivery-slot turnover over
-   worker count: merge green PRs, route fixes, update branches after main moves,
-   and inspect previews before dispatching new work. Dispatch new startable work
-   only when the active PR/preview cap has headroom and active work has no near
-   term drain action. Before fanning out, compare predicted file footprints
-   against active PRs, active branches, and selected candidates; hold colliding or
-   unknown-footprint tickets for triage or a later tick instead of spending spare
-   slots. Draft state is an orchestration repair signal, not a code review
-   request, and capacity pressure is not a reason to close a draft or in-progress
-   PR.
+   worker count: merge green PRs, route fixes, run `gh pr update-branch <pr>` on
+   GitHub PRs after main moves, and inspect previews before dispatching new
+   work. Do not delegate routine branch updates; delegate only after the update
+   reports a merge conflict or equivalent manual conflict state. Dispatch new
+   startable work only when the active PR/preview cap has headroom and active
+   work has no near term drain action. Before fanning out, compare predicted
+   file footprints against active PRs, active branches, and selected candidates;
+   hold colliding or unknown-footprint tickets for triage or a later tick
+   instead of spending spare slots. Draft state is an orchestration repair
+   signal, not a code review request, and capacity pressure is not a reason to
+   close a draft or in-progress PR.
 6. Delegate every context-heavy step (implement, review, triage) to an isolated
    worker. Reduce each worker result into the compact queue and ledger before
    continuing.
