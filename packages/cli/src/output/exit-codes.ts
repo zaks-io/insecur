@@ -135,6 +135,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [CRYPTO_ERROR_CODES.tenantDataKeyNotReady]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.invalidAadField]: EXIT_VALIDATION,
   [AUDIT_ERROR_CODES.eventInvalid]: EXIT_VALIDATION,
+  [AUDIT_ERROR_CODES.exportEntryLimitExceeded]: EXIT_VALIDATION,
   [HIGH_ASSURANCE_ERROR_CODES.evidenceMissing]: EXIT_STEP_UP,
   [HIGH_ASSURANCE_ERROR_CODES.evidenceExpired]: EXIT_STEP_UP,
   [HIGH_ASSURANCE_ERROR_CODES.operationMismatch]: EXIT_NOT_FOUND,
