@@ -163,6 +163,32 @@ projectsRoutes.get("/:projectId/secrets", requireUserActor, async (context) =>
   }),
 );
 
+projectsRoutes.get("/:projectId/machine-identities", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const { organizationId, projectId } = parseProjectScopedRouteParams(context);
+
+    return runtimeClientFor(context.env, userActor).listProjectMachineIdentities({
+      organizationId,
+      projectId,
+      requestId: reqId,
+    });
+  }),
+);
+
+projectsRoutes.get("/:projectId/injection-grants", requireUserActor, async (context) =>
+  handleRoute(context, async (reqId) => {
+    const userActor = context.get("userActor");
+    const { organizationId, projectId } = parseProjectScopedRouteParams(context);
+
+    return runtimeClientFor(context.env, userActor).listProjectInjectionGrants({
+      organizationId,
+      projectId,
+      requestId: reqId,
+    });
+  }),
+);
+
 projectsRoutes.get(
   "/:projectId/environments/:environmentId/secrets",
   requireUserActor,

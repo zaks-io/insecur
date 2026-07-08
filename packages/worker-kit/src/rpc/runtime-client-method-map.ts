@@ -15,6 +15,15 @@ function forwardConnectionMethods(
   };
 }
 
+function forwardProjectAccessMethods(
+  forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
+) {
+  return {
+    listProjectMachineIdentities: forward("listProjectMachineIdentities"),
+    listProjectInjectionGrants: forward("listProjectInjectionGrants"),
+  };
+}
+
 export function buildAuthenticatedRuntimeClientMethods(
   forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
 ): AuthenticatedRuntimeClient {
@@ -37,6 +46,7 @@ export function buildAuthenticatedRuntimeClientMethods(
     listEnvironments: forward("listEnvironments"),
     createEnvironment: forward("createEnvironment"),
     listProjectSecrets: forward("listProjectSecrets"),
+    ...forwardProjectAccessMethods(forward),
     listEnvironmentSecrets: forward("listEnvironmentSecrets"),
     listSecretVersions: forward("listSecretVersions"),
     listSessionOrganizations: forward("listSessionOrganizations"),

@@ -14,6 +14,12 @@ import type {
   ListSecretVersionsRpcInput,
   ListSecretVersionsRpcPayload,
 } from "./runtime-metadata-rpc-contract.js";
+import type {
+  ListProjectInjectionGrantsRpcInput,
+  ListProjectInjectionGrantsRpcPayload,
+  ListProjectMachineIdentitiesRpcInput,
+  ListProjectMachineIdentitiesRpcPayload,
+} from "./runtime-project-access-rpc-contract.js";
 import type { RuntimeRpcResult } from "./runtime-rpc-contract.js";
 
 export interface RuntimeMetadataRpc {
@@ -28,6 +34,12 @@ export interface RuntimeMetadataRpc {
   listProjectSecrets(
     input: ListProjectSecretsRpcInput,
   ): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>>;
+  listProjectMachineIdentities(
+    input: ListProjectMachineIdentitiesRpcInput,
+  ): Promise<RuntimeRpcResult<ListProjectMachineIdentitiesRpcPayload>>;
+  listProjectInjectionGrants(
+    input: ListProjectInjectionGrantsRpcInput,
+  ): Promise<RuntimeRpcResult<ListProjectInjectionGrantsRpcPayload>>;
   listEnvironmentSecrets(
     input: ListEnvironmentSecretsRpcInput,
   ): Promise<RuntimeRpcResult<ListEnvironmentSecretsRpcPayload>>;

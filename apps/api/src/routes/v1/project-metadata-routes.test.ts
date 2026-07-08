@@ -4,6 +4,8 @@ import {
   AUTH_ERROR_CODES,
   SECRET_ERROR_CODES,
   environmentId,
+  injectionGrantId,
+  machineIdentityId,
   organizationId,
   parseDisplayName,
   projectId,
@@ -60,6 +62,10 @@ const crossEnvironmentSecretsPath = `/v1/orgs/${orgId}/projects/${projectIdValue
 const crossTenantSecretVersionsPath = `/v1/orgs/${otherOrgId}/projects/${otherProjectId}/environments/${environmentIdValue}/secrets/sec_00000000000000000000000001/versions`;
 const crossEnvironmentSecretVersionsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/${otherEnvironmentId}/secrets/sec_00000000000000000000000001/versions`;
 const crossTenantProjectSecretsPath = `/v1/orgs/${otherOrgId}/projects/${otherProjectId}/secrets`;
+const listProjectMachineIdentitiesPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/machine-identities`;
+const listProjectInjectionGrantsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/injection-grants`;
+const crossTenantProjectMachineIdentitiesPath = `/v1/orgs/${otherOrgId}/projects/${otherProjectId}/machine-identities`;
+const crossTenantProjectInjectionGrantsPath = `/v1/orgs/${otherOrgId}/projects/${otherProjectId}/injection-grants`;
 
 function testDisplayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -148,6 +154,61 @@ const metadataOnlySecretVersions = {
   ],
 };
 
+const metadataOnlyMachineIdentity = {
+  machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+  organizationId: orgId,
+  displayName: testDisplayName("CI deploy"),
+  status: "active" as const,
+  createdAt: "2026-06-24T00:00:00.000Z",
+  githubActionsOidcMethods: [
+    {
+      authMethodId: "oidc_00000000000000000000000001",
+      environmentId: environmentIdValue,
+      githubRepository: "zaks-io/insecur",
+      githubEnvironment: "production",
+      status: "active" as const,
+      createdAt: "2026-06-24T00:00:00.000Z",
+    },
+  ],
+  environmentDeployKeyMethods: [
+    {
+      authMethodId: "edk_00000000000000000000000001",
+      environmentId: environmentIdValue,
+      status: "active" as const,
+      nonExpiring: false,
+      expiresAt: "2026-12-31T00:00:00.000Z",
+      rotationIntervalSeconds: 86_400,
+      rotationReminderIntervalSeconds: 7_200,
+      createdAt: "2026-06-24T00:00:00.000Z",
+    },
+  ],
+};
+
+const metadataOnlyInjectionGrant = {
+  grantId: injectionGrantId.brand("igr_00000000000000000000000001"),
+  environmentId: environmentIdValue,
+  variableKeys: [matrixVariableKey],
+  status: "consumed" as const,
+  createdAt: "2026-06-24T00:00:00.000Z",
+  expiresAt: "2026-06-24T00:05:00.000Z",
+  consumedAt: "2026-06-24T00:01:00.000Z",
+  issuedByActor: {
+    actorType: "user" as const,
+    userId: admittedUserId,
+    details: {
+      agentSessionId: "ags_00000000000000000000000011",
+      harnessName: "cursor",
+    },
+  },
+  consumedByActor: {
+    actorType: "machine" as const,
+    machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+    details: {
+      githubRunId: "1234567890",
+    },
+  },
+};
+
 function rpcFailure(
   code: KnownErrorCode,
   message: string,
@@ -193,6 +254,14 @@ describe("project metadata worker routes", () => {
     runtime.listSecretVersions.mockResolvedValue({
       ok: true,
       value: metadataOnlySecretVersions,
+    });
+    runtime.listProjectMachineIdentities.mockResolvedValue({
+      ok: true,
+      value: { machineIdentities: [metadataOnlyMachineIdentity] },
+    });
+    runtime.listProjectInjectionGrants.mockResolvedValue({
+      ok: true,
+      value: { grants: [metadataOnlyInjectionGrant] },
     });
   });
 
@@ -744,6 +813,116 @@ describe("project metadata worker routes", () => {
         ok: false,
         error: { code: SECRET_ERROR_CODES.coordinateInvalid },
       });
+    });
+  });
+
+  describe("GET /v1/orgs/:organizationId/projects/:projectId/machine-identities", () => {
+    it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
+      const response = await app.request(listProjectMachineIdentitiesPath, { method: "GET" }, env);
+
+      expect(response.status).toBe(401);
+      expect(runtime.listProjectMachineIdentities).not.toHaveBeenCalled();
+    });
+
+    it("forwards the read and returns metadata-only machine identities without credential material", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        listProjectMachineIdentitiesPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.listProjectMachineIdentities).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: { machineIdentities: [metadataOnlyMachineIdentity] },
+      });
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toMatch(/secret_hash|secretHash|token|credential|plaintext|password/i);
+    });
+
+    it("denies cross-tenant machine identity reads for another organization and project", async () => {
+      const env = makeEnv();
+      runtime.listProjectMachineIdentities.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "organization membership required"),
+      );
+
+      const response = await app.request(
+        crossTenantProjectMachineIdentitiesPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      expect(runtime.listProjectMachineIdentities).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: otherOrgId,
+          projectId: otherProjectId,
+        }),
+      );
+    });
+  });
+
+  describe("GET /v1/orgs/:organizationId/projects/:projectId/injection-grants", () => {
+    it("returns auth.required when unauthenticated", async () => {
+      const env = makeEnv();
+      const response = await app.request(listProjectInjectionGrantsPath, { method: "GET" }, env);
+
+      expect(response.status).toBe(401);
+      expect(runtime.listProjectInjectionGrants).not.toHaveBeenCalled();
+    });
+
+    it("forwards the read and returns metadata-only grant history with attribution", async () => {
+      const env = makeEnv();
+      const response = await app.request(
+        listProjectInjectionGrantsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.listProjectInjectionGrants).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: { grants: [metadataOnlyInjectionGrant] },
+      });
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toMatch(/token|credential|plaintext|password|ciphertext/i);
+    });
+
+    it("denies cross-tenant injection grant reads for another organization and project", async () => {
+      const env = makeEnv();
+      runtime.listProjectInjectionGrants.mockResolvedValue(
+        rpcFailure(AUTH_ERROR_CODES.insufficientScope, "organization membership required"),
+      );
+
+      const response = await app.request(
+        crossTenantProjectInjectionGrantsPath,
+        { method: "GET", headers: await authHeaders(env) },
+        env,
+      );
+
+      expect(response.status).toBe(403);
+      expect(runtime.listProjectInjectionGrants).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: otherOrgId,
+          projectId: otherProjectId,
+        }),
+      );
     });
   });
 });

@@ -47,6 +47,64 @@ function loadLatestPrincipalChainAttribution(
   return attributionByResourceKey;
 }
 
+function loadLatestPrincipalChainActors(
+  rows: readonly ({
+    readonly resourceKey: string | null;
+  } & Parameters<typeof principalChainActorFromAuditRow>[0])[],
+): Map<string, PrincipalChainActorRow> {
+  const attributionByResourceKey = new Map<string, PrincipalChainActorRow>();
+  for (const row of rows) {
+    if (!row.resourceKey || attributionByResourceKey.has(row.resourceKey)) {
+      continue;
+    }
+    const actor = principalChainActorFromAuditRow(row);
+    if (!actor) {
+      continue;
+    }
+    attributionByResourceKey.set(row.resourceKey, actor);
+  }
+  return attributionByResourceKey;
+}
+
+/** Latest successful principal-chain actors keyed by audit resource id. */
+export async function loadLatestPrincipalChainActorsByResourceId(
+  db: TenantScopedDb,
+  input: {
+    readonly organizationId: string;
+    readonly projectId: string;
+    readonly resourceType: string;
+    readonly resourceIds: readonly string[];
+    readonly eventCode: string;
+  },
+): Promise<Map<string, PrincipalChainActorRow>> {
+  if (input.resourceIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await db
+    .select({
+      resourceKey: auditEvents.resourceId,
+      actorType: principalChainAuditSelect.actorType,
+      actorUserId: principalChainAuditSelect.actorUserId,
+      actorMachineIdentityId: principalChainAuditSelect.actorMachineIdentityId,
+      details: principalChainAuditSelect.details,
+    })
+    .from(auditEvents)
+    .where(
+      and(
+        eq(auditEvents.orgId, input.organizationId),
+        eq(auditEvents.projectId, input.projectId),
+        eq(auditEvents.resourceType, input.resourceType),
+        eq(auditEvents.outcome, "success"),
+        eq(auditEvents.eventCode, input.eventCode),
+        inArray(auditEvents.resourceId, [...input.resourceIds]),
+      ),
+    )
+    .orderBy(desc(auditEvents.createdAt));
+
+  return loadLatestPrincipalChainActors(rows);
+}
+
 /** Latest successful secret-write attribution keyed by secret resource id. */
 export async function loadSecretLastSetAttributionBySecretId(
   db: TenantScopedDb,
