@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildReleaseNotesMarkdown,
+  generateAnthropicReleaseNotes,
   generateCliReleaseNotes,
   isCliReleasePath,
   modelInputPayload,
@@ -100,6 +101,29 @@ test("configured Anthropic key fails closed on HTTP errors", async () => {
   );
 });
 
+test("configured Anthropic key fails fast on timed out model requests", async () => {
+  await assert.rejects(
+    () =>
+      generateAnthropicReleaseNotes(releaseInput, {
+        apiKey: "test-key",
+        model: "claude-sonnet-5",
+        timeoutMs: 1,
+        fetchFn: async (_url, options) => {
+          assert.equal(options.signal instanceof AbortSignal, true);
+          if (options.signal.aborted) {
+            throw options.signal.reason;
+          }
+          await new Promise((resolve, reject) => {
+            options.signal.addEventListener("abort", () => reject(options.signal.reason), {
+              once: true,
+            });
+          });
+        },
+      }),
+    /timed out after 1ms/u,
+  );
+});
+
 test("configured Anthropic key fails closed on malformed model output", async () => {
   await assert.rejects(
     () =>
@@ -121,6 +145,7 @@ test("configured Anthropic key returns validated model bullets", async () => {
     anthropicApiKey: "test-key",
     anthropicModel: "claude-sonnet-5",
     fetchFn: async (_url, options) => {
+      assert.equal(options.signal instanceof AbortSignal, true);
       const body = JSON.parse(options.body);
       assert.equal(body.model, "claude-sonnet-5");
       assert.match(body.messages[0].content[0].text, /packages\/cli\/src\/commands\/run\.ts/u);

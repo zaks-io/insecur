@@ -7,6 +7,7 @@ export const CLI_RELEASE_PATHS = [
 
 const ANTHROPIC_VERSION = "2023-06-01";
 const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_REQUEST_TIMEOUT_MS = 30_000;
 const MAX_MODEL_BULLETS = 8;
 const MAX_FALLBACK_BULLETS = 12;
 const MAX_ERROR_BODY_LENGTH = 800;
@@ -106,36 +107,52 @@ export async function generateAnthropicReleaseNotes(input, options) {
   if (typeof options.fetchFn !== "function") {
     throw new Error("fetch is not available for Anthropic release-note generation");
   }
-  const response = await options.fetchFn(ANTHROPIC_MESSAGES_URL, {
-    method: "POST",
-    headers: {
-      "anthropic-version": ANTHROPIC_VERSION,
-      "content-type": "application/json",
-      "x-api-key": options.apiKey,
-    },
-    body: JSON.stringify({
-      model: options.model,
-      max_tokens: 900,
-      system: [
-        "You write concise GitHub release-note bullets for the insecur CLI.",
-        "Use only the provided JSON metadata.",
-        "Include only user-facing CLI behavior, command, output, config, auth, session, local child-process, HTTP-client, install, or release-binary changes.",
-        "Drop backend-only, API-only, domain-only, security-gate-only, test-only, CI-only, dependency-only, and refactor-only items unless the metadata clearly shows a CLI user-facing effect.",
-        `Return markdown bullets only. Return at most ${String(MAX_MODEL_BULLETS)} bullets. If no user-facing CLI change remains, return exactly '- No user-facing CLI changes.'.`,
-      ].join(" "),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(modelInputPayload(input), null, 2),
-            },
-          ],
-        },
-      ],
-    }),
-  });
+  const timeoutMs = options.timeoutMs ?? ANTHROPIC_REQUEST_TIMEOUT_MS;
+  const signal = AbortSignal.timeout(timeoutMs);
+  let response;
+  try {
+    response = await options.fetchFn(ANTHROPIC_MESSAGES_URL, {
+      method: "POST",
+      signal,
+      headers: {
+        "anthropic-version": ANTHROPIC_VERSION,
+        "content-type": "application/json",
+        "x-api-key": options.apiKey,
+      },
+      body: JSON.stringify({
+        model: options.model,
+        max_tokens: 900,
+        system: [
+          "You write concise GitHub release-note bullets for the insecur CLI.",
+          "Use only the provided JSON metadata.",
+          "Include only user-facing CLI behavior, command, output, config, auth, session, local child-process, HTTP-client, install, or release-binary changes.",
+          "Drop backend-only, API-only, domain-only, security-gate-only, test-only, CI-only, dependency-only, and refactor-only items unless the metadata clearly shows a CLI user-facing effect.",
+          `Return markdown bullets only. Return at most ${String(MAX_MODEL_BULLETS)} bullets. If no user-facing CLI change remains, return exactly '- No user-facing CLI changes.'.`,
+        ].join(" "),
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(modelInputPayload(input), null, 2),
+              },
+            ],
+          },
+        ],
+      }),
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error(`Anthropic release-note generation timed out after ${String(timeoutMs)}ms.`, {
+        cause: error,
+      });
+    }
+    throw new Error(
+      `Anthropic release-note generation request failed: ${formatErrorMessage(error)}`,
+      { cause: error },
+    );
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -239,4 +256,19 @@ function sanitizeReleaseBullet(value) {
 function truncateForError(value) {
   const text = sanitizeLine(value);
   return text.length > MAX_ERROR_BODY_LENGTH ? `${text.slice(0, MAX_ERROR_BODY_LENGTH)}...` : text;
+}
+
+function isAbortError(error) {
+  return isRecord(error) && (error.name === "AbortError" || error.name === "TimeoutError");
+}
+
+function formatErrorMessage(error) {
+  if (error instanceof Error && error.message) {
+    return sanitizeLine(error.message);
+  }
+  return sanitizeLine(String(error));
+}
+
+function isRecord(value) {
+  return typeof value === "object" && value !== null;
 }
