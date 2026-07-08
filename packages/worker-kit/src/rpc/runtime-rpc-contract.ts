@@ -35,6 +35,32 @@ export type { RuntimeRpc } from "./runtime-rpc-interface.js";
  * the worker-kit error responder reads. This keeps `code`/`retryable` honest across the binding.
  */
 
+/**
+ * Server-side possession check for a Secret's Current Version (INS-403). The candidate plaintext
+ * crosses the seam base64url-encoded (`encodedCandidateUtf8`), decrypted-compared only inside the
+ * Runtime keyring holder, and never logged. The API never sees the stored value.
+ */
+export interface CheckSecretPossessionRpcInput {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly variableKey?: VariableKey;
+  readonly secretId?: SecretId;
+  /** Candidate plaintext bytes; structured-clone safe across the binding, never logged. */
+  readonly candidateUtf8: Uint8Array;
+  readonly actorToken: string;
+  /** API-minted request id, threaded into the Runtime audit row for the check. */
+  readonly requestId: RequestId;
+}
+
+/** Metadata-only possession verdict: exactly `match` or `mismatch`, no digest, length, or position. */
+export interface CheckSecretPossessionPayload {
+  readonly secretId: SecretId;
+  readonly variableKey: VariableKey;
+  readonly verdict: "match" | "mismatch";
+  readonly auditEventId: string;
+}
+
 /** Metadata-only secret write outcome (no secret value), mirrors WriteNonProtectedSecretResult. */
 export interface RuntimeSecretWritePayload {
   secretId: SecretId;

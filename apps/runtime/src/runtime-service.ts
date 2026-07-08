@@ -14,6 +14,8 @@ import { resolveAdmissionForEdge, runWithRuntimeConnection } from "@insecur/tena
 import type { RequestId } from "@insecur/domain";
 import type {
   AcceptInvitationRpcInput,
+  CheckSecretPossessionPayload,
+  CheckSecretPossessionRpcInput,
   CompleteBootstrapClaimRpcInput,
   ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,
@@ -50,6 +52,7 @@ import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
 import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
+import { checkSecretPossessionOperation } from "./operations/check-secret-possession-operation.js";
 import {
   captureFirstValueFeedbackRpc,
   queryFirstValueUsageRpc,
@@ -159,6 +162,14 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
     return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
       writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
+    );
+  }
+
+  checkSecretPossession(
+    input: CheckSecretPossessionRpcInput,
+  ): Promise<RuntimeRpcResult<CheckSecretPossessionPayload>> {
+    return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
+      checkSecretPossessionOperation({ env: this.env, input, auditActor, accessActor }),
     );
   }
 
