@@ -17,7 +17,6 @@ export function registerScanCommand(
       "--machine",
       "also scan documented well-known home-directory credential locations (read-only, opt-in)",
     )
-    .addHelpText("after", `\n${MACHINE_SCAN_HELP}\n`)
     .option(
       "--agent-transcripts",
       "scan local agent conversation logs and transcript exports for secret exposure evidence",
@@ -31,6 +30,12 @@ export function registerScanCommand(
       "--transcript-glob <pattern>",
       "glob pattern for exported transcript files (repeatable)",
       collectRepeatedOption,
+    )
+    .addHelpText(
+      "after",
+      "\nThe global --config-dir flag sets the project scan root for this command (defaults to " +
+        "the current working directory). Other commands use it only to locate .insecur.json.\n" +
+        `\n${MACHINE_SCAN_HELP}\n`,
     )
     .action((...args) => runScanAction(deps, args));
 }
