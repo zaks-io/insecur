@@ -13,6 +13,21 @@ const API_ORIGIN = "https://insecur-api.internal";
 
 type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
+function auditEventsPath(
+  organizationId: string,
+  query: { readonly pageSize?: number; readonly cursor?: string },
+): string {
+  const params = new URLSearchParams();
+  if (query.pageSize !== undefined) {
+    params.set("pageSize", String(query.pageSize));
+  }
+  if (query.cursor !== undefined) {
+    params.set("cursor", query.cursor);
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return `/v1/orgs/${encodeURIComponent(organizationId)}/audit-events${suffix}`;
+}
+
 function createSessionApiMethods(apiFetch: ApiFetch) {
   return {
     whoami: async (): Promise<unknown> => {
@@ -44,6 +59,13 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
     },
     orgInvitations: async (organizationId: string): Promise<unknown> => {
       const response = await apiFetch(`/v1/orgs/${encodeURIComponent(organizationId)}/invitations`);
+      return response.json();
+    },
+    orgAuditEvents: async (
+      organizationId: string,
+      query: { readonly pageSize?: number; readonly cursor?: string } = {},
+    ): Promise<unknown> => {
+      const response = await apiFetch(auditEventsPath(organizationId, query));
       return response.json();
     },
   };
