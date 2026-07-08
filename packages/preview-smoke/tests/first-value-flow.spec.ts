@@ -23,6 +23,8 @@ import {
   redactorFor,
   requireString,
   runPlaintextSweep,
+  SMOKE_OPERATION_POLL_INTENT,
+  SMOKE_OPERATION_POLL_TERMINAL_STATE,
   test,
   verifyFirstValueAuditEvidence,
 } from "../src/fixtures";
@@ -177,6 +179,8 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     const data = assertEnvelopeData(body, "Operation poll");
     assertOperationPollEnvelope({
       data,
+      expectedIntentCode: SMOKE_OPERATION_POLL_INTENT,
+      expectedState: SMOKE_OPERATION_POLL_TERMINAL_STATE,
       operationId,
       organizationId: coords.organizationId,
       redactor,
