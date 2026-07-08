@@ -1,5 +1,11 @@
-import type { ConsoleEnvelopeParse } from "../console/envelope.js";
+import { parseConsoleReadEnvelope, type ConsoleEnvelopeParse } from "../console/envelope.js";
 import { resolveAuthenticatedApiClient, type BffApiClient } from "./bff-api.js";
+
+/** One API hop plus envelope parser for a console metadata read step. */
+export interface ConsoleReadStep<T> {
+  readonly fetch: (api: BffApiClient) => Promise<unknown>;
+  readonly parse: (body: unknown) => T | null;
+}
 
 /** Sentinel returned from a read callback when the API returned a retryable outage envelope. */
 const CONSOLE_READ_UNAVAILABLE_SENTINEL = Symbol("console-read-unavailable");
@@ -22,6 +28,50 @@ export function envelopeParseToReadResult<T>(
     return consoleReadUnavailable;
   }
   return null;
+}
+
+/**
+ * Collapse one or more parsed console envelopes into a read-inner result: any unavailable wins,
+ * else any denied wins, else the combined metadata value is returned.
+ */
+export function collapseConsoleEnvelopeParses<T extends readonly unknown[], TResult>(
+  parses: { readonly [K in keyof T]: ConsoleEnvelopeParse<T[K]> },
+  combine: (...values: T) => TResult,
+): ConsoleReadInnerResult<TResult> {
+  const list = parses as readonly ConsoleEnvelopeParse<unknown>[];
+  if (list.some((parsed) => parsed.kind === "unavailable")) {
+    return consoleReadUnavailable;
+  }
+  if (list.some((parsed) => parsed.kind === "denied")) {
+    return null;
+  }
+  const values = list.map(
+    (parsed) => (parsed as { kind: "ok"; value: unknown }).value,
+  ) as unknown as T;
+  return combine(...values);
+}
+
+/** Single-call console read step through the shared envelope taxonomy. */
+export async function runConsoleReadStep<T>(
+  api: BffApiClient,
+  step: ConsoleReadStep<T>,
+): Promise<ConsoleReadInnerResult<T>> {
+  const body = await step.fetch(api);
+  return envelopeParseToReadResult(parseConsoleReadEnvelope(body, step.parse));
+}
+
+/** Multi-call console read: parallel fetches, shared collapse, one combined metadata value. */
+export async function runConsoleReadSteps<T extends readonly unknown[], TResult>(
+  api: BffApiClient,
+  steps: { readonly [K in keyof T]: ConsoleReadStep<T[K]> },
+  combine: (...values: T) => TResult,
+): Promise<ConsoleReadInnerResult<TResult>> {
+  const stepList = steps as readonly ConsoleReadStep<unknown>[];
+  const bodies = await Promise.all(stepList.map((step) => step.fetch(api)));
+  const parses = stepList.map((step, index) =>
+    parseConsoleReadEnvelope(bodies[index], step.parse),
+  ) as { readonly [K in keyof T]: ConsoleEnvelopeParse<T[K]> };
+  return collapseConsoleEnvelopeParses(parses, combine);
 }
 
 /**
