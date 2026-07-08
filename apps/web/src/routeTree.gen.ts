@@ -22,6 +22,7 @@ import { Route as OrgsOrgIdIndexRouteImport } from './routes/orgs.$orgId.index'
 import { Route as OrgsOrgIdSettingsRouteImport } from './routes/orgs.$orgId.settings'
 import { Route as OrgsOrgIdPeopleRouteImport } from './routes/orgs.$orgId.people'
 import { Route as OrgsOrgIdAuditRouteImport } from './routes/orgs.$orgId.audit'
+import { Route as OrgsOrgIdApprovalsRouteImport } from './routes/orgs.$orgId.approvals'
 import { Route as AuthEnrollPasskeyCallbackRouteImport } from './routes/auth.enroll-passkey.callback'
 import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs.$orgId.projects.index'
 import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs.$orgId.projects.$projectId'
@@ -95,6 +96,11 @@ const OrgsOrgIdAuditRoute = OrgsOrgIdAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => OrgsOrgIdRoute,
 } as any)
+const OrgsOrgIdApprovalsRoute = OrgsOrgIdApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
 const AuthEnrollPasskeyCallbackRoute =
   AuthEnrollPasskeyCallbackRouteImport.update({
     id: '/callback',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
   '/orgs/': typeof OrgsIndexRoute
   '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
+  '/orgs/$orgId/approvals': typeof OrgsOrgIdApprovalsRoute
   '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/auth/enroll-passkey': typeof AuthEnrollPasskeyRouteWithChildren
   '/orgs': typeof OrgsIndexRoute
   '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
+  '/orgs/$orgId/approvals': typeof OrgsOrgIdApprovalsRoute
   '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
   '/orgs/': typeof OrgsIndexRoute
   '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
+  '/orgs/$orgId/approvals': typeof OrgsOrgIdApprovalsRoute
   '/orgs/$orgId/audit': typeof OrgsOrgIdAuditRoute
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId'
     | '/orgs/'
     | '/auth/enroll-passkey/callback'
+    | '/orgs/$orgId/approvals'
     | '/orgs/$orgId/audit'
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/auth/enroll-passkey'
     | '/orgs'
     | '/auth/enroll-passkey/callback'
+    | '/orgs/$orgId/approvals'
     | '/orgs/$orgId/audit'
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId'
     | '/orgs/'
     | '/auth/enroll-passkey/callback'
+    | '/orgs/$orgId/approvals'
     | '/orgs/$orgId/audit'
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
@@ -374,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdAuditRouteImport
       parentRoute: typeof OrgsOrgIdRoute
     }
+    '/orgs/$orgId/approvals': {
+      id: '/orgs/$orgId/approvals'
+      path: '/approvals'
+      fullPath: '/orgs/$orgId/approvals'
+      preLoaderRoute: typeof OrgsOrgIdApprovalsRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
     '/auth/enroll-passkey/callback': {
       id: '/auth/enroll-passkey/callback'
       path: '/callback'
@@ -461,6 +480,7 @@ const OrgsOrgIdProjectsProjectIdRouteWithChildren =
   )
 
 interface OrgsOrgIdRouteChildren {
+  OrgsOrgIdApprovalsRoute: typeof OrgsOrgIdApprovalsRoute
   OrgsOrgIdAuditRoute: typeof OrgsOrgIdAuditRoute
   OrgsOrgIdPeopleRoute: typeof OrgsOrgIdPeopleRoute
   OrgsOrgIdSettingsRoute: typeof OrgsOrgIdSettingsRoute
@@ -470,6 +490,7 @@ interface OrgsOrgIdRouteChildren {
 }
 
 const OrgsOrgIdRouteChildren: OrgsOrgIdRouteChildren = {
+  OrgsOrgIdApprovalsRoute: OrgsOrgIdApprovalsRoute,
   OrgsOrgIdAuditRoute: OrgsOrgIdAuditRoute,
   OrgsOrgIdPeopleRoute: OrgsOrgIdPeopleRoute,
   OrgsOrgIdSettingsRoute: OrgsOrgIdSettingsRoute,

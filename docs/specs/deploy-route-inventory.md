@@ -126,6 +126,7 @@ root-key binding and NO Hyperdrive binding.
 | GET    | `/orgs/$orgId/projects/$projectId/delivery` |
 | GET    | `/orgs/$orgId/audit`                        |
 | GET    | `/orgs/$orgId/people`                       |
+| GET    | `/orgs/$orgId/approvals`                    |
 | GET    | `/orgs/$orgId/settings`                     |
 
 The `/orgs/*` rows are the authed console shell (INS-367): `/orgs/` resolves the default
@@ -136,9 +137,11 @@ project layout with its Environments (`/$projectId/`, the index) / Secrets / Acc
 views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs.
 `/orgs/$orgId/people` is the read-only People register (INS-373): members and pending invitations
 over the same hop to the INS-373 API metadata GETs, rendering zero mutation affordances.
-`/orgs/$orgId/` is Home (INS-372): a Needs You placeholder above a recent-activity feed over
-`GET /v1/orgs/:organizationId/audit-events` (page size 10), seeded by the route loader and refreshed
-by client polling at 30s without navigation (ADR-0051).
+`/orgs/$orgId/` is Home (INS-372, INS-377): a Needs You strip above a recent-activity feed. The
+strip and `/orgs/$orgId/approvals` poll `GET /v1/orgs/:organizationId/high-assurance-challenges`
+(page size = full pending list), seeded by route loaders and refreshed by client polling at 30s
+without navigation (ADR-0051). The inbox item model accepts both High-Assurance Challenge bounded
+operations (`op_`) and future Approval Requests (`req_`) by opaque ID prefix.
 `/orgs/$orgId/audit` is the filterable metadata event log (INS-376): actor/project/environment/
 event-type/time-range filters and cursor pagination over `GET /v1/orgs/:organizationId/audit-events`,
 with shareable filter state in URL search params.

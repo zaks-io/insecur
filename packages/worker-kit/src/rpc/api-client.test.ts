@@ -71,6 +71,7 @@ describe("apiClientFor", () => {
         createdAtFrom: "2026-07-01T00:00:00.000Z",
       },
     });
+    await client.orgHighAssuranceChallenges("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
 
     const urls = apiFetch.mock.calls.map((call) => call[0]);
     expect(urls[0]).toBe(
@@ -91,6 +92,9 @@ describe("apiClientFor", () => {
     expect(auditUrl.searchParams.get("projectId")).toBe("prj_01/../evil");
     expect(auditUrl.searchParams.get("eventCode")).toBe("secret.non_protected_write");
     expect(auditUrl.searchParams.get("createdAtFrom")).toBe("2026-07-01T00:00:00.000Z");
+    expect(urls[5]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges",
+    );
   });
 
   it("reuses the minted token across calls on the same client", async () => {
