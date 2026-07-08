@@ -63,6 +63,7 @@ export async function createPromotionApprovalRequest(input: {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
+  readonly isProtectedEnvironment: boolean;
   readonly validatedTargets: readonly PromotionDraftVersionTarget[];
   readonly impactReviewFingerprint: string;
   readonly comment?: string;

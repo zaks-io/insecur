@@ -20,7 +20,7 @@ CREATE TABLE "approval_requests" (
 	CONSTRAINT "approval_requests_org_id_id_key" UNIQUE("org_id","id"),
 	CONSTRAINT "approval_requests_status_check" CHECK ("approval_requests"."status" IN ('pending', 'approved_applied', 'rejected', 'canceled', 'superseded', 'policy_stale', 'requester_access_stale', 'target_closed', 'draft_discard_closed')),
 	CONSTRAINT "approval_requests_purpose_check" CHECK ("approval_requests"."purpose" IN ('protected_promotion', 'protected_rollback')),
-	CONSTRAINT "approval_requests_requester_present_check" CHECK ("approval_requests"."requester_user_id" IS NOT NULL OR "approval_requests"."requester_machine_identity_id" IS NOT NULL)
+	CONSTRAINT "approval_requests_requester_present_check" CHECK (num_nonnulls("approval_requests"."requester_user_id", "approval_requests"."requester_machine_identity_id") = 1)
 );
 --> statement-breakpoint
 CREATE TABLE "promotion_change_set_draft_versions" (

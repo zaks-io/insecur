@@ -69,7 +69,7 @@ export const approvalRequests = pgTable(
     ),
     check(
       "approval_requests_requester_present_check",
-      sql`${table.requesterUserId} IS NOT NULL OR ${table.requesterMachineIdentityId} IS NOT NULL`,
+      sql`num_nonnulls(${table.requesterUserId}, ${table.requesterMachineIdentityId}) = 1`,
     ),
     // ADR-0017: a Protected Environment may have only one pending promotion Approval Request.
     // This partial unique index is the load-bearing structural guard against a concurrent

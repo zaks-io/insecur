@@ -14,8 +14,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const supersedePendingPromotionRequests = vi.fn();
 const createPromotionApprovalRequest = vi.fn();
+const accessMocks = vi.hoisted(() => ({ authorizeScopeOrThrow: vi.fn() }));
 
-vi.mock("@insecur/tenant-store", () => ({
+// Real access package except the EAR leaf (`authorizeScopeOrThrow`), which would hit the database.
+// This keeps the real coordinate assertion, denial classifier, and audit-on-denial wiring under test.
+vi.mock("@insecur/access", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@insecur/access")>()),
+  authorizeScopeOrThrow: accessMocks.authorizeScopeOrThrow,
+}));
+
+vi.mock("@insecur/tenant-store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@insecur/tenant-store")>()),
   withTenantScope: vi.fn((_scope: unknown, run: (ctx: { db: unknown }) => unknown) =>
     run({ db: {} }),
   ),
@@ -26,15 +35,14 @@ vi.mock("@insecur/tenant-store", () => ({
 
 vi.mock("../src/record-created-approval-request-audit.js", () => ({
   finalizeCreatedApprovalRequest: vi.fn().mockResolvedValue(undefined),
+  recordDeniedApprovalRequestCreate: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../src/assert-protected-change-access.js", () => ({
-  assertProtectedChangeCreateAccess: vi.fn().mockResolvedValue(undefined),
-}));
-
-import { assertProtectedChangeCreateAccess } from "../src/assert-protected-change-access.js";
 import { createPromotionApprovalRequest as createPromotion } from "../src/create-promotion-approval-request.js";
-import { finalizeCreatedApprovalRequest } from "../src/record-created-approval-request-audit.js";
+import {
+  finalizeCreatedApprovalRequest,
+  recordDeniedApprovalRequestCreate,
+} from "../src/record-created-approval-request-audit.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -57,6 +65,7 @@ const baseInput = {
   organizationId: ORG,
   projectId: PROJECT,
   environmentId: ENV,
+  isProtectedEnvironment: true,
   validatedTargets: [{ secretId: SECRET, secretVersionId: SECRET_VERSION }],
   impactReviewFingerprint: "impact-fingerprint-v1",
   requestId: REQ,
@@ -67,35 +76,55 @@ describe("createPromotionApprovalRequest", () => {
     supersedePendingPromotionRequests.mockReset().mockResolvedValue([]);
     createPromotionApprovalRequest.mockReset().mockResolvedValue(undefined);
     vi.mocked(finalizeCreatedApprovalRequest).mockClear();
-    vi.mocked(assertProtectedChangeCreateAccess).mockClear().mockResolvedValue(undefined);
+    vi.mocked(recordDeniedApprovalRequestCreate).mockClear();
+    accessMocks.authorizeScopeOrThrow.mockReset().mockResolvedValue(undefined);
   });
 
-  it("authorizes the create scope for the target project + environment before persisting", async () => {
-    await createPromotion(baseInput);
+  it("fails closed for a non-protected environment and persists nothing", async () => {
+    await expect(
+      createPromotion({ ...baseInput, isProtectedEnvironment: false }),
+    ).rejects.toMatchObject({ code: "protected_change.non_protected_environment" });
 
-    expect(assertProtectedChangeCreateAccess).toHaveBeenCalledWith(
+    expect(accessMocks.authorizeScopeOrThrow).not.toHaveBeenCalled();
+    expect(supersedePendingPromotionRequests).not.toHaveBeenCalled();
+    expect(createPromotionApprovalRequest).not.toHaveBeenCalled();
+  });
+
+  it("records a denied audit and persists nothing when authorization is denied", async () => {
+    accessMocks.authorizeScopeOrThrow.mockRejectedValueOnce(
+      Object.assign(new Error("denied"), { code: "auth.insufficient_scope" }),
+    );
+
+    await expect(createPromotion(baseInput)).rejects.toThrow("denied");
+
+    expect(recordDeniedApprovalRequestCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        actor: baseInput.actor,
+        auditActor: baseInput.auditActor,
         organizationId: ORG,
         projectId: PROJECT,
         environmentId: ENV,
         requestId: REQ,
       }),
     );
-    // Authz runs before any persistence.
-    const authzOrder = vi.mocked(assertProtectedChangeCreateAccess).mock.invocationCallOrder[0];
-    const createOrder = createPromotionApprovalRequest.mock.invocationCallOrder[0];
-    expect(authzOrder).toBeLessThan(createOrder);
+    expect(finalizeCreatedApprovalRequest).not.toHaveBeenCalled();
+    expect(createPromotionApprovalRequest).not.toHaveBeenCalled();
+    expect(supersedePendingPromotionRequests).not.toHaveBeenCalled();
   });
 
-  it("does not persist when authorization is denied", async () => {
-    vi.mocked(assertProtectedChangeCreateAccess).mockRejectedValueOnce(
-      Object.assign(new Error("denied"), { code: "auth.insufficient_scope" }),
-    );
+  it("authorizes the create scope for the target project + environment before persisting", async () => {
+    await createPromotion(baseInput);
 
-    await expect(createPromotion(baseInput)).rejects.toThrow("denied");
-    expect(supersedePendingPromotionRequests).not.toHaveBeenCalled();
-    expect(createPromotionApprovalRequest).not.toHaveBeenCalled();
+    expect(accessMocks.authorizeScopeOrThrow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: baseInput.actor,
+        coordinate: { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+        requestId: REQ,
+      }),
+    );
+    // Authz runs before any persistence.
+    const authzOrder = accessMocks.authorizeScopeOrThrow.mock.invocationCallOrder[0];
+    const createOrder = createPromotionApprovalRequest.mock.invocationCallOrder[0];
+    expect(authzOrder).toBeLessThan(createOrder);
   });
 
   it("supersedes pending requests then creates the new one with the same generated id", async () => {

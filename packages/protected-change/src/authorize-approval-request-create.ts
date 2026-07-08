@@ -1,31 +1,35 @@
-import type { ActorRef, AuthorizeScopeDeps } from "@insecur/access";
-import type { AuditActorRef } from "@insecur/audit";
-import type { EnvironmentId, OrganizationId, ProjectId, RequestId } from "@insecur/domain";
 import type { ApprovalRequestRequester } from "@insecur/tenant-store";
 
-import { assertProtectedChangeCreateAccess } from "./assert-protected-change-access.js";
+import {
+  guardProtectedChangeCreate,
+  type ProtectedChangeCreateGuardInput,
+} from "./assert-protected-change-access.js";
+import { isProtectedChangeError } from "./protected-change-errors.js";
+import { recordDeniedApprovalRequestCreate } from "./record-created-approval-request-audit.js";
 import { requesterFromActor } from "./requester-from-actor.js";
 
-export interface ApprovalRequestCreateAuthzInput {
-  readonly actor: ActorRef;
-  readonly auditActor: AuditActorRef;
-  readonly organizationId: OrganizationId;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly requestId: RequestId;
-  readonly deps?: AuthorizeScopeDeps;
-}
+export type ApprovalRequestCreateAuthzInput = ProtectedChangeCreateGuardInput;
 
 /**
- * Runs the Effective Access Resolver authorization for creating an Approval Request on the
- * affected Project + Protected Environment (ADR-0017) and returns the requester binding to
- * persist. Both the promotion and rollback creators call this before any supersede/insert so
- * the authz is structurally enforced at the seam, not left to whatever route wires it.
+ * Authorizes creating an Approval Request, at parity with `createProtectedChange`: it fails closed
+ * on a non-protected environment coordinate, then runs the Effective Access Resolver authorization
+ * for the affected Project + Protected Environment (ADR-0017), recording a metadata-only denied
+ * audit when authz fails. Returns the requester binding to persist. Both the promotion and rollback
+ * creators call this before any supersede/insert so the guarantees are enforced at the seam.
  */
 export async function authorizeApprovalRequestCreate(
   input: ApprovalRequestCreateAuthzInput,
 ): Promise<ApprovalRequestRequester> {
-  await assertProtectedChangeCreateAccess(input);
+  await guardProtectedChangeCreate(input, (error) =>
+    recordDeniedApprovalRequestCreate({
+      auditActor: input.auditActor,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      requestId: input.requestId,
+      ...(isProtectedChangeError(error) ? { reasonCode: error.code } : {}),
+    }),
+  );
 
   return requesterFromActor(input.actor);
 }

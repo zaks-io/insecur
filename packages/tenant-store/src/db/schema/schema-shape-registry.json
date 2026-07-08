@@ -357,7 +357,7 @@
       },
       {
         "name": "approval_requests_requester_present_check",
-        "sql": "\"approval_requests\".\"requester_user_id\" IS NOT NULL OR \"approval_requests\".\"requester_machine_identity_id\" IS NOT NULL"
+        "sql": "num_nonnulls(\"approval_requests\".\"requester_user_id\", \"approval_requests\".\"requester_machine_identity_id\") = 1"
       },
       {
         "name": "approval_requests_status_check",

@@ -59,6 +59,10 @@ async function persistRollbackApprovalRequestOnDb(
   });
 }
 
+// Rollback deliberately does NOT supersede pending promotion Approval Requests: ADR-0017's
+// "only one pending promotion per Protected Environment" rule is scoped to the promotion purpose
+// (and enforced by the promotion-only partial unique index). A rollback is a distinct purpose and
+// coexists with a pending promotion, so it neither supersedes nor is blocked by one.
 async function persistRollbackApprovalRequest(
   input: PersistRollbackApprovalRequestInput,
 ): Promise<void> {
@@ -74,6 +78,7 @@ export interface CreateRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
+  readonly isProtectedEnvironment: boolean;
   readonly secretId: SecretId;
   readonly toVersionNumber: number;
   readonly newSecretVersionId: SecretVersionId;

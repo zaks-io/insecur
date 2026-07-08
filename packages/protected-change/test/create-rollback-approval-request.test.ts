@@ -11,8 +11,17 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createRollbackApprovalRequestStoreFn = vi.fn();
+const accessMocks = vi.hoisted(() => ({ authorizeScopeOrThrow: vi.fn() }));
 
-vi.mock("@insecur/tenant-store", () => ({
+// Real access package except the EAR leaf (`authorizeScopeOrThrow`), which would hit the database.
+// This keeps the real coordinate assertion, denial classifier, and audit-on-denial wiring under test.
+vi.mock("@insecur/access", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@insecur/access")>()),
+  authorizeScopeOrThrow: accessMocks.authorizeScopeOrThrow,
+}));
+
+vi.mock("@insecur/tenant-store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@insecur/tenant-store")>()),
   withTenantScope: vi.fn((_scope: unknown, run: (ctx: { db: unknown }) => unknown) =>
     run({ db: {} }),
   ),
@@ -23,15 +32,14 @@ vi.mock("@insecur/tenant-store", () => ({
 
 vi.mock("../src/record-created-approval-request-audit.js", () => ({
   finalizeCreatedApprovalRequest: vi.fn().mockResolvedValue(undefined),
+  recordDeniedApprovalRequestCreate: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../src/assert-protected-change-access.js", () => ({
-  assertProtectedChangeCreateAccess: vi.fn().mockResolvedValue(undefined),
-}));
-
-import { assertProtectedChangeCreateAccess } from "../src/assert-protected-change-access.js";
 import { createRollbackApprovalRequest } from "../src/create-rollback-approval-request.js";
-import { finalizeCreatedApprovalRequest } from "../src/record-created-approval-request-audit.js";
+import {
+  finalizeCreatedApprovalRequest,
+  recordDeniedApprovalRequestCreate,
+} from "../src/record-created-approval-request-audit.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -53,6 +61,7 @@ const baseInput = {
   organizationId: ORG,
   projectId: PROJECT,
   environmentId: ENV,
+  isProtectedEnvironment: true,
   secretId: SECRET,
   toVersionNumber: 3,
   newSecretVersionId: NEW_SECRET_VERSION,
@@ -64,29 +73,48 @@ describe("createRollbackApprovalRequest", () => {
   beforeEach(() => {
     createRollbackApprovalRequestStoreFn.mockReset().mockResolvedValue(undefined);
     vi.mocked(finalizeCreatedApprovalRequest).mockClear();
-    vi.mocked(assertProtectedChangeCreateAccess).mockClear().mockResolvedValue(undefined);
+    vi.mocked(recordDeniedApprovalRequestCreate).mockClear();
+    accessMocks.authorizeScopeOrThrow.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("fails closed for a non-protected environment and persists nothing", async () => {
+    await expect(
+      createRollbackApprovalRequest({ ...baseInput, isProtectedEnvironment: false }),
+    ).rejects.toMatchObject({ code: "protected_change.non_protected_environment" });
+
+    expect(accessMocks.authorizeScopeOrThrow).not.toHaveBeenCalled();
+    expect(createRollbackApprovalRequestStoreFn).not.toHaveBeenCalled();
   });
 
   it("authorizes the create scope before persisting", async () => {
     await createRollbackApprovalRequest(baseInput);
 
-    expect(assertProtectedChangeCreateAccess).toHaveBeenCalledWith(
+    expect(accessMocks.authorizeScopeOrThrow).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: baseInput.actor,
+        coordinate: { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+        requestId: REQ,
+      }),
+    );
+  });
+
+  it("records a denied audit and persists nothing when authorization is denied", async () => {
+    accessMocks.authorizeScopeOrThrow.mockRejectedValueOnce(
+      Object.assign(new Error("denied"), { code: "auth.insufficient_scope" }),
+    );
+
+    await expect(createRollbackApprovalRequest(baseInput)).rejects.toThrow("denied");
+
+    expect(recordDeniedApprovalRequestCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditActor: baseInput.auditActor,
         organizationId: ORG,
         projectId: PROJECT,
         environmentId: ENV,
         requestId: REQ,
       }),
     );
-  });
-
-  it("does not persist when authorization is denied", async () => {
-    vi.mocked(assertProtectedChangeCreateAccess).mockRejectedValueOnce(
-      Object.assign(new Error("denied"), { code: "auth.insufficient_scope" }),
-    );
-
-    await expect(createRollbackApprovalRequest(baseInput)).rejects.toThrow("denied");
+    expect(finalizeCreatedApprovalRequest).not.toHaveBeenCalled();
     expect(createRollbackApprovalRequestStoreFn).not.toHaveBeenCalled();
   });
 

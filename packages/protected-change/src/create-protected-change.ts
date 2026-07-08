@@ -1,15 +1,10 @@
-import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { ActorRef, AuthorizeScopeDeps } from "@insecur/access";
 import type { AuditActorRef } from "@insecur/audit";
 import { generateAuditEventId } from "@insecur/audit";
 import { requestId, type RequestId } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 
-import {
-  assertProtectedChangeCreateAccess,
-  assertProtectedEnvironmentCoordinate,
-  isProtectedChangeAccessDenied,
-} from "./assert-protected-change-access.js";
+import { guardProtectedChangeCreate } from "./assert-protected-change-access.js";
 import { isProtectedChangeError } from "./protected-change-errors.js";
 import { recordProtectedChangeAudit } from "./record-protected-change-audit.js";
 import type {
@@ -45,22 +40,7 @@ async function recordCreateAccessDenied(
 export async function createProtectedChange(
   input: CreateProtectedChangeRequestInput,
 ): Promise<ProtectedChangeRecord> {
-  assertProtectedEnvironmentCoordinate({
-    isProtected: input.isProtectedEnvironment,
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-  });
-
-  try {
-    await assertProtectedChangeCreateAccess(input);
-  } catch (error) {
-    await auditAccessDenialOnFailure(error, {
-      isAccessDenied: isProtectedChangeAccessDenied,
-      recordDenied: async () => recordCreateAccessDenied(input, error),
-    });
-    throw error;
-  }
+  await guardProtectedChangeCreate(input, (error) => recordCreateAccessDenied(input, error));
 
   const record = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
