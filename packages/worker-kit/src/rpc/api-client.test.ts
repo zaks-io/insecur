@@ -83,6 +83,15 @@ describe("apiClientFor", () => {
       "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
       "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
     );
+    await client.clearOrgHighAssuranceChallenge(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      {
+        projectId: "prj_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+        stepUpCode: "code_step_up",
+        stepUpCodeVerifier: "verifier_step_up",
+      },
+    );
 
     const urls = apiFetch.mock.calls.map((call) => call[0]);
     expect(urls[0]).toBe(
@@ -120,6 +129,9 @@ describe("apiClientFor", () => {
     );
     expect(urls[10]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA/deny",
+    );
+    expect(urls[11]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA/clear",
     );
   });
 
