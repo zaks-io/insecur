@@ -664,7 +664,7 @@ try {
     expect: [
       PROJECT.displayName,
       ">Access<",
-      "Machine Identities",
+      "Machine identities",
       'aria-label="Project views"',
       'aria-label="Breadcrumb"',
     ],
