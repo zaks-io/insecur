@@ -148,8 +148,20 @@ export class StaticAuditExportVerificationKeys implements AuditExportVerificatio
   }
 
   registerSigningKey(provider: AuditExportSigningKeyProvider): void {
-    this.signingPublicKeys.set(provider.keyVersion, provider.publicKeyBase64Url);
-    this.signingCustodyRefs.set(provider.keyVersion, provider.custodyEvidenceRef);
+    this.registerSigningPublicKey({
+      keyVersion: provider.keyVersion,
+      publicKeyBase64Url: provider.publicKeyBase64Url,
+      custodyEvidenceRef: provider.custodyEvidenceRef,
+    });
+  }
+
+  registerSigningPublicKey(input: {
+    readonly keyVersion: number;
+    readonly publicKeyBase64Url: string;
+    readonly custodyEvidenceRef: string | null;
+  }): void {
+    this.signingPublicKeys.set(input.keyVersion, input.publicKeyBase64Url);
+    this.signingCustodyRefs.set(input.keyVersion, input.custodyEvidenceRef);
   }
 
   getHmacKey(version: number): AuditExportHmacKeyProvider | null {

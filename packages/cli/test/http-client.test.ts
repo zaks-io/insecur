@@ -334,4 +334,105 @@ describe("createHttpApiClientForHost", () => {
     expect((init as RequestInit).method).toBe("GET");
     expect(JSON.stringify(result)).not.toMatch(/valueUtf8|plaintext|password|secret-value/i);
   });
+
+  it("lists app connections on the org-scoped path", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            connections: [
+              {
+                id: "conn_00000000000000000000000001",
+                organizationId: "org_00000000000000000000000001",
+                provider: "cloudflare",
+                connectionMethod: "scoped-api-token",
+                displayName: "Cloudflare workers",
+                status: "active",
+                statusReasonCode: null,
+                hasActiveCredential: true,
+                setupUserId: "usr_00000000000000000000000001",
+                lastValidationCheckedAt: null,
+                lastValidationOutcome: null,
+                lastValidationReasonCode: null,
+                createdAt: "2026-07-01T00:00:00.000Z",
+                updatedAt: "2026-07-01T00:00:00.000Z",
+              },
+            ],
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.listAppConnections({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_00000000000000000000000001" as never,
+    });
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    const parsed = new URL(String(url));
+    expect(parsed.pathname).toBe("/v1/orgs/org_00000000000000000000000001/connections");
+    expect((init as RequestInit).method).toBe("GET");
+    expect(JSON.stringify(result)).not.toMatch(/tokenUtf8|encodedValueUtf8|providerCredential/i);
+  });
+
+  it("creates app connections on the org-scoped path", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            connection: {
+              id: "conn_00000000000000000000000001",
+              organizationId: "org_00000000000000000000000001",
+              provider: "cloudflare",
+              connectionMethod: "scoped-api-token",
+              displayName: "Cloudflare workers",
+              status: "active",
+              statusReasonCode: null,
+              hasActiveCredential: true,
+              setupUserId: "usr_00000000000000000000000001",
+              lastValidationCheckedAt: null,
+              lastValidationOutcome: null,
+              lastValidationReasonCode: null,
+              createdAt: "2026-07-01T00:00:00.000Z",
+              updatedAt: "2026-07-01T00:00:00.000Z",
+            },
+            validation: { outcome: "success" },
+            auditEventId: "aud_00000000000000000000000001",
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.createAppConnection({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_00000000000000000000000001" as never,
+      appConnectionId: "conn_00000000000000000000000001" as never,
+      provider: "cloudflare",
+      connectionMethod: "scoped-api-token",
+      displayName: "Cloudflare workers" as never,
+      allowAccountId: "cf-account-123",
+      allowWorkerScript: "my-api-production",
+      tokenUtf8: new TextEncoder().encode("scoped-token"),
+    });
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    const parsed = new URL(String(url));
+    expect(parsed.pathname).toBe("/v1/orgs/org_00000000000000000000000001/connections");
+    expect((init as RequestInit).method).toBe("POST");
+    const body = JSON.parse(String((init as RequestInit).body));
+    expect(body).toMatchObject({
+      appConnectionId: "conn_00000000000000000000000001",
+      provider: "cloudflare",
+      connectionMethod: "scoped-api-token",
+      allowAccountId: "cf-account-123",
+      allowWorkerScript: "my-api-production",
+    });
+    expect(JSON.stringify(result)).not.toMatch(/encodedValueUtf8|providerCredential/i);
+  });
 });

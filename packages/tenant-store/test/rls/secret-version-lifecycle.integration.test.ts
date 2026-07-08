@@ -10,6 +10,7 @@ import {
   type VariableKey,
 } from "@insecur/domain";
 import { afterAll, beforeAll, expect, it } from "vitest";
+import { testDescriptiveVerdicts } from "../helpers/descriptive-verdicts.js";
 import {
   SECRET_VERSION_LIFECYCLE_STATES,
   SecretVersionStoreConflictError,
@@ -78,6 +79,7 @@ async function appendLiveVersion(
         secretVersionId: versionId,
         wrapped: syntheticWrappedMaterial(suffix),
         createdSecretShape: false,
+        descriptiveVerdicts: testDescriptiveVerdicts(`synthetic-${suffix}`),
       });
     },
   );
@@ -280,6 +282,7 @@ describeRls("TenantSecretVersionStore lifecycle (real Postgres)", () => {
         secretVersionId: draftVersionId,
         wrapped: syntheticWrappedMaterial(42),
         createdSecretShape: false,
+        descriptiveVerdicts: testDescriptiveVerdicts("draft-version"),
       });
     });
 

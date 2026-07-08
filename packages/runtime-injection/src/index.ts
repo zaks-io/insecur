@@ -12,6 +12,14 @@ export {
   issueInjectionGrant,
   recordInjectionRunCompleted,
 } from "./injection-grants.js";
+export {
+  type RevokeInjectionGrantsForCompromiseVersionInput,
+  type RevokeInjectionGrantsForCompromiseVersionResult,
+  type RevokeInjectionGrantsForTenantSuspensionInput,
+  type RevokeInjectionGrantsForTenantSuspensionResult,
+  revokeInjectionGrantsForCompromiseVersion,
+  revokeInjectionGrantsForTenantSuspension,
+} from "./revoke-injection-grants.js";
 export { InjectionGrantError } from "./injection-grant-error.js";
 export { INJECTION_GRANT_TTL_SECONDS } from "./injection-grant-ttl.js";
 export type {

@@ -417,4 +417,93 @@ describe("audit export and verify", () => {
     expect(result.entry_count).toBe(1);
     expect(result.custody_evidence_refs).toBeNull();
   });
+
+  it("detects invalid signatures separately from hash-chain failures", async () => {
+    const bundle = await buildAuditExport({
+      organizationId: ORG,
+      events: [sampleEvent()],
+      timeRange: {
+        from: "2026-05-01T00:00:00.000Z",
+        to: "2026-05-02T00:00:00.000Z",
+      },
+      hmacKey,
+      signingKey,
+    });
+
+    const result = await verifyAuditExport({
+      jsonl: bundle.jsonl,
+      manifest: { ...bundle.manifest, signature: "invalid-signature" },
+      expectedOrganizationId: ORG,
+      keys: verificationKeys,
+    });
+
+    expect(result.status).toBe("invalid");
+    expect(result.failure_codes).toContain(AUDIT_EXPORT_FAILURE_CODES.signatureInvalid);
+    expect(result.failure_codes).not.toContain(AUDIT_EXPORT_FAILURE_CODES.entryTampered);
+    expect(result.integrity.hash_chain).toBe("valid");
+    expect(result.integrity.signature).toBe("invalid");
+  });
+
+  it("verifies exports signed under a retired signing key version after rotation", async () => {
+    const retiredSigningKey = await StaticAuditExportSigningKeyProvider.generate({
+      keyVersion: 1,
+      custodyEvidenceRef: "escrow-record://instance/test/audit-signing/v1",
+    });
+    const currentSigningKey = await StaticAuditExportSigningKeyProvider.generate({
+      keyVersion: 2,
+      custodyEvidenceRef: "escrow-record://instance/test/audit-signing/v2",
+    });
+
+    const retiredBundle = await buildAuditExport({
+      organizationId: ORG,
+      events: [sampleEvent({ recorded_at: "2026-05-01T12:00:00.000Z" })],
+      timeRange: {
+        from: "2026-05-01T00:00:00.000Z",
+        to: "2026-05-02T00:00:00.000Z",
+      },
+      hmacKey,
+      signingKey: retiredSigningKey,
+    });
+
+    const rotatedVerificationKeys = new StaticAuditExportVerificationKeys();
+    rotatedVerificationKeys.registerHmacKey(hmacKey);
+    rotatedVerificationKeys.registerSigningPublicKey({
+      keyVersion: 1,
+      publicKeyBase64Url: retiredSigningKey.publicKeyBase64Url,
+      custodyEvidenceRef: retiredSigningKey.custodyEvidenceRef,
+    });
+    rotatedVerificationKeys.registerSigningPublicKey({
+      keyVersion: 2,
+      publicKeyBase64Url: currentSigningKey.publicKeyBase64Url,
+      custodyEvidenceRef: currentSigningKey.custodyEvidenceRef,
+    });
+
+    const retiredResult = await verifyAuditExport({
+      jsonl: retiredBundle.jsonl,
+      manifest: retiredBundle.manifest,
+      expectedOrganizationId: ORG,
+      keys: rotatedVerificationKeys,
+    });
+    expect(retiredResult.status).toBe("valid");
+    expect(retiredResult.signing_key_version).toBe(1);
+
+    const currentBundle = await buildAuditExport({
+      organizationId: ORG,
+      events: [sampleEvent({ recorded_at: "2026-06-01T12:00:00.000Z" })],
+      timeRange: {
+        from: "2026-06-01T00:00:00.000Z",
+        to: "2026-06-02T00:00:00.000Z",
+      },
+      hmacKey,
+      signingKey: currentSigningKey,
+    });
+    const currentResult = await verifyAuditExport({
+      jsonl: currentBundle.jsonl,
+      manifest: currentBundle.manifest,
+      expectedOrganizationId: ORG,
+      keys: rotatedVerificationKeys,
+    });
+    expect(currentResult.status).toBe("valid");
+    expect(currentResult.signing_key_version).toBe(2);
+  });
 });

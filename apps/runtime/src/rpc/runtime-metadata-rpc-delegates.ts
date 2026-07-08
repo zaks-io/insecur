@@ -33,6 +33,8 @@ import type {
   ListSessionOrganizationsRpcPayload,
   ResolveSessionWhoamiRpcInput,
   ResolveSessionWhoamiRpcPayload,
+  RegisterAgentSessionRpcInput,
+  RegisterAgentSessionRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   RecordInjectionRunCompletedRpcPayload,
   RevokeCliSessionRpcInput,
@@ -63,6 +65,7 @@ import { listProjectsOperation } from "../operations/list-projects-operation.js"
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
 import { revokeCliSessionOperation } from "../operations/revoke-cli-session-operation.js";
 import { resolveSessionWhoamiOperation } from "../operations/resolve-session-whoami-operation.js";
+import { registerAgentSessionOperation } from "../operations/register-agent-session-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
 import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
 
@@ -141,6 +144,13 @@ export function resolveSessionWhoamiRpc(
   input: ResolveSessionWhoamiRpcInput,
 ): Promise<RuntimeRpcResult<ResolveSessionWhoamiRpcPayload>> {
   return post(input.actorToken, (actors) => resolveSessionWhoamiOperation(input, actors));
+}
+
+export function registerAgentSessionRpc(
+  post: PostAuthRpcRunner,
+  input: RegisterAgentSessionRpcInput,
+): Promise<RuntimeRpcResult<RegisterAgentSessionRpcPayload>> {
+  return post(input.actorToken, (actors) => registerAgentSessionOperation(input, actors));
 }
 
 export function listOrganizationMembersRpc(

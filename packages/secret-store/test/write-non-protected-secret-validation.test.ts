@@ -13,6 +13,7 @@ import {
   TenantSecretVersionStore,
   withTenantScope,
 } from "@insecur/tenant-store";
+import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SECRET_VALUE_SIZE_LIMIT_BYTES } from "../src/constants.js";
@@ -101,7 +102,12 @@ function mockResolveSecretForWrite(): void {
   vi.spyOn(TenantSecretVersionStore.prototype, "appendVersionAndMakeLive").mockResolvedValue({
     secretId: "sec_00000000000000000000000001" as never,
     secretVersionId: "sv_00000000000000000000000001" as never,
+    versionNumber: 1,
+    lifecycleState: "live",
     createdSecretShape: true,
+    descriptiveVerdicts: computeSecretWriteDescriptiveVerdicts({
+      valueUtf8: new TextEncoder().encode("test-secret"),
+    }),
   });
 }
 

@@ -1,5 +1,6 @@
 export { KNOWN_HARNESS_MARKERS } from "./harness-markers.js";
 export { detectHarnessFromEnv, type HarnessEnv } from "./detect-harness.js";
+export { isKnownHarnessCode, parseDeriveHarnessName } from "./validate-harness-name.js";
 export { buildAncestryKey } from "./ancestry.js";
 export {
   findActiveAgentSession,

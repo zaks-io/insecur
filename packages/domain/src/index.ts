@@ -75,6 +75,7 @@ export {
   type SessionWhoamiData,
   type SessionWhoamiResolvedContext,
 } from "./session-whoami.js";
+export { type DeriveAgentSessionData, type RegisterAgentSessionData } from "./session-agent.js";
 export {
   type DisplayName,
   DISPLAY_NAME_MAX_LENGTH,
@@ -169,6 +170,8 @@ export { isKnownErrorCodeInCatalog, listKnownErrorCodes } from "./known-error-co
 export {
   type ErrorBody,
   type ErrorEnvelope,
+  type ErrorEnvelopeOptions,
+  type ErrorRemediation,
   FORBIDDEN_ENVELOPE_KEYS,
   isBinaryPayload,
   MetadataEnvelopeValidationError,

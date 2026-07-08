@@ -3,8 +3,15 @@ import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
+import {
+  revokeInjectionGrantsForCompromiseVersion,
+  revokeInjectionGrantsForTenantSuspension,
+  type RevokeInjectionGrantsForCompromiseVersionResult,
+  type RevokeInjectionGrantsForTenantSuspensionResult,
+} from "@insecur/runtime-injection";
 import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
 import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
+import type { RequestId } from "@insecur/domain";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -19,6 +26,7 @@ import type {
   ProvisionGuidedOrganizationRpcInput,
   QueryFirstValueUsageRpcInput,
   ResolveSessionWhoamiRpcInput,
+  RegisterAgentSessionRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
   RecordAbuseDeniedRpcInput,
@@ -50,6 +58,7 @@ import {
   getOperationRpc,
   issueInjectionGrantRpc,
   resolveSessionWhoamiRpc,
+  registerAgentSessionRpc,
   recordInjectionRunCompletedRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
 import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
@@ -237,6 +246,53 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   resolveSessionWhoami(input: ResolveSessionWhoamiRpcInput) {
     return resolveSessionWhoamiRpc(this.#post.bind(this), input);
+  }
+
+  registerAgentSession(input: RegisterAgentSessionRpcInput) {
+    return registerAgentSessionRpc(this.#post.bind(this), input);
+  }
+
+  /**
+   * Tenant Suspension containment: revoke all active Injection Grants for the Organization.
+   * Called from the suspension runbook path inside Runtime (no edge DB I/O).
+   */
+  revokeInjectionGrantsForTenantSuspension(input: {
+    organizationId: Parameters<
+      typeof revokeInjectionGrantsForTenantSuspension
+    >[0]["organizationId"];
+    auditActor: Parameters<typeof revokeInjectionGrantsForTenantSuspension>[0]["actor"];
+    requestId?: RequestId;
+  }): Promise<RevokeInjectionGrantsForTenantSuspensionResult> {
+    return this.#withConnection(() =>
+      revokeInjectionGrantsForTenantSuspension({
+        organizationId: input.organizationId,
+        actor: input.auditActor,
+        ...(input.requestId !== undefined ? { request: { requestId: input.requestId } } : {}),
+      }),
+    );
+  }
+
+  /**
+   * Compromise-response containment: revoke active grants pinned to the invalidated version.
+   */
+  revokeInjectionGrantsForCompromiseVersion(input: {
+    organizationId: Parameters<
+      typeof revokeInjectionGrantsForCompromiseVersion
+    >[0]["organizationId"];
+    secretVersionId: Parameters<
+      typeof revokeInjectionGrantsForCompromiseVersion
+    >[0]["secretVersionId"];
+    auditActor: Parameters<typeof revokeInjectionGrantsForCompromiseVersion>[0]["actor"];
+    requestId?: RequestId;
+  }): Promise<RevokeInjectionGrantsForCompromiseVersionResult> {
+    return this.#withConnection(() =>
+      revokeInjectionGrantsForCompromiseVersion({
+        organizationId: input.organizationId,
+        secretVersionId: input.secretVersionId,
+        actor: input.auditActor,
+        ...(input.requestId !== undefined ? { request: { requestId: input.requestId } } : {}),
+      }),
+    );
   }
 }
 

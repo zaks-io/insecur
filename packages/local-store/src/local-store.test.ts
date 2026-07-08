@@ -21,8 +21,9 @@ import { LOCAL_MODE_ORGANIZATION_ID } from "./crypto/local-organization.js";
 import { createFakeKeyStore, generateMachineRootKeyHex } from "./index.js";
 import { openLocalSqliteDatabase } from "./sqlite/connection.js";
 import { SqliteLocalStore } from "./stores/sqlite-local-store.js";
-import type { LocalSecretVersionStore } from "./contracts/secret-version-store.js";
+import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import type { LocalProjectMetadataStore } from "./contracts/project-metadata-store.js";
+import type { LocalSecretVersionStore } from "./contracts/secret-version-store.js";
 import type { LocalAuditWriter } from "./contracts/audit-writer.js";
 
 const PROJECT_A = projectId.brand("prj_01JZ8E4X5D9N3J7P2Q4R6S8T0W");
@@ -113,6 +114,9 @@ async function writeWrappedCurrentVersion(
     secretVersionId: input.secretVersionIdValue,
     variableKey: brandValue<string, "VariableKey">(input.variableKey ?? "INSECUR_PROOF_SECRET"),
     wrapped,
+    descriptiveVerdicts: computeSecretWriteDescriptiveVerdicts({
+      valueUtf8: input.plaintext,
+    }),
   });
 }
 

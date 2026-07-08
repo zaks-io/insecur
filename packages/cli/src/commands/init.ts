@@ -5,7 +5,7 @@ import { parseCliProfileSlug } from "../config/profiles/profile-slug.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { persistInitConfig } from "./init-persist.js";
-import { CliError } from "../output/cli-error.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { buildInitResolvedTargets } from "./init-result.js";
@@ -46,7 +46,7 @@ export async function runInitCommand(
     ...(envId === undefined ? {} : { environmentId: envId }),
   });
   if (!provisioned.ok) {
-    throw new CliError(provisioned.envelope.error);
+    throw cliErrorFromEnvelope(provisioned.envelope);
   }
   const data = provisioned.envelope.data;
   const { configPath, profileId } = await persistInitConfig({

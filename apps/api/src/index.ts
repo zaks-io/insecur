@@ -23,6 +23,7 @@ import { registerOnboardingRoutes } from "./routes/v1/onboarding.js";
 import { registerOperationsRoutes } from "./routes/v1/operations.js";
 import { registerOrganizationsRoutes } from "./routes/v1/organizations.js";
 import { registerProjectsRoutes } from "./routes/v1/projects.js";
+import { registerConnectionsRoutes } from "./routes/v1/connections.js";
 import { registerRunPoliciesRoutes } from "./routes/v1/run-policies.js";
 import { registerRuntimeInjectionRoutes } from "./routes/v1/runtime-injection.js";
 import { registerSessionRoutes } from "./routes/v1/session.js";
@@ -48,7 +49,7 @@ app.onError((err, context) => {
           message: failure.message,
           retryable: failure.retryable,
         },
-        { requestId: reqId },
+        { meta: { requestId: reqId } },
       ),
       401,
     );
@@ -66,7 +67,7 @@ app.onError((err, context) => {
           message: err.message,
           retryable: false,
         },
-        { requestId: reqId },
+        { meta: { requestId: reqId } },
       ),
       503,
     );
@@ -104,6 +105,7 @@ registerOperationsRoutes(app);
 registerOrganizationsRoutes(app);
 registerProjectsRoutes(app);
 registerRunPoliciesRoutes(app);
+registerConnectionsRoutes(app);
 registerRuntimeInjectionRoutes(app);
 registerSessionRoutes(app);
 registerWebhookSubscriptionsRoutes(app);

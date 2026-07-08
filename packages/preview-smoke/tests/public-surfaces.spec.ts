@@ -60,6 +60,39 @@ test.describe("preview public surfaces @preview", () => {
     requireString(body.color, "Site coverage badge color");
   });
 
+  test("Site audit export signing keys publish metadata-only JSON @happy-path", async ({
+    preview,
+  }) => {
+    const response = await fetch(
+      `${preview.siteBaseUrl}/.well-known/insecur/audit-export-signing-keys.json`,
+    );
+    const text = await response.text();
+
+    assertStatus(response, 200, "Site audit export signing keys", { bodyText: text });
+    assertHeaderEquals(
+      response,
+      "content-type",
+      "application/json; charset=utf-8",
+      "Site audit export signing keys",
+    );
+
+    const body = (await readJsonResponse(response, "Site audit export signing keys", text)) as {
+      schema_version: string;
+      algorithm: string;
+      claim_ceiling: string;
+      keys: unknown[];
+    };
+    assertEqual(body.schema_version, "1", "Site audit export signing keys schema_version");
+    assertEqual(body.algorithm, "Ed25519", "Site audit export signing keys algorithm");
+    assertEqual(
+      body.claim_ceiling,
+      "tamper-evident, independently verifiable",
+      "Site audit export signing keys claim_ceiling",
+    );
+    expect(Array.isArray(body.keys), "Site audit export signing keys keys").toBe(true);
+    expect(body.keys.length, "Site audit export signing keys keys").toBeGreaterThan(0);
+  });
+
   test("Site install.sh serves POSIX installer script @happy-path", async ({ preview }) => {
     const response = await fetch(`${preview.siteBaseUrl}/install.sh`);
     const text = await response.text();

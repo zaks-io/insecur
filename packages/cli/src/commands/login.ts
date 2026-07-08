@@ -2,7 +2,7 @@ import { successEnvelope, type ResolvedTargetEcho } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
-import { CliError } from "../output/cli-error.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { asEchoId, buildEnvelopeMeta } from "../output/target-echo.js";
 import { setMemorySession } from "../session/memory-session.js";
@@ -89,7 +89,7 @@ export async function runLoginCommand(
   const { host } = context.scope;
   const exchanged = await exchangeLoginSession(flags, api, host, commandOptions);
   if (!exchanged.ok) {
-    throw new CliError(exchanged.envelope.error);
+    throw cliErrorFromEnvelope(exchanged.envelope);
   }
   const { sessionId, expiresAt } = exchanged.envelope.data;
   if (commandOptions.shell) {

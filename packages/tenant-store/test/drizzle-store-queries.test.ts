@@ -11,6 +11,7 @@ import {
 } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
+import { testDescriptiveVerdicts } from "./helpers/descriptive-verdicts.js";
 import { TenantDataKeyMetadataStore } from "../src/data-keys/tenant-data-key-metadata-store.js";
 import {
   ProjectEnvironmentCoordinateError,
@@ -241,6 +242,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
       secretId: secretIdValue,
       secretVersionId: versionIdValue,
       createdSecretShape: false,
+      descriptiveVerdicts: testDescriptiveVerdicts(),
       wrapped: {
         organizationDataKeyVersion: 1,
         projectDataKeyVersion: 1,
@@ -261,6 +263,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
         secretId: secretIdValue,
         secretVersionId: versionIdValue,
         createdSecretShape: false,
+        descriptiveVerdicts: testDescriptiveVerdicts(),
         wrapped: {
           organizationDataKeyVersion: 1,
           projectDataKeyVersion: 1,
@@ -367,6 +370,8 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       policy_version_id: null,
       expires_at: new Date(Date.now() + 60_000),
       consumed_at: null,
+      revoked_at: null,
+      revoked_reason: null,
       ...overrides,
     };
   }
@@ -385,6 +390,8 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       policy_version_id: null,
       expires_at: new Date(Date.now() + 60_000),
       consumed_at: null,
+      revoked_at: null,
+      revoked_reason: null,
     };
     expect(store.getBoundGrant(grant)).toBeNull();
     expect(
@@ -415,6 +422,13 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
         VARIABLE_KEY,
       ),
     ).toBe("already_consumed");
+    expect(
+      store.classifyConsumeFailure(
+        boundGrantRow({ revoked_at: new Date(), revoked_reason: "tenant_suspension" }),
+        boundSecret,
+        VARIABLE_KEY,
+      ),
+    ).toBe("revoked");
     expect(store.classifyConsumeFailure(boundGrantRow(), secretId.generate(), VARIABLE_KEY)).toBe(
       "binding_not_allowed",
     );

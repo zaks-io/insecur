@@ -2,6 +2,19 @@ import type { AuthenticatedRuntimeClient, ClientMethod } from "./runtime-client-
 
 type PostAuthMethodName = keyof AuthenticatedRuntimeClient;
 
+function forwardConnectionMethods(
+  forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
+) {
+  return {
+    listAppConnections: forward("listAppConnections"),
+    getAppConnectionStatus: forward("getAppConnectionStatus"),
+    createAppConnection: forward("createAppConnection"),
+    rotateAppConnectionCredential: forward("rotateAppConnectionCredential"),
+    reauthAppConnection: forward("reauthAppConnection"),
+    disconnectAppConnection: forward("disconnectAppConnection"),
+  };
+}
+
 export function buildAuthenticatedRuntimeClientMethods(
   forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
 ): AuthenticatedRuntimeClient {
@@ -29,6 +42,7 @@ export function buildAuthenticatedRuntimeClientMethods(
     listSessionOrganizations: forward("listSessionOrganizations"),
     revokeCliSession: forward("revokeCliSession"),
     resolveSessionWhoami: forward("resolveSessionWhoami"),
+    registerAgentSession: forward("registerAgentSession"),
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
     listAuditEvents: forward("listAuditEvents"),
@@ -47,5 +61,6 @@ export function buildAuthenticatedRuntimeClientMethods(
     deleteWebhookSubscription: forward("deleteWebhookSubscription"),
     rotateWebhookSigningSecret: forward("rotateWebhookSigningSecret"),
     listWebhookEventCodes: forward("listWebhookEventCodes"),
+    ...forwardConnectionMethods(forward),
   };
 }

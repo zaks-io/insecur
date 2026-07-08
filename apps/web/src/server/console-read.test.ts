@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { parseConsoleReadEnvelope } from "../console/envelope.js";
 import { parseOrgProjectsBody } from "../console/projects.js";
 import type { BffApiClient } from "./bff-api.js";
-import { consoleRead, envelopeParseToReadResult } from "./console-read.js";
+import {
+  collapseConsoleEnvelopeParses,
+  consoleRead,
+  consoleReadUnavailable,
+  envelopeParseToReadResult,
+  runConsoleReadSteps,
+} from "./console-read.js";
 
 const resolveMock = vi.hoisted(() => ({ resolveAuthenticatedApiClient: vi.fn() }));
 
@@ -72,5 +78,93 @@ describe("consoleRead fail-closed contract", () => {
     );
 
     expect(result).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("collapseConsoleEnvelopeParses", () => {
+  it("returns unavailable when any composed parse is unavailable", () => {
+    const result = collapseConsoleEnvelopeParses(
+      [{ kind: "ok", value: ["member"] }, { kind: "unavailable" }],
+      (members, invitations) => ({ members, invitations }),
+    );
+
+    expect(result).toBe(consoleReadUnavailable);
+  });
+
+  it("returns denied when any composed parse is denied and none are unavailable", () => {
+    const result = collapseConsoleEnvelopeParses(
+      [{ kind: "ok", value: ["member"] }, { kind: "denied" }],
+      (members, invitations) => ({ members, invitations }),
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("combines values when every composed parse is ok", () => {
+    const result = collapseConsoleEnvelopeParses(
+      [
+        { kind: "ok", value: ["member"] },
+        { kind: "ok", value: ["invite"] },
+      ],
+      (members, invitations) => ({ members, invitations }),
+    );
+
+    expect(result).toEqual({ members: ["member"], invitations: ["invite"] });
+  });
+});
+
+describe("runConsoleReadSteps multi-call adapter", () => {
+  const orgMembersFetch = (api: BffApiClient) => api.orgMembers("org-1");
+  const orgInvitationsFetch = (api: BffApiClient) => api.orgInvitations("org-1");
+  const emptyListParse = (): readonly unknown[] => [];
+  const nullParse = (): null => null;
+  const combinePeople = (
+    members: readonly unknown[],
+    invitations: readonly unknown[],
+  ): { members: readonly unknown[]; invitations: readonly unknown[] } => ({ members, invitations });
+
+  const peopleReadSteps = [
+    { fetch: orgMembersFetch, parse: emptyListParse },
+    { fetch: orgInvitationsFetch, parse: nullParse },
+  ] as const;
+
+  const successfulPeopleReadSteps = [
+    { fetch: orgMembersFetch, parse: emptyListParse },
+    { fetch: orgInvitationsFetch, parse: emptyListParse },
+  ] as const;
+
+  it("maps one unavailable call to unavailable", async () => {
+    const api = {
+      orgMembers: vi.fn().mockResolvedValue({ ok: true, data: { members: [] } }),
+      orgInvitations: vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: "store.runtime_config_missing" } }),
+    } as unknown as BffApiClient;
+
+    const result = await runConsoleReadSteps(api, peopleReadSteps, combinePeople);
+
+    expect(result).toBe(consoleReadUnavailable);
+  });
+
+  it("maps one denied call to denied", async () => {
+    const api = {
+      orgMembers: vi.fn().mockResolvedValue({ ok: true, data: { members: [] } }),
+      orgInvitations: vi.fn().mockResolvedValue({ not: "an envelope" }),
+    } as unknown as BffApiClient;
+
+    const result = await runConsoleReadSteps(api, peopleReadSteps, combinePeople);
+
+    expect(result).toBeNull();
+  });
+
+  it("returns combined metadata when every composed call succeeds", async () => {
+    const api = {
+      orgMembers: vi.fn().mockResolvedValue({ ok: true, data: { members: [] } }),
+      orgInvitations: vi.fn().mockResolvedValue({ ok: true, data: { invitations: [] } }),
+    } as unknown as BffApiClient;
+
+    const result = await runConsoleReadSteps(api, successfulPeopleReadSteps, combinePeople);
+
+    expect(result).toEqual({ members: [], invitations: [] });
   });
 });

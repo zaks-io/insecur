@@ -6,7 +6,7 @@ import { parseProjectId } from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { readDisplayNameFromStdin } from "../input/read-display-name-stdin.js";
 import { requireOrgScope } from "./navigation-scope.js";
-import { CliError } from "../output/cli-error.js";
+import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { asEchoId, buildEnvelopeMeta } from "../output/target-echo.js";
 
@@ -42,7 +42,7 @@ export async function runProjectsCreateCommand(
     displayName,
   });
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    throw cliErrorFromEnvelope(result.envelope);
   }
 
   const data = result.envelope.data;

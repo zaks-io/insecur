@@ -17,11 +17,12 @@ import {
   authRequiredWhoamiEnvelope,
   renderAuthRemediationEnvelope,
 } from "../output/auth-remediation.js";
-import { CliError } from "../output/cli-error.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 import { getMemorySession, resolveSessionCredential } from "../session/memory-session.js";
 import { defaultSessionStore } from "../session/persisted-session.js";
+import { resolveAgentCredentialFromEnv } from "../auth/agent-credential-store.js";
 
 interface ResolvedSession {
   readonly credential: string;
@@ -90,15 +91,19 @@ async function resolveSession(host: string): Promise<ResolvedSession | undefined
   if (memory !== undefined) {
     return { credential: memory.credential, sessionId: memory.sessionId };
   }
+  const fromEnv = resolveSessionCredential();
+  if (fromEnv !== undefined) {
+    return { credential: fromEnv, sessionId: "unknown" };
+  }
+  const fromAgentFile = await resolveAgentCredentialFromEnv(host);
+  if (fromAgentFile !== undefined) {
+    return { credential: fromAgentFile, sessionId: "unknown" };
+  }
   const persisted = await defaultSessionStore().load(host);
   if (persisted !== undefined) {
     return { credential: persisted.credential, sessionId: persisted.sessionId };
   }
-  const credential = resolveSessionCredential();
-  if (credential === undefined) {
-    return undefined;
-  }
-  return { credential, sessionId: "unknown" };
+  return undefined;
 }
 
 async function persistRegisteredAgentSession(
@@ -175,7 +180,7 @@ export async function runWhoamiCommand(
   );
 
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    throw cliErrorFromEnvelope(result.envelope);
   }
 
   const data = result.envelope.data;

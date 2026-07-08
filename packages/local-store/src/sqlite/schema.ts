@@ -1,4 +1,4 @@
-export const LOCAL_STORE_SCHEMA_VERSION = 3;
+export const LOCAL_STORE_SCHEMA_VERSION = 4;
 
 export const LOCAL_STORE_SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
@@ -61,6 +61,12 @@ CREATE TABLE IF NOT EXISTS current_secret_versions (
   organization_data_key_version INTEGER NOT NULL,
   project_data_key_version INTEGER NOT NULL,
   ciphertext BLOB NOT NULL,
+  value_byte_length INTEGER NOT NULL,
+  encoding_class TEXT NOT NULL CHECK (encoding_class IN ('utf-8', 'hex-shaped', 'base64-shaped')),
+  is_empty INTEGER NOT NULL CHECK (is_empty IN (0, 1)),
+  has_leading_or_trailing_whitespace INTEGER NOT NULL CHECK (has_leading_or_trailing_whitespace IN (0, 1)),
+  looks_like_placeholder INTEGER NOT NULL CHECK (looks_like_placeholder IN (0, 1)),
+  secret_shape_match_verdict TEXT NOT NULL CHECK (secret_shape_match_verdict IN ('matches', 'does_not_match', 'no_shape_rule')),
   created_at TEXT NOT NULL
 );
 
@@ -87,6 +93,8 @@ CREATE TABLE IF NOT EXISTS injection_grants (
   secret_version_ids_json TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
+  revoked_at TEXT,
+  revoked_reason TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (project_id, environment_id) REFERENCES environments(project_id, id) ON DELETE CASCADE

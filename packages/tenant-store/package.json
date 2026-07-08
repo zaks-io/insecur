@@ -23,6 +23,7 @@
   "dependencies": {
     "@insecur/custody-contracts": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/secret-store-contracts": "workspace:*",
     "drizzle-orm": "catalog:",
     "postgres": "catalog:"
   },
