@@ -1,10 +1,13 @@
 import {
   assertCliRunChildExitCode,
+  assertCliRunChildObservedSentinel,
   assertCliSmokeSuccess,
   buildCliFirstValueRunArgs,
   buildCliSecretsSetGenerateArgs,
   createCliSmokeWorkspace,
+  parseCliRunChildProof,
   parseCliSmokeJson,
+  parseLastCliSmokeJson,
   redactorFor,
   resolveCliSmokePaths,
   runCliSmokeCommand,
@@ -62,9 +65,11 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         label: "CLI run",
         redactor,
       });
-      const body = parseCliSmokeJson(stdout, "CLI run");
+      const body = parseLastCliSmokeJson(stdout, "CLI run");
       assertCliSmokeSuccess(body, "CLI run");
       assertCliRunChildExitCode(body, "CLI run");
+      const childProof = parseCliRunChildProof(stdout, "CLI run");
+      assertCliRunChildObservedSentinel(childProof, "CLI run");
     });
   } finally {
     await workspace.cleanup();
