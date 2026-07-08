@@ -45,8 +45,9 @@ the content-ownership table in the Source Of Truth Rules of
 
 Product behavior is composed through package seams and capability-isolated Worker deploys. The
 authoritative route → deploy table is
-[`docs/specs/deploy-route-inventory.md`](../specs/deploy-route-inventory.md); do not restate it
-here.
+[`docs/specs/deploy-route-inventory.md`](../specs/deploy-route-inventory.md) (generated from route
+sources via `pnpm routes:inventory`; hand-edit `deploy-route-inventory.sidecar.json` for deploy
+intros and route notes only). Do not restate the table here.
 
 | Area                                                           | Files                               |
 | -------------------------------------------------------------- | ----------------------------------- |
