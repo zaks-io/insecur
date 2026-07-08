@@ -5,7 +5,7 @@ import { INSECUR_API_TOKEN_AUDIENCE, mintScopedAccessToken, type UserActor } fro
  * (ADR-0051). The browser never sees the minted bearer; it stays server-side on the hop.
  */
 /** Minimal Service Binding surface (avoids requiring Workers global types in every consumer). */
-export interface ApiBindingFetcher {
+interface ApiBindingFetcher {
   readonly fetch: typeof fetch;
 }
 

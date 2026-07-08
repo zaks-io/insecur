@@ -8,7 +8,7 @@ import type {
   RequestId,
 } from "@insecur/domain";
 
-export async function recordCreatedApprovalRequestAudit(input: {
+async function recordCreatedApprovalRequestAudit(input: {
   readonly actor: UserActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
