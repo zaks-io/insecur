@@ -7,6 +7,7 @@ export interface ResolveRequestUserActorInput {
   readonly authorizationHeader: string | undefined;
   readonly cookieHeader: string | null;
   readonly csrfHeader: string | null;
+  readonly acceptAnyScopedAccessAudience?: boolean;
 }
 
 /** Parse request credentials and resolve a user actor when present and valid. */
@@ -21,5 +22,8 @@ export async function resolveRequestUserActor(input: ResolveRequestUserActorInpu
     credentials,
     config,
     resolveAdmittedUser,
+    ...(input.acceptAnyScopedAccessAudience === true
+      ? { acceptAnyScopedAccessAudience: true }
+      : {}),
   });
 }

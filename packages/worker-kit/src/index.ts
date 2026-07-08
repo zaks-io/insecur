@@ -135,6 +135,10 @@ export type {
   ListPendingHighAssuranceChallengesRpcPayload,
 } from "./rpc/runtime-high-assurance-rpc-contract.js";
 export type {
+  ResolveSessionWhoamiRpcInput,
+  ResolveSessionWhoamiRpcPayload,
+} from "./rpc/runtime-session-whoami-rpc-contract.js";
+export type {
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryAllPayload,
   RuntimeDeliveryEntryPayload,
@@ -188,7 +192,11 @@ export {
   type AuthContext,
   type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
-export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
+export {
+  requireUserActor,
+  requireUserActorForWhoami,
+  type AuthVariables,
+} from "./auth/middleware.js";
 export { resolveRequestUserActor } from "./auth/resolve-request-user-actor.js";
 export { recordAdmissionDeniedAuditForAuthFailure } from "./auth/record-admission-denied-audit.js";
 

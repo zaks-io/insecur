@@ -1,8 +1,20 @@
 import { ConsolePlaceholder } from "@insecur/ui";
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
+import { RecentActivityFeed } from "../components/recent-activity-feed.js";
+import { ConsoleFramedRouteError } from "../components/console-route-error.js";
+import { requireConsoleRead } from "../console/route-guards.js";
+import { loadOrgRecentActivity } from "../server/console-audit-events.js";
 
 export const Route = createFileRoute("/orgs/$orgId/")({
+  loader: async ({ params, location }) => {
+    const recentActivity = requireConsoleRead(
+      await loadOrgRecentActivity({ data: { organizationId: params.orgId } }),
+      location.href,
+    );
+    return { recentActivity };
+  },
   component: OrgHomePage,
+  errorComponent: ConsoleFramedRouteError,
 });
 
 const orgRoute = getRouteApi("/orgs/$orgId");
@@ -10,6 +22,8 @@ const orgRoute = getRouteApi("/orgs/$orgId");
 /** Home (docs/web-console-ux.md §Center Of Gravity): Needs You above recent activity. */
 function OrgHomePage() {
   const { activeOrg } = orgRoute.useLoaderData();
+  const { recentActivity } = Route.useLoaderData();
+  const { orgId } = Route.useParams();
 
   return (
     <section className="px-5 py-8 sm:px-8 sm:py-10">
@@ -17,13 +31,11 @@ function OrgHomePage() {
         <h1 className="font-display text-3xl leading-tight sm:text-4xl">{activeOrg.displayName}</h1>
         <p className="mt-2 font-mono text-xs text-muted-foreground">{activeOrg.organizationId}</p>
       </header>
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className="mt-8 flex flex-col gap-8">
         <ConsolePlaceholder title="Needs you">
           Approval Requests and High-Assurance Challenges waiting on you will land here.
         </ConsolePlaceholder>
-        <ConsolePlaceholder title="Recent activity">
-          A feed of this organization's metadata events will land here.
-        </ConsolePlaceholder>
+        <RecentActivityFeed orgId={orgId} initialEvents={recentActivity.events} />
       </div>
     </section>
   );

@@ -120,6 +120,13 @@
       "when": 1783700000000,
       "tag": "0016_revoked_cli_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1783800000000,
+      "tag": "0017_agent_sessions",
+      "breakpoints": true
     }
   ]
 }

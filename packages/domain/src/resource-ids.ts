@@ -30,6 +30,7 @@ export type AppConnectionId = Brand<string, "AppConnectionId">;
 export type ProviderCredentialId = Brand<string, "ProviderCredentialId">;
 export type ProviderAppRegistrationId = Brand<string, "ProviderAppRegistrationId">;
 export type FirstValueFeedbackId = Brand<string, "FirstValueFeedbackId">;
+export type AgentSessionId = Brand<string, "AgentSessionId">;
 
 type ParseBrandedIdResult<T> =
   { ok: true; value: T } | { ok: false; code: "validation.invalid_opaque_resource_id" };
@@ -88,3 +89,4 @@ export const providerAppRegistrationId = createResourceIdHelpers(
   "ProviderAppRegistrationId",
 );
 export const firstValueFeedbackId = createResourceIdHelpers("fvb", "FirstValueFeedbackId");
+export const agentSessionId = createResourceIdHelpers("ags", "AgentSessionId");

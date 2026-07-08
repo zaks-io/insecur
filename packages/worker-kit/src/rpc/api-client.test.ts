@@ -61,6 +61,7 @@ describe("apiClientFor", () => {
     await client.projectEnvironments("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
     await client.orgMembers("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
     await client.orgInvitations("org_01/../evil");
+    await client.orgAuditEvents("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", { pageSize: 10 });
 
     const urls = apiFetch.mock.calls.map((call) => call[0]);
     expect(urls[0]).toBe(
@@ -73,6 +74,9 @@ describe("apiClientFor", () => {
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/members",
     );
     expect(urls[3]).toBe("https://insecur-api.internal/v1/orgs/org_01%2F..%2Fevil/invitations");
+    expect(urls[4]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/audit-events?pageSize=10",
+    );
   });
 
   it("reuses the minted token across calls on the same client", async () => {

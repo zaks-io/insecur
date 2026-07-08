@@ -57,6 +57,9 @@ const noopApi: ApiClient = {
   revokeCliSession: async () => {
     throw new Error("not used");
   },
+  sessionWhoami: async () => {
+    throw new Error("not used");
+  },
 };
 
 describe("auth-required errors", () => {
