@@ -64,3 +64,12 @@ export {
   recordHighAssuranceEvidenceConsumeDenied,
   recordHighAssuranceEvidenceConsumed,
 } from "./record-high-assurance-challenge-audit.js";
+export {
+  consumeEvidenceOrThrowHandoff,
+  requestProtectedEnvironmentMutationHandoff,
+} from "./protected-environment-mutation-handoff.js";
+export {
+  protectedEnvironmentMutationGateInput,
+  runProtectedEnvironmentMutationGate,
+  type ProtectedEnvironmentMutationGateScope,
+} from "./run-protected-environment-mutation-gate.js";

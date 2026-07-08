@@ -30,7 +30,7 @@ export async function lockSecretForAppend(
   }
 }
 
-async function allocateNextVersionNumber(
+export async function allocateNextVersionNumber(
   db: TenantScopedDb,
   secretIdValue: SecretId,
 ): Promise<number> {

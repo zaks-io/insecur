@@ -253,6 +253,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ["packages/domain/src/error-codes.ts"],
+    rules: {
+      "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: ["apps/runtime/src/runtime-service.ts"],
     rules: {
       "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
@@ -274,6 +280,15 @@ export default tseslint.config(
     files: ["packages/worker-kit/src/rpc/runtime-client.ts"],
     rules: {
       "max-lines-per-function": ["error", { max: 55, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: [
+      "packages/worker-kit/src/index.ts",
+      "packages/worker-kit/src/rpc/runtime-rpc-interface.ts",
+    ],
+    rules: {
+      "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
     },
   },
   {

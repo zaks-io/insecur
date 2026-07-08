@@ -75,6 +75,14 @@ import type {
   GetRuntimeInjectionPolicyRpcPayload,
 } from "./runtime-run-policies-rpc-contract.js";
 import type {
+  ListEnvironmentApprovalsRpcInput,
+  ListEnvironmentApprovalsRpcPayload,
+  RequestProtectedPromotionRpcInput,
+  RequestProtectedPromotionRpcPayload,
+  RequestProtectedRollbackRpcInput,
+  RequestProtectedRollbackRpcPayload,
+} from "./runtime-protected-change-rpc-contract.js";
+import type {
   CreateWebhookSubscriptionRpcInput,
   CreateWebhookSubscriptionRpcPayload,
   DeleteWebhookSubscriptionRpcInput,
@@ -234,6 +242,15 @@ export interface RuntimeRpc {
   disableRuntimeInjectionPolicy(
     input: DisableRuntimeInjectionPolicyRpcInput,
   ): Promise<RuntimeRpcResult<DisableRuntimeInjectionPolicyRpcPayload>>;
+  requestProtectedPromotion(
+    input: RequestProtectedPromotionRpcInput,
+  ): Promise<RuntimeRpcResult<RequestProtectedPromotionRpcPayload>>;
+  requestProtectedRollback(
+    input: RequestProtectedRollbackRpcInput,
+  ): Promise<RuntimeRpcResult<RequestProtectedRollbackRpcPayload>>;
+  listEnvironmentApprovals(
+    input: ListEnvironmentApprovalsRpcInput,
+  ): Promise<RuntimeRpcResult<ListEnvironmentApprovalsRpcPayload>>;
   createWebhookSubscription(
     input: CreateWebhookSubscriptionRpcInput,
   ): Promise<RuntimeRpcResult<CreateWebhookSubscriptionRpcPayload>>;

@@ -190,6 +190,7 @@ export {
 export { TenantProjectMetadataStore } from "./projects/tenant-project-metadata-store.js";
 export type { ProjectMetadataRow } from "./projects/types.js";
 export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
+export { isProtectedEnvironment } from "./environments/is-protected-environment.js";
 export { TenantHierarchyDisplayNameStore } from "./hierarchy/tenant-hierarchy-display-name-store.js";
 export type {
   CreateEnvironmentLifecycleInput,
@@ -238,3 +239,8 @@ export {
   type CreateRollbackApprovalRequestInput,
   type PromotionDraftVersionTarget,
 } from "./approvals/tenant-approval-request-store.js";
+export {
+  copyRetainedSecretVersion,
+  type CopyRetainedSecretVersionInput,
+  type CopyRetainedSecretVersionResult,
+} from "./secrets/copy-retained-secret-version.js";

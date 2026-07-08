@@ -18,7 +18,7 @@ import {
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
 
-interface PersistRollbackApprovalRequestInput {
+export interface PersistRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
@@ -32,7 +32,7 @@ interface PersistRollbackApprovalRequestInput {
   readonly operationId?: OperationId;
 }
 
-async function persistRollbackApprovalRequestOnDb(
+export async function persistRollbackApprovalRequestOnDb(
   db: TenantScopedDb,
   input: PersistRollbackApprovalRequestInput,
 ): Promise<void> {
