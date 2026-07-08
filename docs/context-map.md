@@ -102,20 +102,20 @@ machine access, or release-gate work.
 | `@insecur/worker-kit`                                             | Worker composition kit                                        | shared Worker HTTP/auth helpers, public route input parsing, domain error-to-HTTP mapping, Runtime RPC contract                                                                                                                                     | Deploy placement, keyring construction, package domain invariants, CLI behavior                                                                |
 | `@insecur/cli`                                                    | CLI composition                                               | local command parsing, safe input collection, local project config, child process execution, human/JSON output formatting, HTTP client behavior                                                                                                     | Server-side authorization, Secret Version storage, encryption, provider delivery                                                               |
 | `@insecur/local-store`                                            | Local Mode machine root key custody and encrypted local store | `KeyStore` seam, OS keychain/file-fallback adapters, SQLite Projects/Environments/Secret Shapes metadata, wrapped Current Version and Injection Grant persistence, organization/project data keys, metadata-only audit trail, weaker-posture notice | CLI wiring, passphrase/daemon unlock, version history, backup/export                                                                           |
+| `@insecur/storage-security-gate`                                  | Storage Security Gate                                         | Metadata-only readiness verdict interface, stable `storage.*` control IDs, delivery-blocking composition from injected probes                                                                                                                       | Keyring construction, encryption, Tenant-Scoped Store implementation, provider writes, Runtime Injection execution                             |
 
 ## Deferred Packages
 
 These modules are intentionally documented but not scaffolded yet. Create the
 package when its Interface is ready to be implemented and tested.
 
-| Future package                   | Module                                   | Trigger                                                                            |
-| -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
-| `@insecur/protected-change`      | Protected Change Orchestrator            | Protected Environment Draft Version, Promotion, Approval Request, or rollback work |
-| `@insecur/sync`                  | Secret Sync                              | First provider sync lifecycle implementation                                       |
-| `@insecur/provider-github`       | GitHub provider adapter                  | GitHub App installation or GitHub Actions secret sync work                         |
-| `@insecur/provider-cloudflare`   | Cloudflare provider adapter              | Cloudflare Worker Secret sync work                                                 |
-| `@insecur/storage-security-gate` | Storage Security Gate                    | Production delivery fail-closed readiness checks                                   |
-| `@insecur/web-console`           | Human Approval Surface and management UI | Focused web UI work after API and CLI flows are verified                           |
+| Future package                 | Module                                   | Trigger                                                                            |
+| ------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `@insecur/protected-change`    | Protected Change Orchestrator            | Protected Environment Draft Version, Promotion, Approval Request, or rollback work |
+| `@insecur/sync`                | Secret Sync                              | First provider sync lifecycle implementation                                       |
+| `@insecur/provider-github`     | GitHub provider adapter                  | GitHub App installation or GitHub Actions secret sync work                         |
+| `@insecur/provider-cloudflare` | Cloudflare provider adapter              | Cloudflare Worker Secret sync work                                                 |
+| `@insecur/web-console`         | Human Approval Surface and management UI | Focused web UI work after API and CLI flows are verified                           |
 
 ## App Composition
 

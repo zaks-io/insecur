@@ -19,6 +19,7 @@ import type {
   ProvisionGuidedOrganizationResourceIds,
 } from "@insecur/onboarding";
 import type { InjectionGrantIssueSelector } from "@insecur/runtime-injection-issue";
+import type { SecretVersionDescriptiveVerdictsRead } from "./runtime-metadata-rpc-contract.js";
 import type { PostAuthRpcInputBase } from "./runtime-rpc-shared.js";
 
 export type { RuntimeRpc } from "./runtime-rpc-interface.js";
@@ -40,6 +41,7 @@ export interface RuntimeSecretWritePayload {
   secretVersionId: SecretVersionId;
   variableKey: VariableKey;
   createdSecretShape: boolean;
+  descriptiveVerdicts: SecretVersionDescriptiveVerdictsRead;
   auditEventId?: string;
 }
 

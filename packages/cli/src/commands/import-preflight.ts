@@ -7,7 +7,7 @@ import {
   type VariableKey,
 } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
-import { CliError } from "../output/cli-error.js";
+import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
 import {
   assertImportableEnvironment,
   buildImportWritePlans,
@@ -35,7 +35,7 @@ export async function assertImportTargetEnvironment(input: {
     projectId: input.projectId,
   });
   if (!environmentResult.ok) {
-    throw new CliError(environmentResult.envelope.error);
+    throw cliErrorFromEnvelope(environmentResult.envelope);
   }
 
   const targetEnvironment = environmentResult.envelope.data.environments.find(

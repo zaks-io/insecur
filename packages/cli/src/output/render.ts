@@ -4,6 +4,7 @@ import {
   type MetadataEnvelope,
   type SuccessEnvelope,
 } from "@insecur/domain";
+import { formatRemediationProse } from "./cli-remediation.js";
 
 export interface RenderOptions {
   readonly json: boolean;
@@ -33,6 +34,9 @@ function renderError(envelope: ErrorEnvelope, options: RenderOptions): void {
   }
   if (!options.quiet) {
     process.stderr.write(`${envelope.error.message}\n`);
+    if (envelope.remediation !== undefined) {
+      process.stderr.write(`${formatRemediationProse(envelope.remediation)}\n`);
+    }
   }
 }
 

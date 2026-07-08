@@ -17,7 +17,7 @@ import {
   authRequiredWhoamiEnvelope,
   renderAuthRemediationEnvelope,
 } from "../output/auth-remediation.js";
-import { CliError } from "../output/cli-error.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 import { getMemorySession, resolveSessionCredential } from "../session/memory-session.js";
@@ -180,7 +180,7 @@ export async function runWhoamiCommand(
   );
 
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    throw cliErrorFromEnvelope(result.envelope);
   }
 
   const data = result.envelope.data;

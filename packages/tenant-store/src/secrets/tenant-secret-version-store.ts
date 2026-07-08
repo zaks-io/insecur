@@ -197,6 +197,7 @@ export class TenantSecretVersionStore {
       versionNumber,
       lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.draft,
       createdSecretShape: input.createdSecretShape,
+      descriptiveVerdicts: input.descriptiveVerdicts,
     };
   }
 
@@ -212,6 +213,7 @@ export class TenantSecretVersionStore {
       versionNumber,
       lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.live,
       createdSecretShape: input.createdSecretShape,
+      descriptiveVerdicts: input.descriptiveVerdicts,
     };
   }
 

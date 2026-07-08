@@ -42,6 +42,7 @@ describe("resolveAuditExportKeyProviders", () => {
   it("prefers Secrets Store bindings in production", async () => {
     const keys = await createTestAuditExportKeyProviders();
     const signingMaterial = JSON.stringify({
+      keyVersion: 2,
       privateKeyPkcs8Base64Url: keys.signingPrivateKeyPkcs8Base64Url,
       publicKeyRawBase64Url: keys.signingPublicKey,
     });
@@ -53,6 +54,7 @@ describe("resolveAuditExportKeyProviders", () => {
     });
 
     expect(providers.hmacKey.keyVersion).toBe(1);
+    expect(providers.signingKey.keyVersion).toBe(2);
     expect(providers.signingKey.publicKeyBase64Url).toBe(keys.signingPublicKey);
   });
 

@@ -12,7 +12,8 @@ keyring boundary and the deploy-topology conformance gate (INS-199) enforce it.
 See [`../../docs/setup.md`](../../docs/setup.md) for end-to-end setup,
 [`../../docs/context-map.md`](../../docs/context-map.md) for package ownership, and
 [`../../docs/specs/deploy-route-inventory.md`](../../docs/specs/deploy-route-inventory.md) for the
-authoritative route → deploy table.
+authoritative route → deploy table (generated via `pnpm routes:inventory`; edit
+`deploy-route-inventory.sidecar.json` for human notes).
 
 ## Layout
 

@@ -5,7 +5,7 @@ import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
-import { CliError } from "../output/cli-error.js";
+import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { requireOrganizationScope } from "./audit-org-scope.js";
 import { buildAuditTailFilters, type AuditTailCommandOptions } from "./audit-tail-options.js";
@@ -70,7 +70,7 @@ export async function runAuditTailCommand(
   });
 
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    throw cliErrorFromEnvelope(result.envelope);
   }
 
   renderSuccess(successEnvelope(result.envelope.data), flags, formatAuditTailHuman);

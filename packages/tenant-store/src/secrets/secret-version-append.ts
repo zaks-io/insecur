@@ -55,6 +55,7 @@ interface InsertVersionRowInput {
 }
 
 async function insertVersionRow(input: InsertVersionRowInput): Promise<void> {
+  const { descriptiveVerdicts } = input.appendInput;
   await input.db.insert(secretVersions).values({
     id: input.appendInput.secretVersionId,
     orgId: input.appendInput.organizationId,
@@ -65,6 +66,12 @@ async function insertVersionRow(input: InsertVersionRowInput): Promise<void> {
     organizationDataKeyVersion: input.appendInput.wrapped.organizationDataKeyVersion,
     projectDataKeyVersion: input.appendInput.wrapped.projectDataKeyVersion,
     ciphertextStorageRef: input.storageRef,
+    valueByteLength: descriptiveVerdicts.valueByteLength,
+    encodingClass: descriptiveVerdicts.encodingClass,
+    isEmpty: descriptiveVerdicts.isEmpty,
+    hasLeadingOrTrailingWhitespace: descriptiveVerdicts.hasLeadingOrTrailingWhitespace,
+    looksLikePlaceholder: descriptiveVerdicts.looksLikePlaceholder,
+    secretShapeMatchVerdict: descriptiveVerdicts.secretShapeMatchVerdict,
   });
 }
 

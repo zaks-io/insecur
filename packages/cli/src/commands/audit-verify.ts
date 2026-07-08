@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { successEnvelope } from "@insecur/domain";
 import {
   parseAuditExportManifest,
+  parseAuditExportPublishedSigningKeys,
+  registerPublishedSigningKeys,
   verifyAuditExport,
   StaticAuditExportHmacKeyProvider,
   StaticAuditExportVerificationKeys,
@@ -17,6 +19,63 @@ export interface AuditVerifyCommandOptions {
   readonly manifestPath: string;
   readonly hmacSecretEnv?: string;
   readonly signingPublicKeyEnv?: string;
+  readonly publishedSigningKeysPath?: string;
+  readonly publishedSigningKeysEnv?: string;
+}
+
+async function readPublishedSigningKeysFromPath(path: string): Promise<unknown> {
+  const raw = await readFile(path, "utf8");
+  return JSON.parse(raw) as unknown;
+}
+
+function resolvePublishedSigningKeysPath(options: AuditVerifyCommandOptions): string | undefined {
+  const publishedPath =
+    options.publishedSigningKeysPath ??
+    (options.publishedSigningKeysEnv === undefined
+      ? process.env.INSECUR_AUDIT_EXPORT_PUBLISHED_SIGNING_KEYS
+      : process.env[options.publishedSigningKeysEnv]);
+  if (publishedPath === undefined || publishedPath.trim() === "") {
+    return undefined;
+  }
+  return publishedPath;
+}
+
+async function fetchPublishedSigningKeysJson(path: string): Promise<unknown> {
+  if (/^https?:\/\//.test(path)) {
+    const response = await fetch(path);
+    if (!response.ok) {
+      throw new CliError({
+        code: "validation.invalid_opaque_resource_id",
+        message: `failed to fetch published audit export signing keys (${String(response.status)})`,
+        retryable: false,
+      });
+    }
+    return (await response.json()) as unknown;
+  }
+  return readPublishedSigningKeysFromPath(path);
+}
+
+async function loadPublishedSigningKeys(
+  verificationKeys: StaticAuditExportVerificationKeys,
+  options: AuditVerifyCommandOptions,
+): Promise<void> {
+  const publishedPath = resolvePublishedSigningKeysPath(options);
+  if (publishedPath === undefined) {
+    return;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = await fetchPublishedSigningKeysJson(publishedPath);
+    registerPublishedSigningKeys(verificationKeys, parseAuditExportPublishedSigningKeys(parsed));
+  } catch (error) {
+    throw new CliError({
+      code: "validation.invalid_opaque_resource_id",
+      message:
+        error instanceof Error ? error.message : "audit export published signing keys are invalid",
+      retryable: false,
+    });
+  }
 }
 
 async function loadVerificationKeys(
@@ -38,15 +97,14 @@ async function loadVerificationKeys(
     keys.registerHmacKey(provider);
   }
 
+  await loadPublishedSigningKeys(keys, options);
+
   const signingPublicKey = process.env[signingPublicKeyName];
   if (signingPublicKey !== undefined && signingPublicKey.length > 0) {
-    keys.registerSigningKey({
+    keys.registerSigningPublicKey({
       keyVersion: manifest.signing_key_version,
-      custodyEvidenceRef: manifest.custody_evidence_refs.signing,
       publicKeyBase64Url: signingPublicKey,
-      sign() {
-        throw new Error("verify-only public key cannot sign exports");
-      },
+      custodyEvidenceRef: manifest.custody_evidence_refs.signing,
     });
   }
 

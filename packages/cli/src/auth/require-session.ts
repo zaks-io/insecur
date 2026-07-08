@@ -1,5 +1,6 @@
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
+import { LOGIN_REMEDIATION } from "../output/cli-remediation.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { resolveSessionCredential } from "../session/memory-session.js";
 import { defaultSessionStore, type SessionStore } from "../session/persisted-session.js";
@@ -30,7 +31,7 @@ export async function requireSessionCredential(
         message: "Authentication is required. Run insecur login first.",
         retryable: false,
       },
-      EXIT_AUTH_REQUIRED,
+      { exitCode: EXIT_AUTH_REQUIRED, remediation: LOGIN_REMEDIATION },
     );
   }
   return credential;

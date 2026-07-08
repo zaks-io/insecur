@@ -18,7 +18,8 @@ import type { LocalSqliteDatabase } from "../../sqlite/connection.js";
 import { withSqliteTransaction } from "../../sqlite/transaction.js";
 import { assertOpaqueId, nowIso, parseJsonArray } from "./helpers.js";
 
-type ConsumeFailure = "not_found" | "expired" | "already_consumed" | "binding_not_allowed";
+type ConsumeFailure =
+  "not_found" | "expired" | "already_consumed" | "binding_not_allowed" | "revoked";
 
 type ConsumeOutcome =
   { ok: true; grant: LocalConsumedInjectionGrantRow } | { ok: false; failure: ConsumeFailure };
@@ -98,19 +99,37 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
     return outcome;
   }
 
+  private classifyConsumeFailure(
+    row: GrantDbRow | null,
+    secretIdValue: SecretId,
+    variableKey: VariableKey,
+  ): ConsumeFailure | null {
+    if (!row) {
+      return "not_found";
+    }
+    if (row.consumed_at !== null) {
+      return "already_consumed";
+    }
+    if (row.revoked_at !== null) {
+      return "revoked";
+    }
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      return "expired";
+    }
+    if (!this.resolveBinding(row, secretIdValue, variableKey)) {
+      return "binding_not_allowed";
+    }
+    return null;
+  }
+
   private consumeGrantRowUnderLock(
     row: GrantDbRow | null,
     secretIdValue: SecretId,
     variableKey: VariableKey,
   ): ConsumeOutcome {
-    if (!row) {
-      return { ok: false, failure: "not_found" };
-    }
-    if (row.consumed_at !== null) {
-      return { ok: false, failure: "already_consumed" };
-    }
-    if (new Date(row.expires_at).getTime() <= Date.now()) {
-      return { ok: false, failure: "expired" };
+    const preflight = this.classifyConsumeFailure(row, secretIdValue, variableKey);
+    if (preflight !== null || row === null) {
+      return { ok: false, failure: preflight ?? "not_found" };
     }
     const binding = this.resolveBinding(row, secretIdValue, variableKey);
     if (!binding) {
@@ -121,7 +140,7 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
       .prepare(
         `UPDATE injection_grants
          SET consumed_at = ?
-         WHERE id = ? AND project_id = ? AND consumed_at IS NULL AND expires_at > ?`,
+         WHERE id = ? AND project_id = ? AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?`,
       )
       .run(consumedAt, row.id, row.project_id, consumedAt);
     if (claimed.changes !== 1) {
@@ -148,7 +167,7 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
       (this.database
         .prepare(
           `SELECT id, project_id, environment_id, variable_keys_json, secret_ids_json,
-                  secret_version_ids_json, expires_at, consumed_at
+                  secret_version_ids_json, expires_at, consumed_at, revoked_at
            FROM injection_grants
            WHERE id = ? AND project_id = ?`,
         )
@@ -187,4 +206,5 @@ interface GrantDbRow {
   secret_version_ids_json: string;
   expires_at: string;
   consumed_at: string | null;
+  revoked_at: string | null;
 }

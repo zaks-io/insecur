@@ -58,6 +58,7 @@ export type {
   EnvironmentSecretMetadataRow,
   ListEnvironmentSecretsInput,
   ListSecretVersionMetadataInput,
+  SecretVersionDescriptiveVerdictsRead,
   SecretVersionMetadataRow,
 } from "./secrets/environment-secret-metadata-types.js";
 export {
@@ -88,8 +89,10 @@ export {
 export type {
   InsertInjectionGrantInput,
   InjectionGrantRow,
+  InjectionGrantRevocationReason,
   ResolvedInjectionGrantBinding,
 } from "./injection-grants/types.js";
+export { INJECTION_GRANT_REVOCATION_REASONS } from "./injection-grants/types.js";
 export type {
   AppendSecretVersionAndMakeLiveInput,
   AppendSecretVersionAndMakeLiveResult,

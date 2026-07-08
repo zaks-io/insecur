@@ -6,6 +6,7 @@ import type {
   SecretVersionId,
   VariableKey,
 } from "@insecur/domain";
+import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 
 /** Wrapped material accepted by the local Secret Version Store (plaintext-free). */
 export interface LocalStoredWrappedSecretMaterial {
@@ -47,6 +48,7 @@ export interface LocalSecretMetadataRow {
   readonly secretId: SecretId;
   readonly variableKey: VariableKey;
   readonly hasCurrentVersion: boolean;
+  readonly descriptiveVerdicts?: SecretWriteDescriptiveVerdicts;
 }
 
 export interface LocalResolvedInjectionGrantBinding {
@@ -64,7 +66,7 @@ export interface LocalInsertInjectionGrantInput {
 }
 
 export type LocalInjectionGrantConsumeFailure =
-  "not_found" | "expired" | "already_consumed" | "binding_not_allowed";
+  "not_found" | "expired" | "already_consumed" | "binding_not_allowed" | "revoked";
 
 export interface LocalConsumedInjectionGrantRow {
   readonly grantId: InjectionGrantId;
@@ -102,6 +104,7 @@ export interface LocalReplaceCurrentVersionInput {
   readonly secretVersionId: SecretVersionId;
   readonly variableKey: VariableKey;
   readonly wrapped: LocalStoredWrappedSecretMaterial;
+  readonly descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
 }
 
 export interface LocalUpsertSecretShapeInput {

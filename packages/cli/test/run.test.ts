@@ -206,6 +206,9 @@ describe("runRunCommand", () => {
     expect(parsed.data.childExitCode).toBe(42);
     expect(parsed.data.variableKey).toBe("API_KEY");
     expect(parsed.data.grantId).toBe(GRANT_ID);
+    expect(parsed).toMatchObject({
+      meta: { requestId: "req_consume" },
+    });
     expect(stdout).not.toContain(SENSITIVE_VALUE);
     expect(stdoutSpy).toHaveBeenCalled();
     expect(capturedEnv).toBeDefined();

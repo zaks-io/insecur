@@ -60,6 +60,7 @@ export async function writeSecretOperation({
     secretVersionId: result.secretVersionId,
     variableKey: result.variableKey,
     createdSecretShape: result.createdSecretShape,
+    descriptiveVerdicts: result.descriptiveVerdicts,
     ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
   };
 }
