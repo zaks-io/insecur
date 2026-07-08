@@ -100,7 +100,7 @@ describe("resolveAuditExportKeyProviders", () => {
         SENTRY_ENVIRONMENT: "preview",
         AUDIT_EXPORT_HMAC_KEY_V1: { get: async () => keys.hmacSecret },
         AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
-      }),
+      } as RuntimeEnv),
     ).rejects.toThrow("audit export signing key material is missing or has invalid keyVersion");
   });
 
