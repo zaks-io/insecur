@@ -262,8 +262,9 @@ export const PROTECTED_CHANGE_ERROR_CODES = {
 export type ProtectedChangeErrorCode =
   (typeof PROTECTED_CHANGE_ERROR_CODES)[keyof typeof PROTECTED_CHANGE_ERROR_CODES];
 
-/** Approval request lifecycle failures (INS-84). */
+/** Approval request lifecycle failures (INS-84, INS-85). */
 export const APPROVAL_ERROR_CODES = {
+  reviewStale: "approval.review_stale",
   requestNotFound: "approval.request_not_found",
   requestNotPending: "approval.request_not_pending",
   invalidDraftSelection: "approval.invalid_draft_selection",
