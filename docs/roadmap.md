@@ -5,15 +5,15 @@ Last updated: 2026-07-05.
 High-level milestone sequencing for handing implementation to a fleet of agents. This document
 owns the milestone order and each milestone's exit gate, nothing else: scope boundaries are owned
 by [phasing.md](phasing.md), production readiness criteria by
-[production-mvp-acceptance.md](production-mvp-acceptance.md), workstream ownership and seams by
-[specs/agent-workstreams.md](specs/agent-workstreams.md), dependency-ordered build detail by the
-Build Order in [project-status.md](project-status.md), and live status by
+[production-mvp-acceptance.md](production-mvp-acceptance.md), architecture group ownership and seams
+by [specs/architecture-groups.md](specs/architecture-groups.md), dependency-ordered build detail by
+the Build Order in [project-status.md](project-status.md), and live status by
 [project-status.md](project-status.md). Milestones overlap where noted; the exit gates do not.
 
 ## M0 — Contracts and gates before features
 
-Goal: every cross-workstream agreement becomes a compile-time or CI-time fact before parallel
-feature work starts, so seam divergence is caught by gates instead of review.
+Goal: every cross-group agreement becomes a compile-time or CI-time fact before parallel feature
+work starts, so seam divergence is caught by gates instead of review.
 
 - The enforcement code from the 2026-06-12 ADR batch is landed and blocking in CI: the
   `OPERATION_INTENT_CODES` catalog and membership validation (ADR-0068), the
@@ -84,15 +84,15 @@ real evidence.
 
 Goal: the capabilities that separate insecur from commodity secret managers.
 
-Machine Identity, OIDC, and environment-scoped deploy keys (W7); the promotion approval state
-machine, High-Assurance Challenges, and the web Human Approval Surface (W6/W9); then App
-Connections and GitHub/Cloudflare Secret Sync (W8). The order is load-bearing: approval gates land
+Machine Identity, OIDC, and environment-scoped deploy keys (architecture group AG7); the promotion
+approval state machine, High-Assurance Challenges, and the web Human Approval Surface (AG6/AG9);
+then App Connections and GitHub/Cloudflare Secret Sync (AG8). The order is load-bearing: approval gates land
 before provider sync because Approval Impact Review is the approval evidence for Cloudflare Worker
 secret deploys (ADR-0039), and the protected-issuance boundary stays a scope atom, never an
 actor-type branch (ADR-0038).
 
-Exit gate: protected delivery and sync paths pass their workstream test evidence in
-[specs/agent-workstreams.md](specs/agent-workstreams.md).
+Exit gate: protected delivery and sync paths pass their architecture group test evidence in
+[specs/architecture-groups.md](specs/architecture-groups.md).
 
 ## M6 — Small-Group Production live
 

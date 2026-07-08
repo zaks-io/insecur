@@ -28,7 +28,7 @@ the content-ownership table in the Source Of Truth Rules of
 | Which context file to load                       | `CONTEXT-MAP.md`                                         |
 | Package ownership and dependency direction       | `docs/context-map.md`                                    |
 | Current product shape and ADR trace links        | `docs/specs/product-spec.md`                             |
-| Implementation workstream boundaries             | `docs/specs/agent-workstreams.md`                        |
+| Architecture group boundaries                    | `docs/specs/architecture-groups.md`                      |
 | Production MVP acceptance contract               | `docs/production-mvp-acceptance.md`                      |
 | First Value build contract                       | `docs/first-value-milestone.md`                          |
 | First Value Linear ticket graph                  | `docs/specs/first-value-ticket-plan.md`                  |

@@ -1,7 +1,7 @@
 import { Button } from "@insecur/ui";
 import { approvalInboxPath } from "../../console/approval-items.js";
 
-/** Metadata-safe placeholder until W6 Approval Request review lands (INS-381). */
+/** Metadata-safe placeholder until AG6 Approval Request review lands (INS-381). */
 export function ApprovalRequestUnsupportedPanel({ orgId }: { orgId: string }) {
   return (
     <section className="border-2 border-ink px-4 py-6 sm:px-6">

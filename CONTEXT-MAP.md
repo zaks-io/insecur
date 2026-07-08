@@ -17,7 +17,7 @@ context for a specific task.
   scaffolded package cut.
 - `docs/specs/README.md` - current implementation entry point.
 - `docs/specs/product-spec.md` - consolidated product state and ADR links.
-- `docs/specs/agent-workstreams.md` - implementation workstream shape.
+- `docs/specs/architecture-groups.md` - architecture group ownership and seams.
 - `docs/adr/README.md` - accepted decisions index.
 - `docs/project-status.md` - current implementation status and next steps.
 

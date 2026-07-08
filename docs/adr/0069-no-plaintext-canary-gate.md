@@ -15,8 +15,8 @@ Logging tests to pass with canary Sensitive Values; the `first_value.no_plaintex
 rows in [docs/security-runbooks-and-release-gates.md](../security-runbooks-and-release-gates.md)
 all list canary tests as evidence. Yet [ADR-0065](0065-test-layers-and-preview-smoke.md) and
 [docs/agents/testing.md](../agents/testing.md) define exactly three layers with no canary gate,
-the root `package.json` has no canary script, and no workstream in
-[docs/specs/agent-workstreams.md](../specs/agent-workstreams.md) owns the harness. The only
+the root `package.json` has no canary script, and no architecture group in
+[docs/specs/architecture-groups.md](../specs/architecture-groups.md) owns the harness. The only
 enforcement today is hand-written vigilance: the
 `expect(JSON.stringify(...)).not.toContain(plaintext)` assertions in
 `apps/api/test/e2e/first-value-loop.e2e.test.ts` covering the write response body, the
@@ -73,10 +73,10 @@ Implementation note: the gate contract is defined here; the harness lives in
   Tenant-Scoped Store deliberately cannot provide: its pool is private and no raw executor leaves
   the module ([ADR-0037](0037-tenant-scoped-bound-store-over-rls.md)). No enumeration surface is
   added to the Tenant-Scoped Store for this gate.
-- **Ownership.** W10 owns the harness outright, as an extension of its existing "Security release
+- **Ownership.** AG10 owns the harness outright, as an extension of its existing "Security release
   gates and evidence bundles" ownership in
-  [docs/specs/agent-workstreams.md](../specs/agent-workstreams.md). There is no W1 interface
-  commitment; W1's store surface is untouched.
+  [docs/specs/architecture-groups.md](../specs/architecture-groups.md). There is no AG1 interface
+  commitment; AG1's store surface is untouched.
 - **Sweep-adapter rule (normative, mechanism deferred).** Surfaces the gate cannot enumerate
   structurally — R2 export files, Queue payloads, Durable Object state, KV, traces, analytics
   sinks, local CLI config — must register a checked-in sweep adapter when they land, and the
@@ -119,7 +119,7 @@ persistence, logging, and serialized egress rather than replacing them.
 
 ## Consequences
 
-- A table added by any workstream is swept automatically the day its migration lands; the
+- A table added by any architecture group is swept automatically the day its migration lands; the
   no-plaintext invariant stops depending on each agent remembering to write assertions.
 - [docs/agents/testing.md](../agents/testing.md) gains `test:canary` in its layer table and CI
   section; the evidence rows in [docs/storage-security-gate.md](../storage-security-gate.md),
@@ -127,7 +127,7 @@ persistence, logging, and serialized egress rather than replacing them.
   [docs/production-mvp-acceptance.md](../production-mvp-acceptance.md) cite the named command
   scoped to what it proves, with non-enumerated surfaces marked pending. Those doc edits propagate
   this ADR; this ADR is the decision record.
-- W10's Owns list in [docs/specs/agent-workstreams.md](../specs/agent-workstreams.md) gains the
+- AG10's Owns list in [docs/specs/architecture-groups.md](../specs/architecture-groups.md) gains the
   canary harness. The recovery canary in [ADR-0058](0058-minimal-backup-and-tested-restore.md) is
   a distinct artifact (a known-plaintext restore sentinel) and is unaffected.
 - Sweep runtime grows with schema size. At First-Value scale it is a handful of tables; if it ever
