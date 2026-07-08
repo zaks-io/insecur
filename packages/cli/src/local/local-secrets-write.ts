@@ -75,6 +75,7 @@ async function writeResolvedSecret(input: {
       secretId: input.secretId,
       variableKey: input.write.variableKey,
       valueUtf8,
+      ...(input.write.allowEmpty === true ? { allowEmpty: true } : {}),
       generationHint: input.generationHint,
     },
   );

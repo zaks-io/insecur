@@ -29,6 +29,7 @@
     "wrangler:types": "node scripts/wrangler-types.mjs",
     "wrangler:types:check": "node scripts/wrangler-types.mjs --check",
     "test": "pnpm test:scripts && turbo run test --cache=\"${TURBO_CACHE:-local:rw,remote:r}\"",
+    "test:cli:local-features": "pnpm --filter @insecur/cli test:local-features",
     "test:coverage": "node scripts/clean-coverage.mjs && turbo run test:coverage --cache=\"${TURBO_CACHE:-local:rw,remote:r}\" && node scripts/merge-coverage.mjs",
     "test:coverage:strict": "node scripts/clean-coverage.mjs && turbo run test:coverage --force --cache=\"${TURBO_CACHE:-local:rw,remote:r}\" && node scripts/merge-coverage.mjs",
     "mutation:dry-run": "pnpm build && stryker run --dryRunOnly",

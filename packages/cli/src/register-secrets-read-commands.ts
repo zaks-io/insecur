@@ -25,7 +25,11 @@ export function registerSecretsReadCommands(secrets: Command, deps: SecretsReadD
     .command("versions")
     .description("List version metadata for one Secret (metadata only)")
     .argument("<secret-id>", "opaque Secret ID")
-    .action(async function secretsVersionsAction(secretId: string, command: CommanderCommand) {
+    .action(async function secretsVersionsAction(
+      secretId: string,
+      _args,
+      command: CommanderCommand,
+    ) {
       const flags = deps.globalFlags(command);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runSecretsVersionsCommand({ flags, api, context }, { secretId });

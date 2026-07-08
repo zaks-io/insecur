@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -12,8 +12,11 @@ import {
 import { createFakeKeyStore } from "@insecur/local-store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runLocalInitCommand } from "../src/commands/init-local.js";
+import { runImportCommand } from "../src/commands/import.js";
 import { runRunCommand } from "../src/commands/run.js";
+import { runSecretsListCommand } from "../src/commands/secrets-list.js";
 import { runSecretsSetCommand } from "../src/commands/secrets-set.js";
+import { runSecretsVersionsCommand } from "../src/commands/secrets-versions.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { LOCAL_MODE_HOST } from "../src/config/local-mode.js";
 import { PROJECT_CONFIG_FILE } from "../src/config/paths.js";
@@ -302,6 +305,109 @@ describe("local secrets set and run", () => {
       const childEnv = spawnMock.mock.calls[0]?.[2]?.env as NodeJS.ProcessEnv;
       expect(childEnv[VARIABLE_KEY]?.length).toBeGreaterThanOrEqual(32);
     } finally {
+      dispose();
+    }
+  });
+
+  it("lists local secrets and current-version metadata", async () => {
+    await setupProject();
+    const { api, dispose } = createLocalApi();
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    try {
+      const setExit = await runSecretsSetCommand(
+        { ...baseFlags, configDir: projectDir },
+        api,
+        context,
+        {
+          variableKey: VARIABLE_KEY,
+          generateMode: "random",
+          generateLength: "32",
+          valueStdin: false,
+          allowEmpty: false,
+        },
+      );
+      expect(setExit).toBe(0);
+      const setOutput = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as {
+        data: { secretId: string };
+      };
+
+      const listExit = await runSecretsListCommand({
+        flags: { ...baseFlags, configDir: projectDir },
+        api,
+        context,
+      });
+      expect(listExit).toBe(0);
+      const listOutput = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as {
+        data: { secrets: { variableKey: string; currentVersion?: unknown }[] };
+      };
+      expect(listOutput.data.secrets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            variableKey: VARIABLE_KEY,
+            currentVersion: expect.objectContaining({ versionNumber: 1 }),
+          }),
+        ]),
+      );
+      expect(JSON.stringify(listOutput)).not.toMatch(/valueUtf8|plaintext|ciphertext/i);
+
+      const versionsExit = await runSecretsVersionsCommand(
+        { flags: { ...baseFlags, configDir: projectDir }, api, context },
+        { secretId: setOutput.data.secretId },
+      );
+      expect(versionsExit).toBe(0);
+      const versionsOutput = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as {
+        data: { versions: { isCurrent: boolean; isPublished: boolean }[] };
+      };
+      expect(versionsOutput.data.versions).toEqual([
+        expect.objectContaining({ isCurrent: true, isPublished: true }),
+      ]);
+      expect(JSON.stringify(versionsOutput)).not.toMatch(/valueUtf8|plaintext|ciphertext/i);
+    } finally {
+      stdout.mockRestore();
+      dispose();
+    }
+  });
+
+  it("imports a local dotenv file and injects the imported value", async () => {
+    await setupProject();
+    const { api, dispose } = createLocalApi();
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    let capturedEnv: NodeJS.ProcessEnv | undefined;
+    spawnMock.mockImplementation((_executable, _args, options) => {
+      capturedEnv = { ...(options?.env as NodeJS.ProcessEnv) };
+      return createMockChild(0);
+    });
+
+    try {
+      const dotenvPath = path.join(projectDir, ".env.fixture");
+      await writeFile(dotenvPath, "IMPORTED_API_KEY=imported-test-value\n", "utf8");
+      const importExit = await runImportCommand(
+        { ...baseFlags, configDir: projectDir },
+        api,
+        context,
+        {
+          filePath: dotenvPath,
+          dryRun: false,
+        },
+      );
+      expect(importExit).toBe(0);
+      const importOutput = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as {
+        data: { importedCount: number; secrets: { variableKey: string }[] };
+      };
+      expect(importOutput.data.importedCount).toBe(1);
+      expect(importOutput.data.secrets[0]?.variableKey).toBe("IMPORTED_API_KEY");
+      expect(JSON.stringify(importOutput)).not.toContain("imported-test-value");
+
+      const runExit = await runRunCommand({ ...baseFlags, configDir: projectDir }, api, context, {
+        variableKey: "IMPORTED_API_KEY",
+        command: ["node", "-e", "process.exit(0)"],
+      });
+      expect(runExit).toBe(0);
+      expect(capturedEnv?.IMPORTED_API_KEY).toBe("imported-test-value");
+      expect(JSON.stringify(capturedEnv)).not.toContain("INSECUR_SESSION_TOKEN");
+    } finally {
+      stdout.mockRestore();
       dispose();
     }
   });
