@@ -60,6 +60,46 @@ const ENVIRONMENTS = [
   },
 ];
 
+// Project secrets matrix (INS-375): metadata only (presence, version, last-set actor/time). The
+// `production` column is protected, so the matrix table renders the "Protected" badge the probe
+// asserts. One drifting row (differing versions) exercises the drift emphasis path.
+const PROJECT_SECRETS_MATRIX = {
+  environments: ENVIRONMENTS.map((environment) => ({
+    environmentId: environment.environmentId,
+    displayName: environment.displayName,
+    lifecycleStage: environment.lifecycleStage,
+    isProtected: environment.isProtected,
+    createdAt: environment.createdAt,
+  })),
+  rows: [
+    {
+      variableKey: "DATABASE_URL",
+      cells: [
+        {
+          environmentId: ENVIRONMENTS[0].environmentId,
+          present: true,
+          secretId: "sec_01JZ8E6QYQAAAAAAAAAAAAAAAA",
+          versionNumber: 3,
+          secretVersionId: "sv_01JZ8E6QYQAAAAAAAAAAAAAAAA",
+          lifecycleState: "live",
+          lastSetAt: "2026-07-02T00:00:00.000Z",
+          lastSetActor: { actorType: "user", userId: USER_ID },
+        },
+        {
+          environmentId: ENVIRONMENTS[1].environmentId,
+          present: true,
+          secretId: "sec_01JZ8E6QYQBBBBBBBBBBBBBBBB",
+          versionNumber: 1,
+          secretVersionId: "sv_01JZ8E6QYQBBBBBBBBBBBBBBBB",
+          lifecycleState: "live",
+          lastSetAt: "2026-07-01T00:00:00.000Z",
+          lastSetActor: { actorType: "user", userId: USER_ID },
+        },
+      ],
+    },
+  ],
+};
+
 const MEMBER = {
   membershipId: "mem_01JZ8E2QYQ6M7F4K9A2B3C4D5E",
   userId: USER_ID,
@@ -240,6 +280,11 @@ const mf = new Miniflare({
             `/v1/orgs/${ORG.organizationId}/projects/${BARE_PROJECT.projectId}/environments`
           ) {
             return Response.json({ ok: true, data: { environments: [] } });
+          }
+          if (
+            url.pathname === `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/secrets`
+          ) {
+            return Response.json({ ok: true, data: PROJECT_SECRETS_MATRIX });
           }
           if (url.pathname === `/v1/orgs/${ORG.organizationId}/members`) {
             return Response.json({ ok: true, data: { members: [MEMBER] } });
@@ -586,7 +631,7 @@ try {
     expect: ["Settings", "Organization configuration and policies", 'aria-label="Breadcrumb"'],
   });
 
-  // Project Secrets, Access, and Delivery placeholders (INS-475).
+  // Project Secrets matrix (INS-375), Access, and Delivery placeholders (INS-475).
   const projectBase = `/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}`;
   await assertUnauthenticatedConsoleRedirect(`${projectBase}/secrets`);
   await assertRouteHasMatchingCspNonce(`${projectBase}/secrets`, {
@@ -595,7 +640,7 @@ try {
     expect: [
       PROJECT.displayName,
       ">Secrets<",
-      "secrets matrix",
+      "Protected",
       'aria-label="Project views"',
       'aria-label="Breadcrumb"',
     ],
