@@ -36,7 +36,7 @@ fi
 runtime_user="$(
   PGPASSWORD="$INSECUR_POSTGRES_RUNTIME_PASSWORD" psql \
     -h 127.0.0.1 \
-    -p 5432 \
+    -p "${INSECUR_POSTGRES_INTERNAL_PORT:-5432}" \
     -U "$INSECUR_POSTGRES_RUNTIME_ROLE" \
     -d "$INSECUR_POSTGRES_DB" \
     -Atc "SELECT current_user;"

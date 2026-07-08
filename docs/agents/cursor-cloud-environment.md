@@ -1,14 +1,18 @@
 # Cursor Cloud Environment
 
-This repo has a committed Cursor Cloud Agent environment so remote agents use the same Node and pnpm baseline as local development and future CI.
+This repo has a committed Cursor Cloud Agent environment so remote agents use the same Node, pnpm,
+Postgres 17, and security-tool baseline as local development and CI.
 
 ## Source Of Truth
 
 - `.cursor/environment.json` is the repo-level Cursor Cloud Agent config.
 - `.cursor/Dockerfile` defines the machine baseline.
+- `.cursor/start-postgres.sh` starts and provisions the native Postgres 17 service used by Cursor
+  Cloud Agents.
+- `.cursor/install-agent-tools.sh` installs pinned external CLIs that are not normal npm
+  dependencies.
 - `.nvmrc`, `.node-version`, `.npmrc`, `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` define the Node and pnpm contract.
-- `compose.yaml` and `infra/postgres/*` define the local-only Postgres scaffold for agent
-  iteration.
+- `compose.yaml` and `infra/postgres/*` define the local-only Postgres scaffold for laptops and CI.
 - `docs/agents/repo-navigation.md` is the fast repo map remote agents should read before broad
   exploration.
 
@@ -17,8 +21,8 @@ Cursor's repo-level environment config should be treated as reviewable infrastru
 ## Cursor References
 
 - Cursor environment schema: https://cursor.com/schemas/environment.schema.json
-- Cursor Cloud environment release notes: https://cursor.com/changelog/05-13-26
-- Cursor environment announcement: https://cursor.com/blog/cloud-agent-development-environments
+- Cursor Cloud environment setup: https://cursor.com/docs/cloud-agent/setup
+- Cursor startup commands: https://cursor.com/docs/cloud-agent/setup#startup-commands
 
 ## Maintenance Rules
 
@@ -29,10 +33,16 @@ Cursor's repo-level environment config should be treated as reviewable infrastru
 - Keep Cursor Cloud instructions aligned with `AGENTS.md`, `.cursor/rules/insecur.mdc`, and
   `docs/agents/repo-navigation.md`; do not create remote-only navigation rules.
 - Keep dependency installation in `.cursor/environment.json` `install`; it must be idempotent and safe to rerun after checkout.
-- Keep Docker daemon startup in `.cursor/environment.json` `start` so `pnpm dev:db:*` can run in
-  Cursor Cloud Agent environments.
+- Keep `.cursor/start-postgres.sh` in `.cursor/environment.json` `start` so RLS and local smoke work
+  without Docker daemon startup. Use `pnpm smoke:local` for the normal Cursor Agent path; it resets
+  the configured native Postgres database before running the DB-backed gate.
+- Do not install Docker in the Cursor image unless a concrete Cursor-side container workflow needs
+  it. `pnpm smoke:local:docker` remains available on local machines and CI.
 - Do not add long-running `terminals` unless a task specifically needs an always-on remote Worker
   session.
+- Keep the Cursor image's CLI surface aligned with `AGENTS.md`: `rg`, `jq`, `fd`, `nmap`,
+  `semgrep`, `trivy`, `gitleaks`, `grype`, `syft`, `checkov`, `nikto`, and `sqlmap` should be on
+  `PATH`.
 - Worker deploys are capability-isolated, never a monolith. The decided topology is `apps/api`
   (public edge, no keyring), `apps/runtime` (sole `INSTANCE_ROOT_KEY_V1` holder, decrypt-egress
   behind a `WorkerEntrypoint` RPC seam, no public routes), and `apps/web` (BFF), per
@@ -57,13 +67,14 @@ node --version
 pnpm --version
 pnpm install --frozen-lockfile
 pnpm dev:check
-pnpm dev:db:reset
+pnpm smoke:local
 pnpm verify
 pnpm test:coverage
 pnpm typecheck
 pnpm build
 docker build -f .cursor/Dockerfile .cursor -t insecur-cursor-env-test
-docker run --rm insecur-cursor-env-test sh -lc 'node --version && pnpm --version && docker --version && docker compose version'
+docker run --rm -v "$PWD:/workspaces/insecur" -w /workspaces/insecur insecur-cursor-env-test sh -lc 'node --version && pnpm --version && psql --version && rg --version && jq --version && fd --version && nmap --version && gitleaks version && syft version && grype version && trivy --version && semgrep --version && checkov --version && nikto -Version && sqlmap --version'
+docker run --rm -v "$PWD:/workspaces/insecur" -w /workspaces/insecur insecur-cursor-env-test sh -lc 'pnpm dev:db:env && sudo /usr/local/bin/insecur-start-postgres'
 ```
 
 ## Pre-PR gate for remote agents
