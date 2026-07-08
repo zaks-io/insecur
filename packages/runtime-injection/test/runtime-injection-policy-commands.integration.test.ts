@@ -45,9 +45,12 @@ const POLICY_ID = "rp_00000000000000000000000010";
 const POLICY_ID_TWO = "rp_00000000000000000000000011";
 const POLICY_ID_REJECT_NOT_FOUND = "rp_00000000000000000000000012";
 const POLICY_ID_REJECT_CROSS_ENV = "rp_00000000000000000000000013";
-const PROTECTED_ENV_ID = "env_00000000000000000000000088";
-const PROTECTED_SECRET_ID = "sec_00000000000000000000000088";
-const PROTECTED_SECRET_VERSION_ID = "sv_00000000000000000000000088";
+// Dedicated fixture ids for this suite only, do not reuse ids claimed by other packages'
+// integration suites (e.g. tenant-store's environment-lifecycle suite owns env_...088 and
+// unconditionally deletes it, which previously raced this suite's secret rows via FK violation).
+const PROTECTED_ENV_ID = "env_00000000000000000000000437";
+const PROTECTED_SECRET_ID = "sec_00000000000000000000000437";
+const PROTECTED_SECRET_VERSION_ID = "sv_00000000000000000000000437";
 const NONEXISTENT_SECRET_ID = "sec_00000000000000000000000099";
 
 function displayName(raw: string): DisplayName {
@@ -138,6 +141,9 @@ async function ensureProtectedEnvironment(): Promise<void> {
 
 async function cleanupProtectedEnvironment(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+    // Null the secrets -> secret_versions FK (current_version_id) before deleting the
+    // version row it points at, or the delete violates secrets_org_id_id_current_version_id_fkey.
+    await sql`UPDATE secrets SET current_version_id = NULL WHERE id = ${PROTECTED_SECRET_ID}`;
     await sql`DELETE FROM secret_versions WHERE secret_id = ${PROTECTED_SECRET_ID}`;
     await sql`DELETE FROM secrets WHERE id = ${PROTECTED_SECRET_ID}`;
     await sql`DELETE FROM environments WHERE id = ${PROTECTED_ENV_ID}`;
