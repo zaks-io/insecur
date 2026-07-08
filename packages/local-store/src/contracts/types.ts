@@ -66,7 +66,7 @@ export interface LocalInsertInjectionGrantInput {
 }
 
 export type LocalInjectionGrantConsumeFailure =
-  "not_found" | "expired" | "already_consumed" | "binding_not_allowed";
+  "not_found" | "expired" | "already_consumed" | "binding_not_allowed" | "revoked";
 
 export interface LocalConsumedInjectionGrantRow {
   readonly grantId: InjectionGrantId;
