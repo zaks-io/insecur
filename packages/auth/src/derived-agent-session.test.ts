@@ -26,6 +26,7 @@ describe("mintDerivedAgentSessionCredential", () => {
     const metadata = await readSessionCredentialMetadata(minted.credential, signingSecret);
     expect(metadata.agentMarked).toBe(true);
     expect(metadata.derivedAgentSessionId).toBe(minted.agentSessionId);
+    expect(metadata.harnessName).toBe("agent.harness.claude_code");
     expect(Date.parse(metadata.expiresAt)).toBeLessThanOrEqual(Date.parse(parentExpiresAt));
   });
 

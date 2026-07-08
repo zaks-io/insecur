@@ -471,6 +471,7 @@ describe("worker session routes", () => {
           attribution: {
             tier: "derived",
             agentSessionId: parsedAgentSessionId.value,
+            harnessName: "agent.harness.claude_code",
           },
         },
       });
@@ -480,6 +481,13 @@ describe("worker session routes", () => {
         { ...env, RUNTIME: runtime },
       );
       expect(whoami.status).toBe(200);
+      expect(runtime.resolveSessionWhoami).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentMarked: true,
+          derivedAgentSessionId: parsedAgentSessionId.value,
+          harnessName: "agent.harness.claude_code",
+        }),
+      );
       const whoamiBody: unknown = await whoami.json();
       expect(whoamiBody).toMatchObject({
         ok: true,
