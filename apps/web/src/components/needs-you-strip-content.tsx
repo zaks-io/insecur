@@ -23,7 +23,7 @@ function NeedsYouPreview({
     <div className="flex flex-col gap-4">
       <ul className="divide-y-2 divide-ink border-2 border-ink">
         {preview.map((item) => (
-          <ApprovalItem key={item.id} item={item} />
+          <ApprovalItem key={item.id} item={item} orgId={orgId} />
         ))}
       </ul>
       <p className="font-mono text-xs text-muted-foreground">

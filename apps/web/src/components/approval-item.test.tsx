@@ -27,11 +27,14 @@ export const APPROVAL_REQUEST_FIXTURE: ConsoleApprovalRequestItem = {
 };
 
 describe("ApprovalItem", () => {
-  it("renders a High-Assurance Challenge inbox row with metadata only", () => {
-    const html = renderToStaticMarkup(<ApprovalItem item={HIGH_ASSURANCE_CHALLENGE_FIXTURE} />);
+  it("renders a High-Assurance Challenge inbox row with a deep link when orgId is provided", () => {
+    const orgId = "org_01JZ8E2QYQAAAAAAAAAAAAAAAA";
+    const html = renderToStaticMarkup(
+      <ApprovalItem item={HIGH_ASSURANCE_CHALLENGE_FIXTURE} orgId={orgId} />,
+    );
 
     expect(html).toContain("High-Assurance Challenge");
-    expect(html).toContain(HIGH_ASSURANCE_CHALLENGE_FIXTURE.id);
+    expect(html).toContain(`/orgs/${orgId}/approvals/${HIGH_ASSURANCE_CHALLENGE_FIXTURE.id}`);
     expect(html).toContain(HIGH_ASSURANCE_CHALLENGE_FIXTURE.intentCode);
     expect(html).toContain(HIGH_ASSURANCE_CHALLENGE_FIXTURE.riskReasonCode);
     expect(html).not.toContain("Approve");

@@ -353,6 +353,14 @@ function assertNoServiceAccessSurface(deploys) {
   }
 }
 
+function normalizeTanStackFileRoute(route) {
+  // TanStack pathless layout segments end with `_` in createFileRoute IDs but not in public URLs.
+  return route
+    .split("/")
+    .map((segment) => (segment.endsWith("_") ? segment.slice(0, -1) : segment))
+    .join("/");
+}
+
 function extractTanStackFileRoutes(appPath) {
   const routesDir = join(appPath, "src", "routes");
   if (!isDirectory(routesDir)) {
@@ -362,7 +370,7 @@ function extractTanStackFileRoutes(appPath) {
   for (const filePath of listRouteSourceFiles(routesDir)) {
     const source = readFileSync(filePath, "utf8");
     for (const match of source.matchAll(/createFileRoute\(\s*["'`]([^"'`]+)["'`]/g)) {
-      const route = match[1];
+      const route = normalizeTanStackFileRoute(match[1]);
       if (isPublicMount(route)) {
         mounts.add(route);
       }

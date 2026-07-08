@@ -127,6 +127,7 @@ root-key binding and NO Hyperdrive binding.
 | GET    | `/orgs/$orgId/audit`                        |
 | GET    | `/orgs/$orgId/people`                       |
 | GET    | `/orgs/$orgId/approvals`                    |
+| GET    | `/orgs/$orgId/approvals/$id`                |
 | GET    | `/orgs/$orgId/settings`                     |
 
 The `/orgs/*` rows are the authed console shell (INS-367): `/orgs/` resolves the default
@@ -142,6 +143,12 @@ strip and `/orgs/$orgId/approvals` poll `GET /v1/orgs/:organizationId/high-assur
 (page size = full pending list), seeded by route loaders and refreshed by client polling at 30s
 without navigation (ADR-0051). The inbox item model accepts both High-Assurance Challenge bounded
 operations (`op_`) and future Approval Requests (`req_`) by opaque ID prefix.
+`/orgs/$orgId/approvals/$id` is the responsive approval detail deep link (INS-381): prefix
+resolution (`op_` loads `GET /v1/orgs/:organizationId/high-assurance-challenges/:operationId`
+metadata evidence with principal chain and staleness display; `req_` renders a metadata-safe
+not-yet-supported state until W6). Reject is a CSRF-protected server-fn to
+`POST /v1/orgs/:organizationId/high-assurance-challenges/:operationId/deny`; approve/step-up lands
+in the next slice. Unauthenticated visitors route through `/login?returnTo=…` and back.
 `/orgs/$orgId/audit` is the filterable metadata event log (INS-376): actor/project/environment/
 event-type/time-range filters and cursor pagination over `GET /v1/orgs/:organizationId/audit-events`,
 with shareable filter state in URL search params.

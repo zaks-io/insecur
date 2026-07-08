@@ -127,7 +127,7 @@ describe("approvals surface render", () => {
     expect(stripPending).toContain(HIGH_ASSURANCE_CHALLENGE_FIXTURE.id);
     expect(stripPending).toContain(`/orgs/${ORG_ID}/approvals`);
 
-    const inboxEmpty = renderToStaticMarkup(<ApprovalsInboxContent items={[]} />);
+    const inboxEmpty = renderToStaticMarkup(<ApprovalsInboxContent orgId={ORG_ID} items={[]} />);
     expect(inboxEmpty).toContain("Nothing needs you");
 
     const hacRow = renderToStaticMarkup(<ApprovalItem item={HIGH_ASSURANCE_CHALLENGE_FIXTURE} />);

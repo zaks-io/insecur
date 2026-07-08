@@ -72,6 +72,14 @@ describe("apiClientFor", () => {
       },
     });
     await client.orgHighAssuranceChallenges("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
+    await client.orgHighAssuranceChallenge(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+    );
+    await client.denyOrgHighAssuranceChallenge(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+    );
 
     const urls = apiFetch.mock.calls.map((call) => call[0]);
     expect(urls[0]).toBe(
@@ -94,6 +102,12 @@ describe("apiClientFor", () => {
     expect(auditUrl.searchParams.get("createdAtFrom")).toBe("2026-07-01T00:00:00.000Z");
     expect(urls[5]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges",
+    );
+    expect(urls[6]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+    );
+    expect(urls[7]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA/deny",
     );
   });
 

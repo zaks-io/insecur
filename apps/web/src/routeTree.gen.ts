@@ -26,6 +26,7 @@ import { Route as OrgsOrgIdApprovalsRouteImport } from './routes/orgs.$orgId.app
 import { Route as AuthEnrollPasskeyCallbackRouteImport } from './routes/auth.enroll-passkey.callback'
 import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs.$orgId.projects.index'
 import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs.$orgId.projects.$projectId'
+import { Route as OrgsOrgIdApprovalsIdRouteImport } from './routes/orgs.$orgId.approvals_.$id'
 import { Route as OrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/orgs.$orgId.projects.$projectId.index'
 import { Route as OrgsOrgIdProjectsProjectIdSecretsRouteImport } from './routes/orgs.$orgId.projects.$projectId.secrets'
 import { Route as OrgsOrgIdProjectsProjectIdDeliveryRouteImport } from './routes/orgs.$orgId.projects.$projectId.delivery'
@@ -118,6 +119,11 @@ const OrgsOrgIdProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => OrgsOrgIdRoute,
   } as any)
+const OrgsOrgIdApprovalsIdRoute = OrgsOrgIdApprovalsIdRouteImport.update({
+  id: '/approvals_/$id',
+  path: '/approvals/$id',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
 const OrgsOrgIdProjectsProjectIdIndexRoute =
   OrgsOrgIdProjectsProjectIdIndexRouteImport.update({
     id: '/',
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
   '/orgs/$orgId/': typeof OrgsOrgIdIndexRoute
+  '/orgs/$orgId/approvals/$id': typeof OrgsOrgIdApprovalsIdRoute
   '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRouteWithChildren
   '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
   '/orgs/$orgId/projects/$projectId/access': typeof OrgsOrgIdProjectsProjectIdAccessRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
   '/orgs/$orgId': typeof OrgsOrgIdIndexRoute
+  '/orgs/$orgId/approvals/$id': typeof OrgsOrgIdApprovalsIdRoute
   '/orgs/$orgId/projects': typeof OrgsOrgIdProjectsIndexRoute
   '/orgs/$orgId/projects/$projectId/access': typeof OrgsOrgIdProjectsProjectIdAccessRoute
   '/orgs/$orgId/projects/$projectId/delivery': typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/orgs/$orgId/people': typeof OrgsOrgIdPeopleRoute
   '/orgs/$orgId/settings': typeof OrgsOrgIdSettingsRoute
   '/orgs/$orgId/': typeof OrgsOrgIdIndexRoute
+  '/orgs/$orgId/approvals_/$id': typeof OrgsOrgIdApprovalsIdRoute
   '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRouteWithChildren
   '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
   '/orgs/$orgId/projects/$projectId/access': typeof OrgsOrgIdProjectsProjectIdAccessRoute
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
     | '/orgs/$orgId/'
+    | '/orgs/$orgId/approvals/$id'
     | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/projects/'
     | '/orgs/$orgId/projects/$projectId/access'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
     | '/orgs/$orgId'
+    | '/orgs/$orgId/approvals/$id'
     | '/orgs/$orgId/projects'
     | '/orgs/$orgId/projects/$projectId/access'
     | '/orgs/$orgId/projects/$projectId/delivery'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/people'
     | '/orgs/$orgId/settings'
     | '/orgs/$orgId/'
+    | '/orgs/$orgId/approvals_/$id'
     | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/projects/'
     | '/orgs/$orgId/projects/$projectId/access'
@@ -414,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdRouteImport
       parentRoute: typeof OrgsOrgIdRoute
     }
+    '/orgs/$orgId/approvals_/$id': {
+      id: '/orgs/$orgId/approvals_/$id'
+      path: '/approvals/$id'
+      fullPath: '/orgs/$orgId/approvals/$id'
+      preLoaderRoute: typeof OrgsOrgIdApprovalsIdRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
     '/orgs/$orgId/projects/$projectId/': {
       id: '/orgs/$orgId/projects/$projectId/'
       path: '/'
@@ -485,6 +504,7 @@ interface OrgsOrgIdRouteChildren {
   OrgsOrgIdPeopleRoute: typeof OrgsOrgIdPeopleRoute
   OrgsOrgIdSettingsRoute: typeof OrgsOrgIdSettingsRoute
   OrgsOrgIdIndexRoute: typeof OrgsOrgIdIndexRoute
+  OrgsOrgIdApprovalsIdRoute: typeof OrgsOrgIdApprovalsIdRoute
   OrgsOrgIdProjectsProjectIdRoute: typeof OrgsOrgIdProjectsProjectIdRouteWithChildren
   OrgsOrgIdProjectsIndexRoute: typeof OrgsOrgIdProjectsIndexRoute
 }
@@ -495,6 +515,7 @@ const OrgsOrgIdRouteChildren: OrgsOrgIdRouteChildren = {
   OrgsOrgIdPeopleRoute: OrgsOrgIdPeopleRoute,
   OrgsOrgIdSettingsRoute: OrgsOrgIdSettingsRoute,
   OrgsOrgIdIndexRoute: OrgsOrgIdIndexRoute,
+  OrgsOrgIdApprovalsIdRoute: OrgsOrgIdApprovalsIdRoute,
   OrgsOrgIdProjectsProjectIdRoute: OrgsOrgIdProjectsProjectIdRouteWithChildren,
   OrgsOrgIdProjectsIndexRoute: OrgsOrgIdProjectsIndexRoute,
 }
