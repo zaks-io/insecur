@@ -14,8 +14,7 @@ import type {
   SecretVersionId,
   VariableKey,
 } from "@insecur/domain";
-import { AUTH_ERROR_CODES } from "@insecur/domain";
-import { secretVersionId } from "@insecur/domain";
+import { AUTH_ERROR_CODES, secretVersionId } from "@insecur/domain";
 import {
   TenantEnvironmentLifecycleStore,
   TenantSecretVersionStore,
@@ -36,6 +35,7 @@ import {
 } from "./record-secret-storage-write-audit.js";
 import { validateTextSecretValue } from "./validate-text-secret-value.js";
 import { validateVariableKeyForWrite } from "./validate-variable-key-for-write.js";
+import { assertCreateOnlySecretWrite } from "./assert-create-only-secret-write.js";
 
 export interface BlindSecretWriteInput {
   keyring: Keyring;
@@ -47,6 +47,7 @@ export interface BlindSecretWriteInput {
   secretId?: SecretId;
   valueUtf8: Uint8Array;
   allowEmpty?: boolean;
+  createOnly?: boolean;
   generationHint?: string | null;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
@@ -155,6 +156,10 @@ async function appendEncryptedVersionForWrite(
   assertEnvironment: (environment: EnvironmentLifecycleRow | null) => void,
 ): Promise<AppendSecretVersionResult> {
   const resolved = await resolveWritableSecretForWrite(validatedInput, assertEnvironment);
+  assertCreateOnlySecretWrite({
+    ...(validatedInput.createOnly !== undefined ? { createOnly: validatedInput.createOnly } : {}),
+    createdSecretShape: resolved.createdSecretShape,
+  });
   const descriptiveVerdicts = computeSecretWriteDescriptiveVerdicts({
     valueUtf8: validatedInput.valueUtf8,
     ...(validatedInput.generationHint !== undefined
