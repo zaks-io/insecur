@@ -2,23 +2,8 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { VALIDATION_ERROR_CODES } from "../../src/error-codes.js";
-import { findMetadataSafetyViolations } from "../../src/metadata-safety.js";
+import { DEFAULT_FORBIDDEN_KEYS, findMetadataSafetyViolations } from "../../src/metadata-safety.js";
 import { parseVariableKey, VARIABLE_KEY_PATTERN } from "../../src/variable-key.js";
-
-const FORBIDDEN_METADATA_KEYS = [
-  "secret",
-  "match",
-  "line",
-  "entropy",
-  "fingerprint",
-  "value",
-  "content",
-  "password",
-  "token",
-  "api_key",
-  "apikey",
-  "private_key",
-] as const;
 
 function isForbiddenMetadataKeyViolation(violation: string): boolean {
   return violation.includes("forbidden metadata key");
@@ -48,7 +33,7 @@ describe("variable key fuzz", () => {
 describe("metadata safety fuzz", () => {
   it("rejects forbidden metadata keys at any generated value shape", () => {
     fc.assert(
-      fc.property(fc.constantFrom(...FORBIDDEN_METADATA_KEYS), fc.jsonValue(), (key, value) => {
+      fc.property(fc.constantFrom(...DEFAULT_FORBIDDEN_KEYS), fc.jsonValue(), (key, value) => {
         const violations = findMetadataSafetyViolations({ [key]: value });
 
         expect(violations.some(isForbiddenMetadataKeyViolation)).toBe(true);

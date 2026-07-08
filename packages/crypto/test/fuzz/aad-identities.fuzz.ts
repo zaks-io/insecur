@@ -121,4 +121,21 @@ describe("ciphertext AAD identity fuzz", () => {
       ),
     );
   });
+
+  it("rejects separator/control-character injection in provider credential AAD", () => {
+    fc.assert(
+      fc.property(
+        providerCredentialIdentityArb,
+        fc.constantFrom(FIELD_SEPARATOR, "\n", "\u007f"),
+        (identity, control) => {
+          expect(() =>
+            serializeProviderCredentialCiphertextAad({
+              ...identity,
+              provider: `${identity.provider}${control}` as typeof identity.provider,
+            }),
+          ).toThrow(InvalidAadFieldError);
+        },
+      ),
+    );
+  });
 });

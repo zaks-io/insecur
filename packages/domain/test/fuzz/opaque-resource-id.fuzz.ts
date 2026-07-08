@@ -39,6 +39,8 @@ const PREFIXES = [
   "whsub",
   "whsec",
   "inev",
+  "sync",
+  "sbind",
 ] as const satisfies readonly OpaqueResourceIdPrefix[];
 
 function bodyChar(index: number): string {
@@ -55,7 +57,11 @@ const validOpaqueResourceIdArb = fc
 
 function nextPrefix(prefix: OpaqueResourceIdPrefix): OpaqueResourceIdPrefix {
   const index = PREFIXES.indexOf(prefix);
-  return PREFIXES[(index + 1) % PREFIXES.length] ?? "org";
+  const next = PREFIXES[(index + 1) % PREFIXES.length];
+  if (next === undefined) {
+    throw new Error("opaque resource id prefix list must be non-empty");
+  }
+  return next;
 }
 
 describe("opaque resource id fuzz", () => {
