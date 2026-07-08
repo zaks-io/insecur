@@ -50,9 +50,7 @@ export const bootstrapOperatorClaims = pgTable(
     instanceId: text("instance_id")
       .notNull()
       .references(() => instances.id),
-    firstOrganizationId: text("first_organization_id")
-      .notNull()
-      .references(() => organizations.id),
+    firstOrganizationId: text("first_organization_id").notNull(),
     status: text("status").notNull(),
     consumedByUserId: text("consumed_by_user_id"),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
@@ -67,7 +65,7 @@ export const bootstrapOperatorClaims = pgTable(
       .on(table.instanceId)
       .where(sql`${table.status} = 'pending'`),
     foreignKey({
-      name: "bootstrap_operator_claims_instance_id_first_organization_id_fkey",
+      name: "bootstrap_claims_instance_first_org_fkey",
       columns: [table.instanceId, table.firstOrganizationId],
       foreignColumns: [organizations.instanceId, organizations.id],
     }),

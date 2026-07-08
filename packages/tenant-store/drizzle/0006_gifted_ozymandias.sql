@@ -17,10 +17,10 @@ CREATE TABLE "machine_identity_github_actions_oidc" (
 );
 --> statement-breakpoint
 ALTER TABLE "audit_events" ADD COLUMN "actor_machine_identity_id" text;--> statement-breakpoint
-ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_org_id_machine_identity_id_machine_identities_org_id_id_fk" FOREIGN KEY ("org_id","machine_identity_id") REFERENCES "public"."machine_identities"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_org_id_environment_id_environments_org_id_id_fk" FOREIGN KEY ("org_id","environment_id") REFERENCES "public"."environments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "mi_gha_oidc_org_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_org_machine_fkey" FOREIGN KEY ("org_id","machine_identity_id") REFERENCES "public"."machine_identities"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_org_env_fkey" FOREIGN KEY ("org_id","environment_id") REFERENCES "public"."environments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE machine_identity_github_actions_oidc ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE machine_identity_github_actions_oidc FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY machine_identity_github_actions_oidc_tenant_isolation ON machine_identity_github_actions_oidc

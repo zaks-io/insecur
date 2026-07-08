@@ -18,7 +18,7 @@ CREATE TABLE "webhook_subscription_event_types" (
 	"subscription_id" text NOT NULL,
 	"event_code" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "webhook_subscription_event_types_org_id_subscription_id_event_code_pk" PRIMARY KEY("org_id","subscription_id","event_code"),
+	CONSTRAINT "wh_sub_event_types_pk" PRIMARY KEY("org_id","subscription_id","event_code"),
 	CONSTRAINT "webhook_subscription_event_types_event_code_check" CHECK ("webhook_subscription_event_types"."event_code" ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$' AND char_length("webhook_subscription_event_types"."event_code") <= 128)
 );
 --> statement-breakpoint
@@ -52,12 +52,12 @@ ALTER TABLE "webhook_subscriptions" ADD CONSTRAINT "webhook_subscriptions_org_id
 --> statement-breakpoint
 ALTER TABLE "webhook_subscription_event_types" ADD CONSTRAINT "webhook_subscription_event_types_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
-ALTER TABLE "webhook_subscription_event_types" ADD CONSTRAINT "webhook_subscription_event_types_org_id_subscription_id_webhook_subscriptions_org_id_id_fk" FOREIGN KEY ("org_id","subscription_id") REFERENCES "public"."webhook_subscriptions"("org_id","id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "webhook_subscription_event_types" ADD CONSTRAINT "webhook_subscription_event_types_org_subscription_fkey" FOREIGN KEY ("org_id","subscription_id") REFERENCES "public"."webhook_subscriptions"("org_id","id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
 ALTER TABLE "webhook_signing_secrets" ADD CONSTRAINT "webhook_signing_secrets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
-ALTER TABLE "webhook_signing_secrets" ADD CONSTRAINT "webhook_signing_secrets_org_id_subscription_id_webhook_subscriptions_org_id_id_fk" FOREIGN KEY ("org_id","subscription_id") REFERENCES "public"."webhook_subscriptions"("org_id","id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "webhook_signing_secrets" ADD CONSTRAINT "webhook_signing_secrets_org_subscription_fkey" FOREIGN KEY ("org_id","subscription_id") REFERENCES "public"."webhook_subscriptions"("org_id","id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
 ALTER TABLE "in_app_event_notifications" ADD CONSTRAINT "in_app_event_notifications_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
-ALTER TABLE "in_app_event_notifications" ADD CONSTRAINT "in_app_event_notifications_org_id_subscription_id_webhook_subscriptions_org_id_id_fk" FOREIGN KEY ("org_id","subscription_id") REFERENCES "public"."webhook_subscriptions"("org_id","id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "in_app_event_notifications" ADD CONSTRAINT "in_app_event_notifications_org_subscription_fkey" FOREIGN KEY ("org_id","subscription_id") REFERENCES "public"."webhook_subscriptions"("org_id","id") ON DELETE no action ON UPDATE no action;

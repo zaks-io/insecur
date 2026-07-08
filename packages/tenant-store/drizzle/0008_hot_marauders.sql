@@ -1,4 +1,4 @@
 ALTER TABLE "machine_identity_github_actions_oidc" ADD COLUMN "github_repository_id" text NOT NULL;--> statement-breakpoint
 ALTER TABLE "machine_identity_github_actions_oidc" ADD COLUMN "github_repository_owner_id" text NOT NULL;--> statement-breakpoint
 ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_repository_id_numeric" CHECK ("machine_identity_github_actions_oidc"."github_repository_id" ~ '^[0-9]+$');--> statement-breakpoint
-ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "machine_identity_github_actions_oidc_repository_owner_id_numeric" CHECK ("machine_identity_github_actions_oidc"."github_repository_owner_id" ~ '^[0-9]+$');
+ALTER TABLE "machine_identity_github_actions_oidc" ADD CONSTRAINT "mi_gha_oidc_owner_id_numeric" CHECK ("machine_identity_github_actions_oidc"."github_repository_owner_id" ~ '^[0-9]+$');

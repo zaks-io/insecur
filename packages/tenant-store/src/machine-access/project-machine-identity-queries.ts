@@ -6,7 +6,7 @@ import {
   machineIdentityEnvironmentDeployKeys,
   machineIdentityGitHubActionsOidc,
   machineIdentityMemberships,
-} from "../db/schema/tenant-collaboration.js";
+} from "../db/schema/tenant-machine-auth-methods.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import {
   toEnvironmentDeployKeyRow,

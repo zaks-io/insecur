@@ -136,7 +136,7 @@ CREATE TABLE "machine_identity_memberships" (
 	"authorization_scopes" text[] NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "machine_identity_memberships_org_id_id_key" UNIQUE("org_id","id"),
-	CONSTRAINT "machine_identity_memberships_org_id_machine_identity_id_project_id_key" UNIQUE("org_id","machine_identity_id","project_id"),
+	CONSTRAINT "mi_memberships_org_machine_project_key" UNIQUE("org_id","machine_identity_id","project_id"),
 	CONSTRAINT "machine_identity_memberships_project_scoped" CHECK ("machine_identity_memberships"."project_id" IS NOT NULL),
 	CONSTRAINT "machine_identity_memberships_scopes_nonempty" CHECK (cardinality("machine_identity_memberships"."authorization_scopes") > 0)
 );
@@ -253,7 +253,7 @@ CREATE TABLE "sensitive_metadata_fields" (
 	"project_data_key_version" integer,
 	"ciphertext_storage_ref" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "sensitive_metadata_fields_org_id_scope_project_id_metadata_type_record_resource_id_field_key_pk" PRIMARY KEY("org_id","scope_project_id","metadata_type","record_resource_id","field_key"),
+	CONSTRAINT "sensitive_metadata_fields_pk" PRIMARY KEY("org_id","scope_project_id","metadata_type","record_resource_id","field_key"),
 	CONSTRAINT "sensitive_metadata_fields_metadata_type_check" CHECK ("sensitive_metadata_fields"."metadata_type" ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$' AND char_length("sensitive_metadata_fields"."metadata_type") <= 128),
 	CONSTRAINT "sensitive_metadata_fields_field_key_check" CHECK ("sensitive_metadata_fields"."field_key" ~ '^[a-z][a-z0-9_]+$' AND char_length("sensitive_metadata_fields"."field_key") <= 64),
 	CONSTRAINT "sensitive_metadata_fields_scope_project_id_check" CHECK ("sensitive_metadata_fields"."scope_project_id" = '' OR "sensitive_metadata_fields"."scope_project_id" ~ '^prj_[0-9A-Z]{26}$')
@@ -269,7 +269,7 @@ CREATE TABLE "sync_target_leases" (
 	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "sync_target_leases_org_id_project_id_provider_kind_target_identity_pk" PRIMARY KEY("org_id","project_id","provider_kind","target_identity"),
+	CONSTRAINT "sync_target_leases_pk" PRIMARY KEY("org_id","project_id","provider_kind","target_identity"),
 	CONSTRAINT "sync_target_leases_fencing_token_positive" CHECK ("sync_target_leases"."fencing_token" > 0)
 );
 --> statement-breakpoint
@@ -285,14 +285,13 @@ CREATE TABLE "teams" (
 ALTER TABLE "app_connections" ADD CONSTRAINT "app_connections_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_events" ADD CONSTRAINT "audit_events_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bootstrap_operator_claims" ADD CONSTRAINT "bootstrap_operator_claims_instance_id_instances_id_fk" FOREIGN KEY ("instance_id") REFERENCES "public"."instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "bootstrap_operator_claims" ADD CONSTRAINT "bootstrap_operator_claims_first_organization_id_organizations_id_fk" FOREIGN KEY ("first_organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "bootstrap_operator_claims" ADD CONSTRAINT "bootstrap_operator_claims_instance_id_first_organization_id_fkey" FOREIGN KEY ("instance_id","first_organization_id") REFERENCES "public"."organizations"("instance_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "bootstrap_operator_claims" ADD CONSTRAINT "bootstrap_claims_instance_first_org_fkey" FOREIGN KEY ("instance_id","first_organization_id") REFERENCES "public"."organizations"("instance_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bootstrap_secret_verifiers" ADD CONSTRAINT "bootstrap_secret_verifiers_instance_id_instances_id_fk" FOREIGN KEY ("instance_id") REFERENCES "public"."instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "environments" ADD CONSTRAINT "environments_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "environments" ADD CONSTRAINT "environments_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "environments" ADD CONSTRAINT "environments_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "injection_grants" ADD CONSTRAINT "injection_grants_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "injection_grants" ADD CONSTRAINT "injection_grants_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "injection_grants" ADD CONSTRAINT "injection_grants_org_id_environment_id_environments_org_id_id_fk" FOREIGN KEY ("org_id","environment_id") REFERENCES "public"."environments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "injection_grants" ADD CONSTRAINT "injection_grants_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "injection_grants" ADD CONSTRAINT "injection_grants_org_env_fkey" FOREIGN KEY ("org_id","environment_id") REFERENCES "public"."environments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "instance_configurations" ADD CONSTRAINT "instance_configurations_instance_id_instances_id_fk" FOREIGN KEY ("instance_id") REFERENCES "public"."instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "instance_identity_configurations" ADD CONSTRAINT "instance_identity_configurations_instance_id_instances_id_fk" FOREIGN KEY ("instance_id") REFERENCES "public"."instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "instance_operators" ADD CONSTRAINT "instance_operators_instance_id_instances_id_fk" FOREIGN KEY ("instance_id") REFERENCES "public"."instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -301,25 +300,25 @@ ALTER TABLE "invitations" ADD CONSTRAINT "invitations_org_team_fkey" FOREIGN KEY
 ALTER TABLE "invitations" ADD CONSTRAINT "invitations_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "machine_identities" ADD CONSTRAINT "machine_identities_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "machine_identity_memberships" ADD CONSTRAINT "machine_identity_memberships_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "machine_identity_memberships" ADD CONSTRAINT "machine_identity_memberships_org_id_machine_identity_id_machine_identities_org_id_id_fk" FOREIGN KEY ("org_id","machine_identity_id") REFERENCES "public"."machine_identities"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "machine_identity_memberships" ADD CONSTRAINT "machine_identity_memberships_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "machine_identity_memberships" ADD CONSTRAINT "machine_identity_memberships_org_machine_fkey" FOREIGN KEY ("org_id","machine_identity_id") REFERENCES "public"."machine_identities"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "machine_identity_memberships" ADD CONSTRAINT "machine_identity_memberships_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_id_team_id_teams_org_id_id_fk" FOREIGN KEY ("org_id","team_id") REFERENCES "public"."teams"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_team_fkey" FOREIGN KEY ("org_id","team_id") REFERENCES "public"."teams"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "operations" ADD CONSTRAINT "operations_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_data_keys" ADD CONSTRAINT "organization_data_keys_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organizations" ADD CONSTRAINT "organizations_instance_id_instances_id_fk" FOREIGN KEY ("instance_id") REFERENCES "public"."instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "project_data_keys" ADD CONSTRAINT "project_data_keys_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "project_data_keys" ADD CONSTRAINT "project_data_keys_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "project_data_keys" ADD CONSTRAINT "project_data_keys_org_id_organization_data_key_version_organization_data_keys_org_id_key_version_fk" FOREIGN KEY ("org_id","organization_data_key_version") REFERENCES "public"."organization_data_keys"("org_id","key_version") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_data_keys" ADD CONSTRAINT "project_data_keys_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_data_keys" ADD CONSTRAINT "project_data_keys_org_odk_fkey" FOREIGN KEY ("org_id","organization_data_key_version") REFERENCES "public"."organization_data_keys"("org_id","key_version") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "provider_credentials" ADD CONSTRAINT "provider_credentials_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "provider_credentials" ADD CONSTRAINT "provider_credentials_org_id_app_connection_id_app_connections_org_id_id_fk" FOREIGN KEY ("org_id","app_connection_id") REFERENCES "public"."app_connections"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "provider_credentials" ADD CONSTRAINT "provider_credentials_org_app_conn_fkey" FOREIGN KEY ("org_id","app_connection_id") REFERENCES "public"."app_connections"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secret_versions" ADD CONSTRAINT "secret_versions_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "secret_versions" ADD CONSTRAINT "secret_versions_org_id_secret_id_secrets_org_id_id_fk" FOREIGN KEY ("org_id","secret_id") REFERENCES "public"."secrets"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "secret_versions" ADD CONSTRAINT "secret_versions_org_secret_fkey" FOREIGN KEY ("org_id","secret_id") REFERENCES "public"."secrets"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_project_id_projects_org_id_id_fk" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_environment_id_environments_org_id_id_fk" FOREIGN KEY ("org_id","environment_id") REFERENCES "public"."environments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_project_fkey" FOREIGN KEY ("org_id","project_id") REFERENCES "public"."projects"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_env_fkey" FOREIGN KEY ("org_id","environment_id") REFERENCES "public"."environments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secrets" ADD CONSTRAINT "secrets_org_id_id_current_version_id_fkey" FOREIGN KEY ("org_id","id","current_version_id") REFERENCES "public"."secret_versions"("org_id","secret_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sensitive_metadata_fields" ADD CONSTRAINT "sensitive_metadata_fields_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sync_target_leases" ADD CONSTRAINT "sync_target_leases_held_by_operation_id_operations_id_fk" FOREIGN KEY ("held_by_operation_id") REFERENCES "public"."operations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

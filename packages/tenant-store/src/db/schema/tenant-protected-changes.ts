@@ -3,6 +3,7 @@
  */
 /* Stryker disable ObjectLiteral */
 import { check, foreignKey, jsonb, pgTable, sql, text, timestamp, uniqueIndex } from "./pg-core.js";
+import { orgEnvironmentFkey, orgProjectFkey } from "./pg-identifier-names.js";
 import { environments, organizations, projects } from "./tenant-hierarchy.js";
 
 export const PROTECTED_CHANGE_PURPOSES = ["promotion"] as const;
@@ -58,10 +59,12 @@ export const protectedChanges = pgTable(
       .on(table.orgId, table.environmentId)
       .where(sql`${table.state} IN ('proposed', 'pending_approval', 'approved', 'executing')`),
     foreignKey({
+      name: orgProjectFkey("protected_changes"),
       columns: [table.orgId, table.projectId],
       foreignColumns: [projects.orgId, projects.id],
     }),
     foreignKey({
+      name: orgEnvironmentFkey("protected_changes"),
       columns: [table.orgId, table.environmentId],
       foreignColumns: [environments.orgId, environments.id],
     }),
@@ -97,6 +100,7 @@ export const protectedChangeApprovalEvidence = pgTable(
       table.protectedChangeId,
     ),
     foreignKey({
+      name: "pc_approval_evidence_org_change_fkey",
       columns: [table.orgId, table.protectedChangeId],
       foreignColumns: [protectedChanges.orgId, protectedChanges.id],
     }),

@@ -38,7 +38,7 @@ export const secrets = pgTable(
   (table) => [
     unique("secrets_environment_id_variable_key_key").on(table.environmentId, table.variableKey),
     unique("secrets_org_id_id_key").on(table.orgId, table.id),
-    ...orgProjectAndEnvironmentForeignKeys(table),
+    ...orgProjectAndEnvironmentForeignKeys("secrets", table),
     ...secretsDeferredConstraints,
   ],
 );
@@ -72,6 +72,7 @@ export const secretVersions = pgTable(
     unique("secret_versions_secret_id_version_number_key").on(table.secretId, table.versionNumber),
     unique("secret_versions_org_id_secret_id_id_key").on(table.orgId, table.secretId, table.id),
     foreignKey({
+      name: "secret_versions_org_secret_fkey",
       columns: [table.orgId, table.secretId],
       foreignColumns: [secrets.orgId, secrets.id],
     }),
@@ -109,7 +110,7 @@ export const runtimeInjectionPolicies = pgTable(
       table.displayName,
     ),
     unique("runtime_injection_policies_org_id_id_key").on(table.orgId, table.id),
-    ...orgProjectAndEnvironmentForeignKeys(table),
+    ...orgProjectAndEnvironmentForeignKeys("runtime_injection_policies", table),
     ...runtimeInjectionPoliciesDeferredConstraints,
   ],
 );
@@ -149,6 +150,7 @@ export const runtimeInjectionPolicyVersions = pgTable(
       table.id,
     ),
     foreignKey({
+      name: "rt_inj_pol_ver_org_policy_fkey",
       columns: [table.orgId, table.policyId],
       foreignColumns: [runtimeInjectionPolicies.orgId, runtimeInjectionPolicies.id],
     }),
@@ -198,7 +200,7 @@ export const injectionGrants = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    ...orgProjectAndEnvironmentForeignKeys(table),
+    ...orgProjectAndEnvironmentForeignKeys("injection_grants", table),
     sql`CHECK (${table.revokedReason} IS NULL OR ${table.revokedReason} IN ('tenant_suspension', 'compromise_version_invalidation'))`,
   ],
 );
