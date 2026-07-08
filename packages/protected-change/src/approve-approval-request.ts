@@ -8,7 +8,7 @@ import type {
   OrganizationId,
   RequestId,
 } from "@insecur/domain";
-import { AUTH_ERROR_CODES, APPROVAL_ERROR_CODES } from "@insecur/domain";
+import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   TenantApprovalRequestStore,
   TenantSecretVersionStore,
@@ -16,7 +16,7 @@ import {
 } from "@insecur/tenant-store";
 import type { ActorRef } from "@insecur/access";
 
-import { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
+import { assertRecordedImpactReviewFresh } from "./assert-impact-review-fresh.js";
 import { assertApprovalRequestApproveAccess } from "./approval-request-review-access.js";
 import { ApprovalRequestError } from "./approval-request-errors.js";
 import {
@@ -100,14 +100,8 @@ export async function approveApprovalRequest(input: ApproveApprovalRequestInput)
     row,
     draftTargets,
   });
-  const recordedFingerprint = row.impactReviewFingerprint;
-  if (recordedFingerprint === null || recordedFingerprint.length === 0) {
-    throw Object.assign(new Error("Approval Impact Review is stale."), {
-      code: APPROVAL_ERROR_CODES.reviewStale,
-    });
-  }
-  assertImpactReviewFresh({
-    submittedFingerprint: recordedFingerprint,
+  assertRecordedImpactReviewFresh({
+    recordedFingerprint: row.impactReviewFingerprint,
     currentFingerprint,
   });
 

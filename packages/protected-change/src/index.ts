@@ -59,7 +59,10 @@ export {
 } from "./create-rollback-approval-request.js";
 export { validatePromotionDraftTargets } from "./validate-promotion-draft-targets.js";
 export { hashCommentMetadata } from "./hash-comment-metadata.js";
-export { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
+export {
+  assertImpactReviewFresh,
+  assertRecordedImpactReviewFresh,
+} from "./assert-impact-review-fresh.js";
 export { isApprovalReviewStaleError } from "./transition-protected-change.js";
 export { computeImpactReviewFingerprint } from "./compute-impact-review-fingerprint.js";
 export { recomputeProtectedChangeImpactFingerprint } from "./recompute-protected-change-impact-fingerprint.js";

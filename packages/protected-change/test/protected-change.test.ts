@@ -8,7 +8,10 @@ import {
 } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
-import { assertImpactReviewFresh } from "../src/assert-impact-review-fresh.js";
+import {
+  assertImpactReviewFresh,
+  assertRecordedImpactReviewFresh,
+} from "../src/assert-impact-review-fresh.js";
 import { computeImpactReviewFingerprint } from "../src/compute-impact-review-fingerprint.js";
 import type { ApprovalImpactReviewState } from "../src/load-approval-impact-review-state.js";
 
@@ -173,9 +176,8 @@ describe("assertImpactReviewFresh", () => {
   });
 
   it("allows a matching submitted fingerprint, and treats an absent one as fresh (fail-open)", () => {
-    // TRAP A: assertImpactReviewFresh fails OPEN on undefined; it is only safe because the caller
-    // (approve/transition path) runs assertApprovalEvidencePresent first to reject a missing
-    // fingerprint. See transition-protected-change.ts and the presence-guard test.
+    // TRAP A: assertImpactReviewFresh fails OPEN on undefined. Execute/approve handoff must use
+    // assertRecordedImpactReviewFresh so a missing stored fingerprint is rejected before compare.
     expect(() => {
       assertImpactReviewFresh({
         submittedFingerprint: "sha256:same",
@@ -185,6 +187,37 @@ describe("assertImpactReviewFresh", () => {
     expect(() => {
       assertImpactReviewFresh({
         submittedFingerprint: undefined,
+        currentFingerprint: "sha256:same",
+      });
+    }).not.toThrow();
+  });
+});
+
+describe("assertRecordedImpactReviewFresh", () => {
+  it("rejects a missing or empty recorded fingerprint", () => {
+    for (const recordedFingerprint of [undefined, null, ""]) {
+      expect(() => {
+        assertRecordedImpactReviewFresh({
+          recordedFingerprint,
+          currentFingerprint: "sha256:current",
+        });
+      }).toThrow(expect.objectContaining({ code: APPROVAL_ERROR_CODES.reviewStale }));
+    }
+  });
+
+  it("rejects when the recorded fingerprint differs from the live recompute", () => {
+    expect(() => {
+      assertRecordedImpactReviewFresh({
+        recordedFingerprint: "sha256:old",
+        currentFingerprint: "sha256:new",
+      });
+    }).toThrow(expect.objectContaining({ code: APPROVAL_ERROR_CODES.reviewStale }));
+  });
+
+  it("allows approve/execute when the recorded fingerprint matches the live recompute", () => {
+    expect(() => {
+      assertRecordedImpactReviewFresh({
+        recordedFingerprint: "sha256:same",
         currentFingerprint: "sha256:same",
       });
     }).not.toThrow();

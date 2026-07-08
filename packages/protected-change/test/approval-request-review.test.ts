@@ -405,6 +405,34 @@ describe("approveApprovalRequest", () => {
     ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.reviewStale });
   });
 
+  it("rejects approve when the server-stored recorded fingerprint is missing", async () => {
+    const getApprovalRequestById = vi.fn().mockResolvedValue({
+      ...DETAIL_ROW,
+      impactReviewFingerprint: null,
+    });
+    const getDraftVersionsForRequest = vi.fn().mockResolvedValue([]);
+    vi.mocked(TenantApprovalRequestStore).mockImplementation(function MockStore() {
+      return { getApprovalRequestById, getDraftVersionsForRequest } as never;
+    });
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      organizationId: ORG,
+      scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+    });
+    vi.mocked(evaluateHighAssuranceChallengeClearAssurance).mockReturnValue({ ok: true } as never);
+
+    await expect(
+      approveApprovalRequest({
+        actor: ACTOR,
+        auditActor: AUDIT_ACTOR,
+        organizationId: ORG,
+        approvalRequestId: REQUEST,
+        sessionAssurance: {} as never,
+        impactReviewFingerprint: "fp-current",
+        requestId: REQ,
+      }),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.reviewStale });
+  });
+
   it("approves and publishes when evidence and fingerprints are fresh", async () => {
     const getApprovalRequestById = vi.fn().mockResolvedValue({
       ...DETAIL_ROW,
