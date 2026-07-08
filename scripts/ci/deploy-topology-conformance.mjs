@@ -123,10 +123,7 @@ function discoverDeploys() {
       rootKeyScopes,
       hasRootKey: rootKeyScopes.length > 0,
       publicHostnameExposures,
-      routes: [
-        ...extractPublicRoutes(join(appPath, "src", "index.ts")),
-        ...extractTanStackFileRoutes(appPath),
-      ].sort(),
+      routes: collectDeployRoutes(appPath, entry),
     });
   }
   return deploys;
@@ -280,6 +277,45 @@ function extractPublicRoutes(indexPath) {
     }
   }
   return [...mounts].sort();
+}
+
+function collectDeployRoutes(appPath, appName) {
+  const mounts = new Set([
+    ...extractPublicRoutes(join(appPath, "src", "index.ts")),
+    ...extractTanStackFileRoutes(appPath),
+  ]);
+  if (appName === "api") {
+    for (const route of extractPublicRoutesFromDir(join(appPath, "src", "routes"))) {
+      mounts.add(route);
+    }
+  }
+  return [...mounts].sort();
+}
+
+function extractPublicRoutesFromDir(dirPath) {
+  if (!isDirectory(dirPath)) {
+    return [];
+  }
+  const mounts = new Set();
+  for (const filePath of walkTsFiles(dirPath)) {
+    for (const route of extractPublicRoutes(filePath)) {
+      mounts.add(route);
+    }
+  }
+  return [...mounts];
+}
+
+function walkTsFiles(dirPath) {
+  const files = [];
+  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
+    const fullPath = join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...walkTsFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
+      files.push(fullPath);
+    }
+  }
+  return files;
 }
 
 function isSentryMiddlewareUse(source, callIndex) {

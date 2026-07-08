@@ -8,7 +8,7 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import {
   parseOrganizationAndWebhookSubscriptionRouteParams,
   parseOrganizationRouteParam,
@@ -41,7 +41,7 @@ function parseUpdateWebhookSubscriptionBody(body: UpdateWebhookSubscriptionBody)
   };
 }
 
-export const webhookSubscriptionsRoutes = new Hono<{
+const webhookSubscriptionsRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();
@@ -139,3 +139,7 @@ webhookSubscriptionsRoutes.post(
       });
     }),
 );
+
+export function registerWebhookSubscriptionsRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/webhook-subscriptions", webhookSubscriptionsRoutes);
+}
