@@ -17,6 +17,7 @@ import {
   APPROVAL_ERROR_CODES,
   SECRET_ERROR_CODES,
   STORE_ERROR_CODES,
+  STORAGE_GATE_ERROR_CODES,
   VALIDATION_ERROR_CODES,
   type KnownErrorCode,
 } from "@insecur/domain";
@@ -74,6 +75,8 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [BOOTSTRAP_ERROR_CODES.invalidSecret, 401],
   [BOOTSTRAP_ERROR_CODES.authenticatedActorRequired, 401],
   [STORE_ERROR_CODES.runtimeConfigMissing, 503],
+  [STORAGE_GATE_ERROR_CODES.gateBlocked, 503],
+  [STORAGE_GATE_ERROR_CODES.gateUnknown, 503],
   [CRYPTO_ERROR_CODES.decryptFailed, 500],
   [CRYPTO_ERROR_CODES.rootKeyNotConfigured, 503],
   [CRYPTO_ERROR_CODES.tenantDataKeyNotReady, 503],
