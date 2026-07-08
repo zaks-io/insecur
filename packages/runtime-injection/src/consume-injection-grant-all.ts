@@ -17,20 +17,17 @@ import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-in
 import {
   assertUserActorForConsume,
   reasonCodeForConsumeFailure,
-  runConsumeWithAuditDenialHandling,
 } from "./consume-injection-grant-shared.js";
-import { recordDeniedConsume } from "./consume-injection-grant.js";
+import {
+  consumeLoadedGrantWithAudit,
+  type ConsumeInjectionGrantGateInput,
+} from "./consume-injection-grant.js";
 import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
 
-export interface ConsumeInjectionGrantAllCoreInput {
+export interface ConsumeInjectionGrantAllCoreInput extends ConsumeInjectionGrantGateInput {
   keyring: Keyring;
-  organizationId: OrganizationId;
-  grantId: InjectionGrantId;
-  actor: AuditActorRef;
-  request?: AuditRequestRef;
-  operation?: AuditOperationRef;
 }
 
 interface ConsumedInjectionGrantEntry {
@@ -202,11 +199,8 @@ export async function consumeInjectionGrantAllWithAudit(
   input: ConsumeInjectionGrantAllCoreInput,
 ): Promise<ConsumeInjectionGrantAllCoreResult> {
   const loaded = await loadPolicyGrantBindings(input.organizationId, input.grantId);
-  const coordinate = loaded
-    ? { projectId: loaded.projectId, environmentId: loaded.environmentId }
-    : undefined;
-  return runConsumeWithAuditDenialHandling({
-    run: () => executeConsumeInjectionGrantAll(input, loaded),
-    recordDenied: (reasonCode) => recordDeniedConsume(input, reasonCode, coordinate),
-  });
+
+  return consumeLoadedGrantWithAudit(input, loaded, () =>
+    executeConsumeInjectionGrantAll(input, loaded),
+  );
 }
