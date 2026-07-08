@@ -3,6 +3,7 @@ import {
   parseJsonBody,
   parseOperationIdParam,
   parseSecretIdParam,
+  parseSecretVersionIdParam,
   readOptionalBoolean,
   readOptionalString,
   requireRouteParam,
@@ -86,19 +87,20 @@ protectedChangeRoutes.post(
       const body = parseJsonBody(await context.req.json());
       const operationIdRaw = readOptionalString(body, "operationId");
       const commentRaw = readOptionalString(body, "comment");
-      const toVersionRaw = body.toVersion;
-      if (typeof toVersionRaw !== "number" || !Number.isInteger(toVersionRaw) || toVersionRaw < 1) {
-        throw Object.assign(new Error("toVersion must be a positive integer."), {
+      const toVersionIdRaw = readOptionalString(body, "toVersionId");
+      if (toVersionIdRaw === undefined) {
+        throw Object.assign(new Error("toVersionId is required."), {
           code: VALIDATION_ERROR_CODES.invalidCommandInput,
         });
       }
+      const toVersionId = parseSecretVersionIdParam(toVersionIdRaw);
 
       return runtimeClientFor(context.env, scope.userActor).requestProtectedRollback({
         organizationId: scope.organizationId,
         projectId: scope.projectId,
         environmentId: scope.environmentId,
         secretId,
-        toVersionNumber: toVersionRaw,
+        toVersionId,
         promoteRequested: readOptionalBoolean(body, "promote") === true,
         requestId: scope.requestId,
         ...(commentRaw !== undefined ? { comment: commentRaw } : {}),

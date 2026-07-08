@@ -28,11 +28,6 @@ export async function requestProtectedPromotionOperation({
   accessActor,
 }: RequestProtectedPromotionOperationInput): Promise<RequestProtectedPromotionRpcPayload> {
   await assertUserOrganizationMembership(accessActor, input.organizationId);
-  if (accessActor.type !== "user") {
-    throw Object.assign(new Error("Missing required permission."), {
-      code: AUTH_ERROR_CODES.insufficientScope,
-    });
-  }
 
   return requestProtectedPromotion({
     actor: accessActor,
@@ -60,11 +55,6 @@ export async function requestProtectedRollbackOperation({
   accessActor,
 }: RequestProtectedRollbackOperationInput): Promise<RequestProtectedRollbackRpcPayload> {
   await assertUserOrganizationMembership(accessActor, input.organizationId);
-  if (accessActor.type !== "user") {
-    throw Object.assign(new Error("Missing required permission."), {
-      code: AUTH_ERROR_CODES.insufficientScope,
-    });
-  }
 
   return requestProtectedRollback({
     actor: accessActor,
@@ -72,7 +62,7 @@ export async function requestProtectedRollbackOperation({
     projectId: input.projectId,
     environmentId: input.environmentId,
     secretId: input.secretId,
-    toVersionNumber: input.toVersionNumber,
+    toVersionId: input.toVersionId,
     promoteRequested: input.promoteRequested,
     requestId: input.requestId,
     ...(input.comment !== undefined ? { comment: input.comment } : {}),

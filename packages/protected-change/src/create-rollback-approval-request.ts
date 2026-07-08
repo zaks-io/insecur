@@ -1,4 +1,4 @@
-import type { UserActorRef } from "@insecur/access";
+import type { ActorRef } from "@insecur/access";
 import {
   type ApprovalRequestId,
   type EnvironmentId,
@@ -17,17 +17,18 @@ import {
 
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
+import { requesterIdsFromActor } from "./requester-ids-from-actor.js";
 
 export interface PersistRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly actorUserId: UserActorRef["userId"];
+  readonly actor: ActorRef;
   readonly approvalRequestId: ApprovalRequestId;
   readonly impactReviewFingerprint: string;
   readonly comment?: string;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly newSecretVersionId: SecretVersionId;
   readonly operationId?: OperationId;
 }
@@ -40,12 +41,12 @@ export async function persistRollbackApprovalRequestOnDb(
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
-    requesterUserId: input.actorUserId,
+    ...requesterIdsFromActor(input.actor),
     approvalRequestId: input.approvalRequestId,
     impactReviewFingerprint: input.impactReviewFingerprint,
     ...hashCommentMetadata(input.comment),
     secretId: input.secretId,
-    toVersionNumber: input.toVersionNumber,
+    toVersionId: input.toVersionId,
     promoteRequested: true,
     draftVersion: {
       secretId: input.secretId,
@@ -64,12 +65,12 @@ async function persistRollbackApprovalRequest(
 }
 
 export interface CreateRollbackApprovalRequestInput {
-  readonly actor: UserActorRef;
+  readonly actor: ActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly newSecretVersionId: SecretVersionId;
   readonly impactReviewFingerprint: string;
   readonly comment?: string;
@@ -93,11 +94,11 @@ export async function createRollbackApprovalRequest(
         organizationId: input.organizationId,
         projectId: input.projectId,
         environmentId: input.environmentId,
-        actorUserId: input.actor.userId,
+        actor: input.actor,
         approvalRequestId: createdRequestId,
         impactReviewFingerprint: input.impactReviewFingerprint,
         secretId: input.secretId,
-        toVersionNumber: input.toVersionNumber,
+        toVersionId: input.toVersionId,
         newSecretVersionId: input.newSecretVersionId,
         ...(input.comment !== undefined ? { comment: input.comment } : {}),
         ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),

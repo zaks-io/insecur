@@ -116,7 +116,7 @@ function registerSecretsRollbackCommand(
     .command("rollback <secret-id>")
     .description("Rollback a secret from a retained published version (metadata only)")
     .requiredOption("--env-id <id>", "target environment opaque id")
-    .requiredOption("--to-version <n>", "retained published version number")
+    .requiredOption("--to-version-id <id>", "retained published secret version opaque id")
     .option("--promote", "create draft and request promotion approval")
     .option("--comment <text>", "audit comment")
     .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
@@ -128,7 +128,7 @@ function registerSecretsRollbackCommand(
       const flags = deps.globalFlags(command);
       const options = command.opts<{
         envId: string;
-        toVersion: string;
+        toVersionId: string;
         promote?: boolean;
         comment?: string;
         operationId?: string;
@@ -137,7 +137,7 @@ function registerSecretsRollbackCommand(
       process.exitCode = await runSecretsRollbackCommand(flags, api, context, {
         secretId,
         envId: options.envId,
-        toVersion: options.toVersion,
+        toVersionId: options.toVersionId,
         promote: options.promote === true,
         comment: options.comment,
         operationId: options.operationId,

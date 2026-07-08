@@ -40,7 +40,8 @@ export interface RecordKeyCustodyAuditInput {
   reasonCode?: KnownErrorCode;
 }
 
-export type ApprovalAuditAction = "request_created" | "request_approved" | "request_rejected";
+export type ApprovalAuditAction =
+  "request_created" | "request_approved" | "request_rejected" | "request_superseded";
 
 export interface RecordApprovalAuditInput {
   action: ApprovalAuditAction;
@@ -85,6 +86,8 @@ function approvalEventCode(input: RecordApprovalAuditInput) {
       return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestApproved;
     case "request_rejected":
       return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestRejected;
+    case "request_superseded":
+      return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestSuperseded;
   }
 }
 

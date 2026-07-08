@@ -4,6 +4,7 @@ import { assertSecretProtectedMutationAccess } from "./assert-secret-protected-m
 import { computeImpactReviewFingerprint } from "./compute-impact-review-fingerprint.js";
 import { createPromotionApprovalRequest } from "./create-promotion-approval-request.js";
 import { gateProtectedSecretMutation } from "./gate-protected-secret-mutation.js";
+import { loadApprovalImpactReviewState } from "./load-approval-impact-review-state.js";
 import { noopHighAssuranceDenied } from "./noop-high-assurance-denied.js";
 import type {
   RequestProtectedPromotionInput,
@@ -32,11 +33,11 @@ export async function requestProtectedPromotion(
     draftVersionIds: input.draftVersionIds,
   });
 
-  const impactReviewFingerprint = computeImpactReviewFingerprint({
+  const impactReviewState = await loadApprovalImpactReviewState({
     ...scope,
-    draftVersionIds: input.draftVersionIds,
-    secretIds: validatedTargets.map((target) => target.secretId),
+    draftTargets: validatedTargets,
   });
+  const impactReviewFingerprint = await computeImpactReviewFingerprint(impactReviewState);
   assertImpactReviewFresh({
     submittedFingerprint: input.impactReviewFingerprint,
     currentFingerprint: impactReviewFingerprint,
@@ -44,7 +45,7 @@ export async function requestProtectedPromotion(
 
   const gate = await gateProtectedSecretMutation({
     ...scope,
-    actorUserId: input.actor.userId,
+    actor: input.actor,
     mutationKind: "promotion",
     requestId: input.requestId,
     onDenied: noopHighAssuranceDenied,

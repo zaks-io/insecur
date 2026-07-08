@@ -34,7 +34,7 @@ describe("copyRetainedSecretVersion", () => {
     const result = await copyRetainedSecretVersion(db, {
       organizationId: ORG,
       secretId: SECRET,
-      toVersionNumber: 2,
+      toSourceVersionId: "sv_00000000000000000000000001" as never,
       newSecretVersionId: NEW_VERSION,
       asDraft: true,
     });

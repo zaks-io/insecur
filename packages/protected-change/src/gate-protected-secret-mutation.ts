@@ -17,10 +17,22 @@ export type {
 export async function gateProtectedSecretMutation(
   input: GateProtectedSecretMutationInput,
 ): Promise<{ operationId?: OperationId }> {
+  if (input.actor.type === "machine") {
+    return {};
+  }
+
+  const actorUserId = input.actor.userId;
   const mutationKind = input.mutationKind;
   return runProtectedEnvironmentMutationGate(
     protectedEnvironmentMutationGateInput(
-      input,
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        actorUserId,
+        requestId: input.requestId,
+        ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
+      },
       {
         intentCode:
           mutationKind === "promotion"
@@ -38,7 +50,7 @@ export async function gateProtectedSecretMutation(
             projectId: input.projectId,
             environmentId: input.environmentId,
             operationId,
-            actorUserId: input.actorUserId,
+            actorUserId,
             mutationKind,
           },
           input.onDenied,

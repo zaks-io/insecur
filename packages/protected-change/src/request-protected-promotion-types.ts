@@ -1,4 +1,4 @@
-import type { UserActorRef } from "@insecur/access";
+import type { ActorRef } from "@insecur/access";
 import {
   approvalRequestId,
   type EnvironmentId,
@@ -10,7 +10,7 @@ import {
 } from "@insecur/domain";
 
 export interface RequestProtectedPromotionInput {
-  readonly actor: UserActorRef;
+  readonly actor: ActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;

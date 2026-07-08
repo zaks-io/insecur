@@ -1,10 +1,10 @@
+import type { ActorRef } from "@insecur/access";
 import type {
   EnvironmentId,
   OperationId,
   OrganizationId,
   ProjectId,
   RequestId,
-  UserId,
 } from "@insecur/domain";
 import type { HighAssuranceChallengeError } from "@insecur/high-assurance";
 
@@ -14,7 +14,7 @@ export interface GateProtectedSecretMutationInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly actorUserId: UserId;
+  readonly actor: ActorRef;
   readonly mutationKind: ProtectedSecretMutationKind;
   readonly operationId?: OperationId;
   readonly requestId: RequestId;

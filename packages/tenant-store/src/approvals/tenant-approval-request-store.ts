@@ -2,6 +2,7 @@ import {
   approvalRequestId,
   type ApprovalRequestId,
   type EnvironmentId,
+  type MachineIdentityId,
   type OrganizationId,
   type ProjectId,
   type SecretId,
@@ -30,7 +31,8 @@ export interface CreatePromotionApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly requesterUserId: UserId;
+  readonly requesterUserId?: UserId;
+  readonly requesterMachineIdentityId?: MachineIdentityId;
   readonly approvalRequestId: ApprovalRequestId;
   readonly operationId?: string;
   readonly impactReviewFingerprint: string;
@@ -43,14 +45,15 @@ export interface CreateRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly requesterUserId: UserId;
+  readonly requesterUserId?: UserId;
+  readonly requesterMachineIdentityId?: MachineIdentityId;
   readonly approvalRequestId: ApprovalRequestId;
   readonly operationId?: string;
   readonly impactReviewFingerprint: string;
   readonly commentLength?: number;
   readonly commentSha256?: string;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly promoteRequested: boolean;
   readonly draftVersion: PromotionDraftVersionTarget;
 }
@@ -117,13 +120,14 @@ export class TenantApprovalRequestStore {
       environmentId: input.environmentId,
       purpose: "protected_promotion",
       status: "pending",
-      requesterUserId: input.requesterUserId,
+      requesterUserId: input.requesterUserId ?? null,
+      requesterMachineIdentityId: input.requesterMachineIdentityId ?? null,
       operationId: input.operationId ?? null,
       impactReviewFingerprint: input.impactReviewFingerprint,
       commentLength: input.commentLength ?? null,
       commentSha256: input.commentSha256 ?? null,
       rollbackSecretId: null,
-      rollbackToVersionNumber: null,
+      rollbackToVersionId: null,
       rollbackPromoteRequested: false,
       supersededByRequestId: null,
       createdAt: now,
@@ -152,13 +156,14 @@ export class TenantApprovalRequestStore {
       environmentId: input.environmentId,
       purpose: "protected_rollback",
       status: "pending",
-      requesterUserId: input.requesterUserId,
+      requesterUserId: input.requesterUserId ?? null,
+      requesterMachineIdentityId: input.requesterMachineIdentityId ?? null,
       operationId: input.operationId ?? null,
       impactReviewFingerprint: input.impactReviewFingerprint,
       commentLength: input.commentLength ?? null,
       commentSha256: input.commentSha256 ?? null,
       rollbackSecretId: input.secretId,
-      rollbackToVersionNumber: input.toVersionNumber,
+      rollbackToVersionId: input.toVersionId,
       rollbackPromoteRequested: input.promoteRequested,
       supersededByRequestId: null,
       createdAt: now,
@@ -229,3 +234,11 @@ export class TenantApprovalRequestStore {
     }));
   }
 }
+
+export {
+  loadEnvironmentDeliveryImpactFacts,
+  type EnvironmentDeliveryImpactFacts,
+  type EnvironmentRuntimeInjectionImpactFact,
+  loadPromotionDraftVersionImpactFacts,
+  type PromotionDraftVersionImpactFact,
+} from "./impact-review-loaders.js";

@@ -35,7 +35,7 @@ export async function requestProtectedRollback(
   input: Parameters<ApiClient["requestProtectedRollback"]>[0],
 ) {
   const body: Record<string, unknown> = {
-    toVersion: input.toVersion,
+    toVersionId: input.toVersionId,
   };
   if (input.promote === true) {
     body.promote = true;

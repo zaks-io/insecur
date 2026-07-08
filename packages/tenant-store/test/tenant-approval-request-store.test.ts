@@ -121,7 +121,7 @@ describe("TenantApprovalRequestStore", () => {
       approvalRequestId: REQUEST,
       impactReviewFingerprint: "sha256:impact",
       secretId: SECRET,
-      toVersionNumber: 2,
+      toVersionId: secretVersionId.brand("sv_00000000000000000000000001"),
       promoteRequested: true,
       draftVersion: { secretId: SECRET, secretVersionId: DRAFT },
     });

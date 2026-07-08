@@ -1,4 +1,4 @@
-import type { UserActorRef } from "@insecur/access";
+import type { ActorRef } from "@insecur/access";
 import {
   approvalRequestId,
   secretVersionId,
@@ -8,16 +8,17 @@ import {
   type ProjectId,
   type RequestId,
   type SecretId,
+  type SecretVersionId,
 } from "@insecur/domain";
 import { SECRET_VERSION_LIFECYCLE_STATES } from "@insecur/tenant-store";
 
 export interface RequestProtectedRollbackInput {
-  readonly actor: UserActorRef;
+  readonly actor: ActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly promoteRequested: boolean;
   readonly comment?: string;
   readonly operationId?: OperationId;

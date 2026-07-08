@@ -21,7 +21,7 @@ import {
 export interface CopyRetainedSecretVersionInput {
   readonly organizationId: OrganizationId;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toSourceVersionId: SecretVersionId;
   readonly newSecretVersionId: SecretVersionId;
   readonly asDraft: boolean;
 }
@@ -38,7 +38,7 @@ async function loadRetainedSourceVersion(
   db: TenantScopedDb,
   organizationId: OrganizationId,
   secretId: SecretId,
-  toVersionNumber: number,
+  toSourceVersionId: SecretVersionId,
 ) {
   const [source] = await db
     .select({
@@ -60,7 +60,7 @@ async function loadRetainedSourceVersion(
       and(
         eq(secretVersions.orgId, organizationId),
         eq(secretVersions.secretId, secretId),
-        eq(secretVersions.versionNumber, toVersionNumber),
+        eq(secretVersions.id, toSourceVersionId),
       ),
     )
     .limit(1);
@@ -91,7 +91,7 @@ export async function copyRetainedSecretVersion(
     db,
     input.organizationId,
     input.secretId,
-    input.toVersionNumber,
+    input.toSourceVersionId,
   );
 
   const versionNumber = await allocateNextVersionNumber(db, input.secretId);

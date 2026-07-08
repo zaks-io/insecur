@@ -2,7 +2,7 @@ import {
   AUTHORIZATION_SCOPES,
   hasAuthorizationScope,
   resolveEffectiveAccess,
-  type UserActorRef,
+  type ActorRef,
 } from "@insecur/access";
 import {
   AUTH_ERROR_CODES,
@@ -30,7 +30,7 @@ function assertSecretProtectedDraftWriteAccess(
 }
 
 export async function assertSecretProtectedMutationAccess(
-  actor: UserActorRef,
+  actor: ActorRef,
   scope: {
     readonly organizationId: OrganizationId;
     readonly projectId: ProjectId;

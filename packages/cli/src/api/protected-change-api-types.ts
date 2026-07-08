@@ -43,7 +43,7 @@ export interface ProtectedChangeApiClient {
     readonly projectId: ProjectId;
     readonly environmentId: EnvironmentId;
     readonly secretId: SecretId;
-    readonly toVersion: number;
+    readonly toVersionId: SecretVersionId;
     readonly promote?: boolean;
     readonly comment?: string;
     readonly operationId?: OperationId;

@@ -1,4 +1,4 @@
-import type { UserActorRef } from "@insecur/access";
+import type { ActorRef } from "@insecur/access";
 import { recordApprovalAudit } from "@insecur/audit";
 import type {
   EnvironmentId,
@@ -8,8 +8,10 @@ import type {
   RequestId,
 } from "@insecur/domain";
 
+import { toAuditActor } from "./to-audit-actor.js";
+
 async function recordCreatedApprovalRequestAudit(input: {
-  readonly actor: UserActorRef;
+  readonly actor: ActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
@@ -19,7 +21,7 @@ async function recordCreatedApprovalRequestAudit(input: {
   await recordApprovalAudit({
     action: "request_created",
     outcome: "success",
-    actor: input.actor,
+    actor: toAuditActor(input.actor),
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
@@ -32,7 +34,7 @@ async function recordCreatedApprovalRequestAudit(input: {
 }
 
 export async function finalizeCreatedApprovalRequest(input: {
-  readonly actor: UserActorRef;
+  readonly actor: ActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;

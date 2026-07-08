@@ -28,7 +28,7 @@ export async function requestProtectedRollback(
 
   const gate = await gateProtectedSecretMutation({
     ...scope,
-    actorUserId: input.actor.userId,
+    actor: input.actor,
     mutationKind: "rollback",
     requestId: input.requestId,
     onDenied: noopHighAssuranceDenied,

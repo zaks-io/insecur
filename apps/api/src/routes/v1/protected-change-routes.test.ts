@@ -173,7 +173,11 @@ describe("protected-change worker routes", () => {
       const response = await authedRequest(rollbackPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toVersion: 2, promote: true, comment: "Emergency rollback" }),
+        body: JSON.stringify({
+          toVersionId: draftVersionIdValue,
+          promote: true,
+          comment: "Emergency rollback",
+        }),
       });
 
       expect(response.status).toBe(200);
@@ -181,7 +185,7 @@ describe("protected-change worker routes", () => {
         expect.objectContaining({
           organizationId: orgId,
           secretId: secretIdValue,
-          toVersionNumber: 2,
+          toVersionId: draftVersionIdValue,
           promoteRequested: true,
         }),
       );

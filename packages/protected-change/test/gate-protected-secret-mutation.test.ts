@@ -46,7 +46,7 @@ const GATE_INPUT = {
   organizationId: ORG,
   projectId: PROJECT,
   environmentId: ENV,
-  actorUserId: USER,
+  actor: { type: "user" as const, userId: USER },
   requestId: REQ,
   mutationKind: "promotion" as const,
   onDenied: vi.fn(async () => undefined),

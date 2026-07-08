@@ -159,7 +159,7 @@ describe("protected change CLI commands", () => {
     const exitCode = await runSecretsRollbackCommand(flags, api, mockContext, {
       secretId: SECRET_ID,
       envId: ENV_ID,
-      toVersion: "2",
+      toVersionId: "sv_01TEST00000000000000000001",
       promote: true,
       comment: undefined,
       operationId: undefined,
@@ -169,7 +169,7 @@ describe("protected change CLI commands", () => {
     expect(api.requestProtectedRollback).toHaveBeenCalledWith(
       expect.objectContaining({
         secretId: SECRET_ID,
-        toVersion: 2,
+        toVersionId: "sv_01TEST00000000000000000001",
         promote: true,
       }),
     );

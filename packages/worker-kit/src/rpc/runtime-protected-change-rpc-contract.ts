@@ -34,7 +34,7 @@ export interface RequestProtectedRollbackRpcInput extends PostAuthRpcInputBase {
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly promoteRequested: boolean;
   readonly comment?: string;
   readonly impactReviewFingerprint?: string;

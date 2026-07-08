@@ -16,6 +16,7 @@ import {
 import { computeImpactReviewFingerprint } from "./compute-impact-review-fingerprint.js";
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { persistRollbackApprovalRequestOnDb } from "./create-rollback-approval-request.js";
+import { loadApprovalImpactReviewState } from "./load-approval-impact-review-state.js";
 import type { RequestProtectedRollbackInput } from "./request-protected-rollback-types.js";
 
 export interface ExecuteProtectedRollbackPersistenceInput {
@@ -42,9 +43,9 @@ export async function executeProtectedRollbackPersistence(
     return copyRollbackVersion({
       organizationId: input.organizationId,
       secretId: input.secretId,
-      toVersionNumber: input.toVersionNumber,
+      toSourceVersionId: input.toVersionId,
       newSecretVersionId,
-      asDraft: false,
+      asDraft: true,
     });
   }
 
@@ -68,11 +69,16 @@ async function persistRollbackWithApproval(input: {
   readonly approvalRequestId: ApprovalRequestId;
   readonly result: CopyRetainedSecretVersionResult;
 }> {
-  const impactReviewFingerprint = computeImpactReviewFingerprint({
+  const impactReviewState = await loadApprovalImpactReviewState({
     ...input.scope,
-    draftVersionIds: [input.newSecretVersionId],
-    secretIds: [input.input.secretId],
+    draftTargets: [
+      {
+        secretId: input.input.secretId,
+        secretVersionId: input.newSecretVersionId,
+      },
+    ],
   });
+  const impactReviewFingerprint = await computeImpactReviewFingerprint(impactReviewState);
 
   return createApprovalRequestWithAudit({
     audit: {
@@ -106,7 +112,7 @@ async function copyVersionAndCreateRollbackApproval(input: {
       const copiedVersion = await copyRetainedSecretVersionOrThrow(db, {
         organizationId: input.input.organizationId,
         secretId: input.input.secretId,
-        toVersionNumber: input.input.toVersionNumber,
+        toSourceVersionId: input.input.toVersionId,
         newSecretVersionId: input.newSecretVersionId,
         asDraft: true,
       });
@@ -114,11 +120,11 @@ async function copyVersionAndCreateRollbackApproval(input: {
         organizationId: input.input.organizationId,
         projectId: input.input.projectId,
         environmentId: input.input.environmentId,
-        actorUserId: input.input.actor.userId,
+        actor: input.input.actor,
         approvalRequestId: input.createdApprovalRequestId,
         impactReviewFingerprint: input.impactReviewFingerprint,
         secretId: input.input.secretId,
-        toVersionNumber: input.input.toVersionNumber,
+        toVersionId: input.input.toVersionId,
         newSecretVersionId: input.newSecretVersionId,
         ...(input.input.comment !== undefined ? { comment: input.input.comment } : {}),
         ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
@@ -144,7 +150,7 @@ async function copyRetainedSecretVersionOrThrow(
 export async function copyRollbackVersion(input: {
   readonly organizationId: OrganizationId;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toSourceVersionId: SecretVersionId;
   readonly newSecretVersionId: ReturnType<typeof secretVersionId.generate>;
   readonly asDraft: boolean;
 }): Promise<CopyRetainedSecretVersionResult> {
@@ -152,7 +158,7 @@ export async function copyRollbackVersion(input: {
     copyRetainedSecretVersionOrThrow(db, {
       organizationId: input.organizationId,
       secretId: input.secretId,
-      toVersionNumber: input.toVersionNumber,
+      toSourceVersionId: input.toSourceVersionId,
       newSecretVersionId: input.newSecretVersionId,
       asDraft: input.asDraft,
     }),

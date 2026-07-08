@@ -5,20 +5,22 @@ CREATE TABLE "approval_requests" (
 	"environment_id" text NOT NULL,
 	"purpose" text NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
-	"requester_user_id" text NOT NULL,
+	"requester_user_id" text,
+	"requester_machine_identity_id" text,
 	"operation_id" text,
 	"impact_review_fingerprint" text,
 	"comment_length" integer,
 	"comment_sha256" text,
 	"rollback_secret_id" text,
-	"rollback_to_version_number" integer,
+	"rollback_to_version_id" text,
 	"rollback_promote_requested" boolean DEFAULT false NOT NULL,
 	"superseded_by_request_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "approval_requests_org_id_id_key" UNIQUE("org_id","id"),
 	CONSTRAINT "approval_requests_status_check" CHECK ("approval_requests"."status" IN ('pending', 'approved_applied', 'rejected', 'canceled', 'superseded', 'policy_stale', 'requester_access_stale', 'target_closed', 'draft_discard_closed')),
-	CONSTRAINT "approval_requests_purpose_check" CHECK ("approval_requests"."purpose" IN ('protected_promotion', 'protected_rollback'))
+	CONSTRAINT "approval_requests_purpose_check" CHECK ("approval_requests"."purpose" IN ('protected_promotion', 'protected_rollback')),
+	CONSTRAINT "approval_requests_requester_present_check" CHECK ("approval_requests"."requester_user_id" IS NOT NULL OR "approval_requests"."requester_machine_identity_id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE "promotion_change_set_draft_versions" (

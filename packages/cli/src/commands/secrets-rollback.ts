@@ -1,7 +1,11 @@
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ApiClient } from "../api/types.js";
 import { requireSessionCredential } from "../auth/require-session.js";
-import { parseEnvironmentId, parseSecretId } from "../config/parse-resource-id.js";
+import {
+  parseEnvironmentId,
+  parseSecretId,
+  parseSecretVersionId,
+} from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireProjectScope } from "./navigation-scope.js";
 import { parseOperationIdOrThrow } from "./operations-scope.js";
@@ -10,7 +14,7 @@ import { finishApiCommand } from "./finish-api-command.js";
 export interface SecretsRollbackCommandOptions {
   readonly secretId: string;
   readonly envId: string;
-  readonly toVersion: string;
+  readonly toVersionId: string;
   readonly promote: boolean;
   readonly comment: string | undefined;
   readonly operationId: string | undefined;
@@ -26,10 +30,7 @@ export async function runSecretsRollbackCommand(
   const projectScope = requireProjectScope(context.scope);
   const environmentId = parseEnvironmentId(commandOptions.envId, "--env-id");
   const secretId = parseSecretId(commandOptions.secretId, "secret-id");
-  const toVersion = Number.parseInt(commandOptions.toVersion, 10);
-  if (!Number.isInteger(toVersion) || toVersion < 1) {
-    throw new Error("--to-version must be a positive integer.");
-  }
+  const toVersionId = parseSecretVersionId(commandOptions.toVersionId, "--to-version-id");
   const operationId =
     commandOptions.operationId === undefined
       ? undefined
@@ -42,7 +43,7 @@ export async function runSecretsRollbackCommand(
     projectId: projectScope.projectId,
     environmentId,
     secretId,
-    toVersion,
+    toVersionId,
     ...(commandOptions.promote ? { promote: true } : {}),
     ...(commandOptions.comment !== undefined ? { comment: commandOptions.comment } : {}),
     ...(operationId === undefined ? {} : { operationId }),

@@ -1,6 +1,5 @@
 import {
   approvalRequestId,
-  AUTH_ERROR_CODES,
   environmentId,
   organizationId,
   projectId,
@@ -39,8 +38,15 @@ const USER = userId.brand("usr_00000000000000000000000001");
 const REQ = requestId.brand("req_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const DRAFT = secretVersionId.brand("sv_00000000000000000000000001");
+const SOURCE_VERSION = secretVersionId.brand("sv_00000000000000000000000002");
 const APPROVAL = approvalRequestId.brand("req_00000000000000000000000002");
 const USER_ACTOR = { type: "user" as const, userId: USER };
+const MACHINE_ACTOR = {
+  type: "machine" as const,
+  machineIdentityId: "mid_test" as never,
+  tokenScope: { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+  credentialScopes: [],
+};
 const ACTOR_TOKEN = "test-actor-token";
 
 describe("protected-change operations", () => {
@@ -48,7 +54,14 @@ describe("protected-change operations", () => {
     vi.clearAllMocks();
   });
 
-  it("rejects machine actors for promotion", async () => {
+  it("forwards promotion requests for machine actors", async () => {
+    vi.mocked(requestProtectedPromotion).mockResolvedValue({
+      approvalRequestId: APPROVAL,
+      impactReviewFingerprint: "sha256:fp",
+      supersededApprovalRequestIds: [],
+      draftVersionIds: [DRAFT],
+    });
+
     await expect(
       requestProtectedPromotionOperation({
         input: {
@@ -60,14 +73,16 @@ describe("protected-change operations", () => {
           requestId: REQ,
         },
         auditActor: { type: "user", userId: USER },
-        accessActor: {
-          type: "machine",
-          machineIdentityId: "mid_test" as never,
-          tokenScope: { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
-          credentialScopes: [],
-        },
+        accessActor: MACHINE_ACTOR,
       }),
-    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+    ).resolves.toMatchObject({ approvalRequestId: APPROVAL });
+
+    expect(requestProtectedPromotion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: MACHINE_ACTOR,
+        draftVersionIds: [DRAFT],
+      }),
+    );
   });
 
   it("forwards promotion requests for user actors", async () => {
@@ -103,6 +118,39 @@ describe("protected-change operations", () => {
     );
   });
 
+  it("forwards rollback requests for machine actors", async () => {
+    vi.mocked(requestProtectedRollback).mockResolvedValue({
+      secretId: SECRET,
+      secretVersionId: DRAFT,
+      versionNumber: 3,
+      lifecycleState: "draft",
+    });
+
+    await expect(
+      requestProtectedRollbackOperation({
+        input: {
+          actorToken: ACTOR_TOKEN,
+          organizationId: ORG,
+          projectId: PROJECT,
+          environmentId: ENV,
+          secretId: SECRET,
+          toVersionId: SOURCE_VERSION,
+          promoteRequested: true,
+          requestId: REQ,
+        },
+        auditActor: { type: "user", userId: USER },
+        accessActor: MACHINE_ACTOR,
+      }),
+    ).resolves.toMatchObject({ secretId: SECRET });
+
+    expect(requestProtectedRollback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: MACHINE_ACTOR,
+        toVersionId: SOURCE_VERSION,
+      }),
+    );
+  });
+
   it("forwards rollback requests for user actors", async () => {
     vi.mocked(requestProtectedRollback).mockResolvedValue({
       secretId: SECRET,
@@ -119,7 +167,7 @@ describe("protected-change operations", () => {
           projectId: PROJECT,
           environmentId: ENV,
           secretId: SECRET,
-          toVersionNumber: 2,
+          toVersionId: SOURCE_VERSION,
           promoteRequested: true,
           requestId: REQ,
         },

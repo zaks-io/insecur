@@ -1,4 +1,4 @@
-import type { UserActorRef } from "@insecur/access";
+import type { ActorRef } from "@insecur/access";
 import {
   approvalRequestId,
   type ApprovalRequestId,
@@ -16,12 +16,14 @@ import {
 
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
+import { recordSupersededApprovalRequestAudits } from "./record-superseded-approval-request-audit.js";
+import { requesterIdsFromActor } from "./requester-ids-from-actor.js";
 
 async function persistPromotionApprovalRequest(input: {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly actorUserId: UserActorRef["userId"];
+  readonly actor: ActorRef;
   readonly approvalRequestId: ApprovalRequestId;
   readonly impactReviewFingerprint: string;
   readonly comment?: string;
@@ -41,7 +43,7 @@ async function persistPromotionApprovalRequest(input: {
         organizationId: input.organizationId,
         projectId: input.projectId,
         environmentId: input.environmentId,
-        requesterUserId: input.actorUserId,
+        ...requesterIdsFromActor(input.actor),
         approvalRequestId: input.approvalRequestId,
         impactReviewFingerprint: input.impactReviewFingerprint,
         ...hashCommentMetadata(input.comment),
@@ -54,7 +56,7 @@ async function persistPromotionApprovalRequest(input: {
 }
 
 export async function createPromotionApprovalRequest(input: {
-  readonly actor: UserActorRef;
+  readonly actor: ActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
@@ -81,7 +83,7 @@ export async function createPromotionApprovalRequest(input: {
           organizationId: input.organizationId,
           projectId: input.projectId,
           environmentId: input.environmentId,
-          actorUserId: input.actor.userId,
+          actor: input.actor,
           approvalRequestId: createdApprovalRequestId,
           impactReviewFingerprint: input.impactReviewFingerprint,
           validatedTargets: input.validatedTargets,
@@ -89,6 +91,17 @@ export async function createPromotionApprovalRequest(input: {
           ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
         }),
     });
+
+  if (supersededApprovalRequestIds.length > 0) {
+    await recordSupersededApprovalRequestAudits({
+      actor: input.actor,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+      supersededApprovalRequestIds,
+      requestId: input.requestId,
+    });
+  }
 
   return { approvalRequestId: newApprovalRequestId, supersededApprovalRequestIds };
 }

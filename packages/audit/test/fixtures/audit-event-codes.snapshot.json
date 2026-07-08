@@ -4,6 +4,7 @@
   "approval.request_approved",
   "approval.request_created",
   "approval.request_rejected",
+  "approval.request_superseded",
   "auth.cli_pkce_exchange_denied",
   "backup.export_failed",
   "backup.export_succeeded",

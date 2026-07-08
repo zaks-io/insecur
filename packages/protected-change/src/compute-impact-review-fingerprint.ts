@@ -1,34 +1,28 @@
-import type {
-  EnvironmentId,
-  OrganizationId,
-  ProjectId,
-  SecretId,
-  SecretVersionId,
-} from "@insecur/domain";
+import type { ApprovalImpactReviewState } from "./load-approval-impact-review-state.js";
 
-function stableSort(values: readonly string[]): readonly string[] {
-  return [...values].sort();
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const bytes = new Uint8Array(digest);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/** Metadata-only fingerprint for Approval Impact Review (INS-85). */
-export function computeImpactReviewFingerprint(input: {
-  readonly organizationId: OrganizationId;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly draftVersionIds: readonly SecretVersionId[];
-  readonly secretIds?: readonly SecretId[];
-  /** Extension point for W8 provider sync impact metadata (INS-77); omitted in V1 core review. */
-  readonly providerSyncImpactFingerprint?: string;
-}): string {
-  const parts = [
-    input.organizationId,
-    input.projectId,
-    input.environmentId,
-    ...stableSort(input.draftVersionIds),
-    ...(input.secretIds === undefined ? [] : stableSort(input.secretIds)),
-    ...(input.providerSyncImpactFingerprint === undefined
-      ? []
-      : [input.providerSyncImpactFingerprint]),
-  ];
-  return `sha256:${parts.join("|")}`;
+function canonicalImpactReviewPayload(state: ApprovalImpactReviewState): string {
+  return JSON.stringify({
+    organizationId: state.organizationId,
+    projectId: state.projectId,
+    environmentId: state.environmentId,
+    draftVersions: state.draftVersions,
+    delivery: state.delivery,
+    ...(state.providerSyncImpactFingerprint === undefined
+      ? {}
+      : { providerSyncImpactFingerprint: state.providerSyncImpactFingerprint }),
+  });
+}
+
+/** Metadata-only fingerprint from server-generated delivery and draft impact facts (ADR-0017 / INS-85). */
+export async function computeImpactReviewFingerprint(
+  state: ApprovalImpactReviewState,
+): Promise<string> {
+  const digest = await sha256Hex(canonicalImpactReviewPayload(state));
+  return `sha256:${digest}`;
 }
