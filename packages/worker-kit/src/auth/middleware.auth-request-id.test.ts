@@ -89,8 +89,9 @@ describe("requireUserActor admission-denied request id", () => {
   it("preserves auth failure response when the denied-admission forward fails", async () => {
     const failingRuntime: FakeAdmissionRuntime = {
       deniedCalls: [],
-      resolveAdmission: () => Promise.resolve({ ok: true, value: { userId: null } }),
-      isCliSessionRevoked: () => Promise.resolve({ ok: true, value: { revoked: false } }),
+      resolveAdmissionCalls: [],
+      resolveAdmission: () =>
+        Promise.resolve({ ok: true, value: { userId: null, cliSessionRevoked: false } }),
       recordAdmissionDenied: () => Promise.reject(new Error("binding down")),
     };
 

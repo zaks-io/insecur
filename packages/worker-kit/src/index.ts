@@ -54,8 +54,6 @@ export type {
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
-  IsCliSessionRevokedRpcInput,
-  IsCliSessionRevokedRpcPayload,
   CancelOperationRpcInput,
   CancelOperationRpcPayload,
   IssueInjectionGrantRpcInput,

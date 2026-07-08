@@ -152,6 +152,7 @@ export const revokedCliSessions = pgTable(
     sessionId: text("session_id").notNull(),
     userId: text("user_id").notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }).notNull().defaultNow(),
+    sessionExpiresAt: timestamp("session_expires_at", { withTimezone: true }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.instanceId, table.sessionId] })],
 );

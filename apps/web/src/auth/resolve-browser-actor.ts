@@ -16,6 +16,7 @@ import { requestId } from "@insecur/domain";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
 import {
   createRuntimeAdmittedUserResolver,
+  authFailureForRevokedCliSession,
   recordAdmissionDeniedAuditForAuthFailure,
 } from "../runtime/admission.js";
 import { applyBrowserSessionFromResolveResult } from "./session-headers.js";
@@ -155,14 +156,17 @@ async function resolveAdmittedWorkosContextAfterRefresh(
   env: WebEnv,
   resolveAdmittedUser: AdmittedUserResolver,
 ): Promise<ResolveBrowserActorResult> {
-  const admittedUserId = await resolveAdmittedUser(context.user.id);
-  if (admittedUserId === null) {
+  const admitted = await resolveAdmittedUser(context.user.id, { sessionId: context.sessionId });
+  if (admitted === "cli_session_revoked") {
+    return postRefreshBrowserActorFailure(authFailureForRevokedCliSession());
+  }
+  if (admitted === null) {
     return postRefreshBrowserActorFailure(await recordWorkosAdmissionDenial(env, context.user.id));
   }
 
   return {
     ok: true,
-    actor: workosContextUserActor(admittedUserId, context),
+    actor: workosContextUserActor(admitted, context),
     rotation: {
       sealedSession: rotatedSealedSession,
       csrfToken: generateCsrfToken(),
@@ -183,8 +187,11 @@ async function resolveAdmittedActorFromWorkosContext(
   env: WebEnv,
   resolveAdmittedUser: AdmittedUserResolver,
 ): Promise<{ ok: true; actor: UserActor } | { ok: false; failure: AuthFailure }> {
-  const admittedUserId = await resolveAdmittedUser(context.user.id);
-  if (admittedUserId === null) {
+  const admitted = await resolveAdmittedUser(context.user.id, { sessionId: context.sessionId });
+  if (admitted === "cli_session_revoked") {
+    return { ok: false, failure: authFailureForRevokedCliSession() };
+  }
+  if (admitted === null) {
     return {
       ok: false,
       failure: await recordWorkosAdmissionDenial(env, context.user.id),
@@ -193,7 +200,7 @@ async function resolveAdmittedActorFromWorkosContext(
 
   return {
     ok: true,
-    actor: workosContextUserActor(admittedUserId, context),
+    actor: workosContextUserActor(admitted, context),
   };
 }
 
@@ -221,14 +228,17 @@ async function resolveAdmittedActor(
   env: WebEnv,
   resolveAdmittedUser: AdmittedUserResolver,
 ): Promise<ResolveBrowserActorResult> {
-  const admittedUserId = await resolveAdmittedUser(actor.workosUserId);
-  if (admittedUserId === null) {
+  const admitted = await resolveAdmittedUser(actor.workosUserId, { sessionId: actor.sessionId });
+  if (admitted === "cli_session_revoked") {
+    return { ok: false, failure: authFailureForRevokedCliSession() };
+  }
+  if (admitted === null) {
     return {
       ok: false,
       failure: await recordWorkosAdmissionDenial(env, actor.workosUserId),
     };
   }
-  if (admittedUserId !== actor.userId) {
+  if (admitted !== actor.userId) {
     return { ok: false, failure: authFailureForReason("invalid") };
   }
   return { ok: true, actor };

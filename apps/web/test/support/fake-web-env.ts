@@ -26,7 +26,10 @@ export function createFakeRuntimeAdmissionBinding(
     resolveAdmission: (input) =>
       Promise.resolve({
         ok: true,
-        value: { userId: admitted.get(input.workosUserId) ?? null },
+        value: {
+          userId: admitted.get(input.workosUserId) ?? null,
+          cliSessionRevoked: false,
+        },
       }),
     recordAdmissionDenied: (input) => {
       deniedCalls.push(input);

@@ -178,15 +178,18 @@ export type {
 } from "./sensitive-metadata/types.js";
 export {
   isCliSessionRevoked,
+  pruneExpiredRevokedCliSessions,
   revokeCliSession,
 } from "./cli-sessions/tenant-revoked-cli-session-store.js";
 export {
   insertActiveUserAdmissionInTransaction,
   resolveActiveUserAdmission,
+  resolveAdmissionForEdge,
   resolveAdmittedUserId,
   revokeUserAdmission,
   seedActiveUserAdmission,
 } from "./user-admissions/tenant-user-admission-store.js";
+export type { ResolveAdmissionForEdgeResult } from "./user-admissions/tenant-user-admission-store.js";
 export type {
   ActiveUserAdmissionRow,
   SeedUserAdmissionInput,

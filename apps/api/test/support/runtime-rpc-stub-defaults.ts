@@ -25,9 +25,9 @@ export const RUNTIME_RPC_STUB_DEFAULTS: Partial<{
     Promise.resolve(
       ok({
         userId: input.workosUserId === WORKOS_USER_ID ? userId.brand(ADMITTED_USER_ID_RAW) : null,
+        cliSessionRevoked: false,
       }),
     ),
-  isCliSessionRevoked: () => Promise.resolve(ok({ revoked: false })),
   recordAdmissionDenied: () => Promise.resolve(ok({ recorded: true as const })),
   recordAbuseDenied: () => Promise.resolve(ok({ recorded: true as const })),
   revokeCliSession: () => Promise.resolve(ok({ revoked: true })),

@@ -29,7 +29,10 @@ async function resolveAdmittedActor(
   actor: UserActor,
   resolveAdmittedUser: AdmittedUserResolver,
 ): Promise<ResolveUserActorResult> {
-  const admitted = await resolveAdmittedUser(actor.workosUserId);
+  const admitted = await resolveAdmittedUser(actor.workosUserId, { sessionId: actor.sessionId });
+  if (admitted === "cli_session_revoked") {
+    return { ok: false, failure: authFailureForReason("invalid") };
+  }
   if (admitted === null) {
     return { ok: false, failure: authFailureForAdmissionDenial(actor.workosUserId) };
   }

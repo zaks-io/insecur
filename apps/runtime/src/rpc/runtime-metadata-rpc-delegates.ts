@@ -135,7 +135,11 @@ export function revokeCliSessionRpc(
   input: RevokeCliSessionRpcInput,
 ): Promise<RuntimeRpcResult<RevokeCliSessionRpcPayload>> {
   return post(input.actorToken, ({ actor }) =>
-    revokeCliSessionOperation({ instanceId: input.instanceId, actor }),
+    revokeCliSessionOperation({
+      instanceId: input.instanceId,
+      actor,
+      sessionExpiresAt: input.sessionExpiresAt,
+    }),
   );
 }
 

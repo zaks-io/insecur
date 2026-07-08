@@ -10,7 +10,7 @@ import {
   type RevokeInjectionGrantsForTenantSuspensionResult,
 } from "@insecur/runtime-injection";
 import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
-import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
+import { resolveAdmissionForEdge, runWithRuntimeConnection } from "@insecur/tenant-store";
 import type { RequestId } from "@insecur/domain";
 import type {
   AcceptInvitationRpcInput,
@@ -35,8 +35,6 @@ import type {
   CaptureFirstValueFeedbackRpcInput,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
-  IsCliSessionRevokedRpcInput,
-  IsCliSessionRevokedRpcPayload,
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryEnvelope,
   RuntimeRpcResult,
@@ -61,7 +59,7 @@ import {
   registerAgentSessionRpc,
   recordInjectionRunCompletedRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
-import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
+import { RuntimeServiceDelegatedPostAuthRpc } from "./rpc/runtime-service-delegated-post-auth-rpc.js";
 import {
   acceptInvitationRpc,
   createInvitationRpc,
@@ -69,7 +67,6 @@ import {
   provisionGuidedOrganizationRpc,
 } from "./rpc/runtime-onboarding-rpc-delegates.js";
 import { completeBootstrapOperatorClaimRpc } from "./rpc/runtime-bootstrap-rpc-delegates.js";
-import { RuntimeServiceDelegatedPostAuthRpc } from "./rpc/runtime-service-delegated-post-auth-rpc.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
@@ -169,9 +166,17 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   resolveAdmission(
     input: ResolveAdmissionRpcInput,
   ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
-    return this.#pre(async () => ({
-      userId: await resolveAdmittedUserId(input.instanceId, input.workosUserId),
-    }));
+    return this.#pre(async () => {
+      const resolved = await resolveAdmissionForEdge(
+        input.instanceId,
+        input.workosUserId,
+        input.sessionId,
+      );
+      return {
+        userId: resolved.userId,
+        cliSessionRevoked: resolved.cliSessionRevoked,
+      };
+    });
   }
 
   recordAdmissionDenied(
@@ -190,12 +195,6 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     input: GetBootstrapStatusRpcInput,
   ): Promise<RuntimeRpcResult<BootstrapStatus>> {
     return this.#pre(() => getBootstrapStatus(input.instanceId));
-  }
-
-  isCliSessionRevoked(
-    input: IsCliSessionRevokedRpcInput,
-  ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>> {
-    return this.#pre(() => isCliSessionRevokedOperation(input));
   }
 
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---

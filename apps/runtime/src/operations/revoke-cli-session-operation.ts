@@ -1,13 +1,11 @@
-import { isCliSessionRevoked, revokeCliSession } from "@insecur/tenant-store";
+import { revokeCliSession } from "@insecur/tenant-store";
 import type { UserActor } from "@insecur/auth";
-import type {
-  IsCliSessionRevokedRpcPayload,
-  RevokeCliSessionRpcPayload,
-} from "@insecur/worker-kit";
+import type { RevokeCliSessionRpcPayload } from "@insecur/worker-kit";
 
 export interface RevokeCliSessionOperationInput {
   readonly instanceId: string;
   readonly actor: UserActor;
+  readonly sessionExpiresAt: string;
 }
 
 /**
@@ -17,13 +15,7 @@ export interface RevokeCliSessionOperationInput {
 export async function revokeCliSessionOperation({
   instanceId,
   actor,
+  sessionExpiresAt,
 }: RevokeCliSessionOperationInput): Promise<RevokeCliSessionRpcPayload> {
-  return revokeCliSession(instanceId, actor.sessionId, actor.userId);
-}
-
-export async function isCliSessionRevokedOperation(input: {
-  readonly instanceId: string;
-  readonly sessionId: string;
-}): Promise<IsCliSessionRevokedRpcPayload> {
-  return { revoked: await isCliSessionRevoked(input.instanceId, input.sessionId) };
+  return revokeCliSession(instanceId, actor.sessionId, actor.userId, new Date(sessionExpiresAt));
 }

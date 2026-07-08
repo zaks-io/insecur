@@ -124,9 +124,12 @@ export type WriteSecretRpcInput = WriteSecretRpcInputBase &
 export interface ResolveAdmissionRpcInput {
   readonly instanceId: string;
   readonly workosUserId: string;
+  /** When set, the Runtime also checks whether this CLI session id was revoked (INS-472). */
+  readonly sessionId?: string;
 }
 export interface ResolveAdmissionRpcPayload {
   readonly userId: UserId | null;
+  readonly cliSessionRevoked: boolean;
 }
 
 /** PRE-AUTH: best-effort metadata-only denied-admission audit. */
@@ -156,18 +159,11 @@ export interface GetBootstrapStatusRpcInput {
   readonly instanceId: string;
 }
 
-/** PRE-AUTH: whether a CLI session id has been revoked for this instance. */
-export interface IsCliSessionRevokedRpcInput {
-  readonly instanceId: string;
-  readonly sessionId: string;
-}
-export interface IsCliSessionRevokedRpcPayload {
-  readonly revoked: boolean;
-}
-
 /** POST-AUTH: revoke the calling actor's own CLI session (self-only). */
 export interface RevokeCliSessionRpcInput extends PostAuthRpcInputBase {
   readonly instanceId: string;
+  /** ISO-8601 credential expiry used to bound how long the revocation row must live (INS-472). */
+  readonly sessionExpiresAt: string;
 }
 export interface RevokeCliSessionRpcPayload {
   readonly revoked: boolean;

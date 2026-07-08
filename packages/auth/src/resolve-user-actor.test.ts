@@ -155,6 +155,31 @@ describe("resolveUserActor", () => {
     }
   });
 
+  it("returns auth.invalid when the admitted resolver reports a revoked CLI session", async () => {
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_cli",
+      },
+      signingSecret: config.sessionSigningSecret,
+    });
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: `Bearer ${minted.credential}`,
+        cookieHeader: null,
+        csrfHeader: null,
+      }),
+      config,
+      resolveAdmittedUser: () => Promise.resolve("cli_session_revoked"),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.invalid);
+    }
+  });
+
   it("returns auth.expired for expired bearer credentials", async () => {
     const minted = await mintEphemeralSessionCredential({
       actor: {

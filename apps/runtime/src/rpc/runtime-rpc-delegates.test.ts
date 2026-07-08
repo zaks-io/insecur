@@ -1,6 +1,6 @@
 import { userId } from "@insecur/domain";
 import { getBootstrapStatus } from "@insecur/instance-bootstrap";
-import { resolveAdmittedUserId } from "@insecur/tenant-store";
+import { resolveAdmissionForEdge } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { consumeGrantAllOperation } from "../operations/consume-grant-all-operation.js";
@@ -56,7 +56,7 @@ vi.mock("@insecur/instance-bootstrap", () => ({
   getBootstrapStatus: vi.fn(),
 }));
 vi.mock("@insecur/tenant-store", () => ({
-  resolveAdmittedUserId: vi.fn(),
+  resolveAdmissionForEdge: vi.fn(),
 }));
 vi.mock("./runtime-metadata-rpc-delegates.js", () => ({
   listProjectsRpc: vi.fn(async () => ({ projects: [] })),
@@ -110,7 +110,10 @@ describe("runtime rpc delegate seams", () => {
     vi.mocked(recordAdmissionDeniedOperation).mockResolvedValue({ recorded: true } as never);
     vi.mocked(recordAbuseDeniedOperation).mockResolvedValue({ recorded: true } as never);
     vi.mocked(getBootstrapStatus).mockResolvedValue({ status: "ready" } as never);
-    vi.mocked(resolveAdmittedUserId).mockResolvedValue(actorUserId);
+    vi.mocked(resolveAdmissionForEdge).mockResolvedValue({
+      userId: actorUserId,
+      cliSessionRevoked: false,
+    });
     vi.mocked(createRuntimeInjectionPolicyOperation).mockResolvedValue({
       policyId: "rp_test",
     } as never);

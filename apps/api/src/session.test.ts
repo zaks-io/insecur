@@ -269,6 +269,7 @@ describe("worker session routes", () => {
     const input = runtime.revokeCliSession.mock.calls[0]?.[0];
     expect(input?.requestId).toEqual(expect.any(String));
     expect(input?.instanceId).toBe("inst_LOCAL_DEV");
+    expect(input?.sessionExpiresAt).toBe(minted.expiresAt);
   });
 
   it("forwards the memberships read over the RUNTIME seam and returns the organizations", async () => {
