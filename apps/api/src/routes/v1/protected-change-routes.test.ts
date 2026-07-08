@@ -51,6 +51,7 @@ const promotePath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/$
 const rollbackPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/${environmentIdValue}/secrets/${secretIdValue}/rollback`;
 const approvalsPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/${environmentIdValue}/approvals`;
 const approvePath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/${environmentIdValue}/approvals/${approvalRequestIdValue}/approve`;
+const rejectPath = `/v1/orgs/${orgId}/projects/${projectIdValue}/environments/${environmentIdValue}/approvals/${approvalRequestIdValue}/reject`;
 
 async function authHeaders(env: ReturnType<typeof makeEnv>): Promise<Record<string, string>> {
   const minted = await mintEphemeralSessionCredential({
@@ -222,6 +223,20 @@ describe("protected-change worker routes", () => {
   describe("POST .../approvals/:approval/approve", () => {
     it("fails closed for CLI callers with auth.high_assurance_required", async () => {
       const response = await authedRequest(approvePath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      expect(response.status).toBe(401);
+      const body: { error?: { code?: string } } = await response.json();
+      expect(body.error?.code).toBe(AUTH_ERROR_CODES.highAssuranceRequired);
+    });
+  });
+
+  describe("POST .../approvals/:approval/reject", () => {
+    it("fails closed for CLI callers with auth.high_assurance_required", async () => {
+      const response = await authedRequest(rejectPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),

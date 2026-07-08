@@ -8,7 +8,7 @@ import type {
   RequestProtectedRollbackInput,
   RequestProtectedRollbackResult,
 } from "./request-protected-rollback-types.js";
-import { copyRollbackVersion, maybeCreateRollbackApprovalRequest } from "./rollback-helpers.js";
+import { executeProtectedRollbackPersistence } from "./rollback-helpers.js";
 
 export type {
   RequestProtectedRollbackInput,
@@ -36,28 +36,20 @@ export async function requestProtectedRollback(
   });
 
   const newSecretVersionId = secretVersionId.generate();
-  const copied = await copyRollbackVersion({
-    organizationId: input.organizationId,
-    secretId: input.secretId,
-    toVersionNumber: input.toVersionNumber,
-    newSecretVersionId,
-    asDraft: input.promoteRequested,
-  });
-
-  const createdApprovalRequestId = await maybeCreateRollbackApprovalRequest(
+  const persisted = await executeProtectedRollbackPersistence({
     input,
     scope,
     newSecretVersionId,
-    gate.operationId,
-  );
+    ...(gate.operationId !== undefined ? { operationId: gate.operationId } : {}),
+  });
 
   return {
-    secretId: copied.secretId,
-    secretVersionId: copied.secretVersionId,
-    versionNumber: copied.versionNumber,
-    lifecycleState: copied.lifecycleState,
-    ...(createdApprovalRequestId !== undefined
-      ? { approvalRequestId: createdApprovalRequestId }
+    secretId: persisted.secretId,
+    secretVersionId: persisted.secretVersionId,
+    versionNumber: persisted.versionNumber,
+    lifecycleState: persisted.lifecycleState,
+    ...(persisted.approvalRequestId !== undefined
+      ? { approvalRequestId: persisted.approvalRequestId }
       : {}),
     ...(gate.operationId !== undefined ? { operationId: gate.operationId } : {}),
   };

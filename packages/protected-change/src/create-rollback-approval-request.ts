@@ -9,10 +9,49 @@ import {
   type SecretId,
   type SecretVersionId,
 } from "@insecur/domain";
-import { TenantApprovalRequestStore, withTenantScope } from "@insecur/tenant-store";
+import {
+  TenantApprovalRequestStore,
+  type TenantScopedDb,
+  withTenantScope,
+} from "@insecur/tenant-store";
 
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
+
+export async function persistRollbackApprovalRequestOnDb(
+  db: TenantScopedDb,
+  input: {
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly environmentId: EnvironmentId;
+    readonly actorUserId: UserActorRef["userId"];
+    readonly approvalRequestId: ApprovalRequestId;
+    readonly impactReviewFingerprint: string;
+    readonly comment?: string;
+    readonly secretId: SecretId;
+    readonly toVersionNumber: number;
+    readonly newSecretVersionId: SecretVersionId;
+    readonly operationId?: OperationId;
+  },
+): Promise<void> {
+  await new TenantApprovalRequestStore(db).createRollbackApprovalRequest({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    requesterUserId: input.actorUserId,
+    approvalRequestId: input.approvalRequestId,
+    impactReviewFingerprint: input.impactReviewFingerprint,
+    ...hashCommentMetadata(input.comment),
+    secretId: input.secretId,
+    toVersionNumber: input.toVersionNumber,
+    promoteRequested: true,
+    draftVersion: {
+      secretId: input.secretId,
+      secretVersionId: input.newSecretVersionId,
+    },
+    ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
+  });
+}
 
 async function persistRollbackApprovalRequest(input: {
   readonly organizationId: OrganizationId;
@@ -28,23 +67,7 @@ async function persistRollbackApprovalRequest(input: {
   readonly operationId?: OperationId;
 }): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
-    new TenantApprovalRequestStore(db).createRollbackApprovalRequest({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      requesterUserId: input.actorUserId,
-      approvalRequestId: input.approvalRequestId,
-      impactReviewFingerprint: input.impactReviewFingerprint,
-      ...hashCommentMetadata(input.comment),
-      secretId: input.secretId,
-      toVersionNumber: input.toVersionNumber,
-      promoteRequested: true,
-      draftVersion: {
-        secretId: input.secretId,
-        secretVersionId: input.newSecretVersionId,
-      },
-      ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
-    }),
+    persistRollbackApprovalRequestOnDb(db, input),
   );
 }
 
