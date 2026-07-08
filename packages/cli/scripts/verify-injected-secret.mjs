@@ -1,8 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
 
-const FINGERPRINT_KEY = "insecur:local-feature-suite:v1";
-
-const expectedDigest = process.argv[2];
+const expectedValuePath = process.argv[2];
 const variableKey = process.argv[3] ?? "INSECUR_PROOF_SECRET";
 const value = process.env[variableKey];
 
@@ -11,8 +10,8 @@ function fail(reason) {
   process.exit(1);
 }
 
-if (typeof expectedDigest !== "string" || !/^[a-f0-9]{64}$/.test(expectedDigest)) {
-  fail("invalid_expected_digest");
+if (typeof expectedValuePath !== "string" || expectedValuePath.length === 0) {
+  fail("invalid_expected_value_path");
 }
 
 if (typeof value !== "string" || value.length < 32) {
@@ -23,14 +22,21 @@ if (process.env.INSECUR_SESSION_TOKEN !== undefined) {
   fail("session_token_leaked");
 }
 
-const actualDigest = createHmac("sha256", FINGERPRINT_KEY).update(value, "utf8").digest();
-const expectedDigestBytes = Buffer.from(expectedDigest, "hex");
+let expectedValue;
+try {
+  expectedValue = readFileSync(expectedValuePath, "utf8");
+} catch {
+  fail("expected_value_unreadable");
+}
+
+const actualValueBytes = Buffer.from(value, "utf8");
+const expectedValueBytes = Buffer.from(expectedValue, "utf8");
 
 if (
-  actualDigest.length !== expectedDigestBytes.length ||
-  !timingSafeEqual(actualDigest, expectedDigestBytes)
+  actualValueBytes.length !== expectedValueBytes.length ||
+  !timingSafeEqual(actualValueBytes, expectedValueBytes)
 ) {
-  fail("digest_mismatch");
+  fail("value_mismatch");
 }
 
 const proof = createHmac("sha256", value).update("insecur:local-cli-proof:v1").digest("hex");

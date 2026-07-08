@@ -44,6 +44,7 @@ async function main() {
     digestVerifierPath,
     env,
     firstValueVerifierPath,
+    configHome,
     projectDir,
   };
 

@@ -1,14 +1,7 @@
 import { spawn } from "node:child_process";
-import { createHmac } from "node:crypto";
-
-const FINGERPRINT_KEY = "insecur:local-feature-suite:v1";
 
 export function redact(text) {
   return text.replace(/[A-Za-z0-9_-]{32,}/g, "[redacted-token]");
-}
-
-export function digest(value) {
-  return createHmac("sha256", FINGERPRINT_KEY).update(value, "utf8").digest("hex");
 }
 
 export function parseJsonLines(text) {

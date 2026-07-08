@@ -4,7 +4,6 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   commandOutput,
-  digest,
   expect,
   expectJsonStderrOnly,
   expectJsonStdoutOnly,
@@ -14,13 +13,13 @@ import {
 } from "./local-feature-suite-support.mjs";
 
 export async function runImportAndGuardrailChecks(context) {
-  const { check, cli, projectDir, env, cliPath, digestVerifierPath } = context;
-  const importedApiKey = `fake-import-${randomBytes(16).toString("hex")}`;
+  const { check, cli, configHome, projectDir, env, cliPath, digestVerifierPath } = context;
+  const importedDotenvValue = `fake-import-${randomBytes(16).toString("hex")}`;
   const importedOther = `fake-other-${randomBytes(16).toString("hex")}`;
   const dotenvPath = path.join(projectDir, ".env");
   await writeFile(
     dotenvPath,
-    `DOTENV_API_KEY=${importedApiKey}\nDOTENV_OTHER_SECRET=${importedOther}\n`,
+    `DOTENV_API_KEY=${importedDotenvValue}\nDOTENV_OTHER_SECRET=${importedOther}\n`,
     "utf8",
   );
 
@@ -34,7 +33,7 @@ export async function runImportAndGuardrailChecks(context) {
     const output = lastJson(result, "import dry-run");
     expect(output.data.plan.ready === true, "dry-run plan is not ready");
     expect(output.data.plan.writeCount === 2, "dry-run write count changed");
-    expect(!JSON.stringify(output).includes(importedApiKey), "dry-run leaked dotenv value");
+    expect(!JSON.stringify(output).includes(importedDotenvValue), "dry-run leaked dotenv value");
   });
 
   await check("import writes local dotenv secrets and run can inject them", async () => {
@@ -43,7 +42,9 @@ export async function runImportAndGuardrailChecks(context) {
     expectJsonStdoutOnly(result, "import");
     const output = lastJson(result, "import");
     expect(output.data.importedCount === 2, "import count changed");
-    expect(!JSON.stringify(output).includes(importedApiKey), "import leaked dotenv value");
+    expect(!JSON.stringify(output).includes(importedDotenvValue), "import leaked dotenv value");
+    const expectedValuePath = path.join(configHome, "expected-imported-dotenv-value.txt");
+    await writeFile(expectedValuePath, importedDotenvValue, "utf8");
     const injected = await cli([
       "run",
       "--variable-key",
@@ -51,7 +52,7 @@ export async function runImportAndGuardrailChecks(context) {
       "--",
       "node",
       digestVerifierPath,
-      digest(importedApiKey),
+      expectedValuePath,
       "DOTENV_API_KEY",
     ]);
     expect(
@@ -91,7 +92,7 @@ export async function runImportAndGuardrailChecks(context) {
     expect(result.code === 7, `strict scan exited ${result.code}`);
     const output = lastJson(result, "strict scan");
     expect(output.data.summary.likelySecrets > 0, "strict scan did not find .env secret");
-    expect(!JSON.stringify(output).includes(importedApiKey), "scan leaked .env value");
+    expect(!JSON.stringify(output).includes(importedDotenvValue), "scan leaked .env value");
   });
 
   await check("local-files rm deletes plaintext source and scan becomes clean", async () => {
@@ -120,6 +121,6 @@ export async function runImportAndGuardrailChecks(context) {
     const result = await run("node", [cliPath, "guide", "migrate-env"], { env });
     expect(result.code === 0, `guide exited ${result.code}`);
     expect(result.stdout.includes("insecur run"), "guide output missing run guidance");
-    expect(!result.stdout.includes(importedApiKey), "guide somehow included test secret");
+    expect(!result.stdout.includes(importedDotenvValue), "guide somehow included test secret");
   });
 }

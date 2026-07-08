@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   commandOutput,
-  digest,
   expect,
   expectJsonStderrOnly,
   expectJsonStdoutOnly,
@@ -13,7 +13,8 @@ import {
 } from "./local-feature-suite-support.mjs";
 
 export async function runCoreChecks(context) {
-  const { check, cli, projectDir, env, digestVerifierPath, firstValueVerifierPath } = context;
+  const { check, cli, configHome, projectDir, env, digestVerifierPath, firstValueVerifierPath } =
+    context;
 
   await check("init writes local project config and profile", async () => {
     const result = await cli(["init"]);
@@ -92,6 +93,8 @@ export async function runCoreChecks(context) {
   });
 
   await check("run injects exact value and strips parent session token", async () => {
+    const expectedValuePath = path.join(configHome, "expected-exact-secret.txt");
+    await writeFile(expectedValuePath, exactValue, "utf8");
     const result = await cli(
       [
         "run",
@@ -100,7 +103,7 @@ export async function runCoreChecks(context) {
         "--",
         "node",
         digestVerifierPath,
-        digest(exactValue),
+        expectedValuePath,
         "EXACT_SECRET",
       ],
       {
