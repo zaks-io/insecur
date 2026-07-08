@@ -5,6 +5,7 @@ import { resolveBrowserActor } from "../src/auth/resolve-browser-actor.js";
 import { loginRedirectHref } from "../src/console/login-redirect.js";
 import { parseOrgHighAssuranceChallengeDetailBody } from "../src/console/approval-detail-parse.js";
 import { ApprovalRequestUnsupportedPanel } from "../src/components/approval-detail/approval-request-unsupported.js";
+import { ApproveChallengePanel } from "../src/components/approval-detail/approve-challenge-panel.js";
 import { HighAssuranceChallengeEvidencePanel } from "../src/components/approval-detail/high-assurance-challenge-evidence.js";
 import { RejectChallengePanel } from "../src/components/approval-detail/reject-challenge-panel.js";
 import { HIGH_ASSURANCE_CHALLENGE_FIXTURE } from "../src/components/approval-item.test.js";
@@ -25,6 +26,38 @@ vi.mock("../src/auth/workos-port.js", async () => {
   const { fakeSessionEntry } = await import("./support/fake-browser-session.js");
   return {
     createWorkOSSessionPortFromEnv: () => createFakeWorkOSSessionPort([fakeSessionEntry()]),
+  };
+});
+const routeMocks = vi.hoisted(() => {
+  const orgId = "org_01JZ8E2QYQAAAAAAAAAAAAAAAA";
+  const operationId = "op_01JZ8E2QYQAAAAAAAAAAAAAAAA";
+  return {
+    orgId,
+    operationId,
+    detailPath: `/orgs/${orgId}/approvals/${operationId}`,
+  };
+});
+
+vi.mock("@tanstack/react-router", async () => {
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  return {
+    ...actual,
+    getRouteApi: (path: string) => ({
+      useLoaderData: () =>
+        path === "/orgs/$orgId"
+          ? { passkeyEnrolled: true }
+          : {
+              id: routeMocks.operationId,
+              challengeId: "challenge-001",
+              status: "pending" as const,
+              hasClearedEvidence: false,
+              projectId: "prj_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+            },
+      useParams: () => ({ orgId: routeMocks.orgId, id: routeMocks.operationId }),
+      useSearch: () => ({}),
+      useMatch: () => ({ pathname: routeMocks.detailPath }),
+    }),
   };
 });
 vi.mock("@tanstack/react-start/server", () => ({
@@ -116,14 +149,25 @@ describe("approval detail render", () => {
     hasClearedEvidence: false,
   };
 
-  it("renders metadata evidence, reject affordance, and unsupported Approval Request state", () => {
+  it("renders metadata evidence, approve/reject affordances, and unsupported Approval Request state", () => {
     const evidence = renderToStaticMarkup(
       <HighAssuranceChallengeEvidencePanel challenge={detail} />,
     );
     expect(evidence).toContain("Evidence");
     expect(evidence).toContain(detail.intentCode);
     expect(evidence).toContain(detail.requestingMachineIdentityId ?? "");
-    expect(evidence).not.toContain("Approve");
+    expect(evidence).not.toContain("Approve with passkey step-up");
+
+    const approve = renderToStaticMarkup(
+      <ApproveChallengePanel
+        orgId={ORG_ID}
+        challenge={detail}
+        passkeyEnrolled={true}
+        disabled={false}
+      />,
+    );
+    expect(approve).toContain("Approve with passkey step-up");
+    expect(approve).toContain("/auth/step-up");
 
     const reject = renderToStaticMarkup(
       <RejectChallengePanel orgId={ORG_ID} operationId={OPERATION_ID} disabled={false} />,
@@ -154,6 +198,36 @@ describe("approval detail deny over the BFF seam", () => {
     expect(body).toMatchObject({ ok: true, data: { state: "canceled" } });
     expect(calls[0]?.url.pathname).toBe(
       `/v1/orgs/${ORG_ID}/high-assurance-challenges/${OPERATION_ID}/deny`,
+    );
+  });
+});
+
+describe("approval detail clear over the BFF seam", () => {
+  it("posts clear with server-verified step-up evidence", async () => {
+    const { client, calls } = await authedApiClient({
+      [`/v1/orgs/${ORG_ID}/high-assurance-challenges/${OPERATION_ID}/clear`]: () =>
+        Response.json({
+          ok: true,
+          data: {
+            operationId: OPERATION_ID,
+            challengeId: "challenge-001",
+            clearedAt: "2026-07-08T00:00:00.000Z",
+            clearingUserId: FAKE_ADMITTED_USER_ID,
+          },
+        }),
+    });
+
+    const body = await client.clearOrgHighAssuranceChallenge(ORG_ID, OPERATION_ID, {
+      projectId: HIGH_ASSURANCE_CHALLENGE_FIXTURE.projectId,
+      stepUpCode: "code_step_up",
+      stepUpCodeVerifier: "verifier_step_up",
+    });
+    expect(body).toMatchObject({
+      ok: true,
+      data: { operationId: OPERATION_ID, challengeId: "challenge-001" },
+    });
+    expect(calls[0]?.url.pathname).toBe(
+      `/v1/orgs/${ORG_ID}/high-assurance-challenges/${OPERATION_ID}/clear`,
     );
   });
 });

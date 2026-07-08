@@ -1,10 +1,13 @@
 import { AUTH_ERROR_CODES } from "@insecur/domain";
+import { isLocalModeHost } from "../config/local-mode.js";
 import { CliError } from "../output/cli-error.js";
 import { LOGIN_REMEDIATION } from "../output/cli-remediation.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
 import { resolveSessionCredential } from "../session/memory-session.js";
 import { defaultSessionStore, type SessionStore } from "../session/persisted-session.js";
 import { resolveAgentCredentialFromEnv } from "./agent-credential-store.js";
+
+const LOCAL_MODE_CREDENTIAL = "local-mode";
 
 /**
  * Resolves the acting credential for a command targeting `host`:
@@ -15,6 +18,9 @@ export async function requireSessionCredential(
   host: string,
   store?: SessionStore,
 ): Promise<string> {
+  if (isLocalModeHost(host)) {
+    return LOCAL_MODE_CREDENTIAL;
+  }
   const fromMemoryOrEnv = resolveSessionCredential();
   if (fromMemoryOrEnv !== undefined) {
     return fromMemoryOrEnv;

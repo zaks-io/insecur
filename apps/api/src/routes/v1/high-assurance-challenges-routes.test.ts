@@ -446,6 +446,49 @@ describe("high-assurance challenge worker routes", () => {
       expect(runtime.clearHighAssuranceChallenge).not.toHaveBeenCalled();
     });
 
+    it("rejects step-up without an eligible enrolled factor before Runtime clear", async () => {
+      const baseSession = workosFakeSessions()[0];
+      if (baseSession === undefined) {
+        throw new Error("expected fake WorkOS session fixture");
+      }
+      const env = {
+        ...makeEnv(),
+        WORKOS_TEST_FAKE_SESSIONS: [
+          {
+            ...baseSession,
+            authorizationCode: "code_no_mfa",
+            codeVerifier: "verifier_no_mfa",
+            authFactors: [],
+          },
+        ],
+      };
+
+      const response = await app.request(
+        clearPath,
+        {
+          method: "POST",
+          headers: {
+            ...(await authHeaders(env)),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId: projectIdValue,
+            stepUpCode: "code_no_mfa",
+            stepUpCodeVerifier: "verifier_no_mfa",
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(401);
+      expect(runtime.clearHighAssuranceChallenge).not.toHaveBeenCalled();
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: { code: AUTH_ERROR_CODES.mfaEnrollmentRequired },
+      });
+    });
+
     it("maps actor mismatch to high_assurance.actor_mismatch", async () => {
       const env = makeEnv();
       runtime.clearHighAssuranceChallenge.mockResolvedValue(
