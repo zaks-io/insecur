@@ -24,18 +24,17 @@ import {
   resolveAdmittedUserId,
   seedActiveUserAdmission,
   withTenantScope,
-  type TenantScopedSql,
 } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
 import { TEST_INSTANCE_ID } from "../../tenant-store/test/rls/test-ids.js";
-import { TENANT_STORE_SEED_LOCK_KEY } from "../../tenant-store/scripts/lib/test-advisory-locks.mjs";
 import {
   BootstrapError,
   completeBootstrapOperatorClaim,
   getBootstrapStatus,
   runInstanceBootstrap,
 } from "../src/index.js";
+import { loadInstanceBootstrapRow } from "../src/bootstrap-store.js";
 import { cleanupBootstrapFixture } from "./cleanup-bootstrap-fixture.js";
 import { testUserActor } from "./test-user-actor.js";
 
@@ -667,10 +666,9 @@ describeIntegration("bootstrap operator claim", () => {
   });
 });
 
-const ANCHOR_INSTANCE_ID = "inst_BOOTSTRAP_ANCHOR_TEST";
-const ANCHOR_ORG_ID = "org_00000000000000000000000063";
-const ANCHOR_TEAM_ID = "team_00000000000000000000000063";
-const ANCHOR_CLAIM_ID = "boc_00000000000000000000000009";
+const ANCHOR_TS_PROBE_INSTANCE = "inst_BOOTSTRAP_ANCHOR_TS_PROBE";
+const ANCHOR_TS_PROBE_REAL_ORG = "org_0000000000000000000000PROBE1";
+const ANCHOR_TS_PROBE_CANARY_ORG = "org_0000000000000000000000PROBE2";
 
 async function loadOrgCreatedAt(instanceId: string, orgId: string): Promise<string | null> {
   return withTenantScope({ kind: "service" }, async ({ sql }) => {
@@ -683,61 +681,31 @@ async function loadOrgCreatedAt(instanceId: string, orgId: string): Promise<stri
   });
 }
 
-// The recovery canary is a single global org row that other RLS suites read on the same local
-// Postgres, so this fixture must never leave it deleted or re-homed. It re-associates the canary
-// onto ANCHOR_INSTANCE_ID (clearing FK dependents first) so the exclusion is exercised on this
-// suite's instance, and restores it to TEST_INSTANCE_ID afterward. Both moves hold the shared seed
-// advisory lock so they serialize against every package's seedTenantBaseline and each other.
-async function withSeedLock<T>(run: (sql: TenantScopedSql) => Promise<T>): Promise<T> {
-  return withTenantScope({ kind: "service" }, async ({ sql }) => {
-    await sql`SELECT pg_advisory_lock(${TENANT_STORE_SEED_LOCK_KEY})`;
-    try {
-      return await run(sql);
-    } finally {
-      await sql`SELECT pg_advisory_unlock(${TENANT_STORE_SEED_LOCK_KEY})`;
-    }
-  });
-}
-
-async function rehomeCanaryToInstance(
-  instanceId: string,
-  createdAt: string = new Date().toISOString(),
-): Promise<void> {
-  await withSeedLock(async (sql) => {
-    await sql`DELETE FROM audit_events WHERE org_id = ${RECOVERY_CANARY_ORGANIZATION_ID}`;
-    await sql`DELETE FROM operations WHERE org_id = ${RECOVERY_CANARY_ORGANIZATION_ID}`;
-    await sql`
-      INSERT INTO organizations (id, instance_id, display_name, created_at)
-      VALUES (${RECOVERY_CANARY_ORGANIZATION_ID}, ${instanceId}, ${"Recovery Canary"}, ${createdAt})
-      ON CONFLICT (id) DO UPDATE
-      SET instance_id = ${instanceId}, created_at = ${createdAt}
-    `;
-  });
+// Mutate ONLY the shared canary's created_at, scoped by id, and never its FK dependents (operations
+// / audit_events belong to concurrently-scheduled suites — backup-restore writes canary operations
+// under turbo's cross-process concurrency). Changing created_at cannot corrupt another suite's rows,
+// and the fix excludes the canary by id regardless of created_at, so a concurrent anchor read stays
+// correct even inside the mutation window.
+async function setCanaryCreatedAt(createdAt: string): Promise<void> {
+  await withTenantScope(
+    { kind: "organization", organizationId: organizationId.brand(RECOVERY_CANARY_ORGANIZATION_ID) },
+    async ({ sql }) => {
+      await sql`
+        UPDATE organizations SET created_at = ${createdAt} WHERE id = ${RECOVERY_CANARY_ORGANIZATION_ID}
+      `;
+    },
+  );
 }
 
 describeIntegration("bootstrap instance anchor resolution vs recovery canary", () => {
   beforeAll(async () => {
+    // The baseline seeds the recovery-canary sentinel on TEST_INSTANCE_ID alongside the real orgs,
+    // which is exactly the shape loadInstanceBootstrapRow must disambiguate. No fixture instance and
+    // no shared-canary re-home: the tests below either use throwaway ids or touch only created_at.
     await seedTenantBaseline();
-    await cleanupBootstrapFixture(ANCHOR_INSTANCE_ID);
-    await runInstanceBootstrap({
-      instanceId: ANCHOR_INSTANCE_ID,
-      instanceDisplayName: testDisplayName("Anchor bootstrap instance"),
-      organizationDisplayName: testDisplayName("Anchor bootstrap org"),
-      defaultTeamDisplayName: testDisplayName("Default"),
-      resourceIds: {
-        organizationId: organizationId.brand(ANCHOR_ORG_ID),
-        defaultTeamId: teamId.brand(ANCHOR_TEAM_ID),
-        claimId: ANCHOR_CLAIM_ID,
-      },
-      bootstrapSecret: randomBytes(32).toString("base64url"),
-      workosClientId: "client_test_bootstrap",
-    });
   });
 
   afterAll(async () => {
-    // Return the shared canary to the baseline instance so later suites see the real shape.
-    await rehomeCanaryToInstance(TEST_INSTANCE_ID);
-    await cleanupBootstrapFixture(ANCHOR_INSTANCE_ID);
     await closeRuntimeSql();
   });
 
@@ -746,39 +714,44 @@ describeIntegration("bootstrap instance anchor resolution vs recovery canary", (
     // withTenantScope transaction (as insertBootstrapInstanceRecords does) share created_at
     // (now() = transaction_timestamp() is constant per transaction), so a created_at tiebreak
     // between the real org and the canary is arbitrary. Uses fixture-local ids only.
-    const probeInstance = "inst_BOOTSTRAP_ANCHOR_TS_PROBE";
-    const probeReal = "org_0000000000000000000000PROBE1";
-    const probeCanary = "org_0000000000000000000000PROBE2";
-    await cleanupBootstrapFixture(probeInstance);
+    await cleanupBootstrapFixture(ANCHOR_TS_PROBE_INSTANCE);
     try {
       await withTenantScope({ kind: "service" }, async ({ sql }) => {
-        await sql`INSERT INTO instances (id, display_name) VALUES (${probeInstance}, ${"ts probe"})`;
-        await sql`INSERT INTO organizations (id, instance_id, display_name) VALUES (${probeReal}, ${probeInstance}, ${"real"})`;
-        await sql`INSERT INTO organizations (id, instance_id, display_name) VALUES (${probeCanary}, ${probeInstance}, ${"canary"})`;
+        await sql`INSERT INTO instances (id, display_name) VALUES (${ANCHOR_TS_PROBE_INSTANCE}, ${"ts probe"})`;
+        await sql`INSERT INTO organizations (id, instance_id, display_name) VALUES (${ANCHOR_TS_PROBE_REAL_ORG}, ${ANCHOR_TS_PROBE_INSTANCE}, ${"real"})`;
+        await sql`INSERT INTO organizations (id, instance_id, display_name) VALUES (${ANCHOR_TS_PROBE_CANARY_ORG}, ${ANCHOR_TS_PROBE_INSTANCE}, ${"canary"})`;
       });
-      const realCreatedAt = await loadOrgCreatedAt(probeInstance, probeReal);
-      const canaryCreatedAt = await loadOrgCreatedAt(probeInstance, probeCanary);
+      const realCreatedAt = await loadOrgCreatedAt(
+        ANCHOR_TS_PROBE_INSTANCE,
+        ANCHOR_TS_PROBE_REAL_ORG,
+      );
+      const canaryCreatedAt = await loadOrgCreatedAt(
+        ANCHOR_TS_PROBE_INSTANCE,
+        ANCHOR_TS_PROBE_CANARY_ORG,
+      );
       expect(realCreatedAt).not.toBeNull();
       expect(canaryCreatedAt).toBe(realCreatedAt);
     } finally {
-      await cleanupBootstrapFixture(probeInstance);
+      await cleanupBootstrapFixture(ANCHOR_TS_PROBE_INSTANCE);
     }
   });
 
-  it("resolves the bootstrap status org to the real org even when the canary is earliest", async () => {
-    // Put the canary on THIS instance and force it to be strictly the earliest org (the adversarial
-    // ambiguity). loadInstanceBootstrapRow must still resolve the real org, because it excludes the
-    // canary by id, not by created_at ordering. If it regressed, the canary (no default team) would
-    // be picked and completeBootstrapOperatorClaim would throw claimNotAvailable / "default team is
-    // missing" — the INS-419/420/421 owner-claim login loop.
-    await rehomeCanaryToInstance(ANCHOR_INSTANCE_ID, "2000-01-01T00:00:00.000Z");
-
-    const status = await getBootstrapStatus(ANCHOR_INSTANCE_ID);
-    if (status.phase !== "awaiting_operator_claim" && status.phase !== "complete") {
-      throw new Error(`unexpected bootstrap phase ${status.phase}`);
+  it("loadInstanceBootstrapRow resolves the real org even when the canary is the earliest row", async () => {
+    // The bootstrap-claim path resolves its org via loadInstanceBootstrapRow. Force the ambiguity to
+    // favor the canary on the baseline instance (which carries both the real orgs and the canary) by
+    // making the canary strictly the earliest org, touching only its created_at. The query must still
+    // return a real org, because it excludes the canary by id, not by created_at ordering. If it
+    // regressed, the canary (no default team) would be picked and completeBootstrapOperatorClaim
+    // would throw claimNotAvailable / "default team is missing" — the INS-419/420/421 login loop.
+    await setCanaryCreatedAt("2000-01-01T00:00:00.000Z");
+    try {
+      const row = await loadInstanceBootstrapRow(TEST_INSTANCE_ID);
+      expect(row?.organization_id).not.toBeNull();
+      expect(row?.organization_id).not.toBe(RECOVERY_CANARY_ORGANIZATION_ID);
+    } finally {
+      // Restore so concurrent/subsequent suites on the shared baseline see the real shape.
+      await setCanaryCreatedAt(new Date().toISOString());
     }
-    expect(status.organizationId).toBe(ANCHOR_ORG_ID);
-    expect(status.organizationId).not.toBe(RECOVERY_CANARY_ORGANIZATION_ID);
   });
 });
 
