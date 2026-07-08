@@ -1,7 +1,16 @@
-import type { AdmittedUserResolver, AuthFailure } from "@insecur/auth";
+import type {
+  AdmittedUserCliSessionRevoked,
+  AdmittedUserResolver,
+  AuthFailure,
+} from "@insecur/auth";
+import { authFailureForReason } from "@insecur/auth";
 import type { RequestId, UserId } from "@insecur/domain";
 import type { WebEnv } from "../env.js";
-import type { RuntimeAdmissionRpc, RuntimeRpcResult } from "./admission-types.js";
+import type {
+  ResolveAdmissionRpcInput,
+  RuntimeAdmissionRpc,
+  RuntimeRpcResult,
+} from "./admission-types.js";
 
 function unwrapRuntimeResult<T>(result: RuntimeRpcResult<T>): T {
   if (!result.ok) {
@@ -14,11 +23,16 @@ function resolveInstanceId(env: WebEnv): string {
   return env.INSTANCE_ID ?? "inst_LOCAL_DEV";
 }
 
+type ResolveAdmissionViaBindingResult = UserId | null | AdmittedUserCliSessionRevoked;
+
 async function resolveAdmissionViaBinding(
   runtime: RuntimeAdmissionRpc,
-  input: { instanceId: string; workosUserId: string },
-): Promise<UserId | null> {
+  input: ResolveAdmissionRpcInput,
+): Promise<ResolveAdmissionViaBindingResult> {
   const payload = unwrapRuntimeResult(await runtime.resolveAdmission(input));
+  if (payload.cliSessionRevoked) {
+    return "cli_session_revoked";
+  }
   return payload.userId;
 }
 
@@ -55,6 +69,14 @@ export async function recordAdmissionDeniedAuditForAuthFailure(
 
 export function createRuntimeAdmittedUserResolver(env: WebEnv): AdmittedUserResolver {
   const instanceId = resolveInstanceId(env);
-  return (workosUserId: string) =>
-    resolveAdmissionViaBinding(env.RUNTIME, { instanceId, workosUserId });
+  return (workosUserId, context) =>
+    resolveAdmissionViaBinding(env.RUNTIME, {
+      instanceId,
+      workosUserId,
+      ...(context === undefined ? {} : { sessionId: context.sessionId }),
+    });
+}
+
+export function authFailureForRevokedCliSession(): AuthFailure {
+  return authFailureForReason("invalid");
 }

@@ -74,8 +74,11 @@ export async function exchangeCliPkceSession(
     return { ok: false, failure: authenticated.failure };
   }
 
-  const userId = await input.resolveAdmittedUser(authenticated.session.context.user.id);
-  if (userId === null) {
+  // No session id is passed, so the resolver never checks revocation and "cli_session_revoked" is
+  // unreachable here; it is folded into the not-admitted branch defensively to satisfy the union
+  // type without an unreachable-code branch (INS-472).
+  const admitted = await input.resolveAdmittedUser(authenticated.session.context.user.id);
+  if (admitted === null || admitted === "cli_session_revoked") {
     return {
       ok: false,
       failure: authFailureForAdmissionDenial(authenticated.session.context.user.id),
@@ -84,7 +87,7 @@ export async function exchangeCliPkceSession(
 
   return mintCliExchangeResult(input, {
     type: "user",
-    userId,
+    userId: admitted,
     workosUserId: authenticated.session.context.user.id,
     sessionId: authenticated.session.context.sessionId,
   });

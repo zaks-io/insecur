@@ -10,11 +10,16 @@ export type RuntimeRpcResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: RuntimeRpcError };
 
+export interface ResolveAdmissionRpcInput {
+  readonly instanceId: string;
+  readonly workosUserId: string;
+  readonly sessionId?: string;
+}
+
 export interface RuntimeAdmissionRpc {
-  resolveAdmission(input: {
-    instanceId: string;
-    workosUserId: string;
-  }): Promise<RuntimeRpcResult<{ userId: UserId | null }>>;
+  resolveAdmission(
+    input: ResolveAdmissionRpcInput,
+  ): Promise<RuntimeRpcResult<{ userId: UserId | null; cliSessionRevoked: boolean }>>;
   recordAdmissionDenied(input: {
     instanceId: string;
     workosUserId: string;

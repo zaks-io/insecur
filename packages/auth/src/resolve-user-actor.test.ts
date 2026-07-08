@@ -1,5 +1,6 @@
 import { AUTH_ERROR_CODES, userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
+import type { AdmittedUserResolveContext, AdmittedUserResolver } from "./index.js";
 import {
   INSECUR_API_TOKEN_AUDIENCE,
   mintEphemeralSessionCredential,
@@ -153,6 +154,64 @@ describe("resolveUserActor", () => {
     if (!result.ok) {
       expect(result.failure.code).toBe(AUTH_ERROR_CODES.invalid);
     }
+  });
+
+  it("returns auth.invalid when the admitted resolver reports a revoked CLI session", async () => {
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_cli",
+      },
+      signingSecret: config.sessionSigningSecret,
+    });
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: `Bearer ${minted.credential}`,
+        cookieHeader: null,
+        csrfHeader: null,
+      }),
+      config,
+      resolveAdmittedUser: () => Promise.resolve("cli_session_revoked"),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.code).toBe(AUTH_ERROR_CODES.invalid);
+    }
+  });
+
+  it("skips the revocation gate and omits the session context when skipCliSessionRevocationCheck is set", async () => {
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_cli",
+      },
+      signingSecret: config.sessionSigningSecret,
+    });
+    const contexts: (AdmittedUserResolveContext | undefined)[] = [];
+    const resolveWithRevokedGate: AdmittedUserResolver = (externalId, context) => {
+      contexts.push(context);
+      // A revocation-aware resolver only reports "cli_session_revoked" when given a session id.
+      if (context !== undefined) {
+        return Promise.resolve("cli_session_revoked" as const);
+      }
+      return Promise.resolve(externalId === workosUserId ? admittedUserId : null);
+    };
+    const result = await resolveUserActor({
+      credentials: parseRequestCredentials({
+        authorizationHeader: `Bearer ${minted.credential}`,
+        cookieHeader: null,
+        csrfHeader: null,
+      }),
+      config,
+      resolveAdmittedUser: resolveWithRevokedGate,
+      skipCliSessionRevocationCheck: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(contexts).toEqual([undefined]);
   });
 
   it("returns auth.expired for expired bearer credentials", async () => {

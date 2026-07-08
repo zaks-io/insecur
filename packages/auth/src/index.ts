@@ -1,4 +1,8 @@
-export type { AdmittedUserResolver } from "./admitted-user.js";
+export type {
+  AdmittedUserCliSessionRevoked,
+  AdmittedUserResolveContext,
+  AdmittedUserResolver,
+} from "./admitted-user.js";
 export {
   authFailureForAdmissionDenial,
   authFailureForReason,

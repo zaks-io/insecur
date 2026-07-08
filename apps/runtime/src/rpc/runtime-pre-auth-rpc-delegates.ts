@@ -9,7 +9,7 @@ import type {
   RuntimeRpcResult,
 } from "@insecur/worker-kit";
 import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
-import { resolveAdmittedUserId } from "@insecur/tenant-store";
+import { resolveAdmissionForEdge } from "@insecur/tenant-store";
 
 import { recordAbuseDeniedOperation } from "../operations/record-abuse-denied-operation.js";
 import { recordAdmissionDeniedOperation } from "../operations/record-admission-denied-operation.js";
@@ -20,9 +20,17 @@ export function resolveAdmissionRpc(
   pre: PreAuthRpcRunner,
   input: ResolveAdmissionRpcInput,
 ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
-  return pre(async () => ({
-    userId: await resolveAdmittedUserId(input.instanceId, input.workosUserId),
-  }));
+  return pre(async () => {
+    const resolved = await resolveAdmissionForEdge(
+      input.instanceId,
+      input.workosUserId,
+      input.sessionId,
+    );
+    return {
+      userId: resolved.userId,
+      cliSessionRevoked: resolved.cliSessionRevoked,
+    };
+  });
 }
 
 export function recordAdmissionDeniedRpc(

@@ -8,6 +8,12 @@ export interface ResolveRequestUserActorInput {
   readonly cookieHeader: string | null;
   readonly csrfHeader: string | null;
   readonly acceptAnyScopedAccessAudience?: boolean;
+  /**
+   * Set only by the idempotent `/v1/session/revoke` route so an already-revoked session still
+   * resolves to its userId (a repeat logout is a safe no-op success, not auth.invalid). Every
+   * other caller leaves it unset and stays fail-closed on revoked sessions (INS-472).
+   */
+  readonly skipCliSessionRevocationCheck?: boolean;
 }
 
 /** Parse request credentials and resolve a user actor when present and valid. */
@@ -24,6 +30,9 @@ export async function resolveRequestUserActor(input: ResolveRequestUserActorInpu
     resolveAdmittedUser,
     ...(input.acceptAnyScopedAccessAudience === true
       ? { acceptAnyScopedAccessAudience: true }
+      : {}),
+    ...(input.skipCliSessionRevocationCheck === true
+      ? { skipCliSessionRevocationCheck: true }
       : {}),
   });
 }

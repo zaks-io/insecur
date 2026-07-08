@@ -9,9 +9,11 @@ import {
 import {
   INSECUR_SESSION_CREDENTIAL_HEADER,
   mintDerivedAgentSessionCredential,
+  readSessionCredentialMetadata,
 } from "@insecur/auth";
 import {
   createRequestId,
+  createAuthContext,
   domainErrorEnvelope,
   handleRoute,
   requireUserActor,
@@ -221,18 +223,32 @@ sessionRoutes.get("/memberships", requireUserActor, async (context) =>
 // callers get a metadata-only success no-op so `insecur logout` is idempotent without a session.
 sessionRoutes.post("/revoke", async (context) =>
   handleRoute(context, async (reqId) => {
+    const authorizationHeader = context.req.header("Authorization");
+    // Resolve the actor without the CLI session revocation gate so a repeat logout on an
+    // already-revoked session stays idempotent (returns revoked: true), not auth.invalid (INS-472).
     const resolved = await resolveRequestUserActor({
       env: context.env,
-      authorizationHeader: context.req.header("Authorization"),
+      authorizationHeader,
       cookieHeader: null,
       csrfHeader: null,
+      skipCliSessionRevocationCheck: true,
     });
     if (!resolved.ok) {
       return { revoked: false };
     }
+    const { config } = createAuthContext(context.env);
+    const bearerCredential = authorizationHeader?.startsWith("Bearer ")
+      ? authorizationHeader.slice("Bearer ".length)
+      : undefined;
+    const sessionExpiresAt =
+      bearerCredential === undefined
+        ? new Date(Date.now() + 86_400_000).toISOString()
+        : (await readSessionCredentialMetadata(bearerCredential, config.sessionSigningSecret))
+            .expiresAt;
     const revoked = await runtimeClientFor(context.env, resolved.actor).revokeCliSession({
       instanceId: resolveInstanceId(context.env),
       requestId: reqId,
+      sessionExpiresAt,
     });
     return { revoked: revoked.revoked };
   }),

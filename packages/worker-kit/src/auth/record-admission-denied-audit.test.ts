@@ -49,7 +49,6 @@ describe("recordAdmissionDeniedAuditForAuthFailure", () => {
   it("does not throw when the runtime forward fails", async () => {
     const runtime: RuntimeAdmissionRpc = {
       resolveAdmission: () => Promise.reject(new Error("binding down")),
-      isCliSessionRevoked: () => Promise.resolve({ ok: true, value: { revoked: false } }),
       recordAdmissionDenied: () => Promise.reject(new Error("binding down")),
     };
     await expect(

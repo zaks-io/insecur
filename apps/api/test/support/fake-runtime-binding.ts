@@ -24,6 +24,7 @@ export function createFakeRuntimeBinding(runtimeEnv: FakeRuntimeEnv): RuntimeRpc
 }
 
 function bindRuntimeRpcMethods(service: RuntimeService): RuntimeRpc {
+  assertRuntimeServiceImplementsRuntimeRpc(service);
   return new Proxy(service, {
     get(target, property, receiver) {
       const value: unknown = Reflect.get(target, property, receiver);
@@ -32,5 +33,13 @@ function bindRuntimeRpcMethods(service: RuntimeService): RuntimeRpc {
       }
       return value;
     },
-  }) as RuntimeRpc;
+  });
+}
+
+/** Compile-time drift gate: `RuntimeService` must satisfy the public `RuntimeRpc` contract. */
+function assertRuntimeServiceImplementsRuntimeRpc(
+  service: RuntimeService,
+): asserts service is RuntimeService & RuntimeRpc {
+  const contractCheck: RuntimeRpc = service;
+  void contractCheck;
 }

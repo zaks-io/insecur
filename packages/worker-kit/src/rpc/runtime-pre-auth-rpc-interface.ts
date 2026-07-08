@@ -1,8 +1,6 @@
 import type { BootstrapStatus } from "@insecur/instance-bootstrap";
 import type {
   GetBootstrapStatusRpcInput,
-  IsCliSessionRevokedRpcInput,
-  IsCliSessionRevokedRpcPayload,
   RecordAbuseDeniedRpcInput,
   RecordAbuseDeniedRpcPayload,
   RecordAdmissionDeniedRpcInput,
@@ -29,7 +27,4 @@ export interface RuntimePreAuthRpc {
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>>;
   getBootstrapStatus(input: GetBootstrapStatusRpcInput): Promise<RuntimeRpcResult<BootstrapStatus>>;
-  isCliSessionRevoked(
-    input: IsCliSessionRevokedRpcInput,
-  ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>>;
 }

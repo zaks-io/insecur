@@ -6,10 +6,7 @@ import type { RuntimeRpc } from "../rpc/runtime-rpc-contract.js";
  * Runtime deploy. Narrowed to the two pre-auth identity/metadata methods so the auth contract never
  * depends on keyring-bound RPC methods.
  */
-export type RuntimeAdmissionRpc = Pick<
-  RuntimeRpc,
-  "resolveAdmission" | "recordAdmissionDenied" | "isCliSessionRevoked"
->;
+export type RuntimeAdmissionRpc = Pick<RuntimeRpc, "resolveAdmission" | "recordAdmissionDenied">;
 
 /**
  * The auth-relevant binding contract every public-edge deploy (API, Web BFF) must

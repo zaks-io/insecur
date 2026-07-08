@@ -112,7 +112,12 @@ describeIntegration("session revoke integration", () => {
     await expect(first.json()).resolves.toMatchObject({ ok: true, data: { revoked: true } });
     await expect(second.json()).resolves.toMatchObject({ ok: true, data: { revoked: true } });
     await expect(
-      revokeCliSession(TEST_INSTANCE_ID, sessionId, userId.brand(TEST_USER_ID)),
+      revokeCliSession(
+        TEST_INSTANCE_ID,
+        sessionId,
+        userId.brand(TEST_USER_ID),
+        new Date(Date.now() + 86_400_000).toISOString(),
+      ),
     ).resolves.toEqual({ revoked: true });
   });
 });

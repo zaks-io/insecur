@@ -1,10 +1,9 @@
-import { authFailureForReason, type UserActor } from "@insecur/auth";
+import { type UserActor } from "@insecur/auth";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { createRequestId } from "../http/handle-route.js";
 import { AuthFailureError } from "./auth-failure-error.js";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
-import { isCliSessionRevokedViaBinding, resolveInstanceId } from "./admitted-user-resolver.js";
 import { recordAdmissionDeniedAuditForAuthFailure } from "./record-admission-denied-audit.js";
 import { resolveRequestUserActor } from "./resolve-request-user-actor.js";
 
@@ -34,15 +33,6 @@ async function resolveAndSetUserActor(
     const reqId = createRequestId();
     await recordAdmissionDeniedAuditForAuthFailure(context.env, resolved.failure, reqId);
     throw new AuthFailureError(resolved.failure, reqId);
-  }
-  const instanceId = resolveInstanceId(context.env);
-  const revoked = await isCliSessionRevokedViaBinding(context.env.RUNTIME, {
-    instanceId,
-    sessionId: resolved.actor.sessionId,
-  });
-  if (revoked) {
-    const reqId = createRequestId();
-    throw new AuthFailureError(authFailureForReason("invalid"), reqId);
   }
   context.set("userActor", resolved.actor);
 }

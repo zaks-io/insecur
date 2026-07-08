@@ -1,4 +1,5 @@
 import { userId, type RequestId, type UserId } from "@insecur/domain";
+import type { ResolveAdmissionRpcInput } from "../../rpc/runtime-rpc-contract.js";
 import type { RuntimeAdmissionRpc } from "../auth-worker-env.js";
 
 interface DeniedCall {
@@ -9,6 +10,7 @@ interface DeniedCall {
 
 export interface FakeAdmissionRuntime extends RuntimeAdmissionRpc {
   readonly deniedCalls: DeniedCall[];
+  readonly resolveAdmissionCalls: ResolveAdmissionRpcInput[];
 }
 
 /**
@@ -23,18 +25,22 @@ export function createFakeAdmissionRuntime(
   const admitted = new Map(Object.entries(admissions));
   const revokedSessionIds = options.revokedSessionIds ?? new Set<string>();
   const deniedCalls: FakeAdmissionRuntime["deniedCalls"] = [];
+  const resolveAdmissionCalls: FakeAdmissionRuntime["resolveAdmissionCalls"] = [];
   return {
     deniedCalls,
-    resolveAdmission: (input) =>
-      Promise.resolve({
+    resolveAdmissionCalls,
+    resolveAdmission: (input) => {
+      resolveAdmissionCalls.push(input);
+      const cliSessionRevoked =
+        input.sessionId !== undefined && revokedSessionIds.has(input.sessionId);
+      return Promise.resolve({
         ok: true,
-        value: { userId: admitted.get(input.workosUserId) ?? null },
-      }),
-    isCliSessionRevoked: (input) =>
-      Promise.resolve({
-        ok: true,
-        value: { revoked: revokedSessionIds.has(input.sessionId) },
-      }),
+        value: {
+          userId: admitted.get(input.workosUserId) ?? null,
+          cliSessionRevoked,
+        },
+      });
+    },
     recordAdmissionDenied: (input) => {
       deniedCalls.push({
         instanceId: input.instanceId,

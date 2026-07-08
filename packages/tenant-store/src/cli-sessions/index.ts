@@ -1,1 +1,5 @@
-export { isCliSessionRevoked, revokeCliSession } from "./tenant-revoked-cli-session-store.js";
+export {
+  isCliSessionRevoked,
+  pruneExpiredRevokedCliSessions,
+  revokeCliSession,
+} from "./tenant-revoked-cli-session-store.js";
