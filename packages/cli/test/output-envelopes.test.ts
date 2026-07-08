@@ -32,7 +32,27 @@ describe("CLI output envelopes", () => {
     expect(exitCodeForErrorCode(AUTH_ERROR_CODES.highAssuranceRequired)).toBe(EXIT_STEP_UP);
   });
 
-  it("prints metadata-only JSON errors", () => {
+  it("prints remediation steps in prose mode", () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    renderEnvelope(
+      errorEnvelope(
+        {
+          code: AUTH_ERROR_CODES.required,
+          message: "Authentication is required.",
+          retryable: false,
+        },
+        { remediation: { login: ["insecur", "login"] } },
+      ),
+      { json: false, quiet: false },
+      () => "unused",
+    );
+    const output = stderr.mock.calls.map((call) => call[0]).join("");
+    expect(output).toContain("Authentication is required.");
+    expect(output).toContain("Run: insecur login");
+    stderr.mockRestore();
+  });
+
+  it("prints metadata-only JSON errors with remediation", () => {
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     renderEnvelope(
       errorEnvelope({

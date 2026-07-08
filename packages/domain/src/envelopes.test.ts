@@ -113,9 +113,35 @@ describe("metadata envelopes", () => {
           message: "empty",
           retryable: false,
         },
-        { wrappedValue: "nope" } as never,
+        { meta: { wrappedValue: "nope" } as never },
       );
     }).toThrow(/forbidden key: wrappedValue/);
+  });
+
+  it("accepts remediation argv arrays and approval URLs", () => {
+    const failure = errorEnvelope(
+      {
+        code: "auth.high_assurance_required",
+        message: "Human approval required.",
+        retryable: false,
+      },
+      {
+        meta: { operationId: "op_01JZ8E2QYQ6M7F4K9A2B3C4D5E" as never },
+        remediation: {
+          approvalUrl: "https://app.insecur.cloud/orgs/org_test/approvals/op_test",
+          poll: ["insecur", "operations", "wait", "op_test", "--json"],
+          resume: ["insecur", "secrets", "promote", "--operation", "op_test"],
+        },
+      },
+    );
+    expect(failure.remediation?.poll).toEqual([
+      "insecur",
+      "operations",
+      "wait",
+      "op_test",
+      "--json",
+    ]);
+    assertMetadataOnlyEnvelopeShape(failure as unknown as Record<string, unknown>);
   });
 
   it("rejects package seam byte field names (valueUtf8, plaintextUtf8)", () => {

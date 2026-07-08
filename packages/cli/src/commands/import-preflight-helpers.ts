@@ -12,7 +12,7 @@ import {
 } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { ListProjectSecretsData } from "../api/navigation-api-types.js";
-import { CliError } from "../output/cli-error.js";
+import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
 import { parseDotenvImportFile } from "../input/dotenv-import-parser.js";
 import { validateSecretValueUtf8 } from "../input/validate-secret-value.js";
 import type { ImportPreflightIssue, ImportPreflightWritePlan } from "./import-preflight-types.js";
@@ -201,7 +201,7 @@ export async function loadExistingSecretKeys(input: {
     projectId: input.projectId,
   });
   if (!secretsResult.ok) {
-    throw new CliError(secretsResult.envelope.error);
+    throw cliErrorFromEnvelope(secretsResult.envelope);
   }
 
   const matrix: ListProjectSecretsData = secretsResult.envelope.data;

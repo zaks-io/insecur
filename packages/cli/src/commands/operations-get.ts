@@ -3,7 +3,7 @@ import type { ApiClient, OperationPollData } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
-import { CliError } from "../output/cli-error.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { parseOperationIdOrThrow, requireOrganizationScope } from "./operations-scope.js";
@@ -26,7 +26,7 @@ export async function fetchOperationState(
     operationId: operationIdValue,
   });
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    throw cliErrorFromEnvelope(result.envelope);
   }
   return result.envelope.data;
 }

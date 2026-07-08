@@ -7,7 +7,7 @@ import { readDisplayNameFromStdin } from "../input/read-display-name-stdin.js";
 import { requireDisplayNameStdinFlag } from "../input/require-display-name-stdin.js";
 import { requireProjectScope } from "./navigation-scope.js";
 import { buildCreateEnvironmentOutput } from "./envs-create-result.js";
-import { CliError } from "../output/cli-error.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 
 export interface EnvsCreateCommandOptions {
@@ -43,7 +43,7 @@ export async function runEnvsCreateCommand(
     ...(copyShapesFromEnvironmentId === undefined ? {} : { copyShapesFromEnvironmentId }),
   });
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    throw cliErrorFromEnvelope(result.envelope);
   }
 
   const data = result.envelope.data;
