@@ -8,10 +8,19 @@ export async function revokeCliSession(
 ): Promise<{ readonly revoked: boolean }> {
   const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
     return await sql<{ session_id: string }[]>`
-      INSERT INTO revoked_cli_sessions (instance_id, session_id, user_id)
-      VALUES (${instanceId}, ${sessionId}, ${userId})
-      ON CONFLICT (instance_id, session_id) DO NOTHING
-      RETURNING session_id
+      WITH inserted AS (
+        INSERT INTO revoked_cli_sessions (instance_id, session_id, user_id)
+        VALUES (${instanceId}, ${sessionId}, ${userId})
+        ON CONFLICT (instance_id, session_id) DO NOTHING
+        RETURNING session_id
+      )
+      SELECT session_id FROM inserted
+      UNION ALL
+      SELECT session_id
+      FROM revoked_cli_sessions
+      WHERE instance_id = ${instanceId}
+        AND session_id = ${sessionId}
+      LIMIT 1
     `;
   });
   return { revoked: rows.length > 0 };

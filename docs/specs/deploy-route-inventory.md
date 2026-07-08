@@ -31,6 +31,7 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/organizations`             |
 | \*     | `/v1/orgs/:organizationId/projects`                  |
 | \*     | `/v1/orgs/:organizationId/audit-events`              |
+| \*     | `/v1/orgs/:organizationId/audit-export`              |
 | \*     | `/v1/orgs/:organizationId/webhook-subscriptions`     |
 | \*     | `/v1/orgs/:organizationId/operations`                |
 | \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
@@ -61,6 +62,11 @@ events with metadata-only envelopes. Query filters: `actorUserId`, `actorMachine
 `projectId`, `environmentId`, `eventCode`, `createdAtFrom`, `createdAtTo`, plus cursor pagination
 via `cursor` and bounded `pageSize`. Authorize-then-read requires `metadata:detail_read` inside the
 Runtime deploy.
+
+Under `/v1/orgs/:organizationId/audit-export` (INS-440): `GET /` exports tenant-qualified audit
+events as JSONL plus a signed manifest for the requested `from`/`to` ISO8601 time range.
+Authorize-then-export requires `metadata:detail_read` inside the Runtime deploy; signing keys remain
+Runtime-custodied (ADR-0045/0028).
 
 Under `/v1/orgs/:organizationId/webhook-subscriptions` (INS-453): `GET /event-types` lists
 selectable webhook event codes; `GET /` lists organization webhook subscriptions; `POST /` creates a

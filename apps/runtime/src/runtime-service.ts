@@ -15,6 +15,7 @@ import type {
   CreateWebhookSubscriptionRpcInput,
   DeleteWebhookSubscriptionRpcInput,
   DenyHighAssuranceChallengeRpcInput,
+  ExportTenantAuditRpcInput,
   GetHighAssuranceChallengeRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
@@ -52,6 +53,7 @@ import {
   cancelOperationRpc,
   createEnvironmentRpc,
   createProjectRpc,
+  exportTenantAuditRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
   listAuditEventsRpc,
@@ -186,6 +188,10 @@ class RuntimeServiceBase extends RuntimeServiceCore {
 
   listAuditEvents(input: ListAuditEventsRpcInput) {
     return listAuditEventsRpc(this.bindPostAuth(), input);
+  }
+
+  exportTenantAudit(input: ExportTenantAuditRpcInput) {
+    return exportTenantAuditRpc(this.bindPostAuth(), this.env, input);
   }
 
   listPendingHighAssuranceChallenges(input: ListPendingHighAssuranceChallengesRpcInput) {

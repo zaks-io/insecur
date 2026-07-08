@@ -249,10 +249,31 @@ function materializeApiConfig(scope, context) {
   }
 }
 
+const RUNTIME_SECRETS_STORE_ENV = {
+  INSTANCE_ROOT_KEY_V1: "INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME",
+  AUDIT_EXPORT_HMAC_KEY_V1: "INSECUR_RUNTIME_AUDIT_EXPORT_HMAC_SECRET_NAME",
+  AUDIT_EXPORT_SIGNING_KEY_V1: "INSECUR_RUNTIME_AUDIT_EXPORT_SIGNING_SECRET_NAME",
+};
+
 function materializeRuntimeConfig(scope, context) {
-  const rootKey = only(scope.secrets_store_secrets, "secrets_store_secrets", context);
-  rootKey.store_id = requireDeployEnv("INSECUR_RUNTIME_ROOT_KEY_STORE_ID", context);
-  rootKey.secret_name = requireDeployEnv("INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME", context);
+  const secrets = scope.secrets_store_secrets;
+  if (!Array.isArray(secrets) || secrets.length === 0) {
+    throw new Error(
+      `Expected ${scopeLabel(context)} secrets_store_secrets to be a non-empty array.`,
+    );
+  }
+
+  const storeId = requireDeployEnv("INSECUR_RUNTIME_ROOT_KEY_STORE_ID", context);
+  for (const secret of secrets) {
+    const secretNameEnv = RUNTIME_SECRETS_STORE_ENV[secret?.binding];
+    if (secretNameEnv === undefined) {
+      throw new Error(
+        `No deploy env mapping for ${scopeLabel(context)} secrets_store_secrets binding "${String(secret?.binding)}".`,
+      );
+    }
+    secret.store_id = storeId;
+    secret.secret_name = requireDeployEnv(secretNameEnv, context);
+  }
 
   const hyperdrive = only(scope.hyperdrive, "hyperdrive", context);
   hyperdrive.id = requireDeployEnv("INSECUR_RUNTIME_HYPERDRIVE_ID", context);

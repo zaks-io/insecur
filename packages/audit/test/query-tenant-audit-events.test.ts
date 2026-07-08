@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   AUDIT_EVENTS_DEFAULT_PAGE_SIZE,
   AUDIT_EVENTS_MAX_PAGE_SIZE,
+  normalizeAuditTimestampFilter,
   queryTenantAuditEventsInTenantScope,
 } from "../src/query-tenant-audit-events.js";
 
@@ -30,6 +31,31 @@ describe("queryTenantAuditEvents validation", () => {
         pageSize: 0,
       }),
     ).rejects.toMatchObject({ code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId });
+  });
+
+  it("normalizes date-only and UTC timestamp filters", () => {
+    expect(normalizeAuditTimestampFilter("2026-07-01")).toBe("2026-07-01T00:00:00.000Z");
+    expect(normalizeAuditTimestampFilter("2026-07-01T12:30:00Z")).toBe("2026-07-01T12:30:00.000Z");
+    expect(normalizeAuditTimestampFilter("2026-07-01T12:30:00.25Z")).toBe(
+      "2026-07-01T12:30:00.250Z",
+    );
+  });
+
+  it("rejects malformed timestamp filters before querying", async () => {
+    let queried = false;
+    const sql = (async (): Promise<never[]> => {
+      queried = true;
+      return [];
+    }) as never;
+
+    await expect(
+      queryTenantAuditEventsInTenantScope(sql, {
+        organizationId: "org_00000000000000000000000001" as never,
+        filters: { createdAtFrom: "not-a-date" },
+      }),
+    ).rejects.toMatchObject({ code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId });
+
+    expect(queried).toBe(false);
   });
 
   it("defaults page size when omitted", async () => {

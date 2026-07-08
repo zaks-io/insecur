@@ -27,6 +27,17 @@ const defaultResolveSessionWhoami = ok({
   attribution: { tier: "none" as const },
 });
 
+function createWebhookRuntimeRpcMocks() {
+  return {
+    createWebhookSubscription: vi.fn(),
+    listWebhookSubscriptions: vi.fn(),
+    updateWebhookSubscription: vi.fn(),
+    deleteWebhookSubscription: vi.fn(),
+    rotateWebhookSigningSecret: vi.fn(),
+    listWebhookEventCodes: vi.fn(),
+  };
+}
+
 export function createRuntimeRpcStub(): RuntimeRpcStub {
   return {
     consumeGrant: vi.fn(),
@@ -67,15 +78,11 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     listOrganizationInvitations: vi.fn(),
     listAuditEvents: vi.fn(),
     queryFirstValueUsage: vi.fn(),
+    exportTenantAudit: vi.fn(),
     listPendingHighAssuranceChallenges: vi.fn(),
     getHighAssuranceChallenge: vi.fn(),
     clearHighAssuranceChallenge: vi.fn(),
     denyHighAssuranceChallenge: vi.fn(),
-    createWebhookSubscription: vi.fn(),
-    listWebhookSubscriptions: vi.fn(),
-    updateWebhookSubscription: vi.fn(),
-    deleteWebhookSubscription: vi.fn(),
-    rotateWebhookSigningSecret: vi.fn(),
-    listWebhookEventCodes: vi.fn(),
+    ...createWebhookRuntimeRpcMocks(),
   };
 }
