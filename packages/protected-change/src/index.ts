@@ -57,3 +57,5 @@ export {
 } from "./create-rollback-approval-request.js";
 export { validatePromotionDraftTargets } from "./validate-promotion-draft-targets.js";
 export { hashCommentMetadata } from "./hash-comment-metadata.js";
+export { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
+export { computeImpactReviewFingerprint } from "./compute-impact-review-fingerprint.js";
