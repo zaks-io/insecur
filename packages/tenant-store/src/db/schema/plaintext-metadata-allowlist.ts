@@ -8,6 +8,7 @@ import { PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP } from "./plaintext-met
 import { PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION } from "./plaintext-metadata-allowlist-runtime-injection.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_SECRETS } from "./plaintext-metadata-allowlist-secrets.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES } from "./plaintext-metadata-allowlist-protected-changes.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_APPROVALS } from "./plaintext-metadata-allowlist-approvals.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS } from "./plaintext-metadata-allowlist-webhooks.js";
 
 export const PLAINTEXT_METADATA_CATEGORIES = [
@@ -41,6 +42,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
   ...PLAINTEXT_METADATA_ALLOWLIST_APP_CONNECTIONS,
   ...PLAINTEXT_METADATA_ALLOWLIST_AGENT_SESSIONS,
   ...PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES,
+  ...PLAINTEXT_METADATA_ALLOWLIST_APPROVALS,
   audit_events: {
     actor_machine_identity_id: { category: "actor-id" },
     actor_type: { category: "type-code" },

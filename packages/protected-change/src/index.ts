@@ -50,3 +50,10 @@ export {
   completeProtectedChangeExecution,
   failProtectedChangeExecution,
 } from "./transition-protected-change-api.js";
+export { createPromotionApprovalRequest } from "./create-promotion-approval-request.js";
+export {
+  createRollbackApprovalRequest,
+  type CreateRollbackApprovalRequestInput,
+} from "./create-rollback-approval-request.js";
+export { validatePromotionDraftTargets } from "./validate-promotion-draft-targets.js";
+export { hashCommentMetadata } from "./hash-comment-metadata.js";
