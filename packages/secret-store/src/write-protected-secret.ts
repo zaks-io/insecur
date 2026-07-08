@@ -7,12 +7,15 @@ import { runBlindSecretWrite, type BlindSecretWriteInput } from "./blind-secret-
 
 export type WriteProtectedSecretInput = BlindSecretWriteInput & { keyring: Keyring };
 
+import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
+
 export interface WriteProtectedSecretResult {
   secretId: SecretId;
   secretVersionId: SecretVersionId;
   variableKey: VariableKey;
   lifecycleState: typeof SECRET_VERSION_LIFECYCLE_STATES.draft;
   createdSecretShape: boolean;
+  descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
   auditEventId?: string;
 }
 
@@ -34,6 +37,7 @@ export async function writeProtectedSecret(
     variableKey: result.variableKey,
     lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.draft,
     createdSecretShape: result.createdSecretShape,
+    descriptiveVerdicts: result.descriptiveVerdicts,
     ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
   };
 }

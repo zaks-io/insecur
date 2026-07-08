@@ -9,6 +9,15 @@ import type {
 
 import type { SecretVersionLifecycleState } from "./lifecycle-states.js";
 
+export interface SecretVersionDescriptiveVerdictsRead {
+  readonly valueByteLength: number;
+  readonly encodingClass: "utf-8" | "hex-shaped" | "base64-shaped";
+  readonly isEmpty: boolean;
+  readonly hasLeadingOrTrailingWhitespace: boolean;
+  readonly looksLikePlaceholder: boolean;
+  readonly secretShapeMatchVerdict: "matches" | "does_not_match" | "no_shape_rule";
+}
+
 export interface ListEnvironmentSecretsInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
@@ -24,6 +33,7 @@ export interface EnvironmentSecretMetadataRow {
   readonly currentLifecycleState: SecretVersionLifecycleState | null;
   readonly currentVersionCreatedAt: Date | null;
   readonly currentPublishedAt: Date | null;
+  readonly currentVersionDescriptiveVerdicts: SecretVersionDescriptiveVerdictsRead | null;
 }
 
 export interface ListSecretVersionMetadataInput {
@@ -41,4 +51,5 @@ export interface SecretVersionMetadataRow {
   readonly publishedAt: Date | null;
   readonly isCurrent: boolean;
   readonly isPublished: boolean;
+  readonly descriptiveVerdicts: SecretVersionDescriptiveVerdictsRead;
 }

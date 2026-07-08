@@ -13,6 +13,7 @@ import {
   timestamp,
   unique,
   uniqueIndex,
+  boolean,
 } from "./pg-core.js";
 import { organizations } from "./tenant-hierarchy.js";
 import { orgProjectAndEnvironmentForeignKeys } from "./tenant-org-scope-foreign-keys.js";
@@ -56,10 +57,18 @@ export const secretVersions = pgTable(
     ciphertextStorageRef: text("ciphertext_storage_ref").notNull(),
     lifecycleState: text("lifecycle_state").notNull().default("draft"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    valueByteLength: integer("value_byte_length").notNull(),
+    encodingClass: text("encoding_class").notNull(),
+    isEmpty: boolean("is_empty").notNull(),
+    hasLeadingOrTrailingWhitespace: boolean("has_leading_or_trailing_whitespace").notNull(),
+    looksLikePlaceholder: boolean("looks_like_placeholder").notNull(),
+    secretShapeMatchVerdict: text("secret_shape_match_verdict").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     sql`CHECK (${table.lifecycleState} IN ('draft', 'live', 'retained', 'discarded'))`,
+    sql`CHECK (${table.encodingClass} IN ('utf-8', 'hex-shaped', 'base64-shaped'))`,
+    sql`CHECK (${table.secretShapeMatchVerdict} IN ('matches', 'does_not_match', 'no_shape_rule'))`,
     unique("secret_versions_secret_id_version_number_key").on(table.secretId, table.versionNumber),
     unique("secret_versions_org_id_secret_id_id_key").on(table.orgId, table.secretId, table.id),
     foreignKey({

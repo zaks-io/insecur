@@ -5,6 +5,7 @@ import {
   runBlindSecretWrite,
   toStoredWrappedSecretMaterial,
   type BlindSecretWriteInput,
+  type BlindSecretWriteResult,
 } from "./blind-secret-write.js";
 
 export type WriteNonProtectedSecretInput = BlindSecretWriteInput & { keyring: Keyring };
@@ -14,6 +15,7 @@ export interface WriteNonProtectedSecretResult {
   secretVersionId: SecretVersionId;
   variableKey: VariableKey;
   createdSecretShape: boolean;
+  descriptiveVerdicts: BlindSecretWriteResult["descriptiveVerdicts"];
   auditEventId?: string;
 }
 
@@ -35,6 +37,7 @@ export async function writeNonProtectedSecret(
     secretVersionId: result.secretVersionId,
     variableKey: result.variableKey,
     createdSecretShape: result.createdSecretShape,
+    descriptiveVerdicts: result.descriptiveVerdicts,
     ...(result.auditEventId !== undefined ? { auditEventId: result.auditEventId } : {}),
   };
 }

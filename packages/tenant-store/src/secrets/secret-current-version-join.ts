@@ -18,6 +18,12 @@ export async function loadSecretsWithCurrentVersionJoin(
     lifecycleState: string | null;
     versionCreatedAt: Date | null;
     publishedAt: Date | null;
+    valueByteLength: number | null;
+    encodingClass: string | null;
+    isEmpty: boolean | null;
+    hasLeadingOrTrailingWhitespace: boolean | null;
+    looksLikePlaceholder: boolean | null;
+    secretShapeMatchVerdict: string | null;
   }[]
 > {
   return db
@@ -32,6 +38,12 @@ export async function loadSecretsWithCurrentVersionJoin(
       lifecycleState: secretVersions.lifecycleState,
       versionCreatedAt: secretVersions.createdAt,
       publishedAt: secretVersions.publishedAt,
+      valueByteLength: secretVersions.valueByteLength,
+      encodingClass: secretVersions.encodingClass,
+      isEmpty: secretVersions.isEmpty,
+      hasLeadingOrTrailingWhitespace: secretVersions.hasLeadingOrTrailingWhitespace,
+      looksLikePlaceholder: secretVersions.looksLikePlaceholder,
+      secretShapeMatchVerdict: secretVersions.secretShapeMatchVerdict,
     })
     .from(secrets)
     .leftJoin(

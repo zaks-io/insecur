@@ -11,12 +11,22 @@ import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
+export interface SecretWriteDescriptiveVerdictsData {
+  readonly valueByteLength: number;
+  readonly encodingClass: "utf-8" | "hex-shaped" | "base64-shaped";
+  readonly isEmpty: boolean;
+  readonly hasLeadingOrTrailingWhitespace: boolean;
+  readonly looksLikePlaceholder: boolean;
+  readonly secretShapeMatchVerdict: "matches" | "does_not_match" | "no_shape_rule";
+}
+
 interface EnvironmentSecretCurrentVersionData {
   readonly secretVersionId: SecretVersionId;
   readonly versionNumber: number;
   readonly lifecycleState: "draft" | "live" | "retained" | "discarded";
   readonly createdAt: string;
   readonly publishedAt?: string;
+  readonly descriptiveVerdicts: SecretWriteDescriptiveVerdictsData;
 }
 
 interface EnvironmentSecretListItemData {
@@ -39,6 +49,7 @@ interface SecretVersionMetadataItemData {
   readonly publishedAt?: string;
   readonly isCurrent: boolean;
   readonly isPublished: boolean;
+  readonly descriptiveVerdicts: SecretWriteDescriptiveVerdictsData;
 }
 
 export interface ListSecretVersionsData {

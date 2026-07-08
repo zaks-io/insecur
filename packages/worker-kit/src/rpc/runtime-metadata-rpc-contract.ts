@@ -139,6 +139,16 @@ export interface ListProjectSecretsRpcInput extends PostAuthRpcInputBase {
   readonly projectId: ProjectId;
 }
 
+/** Metadata-only write-time descriptive verdicts stored alongside a Secret Version. */
+export interface SecretVersionDescriptiveVerdictsRead {
+  readonly valueByteLength: number;
+  readonly encodingClass: "utf-8" | "hex-shaped" | "base64-shaped";
+  readonly isEmpty: boolean;
+  readonly hasLeadingOrTrailingWhitespace: boolean;
+  readonly looksLikePlaceholder: boolean;
+  readonly secretShapeMatchVerdict: "matches" | "does_not_match" | "no_shape_rule";
+}
+
 /** Metadata-only current-version pointer for one environment-scoped Secret Shape. */
 export interface EnvironmentSecretCurrentVersionRead {
   readonly secretVersionId: SecretVersionId;
@@ -146,6 +156,7 @@ export interface EnvironmentSecretCurrentVersionRead {
   readonly lifecycleState: "draft" | "live" | "retained" | "discarded";
   readonly createdAt: string;
   readonly publishedAt?: string;
+  readonly descriptiveVerdicts: SecretVersionDescriptiveVerdictsRead;
 }
 
 /** One Secret Shape row in a single Environment (metadata only; no values or ciphertext). */
@@ -176,6 +187,7 @@ export interface SecretVersionMetadataRead {
   readonly publishedAt?: string;
   readonly isCurrent: boolean;
   readonly isPublished: boolean;
+  readonly descriptiveVerdicts: SecretVersionDescriptiveVerdictsRead;
 }
 
 export interface ListSecretVersionsRpcPayload {

@@ -66,7 +66,10 @@
     "indexes": [
       {
         "name": "agent_sessions_active_ancestry",
-        "columns": ["human_session_id", "ancestry_key"],
+        "columns": [
+          "human_session_id",
+          "ancestry_key"
+        ],
         "unique": true,
         "nullsNotDistinct": false,
         "whereSql": "\"agent_sessions\".\"closed_at\" IS NULL"
@@ -202,7 +205,10 @@
     "uniqueConstraints": [
       {
         "name": "app_connections_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -210,9 +216,13 @@
     "foreignKeys": [
       {
         "name": "app_connections_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -354,9 +364,13 @@
     "foreignKeys": [
       {
         "name": "audit_events_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -426,7 +440,9 @@
     "indexes": [
       {
         "name": "bootstrap_operator_claim_one_pending_per_instance",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "unique": true,
         "nullsNotDistinct": false,
         "whereSql": "\"bootstrap_operator_claims\".\"status\" = 'pending'"
@@ -435,21 +451,35 @@
     "foreignKeys": [
       {
         "name": "bootstrap_operator_claims_first_organization_id_organizations_id_fk",
-        "columns": ["first_organization_id"],
+        "columns": [
+          "first_organization_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "bootstrap_operator_claims_instance_id_first_organization_id_fkey",
-        "columns": ["instance_id", "first_organization_id"],
+        "columns": [
+          "instance_id",
+          "first_organization_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["instance_id", "id"]
+        "foreignColumns": [
+          "instance_id",
+          "id"
+        ]
       },
       {
         "name": "bootstrap_operator_claims_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -520,9 +550,13 @@
     "foreignKeys": [
       {
         "name": "bootstrap_secret_verifiers_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -621,7 +655,10 @@
     "uniqueConstraints": [
       {
         "name": "environments_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -629,15 +666,25 @@
     "foreignKeys": [
       {
         "name": "environments_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "environments_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -716,9 +763,13 @@
     "foreignKeys": [
       {
         "name": "first_value_feedback_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -794,7 +845,10 @@
     "uniqueConstraints": [
       {
         "name": "in_app_event_notifications_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -802,15 +856,25 @@
     "foreignKeys": [
       {
         "name": "in_app_event_notifications_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "in_app_event_notifications_org_id_subscription_id_webhook_subscriptions_org_id_id_fk",
-        "columns": ["org_id", "subscription_id"],
+        "columns": [
+          "org_id",
+          "subscription_id"
+        ],
         "foreignTable": "webhook_subscriptions",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -914,21 +978,37 @@
     "foreignKeys": [
       {
         "name": "injection_grants_org_id_environment_id_environments_org_id_id_fk",
-        "columns": ["org_id", "environment_id"],
+        "columns": [
+          "org_id",
+          "environment_id"
+        ],
         "foreignTable": "environments",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "injection_grants_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "injection_grants_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -981,9 +1061,13 @@
     "foreignKeys": [
       {
         "name": "instance_configurations_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1032,9 +1116,13 @@
     "foreignKeys": [
       {
         "name": "instance_identity_configurations_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1089,7 +1177,9 @@
     "indexes": [
       {
         "name": "instance_operators_one_bootstrap_per_instance",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "unique": true,
         "nullsNotDistinct": false,
         "whereSql": "\"instance_operators\".\"grant_origin\" = 'bootstrap'"
@@ -1098,9 +1188,13 @@
     "foreignKeys": [
       {
         "name": "instance_operators_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1227,7 +1321,11 @@
     "indexes": [
       {
         "name": "invitations_one_pending_per_invitee_org_project",
-        "columns": ["org_id", "invitee_user_id", "project_id"],
+        "columns": [
+          "org_id",
+          "invitee_user_id",
+          "project_id"
+        ],
         "unique": true,
         "nullsNotDistinct": true,
         "whereSql": "\"invitations\".\"status\" = 'pending'"
@@ -1236,21 +1334,37 @@
     "foreignKeys": [
       {
         "name": "invitations_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "invitations_org_project_fkey",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "invitations_org_team_fkey",
-        "columns": ["org_id", "team_id"],
+        "columns": [
+          "org_id",
+          "team_id"
+        ],
         "foreignTable": "teams",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1299,7 +1413,10 @@
     "uniqueConstraints": [
       {
         "name": "machine_identities_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -1307,9 +1424,13 @@
     "foreignKeys": [
       {
         "name": "machine_identities_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1469,7 +1590,10 @@
     "uniqueConstraints": [
       {
         "name": "machine_identity_environment_deploy_keys_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -1477,27 +1601,49 @@
     "foreignKeys": [
       {
         "name": "machine_identity_environment_deploy_keys_org_id_environment_id_environments_org_id_id_fk",
-        "columns": ["org_id", "environment_id"],
+        "columns": [
+          "org_id",
+          "environment_id"
+        ],
         "foreignTable": "environments",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "machine_identity_environment_deploy_keys_org_id_machine_identity_id_machine_identities_org_id_id_fk",
-        "columns": ["org_id", "machine_identity_id"],
+        "columns": [
+          "org_id",
+          "machine_identity_id"
+        ],
         "foreignTable": "machine_identities",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "machine_identity_environment_deploy_keys_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "machine_identity_environment_deploy_keys_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1623,7 +1769,10 @@
     "uniqueConstraints": [
       {
         "name": "machine_identity_github_actions_oidc_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -1631,27 +1780,49 @@
     "foreignKeys": [
       {
         "name": "machine_identity_github_actions_oidc_org_id_environment_id_environments_org_id_id_fk",
-        "columns": ["org_id", "environment_id"],
+        "columns": [
+          "org_id",
+          "environment_id"
+        ],
         "foreignTable": "environments",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "machine_identity_github_actions_oidc_org_id_machine_identity_id_machine_identities_org_id_id_fk",
-        "columns": ["org_id", "machine_identity_id"],
+        "columns": [
+          "org_id",
+          "machine_identity_id"
+        ],
         "foreignTable": "machine_identities",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "machine_identity_github_actions_oidc_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "machine_identity_github_actions_oidc_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1716,12 +1887,19 @@
     "uniqueConstraints": [
       {
         "name": "machine_identity_memberships_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       },
       {
         "name": "machine_identity_memberships_org_id_machine_identity_id_project_id_key",
-        "columns": ["org_id", "machine_identity_id", "project_id"],
+        "columns": [
+          "org_id",
+          "machine_identity_id",
+          "project_id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -1729,21 +1907,37 @@
     "foreignKeys": [
       {
         "name": "machine_identity_memberships_org_id_machine_identity_id_machine_identities_org_id_id_fk",
-        "columns": ["org_id", "machine_identity_id"],
+        "columns": [
+          "org_id",
+          "machine_identity_id"
+        ],
         "foreignTable": "machine_identities",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "machine_identity_memberships_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "machine_identity_memberships_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1808,21 +2002,37 @@
     "foreignKeys": [
       {
         "name": "memberships_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "memberships_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "memberships_org_id_team_id_teams_org_id_id_fk",
-        "columns": ["org_id", "team_id"],
+        "columns": [
+          "org_id",
+          "team_id"
+        ],
         "foreignTable": "teams",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1904,7 +2114,10 @@
     "indexes": [
       {
         "name": "operations_org_idempotency_key_idx",
-        "columns": ["org_id", "idempotency_key"],
+        "columns": [
+          "org_id",
+          "idempotency_key"
+        ],
         "unique": true,
         "nullsNotDistinct": false,
         "whereSql": "\"operations\".\"idempotency_key\" IS NOT NULL"
@@ -1913,9 +2126,13 @@
     "foreignKeys": [
       {
         "name": "operations_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -1999,14 +2216,19 @@
     "uniqueConstraints": [
       {
         "name": "organization_data_keys_org_id_key_version_key",
-        "columns": ["org_id", "key_version"],
+        "columns": [
+          "org_id",
+          "key_version"
+        ],
         "nullsNotDistinct": false
       }
     ],
     "indexes": [
       {
         "name": "organization_data_keys_one_active_per_org",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "unique": true,
         "nullsNotDistinct": false,
         "whereSql": "\"organization_data_keys\".\"status\" = 'active'"
@@ -2015,9 +2237,13 @@
     "foreignKeys": [
       {
         "name": "organization_data_keys_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2059,7 +2285,10 @@
     "uniqueConstraints": [
       {
         "name": "organizations_instance_id_id_key",
-        "columns": ["instance_id", "id"],
+        "columns": [
+          "instance_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -2067,9 +2296,13 @@
     "foreignKeys": [
       {
         "name": "organizations_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2153,14 +2386,20 @@
     "uniqueConstraints": [
       {
         "name": "project_data_keys_project_id_key_version_key",
-        "columns": ["project_id", "key_version"],
+        "columns": [
+          "project_id",
+          "key_version"
+        ],
         "nullsNotDistinct": false
       }
     ],
     "indexes": [
       {
         "name": "project_data_keys_one_active_per_project",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "unique": true,
         "nullsNotDistinct": false,
         "whereSql": "\"project_data_keys\".\"status\" = 'active'"
@@ -2169,21 +2408,37 @@
     "foreignKeys": [
       {
         "name": "project_data_keys_org_id_organization_data_key_version_organization_data_keys_org_id_key_version_fk",
-        "columns": ["org_id", "organization_data_key_version"],
+        "columns": [
+          "org_id",
+          "organization_data_key_version"
+        ],
         "foreignTable": "organization_data_keys",
-        "foreignColumns": ["org_id", "key_version"]
+        "foreignColumns": [
+          "org_id",
+          "key_version"
+        ]
       },
       {
         "name": "project_data_keys_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "project_data_keys_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2225,7 +2480,10 @@
     "uniqueConstraints": [
       {
         "name": "projects_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -2233,9 +2491,13 @@
     "foreignKeys": [
       {
         "name": "projects_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2328,7 +2590,11 @@
     "indexes": [
       {
         "name": "provider_app_registrations_instance_provider_method_key",
-        "columns": ["instance_id", "provider", "connection_method"],
+        "columns": [
+          "instance_id",
+          "provider",
+          "connection_method"
+        ],
         "unique": true,
         "nullsNotDistinct": false
       }
@@ -2336,9 +2602,13 @@
     "foreignKeys": [
       {
         "name": "provider_app_registrations_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2406,7 +2676,10 @@
     "uniqueConstraints": [
       {
         "name": "provider_credentials_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -2414,15 +2687,25 @@
     "foreignKeys": [
       {
         "name": "provider_credentials_org_id_app_connection_id_app_connections_org_id_id_fk",
-        "columns": ["org_id", "app_connection_id"],
+        "columns": [
+          "org_id",
+          "app_connection_id"
+        ],
         "foreignTable": "app_connections",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "provider_credentials_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2466,14 +2749,21 @@
     "foreignKeys": [
       {
         "name": "revoked_cli_sessions_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": [
       {
-        "columns": ["instance_id", "session_id"],
+        "columns": [
+          "instance_id",
+          "session_id"
+        ],
         "name": "revoked_cli_sessions_instance_id_session_id_pk"
       }
     ]
@@ -2544,12 +2834,18 @@
     "uniqueConstraints": [
       {
         "name": "runtime_injection_policies_environment_id_display_name_key",
-        "columns": ["environment_id", "display_name"],
+        "columns": [
+          "environment_id",
+          "display_name"
+        ],
         "nullsNotDistinct": false
       },
       {
         "name": "runtime_injection_policies_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -2557,27 +2853,51 @@
     "foreignKeys": [
       {
         "name": "runtime_injection_policies_org_id_environment_id_environments_org_id_id_fk",
-        "columns": ["org_id", "environment_id"],
+        "columns": [
+          "org_id",
+          "environment_id"
+        ],
         "foreignTable": "environments",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "runtime_injection_policies_org_id_id_active_version_id_fkey",
-        "columns": ["org_id", "id", "active_version_id"],
+        "columns": [
+          "org_id",
+          "id",
+          "active_version_id"
+        ],
         "foreignTable": "runtime_injection_policy_versions",
-        "foreignColumns": ["org_id", "policy_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "policy_id",
+          "id"
+        ]
       },
       {
         "name": "runtime_injection_policies_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "runtime_injection_policies_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2677,12 +2997,19 @@
     "uniqueConstraints": [
       {
         "name": "runtime_injection_policy_versions_org_id_policy_id_id_key",
-        "columns": ["org_id", "policy_id", "id"],
+        "columns": [
+          "org_id",
+          "policy_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       },
       {
         "name": "runtime_injection_policy_versions_policy_id_version_number_key",
-        "columns": ["policy_id", "version_number"],
+        "columns": [
+          "policy_id",
+          "version_number"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -2690,15 +3017,25 @@
     "foreignKeys": [
       {
         "name": "runtime_injection_policy_versions_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "runtime_injection_policy_versions_org_id_policy_id_runtime_injection_policies_org_id_id_fk",
-        "columns": ["org_id", "policy_id"],
+        "columns": [
+          "org_id",
+          "policy_id"
+        ],
         "foreignTable": "runtime_injection_policies",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2769,6 +3106,48 @@
         "sqlType": "timestamp with time zone",
         "withTimezone": true
       },
+      "value_byte_length": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "encoding_class": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "is_empty": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "has_leading_or_trailing_whitespace": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "looks_like_placeholder": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "secret_shape_match_verdict": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "created_at": {
         "notNull": true,
         "primaryKey": false,
@@ -2783,12 +3162,19 @@
     "uniqueConstraints": [
       {
         "name": "secret_versions_org_id_secret_id_id_key",
-        "columns": ["org_id", "secret_id", "id"],
+        "columns": [
+          "org_id",
+          "secret_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       },
       {
         "name": "secret_versions_secret_id_version_number_key",
-        "columns": ["secret_id", "version_number"],
+        "columns": [
+          "secret_id",
+          "version_number"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -2796,15 +3182,25 @@
     "foreignKeys": [
       {
         "name": "secret_versions_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "secret_versions_org_id_secret_id_secrets_org_id_id_fk",
-        "columns": ["org_id", "secret_id"],
+        "columns": [
+          "org_id",
+          "secret_id"
+        ],
         "foreignTable": "secrets",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2874,12 +3270,18 @@
     "uniqueConstraints": [
       {
         "name": "secrets_environment_id_variable_key_key",
-        "columns": ["environment_id", "variable_key"],
+        "columns": [
+          "environment_id",
+          "variable_key"
+        ],
         "nullsNotDistinct": false
       },
       {
         "name": "secrets_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -2887,27 +3289,51 @@
     "foreignKeys": [
       {
         "name": "secrets_org_id_environment_id_environments_org_id_id_fk",
-        "columns": ["org_id", "environment_id"],
+        "columns": [
+          "org_id",
+          "environment_id"
+        ],
         "foreignTable": "environments",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       },
       {
         "name": "secrets_org_id_id_current_version_id_fkey",
-        "columns": ["org_id", "id", "current_version_id"],
+        "columns": [
+          "org_id",
+          "id",
+          "current_version_id"
+        ],
         "foreignTable": "secret_versions",
-        "foreignColumns": ["org_id", "secret_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "secret_id",
+          "id"
+        ]
       },
       {
         "name": "secrets_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "secrets_org_id_project_id_projects_org_id_id_fk",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -2999,9 +3425,13 @@
     "foreignKeys": [
       {
         "name": "sensitive_metadata_fields_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": [
@@ -3098,7 +3528,10 @@
     "indexes": [
       {
         "name": "sync_target_leases_held_by_operation_id_idx",
-        "columns": ["org_id", "held_by_operation_id"],
+        "columns": [
+          "org_id",
+          "held_by_operation_id"
+        ],
         "unique": false,
         "nullsNotDistinct": false
       }
@@ -3106,20 +3539,35 @@
     "foreignKeys": [
       {
         "name": "sync_target_leases_held_by_operation_id_operations_id_fk",
-        "columns": ["held_by_operation_id"],
+        "columns": [
+          "held_by_operation_id"
+        ],
         "foreignTable": "operations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "sync_target_leases_org_id_project_id_fkey",
-        "columns": ["org_id", "project_id"],
+        "columns": [
+          "org_id",
+          "project_id"
+        ],
         "foreignTable": "projects",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": [
       {
-        "columns": ["org_id", "project_id", "provider_kind", "target_identity"],
+        "columns": [
+          "org_id",
+          "project_id",
+          "provider_kind",
+          "target_identity"
+        ],
         "name": "sync_target_leases_org_id_project_id_provider_kind_target_identity_pk"
       }
     ]
@@ -3168,7 +3616,10 @@
     "uniqueConstraints": [
       {
         "name": "teams_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -3176,9 +3627,13 @@
     "foreignKeys": [
       {
         "name": "teams_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -3268,13 +3723,19 @@
     "indexes": [
       {
         "name": "user_admissions_one_user_per_instance",
-        "columns": ["instance_id", "user_id"],
+        "columns": [
+          "instance_id",
+          "user_id"
+        ],
         "unique": true,
         "nullsNotDistinct": false
       },
       {
         "name": "user_admissions_one_workos_subject_per_instance",
-        "columns": ["instance_id", "workos_user_id"],
+        "columns": [
+          "instance_id",
+          "workos_user_id"
+        ],
         "unique": true,
         "nullsNotDistinct": false
       }
@@ -3282,9 +3743,13 @@
     "foreignKeys": [
       {
         "name": "user_admissions_instance_id_instances_id_fk",
-        "columns": ["instance_id"],
+        "columns": [
+          "instance_id"
+        ],
         "foreignTable": "instances",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -3360,7 +3825,10 @@
     "uniqueConstraints": [
       {
         "name": "webhook_signing_secrets_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -3368,15 +3836,25 @@
     "foreignKeys": [
       {
         "name": "webhook_signing_secrets_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "webhook_signing_secrets_org_id_subscription_id_webhook_subscriptions_org_id_id_fk",
-        "columns": ["org_id", "subscription_id"],
+        "columns": [
+          "org_id",
+          "subscription_id"
+        ],
         "foreignTable": "webhook_subscriptions",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": []
@@ -3425,20 +3903,34 @@
     "foreignKeys": [
       {
         "name": "webhook_subscription_event_types_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       },
       {
         "name": "webhook_subscription_event_types_org_id_subscription_id_webhook_subscriptions_org_id_id_fk",
-        "columns": ["org_id", "subscription_id"],
+        "columns": [
+          "org_id",
+          "subscription_id"
+        ],
         "foreignTable": "webhook_subscriptions",
-        "foreignColumns": ["org_id", "id"]
+        "foreignColumns": [
+          "org_id",
+          "id"
+        ]
       }
     ],
     "primaryKeys": [
       {
-        "columns": ["org_id", "subscription_id", "event_code"],
+        "columns": [
+          "org_id",
+          "subscription_id",
+          "event_code"
+        ],
         "name": "webhook_subscription_event_types_org_id_subscription_id_event_code_pk"
       }
     ]
@@ -3529,7 +4021,10 @@
     "uniqueConstraints": [
       {
         "name": "webhook_subscriptions_org_id_id_key",
-        "columns": ["org_id", "id"],
+        "columns": [
+          "org_id",
+          "id"
+        ],
         "nullsNotDistinct": false
       }
     ],
@@ -3537,9 +4032,13 @@
     "foreignKeys": [
       {
         "name": "webhook_subscriptions_org_id_organizations_id_fk",
-        "columns": ["org_id"],
+        "columns": [
+          "org_id"
+        ],
         "foreignTable": "organizations",
-        "foreignColumns": ["id"]
+        "foreignColumns": [
+          "id"
+        ]
       }
     ],
     "primaryKeys": []

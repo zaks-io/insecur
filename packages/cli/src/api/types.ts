@@ -14,7 +14,7 @@ import type {
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { NavigationApiClient } from "./navigation-api-types.js";
 import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
-import type { SecretsApiClient } from "./secrets-api-types.js";
+import type { SecretsApiClient, SecretWriteDescriptiveVerdictsData } from "./secrets-api-types.js";
 import type { AuditApiClient } from "./audit-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
 import type { LogoutApiClient } from "./logout-api-types.js";
@@ -76,6 +76,7 @@ export interface SecretWriteByVariableKeyData {
   readonly secretVersionId: SecretVersionId;
   readonly variableKey: VariableKey;
   readonly createdSecretShape: boolean;
+  readonly descriptiveVerdicts: SecretWriteDescriptiveVerdictsData;
   readonly auditEventId?: string;
 }
 
