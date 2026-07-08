@@ -74,6 +74,7 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
 export { expect, invitationId, membershipId, randomUUID };
 export * from "./audit-verification";
 export * from "./auth";
+export * from "./cli-auth-assertions";
 export * from "./cli-smoke";
 export * from "./denied-response";
 export * from "./first-value-coords";
