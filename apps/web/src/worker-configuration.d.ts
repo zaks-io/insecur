@@ -14,9 +14,10 @@ interface __BaseEnv_CloudflareEnv {
   PREVIEW_SMOKE_SESSION_CREDENTIALS?: string;
   WORKOS_CLIENT_ID: string;
   WORKOS_AUTHKIT_ORIGIN: string;
-  API: Fetcher /* insecur-api-preview */ /* insecur-api */;
-  RUNTIME: Service /* entrypoint RuntimeService from insecur-runtime-preview */;
-  /* entrypoint RuntimeService from insecur-runtime */
+  API: Fetcher /* insecur-api-preview */ | Fetcher /* insecur-api */;
+  RUNTIME:
+    | Service /* entrypoint RuntimeService from insecur-runtime-preview */
+    | Service /* entrypoint RuntimeService from insecur-runtime */;
 }
 declare namespace Cloudflare {
   interface GlobalProps {

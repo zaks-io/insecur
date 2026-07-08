@@ -16,8 +16,9 @@ interface __BaseEnv_CloudflareEnv {
   SENTRY_RELEASE: string;
   SENTRY_SERVICE: string;
   WORKOS_CLIENT_ID: string;
-  RUNTIME: Service /* entrypoint RuntimeService from insecur-runtime-preview */;
-  /* entrypoint RuntimeService from insecur-runtime */
+  RUNTIME:
+    | Service /* entrypoint RuntimeService from insecur-runtime-preview */
+    | Service /* entrypoint RuntimeService from insecur-runtime */;
 }
 declare namespace Cloudflare {
   interface GlobalProps {
