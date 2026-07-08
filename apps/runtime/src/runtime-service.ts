@@ -298,6 +298,18 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
 Object.assign(RuntimeServiceBase.prototype, RuntimeServiceDelegatedPostAuthRpc);
 
+/**
+ * Type-only re-export of the pre-Sentry-wrap class (INS-512). `Sentry.withSentry` returns its input
+ * type unchanged (see `@sentry/cloudflare`'s `withSentry<..., T>(...args): T`), so the exported
+ * `RuntimeService` is typed as `SentryRuntimeServiceConstructor` — a bare `WorkerEntrypoint`, none of
+ * the RPC methods below. That erasure is why the Sentry cast on `RuntimeService` is otherwise
+ * unchecked: nothing verifies the erased methods still satisfy `RuntimeRpc`. Exporting this type lets
+ * `runtime-service-rpc-conformance.ts` assert against the actual method-bearing class instead of the
+ * widened constructor type. Not a value export: importing it does not pull the class or its
+ * `Object.assign` side effect a second time (`isolatedModules` erases type-only imports).
+ */
+export type { RuntimeServiceBase };
+
 export const RuntimeService = Sentry.withSentry<
   RuntimeEnv,
   unknown,
