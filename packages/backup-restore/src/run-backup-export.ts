@@ -16,10 +16,7 @@ import {
 import { openBackupArtifact, sealBackupArtifact } from "./backup-envelope.js";
 import { validateBackupEncryptionConfig } from "./backup-encryption-config.js";
 import { writeBackupExportArtifacts, type BackupExportStorage } from "./backup-export-storage.js";
-import {
-  buildBackupExportIdempotencyKey,
-  buildBackupExportTransitionIdempotencyKey,
-} from "./build-backup-idempotency-key.js";
+import { buildBackupExportIdempotencyKey } from "./build-backup-idempotency-key.js";
 import {
   buildInstanceScopeJsonlLines,
   buildOrganizationScopeJsonlLines,
@@ -153,7 +150,7 @@ async function sealAndStoreBackupArtifact(input: {
 async function markBackupExportFailed(input: {
   organizationId: OrganizationId;
   operationId: OperationId;
-  scheduledAt: Date;
+  idempotencyKey: string;
   onExportFailureAlert?: () => void;
 }): Promise<void> {
   if (input.onExportFailureAlert) {
@@ -168,7 +165,7 @@ async function markBackupExportFailed(input: {
     organizationId: input.organizationId,
     operationId: input.operationId,
     nextState: "failed",
-    idempotencyKey: buildBackupExportTransitionIdempotencyKey(input.scheduledAt, "failed"),
+    idempotencyKey: input.idempotencyKey,
   });
 }
 
@@ -176,6 +173,7 @@ async function executeBackupExport(input: {
   organizationId: OrganizationId;
   operationId: OperationId;
   scheduledAt: Date;
+  idempotencyKey: string;
   rootKeyBytes: Uint8Array;
   rootKeyVersion: number;
   storage: BackupExportStorage;
@@ -185,7 +183,7 @@ async function executeBackupExport(input: {
     organizationId: input.organizationId,
     operationId: input.operationId,
     nextState: "running",
-    idempotencyKey: buildBackupExportTransitionIdempotencyKey(input.scheduledAt, "running"),
+    idempotencyKey: input.idempotencyKey,
   });
 
   const instanceId = await resolveExportInstanceId(input.instanceId);
@@ -214,7 +212,7 @@ async function executeBackupExport(input: {
     organizationId: input.organizationId,
     operationId: input.operationId,
     nextState: "succeeded",
-    idempotencyKey: buildBackupExportTransitionIdempotencyKey(input.scheduledAt, "succeeded"),
+    idempotencyKey: input.idempotencyKey,
     progress: { auditEventIds: [audit.auditEventId] },
   });
 
@@ -246,6 +244,7 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
       organizationId,
       operationId,
       scheduledAt: input.scheduledAt,
+      idempotencyKey,
       rootKeyBytes: input.rootKeyBytes,
       rootKeyVersion,
       storage: input.storage,
@@ -255,7 +254,7 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
     await markBackupExportFailed({
       organizationId,
       operationId,
-      scheduledAt: input.scheduledAt,
+      idempotencyKey,
       ...(input.onExportFailureAlert ? { onExportFailureAlert: input.onExportFailureAlert } : {}),
     });
     if (error instanceof Error) {
