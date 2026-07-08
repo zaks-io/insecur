@@ -25,6 +25,7 @@ import {
   recordGitHubActionsOidcExchangeDenied,
   recordGitHubActionsOidcExchangeSuccess,
 } from "./record-github-actions-oidc-exchange-audit.js";
+import { recordTrustedExchangeMintAudit } from "./record-trusted-exchange-mint-audit.js";
 
 interface ExchangeGitHubActionsOidcSuccess {
   readonly ok: true;
@@ -117,6 +118,18 @@ async function completeTrustedExchange(
     projectId: authMethod.projectId,
     ...(authMethod.environmentId !== null ? { environmentId: authMethod.environmentId } : {}),
     machineIdentityId: authMethod.machineIdentityId,
+    credentialScopes: authMethod.credentialScopes,
+    ...(request !== undefined ? { request } : {}),
+  });
+
+  await recordTrustedExchangeMintAudit({
+    organizationId: authMethod.organizationId,
+    projectId: authMethod.projectId,
+    ...(authMethod.environmentId !== null ? { environmentId: authMethod.environmentId } : {}),
+    machineIdentityId: authMethod.machineIdentityId,
+    credentialMethod: "github_actions_oidc",
+    credentialScopes: authMethod.credentialScopes,
+    minted,
     ...(request !== undefined ? { request } : {}),
   });
 

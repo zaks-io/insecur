@@ -52,6 +52,7 @@ export async function writeSecretOperation({
     actor: auditActor,
     valueUtf8: "valueUtf8" in input ? input.valueUtf8 : generateSecretValueUtf8(input.generate),
     ...(input.allowEmpty !== undefined ? { allowEmpty: input.allowEmpty } : {}),
+    ...(input.createOnly !== undefined ? { createOnly: input.createOnly } : {}),
     ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
     request: { requestId: input.requestId },
   });

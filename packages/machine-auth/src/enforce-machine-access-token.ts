@@ -1,5 +1,5 @@
 import type { CredentialScope, MachineActorRef, ResourceCoordinate } from "@insecur/access";
-import type { RuntimePolicyId } from "@insecur/domain";
+import type { OperationId, RequestId, RuntimePolicyId } from "@insecur/domain";
 import {
   machineAccessTokenDenialMessage,
   machineAccessTokenDenialReasonCode,
@@ -10,6 +10,21 @@ import {
   verifyMachineAccessToken,
   type VerifiedMachineAccessToken,
 } from "./machine-access-token.js";
+import {
+  authorizationScopeAuditAtom,
+  type MachineCredentialMethod,
+} from "./machine-access-audit-metadata.js";
+import { machineAuthExchangeTenantScope } from "./machine-auth-exchange-tenant-scope.js";
+import {
+  recordMachineAccessTokenDenied,
+  recordMachineAccessTokenUsed,
+} from "./record-machine-access-token-audit.js";
+
+export interface MachineAccessTokenAuditContext {
+  readonly credentialMethod: MachineCredentialMethod;
+  readonly request?: { requestId: RequestId };
+  readonly operation?: { operationId: OperationId };
+}
 
 export interface EnforceMachineAccessTokenInput {
   readonly accessToken: string;
@@ -17,6 +32,7 @@ export interface EnforceMachineAccessTokenInput {
   readonly coordinate: ResourceCoordinate;
   readonly requiredCredentialScopes?: readonly CredentialScope[];
   readonly runtimePolicyKeyId?: RuntimePolicyId;
+  readonly audit?: MachineAccessTokenAuditContext;
 }
 
 interface EnforceMachineAccessTokenFailure {
@@ -107,7 +123,9 @@ export async function enforceMachineAccessToken(
 ): Promise<EnforceMachineAccessTokenResult> {
   const verified = await verifyMachineAccessToken(input.accessToken, input.signingSecret);
   if (!verified.ok) {
-    return enforceFailure(verified.reason === "expired" ? "expired" : "invalid");
+    const denialKind = verified.reason === "expired" ? "expired" : "invalid";
+    await recordMachineAccessTokenAuditDenied(input, denialKind);
+    return enforceFailure(denialKind);
   }
 
   const bindingFailure = coordinateBindingFailure(
@@ -116,6 +134,7 @@ export async function enforceMachineAccessToken(
     input.runtimePolicyKeyId,
   );
   if (bindingFailure !== null) {
+    await recordMachineAccessTokenAuditDenied(input, bindingFailure, verified.token);
     return enforceFailure(bindingFailure);
   }
 
@@ -123,12 +142,88 @@ export async function enforceMachineAccessToken(
     input.requiredCredentialScopes !== undefined &&
     !credentialScopesSatisfy(verified.token.credentialScopes, input.requiredCredentialScopes)
   ) {
+    await recordMachineAccessTokenAuditDenied(
+      input,
+      "insufficient_credential_scope",
+      verified.token,
+      input.requiredCredentialScopes[0],
+    );
     return enforceFailure("insufficient_credential_scope");
   }
+
+  await recordMachineAccessTokenAuditUsed(input, verified.token);
 
   return {
     ok: true,
     token: verified.token,
     actor: machineActorFromVerifiedMachineAccessToken(verified.token),
   };
+}
+
+async function recordMachineAccessTokenAuditDenied(
+  input: EnforceMachineAccessTokenInput,
+  denialKind: MachineAccessTokenDenialKind,
+  token?: VerifiedMachineAccessToken,
+  requiredScopeAtom?: CredentialScope,
+): Promise<void> {
+  if (input.audit === undefined) {
+    return;
+  }
+
+  await recordMachineAccessTokenDenied(
+    buildMachineAccessTokenDeniedAuditInput(input, denialKind, token, requiredScopeAtom),
+  );
+}
+
+function buildMachineAccessTokenDeniedAuditInput(
+  input: EnforceMachineAccessTokenInput,
+  denialKind: MachineAccessTokenDenialKind,
+  token?: VerifiedMachineAccessToken,
+  requiredScopeAtom?: CredentialScope,
+) {
+  const audit = input.audit;
+  if (audit === undefined) {
+    throw new Error("machine access token audit context is required");
+  }
+
+  const details =
+    requiredScopeAtom !== undefined
+      ? { details: { requiredScopeAtom: authorizationScopeAuditAtom(requiredScopeAtom) } }
+      : {};
+
+  return {
+    ...machineAuthExchangeTenantScope({
+      ...input.coordinate,
+      ...(token !== undefined ? { machineIdentityId: token.machineIdentityId } : {}),
+      ...(audit.request !== undefined ? { request: audit.request } : {}),
+    }),
+    credentialMethod: audit.credentialMethod,
+    ...(token !== undefined ? { credentialScopes: token.credentialScopes } : {}),
+    denialKind,
+    ...(audit.operation !== undefined ? { operation: audit.operation } : {}),
+    ...details,
+  };
+}
+
+async function recordMachineAccessTokenAuditUsed(
+  input: EnforceMachineAccessTokenInput,
+  token: VerifiedMachineAccessToken,
+): Promise<void> {
+  if (input.audit === undefined) {
+    return;
+  }
+
+  await recordMachineAccessTokenUsed({
+    organizationId: token.organizationId,
+    projectId: token.projectId,
+    ...(token.environmentId !== undefined ? { environmentId: token.environmentId } : {}),
+    machineIdentityId: token.machineIdentityId,
+    credentialMethod: input.audit.credentialMethod,
+    credentialScopes: token.credentialScopes,
+    ...(token.runtimePolicyKeyId !== undefined
+      ? { runtimePolicyKeyId: token.runtimePolicyKeyId }
+      : {}),
+    ...(input.audit.request !== undefined ? { request: input.audit.request } : {}),
+    ...(input.audit.operation !== undefined ? { operation: input.audit.operation } : {}),
+  });
 }

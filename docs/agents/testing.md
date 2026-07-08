@@ -123,14 +123,17 @@ path. The unit-level companion is the authed-SSR harness in `apps/web/test/suppo
   locally without Hyperdrive, so the real loop runs in Node Vitest, not the Workers pool. See
   ADR-0065.
 - **PR database policy**: PRs must not provision Neon branches, Hyperdrive configs, or Workers.
-  The PR database gate is the `CI` workflow's Docker Compose `postgres-integration` job.
+  The PR database gate is the `CI` workflow's Docker Compose-backed `Verify` step.
 - **Shared preview smoke is separate**: `pnpm smoke:preview` hard-fails unless the preview URLs,
   expected SHA, smoke signing secret, smoke actor IDs, and migration database URL are set. The smoke
   mints short-lived credentials during the run; Web preview accepts them only behind the
   `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview flag. The `Deploy Preview` workflow preflights
   all preview Workers before mutating preview, deploys the shared Worker fleet, then runs the
   `@insecur/preview-smoke` Playwright suite. Playwright verifies API/Web/Site deploy identities,
-  drives the current happy paths over HTTP, sweeps preview Postgres for the generated sentinel,
+  drives the current happy paths over HTTP, exercises the built `insecur` CLI for auth/session and
+  metadata navigation (`whoami`, `orgs list`, `projects list`, `envs list`, `config show`, `logout`)
+  from isolated temp config directories, runs the First Value CLI proof (`init`, `secrets set`, `run`),
+  sweeps preview Postgres for the generated sentinel,
   emits GitHub annotations, and uploads HTML, JSON, JUnit XML, and failure trace artifacts.
   Local runs load ignored `.env.preview` and `.env.local` files before checking required variables.
   `SMOKE_SESSION_SIGNING_SECRET` may be supplied as `SESSION_SIGNING_SECRET`, but it must match the
@@ -139,9 +142,9 @@ path. The unit-level companion is the authed-SSR harness in `apps/web/test/suppo
 
 ## CI
 
-The `postgres-integration` job in `.github/workflows/ci.yml` resets Docker Compose Postgres
-17 once, runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ;
-runtime `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
+The DB-backed `Verify` step in `.github/workflows/ci.yml` resets Docker Compose Postgres 17 once,
+runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ; runtime
+`NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
 `INSECUR_CI_RLS_GATE=1` and runs every workspace `test:rls` suite, `test:e2e`, and
 `test:canary`; each fails closed under that gate rather than skipping. The no-plaintext canary gate
 ([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) runs after `test:e2e` via

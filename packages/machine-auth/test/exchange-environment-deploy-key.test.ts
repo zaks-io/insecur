@@ -177,7 +177,10 @@ describe("exchangeEnvironmentDeployKey runtimePolicyKeyId allowlist branch", () 
       projectId: PROJECT,
       environmentId: ENV,
       denial: { reasonCode: AUTH_ERROR_CODES.deployKeyInvalid },
-      details: { deployKeyDenialKind: "auth.deploy_key_denial.invalid" },
+      details: {
+        deployKeyDenialKind: "auth.deploy_key_denial.invalid",
+        credentialMethod: "auth.credential_method.environment_deploy_key",
+      },
     });
   });
 
