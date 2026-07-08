@@ -1,12 +1,12 @@
 import { Badge } from "@insecur/ui";
 import type { ConsoleEnvironment } from "../../console/projects.js";
 import { shortDate } from "../../console/projects.js";
-import { formatSecretMatrixLastSetActorLabel } from "../../console/secrets-matrix-actor.js";
 import {
   secretMatrixRowHasDrift,
   type ConsoleSecretMatrixCell,
   type ConsoleSecretMatrixRow,
 } from "../../console/secrets-matrix.js";
+import { ActorChain } from "../actor-chain.js";
 
 const HEADER_CELL = "px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase";
 
@@ -32,8 +32,20 @@ function AbsentCell() {
   );
 }
 
-function PresentCell({ cell, drift }: { cell: ConsoleSecretMatrixCell; drift: boolean }) {
-  return (
+function PresentCell({
+  cell,
+  drift,
+  orgId,
+  projectId,
+  environmentId,
+}: {
+  cell: ConsoleSecretMatrixCell;
+  drift: boolean;
+  orgId: string;
+  projectId: string;
+  environmentId: string;
+}) {
+  const content = (
     <div className="font-mono text-xs">
       <p className={drift ? "font-semibold text-foreground" : "text-foreground"}>
         v{cell.versionNumber}
@@ -46,19 +58,36 @@ function PresentCell({ cell, drift }: { cell: ConsoleSecretMatrixCell; drift: bo
       ) : null}
       {cell.lastSetActor !== undefined ? (
         <p className="mt-1 text-muted-foreground">
-          {formatSecretMatrixLastSetActorLabel(cell.lastSetActor)}
+          <ActorChain actor={cell.lastSetActor} />
         </p>
       ) : null}
     </div>
+  );
+
+  if (cell.secretId === undefined) {
+    return content;
+  }
+
+  return (
+    <a
+      href={`/orgs/${orgId}/projects/${projectId}/envs/${environmentId}/secrets/${cell.secretId}`}
+      className="block rounded-sm transition hover:bg-ink/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+    >
+      {content}
+    </a>
   );
 }
 
 function MatrixRow({
   row,
   environments,
+  orgId,
+  projectId,
 }: {
   row: ConsoleSecretMatrixRow;
   environments: readonly ConsoleEnvironment[];
+  orgId: string;
+  projectId: string;
 }) {
   const drift = secretMatrixRowHasDrift(row);
   const cellsByEnvironment = new Map(row.cells.map((cell) => [cell.environmentId, cell]));
@@ -83,7 +112,17 @@ function MatrixRow({
         const cell = cellsByEnvironment.get(environment.environmentId);
         return (
           <td key={environment.environmentId} className="px-4 py-3 align-top">
-            {cell?.present === true ? <PresentCell cell={cell} drift={drift} /> : <AbsentCell />}
+            {cell?.present === true ? (
+              <PresentCell
+                cell={cell}
+                drift={drift}
+                orgId={orgId}
+                projectId={projectId}
+                environmentId={environment.environmentId}
+              />
+            ) : (
+              <AbsentCell />
+            )}
           </td>
         );
       })}
@@ -98,9 +137,13 @@ function MatrixRow({
 export function SecretsMatrixTable({
   environments,
   rows,
+  orgId,
+  projectId,
 }: {
   environments: readonly ConsoleEnvironment[];
   rows: readonly ConsoleSecretMatrixRow[];
+  orgId: string;
+  projectId: string;
 }) {
   return (
     <div className="mt-6 overflow-x-auto border-2 border-ink">
@@ -115,7 +158,13 @@ export function SecretsMatrixTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <MatrixRow key={row.variableKey} row={row} environments={environments} />
+            <MatrixRow
+              key={row.variableKey}
+              row={row}
+              environments={environments}
+              orgId={orgId}
+              projectId={projectId}
+            />
           ))}
         </tbody>
       </table>
