@@ -417,6 +417,17 @@ describe("parseInjectionGrantConsumeSelector", () => {
     });
   });
 
+  it("rejects policyId selectors when consuming a grant", () => {
+    expectValidationError(
+      () =>
+        parseInjectionGrantConsumeSelector({
+          policyId: "rp_00000000000000000000000001",
+        }),
+      "policyId is not allowed when consuming an injection grant.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
+  });
+
   it("rejects missing or multiple selectors with the same stable validation error", () => {
     for (const input of [
       {},
