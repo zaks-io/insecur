@@ -19,6 +19,8 @@
     "test:security-reporting": "node --test scripts/ci/security-daily-linear-reporting.test.mjs",
     "security:attest": "node scripts/security-attest.mjs",
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
+    "routes:inventory": "node scripts/routes-inventory.mjs",
+    "routes:inventory:check": "node scripts/routes-inventory.mjs --check",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
     "conformance:site-boundary": "node scripts/ci/site-boundary-conformance.mjs",
     "conformance:cli-release-boundary": "turbo run build --filter @insecur/cli --cache=local:rw,remote:r && node scripts/ci/cli-release-boundary-conformance.mjs",
