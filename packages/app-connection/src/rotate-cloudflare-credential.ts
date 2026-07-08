@@ -73,7 +73,7 @@ export async function dryRunCloudflareCredentialRotation(input: {
   };
 }
 
-export async function rotateCloudflareScopedTokenCredential(input: {
+async function attachRotatedCloudflareCredential(input: {
   readonly actor: UserActorRef;
   readonly organizationId: OrganizationId;
   readonly appConnectionId: AppConnectionId;
@@ -81,11 +81,8 @@ export async function rotateCloudflareScopedTokenCredential(input: {
   readonly projectId: ProjectId;
   readonly tokenPlaintext: Uint8Array;
   readonly keyring: Keyring;
-}): Promise<{
-  readonly connection: ReturnType<typeof toMetadataSafeAppConnectionStatus>;
-  readonly validation: MetadataSafeCloudflareConnectionValidation;
-}> {
-  const connection = await withTenantScope(
+}) {
+  return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db }) => {
       const appConnectionStore = new TenantAppConnectionStore(db);
@@ -115,13 +112,30 @@ export async function rotateCloudflareScopedTokenCredential(input: {
       });
     },
   );
+}
 
-  const projected = toMetadataSafeCloudflareConnectionStatus(connection);
+export async function rotateCloudflareScopedTokenCredential(input: {
+  readonly actor: UserActorRef;
+  readonly organizationId: OrganizationId;
+  readonly appConnectionId: AppConnectionId;
+  readonly operationId: OperationId;
+  readonly projectId: ProjectId;
+  readonly tokenPlaintext: Uint8Array;
+  readonly keyring: Keyring;
+}): Promise<{
+  readonly connection: ReturnType<typeof toMetadataSafeAppConnectionStatus>;
+  readonly validation: MetadataSafeCloudflareConnectionValidation;
+  readonly auditEventId: string;
+}> {
+  const attached = await attachRotatedCloudflareCredential(input);
+
+  const projected = toMetadataSafeCloudflareConnectionStatus(attached.connection);
   if (projected.validation === null) {
     throw new AppConnectionError(APP_CONNECTION_ERROR_CODES.validationFailed);
   }
   return {
     connection: projected.connection,
     validation: projected.validation,
+    auditEventId: attached.auditEventId,
   };
 }

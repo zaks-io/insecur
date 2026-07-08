@@ -69,6 +69,8 @@ export const RUNTIME_POLICY_ERROR_CODES = {
   displayNameInUse: "runtime_policy.display_name_in_use",
   invalidBindings: "runtime_policy.invalid_bindings",
   patternBindingRejected: "runtime_policy.pattern_binding_rejected",
+  secretBindingNotFound: "runtime_policy.secret_binding_not_found",
+  secretBindingEnvironmentMismatch: "runtime_policy.secret_binding_environment_mismatch",
   versionImmutable: "runtime_policy.version_immutable",
   protectedUseBlocked: "runtime_policy.protected_use_blocked",
   disabled: "runtime_policy.disabled",
@@ -135,6 +137,15 @@ export const STORE_ERROR_CODES = {
 
 export type StoreErrorCode = (typeof STORE_ERROR_CODES)[keyof typeof STORE_ERROR_CODES];
 
+/** Storage Security Gate production delivery denial codes. */
+export const STORAGE_GATE_ERROR_CODES = {
+  gateBlocked: "storage.gate_blocked",
+  gateUnknown: "storage.gate_unknown",
+} as const;
+
+export type StorageGateErrorCode =
+  (typeof STORAGE_GATE_ERROR_CODES)[keyof typeof STORAGE_GATE_ERROR_CODES];
+
 /** Public-edge abuse controls (rate limiting). */
 export const ABUSE_ERROR_CODES = {
   rateLimited: "abuse.rate_limited",
@@ -145,6 +156,7 @@ export type AbuseErrorCode = (typeof ABUSE_ERROR_CODES)[keyof typeof ABUSE_ERROR
 /** Audit event writer validation failures. */
 export const AUDIT_ERROR_CODES = {
   eventInvalid: "audit.event_invalid",
+  exportEntryLimitExceeded: "audit.export_entry_limit_exceeded",
 } as const;
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[keyof typeof AUDIT_ERROR_CODES];
@@ -237,6 +249,14 @@ export const CLI_ERROR_CODES = {
 
 export type CliErrorCode = (typeof CLI_ERROR_CODES)[keyof typeof CLI_ERROR_CODES];
 
+/** Local Mode client-side capability ceiling failures. */
+export const LOCAL_ERROR_CODES = {
+  cloudFeatureUnavailable: "local.cloud_feature_unavailable",
+  valueMissingOnMachine: "local.value_missing_on_machine",
+} as const;
+
+export type LocalErrorCode = (typeof LOCAL_ERROR_CODES)[keyof typeof LOCAL_ERROR_CODES];
+
 /** Webhook subscription and event notification delivery errors (INS-453). */
 export const NOTIFICATION_ERROR_CODES = {
   invalidEventCode: "notification.invalid_event_code",
@@ -290,6 +310,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   ENVIRONMENT_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
+  STORAGE_GATE_ERROR_CODES,
   ABUSE_ERROR_CODES,
   AUDIT_ERROR_CODES,
   HIGH_ASSURANCE_ERROR_CODES,
@@ -298,6 +319,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   IMPORT_ERROR_CODES,
   CLI_ERROR_CODES,
+  LOCAL_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
   PROTECTED_CHANGE_ERROR_CODES,
   APPROVAL_ERROR_CODES,
@@ -314,6 +336,7 @@ export type KnownErrorCode =
   | EnvironmentErrorCode
   | CryptoErrorCode
   | StoreErrorCode
+  | StorageGateErrorCode
   | AbuseErrorCode
   | AuditErrorCode
   | HighAssuranceErrorCode
@@ -322,6 +345,7 @@ export type KnownErrorCode =
   | ProviderAppRegistrationErrorCode
   | ImportErrorCode
   | CliErrorCode
+  | LocalErrorCode
   | NotificationErrorCode
   | ProtectedChangeErrorCode
   | ApprovalErrorCode

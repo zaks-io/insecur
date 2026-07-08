@@ -199,6 +199,12 @@ export {
   type AuditExportPublishedSigningKeys,
 } from "./audit-export-published-signing-keys.js";
 export { buildAuditExport } from "./build-audit-export.js";
-export { exportTenantAuditEvents, listAuditExportEvents } from "./export-tenant-audit.js";
+export {
+  AUDIT_EXPORT_MAX_ENTRY_COUNT,
+  exportTenantAuditEvents,
+  listAuditExportEvents,
+  listAuditExportEventsInTenantScope,
+} from "./export-tenant-audit.js";
+export { AuditExportEntryLimitExceededError } from "./audit-export-entry-limit-exceeded-error.js";
 export { parseAuditExportManifest } from "./parse-audit-export-manifest.js";
 export { verifyAuditExport } from "./verify-audit-export.js";

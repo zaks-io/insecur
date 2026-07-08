@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "smoke:preview": "playwright test -c playwright.preview.config.ts --fail-on-flaky-tests",
-    "lint": "eslint \"playwright.preview.config.ts\" \"src/**/*.ts\" \"tests/**/*.ts\" --max-warnings=0",
+    "test": "vitest run",
+    "lint": "eslint \"playwright.preview.config.ts\" \"src/**/*.ts\" \"tests/**/*.ts\" \"test/**/*.ts\" --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf ../../preview-smoke-artifacts"
   },
@@ -19,6 +20,7 @@
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

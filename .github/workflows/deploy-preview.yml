@@ -284,6 +284,9 @@ jobs:
           SENTRY_RELEASE: ${{ github.sha }}
         run: node scripts/sentry-verify-release-sourcemaps.mjs
 
+      - name: Build CLI for preview smoke
+        run: pnpm --filter @insecur/cli build
+
       - name: Run preview application smoke
         env:
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}

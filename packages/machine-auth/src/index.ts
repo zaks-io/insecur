@@ -30,6 +30,18 @@ export {
   type MintMachineAccessTokenResult,
   type VerifiedMachineAccessToken,
 } from "./machine-access-token.js";
+export { machineActorFromVerifiedMachineAccessToken } from "./machine-actor-from-verified-token.js";
+export {
+  enforceMachineAccessToken,
+  type EnforceMachineAccessTokenInput,
+  type EnforceMachineAccessTokenResult,
+} from "./enforce-machine-access-token.js";
+export {
+  machineAccessTokenDenialDetail,
+  machineAccessTokenDenialMessage,
+  machineAccessTokenDenialReasonCode,
+  type MachineAccessTokenDenialKind,
+} from "./machine-access-token-denial.js";
 export { loadActiveGitHubActionsOidcAuthMethods } from "./load-github-actions-oidc-auth-methods.js";
 export {
   exchangeGitHubActionsOidc,

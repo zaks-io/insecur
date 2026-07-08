@@ -59,6 +59,7 @@ export interface MetadataSafeCloudflareConnectionValidation {
 export interface MetadataSafeCloudflareConnectionResult {
   readonly connection: AppConnectionRow;
   readonly validation: MetadataSafeCloudflareConnectionValidation;
+  readonly auditEventId: string;
 }
 
 async function assertCreateConnectionAccess(
@@ -140,7 +141,7 @@ async function finalizeCloudflareConnectionCreate(
   validationResult: CloudflareScopedTokenVerifyResult,
   activated: AppConnectionRow,
 ): Promise<MetadataSafeCloudflareConnectionResult> {
-  await recordConnectionCreated({
+  const { auditEventId } = await recordConnectionCreated({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -154,7 +155,7 @@ async function finalizeCloudflareConnectionCreate(
   });
 
   const checkedAt = new Date();
-  const validatedConnection = await persistConnectionValidationSuccess({
+  const { connection: validatedConnection } = await persistConnectionValidationSuccess({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -167,6 +168,7 @@ async function finalizeCloudflareConnectionCreate(
   return {
     connection: validatedConnection.id === activated.id ? validatedConnection : activated,
     validation: toMetadataSafeValidation(checkedAt, validationResult),
+    auditEventId,
   };
 }
 

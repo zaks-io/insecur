@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const gateMocks = vi.hoisted(() => ({
   runAppConnectionChangeGate: vi.fn(),
   runAppConnectionCredentialChangeGate: vi.fn(),
+  beginAppConnectionChangeCommand: vi.fn(),
 }));
 
 vi.mock("../src/app-connection-change-gate.js", async (importOriginal) => {
@@ -23,6 +24,7 @@ vi.mock("../src/app-connection-change-gate.js", async (importOriginal) => {
     ...actual,
     runAppConnectionChangeGate: gateMocks.runAppConnectionChangeGate,
     runAppConnectionCredentialChangeGate: gateMocks.runAppConnectionCredentialChangeGate,
+    beginAppConnectionChangeCommand: gateMocks.beginAppConnectionChangeCommand,
   };
 });
 
@@ -118,6 +120,15 @@ describe("app connection command validation", () => {
       operationId: OP,
       projectId: orgScopedConnectionProjectId(),
     });
+    gateMocks.beginAppConnectionChangeCommand.mockImplementation(async (input) => ({
+      actor: requireUserActorForConnectionCommand(input.actor),
+      gate: await gateMocks.runAppConnectionChangeGate({
+        actor: requireUserActorForConnectionCommand(input.actor),
+        organizationId: input.organizationId,
+        requestId: input.requestId,
+        ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
+      }),
+    }));
   });
 
   it("orgScopedConnectionProjectId returns the org-scope sentinel", () => {
@@ -306,7 +317,10 @@ describe("app connection command validation", () => {
         hasBoundaryWarning: false,
       },
     };
-    vi.mocked(rotateCloudflareScopedTokenCredential).mockResolvedValue(projected);
+    vi.mocked(rotateCloudflareScopedTokenCredential).mockResolvedValue({
+      ...projected,
+      auditEventId: "aud_test",
+    });
 
     const result = await rotateAppConnectionCredentialCommand({
       actor: USER_ACTOR,
@@ -392,7 +406,10 @@ describe("app connection command validation", () => {
         },
       ),
     );
-    vi.mocked(disableCloudflareConnection).mockResolvedValue(disconnected);
+    vi.mocked(disableCloudflareConnection).mockResolvedValue({
+      connection: disconnected,
+      auditEventId: "aud_test",
+    });
 
     const result = await disconnectAppConnectionCommand({
       actor: USER_ACTOR,
@@ -528,6 +545,7 @@ describe("app connection command validation", () => {
         accessibleRepositoryCount: 2,
         repositoriesWithinBoundary: true,
       },
+      auditEventId: "aud_test",
     };
     vi.mocked(withOrgAppConnectionKeyring).mockImplementation(async (_input, run) =>
       run(

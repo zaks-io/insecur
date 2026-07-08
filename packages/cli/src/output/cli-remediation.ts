@@ -70,25 +70,32 @@ export function resolveCliRemediation(
   );
 }
 
-export function formatRemediationProse(remediation: ErrorRemediation): string {
+function remediationCommandLines(remediation: ErrorRemediation): string[] {
   const lines: string[] = [];
-  if (remediation.login !== undefined) {
-    lines.push(`Run: ${remediation.login.join(" ")}`);
+  const commandFields: readonly {
+    readonly value: readonly string[] | undefined;
+    readonly label: string;
+  }[] = [
+    { value: remediation.login, label: "Run" },
+    { value: remediation.init, label: "Run" },
+    { value: remediation.migrate, label: "Migrate" },
+    { value: remediation.hosted, label: "Hosted" },
+    { value: remediation.poll, label: "Poll" },
+    { value: remediation.resume, label: "Resume" },
+    { value: remediation.secretsSet, label: "Set secret" },
+  ];
+  for (const field of commandFields) {
+    if (field.value !== undefined) {
+      lines.push(`${field.label}: ${field.value.join(" ")}`);
+    }
   }
-  if (remediation.init !== undefined) {
-    lines.push(`Run: ${remediation.init.join(" ")}`);
-  }
+  return lines;
+}
+
+export function formatRemediationProse(remediation: ErrorRemediation): string {
+  const lines = remediationCommandLines(remediation);
   if (remediation.approvalUrl !== undefined) {
     lines.push(`Open approval URL: ${remediation.approvalUrl}`);
-  }
-  if (remediation.poll !== undefined) {
-    lines.push(`Poll: ${remediation.poll.join(" ")}`);
-  }
-  if (remediation.resume !== undefined) {
-    lines.push(`Resume: ${remediation.resume.join(" ")}`);
-  }
-  if (remediation.secretsSet !== undefined) {
-    lines.push(`Set secret: ${remediation.secretsSet.join(" ")}`);
   }
   return lines.join("\n");
 }

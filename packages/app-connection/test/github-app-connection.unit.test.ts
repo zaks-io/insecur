@@ -313,7 +313,8 @@ describe("github app connection unit flows", () => {
       } as never,
     });
 
-    expect(result.status).toBe("disconnected");
+    expect(result.connection.status).toBe("disconnected");
+    expect(result.auditEventId).toBe("aud_test");
     expect(updateConnectionStatus).toHaveBeenCalledOnce();
   });
 });

@@ -1,7 +1,14 @@
-import type { AppConnectionId, OrganizationId, ProjectId, UserId } from "@insecur/domain";
+import type {
+  AppConnectionId,
+  AuditEventId,
+  OrganizationId,
+  ProjectId,
+  UserId,
+} from "@insecur/domain";
 import type { AppConnectionRow, TenantAppConnectionStore } from "@insecur/tenant-store";
 
 import type { GitHubAppInstallationVerifyResult } from "./github-app-port.js";
+import { updateConnectionValidationSuccessRow } from "./persist-connection-validation-row.js";
 import {
   recordGithubConnectionValidated,
   type GithubConnectionValidationAuditDetails,
@@ -23,16 +30,10 @@ export interface PersistGithubConnectionValidationSuccessInput {
  */
 export async function persistGithubConnectionValidationSuccess(
   input: PersistGithubConnectionValidationSuccessInput,
-): Promise<AppConnectionRow> {
-  const connection = await input.appConnectionStore.updateConnectionValidation({
-    organizationId: input.organizationId,
-    appConnectionId: input.appConnectionId,
-    lastValidationCheckedAt: input.checkedAt,
-    lastValidationOutcome: "success",
-    lastValidationReasonCode: null,
-  });
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: AuditEventId }> {
+  const connection = await updateConnectionValidationSuccessRow(input);
 
-  await recordGithubConnectionValidated({
+  const { auditEventId } = await recordGithubConnectionValidated({
     actorUserId: input.actorUserId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -40,7 +41,7 @@ export async function persistGithubConnectionValidationSuccess(
     validation: toGithubValidationAuditDetails(input.validationResult),
   });
 
-  return connection;
+  return { connection, auditEventId };
 }
 
 function toGithubValidationAuditDetails(

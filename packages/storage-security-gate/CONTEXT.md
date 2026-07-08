@@ -31,6 +31,7 @@ returns Sensitive Values, key material, or decrypted metadata.
 - Stable readiness control IDs under the `storage.*` prefix.
 - Metadata-only evidence references and delivery-blocking derivation.
 - Readiness probe composition for production delivery checks.
+- Readiness-fact audit (`docs/readiness-fact-audit.md`) and probe adapter helpers.
 
 ## Does Not Own
 

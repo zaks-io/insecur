@@ -319,6 +319,56 @@ describe("connections CLI commands", () => {
     ).rejects.toMatchObject({ code: CLI_ERROR_CODES.validationError });
   });
 
+  it("reauth rejects partial GitHub boundary override before calling the API", async () => {
+    const api = createMockApi();
+    await expect(
+      runConnectionsReauthCommand({ json: false, quiet: false, verbose: false }, api, context, {
+        connectionId: CONNECTION_ID,
+        operationId: undefined,
+        installationId: undefined,
+        owner: undefined,
+        allowedRepositories: "insecur-org/api",
+      }),
+    ).rejects.toMatchObject({ code: APP_CONNECTION_ERROR_CODES.boundaryMismatch });
+    expect(api.reauthAppConnection).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      label: "missing installationId",
+      installationId: undefined,
+      owner: "insecur-org",
+      allowedRepositories: "insecur-org/api",
+    },
+    {
+      label: "missing owner",
+      installationId: "12345678",
+      owner: undefined,
+      allowedRepositories: "insecur-org/api",
+    },
+    {
+      label: "missing allowedRepositories",
+      installationId: "12345678",
+      owner: "insecur-org",
+      allowedRepositories: undefined,
+    },
+  ])(
+    "reauth rejects partial GitHub boundary override when $label is missing",
+    async ({ installationId, owner, allowedRepositories }) => {
+      const api = createMockApi();
+      await expect(
+        runConnectionsReauthCommand({ json: false, quiet: false, verbose: false }, api, context, {
+          connectionId: CONNECTION_ID,
+          operationId: undefined,
+          installationId,
+          owner,
+          allowedRepositories,
+        }),
+      ).rejects.toMatchObject({ code: APP_CONNECTION_ERROR_CODES.boundaryMismatch });
+      expect(api.reauthAppConnection).not.toHaveBeenCalled();
+    },
+  );
+
   it("reauth calls the org-scoped reauth path", async () => {
     const api = createMockApi({
       reauthAppConnection: vi.fn(async () => ({
@@ -352,6 +402,8 @@ describe("connections CLI commands", () => {
         organizationId: ORG_ID,
         appConnectionId: CONNECTION_ID,
         installationId: "12345678",
+        owner: "insecur-org",
+        allowedRepositories: ["insecur-org/api"],
       }),
     );
   });
