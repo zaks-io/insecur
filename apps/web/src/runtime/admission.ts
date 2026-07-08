@@ -20,7 +20,7 @@ function unwrapRuntimeResult<T>(result: RuntimeRpcResult<T>): T {
 }
 
 function resolveInstanceId(env: WebEnv): string {
-  return env.INSTANCE_ID ?? "inst_LOCAL_DEV";
+  return env.INSTANCE_ID;
 }
 
 type ResolveAdmissionViaBindingResult = UserId | null | AdmittedUserCliSessionRevoked;

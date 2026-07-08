@@ -22,6 +22,7 @@
     "@insecur/high-assurance": "workspace:*",
     "@insecur/operations": "workspace:*",
     "@insecur/runtime-injection-issue": "workspace:*",
+    "@insecur/storage-security-gate": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "@insecur/worker-kit": "workspace:*"
   },

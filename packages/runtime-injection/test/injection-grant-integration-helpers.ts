@@ -2,21 +2,71 @@ import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
   ENVIRONMENT_LIFECYCLE_STAGES,
   environmentId,
+  userId,
   type DisplayName,
+  type EnvironmentId,
   type OrganizationId,
   type ProjectId,
+  type VariableKey,
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe } from "vitest";
+import { writeProtectedSecret } from "../../secret-store/src/write-protected-secret.js";
+import { createTestKeyring } from "../../secret-store/test/integration-helpers.js";
 import {
   closeRuntimeSql,
   TenantEnvironmentLifecycleStore,
+  TenantSecretVersionStore,
   withTenantScope,
 } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
+import { TEST_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
 
 export const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 export const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000085";
+
+async function cleanupProtectedPreviewEnvironmentData(
+  organizationId: OrganizationId,
+  sql: Parameters<Parameters<typeof withTenantScope>[1]>[0]["sql"],
+): Promise<void> {
+  await sql`
+    DELETE FROM injection_grants
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    UPDATE runtime_injection_policies
+    SET active_version_id = NULL
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    DELETE FROM runtime_injection_policy_versions
+    WHERE policy_id IN (
+      SELECT id FROM runtime_injection_policies
+      WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+    )
+  `;
+  await sql`
+    DELETE FROM runtime_injection_policies
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    UPDATE secrets
+    SET current_version_id = NULL
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    DELETE FROM secret_versions
+    WHERE org_id = ${organizationId} AND secret_id IN (
+      SELECT id FROM secrets
+      WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+    )
+  `;
+  await sql`
+    DELETE FROM secrets
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+}
 
 export function describeInjectionGrantIntegration(title: string, suite: () => void): void {
   describeIntegration(title, () => {
@@ -42,7 +92,7 @@ export async function recreateProtectedPreviewEnvironment(input: {
   return await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db, sql }) => {
-      await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+      await cleanupProtectedPreviewEnvironmentData(input.organizationId, sql);
 
       const store = new TenantEnvironmentLifecycleStore(db);
       const created = await store.create({
@@ -64,8 +114,41 @@ export async function recreateProtectedPreviewEnvironment(input: {
 
 export async function deleteProtectedPreviewEnvironment(organizationId: OrganizationId) {
   await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
-    await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+    await cleanupProtectedPreviewEnvironmentData(organizationId, sql);
   });
+}
+
+/** Seeds a protected-environment secret through draft write + publish (live delivery pointer). */
+export async function writeTestProtectedSecret(
+  variableKey: VariableKey,
+  valueUtf8: Uint8Array,
+  tenant: {
+    organizationId: OrganizationId;
+    projectId: ProjectId;
+    environmentId: EnvironmentId;
+  },
+) {
+  const draft = await writeProtectedSecret({
+    keyring: createTestKeyring(),
+    organizationId: tenant.organizationId,
+    projectId: tenant.projectId,
+    environmentId: tenant.environmentId,
+    variableKey,
+    actor: { type: "user", userId: userId.brand(TEST_USER_ID) },
+    valueUtf8,
+  });
+
+  await withTenantScope(
+    { kind: "organization", organizationId: tenant.organizationId },
+    async ({ db }) => {
+      await new TenantSecretVersionStore(db).publishVersions({
+        organizationId: tenant.organizationId,
+        targets: [{ secretId: draft.secretId, secretVersionId: draft.secretVersionId }],
+      });
+    },
+  );
+
+  return draft;
 }
 
 export async function loadLatestIssueDeniedAudit(organizationId: OrganizationId) {

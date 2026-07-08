@@ -1,9 +1,10 @@
 import { runBackupExport, type BackupExportStorage } from "@insecur/backup-restore";
-import { RootKeyNotConfiguredError, SecretsStoreRootKeyProvider } from "@insecur/crypto";
+import { SecretsStoreRootKeyProvider } from "@insecur/crypto";
 import * as Sentry from "@sentry/cloudflare";
 import { runWithRuntimeConnection } from "@insecur/tenant-store";
 
 import type { RuntimeEnv } from "../env.js";
+import { maybeRuntimeConnectionString } from "../env.js";
 
 function createR2BackupExportStorage(bucket: R2Bucket): BackupExportStorage {
   return {
@@ -17,11 +18,7 @@ function createR2BackupExportStorage(bucket: R2Bucket): BackupExportStorage {
 }
 
 async function resolveBackupRootKeyBytes(env: RuntimeEnv): Promise<Uint8Array> {
-  const binding = env.INSTANCE_ROOT_KEY_V1;
-  if (!binding) {
-    throw new RootKeyNotConfiguredError();
-  }
-  const provider = new SecretsStoreRootKeyProvider(binding);
+  const provider = new SecretsStoreRootKeyProvider(env.INSTANCE_ROOT_KEY_V1);
   return provider.getRootKeyBytes(1);
 }
 
@@ -30,13 +27,10 @@ export async function runScheduledBackupExport(
   scheduledTime: number,
 ): Promise<void> {
   const backups = env.BACKUPS;
-  if (!backups) {
-    throw new Error("BACKUPS R2 binding is not configured");
-  }
 
   const scheduledAt = new Date(scheduledTime);
   const rootKeyBytes = await resolveBackupRootKeyBytes(env);
-  const connectionString = env.DB?.connectionString;
+  const connectionString = maybeRuntimeConnectionString(env);
 
   const exportInput = {
     scheduledAt,

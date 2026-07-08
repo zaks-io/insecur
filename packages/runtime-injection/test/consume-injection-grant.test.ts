@@ -25,6 +25,7 @@ import {
   executeConsumeInjectionGrant,
   recordDeniedConsume,
 } from "../src/consume-injection-grant.js";
+import { FIRST_VALUE_LOCAL_RUNTIME_INJECTION_PATH } from "@insecur/storage-security-gate";
 import { decryptBoundGrantSecretVersion } from "../src/decrypt-grant-secret.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -53,6 +54,7 @@ const baseInput = {
   grantId: GRANT,
   selector: { kind: "variable_key" as const, variableKey: VARIABLE_KEY },
   actor: { type: "user" as const, userId: ACTOR_USER },
+  deliveryPath: FIRST_VALUE_LOCAL_RUNTIME_INJECTION_PATH,
 };
 
 const plaintextHandle = new PlaintextHandle(new TextEncoder().encode("runtime-secret"));

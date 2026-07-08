@@ -30,6 +30,7 @@ vi.mock("../crypto/audit-export-key-providers.js", () => ({
 
 import { authorizeScopeOrThrow } from "@insecur/access";
 import { resolveAuditExportKeyProviders } from "../crypto/audit-export-key-providers.js";
+import type { RuntimeEnv } from "../env.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000011");
 const auditActor: ExportTenantAuditOperationInput["auditActor"] = {
@@ -76,7 +77,9 @@ describe("exportTenantAuditOperation", () => {
     });
 
     await exportTenantAuditOperation({
-      env: { RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000" },
+      env: {
+        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
+      } as RuntimeEnv,
       input: {
         organizationId: ORG,
         requestId: requestId.brand("req_00000000000000000000000011"),

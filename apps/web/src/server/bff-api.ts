@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import type { UserActor } from "@insecur/auth";
 import { apiClientFor } from "@insecur/worker-kit/api-client";
 import { resolveBrowserActor } from "../auth/resolve-browser-actor.js";
-import type { WebEnv } from "../env.js";
+import { asWebEnv } from "../env.js";
 
 export type BffApiClient = ReturnType<typeof apiClientFor>;
 
@@ -17,7 +17,7 @@ export async function resolveAuthenticatedApiClient(): Promise<{
   readonly actor: UserActor;
 } | null> {
   const request = getRequest();
-  const webEnv = env as WebEnv;
+  const webEnv = asWebEnv(env);
   const resolved = await resolveBrowserActor(request, webEnv);
   if (!resolved.ok) {
     return null;
