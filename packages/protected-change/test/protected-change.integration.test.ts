@@ -159,7 +159,7 @@ async function seedDraftSecret(input: {
         ${"synthetic-ciphertext-ref"},
         ${"draft"},
         ${24},
-        ${"utf8"},
+        ${"utf-8"},
         ${false},
         ${false},
         ${false},
