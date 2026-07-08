@@ -11,18 +11,37 @@ export interface ApiClientEnv {
 
 const API_ORIGIN = "https://insecur-api.internal";
 
+interface OrgAuditEventsQuery {
+  readonly pageSize?: number;
+  readonly cursor?: string;
+  readonly filters?: {
+    readonly actorUserId?: string;
+    readonly actorMachineIdentityId?: string;
+    readonly projectId?: string;
+    readonly environmentId?: string;
+    readonly eventCode?: string;
+    readonly createdAtFrom?: string;
+    readonly createdAtTo?: string;
+  };
+}
+
 type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
-function auditEventsPath(
-  organizationId: string,
-  query: { readonly pageSize?: number; readonly cursor?: string },
-): string {
+function auditEventsPath(organizationId: string, query: OrgAuditEventsQuery = {}): string {
   const params = new URLSearchParams();
   if (query.pageSize !== undefined) {
     params.set("pageSize", String(query.pageSize));
   }
   if (query.cursor !== undefined) {
     params.set("cursor", query.cursor);
+  }
+  const filters = query.filters;
+  if (filters !== undefined) {
+    for (const [key, value] of Object.entries(filters)) {
+      if (typeof value === "string") {
+        params.set(key, value);
+      }
+    }
   }
   const suffix = params.size > 0 ? `?${params.toString()}` : "";
   return `/v1/orgs/${encodeURIComponent(organizationId)}/audit-events${suffix}`;
@@ -63,7 +82,7 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
     },
     orgAuditEvents: async (
       organizationId: string,
-      query: { readonly pageSize?: number; readonly cursor?: string } = {},
+      query: OrgAuditEventsQuery = {},
     ): Promise<unknown> => {
       const response = await apiFetch(auditEventsPath(organizationId, query));
       return response.json();

@@ -132,6 +132,9 @@ over the same hop to the INS-373 API metadata GETs, rendering zero mutation affo
 `/orgs/$orgId/` is Home (INS-372): a Needs You placeholder above a recent-activity feed over
 `GET /v1/orgs/:organizationId/audit-events` (page size 10), seeded by the route loader and refreshed
 by client polling at 30s without navigation (ADR-0051).
+`/orgs/$orgId/audit` is the filterable metadata event log (INS-376): actor/project/environment/
+event-type/time-range filters and cursor pagination over `GET /v1/orgs/:organizationId/audit-events`,
+with shareable filter state in URL search params.
 `/onboarding` is the first-run onboarding wizard (INS-374): Guided Organization Provisioning for
 org-less members, with `?org&project&env` reopening the CLI handoff view; its provisioning
 mutation is a CSRF-checked server function forwarded to `POST /v1/onboarding/personal-organization`

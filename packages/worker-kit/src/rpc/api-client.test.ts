@@ -61,7 +61,16 @@ describe("apiClientFor", () => {
     await client.projectEnvironments("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
     await client.orgMembers("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
     await client.orgInvitations("org_01/../evil");
-    await client.orgAuditEvents("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", { pageSize: 10 });
+    await client.orgAuditEvents("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", {
+      pageSize: 10,
+      cursor: "cursor_test",
+      filters: {
+        actorUserId: "usr_00000000000000000000000011",
+        projectId: "prj_01/../evil",
+        eventCode: "secret.non_protected_write",
+        createdAtFrom: "2026-07-01T00:00:00.000Z",
+      },
+    });
 
     const urls = apiFetch.mock.calls.map((call) => call[0]);
     expect(urls[0]).toBe(
@@ -74,9 +83,14 @@ describe("apiClientFor", () => {
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/members",
     );
     expect(urls[3]).toBe("https://insecur-api.internal/v1/orgs/org_01%2F..%2Fevil/invitations");
-    expect(urls[4]).toBe(
-      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/audit-events?pageSize=10",
-    );
+    const auditUrl = new URL(urls[4] as string);
+    expect(auditUrl.pathname).toBe("/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/audit-events");
+    expect(auditUrl.searchParams.get("pageSize")).toBe("10");
+    expect(auditUrl.searchParams.get("cursor")).toBe("cursor_test");
+    expect(auditUrl.searchParams.get("actorUserId")).toBe("usr_00000000000000000000000011");
+    expect(auditUrl.searchParams.get("projectId")).toBe("prj_01/../evil");
+    expect(auditUrl.searchParams.get("eventCode")).toBe("secret.non_protected_write");
+    expect(auditUrl.searchParams.get("createdAtFrom")).toBe("2026-07-01T00:00:00.000Z");
   });
 
   it("reuses the minted token across calls on the same client", async () => {

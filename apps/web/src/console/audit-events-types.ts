@@ -11,15 +11,19 @@ export interface ConsoleAuditResource {
   readonly id: string;
 }
 
-/** Metadata-only audit event row for the console recent-activity feed. */
+/** Metadata-only audit event row for the console recent-activity feed and audit log. */
 export interface ConsoleAuditEvent {
   readonly auditEventId: string;
   readonly eventCode: string;
   readonly outcome: "success" | "denied";
+  readonly resultCode: string;
   readonly actor: ConsoleAuditActor;
   readonly projectId: string | null;
   readonly environmentId: string | null;
   readonly resource: ConsoleAuditResource | null;
+  readonly relatedResource: ConsoleAuditResource | null;
+  readonly requestId: string | null;
+  readonly operationId: string | null;
   readonly details: Readonly<Record<string, string | number | boolean | null>> | null;
   readonly createdAt: string;
 }
@@ -31,3 +35,6 @@ export interface ConsoleRecentActivity {
 
 /** Page size for the Home feed: a short recent window, not the full audit log. */
 export const HOME_RECENT_ACTIVITY_PAGE_SIZE = 10;
+
+/** Default page size for the full audit event log (matches tenant audit query API default). */
+export const CONSOLE_AUDIT_PAGE_SIZE = 25;
