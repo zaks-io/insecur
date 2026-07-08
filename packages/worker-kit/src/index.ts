@@ -151,6 +151,8 @@ export type {
 export type {
   ResolveSessionWhoamiRpcInput,
   ResolveSessionWhoamiRpcPayload,
+  RegisterAgentSessionRpcInput,
+  RegisterAgentSessionRpcPayload,
 } from "./rpc/runtime-session-whoami-rpc-contract.js";
 export type {
   CreateWebhookSubscriptionRpcInput,

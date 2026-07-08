@@ -84,6 +84,11 @@ export {
   verifyEphemeralSessionCredential,
 } from "./ephemeral-session.js";
 export {
+  type MintDerivedAgentSessionInput,
+  type MintDerivedAgentSessionResult,
+  mintDerivedAgentSessionCredential,
+} from "./derived-agent-session.js";
+export {
   readSessionCredentialMetadata,
   type SessionCredentialMetadata,
 } from "./session-credential-metadata.js";

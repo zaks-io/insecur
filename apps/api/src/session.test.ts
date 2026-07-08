@@ -1,7 +1,7 @@
 import { mintEphemeralSessionCredential, mintScopedAccessToken } from "@insecur/auth";
 import { INSECUR_API_TOKEN_AUDIENCE, INSECUR_RUNTIME_TOKEN_AUDIENCE } from "@insecur/auth";
 import { testSessionSigningSecret, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
-import { userId } from "@insecur/domain";
+import { userId, agentSessionId } from "@insecur/domain";
 import { describe, expect, it, vi } from "vitest";
 import { createRuntimeRpcStub } from "../test/support/runtime-rpc-stub.js";
 import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../test/support/setup-unit-auth.js";
@@ -418,5 +418,121 @@ describe("worker session routes", () => {
     const text = JSON.stringify(body);
     expect(text).not.toContain("code_magic");
     expect(text).not.toContain("verifier_magic");
+  });
+
+  it("derives an agent-marked session from a live human bearer", async () => {
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_cli_derive",
+      },
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+    const response = await app.request(
+      "/v1/session/agent/derive",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${minted.credential}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ harnessName: "agent.harness.claude_code" }),
+      },
+      env,
+    );
+    expect(response.status).toBe(200);
+    const credential = response.headers.get("x-insecur-session-credential");
+    expect(credential).toBeTruthy();
+    const body: unknown = await response.json();
+    const deriveBody = body as {
+      ok: true;
+      data: { sessionId: string; agentSessionId: string };
+    };
+    expect(deriveBody).toMatchObject({
+      ok: true,
+      data: {
+        sessionId: "session_cli_derive",
+      },
+    });
+    const parsedAgentSessionId = agentSessionId.parse(deriveBody.data.agentSessionId);
+    if (!parsedAgentSessionId.ok) {
+      throw new Error("expected valid agent session id");
+    }
+    if (credential !== null) {
+      const runtime = createRuntimeRpcStub();
+      runtime.resolveSessionWhoami.mockResolvedValue({
+        ok: true,
+        value: {
+          sessionValid: true,
+          sessionExpiresAt: minted.expiresAt,
+          resolvedContext: {},
+          attribution: {
+            tier: "derived",
+            agentSessionId: parsedAgentSessionId.value,
+          },
+        },
+      });
+      const whoami = await app.request(
+        "/v1/session/whoami",
+        { method: "GET", headers: { Authorization: `Bearer ${credential}` } },
+        { ...env, RUNTIME: runtime },
+      );
+      expect(whoami.status).toBe(200);
+      const whoamiBody: unknown = await whoami.json();
+      expect(whoamiBody).toMatchObject({
+        ok: true,
+        data: {
+          attribution: { tier: "derived" },
+        },
+      });
+    }
+  });
+
+  it("registers an agent session over the runtime seam", async () => {
+    const minted = await mintEphemeralSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_cli_register",
+      },
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+    const runtime = createRuntimeRpcStub();
+    const registeredId = agentSessionId.generate();
+    runtime.registerAgentSession.mockResolvedValue({
+      ok: true,
+      value: {
+        agentSessionId: registeredId,
+        harnessName: "agent.harness.claude_code",
+      },
+    });
+    const response = await app.request(
+      "/v1/session/agent/register",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${minted.credential}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          harnessName: "agent.harness.claude_code",
+          ancestryKey: "12345",
+        }),
+      },
+      { ...env, RUNTIME: runtime },
+    );
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: true,
+      data: {
+        agentSessionId: registeredId,
+        harnessName: "agent.harness.claude_code",
+      },
+    });
+    expect(runtime.registerAgentSession).toHaveBeenCalled();
   });
 });

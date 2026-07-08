@@ -8,6 +8,7 @@ import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
 import type { RuntimeInjectionApiClient } from "./runtime-injection-api-types.js";
 import type { SecretsApiClient } from "./secrets-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
+import type { AgentSessionApiClient } from "./agent-session-api-types.js";
 
 export type { GuidedOrganizationProvisionData } from "./onboarding-api-types.js";
 export type {
@@ -38,4 +39,5 @@ export interface ApiClient
     RunPoliciesApiClient,
     AuditApiClient,
     WhoamiApiClient,
+    AgentSessionApiClient,
     LogoutApiClient {}

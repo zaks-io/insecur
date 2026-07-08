@@ -1,35 +1,11 @@
 import type { Command, Command as CommanderCommand } from "commander";
+import { commanderRawArgv } from "./commander-argv.js";
 import { runRunCommand } from "./commands/run.js";
 import {
   isExplicitProfilePositional,
   reconcileProfileRunCommand,
 } from "./commands/resolve-run-profile.js";
 import type { ProgramDeps } from "./program-deps.js";
-
-function argvTokensForProfileDetection(
-  command: CommanderCommand | null | undefined,
-): readonly string[] {
-  if (command === null || command === undefined) {
-    return process.argv;
-  }
-
-  const readRawArgs = (target: CommanderCommand | null | undefined): readonly string[] => {
-    if (target === null || target === undefined) {
-      return [];
-    }
-    const raw = (target as unknown as { rawArgs?: unknown }).rawArgs;
-    return Array.isArray(raw) && raw.every((token) => typeof token === "string") ? raw : [];
-  };
-
-  for (const candidate of [command, command.parent, command.parent?.parent]) {
-    const rawArgs = readRawArgs(candidate);
-    if (rawArgs.length > 0) {
-      return rawArgs;
-    }
-  }
-
-  return process.argv;
-}
 
 export function registerRunCommand(program: Command, deps: ProgramDeps): void {
   program
@@ -66,10 +42,7 @@ async function runAction(
     flags,
     context,
     ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
-    explicitProfilePositional: isExplicitProfilePositional(
-      argvTokensForProfileDetection(command),
-      profileArg,
-    ),
+    explicitProfilePositional: isExplicitProfilePositional(commanderRawArgv(command), profileArg),
     ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
     args: command.args,
   });
