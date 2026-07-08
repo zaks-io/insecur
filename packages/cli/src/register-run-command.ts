@@ -37,20 +37,24 @@ async function runAction(
 ): Promise<void> {
   const flags = deps.globalFlags(command);
   const options = command.opts<{ variableKey?: string; policyId?: string; watch?: boolean }>();
-  const { api, context } = await deps.resolveApi(flags);
-  const parsed = reconcileProfileRunCommand({
-    flags,
-    context,
-    ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
-    explicitProfilePositional: isExplicitProfilePositional(commanderRawArgv(command), profileArg),
-    ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
-    args: command.args,
-  });
-  process.exitCode = await runRunCommand(flags, api, context, {
-    ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
-    ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
-    ...(options.watch === true ? { watch: true } : {}),
-    ...(parsed.profileSelector === undefined ? {} : { profileSelector: parsed.profileSelector }),
-    command: parsed.command,
-  });
+  const { api, context, dispose } = await deps.resolveApi(flags);
+  try {
+    const parsed = reconcileProfileRunCommand({
+      flags,
+      context,
+      ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
+      explicitProfilePositional: isExplicitProfilePositional(commanderRawArgv(command), profileArg),
+      ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
+      args: command.args,
+    });
+    process.exitCode = await runRunCommand(flags, api, context, {
+      ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
+      ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
+      ...(options.watch === true ? { watch: true } : {}),
+      ...(parsed.profileSelector === undefined ? {} : { profileSelector: parsed.profileSelector }),
+      command: parsed.command,
+    });
+  } finally {
+    dispose?.();
+  }
 }
