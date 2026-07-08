@@ -1,12 +1,11 @@
 import {
   authFailureForReason,
   authenticateWorkOSAuthorizationCode,
-  authenticateWorkOSSession,
   hasApprovalPasskey,
-  parseRequestCredentials,
   type AuthFailure,
 } from "@insecur/auth";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
+import { authenticateBrowserWorkOSSession } from "./browser-workos-session-auth.js";
 import {
   createOAuthState,
   createPkcePair,
@@ -48,17 +47,7 @@ export async function beginBrowserPasskeyEnrollment(
   request: Request,
   env: WebEnv,
 ): Promise<BrowserPasskeyEnrollmentStart | { ok: false; failure: AuthFailure }> {
-  const credentials = parseRequestCredentials({
-    authorizationHeader: request.headers.get("Authorization"),
-    cookieHeader: request.headers.get("Cookie"),
-    csrfHeader: request.headers.get("x-insecur-csrf") ?? undefined,
-  });
-  if (credentials.workosSealedSession === undefined) {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-
-  const workos = createWorkOSSessionPortFromEnv(env);
-  const session = await authenticateWorkOSSession(workos, credentials.workosSealedSession);
+  const session = await authenticateBrowserWorkOSSession(request, env);
   if (!session.ok) {
     return { ok: false, failure: session.failure };
   }
@@ -77,7 +66,7 @@ export async function beginBrowserPasskeyEnrollment(
     workosUserId: session.context.user.id,
     flow: "passkey-enrollment",
   };
-  const authorizationUrl = workos.createAuthorizationUrl({
+  const authorizationUrl = session.workos.createAuthorizationUrl({
     redirectUri: oauthCallbackUrl(request, "/auth/enroll-passkey/callback"),
     state,
     codeChallenge: pkce.challenge,

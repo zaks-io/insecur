@@ -33,9 +33,11 @@ external auditors can verify exports without a shared secret.
 
 ## scope
 
-One Instance, one environment, one signing key version at a time. Each version is its own Secrets
-Store secret and binding (`AUDIT_EXPORT_SIGNING_KEY_V{n}` when multiple versions are live during
-rotation). Public keys for **current and historical** versions are published at
+One Instance, one environment. The Runtime Worker declares a single Secrets Store binding,
+`AUDIT_EXPORT_SIGNING_KEY_V1`, whose JSON value carries the **current** signing key material and an
+internal `keyVersion` field that drives manifest `signing_key_version`. Rotation updates that same
+binding (new key material + bumped `keyVersion`), not additional per-version bindings. Public keys
+for **current and historical** versions are published at
 `/.well-known/insecur/audit-export-signing-keys.json` on the Public Site Worker.
 
 ## required_authority
@@ -50,10 +52,10 @@ rotation). Public keys for **current and historical** versions are published at
 ## preconditions
 
 - The escrow target is **external to insecur** (a 1Password vault item).
-- `apps/runtime/wrangler.jsonc` declares a Secrets Store binding for
-  `AUDIT_EXPORT_SIGNING_KEY_V1` (and additional `AUDIT_EXPORT_SIGNING_KEY_V{n}` bindings during
-  rotation). Bindings live **only** on the private Runtime Worker (`insecur-runtime`); the public
-  API Worker must never declare them (ADR-0077; enforced by `pnpm conformance:topology`).
+- `apps/runtime/wrangler.jsonc` declares the single Secrets Store binding
+  `AUDIT_EXPORT_SIGNING_KEY_V1`. Bindings live **only** on the private Runtime Worker
+  (`insecur-runtime`); the public API Worker must never declare them (ADR-0077; enforced by
+  `pnpm conformance:topology`).
 - The generating machine is trusted and can be taken offline during generation.
 - Escrow exists **before** the first production export is signed. Losing a key version without
   escrow breaks verifiability of exports signed under that version.
@@ -151,15 +153,18 @@ Commit and deploy the Public Site Worker. Only public keys and metadata belong i
 
 ### Rotation (version n → n+1)
 
-1. Generate, escrow, and load the new version into a new Secrets Store secret and Runtime binding
-   (`AUDIT_EXPORT_SIGNING_KEY_V{n+1}`) using the same offline ceremony.
-2. Update the Runtime binding used for signing to the new version (or add the new binding and
-   switch the active signing resolver to it).
-3. Re-publish `audit-export-signing-keys.json`: set `current_version` to `n+1`, add the new public
+1. Generate a new Ed25519 key pair offline using the same ceremony as bootstrap, but set
+   `keyVersion` to `n+1` in the JSON material.
+2. Escrow the new material in 1Password before loading it anywhere live.
+3. **Replace** the existing `AUDIT_EXPORT_SIGNING_KEY_V1` Secrets Store value with the new JSON
+   (new private/public key fields **and** `keyVersion: n+1`). Do not add a new binding — the
+   binding name stays `_V1`; the internal `keyVersion` is what advances.
+4. Re-publish `audit-export-signing-keys.json`: set `current_version` to `n+1`, add the new public
    key with `active_since`, and mark the retired key with `retired_at`. **Keep retired public keys**
    in the document so exports signed under the old version remain verifiable.
-4. Deploy Runtime (signing) then Site (publication). Subsequent manifests record
-   `signing_key_version: n+1`.
+5. Deploy Runtime (signing) then Site (publication). Subsequent manifests record
+   `signing_key_version: n+1`. Omitting or failing to bump `keyVersion` in the Secrets Store JSON
+   causes Runtime to fail closed at export time rather than silently reusing version `1`.
 
 ## verify
 
@@ -168,6 +173,8 @@ Verify against the **deployed** Instance, not localhost plaintext fallbacks:
 - Export a tenant audit trail and run `insecur audit verify` with
   `--published-signing-keys https://<site>/.well-known/insecur/audit-export-signing-keys.json`
   (or a local copy of the published document). Signature, hash chain, and manifest HMAC must pass.
+  Do not also set `INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY` when using the published document —
+  the env override runs after published keys and overwrites the manifest's `signing_key_version`.
 - Confirm production refuses to sign when Secrets Store bindings are absent
   (`AuditExportKeysNotConfiguredError`; no env fallback in production — ADR-0064 posture).
 - Tamper with the export signature only; `audit verify` must fail with

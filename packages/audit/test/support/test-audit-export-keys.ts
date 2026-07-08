@@ -81,6 +81,7 @@ export async function testAuditExportRuntimeBindings(): Promise<{
 }> {
   const keys = await createTestAuditExportKeyProviders();
   const signingMaterial = JSON.stringify({
+    keyVersion: keys.signingKey.keyVersion,
     privateKeyPkcs8Base64Url: keys.signingPrivateKeyPkcs8Base64Url,
     publicKeyRawBase64Url: keys.signingPublicKey,
   });
