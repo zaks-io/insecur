@@ -167,6 +167,26 @@ describe("audit tail CLI", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects malformed timestamp filters before requesting audit events", async () => {
+    process.env.INSECUR_SESSION_TOKEN = "bearer_test";
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    await expect(
+      runAuditTailCommand(
+        { json: true, quiet: true, verbose: false, orgId: ORG },
+        createHttpApiClientForHost("https://insecur.test"),
+        makeContext(),
+        { from: "not-a-date" },
+      ),
+    ).rejects.toMatchObject({
+      name: "CliError",
+      code: VALIDATION_ERROR_CODES.invalidCommandInput,
+      message: "Invalid audit tail --from timestamp. Use YYYY-MM-DD or a UTC ISO 8601 timestamp.",
+    } satisfies Partial<CliError>);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("returns metadata-only human output without Sensitive Values", async () => {
     process.env.INSECUR_SESSION_TOKEN = "bearer_test";
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);

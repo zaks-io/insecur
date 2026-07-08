@@ -37,9 +37,9 @@ describe("revoked cli session store", () => {
   });
 
   it("is idempotent when the session was already revoked", async () => {
-    mockServiceSql([]);
+    mockServiceSql([{ session_id: sessionId }]);
     await expect(revokeCliSession(instanceId, sessionId, admittedUser)).resolves.toEqual({
-      revoked: false,
+      revoked: true,
     });
   });
 

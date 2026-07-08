@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-07-05
+Last updated: 2026-07-07
 
 This is a code and runtime status snapshot. It says what is delivered now, what was
 verified, and what is still missing. It is not the normative product spec. When this
@@ -52,9 +52,9 @@ What is not delivered:
   out-of-band access-log evidence unless it is moved to or backed by an organization
   vault with event logs.
 
-## Verified On 2026-06-29
+## Historical Preview Verification Snapshot From 2026-06-29
 
-Local checkout:
+Local checkout at that time:
 
 - Branch: `main`
 - HEAD: `e1c1dd4179a1f6536e6ef2f6b75373ff488ed675`
@@ -63,7 +63,7 @@ Local checkout:
 - Open GitHub PRs: none at the time of verification
 - Toolchain: Node `v24.16.0`, pnpm `10.19.0`
 
-Commands run locally for the current PKCE login change:
+Commands run locally for that PKCE login change:
 
 ```sh
 pnpm verify

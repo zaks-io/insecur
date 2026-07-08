@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { runGuideCommand } from "../src/commands/guide.js";
 import { runCli } from "../src/program.js";
 import { EXIT_VALIDATION } from "../src/output/exit-codes.js";
@@ -11,6 +13,7 @@ import type { ScanReport } from "../src/scan/types.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const distBundlePath = join(packageRoot, "dist", "index.js");
+const execFileAsync = promisify(execFile);
 
 describe("insecur guide", () => {
   afterEach(() => {
@@ -102,6 +105,10 @@ describe("insecur guide", () => {
 });
 
 describe("insecur guide bundle", () => {
+  beforeAll(async () => {
+    await execFileAsync(process.execPath, ["build.mjs"], { cwd: packageRoot });
+  }, 15_000);
+
   it("embeds migrate-env content in the built dist bundle", async () => {
     const bundle = await readFile(distBundlePath, "utf8");
     expect(bundle).toContain("Safe playbook for moving disk secrets into insecur");
