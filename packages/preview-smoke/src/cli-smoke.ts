@@ -5,8 +5,12 @@ import type { RunCliSmokeCommandInput } from "./cli-smoke-runtime.js";
 
 export { createCliSmokeWorkspace, resolveCliSmokePaths } from "./cli-smoke-runtime.js";
 export {
+  buildCliAuditExportArgs,
+  buildCliAuditTailArgs,
+  buildCliAuditVerifyArgs,
   buildCliFirstValueRunArgs,
   buildCliSecretsSetValueStdinArgs,
+  buildCliSecretsVersionsArgs,
 } from "./cli-smoke-commands.js";
 
 export async function runCliSmokeCommand(
