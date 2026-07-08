@@ -23,6 +23,7 @@ import type {
   IsCliSessionRevokedRpcPayload,
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
+  QueryFirstValueUsageRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
   RecordAbuseDeniedRpcInput,
@@ -46,6 +47,7 @@ import {
 } from "./rpc/runtime-keyring-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
+  queryFirstValueUsageRpc,
   cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
@@ -236,6 +238,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
     return captureFirstValueFeedbackRpc(this.postAuthRpc(), input);
+  }
+
+  queryFirstValueUsage(input: QueryFirstValueUsageRpcInput) {
+    return queryFirstValueUsageRpc(this.#post.bind(this), input);
   }
 }
 

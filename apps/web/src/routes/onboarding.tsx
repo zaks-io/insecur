@@ -35,6 +35,7 @@ export const Route = createFileRoute("/onboarding")({
     ...(typeof search.project === "string" ? { project: search.project } : {}),
     ...(typeof search.env === "string" ? { env: search.env } : {}),
     ...(search.passkey === "failed" ? { passkey: "failed" as const } : {}),
+    ...(search.wizardStep === "first-secret" ? { wizardStep: "first-secret" as const } : {}),
   }),
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ deps }) => {
@@ -43,7 +44,11 @@ export const Route = createFileRoute("/onboarding")({
       onboardingReturnTo(parseHandoffSearch(deps.search)),
     );
     const workspace = parseHandoffSearch(deps.search);
-    const decision = decideOnboardingRoute(session.organizations, workspace);
+    const decision = decideOnboardingRoute(
+      session.organizations,
+      workspace,
+      deps.search.wizardStep,
+    );
     if (decision.kind === "redirect-console") {
       throw redirect({ href: decision.href });
     }
@@ -99,13 +104,8 @@ function resolveOnboardingHandoff(
   return decision.kind === "handoff" ? decision : undefined;
 }
 
-function OnboardingPage() {
-  const decision = Route.useLoaderData();
-  const search = Route.useSearch();
+function useOnboardingNavigation() {
   const navigate = useNavigate();
-  const [completed, setCompleted] = useState<ProvisionedHandoff>();
-  const [formStep, setFormStep] = useState<OnboardingStepId>("name-organization");
-  const handoff = resolveOnboardingHandoff(completed, decision);
 
   const navigateToHandoff = (workspace: ProvisionedWorkspace) => {
     void navigate({
@@ -118,6 +118,30 @@ function OnboardingPage() {
       replace: true,
     });
   };
+
+  const navigateToFirstSecret = (handoff: ProvisionedHandoff) => {
+    void navigate({
+      to: "/onboarding",
+      search: {
+        org: handoff.workspace.organizationId,
+        project: handoff.workspace.projectId,
+        env: handoff.workspace.environmentId,
+        wizardStep: "first-secret",
+      },
+      replace: true,
+    });
+  };
+
+  return { navigateToHandoff, navigateToFirstSecret };
+}
+
+function OnboardingPage() {
+  const decision = Route.useLoaderData();
+  const search = Route.useSearch();
+  const { navigateToHandoff, navigateToFirstSecret } = useOnboardingNavigation();
+  const [completed, setCompleted] = useState<ProvisionedHandoff>();
+  const [formStep, setFormStep] = useState<OnboardingStepId>("name-organization");
+  const handoff = resolveOnboardingHandoff(completed, decision);
 
   const handleProvisioned = (result: ProvisionedHandoff) => {
     setCompleted(result);
@@ -133,6 +157,7 @@ function OnboardingPage() {
           passkeyEnrolled={decision.kind === "wizard" ? decision.passkeyEnrolled : false}
           onProvisioned={handleProvisioned}
           onContinueToHandoff={navigateToHandoff}
+          onEnterFirstSecret={navigateToFirstSecret}
           onStepChange={setFormStep}
         />
       ) : (

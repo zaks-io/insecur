@@ -7,6 +7,7 @@ export interface OnboardingSearch {
   readonly project?: string;
   readonly env?: string;
   readonly passkey?: "failed";
+  readonly wizardStep?: "first-secret";
 }
 
 /**
@@ -48,12 +49,16 @@ export type OnboardingRouteDecision =
 export function decideOnboardingRoute(
   organizations: readonly ConsoleOrganization[],
   workspace: ProvisionedWorkspace | undefined,
+  wizardStep?: OnboardingSearch["wizardStep"],
 ): OnboardingRouteDecision {
   if (workspace !== undefined) {
     const membership = organizations.find(
       (organization) => organization.organizationId === workspace.organizationId,
     );
     if (membership !== undefined) {
+      if (wizardStep === "first-secret") {
+        return { kind: "wizard" };
+      }
       return { kind: "handoff", workspace, organizationName: membership.displayName };
     }
   }

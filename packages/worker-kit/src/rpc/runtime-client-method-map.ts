@@ -31,6 +31,7 @@ export function buildAuthenticatedRuntimeClientMethods(
     listOrganizationMembers: forward("listOrganizationMembers"),
     listOrganizationInvitations: forward("listOrganizationInvitations"),
     listAuditEvents: forward("listAuditEvents"),
+    queryFirstValueUsage: forward("queryFirstValueUsage"),
     listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
     getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
     clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),

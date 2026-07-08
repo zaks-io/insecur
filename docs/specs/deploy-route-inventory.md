@@ -36,6 +36,7 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
 | \*     | `/v1/orgs/:organizationId/run-policies`              |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback`   |
+| GET    | `/v1/orgs/:organizationId/first-value-usage`         |
 
 Under `/v1/orgs/:organizationId/run-policies` (INS-437): `POST /` creates an immutable Runtime
 Injection Policy Version with exact secret bindings and updates the active pointer; `GET
@@ -55,6 +56,11 @@ last-set actor/time; INS-363). `GET
 /:projectId/environments/:environmentId/secrets/:secretId/versions` lists per-version metadata for
 one Secret (version ids, timestamps, current/published markers; INS-434). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+
+Under `/v1/orgs/:organizationId/first-value-usage` (INS-379): `GET /` returns metadata-only
+First Value usage counters for the onboarding handoff indicator (`secretWrites`, `grantConsumed`,
+`runCompleted`, `firstInjectionObserved`). Authorize-then-read requires `organization:read` inside
+the Runtime deploy.
 
 Under `/v1/orgs/:organizationId/audit-events` (INS-364): `GET /` lists tenant-qualified audit
 events with metadata-only envelopes. Query filters: `actorUserId`, `actorMachineIdentityId`,

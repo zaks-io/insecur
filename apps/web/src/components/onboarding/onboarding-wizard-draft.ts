@@ -2,18 +2,46 @@ import {
   parseOnboardingResourceIds,
   type OnboardingResourceIds,
 } from "../../onboarding/provisioning.js";
+import { parseProvisionedWorkspace } from "../../onboarding/parse-provisioned-workspace.js";
+import type { ProvisionedHandoff } from "./onboarding-wizard-types.js";
 
 const STORAGE_KEY = "insecur:onboarding-wizard-draft";
 
-export type FormStepId = "name-organization" | "enroll-passkey" | "create-project";
+export type FormStepId = "name-organization" | "enroll-passkey" | "create-project" | "first-secret";
 
-const FORM_STEPS = new Set<FormStepId>(["name-organization", "enroll-passkey", "create-project"]);
+const FORM_STEPS = new Set<FormStepId>([
+  "name-organization",
+  "enroll-passkey",
+  "create-project",
+  "first-secret",
+]);
 
 export interface OnboardingWizardDraft {
   readonly step: FormStepId;
   readonly organizationName: string;
   readonly projectName: string;
   readonly resourceIds: OnboardingResourceIds;
+  readonly provisionedHandoff?: ProvisionedHandoff;
+}
+
+function parseProvisionedHandoff(value: unknown): ProvisionedHandoff | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const workspace = parseProvisionedWorkspace(record.workspace);
+  if (
+    workspace === null ||
+    typeof record.organizationName !== "string" ||
+    typeof record.projectName !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    workspace,
+    organizationName: record.organizationName,
+    projectName: record.projectName,
+  };
 }
 
 function parseDraftRecord(parsed: Record<string, unknown>): OnboardingWizardDraft | null {
@@ -28,11 +56,13 @@ function parseDraftRecord(parsed: Record<string, unknown>): OnboardingWizardDraf
   ) {
     return null;
   }
+  const provisionedHandoff = parseProvisionedHandoff(parsed.provisionedHandoff);
   return {
     step: step as FormStepId,
     organizationName: parsed.organizationName,
     projectName: parsed.projectName,
     resourceIds,
+    ...(provisionedHandoff === undefined ? {} : { provisionedHandoff }),
   };
 }
 

@@ -31,7 +31,23 @@ export {
   type CloudflareScopedTokenVerifyInput,
   type CloudflareScopedTokenVerifyResult,
 } from "./cloudflare-scoped-token-port.js";
-export { assertCloudflareScopedTokenConnection } from "./assert-cloudflare-scoped-token-connection.js";
+export {
+  GITHUB_BOUNDARY_FIELD_KEYS,
+  GITHUB_CONNECTION_BOUNDARY_METADATA_TYPE,
+  GITHUB_CONNECTION_LINKAGE_METADATA_TYPE,
+  GITHUB_LINKAGE_FIELD_KEYS,
+  githubConnectionRecordResourceId,
+  type GitHubConnectionBoundary,
+  type GitHubConnectionLinkage,
+} from "./github-app-metadata.js";
+export {
+  createGitHubAppInstallationPort,
+  type GitHubAppInstallationPort,
+  type GitHubAppInstallationVerifyInput,
+  type GitHubAppInstallationVerifyResult,
+  assertRepositoryInGitHubConnectionBoundary,
+} from "./github-app-port.js";
+export { assertGitHubAppConnection } from "./assert-github-app-connection.js";
 export {
   createCloudflareScopedTokenConnection,
   type CreateCloudflareScopedTokenConnectionInput,
@@ -39,9 +55,19 @@ export {
   type MetadataSafeCloudflareConnectionValidation,
 } from "./create-cloudflare-scoped-token-connection.js";
 export {
+  createGitHubAppConnection,
+  type CreateGitHubAppConnectionInput,
+  type MetadataSafeGitHubConnectionResult,
+  type MetadataSafeGitHubConnectionValidation,
+} from "./create-github-app-connection.js";
+export {
   disableCloudflareConnection,
   type DisableCloudflareConnectionInput,
 } from "./disable-cloudflare-connection.js";
+export {
+  disableGitHubConnection,
+  type DisableGitHubConnectionInput,
+} from "./disable-github-connection.js";
 export {
   connectionMethodRequiresStoredCredential,
   connectionMethodUsesProviderAppRegistration,
@@ -50,6 +76,10 @@ export {
   toMetadataSafeCloudflareConnectionStatus,
   type MetadataSafeCloudflareConnectionStatus,
 } from "./metadata-safe-cloudflare-connection-status.js";
+export {
+  toMetadataSafeGitHubConnectionStatus,
+  type MetadataSafeGitHubConnectionStatus,
+} from "./metadata-safe-github-connection-status.js";
 export {
   toMetadataSafeAppConnectionStatus,
   type MetadataSafeAppConnectionStatus,
@@ -73,3 +103,11 @@ export {
   validateCloudflareScopedTokenConnection,
   type ValidateCloudflareScopedTokenConnectionInput,
 } from "./validate-cloudflare-scoped-token-connection.js";
+export {
+  validateGitHubAppConnection,
+  type ValidateGitHubAppConnectionInput,
+} from "./validate-github-app-connection.js";
+export {
+  updateGitHubAppConnection,
+  type UpdateGitHubAppConnectionInput,
+} from "./update-github-app-connection.js";

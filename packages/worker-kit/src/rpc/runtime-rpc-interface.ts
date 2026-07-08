@@ -47,6 +47,10 @@ import type {
   RecordInjectionRunCompletedRpcPayload,
 } from "./runtime-operations-rpc-contract.js";
 import type {
+  FirstValueUsageStatusRpcPayload,
+  QueryFirstValueUsageRpcInput,
+} from "./runtime-first-value-usage-rpc-contract.js";
+import type {
   ClearHighAssuranceChallengeRpcInput,
   ClearHighAssuranceChallengeRpcPayload,
   DenyHighAssuranceChallengeRpcInput,
@@ -180,6 +184,9 @@ export interface RuntimeRpc {
   listAuditEvents(
     input: ListAuditEventsRpcInput,
   ): Promise<RuntimeRpcResult<ListAuditEventsRpcPayload>>;
+  queryFirstValueUsage(
+    input: QueryFirstValueUsageRpcInput,
+  ): Promise<RuntimeRpcResult<FirstValueUsageStatusRpcPayload>>;
   listPendingHighAssuranceChallenges(
     input: ListPendingHighAssuranceChallengesRpcInput,
   ): Promise<RuntimeRpcResult<ListPendingHighAssuranceChallengesRpcPayload>>;
