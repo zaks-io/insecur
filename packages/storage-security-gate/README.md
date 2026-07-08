@@ -27,6 +27,13 @@ const verdict = await evaluateStorageSecurityGate({
 });
 ```
 
+## Readiness fact audit
+
+Control-to-source coverage for composable probes lives in
+`docs/readiness-fact-audit.md`. Deeper modules expose metadata-only facts;
+`mapReadinessReportToProbeOutcome` converts them into gate probe outcomes without
+adding crypto or tenant-store dependencies to this package.
+
 ## Tests
 
 - `pnpm --filter @insecur/storage-security-gate test`

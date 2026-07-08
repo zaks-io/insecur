@@ -84,6 +84,23 @@ export {
   type DataKeyReadinessStatus,
   type KeyringReadinessInput,
 } from "./keyring-readiness.js";
+export {
+  checkStoredEnvelopeBindingReadiness,
+  type EnvelopeBindingReadinessIssue,
+  type EnvelopeBindingReadinessIssueCode,
+  type EnvelopeBindingReadinessReport,
+  type EnvelopeBindingReadinessStatus,
+  type StoredEnvelopeBindingInput,
+} from "./envelope-binding-readiness.js";
+export {
+  checkRootKeyEscrowReadiness,
+  ROOT_KEY_ESCROW_EVIDENCE_PREFIX,
+  type RootKeyEscrowReadinessInput,
+  type RootKeyEscrowReadinessIssue,
+  type RootKeyEscrowReadinessIssueCode,
+  type RootKeyEscrowReadinessReport,
+  type RootKeyEscrowReadinessStatus,
+} from "./root-key-escrow-readiness.js";
 export { MetadataTenantDataKeySource } from "./metadata-tenant-data-key-source.js";
 export { PersistingMetadataTenantDataKeySource } from "./persisting-metadata-tenant-data-key-source.js";
 export {
