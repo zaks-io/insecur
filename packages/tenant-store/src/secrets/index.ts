@@ -58,6 +58,7 @@ export type {
   PublishSecretVersionsInput,
   PublishSecretVersionsResult,
   ResolveSecretForWriteInput,
+  SecretVersionCreatorActor,
   SecretVersionStoreRow,
   StoredWrappedSecretMaterial,
 } from "./types.js";

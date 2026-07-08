@@ -1,6 +1,5 @@
 import {
   secretId,
-  secretVersionId,
   type EnvironmentId,
   type OrganizationId,
   type SecretId,
@@ -10,20 +9,23 @@ import { and, eq } from "drizzle-orm";
 
 import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
-import { decodeStoredWrappedMaterial } from "../decode-stored-wrapped-material.js";
 import { listDraftVersions as listDraftVersionsQuery } from "./list-draft-versions.js";
 import {
   resolveDraftPromotionTargetInEnvironment,
   type DraftPromotionTarget,
 } from "./resolve-draft-promotion-target.js";
 import { resolveSecretForWrite as resolveSecretForWriteRow } from "./resolve-secret-for-write.js";
-import { SecretVersionStoreConflictError } from "./errors.js";
 export { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
 import {
   SECRET_VERSION_LIFECYCLE_STATES,
   parseSecretVersionLifecycleState,
-  type SecretVersionLifecycleState,
 } from "./lifecycle-states.js";
+import {
+  appendResult,
+  assertDeliverableLifecycleState,
+  secretVersionRowSelect,
+  toSecretVersionStoreRow,
+} from "./secret-version-row-mappers.js";
 import { publishSecretVersions } from "./publish-secret-versions.js";
 import {
   insertDraftVersion,
@@ -34,6 +36,7 @@ import {
   discardDraftSecretVersion,
   type DiscardDraftSecretVersionResult,
 } from "./discard-draft-secret-version.js";
+import { getDraftVersionCreator } from "./get-draft-version-creator.js";
 import type {
   AppendSecretVersionAndMakeLiveInput,
   AppendSecretVersionAndMakeLiveResult,
@@ -44,51 +47,9 @@ import type {
   PublishSecretVersionsInput,
   PublishSecretVersionsResult,
   ResolveSecretForWriteInput,
+  SecretVersionCreatorActor,
   SecretVersionStoreRow,
 } from "./types.js";
-
-const secretVersionRowSelect = {
-  id: secretVersions.id,
-  orgId: secretVersions.orgId,
-  secretId: secretVersions.secretId,
-  versionNumber: secretVersions.versionNumber,
-  lifecycleState: secretVersions.lifecycleState,
-  organizationDataKeyVersion: secretVersions.organizationDataKeyVersion,
-  projectDataKeyVersion: secretVersions.projectDataKeyVersion,
-  ciphertextStorageRef: secretVersions.ciphertextStorageRef,
-} as const;
-
-function toSecretVersionStoreRow(
-  version: {
-    id: string;
-    secretId: string;
-    versionNumber: number;
-    lifecycleState: string;
-    organizationDataKeyVersion: number | null;
-    projectDataKeyVersion: number | null;
-    ciphertextStorageRef: string;
-  },
-  secretIdValue: SecretId,
-): SecretVersionStoreRow {
-  return {
-    secretVersionId: secretVersionId.brand(version.id),
-    secretId: secretIdValue,
-    versionNumber: version.versionNumber,
-    lifecycleState: parseSecretVersionLifecycleState(version.lifecycleState),
-    organizationDataKeyVersion: version.organizationDataKeyVersion ?? 0,
-    projectDataKeyVersion: version.projectDataKeyVersion ?? 0,
-    wrapped: decodeStoredWrappedMaterial(version, { material: "secret-version" }),
-  };
-}
-
-function assertDeliverableLifecycleState(lifecycleState: SecretVersionLifecycleState): void {
-  if (
-    lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.live &&
-    lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.retained
-  ) {
-    throw new SecretVersionStoreConflictError("secret version is not deliverable");
-  }
-}
 
 /**
  * Postgres-backed Secret Version Store. Accepts and returns wrapped material only.
@@ -220,15 +181,7 @@ export class TenantSecretVersionStore {
   ): Promise<AppendSecretVersionAsDraftResult> {
     await lockSecretForAppend(this.db, input.organizationId, input.secretId);
     const versionNumber = await insertDraftVersion(this.db, input);
-
-    return {
-      secretId: input.secretId,
-      secretVersionId: input.secretVersionId,
-      versionNumber,
-      lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.draft,
-      createdSecretShape: input.createdSecretShape,
-      descriptiveVerdicts: input.descriptiveVerdicts,
-    };
+    return appendResult(input, versionNumber, SECRET_VERSION_LIFECYCLE_STATES.draft);
   }
 
   async appendVersionAndMakeLive(
@@ -236,19 +189,19 @@ export class TenantSecretVersionStore {
   ): Promise<AppendSecretVersionAndMakeLiveResult> {
     await lockSecretForAppend(this.db, input.organizationId, input.secretId);
     const versionNumber = await insertVersionAndMakeLive(this.db, input);
-
-    return {
-      secretId: input.secretId,
-      secretVersionId: input.secretVersionId,
-      versionNumber,
-      lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.live,
-      createdSecretShape: input.createdSecretShape,
-      descriptiveVerdicts: input.descriptiveVerdicts,
-    };
+    return appendResult(input, versionNumber, SECRET_VERSION_LIFECYCLE_STATES.live);
   }
 
   async publishVersions(input: PublishSecretVersionsInput): Promise<PublishSecretVersionsResult> {
     return publishSecretVersions(this.db, input);
+  }
+
+  async getDraftVersionCreator(input: {
+    organizationId: OrganizationId;
+    secretId: SecretId;
+    secretVersionId: SecretVersionId;
+  }): Promise<SecretVersionCreatorActor | null> {
+    return getDraftVersionCreator(this.db, input);
   }
 
   async discardDraftVersion(input: {

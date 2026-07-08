@@ -29,8 +29,8 @@ vi.mock("@insecur/audit", async (importOriginal) => {
   };
 });
 
-vi.mock("../src/assert-secret-protected-mutation-access.js", () => ({
-  assertSecretProtectedMutationAccess: vi.fn(),
+vi.mock("../src/assert-discard-draft-version-access.js", () => ({
+  assertDiscardDraftVersionAccess: vi.fn(),
 }));
 
 import { recordApprovalAudit, recordStorageAudit } from "@insecur/audit";
@@ -42,7 +42,7 @@ import {
   withTenantScope,
 } from "@insecur/tenant-store";
 
-import { assertSecretProtectedMutationAccess } from "../src/assert-secret-protected-mutation-access.js";
+import { assertDiscardDraftVersionAccess } from "../src/assert-discard-draft-version-access.js";
 import { discardDraftVersion } from "../src/discard-draft-version.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -58,7 +58,10 @@ const ACTOR = { type: "user" as const, userId: USER };
 
 function mockDiscardStore(discardDraftVersionMock: ReturnType<typeof vi.fn>) {
   vi.mocked(TenantSecretVersionStore).mockImplementation(function MockStore() {
-    return { discardDraftVersion: discardDraftVersionMock } as never;
+    return {
+      discardDraftVersion: discardDraftVersionMock,
+      getDraftVersionCreator: vi.fn().mockResolvedValue(ACTOR),
+    } as never;
   } as never);
 }
 
@@ -76,7 +79,7 @@ describe("discardDraftVersion", () => {
     vi.mocked(withTenantScope).mockImplementation(async (_scope, callback) =>
       callback({ db: {} as never }),
     );
-    vi.mocked(assertSecretProtectedMutationAccess).mockResolvedValue(undefined);
+    vi.mocked(assertDiscardDraftVersionAccess).mockResolvedValue(undefined);
   });
 
   it("discards the draft and closes pending approvals referencing it", async () => {
@@ -138,8 +141,10 @@ describe("discardDraftVersion", () => {
     expect(recordApprovalAudit).not.toHaveBeenCalled();
   });
 
-  it("fails closed when the caller lacks the secretProtectedDraftWrite scope, recording a denial", async () => {
-    vi.mocked(assertSecretProtectedMutationAccess).mockRejectedValue(
+  it("fails closed when the caller is not authorized to discard, recording a denial", async () => {
+    mockDiscardStore(vi.fn());
+    mockApprovalStore(vi.fn());
+    vi.mocked(assertDiscardDraftVersionAccess).mockRejectedValue(
       Object.assign(new Error("scope required"), { code: "auth.insufficient_scope" }),
     );
 
@@ -158,7 +163,6 @@ describe("discardDraftVersion", () => {
     expect(recordStorageAudit).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: "denied", secretVersionId: DRAFT }),
     );
-    expect(withTenantScope).not.toHaveBeenCalled();
   });
 
   it("translates a not-found draft into a draftVersionNotDiscardable error", async () => {

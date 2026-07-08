@@ -277,6 +277,13 @@ export default tseslint.config(
     },
   },
   {
+    // ADR-0037 schema source of truth: one plain table-definitions file per tenant domain group.
+    files: ["packages/tenant-store/src/db/schema/tenant-secrets.ts"],
+    rules: {
+      "max-lines": ["error", { max: 280, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: ["apps/runtime/src/runtime-service.ts"],
     rules: {
       "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],

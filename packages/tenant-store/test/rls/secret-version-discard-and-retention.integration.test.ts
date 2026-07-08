@@ -10,6 +10,7 @@ import {
 } from "@insecur/domain";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { testDescriptiveVerdicts } from "../helpers/descriptive-verdicts.js";
+import { TEST_CREATOR_ACTOR } from "../helpers/test-creator-actor.js";
 import {
   copyRetainedSecretVersion,
   DISCARDED_CIPHERTEXT_STORAGE_REF,
@@ -84,6 +85,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         wrapped: syntheticWrappedMaterial(51),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("discard-draft"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
 
@@ -136,6 +138,34 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
     ).rejects.toThrow();
   });
 
+  it("stamps and reads back the creating actor for discard authorization (ADR-0017 §27)", async () => {
+    const variableKey = uniqueVariableKey("DISCARD_CREATOR");
+    const dedicatedSecretId = await resolveDedicatedSecret(variableKey);
+    const draftVersionId = secretVersionId.generate();
+
+    await withTenantScope({ kind: "organization", organizationId: ORG }, async ({ db }) => {
+      await new TenantSecretVersionStore(db).appendVersionAsDraft({
+        organizationId: ORG,
+        secretId: dedicatedSecretId,
+        secretVersionId: draftVersionId,
+        wrapped: syntheticWrappedMaterial(91),
+        createdSecretShape: false,
+        descriptiveVerdicts: testDescriptiveVerdicts("discard-creator"),
+        createdByActor: TEST_CREATOR_ACTOR,
+      });
+    });
+
+    const creator = await withTenantScope({ kind: "organization", organizationId: ORG }, ({ db }) =>
+      new TenantSecretVersionStore(db).getDraftVersionCreator({
+        organizationId: ORG,
+        secretId: dedicatedSecretId,
+        secretVersionId: draftVersionId,
+      }),
+    );
+
+    expect(creator).toEqual(TEST_CREATOR_ACTOR);
+  });
+
   it("rejects discarding a live version (only drafts are discardable)", async () => {
     const variableKey = uniqueVariableKey("DISCARD_LIVE");
     const dedicatedSecretId = await resolveDedicatedSecret(variableKey);
@@ -150,6 +180,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         wrapped: syntheticWrappedMaterial(61),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("discard-live"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
 
@@ -192,6 +223,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         wrapped: syntheticWrappedMaterial(71),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("rollback-fresh-1"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
     const retainedVersionId = secretVersionId.generate();
@@ -204,6 +236,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         wrapped: syntheticWrappedMaterial(72),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("rollback-fresh-2"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
     // Now supersede it so it becomes `retained`, with a fresh publishedAt (default now()).
@@ -217,6 +250,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         wrapped: syntheticWrappedMaterial(73),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("rollback-fresh-3"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
 
@@ -228,6 +262,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         toSourceVersionId: retainedVersionId,
         newSecretVersionId: rollbackDraftId,
         asDraft: true,
+        createdByActor: TEST_CREATOR_ACTOR,
       }),
     );
     expect(copied.lifecycleState).toBe(SECRET_VERSION_LIFECYCLE_STATES.draft);
@@ -247,6 +282,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         wrapped: syntheticWrappedMaterial(81),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("rollback-expired-1"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
     await withTenantScope({ kind: "organization", organizationId: ORG }, async ({ db }) => {
@@ -258,6 +294,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
         wrapped: syntheticWrappedMaterial(82),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("rollback-expired-2"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
 
@@ -279,6 +316,7 @@ describeRls("Draft Version Discard and Rollback Retention Window (real Postgres)
           toSourceVersionId: retainedVersionId,
           newSecretVersionId: secretVersionId.generate(),
           asDraft: true,
+          createdByActor: TEST_CREATOR_ACTOR,
         }),
       ),
     ).rejects.toBeInstanceOf(SecretVersionStoreConflictError);

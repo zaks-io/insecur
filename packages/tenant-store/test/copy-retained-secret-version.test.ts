@@ -6,6 +6,7 @@ import { SecretVersionStoreConflictError } from "../src/secrets/errors.js";
 import { SECRET_VERSION_LIFECYCLE_STATES } from "../src/secrets/lifecycle-states.js";
 import { ROLLBACK_RETENTION_WINDOW_DAYS } from "../src/secrets/rollback-retention-window.js";
 import { createMockTenantDb } from "./helpers/mock-tenant-db.js";
+import { TEST_CREATOR_ACTOR } from "./helpers/test-creator-actor.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
@@ -40,6 +41,7 @@ describe("copyRetainedSecretVersion", () => {
       toSourceVersionId: "sv_00000000000000000000000001" as never,
       newSecretVersionId: NEW_VERSION,
       asDraft: true,
+      createdByActor: TEST_CREATOR_ACTOR,
     });
 
     expect(result).toMatchObject({
@@ -52,6 +54,9 @@ describe("copyRetainedSecretVersion", () => {
       id: NEW_VERSION,
       ciphertextStorageRef: "ciphertext-ref",
       lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.draft,
+      createdByActorType: "user",
+      createdByUserId: TEST_CREATOR_ACTOR.type === "user" ? TEST_CREATOR_ACTOR.userId : null,
+      createdByMachineIdentityId: null,
     });
   });
 
@@ -82,6 +87,7 @@ describe("copyRetainedSecretVersion", () => {
         toSourceVersionId: "sv_00000000000000000000000001" as never,
         newSecretVersionId: NEW_VERSION,
         asDraft: true,
+        createdByActor: TEST_CREATOR_ACTOR,
       }),
     ).rejects.toThrow(SecretVersionStoreConflictError);
   });
@@ -110,6 +116,7 @@ describe("copyRetainedSecretVersion", () => {
         toSourceVersionId: "sv_00000000000000000000000001" as never,
         newSecretVersionId: NEW_VERSION,
         asDraft: true,
+        createdByActor: TEST_CREATOR_ACTOR,
       }),
     ).rejects.toThrow(SecretVersionStoreConflictError);
   });

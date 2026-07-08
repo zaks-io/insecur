@@ -23,11 +23,12 @@ import {
   TenantSecretVersionStore,
   withTenantScope,
   type DiscardDraftSecretVersionResult,
+  type SecretVersionCreatorActor,
   type TenantScopedDb,
 } from "@insecur/tenant-store";
 
 import { ApprovalRequestError } from "./approval-request-errors.js";
-import { assertSecretProtectedMutationAccess } from "./assert-secret-protected-mutation-access.js";
+import { assertDiscardDraftVersionAccess } from "./assert-discard-draft-version-access.js";
 
 export interface DiscardDraftVersionInput {
   readonly actor: ActorRef;
@@ -56,6 +57,32 @@ function toAuditActor(actor: ActorRef): AuditActorRef {
 interface DiscardTransactionResult {
   readonly discard: DiscardDraftSecretVersionResult;
   readonly closedApprovalRequestIds: readonly ApprovalRequestId[];
+}
+
+async function loadDraftCreator(
+  input: DiscardDraftVersionInput,
+): Promise<SecretVersionCreatorActor | null> {
+  return withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
+    new TenantSecretVersionStore(db).getDraftVersionCreator({
+      organizationId: input.organizationId,
+      secretId: input.secretId,
+      secretVersionId: input.secretVersionId,
+    }),
+  );
+}
+
+async function authorizeDiscard(
+  input: DiscardDraftVersionInput,
+  scope: { organizationId: OrganizationId; projectId: ProjectId; environmentId: EnvironmentId },
+  auditActor: AuditActorRef,
+): Promise<void> {
+  try {
+    const creator = await loadDraftCreator(input);
+    await assertDiscardDraftVersionAccess(input.actor, scope, creator);
+  } catch (error) {
+    await recordDiscardDenied(input, scope, auditActor);
+    throw error;
+  }
 }
 
 async function runDiscardTransaction(
@@ -146,12 +173,14 @@ async function recordDiscardSuccessAndClosures(
 }
 
 /**
- * Draft Version Discard (ADR-0017): a terminal, crypto-erasing close of a Draft Version. Unlike
+ * Draft Version Discard (ADR-0017 §27): a terminal, crypto-erasing close of a Draft Version. Unlike
  * Promotion or Rollback, discard does not require the High-Assurance mutation gate or an Approval
- * Request of its own — it uses the same `secretProtectedDraftWrite` scope required to create the
- * draft in the first place. Discarding closes any pending Approval Request whose Promotion Change
- * Set includes the discarded Draft Version (status -> `draft_discard_closed`); existing Partial
- * Approvals on those requests become audit-only because the request is no longer pending.
+ * Request of its own. Authorization is narrower than draft-write: only the creating User or Machine
+ * Identity (while still authorized) or a scoped owner/admin cleanup actor may discard, and a
+ * creator-less draft is discardable only by owner/admin. Discarding closes any pending Approval
+ * Request whose Promotion Change Set includes the discarded Draft Version (status ->
+ * `draft_discard_closed`); existing Partial Approvals on those requests become audit-only because
+ * the request is no longer pending.
  */
 export async function discardDraftVersion(
   input: DiscardDraftVersionInput,
@@ -163,12 +192,7 @@ export async function discardDraftVersion(
   };
   const auditActor = toAuditActor(input.actor);
 
-  try {
-    await assertSecretProtectedMutationAccess(input.actor, scope);
-  } catch (error) {
-    await recordDiscardDenied(input, scope, auditActor);
-    throw error;
-  }
+  await authorizeDiscard(input, scope, auditActor);
 
   const { discard, closedApprovalRequestIds } = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },

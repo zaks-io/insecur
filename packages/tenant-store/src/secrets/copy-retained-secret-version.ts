@@ -18,6 +18,7 @@ import {
   allocateNextVersionNumber,
 } from "../secrets/secret-version-append.js";
 import { isWithinRollbackRetentionWindow } from "../secrets/rollback-retention-window.js";
+import type { SecretVersionCreatorActor } from "./types.js";
 
 export interface CopyRetainedSecretVersionInput {
   readonly organizationId: OrganizationId;
@@ -25,6 +26,8 @@ export interface CopyRetainedSecretVersionInput {
   readonly toSourceVersionId: SecretVersionId;
   readonly newSecretVersionId: SecretVersionId;
   readonly asDraft: boolean;
+  /** Actor performing the rollback; becomes the creator of the new copied version (ADR-0017 §27). */
+  readonly createdByActor: SecretVersionCreatorActor;
 }
 
 export interface CopyRetainedSecretVersionResult {
@@ -115,6 +118,10 @@ export async function copyRetainedSecretVersion(
     secretId: input.secretId,
     versionNumber,
     lifecycleState,
+    createdByActorType: input.createdByActor.type,
+    createdByUserId: input.createdByActor.type === "user" ? input.createdByActor.userId : null,
+    createdByMachineIdentityId:
+      input.createdByActor.type === "machine" ? input.createdByActor.machineIdentityId : null,
     publishedAt: lifecycleState === SECRET_VERSION_LIFECYCLE_STATES.live ? new Date() : null,
     organizationDataKeyVersion: source.organizationDataKeyVersion,
     projectDataKeyVersion: source.projectDataKeyVersion,
