@@ -642,6 +642,21 @@ DB/runtime paths. Semgrep, gitleaks history, and SBOM/grype dependency-CVE scann
 too, because it touches no secrets. Docs-only and workflow-only PRs keep `Verify` green while
 skipping irrelevant product-code work; merge queue runs stay full validation.
 
+### Fuzz workflow: `Fuzz` (`fuzz.yml`)
+
+Trigger: scheduled daily at 06:17 UTC, or `workflow_dispatch`. This workflow is separate from `CI`
+and `security-daily` while the fuzz suite's signal/noise profile is still being evaluated. It
+installs dependencies on `blacksmith-4vcpu-ubuntu-2404`, then runs `pnpm test:fuzz`.
+
+Dispatch inputs:
+
+- `runs`: generated cases per property, passed through as `INSECUR_FUZZ_RUNS`.
+- `seed`: optional replay seed, passed through as `INSECUR_FUZZ_SEED`.
+- `duration_ms`: optional per-property time limit for focused campaigns, passed through as
+  `INSECUR_FUZZ_DURATION_MS`.
+
+Scheduled runs use `runs=5000` and no fixed seed. `Fuzz` is not a required status check.
+
 ### PR Database Policy
 
 PRs must not create Neon branches, Hyperdrive configs, or per-PR Worker deploys. The repository

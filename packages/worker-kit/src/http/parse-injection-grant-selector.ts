@@ -83,5 +83,10 @@ export function parseInjectionGrantIssueSelector(
 export function parseInjectionGrantConsumeSelector(
   body: Record<string, unknown>,
 ): InjectionGrantConsumeSelectorInput {
+  if (hasOwnField(body, "policyId")) {
+    throw Object.assign(new Error("policyId is not allowed when consuming an injection grant."), {
+      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    });
+  }
   return parseSingleInjectionGrantSelector(body);
 }
