@@ -60,9 +60,14 @@ function readAudience(claims: TokenClaims): string | null {
   return typeof claims.aud === "string" ? claims.aud : null;
 }
 
-export async function verifyScopedAccessToken(
-  input: VerifyScopedAccessTokenInput,
-): Promise<VerifyScopedAccessTokenResult> {
+export type ReadScopedAccessActorResult =
+  { ok: true; actor: UserActor; audience: string } | { ok: false; reason: "expired" | "invalid" };
+
+/** Validates typ/aud/lifetime and returns the actor without checking audience binding. */
+export async function readScopedAccessActor(input: {
+  readonly token: string;
+  readonly signingSecret: string;
+}): Promise<ReadScopedAccessActorResult> {
   const decoded = await decodeHmacToken(input.token, input.signingSecret);
   if (decoded === null) {
     return { ok: false, reason: "invalid" };
@@ -72,8 +77,22 @@ export async function verifyScopedAccessToken(
   if (claims?.typ !== SCOPED_ACCESS_TYP || audience === null) {
     return { ok: false, reason: "invalid" };
   }
-  if (audience !== input.expectedAudience) {
+  const actorResult = actorFromClaims(claims);
+  if (!actorResult.ok) {
+    return actorResult;
+  }
+  return { ok: true, actor: actorResult.actor, audience };
+}
+
+export async function verifyScopedAccessToken(
+  input: VerifyScopedAccessTokenInput,
+): Promise<VerifyScopedAccessTokenResult> {
+  const scoped = await readScopedAccessActor(input);
+  if (!scoped.ok) {
+    return scoped;
+  }
+  if (scoped.audience !== input.expectedAudience) {
     return { ok: false, reason: "audience_mismatch" };
   }
-  return actorFromClaims(claims);
+  return { ok: true, actor: scoped.actor };
 }

@@ -7,7 +7,7 @@ import {
 import { INSECUR_API_TOKEN_AUDIENCE } from "./constants.js";
 import type { ParsedRequestCredentials } from "./credentials.js";
 import { verifyEphemeralSessionCredential } from "./ephemeral-session.js";
-import { verifyScopedAccessToken } from "./scoped-access-token.js";
+import { readScopedAccessActor, verifyScopedAccessToken } from "./scoped-access-token.js";
 import type { InsecurAuthConfig } from "./workos-config.js";
 import type { UserActor } from "./user-actor.js";
 
@@ -18,6 +18,11 @@ export interface ResolveUserActorInput {
   readonly credentials: ParsedRequestCredentials;
   readonly config: InsecurAuthConfig;
   readonly resolveAdmittedUser: AdmittedUserResolver;
+  /**
+   * When true, accepts scoped-access tokens minted for non-API audiences so route handlers
+   * can reject them with auth.insufficient_scope instead of auth.invalid.
+   */
+  readonly acceptAnyScopedAccessAudience?: boolean;
 }
 
 async function resolveAdmittedActor(
@@ -34,15 +39,10 @@ async function resolveAdmittedActor(
   return { ok: true, actor };
 }
 
-export async function resolveUserActor(
+async function resolveUserActorFromScopedBearer(
+  bearerCredential: string,
   input: ResolveUserActorInput,
-): Promise<ResolveUserActorResult> {
-  const { bearerCredential } = input.credentials;
-
-  if (bearerCredential === undefined) {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-
+): Promise<ResolveUserActorResult | null> {
   const scoped = await verifyScopedAccessToken({
     token: bearerCredential,
     expectedAudience: INSECUR_API_TOKEN_AUDIENCE,
@@ -54,7 +54,27 @@ export async function resolveUserActor(
   if (scoped.reason === "expired") {
     return { ok: false, failure: authFailureForReason("expired") };
   }
+  if (input.acceptAnyScopedAccessAudience !== true || scoped.reason !== "audience_mismatch") {
+    return null;
+  }
 
+  const anyAudience = await readScopedAccessActor({
+    token: bearerCredential,
+    signingSecret: input.config.sessionSigningSecret,
+  });
+  if (anyAudience.ok) {
+    return resolveAdmittedActor(anyAudience.actor, input.resolveAdmittedUser);
+  }
+  if (anyAudience.reason === "expired") {
+    return { ok: false, failure: authFailureForReason("expired") };
+  }
+  return null;
+}
+
+async function resolveUserActorFromEphemeralBearer(
+  bearerCredential: string,
+  input: ResolveUserActorInput,
+): Promise<ResolveUserActorResult> {
   const verified = await verifyEphemeralSessionCredential(
     bearerCredential,
     input.config.sessionSigningSecret,
@@ -64,4 +84,21 @@ export async function resolveUserActor(
     return { ok: false, failure: authFailureForReason(reason) };
   }
   return resolveAdmittedActor(verified.actor, input.resolveAdmittedUser);
+}
+
+export async function resolveUserActor(
+  input: ResolveUserActorInput,
+): Promise<ResolveUserActorResult> {
+  const { bearerCredential } = input.credentials;
+
+  if (bearerCredential === undefined) {
+    return { ok: false, failure: authFailureForReason("missing") };
+  }
+
+  const scopedResult = await resolveUserActorFromScopedBearer(bearerCredential, input);
+  if (scopedResult !== null) {
+    return scopedResult;
+  }
+
+  return resolveUserActorFromEphemeralBearer(bearerCredential, input);
 }

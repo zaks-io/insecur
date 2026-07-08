@@ -20,6 +20,13 @@ function ok<T>(value: T): RuntimeRpcResult<T> {
   return { ok: true, value };
 }
 
+const defaultResolveSessionWhoami = ok({
+  sessionValid: true as const,
+  sessionExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+  resolvedContext: {},
+  attribution: { tier: "none" as const },
+});
+
 export function createRuntimeRpcStub(): RuntimeRpcStub {
   return {
     consumeGrant: vi.fn(),
@@ -55,6 +62,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     listSecretVersions: vi.fn(),
     listSessionOrganizations: vi.fn(),
     revokeCliSession: vi.fn(() => Promise.resolve(ok({ revoked: true }))),
+    resolveSessionWhoami: vi.fn(() => Promise.resolve(defaultResolveSessionWhoami)),
     listOrganizationMembers: vi.fn(),
     listOrganizationInvitations: vi.fn(),
     listAuditEvents: vi.fn(),

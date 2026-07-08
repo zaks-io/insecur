@@ -14,6 +14,7 @@ export interface GlobalCliFlags {
   readonly profile: string | undefined;
   readonly profileId: CliProfileId | undefined;
   readonly configDir: string | undefined;
+  readonly agent: string | undefined;
   readonly json: boolean;
   readonly quiet: boolean;
   readonly verbose: boolean;
@@ -31,6 +32,7 @@ export function parseGlobalOptions(options: {
   profile?: string;
   profileId?: string;
   configDir?: string;
+  agent?: string;
   json?: boolean;
   quiet?: boolean;
   verbose?: boolean;
@@ -44,6 +46,7 @@ export function parseGlobalOptions(options: {
       profile: options.profile,
       profileId: parseOptionalCliProfileId(options.profileId, "--profile-id"),
       configDir: options.configDir,
+      agent: options.agent,
       json: options.json === true,
       quiet: options.quiet === true,
       verbose: options.verbose === true,
