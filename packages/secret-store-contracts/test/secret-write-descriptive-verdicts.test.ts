@@ -40,7 +40,11 @@ describe("computeSecretWriteDescriptiveVerdicts", () => {
   });
 
   it.each([
-    { label: "classic trailing newline from .env stdin", value: "sk_live_123\n", expected: true },
+    {
+      label: "classic trailing newline from .env stdin",
+      value: "api_secret_value_123\n",
+      expected: true,
+    },
     { label: "leading space", value: " secret", expected: true },
     { label: "trailing tab", value: "secret\t", expected: true },
     { label: "internal whitespace only", value: "a secret value", expected: false },
@@ -60,7 +64,7 @@ describe("computeSecretWriteDescriptiveVerdicts", () => {
     { value: "{{SECRET}}", expected: true },
     { value: "xxxxxxxx", expected: true },
     { value: bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32))), expected: false },
-    { value: "sk_live_51Hq9example", expected: false },
+    { value: "cntv_7f3a9b2e4d1c8a6f0b5e9001", expected: false },
   ])("placeholder heuristic for $value", ({ value, expected }) => {
     expect(
       computeSecretWriteDescriptiveVerdicts({ valueUtf8: utf8(value) }).looksLikePlaceholder,
