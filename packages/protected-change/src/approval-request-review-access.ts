@@ -58,15 +58,24 @@ export async function assertApprovalRequestReviewReadOrMaskNotFound(input: {
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
 }): Promise<EffectiveAccessResult> {
-  const access = await resolveEffectiveAccess(input.accessActor, {
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-  });
+  const access = await resolveEnvironmentEffectiveAccess(input);
   if (!hasApprovalReviewReadScope(access)) {
     throw approvalRequestNotFound();
   }
   return access;
+}
+
+async function resolveEnvironmentEffectiveAccess(input: {
+  readonly accessActor: ActorRef;
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+}): Promise<EffectiveAccessResult> {
+  return resolveEffectiveAccess(input.accessActor, {
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+  });
 }
 
 export async function assertApprovalRequestApproveAccess(input: {
@@ -75,11 +84,7 @@ export async function assertApprovalRequestApproveAccess(input: {
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
 }): Promise<EffectiveAccessResult> {
-  const access = await resolveEffectiveAccess(input.accessActor, {
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-  });
+  const access = await resolveEnvironmentEffectiveAccess(input);
   if (!hasAuthorizationScope(access, AUTHORIZATION_SCOPES.approvalApprove)) {
     throw insufficientScopeError();
   }
@@ -92,11 +97,7 @@ export async function assertApprovalRequestRejectAccess(input: {
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
 }): Promise<EffectiveAccessResult> {
-  const access = await resolveEffectiveAccess(input.accessActor, {
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-  });
+  const access = await resolveEnvironmentEffectiveAccess(input);
   if (!hasAuthorizationScope(access, AUTHORIZATION_SCOPES.approvalReject)) {
     throw insufficientScopeError();
   }

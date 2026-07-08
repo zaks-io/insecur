@@ -5,6 +5,12 @@ import {
   type ConsoleApprovalRequestImpactDraftVersion,
   type ConsoleApprovalRequestImpactReview,
 } from "./approval-request-impact-parse.js";
+import {
+  isRecord,
+  optionalNullableStringField,
+  optionalNumberField,
+  requiredBooleanField,
+} from "./approval-parse-helpers.js";
 
 export type { ConsoleApprovalRequestImpactDraftVersion, ConsoleApprovalRequestImpactReview };
 
@@ -17,43 +23,6 @@ export interface ConsoleApprovalRequestDetail extends ConsoleApprovalRequestItem
   readonly impactReview: ConsoleApprovalRequestImpactReview;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function requiredBooleanField(row: Record<string, unknown>, key: string): boolean | null {
-  const value = row[key];
-  return typeof value === "boolean" ? value : null;
-}
-
-function optionalNumberField(
-  row: Record<string, unknown>,
-  key: string,
-): { readonly ok: true; readonly value: number | null } | { readonly ok: false } {
-  const value = row[key];
-  if (value === undefined || value === null) {
-    return { ok: true, value: null };
-  }
-  if (typeof value === "number") {
-    return { ok: true, value };
-  }
-  return { ok: false };
-}
-
-function optionalStringField(
-  row: Record<string, unknown>,
-  key: string,
-): { readonly ok: true; readonly value: string | null } | { readonly ok: false } {
-  const value = row[key];
-  if (value === undefined || value === null) {
-    return { ok: true, value: null };
-  }
-  if (typeof value === "string") {
-    return { ok: true, value };
-  }
-  return { ok: false };
-}
-
 export function parseApprovalRequestDetailEntry(
   entry: unknown,
 ): ConsoleApprovalRequestDetail | null {
@@ -62,8 +31,8 @@ export function parseApprovalRequestDetailEntry(
     return null;
   }
   const commentLength = optionalNumberField(entry, "commentLength");
-  const rollbackSecretId = optionalStringField(entry, "rollbackSecretId");
-  const rollbackToVersionId = optionalStringField(entry, "rollbackToVersionId");
+  const rollbackSecretId = optionalNullableStringField(entry, "rollbackSecretId");
+  const rollbackToVersionId = optionalNullableStringField(entry, "rollbackToVersionId");
   const rollbackPromoteRequested = requiredBooleanField(entry, "rollbackPromoteRequested");
   const impactReview = parseImpactReview(entry.impactReview);
   if (

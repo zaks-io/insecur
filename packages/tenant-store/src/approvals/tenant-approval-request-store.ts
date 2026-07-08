@@ -29,6 +29,23 @@ import {
   type CreateRollbackApprovalRequestInput,
 } from "./approval-request-store-types.js";
 
+const approvalRequestDetailColumns = {
+  id: approvalRequests.id,
+  purpose: approvalRequests.purpose,
+  status: approvalRequests.status,
+  projectId: approvalRequests.projectId,
+  environmentId: approvalRequests.environmentId,
+  requesterUserId: approvalRequests.requesterUserId,
+  requesterMachineIdentityId: approvalRequests.requesterMachineIdentityId,
+  operationId: approvalRequests.operationId,
+  impactReviewFingerprint: approvalRequests.impactReviewFingerprint,
+  commentLength: approvalRequests.commentLength,
+  createdAt: approvalRequests.createdAt,
+  rollbackSecretId: approvalRequests.rollbackSecretId,
+  rollbackToVersionId: approvalRequests.rollbackToVersionId,
+  rollbackPromoteRequested: approvalRequests.rollbackPromoteRequested,
+} as const;
+
 export type {
   ApprovalRequestRequester,
   PromotionDraftVersionTarget,
@@ -166,22 +183,7 @@ export class TenantApprovalRequestStore {
     readonly approvalRequestId: ApprovalRequestId;
   }): Promise<ApprovalRequestDetailRow | null> {
     const [row] = await this.db
-      .select({
-        id: approvalRequests.id,
-        purpose: approvalRequests.purpose,
-        status: approvalRequests.status,
-        projectId: approvalRequests.projectId,
-        environmentId: approvalRequests.environmentId,
-        requesterUserId: approvalRequests.requesterUserId,
-        requesterMachineIdentityId: approvalRequests.requesterMachineIdentityId,
-        operationId: approvalRequests.operationId,
-        impactReviewFingerprint: approvalRequests.impactReviewFingerprint,
-        commentLength: approvalRequests.commentLength,
-        createdAt: approvalRequests.createdAt,
-        rollbackSecretId: approvalRequests.rollbackSecretId,
-        rollbackToVersionId: approvalRequests.rollbackToVersionId,
-        rollbackPromoteRequested: approvalRequests.rollbackPromoteRequested,
-      })
+      .select(approvalRequestDetailColumns)
       .from(approvalRequests)
       .where(
         and(
@@ -198,22 +200,7 @@ export class TenantApprovalRequestStore {
     readonly organizationId: OrganizationId;
   }): Promise<readonly ApprovalRequestDetailRow[]> {
     const rows = await this.db
-      .select({
-        id: approvalRequests.id,
-        purpose: approvalRequests.purpose,
-        status: approvalRequests.status,
-        projectId: approvalRequests.projectId,
-        environmentId: approvalRequests.environmentId,
-        requesterUserId: approvalRequests.requesterUserId,
-        requesterMachineIdentityId: approvalRequests.requesterMachineIdentityId,
-        operationId: approvalRequests.operationId,
-        impactReviewFingerprint: approvalRequests.impactReviewFingerprint,
-        commentLength: approvalRequests.commentLength,
-        createdAt: approvalRequests.createdAt,
-        rollbackSecretId: approvalRequests.rollbackSecretId,
-        rollbackToVersionId: approvalRequests.rollbackToVersionId,
-        rollbackPromoteRequested: approvalRequests.rollbackPromoteRequested,
-      })
+      .select(approvalRequestDetailColumns)
       .from(approvalRequests)
       .where(
         and(

@@ -1,47 +1,15 @@
-export interface ConsoleApprovalRequestImpactDraftVersion {
-  readonly secretId: string;
-  readonly secretVersionId: string;
-  readonly valueByteLength: number;
-  readonly encodingClass: string;
-  readonly secretShapeMatchVerdict: string;
-}
+import {
+  isRecord,
+  requiredBooleanField,
+  requiredNumberField,
+  requiredStringField,
+} from "./approval-parse-helpers.js";
+import type {
+  ConsoleApprovalRequestImpactDraftVersion,
+  ConsoleApprovalRequestImpactReview,
+} from "./approval-request-impact-types.js";
 
-export interface ConsoleApprovalRequestImpactReview {
-  readonly fingerprintAtCreation: string | null;
-  readonly currentFingerprint: string;
-  readonly isStale: boolean;
-  readonly draftVersions: readonly ConsoleApprovalRequestImpactDraftVersion[];
-  readonly delivery: {
-    readonly runtimeInjectionPolicies: readonly {
-      readonly policyId: string;
-      readonly activeVersionId: string;
-      readonly commandFingerprint: string;
-      readonly deliveryMode: string;
-      readonly secretIds: readonly string[];
-      readonly ttlSeconds: number;
-    }[];
-    readonly providerSyncImpact: readonly string[];
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function requiredStringField(row: Record<string, unknown>, key: string): string | null {
-  const value = row[key];
-  return typeof value === "string" ? value : null;
-}
-
-function requiredNumberField(row: Record<string, unknown>, key: string): number | null {
-  const value = row[key];
-  return typeof value === "number" ? value : null;
-}
-
-function requiredBooleanField(row: Record<string, unknown>, key: string): boolean | null {
-  const value = row[key];
-  return typeof value === "boolean" ? value : null;
-}
+export type { ConsoleApprovalRequestImpactDraftVersion, ConsoleApprovalRequestImpactReview };
 
 function parseImpactDraftVersion(entry: unknown): ConsoleApprovalRequestImpactDraftVersion | null {
   if (!isRecord(entry)) {

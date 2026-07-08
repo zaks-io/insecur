@@ -1,11 +1,15 @@
-import { isKnownErrorCodeInCatalog } from "@insecur/domain";
 import {
   openWizardMutationApi,
   isWizardMutationGateFailure,
 } from "../onboarding/wizard-mutation-gate.js";
+import {
+  parseConsoleMutationOutcome,
+  parseOptionalRejectionReason,
+  type ConsoleMutationOutcome,
+} from "./console-mutation-outcome.js";
+import { isRecord } from "./approval-parse-helpers.js";
 
-export type RejectChallengeOutcome =
-  { readonly ok: true } | { readonly ok: false; readonly code: string };
+export type RejectChallengeOutcome = ConsoleMutationOutcome;
 
 export interface RejectChallengeSubmission {
   readonly csrfToken: string;
@@ -14,41 +18,9 @@ export interface RejectChallengeSubmission {
   readonly reason?: string;
 }
 
-const MAX_REJECTION_REASON_LENGTH = 500;
-
 /** API hop the reject server-fn needs; the real client is minted per request. */
 export interface RejectChallengeApi {
   denyOrgHighAssuranceChallenge(organizationId: string, operationId: string): Promise<unknown>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseRejectChallengeOutcome(body: unknown): RejectChallengeOutcome {
-  if (isRecord(body) && body.ok === true) {
-    return { ok: true };
-  }
-  if (isRecord(body) && body.ok === false && isRecord(body.error)) {
-    const code = body.error.code;
-    if (typeof code === "string" && isKnownErrorCodeInCatalog(code)) {
-      return { ok: false, code };
-    }
-  }
-  return { ok: false, code: "web.unexpected_response" };
-}
-
-function parseOptionalReason(reason: unknown): string | undefined | null {
-  if (reason === undefined) {
-    return undefined;
-  }
-  if (typeof reason !== "string") {
-    return null;
-  }
-  if (reason.length > MAX_REJECTION_REASON_LENGTH) {
-    return null;
-  }
-  return reason === "" ? undefined : reason;
 }
 
 export function parseRejectChallengeSubmission(input: unknown): RejectChallengeSubmission | null {
@@ -63,7 +35,7 @@ export function parseRejectChallengeSubmission(input: unknown): RejectChallengeS
   ) {
     return null;
   }
-  const parsedReason = parseOptionalReason(reason);
+  const parsedReason = parseOptionalRejectionReason(reason);
   if (parsedReason === null) {
     return null;
   }
@@ -96,7 +68,7 @@ export async function rejectHighAssuranceChallengeForRequest(
       data.organizationId,
       data.operationId,
     );
-    return parseRejectChallengeOutcome(response);
+    return parseConsoleMutationOutcome(response);
   } catch {
     return { ok: false, code: "web.unexpected_response" };
   }

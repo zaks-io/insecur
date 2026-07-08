@@ -1,6 +1,7 @@
 import type { EvaluateHighAssuranceChallengeClearInput } from "@insecur/auth";
 import type {
   ApprovalRequestId,
+  ApprovalRequestImpactDeliveryMetadata,
   EnvironmentId,
   OperationId,
   OrganizationId,
@@ -90,17 +91,7 @@ export interface ApprovalRequestImpactReviewRpcPayload {
     readonly encodingClass: string;
     readonly secretShapeMatchVerdict: string;
   }[];
-  readonly delivery: {
-    readonly runtimeInjectionPolicies: readonly {
-      readonly policyId: string;
-      readonly activeVersionId: string;
-      readonly commandFingerprint: string;
-      readonly deliveryMode: string;
-      readonly secretIds: readonly string[];
-      readonly ttlSeconds: number;
-    }[];
-    readonly providerSyncImpact: readonly string[];
-  };
+  readonly delivery: ApprovalRequestImpactDeliveryMetadata;
 }
 
 export interface ApprovalRequestReviewDetailRpcPayload extends ApprovalRequestReviewListItemRpcPayload {

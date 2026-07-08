@@ -2,29 +2,7 @@ import {
   consoleApprovalItemKindFromId,
   type ConsoleApprovalRequestItem,
 } from "./approval-items.js";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function requiredStringField(row: Record<string, unknown>, key: string): string | null {
-  const value = row[key];
-  return typeof value === "string" ? value : null;
-}
-
-function optionalStringField(
-  row: Record<string, unknown>,
-  key: string,
-): { readonly ok: true; readonly value: string | null } | { readonly ok: false } {
-  const value = row[key];
-  if (value === undefined) {
-    return { ok: true, value: null };
-  }
-  if (typeof value === "string") {
-    return { ok: true, value };
-  }
-  return { ok: false };
-}
+import { isRecord, optionalStringField, requiredStringField } from "./approval-parse-helpers.js";
 
 function requiredPendingStatus(value: unknown): "pending" | null {
   return value === "pending" ? "pending" : null;

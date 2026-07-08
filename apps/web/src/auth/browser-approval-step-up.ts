@@ -1,21 +1,15 @@
-import {
-  authFailureForReason,
-  authenticateWorkOSSession,
-  parseRequestCredentials,
-  type AuthFailure,
-} from "@insecur/auth";
+import { authFailureForReason, type AuthFailure } from "@insecur/auth";
 import { isKnownErrorCodeInCatalog } from "@insecur/domain";
-import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
+import { authenticateBrowserWorkOSSession } from "./browser-session-auth.js";
+import { oauthCallbackUrl, readPkceOAuthCallback } from "./browser-oauth-common.js";
 import {
   createOAuthState,
   createPkcePair,
-  encodePkceRoundTrip,
+  createPkceAuthorizationStart,
   formatPkceStateClearCookie,
-  formatPkceStateCookie,
   normalizeReturnTo,
   type PkceRoundTrip,
 } from "./browser-oauth-pkce.js";
-import { oauthCallbackUrl, readPkceOAuthCallback } from "./browser-oauth-common.js";
 import { resolveAuthenticatedApiClient } from "../server/bff-api.js";
 import type { WebEnv } from "../env.js";
 
@@ -100,19 +94,9 @@ export async function beginBrowserApprovalStepUp(
   request: Request,
   env: WebEnv,
 ): Promise<BrowserApprovalStepUpStart | { ok: false; failure: AuthFailure }> {
-  const credentials = parseRequestCredentials({
-    authorizationHeader: request.headers.get("Authorization"),
-    cookieHeader: request.headers.get("Cookie"),
-    csrfHeader: request.headers.get("x-insecur-csrf") ?? undefined,
-  });
-  if (credentials.workosSealedSession === undefined) {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-
-  const workos = createWorkOSSessionPortFromEnv(env);
-  const session = await authenticateWorkOSSession(workos, credentials.workosSealedSession);
+  const session = await authenticateBrowserWorkOSSession(request, env);
   if (!session.ok) {
-    return { ok: false, failure: session.failure };
+    return session;
   }
 
   const params = readApprovalStepUpQueryParams(new URL(request.url));
@@ -123,24 +107,21 @@ export async function beginBrowserApprovalStepUp(
   const pkce = await createPkcePair();
   const state = createOAuthState();
   const roundTrip = buildApprovalStepUpRoundTrip(
-    session.context.user.id,
+    session.workosUserId,
     params,
     state,
     pkce.verifier,
   );
-  const authorizationUrl = workos.createAuthorizationUrl({
+  const authorizationUrl = session.workos.createAuthorizationUrl({
     redirectUri: oauthCallbackUrl(request, "/auth/approval-step-up/callback"),
     state,
     codeChallenge: pkce.challenge,
     codeChallengeMethod: "S256",
     screenHint: "sign-in",
-    ...(session.context.user.email === undefined ? {} : { loginHint: session.context.user.email }),
+    ...(session.loginHint === undefined ? {} : { loginHint: session.loginHint }),
     maxAge: 0,
   });
-  return {
-    authorizationUrl,
-    setCookieHeaders: [formatPkceStateCookie(encodePkceRoundTrip(roundTrip))],
-  };
+  return createPkceAuthorizationStart(authorizationUrl, roundTrip);
 }
 
 function errorCodeFromBody(body: unknown): string | null {

@@ -1,11 +1,14 @@
-import { isKnownErrorCodeInCatalog } from "@insecur/domain";
 import {
   openWizardMutationApi,
   isWizardMutationGateFailure,
 } from "../onboarding/wizard-mutation-gate.js";
+import {
+  parseConsoleMutationOutcome,
+  type ConsoleMutationOutcome,
+} from "./console-mutation-outcome.js";
+import { isRecord } from "./approval-parse-helpers.js";
 
-export type CancelApprovalRequestOutcome =
-  { readonly ok: true } | { readonly ok: false; readonly code: string };
+export type CancelApprovalRequestOutcome = ConsoleMutationOutcome;
 
 export interface CancelApprovalRequestSubmission {
   readonly csrfToken: string;
@@ -15,23 +18,6 @@ export interface CancelApprovalRequestSubmission {
 
 export interface CancelApprovalRequestApi {
   cancelOrgApprovalRequest(organizationId: string, approvalRequestId: string): Promise<unknown>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseCancelOutcome(body: unknown): CancelApprovalRequestOutcome {
-  if (isRecord(body) && body.ok === true) {
-    return { ok: true };
-  }
-  if (isRecord(body) && body.ok === false && isRecord(body.error)) {
-    const code = body.error.code;
-    if (typeof code === "string" && isKnownErrorCodeInCatalog(code)) {
-      return { ok: false, code };
-    }
-  }
-  return { ok: false, code: "web.unexpected_response" };
 }
 
 export function parseCancelApprovalRequestSubmission(
@@ -68,7 +54,7 @@ export async function cancelApprovalRequestForRequest(
       data.organizationId,
       data.approvalRequestId,
     );
-    return parseCancelOutcome(response);
+    return parseConsoleMutationOutcome(response);
   } catch {
     return { ok: false, code: "web.unexpected_response" };
   }

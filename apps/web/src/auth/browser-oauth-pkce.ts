@@ -40,6 +40,19 @@ export function encodePkceRoundTrip(roundTrip: PkceRoundTrip): string {
   return bytesToBase64Url(new TextEncoder().encode(JSON.stringify(roundTrip)));
 }
 
+export function createPkceAuthorizationStart(
+  authorizationUrl: string,
+  roundTrip: PkceRoundTrip,
+): {
+  readonly authorizationUrl: string;
+  readonly setCookieHeaders: readonly string[];
+} {
+  return {
+    authorizationUrl,
+    setCookieHeaders: [formatPkceStateCookie(encodePkceRoundTrip(roundTrip))],
+  };
+}
+
 const RELATIVE_APP_PATH_BASE = "https://insecur.invalid";
 
 /**

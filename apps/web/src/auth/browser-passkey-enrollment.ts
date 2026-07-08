@@ -1,18 +1,16 @@
 import {
   authFailureForReason,
   authenticateWorkOSAuthorizationCode,
-  authenticateWorkOSSession,
   hasApprovalPasskey,
-  parseRequestCredentials,
   type AuthFailure,
 } from "@insecur/auth";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
+import { authenticateBrowserWorkOSSession } from "./browser-session-auth.js";
 import {
   createOAuthState,
   createPkcePair,
-  encodePkceRoundTrip,
+  createPkceAuthorizationStart,
   formatPkceStateClearCookie,
-  formatPkceStateCookie,
   normalizeReturnTo,
   type PkceRoundTrip,
 } from "./browser-oauth-pkce.js";
@@ -48,19 +46,9 @@ export async function beginBrowserPasskeyEnrollment(
   request: Request,
   env: WebEnv,
 ): Promise<BrowserPasskeyEnrollmentStart | { ok: false; failure: AuthFailure }> {
-  const credentials = parseRequestCredentials({
-    authorizationHeader: request.headers.get("Authorization"),
-    cookieHeader: request.headers.get("Cookie"),
-    csrfHeader: request.headers.get("x-insecur-csrf") ?? undefined,
-  });
-  if (credentials.workosSealedSession === undefined) {
-    return { ok: false, failure: authFailureForReason("missing") };
-  }
-
-  const workos = createWorkOSSessionPortFromEnv(env);
-  const session = await authenticateWorkOSSession(workos, credentials.workosSealedSession);
+  const session = await authenticateBrowserWorkOSSession(request, env);
   if (!session.ok) {
-    return { ok: false, failure: session.failure };
+    return session;
   }
 
   const url = new URL(request.url);
@@ -74,22 +62,19 @@ export async function beginBrowserPasskeyEnrollment(
     state,
     codeVerifier: pkce.verifier,
     returnTo,
-    workosUserId: session.context.user.id,
+    workosUserId: session.workosUserId,
     flow: "passkey-enrollment",
   };
-  const authorizationUrl = workos.createAuthorizationUrl({
+  const authorizationUrl = session.workos.createAuthorizationUrl({
     redirectUri: oauthCallbackUrl(request, "/auth/enroll-passkey/callback"),
     state,
     codeChallenge: pkce.challenge,
     codeChallengeMethod: "S256",
     screenHint: "sign-in",
-    ...(session.context.user.email === undefined ? {} : { loginHint: session.context.user.email }),
+    ...(session.loginHint === undefined ? {} : { loginHint: session.loginHint }),
     maxAge: 0,
   });
-  return {
-    authorizationUrl,
-    setCookieHeaders: [formatPkceStateCookie(encodePkceRoundTrip(roundTrip))],
-  };
+  return createPkceAuthorizationStart(authorizationUrl, roundTrip);
 }
 
 async function exchangeEnrollmentAuthorizationCode(
