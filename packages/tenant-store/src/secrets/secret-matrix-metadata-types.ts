@@ -1,22 +1,17 @@
 import type {
   EnvironmentId,
-  MachineIdentityId,
   OrganizationId,
   ProjectId,
   SecretId,
   SecretVersionId,
-  UserId,
   VariableKey,
 } from "@insecur/domain";
 
 import type { SecretVersionLifecycleState } from "./lifecycle-states.js";
+import type { PrincipalChainActorRow } from "./principal-chain-actor-types.js";
 
 /** Metadata-only actor reference for matrix last-set cells. */
-export interface SecretMatrixLastSetActorRow {
-  readonly actorType: "user" | "machine" | "ci_exchange";
-  readonly userId: UserId | null;
-  readonly machineIdentityId: MachineIdentityId | null;
-}
+export type SecretMatrixLastSetActorRow = PrincipalChainActorRow;
 
 /** One environment column cell before matrix row assembly. */
 export interface SecretMatrixSecretRow {

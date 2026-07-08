@@ -23,6 +23,7 @@ canary verification path for production readiness gates.
 
 ## Does Not Own
 
-- Worker cron export execution or R2 landing (future pipeline work).
 - Neon provisioning or production operator ceremonies.
 - Release gate bundle assembly (`@insecur/release-gate` consumes this package).
+
+Scheduled Worker export execution and R2 landing live in `apps/runtime` (ADR-0072).

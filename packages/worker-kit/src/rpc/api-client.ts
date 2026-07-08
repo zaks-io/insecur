@@ -108,6 +108,17 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
       );
       return response.json();
     },
+    secretVersions: async (
+      organizationId: string,
+      projectId: string,
+      environmentId: string,
+      secretId: string,
+    ): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(environmentId)}/secrets/${encodeURIComponent(secretId)}/versions`,
+      );
+      return response.json();
+    },
     orgMembers: async (organizationId: string): Promise<unknown> => {
       const response = await apiFetch(`/v1/orgs/${encodeURIComponent(organizationId)}/members`);
       return response.json();

@@ -1,4 +1,8 @@
-import { organizationId, type OrganizationId } from "@insecur/domain";
+import {
+  organizationId,
+  RECOVERY_CANARY_ORGANIZATION_ID,
+  type OrganizationId,
+} from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 
 interface OrganizationRow {
@@ -6,7 +10,12 @@ interface OrganizationRow {
 }
 
 /**
- * Returns the earliest Organization on an Instance for tenant-qualified instance-level audits.
+ * Returns the earliest real Organization on an Instance for tenant-qualified instance-level audits.
+ *
+ * The recovery-canary sentinel org is seeded at bootstrap in the SAME transaction as the first real
+ * org (ADR-0058 / ADR-0072), so both share `created_at` (transaction_timestamp()) and an
+ * ORDER BY created_at tiebreak is arbitrary. The canary is a backup sentinel and must never be the
+ * instance anchor, so it is excluded by id rather than trusted to lose an ambiguous ordering.
  */
 export async function loadInstanceAnchorOrganizationId(
   instanceId: string,
@@ -16,6 +25,7 @@ export async function loadInstanceAnchorOrganizationId(
       SELECT id
       FROM organizations
       WHERE instance_id = ${instanceId}
+        AND id <> ${RECOVERY_CANARY_ORGANIZATION_ID}
       ORDER BY created_at ASC
       LIMIT 1
     `;
