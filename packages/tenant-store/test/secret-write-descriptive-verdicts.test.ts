@@ -35,7 +35,7 @@ function createEnvironmentSecretMetadataDb(
 describe("secret version descriptive verdict metadata reads", () => {
   it("lists stored verdicts without selecting ciphertext storage refs", async () => {
     const descriptiveVerdicts = computeSecretWriteDescriptiveVerdicts({
-      valueUtf8: new TextEncoder().encode("sk_live_123\n"),
+      valueUtf8: new TextEncoder().encode("api_secret_value_123\n"),
       generationHint: null,
     });
     const db = createEnvironmentSecretMetadataDb([
