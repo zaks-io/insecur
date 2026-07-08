@@ -6,12 +6,14 @@ import { primaryKey } from "drizzle-orm/pg-core";
 import {
   check,
   foreignKey,
+  index,
   integer,
   pgTable,
   sql,
   text,
   timestamp,
   unique,
+  uniqueIndex,
   boolean,
 } from "./pg-core.js";
 import { environments, organizations, projects } from "./tenant-hierarchy.js";
@@ -42,7 +44,8 @@ export const approvalRequests = pgTable(
     environmentId: text("environment_id").notNull(),
     purpose: text("purpose").notNull(),
     status: text("status").notNull().default("pending"),
-    requesterUserId: text("requester_user_id").notNull(),
+    requesterUserId: text("requester_user_id"),
+    requesterMachineIdentityId: text("requester_machine_identity_id"),
     operationId: text("operation_id"),
     impactReviewFingerprint: text("impact_review_fingerprint"),
     commentLength: integer("comment_length"),
@@ -64,6 +67,17 @@ export const approvalRequests = pgTable(
       "approval_requests_purpose_check",
       sql`${table.purpose} IN ('protected_promotion', 'protected_rollback')`,
     ),
+    check(
+      "approval_requests_requester_present_check",
+      sql`${table.requesterUserId} IS NOT NULL OR ${table.requesterMachineIdentityId} IS NOT NULL`,
+    ),
+    // ADR-0017: a Protected Environment may have only one pending promotion Approval Request.
+    // This partial unique index is the load-bearing structural guard against a concurrent
+    // supersede-then-insert race producing two pending promotions for one environment.
+    uniqueIndex("approval_requests_one_pending_promotion_idx")
+      .on(table.orgId, table.environmentId)
+      .where(sql`status = 'pending' AND purpose = 'protected_promotion'`),
+    index("approval_requests_env_status_idx").on(table.orgId, table.environmentId, table.status),
     foreignKey({
       name: "approval_requests_project_fk",
       columns: [table.orgId, table.projectId],

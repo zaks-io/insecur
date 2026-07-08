@@ -1,6 +1,7 @@
 import {
   approvalRequestId,
   environmentId,
+  machineIdentityId,
   organizationId,
   projectId,
   secretId,
@@ -16,7 +17,8 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const USER = userId.brand("usr_00000000000000000000000001");
-const REQUEST = approvalRequestId.brand("req_00000000000000000000000001");
+const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
+const REQUEST = approvalRequestId.brand("apr_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const DRAFT = secretVersionId.brand("sv_00000000000000000000000001");
 const NOW = new Date("2026-07-08T00:00:00.000Z");
@@ -69,7 +71,7 @@ describe("TenantApprovalRequestStore", () => {
   });
 
   it("supersedes pending promotion requests", async () => {
-    const pendingId = approvalRequestId.brand("req_00000000000000000000000002");
+    const pendingId = approvalRequestId.brand("apr_00000000000000000000000002");
     const { db, updateSets } = createMockTenantDb({
       selectResults: [[{ id: pendingId }]],
     });
@@ -95,7 +97,7 @@ describe("TenantApprovalRequestStore", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      requesterUserId: USER,
+      requester: { userId: USER },
       approvalRequestId: REQUEST,
       impactReviewFingerprint: "sha256:impact",
       draftVersions: [{ secretId: SECRET, secretVersionId: DRAFT }],
@@ -106,6 +108,28 @@ describe("TenantApprovalRequestStore", () => {
       id: REQUEST,
       purpose: "protected_promotion",
       status: "pending",
+      requesterUserId: USER,
+      requesterMachineIdentityId: null,
+    });
+  });
+
+  it("binds a machine requester when an Agent creates a promotion request", async () => {
+    const { db, insertValues } = createMockTenantDb({ selectResults: [[]] });
+    const store = new TenantApprovalRequestStore(db);
+
+    await store.createPromotionApprovalRequest({
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      requester: { machineIdentityId: MACHINE },
+      approvalRequestId: REQUEST,
+      impactReviewFingerprint: "sha256:impact",
+      draftVersions: [{ secretId: SECRET, secretVersionId: DRAFT }],
+    });
+
+    expect(insertValues[0]).toMatchObject({
+      requesterUserId: null,
+      requesterMachineIdentityId: MACHINE,
     });
   });
 
@@ -117,7 +141,7 @@ describe("TenantApprovalRequestStore", () => {
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,
-      requesterUserId: USER,
+      requester: { userId: USER },
       approvalRequestId: REQUEST,
       impactReviewFingerprint: "sha256:impact",
       secretId: SECRET,

@@ -85,6 +85,34 @@ export async function assertProtectedChangeAccess(
   });
 }
 
+/**
+ * Authorizes creating a Protected Change / Approval Request for a coordinate (ADR-0017 create
+ * scope). Shared by the protected-change and approval-request create paths so the create-scope
+ * authorization is expressed in exactly one place.
+ */
+export async function assertProtectedChangeCreateAccess(input: {
+  readonly actor: ActorRef;
+  readonly auditActor: AssertProtectedChangeAccessInput["auditActor"];
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly requestId: RequestId;
+  readonly deps?: AuthorizeScopeDeps;
+}): Promise<void> {
+  await assertProtectedChangeAccess({
+    action: "create",
+    actor: input.actor,
+    auditActor: input.auditActor,
+    coordinate: {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+    },
+    requestId: input.requestId,
+    ...(input.deps === undefined ? {} : { deps: input.deps }),
+  });
+}
+
 export function isProtectedChangeAccessDenied(error: unknown): boolean {
   if (error instanceof ProtectedChangeError) {
     return (

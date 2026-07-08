@@ -6,7 +6,7 @@ import { requestId, type RequestId } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 
 import {
-  assertProtectedChangeAccess,
+  assertProtectedChangeCreateAccess,
   assertProtectedEnvironmentCoordinate,
   isProtectedChangeAccessDenied,
 } from "./assert-protected-change-access.js";
@@ -53,18 +53,7 @@ export async function createProtectedChange(
   });
 
   try {
-    await assertProtectedChangeAccess({
-      action: "create",
-      actor: input.actor,
-      auditActor: input.auditActor,
-      coordinate: {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-      },
-      requestId: input.requestId,
-      ...(input.deps === undefined ? {} : { deps: input.deps }),
-    });
+    await assertProtectedChangeCreateAccess(input);
   } catch (error) {
     await auditAccessDenialOnFailure(error, {
       isAccessDenied: isProtectedChangeAccessDenied,

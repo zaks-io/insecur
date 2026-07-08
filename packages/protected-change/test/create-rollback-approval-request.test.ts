@@ -25,6 +25,11 @@ vi.mock("../src/record-created-approval-request-audit.js", () => ({
   finalizeCreatedApprovalRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("../src/assert-protected-change-access.js", () => ({
+  assertProtectedChangeCreateAccess: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { assertProtectedChangeCreateAccess } from "../src/assert-protected-change-access.js";
 import { createRollbackApprovalRequest } from "../src/create-rollback-approval-request.js";
 import { finalizeCreatedApprovalRequest } from "../src/record-created-approval-request-audit.js";
 
@@ -37,8 +42,14 @@ const OP = operationId.brand("op_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const NEW_SECRET_VERSION = secretVersionId.brand("sv_00000000000000000000000001");
 
+async function expectedSha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 const baseInput = {
   actor: { type: "user", userId: USER } as const,
+  auditActor: { type: "user", userId: USER } as const,
   organizationId: ORG,
   projectId: PROJECT,
   environmentId: ENV,
@@ -53,16 +64,40 @@ describe("createRollbackApprovalRequest", () => {
   beforeEach(() => {
     createRollbackApprovalRequestStoreFn.mockReset().mockResolvedValue(undefined);
     vi.mocked(finalizeCreatedApprovalRequest).mockClear();
+    vi.mocked(assertProtectedChangeCreateAccess).mockClear().mockResolvedValue(undefined);
+  });
+
+  it("authorizes the create scope before persisting", async () => {
+    await createRollbackApprovalRequest(baseInput);
+
+    expect(assertProtectedChangeCreateAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: baseInput.actor,
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        requestId: REQ,
+      }),
+    );
+  });
+
+  it("does not persist when authorization is denied", async () => {
+    vi.mocked(assertProtectedChangeCreateAccess).mockRejectedValueOnce(
+      Object.assign(new Error("denied"), { code: "auth.insufficient_scope" }),
+    );
+
+    await expect(createRollbackApprovalRequest(baseInput)).rejects.toThrow("denied");
+    expect(createRollbackApprovalRequestStoreFn).not.toHaveBeenCalled();
   });
 
   it("creates a promote-requested rollback request with a single draft version for the target secret", async () => {
     const createdId = await createRollbackApprovalRequest(baseInput);
 
-    expect(createdId).toMatch(/^req_/);
+    expect(createdId).toMatch(/^apr_/);
     const args = createRollbackApprovalRequestStoreFn.mock.calls[0][0];
     expect(args).toMatchObject({
       approvalRequestId: createdId,
-      requesterUserId: USER,
+      requester: { userId: USER },
       secretId: SECRET,
       toVersionNumber: 3,
       promoteRequested: true,
@@ -70,11 +105,12 @@ describe("createRollbackApprovalRequest", () => {
     });
   });
 
-  it("hashes the comment into metadata rather than persisting the raw text", async () => {
+  it("stores a real SHA-256 digest of the comment, never the raw text", async () => {
     await createRollbackApprovalRequest({ ...baseInput, comment: "rollback please" });
 
     const args = createRollbackApprovalRequestStoreFn.mock.calls[0][0];
-    expect(args.commentLength).toBe("rollback please".length);
+    expect(args.commentLength).toBe(new TextEncoder().encode("rollback please").byteLength);
+    expect(args.commentSha256).toBe(`sha256:${await expectedSha256Hex("rollback please")}`);
     expect(JSON.stringify(args)).not.toContain("rollback please");
   });
 

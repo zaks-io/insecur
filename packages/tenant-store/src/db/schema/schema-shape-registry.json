@@ -262,7 +262,14 @@
         "sqlType": "text"
       },
       "requester_user_id": {
-        "notNull": true,
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "requester_machine_identity_id": {
+        "notNull": false,
         "primaryKey": false,
         "hasDefault": false,
         "columnType": "PgText",
@@ -349,6 +356,10 @@
         "sql": "\"approval_requests\".\"purpose\" IN ('protected_promotion', 'protected_rollback')"
       },
       {
+        "name": "approval_requests_requester_present_check",
+        "sql": "\"approval_requests\".\"requester_user_id\" IS NOT NULL OR \"approval_requests\".\"requester_machine_identity_id\" IS NOT NULL"
+      },
+      {
         "name": "approval_requests_status_check",
         "sql": "\"approval_requests\".\"status\" IN ('pending', 'approved_applied', 'rejected', 'canceled', 'superseded', 'policy_stale', 'requester_access_stale', 'target_closed', 'draft_discard_closed')"
       }
@@ -360,7 +371,21 @@
         "nullsNotDistinct": false
       }
     ],
-    "indexes": [],
+    "indexes": [
+      {
+        "name": "approval_requests_env_status_idx",
+        "columns": ["org_id", "environment_id", "status"],
+        "unique": false,
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "approval_requests_one_pending_promotion_idx",
+        "columns": ["org_id", "environment_id"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "status = 'pending' AND purpose = 'protected_promotion'"
+      }
+    ],
     "foreignKeys": [
       {
         "name": "approval_requests_environment_fk",

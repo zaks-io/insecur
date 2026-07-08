@@ -233,6 +233,7 @@ export {
   TenantApprovalRequestStore,
   type ApprovalRequestListItemRow,
   type ApprovalRequestPurpose,
+  type ApprovalRequestRequester,
   type ApprovalRequestStatus,
   type CreatePromotionApprovalRequestInput,
   type CreateRollbackApprovalRequestInput,

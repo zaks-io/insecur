@@ -6,7 +6,6 @@ import {
   type ProjectId,
   type SecretId,
   type SecretVersionId,
-  type UserId,
 } from "@insecur/domain";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
@@ -17,20 +16,26 @@ import {
   type APPROVAL_REQUEST_STATUSES,
 } from "../db/schema/tenant-approval-requests.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
+import {
+  commonApprovalRequestValues,
+  draftVersionRow,
+  type ApprovalRequestRequester,
+  type PromotionDraftVersionTarget,
+} from "./approval-request-rows.js";
+
+export type {
+  ApprovalRequestRequester,
+  PromotionDraftVersionTarget,
+} from "./approval-request-rows.js";
 
 export type ApprovalRequestPurpose = (typeof APPROVAL_REQUEST_PURPOSES)[number];
 export type ApprovalRequestStatus = (typeof APPROVAL_REQUEST_STATUSES)[number];
-
-export interface PromotionDraftVersionTarget {
-  readonly secretId: SecretId;
-  readonly secretVersionId: SecretVersionId;
-}
 
 export interface CreatePromotionApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly requesterUserId: UserId;
+  readonly requester: ApprovalRequestRequester;
   readonly approvalRequestId: ApprovalRequestId;
   readonly operationId?: string;
   readonly impactReviewFingerprint: string;
@@ -43,7 +48,7 @@ export interface CreateRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly requesterUserId: UserId;
+  readonly requester: ApprovalRequestRequester;
   readonly approvalRequestId: ApprovalRequestId;
   readonly operationId?: string;
   readonly impactReviewFingerprint: string;
@@ -71,6 +76,9 @@ export class TenantApprovalRequestStore {
     readonly environmentId: EnvironmentId;
     readonly supersededByRequestId: ApprovalRequestId;
   }): Promise<readonly ApprovalRequestId[]> {
+    // FOR UPDATE serializes concurrent supersessions for the same environment; combined with
+    // the `approval_requests_one_pending_promotion_idx` partial unique index (the load-bearing
+    // guard), this prevents two pending promotions for one Protected Environment (ADR-0017).
     const pending = await this.db
       .select({ id: approvalRequests.id })
       .from(approvalRequests)
@@ -81,7 +89,8 @@ export class TenantApprovalRequestStore {
           eq(approvalRequests.purpose, "protected_promotion"),
           eq(approvalRequests.status, "pending"),
         ),
-      );
+      )
+      .for("update");
 
     if (pending.length === 0) {
       return [];
@@ -111,67 +120,39 @@ export class TenantApprovalRequestStore {
   async createPromotionApprovalRequest(input: CreatePromotionApprovalRequestInput): Promise<void> {
     const now = new Date();
     await this.db.insert(approvalRequests).values({
-      id: input.approvalRequestId,
-      orgId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
+      ...commonApprovalRequestValues(input, now),
       purpose: "protected_promotion",
-      status: "pending",
-      requesterUserId: input.requesterUserId,
-      operationId: input.operationId ?? null,
-      impactReviewFingerprint: input.impactReviewFingerprint,
-      commentLength: input.commentLength ?? null,
-      commentSha256: input.commentSha256 ?? null,
       rollbackSecretId: null,
       rollbackToVersionNumber: null,
       rollbackPromoteRequested: false,
-      supersededByRequestId: null,
-      createdAt: now,
-      updatedAt: now,
     });
 
     if (input.draftVersions.length > 0) {
-      await this.db.insert(promotionChangeSetDraftVersions).values(
-        input.draftVersions.map((target) => ({
-          orgId: input.organizationId,
-          approvalRequestId: input.approvalRequestId,
-          secretId: target.secretId,
-          secretVersionId: target.secretVersionId,
-          createdAt: now,
-        })),
-      );
+      await this.db
+        .insert(promotionChangeSetDraftVersions)
+        .values(
+          input.draftVersions.map((target) =>
+            draftVersionRow(input.organizationId, input.approvalRequestId, target, now),
+          ),
+        );
     }
   }
 
   async createRollbackApprovalRequest(input: CreateRollbackApprovalRequestInput): Promise<void> {
     const now = new Date();
     await this.db.insert(approvalRequests).values({
-      id: input.approvalRequestId,
-      orgId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
+      ...commonApprovalRequestValues(input, now),
       purpose: "protected_rollback",
-      status: "pending",
-      requesterUserId: input.requesterUserId,
-      operationId: input.operationId ?? null,
-      impactReviewFingerprint: input.impactReviewFingerprint,
-      commentLength: input.commentLength ?? null,
-      commentSha256: input.commentSha256 ?? null,
       rollbackSecretId: input.secretId,
       rollbackToVersionNumber: input.toVersionNumber,
       rollbackPromoteRequested: input.promoteRequested,
-      supersededByRequestId: null,
-      createdAt: now,
-      updatedAt: now,
     });
 
-    await this.db.insert(promotionChangeSetDraftVersions).values({
-      orgId: input.organizationId,
-      approvalRequestId: input.approvalRequestId,
-      secretId: input.draftVersion.secretId,
-      secretVersionId: input.draftVersion.secretVersionId,
-      createdAt: now,
-    });
+    await this.db
+      .insert(promotionChangeSetDraftVersions)
+      .values(
+        draftVersionRow(input.organizationId, input.approvalRequestId, input.draftVersion, now),
+      );
   }
 
   async listEnvironmentApprovalRequests(input: {

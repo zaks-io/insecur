@@ -13,6 +13,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST_APPROVALS = {
     org_id: { category: "opaque-id" },
     project_id: { category: "opaque-id" },
     purpose: { category: "type-code" },
+    requester_machine_identity_id: { category: "actor-id" },
     requester_user_id: { category: "actor-id" },
     rollback_promote_requested: { category: "flag" },
     rollback_secret_id: { category: "opaque-id" },

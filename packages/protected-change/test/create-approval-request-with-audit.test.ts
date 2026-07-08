@@ -15,7 +15,7 @@ const USER = userId.brand("usr_00000000000000000000000001");
 const REQ = requestId.brand("req_00000000000000000000000001");
 
 const auditScope = {
-  actor: { type: "user", userId: USER } as const,
+  auditActor: { type: "user", userId: USER } as const,
   organizationId: ORG,
   projectId: PROJECT,
   environmentId: ENV,
@@ -35,7 +35,7 @@ describe("createApprovalRequestWithAudit", () => {
       persist,
     });
 
-    expect(generatedId).toMatch(/^req_/);
+    expect(generatedId).toMatch(/^apr_/);
     expect(result).toBe("persist-result");
     expect(persist).toHaveBeenCalledTimes(1);
     expect(persist).toHaveBeenCalledWith(generatedId);
