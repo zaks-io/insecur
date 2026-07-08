@@ -130,7 +130,10 @@ path. The unit-level companion is the authed-SSR harness in `apps/web/test/suppo
   `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview flag. The `Deploy Preview` workflow preflights
   all preview Workers before mutating preview, deploys the shared Worker fleet, then runs the
   `@insecur/preview-smoke` Playwright suite. Playwright verifies API/Web/Site deploy identities,
-  drives the current happy paths over HTTP, sweeps preview Postgres for the generated sentinel,
+  drives the current happy paths over HTTP, exercises the built `insecur` CLI for auth/session and
+  metadata navigation (`whoami`, `orgs list`, `projects list`, `envs list`, `config show`, `logout`)
+  from isolated temp config directories, runs the First Value CLI proof (`init`, `secrets set`, `run`),
+  sweeps preview Postgres for the generated sentinel,
   emits GitHub annotations, and uploads HTML, JSON, JUnit XML, and failure trace artifacts.
   Local runs load ignored `.env.preview` and `.env.local` files before checking required variables.
   `SMOKE_SESSION_SIGNING_SECRET` may be supplied as `SESSION_SIGNING_SECRET`, but it must match the
