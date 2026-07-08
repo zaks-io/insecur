@@ -1,3 +1,5 @@
+import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+
 import { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
 import { assertProtectedEnvironment } from "./assert-protected-environment.js";
 import { assertSecretProtectedMutationAccess } from "./assert-secret-protected-mutation-access.js";
@@ -35,15 +37,11 @@ export async function requestProtectedPromotion(
     draftVersionIds: input.draftVersionIds,
   });
 
-  const impactReviewState = await loadApprovalImpactReviewState({
-    ...scope,
-    draftTargets: validatedTargets,
-  });
-  const impactReviewFingerprint = await computeImpactReviewFingerprint(impactReviewState);
-  assertImpactReviewFresh({
-    submittedFingerprint: input.impactReviewFingerprint,
-    currentFingerprint: impactReviewFingerprint,
-  });
+  const impactReviewFingerprint = await recomputeAndAssertFreshFingerprint(
+    scope,
+    validatedTargets,
+    input.impactReviewFingerprint,
+  );
 
   const gate = await gateProtectedSecretMutation({
     ...scope,
@@ -74,4 +72,21 @@ export async function requestProtectedPromotion(
     draftVersionIds: input.draftVersionIds,
     ...(gate.operationId !== undefined ? { operationId: gate.operationId } : {}),
   };
+}
+
+/**
+ * The B2 recompute-then-compare seam (ADR-0017 / INS-85): load the CURRENT live delivery + draft
+ * impact, recompute the Approval Impact Review Fingerprint over it server-side, and reject a
+ * caller-submitted fingerprint that no longer matches (drift → stale). The freshly recomputed
+ * fingerprint is returned so it, not the submitted one, is recorded on the Approval Request.
+ */
+async function recomputeAndAssertFreshFingerprint(
+  scope: { organizationId: OrganizationId; projectId: ProjectId; environmentId: EnvironmentId },
+  draftTargets: Awaited<ReturnType<typeof validatePromotionDraftTargets>>,
+  submittedFingerprint: string | undefined,
+): Promise<string> {
+  const impactReviewState = await loadApprovalImpactReviewState({ ...scope, draftTargets });
+  const currentFingerprint = await computeImpactReviewFingerprint(impactReviewState);
+  assertImpactReviewFresh({ submittedFingerprint, currentFingerprint });
+  return currentFingerprint;
 }

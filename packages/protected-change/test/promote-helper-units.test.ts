@@ -48,15 +48,18 @@ describe("parsePromoteDraftSelection", () => {
 });
 
 describe("hashCommentMetadata", () => {
-  it("returns empty metadata for absent or empty comments", () => {
-    expect(hashCommentMetadata(undefined)).toEqual({});
-    expect(hashCommentMetadata("")).toEqual({});
+  it("returns empty metadata for absent or empty comments", async () => {
+    expect(await hashCommentMetadata(undefined)).toEqual({});
+    expect(await hashCommentMetadata("")).toEqual({});
   });
 
-  it("returns length and sha256 metadata for non-empty comments", () => {
-    expect(hashCommentMetadata("ship it")).toEqual({
+  it("returns length and a real sha256 digest for non-empty comments, never the raw text", async () => {
+    const metadata = await hashCommentMetadata("ship it");
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ship it"));
+    const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    expect(metadata).toEqual({
       commentLength: 7,
-      commentSha256: "sha256:7",
+      commentSha256: `sha256:${hex}`,
     });
   });
 });

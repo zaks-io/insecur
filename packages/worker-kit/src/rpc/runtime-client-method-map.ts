@@ -24,6 +24,27 @@ function forwardProjectAccessMethods(
   };
 }
 
+function forwardProtectedChangeMethods(
+  forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
+) {
+  return {
+    requestProtectedPromotion: forward("requestProtectedPromotion"),
+    requestProtectedRollback: forward("requestProtectedRollback"),
+    listEnvironmentApprovals: forward("listEnvironmentApprovals"),
+  };
+}
+
+function forwardHighAssuranceMethods(
+  forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
+) {
+  return {
+    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
+    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
+    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
+    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
+  };
+}
+
 export function buildAuthenticatedRuntimeClientMethods(
   forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
 ): AuthenticatedRuntimeClient {
@@ -58,16 +79,11 @@ export function buildAuthenticatedRuntimeClientMethods(
     listAuditEvents: forward("listAuditEvents"),
     exportTenantAudit: forward("exportTenantAudit"),
     queryFirstValueUsage: forward("queryFirstValueUsage"),
-    listPendingHighAssuranceChallenges: forward("listPendingHighAssuranceChallenges"),
-    getHighAssuranceChallenge: forward("getHighAssuranceChallenge"),
-    clearHighAssuranceChallenge: forward("clearHighAssuranceChallenge"),
-    denyHighAssuranceChallenge: forward("denyHighAssuranceChallenge"),
+    ...forwardHighAssuranceMethods(forward),
     createRuntimeInjectionPolicy: forward("createRuntimeInjectionPolicy"),
     getRuntimeInjectionPolicy: forward("getRuntimeInjectionPolicy"),
     disableRuntimeInjectionPolicy: forward("disableRuntimeInjectionPolicy"),
-    requestProtectedPromotion: forward("requestProtectedPromotion"),
-    requestProtectedRollback: forward("requestProtectedRollback"),
-    listEnvironmentApprovals: forward("listEnvironmentApprovals"),
+    ...forwardProtectedChangeMethods(forward),
     createWebhookSubscription: forward("createWebhookSubscription"),
     listWebhookSubscriptions: forward("listWebhookSubscriptions"),
     updateWebhookSubscription: forward("updateWebhookSubscription"),

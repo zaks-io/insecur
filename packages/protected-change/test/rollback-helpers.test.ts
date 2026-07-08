@@ -29,6 +29,10 @@ vi.mock("../src/create-rollback-approval-request.js", () => ({
   persistRollbackApprovalRequestOnDb: vi.fn(),
 }));
 
+vi.mock("../src/authorize-approval-request-create.js", () => ({
+  authorizeApprovalRequestCreate: vi.fn(),
+}));
+
 import {
   withTenantScope,
   copyRetainedSecretVersion,
@@ -36,6 +40,7 @@ import {
   loadPromotionDraftVersionImpactFacts,
 } from "@insecur/tenant-store";
 
+import { authorizeApprovalRequestCreate } from "../src/authorize-approval-request-create.js";
 import { createApprovalRequestWithAudit } from "../src/create-approval-request-with-audit.js";
 import { persistRollbackApprovalRequestOnDb } from "../src/create-rollback-approval-request.js";
 import {
@@ -51,7 +56,7 @@ const SECRET = secretId.brand("sec_00000000000000000000000001");
 const SOURCE_VERSION = secretVersionId.brand("sv_00000000000000000000000001");
 const NEW_VERSION = secretVersionId.brand("sv_00000000000000000000000002");
 const REQ = requestId.brand("req_00000000000000000000000001");
-const APPROVAL = approvalRequestId.brand("req_00000000000000000000000002");
+const APPROVAL = approvalRequestId.brand("apr_00000000000000000000000002");
 
 const ACTOR = { type: "user" as const, userId: USER };
 const SCOPE = { organizationId: ORG, projectId: PROJECT, environmentId: ENV };
@@ -148,6 +153,7 @@ describe("rollback helpers", () => {
       runtimeInjectionPolicies: [],
       providerSyncImpact: [],
     });
+    vi.mocked(authorizeApprovalRequestCreate).mockResolvedValue({ userId: USER });
     vi.mocked(persistRollbackApprovalRequestOnDb).mockResolvedValue(undefined);
     vi.mocked(createApprovalRequestWithAudit).mockImplementation(async ({ persist }) => {
       const created = APPROVAL;
@@ -176,6 +182,48 @@ describe("rollback helpers", () => {
       lifecycleState: "draft",
     });
 
-    expect(persistRollbackApprovalRequestOnDb).toHaveBeenCalled();
+    // B1/ADR-0017: a promote-requested protected rollback must be authorized through the
+    // fail-closed create guard before any version copy or Approval Request insert.
+    expect(authorizeApprovalRequestCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ isProtectedEnvironment: true }),
+    );
+    expect(persistRollbackApprovalRequestOnDb).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ requester: { userId: USER }, toVersionId: SOURCE_VERSION }),
+    );
+  });
+
+  it("fails closed and never copies a version when the create authorization is denied", async () => {
+    vi.mocked(withTenantScope).mockImplementation(async (_scope, callback) =>
+      callback({ db: {} as never }),
+    );
+    vi.mocked(loadPromotionDraftVersionImpactFacts).mockResolvedValue([]);
+    vi.mocked(loadEnvironmentDeliveryImpactFacts).mockResolvedValue({
+      runtimeInjectionPolicies: [],
+      providerSyncImpact: [],
+    });
+    vi.mocked(authorizeApprovalRequestCreate).mockRejectedValue(
+      Object.assign(new Error("denied"), { code: "access.denied" }),
+    );
+
+    await expect(
+      executeProtectedRollbackPersistence({
+        input: {
+          actor: ACTOR,
+          organizationId: ORG,
+          projectId: PROJECT,
+          environmentId: ENV,
+          secretId: SECRET,
+          toVersionId: SOURCE_VERSION,
+          promoteRequested: true,
+          requestId: REQ,
+        },
+        scope: SCOPE,
+        newSecretVersionId: NEW_VERSION,
+      }),
+    ).rejects.toThrow("denied");
+
+    expect(copyRetainedSecretVersion).not.toHaveBeenCalled();
+    expect(persistRollbackApprovalRequestOnDb).not.toHaveBeenCalled();
   });
 });

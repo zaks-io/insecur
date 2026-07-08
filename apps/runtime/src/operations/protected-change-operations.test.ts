@@ -39,7 +39,7 @@ const REQ = requestId.brand("req_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const DRAFT = secretVersionId.brand("sv_00000000000000000000000001");
 const SOURCE_VERSION = secretVersionId.brand("sv_00000000000000000000000002");
-const APPROVAL = approvalRequestId.brand("req_00000000000000000000000002");
+const APPROVAL = approvalRequestId.brand("apr_00000000000000000000000002");
 const USER_ACTOR = { type: "user" as const, userId: USER };
 const MACHINE_ACTOR = {
   type: "machine" as const,

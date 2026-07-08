@@ -31,7 +31,7 @@ const environmentIdValue = environmentId.brand("env_00000000000000000000000001")
 const secretIdValue = secretId.brand("sec_00000000000000000000000001");
 const draftVersionIdValue = secretVersionId.brand("sv_00000000000000000000000001");
 const operationIdValue = operationId.brand("op_00000000000000000000000001");
-const approvalRequestIdValue = approvalRequestId.brand("req_00000000000000000000000001");
+const approvalRequestIdValue = approvalRequestId.brand("apr_00000000000000000000000001");
 
 let runtime: RuntimeRpcStub;
 

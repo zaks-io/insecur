@@ -100,16 +100,30 @@ export async function createPromotionApprovalRequest(input: {
         }),
     });
 
-  if (supersededApprovalRequestIds.length > 0) {
-    await recordSupersededApprovalRequestAudits({
-      auditActor: input.auditActor,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      supersededApprovalRequestIds,
-      requestId: input.requestId,
-    });
-  }
+  await auditSupersededPromotions(input, supersededApprovalRequestIds);
 
   return { approvalRequestId: newApprovalRequestId, supersededApprovalRequestIds };
+}
+
+async function auditSupersededPromotions(
+  input: {
+    readonly auditActor: AuditActorRef;
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly environmentId: EnvironmentId;
+    readonly requestId: RequestId;
+  },
+  supersededApprovalRequestIds: readonly ApprovalRequestId[],
+): Promise<void> {
+  if (supersededApprovalRequestIds.length === 0) {
+    return;
+  }
+  await recordSupersededApprovalRequestAudits({
+    auditActor: input.auditActor,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    supersededApprovalRequestIds,
+    requestId: input.requestId,
+  });
 }

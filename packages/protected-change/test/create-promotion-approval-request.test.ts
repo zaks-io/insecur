@@ -38,11 +38,16 @@ vi.mock("../src/record-created-approval-request-audit.js", () => ({
   recordDeniedApprovalRequestCreate: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("../src/record-superseded-approval-request-audit.js", () => ({
+  recordSupersededApprovalRequestAudits: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { createPromotionApprovalRequest as createPromotion } from "../src/create-promotion-approval-request.js";
 import {
   finalizeCreatedApprovalRequest,
   recordDeniedApprovalRequestCreate,
 } from "../src/record-created-approval-request-audit.js";
+import { recordSupersededApprovalRequestAudits } from "../src/record-superseded-approval-request-audit.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -77,6 +82,7 @@ describe("createPromotionApprovalRequest", () => {
     createPromotionApprovalRequest.mockReset().mockResolvedValue(undefined);
     vi.mocked(finalizeCreatedApprovalRequest).mockClear();
     vi.mocked(recordDeniedApprovalRequestCreate).mockClear();
+    vi.mocked(recordSupersededApprovalRequestAudits).mockClear();
     accessMocks.authorizeScopeOrThrow.mockReset().mockResolvedValue(undefined);
   });
 
@@ -159,13 +165,24 @@ describe("createPromotionApprovalRequest", () => {
     });
   });
 
-  it("returns the superseded request ids from the store", async () => {
+  it("returns the superseded request ids from the store and records a superseded audit", async () => {
     const supersededId = approvalRequestId.brand("apr_00000000000000000000000042");
     supersedePendingPromotionRequests.mockResolvedValue([supersededId]);
 
     const result = await createPromotion(baseInput);
 
     expect(result.supersededApprovalRequestIds).toEqual([supersededId]);
+    expect(recordSupersededApprovalRequestAudits).toHaveBeenCalledWith(
+      expect.objectContaining({ supersededApprovalRequestIds: [supersededId] }),
+    );
+  });
+
+  it("does not record a superseded audit when nothing was superseded", async () => {
+    supersedePendingPromotionRequests.mockResolvedValue([]);
+
+    await createPromotion(baseInput);
+
+    expect(recordSupersededApprovalRequestAudits).not.toHaveBeenCalled();
   });
 
   it("stores a real SHA-256 digest of the comment, never the raw text", async () => {

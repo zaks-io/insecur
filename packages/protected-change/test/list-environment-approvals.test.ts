@@ -34,7 +34,7 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const USER = userId.brand("usr_00000000000000000000000001");
-const REQUEST = approvalRequestId.brand("req_00000000000000000000000001");
+const REQUEST = approvalRequestId.brand("apr_00000000000000000000000001");
 const ACTOR = { type: "user" as const, userId: USER };
 const NOW = new Date("2026-07-08T00:00:00.000Z");
 

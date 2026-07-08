@@ -175,6 +175,30 @@ describe("protected change CLI commands", () => {
     );
   });
 
+  it("rejects the old ordinal --to-version form and requires an sv_ version id (B3)", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const api = createProtectedChangeMockApi();
+
+    // The pre-spec CLI took `--to-version <n>` (an ordinal like "3"). The spec requires the stable
+    // `sv_`-prefixed version id, so an ordinal must be rejected before any API call is made.
+    await expect(
+      runSecretsRollbackCommand(flags, api, mockContext, {
+        secretId: SECRET_ID,
+        envId: ENV_ID,
+        toVersionId: "3",
+        promote: true,
+        comment: undefined,
+        operationId: undefined,
+      }),
+    ).rejects.toThrow(/--to-version-id/);
+
+    expect(api.requestProtectedRollback).not.toHaveBeenCalled();
+  });
+
   it("lists environment approval requests", async () => {
     setMemorySession({
       credential: "credential_test",
