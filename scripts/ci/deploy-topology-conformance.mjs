@@ -284,6 +284,11 @@ function collectDeployRoutes(appPath, appName) {
     ...extractPublicRoutes(join(appPath, "src", "index.ts")),
     ...extractTanStackFileRoutes(appPath),
   ]);
+  if (appName === "site") {
+    for (const route of extractPublicRoutes(join(appPath, "src", "static-site-routes.ts"))) {
+      mounts.add(route);
+    }
+  }
   if (appName === "api") {
     for (const route of extractPublicRoutesFromDir(join(appPath, "src", "routes"))) {
       mounts.add(route);

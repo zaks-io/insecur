@@ -13,6 +13,7 @@ const DEFAULT_HMAC_CUSTODY_REF = "escrow-record://instance/runtime/audit-hmac/v1
 const DEFAULT_SIGNING_CUSTODY_REF = "escrow-record://instance/runtime/audit-signing/v1";
 
 interface AuditExportSigningKeyMaterial {
+  readonly keyVersion: number;
   readonly privateKeyPkcs8Base64Url: string;
   readonly publicKeyRawBase64Url: string;
 }
@@ -36,7 +37,17 @@ async function readSecretsStoreString(
   return value.trim() === "" ? undefined : value;
 }
 
-function parseSigningKeyMaterial(raw: string): AuditExportSigningKeyMaterial {
+function readSigningKeyVersion(value: unknown): number {
+  if (value === undefined) {
+    return 1;
+  }
+  if (typeof value === "number" && Number.isInteger(value) && value >= 1) {
+    return value;
+  }
+  throw new Error("audit export signing key material is missing or has invalid keyVersion");
+}
+
+function readSigningKeyMaterialRecord(raw: string): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -46,7 +57,11 @@ function parseSigningKeyMaterial(raw: string): AuditExportSigningKeyMaterial {
   if (typeof parsed !== "object" || parsed === null) {
     throw new Error("audit export signing key material must be a JSON object");
   }
-  const record = parsed as Record<string, unknown>;
+  return parsed as Record<string, unknown>;
+}
+
+function parseSigningKeyMaterial(raw: string): AuditExportSigningKeyMaterial {
+  const record = readSigningKeyMaterialRecord(raw);
   const privateKeyPkcs8Base64Url = record.privateKeyPkcs8Base64Url;
   const publicKeyRawBase64Url = record.publicKeyRawBase64Url;
   if (typeof privateKeyPkcs8Base64Url !== "string" || privateKeyPkcs8Base64Url.length === 0) {
@@ -55,7 +70,11 @@ function parseSigningKeyMaterial(raw: string): AuditExportSigningKeyMaterial {
   if (typeof publicKeyRawBase64Url !== "string" || publicKeyRawBase64Url.length === 0) {
     throw new Error("audit export signing key material is missing publicKeyRawBase64Url");
   }
-  return { privateKeyPkcs8Base64Url, publicKeyRawBase64Url };
+  return {
+    keyVersion: readSigningKeyVersion(record.keyVersion),
+    privateKeyPkcs8Base64Url,
+    publicKeyRawBase64Url,
+  };
 }
 
 async function resolveHmacSecret(env: RuntimeEnv): Promise<string> {
@@ -83,7 +102,7 @@ async function resolveSigningKeyMaterial(env: RuntimeEnv): Promise<AuditExportSi
     );
     const publicKeyRawBase64Url = readEnvString("INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY");
     if (privateKeyPkcs8Base64Url !== undefined && publicKeyRawBase64Url !== undefined) {
-      return { privateKeyPkcs8Base64Url, publicKeyRawBase64Url };
+      return { keyVersion: 1, privateKeyPkcs8Base64Url, publicKeyRawBase64Url };
     }
   }
   throw new AuditExportKeysNotConfiguredError();
@@ -108,7 +127,7 @@ export async function resolveAuditExportKeyProviders(env: RuntimeEnv): Promise<{
       custodyEvidenceRef: DEFAULT_HMAC_CUSTODY_REF,
     }),
     StaticAuditExportSigningKeyProvider.fromPkcs8({
-      keyVersion: 1,
+      keyVersion: signingMaterial.keyVersion,
       privateKeyPkcs8,
       publicKeyRaw,
       custodyEvidenceRef: DEFAULT_SIGNING_CUSTODY_REF,
