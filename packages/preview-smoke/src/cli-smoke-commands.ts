@@ -45,3 +45,57 @@ export function buildCliAuditVerifyArgs(
     publishedSigningKeysUrl,
   ];
 }
+
+export function buildCliOperationsGetArgs(operationId: string): readonly string[] {
+  return ["operations", "get", operationId];
+}
+
+export function buildCliOperationsWaitArgs(
+  operationId: string,
+  timeoutSeconds?: number,
+): readonly string[] {
+  return timeoutSeconds === undefined
+    ? ["operations", "wait", operationId]
+    : ["operations", "wait", operationId, "--timeout", String(timeoutSeconds)];
+}
+
+export function buildCliRunPoliciesCreateArgs(input: {
+  readonly policyId: string;
+  readonly envId: string;
+  readonly command: string;
+  readonly secretIds: readonly string[];
+}): readonly string[] {
+  return [
+    "run-policies",
+    "create",
+    "--policy-id",
+    input.policyId,
+    "--env-id",
+    input.envId,
+    "--display-name-stdin",
+    "--command",
+    input.command,
+    "--secret-ids",
+    input.secretIds.join(","),
+  ];
+}
+
+export function buildCliRunPoliciesShowArgs(policyId: string): readonly string[] {
+  return ["run-policies", "show", policyId];
+}
+
+export function buildCliRunPoliciesDisableArgs(input: {
+  readonly policyId: string;
+  readonly envId: string;
+  readonly comment: string;
+}): readonly string[] {
+  return [
+    "run-policies",
+    "disable",
+    input.policyId,
+    "--env-id",
+    input.envId,
+    "--comment",
+    input.comment,
+  ];
+}
