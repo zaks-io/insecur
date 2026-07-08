@@ -72,5 +72,8 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     getHighAssuranceChallenge: vi.fn(),
     clearHighAssuranceChallenge: vi.fn(),
     denyHighAssuranceChallenge: vi.fn(),
+    createRuntimeInjectionPolicy: vi.fn(),
+    getRuntimeInjectionPolicy: vi.fn(),
+    disableRuntimeInjectionPolicy: vi.fn(),
   };
 }

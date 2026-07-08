@@ -6,6 +6,7 @@ export const OPERATION_INTENT_CODES = {
   syncRun: "sync.run",
   providerReauth: "provider.reauth",
   backupExport: "backup.export",
+  runtimeInjectionPolicyChange: "runtime_injection_policy.change",
 } as const;
 
 export type OperationIntentCode =

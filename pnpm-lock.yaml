@@ -644,6 +644,9 @@ importers:
       '@insecur/local-store':
         specifier: workspace:*
         version: link:../local-store
+      '@insecur/worker-kit':
+        specifier: workspace:*
+        version: link:../worker-kit
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.2
@@ -973,12 +976,21 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/high-assurance':
+        specifier: workspace:*
+        version: link:../high-assurance
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../operations
       '@insecur/runtime-injection-issue':
         specifier: workspace:*
         version: link:../runtime-injection-issue
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store
+      '@insecur/worker-kit':
+        specifier: workspace:*
+        version: link:../worker-kit
     devDependencies:
       eslint:
         specifier: 'catalog:'

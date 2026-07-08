@@ -13,6 +13,7 @@ import type {
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 import type { NavigationApiClient } from "./navigation-api-types.js";
+import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
 import type { SecretsApiClient } from "./secrets-api-types.js";
 import type { AuditApiClient } from "./audit-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
@@ -128,7 +129,13 @@ type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
 export interface ApiClient
-  extends NavigationApiClient, SecretsApiClient, AuditApiClient, WhoamiApiClient, LogoutApiClient {
+  extends
+    NavigationApiClient,
+    SecretsApiClient,
+    RunPoliciesApiClient,
+    AuditApiClient,
+    WhoamiApiClient,
+    LogoutApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;

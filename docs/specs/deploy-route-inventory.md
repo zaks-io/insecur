@@ -35,8 +35,15 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/operations`                |
 | \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
+| \*     | `/v1/orgs/:organizationId/run-policies`              |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback`   |
 | GET    | `/v1/orgs/:organizationId/first-value-usage`         |
+
+Under `/v1/orgs/:organizationId/run-policies` (INS-437): `POST /` creates an immutable Runtime
+Injection Policy Version with exact secret bindings and updates the active pointer; `GET
+/:policyId` returns metadata-only policy show; `POST /:policyId/disable` disables a policy with
+audit. Protected Environment mutations require a High-Assurance Challenge (`auth.high_assurance_required`
+with `meta.operationId` when absent). All three forward over the `RUNTIME` seam.
 
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /`
 creates a project with a client-minted opaque ID and Display Name; `GET

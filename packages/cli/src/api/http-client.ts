@@ -7,9 +7,7 @@ import type {
   CreateProjectData,
   EnvironmentListData,
   GuidedOrganizationProvisionData,
-  ListEnvironmentSecretsData,
   ListProjectSecretsData,
-  ListSecretVersionsData,
   ProjectListData,
   SecretWriteByVariableKeyData,
   SessionOrganizationListData,
@@ -29,7 +27,13 @@ import {
   recordInjectionRunCompleted,
 } from "./http-client-runtime-injection.js";
 import { cancelOperation, getOperation } from "./http-client-operations.js";
+import { listEnvironmentSecrets, listSecretVersions } from "./http-client-secrets-read.js";
 import { revokeCliSession } from "./http-client-logout.js";
+import {
+  createRuntimeInjectionPolicy,
+  disableRuntimeInjectionPolicy,
+  getRuntimeInjectionPolicy,
+} from "./http-client-run-policies.js";
 import { sessionWhoami } from "./http-client-whoami.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
@@ -56,6 +60,9 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     getOperation: (input) => getOperation(base, input),
     cancelOperation: (input) => cancelOperation(base, input),
     revokeCliSession: (input) => revokeCliSession(base, input),
+    createRuntimeInjectionPolicy: (input) => createRuntimeInjectionPolicy(base, input),
+    getRuntimeInjectionPolicy: (input) => getRuntimeInjectionPolicy(base, input),
+    disableRuntimeInjectionPolicy: (input) => disableRuntimeInjectionPolicy(base, input),
     sessionWhoami: (input) => sessionWhoami(base, input),
   };
 }
@@ -201,30 +208,6 @@ async function listProjectSecrets(
   return authorizedJsonRequest<ListProjectSecretsData>(
     base,
     `/v1/orgs/${input.organizationId}/projects/${input.projectId}/secrets`,
-    input.bearerCredential,
-    { method: "GET" },
-  );
-}
-
-async function listEnvironmentSecrets(
-  base: string,
-  input: Parameters<ApiClient["listEnvironmentSecrets"]>[0],
-) {
-  return authorizedJsonRequest<ListEnvironmentSecretsData>(
-    base,
-    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets`,
-    input.bearerCredential,
-    { method: "GET" },
-  );
-}
-
-async function listSecretVersions(
-  base: string,
-  input: Parameters<ApiClient["listSecretVersions"]>[0],
-) {
-  return authorizedJsonRequest<ListSecretVersionsData>(
-    base,
-    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets/${input.secretId}/versions`,
     input.bearerCredential,
     { method: "GET" },
   );

@@ -69,6 +69,10 @@ export const PRODUCTION_AUDIT_EVENT_CODES = {
   connectionCredentialAttachDenied: "connection.credential_attach_denied",
   operationCanceled: "operation.canceled",
   operationCancelDenied: "operation.cancel_denied",
+  runtimeInjectionPolicyCreated: "runtime_injection_policy.created",
+  runtimeInjectionPolicyCreateDenied: "runtime_injection_policy.create_denied",
+  runtimeInjectionPolicyDisabled: "runtime_injection_policy.disabled",
+  runtimeInjectionPolicyDisableDenied: "runtime_injection_policy.disable_denied",
 } as const;
 
 /** All supported tenant-qualified audit event codes. */
@@ -122,6 +126,8 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.connectionDisableDenied,
   PRODUCTION_AUDIT_EVENT_CODES.connectionCredentialAttachDenied,
   PRODUCTION_AUDIT_EVENT_CODES.operationCancelDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.runtimeInjectionPolicyCreateDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.runtimeInjectionPolicyDisableDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([

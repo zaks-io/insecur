@@ -1,10 +1,10 @@
-import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import { parseEnvironmentId } from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { readDisplayNameFromStdin } from "../input/read-display-name-stdin.js";
+import { requireDisplayNameStdinFlag } from "../input/require-display-name-stdin.js";
 import { requireProjectScope } from "./navigation-scope.js";
 import { buildCreateEnvironmentOutput } from "./envs-create-result.js";
 import { CliError } from "../output/cli-error.js";
@@ -22,13 +22,7 @@ export async function runEnvsCreateCommand(
   context: ResolvedCliContext,
   commandOptions: EnvsCreateCommandOptions,
 ): Promise<number> {
-  if (!commandOptions.displayNameStdin) {
-    throw new CliError({
-      code: VALIDATION_ERROR_CODES.invalidCommandInput,
-      message: "Display Name is required via --display-name-stdin.",
-      retryable: false,
-    });
-  }
+  requireDisplayNameStdinFlag(commandOptions.displayNameStdin);
 
   const credential = await requireSessionCredential(context.scope.host);
   const projectScope = requireProjectScope(context.scope);

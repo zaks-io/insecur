@@ -12,8 +12,6 @@ export {
   parseSecretIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
-  parseInjectionGrantConsumeSelector,
-  parseInjectionGrantIssueSelector,
   parseInvitationIdParam,
   parseJsonBody,
   parseOperationIdParam,
@@ -27,6 +25,7 @@ export {
   parseOrganizationIdParam,
   parseOwnerMembershipId,
   parseProjectIdParam,
+  parseRuntimePolicyIdParam,
   parseUserIdField,
   parseVariableKeyField,
   readOptionalBoolean,
@@ -34,9 +33,14 @@ export {
   readRequiredString,
   readSecretValueField,
   requireRouteParam,
+} from "./http/parse-route-input.js";
+export {
+  parseInjectionGrantConsumeSelector,
+  parseInjectionGrantIssueSelector,
   type InjectionGrantConsumeSelectorInput,
   type InjectionGrantIssueSelectorInput,
-} from "./http/parse-route-input.js";
+} from "./http/parse-injection-grant-selector.js";
+export { parseSecretIdListField } from "./http/parse-secret-id-list-field.js";
 export { toAccessActor, toAuditActor } from "./http/request-actor.js";
 
 export type {
@@ -112,6 +116,15 @@ export type {
   SecretVersionMetadataRead,
   SessionOrganizationRead,
 } from "./rpc/runtime-metadata-rpc-contract.js";
+export type {
+  CreateRuntimeInjectionPolicyRpcInput,
+  CreateRuntimeInjectionPolicyRpcPayload,
+  DisableRuntimeInjectionPolicyRpcInput,
+  DisableRuntimeInjectionPolicyRpcPayload,
+  GetRuntimeInjectionPolicyRpcInput,
+  GetRuntimeInjectionPolicyRpcPayload,
+  RuntimeInjectionPolicyVersionReadPayload,
+} from "./rpc/runtime-run-policies-rpc-contract.js";
 export type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,

@@ -67,6 +67,14 @@ import type {
   ListPendingHighAssuranceChallengesRpcPayload,
 } from "./runtime-high-assurance-rpc-contract.js";
 import type {
+  CreateRuntimeInjectionPolicyRpcInput,
+  CreateRuntimeInjectionPolicyRpcPayload,
+  DisableRuntimeInjectionPolicyRpcInput,
+  DisableRuntimeInjectionPolicyRpcPayload,
+  GetRuntimeInjectionPolicyRpcInput,
+  GetRuntimeInjectionPolicyRpcPayload,
+} from "./runtime-run-policies-rpc-contract.js";
+import type {
   AcceptInvitationRpcInput,
   CancelOperationRpcInput,
   CancelOperationRpcPayload,
@@ -203,4 +211,13 @@ export interface RuntimeRpc {
   denyHighAssuranceChallenge(
     input: DenyHighAssuranceChallengeRpcInput,
   ): Promise<RuntimeRpcResult<DenyHighAssuranceChallengeRpcPayload>>;
+  createRuntimeInjectionPolicy(
+    input: CreateRuntimeInjectionPolicyRpcInput,
+  ): Promise<RuntimeRpcResult<CreateRuntimeInjectionPolicyRpcPayload>>;
+  getRuntimeInjectionPolicy(
+    input: GetRuntimeInjectionPolicyRpcInput,
+  ): Promise<RuntimeRpcResult<GetRuntimeInjectionPolicyRpcPayload>>;
+  disableRuntimeInjectionPolicy(
+    input: DisableRuntimeInjectionPolicyRpcInput,
+  ): Promise<RuntimeRpcResult<DisableRuntimeInjectionPolicyRpcPayload>>;
 }

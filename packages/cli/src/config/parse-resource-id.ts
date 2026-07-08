@@ -4,6 +4,7 @@ import type {
   OrganizationId,
   ProjectId,
   RuntimePolicyId,
+  SecretId,
 } from "@insecur/domain";
 import {
   VALIDATION_ERROR_CODES,
@@ -12,6 +13,7 @@ import {
   organizationId,
   projectId,
   runtimePolicyId,
+  secretId,
 } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
 
@@ -102,4 +104,23 @@ export function parseOptionalRuntimePolicyId(
   context?: string,
 ): RuntimePolicyId | undefined {
   return parseOptional(raw, runtimePolicyId, "runtime injection policy id", context);
+}
+
+export function parseRuntimePolicyId(raw: string, context?: string): RuntimePolicyId {
+  return parseRequired(raw, runtimePolicyId, "runtime injection policy id", context);
+}
+
+export function parseSecretIds(raw: string, context?: string): readonly SecretId[] {
+  const parts = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) {
+    throw new CliError({
+      code: VALIDATION_ERROR_CODES.invalidCommandInput,
+      message: "At least one secret id is required in --secret-ids.",
+      retryable: false,
+    });
+  }
+  return parts.map((part) => parseRequired(part, secretId, "secret id", context));
 }

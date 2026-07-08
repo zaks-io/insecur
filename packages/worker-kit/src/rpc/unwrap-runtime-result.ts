@@ -1,4 +1,4 @@
-import type { KnownErrorCode } from "@insecur/domain";
+import type { KnownErrorCode, OperationId } from "@insecur/domain";
 import type { RuntimeRpcResult } from "./runtime-rpc-contract.js";
 
 /**
@@ -12,12 +12,21 @@ import type { RuntimeRpcResult } from "./runtime-rpc-contract.js";
 export class RuntimeRpcResultError extends Error {
   readonly code: KnownErrorCode;
   readonly retryable: boolean;
+  readonly operationId?: OperationId;
 
-  constructor(code: KnownErrorCode, message: string, retryable: boolean) {
+  constructor(
+    code: KnownErrorCode,
+    message: string,
+    retryable: boolean,
+    operationId?: OperationId,
+  ) {
     super(message);
     this.name = "RuntimeRpcResultError";
     this.code = code;
     this.retryable = retryable;
+    if (operationId !== undefined) {
+      this.operationId = operationId;
+    }
   }
 }
 
@@ -28,6 +37,7 @@ export function unwrapRuntimeResult<TPayload>(result: RuntimeRpcResult<TPayload>
       result.error.code,
       result.error.message,
       result.error.retryable,
+      result.error.operationId,
     );
   }
   return result.value;

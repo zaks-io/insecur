@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { generateOpaqueResourceIdForPrefix } from "@insecur/domain";
 import {
   evaluateHighAssuranceChallengeClearAssurance,
   type EvaluateHighAssuranceChallengeClearInput,
@@ -7,7 +7,7 @@ import type { HighAssuranceAuthenticationMethodCode } from "./high-assurance-ris
 import { HIGH_ASSURANCE_AUTHENTICATION_METHOD_CODES } from "./high-assurance-risk-reason-codes.js";
 
 export function generateChallengeId(): string {
-  return randomBytes(16).toString("hex");
+  return generateOpaqueResourceIdForPrefix("chlg");
 }
 
 export function mapSessionAssuranceToAuthenticationMethodCode(

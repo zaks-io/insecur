@@ -4,6 +4,7 @@ import type { GlobalCliFlags } from "./cli-options.js";
 import { runWhoamiCommand } from "./commands/whoami.js";
 import { registerNavigationCommands } from "./register-navigation-commands.js";
 import { registerOperationsCommands } from "./register-operations-commands.js";
+import { registerRunPoliciesCommands } from "./register-run-policies-commands.js";
 import { registerSecretsCommands } from "./register-secrets-commands.js";
 import { registerWhoamiCommand } from "./register-whoami-command.js";
 
@@ -20,5 +21,6 @@ export function registerApiBackedCommands(program: Command, deps: ApiBackedComma
   registerSecretsCommands(program, deps);
   registerNavigationCommands(program, deps);
   registerOperationsCommands(program, deps);
+  registerRunPoliciesCommands(program, deps);
   registerWhoamiCommand(program, deps);
 }

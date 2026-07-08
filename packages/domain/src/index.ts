@@ -7,6 +7,7 @@ export {
   OPAQUE_RESOURCE_ID_PATTERN,
   type ParseOpaqueResourceIdResult,
   brandOpaqueResourceIdForPrefix,
+  generateOpaqueResourceIdForPrefix,
   parseOpaqueResourceId,
 } from "./opaque-resource-id.js";
 export {

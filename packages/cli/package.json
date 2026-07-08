@@ -22,6 +22,7 @@
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/local-store": "workspace:*",
+    "@insecur/worker-kit": "workspace:*",
     "@types/node": "catalog:",
     "commander": "^15.0.0",
     "esbuild": "catalog:",
