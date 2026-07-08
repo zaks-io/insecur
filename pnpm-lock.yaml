@@ -202,6 +202,9 @@ importers:
       '@insecur/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@insecur/protected-change':
+        specifier: workspace:*
+        version: link:../../packages/protected-change
       '@insecur/secret-store-contracts':
         specifier: workspace:*
         version: link:../../packages/secret-store-contracts
@@ -293,6 +296,9 @@ importers:
       '@insecur/operations':
         specifier: workspace:*
         version: link:../../packages/operations
+      '@insecur/protected-change':
+        specifier: workspace:*
+        version: link:../../packages/protected-change
       '@insecur/runtime-injection':
         specifier: workspace:*
         version: link:../../packages/runtime-injection
@@ -976,6 +982,40 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+
+  packages/protected-change:
+    dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../access
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@insecur/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@insecur/high-assurance':
+        specifier: workspace:*
+        version: link:../high-assurance
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../operations
+      '@insecur/secret-store':
+        specifier: workspace:*
+        version: link:../secret-store
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
+    devDependencies:
+      eslint:
+        specifier: 'catalog:'
+        version: 10.6.0(jiti@2.7.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(@vitest/coverage-v8@4.1.9)(vite@8.1.3(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0))
 
   packages/release-gate:
     dependencies:

@@ -7,6 +7,7 @@ import type { OperationsApiClient } from "./operations-api-types.js";
 import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
 import type { RuntimeInjectionApiClient } from "./runtime-injection-api-types.js";
 import type { SecretsApiClient } from "./secrets-api-types.js";
+import type { ProtectedChangeApiClient } from "./protected-change-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
 
 export type { GuidedOrganizationProvisionData } from "./onboarding-api-types.js";
@@ -36,6 +37,7 @@ export interface ApiClient
     RuntimeInjectionApiClient,
     OperationsApiClient,
     RunPoliciesApiClient,
+    ProtectedChangeApiClient,
     AuditApiClient,
     WhoamiApiClient,
     LogoutApiClient {}

@@ -1,0 +1,30 @@
+{
+  "name": "@insecur/protected-change",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@insecur/access": "workspace:*",
+    "@insecur/audit": "workspace:*",
+    "@insecur/domain": "workspace:*",
+    "@insecur/high-assurance": "workspace:*",
+    "@insecur/operations": "workspace:*",
+    "@insecur/secret-store": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
+  },
+  "devDependencies": {
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

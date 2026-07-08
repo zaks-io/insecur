@@ -248,6 +248,19 @@ export const NOTIFICATION_ERROR_CODES = {
 export type NotificationErrorCode =
   (typeof NOTIFICATION_ERROR_CODES)[keyof typeof NOTIFICATION_ERROR_CODES];
 
+/** Protected Change Orchestrator approval workflow failures. */
+export const APPROVAL_ERROR_CODES = {
+  reviewStale: "approval.review_stale",
+  requestNotFound: "approval.request_not_found",
+  requestNotPending: "approval.request_not_pending",
+  invalidDraftSelection: "approval.invalid_draft_selection",
+  wildcardSelectionRejected: "approval.wildcard_selection_rejected",
+  promotionChangeSetImmutable: "approval.promotion_change_set_immutable",
+  rollbackTargetNotEligible: "approval.rollback_target_not_eligible",
+} as const;
+
+export type ApprovalErrorCode = (typeof APPROVAL_ERROR_CODES)[keyof typeof APPROVAL_ERROR_CODES];
+
 /**
  * Every `*_ERROR_CODES` catalog in this module. Append new catalogs here and to
  * `KnownErrorCode` so `known-error-code-catalog.ts` lockstep coverage cannot miss them.
@@ -272,6 +285,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   IMPORT_ERROR_CODES,
   CLI_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
+  APPROVAL_ERROR_CODES,
 ] as const;
 
 export type KnownErrorCode =
@@ -294,4 +308,5 @@ export type KnownErrorCode =
   | ImportErrorCode
   | CliErrorCode
   | NotificationErrorCode
+  | ApprovalErrorCode
   | (string & {});

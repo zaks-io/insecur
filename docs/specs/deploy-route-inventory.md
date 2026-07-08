@@ -58,6 +58,15 @@ last-set actor/time; INS-363). `GET
 /:projectId/environments/:environmentId/secrets/:secretId/versions` lists per-version metadata for
 one Secret (version ids, timestamps, current/published markers; INS-434). `POST
 /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+`POST /:projectId/environments/:environmentId/promote` requests protected promotion for exact
+Draft Version IDs and creates a Promotion Change Set plus Approval Request when policy requires it
+(INS-439). `POST /:projectId/environments/:environmentId/secrets/:secretId/rollback` performs
+metadata-only per-secret rollback from retained versions. `GET
+/:projectId/environments/:environmentId/approvals` lists metadata-only approval request status.
+`POST /:projectId/environments/:environmentId/approvals/:approvalId/approve` and `POST
+/:projectId/environments/:environmentId/approvals/:approvalId/reject` are Human Approval Surface
+only and fail closed on the API edge with `auth.high_assurance_required`. All protected-change
+routes forward over the `RUNTIME` seam.
 
 Under `/v1/orgs/:organizationId/first-value-usage` (INS-379): `GET /` returns metadata-only
 First Value usage counters for the onboarding handoff indicator (`secretWrites`, `grantConsumed`,

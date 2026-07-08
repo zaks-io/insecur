@@ -192,6 +192,7 @@ export default tseslint.config(
       "packages/instance-bootstrap/scripts/**/*.ts",
       "packages/backup-restore/test/**/*.ts",
       "packages/backup-restore/vitest.config.ts",
+      "packages/protected-change/test/**/*.ts",
       "packages/worker-kit/src/**/*.test.ts",
       "packages/worker-kit/vitest.config.ts",
       "apps/api/test/**/*.ts",
@@ -247,6 +248,16 @@ export default tseslint.config(
     files: ["eslint.config.ts", "packages/tenant-store/src/db/schema/schema-shape.ts"],
     rules: {
       "max-lines": "off",
+    },
+  },
+  {
+    files: [
+      "packages/worker-kit/src/index.ts",
+      "packages/worker-kit/src/rpc/runtime-rpc-interface.ts",
+      "packages/tenant-store/src/db/schema/plaintext-metadata-allowlist.ts",
+    ],
+    rules: {
+      "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
     },
   },
   {

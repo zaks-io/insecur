@@ -1,5 +1,6 @@
 import {
   APP_CONNECTION_ERROR_CODES,
+  APPROVAL_ERROR_CODES,
   AUDIT_ERROR_CODES,
   ABUSE_ERROR_CODES,
   AUTH_ERROR_CODES,
@@ -116,4 +117,11 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [NOTIFICATION_ERROR_CODES.signingSecretMissing, 500],
   [PROVIDER_APP_REGISTRATION_ERROR_CODES.notFound, 404],
   [PROVIDER_APP_REGISTRATION_ERROR_CODES.alreadyExists, 409],
+  [APPROVAL_ERROR_CODES.reviewStale, 409],
+  [APPROVAL_ERROR_CODES.requestNotFound, 404],
+  [APPROVAL_ERROR_CODES.requestNotPending, 409],
+  [APPROVAL_ERROR_CODES.invalidDraftSelection, 400],
+  [APPROVAL_ERROR_CODES.wildcardSelectionRejected, 400],
+  [APPROVAL_ERROR_CODES.promotionChangeSetImmutable, 409],
+  [APPROVAL_ERROR_CODES.rollbackTargetNotEligible, 400],
 ]);

@@ -11,6 +11,7 @@ import type {
   GetHighAssuranceChallengeRpcInput,
   GetRuntimeInjectionPolicyRpcInput,
   ListAuditEventsRpcInput,
+  ListEnvironmentApprovalsRpcInput,
   ListEnvironmentsRpcInput,
   ListEnvironmentSecretsRpcInput,
   ListOrganizationInvitationsRpcInput,
@@ -22,6 +23,8 @@ import type {
   ListSessionOrganizationsRpcInput,
   ListWebhookEventCodesRpcInput,
   ListWebhookSubscriptionsRpcInput,
+  RequestProtectedPromotionRpcInput,
+  RequestProtectedRollbackRpcInput,
   RevokeCliSessionRpcInput,
   RotateWebhookSigningSecretRpcInput,
   UpdateWebhookSubscriptionRpcInput,
@@ -56,6 +59,11 @@ import {
   disableRuntimeInjectionPolicyRpc,
   getRuntimeInjectionPolicyRpc,
 } from "./runtime-run-policies-rpc-delegates.js";
+import {
+  listEnvironmentApprovalsRpc,
+  requestProtectedPromotionRpc,
+  requestProtectedRollbackRpc,
+} from "./runtime-protected-change-rpc-delegates.js";
 import {
   createWebhookSubscriptionRpc,
   deleteWebhookSubscriptionRpc,
@@ -154,6 +162,18 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
     input: DisableRuntimeInjectionPolicyRpcInput,
   ) {
     return disableRuntimeInjectionPolicyRpc(this.postAuthRpc(), input);
+  },
+  requestProtectedPromotion(
+    this: RuntimePostAuthRpcHost,
+    input: RequestProtectedPromotionRpcInput,
+  ) {
+    return requestProtectedPromotionRpc(this.postAuthRpc(), input);
+  },
+  requestProtectedRollback(this: RuntimePostAuthRpcHost, input: RequestProtectedRollbackRpcInput) {
+    return requestProtectedRollbackRpc(this.postAuthRpc(), input);
+  },
+  listEnvironmentApprovals(this: RuntimePostAuthRpcHost, input: ListEnvironmentApprovalsRpcInput) {
+    return listEnvironmentApprovalsRpc(this.postAuthRpc(), input);
   },
   createWebhookSubscription(
     this: RuntimePostAuthRpcHost,

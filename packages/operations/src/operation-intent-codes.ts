@@ -7,6 +7,8 @@ export const OPERATION_INTENT_CODES = {
   providerReauth: "provider.reauth",
   backupExport: "backup.export",
   runtimeInjectionPolicyChange: "runtime_injection_policy.change",
+  protectedPromotionRequest: "protected_promotion.request",
+  protectedRollbackRequest: "protected_rollback.request",
 } as const;
 
 export type OperationIntentCode =

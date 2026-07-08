@@ -3,6 +3,7 @@
  * Every column of every user table must appear here with an explicit category.
  */
 import { PLAINTEXT_METADATA_ALLOWLIST_AGENT_SESSIONS } from "./plaintext-metadata-allowlist-agent-sessions.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_APPROVALS } from "./plaintext-metadata-allowlist-approvals.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_APP_CONNECTIONS } from "./plaintext-metadata-allowlist-app-connections.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP } from "./plaintext-metadata-allowlist-instance-bootstrap.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION } from "./plaintext-metadata-allowlist-runtime-injection.js";
@@ -256,4 +257,5 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
   },
   ...PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP,
   ...PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS,
+  ...PLAINTEXT_METADATA_ALLOWLIST_APPROVALS,
 } as const satisfies PlaintextMetadataAllowlist;

@@ -26,6 +26,7 @@ export {
   type AuditEventId,
   type OperationId,
   type RequestId,
+  type ApprovalRequestId,
   type UserId,
   type StagedChangeId,
   type InvitationId,
@@ -54,6 +55,7 @@ export {
   auditEventId,
   operationId,
   requestId,
+  approvalRequestId,
   userId,
   userAdmissionId,
   stagedChangeId,
@@ -158,6 +160,8 @@ export {
   type CliErrorCode,
   NOTIFICATION_ERROR_CODES,
   type NotificationErrorCode,
+  APPROVAL_ERROR_CODES,
+  type ApprovalErrorCode,
 } from "./error-codes.js";
 export {
   DEFAULT_UNKNOWN_ERROR_CODE,

@@ -226,3 +226,17 @@ export type {
 } from "./webhooks/types.js";
 export { TenantInAppEventNotificationStore } from "./webhooks/tenant-in-app-event-notification-store.js";
 export type { InsertInAppEventNotificationInput } from "./webhooks/tenant-in-app-event-notification-store.js";
+export {
+  TenantApprovalRequestStore,
+  type ApprovalRequestListItemRow,
+  type ApprovalRequestPurpose,
+  type ApprovalRequestStatus,
+  type CreatePromotionApprovalRequestInput,
+  type CreateRollbackApprovalRequestInput,
+  type PromotionDraftVersionTarget,
+} from "./approvals/tenant-approval-request-store.js";
+export {
+  copyRetainedSecretVersion,
+  type CopyRetainedSecretVersionInput,
+  type CopyRetainedSecretVersionResult,
+} from "./secrets/copy-retained-secret-version.js";
