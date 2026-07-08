@@ -5,7 +5,7 @@ export async function revokeCliSession(
   instanceId: string,
   sessionId: string,
   userId: UserId,
-  sessionExpiresAt: Date,
+  sessionExpiresAt: string,
 ): Promise<{ readonly revoked: boolean }> {
   const rows = await withTenantScope({ kind: "service" }, async ({ sql }) => {
     return await sql<{ session_id: string }[]>`

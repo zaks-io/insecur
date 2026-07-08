@@ -17,5 +17,5 @@ export async function revokeCliSessionOperation({
   actor,
   sessionExpiresAt,
 }: RevokeCliSessionOperationInput): Promise<RevokeCliSessionRpcPayload> {
-  return revokeCliSession(instanceId, actor.sessionId, actor.userId, new Date(sessionExpiresAt));
+  return revokeCliSession(instanceId, actor.sessionId, actor.userId, sessionExpiresAt);
 }

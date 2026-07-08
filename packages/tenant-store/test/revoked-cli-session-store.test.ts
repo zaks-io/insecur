@@ -17,7 +17,7 @@ const mockedWithTenantScope = vi.mocked(withTenantScope);
 const instanceId = "inst_01JZ8E2QYQ6M7F4K9A2B3C4D5E";
 const sessionId = "session_cli_revoke_test";
 const admittedUser = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
-const sessionExpiresAt = new Date("2026-07-09T00:00:00.000Z");
+const sessionExpiresAt = "2026-07-09T00:00:00.000Z";
 
 function mockServiceSql(rows: unknown[]): void {
   mockedWithTenantScope.mockImplementationOnce(async (_scope, run) => {

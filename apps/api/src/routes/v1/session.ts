@@ -224,11 +224,14 @@ sessionRoutes.get("/memberships", requireUserActor, async (context) =>
 sessionRoutes.post("/revoke", async (context) =>
   handleRoute(context, async (reqId) => {
     const authorizationHeader = context.req.header("Authorization");
+    // Resolve the actor without the CLI session revocation gate so a repeat logout on an
+    // already-revoked session stays idempotent (returns revoked: true), not auth.invalid (INS-472).
     const resolved = await resolveRequestUserActor({
       env: context.env,
       authorizationHeader,
       cookieHeader: null,
       csrfHeader: null,
+      skipCliSessionRevocationCheck: true,
     });
     if (!resolved.ok) {
       return { revoked: false };

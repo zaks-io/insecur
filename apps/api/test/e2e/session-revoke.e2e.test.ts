@@ -116,7 +116,7 @@ describeIntegration("session revoke integration", () => {
         TEST_INSTANCE_ID,
         sessionId,
         userId.brand(TEST_USER_ID),
-        new Date(Date.now() + 86_400_000),
+        new Date(Date.now() + 86_400_000).toISOString(),
       ),
     ).resolves.toEqual({ revoked: true });
   });

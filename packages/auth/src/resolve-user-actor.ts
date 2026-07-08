@@ -23,13 +23,23 @@ export interface ResolveUserActorInput {
    * can reject them with auth.insufficient_scope instead of auth.invalid.
    */
   readonly acceptAnyScopedAccessAudience?: boolean;
+  /**
+   * When true, resolves the actor WITHOUT the CLI session revocation gate: an already-revoked
+   * session still resolves to its admitted userId instead of failing with auth.invalid. Only the
+   * idempotent `/v1/session/revoke` route sets this so a repeat logout stays a no-op success
+   * (INS-472). Every normal authenticated edge path leaves it unset and stays fail-closed.
+   */
+  readonly skipCliSessionRevocationCheck?: boolean;
 }
 
 async function resolveAdmittedActor(
   actor: UserActor,
-  resolveAdmittedUser: AdmittedUserResolver,
+  input: ResolveUserActorInput,
 ): Promise<ResolveUserActorResult> {
-  const admitted = await resolveAdmittedUser(actor.workosUserId, { sessionId: actor.sessionId });
+  const admitted =
+    input.skipCliSessionRevocationCheck === true
+      ? await input.resolveAdmittedUser(actor.workosUserId)
+      : await input.resolveAdmittedUser(actor.workosUserId, { sessionId: actor.sessionId });
   if (admitted === "cli_session_revoked") {
     return { ok: false, failure: authFailureForReason("invalid") };
   }
@@ -52,7 +62,7 @@ async function resolveUserActorFromScopedBearer(
     signingSecret: input.config.sessionSigningSecret,
   });
   if (scoped.ok) {
-    return resolveAdmittedActor(scoped.actor, input.resolveAdmittedUser);
+    return resolveAdmittedActor(scoped.actor, input);
   }
   if (scoped.reason === "expired") {
     return { ok: false, failure: authFailureForReason("expired") };
@@ -66,7 +76,7 @@ async function resolveUserActorFromScopedBearer(
     signingSecret: input.config.sessionSigningSecret,
   });
   if (anyAudience.ok) {
-    return resolveAdmittedActor(anyAudience.actor, input.resolveAdmittedUser);
+    return resolveAdmittedActor(anyAudience.actor, input);
   }
   if (anyAudience.reason === "expired") {
     return { ok: false, failure: authFailureForReason("expired") };
@@ -86,7 +96,7 @@ async function resolveUserActorFromEphemeralBearer(
     const reason = verified.reason === "expired" ? "expired" : "invalid";
     return { ok: false, failure: authFailureForReason(reason) };
   }
-  return resolveAdmittedActor(verified.actor, input.resolveAdmittedUser);
+  return resolveAdmittedActor(verified.actor, input);
 }
 
 export async function resolveUserActor(
