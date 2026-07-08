@@ -58,16 +58,46 @@ describe("resolveAuditExportKeyProviders", () => {
     expect(providers.signingKey.publicKeyBase64Url).toBe(keys.signingPublicKey);
   });
 
-  it("allows plaintext env fallback outside production when bindings are absent", async () => {
+  it("allows plaintext HMAC env fallback outside production when bindings are absent", async () => {
+    const keys = await createTestAuditExportKeyProviders();
+    process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = keys.hmacSecret;
+
+    await expect(
+      resolveAuditExportKeyProviders({
+        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
+        SENTRY_ENVIRONMENT: "preview",
+      }),
+    ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
+  });
+
+  it("requires signing keys from Secrets Store bindings even outside production", async () => {
     const keys = await createTestAuditExportKeyProviders();
     process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = keys.hmacSecret;
     process.env.INSECUR_AUDIT_EXPORT_SIGNING_PRIVATE_KEY_PKCS8_BASE64URL =
       keys.signingPrivateKeyPkcs8Base64Url;
     process.env.INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY = keys.signingPublicKey;
 
+    await expect(
+      resolveAuditExportKeyProviders({
+        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
+        SENTRY_ENVIRONMENT: "preview",
+      }),
+    ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
+  });
+
+  it("resolves signing keys from Secrets Store bindings outside production", async () => {
+    const keys = await createTestAuditExportKeyProviders();
+    process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = keys.hmacSecret;
+    const signingMaterial = JSON.stringify({
+      keyVersion: 1,
+      privateKeyPkcs8Base64Url: keys.signingPrivateKeyPkcs8Base64Url,
+      publicKeyRawBase64Url: keys.signingPublicKey,
+    });
+
     const providers = await resolveAuditExportKeyProviders({
       RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
       SENTRY_ENVIRONMENT: "preview",
+      AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
     });
 
     expect(providers.hmacKey.keyVersion).toBe(1);

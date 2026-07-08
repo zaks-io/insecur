@@ -13,6 +13,8 @@ import { describe, expect, it } from "vitest";
 import { RuntimeActorTokenError, toRuntimeRpcError } from "./runtime-rpc-error.js";
 import { RuntimeTokenSigningSecretConfigError } from "@insecur/worker-kit";
 import { AuditExportKeysNotConfiguredError } from "../crypto/audit-export-keys-not-configured-error.js";
+import { AuditExportEntryLimitExceededError, AUDIT_EXPORT_MAX_ENTRY_COUNT } from "@insecur/audit";
+import { AUDIT_ERROR_CODES } from "@insecur/domain";
 
 const SENTINEL = "sentinel-plaintext-must-not-cross-seam";
 const RUNTIME_RPC_GENERIC_MESSAGE = "runtime request failed";
@@ -71,6 +73,17 @@ describe("toRuntimeRpcError", () => {
     expect(mapped.code).toBe(VALIDATION_ERROR_CODES.invalidOpaqueResourceId);
     expect(mapped.message).toBe("runtime audit export keys are unavailable");
     expect(mapped.message).not.toContain("private");
+  });
+
+  it("maps audit export entry cap failures with a stable code and actionable message", () => {
+    const mapped = toRuntimeRpcError(
+      new AuditExportEntryLimitExceededError(AUDIT_EXPORT_MAX_ENTRY_COUNT),
+    );
+    expect(mapped).toEqual({
+      code: AUDIT_ERROR_CODES.exportEntryLimitExceeded,
+      message: expect.stringContaining(String(AUDIT_EXPORT_MAX_ENTRY_COUNT)),
+      retryable: false,
+    });
   });
 
   it("carries tenant data key readiness failures with an allowlisted safe message", () => {
