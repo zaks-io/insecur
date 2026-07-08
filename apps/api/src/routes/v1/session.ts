@@ -24,7 +24,12 @@ import {
 import { Hono, type Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ApiApp, ApiEnv } from "../../env.js";
-import { readHumanSessionMetadata, readRequestSessionMetadata } from "./session-route-helpers.js";
+import {
+  mergeWhoamiAttributionQueryParams,
+  parseOptionalDeriveHarnessName,
+  readHumanSessionMetadata,
+  readRequestSessionMetadata,
+} from "./session-route-helpers.js";
 
 const sessionRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -130,6 +135,7 @@ sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
     const userActor = context.get("userActor");
     const sessionMetadata = await readRequestSessionMetadata(context);
     const queryParams = parseWhoamiQueryParams(context);
+    const attributionParams = mergeWhoamiAttributionQueryParams(sessionMetadata, queryParams);
 
     const runtimePayload = await runtimeClientFor(context.env, userActor).resolveSessionWhoami({
       requestId: reqId,
@@ -138,10 +144,7 @@ sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
       ...(sessionMetadata.derivedAgentSessionId !== undefined
         ? { derivedAgentSessionId: sessionMetadata.derivedAgentSessionId }
         : {}),
-      ...(sessionMetadata.harnessName !== undefined
-        ? { harnessName: sessionMetadata.harnessName }
-        : {}),
-      ...queryParams,
+      ...attributionParams,
     });
 
     return {
@@ -159,12 +162,7 @@ sessionRoutes.post("/agent/derive", requireUserActor, async (context) => {
     const userActor = context.get("userActor");
     const parentSession = await readHumanSessionMetadata(context);
     const body: unknown = await context.req.json().catch(() => ({}));
-    const record =
-      body === null || typeof body !== "object" ? {} : (body as Record<string, unknown>);
-    const harnessName =
-      typeof record.harnessName === "string" && record.harnessName.trim() !== ""
-        ? record.harnessName.trim()
-        : undefined;
+    const harnessName = parseOptionalDeriveHarnessName(body);
     const minted = await mintDerivedAgentSessionCredential({
       actor: userActor,
       signingSecret: context.env.SESSION_SIGNING_SECRET,
