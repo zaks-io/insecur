@@ -38,7 +38,7 @@ export interface UpdateGitHubAppConnectionInput {
 async function updateActiveGitHubConnection(
   input: UpdateGitHubAppConnectionInput,
   providerAppRegistrationId: string,
-): Promise<MetadataSafeGitHubConnectionValidation> {
+): Promise<MetadataSafeGitHubConnectionValidation & { readonly auditEventId: string }> {
   const validationResult = await verifyGitHubInstallation({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
@@ -63,7 +63,7 @@ async function updateActiveGitHubConnection(
   });
 
   const checkedAt = new Date();
-  await persistGithubConnectionValidationSuccess({
+  const { auditEventId } = await persistGithubConnectionValidationSuccess({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -73,12 +73,15 @@ async function updateActiveGitHubConnection(
     appConnectionStore: input.appConnectionStore,
   });
 
-  return toMetadataSafeGitHubValidation(checkedAt, "success", null, validationResult);
+  return {
+    ...toMetadataSafeGitHubValidation(checkedAt, "success", null, validationResult),
+    auditEventId,
+  };
 }
 
 export async function updateGitHubAppConnection(
   input: UpdateGitHubAppConnectionInput,
-): Promise<MetadataSafeGitHubConnectionValidation> {
+): Promise<MetadataSafeGitHubConnectionValidation & { readonly auditEventId: string }> {
   return runWithAppConnectionChangeEvidence({
     organizationId: input.organizationId,
     projectId: input.projectId,

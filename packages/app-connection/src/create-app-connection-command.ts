@@ -1,4 +1,3 @@
-import { generateAuditEventId } from "@insecur/audit";
 import type { Keyring } from "@insecur/crypto";
 import type { ActorRef, UserActorRef } from "@insecur/access";
 import {
@@ -21,10 +20,7 @@ import {
   withTenantScope,
 } from "@insecur/tenant-store";
 
-import {
-  runAppConnectionChangeGate,
-  requireUserActorForConnectionCommand,
-} from "./app-connection-change-gate.js";
+import { beginAppConnectionChangeCommand } from "./app-connection-change-gate.js";
 import { AppConnectionError } from "./app-connection-error.js";
 import {
   createCloudflareScopedTokenConnection,
@@ -149,7 +145,7 @@ async function createCloudflareAppConnection(
   return {
     connection: toMetadataSafeAppConnectionStatus(result.connection),
     validation: result.validation,
-    auditEventId: generateAuditEventId(),
+    auditEventId: result.auditEventId,
   };
 }
 
@@ -197,7 +193,7 @@ async function createGitHubAppConnectionFromCommand(
   return {
     connection: toMetadataSafeAppConnectionStatus(result.connection),
     validation: result.validation,
-    auditEventId: generateAuditEventId(),
+    auditEventId: result.auditEventId,
   };
 }
 
@@ -207,13 +203,7 @@ export async function createAppConnectionCommand(input: CreateAppConnectionComma
     MetadataSafeCloudflareConnectionValidation | MetadataSafeGitHubConnectionValidation;
   readonly auditEventId: string;
 }> {
-  const actor = requireUserActorForConnectionCommand(input.actor);
-  const gate = await runAppConnectionChangeGate({
-    actor,
-    organizationId: input.organizationId,
-    requestId: input.requestId,
-    ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
-  });
+  const { actor, gate } = await beginAppConnectionChangeCommand(input);
 
   if (input.provider === "cloudflare") {
     return createCloudflareAppConnection(input, actor, gate);

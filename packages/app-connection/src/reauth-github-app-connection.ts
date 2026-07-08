@@ -42,6 +42,21 @@ async function resolveGitHubReauthBoundary(input: {
   ).boundary;
 }
 
+async function loadUpdatedGitHubConnection(
+  stores: OrgAppConnectionStores,
+  organizationId: OrganizationId,
+  appConnectionId: AppConnectionId,
+): Promise<AppConnectionRow> {
+  const updated = await stores.appConnectionStore.getConnectionById(
+    organizationId,
+    appConnectionId,
+  );
+  if (!updated) {
+    throw new AppConnectionError(APP_CONNECTION_ERROR_CODES.notFound);
+  }
+  return updated;
+}
+
 export async function reauthGitHubAppConnection(input: {
   readonly actor: UserActorRef;
   readonly organizationId: OrganizationId;
@@ -59,6 +74,7 @@ export async function reauthGitHubAppConnection(input: {
 }): Promise<{
   readonly connection: ReturnType<typeof toMetadataSafeAppConnectionStatus>;
   readonly validation: MetadataSafeGitHubConnectionValidation;
+  readonly auditEventId: string;
 }> {
   if (
     input.connection.provider !== "github" ||
@@ -82,16 +98,15 @@ export async function reauthGitHubAppConnection(input: {
     sensitiveMetadataStore: input.stores.sensitiveMetadataStore,
   });
 
-  const updated = await input.stores.appConnectionStore.getConnectionById(
+  const updated = await loadUpdatedGitHubConnection(
+    input.stores,
     input.organizationId,
     input.appConnectionId,
   );
-  if (!updated) {
-    throw new AppConnectionError(APP_CONNECTION_ERROR_CODES.notFound);
-  }
 
   return {
     connection: toMetadataSafeAppConnectionStatus(updated),
     validation,
+    auditEventId: validation.auditEventId,
   };
 }

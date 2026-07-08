@@ -1,7 +1,14 @@
-import type { AppConnectionId, OrganizationId, ProjectId, UserId } from "@insecur/domain";
+import type {
+  AppConnectionId,
+  AuditEventId,
+  OrganizationId,
+  ProjectId,
+  UserId,
+} from "@insecur/domain";
 import type { AppConnectionRow, TenantAppConnectionStore } from "@insecur/tenant-store";
 
 import type { CloudflareScopedTokenVerifyResult } from "./cloudflare-scoped-token-port.js";
+import { updateConnectionValidationSuccessRow } from "./persist-connection-validation-row.js";
 import { recordConnectionValidated } from "./record-connection-audit.js";
 
 export interface PersistConnectionValidationSuccessInput {
@@ -20,16 +27,10 @@ export interface PersistConnectionValidationSuccessInput {
  */
 export async function persistConnectionValidationSuccess(
   input: PersistConnectionValidationSuccessInput,
-): Promise<AppConnectionRow> {
-  const connection = await input.appConnectionStore.updateConnectionValidation({
-    organizationId: input.organizationId,
-    appConnectionId: input.appConnectionId,
-    lastValidationCheckedAt: input.checkedAt,
-    lastValidationOutcome: "success",
-    lastValidationReasonCode: null,
-  });
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: AuditEventId }> {
+  const connection = await updateConnectionValidationSuccessRow(input);
 
-  await recordConnectionValidated({
+  const { auditEventId } = await recordConnectionValidated({
     actorUserId: input.actorUserId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -37,5 +38,5 @@ export async function persistConnectionValidationSuccess(
     validation: input.validationResult,
   });
 
-  return connection;
+  return { connection, auditEventId };
 }

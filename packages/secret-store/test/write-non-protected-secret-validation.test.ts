@@ -2,6 +2,7 @@ import { createKeyring, encryptSecretValue, toStoreFacingCiphertext } from "@ins
 import {
   ENVIRONMENT_ERROR_CODES,
   ENVIRONMENT_LIFECYCLE_STAGES,
+  IMPORT_ERROR_CODES,
   SECRET_ERROR_CODES,
   environmentId,
   organizationId,
@@ -165,6 +166,31 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
       reasonCode: SECRET_ERROR_CODES.invalidEncoding,
     });
     expect(JSON.stringify(deniedAuditMock.mock.calls)).not.toContain("c2");
+  });
+
+  it("rejects create-only writes when the secret already exists", async () => {
+    vi.spyOn(TenantSecretVersionStore.prototype, "resolveSecretForWrite").mockResolvedValue({
+      secretId: "sec_00000000000000000000000001" as never,
+      createdSecretShape: false,
+    });
+
+    await expect(
+      writeNonProtectedSecret({
+        ...baseWriteInput(new TextEncoder().encode("test-secret")),
+        createOnly: true,
+      }),
+    ).rejects.toMatchObject({
+      code: IMPORT_ERROR_CODES.existingSecret,
+    });
+
+    expect(encryptMock).not.toHaveBeenCalled();
+    expect(deniedAuditMock).toHaveBeenCalledWith({
+      kind: "non_protected",
+      actor: ACTOR,
+      scope: [ORG, PROJECT, ENV],
+      refs: [undefined, undefined, undefined],
+      reasonCode: IMPORT_ERROR_CODES.existingSecret,
+    });
   });
 
   it("rejects oversized UTF-8 before encryption", async () => {

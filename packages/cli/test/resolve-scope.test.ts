@@ -120,6 +120,33 @@ describe("resolveCliScope precedence", () => {
     expect(scope.host).toBe("https://api.insecur.cloud");
   });
 
+  it("resolves local profiles without orgId through the precedence chain", () => {
+    const localProfileId = "prof_01LOCAL0000000000000000001" as const;
+    const localProjectId = "prj_01LOCAL0000000000000000001" as const;
+    const localEnvId = "env_01LOCAL00000000000000000001" as const;
+    const localUser: CliUserConfig = {
+      profiles: {
+        [localProfileId]: {
+          slug: "local-dev",
+          displayName: "Local development" as never,
+          host: "local",
+          projectId: localProjectId as never,
+          envId: localEnvId as never,
+        },
+      },
+    };
+
+    const scopeFromProfile = resolveCliScope(
+      { ...baseFlags, profile: "local-dev" },
+      null,
+      localUser,
+    );
+    expect(scopeFromProfile.host).toBe("local");
+    expect(scopeFromProfile.orgId).toBeUndefined();
+    expect(scopeFromProfile.projectId).toBe(localProjectId);
+    expect(scopeFromProfile.envId).toBe(localEnvId);
+  });
+
   it("ignores malformed env scope when valid flags are set", () => {
     process.env.INSECUR_ORG = "org_invalid";
     process.env.INSECUR_PROJECT = "prj_invalid";

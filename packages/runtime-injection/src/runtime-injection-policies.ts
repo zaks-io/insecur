@@ -19,6 +19,7 @@ import {
 } from "@insecur/tenant-store";
 
 import { assertRuntimeInjectionPolicyConfigureAccess } from "./assert-runtime-injection-policy-access.js";
+import { assertPolicySecretBindingsExist } from "./assert-policy-secret-bindings.js";
 import { RuntimeInjectionPolicyError } from "./runtime-injection-policy-error.js";
 import { validateRuntimeInjectionPolicyBindings } from "./validate-policy-bindings.js";
 
@@ -87,6 +88,13 @@ async function executeAuthorizedPolicyMutation(
   );
 
   const version = toVersionContent(input.version);
+
+  await assertPolicySecretBindingsExist({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    secretIds: version.bindings.secretIds,
+  });
 
   try {
     return await withTenantScope(

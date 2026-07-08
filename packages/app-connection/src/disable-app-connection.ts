@@ -1,4 +1,4 @@
-import { APP_CONNECTION_ERROR_CODES, AUTH_ERROR_CODES } from "@insecur/domain";
+import { APP_CONNECTION_ERROR_CODES, AUTH_ERROR_CODES, type AuditEventId } from "@insecur/domain";
 import type { AppConnectionRow } from "@insecur/tenant-store";
 
 import { AppConnectionError } from "./app-connection-error.js";
@@ -40,9 +40,10 @@ export async function disableAppConnection(
       readonly run: DisableConnectionRun;
     },
   ) => Promise<AppConnectionRow>,
-): Promise<AppConnectionRow> {
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: AuditEventId }> {
   try {
-    return await withManageAccess({
+    let auditEventId: AuditEventId | undefined;
+    const connection = await withManageAccess({
       ...input,
       recordDenied: async () => {
         await recordConnectionDisableDenied({
@@ -62,16 +63,23 @@ export async function disableAppConnection(
           ...(input.clearActiveCredential === true ? { activeCredentialId: null } : {}),
         });
 
-        await recordConnectionDisabled({
+        const audit = await recordConnectionDisabled({
           actorUserId: input.actor.userId,
           organizationId: input.organizationId,
           projectId: input.projectId,
           appConnectionId: input.appConnectionId,
         });
+        auditEventId = audit.auditEventId;
 
         return disabled;
       },
     });
+
+    if (auditEventId === undefined) {
+      throw new Error("Connection disable succeeded without a persisted audit event.");
+    }
+
+    return { connection, auditEventId };
   } catch (error) {
     await auditDisableNotFound(input, error);
     throw error;

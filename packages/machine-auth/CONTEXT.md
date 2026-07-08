@@ -34,7 +34,7 @@ exchange audit events.
 ## Owns
 
 - GitHub Actions OIDC JWT verification and claim matching.
-- Short-lived machine access token format and minting.
+- Short-lived machine access token format, minting, verification, and request-time scope enforcement.
 - Trusted GitHub repository and environment constraints.
 - OIDC exchange success and denial audit events.
 
@@ -44,4 +44,4 @@ exchange audit events.
 - Machine Identity persistence or membership tables (`@insecur/tenant-store`).
 - Effective Access resolution (`@insecur/access`).
 - HTTP route/API composition (`apps/api`) or decrypt-egress RPC (`apps/runtime`).
-- Environment Deploy Keys (later MAC slice).
+- Environment Deploy Keys (MAC-03).

@@ -14,6 +14,7 @@ import { buildAuditExport } from "./build-audit-export.js";
 import { toAuditExportEventPayload } from "./audit-export-event.js";
 import type { AuditEventStoreRow } from "./audit-event-store-row.js";
 import type { AuditActorType, AuditResourceType } from "./audit-types.js";
+import { AuditExportEntryLimitExceededError } from "./audit-export-entry-limit-exceeded-error.js";
 import type {
   AuditExportBundle,
   AuditExportEventPayload,
@@ -21,6 +22,9 @@ import type {
   AuditExportSigningKeyProvider,
   AuditExportTimeRange,
 } from "./audit-export-types.js";
+
+/** Hard cap for a single tenant audit export bundle (Worker memory / RPC response bounds). */
+export const AUDIT_EXPORT_MAX_ENTRY_COUNT = 10_000;
 
 function mapAuditEventRow(row: AuditEventStoreRow): AuditExportEventPayload {
   return toAuditExportEventPayload({
@@ -77,7 +81,14 @@ async function queryAuditExportEvents(
           AND created_at >= ${input.timeRange.from}::timestamptz
           AND created_at <= ${input.timeRange.to}::timestamptz
         ORDER BY created_at ASC, id ASC
+        LIMIT ${AUDIT_EXPORT_MAX_ENTRY_COUNT + 1}
       `;
+}
+
+function assertAuditExportEntryCountWithinLimit(rows: readonly AuditEventStoreRow[]): void {
+  if (rows.length > AUDIT_EXPORT_MAX_ENTRY_COUNT) {
+    throw new AuditExportEntryLimitExceededError(AUDIT_EXPORT_MAX_ENTRY_COUNT);
+  }
 }
 
 export async function listAuditExportEvents(input: {
@@ -86,11 +97,20 @@ export async function listAuditExportEvents(input: {
 }): Promise<AuditExportEventPayload[]> {
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async ({ sql }) => {
-      const rows = await queryAuditExportEvents(sql, input);
-      return rows.map((row) => mapAuditEventRow(row));
-    },
+    async ({ sql }) => listAuditExportEventsInTenantScope(sql, input),
   );
+}
+
+export async function listAuditExportEventsInTenantScope(
+  sql: TenantScopedSql,
+  input: {
+    readonly organizationId: OrganizationId;
+    readonly timeRange: AuditExportTimeRange;
+  },
+): Promise<AuditExportEventPayload[]> {
+  const rows = await queryAuditExportEvents(sql, input);
+  assertAuditExportEntryCountWithinLimit(rows);
+  return rows.map((row) => mapAuditEventRow(row));
 }
 
 export async function exportTenantAuditEvents(input: {

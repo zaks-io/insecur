@@ -14,6 +14,7 @@ import { HighAssuranceChallengeError, HighAssuranceHandoffError } from "@insecur
 import type { RuntimeRpcError } from "@insecur/worker-kit";
 import { RuntimeTokenSigningSecretConfigError, safePublicErrorMessage } from "@insecur/worker-kit";
 import { AuditExportKeysNotConfiguredError } from "../crypto/audit-export-keys-not-configured-error.js";
+import { AuditExportEntryLimitExceededError } from "@insecur/audit";
 
 const RUNTIME_RPC_GENERIC_MESSAGE = "runtime request failed" as const;
 
@@ -102,6 +103,13 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
     return {
       code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
       message: "runtime audit export keys are unavailable",
+      retryable: false,
+    };
+  }
+  if (error instanceof AuditExportEntryLimitExceededError) {
+    return {
+      code: error.code,
+      message: error.message,
       retryable: false,
     };
   }
