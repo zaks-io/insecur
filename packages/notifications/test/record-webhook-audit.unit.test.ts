@@ -15,6 +15,8 @@ import {
   recordWebhookDeliverySucceeded,
   recordWebhookSubscriptionCreated,
   recordWebhookSubscriptionCreateDenied,
+  recordWebhookSubscriptionDeleted,
+  recordWebhookSubscriptionUpdated,
 } from "../src/record-webhook-audit.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -48,8 +50,18 @@ describe("record-webhook-audit", () => {
       subscriptionId: SUBSCRIPTION,
       reasonCode: AUTH_ERROR_CODES.insufficientScope,
     });
+    await recordWebhookSubscriptionUpdated({
+      actorUserId: USER,
+      organizationId: ORG,
+      subscriptionId: SUBSCRIPTION,
+    });
+    await recordWebhookSubscriptionDeleted({
+      actorUserId: USER,
+      organizationId: ORG,
+      subscriptionId: SUBSCRIPTION,
+    });
 
-    expect(writeAuditEvent).toHaveBeenCalledTimes(4);
+    expect(writeAuditEvent).toHaveBeenCalledTimes(6);
     expect(writeAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         eventCode: PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionCreated,
