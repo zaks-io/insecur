@@ -25,6 +25,49 @@ import { TEST_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
 export const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 export const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000085";
 
+async function cleanupProtectedPreviewEnvironmentData(
+  organizationId: OrganizationId,
+  sql: Parameters<Parameters<typeof withTenantScope>[1]>[0]["sql"],
+): Promise<void> {
+  await sql`
+    DELETE FROM injection_grants
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    UPDATE runtime_injection_policies
+    SET active_version_id = NULL
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    DELETE FROM runtime_injection_policy_versions
+    WHERE policy_id IN (
+      SELECT id FROM runtime_injection_policies
+      WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+    )
+  `;
+  await sql`
+    DELETE FROM runtime_injection_policies
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    UPDATE secrets
+    SET current_version_id = NULL
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`
+    DELETE FROM secret_versions
+    WHERE org_id = ${organizationId} AND secret_id IN (
+      SELECT id FROM secrets
+      WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+    )
+  `;
+  await sql`
+    DELETE FROM secrets
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+  await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+}
+
 export function describeInjectionGrantIntegration(title: string, suite: () => void): void {
   describeIntegration(title, () => {
     beforeAll(async () => {
@@ -49,7 +92,7 @@ export async function recreateProtectedPreviewEnvironment(input: {
   return await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db, sql }) => {
-      await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+      await cleanupProtectedPreviewEnvironmentData(input.organizationId, sql);
 
       const store = new TenantEnvironmentLifecycleStore(db);
       const created = await store.create({
@@ -71,7 +114,7 @@ export async function recreateProtectedPreviewEnvironment(input: {
 
 export async function deleteProtectedPreviewEnvironment(organizationId: OrganizationId) {
   await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
-    await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
+    await cleanupProtectedPreviewEnvironmentData(organizationId, sql);
   });
 }
 
