@@ -18,21 +18,23 @@ import {
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
 
+interface PersistRollbackApprovalRequestInput {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly actorUserId: UserActorRef["userId"];
+  readonly approvalRequestId: ApprovalRequestId;
+  readonly impactReviewFingerprint: string;
+  readonly comment?: string;
+  readonly secretId: SecretId;
+  readonly toVersionNumber: number;
+  readonly newSecretVersionId: SecretVersionId;
+  readonly operationId?: OperationId;
+}
+
 export async function persistRollbackApprovalRequestOnDb(
   db: TenantScopedDb,
-  input: {
-    readonly organizationId: OrganizationId;
-    readonly projectId: ProjectId;
-    readonly environmentId: EnvironmentId;
-    readonly actorUserId: UserActorRef["userId"];
-    readonly approvalRequestId: ApprovalRequestId;
-    readonly impactReviewFingerprint: string;
-    readonly comment?: string;
-    readonly secretId: SecretId;
-    readonly toVersionNumber: number;
-    readonly newSecretVersionId: SecretVersionId;
-    readonly operationId?: OperationId;
-  },
+  input: PersistRollbackApprovalRequestInput,
 ): Promise<void> {
   await new TenantApprovalRequestStore(db).createRollbackApprovalRequest({
     organizationId: input.organizationId,
@@ -53,19 +55,9 @@ export async function persistRollbackApprovalRequestOnDb(
   });
 }
 
-async function persistRollbackApprovalRequest(input: {
-  readonly organizationId: OrganizationId;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly actorUserId: UserActorRef["userId"];
-  readonly approvalRequestId: ApprovalRequestId;
-  readonly impactReviewFingerprint: string;
-  readonly comment?: string;
-  readonly secretId: SecretId;
-  readonly toVersionNumber: number;
-  readonly newSecretVersionId: SecretVersionId;
-  readonly operationId?: OperationId;
-}): Promise<void> {
+async function persistRollbackApprovalRequest(
+  input: PersistRollbackApprovalRequestInput,
+): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
     persistRollbackApprovalRequestOnDb(db, input),
   );
