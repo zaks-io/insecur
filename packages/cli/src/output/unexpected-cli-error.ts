@@ -1,11 +1,11 @@
-import type { ErrorBody } from "@insecur/domain";
+import { CLI_ERROR_CODES, type ErrorBody } from "@insecur/domain";
 
 const UNEXPECTED_CLI_FAILURE_MESSAGE = "Unexpected CLI failure" as const;
 
 export function unexpectedCliErrorBody(error: unknown): ErrorBody {
   const errorName = error instanceof Error ? error.name : "UnknownError";
   return {
-    code: "cli.unexpected_error",
+    code: CLI_ERROR_CODES.unexpectedError,
     message: `${UNEXPECTED_CLI_FAILURE_MESSAGE} (${errorName})`,
     retryable: false,
   };

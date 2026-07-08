@@ -3,23 +3,11 @@ import type { Dirent } from "node:fs";
 import { join, sep } from "node:path";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_VALIDATION } from "../output/exit-codes.js";
+import { PROJECT_IGNORED_DIR_NAMES } from "./ignored-paths.js";
 
 const DEFAULT_MAX_DEPTH = 8;
 const DEFAULT_MAX_FILES = 10_000;
 const DEFAULT_MAX_FILE_BYTES = 256 * 1024;
-
-const SKIP_DIR_NAMES = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "build",
-  ".next",
-  "coverage",
-  ".nyc_output",
-  ".cache",
-  ".turbo",
-  ".parcel-cache",
-]);
 
 export interface WalkedFile {
   readonly absolutePath: string;
@@ -155,7 +143,7 @@ async function followResolvedSymlinkTarget(
   }
 
   if (entryStat.isDirectory()) {
-    if (!SKIP_DIR_NAMES.has(entry.name)) {
+    if (!PROJECT_IGNORED_DIR_NAMES.has(entry.name)) {
       await visitDir(state, {
         dirPath: resolvedPath,
         relativeDir: entryRelative,
@@ -199,7 +187,7 @@ async function processEntry(state: WalkState, visit: DirVisit, entry: Dirent): P
   }
 
   if (entry.isDirectory()) {
-    if (!SKIP_DIR_NAMES.has(entry.name)) {
+    if (!PROJECT_IGNORED_DIR_NAMES.has(entry.name)) {
       await visitDir(state, {
         dirPath: absolutePath,
         relativeDir: entryRelative,

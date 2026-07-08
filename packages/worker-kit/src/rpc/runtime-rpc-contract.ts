@@ -153,6 +153,23 @@ export interface GetBootstrapStatusRpcInput {
   readonly instanceId: string;
 }
 
+/** PRE-AUTH: whether a CLI session id has been revoked for this instance. */
+export interface IsCliSessionRevokedRpcInput {
+  readonly instanceId: string;
+  readonly sessionId: string;
+}
+export interface IsCliSessionRevokedRpcPayload {
+  readonly revoked: boolean;
+}
+
+/** POST-AUTH: revoke the calling actor's own CLI session (self-only). */
+export interface RevokeCliSessionRpcInput extends PostAuthRpcInputBase {
+  readonly instanceId: string;
+}
+export interface RevokeCliSessionRpcPayload {
+  readonly revoked: boolean;
+}
+
 export interface ProvisionGuidedOrganizationRpcInput extends PostAuthRpcInputBase {
   readonly instanceId: string;
   readonly organizationDisplayName?: DisplayName;
@@ -187,6 +204,23 @@ export interface AcceptInvitationRpcInput extends PostAuthRpcInputBase {
 export interface GetOperationRpcInput extends PostAuthRpcInputBase {
   readonly organizationId: OrganizationId;
   readonly operationId: OperationId;
+}
+
+export interface CancelOperationRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly operationId: OperationId;
+}
+
+/** Metadata-only cancel outcome for the public API seam. */
+export interface CancelOperationRpcPayload {
+  readonly operationId: OperationId;
+  readonly organizationId: OrganizationId;
+  readonly state: string;
+  readonly intentCode: string;
+  readonly progress: Record<string, unknown>;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly auditEventId: string;
 }
 
 export interface IssueInjectionGrantRpcInput extends PostAuthRpcInputBase {

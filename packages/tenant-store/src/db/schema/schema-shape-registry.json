@@ -1,4 +1,80 @@
 {
+  "agent_sessions": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "human_session_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "harness_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "ancestry_key": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "tier": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "closed_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "agent_sessions_active_ancestry",
+        "columns": ["human_session_id", "ancestry_key"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"agent_sessions\".\"closed_at\" IS NULL"
+      }
+    ],
+    "foreignKeys": [],
+    "primaryKeys": []
+  },
   "app_connections": {
     "columns": {
       "id": {
@@ -2258,6 +2334,57 @@
       }
     ],
     "primaryKeys": []
+  },
+  "revoked_cli_sessions": {
+    "columns": {
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "session_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "revoked_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "revoked_cli_sessions_instance_id_instances_id_fk",
+        "columns": ["instance_id"],
+        "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": [
+      {
+        "columns": ["instance_id", "session_id"],
+        "name": "revoked_cli_sessions_instance_id_session_id_pk"
+      }
+    ]
   },
   "runtime_injection_policies": {
     "columns": {

@@ -44,6 +44,33 @@ describe("onboarding wizard draft", () => {
     });
   });
 
+  it("round-trips provisioned handoff state for the first-secret step", () => {
+    const provisionedHandoff = {
+      workspace: {
+        organizationId: resourceIds.organizationId,
+        projectId: resourceIds.projectId,
+        environmentId: resourceIds.developmentEnvironmentId,
+      },
+      organizationName: "Acme Labs",
+      projectName: "First project",
+    };
+    writeOnboardingWizardDraft({
+      step: "first-secret",
+      organizationName: "Acme Labs",
+      projectName: "First project",
+      resourceIds,
+      provisionedHandoff,
+    });
+
+    expect(readOnboardingWizardDraft()).toEqual({
+      step: "first-secret",
+      organizationName: "Acme Labs",
+      projectName: "First project",
+      resourceIds,
+      provisionedHandoff,
+    });
+  });
+
   it("ignores malformed stored drafts", () => {
     sessionStorage.setItem("insecur:onboarding-wizard-draft", "{not-json");
     expect(readOnboardingWizardDraft()).toBeNull();

@@ -17,6 +17,7 @@ describe("onboarding step registry", () => {
       "name-organization",
       "enroll-passkey",
       "create-project",
+      "first-secret",
       "cli-handoff",
     ]);
   });
@@ -25,10 +26,7 @@ describe("onboarding step registry", () => {
     expect(onboardingStepNumber("name-organization")).toBe(1);
     expect(onboardingStepNumber("enroll-passkey")).toBe(2);
     expect(onboardingStepNumber("create-project")).toBe(3);
-    expect(onboardingStepNumber("cli-handoff")).toBe(4);
-  });
-
-  it("fails loud when asked to number a disabled placeholder slot", () => {
-    expect(() => onboardingStepNumber("first-secret")).toThrow(/not enabled/u);
+    expect(onboardingStepNumber("first-secret")).toBe(4);
+    expect(onboardingStepNumber("cli-handoff")).toBe(5);
   });
 });

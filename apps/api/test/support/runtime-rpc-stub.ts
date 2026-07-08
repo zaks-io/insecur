@@ -20,6 +20,13 @@ function ok<T>(value: T): RuntimeRpcResult<T> {
   return { ok: true, value };
 }
 
+const defaultResolveSessionWhoami = ok({
+  sessionValid: true as const,
+  sessionExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+  resolvedContext: {},
+  attribution: { tier: "none" as const },
+});
+
 export function createRuntimeRpcStub(): RuntimeRpcStub {
   return {
     consumeGrant: vi.fn(),
@@ -32,6 +39,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
         }),
       ),
     ),
+    isCliSessionRevoked: vi.fn(() => Promise.resolve(ok({ revoked: false }))),
     recordAdmissionDenied: vi.fn(() => Promise.resolve(ok({ recorded: true as const }))),
     recordAbuseDenied: vi.fn(() => Promise.resolve(ok({ recorded: true as const }))),
     getBootstrapStatus: vi.fn(),
@@ -40,6 +48,7 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     createInvitation: vi.fn(),
     acceptInvitation: vi.fn(),
     getOperation: vi.fn(),
+    cancelOperation: vi.fn(),
     issueInjectionGrant: vi.fn(),
     recordInjectionRunCompleted: vi.fn(),
     captureFirstValueFeedback: vi.fn(),
@@ -49,10 +58,16 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     listEnvironments: vi.fn(),
     createEnvironment: vi.fn(),
     listProjectSecrets: vi.fn(),
+    listEnvironmentSecrets: vi.fn(),
+    listSecretVersions: vi.fn(),
     listSessionOrganizations: vi.fn(),
+    revokeCliSession: vi.fn(() => Promise.resolve(ok({ revoked: true }))),
+    resolveSessionWhoami: vi.fn(() => Promise.resolve(defaultResolveSessionWhoami)),
     listOrganizationMembers: vi.fn(),
     listOrganizationInvitations: vi.fn(),
     listAuditEvents: vi.fn(),
+    queryFirstValueUsage: vi.fn(),
+    exportTenantAudit: vi.fn(),
     listPendingHighAssuranceChallenges: vi.fn(),
     getHighAssuranceChallenge: vi.fn(),
     clearHighAssuranceChallenge: vi.fn(),

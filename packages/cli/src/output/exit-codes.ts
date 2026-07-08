@@ -13,6 +13,7 @@ import {
   OPERATION_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
+  IMPORT_ERROR_CODES,
   SECRET_ERROR_CODES,
   type KnownErrorCode,
 } from "@insecur/domain";
@@ -25,6 +26,7 @@ export const EXIT_FORBIDDEN = 4;
 export const EXIT_NOT_FOUND = 5;
 export const EXIT_CONFLICT = 6;
 const EXIT_RETRYABLE = 8;
+export const EXIT_WAIT_TIMEOUT = 9;
 export const EXIT_STEP_UP = 10;
 export const EXIT_ACTION_REQUIRED = 7;
 
@@ -74,6 +76,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [OPERATION_ERROR_CODES.terminalState]: EXIT_CONFLICT,
   [OPERATION_ERROR_CODES.notCancelable]: EXIT_CONFLICT,
   [OPERATION_ERROR_CODES.notRetryable]: EXIT_CONFLICT,
+  [OPERATION_ERROR_CODES.waitTimeout]: EXIT_WAIT_TIMEOUT,
   [OPERATION_ERROR_CODES.targetBusy]: EXIT_RETRYABLE,
   [OPERATION_ERROR_CODES.staleFencingToken]: EXIT_CONFLICT,
   [OPERATION_ERROR_CODES.leaseNotHeld]: EXIT_CONFLICT,
@@ -99,6 +102,12 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [CLI_ERROR_CODES.profileSlugInUse]: EXIT_CONFLICT,
   [CLI_ERROR_CODES.invalidProfileSlug]: EXIT_VALIDATION,
   [CLI_ERROR_CODES.scopedSelectorNotFound]: EXIT_NOT_FOUND,
+  [CLI_ERROR_CODES.validationError]: EXIT_VALIDATION,
+  [CLI_ERROR_CODES.unexpectedError]: EXIT_UNEXPECTED,
+  [IMPORT_ERROR_CODES.unsupportedEnvironment]: EXIT_VALIDATION,
+  [IMPORT_ERROR_CODES.existingSecret]: EXIT_CONFLICT,
+  [IMPORT_ERROR_CODES.parseError]: EXIT_VALIDATION,
+  [IMPORT_ERROR_CODES.duplicateVariableKey]: EXIT_VALIDATION,
   [INJECTION_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.rootKeyNotConfigured]: EXIT_UNEXPECTED,

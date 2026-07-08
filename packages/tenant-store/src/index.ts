@@ -54,6 +54,12 @@ export type {
   SecretMatrixLastSetActorRow,
   SecretMatrixSecretRow,
 } from "./secrets/secret-matrix-metadata-types.js";
+export type {
+  EnvironmentSecretMetadataRow,
+  ListEnvironmentSecretsInput,
+  ListSecretVersionMetadataInput,
+  SecretVersionMetadataRow,
+} from "./secrets/environment-secret-metadata-types.js";
 export {
   SECRET_VERSION_LIFECYCLE_STATES,
   parseSecretVersionLifecycleState,
@@ -154,6 +160,10 @@ export type {
   StoredWrappedSensitiveMetadata,
   UpsertSensitiveMetadataInput,
 } from "./sensitive-metadata/types.js";
+export {
+  isCliSessionRevoked,
+  revokeCliSession,
+} from "./cli-sessions/tenant-revoked-cli-session-store.js";
 export {
   insertActiveUserAdmissionInTransaction,
   resolveActiveUserAdmission,

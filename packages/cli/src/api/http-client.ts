@@ -7,6 +7,9 @@ import type {
   CreateProjectData,
   EnvironmentListData,
   GuidedOrganizationProvisionData,
+  ListEnvironmentSecretsData,
+  ListProjectSecretsData,
+  ListSecretVersionsData,
   ProjectListData,
   SecretWriteByVariableKeyData,
   SessionOrganizationListData,
@@ -17,12 +20,17 @@ import {
   postJson,
   readCliCredentialHeader,
 } from "./http-client-envelope.js";
+import { listAuditEvents } from "./http-client-audit-events.js";
+import { exportTenantAudit } from "./http-client-audit-export.js";
 import {
   consumeInjectionGrant,
   consumeInjectionGrantAll,
   issueInjectionGrant,
   recordInjectionRunCompleted,
 } from "./http-client-runtime-injection.js";
+import { cancelOperation, getOperation } from "./http-client-operations.js";
+import { revokeCliSession } from "./http-client-logout.js";
+import { sessionWhoami } from "./http-client-whoami.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
   const base = host.endsWith("/") ? host.slice(0, -1) : host;
@@ -31,6 +39,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     exchangeCliPkceSession: (input) => exchangeCliPkceSession(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
+    listEnvironmentSecrets: (input) => listEnvironmentSecrets(base, input),
+    listSecretVersions: (input) => listSecretVersions(base, input),
     issueInjectionGrant: (input) => issueInjectionGrant(base, input),
     consumeInjectionGrant: (input) => consumeInjectionGrant(base, input),
     consumeInjectionGrantAll: (input) => consumeInjectionGrantAll(base, input),
@@ -39,7 +49,14 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     listProjects: (input) => listProjects(base, input),
     createProject: (input) => createProject(base, input),
     listEnvironments: (input) => listEnvironments(base, input),
+    listProjectSecrets: (input) => listProjectSecrets(base, input),
     createEnvironment: (input) => createEnvironment(base, input),
+    listAuditEvents: (input) => listAuditEvents(base, input),
+    exportTenantAudit: (input) => exportTenantAudit(base, input),
+    getOperation: (input) => getOperation(base, input),
+    cancelOperation: (input) => cancelOperation(base, input),
+    revokeCliSession: (input) => revokeCliSession(base, input),
+    sessionWhoami: (input) => sessionWhoami(base, input),
   };
 }
 
@@ -172,6 +189,42 @@ async function listEnvironments(base: string, input: Parameters<ApiClient["listE
   return authorizedJsonRequest<EnvironmentListData>(
     base,
     `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function listProjectSecrets(
+  base: string,
+  input: Parameters<ApiClient["listProjectSecrets"]>[0],
+) {
+  return authorizedJsonRequest<ListProjectSecretsData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/secrets`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function listEnvironmentSecrets(
+  base: string,
+  input: Parameters<ApiClient["listEnvironmentSecrets"]>[0],
+) {
+  return authorizedJsonRequest<ListEnvironmentSecretsData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets`,
+    input.bearerCredential,
+    { method: "GET" },
+  );
+}
+
+async function listSecretVersions(
+  base: string,
+  input: Parameters<ApiClient["listSecretVersions"]>[0],
+) {
+  return authorizedJsonRequest<ListSecretVersionsData>(
+    base,
+    `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets/${input.secretId}/versions`,
     input.bearerCredential,
     { method: "GET" },
   );

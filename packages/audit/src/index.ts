@@ -25,6 +25,7 @@ export {
   AUDIT_EVENTS_DEFAULT_PAGE_SIZE,
   AUDIT_EVENTS_MAX_PAGE_SIZE,
   encodeAuditEventsCursor,
+  normalizeAuditTimestampFilter,
   queryTenantAuditEvents,
   queryTenantAuditEventsInTenantScope,
   type QueryTenantAuditEventsFilters,
@@ -79,6 +80,12 @@ export {
   recordSyncAudit,
 } from "./production-audit-writers.js";
 export { type RecordActionAuditInput, recordActionAudit } from "./record-action-audit.js";
+export {
+  recordOperationCanceled,
+  recordOperationCancelDenied,
+  type RecordOperationCanceledInput,
+  type RecordOperationCancelDeniedInput,
+} from "./record-operation-audit.js";
 export {
   type RecordRuntimeInjectionAuditInput,
   type RuntimeInjectionAuditPhase,

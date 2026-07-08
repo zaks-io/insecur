@@ -2,21 +2,9 @@ import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers"
 import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
-import type {
-  AcceptInvitationResult,
-  CreateInvitationResult,
-  CreateOperatorOrganizationResult,
-  ProvisionGuidedOrganizationResult,
-} from "@insecur/onboarding";
-import {
-  completeBootstrapOperatorClaim,
-  getBootstrapStatus,
-  type BootstrapStatus,
-  type CompleteBootstrapOperatorClaimResult,
-} from "@insecur/instance-bootstrap";
-import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
-import type { OperationPollResult } from "@insecur/operations";
+import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
+import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -25,12 +13,15 @@ import type {
   CreateInvitationRpcInput,
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
+  CancelOperationRpcInput,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
   CreateEnvironmentRpcInput,
   CreateProjectRpcInput,
   ListAuditEventsRpcInput,
+  ExportTenantAuditRpcInput,
   ListEnvironmentsRpcInput,
+  ListEnvironmentSecretsRpcInput,
   ListOrganizationInvitationsRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
   GetHighAssuranceChallengeRpcInput,
@@ -39,7 +30,9 @@ import type {
   ListOrganizationMembersRpcInput,
   ListProjectSecretsRpcInput,
   ListProjectsRpcInput,
+  ListSecretVersionsRpcInput,
   ListSessionOrganizationsRpcInput,
+  ResolveSessionWhoamiRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
@@ -47,8 +40,12 @@ import type {
   RecordAbuseDeniedRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   CaptureFirstValueFeedbackRpcInput,
+  QueryFirstValueUsageRpcInput,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RevokeCliSessionRpcInput,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryEnvelope,
   RuntimeRpcResult,
@@ -70,25 +67,34 @@ import {
 } from "./rpc/runtime-high-assurance-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
+  queryFirstValueUsageRpc,
+  cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
   createEnvironmentRpc,
   listAuditEventsRpc,
+  exportTenantAuditRpc,
   listEnvironmentsRpc,
   createProjectRpc,
+  listEnvironmentSecretsRpc,
   listOrganizationInvitationsRpc,
   listOrganizationMembersRpc,
   listProjectSecretsRpc,
+  listSecretVersionsRpc,
   listProjectsRpc,
   listSessionOrganizationsRpc,
+  resolveSessionWhoamiRpc,
   recordInjectionRunCompletedRpc,
+  revokeCliSessionRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
+import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
 import {
   acceptInvitationRpc,
   createInvitationRpc,
   createOperatorOrganizationRpc,
   provisionGuidedOrganizationRpc,
 } from "./rpc/runtime-onboarding-rpc-delegates.js";
+import { completeBootstrapOperatorClaimRpc } from "./rpc/runtime-bootstrap-rpc-delegates.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
@@ -206,34 +212,35 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return this.#pre(() => getBootstrapStatus(input.instanceId));
   }
 
+  isCliSessionRevoked(
+    input: IsCliSessionRevokedRpcInput,
+  ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>> {
+    return this.#pre(() => isCliSessionRevokedOperation(input));
+  }
+
   // --- Post-auth non-keyring DB methods (carry a scoped hop token) ---
 
-  provisionGuidedOrganization(
-    input: ProvisionGuidedOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<ProvisionGuidedOrganizationResult>> {
+  provisionGuidedOrganization(input: ProvisionGuidedOrganizationRpcInput) {
     return provisionGuidedOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createOperatorOrganization(
-    input: CreateOperatorOrganizationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateOperatorOrganizationResult>> {
+  createOperatorOrganization(input: CreateOperatorOrganizationRpcInput) {
     return createOperatorOrganizationRpc(this.#post.bind(this), input);
   }
 
-  createInvitation(
-    input: CreateInvitationRpcInput,
-  ): Promise<RuntimeRpcResult<CreateInvitationResult>> {
+  createInvitation(input: CreateInvitationRpcInput) {
     return createInvitationRpc(this.#post.bind(this), input);
   }
 
-  acceptInvitation(
-    input: AcceptInvitationRpcInput,
-  ): Promise<RuntimeRpcResult<AcceptInvitationResult>> {
+  acceptInvitation(input: AcceptInvitationRpcInput) {
     return acceptInvitationRpc(this.#post.bind(this), input);
   }
-
-  getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>> {
+  getOperation(input: GetOperationRpcInput) {
     return getOperationRpc(this.#post.bind(this), input);
+  }
+
+  cancelOperation(input: CancelOperationRpcInput) {
+    return cancelOperationRpc(this.#post.bind(this), input);
   }
 
   issueInjectionGrant(
@@ -242,77 +249,78 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return issueInjectionGrantRpc(this.#post.bind(this), input);
   }
 
-  completeBootstrapOperatorClaim(
-    input: CompleteBootstrapClaimRpcInput,
-  ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
-    return this.#post(input.actorToken, ({ actor }) =>
-      completeBootstrapOperatorClaim({
-        instanceId: input.instanceId,
-        actor,
-        bootstrapSecret: input.bootstrapSecret,
-        operatorGrantId: input.operatorGrantId,
-        ownerMembershipId: input.ownerMembershipId,
-        request: { requestId: input.requestId },
-      }),
-    );
+  completeBootstrapOperatorClaim(input: CompleteBootstrapClaimRpcInput) {
+    return completeBootstrapOperatorClaimRpc(this.#post.bind(this), input);
   }
 
   recordInjectionRunCompleted(input: RecordInjectionRunCompletedRpcInput) {
     return recordInjectionRunCompletedRpc(this.#post.bind(this), input);
   }
-
   captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
     return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
+  }
+
+  queryFirstValueUsage(input: QueryFirstValueUsageRpcInput) {
+    return queryFirstValueUsageRpc(this.#post.bind(this), input);
   }
 
   listProjects(input: ListProjectsRpcInput) {
     return listProjectsRpc(this.#post.bind(this), input);
   }
-
   createProject(input: CreateProjectRpcInput) {
     return createProjectRpc(this.#post.bind(this), input);
   }
-
   listEnvironments(input: ListEnvironmentsRpcInput) {
     return listEnvironmentsRpc(this.#post.bind(this), input);
   }
-
   createEnvironment(input: CreateEnvironmentRpcInput) {
     return createEnvironmentRpc(this.#post.bind(this), input);
   }
-
   listProjectSecrets(input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.#post.bind(this), input);
+  }
+
+  listEnvironmentSecrets(input: ListEnvironmentSecretsRpcInput) {
+    return listEnvironmentSecretsRpc(this.#post.bind(this), input);
+  }
+
+  listSecretVersions(input: ListSecretVersionsRpcInput) {
+    return listSecretVersionsRpc(this.#post.bind(this), input);
   }
 
   listSessionOrganizations(input: ListSessionOrganizationsRpcInput) {
     return listSessionOrganizationsRpc(this.#post.bind(this), input);
   }
 
+  revokeCliSession(input: RevokeCliSessionRpcInput) {
+    return revokeCliSessionRpc(this.#post.bind(this), input);
+  }
+
+  resolveSessionWhoami(input: ResolveSessionWhoamiRpcInput) {
+    return resolveSessionWhoamiRpc(this.#post.bind(this), input);
+  }
+
   listOrganizationMembers(input: ListOrganizationMembersRpcInput) {
     return listOrganizationMembersRpc(this.#post.bind(this), input);
   }
-
   listOrganizationInvitations(input: ListOrganizationInvitationsRpcInput) {
     return listOrganizationInvitationsRpc(this.#post.bind(this), input);
   }
-
   listAuditEvents(input: ListAuditEventsRpcInput) {
     return listAuditEventsRpc(this.#post.bind(this), input);
   }
-
+  exportTenantAudit(input: ExportTenantAuditRpcInput) {
+    return exportTenantAuditRpc(this.#post.bind(this), this.env, input);
+  }
   listPendingHighAssuranceChallenges(input: ListPendingHighAssuranceChallengesRpcInput) {
     return listPendingHighAssuranceChallengesRpc(this.#post.bind(this), input);
   }
-
   getHighAssuranceChallenge(input: GetHighAssuranceChallengeRpcInput) {
     return getHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
-
   clearHighAssuranceChallenge(input: ClearHighAssuranceChallengeRpcInput) {
     return clearHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }
-
   denyHighAssuranceChallenge(input: DenyHighAssuranceChallengeRpcInput) {
     return denyHighAssuranceChallengeRpc(this.#post.bind(this), input);
   }

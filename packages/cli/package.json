@@ -17,6 +17,7 @@
   },
   "dependencies": {},
   "devDependencies": {
+    "@insecur/agent-attribution": "workspace:*",
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",

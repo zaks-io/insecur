@@ -15,6 +15,8 @@ import type {
   RuntimeDeliveryEnvelope,
 } from "./runtime-delivery-rpc-contract.js";
 import type {
+  ExportTenantAuditRpcInput,
+  ExportTenantAuditRpcPayload,
   ListAuditEventsRpcInput,
   ListAuditEventsRpcPayload,
 } from "./runtime-audit-rpc-contract.js";
@@ -25,6 +27,8 @@ import type {
   CreateProjectRpcPayload,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListEnvironmentSecretsRpcInput,
+  ListEnvironmentSecretsRpcPayload,
   ListOrganizationInvitationsRpcInput,
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
@@ -33,6 +37,8 @@ import type {
   ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSecretVersionsRpcInput,
+  ListSecretVersionsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
 } from "./runtime-metadata-rpc-contract.js";
@@ -42,6 +48,14 @@ import type {
   RecordInjectionRunCompletedRpcInput,
   RecordInjectionRunCompletedRpcPayload,
 } from "./runtime-operations-rpc-contract.js";
+import type {
+  FirstValueUsageStatusRpcPayload,
+  QueryFirstValueUsageRpcInput,
+} from "./runtime-first-value-usage-rpc-contract.js";
+import type {
+  ResolveSessionWhoamiRpcInput,
+  ResolveSessionWhoamiRpcPayload,
+} from "./runtime-session-whoami-rpc-contract.js";
 import type {
   ClearHighAssuranceChallengeRpcInput,
   ClearHighAssuranceChallengeRpcPayload,
@@ -54,6 +68,8 @@ import type {
 } from "./runtime-high-assurance-rpc-contract.js";
 import type {
   AcceptInvitationRpcInput,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   CompleteBootstrapClaimRpcInput,
   ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,
@@ -61,6 +77,8 @@ import type {
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAbuseDeniedRpcInput,
@@ -69,6 +87,8 @@ import type {
   RecordAdmissionDeniedRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RevokeCliSessionRpcInput,
+  RevokeCliSessionRpcPayload,
   RuntimeRpcResult,
   RuntimeSecretWritePayload,
   WriteSecretRpcInput,
@@ -97,6 +117,9 @@ export interface RuntimeRpc {
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>>;
   getBootstrapStatus(input: GetBootstrapStatusRpcInput): Promise<RuntimeRpcResult<BootstrapStatus>>;
+  isCliSessionRevoked(
+    input: IsCliSessionRevokedRpcInput,
+  ): Promise<RuntimeRpcResult<IsCliSessionRevokedRpcPayload>>;
 
   // Post-auth (carry a scoped hop token; the Runtime rebuilds the actor).
   provisionGuidedOrganization(
@@ -112,6 +135,9 @@ export interface RuntimeRpc {
     input: AcceptInvitationRpcInput,
   ): Promise<RuntimeRpcResult<AcceptInvitationResult>>;
   getOperation(input: GetOperationRpcInput): Promise<RuntimeRpcResult<OperationPollResult>>;
+  cancelOperation(
+    input: CancelOperationRpcInput,
+  ): Promise<RuntimeRpcResult<CancelOperationRpcPayload>>;
   issueInjectionGrant(
     input: IssueInjectionGrantRpcInput,
   ): Promise<RuntimeRpcResult<IssueInjectionGrantResult>>;
@@ -135,9 +161,21 @@ export interface RuntimeRpc {
   listProjectSecrets(
     input: ListProjectSecretsRpcInput,
   ): Promise<RuntimeRpcResult<ListProjectSecretsRpcPayload>>;
+  listEnvironmentSecrets(
+    input: ListEnvironmentSecretsRpcInput,
+  ): Promise<RuntimeRpcResult<ListEnvironmentSecretsRpcPayload>>;
+  listSecretVersions(
+    input: ListSecretVersionsRpcInput,
+  ): Promise<RuntimeRpcResult<ListSecretVersionsRpcPayload>>;
   listSessionOrganizations(
     input: ListSessionOrganizationsRpcInput,
   ): Promise<RuntimeRpcResult<ListSessionOrganizationsRpcPayload>>;
+  revokeCliSession(
+    input: RevokeCliSessionRpcInput,
+  ): Promise<RuntimeRpcResult<RevokeCliSessionRpcPayload>>;
+  resolveSessionWhoami(
+    input: ResolveSessionWhoamiRpcInput,
+  ): Promise<RuntimeRpcResult<ResolveSessionWhoamiRpcPayload>>;
   listOrganizationMembers(
     input: ListOrganizationMembersRpcInput,
   ): Promise<RuntimeRpcResult<ListOrganizationMembersRpcPayload>>;
@@ -147,6 +185,12 @@ export interface RuntimeRpc {
   listAuditEvents(
     input: ListAuditEventsRpcInput,
   ): Promise<RuntimeRpcResult<ListAuditEventsRpcPayload>>;
+  queryFirstValueUsage(
+    input: QueryFirstValueUsageRpcInput,
+  ): Promise<RuntimeRpcResult<FirstValueUsageStatusRpcPayload>>;
+  exportTenantAudit(
+    input: ExportTenantAuditRpcInput,
+  ): Promise<RuntimeRpcResult<ExportTenantAuditRpcPayload>>;
   listPendingHighAssuranceChallenges(
     input: ListPendingHighAssuranceChallengesRpcInput,
   ): Promise<RuntimeRpcResult<ListPendingHighAssuranceChallengesRpcPayload>>;

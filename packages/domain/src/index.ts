@@ -34,6 +34,7 @@ export {
   type ProviderCredentialId,
   type ProviderAppRegistrationId,
   type FirstValueFeedbackId,
+  type AgentSessionId,
   organizationId,
   projectId,
   environmentId,
@@ -59,7 +60,14 @@ export {
   providerCredentialId,
   providerAppRegistrationId,
   firstValueFeedbackId,
+  agentSessionId,
 } from "./resource-ids.js";
+export {
+  type AttributionTier,
+  type SessionWhoamiAttribution,
+  type SessionWhoamiData,
+  type SessionWhoamiResolvedContext,
+} from "./session-whoami.js";
 export {
   type DisplayName,
   DISPLAY_NAME_MAX_LENGTH,
@@ -130,6 +138,8 @@ export {
   type AppConnectionErrorCode,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   type ProviderAppRegistrationErrorCode,
+  IMPORT_ERROR_CODES,
+  type ImportErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,

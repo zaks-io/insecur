@@ -84,6 +84,10 @@ export {
   verifyEphemeralSessionCredential,
 } from "./ephemeral-session.js";
 export {
+  readSessionCredentialMetadata,
+  type SessionCredentialMetadata,
+} from "./session-credential-metadata.js";
+export {
   type MintScopedAccessTokenInput,
   type MintScopedAccessTokenResult,
   mintScopedAccessToken,

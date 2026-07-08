@@ -18,6 +18,7 @@ const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/backup-restore/src/recovery-canary.ts",
   "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
   "packages/app-connection/src/decrypt-cloudflare-connection-boundary-for-validation.ts",
+  "packages/app-connection/src/decrypt-github-connection-boundary-for-validation.ts",
   "packages/local-store/src/decrypt-local-secret-for-injection.ts",
 ] as const;
 
@@ -158,6 +159,9 @@ export default tseslint.config(
       "packages/operations/test/**/*.ts",
       "packages/operations/vitest.config.ts",
       "packages/operations/vitest.rls.config.ts",
+      "packages/agent-attribution/test/**/*.ts",
+      "packages/agent-attribution/vitest.config.ts",
+      "packages/agent-attribution/vitest.rls.config.ts",
       "packages/high-assurance/test/**/*.ts",
       "packages/high-assurance/vitest.config.ts",
       "packages/onboarding/test/**/*.ts",
@@ -242,9 +246,27 @@ export default tseslint.config(
     },
   },
   {
+    files: ["apps/runtime/src/runtime-service.ts"],
+    rules: {
+      "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: ["scripts/security-attest.mjs"],
     rules: {
       "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["apps/runtime/src/runtime-service.ts"],
+    rules: {
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["packages/worker-kit/src/rpc/runtime-client.ts"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 55, skipBlankLines: true, skipComments: true }],
     },
   },
   {

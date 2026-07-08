@@ -19,6 +19,7 @@ export const AUDIT_EVENTS_DEFAULT_PAGE_SIZE = 25;
 export const AUDIT_EVENTS_MAX_PAGE_SIZE = 100;
 
 export type { QueryTenantAuditEventsFilters } from "./query-tenant-audit-events-filters.js";
+export { normalizeAuditTimestampFilter } from "./query-tenant-audit-events-filters.js";
 export { encodeAuditEventsCursor } from "./query-tenant-audit-events-cursor.js";
 
 export interface QueryTenantAuditEventsInput {

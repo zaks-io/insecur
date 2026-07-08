@@ -9,6 +9,7 @@ export {
 export {
   encodeRequestValueUtf8,
   parseEnvironmentIdParam,
+  parseSecretIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
   parseInjectionGrantConsumeSelector,
@@ -47,6 +48,10 @@ export type {
   CreateOperatorOrganizationRpcInput,
   GetBootstrapStatusRpcInput,
   GetOperationRpcInput,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   RecordAdmissionDeniedRpcInput,
@@ -55,6 +60,8 @@ export type {
   RecordAbuseDeniedRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  RevokeCliSessionRpcInput,
+  RevokeCliSessionRpcPayload,
   RuntimeGeneratedSecretInput,
   RuntimeRpc,
   RuntimeRpcError,
@@ -69,6 +76,8 @@ export type {
   ListAuditEventsFiltersRpcInput,
   ListAuditEventsRpcInput,
   ListAuditEventsRpcPayload,
+  ExportTenantAuditRpcInput,
+  ExportTenantAuditRpcPayload,
 } from "./rpc/runtime-audit-rpc-contract.js";
 export type {
   CreateEnvironmentRpcInput,
@@ -76,8 +85,12 @@ export type {
   CreateProjectRpcInput,
   CreateProjectRpcPayload,
   EnvironmentMetadataRead,
+  EnvironmentSecretCurrentVersionRead,
+  EnvironmentSecretRead,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListEnvironmentSecretsRpcInput,
+  ListEnvironmentSecretsRpcPayload,
   ListOrganizationInvitationsRpcInput,
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
@@ -86,6 +99,8 @@ export type {
   ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSecretVersionsRpcInput,
+  ListSecretVersionsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
   OrganizationInvitationRead,
@@ -94,6 +109,7 @@ export type {
   SecretMatrixCellRead,
   SecretMatrixLastSetActorRead,
   SecretMatrixRowRead,
+  SecretVersionMetadataRead,
   SessionOrganizationRead,
 } from "./rpc/runtime-metadata-rpc-contract.js";
 export type {
@@ -102,6 +118,10 @@ export type {
   RecordInjectionRunCompletedRpcInput,
   RecordInjectionRunCompletedRpcPayload,
 } from "./rpc/runtime-operations-rpc-contract.js";
+export type {
+  FirstValueUsageStatusRpcPayload,
+  QueryFirstValueUsageRpcInput,
+} from "./rpc/runtime-first-value-usage-rpc-contract.js";
 export type {
   ClearHighAssuranceChallengeRpcInput,
   ClearHighAssuranceChallengeRpcPayload,
@@ -114,6 +134,10 @@ export type {
   ListPendingHighAssuranceChallengesRpcInput,
   ListPendingHighAssuranceChallengesRpcPayload,
 } from "./rpc/runtime-high-assurance-rpc-contract.js";
+export type {
+  ResolveSessionWhoamiRpcInput,
+  ResolveSessionWhoamiRpcPayload,
+} from "./rpc/runtime-session-whoami-rpc-contract.js";
 export type {
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryAllPayload,
@@ -168,7 +192,12 @@ export {
   type AuthContext,
   type CreateAuthContextOptions,
 } from "./auth/auth-context.js";
-export { requireUserActor, type AuthVariables } from "./auth/middleware.js";
+export {
+  requireUserActor,
+  requireUserActorForWhoami,
+  type AuthVariables,
+} from "./auth/middleware.js";
+export { resolveRequestUserActor } from "./auth/resolve-request-user-actor.js";
 export { recordAdmissionDeniedAuditForAuthFailure } from "./auth/record-admission-denied-audit.js";
 
 export { AbuseLimitError } from "./abuse/abuse-limit-error.js";

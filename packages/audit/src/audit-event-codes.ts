@@ -67,6 +67,8 @@ export const PRODUCTION_AUDIT_EVENT_CODES = {
   connectionDisableDenied: "connection.disable_denied",
   connectionCredentialAttached: "connection.credential_attached",
   connectionCredentialAttachDenied: "connection.credential_attach_denied",
+  operationCanceled: "operation.canceled",
+  operationCancelDenied: "operation.cancel_denied",
 } as const;
 
 /** All supported tenant-qualified audit event codes. */
@@ -119,6 +121,7 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.connectionDisableDenied,
   PRODUCTION_AUDIT_EVENT_CODES.connectionCredentialAttachDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.operationCancelDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([

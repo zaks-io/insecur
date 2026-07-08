@@ -1,16 +1,24 @@
 import type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,
+  FirstValueUsageStatusRpcPayload,
+  QueryFirstValueUsageRpcInput,
+  CancelOperationRpcInput,
+  CancelOperationRpcPayload,
   CreateEnvironmentRpcInput,
   CreateEnvironmentRpcPayload,
   CreateProjectRpcInput,
   CreateProjectRpcPayload,
   GetOperationRpcInput,
   IssueInjectionGrantRpcInput,
+  ExportTenantAuditRpcInput,
+  ExportTenantAuditRpcPayload,
   ListAuditEventsRpcInput,
   ListAuditEventsRpcPayload,
   ListEnvironmentsRpcInput,
   ListEnvironmentsRpcPayload,
+  ListEnvironmentSecretsRpcInput,
+  ListEnvironmentSecretsRpcPayload,
   ListOrganizationInvitationsRpcInput,
   ListOrganizationInvitationsRpcPayload,
   ListOrganizationMembersRpcInput,
@@ -19,10 +27,16 @@ import type {
   ListProjectSecretsRpcPayload,
   ListProjectsRpcInput,
   ListProjectsRpcPayload,
+  ListSecretVersionsRpcInput,
+  ListSecretVersionsRpcPayload,
   ListSessionOrganizationsRpcInput,
   ListSessionOrganizationsRpcPayload,
+  ResolveSessionWhoamiRpcInput,
+  ResolveSessionWhoamiRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   RecordInjectionRunCompletedRpcPayload,
+  RevokeCliSessionRpcInput,
+  RevokeCliSessionRpcPayload,
   RuntimeRpcResult,
 } from "@insecur/worker-kit";
 import type { OperationPollResult } from "@insecur/operations";
@@ -32,16 +46,23 @@ import {
 } from "@insecur/runtime-injection-issue";
 
 import { captureFirstValueFeedbackOperation } from "../operations/capture-first-value-feedback-operation.js";
+import { queryFirstValueUsageOperation } from "../operations/query-first-value-usage-operation.js";
 import { getOperationOperation } from "../operations/get-operation-operation.js";
+import { cancelOperationOperation } from "../operations/cancel-operation-operation.js";
 import { listAuditEventsOperation } from "../operations/list-audit-events-operation.js";
+import { exportTenantAuditOperation } from "../operations/export-tenant-audit-operation.js";
 import { listEnvironmentsOperation } from "../operations/list-environments-operation.js";
 import { createEnvironmentOperation } from "../operations/create-environment-operation.js";
 import { createProjectOperation } from "../operations/create-project-operation.js";
+import { listEnvironmentSecretsOperation } from "../operations/list-environment-secrets-operation.js";
 import { listOrganizationInvitationsOperation } from "../operations/list-organization-invitations-operation.js";
 import { listOrganizationMembersOperation } from "../operations/list-organization-members-operation.js";
 import { listProjectSecretsOperation } from "../operations/list-project-secrets-operation.js";
+import { listSecretVersionsOperation } from "../operations/list-secret-versions-operation.js";
 import { listProjectsOperation } from "../operations/list-projects-operation.js";
 import { listSessionOrganizationsOperation } from "../operations/list-session-organizations-operation.js";
+import { revokeCliSessionOperation } from "../operations/revoke-cli-session-operation.js";
+import { resolveSessionWhoamiOperation } from "../operations/resolve-session-whoami-operation.js";
 import { recordInjectionRunCompletedOperation } from "../operations/record-injection-run-completed-operation.js";
 import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
 
@@ -72,6 +93,15 @@ export function getOperationRpc(
   );
 }
 
+export function cancelOperationRpc(
+  post: PostAuthRpcRunner,
+  input: CancelOperationRpcInput,
+): Promise<RuntimeRpcResult<CancelOperationRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    cancelOperationOperation({ input, auditActor, accessActor }),
+  );
+}
+
 export function issueInjectionGrantRpc(
   post: PostAuthRpcRunner,
   input: IssueInjectionGrantRpcInput,
@@ -95,6 +125,22 @@ export function listSessionOrganizationsRpc(
   return post(input.actorToken, ({ accessActor }) =>
     listSessionOrganizationsOperation({ accessActor }),
   );
+}
+
+export function revokeCliSessionRpc(
+  post: PostAuthRpcRunner,
+  input: RevokeCliSessionRpcInput,
+): Promise<RuntimeRpcResult<RevokeCliSessionRpcPayload>> {
+  return post(input.actorToken, ({ actor }) =>
+    revokeCliSessionOperation({ instanceId: input.instanceId, actor }),
+  );
+}
+
+export function resolveSessionWhoamiRpc(
+  post: PostAuthRpcRunner,
+  input: ResolveSessionWhoamiRpcInput,
+): Promise<RuntimeRpcResult<ResolveSessionWhoamiRpcPayload>> {
+  return post(input.actorToken, (actors) => resolveSessionWhoamiOperation(input, actors));
 }
 
 export function listOrganizationMembersRpc(
@@ -121,6 +167,16 @@ export function listAuditEventsRpc(
 ): Promise<RuntimeRpcResult<ListAuditEventsRpcPayload>> {
   return post(input.actorToken, ({ auditActor, accessActor }) =>
     listAuditEventsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function exportTenantAuditRpc(
+  post: PostAuthRpcRunner,
+  env: Parameters<typeof exportTenantAuditOperation>[0]["env"],
+  input: ExportTenantAuditRpcInput,
+): Promise<RuntimeRpcResult<ExportTenantAuditRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    exportTenantAuditOperation({ env, input, auditActor, accessActor }),
   );
 }
 
@@ -151,6 +207,24 @@ export function listProjectSecretsRpc(
   );
 }
 
+export function listEnvironmentSecretsRpc(
+  post: PostAuthRpcRunner,
+  input: ListEnvironmentSecretsRpcInput,
+): Promise<RuntimeRpcResult<ListEnvironmentSecretsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listEnvironmentSecretsOperation({ input, auditActor, accessActor }),
+  );
+}
+
+export function listSecretVersionsRpc(
+  post: PostAuthRpcRunner,
+  input: ListSecretVersionsRpcInput,
+): Promise<RuntimeRpcResult<ListSecretVersionsRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    listSecretVersionsOperation({ input, auditActor, accessActor }),
+  );
+}
+
 export function recordInjectionRunCompletedRpc(
   post: PostAuthRpcRunner,
   input: RecordInjectionRunCompletedRpcInput,
@@ -165,4 +239,13 @@ export function captureFirstValueFeedbackRpc(
   input: CaptureFirstValueFeedbackRpcInput,
 ): Promise<RuntimeRpcResult<CaptureFirstValueFeedbackRpcPayload>> {
   return post(input.actorToken, (actors) => captureFirstValueFeedbackOperation(input, actors));
+}
+
+export function queryFirstValueUsageRpc(
+  post: PostAuthRpcRunner,
+  input: QueryFirstValueUsageRpcInput,
+): Promise<RuntimeRpcResult<FirstValueUsageStatusRpcPayload>> {
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    queryFirstValueUsageOperation({ input, auditActor, accessActor }),
+  );
 }

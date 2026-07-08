@@ -24,6 +24,8 @@ export interface ScanModeSelectionInput {
 export interface ScanRunInput {
   readonly rootDir: string;
   readonly mode: ScanMode;
+  readonly machine?: boolean;
+  readonly homeDir?: string;
   readonly transcript?: {
     readonly homeDir?: string;
     readonly transcriptPaths?: readonly string[];
@@ -60,10 +62,18 @@ export function assertScanOutputFlagsCompatible(flags: GlobalCliFlags, strict: b
   }
 }
 
-async function runProjectScan(rootDir: string): Promise<ScanRunResult> {
+async function runProjectScan(
+  rootDir: string,
+  machine?: boolean,
+  homeDir?: string,
+): Promise<ScanRunResult> {
   return {
     mode: "project",
-    report: await buildScanReport({ rootDir }),
+    report: await buildScanReport({
+      rootDir,
+      ...(machine === true ? { machine: true } : {}),
+      ...(homeDir !== undefined ? { homeDir } : {}),
+    }),
   };
 }
 
@@ -90,7 +100,7 @@ export async function runScan(input: ScanRunInput): Promise<ScanRunResult> {
   if (input.mode === "agent-transcripts") {
     return runAgentTranscriptScan(input.rootDir, input.transcript ?? {});
   }
-  return runProjectScan(input.rootDir);
+  return runProjectScan(input.rootDir, input.machine, input.homeDir);
 }
 
 function formatStrictQuietSummary(result: ScanRunResult): string {

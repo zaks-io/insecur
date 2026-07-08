@@ -543,6 +543,8 @@ a resource-existence oracle, even where their exit codes differ.
 | `cli.parent_scope_unresolved`               | `2`  | `n/a (client-side)` | Parent Organization, Project, or Environment scope is not pinned before child Display Name Resolution.                                                  |
 | `cli.destructive_id_required`               | `2`  | `n/a (client-side)` | Irreversible or destructive action requires an opaque ID for non-interactive callers (ADR-0035).                                                        |
 | `cli.scoped_selector_not_found`             | `5`  | `n/a (client-side)` | Configured or explicit opaque ID is absent from the refreshed Scoped List in the authorized scope.                                                      |
+| `cli.validation_error`                      | `2`  | `n/a (client-side)` | CLI argument parsing failure: unknown command, unknown option, missing required option, or invalid option value.                                        |
+| `cli.unexpected_error`                      | `1`  | `n/a (client-side)` | Unexpected client-side CLI failure after argument parsing.                                                                                              |
 | `validation.invalid_feedback_kind`          | `2`  | `400`               | Design-partner feedback kind is not one of the supported metadata-only values.                                                                          |
 | `validation.invalid_feedback_note_code`     | `2`  | `400`               | Design-partner feedback note must be one of the supported metadata-only note codes.                                                                     |
 | `validation.feedback_association_required`  | `2`  | `400`               | Design-partner feedback must reference a grant, operation, or request ID.                                                                               |
@@ -589,6 +591,8 @@ a resource-existence oracle, even where their exit codes differ.
 | `abuse.rate_limited`                        | `8`  | `429`               | Public-edge abuse control; retry after the configured window.                                                                                           |
 | `import.unsupported_environment`            | `2`  | `n/a (client-side)` |                                                                                                                                                         |
 | `import.existing_secret`                    | `6`  | `n/a (client-side)` | Existing-secret conflict in the target Environment.                                                                                                     |
+| `import.parse_error`                        | `2`  | `n/a (client-side)` | Dotenv line does not split into key=value.                                                                                                              |
+| `import.duplicate_variable_key`             | `2`  | `n/a (client-side)` | Duplicate final Variable Key in the import source.                                                                                                      |
 | `injection.grant_denied`                    | `4`  | `404`               |                                                                                                                                                         |
 | `runtime_policy.not_found`                  | `5`  | `404`               | Runtime Injection Policy or version not found for the tenant-qualified coordinate.                                                                      |
 | `runtime_policy.display_name_in_use`        | `6`  | `409`               | Policy Display Name already exists in the target Environment.                                                                                           |
@@ -884,6 +888,10 @@ insecur scan
 insecur scan --json
 insecur scan --strict
 insecur scan --strict --quiet
+insecur scan --machine
+insecur scan --machine --json
+insecur scan --machine --strict
+insecur scan --machine --strict --quiet
 insecur scan --config-dir /path/to/project
 insecur scan --agent-transcripts
 insecur scan --agent-transcripts --json
@@ -908,6 +916,22 @@ Rules:
 - Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
 - `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready); it cannot be combined with `--json`.
 - Migratable dotenv findings include remediation `insecur secrets set --variable-key <KEY> --value-stdin`, matching the real `secrets set` argument shape; values are never inlined in suggested commands.
+
+#### Machine credential sweep (`--machine`)
+
+- Opt-in only: without `--machine`, the scan never reads paths outside the project tree.
+- Read-only, offline, and metadata-only with the same no-reveal rules as the project scan.
+- Scans exactly this documented home-directory allowlist (no general home crawl, no symlink escape outside `$HOME`):
+  - `~/.aws/credentials`
+  - `~/.netrc`
+  - `~/.npmrc`
+  - `~/.docker/config.json`
+  - `~/.ssh/` private keys only (`id_rsa`, `id_ed25519`, `*.pem`, `*.key` — not `.pub`, `config`, or `known_hosts`)
+  - `~/.env` and `~/.env.*` in the home root only
+  - Shell rc files: `.bashrc`, `.bash_profile`, `.bash_login`, `.profile`, `.zshrc`, `.zshenv`, `.zprofile` — reports `export` key names matching secret key patterns only, never export values
+- Findings are grouped **Project** vs **Machine** in human output; summary includes both likely-secret counts.
+- Non-migratable machine findings (AWS credentials file, SSH private keys, netrc, docker config) include `migratable: false` with an honest reason — the report does not overclaim a fix.
+- `--machine` composes with `--json`, `--strict`, and `--quiet` with identical semantics to the project scan; `--strict --quiet` adds `project_likely_secrets=` and `machine_likely_secrets=` fields when machine sweep ran.
 
 #### Agent transcript exposure scan (`--agent-transcripts`)
 
