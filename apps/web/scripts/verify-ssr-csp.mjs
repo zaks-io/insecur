@@ -139,6 +139,12 @@ const mf = new Miniflare({
           if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/projects`) {
             return Response.json({ ok: true, data: { projects: [] } });
           }
+          if (url.pathname === `/v1/orgs/${ORG.organizationId}/audit-events`) {
+            return Response.json({ ok: true, data: { events: [], nextCursor: null } });
+          }
+          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/audit-events`) {
+            return Response.json({ ok: true, data: { events: [], nextCursor: null } });
+          }
           if (
             url.pathname ===
             `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/environments`
@@ -340,6 +346,8 @@ try {
       ">Audit<",
       ">People<",
       ">Settings<",
+      'aria-label="Recent activity"',
+      "No activity yet",
     ],
   });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/audit`, {

@@ -1,4 +1,5 @@
-import { mintEphemeralSessionCredential } from "@insecur/auth";
+import { mintEphemeralSessionCredential, mintScopedAccessToken } from "@insecur/auth";
+import { INSECUR_API_TOKEN_AUDIENCE, INSECUR_RUNTIME_TOKEN_AUDIENCE } from "@insecur/auth";
 import { testSessionSigningSecret, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
 import { userId } from "@insecur/domain";
 import { describe, expect, it, vi } from "vitest";
@@ -143,7 +144,72 @@ describe("worker session routes", () => {
         actorType: "user",
         userId: admittedUserId,
         sessionId: "session_cli_test",
+        sessionValid: true,
+        resolvedContext: {},
+        attribution: { tier: "none" },
       },
+    });
+    const data = (body as { data?: { sessionExpiresAt?: string } }).data;
+    expect(typeof data?.sessionExpiresAt).toBe("string");
+  });
+
+  it("returns whoami for a valid scoped-access bearer credential", async () => {
+    const scoped = await mintScopedAccessToken({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_scoped_test",
+      },
+      audience: INSECUR_API_TOKEN_AUDIENCE,
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+    const response = await app.request(
+      "/v1/session/whoami",
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${scoped.token}` },
+      },
+      env,
+    );
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: true,
+      data: {
+        actorType: "user",
+        userId: admittedUserId,
+        sessionId: "session_scoped_test",
+        sessionValid: true,
+        attribution: { tier: "none" },
+      },
+    });
+  });
+
+  it("returns auth.insufficient_scope for runtime-audience scoped-access bearer credentials", async () => {
+    const scoped = await mintScopedAccessToken({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_runtime_scoped",
+      },
+      audience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+    const response = await app.request(
+      "/v1/session/whoami",
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${scoped.token}` },
+      },
+      env,
+    );
+    expect(response.status).toBe(403);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: { code: "auth.insufficient_scope" },
     });
   });
 

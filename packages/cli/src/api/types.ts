@@ -16,7 +16,8 @@ import type { AuditEventsPage } from "@insecur/audit";
 import type { NavigationApiClient } from "./navigation-api-types.js";
 import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
 import type { SecretsApiClient } from "./secrets-api-types.js";
-import type { SessionApiClient } from "./session-api-types.js";
+import type { WhoamiApiClient } from "./whoami-api-types.js";
+import type { LogoutApiClient } from "./logout-api-types.js";
 
 export type {
   CreateEnvironmentData,
@@ -134,7 +135,12 @@ type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
 export interface ApiClient
-  extends NavigationApiClient, SecretsApiClient, RunPoliciesApiClient, SessionApiClient {
+  extends
+    NavigationApiClient,
+    SecretsApiClient,
+    RunPoliciesApiClient,
+    WhoamiApiClient,
+    LogoutApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
   exchangeCliPkceSession(input: {
     readonly host: string;

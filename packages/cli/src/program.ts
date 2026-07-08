@@ -3,7 +3,6 @@ import { createHttpApiClientForHost } from "./api/http-client.js";
 import { parseGlobalOptions } from "./cli-options.js";
 import { runInitCommand, DEFAULT_INIT_PROFILE_SLUG } from "./commands/init.js";
 import { registerLoginCommand } from "./register-login-command.js";
-import { registerAuditCommands } from "./audit-commands.js";
 import { runLogoutCommand } from "./commands/logout.js";
 import { runShellCommand } from "./commands/shell.js";
 import { registerRunCommand } from "./register-run-command.js";
@@ -13,11 +12,8 @@ import { applyCommanderUsageSeam } from "./output/commander-usage-error.js";
 import { renderCliRunFailure } from "./output/render-cli-run-failure.js";
 import { registerGuideCommand } from "./register-guide-command.js";
 import { registerScanCommand } from "./register-scan-command.js";
-import { registerSecretsCommands } from "./register-secrets-commands.js";
 import { registerConfigCommands } from "./register-config-commands.js";
-import { registerNavigationCommands } from "./register-navigation-commands.js";
-import { registerOperationsCommands } from "./register-operations-commands.js";
-import { registerRunPoliciesCommands } from "./register-run-policies-commands.js";
+import { registerApiBackedCommands } from "./register-api-backed-commands.js";
 import { cliVersion } from "./version.js";
 
 function attachGlobalOptions(command: Command): Command {
@@ -29,6 +25,7 @@ function attachGlobalOptions(command: Command): Command {
     .option("--profile <slug>", "CLI profile slug")
     .option("--profile-id <id>", "CLI profile opaque id")
     .option("--config-dir <path>", "directory containing .insecur.json")
+    .option("--agent <name>", "agent attribution tag (Tier 3)")
     .option("--json", "metadata-only JSON output")
     .option("--quiet", "suppress non-essential human output")
     .option("--verbose", "verbose logging");
@@ -50,14 +47,6 @@ function createInsecurRootProgram(): Command {
     .name("insecur")
     .description("insecur CLI — metadata-only output, sealed local session auth")
     .version(cliVersion());
-}
-
-function registerWorkflowCommands(
-  program: Command,
-  deps: { globalFlags: typeof globalFlags; resolveApi: typeof resolveApi },
-): void {
-  registerOperationsCommands(program, deps);
-  registerRunPoliciesCommands(program, deps);
 }
 
 function buildProgram(): Command {
@@ -104,13 +93,10 @@ function buildProgram(): Command {
       });
     });
 
-  registerAuditCommands(program, deps);
-  registerSecretsCommands(program, deps);
   registerScanCommand(program, { globalFlags });
   registerGuideCommand(program);
   registerConfigCommands(program, globalFlags);
-  registerNavigationCommands(program, deps);
-  registerWorkflowCommands(program, deps);
+  registerApiBackedCommands(program, deps);
 
   return program;
 }

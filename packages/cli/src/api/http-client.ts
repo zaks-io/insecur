@@ -33,6 +33,7 @@ import {
   disableRuntimeInjectionPolicy,
   getRuntimeInjectionPolicy,
 } from "./http-client-run-policies.js";
+import { sessionWhoami } from "./http-client-whoami.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
   const base = host.endsWith("/") ? host.slice(0, -1) : host;
@@ -60,6 +61,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     createRuntimeInjectionPolicy: (input) => createRuntimeInjectionPolicy(base, input),
     getRuntimeInjectionPolicy: (input) => getRuntimeInjectionPolicy(base, input),
     disableRuntimeInjectionPolicy: (input) => disableRuntimeInjectionPolicy(base, input),
+    sessionWhoami: (input) => sessionWhoami(base, input),
   };
 }
 

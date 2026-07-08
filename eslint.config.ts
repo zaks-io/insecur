@@ -159,6 +159,9 @@ export default tseslint.config(
       "packages/operations/test/**/*.ts",
       "packages/operations/vitest.config.ts",
       "packages/operations/vitest.rls.config.ts",
+      "packages/agent-attribution/test/**/*.ts",
+      "packages/agent-attribution/vitest.config.ts",
+      "packages/agent-attribution/vitest.rls.config.ts",
       "packages/high-assurance/test/**/*.ts",
       "packages/high-assurance/vitest.config.ts",
       "packages/onboarding/test/**/*.ts",
@@ -252,6 +255,18 @@ export default tseslint.config(
     files: ["scripts/security-attest.mjs"],
     rules: {
       "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["apps/runtime/src/runtime-service.ts"],
+    rules: {
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["packages/worker-kit/src/rpc/runtime-client.ts"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 55, skipBlankLines: true, skipComments: true }],
     },
   },
   {

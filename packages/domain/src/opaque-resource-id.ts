@@ -35,7 +35,8 @@ export type OpaqueResourceIdPrefix =
   | "pcred"
   | "preg"
   | "fvb"
-  | "chlg";
+  | "chlg"
+  | "ags";
 
 const PREFIX_TO_LITERAL: Record<OpaqueResourceIdPrefix, string> = {
   org: "org_",
@@ -64,6 +65,7 @@ const PREFIX_TO_LITERAL: Record<OpaqueResourceIdPrefix, string> = {
   preg: "preg_",
   fvb: "fvb_",
   chlg: "chlg_",
+  ags: "ags_",
 };
 
 export type ParseOpaqueResourceIdResult =

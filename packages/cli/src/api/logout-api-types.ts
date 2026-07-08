@@ -3,7 +3,7 @@ import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface SessionApiClient {
+export interface LogoutApiClient {
   revokeCliSession(input: {
     readonly host: string;
     readonly bearerCredential: string;

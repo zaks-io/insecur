@@ -1,0 +1,27 @@
+{
+  "name": "@insecur/agent-attribution",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:rls": "vitest run --config vitest.rls.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.src.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@insecur/access": "workspace:*",
+    "@insecur/domain": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

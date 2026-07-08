@@ -24,6 +24,7 @@ import type {
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   QueryFirstValueUsageRpcInput,
+  ResolveSessionWhoamiRpcInput,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
   RecordAbuseDeniedRpcInput,
@@ -51,6 +52,7 @@ import {
   cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
+  resolveSessionWhoamiRpc,
   recordInjectionRunCompletedRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
 import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
@@ -242,6 +244,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   queryFirstValueUsage(input: QueryFirstValueUsageRpcInput) {
     return queryFirstValueUsageRpc(this.#post.bind(this), input);
+  }
+
+  resolveSessionWhoami(input: ResolveSessionWhoamiRpcInput) {
+    return resolveSessionWhoamiRpc(this.#post.bind(this), input);
   }
 }
 
