@@ -1,9 +1,20 @@
-import { secretId, secretVersionId, type SecretId, type SecretVersionId } from "@insecur/domain";
+import {
+  secretId,
+  secretVersionId,
+  type EnvironmentId,
+  type OrganizationId,
+  type SecretId,
+  type SecretVersionId,
+} from "@insecur/domain";
 import { and, asc, eq } from "drizzle-orm";
 
 import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { decodeStoredWrappedMaterial } from "../decode-stored-wrapped-material.js";
+import {
+  resolveDraftPromotionTargetInEnvironment,
+  type DraftPromotionTarget,
+} from "./resolve-draft-promotion-target.js";
 import { resolveSecretForWrite as resolveSecretForWriteRow } from "./resolve-secret-for-write.js";
 import { SecretVersionStoreConflictError } from "./errors.js";
 export { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
@@ -100,6 +111,33 @@ export class TenantSecretVersionStore {
     }
 
     return toSecretVersionStoreRow(version, secretId.brand(version.secretId));
+  }
+
+  async getVersionInOrganization(
+    organizationId: AppendSecretVersionAndMakeLiveInput["organizationId"],
+    secretVersionIdValue: SecretVersionId,
+  ): Promise<SecretVersionStoreRow | null> {
+    const versions = await this.db
+      .select(secretVersionRowSelect)
+      .from(secretVersions)
+      .where(
+        and(eq(secretVersions.orgId, organizationId), eq(secretVersions.id, secretVersionIdValue)),
+      )
+      .limit(1);
+    const version = versions[0];
+    if (!version) {
+      return null;
+    }
+    return toSecretVersionStoreRow(version, secretId.brand(version.secretId));
+  }
+
+  /** @see resolveDraftPromotionTargetInEnvironment (ADR-0017 cross-environment Draft guard). */
+  async getDraftPromotionTargetInEnvironment(input: {
+    organizationId: OrganizationId;
+    environmentId: EnvironmentId;
+    secretVersionId: SecretVersionId;
+  }): Promise<DraftPromotionTarget | null> {
+    return resolveDraftPromotionTargetInEnvironment(this.db, input);
   }
 
   async getDeliverableVersion(

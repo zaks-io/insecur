@@ -8,6 +8,7 @@ import { buildEnvelopeMeta } from "../output/target-echo.js";
 import {
   fetchOperationState,
   formatOperationHuman,
+  isSuccessTerminalOperationPollState,
   isTerminalOperationPollState,
 } from "./operations-get.js";
 import { parseOperationIdOrThrow } from "./operations-scope.js";
@@ -74,7 +75,7 @@ export async function runOperationsWaitCommand(
     if (isTerminalOperationPollState(data.state)) {
       const output = successEnvelope(data, buildEnvelopeMeta({}));
       renderSuccess(output, flags, () => formatOperationHuman(data));
-      return 0;
+      return isSuccessTerminalOperationPollState(data.state) ? 0 : EXIT_WAIT_TIMEOUT;
     }
 
     if (deadlineMs !== undefined && Date.now() >= deadlineMs) {

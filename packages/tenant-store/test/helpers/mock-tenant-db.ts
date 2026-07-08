@@ -11,8 +11,24 @@ export interface MockTenantDbHandlers {
 function createWhereChain(getRows: () => unknown[]) {
   return {
     limit: vi.fn(async () => getRows()),
-    for: vi.fn(() => ({ limit: vi.fn(async () => getRows()) })),
-    orderBy: vi.fn(() => ({ limit: vi.fn(async () => getRows()) })),
+    for: vi.fn(() => {
+      const rows = getRows();
+      return {
+        limit: vi.fn(async () => rows),
+        then(onFulfilled: (value: unknown[]) => unknown) {
+          return Promise.resolve(rows).then(onFulfilled);
+        },
+      };
+    }),
+    orderBy: vi.fn(() => {
+      const rows = getRows();
+      return {
+        limit: vi.fn(async () => rows),
+        then(onFulfilled: (value: unknown[]) => unknown) {
+          return Promise.resolve(rows).then(onFulfilled);
+        },
+      };
+    }),
     then(onFulfilled: (value: unknown[]) => unknown) {
       return Promise.resolve(getRows()).then(onFulfilled);
     },

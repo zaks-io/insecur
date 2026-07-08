@@ -52,3 +52,16 @@ export {
   completeProtectedChangeExecution,
   failProtectedChangeExecution,
 } from "./transition-protected-change-api.js";
+export { createPromotionApprovalRequest } from "./create-promotion-approval-request.js";
+export {
+  createRollbackApprovalRequest,
+  type CreateRollbackApprovalRequestInput,
+} from "./create-rollback-approval-request.js";
+export { validatePromotionDraftTargets } from "./validate-promotion-draft-targets.js";
+export { hashCommentMetadata } from "./hash-comment-metadata.js";
+export { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
+export {
+  computeImpactReviewFingerprint,
+  type ImpactReviewDeliveryImpact,
+  type ImpactReviewFingerprintInput,
+} from "./compute-impact-review-fingerprint.js";

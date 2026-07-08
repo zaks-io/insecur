@@ -160,7 +160,14 @@
       "idx": 22,
       "version": "7",
       "when": 1784300000000,
-      "tag": "0022_revoked_cli_sessions_expires_at",
+      "tag": "0022_approval_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784400000000,
+      "tag": "0023_revoked_cli_sessions_expires_at",
       "breakpoints": true
     }
   ]
