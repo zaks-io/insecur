@@ -30,6 +30,18 @@ jobs:
   assert.equal(ciVerifyStepsRunSiteBoundaryConformance(workflow), true);
 });
 
+test("CI Verify site-boundary assertion follows root script indirection", () => {
+  const workflow = `
+jobs:
+  verify:
+    steps:
+      - name: Product checks
+        run: pnpm verify:pr
+`;
+
+  assert.equal(ciVerifyStepsRunSiteBoundaryConformance(workflow), true);
+});
+
 test("CI Verify site-boundary assertion fails when the command is absent", () => {
   const workflow = `
 jobs:

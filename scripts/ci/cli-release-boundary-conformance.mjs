@@ -7,7 +7,8 @@ import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { parse as parseYaml } from "yaml";
+
+import { ciVerifyStepsRunCommand } from "./package-boundary-conformance-lib.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const CLI_RELEASE_ENTRY = path.join(REPO_ROOT, "packages", "cli", "dist", "index.js");
@@ -82,29 +83,9 @@ async function assertReleaseEntryHasValidHashbang() {
   }
 }
 
-function isRecord(value) {
-  return typeof value === "object" && value !== null;
-}
-
 async function assertHostedCiRunsCliReleaseBoundaryConformance() {
-  const workflow = parseYaml(await readFile(CI_WORKFLOW_PATH, "utf8"));
-  const steps =
-    isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.verify)
-      ? workflow.jobs.verify.steps
-      : null;
-  if (!Array.isArray(steps)) {
-    throw new Error(
-      "CLI release boundary conformance: could not locate CI Verify job steps in .github/workflows/ci.yml",
-    );
-  }
-  const verifyRunBlocks = steps
-    .map((step) => (isRecord(step) && typeof step.run === "string" ? step.run : ""))
-    .filter(Boolean);
-  if (
-    !verifyRunBlocks.some((runBlock) =>
-      /\bpnpm\s+conformance:cli-release-boundary\b/.test(runBlock),
-    )
-  ) {
+  const workflow = await readFile(CI_WORKFLOW_PATH, "utf8");
+  if (!ciVerifyStepsRunCommand(workflow, /\bpnpm\s+conformance:cli-release-boundary\b/)) {
     throw new Error(
       "CLI release boundary conformance: hosted CI Verify must run `pnpm conformance:cli-release-boundary`",
     );
