@@ -1,6 +1,5 @@
 import {
   environmentId,
-  isKnownErrorCodeInCatalog,
   membershipId,
   organizationId,
   parseDisplayName,
@@ -8,6 +7,7 @@ import {
   teamId,
   type KnownErrorCode,
 } from "@insecur/domain";
+import { parseCataloguedApiFailure } from "./wizard-mutation-gate.js";
 
 /**
  * The full client-minted ID set for `POST /v1/onboarding/personal-organization`. Minted once per
@@ -140,13 +140,7 @@ function parseProvisionSuccess(data: unknown): ProvisionOutcome {
 }
 
 function parseProvisionError(envelope: Record<string, unknown>): ProvisionOutcome {
-  if (envelope.ok === false && typeof envelope.error === "object" && envelope.error !== null) {
-    const code = (envelope.error as Record<string, unknown>).code;
-    if (typeof code === "string" && isKnownErrorCodeInCatalog(code)) {
-      return { ok: false, code };
-    }
-  }
-  return { ok: false, code: "web.unexpected_response" };
+  return parseCataloguedApiFailure(envelope);
 }
 
 /**

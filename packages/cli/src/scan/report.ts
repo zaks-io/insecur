@@ -1,53 +1,9 @@
-import { readFile } from "node:fs/promises";
-import {
-  classifyDotenvFile,
-  classifyWholeFileFinding,
-  detectSecretFileKind,
-  type ClassifiedDotenvEntry,
-} from "./classifiers.js";
-import { parseDotenvKeys } from "./dotenv-parser.js";
+import { buildMachineScanReport } from "./machine-report.js";
+import { sanitizeScanDisplayPath } from "./scan-display.js";
+import { scanFileAtPath } from "./scan-file.js";
 import { mightBeSecretPath } from "./secret-paths.js";
-import type { ScanFinding, ScanFindingKind, ScanOptions, ScanReport } from "./types.js";
+import type { ScanFinding, ScanOptions, ScanReport, ScanScopeSummary } from "./types.js";
 import { walkProjectFiles, type WalkedFile } from "./walker.js";
-
-interface ReadFileResult {
-  readonly content: string | null;
-  readonly unreadable: boolean;
-}
-
-async function readFileContent(absolutePath: string): Promise<ReadFileResult> {
-  try {
-    const buffer = await readFile(absolutePath);
-    return { content: buffer.toString("utf8"), unreadable: false };
-  } catch {
-    return { content: null, unreadable: true };
-  }
-}
-
-function toDotenvFinding(file: string, entry: ClassifiedDotenvEntry): ScanFinding {
-  return {
-    file,
-    key: entry.key,
-    kind: "dotenv-entry",
-    confidence: entry.confidence,
-    migratable: entry.migratable,
-    ...(entry.reason !== undefined ? { reason: entry.reason } : {}),
-    ...(entry.remediation !== undefined ? { remediation: entry.remediation } : {}),
-  };
-}
-
-function toWholeFileFinding(file: string, kind: ScanFindingKind): ScanFinding {
-  const wholeFile = classifyWholeFileFinding(file, kind);
-  return {
-    file,
-    key: wholeFile.key,
-    kind,
-    confidence: wholeFile.confidence,
-    migratable: wholeFile.migratable,
-    ...(wholeFile.reason !== undefined ? { reason: wholeFile.reason } : {}),
-    ...(wholeFile.remediation !== undefined ? { remediation: wholeFile.remediation } : {}),
-  };
-}
 
 interface FileScanResult {
   readonly findings: readonly ScanFinding[];
@@ -64,33 +20,24 @@ async function scanWalkedFile(file: WalkedFile): Promise<ScanWalkOutcome> {
     return { status: "skipped" };
   }
 
-  const readResult = await readFileContent(file.absolutePath);
-  if (readResult.unreadable || readResult.content === null) {
+  const result = await scanFileAtPath({
+    displayPath: file.relativePath,
+    absolutePath: file.absolutePath,
+    scope: "project",
+  });
+
+  if (result.unreadable) {
     return { status: "unreadable" };
   }
-
-  const kind = detectSecretFileKind(file.relativePath, readResult.content);
-  if (!kind) {
+  if (result.skipped) {
     return { status: "skipped" };
-  }
-
-  if (kind === "dotenv-entry") {
-    const entries = parseDotenvKeys(readResult.content);
-    const classified = classifyDotenvFile(file.relativePath, readResult.content, entries);
-    return {
-      status: "scanned",
-      result: {
-        entryCount: entries.length,
-        findings: classified.map((entry) => toDotenvFinding(file.relativePath, entry)),
-      },
-    };
   }
 
   return {
     status: "scanned",
     result: {
-      entryCount: 1,
-      findings: [toWholeFileFinding(file.relativePath, kind)],
+      entryCount: result.entryCount,
+      findings: result.findings,
     },
   };
 }
@@ -134,7 +81,18 @@ function mergeUnreadablePaths(...groups: readonly (readonly string[])[]): readon
   return merged;
 }
 
-export async function buildScanReport(options: ScanOptions): Promise<ScanReport> {
+function scopeSummary(findings: readonly ScanFinding[], filesScanned: number): ScanScopeSummary {
+  const scoped = findings;
+  const filesWithFindings = new Set(scoped.map((finding) => finding.file)).size;
+  return {
+    filesScanned,
+    filesWithFindings,
+    likelySecrets: scoped.filter((finding) => finding.confidence === "likely-secret").length,
+    migratableCount: scoped.filter((finding) => finding.migratable).length,
+  };
+}
+
+async function buildProjectScanReport(options: ScanOptions): Promise<ScanReport> {
   const startedAt = performance.now();
   const {
     files: walkedFiles,
@@ -157,7 +115,6 @@ export async function buildScanReport(options: ScanOptions): Promise<ScanReport>
   }
 
   const unreadableFiles = mergeUnreadablePaths(unreadablePaths, scanUnreadableFiles);
-
   const likelySecrets = findings.filter((finding) => finding.confidence === "likely-secret").length;
   const migratableCount = findings.filter((finding) => finding.migratable).length;
 
@@ -173,15 +130,61 @@ export async function buildScanReport(options: ScanOptions): Promise<ScanReport>
       likelySecrets,
       migratableCount,
       elapsedMs: Math.round(performance.now() - startedAt),
+      project: scopeSummary(findings, walkedFiles.length),
     },
   };
 }
 
-function formatFindingLines(findings: readonly ScanFinding[]): string[] {
-  const lines = ["", "Findings:"];
+export async function buildScanReport(options: ScanOptions): Promise<ScanReport> {
+  const projectReport = await buildProjectScanReport(options);
+
+  if (options.machine !== true) {
+    return projectReport;
+  }
+
+  const machineReport = await buildMachineScanReport({
+    ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+  });
+
+  const findings = [...projectReport.findings, ...machineReport.findings];
+  const likelySecrets = findings.filter((finding) => finding.confidence === "likely-secret").length;
+  const migratableCount = findings.filter((finding) => finding.migratable).length;
+  const filesWithFindings = new Set(findings.map((finding) => finding.file)).size;
+
+  const projectScope =
+    projectReport.summary.project ??
+    scopeSummary(projectReport.findings, projectReport.summary.filesScanned);
+
+  return {
+    findings,
+    summary: {
+      filesScanned: projectReport.summary.filesScanned + machineReport.summary.filesScanned,
+      filesWithFindings,
+      unreadableFiles: mergeUnreadablePaths(
+        projectReport.summary.unreadableFiles,
+        machineReport.summary.unreadableFiles,
+      ),
+      oversizedFiles: projectReport.summary.oversizedFiles,
+      limitReached: projectReport.summary.limitReached,
+      totalEntries: projectReport.summary.totalEntries + machineReport.summary.totalEntries,
+      likelySecrets,
+      migratableCount,
+      elapsedMs: projectReport.summary.elapsedMs + machineReport.summary.elapsedMs,
+      project: projectScope,
+      machine: scopeSummary(machineReport.findings, machineReport.summary.filesScanned),
+    },
+  };
+}
+
+function formatFindingLines(findings: readonly ScanFinding[], heading: string): string[] {
+  if (findings.length === 0) {
+    return [];
+  }
+  const lines = ["", `${heading}:`];
   for (const finding of findings) {
     const migratableLabel = finding.migratable ? "migratable" : "not migratable";
-    lines.push(`  ${finding.file} :: ${finding.key} [${finding.confidence}, ${migratableLabel}]`);
+    const safeFile = sanitizeScanDisplayPath(finding.file);
+    lines.push(`  ${safeFile} :: ${finding.key} [${finding.confidence}, ${migratableLabel}]`);
     if (finding.remediation) {
       lines.push(`    remediation: ${finding.remediation}`);
     }
@@ -199,7 +202,7 @@ function formatUnreadableLines(unreadableFiles: readonly string[]): string[] {
   return [
     "",
     `Unreadable files (${String(unreadableFiles.length)}):`,
-    ...unreadableFiles.map((file) => `  ${file}`),
+    ...unreadableFiles.map((file) => `  ${sanitizeScanDisplayPath(file)}`),
   ];
 }
 
@@ -210,12 +213,35 @@ function formatOversizedLines(oversizedFiles: readonly string[]): string[] {
   return [
     "",
     `Oversized files (${String(oversizedFiles.length)}):`,
-    ...oversizedFiles.map((file) => `  ${file}`),
+    ...oversizedFiles.map((file) => `  ${sanitizeScanDisplayPath(file)}`),
   ];
 }
 
 export const SCAN_MIGRATE_ENV_GUIDE_POINTER =
   "To fix: run `insecur guide migrate-env` and follow it, or hand it to your agent.";
+
+function formatMachineScopeBreakdown(summary: ScanReport["summary"]): string[] {
+  if (summary.machine === undefined || summary.project === undefined) {
+    return [];
+  }
+  return [
+    "",
+    `Project: ${String(summary.project.likelySecrets)} likely secrets in ${String(summary.project.filesWithFindings)} files | Machine: ${String(summary.machine.likelySecrets)} likely secrets in ${String(summary.machine.filesWithFindings)} files`,
+  ];
+}
+
+function formatScopedFindingSections(findings: readonly ScanFinding[]): string[] {
+  const lines: string[] = [];
+  const projectFindings = findings.filter((finding) => finding.scope === "project");
+  const machineFindings = findings.filter((finding) => finding.scope === "machine");
+  if (projectFindings.length > 0) {
+    lines.push(...formatFindingLines(projectFindings, "Project findings"));
+  }
+  if (machineFindings.length > 0) {
+    lines.push(...formatFindingLines(machineFindings, "Machine findings"));
+  }
+  return lines;
+}
 
 export function formatScanHumanReport(report: ScanReport): string {
   const { summary, findings } = report;
@@ -223,21 +249,22 @@ export function formatScanHumanReport(report: ScanReport): string {
     `Found ${String(summary.likelySecrets)} likely secrets across ${String(summary.filesWithFindings)} files in ${String(summary.elapsedMs)}ms.`,
     "",
     `Files scanned: ${String(summary.filesScanned)} | Entries: ${String(summary.totalEntries)} | Likely secrets: ${String(summary.likelySecrets)} | Migratable: ${String(summary.migratableCount)} | Unreadable: ${String(summary.unreadableFiles.length)} | Oversized: ${String(summary.oversizedFiles.length)} | Limit reached: ${summary.limitReached ? "yes" : "no"}`,
+    ...formatMachineScopeBreakdown(summary),
+    ...formatUnreadableLines(summary.unreadableFiles),
+    ...formatOversizedLines(summary.oversizedFiles),
+    ...formatScopedFindingSections(findings),
+    "",
+    SCAN_MIGRATE_ENV_GUIDE_POINTER,
   ];
-
-  lines.push(...formatUnreadableLines(summary.unreadableFiles));
-  lines.push(...formatOversizedLines(summary.oversizedFiles));
-
-  if (findings.length > 0) {
-    lines.push(...formatFindingLines(findings));
-  }
-
-  lines.push("", SCAN_MIGRATE_ENV_GUIDE_POINTER);
 
   return lines.join("\n");
 }
 
 export function formatScanStrictQuietSummary(report: ScanReport): string {
   const { summary } = report;
-  return `insecur scan: likely_secrets=${String(summary.likelySecrets)} files=${String(summary.filesWithFindings)} migratable=${String(summary.migratableCount)} unreadable=${String(summary.unreadableFiles.length)} oversized=${String(summary.oversizedFiles.length)} limit_reached=${summary.limitReached ? "1" : "0"} elapsed_ms=${String(summary.elapsedMs)}`;
+  const machinePart =
+    summary.machine !== undefined && summary.project !== undefined
+      ? ` project_likely_secrets=${String(summary.project.likelySecrets)} machine_likely_secrets=${String(summary.machine.likelySecrets)}`
+      : "";
+  return `insecur scan: likely_secrets=${String(summary.likelySecrets)} files=${String(summary.filesWithFindings)} migratable=${String(summary.migratableCount)} unreadable=${String(summary.unreadableFiles.length)} oversized=${String(summary.oversizedFiles.length)} limit_reached=${summary.limitReached ? "1" : "0"} elapsed_ms=${String(summary.elapsedMs)}${machinePart}`;
 }

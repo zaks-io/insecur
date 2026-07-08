@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { errorEnvelope } from "@insecur/domain";
+import { CLI_ERROR_CODES, errorEnvelope } from "@insecur/domain";
 import {
   logUnexpectedCliErrorDebug,
   unexpectedCliErrorBody,
@@ -12,7 +12,7 @@ describe("unexpected CLI error sanitization", () => {
   it("returns a fixed generic message with only the error name", () => {
     const body = unexpectedCliErrorBody(new Error(SENTINEL));
     expect(body).toEqual({
-      code: "cli.unexpected_error",
+      code: CLI_ERROR_CODES.unexpectedError,
       message: "Unexpected CLI failure (Error)",
       retryable: false,
     });

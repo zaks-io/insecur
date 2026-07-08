@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AUTH_ERROR_CODES, SECRET_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
+import {
+  AUTH_ERROR_CODES,
+  CLI_ERROR_CODES,
+  SECRET_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
+} from "@insecur/domain";
 
 const inputMocks = vi.hoisted(() => ({
   readMaskedPrompt: vi.fn(),
@@ -320,7 +325,7 @@ describe("runSecretsSetCommand", () => {
         allowEmpty: false,
       }),
     ).rejects.toMatchObject({
-      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      code: CLI_ERROR_CODES.parentScopeUnresolved,
       exitCode: EXIT_VALIDATION,
     } satisfies Partial<CliError>);
   });

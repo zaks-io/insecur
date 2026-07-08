@@ -19,6 +19,7 @@ import {
 
 import type { CloudflareScopedTokenVerifyResult } from "./cloudflare-scoped-token-port.js";
 import { toCloudflareTokenStatusAuditCode } from "./cloudflare-scoped-token-metadata.js";
+import { toGithubInstallationStatusAuditCode } from "./github-app-metadata.js";
 
 function connectionResource(appConnectionId: AppConnectionId) {
   return {
@@ -32,6 +33,22 @@ function validationDetails(result: CloudflareScopedTokenVerifyResult): AuditEven
     tokenStatus: toCloudflareTokenStatusAuditCode(result.tokenStatus),
     workerScriptReachable: result.workerScriptReachable,
     hasBoundaryWarning: result.hasBoundaryWarning,
+  };
+}
+
+export interface GithubConnectionValidationAuditDetails {
+  readonly installationStatus: "active" | "suspended";
+  readonly accessibleRepositoryCount: number;
+  readonly repositoriesWithinBoundary: boolean;
+}
+
+function githubValidationDetails(
+  result: GithubConnectionValidationAuditDetails,
+): AuditEventDetails {
+  return {
+    installationStatus: toGithubInstallationStatusAuditCode(result.installationStatus),
+    accessibleRepositoryCount: result.accessibleRepositoryCount,
+    repositoriesWithinBoundary: result.repositoriesWithinBoundary,
   };
 }
 
@@ -143,6 +160,19 @@ export async function recordConnectionValidated(
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionValidated,
     details: validationDetails(input.validation),
+  });
+}
+
+export async function recordGithubConnectionValidated(
+  input: ConnectionAuditScope & {
+    readonly appConnectionId: AppConnectionId;
+    readonly validation: GithubConnectionValidationAuditDetails;
+  },
+): Promise<void> {
+  await writeConnectionSuccessAudit({
+    ...input,
+    eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionValidated,
+    details: githubValidationDetails(input.validation),
   });
 }
 

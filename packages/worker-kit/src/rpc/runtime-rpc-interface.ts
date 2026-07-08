@@ -47,6 +47,10 @@ import type {
   RecordInjectionRunCompletedRpcPayload,
 } from "./runtime-operations-rpc-contract.js";
 import type {
+  FirstValueUsageStatusRpcPayload,
+  QueryFirstValueUsageRpcInput,
+} from "./runtime-first-value-usage-rpc-contract.js";
+import type {
   ResolveSessionWhoamiRpcInput,
   ResolveSessionWhoamiRpcPayload,
 } from "./runtime-session-whoami-rpc-contract.js";
@@ -179,6 +183,9 @@ export interface RuntimeRpc {
   listAuditEvents(
     input: ListAuditEventsRpcInput,
   ): Promise<RuntimeRpcResult<ListAuditEventsRpcPayload>>;
+  queryFirstValueUsage(
+    input: QueryFirstValueUsageRpcInput,
+  ): Promise<RuntimeRpcResult<FirstValueUsageStatusRpcPayload>>;
   listPendingHighAssuranceChallenges(
     input: ListPendingHighAssuranceChallengesRpcInput,
   ): Promise<RuntimeRpcResult<ListPendingHighAssuranceChallengesRpcPayload>>;
