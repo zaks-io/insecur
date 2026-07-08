@@ -41,7 +41,7 @@ function parseUpdateWebhookSubscriptionBody(body: UpdateWebhookSubscriptionBody)
   };
 }
 
-export const webhookSubscriptionsRoutes = new Hono<{
+const webhookSubscriptionsRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();

@@ -13,7 +13,7 @@ import { Hono, type Context } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
-export const auditEventsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const auditEventsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 type AuditEventsRouteContext = Context<{ Bindings: ApiEnv; Variables: AuthVariables }>;
 

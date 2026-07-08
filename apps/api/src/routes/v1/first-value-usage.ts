@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
-export const firstValueUsageRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const firstValueUsageRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 // First Value usage status for the onboarding handoff indicator (INS-379). Authorize-then-read runs
 // atomically in the Runtime deploy (ADR-0077): the public edge performs zero DB I/O.

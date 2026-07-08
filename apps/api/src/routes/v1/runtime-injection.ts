@@ -19,7 +19,7 @@ import {
   parseOrganizationRouteParam,
 } from "./parse-org-route-params.js";
 
-export const runtimeInjectionRoutes = new Hono<{
+const runtimeInjectionRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();

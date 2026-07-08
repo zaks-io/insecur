@@ -29,7 +29,7 @@ import {
   parseOrganizationRouteParam,
 } from "./parse-org-route-params.js";
 
-export const highAssuranceChallengesRoutes = new Hono<{
+const highAssuranceChallengesRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();

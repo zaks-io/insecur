@@ -23,7 +23,7 @@ import type { RequestId } from "@insecur/domain";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
-export const projectsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const projectsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 function parseProjectScopedRouteParams(
   context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,

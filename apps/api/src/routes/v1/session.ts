@@ -18,7 +18,7 @@ import {
 import { Hono, type Context } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 
-export const sessionRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const sessionRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 type SessionRouteContext = Context<{ Bindings: ApiEnv; Variables: AuthVariables }>;
 

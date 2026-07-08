@@ -18,7 +18,7 @@ import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
-export const runPoliciesRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const runPoliciesRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 runPoliciesRoutes.post("/", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {

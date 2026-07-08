@@ -13,7 +13,7 @@ import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { getBootstrapStatusViaRuntime } from "../../rpc/runtime-admission-caller.js";
 
-export const instanceBootstrapRoutes = new Hono<{
+const instanceBootstrapRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();

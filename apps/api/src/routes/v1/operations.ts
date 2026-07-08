@@ -8,7 +8,7 @@ import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationAndOperationRouteParams } from "./parse-org-route-params.js";
 
-export const operationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const operationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 operationsRoutes.post("/:operationId/cancel", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {

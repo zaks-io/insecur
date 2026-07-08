@@ -14,7 +14,7 @@ import {
 import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 
-export const organizationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const organizationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 organizationsRoutes.post("/", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {

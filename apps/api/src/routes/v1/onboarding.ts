@@ -13,7 +13,7 @@ import {
 import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 
-export const onboardingRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const onboardingRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 function optionalDisplayName(
   body: Record<string, unknown>,

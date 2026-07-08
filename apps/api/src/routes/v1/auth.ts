@@ -11,7 +11,7 @@ import {
 import { Hono, type Context } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 
-export const authRoutes = new Hono<{ Bindings: ApiEnv }>();
+const authRoutes = new Hono<{ Bindings: ApiEnv }>();
 
 type AuthRouteContext = Context<{ Bindings: ApiEnv }>;
 

@@ -14,7 +14,7 @@ import { Hono } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
-export const designPartnerFeedbackRoutes = new Hono<{
+const designPartnerFeedbackRoutes = new Hono<{
   Bindings: ApiEnv;
   Variables: AuthVariables;
 }>();
