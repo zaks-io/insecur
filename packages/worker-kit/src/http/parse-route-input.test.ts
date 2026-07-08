@@ -28,6 +28,7 @@ import {
   readSecretValueField,
   requireRouteParam,
 } from "./parse-route-input.js";
+import { parseAppConnectionIdParam } from "./parse-app-connection-route-input.js";
 
 const VALID_ORG = "org_01TEST00000000000000000001";
 const VALID_PROJECT = "prj_01TEST00000000000000000001";
@@ -39,6 +40,7 @@ const VALID_TEAM = "team_01TEST00000000000000000001";
 const VALID_MEMBERSHIP = "mem_01TEST00000000000000000001";
 const VALID_INVITATION = "inv_01TEST00000000000000000001";
 const VALID_USER = "usr_01TEST00000000000000000001";
+const VALID_CONNECTION = "conn_01TEST00000000000000000001";
 
 function expectValidationError(fn: () => unknown, message: string, code: string): void {
   expect(fn).toThrow(
@@ -72,6 +74,7 @@ describe("branded route id params", () => {
     expect(parseEnvironmentIdParam(VALID_ENV)).toBe(VALID_ENV);
     expect(parseGrantIdParam(VALID_GRANT)).toBe(VALID_GRANT);
     expect(parseOperationIdParam(VALID_OPERATION)).toBe(VALID_OPERATION);
+    expect(parseAppConnectionIdParam(VALID_CONNECTION)).toBe(VALID_CONNECTION);
   });
 
   it("rejects malformed branded ids with stable messages", () => {

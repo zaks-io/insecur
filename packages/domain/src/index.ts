@@ -75,6 +75,7 @@ export {
   type SessionWhoamiData,
   type SessionWhoamiResolvedContext,
 } from "./session-whoami.js";
+export { type DeriveAgentSessionData, type RegisterAgentSessionData } from "./session-agent.js";
 export {
   type DisplayName,
   DISPLAY_NAME_MAX_LENGTH,

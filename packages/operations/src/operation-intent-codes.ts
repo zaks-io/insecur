@@ -7,6 +7,7 @@ export const OPERATION_INTENT_CODES = {
   providerReauth: "provider.reauth",
   backupExport: "backup.export",
   runtimeInjectionPolicyChange: "runtime_injection_policy.change",
+  appConnectionChange: "app_connection.change",
 } as const;
 
 export type OperationIntentCode =
