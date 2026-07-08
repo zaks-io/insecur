@@ -16,8 +16,8 @@ import {
 import type { OperationProgress } from "../../src/operation-types.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
-const TOKEN_HEAD_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-const TOKEN_TAIL_CHARS = `${TOKEN_HEAD_CHARS}_.-`;
+const OPAQUE_ID_START_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const OPAQUE_ID_REST_ALPHABET = `${OPAQUE_ID_START_ALPHABET}_.-`;
 const KNOWN_PROGRESS_KEYS = [
   "auditEventIds",
   "wait",
@@ -41,8 +41,8 @@ const auditEventIdArb = fc
   );
 const metadataSafeOpaqueTokenArb = fc
   .tuple(
-    fc.constantFrom(...TOKEN_HEAD_CHARS.split("")),
-    fc.array(fc.constantFrom(...TOKEN_TAIL_CHARS.split("")), { maxLength: 63 }),
+    fc.constantFrom(...OPAQUE_ID_START_ALPHABET.split("")),
+    fc.array(fc.constantFrom(...OPAQUE_ID_REST_ALPHABET.split("")), { maxLength: 63 }),
   )
   .map(([head, tail]) => `${head}${tail.join("")}`);
 const unknownProgressKeyArb = fc
