@@ -9,7 +9,7 @@ import {
   recordAdmissionDeniedAuditForAuthFailure,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 
 export const authRoutes = new Hono<{ Bindings: ApiEnv }>();
 
@@ -158,3 +158,7 @@ authRoutes.post("/cli/pkce/exchange", async (context) => {
     [INSECUR_SESSION_CREDENTIAL_HEADER]: exchanged.credential,
   });
 });
+
+export function registerAuthRoutes(app: ApiApp): void {
+  app.route("/v1/auth", authRoutes);
+}

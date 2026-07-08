@@ -22,7 +22,7 @@ import {
   type ValidationErrorCode,
 } from "@insecur/domain";
 import { Hono, type Context } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import { logUnhandledApiError } from "../../log-unhandled-error.js";
 import {
   parseOrganizationAndOperationRouteParams,
@@ -220,3 +220,7 @@ highAssuranceChallengesRoutes.post("/:operationId/deny", requireUserActor, async
     });
   }),
 );
+
+export function registerHighAssuranceChallengesRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/high-assurance-challenges", highAssuranceChallengesRoutes);
+}

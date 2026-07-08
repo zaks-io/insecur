@@ -11,7 +11,7 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
 export const designPartnerFeedbackRoutes = new Hono<{
@@ -45,3 +45,7 @@ designPartnerFeedbackRoutes.post("/", requireUserActor, async (context) => {
     });
   });
 });
+
+export function registerDesignPartnerFeedbackRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/design-partner-feedback", designPartnerFeedbackRoutes);
+}

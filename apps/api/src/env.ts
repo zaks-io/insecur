@@ -1,6 +1,7 @@
 import type { SentryBindings } from "@insecur/observability";
 import type { AuthWorkerEnv, RuntimeRpc } from "@insecur/worker-kit";
 import type { PublicEdgeRateLimitBindings } from "@insecur/worker-kit";
+import type { Hono } from "hono";
 
 /**
  * Bindings for the public API Worker (ADR-0077). This deploy is the public edge: it authenticates
@@ -18,3 +19,6 @@ export interface ApiEnv extends AuthWorkerEnv, PublicEdgeRateLimitBindings, Sent
   /** HMAC secret shared with the Runtime Worker to mint the scoped hop token (ADR-0077). */
   readonly RUNTIME_TOKEN_SIGNING_SECRET: string;
 }
+
+/** Composition root for the public API Worker route manifest. */
+export type ApiApp = Hono<{ Bindings: ApiEnv }>;

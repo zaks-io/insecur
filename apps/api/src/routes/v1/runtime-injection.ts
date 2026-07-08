@@ -13,7 +13,7 @@ import {
 } from "@insecur/worker-kit";
 import { parseChildExitCode } from "@insecur/domain";
 import { Hono } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import {
   parseOrganizationAndGrantRouteParams,
   parseOrganizationRouteParam,
@@ -104,3 +104,7 @@ runtimeInjectionRoutes.post("/grants/:grantId/run-completed", requireUserActor, 
     });
   });
 });
+
+export function registerRuntimeInjectionRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/runtime-injection", runtimeInjectionRoutes);
+}

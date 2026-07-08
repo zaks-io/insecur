@@ -20,7 +20,7 @@ import {
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { RequestId } from "@insecur/domain";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
 export const projectsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
@@ -209,3 +209,7 @@ projectsRoutes.post(
   async (context) =>
     handleRoute(context, (reqId) => executeSecretWriteByVariableKey(context, reqId)),
 );
+
+export function registerProjectsRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/projects", projectsRoutes);
+}

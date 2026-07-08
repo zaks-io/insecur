@@ -7,7 +7,7 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
 export const auditExportRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
@@ -57,3 +57,7 @@ auditExportRoutes.get("/", requireUserActor, async (context) =>
     });
   }),
 );
+
+export function registerAuditExportRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/audit-export", auditExportRoutes);
+}

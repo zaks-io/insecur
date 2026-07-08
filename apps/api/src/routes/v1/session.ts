@@ -16,7 +16,7 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 
 export const sessionRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -170,3 +170,7 @@ sessionRoutes.post("/revoke", async (context) =>
     return { revoked: revoked.revoked };
   }),
 );
+
+export function registerSessionRoutes(app: ApiApp): void {
+  app.route("/v1/session", sessionRoutes);
+}
