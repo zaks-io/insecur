@@ -10,6 +10,7 @@ import {
   type VariableKey,
 } from "@insecur/domain";
 import { afterAll, beforeAll, expect, it } from "vitest";
+import { testDescriptiveVerdicts } from "../helpers/descriptive-verdicts.js";
 import { TenantSecretVersionStore } from "../../src/secrets/tenant-secret-version-store.js";
 import { closeRuntimeSql, withTenantScope } from "../../src/index.js";
 import { describeRls, getRuntimeDatabaseUrl } from "./describe-rls.js";
@@ -49,6 +50,7 @@ async function appendVersion(secretIdValue: SecretId, suffix: number) {
       secretVersionId: versionId,
       wrapped,
       createdSecretShape: false,
+      descriptiveVerdicts: testDescriptiveVerdicts(`concurrency-${suffix}`),
     });
   });
 }

@@ -40,10 +40,25 @@ export interface InjectionGrantRow {
   policy_version_id: string | null;
   expires_at: Date;
   consumed_at: Date | null;
+  revoked_at: Date | null;
+  revoked_reason: string | null;
 }
 
+export const INJECTION_GRANT_REVOCATION_REASONS = {
+  tenantSuspension: "tenant_suspension",
+  compromiseVersionInvalidation: "compromise_version_invalidation",
+} as const;
+
+export type InjectionGrantRevocationReason =
+  (typeof INJECTION_GRANT_REVOCATION_REASONS)[keyof typeof INJECTION_GRANT_REVOCATION_REASONS];
+
 export type InjectionGrantConsumeFailure =
-  "not_found" | "expired" | "already_consumed" | "binding_not_allowed" | "consume_mode_mismatch";
+  | "not_found"
+  | "expired"
+  | "already_consumed"
+  | "binding_not_allowed"
+  | "consume_mode_mismatch"
+  | "revoked";
 
 export interface ConsumedInjectionGrantRow {
   grantId: InjectionGrantId;

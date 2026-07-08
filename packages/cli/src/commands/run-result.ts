@@ -1,5 +1,6 @@
 import type {
   CliProfileId,
+  RequestId,
   ResolvedTargetEcho,
   RuntimePolicyId,
   VariableKey,
@@ -74,6 +75,7 @@ export function renderVariableKeyRunSuccess(input: {
   readonly issueData: IssueInjectionGrantData;
   readonly delivery: InjectionGrantDeliveryData;
   readonly childExitCode: number;
+  readonly requestId: RequestId | undefined;
 }): void {
   renderSuccess(
     successEnvelope(
@@ -88,6 +90,7 @@ export function renderVariableKeyRunSuccess(input: {
           : {}),
       },
       buildEnvelopeMeta({
+        requestId: input.requestId,
         resolvedTargets: buildRunResolvedTargets(
           input.runScope,
           input.variableKey,
@@ -108,6 +111,7 @@ export function renderProfileRunSuccess(input: {
   readonly issueData: IssueInjectionGrantData;
   readonly delivery: InjectionGrantDeliveryAllData;
   readonly childExitCode: number;
+  readonly requestId: RequestId | undefined;
 }): void {
   const injectedVariableKeys = input.delivery.entries.map((entry) => entry.variableKey);
   renderSuccess(
@@ -129,6 +133,7 @@ export function renderProfileRunSuccess(input: {
           : {}),
       },
       buildEnvelopeMeta({
+        requestId: input.requestId,
         resolvedTargets: buildProfileRunResolvedTargets({
           scope: input.profileRun.runScope,
           profileId: input.profileRun.profileId,

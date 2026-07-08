@@ -898,6 +898,21 @@
         "sqlType": "timestamp with time zone",
         "withTimezone": true
       },
+      "revoked_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "revoked_reason": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "created_at": {
         "notNull": true,
         "primaryKey": false,
@@ -2768,6 +2783,48 @@
         "columnType": "PgTimestamp",
         "sqlType": "timestamp with time zone",
         "withTimezone": true
+      },
+      "value_byte_length": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "encoding_class": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "is_empty": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "has_leading_or_trailing_whitespace": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "looks_like_placeholder": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "secret_shape_match_verdict": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
       },
       "created_at": {
         "notNull": true,

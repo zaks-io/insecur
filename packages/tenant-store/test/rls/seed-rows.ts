@@ -89,7 +89,13 @@ async function insertSyntheticSecretVersion(
       organization_data_key_version,
       project_data_key_version,
       ciphertext_storage_ref,
-      lifecycle_state
+      lifecycle_state,
+      value_byte_length,
+      encoding_class,
+      is_empty,
+      has_leading_or_trailing_whitespace,
+      looks_like_placeholder,
+      secret_shape_match_verdict
     )
     VALUES (
       ${input.secretVersionId},
@@ -99,7 +105,13 @@ async function insertSyntheticSecretVersion(
       ${1},
       ${1},
       ${"synthetic-ciphertext-ref"},
-      ${"live"}
+      ${"live"},
+      ${0},
+      ${"utf-8"},
+      ${true},
+      ${false},
+      ${false},
+      ${"no_shape_rule"}
     )
     ON CONFLICT (id) DO NOTHING
   `;

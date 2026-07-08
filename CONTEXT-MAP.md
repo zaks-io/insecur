@@ -48,6 +48,7 @@ context for a specific task.
 | `packages/runtime-injection/CONTEXT.md`       | Runtime Injection Grant Service.                               |
 | `packages/onboarding/CONTEXT.md`              | Guided Organization Provisioning.                              |
 | `packages/release-gate/CONTEXT.md`            | Security Evidence Bundle assembly and release-gate skeleton.   |
+| `packages/storage-security-gate/CONTEXT.md`   | Storage Security Gate metadata-only readiness verdict.         |
 | `packages/instance-bootstrap/CONTEXT.md`      | Instance Bootstrap and Bootstrap Operator Claim.               |
 | `packages/operations/CONTEXT.md`              | Operation Store and Sync Target Serialization.                 |
 | `packages/worker-kit/CONTEXT.md`              | Shared Worker HTTP/auth/RPC composition glue.                  |

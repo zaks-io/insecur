@@ -16,6 +16,46 @@ import {
 } from "./run-shared.js";
 import { requireSecretWriteScope } from "./secrets-set-scope.js";
 
+async function executeVariableKeyRun(input: {
+  readonly flags: GlobalCliFlags;
+  readonly api: ApiClient;
+  readonly host: string;
+  readonly credential: string;
+  readonly runScope: ReturnType<typeof requireSecretWriteScope>;
+  readonly variableKey: ReturnType<typeof parseVariableKeyOrThrow>;
+  readonly command: readonly string[];
+}): Promise<number> {
+  const grant = await issueAndConsumeVariableKeyGrant({
+    api: input.api,
+    credential: input.credential,
+    host: input.host,
+    runScope: input.runScope,
+    variableKey: input.variableKey,
+  });
+  const childExitCode = await spawnCommand(
+    input.command,
+    buildRunChildEnv(input.variableKey, decodeDeliveryValue(grant.delivery.encodedValueUtf8)),
+  );
+  await recordRunCompletedBestEffort({
+    api: input.api,
+    host: input.host,
+    credential: input.credential,
+    organizationId: input.runScope.orgId,
+    grantId: grant.issueData.grantId,
+    childExitCode,
+  });
+  renderVariableKeyRunSuccess({
+    flags: input.flags,
+    runScope: input.runScope,
+    variableKey: input.variableKey,
+    issueData: grant.issueData,
+    delivery: grant.delivery,
+    childExitCode,
+    requestId: grant.requestId,
+  });
+  return childExitCode;
+}
+
 async function runVariableKeyPath(
   flags: GlobalCliFlags,
   api: ApiClient,
@@ -38,37 +78,15 @@ async function runVariableKeyPath(
     });
   }
 
-  const { issueData, delivery } = await issueAndConsumeVariableKeyGrant({
-    api,
-    credential,
-    host: context.scope.host,
-    runScope,
-    variableKey,
-  });
-
-  const childExitCode = await spawnCommand(
-    command,
-    buildRunChildEnv(variableKey, decodeDeliveryValue(delivery.encodedValueUtf8)),
-  );
-
-  await recordRunCompletedBestEffort({
-    api,
-    host: context.scope.host,
-    credential,
-    organizationId: runScope.orgId,
-    grantId: issueData.grantId,
-    childExitCode,
-  });
-
-  renderVariableKeyRunSuccess({
+  return executeVariableKeyRun({
     flags,
+    api,
+    host: context.scope.host,
+    credential,
     runScope,
     variableKey,
-    issueData,
-    delivery,
-    childExitCode,
+    command,
   });
-  return childExitCode;
 }
 
 export async function runRunCommand(

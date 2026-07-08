@@ -68,3 +68,8 @@ export { createFileFallbackAdapter, writePrivateKeyFile } from "./adapters/file-
 export { createLinuxSecretToolAdapter } from "./adapters/linux-secret-tool.js";
 export { createMacosKeychainAdapter } from "./adapters/macos-keychain.js";
 export { createWindowsDpapiAdapter } from "./adapters/windows-dpapi.js";
+export {
+  writeLocalBlindSecretVersion,
+  type WriteLocalBlindSecretVersionInput,
+  type WriteLocalBlindSecretVersionResult,
+} from "./write-local-blind-secret-version.js";

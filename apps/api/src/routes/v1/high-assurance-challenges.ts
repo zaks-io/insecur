@@ -57,7 +57,7 @@ function validationErrorResponse(
         message: error instanceof Error ? error.message : "invalid clear request body",
         retryable: false,
       },
-      { requestId: reqId },
+      { meta: { requestId: reqId } },
     ),
     400,
   );

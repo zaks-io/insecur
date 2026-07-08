@@ -188,6 +188,8 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "lint": "turbo run lint --cache=local:rw,remote:r",
     "lint:actions": "node scripts/ci/actionlint-local.mjs",
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
+    "routes:inventory": "node scripts/routes-inventory.mjs",
+    "routes:inventory:check": "node scripts/routes-inventory.mjs --check",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
     "conformance:actions-pin": "node scripts/ci/actions-pin-conformance.mjs",
     "duplicates:check": "node scripts/ci/jscpd-warn.mjs --fail-on-duplicates",
@@ -216,7 +218,9 @@ scheduled security scanners and the hosted DB-backed `Verify` step: the blocking
 with annotations, knip, actionlint (optional-local), the actions-pin conformance gate
 (`conformance:actions-pin` — asserts third-party GitHub Actions are pinned to full commit SHAs), the
 deploy-topology conformance gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability
-isolation against the wrangler configs and composition roots), the package-boundary conformance gate
+isolation against the wrangler configs and composition roots, and fails when
+`docs/specs/deploy-route-inventory.md` is stale relative to `pnpm routes:inventory`), the
+package-boundary conformance gate
 (`conformance:packages` — asserts the public/API and contract packages have no production dependency
 path to `@insecur/crypto`), the site-boundary conformance gate (`conformance:site-boundary`), the
 Prettier check, then the Turbo `lint typecheck test` fan-out. A green `verify` should predict a

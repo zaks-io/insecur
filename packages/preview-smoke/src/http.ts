@@ -156,13 +156,6 @@ export function asRecord(value: unknown, label: string): JsonRecord {
   return value as JsonRecord;
 }
 
-export function collectOperationId(body: JsonRecord): string | undefined {
-  const data = typeof body.data === "object" && body.data !== null ? (body.data as JsonRecord) : {};
-  const meta = typeof body.meta === "object" && body.meta !== null ? (body.meta as JsonRecord) : {};
-  const operationId = meta.operationId ?? data.operationId ?? body.operationId;
-  return typeof operationId === "string" ? operationId : undefined;
-}
-
 function parseJson(text: string, label: string): JsonRecord {
   let parsed: unknown;
   try {

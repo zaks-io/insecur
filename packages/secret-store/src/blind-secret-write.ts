@@ -25,6 +25,8 @@ import {
   type SecretVersionLifecycleState,
   type StoredWrappedSecretMaterial,
 } from "@insecur/tenant-store";
+import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
+import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 
 import { SecretWriteError } from "./secret-write-error.js";
 import {
@@ -45,6 +47,7 @@ export interface BlindSecretWriteInput {
   secretId?: SecretId;
   valueUtf8: Uint8Array;
   allowEmpty?: boolean;
+  generationHint?: string | null;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }
@@ -55,6 +58,7 @@ export interface BlindSecretWriteResult {
   variableKey: VariableKey;
   lifecycleState: SecretVersionLifecycleState;
   createdSecretShape: boolean;
+  descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
   auditEventId?: string;
 }
 
@@ -83,6 +87,7 @@ interface AppendWrappedVersionForWriteInput {
   readonly mode: BlindSecretWriteMode;
   readonly resolved: ResolvedSecretForWrite;
   readonly wrapped: WrappedSecretValue;
+  readonly descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
 }
 
 function auditKindForMode(mode: BlindSecretWriteMode): SecretStorageWriteAuditKind {
@@ -121,6 +126,7 @@ async function appendWrappedVersionForWrite({
   mode,
   resolved,
   wrapped,
+  descriptiveVerdicts,
 }: AppendWrappedVersionForWriteInput): Promise<AppendSecretVersionResult> {
   return withTenantScope(
     { kind: "organization", organizationId: validatedInput.organizationId },
@@ -132,6 +138,7 @@ async function appendWrappedVersionForWrite({
         secretVersionId: newVersionId,
         wrapped: toStoredWrappedSecretMaterial(wrapped),
         createdSecretShape: resolved.createdSecretShape,
+        descriptiveVerdicts,
       };
 
       return mode === "protected_draft"
@@ -148,6 +155,12 @@ async function appendEncryptedVersionForWrite(
   assertEnvironment: (environment: EnvironmentLifecycleRow | null) => void,
 ): Promise<AppendSecretVersionResult> {
   const resolved = await resolveWritableSecretForWrite(validatedInput, assertEnvironment);
+  const descriptiveVerdicts = computeSecretWriteDescriptiveVerdicts({
+    valueUtf8: validatedInput.valueUtf8,
+    ...(validatedInput.generationHint !== undefined
+      ? { generationHint: validatedInput.generationHint }
+      : {}),
+  });
   const wrapped = await encryptSecretValue(
     validatedInput.keyring,
     {
@@ -158,7 +171,14 @@ async function appendEncryptedVersionForWrite(
     },
     validatedInput.valueUtf8,
   );
-  return appendWrappedVersionForWrite({ validatedInput, newVersionId, mode, resolved, wrapped });
+  return appendWrappedVersionForWrite({
+    validatedInput,
+    newVersionId,
+    mode,
+    resolved,
+    wrapped,
+    descriptiveVerdicts,
+  });
 }
 
 async function executeBlindSecretWrite(
@@ -198,6 +218,7 @@ async function executeBlindSecretWrite(
     variableKey: validatedInput.variableKey,
     lifecycleState: persisted.lifecycleState,
     createdSecretShape: persisted.createdSecretShape,
+    descriptiveVerdicts: persisted.descriptiveVerdicts,
     auditEventId: audit.auditEventId,
   };
 }

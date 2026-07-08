@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { parseConsoleReadEnvelope } from "../console/envelope.js";
 import {
   parseOrgProjectsBody,
   parseProjectEnvironmentsBody,
@@ -8,9 +7,9 @@ import {
 } from "../console/projects.js";
 import {
   consoleRead,
-  envelopeParseToReadResult,
   orgIdInput,
   requiredId,
+  runConsoleReadStep,
   type ConsoleRead,
 } from "./console-read.js";
 
@@ -18,10 +17,11 @@ import {
 export const loadOrgProjects = createServerFn({ method: "GET" })
   .validator(orgIdInput)
   .handler(({ data }): Promise<ConsoleRead<readonly ConsoleProject[]>> =>
-    consoleRead(async (api) =>
-      envelopeParseToReadResult(
-        parseConsoleReadEnvelope(await api.orgProjects(data.organizationId), parseOrgProjectsBody),
-      ),
+    consoleRead((api) =>
+      runConsoleReadStep(api, {
+        fetch: (a) => a.orgProjects(data.organizationId),
+        parse: parseOrgProjectsBody,
+      }),
     ),
   );
 
@@ -35,12 +35,10 @@ export const loadProjectEnvironments = createServerFn({ method: "GET" })
     };
   })
   .handler(({ data }): Promise<ConsoleRead<readonly ConsoleEnvironment[]>> =>
-    consoleRead(async (api) =>
-      envelopeParseToReadResult(
-        parseConsoleReadEnvelope(
-          await api.projectEnvironments(data.organizationId, data.projectId),
-          parseProjectEnvironmentsBody,
-        ),
-      ),
+    consoleRead((api) =>
+      runConsoleReadStep(api, {
+        fetch: (a) => a.projectEnvironments(data.organizationId, data.projectId),
+        parse: parseProjectEnvironmentsBody,
+      }),
     ),
   );
