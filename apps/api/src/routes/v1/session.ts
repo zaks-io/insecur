@@ -138,6 +138,9 @@ sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
       ...(sessionMetadata.derivedAgentSessionId !== undefined
         ? { derivedAgentSessionId: sessionMetadata.derivedAgentSessionId }
         : {}),
+      ...(sessionMetadata.harnessName !== undefined
+        ? { harnessName: sessionMetadata.harnessName }
+        : {}),
       ...queryParams,
     });
 
