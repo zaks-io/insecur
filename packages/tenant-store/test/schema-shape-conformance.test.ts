@@ -24,6 +24,7 @@ import * as tenantAgentSessionsSchema from "../src/db/schema/tenant-agent-sessio
 import * as tenantHierarchySchema from "../src/db/schema/tenant-hierarchy.js";
 import * as tenantIntegrationsSchema from "../src/db/schema/tenant-integrations.js";
 import * as tenantSecretsSchema from "../src/db/schema/tenant-secrets.js";
+import * as tenantSecretSyncsSchema from "../src/db/schema/tenant-secret-syncs.js";
 import * as tenantProtectedChangesSchema from "../src/db/schema/tenant-protected-changes.js";
 import * as tenantApprovalRequestsSchema from "../src/db/schema/tenant-approval-requests.js";
 import * as tenantWebhooksSchema from "../src/db/schema/tenant-webhooks.js";
@@ -39,6 +40,7 @@ const USER_SCHEMA_MODULES = {
   "./tenant-agent-sessions.js": tenantAgentSessionsSchema,
   "./tenant-integrations.js": tenantIntegrationsSchema,
   "./tenant-secrets.js": tenantSecretsSchema,
+  "./tenant-secret-syncs.js": tenantSecretSyncsSchema,
   "./tenant-protected-changes.js": tenantProtectedChangesSchema,
   "./tenant-approval-requests.js": tenantApprovalRequestsSchema,
   "./tenant-webhooks.js": tenantWebhooksSchema,

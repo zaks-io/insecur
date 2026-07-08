@@ -43,4 +43,5 @@ export * from "./hierarchy/index.js";
 export * from "./guided-organization/index.js";
 export * from "./runtime-injection-policies/index.js";
 export * from "./webhooks/index.js";
+export * from "./secret-syncs/index.js";
 export * from "./approvals/index.js";

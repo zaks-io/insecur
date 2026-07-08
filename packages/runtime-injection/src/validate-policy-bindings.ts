@@ -1,4 +1,5 @@
 import {
+  includesExactBindingPatternMarker,
   RUNTIME_POLICY_ERROR_CODES,
   parseOpaqueResourceId,
   parseVariableKey,
@@ -8,8 +9,6 @@ import {
 } from "@insecur/domain";
 
 import { RuntimeInjectionPolicyError } from "./runtime-injection-policy-error.js";
-
-const PATTERN_BINDING_MARKERS = ["*", "?", "%", "regex:", "prefix:", "suffix:", "tag:", "folder:"];
 
 export interface RuntimeInjectionPolicyBindingsInput {
   secretIds: readonly string[];
@@ -29,10 +28,8 @@ function rejectPatternBinding(raw: string, kind: "secret_id" | "variable_key"): 
 }
 
 function assertNoPatternMarkers(raw: string, kind: "secret_id" | "variable_key"): void {
-  for (const marker of PATTERN_BINDING_MARKERS) {
-    if (raw.includes(marker)) {
-      rejectPatternBinding(raw, kind);
-    }
+  if (includesExactBindingPatternMarker(raw)) {
+    rejectPatternBinding(raw, kind);
   }
 }
 

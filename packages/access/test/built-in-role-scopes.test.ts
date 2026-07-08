@@ -119,6 +119,7 @@ describe("expandBuiltInRolePresetToScopes", () => {
       AUTHORIZATION_SCOPES.secretRead,
       AUTHORIZATION_SCOPES.connectionRead,
       AUTHORIZATION_SCOPES.webhookRead,
+      AUTHORIZATION_SCOPES.syncRead,
     ]);
   });
 });

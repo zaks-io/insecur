@@ -2,6 +2,10 @@
  * Stable dotted error codes shared across packages.
  * Extend per-package catalogs in later slices; domain holds cross-cutting validation codes.
  */
+import { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
+
+export { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
+
 export const VALIDATION_ERROR_CODES = {
   invalidOpaqueResourceId: "validation.invalid_opaque_resource_id",
   invalidDisplayName: "validation.invalid_display_name",
@@ -316,6 +320,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   HIGH_ASSURANCE_ERROR_CODES,
   OPERATION_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
+  SECRET_SYNC_ERROR_CODES,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   IMPORT_ERROR_CODES,
   CLI_ERROR_CODES,
@@ -342,6 +347,7 @@ export type KnownErrorCode =
   | HighAssuranceErrorCode
   | OperationErrorCode
   | AppConnectionErrorCode
+  | SecretSyncErrorCode
   | ProviderAppRegistrationErrorCode
   | ImportErrorCode
   | CliErrorCode

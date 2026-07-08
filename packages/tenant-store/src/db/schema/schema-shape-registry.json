@@ -3244,6 +3244,293 @@
     ],
     "primaryKeys": []
   },
+  "secret_sync_bindings": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_sync_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [
+      {
+        "name": "secret_sync_bindings_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "secret_sync_bindings_sync_secret_key",
+        "columns": ["secret_sync_id", "secret_id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "secret_sync_bindings_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "secret_sync_bindings_org_secret_fkey",
+        "columns": ["org_id", "secret_id"],
+        "foreignTable": "secrets",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "secret_sync_bindings_org_sync_fkey",
+        "columns": ["org_id", "secret_sync_id"],
+        "foreignTable": "secret_syncs",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "secret_syncs": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "app_connection_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "kind": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "mapping_behavior": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "auto_sync_enabled": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "github_provider_scope": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "target_repo_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "target_github_environment_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_by_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "disabled_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "deleted_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "secret_syncs_cloudflare_target_check",
+        "sql": "\"secret_syncs\".\"kind\" <> 'cloudflare-worker-secret' OR \"secret_syncs\".\"target_repo_id\" IS NULL"
+      },
+      {
+        "name": "secret_syncs_github_actions_target_check",
+        "sql": "\"secret_syncs\".\"kind\" <> 'github-actions' OR (\"secret_syncs\".\"target_repo_id\" IS NOT NULL AND \"secret_syncs\".\"github_provider_scope\" IS NOT NULL AND (\"secret_syncs\".\"github_provider_scope\" = 'repository' OR \"secret_syncs\".\"target_github_environment_id\" IS NOT NULL))"
+      },
+      {
+        "name": "secret_syncs_github_provider_scope_check",
+        "sql": "\"secret_syncs\".\"github_provider_scope\" IS NULL OR \"secret_syncs\".\"github_provider_scope\" IN ('environment', 'repository')"
+      },
+      {
+        "name": "secret_syncs_kind_check",
+        "sql": "\"secret_syncs\".\"kind\" IN ('github-actions', 'cloudflare-worker-secret')"
+      },
+      {
+        "name": "secret_syncs_mapping_behavior_check",
+        "sql": "\"secret_syncs\".\"mapping_behavior\" IN ('managed', 'merge')"
+      },
+      {
+        "name": "secret_syncs_status_check",
+        "sql": "\"secret_syncs\".\"status\" IN ('active', 'disabled', 'deleted')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "secret_syncs_environment_id_display_name_key",
+        "columns": ["environment_id", "display_name"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "secret_syncs_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "secret_syncs_org_app_connection_fkey",
+        "columns": ["org_id", "app_connection_id"],
+        "foreignTable": "app_connections",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "secret_syncs_org_env_fkey",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "secret_syncs_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "secret_syncs_org_project_fkey",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
   "secret_versions": {
     "columns": {
       "id": {
