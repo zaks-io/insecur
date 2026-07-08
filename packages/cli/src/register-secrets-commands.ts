@@ -4,18 +4,9 @@ import { runSecretsPromoteCommand } from "./commands/secrets-promote.js";
 import { runSecretsRollbackCommand } from "./commands/secrets-rollback.js";
 import { registerImportCommands } from "./register-import-commands.js";
 import { registerSecretsReadCommands } from "./register-secrets-read-commands.js";
-import type { GlobalCliFlags } from "./cli-options.js";
+import type { ProgramDeps } from "./program-deps.js";
 
-export function registerSecretsCommands(
-  program: Command,
-  deps: {
-    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
-    readonly resolveApi: (flags: GlobalCliFlags) => Promise<{
-      api: Parameters<typeof runSecretsSetCommand>[1];
-      context: Parameters<typeof runSecretsSetCommand>[2];
-    }>;
-  },
-): void {
+export function registerSecretsCommands(program: Command, deps: ProgramDeps): void {
   const secrets = program
     .command("secrets")
     .description("Blind secret writes and metadata-only management");
@@ -39,14 +30,18 @@ export function registerSecretsCommands(
         valueStdin?: boolean;
         allowEmpty?: boolean;
       }>();
-      const { api, context } = await deps.resolveApi(flags);
-      process.exitCode = await runSecretsSetCommand(flags, api, context, {
-        variableKey: options.variableKey,
-        generateMode: options.generate,
-        generateLength: options.length,
-        valueStdin: options.valueStdin === true,
-        allowEmpty: options.allowEmpty === true,
-      });
+      const { api, context, dispose } = await deps.resolveApi(flags);
+      try {
+        process.exitCode = await runSecretsSetCommand(flags, api, context, {
+          variableKey: options.variableKey,
+          generateMode: options.generate,
+          generateLength: options.length,
+          valueStdin: options.valueStdin === true,
+          allowEmpty: options.allowEmpty === true,
+        });
+      } finally {
+        dispose?.();
+      }
     });
 
   registerSecretsPromoteCommand(secrets, deps);
@@ -59,16 +54,7 @@ function collectRepeatedOption(value: string, previous: string[] | undefined): s
   return [...(previous ?? []), value];
 }
 
-function registerSecretsPromoteCommand(
-  secrets: Command,
-  deps: {
-    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
-    readonly resolveApi: (flags: GlobalCliFlags) => Promise<{
-      api: Parameters<typeof runSecretsPromoteCommand>[1];
-      context: Parameters<typeof runSecretsPromoteCommand>[2];
-    }>;
-  },
-): void {
+function registerSecretsPromoteCommand(secrets: Command, deps: ProgramDeps): void {
   secrets
     .command("promote")
     .description("Request protected promotion for exact draft versions (metadata only)")
@@ -102,16 +88,7 @@ function registerSecretsPromoteCommand(
     });
 }
 
-function registerSecretsRollbackCommand(
-  secrets: Command,
-  deps: {
-    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
-    readonly resolveApi: (flags: GlobalCliFlags) => Promise<{
-      api: Parameters<typeof runSecretsRollbackCommand>[1];
-      context: Parameters<typeof runSecretsRollbackCommand>[2];
-    }>;
-  },
-): void {
+function registerSecretsRollbackCommand(secrets: Command, deps: ProgramDeps): void {
   secrets
     .command("rollback <secret-id>")
     .description("Rollback a secret from a retained published version (metadata only)")
