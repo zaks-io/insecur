@@ -586,7 +586,7 @@ try {
     expect: ["Settings", "Organization configuration and policies", 'aria-label="Breadcrumb"'],
   });
 
-  // Project Secrets, Access, and Delivery placeholders (INS-475).
+  // Project Secrets matrix (INS-375), Access, and Delivery placeholders (INS-475).
   const projectBase = `/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}`;
   await assertUnauthenticatedConsoleRedirect(`${projectBase}/secrets`);
   await assertRouteHasMatchingCspNonce(`${projectBase}/secrets`, {
@@ -595,7 +595,7 @@ try {
     expect: [
       PROJECT.displayName,
       ">Secrets<",
-      "secrets matrix",
+      "Protected",
       'aria-label="Project views"',
       'aria-label="Breadcrumb"',
     ],
