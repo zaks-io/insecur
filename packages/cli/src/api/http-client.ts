@@ -21,6 +21,7 @@ import {
   readCliCredentialHeader,
 } from "./http-client-envelope.js";
 import { listAuditEvents } from "./http-client-audit-events.js";
+import { exportTenantAudit } from "./http-client-audit-export.js";
 import {
   consumeInjectionGrant,
   consumeInjectionGrantAll,
@@ -28,6 +29,7 @@ import {
   recordInjectionRunCompleted,
 } from "./http-client-runtime-injection.js";
 import { cancelOperation, getOperation } from "./http-client-operations.js";
+import { revokeCliSession } from "./http-client-logout.js";
 import { sessionWhoami } from "./http-client-whoami.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
@@ -50,6 +52,7 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     listProjectSecrets: (input) => listProjectSecrets(base, input),
     createEnvironment: (input) => createEnvironment(base, input),
     listAuditEvents: (input) => listAuditEvents(base, input),
+    exportTenantAudit: (input) => exportTenantAudit(base, input),
     getOperation: (input) => getOperation(base, input),
     cancelOperation: (input) => cancelOperation(base, input),
     revokeCliSession: (input) => revokeCliSession(base, input),
@@ -244,22 +247,4 @@ async function createEnvironment(
     input.bearerCredential,
     { method: "POST", body },
   );
-}
-
-interface RevokeCliSessionData {
-  readonly revoked: boolean;
-}
-
-async function revokeCliSession(base: string, input: Parameters<ApiClient["revokeCliSession"]>[0]) {
-  const { response, body: responseBody } = await postAuthorizedJson(
-    base,
-    "/v1/session/revoke",
-    input.bearerCredential,
-    {},
-  );
-  const envelope = parseEnvelope<RevokeCliSessionData>(responseBody);
-  if (!envelope.ok) {
-    return { ok: false as const, envelope, httpStatus: response.status };
-  }
-  return { ok: true as const, envelope };
 }

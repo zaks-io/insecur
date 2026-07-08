@@ -2,6 +2,7 @@ import { Command, type Command as CommanderCommand } from "commander";
 import { runAuditVerifyCommand } from "./commands/audit-verify.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 import { registerAuditTailCommand } from "./register-audit-tail-command.js";
+import { registerAuditExportCommand } from "./register-audit-export-command.js";
 
 export function registerAuditCommands(
   program: Command,
@@ -13,6 +14,7 @@ export function registerAuditCommands(
   const audit = program.command("audit").description("Audit event feed and export verification");
 
   registerAuditTailCommand(audit, deps);
+  registerAuditExportCommand(audit, deps);
 
   audit
     .command("verify")

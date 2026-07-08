@@ -230,6 +230,9 @@ importers:
       '@insecur/agent-attribution':
         specifier: workspace:*
         version: link:../../packages/agent-attribution
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@insecur/machine-auth':
         specifier: workspace:*
         version: link:../../packages/machine-auth
