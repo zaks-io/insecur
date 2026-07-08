@@ -52,6 +52,12 @@ export function collectDeployRouteEntries(appPath, appName) {
     }
   }
 
+  if (appName === "site") {
+    for (const prefix of extractPublicRoutes(join(appPath, "src", "static-site-routes.ts"))) {
+      addRouteMount(mounts, prefix, "GET");
+    }
+  }
+
   if (appName === "web" || appName === "site") {
     for (const filePath of listRouteSourceFiles(join(appPath, "src", "routes"))) {
       const source = readFileSync(filePath, "utf8");

@@ -27,6 +27,7 @@ test("collectDeployRouteMounts discovers API and web product routes", () => {
 
   const siteRoutes = collectDeployRouteMounts(join(repoRoot, "apps", "site"), "site");
   assert.ok(siteRoutes.includes("/"));
+  assert.ok(siteRoutes.includes("/.well-known/insecur/audit-export-signing-keys.json"));
 });
 
 test("collectDeployRouteEntries infers GET-only and multi-method API mounts", () => {

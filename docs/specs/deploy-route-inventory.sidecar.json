@@ -33,7 +33,8 @@
       "intro": "Public marketing/legal/security surface (ADR-0078). Holds no auth session, database, keyring, API, Runtime, or product-control-plane binding.",
       "preTable": [
         "`/install.sh` and `/install.ps1` are the CLI installer scripts, served as static text with no capability: they download the published `cli-v*` GitHub Release binaries and refuse to install anything that fails SHA-256 verification against the release's `SHA256SUMS`. Both answer GET and HEAD; other methods get 405.",
-        "`/badges/coverage.json` is a static Shields-compatible badge endpoint populated from the successful CI coverage artifact during production deploy. It exposes only aggregate unit-coverage metadata."
+        "`/badges/coverage.json` is a static Shields-compatible badge endpoint populated from the successful CI coverage artifact during production deploy. It exposes only aggregate unit-coverage metadata.",
+        "`/.well-known/insecur/audit-export-signing-keys.json` publishes the current and historical Ed25519 public keys used to verify audit-export signatures (ADR-0045). The document is metadata-only and carries the honest claim ceiling (`tamper-evident, independently verifiable`). Operators update it during signing-key bootstrap and rotation; private key material never appears here."
       ],
       "routes": {}
     },

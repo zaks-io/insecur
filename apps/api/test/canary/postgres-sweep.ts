@@ -34,10 +34,6 @@ function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/gu, '""')}"`;
 }
 
-function createMigrationSweepSql(migrationUrl: string): postgres.Sql {
-  return postgres(migrationUrl, { prepare: false, max: 1 });
-}
-
 /** Cross-tenant reads for the canary sweep (migration role is NOBYPASSRLS). */
 async function enableServiceAccessScope(sql: postgres.Sql): Promise<void> {
   await sql`SELECT set_config('app.service', ${"true"}, ${false})`;
@@ -114,7 +110,7 @@ export async function sweepAllSurfaces(
   sentinel: CanarySentinel,
   consoleOutput: string,
 ): Promise<SweepHit[]> {
-  const sql = createMigrationSweepSql(migrationUrl);
+  const sql = postgres(migrationUrl, { prepare: false, max: 1 });
   try {
     await enableServiceAccessScope(sql);
     const columns = await listPublicSchemaColumns(sql);
@@ -169,7 +165,7 @@ async function insertNegativeControlRow(
   versionId: string,
 ): Promise<void> {
   const inserted = await sql.unsafe(
-    `INSERT INTO ${quoteIdentifier(target.tableName)} (id, org_id, secret_id, version_number, organization_data_key_version, project_data_key_version, ciphertext_storage_ref) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO ${quoteIdentifier(target.tableName)} (id, org_id, secret_id, version_number, organization_data_key_version, project_data_key_version, ciphertext_storage_ref, value_byte_length, encoding_class, is_empty, has_leading_or_trailing_whitespace, looks_like_placeholder, secret_shape_match_verdict) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
     [
       versionId,
       target.orgId,
@@ -178,6 +174,12 @@ async function insertNegativeControlRow(
       1,
       1,
       "canary-negative-control-placeholder",
+      0,
+      "utf-8",
+      true,
+      false,
+      false,
+      "no_shape_rule",
     ],
   );
   assertSingleRowMutation(inserted.count, "INSERT", target.tableName);
@@ -254,7 +256,7 @@ export async function simulateEncryptionBypassLeak(
   sentinel: CanarySentinel,
   target: NegativeControlTarget,
 ): Promise<{ hits: SweepHit[]; rawHit: SweepHit | undefined }> {
-  const sql = createMigrationSweepSql(migrationUrl);
+  const sql = postgres(migrationUrl, { prepare: false, max: 1 });
   const dedicatedVersionId = secretVersionId.generate();
   let mainError: unknown;
   let cleanupError: Error | undefined;

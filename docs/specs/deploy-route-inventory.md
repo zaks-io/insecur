@@ -98,13 +98,16 @@ Public marketing/legal/security surface (ADR-0078). Holds no auth session, datab
 
 `/badges/coverage.json` is a static Shields-compatible badge endpoint populated from the successful CI coverage artifact during production deploy. It exposes only aggregate unit-coverage metadata.
 
-| Method | Mount prefix            |
-| ------ | ----------------------- |
-| GET    | `/`                     |
-| GET    | `/badges/coverage.json` |
-| GET    | `/healthz`              |
-| GET    | `/install.ps1`          |
-| GET    | `/install.sh`           |
+`/.well-known/insecur/audit-export-signing-keys.json` publishes the current and historical Ed25519 public keys used to verify audit-export signatures (ADR-0045). The document is metadata-only and carries the honest claim ceiling (`tamper-evident, independently verifiable`). Operators update it during signing-key bootstrap and rotation; private key material never appears here.
+
+| Method | Mount prefix                                          |
+| ------ | ----------------------------------------------------- |
+| GET    | `/`                                                   |
+| GET    | `/.well-known/insecur/audit-export-signing-keys.json` |
+| GET    | `/badges/coverage.json`                               |
+| GET    | `/healthz`                                            |
+| GET    | `/install.ps1`                                        |
+| GET    | `/install.sh`                                         |
 
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 

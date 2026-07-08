@@ -186,6 +186,14 @@ export {
   type BuildAuditExportInput,
   type VerifyAuditExportInput,
 } from "./audit-export-types.js";
+export {
+  AUDIT_EXPORT_CLAIM_CEILING,
+  AUDIT_EXPORT_PUBLISHED_SIGNING_KEYS_SCHEMA_VERSION,
+  parseAuditExportPublishedSigningKeys,
+  registerPublishedSigningKeys,
+  type AuditExportPublishedSigningKey,
+  type AuditExportPublishedSigningKeys,
+} from "./audit-export-published-signing-keys.js";
 export { buildAuditExport } from "./build-audit-export.js";
 export { exportTenantAuditEvents, listAuditExportEvents } from "./export-tenant-audit.js";
 export { parseAuditExportManifest } from "./parse-audit-export-manifest.js";

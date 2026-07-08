@@ -15,6 +15,7 @@ import {
 } from "@insecur/domain";
 import type { KnownErrorCode } from "@insecur/domain";
 import type { RuntimeRpcResult } from "@insecur/worker-kit";
+import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   createRuntimeRpcStub,
@@ -111,6 +112,10 @@ const metadataOnlySecretsMatrix = {
   ],
 };
 
+const testDescriptiveVerdicts = computeSecretWriteDescriptiveVerdicts({
+  valueUtf8: new TextEncoder().encode("test-secret"),
+});
+
 const metadataOnlyEnvironmentSecret = {
   secretId: secretId.brand("sec_00000000000000000000000001"),
   variableKey: matrixVariableKey,
@@ -121,6 +126,7 @@ const metadataOnlyEnvironmentSecret = {
     lifecycleState: "live" as const,
     createdAt: "2026-06-24T01:00:00.000Z",
     publishedAt: "2026-06-24T01:00:00.000Z",
+    descriptiveVerdicts: testDescriptiveVerdicts,
   },
   createdAt: "2026-06-24T00:00:00.000Z",
 };
@@ -137,6 +143,7 @@ const metadataOnlySecretVersions = {
       publishedAt: "2026-06-24T01:00:00.000Z",
       isCurrent: true,
       isPublished: true,
+      descriptiveVerdicts: testDescriptiveVerdicts,
     },
   ],
 };

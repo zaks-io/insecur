@@ -35,12 +35,18 @@ function toCurrentVersionRead(row: {
   >;
   currentVersionCreatedAt: Date;
   currentPublishedAt: Date | null;
+  currentVersionDescriptiveVerdicts: NonNullable<
+    Awaited<
+      ReturnType<TenantSecretMatrixMetadataStore["listByEnvironment"]>
+    >[number]["currentVersionDescriptiveVerdicts"]
+  >;
 }): EnvironmentSecretCurrentVersionRead {
   return {
     secretVersionId: row.currentVersionId,
     versionNumber: row.currentVersionNumber,
     lifecycleState: row.currentLifecycleState,
     createdAt: toIsoTimestamp(row.currentVersionCreatedAt),
+    descriptiveVerdicts: row.currentVersionDescriptiveVerdicts,
     ...(row.currentPublishedAt !== null
       ? { publishedAt: toIsoTimestamp(row.currentPublishedAt) }
       : {}),
@@ -59,13 +65,15 @@ function toEnvironmentSecretRead(
     row.currentVersionId !== null &&
     row.currentVersionNumber !== null &&
     row.currentLifecycleState !== null &&
-    row.currentVersionCreatedAt !== null
+    row.currentVersionCreatedAt !== null &&
+    row.currentVersionDescriptiveVerdicts !== null
       ? toCurrentVersionRead({
           currentVersionId: row.currentVersionId,
           currentVersionNumber: row.currentVersionNumber,
           currentLifecycleState: row.currentLifecycleState,
           currentVersionCreatedAt: row.currentVersionCreatedAt,
           currentPublishedAt: row.currentPublishedAt,
+          currentVersionDescriptiveVerdicts: row.currentVersionDescriptiveVerdicts,
         })
       : undefined;
 
