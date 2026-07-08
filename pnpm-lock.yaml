@@ -1089,6 +1089,9 @@ importers:
       '@insecur/runtime-injection-issue':
         specifier: workspace:*
         version: link:../runtime-injection-issue
+      '@insecur/storage-security-gate':
+        specifier: workspace:*
+        version: link:../storage-security-gate
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store
