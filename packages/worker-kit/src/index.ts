@@ -111,6 +111,8 @@ export type {
   ListSessionOrganizationsRpcPayload,
   OrganizationInvitationRead,
   OrganizationMemberRead,
+  PrincipalChainActorDetailsRead,
+  PrincipalChainActorRead,
   ProjectMetadataRead,
   SecretMatrixCellRead,
   SecretMatrixLastSetActorRead,

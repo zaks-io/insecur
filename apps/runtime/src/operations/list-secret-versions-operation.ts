@@ -8,6 +8,7 @@ import {
   TenantSecretMatrixMetadataStore,
   toIsoTimestamp,
   withTenantScope,
+  type SecretVersionMetadataRow,
 } from "@insecur/tenant-store";
 import type {
   ListSecretVersionsRpcInput,
@@ -16,6 +17,7 @@ import type {
 } from "@insecur/worker-kit";
 
 import { authorizeEnvironmentSecretReadScopes } from "./authorize-environment-secret-read.js";
+import { toPrincipalChainActorRead } from "./principal-chain-actor-read.js";
 
 export interface ListSecretVersionsOperationInput {
   readonly input: ListSecretVersionsRpcInput;
@@ -23,16 +25,8 @@ export interface ListSecretVersionsOperationInput {
   readonly accessActor: ActorRef;
 }
 
-function toVersionMetadataRead(row: {
-  secretVersionId: SecretVersionMetadataRead["secretVersionId"];
-  versionNumber: number;
-  lifecycleState: SecretVersionMetadataRead["lifecycleState"];
-  createdAt: Date;
-  publishedAt: Date | null;
-  isCurrent: boolean;
-  isPublished: boolean;
-  descriptiveVerdicts: SecretVersionMetadataRead["descriptiveVerdicts"];
-}): SecretVersionMetadataRead {
+function toVersionMetadataRead(row: SecretVersionMetadataRow): SecretVersionMetadataRead {
+  const setActor = row.setActor ? toPrincipalChainActorRead(row.setActor) : undefined;
   return {
     secretVersionId: row.secretVersionId,
     versionNumber: row.versionNumber,
@@ -42,6 +36,8 @@ function toVersionMetadataRead(row: {
     isCurrent: row.isCurrent,
     isPublished: row.isPublished,
     descriptiveVerdicts: row.descriptiveVerdicts,
+    ...(row.setAt !== undefined ? { setAt: toIsoTimestamp(row.setAt) } : {}),
+    ...(setActor !== undefined ? { setActor } : {}),
   };
 }
 

@@ -1,6 +1,8 @@
 import type { EnvironmentLifecycleStage } from "@insecur/domain";
 import { isEnvironmentLifecycleStage } from "@insecur/domain";
 import type { ConsoleEnvironment } from "./projects.js";
+import type { ConsolePrincipalChainActor } from "./actor-chain-label.js";
+import { parsePrincipalChainActor } from "./principal-chain-actor.js";
 
 /** Metadata-only matrix cell: presence, version pointer, and last-set actor/time. */
 export interface ConsoleSecretMatrixCell {
@@ -14,11 +16,7 @@ export interface ConsoleSecretMatrixCell {
   readonly lastSetActor?: ConsoleSecretMatrixLastSetActor;
 }
 
-export interface ConsoleSecretMatrixLastSetActor {
-  readonly actorType: "user" | "machine" | "ci_exchange";
-  readonly userId?: string;
-  readonly machineIdentityId?: string;
-}
+export type ConsoleSecretMatrixLastSetActor = ConsolePrincipalChainActor;
 
 export interface ConsoleSecretMatrixRow {
   readonly variableKey: string;
@@ -64,41 +62,8 @@ function parseEnvironmentEntry(entry: unknown): ConsoleEnvironment | null {
   };
 }
 
-function parseUserLastSetActor(
-  entry: Record<string, unknown>,
-): ConsoleSecretMatrixLastSetActor | null {
-  if (entry.userId !== undefined && typeof entry.userId !== "string") {
-    return null;
-  }
-  return {
-    actorType: "user",
-    ...(typeof entry.userId === "string" ? { userId: entry.userId } : {}),
-  };
-}
-
-function parseMachineLastSetActor(
-  entry: Record<string, unknown>,
-): ConsoleSecretMatrixLastSetActor | null {
-  if (typeof entry.machineIdentityId !== "string") {
-    return null;
-  }
-  return { actorType: "machine", machineIdentityId: entry.machineIdentityId };
-}
-
 function parseLastSetActor(entry: unknown): ConsoleSecretMatrixLastSetActor | null {
-  if (!isRecord(entry) || typeof entry.actorType !== "string") {
-    return null;
-  }
-  switch (entry.actorType) {
-    case "user":
-      return parseUserLastSetActor(entry);
-    case "machine":
-      return parseMachineLastSetActor(entry);
-    case "ci_exchange":
-      return { actorType: "ci_exchange" };
-    default:
-      return null;
-  }
+  return parsePrincipalChainActor(entry);
 }
 
 function parseAbsentMatrixCell(environmentId: string): ConsoleSecretMatrixCell {

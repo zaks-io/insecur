@@ -11,7 +11,9 @@ import type {
   SecretVersionDescriptiveVerdictsRead,
   SecretVersionMetadataRow,
 } from "./environment-secret-metadata-types.js";
+import type { PrincipalChainActorRow } from "./principal-chain-actor-types.js";
 import { loadSecretsWithCurrentVersionJoin } from "./secret-current-version-join.js";
+import { loadSecretVersionSetAttributionByVersionId } from "./secret-write-audit-attribution-queries.js";
 
 type SecretCurrentVersionJoinRow = Awaited<
   ReturnType<typeof loadSecretsWithCurrentVersionJoin>
@@ -222,4 +224,38 @@ export async function listSecretVersionMetadataRows(
     const mapped = toSecretVersionMetadataRow(row, currentVersionId);
     return mapped ? [mapped] : [];
   });
+}
+
+function attachVersionSetAttribution(
+  rows: readonly SecretVersionMetadataRow[],
+  attributionByVersionId: Map<string, { setAt: Date; setActor: PrincipalChainActorRow }>,
+): readonly SecretVersionMetadataRow[] {
+  return rows.map((row) => {
+    const attribution = attributionByVersionId.get(row.secretVersionId);
+    if (attribution === undefined) {
+      return row;
+    }
+    return {
+      ...row,
+      setAt: attribution.setAt,
+      setActor: attribution.setActor,
+    };
+  });
+}
+
+export async function listSecretVersionMetadataRowsWithAttribution(
+  db: TenantScopedDb,
+  input: ListSecretVersionMetadataInput,
+): Promise<readonly SecretVersionMetadataRow[]> {
+  const rows = await listSecretVersionMetadataRows(db, input);
+  if (rows.length === 0) {
+    return rows;
+  }
+  const attributionByVersionId = await loadSecretVersionSetAttributionByVersionId(db, {
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    secretVersionIds: rows.map((row) => row.secretVersionId),
+  });
+  return attachVersionSetAttribution(rows, attributionByVersionId);
 }

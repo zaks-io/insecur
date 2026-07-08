@@ -45,7 +45,7 @@ Under `/v1/orgs/:organizationId/run-policies` (INS-437): `POST /` creates an imm
 
 Under `/v1/orgs/:organizationId/connections` (INS-441): `GET /` lists metadata-only App Connections; `POST /` creates a connection via provider authorization or scoped token input; `GET /:connectionId` returns metadata-only status; `POST /:connectionId/reauth` reauthorizes a connection; `POST /:connectionId/rotate` rotates credential-backed provider credentials (optional `dryRun`); `POST /:connectionId/disconnect` disconnects with audit. Create, credential replacement, reauth, and boundary changes require a High-Assurance Challenge. List/status never return provider credentials. All routes forward over the `RUNTIME` seam.
 
-Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /` creates a project with a client-minted opaque ID and Display Name; `GET /:projectId/environments` lists environment metadata (including `isProtected`); `POST /:projectId/environments` creates a non-protected development environment (optional Secret Shape copy from another environment in the same project); `GET /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version, last-set actor/time; INS-363). `GET /:projectId/environments/:environmentId/secrets` lists environment-scoped Secret Shape metadata (variable key, opaque secret id, display name, current version pointer; INS-434). `GET /:projectId/environments/:environmentId/secrets/:secretId/versions` lists per-version metadata for one Secret (version ids, timestamps, current/published markers; INS-434). `POST /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
+Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /` creates a project with a client-minted opaque ID and Display Name; `GET /:projectId/environments` lists environment metadata (including `isProtected`); `POST /:projectId/environments` creates a non-protected development environment (optional Secret Shape copy from another environment in the same project); `GET /:projectId/secrets` lists the secrets × environments matrix metadata (presence, version, last-set actor/time; INS-363). `GET /:projectId/environments/:environmentId/secrets` lists environment-scoped Secret Shape metadata (variable key, opaque secret id, display name, current version pointer; INS-434). `GET /:projectId/environments/:environmentId/secrets/:secretId/versions` lists per-version metadata for one Secret (version ids, timestamps, current/published markers, principal-chain set actors; INS-380). `POST /:projectId/environments/:environmentId/secrets/by-variable-key` remains the blind secret write path.
 
 Under `/v1/orgs/:organizationId/first-value-usage` (INS-379): `GET /` returns metadata-only First Value usage counters for the onboarding handoff indicator (`secretWrites`, `grantConsumed`, `runCompleted`, `firstInjectionObserved`). Authorize-then-read requires `organization:read` inside the Runtime deploy.
 
@@ -65,33 +65,34 @@ Under `/v1/orgs/:organizationId/high-assurance-challenges` (INS-361): `GET /` li
 
 Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API Worker only over the private `API` Service Binding with a per-request `insecur-api`-audience scoped token. Holds NO root-key binding and NO Hyperdrive binding.
 
-| Method | Mount prefix                                |
-| ------ | ------------------------------------------- |
-| GET    | `/`                                         |
-| GET    | `/auth/callback`                            |
-| GET    | `/auth/enroll-passkey`                      |
-| GET    | `/auth/enroll-passkey/callback`             |
-| GET    | `/healthz`                                  |
-| *      | `/login`                                    |
-| POST   | `/logout`                                   |
-| GET    | `/onboarding`                               |
-| GET    | `/orgs/`                                    |
-| GET    | `/orgs/$orgId`                              |
-| GET    | `/orgs/$orgId/`                             |
-| GET    | `/orgs/$orgId/approvals`                    |
-| GET    | `/orgs/$orgId/approvals/$id`                |
-| GET    | `/orgs/$orgId/audit`                        |
-| GET    | `/orgs/$orgId/people`                       |
-| GET    | `/orgs/$orgId/projects/`                    |
-| GET    | `/orgs/$orgId/projects/$projectId`          |
-| GET    | `/orgs/$orgId/projects/$projectId/`         |
-| GET    | `/orgs/$orgId/projects/$projectId/access`   |
-| GET    | `/orgs/$orgId/projects/$projectId/delivery` |
-| GET    | `/orgs/$orgId/projects/$projectId/secrets`  |
-| GET    | `/orgs/$orgId/settings`                     |
-| GET    | `/whoami`                                   |
+| Method | Mount prefix                                                     |
+| ------ | ---------------------------------------------------------------- |
+| GET    | `/`                                                              |
+| GET    | `/auth/callback`                                                 |
+| GET    | `/auth/enroll-passkey`                                           |
+| GET    | `/auth/enroll-passkey/callback`                                  |
+| GET    | `/healthz`                                                       |
+| *      | `/login`                                                         |
+| POST   | `/logout`                                                        |
+| GET    | `/onboarding`                                                    |
+| GET    | `/orgs/`                                                         |
+| GET    | `/orgs/$orgId`                                                   |
+| GET    | `/orgs/$orgId/`                                                  |
+| GET    | `/orgs/$orgId/approvals`                                         |
+| GET    | `/orgs/$orgId/approvals/$id`                                     |
+| GET    | `/orgs/$orgId/audit`                                             |
+| GET    | `/orgs/$orgId/people`                                            |
+| GET    | `/orgs/$orgId/projects/`                                         |
+| GET    | `/orgs/$orgId/projects/$projectId`                               |
+| GET    | `/orgs/$orgId/projects/$projectId/`                              |
+| GET    | `/orgs/$orgId/projects/$projectId/access`                        |
+| GET    | `/orgs/$orgId/projects/$projectId/delivery`                      |
+| GET    | `/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId` |
+| GET    | `/orgs/$orgId/projects/$projectId/secrets`                       |
+| GET    | `/orgs/$orgId/settings`                                          |
+| GET    | `/whoami`                                                        |
 
-The `/orgs/*` rows are the authed console shell (INS-367): `/orgs/` resolves the default organization, `/orgs/$orgId` is the org-scoped layout carrying the five-section sidebar, and the section rows are TanStack file routes rendered inside it (`$orgId` is TanStack path-param syntax). The `/orgs/$orgId/projects/*` rows are the Projects section (INS-370): the project list, the project layout with its Environments (`/$projectId/`, the index) / Secrets / Access / Delivery views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs. `/orgs/$orgId/projects/$projectId/secrets` is the read-only secrets × environments matrix (INS-375): presence, version, and last-set metadata over `GET .../projects/:projectId/secrets`, with protected-column marking and cross-environment drift emphasis; no secret values. `/orgs/$orgId/people` is the read-only People register (INS-373): members and pending invitations over the same hop to the INS-373 API metadata GETs, rendering zero mutation affordances. `/orgs/$orgId/` is Home (INS-372, INS-377): a Needs You strip above a recent-activity feed. The strip and `/orgs/$orgId/approvals` poll `GET /v1/orgs/:organizationId/high-assurance-challenges` (page size = full pending list), seeded by route loaders and refreshed by client polling at 30s without navigation (ADR-0051). The inbox item model accepts both High-Assurance Challenge bounded operations (`op_`) and future Approval Requests (`req_`) by opaque ID prefix. `/orgs/$orgId/approvals/$id` is the responsive approval detail deep link (INS-381): prefix resolution (`op_` loads `GET /v1/orgs/:organizationId/high-assurance-challenges/:operationId` metadata evidence with principal chain and staleness display; `req_` renders a metadata-safe not-yet-supported state until W6). Reject is a CSRF-protected server-fn to `POST /v1/orgs/:organizationId/high-assurance-challenges/:operationId/deny`; approve/step-up lands in the next slice. Unauthenticated visitors route through `/login?returnTo=…` and back. `/orgs/$orgId/audit` is the filterable metadata event log (INS-376): actor/project/environment/event-type/time-range filters and cursor pagination over `GET /v1/orgs/:organizationId/audit-events`, with shareable filter state in URL search params. `/onboarding` is the first-run onboarding wizard (INS-374): Guided Organization Provisioning for org-less members, with `?org&project&env` reopening the CLI handoff view; its provisioning mutation is a CSRF-checked server function forwarded to `POST /v1/onboarding/personal-organization` over the private `API` binding. Step 2 enrolls an approval passkey through `GET /auth/enroll-passkey` (AuthKit redirect/ceremony) and `GET /auth/enroll-passkey/callback` (server-verified completion); the console shell shows a dismissible-per-session nudge until a passkey exists (INS-378). URLs carry opaque Resource IDs only (docs/web-console-ux.md §URLs).
+The `/orgs/*` rows are the authed console shell (INS-367): `/orgs/` resolves the default organization, `/orgs/$orgId` is the org-scoped layout carrying the five-section sidebar, and the section rows are TanStack file routes rendered inside it (`$orgId` is TanStack path-param syntax). The `/orgs/$orgId/projects/*` rows are the Projects section (INS-370): the project list, the project layout with its Environments (`/$projectId/`, the index) / Secrets / Access / Delivery views; all reads go through the BFF scoped-token hop to the INS-362 API metadata GETs. `/orgs/$orgId/projects/$projectId/secrets` is the read-only secrets × environments matrix (INS-375): presence, version, and last-set metadata over `GET .../projects/:projectId/secrets`, with protected-column marking and cross-environment drift emphasis; no secret values. `/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId` is the secret-in-environment detail (INS-380): version history with principal-chain actor rendering over `GET .../environments/:environmentId/secrets/:secretId/versions`; metadata only, no values. `/orgs/$orgId/people` is the read-only People register (INS-373): members and pending invitations over the same hop to the INS-373 API metadata GETs, rendering zero mutation affordances. `/orgs/$orgId/` is Home (INS-372, INS-377): a Needs You strip above a recent-activity feed. The strip and `/orgs/$orgId/approvals` poll `GET /v1/orgs/:organizationId/high-assurance-challenges` (page size = full pending list), seeded by route loaders and refreshed by client polling at 30s without navigation (ADR-0051). The inbox item model accepts both High-Assurance Challenge bounded operations (`op_`) and future Approval Requests (`req_`) by opaque ID prefix. `/orgs/$orgId/approvals/$id` is the responsive approval detail deep link (INS-381): prefix resolution (`op_` loads `GET /v1/orgs/:organizationId/high-assurance-challenges/:operationId` metadata evidence with principal chain and staleness display; `req_` renders a metadata-safe not-yet-supported state until W6). Reject is a CSRF-protected server-fn to `POST /v1/orgs/:organizationId/high-assurance-challenges/:operationId/deny`; approve/step-up lands in the next slice. Unauthenticated visitors route through `/login?returnTo=…` and back. `/orgs/$orgId/audit` is the filterable metadata event log (INS-376): actor/project/environment/event-type/time-range filters and cursor pagination over `GET /v1/orgs/:organizationId/audit-events`, with shareable filter state in URL search params. `/onboarding` is the first-run onboarding wizard (INS-374): Guided Organization Provisioning for org-less members, with `?org&project&env` reopening the CLI handoff view; its provisioning mutation is a CSRF-checked server function forwarded to `POST /v1/onboarding/personal-organization` over the private `API` binding. Step 2 enrolls an approval passkey through `GET /auth/enroll-passkey` (AuthKit redirect/ceremony) and `GET /auth/enroll-passkey/callback` (server-verified completion); the console shell shows a dismissible-per-session nudge until a passkey exists (INS-378). URLs carry opaque Resource IDs only (docs/web-console-ux.md §URLs).
 
 ## Public Site Worker — `apps/site` (`insecur-site`)
 

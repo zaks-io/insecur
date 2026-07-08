@@ -31,6 +31,7 @@ import { Route as OrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/or
 import { Route as OrgsOrgIdProjectsProjectIdSecretsRouteImport } from './routes/orgs.$orgId.projects.$projectId.secrets'
 import { Route as OrgsOrgIdProjectsProjectIdDeliveryRouteImport } from './routes/orgs.$orgId.projects.$projectId.delivery'
 import { Route as OrgsOrgIdProjectsProjectIdAccessRouteImport } from './routes/orgs.$orgId.projects.$projectId.access'
+import { Route as OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRouteImport } from './routes/orgs.$orgId.projects.$projectId.envs.$envId.secrets.$secretId'
 
 const WhoamiRoute = WhoamiRouteImport.update({
   id: '/whoami',
@@ -148,6 +149,12 @@ const OrgsOrgIdProjectsProjectIdAccessRoute =
     path: '/access',
     getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
   } as any)
+const OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute =
+  OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRouteImport.update({
+    id: '/envs/$envId/secrets/$secretId',
+    path: '/envs/$envId/secrets/$secretId',
+    getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/orgs/$orgId/projects/$projectId/delivery': typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
   '/orgs/$orgId/projects/$projectId/secrets': typeof OrgsOrgIdProjectsProjectIdSecretsRoute
   '/orgs/$orgId/projects/$projectId/': typeof OrgsOrgIdProjectsProjectIdIndexRoute
+  '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId': typeof OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -194,6 +202,7 @@ export interface FileRoutesByTo {
   '/orgs/$orgId/projects/$projectId/delivery': typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
   '/orgs/$orgId/projects/$projectId/secrets': typeof OrgsOrgIdProjectsProjectIdSecretsRoute
   '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdIndexRoute
+  '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId': typeof OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -219,6 +228,7 @@ export interface FileRoutesById {
   '/orgs/$orgId/projects/$projectId/delivery': typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
   '/orgs/$orgId/projects/$projectId/secrets': typeof OrgsOrgIdProjectsProjectIdSecretsRoute
   '/orgs/$orgId/projects/$projectId/': typeof OrgsOrgIdProjectsProjectIdIndexRoute
+  '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId': typeof OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/projects/$projectId/delivery'
     | '/orgs/$orgId/projects/$projectId/secrets'
     | '/orgs/$orgId/projects/$projectId/'
+    | '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/projects/$projectId/delivery'
     | '/orgs/$orgId/projects/$projectId/secrets'
     | '/orgs/$orgId/projects/$projectId'
+    | '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId'
   id:
     | '__root__'
     | '/'
@@ -291,6 +303,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/projects/$projectId/delivery'
     | '/orgs/$orgId/projects/$projectId/secrets'
     | '/orgs/$orgId/projects/$projectId/'
+    | '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -461,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdAccessRouteImport
       parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
     }
+    '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId': {
+      id: '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId'
+      path: '/envs/$envId/secrets/$secretId'
+      fullPath: '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRouteImport
+      parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
+    }
   }
 }
 
@@ -480,6 +500,7 @@ interface OrgsOrgIdProjectsProjectIdRouteChildren {
   OrgsOrgIdProjectsProjectIdDeliveryRoute: typeof OrgsOrgIdProjectsProjectIdDeliveryRoute
   OrgsOrgIdProjectsProjectIdSecretsRoute: typeof OrgsOrgIdProjectsProjectIdSecretsRoute
   OrgsOrgIdProjectsProjectIdIndexRoute: typeof OrgsOrgIdProjectsProjectIdIndexRoute
+  OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute: typeof OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute
 }
 
 const OrgsOrgIdProjectsProjectIdRouteChildren: OrgsOrgIdProjectsProjectIdRouteChildren =
@@ -491,6 +512,8 @@ const OrgsOrgIdProjectsProjectIdRouteChildren: OrgsOrgIdProjectsProjectIdRouteCh
     OrgsOrgIdProjectsProjectIdSecretsRoute:
       OrgsOrgIdProjectsProjectIdSecretsRoute,
     OrgsOrgIdProjectsProjectIdIndexRoute: OrgsOrgIdProjectsProjectIdIndexRoute,
+    OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute:
+      OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute,
   }
 
 const OrgsOrgIdProjectsProjectIdRouteWithChildren =
