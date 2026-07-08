@@ -1,8 +1,9 @@
+import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
-  CLIENT_SIDE_HTTP_MARKER,
   parseErrorCodeRegistryTable,
   REMEDIATION_REQUIRED_MARKER,
   registryRowsByCode,
+  type ErrorCodeRegistryRow,
 } from "@insecur/domain/error-code-registry";
 import { describe, expect, it } from "vitest";
 import {
@@ -15,6 +16,17 @@ function hasRemediationContent(code: string): boolean {
     CLI_REMEDIATION_BY_CODE[code as keyof typeof CLI_REMEDIATION_BY_CODE] !== undefined ||
     CLI_REMEDIATION_SUPPLEMENT_CODES.has(code as never)
   );
+}
+
+function assertRemediationRequiredCodesHaveContent(rows: readonly ErrorCodeRegistryRow[]): void {
+  for (const row of rows) {
+    if (row.remediation !== REMEDIATION_REQUIRED_MARKER) {
+      continue;
+    }
+    if (!hasRemediationContent(row.code)) {
+      throw new Error(`remediation-required code missing CLI remediation: ${row.code}`);
+    }
+  }
 }
 
 describe("remediation registry lockstep", () => {
@@ -36,18 +48,31 @@ describe("remediation registry lockstep", () => {
     }
   });
 
-  it("requires CLI remediation content for client-side remediation-required codes", () => {
-    for (const row of rows) {
-      if (row.remediation !== REMEDIATION_REQUIRED_MARKER) {
-        continue;
+  it("requires CLI remediation content for every remediation-required code", () => {
+    expect(() => {
+      assertRemediationRequiredCodesHaveContent(rows);
+    }).not.toThrow();
+  });
+
+  it("fails when an HTTP-backed remediation-required code lacks CLI remediation content", () => {
+    const withoutAuthRemediation = Object.fromEntries(
+      Object.entries(CLI_REMEDIATION_BY_CODE).filter(
+        ([code]) => code !== AUTH_ERROR_CODES.required,
+      ),
+    ) as Partial<typeof CLI_REMEDIATION_BY_CODE>;
+
+    expect(() => {
+      for (const row of rows) {
+        if (row.remediation !== REMEDIATION_REQUIRED_MARKER) {
+          continue;
+        }
+        const hasContent =
+          withoutAuthRemediation[row.code as keyof typeof withoutAuthRemediation] !== undefined ||
+          CLI_REMEDIATION_SUPPLEMENT_CODES.has(row.code as never);
+        if (!hasContent) {
+          throw new Error(`remediation-required code missing CLI remediation: ${row.code}`);
+        }
       }
-      if (row.httpStatus !== CLIENT_SIDE_HTTP_MARKER) {
-        continue;
-      }
-      expect(
-        hasRemediationContent(row.code),
-        `client-side remediation-required code missing CLI remediation: ${row.code}`,
-      ).toBe(true);
-    }
+    }).toThrow(/remediation-required code missing CLI remediation: auth\.required/);
   });
 });
