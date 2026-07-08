@@ -1,7 +1,6 @@
 import type { ActorRef } from "@insecur/access";
 import type { AuditActorRef } from "@insecur/audit";
-import { OPERATION_ERROR_CODES, type UserId } from "@insecur/domain";
-import { getOperation, OperationStoreError } from "@insecur/operations";
+import { type UserId } from "@insecur/domain";
 import {
   DENY_HIGH_ASSURANCE_CHALLENGE_REQUIRED_SCOPES,
   denyHighAssuranceChallenge,
@@ -12,6 +11,7 @@ import type {
 } from "@insecur/worker-kit";
 import {
   assertHumanReviewActor,
+  loadHighAssuranceChallengeEvidenceOrMaskNotFound,
   resolveProjectReviewAccess,
 } from "./high-assurance-review-access.js";
 
@@ -29,23 +29,10 @@ export async function denyHighAssuranceChallengeOperation({
 }: DenyHighAssuranceChallengeOperationInput): Promise<DenyHighAssuranceChallengeRpcPayload> {
   await assertHumanReviewActor(accessActor, input.organizationId);
 
-  let operation;
-  try {
-    operation = await getOperation({
-      organizationId: input.organizationId,
-      operationId: input.operationId,
-    });
-  } catch (error) {
-    if (error instanceof OperationStoreError && error.code === OPERATION_ERROR_CODES.notFound) {
-      throw error;
-    }
-    throw error;
-  }
-
-  const evidence = operation.progress.highAssuranceChallenge;
-  if (evidence === undefined) {
-    throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
-  }
+  const { evidence } = await loadHighAssuranceChallengeEvidenceOrMaskNotFound({
+    organizationId: input.organizationId,
+    operationId: input.operationId,
+  });
 
   const denyingUserAccess = await resolveProjectReviewAccess(
     accessActor,

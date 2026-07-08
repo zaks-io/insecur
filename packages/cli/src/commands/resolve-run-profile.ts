@@ -184,26 +184,11 @@ export function parseRunCommandArgv(input: {
   };
 }
 
-/** The `--variable-key` fold applies only when the positional was not an explicitly typed profile. */
-function hasVariableKeyFold(input: {
-  readonly variableKey?: string;
-  readonly explicitProfilePositional?: boolean;
-}): boolean {
-  return (
-    input.variableKey !== undefined &&
-    input.variableKey !== "" &&
-    input.explicitProfilePositional !== true
-  );
-}
-
 /**
- * When Commander binds the child executable as `[profile]`, fold it back into the command: a
- * selector that resolves to no real profile is the command head whenever another run mode is
- * already selected, by `--variable-key` (the wizard's CLI handoff runs profile-less) or by an
- * ambient project/scope profile. The `--variable-key` fold is deliberately narrow: it never
- * applies when the user explicitly typed a profile before the `--` separator
- * (`explicitProfilePositional`), so a typo'd profile stays a loud mode-exclusivity error instead
- * of silently becoming the child executable.
+ * When Commander binds the child executable as `[profile]`, fold it back into the command only
+ * when the token is unambiguously part of the child argv after the `--` separator. A
+ * non-resolving selector typed before `--` (or without any separator) stays a profile lookup so
+ * `cli.profile_not_found` surfaces typo'd slugs instead of silently exec'ing them.
  */
 export function reconcileProfileRunCommand(input: {
   readonly flags: GlobalCliFlags;
@@ -237,7 +222,7 @@ export function reconcileProfileRunCommand(input: {
     return parsed;
   }
 
-  if (!hasVariableKeyFold(input) && !hasAmbientProfileRunSelection(input.context)) {
+  if (input.explicitProfilePositional === true) {
     return parsed;
   }
 
@@ -258,11 +243,13 @@ export function isExplicitProfilePositional(
   if (positionalProfile === undefined || positionalProfile === "") {
     return false;
   }
-  const separatorIndex = rawArgs.indexOf("--");
+  const runIndex = rawArgs.lastIndexOf("run");
+  const scopedArgs = runIndex === -1 ? rawArgs : rawArgs.slice(runIndex + 1);
+  const separatorIndex = scopedArgs.indexOf("--");
   if (separatorIndex === -1) {
     return true;
   }
-  return rawArgs.slice(0, separatorIndex).includes(positionalProfile);
+  return scopedArgs.slice(0, separatorIndex).includes(positionalProfile);
 }
 
 export function assertRunModeExclusive(input: {

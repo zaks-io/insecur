@@ -31,6 +31,7 @@ export {
   parseGuidedOrganizationResourceIds,
   parseOperatorOrganizationResourceIds,
 } from "./parse-route-resource-ids.js";
+export { parseWebhookSubscriptionIdParam } from "./parse-webhook-route-input.js";
 
 function throwParseError(message: string, code: string): never {
   throw Object.assign(new Error(message), { code });

@@ -37,6 +37,7 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "./env.js";
+import { ensureAuditNotificationEmitterRegistered } from "./notifications/runtime-notification-registration.js";
 import { consumeGrantAllOperation } from "./operations/consume-grant-all-operation.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
@@ -115,6 +116,7 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     actorToken: string,
     run: (actors: RuntimeRpcActorContext) => Promise<T>,
   ): Promise<RuntimeRpcResult<T>> {
+    ensureAuditNotificationEmitterRegistered(this.env);
     return this.#withConnection(() => withRuntimeRpcEntry({ env: this.env, actorToken }, run));
   }
 

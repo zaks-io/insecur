@@ -723,6 +723,98 @@
     ],
     "primaryKeys": []
   },
+  "in_app_event_notifications": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "subscription_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "webhook_event_code": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "envelope_payload": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "signature": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "signature_timestamp": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "in_app_event_notifications_webhook_event_code_check",
+        "sql": "\"in_app_event_notifications\".\"webhook_event_code\" ~ '^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$' AND char_length(\"in_app_event_notifications\".\"webhook_event_code\") <= 128"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "in_app_event_notifications_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "in_app_event_notifications_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "in_app_event_notifications_org_id_subscription_id_webhook_subscriptions_org_id_id_fk",
+        "columns": ["org_id", "subscription_id"],
+        "foreignTable": "webhook_subscriptions",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
   "injection_grants": {
     "columns": {
       "id": {
@@ -3234,6 +3326,261 @@
         "name": "user_admissions_instance_id_instances_id_fk",
         "columns": ["instance_id"],
         "foreignTable": "instances",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "webhook_signing_secrets": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "subscription_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "organization_data_key_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "ciphertext_storage_ref": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "retired_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "webhook_signing_secrets_status_check",
+        "sql": "\"webhook_signing_secrets\".\"status\" IN ('active', 'retired')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "webhook_signing_secrets_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "webhook_signing_secrets_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "webhook_signing_secrets_org_id_subscription_id_webhook_subscriptions_org_id_id_fk",
+        "columns": ["org_id", "subscription_id"],
+        "foreignTable": "webhook_subscriptions",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "webhook_subscription_event_types": {
+    "columns": {
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "subscription_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "event_code": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "webhook_subscription_event_types_event_code_check",
+        "sql": "\"webhook_subscription_event_types\".\"event_code\" ~ '^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$' AND char_length(\"webhook_subscription_event_types\".\"event_code\") <= 128"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "webhook_subscription_event_types_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "webhook_subscription_event_types_org_id_subscription_id_webhook_subscriptions_org_id_id_fk",
+        "columns": ["org_id", "subscription_id"],
+        "foreignTable": "webhook_subscriptions",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": [
+      {
+        "columns": ["org_id", "subscription_id", "event_code"],
+        "name": "webhook_subscription_event_types_org_id_subscription_id_event_code_pk"
+      }
+    ]
+  },
+  "webhook_subscriptions": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "display_name": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "delivery_email": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "enable_email_channel": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "enable_in_app_channel": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "created_by_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "webhook_subscriptions_status_check",
+        "sql": "\"webhook_subscriptions\".\"status\" IN ('active', 'disabled')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "webhook_subscriptions_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "webhook_subscriptions_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
         "foreignColumns": ["id"]
       }
     ],

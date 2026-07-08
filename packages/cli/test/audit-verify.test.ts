@@ -7,7 +7,7 @@ import {
   StaticAuditExportHmacKeyProvider,
   StaticAuditExportSigningKeyProvider,
 } from "@insecur/audit";
-import { describe, expect, it, beforeAll } from "vitest";
+import { describe, expect, it, beforeAll, vi } from "vitest";
 import { CliError } from "../src/output/cli-error.js";
 import { EXIT_VALIDATION } from "../src/output/exit-codes.js";
 import { runAuditVerifyCommand } from "../src/commands/audit-verify.js";
@@ -16,6 +16,7 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 
 describe("audit verify CLI", () => {
   let publicKey: string;
+  let verifyStdout = "";
 
   beforeAll(async () => {
     const hmacKey = await StaticAuditExportHmacKeyProvider.create({
@@ -69,12 +70,41 @@ describe("audit verify CLI", () => {
     process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = "cli-audit-export-hmac";
     process.env.INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY = publicKey;
 
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      verifyStdout += String(chunk);
+      return true;
+    });
+
     const exitCode = await runAuditVerifyCommand(
       { json: true, quiet: true, verbose: false, orgId: ORG },
       jsonlPath,
       { manifestPath },
     );
+    stdoutSpy.mockRestore();
     expect(exitCode).toBe(0);
+  });
+
+  it("emits camelCase envelope data keys", () => {
+    const parsed = JSON.parse(verifyStdout) as {
+      ok: boolean;
+      data: Record<string, unknown>;
+    };
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data).toMatchObject({
+      status: "valid",
+      organizationId: ORG,
+      entryCount: 1,
+      hmacKeyVersion: 1,
+      signingKeyVersion: 1,
+      failureCodes: [],
+    });
+    expect(parsed.data).toHaveProperty("timeRange");
+    expect(parsed.data).toHaveProperty("integrity");
+    expect(parsed.data).toHaveProperty("custodyEvidenceRefs");
+    expect(parsed.data).not.toHaveProperty("organization_id");
+    expect(parsed.data).not.toHaveProperty("entry_count");
+    expect(parsed.data).not.toHaveProperty("time_range");
+    expect(parsed.data).not.toHaveProperty("failure_codes");
   });
 
   it("registered signing public key env for verify command", () => {

@@ -1,6 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
-import { Command } from "commander";
+import { Command, type Command as CommanderCommand } from "commander";
 import { registerRunCommand } from "../src/register-run-command.js";
+import { registerScanCommand } from "../src/register-scan-command.js";
+
+function captureCommandHelp(command: CommanderCommand): string {
+  let output = "";
+  command.configureOutput({
+    writeOut: (text) => {
+      output += text;
+    },
+    writeErr: (text) => {
+      output += text;
+    },
+  });
+  command.outputHelp({ error: false });
+  return output;
+}
 
 const runRunCommandMock = vi.hoisted(() => vi.fn(async () => 0));
 
@@ -9,6 +24,48 @@ vi.mock("../src/commands/run.js", () => ({
 }));
 
 describe("registerRunCommand", () => {
+  it("documents the -- separator in help output", () => {
+    const program = new Command();
+    registerRunCommand(program, {
+      globalFlags: () => ({
+        host: undefined,
+        orgId: undefined,
+        projectId: undefined,
+        envId: undefined,
+        profile: undefined,
+        profileId: undefined,
+        configDir: undefined,
+        json: false,
+        quiet: false,
+        verbose: false,
+      }),
+      resolveApi: async () => ({
+        api: {} as never,
+        context: {
+          projectConfig: null,
+          userConfig: { profiles: {} },
+          scope: {
+            host: "https://insecur.test",
+            orgId: undefined,
+            projectId: undefined,
+            envId: undefined,
+            profileId: undefined,
+            profileSlug: undefined,
+            profile: undefined,
+          },
+        },
+      }),
+    });
+
+    const run = program.commands.find((command) => command.name() === "run");
+    if (run === undefined) {
+      throw new Error("expected run command to be registered");
+    }
+    const help = captureCommandHelp(run);
+    expect(help).toContain("insecur run [profile] -- <command...>");
+    expect(help).toContain("The `--` separator is required");
+  });
+
   it("forwards commander positional profile separately from child argv", async () => {
     runRunCommandMock.mockClear();
     const program = new Command();
@@ -169,5 +226,32 @@ describe("registerRunCommand", () => {
         command: ["npm", "test"],
       },
     );
+  });
+});
+
+describe("registerScanCommand", () => {
+  it("documents --config-dir scan root behavior in help output", () => {
+    const program = new Command();
+    registerScanCommand(program, {
+      globalFlags: () => ({
+        host: undefined,
+        orgId: undefined,
+        projectId: undefined,
+        envId: undefined,
+        profile: undefined,
+        profileId: undefined,
+        configDir: undefined,
+        json: false,
+        quiet: false,
+        verbose: false,
+      }),
+    });
+
+    const scan = program.commands.find((command) => command.name() === "scan");
+    if (scan === undefined) {
+      throw new Error("expected scan command to be registered");
+    }
+    const help = captureCommandHelp(scan);
+    expect(help).toContain("The global --config-dir flag sets the project scan root");
   });
 });

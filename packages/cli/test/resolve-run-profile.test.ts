@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { VALIDATION_ERROR_CODES } from "@insecur/domain";
+import { CLI_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   assertRunModeExclusive,
   isExplicitProfilePositional,
@@ -15,6 +15,7 @@ import type { GlobalCliFlags } from "../src/cli-options.js";
 import { loadAndResolveCliContext } from "../src/config/load-cli-context.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { PROJECT_CONFIG_FILE, USER_CONFIG_FILE } from "../src/config/paths.js";
+import { EXIT_NOT_FOUND } from "../src/output/exit-codes.js";
 import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const ORG_ID = "org_01TEST00000000000000000001";
@@ -130,7 +131,7 @@ describe("resolveProfileRunLookup project profile selection", () => {
 });
 
 describe("reconcileProfileRunCommand project profile selection", () => {
-  it("treats an unknown commander positional as the child executable when scope.profileId is set", () => {
+  it("treats an unknown commander positional as the child executable when it appears after --", () => {
     expect(
       reconcileProfileRunCommand({
         flags,
@@ -139,11 +140,31 @@ describe("reconcileProfileRunCommand project profile selection", () => {
             profileId: PROFILE_ID as never,
           },
         }),
+        explicitProfilePositional: false,
         positionalProfile: "node",
         args: ["node", "-e", "process.exit(0)"],
       }),
     ).toEqual({
       command: ["node", "-e", "process.exit(0)"],
+    });
+  });
+
+  it("returns a typo'd profile selector when scope.profileId is set but the positional is explicit", () => {
+    expect(
+      reconcileProfileRunCommand({
+        flags,
+        context: createContext({
+          scope: {
+            profileId: PROFILE_ID as never,
+          },
+        }),
+        explicitProfilePositional: true,
+        positionalProfile: "typo-profile",
+        args: ["typo-profile", "npm", "start"],
+      }),
+    ).toEqual({
+      profileSelector: "typo-profile",
+      command: ["npm", "start"],
     });
   });
 
@@ -208,6 +229,7 @@ describe("reconcileProfileRunCommand project profile selection", () => {
           userConfig: { profiles: {} },
           scope: createContext({}).scope,
         },
+        explicitProfilePositional: true,
         positionalProfile: "typo-profile",
         args: ["typo-profile", "npm", "start"],
       }),
@@ -237,6 +259,21 @@ describe("reconcileProfileRunCommand project profile selection", () => {
       profileSelector: "staging-typo",
       command: ["npm", "test"],
     });
+  });
+
+  it("throws profile_not_found for an explicit typo'd profile slug", () => {
+    expect(() =>
+      resolveProfileRunInput({
+        flags,
+        context: createContext({}),
+        profileSelector: "typo-profile",
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: CLI_ERROR_CODES.profileNotFound,
+        exitCode: EXIT_NOT_FOUND,
+      }),
+    );
   });
 });
 

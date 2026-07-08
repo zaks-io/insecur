@@ -18,11 +18,20 @@ export function assertSecretIdentityForAad(identity: SecretCiphertextIdentity): 
   assertOpaqueResourceIdFieldForAad(identity.secretId, "sec", "secretId");
 }
 
+const WEBHOOK_SIGNING_SECRET_PROVIDER = "webhook-signing-secret";
+
 export function assertProviderCredentialIdentityForAad(
   identity: ProviderCredentialCiphertextIdentity,
 ): void {
   assertProviderConnectionMethodForAad(identity.provider);
   assertOpaqueResourceIdFieldForAad(identity.organizationId, "org", "organizationId");
+  if (identity.provider === WEBHOOK_SIGNING_SECRET_PROVIDER) {
+    // Webhook signing secrets reuse the provider-credential envelope; subscription id
+    // occupies the appConnectionId AAD slot and signing secret id occupies credentialId.
+    assertOpaqueResourceIdFieldForAad(identity.appConnectionId, "whsub", "appConnectionId");
+    assertOpaqueResourceIdFieldForAad(identity.credentialId, "whsec", "credentialId");
+    return;
+  }
   assertOpaqueResourceIdFieldForAad(identity.appConnectionId, "conn", "appConnectionId");
   assertOpaqueResourceIdFieldForAad(identity.credentialId, "pcred", "credentialId");
 }

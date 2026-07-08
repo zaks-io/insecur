@@ -15,15 +15,13 @@ vi.mock("@insecur/high-assurance", () => ({
 }));
 
 vi.mock("./high-assurance-review-access.js", () => ({
-  assertHumanReviewActor: vi.fn(),
-  authorizeHighAssuranceReviewRead: vi.fn(),
+  assertHighAssuranceReviewReadPrelude: vi.fn(),
   filterReviewItemsByEffectiveAccess: vi.fn(),
 }));
 
 import { listPendingHighAssuranceChallenges } from "@insecur/high-assurance";
 import {
-  assertHumanReviewActor,
-  authorizeHighAssuranceReviewRead,
+  assertHighAssuranceReviewReadPrelude,
   filterReviewItemsByEffectiveAccess,
 } from "./high-assurance-review-access.js";
 
@@ -47,7 +45,7 @@ const pendingChallenge = {
 
 describe("listPendingHighAssuranceChallengesOperation", () => {
   it("rejects machine actors before listing pending challenges", async () => {
-    vi.mocked(assertHumanReviewActor).mockRejectedValue(
+    vi.mocked(assertHighAssuranceReviewReadPrelude).mockRejectedValue(
       Object.assign(new Error("Missing required permission."), {
         code: AUTH_ERROR_CODES.insufficientScope,
       }),
@@ -70,8 +68,7 @@ describe("listPendingHighAssuranceChallengesOperation", () => {
   });
 
   it("returns an empty inbox when pending challenges are not visible to the caller", async () => {
-    vi.mocked(assertHumanReviewActor).mockResolvedValue(undefined);
-    vi.mocked(authorizeHighAssuranceReviewRead).mockResolvedValue(undefined);
+    vi.mocked(assertHighAssuranceReviewReadPrelude).mockResolvedValue(undefined);
     vi.mocked(listPendingHighAssuranceChallenges).mockResolvedValue([pendingChallenge]);
     vi.mocked(filterReviewItemsByEffectiveAccess).mockResolvedValue([]);
 

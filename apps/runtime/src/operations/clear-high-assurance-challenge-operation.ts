@@ -9,10 +9,7 @@ import type {
   ClearHighAssuranceChallengeRpcInput,
   ClearHighAssuranceChallengeRpcPayload,
 } from "@insecur/worker-kit";
-import {
-  assertHumanReviewActor,
-  resolveProjectReviewAccess,
-} from "./high-assurance-review-access.js";
+import { prepareMutationReviewAccess } from "./high-assurance-review-access.js";
 
 export interface ClearHighAssuranceChallengeOperationInput {
   readonly input: ClearHighAssuranceChallengeRpcInput;
@@ -26,14 +23,12 @@ export async function clearHighAssuranceChallengeOperation({
   accessActor,
   clearingUserId,
 }: ClearHighAssuranceChallengeOperationInput): Promise<ClearHighAssuranceChallengeRpcPayload> {
-  await assertHumanReviewActor(accessActor, input.organizationId);
-
-  const clearingUserAccess = await resolveProjectReviewAccess(
+  const clearingUserAccess = await prepareMutationReviewAccess({
     accessActor,
-    input.organizationId,
-    input.projectId,
-    input.environmentId,
-  );
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
+  });
 
   const mutation = await clearHighAssuranceChallenge({
     organizationId: input.organizationId,
