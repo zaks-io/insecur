@@ -54,6 +54,17 @@ const succeededOperation: OperationPollData = {
   updatedAt: "2026-07-01T00:02:00.000Z",
 };
 
+const incompleteOperation: OperationPollData = {
+  ...runningOperation,
+  state: "incomplete",
+  cause: "retryable",
+  progress: {
+    counters: { bindingsTotal: 2, bindingsSucceeded: 1 },
+    flags: { abandoned: true },
+  },
+  updatedAt: "2026-07-01T00:02:00.000Z",
+};
+
 function setTestSession(): void {
   setMemorySession({
     credential: "credential_test",
@@ -154,6 +165,35 @@ describe("operations wait", () => {
     const line = stdout.mock.calls.at(-1)?.[0];
     const parsed: unknown = JSON.parse(line as string);
     expect(parsed).toMatchObject({ ok: true, data: { state: "succeeded" } });
+  });
+
+  it("resolves promptly at exit 9 when the operation is incomplete", async () => {
+    setTestSession();
+    const getOperation = vi.fn(async () => ({
+      ok: true as const,
+      envelope: { ok: true as const, data: incompleteOperation },
+    }));
+    const api = createMockApi({ getOperation });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runOperationsWaitCommand(flags, api, mockContext, {
+      operationId: OPERATION_ID,
+      timeoutSeconds: 60,
+    });
+
+    expect(exitCode).toBe(EXIT_WAIT_TIMEOUT);
+    expect(getOperation).toHaveBeenCalledTimes(1);
+    const line = stdout.mock.calls[0]?.[0];
+    const parsed: unknown = JSON.parse(line as string);
+    expect(parsed).toMatchObject({
+      ok: true,
+      data: {
+        operationId: OPERATION_ID,
+        state: "incomplete",
+        cause: "retryable",
+        progress: { flags: { abandoned: true } },
+      },
+    });
   });
 
   it("fails with operation.wait_timeout at exit 9 and carries current state", async () => {

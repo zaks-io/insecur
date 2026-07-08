@@ -44,13 +44,18 @@ export async function runOperationsGetCommand(
   return 0;
 }
 
-const TERMINAL_OPERATION_STATES = new Set([
+const TERMINAL_OPERATION_POLL_STATES = new Set([
   "succeeded",
   "completed_with_warnings",
   "canceled",
   "failed",
+  "incomplete",
 ]);
 
 export function isTerminalOperationPollState(state: string): boolean {
-  return TERMINAL_OPERATION_STATES.has(state);
+  return TERMINAL_OPERATION_POLL_STATES.has(state);
+}
+
+export function isSuccessTerminalOperationPollState(state: string): boolean {
+  return state !== "incomplete" && TERMINAL_OPERATION_POLL_STATES.has(state);
 }
