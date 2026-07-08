@@ -25,9 +25,9 @@ vi.mock("../crypto/keyring-context.js", () => ({
   createKeyringFromRuntimeEnv: vi.fn(),
 }));
 
-const env: RuntimeEnv = {
+const env = {
   RUNTIME_TOKEN_SIGNING_SECRET: "runtime-operation-secret",
-};
+} as RuntimeEnv;
 const keyring = { kind: "test-keyring" } as unknown as Keyring;
 const organization = organizationId.generate();
 const grant = injectionGrantId.generate();

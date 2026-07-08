@@ -147,6 +147,7 @@ jobs:
           pnpm conformance:topology
           pnpm conformance:packages
           pnpm conformance:site-boundary
+          pnpm conformance:wrangler-types
           pnpm conformance:cli-release-boundary
           pnpm test:scripts
           pnpm exec turbo run lint typecheck test "${cache_flags}"

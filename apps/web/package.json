@@ -12,6 +12,8 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "node scripts/verify-ssr-csp.mjs",
+    "wrangler:types": "wrangler types src/worker-configuration.d.ts --config wrangler.jsonc --env-interface CloudflareEnv --include-runtime false --strict-vars false",
+    "wrangler:types:check": "wrangler types src/worker-configuration.d.ts --config wrangler.jsonc --env-interface CloudflareEnv --include-runtime false --strict-vars false --check",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .wrangler .output"
   },

@@ -89,5 +89,5 @@ export function createFakeWebEnv(overrides: Partial<WebEnv> = {}): WebEnv {
     API: unusedApiBinding(),
     RUNTIME: createFakeRuntimeAdmissionBinding().runtime,
     ...overrides,
-  };
+  } as WebEnv;
 }

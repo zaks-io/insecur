@@ -1,38 +1,29 @@
-import type { SentryBindings } from "@insecur/observability";
 import type { RuntimeAdmissionRpc } from "./runtime/admission-types.js";
+
+/**
+ * Worker secrets and RPC contracts Wrangler cannot infer from wrangler.jsonc. Generated bindings
+ * and public vars live on {@link CloudflareEnv}.
+ */
+interface WebEnvSecrets {
+  readonly WORKOS_API_KEY: string;
+  readonly WORKOS_COOKIE_PASSWORD: string;
+  readonly SESSION_SIGNING_SECRET: string;
+  readonly WORKOS_FAKE_SESSIONS_JSON?: string;
+  readonly TURNSTILE_SECRET_KEY: string;
+}
 
 /**
  * Bindings for the Web BFF (`insecur-web`, ADR-0051). Owns the browser session cookie, holds no
  * keyring and no Hyperdrive binding, and reaches the API Worker only over the private `API`
  * Service Binding with a per-request `insecur-api`-audience scoped token.
  */
-export interface WebEnv extends SentryBindings {
-  readonly DEPLOY_SHA?: string;
-  readonly DEPLOY_RUN_ID?: string;
-  readonly DEPLOYED_AT?: string;
-  readonly WORKOS_API_KEY: string;
-  readonly WORKOS_CLIENT_ID: string;
-  readonly WORKOS_COOKIE_PASSWORD: string;
-  /**
-   * Per-environment WorkOS authorization origin(s) the browser login form's POST redirect chain
-   * traverses, as a space/comma-separated list of https origins (e.g.
-   * `https://api.workos.com https://<tenant>.authkit.app`). Threaded into the CSP `form-action`
-   * directive so every off-origin hop in the redirect chain is allowed (INS-417). Absent/invalid
-   * config fails closed to `form-action 'self'`.
-   */
-  readonly WORKOS_AUTHKIT_ORIGIN?: string;
-  readonly SESSION_SIGNING_SECRET: string;
-  readonly TURNSTILE_SITE_KEY: string;
-  readonly TURNSTILE_SECRET_KEY: string;
-  readonly INSTANCE_ID?: string;
-  /**
-   * Enables preview smoke bearer admission through Runtime instead of the WorkOS cookie path.
-   * Must stay unset outside Deploy Preview.
-   */
-  readonly PREVIEW_SMOKE_SESSION_CREDENTIALS?: string;
-  readonly WORKOS_FAKE_SESSIONS_JSON?: string;
-  /** Private Service Binding to the public API Worker (`insecur-api`). */
-  readonly API: Fetcher;
-  /** Pre-auth admission seam; same Runtime RPC subset as the API edge (ADR-0077). */
-  readonly RUNTIME: RuntimeAdmissionRpc;
+export type WebEnv = Omit<CloudflareEnv, "RUNTIME"> &
+  WebEnvSecrets & {
+    /** Pre-auth admission seam; same Runtime RPC subset as the API edge (ADR-0077). */
+    readonly RUNTIME: RuntimeAdmissionRpc;
+  };
+
+/** Bridge TanStack Start's generated `Cloudflare.Env` to the full BFF contract at runtime. */
+export function asWebEnv(env: Cloudflare.Env): WebEnv {
+  return env as unknown as WebEnv;
 }

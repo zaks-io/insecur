@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createTestAuditExportKeyProviders } from "../../../../packages/audit/test/support/test-audit-export-keys.js";
 import { resolveAuditExportKeyProviders } from "./audit-export-key-providers.js";
 import { AuditExportKeysNotConfiguredError } from "./audit-export-keys-not-configured-error.js";
+import type { RuntimeEnv } from "../env.js";
 
 describe("resolveAuditExportKeyProviders", () => {
   const originalHmac = process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET;
@@ -35,7 +36,7 @@ describe("resolveAuditExportKeyProviders", () => {
       resolveAuditExportKeyProviders({
         RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
         SENTRY_ENVIRONMENT: "production",
-      }),
+      } as RuntimeEnv),
     ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
   });
 
@@ -51,7 +52,7 @@ describe("resolveAuditExportKeyProviders", () => {
       SENTRY_ENVIRONMENT: "production",
       AUDIT_EXPORT_HMAC_KEY_V1: { get: async () => keys.hmacSecret },
       AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
-    });
+    } as RuntimeEnv);
 
     expect(providers.hmacKey.keyVersion).toBe(1);
     expect(providers.signingKey.keyVersion).toBe(2);
@@ -66,7 +67,7 @@ describe("resolveAuditExportKeyProviders", () => {
       resolveAuditExportKeyProviders({
         RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
         SENTRY_ENVIRONMENT: "preview",
-      }),
+      } as RuntimeEnv),
     ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
   });
 
@@ -81,7 +82,7 @@ describe("resolveAuditExportKeyProviders", () => {
       resolveAuditExportKeyProviders({
         RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
         SENTRY_ENVIRONMENT: "preview",
-      }),
+      } as RuntimeEnv),
     ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
   });
 
@@ -98,7 +99,7 @@ describe("resolveAuditExportKeyProviders", () => {
       RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
       SENTRY_ENVIRONMENT: "preview",
       AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
-    });
+    } as RuntimeEnv);
 
     expect(providers.hmacKey.keyVersion).toBe(1);
     expect(providers.signingKey.publicKeyBase64Url).toBe(keys.signingPublicKey);

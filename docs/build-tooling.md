@@ -207,7 +207,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci:check": "pnpm verify",
-    "verify": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:scripts && turbo run lint typecheck test --cache=local:rw,remote:r",
+    "verify": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:wrangler-types && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:scripts && turbo run lint typecheck test --cache=local:rw,remote:r",
     "prepare": "node scripts/lefthook-install.mjs",
   },
 }
@@ -223,6 +223,9 @@ isolation against the wrangler configs and composition roots, and fails when
 package-boundary conformance gate
 (`conformance:packages` — asserts the public/API and contract packages have no production dependency
 path to `@insecur/crypto`), the site-boundary conformance gate (`conformance:site-boundary`), the
+Wrangler Env type conformance gate (`conformance:wrangler-types`, INS-511 — asserts
+`apps/{api,runtime,web,site}/src/worker-configuration.d.ts` match each `wrangler.jsonc` via
+`wrangler types --check`), the
 Prettier check, then the Turbo `lint typecheck test` fan-out. A green `verify` should predict a
 green `CI`. `ci:check` is a compatibility alias for `verify`. `test:coverage` cleans stale reports,
 runs each covered workspace's `test:coverage` task through Turbo, then merges every
@@ -251,6 +254,23 @@ It exits non-zero on any clone; it is the strict zero gate for local use.
 each clone without failing, so reviewers see every clone when a warning-only pass is useful.
 The `CI` workflow and `pnpm verify` run only `duplicates:ci`; strict mode reuses the same report and
 annotation path, so the gate scans once instead of running jscpd twice.
+
+## Wrangler Env Type Generation (INS-511)
+
+Each Worker deploy keeps a generated declaration at `apps/<app>/src/worker-configuration.d.ts`.
+Wrangler derives bindings and public `vars` from `wrangler.jsonc`; app `env.ts` files intersect that
+generated `CloudflareEnv` with explicit secret and RPC contracts Wrangler cannot infer (hop-token
+signing secrets, WorkOS session material, typed `RUNTIME` RPC subsets, and similar).
+
+```sh
+pnpm wrangler:types        # regenerate all four Worker fleet declarations
+pnpm wrangler:types:check  # fail when any declaration is stale
+pnpm conformance:wrangler-types  # same check, wired into pnpm verify
+```
+
+Per-app shortcuts also exist, for example `pnpm --filter @insecur/api wrangler:types`. After adding
+or renaming a binding in any `apps/{api,runtime,web,site}/wrangler.jsonc`, regenerate and commit the
+matching `worker-configuration.d.ts` before opening a PR.
 
 ## Unused Code and Dependencies (knip)
 

@@ -7,7 +7,7 @@ import {
   parseRequestCredentials,
 } from "@insecur/auth";
 import { createWorkOSSessionPortFromEnv } from "../auth/workos-port.js";
-import type { WebEnv } from "../env.js";
+import { asWebEnv } from "../env.js";
 
 export type ApprovalPasskeyPosture =
   | { readonly kind: "unauthenticated" }
@@ -30,7 +30,7 @@ export const loadApprovalPasskeyPosture = createServerFn({ method: "GET" }).hand
         return { kind: "unauthenticated" };
       }
 
-      const workos = createWorkOSSessionPortFromEnv(env as WebEnv);
+      const workos = createWorkOSSessionPortFromEnv(asWebEnv(env));
       const session = await authenticateWorkOSSession(workos, credentials.workosSealedSession);
       if (!session.ok) {
         return { kind: "unauthenticated" };

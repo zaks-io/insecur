@@ -13,7 +13,7 @@ import { withRuntimeRpcEntry } from "./runtime-rpc-entry.js";
 const RUNTIME_TOKEN_SIGNING_SECRET = "runtime-entry-secret-000000000000000000000000000";
 const SENTINEL = "sentinel-plaintext-must-not-cross-seam";
 
-const env: RuntimeEnv = { RUNTIME_TOKEN_SIGNING_SECRET };
+const env = { RUNTIME_TOKEN_SIGNING_SECRET } as RuntimeEnv;
 
 const actor: UserActor = {
   type: "user",
@@ -84,7 +84,7 @@ describe("withRuntimeRpcEntry", () => {
   it("maps an invalid hop-token signing secret to auth.config_invalid", async () => {
     const result = await withRuntimeRpcEntry(
       {
-        env: { RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret" },
+        env: { RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret" } as RuntimeEnv,
         actorToken: await mintRuntimeToken(),
       },
       async () => ({ shouldNotRun: true }),
