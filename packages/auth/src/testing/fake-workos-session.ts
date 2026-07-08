@@ -66,10 +66,17 @@ function fakeAuthorizationUrl(input: Parameters<WorkOSSessionPort["createAuthori
 
 function authenticateFakeAuthorizationCode(
   entries: readonly FakeWorkOSSessionEntry[],
+  consumedCodes: Set<string>,
   input: Parameters<WorkOSSessionPort["authenticateAuthorizationCode"]>[0],
 ): ReturnType<WorkOSSessionPort["authenticateAuthorizationCode"]> {
   const entry = entries.find((candidate) => candidate.authorizationCode === input.code);
   if (entry === undefined) {
+    return Promise.resolve({ authenticated: false, reason: "invalid" });
+  }
+  // WorkOS authorization codes are single-use: a redeemed code cannot be exchanged again. Modeling
+  // that here means a double exchange of one step-up code fails in tests instead of silently
+  // passing, guarding against a regression of the BFF+API double-exchange (INS-517).
+  if (consumedCodes.has(input.code)) {
     return Promise.resolve({ authenticated: false, reason: "invalid" });
   }
   if (entry.codeVerifier !== undefined && entry.codeVerifier !== input.codeVerifier) {
@@ -81,6 +88,7 @@ function authenticateFakeAuthorizationCode(
   if (entry.authorizationCodeThrow !== undefined) {
     throw entry.authorizationCodeThrow;
   }
+  consumedCodes.add(input.code);
   return Promise.resolve({
     authenticated: true,
     context: contextFromEntry(entry),
@@ -141,12 +149,14 @@ export function createFakeWorkOSSessionPort(
   entries: readonly FakeWorkOSSessionEntry[],
 ): WorkOSSessionPort {
   const bySession = new Map(entries.map((entry) => [entry.sessionData, entry]));
+  const consumedCodes = new Set<string>();
   seedRegisteredPasskeys(entries);
 
   return {
     createAuthorizationUrl: fakeAuthorizationUrl,
 
-    authenticateAuthorizationCode: (input) => authenticateFakeAuthorizationCode(entries, input),
+    authenticateAuthorizationCode: (input) =>
+      authenticateFakeAuthorizationCode(entries, consumedCodes, input),
 
     authenticateSealedSession: (sessionData) =>
       authenticateFakeSealedSession(bySession, sessionData),
