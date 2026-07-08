@@ -168,7 +168,6 @@ export async function completeBrowserChallengeClearStepUp(
 
   const completed = await submitChallengeClearAfterStepUp({
     env,
-    request,
     roundTrip: callback.roundTrip,
     code: callback.code,
     actor: actorResult,
