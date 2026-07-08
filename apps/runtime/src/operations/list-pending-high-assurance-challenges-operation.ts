@@ -6,8 +6,7 @@ import type {
   ListPendingHighAssuranceChallengesRpcPayload,
 } from "@insecur/worker-kit";
 import {
-  assertHumanReviewActor,
-  authorizeHighAssuranceReviewRead,
+  assertHighAssuranceReviewReadPrelude,
   filterReviewItemsByEffectiveAccess,
 } from "./high-assurance-review-access.js";
 
@@ -22,8 +21,7 @@ export async function listPendingHighAssuranceChallengesOperation({
   auditActor,
   accessActor,
 }: ListPendingHighAssuranceChallengesOperationInput): Promise<ListPendingHighAssuranceChallengesRpcPayload> {
-  await assertHumanReviewActor(accessActor, input.organizationId);
-  await authorizeHighAssuranceReviewRead({
+  await assertHighAssuranceReviewReadPrelude({
     accessActor,
     auditActor,
     organizationId: input.organizationId,
