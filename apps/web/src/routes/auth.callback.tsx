@@ -5,14 +5,14 @@ import { completeBrowserLogin, redirectResponse } from "../auth/browser-oauth.js
 import { formatPkceStateClearCookie } from "../auth/browser-oauth-pkce.js";
 import { loginFailureRedirectPath } from "../auth/login-error.js";
 import { SiteFrame } from "../components/site-frame.js";
-import type { WebEnv } from "../env.js";
+import { asWebEnv } from "../env.js";
 
 export const Route = createFileRoute("/auth/callback")({
   server: {
     handlers: {
       GET: async () => {
         const request = getRequest();
-        const completed = await completeBrowserLogin(request, env as WebEnv);
+        const completed = await completeBrowserLogin(request, asWebEnv(env));
         if (!completed.ok) {
           return redirectResponse(loginFailureRedirectPath(completed.failure.reason), [
             formatPkceStateClearCookie(),

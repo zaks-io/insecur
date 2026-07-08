@@ -8,14 +8,14 @@ import {
 import { formatPkceStateClearCookie } from "../auth/browser-oauth-pkce.js";
 import { redirectResponse } from "../auth/browser-oauth.js";
 import { SiteFrame } from "../components/site-frame.js";
-import type { WebEnv } from "../env.js";
+import { asWebEnv } from "../env.js";
 
 export const Route = createFileRoute("/auth/enroll-passkey/callback")({
   server: {
     handlers: {
       GET: async () => {
         const request = getRequest();
-        const completed = await completeBrowserPasskeyEnrollment(request, env as WebEnv);
+        const completed = await completeBrowserPasskeyEnrollment(request, asWebEnv(env));
         if (!completed.ok) {
           return redirectResponse(resolveEnrollmentFailureRedirect(request), [
             formatPkceStateClearCookie(),

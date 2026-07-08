@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestAuditExportKeyProviders } from "../../../../packages/audit/test/support/test-audit-export-keys.js";
+import { runtimeEnvFixture } from "../test-support/runtime-env-fixture.js";
 import { resolveAuditExportKeyProviders } from "./audit-export-key-providers.js";
 import { AuditExportKeysNotConfiguredError } from "./audit-export-keys-not-configured-error.js";
 
@@ -32,10 +33,11 @@ describe("resolveAuditExportKeyProviders", () => {
     process.env.INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY = "env-public";
 
     await expect(
-      resolveAuditExportKeyProviders({
-        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
-        SENTRY_ENVIRONMENT: "production",
-      }),
+      resolveAuditExportKeyProviders(
+        runtimeEnvFixture({
+          SENTRY_ENVIRONMENT: "production",
+        }),
+      ),
     ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
   });
 
@@ -46,12 +48,13 @@ describe("resolveAuditExportKeyProviders", () => {
       privateKeyPkcs8Base64Url: keys.signingPrivateKeyPkcs8Base64Url,
       publicKeyRawBase64Url: keys.signingPublicKey,
     });
-    const providers = await resolveAuditExportKeyProviders({
-      RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
-      SENTRY_ENVIRONMENT: "production",
-      AUDIT_EXPORT_HMAC_KEY_V1: { get: async () => keys.hmacSecret },
-      AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
-    });
+    const providers = await resolveAuditExportKeyProviders(
+      runtimeEnvFixture({
+        SENTRY_ENVIRONMENT: "production",
+        AUDIT_EXPORT_HMAC_KEY_V1: { get: async () => keys.hmacSecret },
+        AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
+      }),
+    );
 
     expect(providers.hmacKey.keyVersion).toBe(1);
     expect(providers.signingKey.keyVersion).toBe(2);
@@ -63,10 +66,11 @@ describe("resolveAuditExportKeyProviders", () => {
     process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = keys.hmacSecret;
 
     await expect(
-      resolveAuditExportKeyProviders({
-        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
-        SENTRY_ENVIRONMENT: "preview",
-      }),
+      resolveAuditExportKeyProviders(
+        runtimeEnvFixture({
+          SENTRY_ENVIRONMENT: "preview",
+        }),
+      ),
     ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
   });
 
@@ -78,10 +82,11 @@ describe("resolveAuditExportKeyProviders", () => {
     process.env.INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY = keys.signingPublicKey;
 
     await expect(
-      resolveAuditExportKeyProviders({
-        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
-        SENTRY_ENVIRONMENT: "preview",
-      }),
+      resolveAuditExportKeyProviders(
+        runtimeEnvFixture({
+          SENTRY_ENVIRONMENT: "preview",
+        }),
+      ),
     ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
   });
 
@@ -94,12 +99,13 @@ describe("resolveAuditExportKeyProviders", () => {
     process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = keys.hmacSecret;
 
     await expect(
-      resolveAuditExportKeyProviders({
-        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
-        SENTRY_ENVIRONMENT: "preview",
-        AUDIT_EXPORT_HMAC_KEY_V1: { get: async () => keys.hmacSecret },
-        AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
-      }),
+      resolveAuditExportKeyProviders(
+        runtimeEnvFixture({
+          SENTRY_ENVIRONMENT: "preview",
+          AUDIT_EXPORT_HMAC_KEY_V1: { get: async () => keys.hmacSecret },
+          AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
+        }),
+      ),
     ).rejects.toThrow("audit export signing key material is missing or has invalid keyVersion");
   });
 
@@ -112,11 +118,12 @@ describe("resolveAuditExportKeyProviders", () => {
       publicKeyRawBase64Url: keys.signingPublicKey,
     });
 
-    const providers = await resolveAuditExportKeyProviders({
-      RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
-      SENTRY_ENVIRONMENT: "preview",
-      AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
-    });
+    const providers = await resolveAuditExportKeyProviders(
+      runtimeEnvFixture({
+        SENTRY_ENVIRONMENT: "preview",
+        AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
+      }),
+    );
 
     expect(providers.hmacKey.keyVersion).toBe(1);
     expect(providers.signingKey.publicKeyBase64Url).toBe(keys.signingPublicKey);

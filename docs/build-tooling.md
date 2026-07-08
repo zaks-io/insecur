@@ -209,7 +209,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci:check": "pnpm verify",
-    "verify:policy": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:scripts",
+    "verify:policy": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:wrangler-types && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:scripts",
     "verify:turbo": "turbo run lint typecheck test --continue=dependencies-successful --cache=\"${TURBO_CACHE:-local:rw,remote:r}\"",
     "verify:turbo:affected": "turbo run lint typecheck test --affected --continue=dependencies-successful --cache=\"${TURBO_CACHE:-local:rw,remote:r}\"",
     "verify:pr": "pnpm verify:policy && pnpm verify:turbo:affected",
@@ -227,8 +227,10 @@ gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability isolation 
 configs and composition roots, and fails when `docs/specs/deploy-route-inventory.md` is stale
 relative to `pnpm routes:inventory`), the package-boundary conformance gate (`conformance:packages`
 — asserts the public/API and contract packages have no production dependency path to
-`@insecur/crypto`), the site-boundary conformance gate (`conformance:site-boundary`), the CLI release
-boundary gate, the Prettier check, and script tests.
+`@insecur/crypto`), the site-boundary conformance gate (`conformance:site-boundary`), the Wrangler
+Env type conformance gate (`conformance:wrangler-types`, INS-511 — asserts
+`apps/{api,runtime,web,site}/src/worker-configuration.d.ts` match each `wrangler.jsonc` via
+`wrangler types --check`), the CLI release boundary gate, the Prettier check, and script tests.
 
 Package graph work is routed through Turborepo. `verify:turbo` runs the full
 `lint typecheck test` package graph. `verify:turbo:affected` uses Turbo's `--affected` PR mode to
@@ -265,6 +267,23 @@ It exits non-zero on any clone; it is the strict zero gate for local use.
 each clone without failing, so reviewers see every clone when a warning-only pass is useful.
 The `CI` workflow and `pnpm verify` run only `duplicates:ci`; strict mode reuses the same report and
 annotation path, so the gate scans once instead of running jscpd twice.
+
+## Wrangler Env Type Generation (INS-511)
+
+Each Worker deploy keeps a generated declaration at `apps/<app>/src/worker-configuration.d.ts`.
+Wrangler derives bindings and public `vars` from `wrangler.jsonc`; app `env.ts` files intersect that
+generated `CloudflareEnv` with explicit secret and RPC contracts Wrangler cannot infer (hop-token
+signing secrets, WorkOS session material, typed `RUNTIME` RPC subsets, and similar).
+
+```sh
+pnpm wrangler:types        # regenerate all four Worker fleet declarations
+pnpm wrangler:types:check  # fail when any declaration is stale
+pnpm conformance:wrangler-types  # same check, wired into pnpm verify
+```
+
+Per-app shortcuts also exist, for example `pnpm --filter @insecur/api wrangler:types`. After adding
+or renaming a binding in any `apps/{api,runtime,web,site}/wrangler.jsonc`, regenerate and commit the
+matching `worker-configuration.d.ts` before opening a PR.
 
 ## Unused Code and Dependencies (knip)
 
