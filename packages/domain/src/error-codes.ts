@@ -135,6 +135,15 @@ export const STORE_ERROR_CODES = {
 
 export type StoreErrorCode = (typeof STORE_ERROR_CODES)[keyof typeof STORE_ERROR_CODES];
 
+/** Storage Security Gate production delivery denial codes. */
+export const STORAGE_GATE_ERROR_CODES = {
+  gateBlocked: "storage.gate_blocked",
+  gateUnknown: "storage.gate_unknown",
+} as const;
+
+export type StorageGateErrorCode =
+  (typeof STORAGE_GATE_ERROR_CODES)[keyof typeof STORAGE_GATE_ERROR_CODES];
+
 /** Public-edge abuse controls (rate limiting). */
 export const ABUSE_ERROR_CODES = {
   rateLimited: "abuse.rate_limited",
@@ -291,6 +300,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   ENVIRONMENT_ERROR_CODES,
   CRYPTO_ERROR_CODES,
   STORE_ERROR_CODES,
+  STORAGE_GATE_ERROR_CODES,
   ABUSE_ERROR_CODES,
   AUDIT_ERROR_CODES,
   HIGH_ASSURANCE_ERROR_CODES,
@@ -315,6 +325,7 @@ export type KnownErrorCode =
   | EnvironmentErrorCode
   | CryptoErrorCode
   | StoreErrorCode
+  | StorageGateErrorCode
   | AbuseErrorCode
   | AuditErrorCode
   | HighAssuranceErrorCode
