@@ -1,10 +1,12 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { ApprovalRequestUnsupportedPanel } from "./approval-request-unsupported.js";
+import { ApproveChallengePanel } from "./approve-challenge-panel.js";
 import { HighAssuranceChallengeEvidencePanel } from "./high-assurance-challenge-evidence.js";
 import { RejectChallengePanel } from "./reject-challenge-panel.js";
 import { approvalInboxPath } from "../../console/approval-items.js";
 
 const approvalDetailRoute = getRouteApi("/orgs/$orgId/approvals_/$id");
+const orgRoute = getRouteApi("/orgs/$orgId");
 
 /**
  * Human Approval Surface detail (INS-381, docs/web-console-ux.md §Human Approval Surface). Fully
@@ -13,6 +15,7 @@ const approvalDetailRoute = getRouteApi("/orgs/$orgId/approvals_/$id");
 export function ApprovalDetailPage() {
   const data = approvalDetailRoute.useLoaderData();
   const { orgId, id } = approvalDetailRoute.useParams();
+  const { passkeyEnrolled } = orgRoute.useLoaderData();
 
   return (
     <section className="px-4 py-6 sm:px-8 sm:py-10">
@@ -40,6 +43,12 @@ export function ApprovalDetailPage() {
         ) : (
           <>
             <HighAssuranceChallengeEvidencePanel challenge={data.challenge} />
+            <ApproveChallengePanel
+              orgId={orgId}
+              challenge={data.challenge}
+              passkeyEnrolled={passkeyEnrolled}
+              disabled={data.challenge.status !== "pending"}
+            />
             <RejectChallengePanel
               orgId={orgId}
               operationId={data.challenge.id}

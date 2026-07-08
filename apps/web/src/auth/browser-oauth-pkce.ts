@@ -3,13 +3,22 @@ import { base64UrlToBytes, bytesToBase64Url } from "@insecur/domain";
 export const INSECUR_OAUTH_PKCE_COOKIE = "insecur_oauth_pkce";
 const OAUTH_PKCE_TTL_SECONDS = 600;
 
+export interface ChallengeClearStepUpContext {
+  readonly organizationId: string;
+  readonly operationId: string;
+  readonly projectId: string;
+  readonly environmentId?: string;
+}
+
 export interface PkceRoundTrip {
   readonly state: string;
   readonly codeVerifier: string;
   readonly returnTo: string;
   /** Present for passkey-enrollment round trips: binds the callback to the initiating WorkOS user. */
   readonly workosUserId?: string;
-  readonly flow?: "login" | "passkey-enrollment";
+  readonly flow?: "login" | "passkey-enrollment" | "challenge-clear";
+  /** Present for challenge-clear round trips: binds step-up to one pending operation. */
+  readonly challengeClear?: ChallengeClearStepUpContext;
 }
 
 export async function createPkcePair(): Promise<{
@@ -78,8 +87,40 @@ function isRelativeAppPath(value: string): boolean {
   return resolved.origin === RELATIVE_APP_PATH_BASE;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseChallengeClearContext(value: unknown): ChallengeClearStepUpContext | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const { organizationId, operationId, projectId, environmentId } = value;
+  if (
+    typeof organizationId !== "string" ||
+    typeof operationId !== "string" ||
+    typeof projectId !== "string"
+  ) {
+    return null;
+  }
+  if (environmentId !== undefined && typeof environmentId !== "string") {
+    return null;
+  }
+  return {
+    organizationId,
+    operationId,
+    projectId,
+    ...(environmentId === undefined ? {} : { environmentId }),
+  };
+}
+
 function isValidPkceFlow(flow: string | undefined): flow is PkceRoundTrip["flow"] {
-  return flow === undefined || flow === "login" || flow === "passkey-enrollment";
+  return (
+    flow === undefined ||
+    flow === "login" ||
+    flow === "passkey-enrollment" ||
+    flow === "challenge-clear"
+  );
 }
 
 function parsePkceStringFields(
@@ -100,22 +141,54 @@ function parsePkceStringFields(
   };
 }
 
-function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTrip | null {
-  const core = parsePkceStringFields(parsed);
-  if (core === null) {
+function parseOptionalChallengeClear(
+  value: unknown,
+): ChallengeClearStepUpContext | undefined | null {
+  if (value === undefined) {
+    return undefined;
+  }
+  return parseChallengeClearContext(value);
+}
+
+function buildPkceRoundTrip(
+  core: Pick<PkceRoundTrip, "state" | "codeVerifier" | "returnTo">,
+  parsed: Partial<PkceRoundTrip>,
+  challengeClear: ChallengeClearStepUpContext | undefined,
+): PkceRoundTrip {
+  return {
+    ...core,
+    ...(parsed.workosUserId === undefined ? {} : { workosUserId: parsed.workosUserId }),
+    ...(parsed.flow === undefined ? {} : { flow: parsed.flow }),
+    ...(challengeClear === undefined ? {} : { challengeClear }),
+  };
+}
+
+function attachChallengeClearFields(
+  core: Pick<PkceRoundTrip, "state" | "codeVerifier" | "returnTo">,
+  parsed: Partial<PkceRoundTrip>,
+): PkceRoundTrip | null {
+  if (!isValidPkceFlow(parsed.flow)) {
     return null;
   }
   if (parsed.workosUserId !== undefined && typeof parsed.workosUserId !== "string") {
     return null;
   }
-  if (!isValidPkceFlow(parsed.flow)) {
+  const challengeClear = parseOptionalChallengeClear(parsed.challengeClear);
+  if (
+    challengeClear === null ||
+    (parsed.flow === "challenge-clear" && challengeClear === undefined)
+  ) {
     return null;
   }
-  return {
-    ...core,
-    ...(parsed.workosUserId === undefined ? {} : { workosUserId: parsed.workosUserId }),
-    ...(parsed.flow === undefined ? {} : { flow: parsed.flow }),
-  };
+  return buildPkceRoundTrip(core, parsed, challengeClear);
+}
+
+function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTrip | null {
+  const core = parsePkceStringFields(parsed);
+  if (core === null) {
+    return null;
+  }
+  return attachChallengeClearFields(core, parsed);
 }
 
 export function decodePkceRoundTrip(value: string | undefined): PkceRoundTrip | null {
