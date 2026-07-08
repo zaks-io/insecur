@@ -43,6 +43,7 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "./env.js";
+import { maybeRuntimeConnectionString } from "./env.js";
 import { ensureAuditNotificationEmitterRegistered } from "./notifications/runtime-notification-registration.js";
 import { consumeGrantAllOperation } from "./operations/consume-grant-all-operation.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
@@ -104,7 +105,7 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
    * (`DATABASE_URL_RUNTIME`); single Node context, no cross-request hazard.
    */
   async #withConnection<T>(run: () => Promise<T>): Promise<T> {
-    const connStr = this.env.DB?.connectionString;
+    const connStr = maybeRuntimeConnectionString(this.env);
     if (!connStr) {
       return run();
     }

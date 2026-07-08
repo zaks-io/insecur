@@ -10,3 +10,9 @@ interface RuntimeEnvSecrets {
  * deploy verifies with `RUNTIME_TOKEN_SIGNING_SECRET`.
  */
 export type RuntimeEnv = CloudflareEnv & RuntimeEnvSecrets;
+
+/** Partial test fixtures omit DB at runtime even though wrangler types require the binding. */
+export function maybeRuntimeConnectionString(env: RuntimeEnv): string | undefined {
+  const db = env.DB as Hyperdrive | undefined;
+  return db?.connectionString;
+}
