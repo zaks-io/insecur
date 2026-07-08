@@ -188,10 +188,6 @@ export { TenantProjectMetadataStore } from "./projects/tenant-project-metadata-s
 export type { ProjectMetadataRow } from "./projects/types.js";
 export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
 export { isProtectedEnvironment } from "./environments/is-protected-environment.js";
-export {
-  protectedEnvironmentMutationGateInput,
-  runProtectedEnvironmentMutationGate,
-} from "./environments/run-protected-environment-mutation-gate.js";
 export { TenantHierarchyDisplayNameStore } from "./hierarchy/tenant-hierarchy-display-name-store.js";
 export type {
   CreateEnvironmentLifecycleInput,

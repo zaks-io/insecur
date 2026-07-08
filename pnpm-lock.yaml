@@ -748,6 +748,9 @@ importers:
       '@insecur/operations':
         specifier: workspace:*
         version: link:../operations
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1178,9 +1181,9 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
-      '@insecur/high-assurance':
+      '@insecur/operations':
         specifier: workspace:*
-        version: link:../high-assurance
+        version: link:../operations
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@cloudflare/workers-types@5.20260703.1)(@opentelemetry/api@1.9.1)(postgres@3.4.9)

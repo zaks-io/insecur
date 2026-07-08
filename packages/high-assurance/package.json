@@ -18,7 +18,8 @@
     "@insecur/audit": "workspace:*",
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
-    "@insecur/operations": "workspace:*"
+    "@insecur/operations": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

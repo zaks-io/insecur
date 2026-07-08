@@ -1,11 +1,17 @@
-import type { OperationId, OrganizationId, ProjectId, RequestId, UserId } from "@insecur/domain";
-import type { EnvironmentId } from "@insecur/domain";
+import type {
+  EnvironmentId,
+  OperationId,
+  OrganizationId,
+  ProjectId,
+  RequestId,
+  UserId,
+} from "@insecur/domain";
+import { isProtectedEnvironment } from "@insecur/tenant-store";
+
 import {
   consumeEvidenceOrThrowHandoff,
   requestProtectedEnvironmentMutationHandoff,
-} from "@insecur/high-assurance";
-
-import { isProtectedEnvironment } from "./is-protected-environment.js";
+} from "./protected-environment-mutation-handoff.js";
 
 function assertDefinedOperationId(
   operationId: OperationId | undefined,

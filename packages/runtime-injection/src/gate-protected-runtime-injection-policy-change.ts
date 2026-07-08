@@ -10,12 +10,10 @@ import type { EnvironmentId } from "@insecur/domain";
 import {
   HighAssuranceChallengeError,
   HIGH_ASSURANCE_RISK_REASON_CODES,
-} from "@insecur/high-assurance";
-import { OPERATION_INTENT_CODES } from "@insecur/operations";
-import {
   protectedEnvironmentMutationGateInput,
   runProtectedEnvironmentMutationGate,
-} from "@insecur/tenant-store";
+} from "@insecur/high-assurance";
+import { OPERATION_INTENT_CODES } from "@insecur/operations";
 
 import { requireRuntimeInjectionPolicyChangeEvidence } from "./consume-runtime-injection-policy-change-evidence.js";
 import {

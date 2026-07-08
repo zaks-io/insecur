@@ -1,10 +1,10 @@
 import type { OperationId } from "@insecur/domain";
-import { HIGH_ASSURANCE_RISK_REASON_CODES } from "@insecur/high-assurance";
-import { OPERATION_INTENT_CODES } from "@insecur/operations";
 import {
+  HIGH_ASSURANCE_RISK_REASON_CODES,
   protectedEnvironmentMutationGateInput,
   runProtectedEnvironmentMutationGate,
-} from "@insecur/tenant-store";
+} from "@insecur/high-assurance";
+import { OPERATION_INTENT_CODES } from "@insecur/operations";
 
 import { consumeProtectedSecretMutationEvidence } from "./consume-protected-secret-mutation-evidence.js";
 import type { GateProtectedSecretMutationInput } from "./gate-protected-secret-mutation-types.js";

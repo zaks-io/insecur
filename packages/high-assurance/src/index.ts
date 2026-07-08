@@ -68,3 +68,8 @@ export {
   consumeEvidenceOrThrowHandoff,
   requestProtectedEnvironmentMutationHandoff,
 } from "./protected-environment-mutation-handoff.js";
+export {
+  protectedEnvironmentMutationGateInput,
+  runProtectedEnvironmentMutationGate,
+  type ProtectedEnvironmentMutationGateScope,
+} from "./run-protected-environment-mutation-gate.js";
