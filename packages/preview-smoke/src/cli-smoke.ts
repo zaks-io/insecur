@@ -9,8 +9,14 @@ export {
   buildCliAuditTailArgs,
   buildCliAuditVerifyArgs,
   buildCliFirstValueRunArgs,
+  buildCliOperationsGetArgs,
+  buildCliOperationsWaitArgs,
+  buildCliRunPoliciesCreateArgs,
+  buildCliRunPoliciesDisableArgs,
+  buildCliRunPoliciesShowArgs,
   buildCliSecretsSetValueStdinArgs,
   buildCliSecretsVersionsArgs,
+  PROOF_VARIABLE_KEY,
 } from "./cli-smoke-commands.js";
 
 export async function runCliSmokeCommand(
