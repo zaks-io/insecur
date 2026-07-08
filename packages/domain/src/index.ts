@@ -162,6 +162,8 @@ export {
   type SecretErrorCode,
   STORE_ERROR_CODES,
   type StoreErrorCode,
+  STORAGE_GATE_ERROR_CODES,
+  type StorageGateErrorCode,
   VALIDATION_ERROR_CODES,
   type ValidationErrorCode,
   CLI_ERROR_CODES,

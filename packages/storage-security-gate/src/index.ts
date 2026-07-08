@@ -20,6 +20,27 @@ export {
   storageGateVerdictContainsSensitiveMaterial,
 } from "./assert-metadata-safe.js";
 export {
+  buildStorageGateDeliveryDenialMetadata,
+  type StorageGateDeliveryDenialMetadata,
+} from "./build-storage-gate-denial-metadata.js";
+export {
+  FIRST_VALUE_LOCAL_RUNTIME_INJECTION_PATH,
+  PRODUCTION_DELIVERY_PATHS,
+  requiresProductionStorageSecurityGate,
+  type ProductionDeliveryPath,
+  type StorageGateDeliveryPath,
+} from "./delivery-paths.js";
+export {
+  assertProductionDeliveryGatePassed,
+  runWithProductionDeliveryGate,
+  type AssertProductionDeliveryGatePassedInput,
+  type RunWithProductionDeliveryGateInput,
+} from "./enforce-production-delivery-gate.js";
+export {
+  isStorageGateDeliveryError,
+  StorageGateDeliveryError,
+} from "./storage-gate-delivery-error.js";
+export {
   STORAGE_SECURITY_GATE_CONTROL_DOCS,
   STORAGE_SECURITY_GATE_CONTROL_IDS,
   type StorageSecurityGateControlId,
