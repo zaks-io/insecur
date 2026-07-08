@@ -141,13 +141,14 @@ async function assertDeployedRuntimeConfig(cloudflareJson, accountId, scriptName
   assertObservability(settings.observability, config.observability);
 
   const bindings = settings.bindings ?? [];
-  const desiredRootKey = only(config.secrets_store_secrets, "secrets_store_secrets");
-  assertBinding(bindings, {
-    name: desiredRootKey.binding,
-    type: "secrets_store_secret",
-    store_id: desiredRootKey.store_id,
-    secret_name: desiredRootKey.secret_name,
-  });
+  for (const desiredSecret of config.secrets_store_secrets ?? []) {
+    assertBinding(bindings, {
+      name: desiredSecret.binding,
+      type: "secrets_store_secret",
+      store_id: desiredSecret.store_id,
+      secret_name: desiredSecret.secret_name,
+    });
+  }
 
   const desiredHyperdrive = only(config.hyperdrive, "hyperdrive");
   assertBinding(bindings, {
