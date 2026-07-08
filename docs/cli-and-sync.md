@@ -949,6 +949,7 @@ Rules:
 
 ```bash
 insecur guide
+insecur guide hooks
 insecur guide migrate-env
 ```
 
@@ -961,6 +962,7 @@ Rules:
 - Guide markdown is bundled into the CLI binary at build time (not read from the repo at runtime).
 - Guide output is deliberately **not** wrapped in the metadata-only JSON envelope — the markdown itself is the machine-readable format agents should consume. Global `--json` does not change guide output shape.
 - The `migrate-env` topic is the safe ordering playbook for moving disk secrets into insecur: login/init, scan and `insecur secrets set --value-stdin` per migratable key, switch to `insecur run`, verify the app before any destructive disk edit, then strip values and run `insecur scan --strict`. Non-migratable findings (private keys, credential JSON) are manual follow-up only.
+- The `hooks` topic ships copy-paste advisory (`SessionStart`) and strict (`PreToolUse`) recipes for Claude Code and Codex that gate agents on `insecur scan --strict --quiet` (silent when clean; counts + `insecur guide migrate-env` pointer when hot). User opt-in only; insecur does not auto-install hook config.
 
 ### Secrets
 
