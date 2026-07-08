@@ -21,6 +21,8 @@ export const AUTHORIZATION_SCOPES = {
   projectConfigure: "project:configure",
   connectionRead: "connection:read",
   connectionManage: "connection:manage",
+  webhookRead: "webhook:read",
+  webhookManage: "webhook:manage",
 } as const;
 
 export type AuthorizationScope = (typeof AUTHORIZATION_SCOPES)[keyof typeof AUTHORIZATION_SCOPES];

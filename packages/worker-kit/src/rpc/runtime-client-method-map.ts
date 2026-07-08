@@ -41,5 +41,11 @@ export function buildAuthenticatedRuntimeClientMethods(
     createRuntimeInjectionPolicy: forward("createRuntimeInjectionPolicy"),
     getRuntimeInjectionPolicy: forward("getRuntimeInjectionPolicy"),
     disableRuntimeInjectionPolicy: forward("disableRuntimeInjectionPolicy"),
+    createWebhookSubscription: forward("createWebhookSubscription"),
+    listWebhookSubscriptions: forward("listWebhookSubscriptions"),
+    updateWebhookSubscription: forward("updateWebhookSubscription"),
+    deleteWebhookSubscription: forward("deleteWebhookSubscription"),
+    rotateWebhookSigningSecret: forward("rotateWebhookSigningSecret"),
+    listWebhookEventCodes: forward("listWebhookEventCodes"),
   };
 }

@@ -27,18 +27,31 @@ const defaultResolveSessionWhoami = ok({
   attribution: { tier: "none" as const },
 });
 
+function createWebhookRuntimeRpcMocks() {
+  return {
+    createWebhookSubscription: vi.fn(),
+    listWebhookSubscriptions: vi.fn(),
+    updateWebhookSubscription: vi.fn(),
+    deleteWebhookSubscription: vi.fn(),
+    rotateWebhookSigningSecret: vi.fn(),
+    listWebhookEventCodes: vi.fn(),
+  };
+}
+
+const defaultResolveAdmission = vi.fn((input: { workosUserId: string }) =>
+  Promise.resolve(
+    ok({
+      userId: input.workosUserId === WORKOS_USER_ID ? userId.brand(ADMITTED_USER_ID_RAW) : null,
+    }),
+  ),
+);
+
 export function createRuntimeRpcStub(): RuntimeRpcStub {
   return {
     consumeGrant: vi.fn(),
     consumeGrantAll: vi.fn(),
     writeSecret: vi.fn(),
-    resolveAdmission: vi.fn((input: { workosUserId: string }) =>
-      Promise.resolve(
-        ok({
-          userId: input.workosUserId === WORKOS_USER_ID ? userId.brand(ADMITTED_USER_ID_RAW) : null,
-        }),
-      ),
-    ),
+    resolveAdmission: defaultResolveAdmission,
     isCliSessionRevoked: vi.fn(() => Promise.resolve(ok({ revoked: false }))),
     recordAdmissionDenied: vi.fn(() => Promise.resolve(ok({ recorded: true as const }))),
     recordAbuseDenied: vi.fn(() => Promise.resolve(ok({ recorded: true as const }))),
@@ -75,5 +88,6 @@ export function createRuntimeRpcStub(): RuntimeRpcStub {
     createRuntimeInjectionPolicy: vi.fn(),
     getRuntimeInjectionPolicy: vi.fn(),
     disableRuntimeInjectionPolicy: vi.fn(),
+    ...createWebhookRuntimeRpcMocks(),
   };
 }

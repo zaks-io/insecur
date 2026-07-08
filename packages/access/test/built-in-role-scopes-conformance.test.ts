@@ -44,6 +44,8 @@ const EXPLICIT_SCOPE_CATEGORIES = {
   [AUTHORIZATION_SCOPES.projectConfigure]: "configuration",
   [AUTHORIZATION_SCOPES.connectionRead]: "read",
   [AUTHORIZATION_SCOPES.connectionManage]: "configuration",
+  [AUTHORIZATION_SCOPES.webhookRead]: "read",
+  [AUTHORIZATION_SCOPES.webhookManage]: "configuration",
 } as const satisfies Partial<Record<AuthorizationScope, AuthorizationScopeCategory>>;
 
 const ADR_0004_MACHINE_FORBIDDEN_SCOPES = [
