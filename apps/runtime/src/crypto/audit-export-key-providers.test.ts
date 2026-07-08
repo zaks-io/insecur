@@ -86,6 +86,24 @@ describe("resolveAuditExportKeyProviders", () => {
     ).rejects.toBeInstanceOf(AuditExportKeysNotConfiguredError);
   });
 
+  it("rejects signing key material missing keyVersion", async () => {
+    const keys = await createTestAuditExportKeyProviders();
+    const signingMaterial = JSON.stringify({
+      privateKeyPkcs8Base64Url: keys.signingPrivateKeyPkcs8Base64Url,
+      publicKeyRawBase64Url: keys.signingPublicKey,
+    });
+    process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = keys.hmacSecret;
+
+    await expect(
+      resolveAuditExportKeyProviders({
+        RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
+        SENTRY_ENVIRONMENT: "preview",
+        AUDIT_EXPORT_HMAC_KEY_V1: { get: async () => keys.hmacSecret },
+        AUDIT_EXPORT_SIGNING_KEY_V1: { get: async () => signingMaterial },
+      }),
+    ).rejects.toThrow("audit export signing key material is missing or has invalid keyVersion");
+  });
+
   it("resolves signing keys from Secrets Store bindings outside production", async () => {
     const keys = await createTestAuditExportKeyProviders();
     process.env.INSECUR_AUDIT_EXPORT_HMAC_SECRET = keys.hmacSecret;
