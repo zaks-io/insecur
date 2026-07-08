@@ -5,20 +5,14 @@ import {
   type OperationId,
   type OrganizationId,
   type ProjectId,
-  type RequestId,
   type SecretId,
   type SecretVersionId,
 } from "@insecur/domain";
-import {
-  TenantApprovalRequestStore,
-  type TenantScopedDb,
-  withTenantScope,
-} from "@insecur/tenant-store";
+import { TenantApprovalRequestStore, type TenantScopedDb } from "@insecur/tenant-store";
 
-import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
 
-interface PersistRollbackApprovalRequestInput {
+export interface PersistRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
@@ -53,52 +47,4 @@ export async function persistRollbackApprovalRequestOnDb(
     },
     ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
   });
-}
-
-async function persistRollbackApprovalRequest(
-  input: PersistRollbackApprovalRequestInput,
-): Promise<void> {
-  await withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
-    persistRollbackApprovalRequestOnDb(db, input),
-  );
-}
-
-export async function createRollbackApprovalRequest(input: {
-  readonly actor: UserActorRef;
-  readonly organizationId: OrganizationId;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly secretId: SecretId;
-  readonly toVersionNumber: number;
-  readonly newSecretVersionId: SecretVersionId;
-  readonly impactReviewFingerprint: string;
-  readonly comment?: string;
-  readonly operationId?: OperationId;
-  readonly requestId: RequestId;
-}): Promise<ApprovalRequestId> {
-  const { approvalRequestId: createdApprovalRequestId } = await createApprovalRequestWithAudit({
-    audit: {
-      actor: input.actor,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      requestId: input.requestId,
-    },
-    persist: (createdRequestId) =>
-      persistRollbackApprovalRequest({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        actorUserId: input.actor.userId,
-        approvalRequestId: createdRequestId,
-        impactReviewFingerprint: input.impactReviewFingerprint,
-        secretId: input.secretId,
-        toVersionNumber: input.toVersionNumber,
-        newSecretVersionId: input.newSecretVersionId,
-        ...(input.comment !== undefined ? { comment: input.comment } : {}),
-        ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
-      }),
-  });
-
-  return createdApprovalRequestId;
 }
