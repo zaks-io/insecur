@@ -3,6 +3,7 @@ import { secretVersionId, type SecretVersionId } from "@insecur/domain";
 import {
   computeSecretWriteDescriptiveVerdicts,
   type SecretWriteDescriptiveVerdicts,
+  validateTextSecretValue,
 } from "@insecur/secret-store-contracts";
 
 import type { LocalProjectMetadataStore } from "./contracts/project-metadata-store.js";
@@ -39,6 +40,7 @@ export async function writeLocalBlindSecretVersion(
       : ((await stores.projectMetadata.getSecretShape(input.projectId, input.variableKey))
           ?.generationHint ?? null));
 
+  validateTextSecretValue(input.valueUtf8);
   const descriptiveVerdicts = computeSecretWriteDescriptiveVerdicts({
     valueUtf8: input.valueUtf8,
     generationHint,

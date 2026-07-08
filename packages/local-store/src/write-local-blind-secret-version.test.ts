@@ -1,4 +1,11 @@
-import { brandValue, bytesToBase64Url, environmentId, projectId, secretId } from "@insecur/domain";
+import {
+  brandValue,
+  bytesToBase64Url,
+  environmentId,
+  projectId,
+  SECRET_ERROR_CODES,
+  secretId,
+} from "@insecur/domain";
 import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -39,6 +46,38 @@ describe("local write-time descriptive verdicts", () => {
   afterEach(() => {
     store.close();
     rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("rejects invalid UTF-8 with a typed SecretWriteError before persisting", async () => {
+    await store.projects.createProject(PROJECT, "Local project");
+    await store.projects.createEnvironment(PROJECT, ENV, "development");
+
+    const invalidUtf8 = Uint8Array.from([0xff, 0xfe, 0xfd]);
+    await expect(
+      writeLocalBlindSecretVersion(
+        { secretVersions: store.secretVersions, projectMetadata: store.projects },
+        {
+          keyring: store.keyring,
+          ciphertextIdentity: {
+            organizationId: LOCAL_MODE_ORGANIZATION_ID,
+            projectId: PROJECT,
+            environmentId: ENV,
+            secretId: SECRET,
+          },
+          projectId: PROJECT,
+          environmentId: ENV,
+          secretId: SECRET,
+          variableKey: VARIABLE_KEY,
+          valueUtf8: invalidUtf8,
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: "SecretWriteError",
+      code: SECRET_ERROR_CODES.invalidEncoding,
+    });
+
+    const listed = await store.secretVersions.listSecretMetadata(PROJECT, ENV);
+    expect(listed).toHaveLength(0);
   });
 
   it("stores verdicts on write and serves them from metadata list without decrypt", async () => {
