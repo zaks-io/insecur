@@ -100,6 +100,28 @@ describe("production audit helpers", () => {
     );
   });
 
+  it("recordApprovalAudit writes action_denied for denied approval actions", async () => {
+    writeMock.mockClear();
+
+    await recordApprovalAudit({
+      action: "action_denied",
+      outcome: "denied",
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      reasonCode: AUTH_ERROR_CODES.insufficientScope,
+    });
+
+    expect(writeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied,
+        outcome: "denied",
+        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+      }),
+    );
+  });
+
   it("recordSyncAudit writes denied with default reason when reasonCode is omitted", async () => {
     writeMock.mockClear();
 

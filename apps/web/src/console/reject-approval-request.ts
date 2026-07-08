@@ -48,6 +48,10 @@ export function parseRejectApprovalRequestSubmission(
   };
 }
 
+/**
+ * CSRF-gated reject path over the scoped-token API hop. Optional reason is accepted for reviewer
+ * deliberateness in the UI; durable note persistence is not wired in V1.
+ */
 export async function rejectApprovalRequestForRequest(
   deps: {
     readonly cookieHeader: string | null;

@@ -15,11 +15,9 @@ export const Route = createFileRoute("/auth/approval-step-up/callback")({
         const request = getRequest();
         const completed = await completeBrowserApprovalStepUp(request);
         if (!completed.ok) {
-          const redirectTo =
-            "failure" in completed
-              ? resolveApprovalStepUpFailureRedirect(request)
-              : resolveApprovalStepUpFailureRedirect(request);
-          return redirectResponse(redirectTo, [approvalStepUpClearCookieHeader()]);
+          return redirectResponse(resolveApprovalStepUpFailureRedirect(request), [
+            approvalStepUpClearCookieHeader(),
+          ]);
         }
         return redirectResponse(completed.redirectTo, [approvalStepUpClearCookieHeader()]);
       },

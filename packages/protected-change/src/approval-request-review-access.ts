@@ -37,7 +37,7 @@ async function recordDeniedApprovalRequestReviewAccess(input: {
   readonly requestId: RequestId;
 }): Promise<void> {
   await recordApprovalAudit({
-    action: "request_created",
+    action: "action_denied",
     outcome: "denied",
     actor: input.auditActor,
     organizationId: input.organizationId,

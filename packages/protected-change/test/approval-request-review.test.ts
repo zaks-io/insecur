@@ -211,7 +211,11 @@ describe("getApprovalRequestReview", () => {
     ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.requestNotFound });
 
     expect(recordApprovalAudit).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "denied", requestId: REQ }),
+      expect.objectContaining({
+        action: "action_denied",
+        outcome: "denied",
+        requestId: REQ,
+      }),
     );
   });
 
@@ -376,8 +380,36 @@ describe("approveApprovalRequest", () => {
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.highAssuranceRequired });
   });
 
-  it("approves and publishes when evidence and fingerprints are fresh", async () => {
+  it("rejects stale approvals when the recorded fingerprint differs from current", async () => {
     const getApprovalRequestById = vi.fn().mockResolvedValue(DETAIL_ROW);
+    const getDraftVersionsForRequest = vi.fn().mockResolvedValue([]);
+    vi.mocked(TenantApprovalRequestStore).mockImplementation(function MockStore() {
+      return { getApprovalRequestById, getDraftVersionsForRequest } as never;
+    });
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      organizationId: ORG,
+      scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+    });
+    vi.mocked(evaluateHighAssuranceChallengeClearAssurance).mockReturnValue({ ok: true } as never);
+
+    await expect(
+      approveApprovalRequest({
+        actor: ACTOR,
+        auditActor: AUDIT_ACTOR,
+        organizationId: ORG,
+        approvalRequestId: REQUEST,
+        sessionAssurance: {} as never,
+        impactReviewFingerprint: "fp-current",
+        requestId: REQ,
+      }),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.reviewStale });
+  });
+
+  it("approves and publishes when evidence and fingerprints are fresh", async () => {
+    const getApprovalRequestById = vi.fn().mockResolvedValue({
+      ...DETAIL_ROW,
+      impactReviewFingerprint: "fp-current",
+    });
     const getDraftVersionsForRequest = vi.fn().mockResolvedValue([]);
     const transitionPendingApprovalRequest = vi.fn().mockResolvedValue(true);
     const publishVersions = vi.fn().mockResolvedValue(undefined);

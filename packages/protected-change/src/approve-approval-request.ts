@@ -8,7 +8,7 @@ import type {
   OrganizationId,
   RequestId,
 } from "@insecur/domain";
-import { AUTH_ERROR_CODES } from "@insecur/domain";
+import { AUTH_ERROR_CODES, APPROVAL_ERROR_CODES } from "@insecur/domain";
 import {
   TenantApprovalRequestStore,
   TenantSecretVersionStore,
@@ -100,8 +100,14 @@ export async function approveApprovalRequest(input: ApproveApprovalRequestInput)
     row,
     draftTargets,
   });
+  const recordedFingerprint = row.impactReviewFingerprint;
+  if (recordedFingerprint === null || recordedFingerprint.length === 0) {
+    throw Object.assign(new Error("Approval Impact Review is stale."), {
+      code: APPROVAL_ERROR_CODES.reviewStale,
+    });
+  }
   assertImpactReviewFresh({
-    submittedFingerprint: input.impactReviewFingerprint,
+    submittedFingerprint: recordedFingerprint,
     currentFingerprint,
   });
 
