@@ -2,92 +2,60 @@
  * First Value audit event names. Each security-relevant action has an explicit
  * success or denied event code; denied codes pair with stable result codes.
  */
-export const FIRST_VALUE_AUDIT_EVENT_CODES = {
-  bootstrapInstanceOperatorGranted: "bootstrap.instance_operator_granted",
-  bootstrapOwnerMembershipGranted: "bootstrap.owner_membership_granted",
-  bootstrapOperatorClaimDenied: "bootstrap.operator_claim_denied",
-  onboardingGuidedProvisioned: "onboarding.guided_organization_provisioned",
-  onboardingGuidedProvisionDenied: "onboarding.guided_organization_provision_denied",
-  onboardingOperatorOrganizationCreated: "onboarding.operator_organization_created",
-  onboardingOperatorOrganizationDenied: "onboarding.operator_organization_denied",
-  onboardingInvitationCreated: "onboarding.invitation_created",
-  onboardingInvitationCreateDenied: "onboarding.invitation_create_denied",
-  onboardingInvitationAccepted: "onboarding.invitation_accepted",
-  onboardingInvitationAcceptDenied: "onboarding.invitation_accept_denied",
-  secretNonProtectedWrite: "secret.non_protected_write",
-  secretNonProtectedWriteDenied: "secret.non_protected_write_denied",
-  injectionGrantIssued: "runtime_injection.grant_issued",
-  injectionGrantIssueDenied: "runtime_injection.grant_issue_denied",
-  injectionGrantConsumed: "runtime_injection.grant_consumed",
-  injectionGrantConsumeDenied: "runtime_injection.grant_consume_denied",
-  injectionRunCompleted: "runtime_injection.run_completed",
-  injectionRunDenied: "runtime_injection.run_denied",
-  accessDenied: "access.denied",
-  authCliPkceExchangeDenied: "auth.cli_pkce_exchange_denied",
-} as const;
+import { ACCESS_AUDIT_EVENT_CODES } from "./codes/access.js";
+import { assembleAuditEventCodes } from "./codes/assemble.js";
+import { AUTH_AUDIT_EVENT_CODES } from "./codes/auth.js";
+import { BOOTSTRAP_AUDIT_EVENT_CODES } from "./codes/bootstrap.js";
+import { ONBOARDING_AUDIT_EVENT_CODES } from "./codes/onboarding.js";
+import { RUNTIME_INJECTION_AUDIT_EVENT_CODES } from "./codes/runtime-injection.js";
+import { SECRET_FIRST_VALUE_AUDIT_EVENT_CODES } from "./codes/secret-first-value.js";
+import { APPROVALS_AUDIT_EVENT_CODES } from "./codes/approvals.js";
+import { BACKUP_AUDIT_EVENT_CODES } from "./codes/backup.js";
+import { CONNECTION_AUDIT_EVENT_CODES } from "./codes/connection.js";
+import { CRYPTO_AUDIT_EVENT_CODES } from "./codes/crypto.js";
+import { HIGH_ASSURANCE_AUDIT_EVENT_CODES } from "./codes/high-assurance.js";
+import { MACHINE_ACCESS_AUDIT_EVENT_CODES } from "./codes/machine-access.js";
+import { NOTIFICATIONS_AUDIT_EVENT_CODES } from "./codes/notifications.js";
+import { OPERATION_AUDIT_EVENT_CODES } from "./codes/operation.js";
+import { RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES } from "./codes/runtime-injection-policy.js";
+import { SECRET_PROTECTED_AUDIT_EVENT_CODES } from "./codes/secret-protected.js";
+import { SYNC_AUDIT_EVENT_CODES } from "./codes/sync.js";
+
+export const FIRST_VALUE_AUDIT_EVENT_CODES = assembleAuditEventCodes(
+  "FIRST_VALUE_AUDIT_EVENT_CODES",
+  BOOTSTRAP_AUDIT_EVENT_CODES,
+  ONBOARDING_AUDIT_EVENT_CODES,
+  SECRET_FIRST_VALUE_AUDIT_EVENT_CODES,
+  RUNTIME_INJECTION_AUDIT_EVENT_CODES,
+  ACCESS_AUDIT_EVENT_CODES,
+  AUTH_AUDIT_EVENT_CODES,
+);
 
 /**
  * Production audit event names for sync, key custody, and approval workflows.
  * Writers must pair success and denied codes with matching outcomes.
  */
-export const PRODUCTION_AUDIT_EVENT_CODES = {
-  machineGithubActionsOidcExchanged: "machine_auth.github_actions_oidc_exchanged",
-  machineGithubActionsOidcExchangeDenied: "machine_auth.github_actions_oidc_exchange_denied",
-  machineDeployKeyExchanged: "machine_auth.deploy_key_exchanged",
-  machineDeployKeyExchangeDenied: "machine_auth.deploy_key_exchange_denied",
-  syncExecutionCompleted: "sync.execution_completed",
-  syncExecutionDenied: "sync.execution_denied",
-  syncRevalidationDenied: "sync.revalidation_denied",
-  cryptoDataKeyReady: "crypto.data_key_ready",
-  cryptoDataKeyDenied: "crypto.data_key_denied",
-  cryptoKeyRotationPlanned: "crypto.key_rotation_planned",
-  cryptoKeyRotationDenied: "crypto.key_rotation_denied",
-  approvalRequestCreated: "approval.request_created",
-  approvalRequestApproved: "approval.request_approved",
-  approvalRequestRejected: "approval.request_rejected",
-  approvalActionDenied: "approval.action_denied",
-  secretProtectedDraftWrite: "secret.protected_draft_write",
-  secretProtectedDraftWriteDenied: "secret.protected_draft_write_denied",
-  highAssuranceChallengeRequested: "high_assurance.challenge_requested",
-  highAssuranceChallengeRequestDenied: "high_assurance.challenge_request_denied",
-  highAssuranceChallengeCleared: "high_assurance.challenge_cleared",
-  highAssuranceChallengeClearDenied: "high_assurance.challenge_clear_denied",
-  highAssuranceChallengeDenied: "high_assurance.challenge_denied",
-  highAssuranceEvidenceConsumed: "high_assurance.evidence_consumed",
-  highAssuranceEvidenceConsumeDenied: "high_assurance.evidence_consume_denied",
-  backupExportSucceeded: "backup.export_succeeded",
-  backupExportFailed: "backup.export_failed",
-  backupRestoreDrillSucceeded: "backup.restore_drill_succeeded",
-  backupRestoreDrillFailed: "backup.restore_drill_failed",
-  connectionCreated: "connection.created",
-  connectionCreateDenied: "connection.create_denied",
-  connectionValidated: "connection.validated",
-  connectionValidationDenied: "connection.validation_denied",
-  connectionDisabled: "connection.disabled",
-  connectionDisableDenied: "connection.disable_denied",
-  connectionCredentialAttached: "connection.credential_attached",
-  connectionCredentialAttachDenied: "connection.credential_attach_denied",
-  operationCanceled: "operation.canceled",
-  operationCancelDenied: "operation.cancel_denied",
-  runtimeInjectionPolicyCreated: "runtime_injection_policy.created",
-  runtimeInjectionPolicyCreateDenied: "runtime_injection_policy.create_denied",
-  runtimeInjectionPolicyDisabled: "runtime_injection_policy.disabled",
-  runtimeInjectionPolicyDisableDenied: "runtime_injection_policy.disable_denied",
-  webhookSubscriptionCreated: "webhook.subscription_created",
-  webhookSubscriptionCreateDenied: "webhook.subscription_create_denied",
-  webhookSubscriptionUpdated: "webhook.subscription_updated",
-  webhookSubscriptionUpdateDenied: "webhook.subscription_update_denied",
-  webhookSubscriptionDeleted: "webhook.subscription_deleted",
-  webhookSubscriptionDeleteDenied: "webhook.subscription_delete_denied",
-  webhookDeliverySucceeded: "webhook.delivery_succeeded",
-  webhookDeliveryFailed: "webhook.delivery_failed",
-} as const;
+export const PRODUCTION_AUDIT_EVENT_CODES = assembleAuditEventCodes(
+  "PRODUCTION_AUDIT_EVENT_CODES",
+  MACHINE_ACCESS_AUDIT_EVENT_CODES,
+  SYNC_AUDIT_EVENT_CODES,
+  CRYPTO_AUDIT_EVENT_CODES,
+  APPROVALS_AUDIT_EVENT_CODES,
+  SECRET_PROTECTED_AUDIT_EVENT_CODES,
+  HIGH_ASSURANCE_AUDIT_EVENT_CODES,
+  BACKUP_AUDIT_EVENT_CODES,
+  CONNECTION_AUDIT_EVENT_CODES,
+  OPERATION_AUDIT_EVENT_CODES,
+  RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES,
+  NOTIFICATIONS_AUDIT_EVENT_CODES,
+);
 
 /** All supported tenant-qualified audit event codes. */
-export const AUDIT_EVENT_CODES = {
-  ...FIRST_VALUE_AUDIT_EVENT_CODES,
-  ...PRODUCTION_AUDIT_EVENT_CODES,
-} as const;
+export const AUDIT_EVENT_CODES = assembleAuditEventCodes(
+  "AUDIT_EVENT_CODES",
+  FIRST_VALUE_AUDIT_EVENT_CODES,
+  PRODUCTION_AUDIT_EVENT_CODES,
+);
 
 export type FirstValueAuditEventCode =
   (typeof FIRST_VALUE_AUDIT_EVENT_CODES)[keyof typeof FIRST_VALUE_AUDIT_EVENT_CODES];
