@@ -157,6 +157,43 @@ describe("createHttpApiClientForHost", () => {
     expect(JSON.stringify(result)).not.toContain(sensitive);
   });
 
+  it("posts create-only blind secret writes when requested", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            secretId: "sec_01TEST00000000000000000001",
+            secretVersionId: "sv_01TEST00000000000000000001",
+            variableKey: "API_KEY",
+            createdSecretShape: true,
+          },
+          meta: { requestId: "req_secret_write" },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const valueUtf8 = new TextEncoder().encode("import-value");
+    await client.writeSecretByVariableKey({
+      host: "https://insecur.test",
+      bearerCredential: "bearer_test",
+      organizationId: "org_01TEST00000000000000000001" as never,
+      projectId: "prj_01TEST00000000000000000001" as never,
+      environmentId: "env_01TEST0000000000000000001" as never,
+      variableKey: "API_KEY" as never,
+      valueUtf8,
+      createOnly: true,
+    });
+    const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string) as {
+      variableKey: string;
+      value: string;
+      createOnly: boolean;
+    };
+    expect(body.createOnly).toBe(true);
+    expect(body.value).toBe("import-value");
+  });
+
   it("posts generated blind secret writes without a request-body value", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(

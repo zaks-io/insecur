@@ -211,7 +211,7 @@ export const PROVIDER_APP_REGISTRATION_ERROR_CODES = {
 export type ProviderAppRegistrationErrorCode =
   (typeof PROVIDER_APP_REGISTRATION_ERROR_CODES)[keyof typeof PROVIDER_APP_REGISTRATION_ERROR_CODES];
 
-/** Client-side Secret Import preflight failures. */
+/** Secret Import failures (preflight client-side; create-only write server-enforced). */
 export const IMPORT_ERROR_CODES = {
   unsupportedEnvironment: "import.unsupported_environment",
   existingSecret: "import.existing_secret",
