@@ -51,10 +51,12 @@ put` / `--secrets-file`), never as plaintext wrangler `vars`.
 The local database uses Docker Compose with Postgres 17, matching the stable Neon target while
 Postgres 18 remains preview on Neon ([ADR-0060](adr/0060-postgres-17-development-baseline.md)).
 It is the substrate for the authoritative integration+RLS test layer:
-`pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary` runs the forced-RLS tenant suite, the
-First Value loop, and the no-plaintext canary gate locally, and CI's DB-backed `Verify` step enforces the same layer with
-`INSECUR_CI_RLS_GATE=1`. Neon appears only in the gated preview smoke layer, which runs the First
-Value smoke against a deployed preview Worker — not `test:rls`. See
+`pnpm smoke:local:docker` resets Docker Compose Postgres and runs the forced-RLS tenant suite, the
+First Value loop, and the no-plaintext canary gate locally. `pnpm smoke:local` resets, migrates,
+and runs the same gate against an already configured local Postgres service. CI's
+`postgres-integration` job enforces the same layer with `INSECUR_CI_RLS_GATE=1`. Neon appears only
+in the gated preview smoke layer, which runs the First Value smoke against a deployed preview Worker
+— not `test:rls`. See
 [docs/agents/testing.md](agents/testing.md) and
 [ADR-0065](adr/0065-test-layers-and-preview-smoke.md).
 
@@ -69,6 +71,14 @@ Reset it from scratch and run the role guard:
 ```sh
 pnpm dev:db:reset
 ```
+
+Reset an already-running native Postgres service without Docker:
+
+```sh
+pnpm dev:db:reset-service
+```
+
+If `psql` is not on `PATH`, this command falls back to the Docker Compose reset.
 
 Run only the guard against an already-started database:
 

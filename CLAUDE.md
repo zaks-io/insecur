@@ -86,7 +86,7 @@ milestone sequencing for the agent-fleet build-out is `docs/roadmap.md`.
 ### Testing
 
 The three-layer test strategy (unit / integration+RLS / preview smoke) and the agent
-one-command loop (`pnpm dev:db:reset && pnpm test:e2e`) are documented in
+one-command loop (`pnpm smoke:local:docker`) are documented in
 `docs/agents/testing.md`; the decision record is `docs/adr/0065-test-layers-and-preview-smoke.md`.
 
 ### Cursor Cloud environment
@@ -110,6 +110,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - **Typecheck:** `pnpm typecheck` (runs across every workspace project: 22 packages + 4 apps)
 - **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and scaffold file checks)
 - **Local Postgres:** `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
+- **Local smoke:** `pnpm smoke:local` resets configured Postgres; `pnpm smoke:local:docker` resets Docker Compose first
 - **Build:** `pnpm build` (includes the Worker dry-run deploys through `apps/api/wrangler.jsonc` and `apps/runtime/wrangler.jsonc`)
 - **Worker dev:** `pnpm dev:workers` (runs `insecur-api` + `insecur-runtime`) then check `http://localhost:8787/healthz`
 - **Hello-world proof:** `INSECUR_PROOF_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") node examples/first-value-proof/verify.mjs`
