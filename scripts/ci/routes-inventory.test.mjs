@@ -24,6 +24,9 @@ test("collectDeployRouteMounts discovers API and web product routes", () => {
   assert.ok(webRoutes.includes("/healthz"));
   assert.ok(webRoutes.includes("/orgs/$orgId/approvals/$id"));
   assert.ok(webRoutes.includes("/logout"));
+
+  const siteRoutes = collectDeployRouteMounts(join(repoRoot, "apps", "site"), "site");
+  assert.ok(siteRoutes.includes("/"));
 });
 
 test("collectDeployRouteEntries infers GET-only and multi-method API mounts", () => {
@@ -32,6 +35,18 @@ test("collectDeployRouteEntries infers GET-only and multi-method API mounts", ()
   const auth = apiRoutes.find((route) => route.mount === "/v1/auth");
   assert.equal(firstValue?.method, "GET");
   assert.equal(auth?.method, "*");
+});
+
+test("collectDeployRouteEntries discovers site marketing root and login methods", () => {
+  const siteRoutes = collectDeployRouteEntries(join(repoRoot, "apps", "site"), "site");
+  const root = siteRoutes.find((route) => route.mount === "/");
+  assert.equal(root?.method, "GET");
+
+  const webRoutes = collectDeployRouteEntries(join(repoRoot, "apps", "web"), "web");
+  const login = webRoutes.find((route) => route.mount === "/login");
+  const logout = webRoutes.find((route) => route.mount === "/logout");
+  assert.equal(login?.method, "*");
+  assert.equal(logout?.method, "POST");
 });
 
 test("parseRouteInventory ignores runtime static rows without public mount prefixes", () => {

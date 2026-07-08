@@ -52,7 +52,7 @@ export function collectDeployRouteEntries(appPath, appName) {
     }
   }
 
-  if (appName === "web") {
+  if (appName === "web" || appName === "site") {
     for (const filePath of listRouteSourceFiles(join(appPath, "src", "routes"))) {
       const source = readFileSync(filePath, "utf8");
       for (const match of source.matchAll(/createFileRoute\(\s*["'`]([^"'`]+)["'`]/g)) {
@@ -172,13 +172,23 @@ function inferSubRouterMethods(source, routerName) {
 }
 
 function inferTanStackRouteMethod(source) {
-  if (
-    /handlers:\s*\{[^}]*\bPOST\s*:/s.test(source) &&
-    !/handlers:\s*\{[^}]*\bGET\s*:/s.test(source)
-  ) {
-    return "POST";
+  const methods = new Set();
+  if (/\bcomponent\s*:/s.test(source)) {
+    methods.add("GET");
   }
-  return "GET";
+  for (const method of HTTP_METHODS) {
+    const pattern = new RegExp(`handlers:\\s*\\{[^}]*\\b${method.toUpperCase()}\\s*:`, "s");
+    if (pattern.test(source)) {
+      methods.add(method.toUpperCase());
+    }
+  }
+  if (methods.size === 0) {
+    return "GET";
+  }
+  if (methods.size === 1) {
+    return [...methods][0];
+  }
+  return "*";
 }
 
 function stripComments(source) {

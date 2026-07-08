@@ -69,7 +69,7 @@ Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API
 | GET    | `/auth/enroll-passkey`                      |
 | GET    | `/auth/enroll-passkey/callback`             |
 | GET    | `/healthz`                                  |
-| POST   | `/login`                                    |
+| *      | `/login`                                    |
 | POST   | `/logout`                                   |
 | GET    | `/onboarding`                               |
 | GET    | `/orgs/`                                    |
@@ -100,6 +100,7 @@ Public marketing/legal/security surface (ADR-0078). Holds no auth session, datab
 
 | Method | Mount prefix            |
 | ------ | ----------------------- |
+| GET    | `/`                     |
 | GET    | `/badges/coverage.json` |
 | GET    | `/healthz`              |
 | GET    | `/install.ps1`          |
