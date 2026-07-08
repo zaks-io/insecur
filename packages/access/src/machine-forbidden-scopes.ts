@@ -12,6 +12,7 @@ export const MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES = [
   AUTHORIZATION_SCOPES.onboardingGuidedProvision,
   AUTHORIZATION_SCOPES.metadataDetailRead,
   AUTHORIZATION_SCOPES.connectionManage,
+  AUTHORIZATION_SCOPES.syncManage,
 ] as const satisfies readonly AuthorizationScope[];
 
 const MACHINE_FORBIDDEN_SCOPE_SET = new Set<string>(MACHINE_FORBIDDEN_AUTHORIZATION_SCOPES);

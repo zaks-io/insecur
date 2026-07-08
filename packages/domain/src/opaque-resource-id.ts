@@ -40,7 +40,9 @@ export type OpaqueResourceIdPrefix =
   | "ags"
   | "whsub"
   | "whsec"
-  | "inev";
+  | "inev"
+  | "sync"
+  | "sbind";
 
 const PREFIX_TO_LITERAL: Record<OpaqueResourceIdPrefix, string> = {
   org: "org_",
@@ -74,6 +76,8 @@ const PREFIX_TO_LITERAL: Record<OpaqueResourceIdPrefix, string> = {
   whsub: "whsub_",
   whsec: "whsec_",
   inev: "inev_",
+  sync: "sync_",
+  sbind: "sbind_",
 };
 
 export type ParseOpaqueResourceIdResult =

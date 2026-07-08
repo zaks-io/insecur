@@ -22,6 +22,10 @@
       "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "packages/secret-sync": {
+      "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
     "packages/backup-restore": {
       "entry": ["vitest*.config.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]

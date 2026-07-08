@@ -169,6 +169,13 @@
       "when": 1784400000000,
       "tag": "0023_revoked_cli_sessions_expires_at",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784500000000,
+      "tag": "0024_secret_syncs",
+      "breakpoints": true
     }
   ]
 }

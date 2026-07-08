@@ -10,6 +10,7 @@ import { PLAINTEXT_METADATA_ALLOWLIST_SECRETS } from "./plaintext-metadata-allow
 import { PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES } from "./plaintext-metadata-allowlist-protected-changes.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_APPROVALS } from "./plaintext-metadata-allowlist-approvals.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS } from "./plaintext-metadata-allowlist-webhooks.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_SECRET_SYNCS } from "./plaintext-metadata-allowlist-secret-syncs.js";
 
 export const PLAINTEXT_METADATA_CATEGORIES = [
   "opaque-id",
@@ -246,4 +247,5 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
   },
   ...PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP,
   ...PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS,
+  ...PLAINTEXT_METADATA_ALLOWLIST_SECRET_SYNCS,
 } as const satisfies PlaintextMetadataAllowlist;

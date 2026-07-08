@@ -21,6 +21,9 @@ export const AUTHORIZATION_SCOPES = {
   projectConfigure: "project:configure",
   connectionRead: "connection:read",
   connectionManage: "connection:manage",
+  syncRead: "sync:read",
+  syncManage: "sync:manage",
+  syncRun: "sync:run",
   webhookRead: "webhook:read",
   webhookManage: "webhook:manage",
 } as const;

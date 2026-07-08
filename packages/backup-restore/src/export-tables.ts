@@ -41,6 +41,8 @@ export const BACKUP_ORGANIZATION_EXPORT_TABLES = [
   "webhook_subscription_event_types",
   "webhook_signing_secrets",
   "in_app_event_notifications",
+  "secret_syncs",
+  "secret_sync_bindings",
   "first_value_feedback",
 ] as const;
 

@@ -39,3 +39,4 @@ export * from "./tenant-webhooks.js";
 export * from "./tenant-protected-changes.js";
 export * from "./tenant-approval-requests.js";
 export * from "./tenant-secrets.js";
+export * from "./tenant-secret-syncs.js";
