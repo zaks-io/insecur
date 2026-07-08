@@ -28,3 +28,13 @@ export interface ResolveSessionWhoamiRpcPayload {
   readonly resolvedContext: SessionWhoamiResolvedContext;
   readonly attribution: SessionWhoamiAttribution;
 }
+
+export interface RegisterAgentSessionRpcInput extends PostAuthRpcInputBase {
+  readonly harnessName: string;
+  readonly ancestryKey: string;
+}
+
+export interface RegisterAgentSessionRpcPayload {
+  readonly agentSessionId: AgentSessionId;
+  readonly harnessName: string;
+}

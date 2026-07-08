@@ -1,3 +1,4 @@
+import type { ConnectionsApiClient } from "./connections-api-types.js";
 import type { AuthApiClient } from "./auth-api-types.js";
 import type { AuditApiClient } from "./audit-api-types.js";
 import type { LogoutApiClient } from "./logout-api-types.js";
@@ -9,6 +10,7 @@ import type { RuntimeInjectionApiClient } from "./runtime-injection-api-types.js
 import type { SecretsApiClient } from "./secrets-api-types.js";
 import type { ProtectedChangeApiClient } from "./protected-change-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
+import type { AgentSessionApiClient } from "./agent-session-api-types.js";
 
 export type { GuidedOrganizationProvisionData } from "./onboarding-api-types.js";
 export type {
@@ -37,7 +39,9 @@ export interface ApiClient
     RuntimeInjectionApiClient,
     OperationsApiClient,
     RunPoliciesApiClient,
+    ConnectionsApiClient,
     ProtectedChangeApiClient,
     AuditApiClient,
     WhoamiApiClient,
+    AgentSessionApiClient,
     LogoutApiClient {}

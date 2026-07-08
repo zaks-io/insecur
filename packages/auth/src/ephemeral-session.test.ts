@@ -5,6 +5,7 @@ import {
   mintEphemeralSessionCredential,
   verifyEphemeralSessionCredential,
 } from "./ephemeral-session.js";
+import { mintDerivedAgentSessionCredential } from "./derived-agent-session.js";
 import { decodeHmacToken, encodeHmacToken } from "./hmac-token.js";
 import { testSessionSigningSecret } from "./testing/test-session-signing-secret.js";
 import type { UserActor } from "./user-actor.js";
@@ -80,5 +81,15 @@ describe("ephemeral session credentials", () => {
     if (!verified.ok) {
       expect(verified.reason).toBe("invalid");
     }
+  });
+
+  it("accepts derived agent-marked CLI session credentials", async () => {
+    const minted = await mintDerivedAgentSessionCredential({
+      actor,
+      signingSecret,
+      parentExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    });
+    const verified = await verifyEphemeralSessionCredential(minted.credential, signingSecret);
+    expect(verified.ok).toBe(true);
   });
 });

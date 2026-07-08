@@ -9,6 +9,7 @@ export const OPERATION_INTENT_CODES = {
   runtimeInjectionPolicyChange: "runtime_injection_policy.change",
   protectedPromotionRequest: "protected_promotion.request",
   protectedRollbackRequest: "protected_rollback.request",
+  appConnectionChange: "app_connection.change",
 } as const;
 
 export type OperationIntentCode =

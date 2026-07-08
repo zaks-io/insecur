@@ -1,5 +1,5 @@
 import type { DisplayName, OrganizationId, TeamId } from "@insecur/domain";
-import { teamId } from "@insecur/domain";
+import { RECOVERY_CANARY_ORGANIZATION_ID, teamId } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 import {
   BOOTSTRAP_SECRET_ALGORITHM,
@@ -44,7 +44,9 @@ export async function loadInstanceBootstrapRow(
         c.status AS claim_status,
         op.user_id AS operator_user_id
       FROM instances i
-      LEFT JOIN organizations o ON o.instance_id = i.id
+      LEFT JOIN organizations o
+        ON o.instance_id = i.id
+        AND o.id <> ${RECOVERY_CANARY_ORGANIZATION_ID}
       LEFT JOIN bootstrap_operator_claims c ON c.instance_id = i.id
       LEFT JOIN instance_operators op
         ON op.instance_id = i.id

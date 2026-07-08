@@ -208,7 +208,7 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         sql<{ event_code: string; details: unknown }[]>`
           SELECT event_code, details
           FROM audit_events
-          WHERE related_resource_id = ${protectedChangeId}
+          WHERE resource_id = ${protectedChangeId}
             AND event_code = ${PRODUCTION_AUDIT_EVENT_CODES.protectedChangeTransitionDenied}
           ORDER BY created_at DESC
           LIMIT 1

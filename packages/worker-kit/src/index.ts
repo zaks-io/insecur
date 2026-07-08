@@ -36,6 +36,7 @@ export {
   readSecretValueField,
   requireRouteParam,
 } from "./http/parse-route-input.js";
+export { parseAppConnectionIdParam } from "./http/parse-app-connection-route-input.js";
 export {
   parseInjectionGrantConsumeSelector,
   parseInjectionGrantIssueSelector,
@@ -112,6 +113,8 @@ export type {
   ListSessionOrganizationsRpcPayload,
   OrganizationInvitationRead,
   OrganizationMemberRead,
+  PrincipalChainActorDetailsRead,
+  PrincipalChainActorRead,
   ProjectMetadataRead,
   SecretMatrixCellRead,
   SecretMatrixLastSetActorRead,
@@ -119,6 +122,7 @@ export type {
   SecretVersionMetadataRead,
   SessionOrganizationRead,
 } from "./rpc/runtime-metadata-rpc-contract.js";
+export type * from "./rpc/runtime-project-access-rpc-contract.js";
 export type {
   CreateRuntimeInjectionPolicyRpcInput,
   CreateRuntimeInjectionPolicyRpcPayload,
@@ -128,6 +132,7 @@ export type {
   GetRuntimeInjectionPolicyRpcPayload,
   RuntimeInjectionPolicyVersionReadPayload,
 } from "./rpc/runtime-run-policies-rpc-contract.js";
+export type { RuntimeConnectionsRpc } from "./rpc/runtime-connections-rpc-interface.js";
 export type {
   EnvironmentApprovalListItemRpcPayload,
   ListEnvironmentApprovalsRpcInput,
@@ -162,6 +167,8 @@ export type {
 export type {
   ResolveSessionWhoamiRpcInput,
   ResolveSessionWhoamiRpcPayload,
+  RegisterAgentSessionRpcInput,
+  RegisterAgentSessionRpcPayload,
 } from "./rpc/runtime-session-whoami-rpc-contract.js";
 export type {
   CreateWebhookSubscriptionRpcInput,

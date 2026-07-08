@@ -1,5 +1,6 @@
 import {
   AUTHORIZATION_SCOPES,
+  auditAccessDenialOnFailure,
   authorizeScopeOrThrow,
   type ActorRef,
   type AuthorizeScopeDeps,
@@ -85,6 +86,33 @@ export async function assertProtectedChangeAccess(
   });
 }
 
+/**
+ * Authorizes creating a Protected Change / Approval Request for a coordinate (ADR-0017 create
+ * scope). Internal to `guardProtectedChangeCreate`, the single create-guard both create paths use.
+ */
+async function assertProtectedChangeCreateAccess(input: {
+  readonly actor: ActorRef;
+  readonly auditActor: AssertProtectedChangeAccessInput["auditActor"];
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly requestId: RequestId;
+  readonly deps?: AuthorizeScopeDeps;
+}): Promise<void> {
+  await assertProtectedChangeAccess({
+    action: "create",
+    actor: input.actor,
+    auditActor: input.auditActor,
+    coordinate: {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+    },
+    requestId: input.requestId,
+    ...(input.deps === undefined ? {} : { deps: input.deps }),
+  });
+}
+
 export function isProtectedChangeAccessDenied(error: unknown): boolean {
   if (error instanceof ProtectedChangeError) {
     return (
@@ -111,6 +139,45 @@ export function assertProtectedEnvironmentCoordinate(input: {
       PROTECTED_CHANGE_ERROR_CODES.nonProtectedEnvironment,
       "protected changes require a protected environment",
     );
+  }
+}
+
+export interface ProtectedChangeCreateGuardInput {
+  readonly actor: ActorRef;
+  readonly auditActor: AssertProtectedChangeAccessInput["auditActor"];
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly isProtectedEnvironment: boolean;
+  readonly requestId: RequestId;
+  readonly deps?: AuthorizeScopeDeps;
+}
+
+/**
+ * The shared fail-closed create guard for both `createProtectedChange` and the Approval Request
+ * creators: rejects a non-protected environment coordinate, then runs the create-scope EAR
+ * authorization, recording a metadata-only denied audit (via `recordDenied`) before rethrowing.
+ * Keeps the two create paths in exact lockstep (ADR-0017).
+ */
+export async function guardProtectedChangeCreate(
+  input: ProtectedChangeCreateGuardInput,
+  recordDenied: (error: unknown) => Promise<void>,
+): Promise<void> {
+  assertProtectedEnvironmentCoordinate({
+    isProtected: input.isProtectedEnvironment,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+  });
+
+  try {
+    await assertProtectedChangeCreateAccess(input);
+  } catch (error) {
+    await auditAccessDenialOnFailure(error, {
+      isAccessDenied: isProtectedChangeAccessDenied,
+      recordDenied: async () => recordDenied(error),
+    });
+    throw error;
   }
 }
 

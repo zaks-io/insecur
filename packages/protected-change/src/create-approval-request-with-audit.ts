@@ -1,10 +1,10 @@
-import type { ActorRef } from "@insecur/access";
+import type { AuditActorRef } from "@insecur/audit";
 import { approvalRequestId, type ApprovalRequestId, type RequestId } from "@insecur/domain";
 
 import { finalizeCreatedApprovalRequest } from "./record-created-approval-request-audit.js";
 
 export interface ApprovalRequestAuditScope {
-  readonly actor: ActorRef;
+  readonly auditActor: AuditActorRef;
   readonly organizationId: Parameters<typeof finalizeCreatedApprovalRequest>[0]["organizationId"];
   readonly projectId: Parameters<typeof finalizeCreatedApprovalRequest>[0]["projectId"];
   readonly environmentId: Parameters<typeof finalizeCreatedApprovalRequest>[0]["environmentId"];

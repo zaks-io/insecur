@@ -73,7 +73,7 @@ describe("listSecretMatrixRowsByProject", () => {
       ],
       auditRows: [
         {
-          resourceId: secret,
+          resourceKey: secret,
           actorType: "user",
           actorUserId: "usr_00000000000000000000000001",
           actorMachineIdentityId: null,
@@ -218,14 +218,14 @@ describe("listSecretMatrixRowsByProject", () => {
       ],
       auditRows: [
         {
-          resourceId: secret,
+          resourceKey: secret,
           actorType: "machine",
           actorUserId: null,
           actorMachineIdentityId: null,
           createdAt: new Date("2026-06-24T02:00:00.000Z"),
         },
         {
-          resourceId: secret,
+          resourceKey: secret,
           actorType: "user",
           actorUserId: "usr_00000000000000000000000001",
           actorMachineIdentityId: null,

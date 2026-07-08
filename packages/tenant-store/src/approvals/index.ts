@@ -2,18 +2,16 @@ export {
   TenantApprovalRequestStore,
   type ApprovalRequestListItemRow,
   type ApprovalRequestPurpose,
+  type ApprovalRequestRequester,
   type ApprovalRequestStatus,
   type CreatePromotionApprovalRequestInput,
   type CreateRollbackApprovalRequestInput,
   type PromotionDraftVersionTarget,
+} from "./tenant-approval-request-store.js";
+export {
   loadEnvironmentDeliveryImpactFacts,
   type EnvironmentDeliveryImpactFacts,
   type EnvironmentRuntimeInjectionImpactFact,
   loadPromotionDraftVersionImpactFacts,
   type PromotionDraftVersionImpactFact,
-} from "../approvals/tenant-approval-request-store.js";
-export {
-  copyRetainedSecretVersion,
-  type CopyRetainedSecretVersionInput,
-  type CopyRetainedSecretVersionResult,
-} from "../secrets/copy-retained-secret-version.js";
+} from "./impact-review-loaders.js";

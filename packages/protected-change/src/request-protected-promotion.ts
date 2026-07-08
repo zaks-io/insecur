@@ -10,6 +10,7 @@ import type {
   RequestProtectedPromotionInput,
   RequestProtectedPromotionResult,
 } from "./request-protected-promotion-types.js";
+import { toAuditActor } from "./to-audit-actor.js";
 import { validatePromotionDraftTargets } from "./validate-promotion-draft-targets.js";
 
 export type {
@@ -30,6 +31,7 @@ export async function requestProtectedPromotion(
 
   const validatedTargets = await validatePromotionDraftTargets({
     organizationId: input.organizationId,
+    environmentId: input.environmentId,
     draftVersionIds: input.draftVersionIds,
   });
 
@@ -55,7 +57,9 @@ export async function requestProtectedPromotion(
   const { approvalRequestId: newApprovalRequestId, supersededApprovalRequestIds } =
     await createPromotionApprovalRequest({
       actor: input.actor,
+      auditActor: toAuditActor(input.actor),
       ...scope,
+      isProtectedEnvironment: true,
       validatedTargets,
       impactReviewFingerprint,
       requestId: input.requestId,

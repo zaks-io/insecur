@@ -1,9 +1,6 @@
 import type { ConsoleAuditEvent } from "./audit-events.js";
-import {
-  formatMachineActorChainLabel,
-  formatUserActorChainLabel,
-  type ConsoleActorChainDetails,
-} from "./actor-chain-label.js";
+import { formatPrincipalChainActorLabel } from "./actor-chain-label.js";
+import type { ConsoleActorChainDetails } from "./actor-chain-label.js";
 
 function auditDetailsToActorChainDetails(
   details: ConsoleAuditEvent["details"],
@@ -23,18 +20,33 @@ function auditDetailsToActorChainDetails(
   };
 }
 
+function auditEventToPrincipalChainActor(event: ConsoleAuditEvent) {
+  const chainDetails = auditDetailsToActorChainDetails(event.details);
+  if (event.actor.actorType === "user") {
+    return {
+      actorType: "user" as const,
+      ...(event.actor.userId === undefined ? {} : { userId: event.actor.userId }),
+      ...(chainDetails === undefined ? {} : { details: chainDetails }),
+    };
+  }
+  if (event.actor.actorType === "machine") {
+    return {
+      actorType: "machine" as const,
+      ...(event.actor.machineIdentityId === undefined
+        ? {}
+        : { machineIdentityId: event.actor.machineIdentityId }),
+      ...(chainDetails === undefined ? {} : { details: chainDetails }),
+    };
+  }
+  return { actorType: "ci_exchange" as const };
+}
+
 /**
  * Principal-chain actor label for audit rows (docs/web-console-ux.md §Actor Rendering). Metadata
  * only; never includes Sensitive Values.
  */
 export function formatConsoleAuditActorLabel(event: ConsoleAuditEvent): string {
-  const { actor, details } = event;
-  const chainDetails = auditDetailsToActorChainDetails(details);
-  if (actor.actorType === "user") {
-    return formatUserActorChainLabel(actor.userId ?? "user", chainDetails);
-  }
-  if (actor.actorType === "machine") {
-    return formatMachineActorChainLabel(actor.machineIdentityId ?? "machine", chainDetails);
-  }
-  return "ci_exchange";
+  return formatPrincipalChainActorLabel(auditEventToPrincipalChainActor(event));
 }
+
+export { auditEventToPrincipalChainActor };

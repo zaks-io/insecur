@@ -17,6 +17,8 @@ import type {
   ListOrganizationInvitationsRpcInput,
   ListOrganizationMembersRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
+  ListProjectInjectionGrantsRpcInput,
+  ListProjectMachineIdentitiesRpcInput,
   ListProjectSecretsRpcInput,
   ListProjectsRpcInput,
   ListSecretVersionsRpcInput,
@@ -29,6 +31,14 @@ import type {
   RotateWebhookSigningSecretRpcInput,
   UpdateWebhookSubscriptionRpcInput,
 } from "@insecur/worker-kit";
+import type {
+  CreateAppConnectionRpcInput,
+  DisconnectAppConnectionRpcInput,
+  GetAppConnectionStatusRpcInput,
+  ListAppConnectionsRpcInput,
+  ReauthAppConnectionRpcInput,
+  RotateAppConnectionCredentialRpcInput,
+} from "@insecur/worker-kit/rpc/runtime-connections-rpc-contract";
 
 import type { RuntimeEnv } from "../env.js";
 
@@ -53,6 +63,18 @@ import {
   listSessionOrganizationsRpc,
   revokeCliSessionRpc,
 } from "./runtime-metadata-rpc-delegates.js";
+import {
+  listProjectInjectionGrantsRpc,
+  listProjectMachineIdentitiesRpc,
+} from "./runtime-project-access-rpc-delegates.js";
+import {
+  createAppConnectionRpc,
+  disconnectAppConnectionRpc,
+  getAppConnectionStatusRpc,
+  listAppConnectionsRpc,
+  reauthAppConnectionRpc,
+  rotateAppConnectionCredentialRpc,
+} from "./runtime-connections-rpc-delegates.js";
 import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
 import {
   createRuntimeInjectionPolicyRpc,
@@ -93,6 +115,18 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
   },
   listProjectSecrets(this: RuntimePostAuthRpcHost, input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.postAuthRpc(), input);
+  },
+  listProjectMachineIdentities(
+    this: RuntimePostAuthRpcHost,
+    input: ListProjectMachineIdentitiesRpcInput,
+  ) {
+    return listProjectMachineIdentitiesRpc(this.postAuthRpc(), input);
+  },
+  listProjectInjectionGrants(
+    this: RuntimePostAuthRpcHost,
+    input: ListProjectInjectionGrantsRpcInput,
+  ) {
+    return listProjectInjectionGrantsRpc(this.postAuthRpc(), input);
   },
   listEnvironmentSecrets(this: RuntimePostAuthRpcHost, input: ListEnvironmentSecretsRpcInput) {
     return listEnvironmentSecretsRpc(this.postAuthRpc(), input);
@@ -204,5 +238,26 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
   },
   listWebhookEventCodes(this: RuntimePostAuthRpcHost, input: ListWebhookEventCodesRpcInput) {
     return listWebhookEventCodesRpc(this.postAuthRpc(), this.env, input);
+  },
+  listAppConnections(this: RuntimePostAuthRpcHost, input: ListAppConnectionsRpcInput) {
+    return listAppConnectionsRpc(this.postAuthRpc(), this.env, input);
+  },
+  getAppConnectionStatus(this: RuntimePostAuthRpcHost, input: GetAppConnectionStatusRpcInput) {
+    return getAppConnectionStatusRpc(this.postAuthRpc(), this.env, input);
+  },
+  createAppConnection(this: RuntimePostAuthRpcHost, input: CreateAppConnectionRpcInput) {
+    return createAppConnectionRpc(this.postAuthRpc(), this.env, input);
+  },
+  rotateAppConnectionCredential(
+    this: RuntimePostAuthRpcHost,
+    input: RotateAppConnectionCredentialRpcInput,
+  ) {
+    return rotateAppConnectionCredentialRpc(this.postAuthRpc(), this.env, input);
+  },
+  reauthAppConnection(this: RuntimePostAuthRpcHost, input: ReauthAppConnectionRpcInput) {
+    return reauthAppConnectionRpc(this.postAuthRpc(), this.env, input);
+  },
+  disconnectAppConnection(this: RuntimePostAuthRpcHost, input: DisconnectAppConnectionRpcInput) {
+    return disconnectAppConnectionRpc(this.postAuthRpc(), this.env, input);
   },
 } as const;

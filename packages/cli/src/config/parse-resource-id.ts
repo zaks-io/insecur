@@ -1,4 +1,5 @@
 import type {
+  AppConnectionId,
   CliProfileId,
   EnvironmentId,
   OrganizationId,
@@ -9,6 +10,7 @@ import type {
 } from "@insecur/domain";
 import {
   VALIDATION_ERROR_CODES,
+  appConnectionId,
   cliProfileId,
   environmentId,
   organizationId,
@@ -118,6 +120,10 @@ export function parseSecretId(raw: string, context?: string): SecretId {
 
 export function parseSecretVersionId(raw: string, context?: string): SecretVersionId {
   return parseRequired(raw, secretVersionId, "secret version id", context);
+}
+
+export function parseAppConnectionId(raw: string, context?: string): AppConnectionId {
+  return parseRequired(raw, appConnectionId, "app connection id", context);
 }
 
 export function parseSecretIds(raw: string, context?: string): readonly SecretId[] {

@@ -3,6 +3,10 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import {
+  RECOVERY_CANARY_ORGANIZATION_DISPLAY_NAME,
+  RECOVERY_CANARY_ORGANIZATION_ID,
+} from "@insecur/domain";
+import {
   redactDatabaseUrlsInText,
   redactLoggableError,
   requireDatabaseUrl,
@@ -116,6 +120,22 @@ async function seedTenantBaselineLocked(sql: postgres.Sql): Promise<void> {
     environmentId: TEST_ENV_C_ID,
     teamId: TEST_TEAM_C_ID,
     membershipId: TEST_MEM_C_ID,
+  });
+
+  // The recovery-canary sentinel organization is standing instance-scope state in every real
+  // environment (seeded at bootstrap / preview deploy per ADR-0058 / ADR-0072), so the backup
+  // export's Operation/audit FK to organizations.id resolves without a test-only per-suite crutch.
+  // Seeded LAST so it is never the earliest-created org on the instance — production seeds the real
+  // first org before the canary, and instance-level audit qualification anchors on that earliest
+  // org (loadInstanceAnchorOrganizationId). The org RLS WITH CHECK requires app.current_org, so
+  // scope the insert the same way seedOrganizationCore does.
+  await sql.begin(async (tx) => {
+    await tx`SELECT set_config('app.current_org', ${RECOVERY_CANARY_ORGANIZATION_ID}, true)`;
+    await tx`
+      INSERT INTO organizations (id, instance_id, display_name)
+      VALUES (${RECOVERY_CANARY_ORGANIZATION_ID}, ${TEST_INSTANCE_ID}, ${RECOVERY_CANARY_ORGANIZATION_DISPLAY_NAME})
+      ON CONFLICT (id) DO NOTHING
+    `;
   });
 }
 

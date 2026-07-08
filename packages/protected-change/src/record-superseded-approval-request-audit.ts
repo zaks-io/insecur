@@ -1,4 +1,4 @@
-import type { ActorRef } from "@insecur/access";
+import type { AuditActorRef } from "@insecur/audit";
 import { recordApprovalAudit } from "@insecur/audit";
 import type {
   ApprovalRequestId,
@@ -9,10 +9,8 @@ import type {
   RequestId,
 } from "@insecur/domain";
 
-import { toAuditActor } from "./to-audit-actor.js";
-
 export async function recordSupersededApprovalRequestAudits(input: {
-  readonly actor: ActorRef;
+  readonly auditActor: AuditActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
@@ -23,7 +21,7 @@ export async function recordSupersededApprovalRequestAudits(input: {
     await recordApprovalAudit({
       action: "request_superseded",
       outcome: "success",
-      actor: toAuditActor(input.actor),
+      actor: input.auditActor,
       organizationId: input.organizationId,
       projectId: input.projectId,
       environmentId: input.environmentId,

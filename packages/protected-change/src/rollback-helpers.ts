@@ -8,16 +8,19 @@ import {
 } from "@insecur/domain";
 import {
   copyRetainedSecretVersion,
+  type ApprovalRequestRequester,
   type CopyRetainedSecretVersionResult,
   withTenantScope,
   type TenantScopedDb,
 } from "@insecur/tenant-store";
 
+import { authorizeApprovalRequestCreate } from "./authorize-approval-request-create.js";
 import { computeImpactReviewFingerprint } from "./compute-impact-review-fingerprint.js";
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { persistRollbackApprovalRequestOnDb } from "./create-rollback-approval-request.js";
 import { loadApprovalImpactReviewState } from "./load-approval-impact-review-state.js";
 import type { RequestProtectedRollbackInput } from "./request-protected-rollback-types.js";
+import { toAuditActor } from "./to-audit-actor.js";
 
 export interface ExecuteProtectedRollbackPersistenceInput {
   readonly input: RequestProtectedRollbackInput;
@@ -69,6 +72,20 @@ async function persistRollbackWithApproval(input: {
   readonly approvalRequestId: ApprovalRequestId;
   readonly result: CopyRetainedSecretVersionResult;
 }> {
+  const auditActor = toAuditActor(input.input.actor);
+  // ADR-0017 fail-closed create guard: rejects a non-protected coordinate and runs the create-scope
+  // Effective Access authorization, recording a metadata-only denied audit, before any version copy
+  // or Approval Request insert. Rollback that publishes is a Promotion and must be authorized here.
+  const requester = await authorizeApprovalRequestCreate({
+    actor: input.input.actor,
+    auditActor,
+    organizationId: input.input.organizationId,
+    projectId: input.input.projectId,
+    environmentId: input.input.environmentId,
+    isProtectedEnvironment: true,
+    requestId: input.input.requestId,
+  });
+
   const impactReviewState = await loadApprovalImpactReviewState({
     ...input.scope,
     draftTargets: [
@@ -82,7 +99,7 @@ async function persistRollbackWithApproval(input: {
 
   return createApprovalRequestWithAudit({
     audit: {
-      actor: input.input.actor,
+      auditActor,
       organizationId: input.input.organizationId,
       projectId: input.input.projectId,
       environmentId: input.input.environmentId,
@@ -91,6 +108,7 @@ async function persistRollbackWithApproval(input: {
     persist: (createdApprovalRequestId) =>
       copyVersionAndCreateRollbackApproval({
         input: input.input,
+        requester,
         newSecretVersionId: input.newSecretVersionId,
         createdApprovalRequestId,
         impactReviewFingerprint,
@@ -101,6 +119,7 @@ async function persistRollbackWithApproval(input: {
 
 async function copyVersionAndCreateRollbackApproval(input: {
   readonly input: RequestProtectedRollbackInput;
+  readonly requester: ApprovalRequestRequester;
   readonly newSecretVersionId: SecretVersionId;
   readonly createdApprovalRequestId: ApprovalRequestId;
   readonly impactReviewFingerprint: string;
@@ -120,7 +139,7 @@ async function copyVersionAndCreateRollbackApproval(input: {
         organizationId: input.input.organizationId,
         projectId: input.input.projectId,
         environmentId: input.input.environmentId,
-        actor: input.input.actor,
+        requester: input.requester,
         approvalRequestId: input.createdApprovalRequestId,
         impactReviewFingerprint: input.impactReviewFingerprint,
         secretId: input.input.secretId,

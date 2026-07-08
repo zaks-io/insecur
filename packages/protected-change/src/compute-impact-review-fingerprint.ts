@@ -1,10 +1,5 @@
 import type { ApprovalImpactReviewState } from "./load-approval-impact-review-state.js";
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  const bytes = new Uint8Array(digest);
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
+import { sha256Hex } from "./sha256-hex.js";
 
 function canonicalImpactReviewPayload(state: ApprovalImpactReviewState): string {
   return JSON.stringify({

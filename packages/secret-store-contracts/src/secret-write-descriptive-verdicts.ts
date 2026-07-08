@@ -57,11 +57,11 @@ function decodeUtf8(valueUtf8: Uint8Array): string {
 }
 
 function classifyEncodingClass(text: string): SecretValueEncodingClass {
-  if (text.length >= 2 && text.length % 2 === 0 && HEX_SHAPED_PATTERN.test(text)) {
-    return "hex-shaped";
-  }
   if (text.length > 0 && BASE64URL_SHAPED_PATTERN.test(text) && base64UrlToBytes(text) !== null) {
     return "base64-shaped";
+  }
+  if (text.length >= 2 && text.length % 2 === 0 && HEX_SHAPED_PATTERN.test(text)) {
+    return "hex-shaped";
   }
   return "utf-8";
 }

@@ -12,6 +12,7 @@ export interface SessionCredentialMetadata {
   readonly sessionValid: true;
   readonly derivedAgentSessionId?: AgentSessionId;
   readonly agentMarked: boolean;
+  readonly harnessName?: string;
 }
 
 function readAgentMarkedClaim(claims: Record<string, unknown>, typ: string): boolean {
@@ -31,6 +32,15 @@ function readDerivedAgentSessionId(claims: Record<string, unknown>): AgentSessio
   return parsed.ok ? parsed.value : undefined;
 }
 
+function readHarnessNameClaim(claims: Record<string, unknown>): string | undefined {
+  const hrn = claims.hrn;
+  if (typeof hrn !== "string") {
+    return undefined;
+  }
+  const trimmed = hrn.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
 function readScopedAccessAudience(claims: Record<string, unknown>): string | null {
   const aud = claims.aud;
   return typeof aud === "string" ? aud : null;
@@ -42,12 +52,14 @@ function readCliSessionCredentialMetadata(
 ): SessionCredentialMetadata {
   const agentMarked = readAgentMarkedClaim(decoded, claims.typ);
   const derivedAgentSessionId = readDerivedAgentSessionId(decoded);
+  const harnessName = readHarnessNameClaim(decoded);
 
   return {
     expiresAt: new Date(claims.exp * 1000).toISOString(),
     sessionValid: true,
     agentMarked,
     ...(derivedAgentSessionId !== undefined ? { derivedAgentSessionId } : {}),
+    ...(harnessName !== undefined ? { harnessName } : {}),
   };
 }
 

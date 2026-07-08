@@ -222,4 +222,25 @@ describe("evaluateRestoreDrillEvidence", () => {
       }),
     ).toBe(5);
   });
+
+  it("returns null for empty, unparseable, or negative drill timestamps", () => {
+    expect(
+      computeRestoreDrillElapsedSeconds({
+        started_at: "",
+        completed_at: "2026-07-04T00:00:05.000Z",
+      }),
+    ).toBeNull();
+    expect(
+      computeRestoreDrillElapsedSeconds({
+        started_at: "not-a-date",
+        completed_at: "2026-07-04T00:00:05.000Z",
+      }),
+    ).toBeNull();
+    expect(
+      computeRestoreDrillElapsedSeconds({
+        started_at: "2026-07-04T00:00:05.000Z",
+        completed_at: "2026-07-04T00:00:00.000Z",
+      }),
+    ).toBeNull();
+  });
 });

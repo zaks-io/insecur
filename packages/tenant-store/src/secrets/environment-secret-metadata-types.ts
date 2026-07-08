@@ -8,6 +8,7 @@ import type {
 } from "@insecur/domain";
 
 import type { SecretVersionLifecycleState } from "./lifecycle-states.js";
+import type { PrincipalChainActorRow } from "./principal-chain-actor-types.js";
 
 export interface SecretVersionDescriptiveVerdictsRead {
   readonly valueByteLength: number;
@@ -52,4 +53,6 @@ export interface SecretVersionMetadataRow {
   readonly isCurrent: boolean;
   readonly isPublished: boolean;
   readonly descriptiveVerdicts: SecretVersionDescriptiveVerdictsRead;
+  readonly setAt?: Date;
+  readonly setActor?: PrincipalChainActorRow;
 }

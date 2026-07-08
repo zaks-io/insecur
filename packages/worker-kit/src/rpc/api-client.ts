@@ -94,6 +94,26 @@ function createHighAssuranceApiMethods(apiFetch: ApiFetch) {
   };
 }
 
+function createProjectAccessApiMethods(apiFetch: ApiFetch) {
+  return {
+    projectMachineIdentities: async (
+      organizationId: string,
+      projectId: string,
+    ): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/machine-identities`,
+      );
+      return response.json();
+    },
+    projectInjectionGrants: async (organizationId: string, projectId: string): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/injection-grants`,
+      );
+      return response.json();
+    },
+  };
+}
+
 function createOrgApiMethods(apiFetch: ApiFetch) {
   return {
     orgProjects: async (organizationId: string): Promise<unknown> => {
@@ -103,6 +123,24 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
     projectEnvironments: async (organizationId: string, projectId: string): Promise<unknown> => {
       const response = await apiFetch(
         `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/environments`,
+      );
+      return response.json();
+    },
+    projectSecrets: async (organizationId: string, projectId: string): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/secrets`,
+      );
+      return response.json();
+    },
+    ...createProjectAccessApiMethods(apiFetch),
+    secretVersions: async (
+      organizationId: string,
+      projectId: string,
+      environmentId: string,
+      secretId: string,
+    ): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(environmentId)}/secrets/${encodeURIComponent(secretId)}/versions`,
       );
       return response.json();
     },

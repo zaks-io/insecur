@@ -1,18 +1,31 @@
-import { ConsolePlaceholder } from "@insecur/ui";
 import { createFileRoute } from "@tanstack/react-router";
+import { ProjectAccessContent } from "../components/access/project-access-content.js";
+import { ConsoleFramedRouteError } from "../components/console-route-error.js";
+import { requireConsoleRead } from "../console/route-guards.js";
+import { loadProjectAccess } from "../server/console-project-access.js";
 
 export const Route = createFileRoute("/orgs/$orgId/projects/$projectId/access")({
+  loader: async ({ params, location }) => {
+    const access = requireConsoleRead(
+      await loadProjectAccess({
+        data: { organizationId: params.orgId, projectId: params.projectId },
+      }),
+      location.href,
+    );
+    return { access };
+  },
   component: ProjectAccessPage,
+  errorComponent: ConsoleFramedRouteError,
 });
 
-/** Placeholder until the Access slice lands (docs/web-console-ux.md §Project Access Page). */
+/**
+ * Read-rich project Access view (INS-382, docs/web-console-ux.md §Project Access Page).
+ * Machine identities, active/consumed grants, and agent-session attribution — metadata only.
+ */
 function ProjectAccessPage() {
+  const { access } = Route.useLoaderData();
+
   return (
-    <div className="mt-8">
-      <ConsolePlaceholder title="Access" className="max-w-2xl">
-        Machine Identities, active and consumed grants, and agent-session attribution land here,
-        with guided GitHub Actions OIDC setup.
-      </ConsolePlaceholder>
-    </div>
+    <ProjectAccessContent machineIdentities={access.machineIdentities} grants={access.grants} />
   );
 }
