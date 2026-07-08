@@ -26,6 +26,7 @@ const actions = new Map([
   ["up", up],
   ["down", down],
   ["reset", reset],
+  ["reset-service", resetService],
   ["guard", guard],
   ["help", help],
 ]);
@@ -66,6 +67,45 @@ function reset() {
   migrateLocal();
 }
 
+function resetService() {
+  writeEnv();
+  if (!hasCommand("psql")) {
+    console.log("psql not found on PATH; falling back to Docker Compose Postgres reset.");
+    reset();
+    return;
+  }
+
+  const resolved = resolveEnv(readEnv());
+  const env = servicePostgresEnv(resolved);
+
+  runPsql(
+    [
+      "--username",
+      resolved.get("INSECUR_POSTGRES_SUPERUSER"),
+      "--dbname",
+      "postgres",
+      "--set=ON_ERROR_STOP=1",
+      "--set",
+      `db_name=${resolved.get("INSECUR_POSTGRES_DB")}`,
+    ],
+    `
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = :'db_name' AND pid <> pg_backend_pid();
+SELECT format('DROP DATABASE IF EXISTS %I', :'db_name')\\gexec
+SELECT format('CREATE DATABASE %I', :'db_name')\\gexec
+`,
+    env,
+  );
+
+  runScript("bash", [join(root, "infra/postgres/init/001-local-roles.sh")], env);
+  runScript("sh", [join(root, "infra/postgres/check-runtime-role.sh")], {
+    ...env,
+    INSECUR_POSTGRES_INTERNAL_PORT: resolved.get("INSECUR_POSTGRES_PORT"),
+  });
+  migrateLocal();
+}
+
 function migrateLocal() {
   writeEnv();
   const resolved = resolveEnv(readEnv());
@@ -92,7 +132,7 @@ function guard() {
 }
 
 function help() {
-  console.log("Usage: pnpm dev:db:{env|up|down|reset|guard}");
+  console.log("Usage: pnpm dev:db:{env|up|down|reset|reset-service|guard}");
 }
 
 function compose(args) {
@@ -166,4 +206,62 @@ function createUrl(values, roleKey, passwordKey) {
   const port = encodeURIComponent(values.get("INSECUR_POSTGRES_PORT"));
   const database = encodeURIComponent(values.get("INSECUR_POSTGRES_DB"));
   return `postgres://${role}:${password}@127.0.0.1:${port}/${database}`;
+}
+
+function servicePostgresEnv(values) {
+  return {
+    ...process.env,
+    PGHOST: "127.0.0.1",
+    PGPORT: values.get("INSECUR_POSTGRES_PORT"),
+    PGPASSWORD: values.get("INSECUR_POSTGRES_SUPERUSER_PASSWORD"),
+    POSTGRES_USER: values.get("INSECUR_POSTGRES_SUPERUSER"),
+    POSTGRES_DB: values.get("INSECUR_POSTGRES_DB"),
+    INSECUR_POSTGRES_DB: values.get("INSECUR_POSTGRES_DB"),
+    INSECUR_POSTGRES_MIGRATION_ROLE: values.get("INSECUR_POSTGRES_MIGRATION_ROLE"),
+    INSECUR_POSTGRES_MIGRATION_PASSWORD: values.get("INSECUR_POSTGRES_MIGRATION_PASSWORD"),
+    INSECUR_POSTGRES_RUNTIME_ROLE: values.get("INSECUR_POSTGRES_RUNTIME_ROLE"),
+    INSECUR_POSTGRES_RUNTIME_PASSWORD: values.get("INSECUR_POSTGRES_RUNTIME_PASSWORD"),
+  };
+}
+
+function runPsql(args, input, env) {
+  const result = spawnSync("psql", args, {
+    cwd: root,
+    env,
+    input,
+    stdio: ["pipe", "inherit", "inherit"],
+  });
+
+  if (result.error) {
+    console.error(`psql failed to start: ${result.error.message}`);
+    process.exit(1);
+  }
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+function runScript(command, args, env) {
+  const result = spawnSync(command, args, {
+    cwd: root,
+    env,
+    stdio: "inherit",
+  });
+
+  if (result.error) {
+    console.error(`${command} failed to start: ${result.error.message}`);
+    process.exit(1);
+  }
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+function hasCommand(command) {
+  const result = spawnSync(command, ["--version"], {
+    stdio: "ignore",
+  });
+  return !result.error && result.status === 0;
 }

@@ -6,7 +6,7 @@ The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 | Layer                | Postgres                   | Runtime                                                                            | Command                                                                                                                                                                                         | Runs where             |
 | -------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
 | Unit                 | none                       | Node Vitest                                                                        | `pnpm test`                                                                                                                                                                                     | local, CI, agents      |
-| Integration + RLS    | Docker Compose             | Node Vitest, real route stack + `postgres` driver                                  | `pnpm dev:db:reset && pnpm test:rls && pnpm test:e2e && pnpm test:canary`                                                                                                                       | local, CI, agents, PRs |
+| Integration + RLS    | Postgres 17                | Node Vitest, real route stack + `postgres` driver                                  | `pnpm smoke:local` against configured Postgres, or `pnpm smoke:local:docker` to reset Docker Compose Postgres first                                                                             | local, CI, agents, PRs |
 | Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | `Deploy Preview` or `pnpm deploy:preview:preflight && pnpm migrate:preview && node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs && pnpm deploy:preview && pnpm smoke:preview` | shared preview only    |
 
 ## Manual Mutation Review
@@ -81,14 +81,18 @@ or intentionally outside this test layer. Prefer adding or tightening tests for 
 
 ## For agents
 
-To run the full DB-backed loop with no cloud credentials, only Docker:
+To run the full DB-backed loop with a clean local database on a laptop or in CI:
 
 ```
-pnpm dev:db:reset   # Docker Compose Postgres 17, migrated
-pnpm test:rls       # forced-RLS tenant isolation + DB-backed package integration
-pnpm test:e2e       # First Value loop through the real Worker routes
-pnpm test:canary    # no-plaintext canary gate (Postgres + console + HTTP/RPC egress)
+pnpm smoke:local:docker
 ```
+
+`pnpm smoke:local:docker` resets and migrates Docker Compose Postgres 17, then runs
+`test:rls`, `test:e2e`, and `test:canary` through the same fail-closed runner CI uses. Cursor
+Cloud agents use native Postgres 17 from `.cursor/start-postgres.sh` instead. Use
+`pnpm smoke:local` when a local Postgres service is already configured and running; it drops and
+recreates that database, provisions the local roles, migrates, and then runs the fail-closed smoke
+runner. On local machines without `psql`, it falls back to the Docker Compose reset path.
 
 `pnpm test:rls` runs the forced-RLS tenant-store suites plus every workspace package-level
 DB-backed `*.integration.test.ts` suite that depends on `DATABASE_URL_RUNTIME`. The suites
