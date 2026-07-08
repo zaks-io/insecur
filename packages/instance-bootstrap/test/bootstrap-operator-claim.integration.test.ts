@@ -13,6 +13,7 @@ import {
   membershipId,
   organizationId,
   parseDisplayName,
+  RECOVERY_CANARY_ORGANIZATION_ID,
   type DisplayName,
   teamId,
   userId,
@@ -23,9 +24,12 @@ import {
   resolveAdmittedUserId,
   seedActiveUserAdmission,
   withTenantScope,
+  type TenantScopedSql,
 } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
+import { TEST_INSTANCE_ID } from "../../tenant-store/test/rls/test-ids.js";
+import { TENANT_STORE_SEED_LOCK_KEY } from "../../tenant-store/scripts/lib/test-advisory-locks.mjs";
 import {
   BootstrapError,
   completeBootstrapOperatorClaim,
@@ -660,6 +664,121 @@ describeIntegration("bootstrap operator claim", () => {
       `;
     });
     expect(claimsOnInstanceB).toEqual([]);
+  });
+});
+
+const ANCHOR_INSTANCE_ID = "inst_BOOTSTRAP_ANCHOR_TEST";
+const ANCHOR_ORG_ID = "org_00000000000000000000000063";
+const ANCHOR_TEAM_ID = "team_00000000000000000000000063";
+const ANCHOR_CLAIM_ID = "boc_00000000000000000000000009";
+
+async function loadOrgCreatedAt(instanceId: string, orgId: string): Promise<string | null> {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
+    const rows = await sql<{ created_at: string }[]>`
+      SELECT created_at FROM organizations
+      WHERE id = ${orgId} AND instance_id = ${instanceId}
+      LIMIT 1
+    `;
+    return rows[0]?.created_at ?? null;
+  });
+}
+
+// The recovery canary is a single global org row that other RLS suites read on the same local
+// Postgres, so this fixture must never leave it deleted or re-homed. It re-associates the canary
+// onto ANCHOR_INSTANCE_ID (clearing FK dependents first) so the exclusion is exercised on this
+// suite's instance, and restores it to TEST_INSTANCE_ID afterward. Both moves hold the shared seed
+// advisory lock so they serialize against every package's seedTenantBaseline and each other.
+async function withSeedLock<T>(run: (sql: TenantScopedSql) => Promise<T>): Promise<T> {
+  return withTenantScope({ kind: "service" }, async ({ sql }) => {
+    await sql`SELECT pg_advisory_lock(${TENANT_STORE_SEED_LOCK_KEY})`;
+    try {
+      return await run(sql);
+    } finally {
+      await sql`SELECT pg_advisory_unlock(${TENANT_STORE_SEED_LOCK_KEY})`;
+    }
+  });
+}
+
+async function rehomeCanaryToInstance(
+  instanceId: string,
+  createdAt: string = new Date().toISOString(),
+): Promise<void> {
+  await withSeedLock(async (sql) => {
+    await sql`DELETE FROM audit_events WHERE org_id = ${RECOVERY_CANARY_ORGANIZATION_ID}`;
+    await sql`DELETE FROM operations WHERE org_id = ${RECOVERY_CANARY_ORGANIZATION_ID}`;
+    await sql`
+      INSERT INTO organizations (id, instance_id, display_name, created_at)
+      VALUES (${RECOVERY_CANARY_ORGANIZATION_ID}, ${instanceId}, ${"Recovery Canary"}, ${createdAt})
+      ON CONFLICT (id) DO UPDATE
+      SET instance_id = ${instanceId}, created_at = ${createdAt}
+    `;
+  });
+}
+
+describeIntegration("bootstrap instance anchor resolution vs recovery canary", () => {
+  beforeAll(async () => {
+    await seedTenantBaseline();
+    await cleanupBootstrapFixture(ANCHOR_INSTANCE_ID);
+    await runInstanceBootstrap({
+      instanceId: ANCHOR_INSTANCE_ID,
+      instanceDisplayName: testDisplayName("Anchor bootstrap instance"),
+      organizationDisplayName: testDisplayName("Anchor bootstrap org"),
+      defaultTeamDisplayName: testDisplayName("Default"),
+      resourceIds: {
+        organizationId: organizationId.brand(ANCHOR_ORG_ID),
+        defaultTeamId: teamId.brand(ANCHOR_TEAM_ID),
+        claimId: ANCHOR_CLAIM_ID,
+      },
+      bootstrapSecret: randomBytes(32).toString("base64url"),
+      workosClientId: "client_test_bootstrap",
+    });
+  });
+
+  afterAll(async () => {
+    // Return the shared canary to the baseline instance so later suites see the real shape.
+    await rehomeCanaryToInstance(TEST_INSTANCE_ID);
+    await cleanupBootstrapFixture(ANCHOR_INSTANCE_ID);
+    await closeRuntimeSql();
+  });
+
+  it("co-timestamps the real org and the canary written in one bootstrap transaction", async () => {
+    // Prove the regression precondition on a throwaway instance: two orgs inserted in the SAME
+    // withTenantScope transaction (as insertBootstrapInstanceRecords does) share created_at
+    // (now() = transaction_timestamp() is constant per transaction), so a created_at tiebreak
+    // between the real org and the canary is arbitrary. Uses fixture-local ids only.
+    const probeInstance = "inst_BOOTSTRAP_ANCHOR_TS_PROBE";
+    const probeReal = "org_0000000000000000000000PROBE1";
+    const probeCanary = "org_0000000000000000000000PROBE2";
+    await cleanupBootstrapFixture(probeInstance);
+    try {
+      await withTenantScope({ kind: "service" }, async ({ sql }) => {
+        await sql`INSERT INTO instances (id, display_name) VALUES (${probeInstance}, ${"ts probe"})`;
+        await sql`INSERT INTO organizations (id, instance_id, display_name) VALUES (${probeReal}, ${probeInstance}, ${"real"})`;
+        await sql`INSERT INTO organizations (id, instance_id, display_name) VALUES (${probeCanary}, ${probeInstance}, ${"canary"})`;
+      });
+      const realCreatedAt = await loadOrgCreatedAt(probeInstance, probeReal);
+      const canaryCreatedAt = await loadOrgCreatedAt(probeInstance, probeCanary);
+      expect(realCreatedAt).not.toBeNull();
+      expect(canaryCreatedAt).toBe(realCreatedAt);
+    } finally {
+      await cleanupBootstrapFixture(probeInstance);
+    }
+  });
+
+  it("resolves the bootstrap status org to the real org even when the canary is earliest", async () => {
+    // Put the canary on THIS instance and force it to be strictly the earliest org (the adversarial
+    // ambiguity). loadInstanceBootstrapRow must still resolve the real org, because it excludes the
+    // canary by id, not by created_at ordering. If it regressed, the canary (no default team) would
+    // be picked and completeBootstrapOperatorClaim would throw claimNotAvailable / "default team is
+    // missing" — the INS-419/420/421 owner-claim login loop.
+    await rehomeCanaryToInstance(ANCHOR_INSTANCE_ID, "2000-01-01T00:00:00.000Z");
+
+    const status = await getBootstrapStatus(ANCHOR_INSTANCE_ID);
+    if (status.phase !== "awaiting_operator_claim" && status.phase !== "complete") {
+      throw new Error(`unexpected bootstrap phase ${status.phase}`);
+    }
+    expect(status.organizationId).toBe(ANCHOR_ORG_ID);
+    expect(status.organizationId).not.toBe(RECOVERY_CANARY_ORGANIZATION_ID);
   });
 });
 

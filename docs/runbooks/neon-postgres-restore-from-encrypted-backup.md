@@ -31,6 +31,18 @@ One Instance, one latest scheduled export artifact, one fresh Neon target, one r
 canary organization/project/secret scope. Tenant-owned rows restore per organization
 snapshot timestamp recorded in the export header.
 
+Consistency limitation (accepted for V1, revisit if it bites): the export is not a single
+transactional snapshot of the whole instance. Each organization section is read in its own
+`app.current_org` transaction and the instance-scope section in a separate `app.service`
+transaction ([ADR-0072](../adr/0072-backup-export-pipeline-and-freshness.md)), so instance-scope
+rows and per-organization rows can reflect slightly different instants within one run (a torn
+read bounded by the run's wall clock). Against a 24-hour RPO this skew is noise and no tenant row
+references another organization's rows, so no cross-organization invariant can break; a restore
+states each tenant's instant via the per-organization snapshot timestamp. If a future change adds
+an instance-scope↔tenant invariant that the skew could violate, wrap the export in one snapshot
+(for example a single repeatable-read transaction or an exported snapshot id) at that time.
+Tracked as a follow-up, not a V1 blocker.
+
 ## required_authority
 
 - Operator with Cloudflare Super Administrator or Secrets Store Deployer/Admin for the
