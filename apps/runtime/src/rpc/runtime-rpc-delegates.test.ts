@@ -64,10 +64,14 @@ vi.mock("./runtime-metadata-rpc-delegates.js", () => ({
   listEnvironmentsRpc: vi.fn(async () => ({ environments: [] })),
   createEnvironmentRpc: vi.fn(async () => ({ environmentId: "env_test" })),
   listProjectSecretsRpc: vi.fn(async () => ({ environments: [], rows: [] })),
+  listEnvironmentSecretsRpc: vi.fn(async () => ({ secrets: [] })),
+  listSecretVersionsRpc: vi.fn(async () => ({ versions: [] })),
   listSessionOrganizationsRpc: vi.fn(async () => ({ organizations: [] })),
+  revokeCliSessionRpc: vi.fn(async () => ({ revoked: true })),
   listOrganizationMembersRpc: vi.fn(async () => ({ members: [] })),
   listOrganizationInvitationsRpc: vi.fn(async () => ({ invitations: [] })),
   listAuditEventsRpc: vi.fn(async () => ({ events: [], nextCursor: null })),
+  exportTenantAuditRpc: vi.fn(async () => ({ exportId: "exp_test" })),
 }));
 vi.mock("./runtime-high-assurance-rpc-delegates.js", () => ({
   listPendingHighAssuranceChallengesRpc: vi.fn(async () => ({ challenges: [] })),
@@ -143,7 +147,58 @@ describe("runtime rpc delegate seams", () => {
     await RuntimeServiceDelegatedPostAuthRpc.listProjects.call(host, {
       actorToken: "token",
     } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.createProject.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listEnvironments.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.createEnvironment.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listProjectSecrets.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listEnvironmentSecrets.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listSecretVersions.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listSessionOrganizations.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.revokeCliSession.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listOrganizationMembers.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listOrganizationInvitations.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listAuditEvents.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.exportTenantAudit.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.listPendingHighAssuranceChallenges.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.getHighAssuranceChallenge.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.clearHighAssuranceChallenge.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.denyHighAssuranceChallenge.call(host, {
+      actorToken: "token",
+    } as never);
     await RuntimeServiceDelegatedPostAuthRpc.createRuntimeInjectionPolicy.call(host, {
+      actorToken: "token",
+    } as never);
+    await RuntimeServiceDelegatedPostAuthRpc.getRuntimeInjectionPolicy.call(host, {
       actorToken: "token",
     } as never);
     await RuntimeServiceDelegatedPostAuthRpc.disableRuntimeInjectionPolicy.call(host, {
