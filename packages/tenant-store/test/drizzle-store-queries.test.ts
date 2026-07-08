@@ -370,6 +370,8 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       policy_version_id: null,
       expires_at: new Date(Date.now() + 60_000),
       consumed_at: null,
+      revoked_at: null,
+      revoked_reason: null,
       ...overrides,
     };
   }
@@ -388,6 +390,8 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       policy_version_id: null,
       expires_at: new Date(Date.now() + 60_000),
       consumed_at: null,
+      revoked_at: null,
+      revoked_reason: null,
     };
     expect(store.getBoundGrant(grant)).toBeNull();
     expect(
@@ -418,6 +422,13 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
         VARIABLE_KEY,
       ),
     ).toBe("already_consumed");
+    expect(
+      store.classifyConsumeFailure(
+        boundGrantRow({ revoked_at: new Date(), revoked_reason: "tenant_suspension" }),
+        boundSecret,
+        VARIABLE_KEY,
+      ),
+    ).toBe("revoked");
     expect(store.classifyConsumeFailure(boundGrantRow(), secretId.generate(), VARIABLE_KEY)).toBe(
       "binding_not_allowed",
     );

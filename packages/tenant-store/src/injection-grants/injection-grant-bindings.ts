@@ -61,6 +61,24 @@ export function getBoundGrant(grant: InjectionGrantRow): ConsumedInjectionGrantR
   return bindings[0] ?? null;
 }
 
+function classifyGrantTerminalFailure(
+  grant: InjectionGrantRow,
+): Exclude<
+  InjectionGrantConsumeFailure,
+  "not_found" | "binding_not_allowed" | "consume_mode_mismatch"
+> | null {
+  if (grant.consumed_at !== null) {
+    return "already_consumed";
+  }
+  if (grant.revoked_at !== null) {
+    return "revoked";
+  }
+  if (grant.expires_at.getTime() <= Date.now()) {
+    return "expired";
+  }
+  return null;
+}
+
 export function classifyConsumeFailure(
   grant: InjectionGrantRow | null,
   requestedSecretId: SecretId,
@@ -79,13 +97,7 @@ export function classifyConsumeFailure(
   if (bound.secretId !== requestedSecretId || bound.variableKey !== requestedVariableKey) {
     return "binding_not_allowed";
   }
-  if (grant.consumed_at !== null) {
-    return "already_consumed";
-  }
-  if (grant.expires_at.getTime() <= Date.now()) {
-    return "expired";
-  }
-  return null;
+  return classifyGrantTerminalFailure(grant);
 }
 
 export function classifyConsumeAllFailure(
@@ -100,11 +112,5 @@ export function classifyConsumeAllFailure(
   if (getBoundGrants(grant) === null) {
     return "not_found";
   }
-  if (grant.consumed_at !== null) {
-    return "already_consumed";
-  }
-  if (grant.expires_at.getTime() <= Date.now()) {
-    return "expired";
-  }
-  return null;
+  return classifyGrantTerminalFailure(grant);
 }

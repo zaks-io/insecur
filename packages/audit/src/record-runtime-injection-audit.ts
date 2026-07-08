@@ -1,5 +1,4 @@
 import {
-  parseOpaqueResourceId,
   type EnvironmentId,
   type InjectionGrantId,
   type KnownErrorCode,
@@ -17,6 +16,10 @@ import {
 } from "./record-scoped-audit.js";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "./audit-types.js";
 import type { AuditEventResult } from "./write-audit-event.js";
+import {
+  injectionGrantAuditResource,
+  secretVersionAuditRelatedResource,
+} from "./runtime-injection-audit-resources.js";
 
 export type RuntimeInjectionAuditPhase = "issue" | "consume" | "run";
 
@@ -33,32 +36,6 @@ export interface RecordRuntimeInjectionAuditInput {
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
   reasonCode?: KnownErrorCode;
-}
-
-function injectionGrantAuditResource(grantId: InjectionGrantId) {
-  const parsed = parseOpaqueResourceId(grantId, "igr");
-  if (!parsed.ok) {
-    return {};
-  }
-  return {
-    resource: {
-      type: "injection_grant" as const,
-      id: parsed.value,
-    },
-  };
-}
-
-function secretVersionAuditRelatedResource(secretVersionId: SecretVersionId) {
-  const parsed = parseOpaqueResourceId(secretVersionId, "sv");
-  if (!parsed.ok) {
-    return {};
-  }
-  return {
-    relatedResource: {
-      type: "secret_version" as const,
-      id: parsed.value,
-    },
-  };
 }
 
 function eventCodeFor(input: RecordRuntimeInjectionAuditInput): AuditEventCode {
@@ -123,4 +100,69 @@ export async function recordRuntimeInjectionAuditInTenantScope(
   input: RecordRuntimeInjectionAuditInput,
 ): Promise<AuditEventResult> {
   return recordScopedAuditInTenantScope(sql, toRuntimeInjectionScopedInput(input));
+}
+
+export type InjectionGrantRevocationVerb = "tenant_suspension" | "compromise_version_invalidation";
+
+export interface RecordInjectionGrantRevocationAuditInput {
+  verb: InjectionGrantRevocationVerb;
+  outcome: "success" | "denied";
+  actor: AuditActorRef;
+  organizationId: OrganizationId;
+  revokedGrantCount?: number;
+  secretVersionId?: SecretVersionId;
+  request?: AuditRequestRef;
+  operation?: AuditOperationRef;
+  reasonCode?: KnownErrorCode;
+}
+
+function revocationEventCodeFor(input: RecordInjectionGrantRevocationAuditInput): AuditEventCode {
+  if (input.verb === "tenant_suspension") {
+    return input.outcome === "success"
+      ? FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantsRevokedTenantSuspension
+      : FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantsRevokeTenantSuspensionDenied;
+  }
+  return input.outcome === "success"
+    ? FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantsRevokedCompromiseVersion
+    : FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantsRevokeCompromiseVersionDenied;
+}
+
+function toRevocationScopedInput(
+  input: RecordInjectionGrantRevocationAuditInput,
+): RecordScopedAuditInput {
+  const versionResource =
+    input.secretVersionId !== undefined
+      ? secretVersionAuditRelatedResource(input.secretVersionId)
+      : {};
+  const details =
+    input.revokedGrantCount !== undefined
+      ? { details: { revokedGrantCount: input.revokedGrantCount } as const }
+      : {};
+
+  return {
+    eventCode: revocationEventCodeFor(input),
+    outcome: input.outcome,
+    actor: input.actor,
+    organizationId: input.organizationId,
+    ...omitUndefinedFields({
+      relatedResource: versionResource.relatedResource,
+      requestId: input.request?.requestId,
+      operationId: input.operation?.operationId,
+      reasonCode: input.reasonCode,
+      details: details.details,
+    }),
+  };
+}
+
+export async function recordInjectionGrantRevocationAudit(
+  input: RecordInjectionGrantRevocationAuditInput,
+): Promise<AuditEventResult | undefined> {
+  return recordScopedAudit(toRevocationScopedInput(input));
+}
+
+export async function recordInjectionGrantRevocationAuditInTenantScope(
+  sql: TenantScopedSql,
+  input: RecordInjectionGrantRevocationAuditInput,
+): Promise<AuditEventResult> {
+  return recordScopedAuditInTenantScope(sql, toRevocationScopedInput(input));
 }

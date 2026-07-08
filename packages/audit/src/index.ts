@@ -89,8 +89,12 @@ export {
 export {
   type RecordRuntimeInjectionAuditInput,
   type RuntimeInjectionAuditPhase,
+  type InjectionGrantRevocationVerb,
+  type RecordInjectionGrantRevocationAuditInput,
   recordRuntimeInjectionAudit,
   recordRuntimeInjectionAuditInTenantScope,
+  recordInjectionGrantRevocationAudit,
+  recordInjectionGrantRevocationAuditInTenantScope,
 } from "./record-runtime-injection-audit.js";
 export {
   FIRST_VALUE_FEEDBACK_KINDS,
