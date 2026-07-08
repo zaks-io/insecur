@@ -76,7 +76,7 @@ export function parseOrgHighAssuranceChallengeDetailBody(
   return parseHighAssuranceChallengeDetailEntry(body.data.challenge);
 }
 
-/** Resolve approval deep-link kind from the route param (`op_` vs `req_`). */
+/** Resolve approval deep-link kind from the route param (`op_` vs `apr_`). */
 export function consoleApprovalRouteKindFromId(
   id: string,
 ): ReturnType<typeof consoleApprovalItemKindFromId> | "unknown" {

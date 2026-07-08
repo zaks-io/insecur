@@ -23,24 +23,41 @@ export interface ConsoleHighAssuranceChallengeItem {
 export interface ConsoleApprovalRequestItem {
   readonly kind: "approval_request";
   readonly id: string;
+  readonly purpose: string;
+  readonly projectId: string;
+  readonly environmentId: string;
   readonly requestedAt: string;
   readonly status: "pending";
+  readonly operationId: string | null;
+  readonly requestingUserId: string | null;
+  readonly requestingMachineIdentityId: string | null;
 }
 
 export interface ConsolePendingApprovals {
   readonly items: readonly ConsoleApprovalItem[];
 }
 
-/** Resolve inbox item kind from an approval deep-link id (`op_` vs `req_`). */
+/** Resolve inbox item kind from an approval deep-link id (`op_` vs `apr_`). */
 export function consoleApprovalItemKindFromId(id: string): ConsoleApprovalItemKind | null {
   if (id.startsWith("op_")) {
     return "high_assurance_challenge";
   }
-  if (id.startsWith("req_")) {
+  if (id.startsWith("apr_")) {
     return "approval_request";
   }
   return null;
 }
+
+function mergePendingApprovalItems(
+  challenges: readonly ConsoleHighAssuranceChallengeItem[],
+  approvalRequests: readonly ConsoleApprovalRequestItem[],
+): readonly ConsoleApprovalItem[] {
+  return [...challenges, ...approvalRequests].sort((left, right) =>
+    right.requestedAt.localeCompare(left.requestedAt),
+  );
+}
+
+export { mergePendingApprovalItems };
 
 /**
  * Parse `GET /v1/orgs/:organizationId/high-assurance-challenges` for the console inbox. Returns

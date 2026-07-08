@@ -3,7 +3,10 @@ import { ApprovalDetailPage } from "../components/approval-detail/approval-detai
 import { ConsoleFramedRouteError } from "../components/console-route-error.js";
 import { consoleApprovalRouteKindFromId } from "../console/approval-detail-parse.js";
 import { requireConsoleRead } from "../console/route-guards.js";
-import { loadOrgHighAssuranceChallengeDetail } from "../server/console-pending-approvals.js";
+import {
+  loadOrgApprovalRequestDetail,
+  loadOrgHighAssuranceChallengeDetail,
+} from "../server/console-pending-approvals.js";
 
 export const Route = createFileRoute("/orgs/$orgId/approvals_/$id")({
   loader: async ({ params, location }) => {
@@ -12,7 +15,13 @@ export const Route = createFileRoute("/orgs/$orgId/approvals_/$id")({
       throw notFound();
     }
     if (kind === "approval_request") {
-      return { kind: "approval_request" as const };
+      const request = requireConsoleRead(
+        await loadOrgApprovalRequestDetail({
+          data: { organizationId: params.orgId, approvalId: params.id },
+        }),
+        location.href,
+      );
+      return { kind: "approval_request" as const, request };
     }
     const challenge = requireConsoleRead(
       await loadOrgHighAssuranceChallengeDetail({

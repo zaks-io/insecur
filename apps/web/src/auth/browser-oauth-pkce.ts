@@ -9,7 +9,14 @@ export interface PkceRoundTrip {
   readonly returnTo: string;
   /** Present for passkey-enrollment round trips: binds the callback to the initiating WorkOS user. */
   readonly workosUserId?: string;
-  readonly flow?: "login" | "passkey-enrollment";
+  readonly flow?: "login" | "passkey-enrollment" | "approval-step-up";
+  readonly approvalStepUp?: {
+    readonly organizationId: string;
+    readonly approvalRequestId: string;
+    readonly projectId: string;
+    readonly environmentId: string;
+    readonly impactReviewFingerprint: string;
+  };
 }
 
 export async function createPkcePair(): Promise<{
@@ -79,7 +86,51 @@ function isRelativeAppPath(value: string): boolean {
 }
 
 function isValidPkceFlow(flow: string | undefined): flow is PkceRoundTrip["flow"] {
-  return flow === undefined || flow === "login" || flow === "passkey-enrollment";
+  return (
+    flow === undefined ||
+    flow === "login" ||
+    flow === "passkey-enrollment" ||
+    flow === "approval-step-up"
+  );
+}
+
+function readApprovalStepUpFields(
+  record: Record<string, unknown>,
+): PkceRoundTrip["approvalStepUp"] | null {
+  const organizationId = record.organizationId;
+  const approvalRequestId = record.approvalRequestId;
+  const projectId = record.projectId;
+  const environmentId = record.environmentId;
+  const impactReviewFingerprint = record.impactReviewFingerprint;
+  if (
+    typeof organizationId !== "string" ||
+    typeof approvalRequestId !== "string" ||
+    typeof projectId !== "string" ||
+    typeof environmentId !== "string" ||
+    typeof impactReviewFingerprint !== "string"
+  ) {
+    return null;
+  }
+  return {
+    organizationId,
+    approvalRequestId,
+    projectId,
+    environmentId,
+    impactReviewFingerprint,
+  };
+}
+
+function parseApprovalStepUp(
+  parsed: Partial<PkceRoundTrip>,
+): PkceRoundTrip["approvalStepUp"] | null | undefined {
+  if (parsed.approvalStepUp === undefined) {
+    return undefined;
+  }
+  const stepUp: unknown = parsed.approvalStepUp;
+  if (typeof stepUp !== "object" || stepUp === null) {
+    return null;
+  }
+  return readApprovalStepUpFields(stepUp as Record<string, unknown>);
 }
 
 function parsePkceStringFields(
@@ -100,6 +151,19 @@ function parsePkceStringFields(
   };
 }
 
+function assemblePkceRoundTrip(
+  core: Pick<PkceRoundTrip, "state" | "codeVerifier" | "returnTo">,
+  parsed: Partial<PkceRoundTrip>,
+  approvalStepUp: PkceRoundTrip["approvalStepUp"] | undefined,
+): PkceRoundTrip {
+  return {
+    ...core,
+    ...(parsed.workosUserId === undefined ? {} : { workosUserId: parsed.workosUserId }),
+    ...(parsed.flow === undefined ? {} : { flow: parsed.flow }),
+    ...(approvalStepUp === undefined ? {} : { approvalStepUp }),
+  };
+}
+
 function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTrip | null {
   const core = parsePkceStringFields(parsed);
   if (core === null) {
@@ -111,11 +175,14 @@ function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTri
   if (!isValidPkceFlow(parsed.flow)) {
     return null;
   }
-  return {
-    ...core,
-    ...(parsed.workosUserId === undefined ? {} : { workosUserId: parsed.workosUserId }),
-    ...(parsed.flow === undefined ? {} : { flow: parsed.flow }),
-  };
+  const approvalStepUp = parseApprovalStepUp(parsed);
+  if (approvalStepUp === null) {
+    return null;
+  }
+  if (parsed.flow === "approval-step-up" && approvalStepUp === undefined) {
+    return null;
+  }
+  return assemblePkceRoundTrip(core, parsed, approvalStepUp);
 }
 
 export function decodePkceRoundTrip(value: string | undefined): PkceRoundTrip | null {

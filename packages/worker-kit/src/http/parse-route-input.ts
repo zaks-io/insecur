@@ -1,5 +1,6 @@
 import {
   VALIDATION_ERROR_CODES,
+  approvalRequestId,
   environmentId,
   injectionGrantId,
   invitationId,
@@ -14,6 +15,7 @@ import {
   secretId,
   secretVersionId,
   userId,
+  type ApprovalRequestId,
   type DisplayName,
   type EnvironmentId,
   type InjectionGrantId,
@@ -46,6 +48,7 @@ const parseProjectResourceId = (raw: string) => projectId.parse(raw);
 const parseEnvironmentResourceId = (raw: string) => environmentId.parse(raw);
 const parseGrantResourceId = (raw: string) => injectionGrantId.parse(raw);
 const parseOperationResourceId = (raw: string) => operationId.parse(raw);
+const parseApprovalRequestResourceId = (raw: string) => approvalRequestId.parse(raw);
 const parseRequestResourceId = (raw: string) => requestId.parse(raw);
 const parseInvitationResourceId = (raw: string) => invitationId.parse(raw);
 const parseUserResourceId = (raw: string) => userId.parse(raw);
@@ -109,6 +112,10 @@ export function parseGrantIdParam(raw: string): InjectionGrantId {
 
 export function parseOperationIdParam(raw: string): OperationId {
   return parseValue(raw, parseOperationResourceId, "Invalid operation id.");
+}
+
+export function parseApprovalRequestIdParam(raw: string): ApprovalRequestId {
+  return parseValue(raw, parseApprovalRequestResourceId, "Invalid approval request id.");
 }
 
 export function parseRequestIdParam(raw: string): RequestId {

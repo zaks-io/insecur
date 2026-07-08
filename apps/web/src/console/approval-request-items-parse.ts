@@ -1,0 +1,107 @@
+import {
+  consoleApprovalItemKindFromId,
+  type ConsoleApprovalRequestItem,
+} from "./approval-items.js";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function requiredStringField(row: Record<string, unknown>, key: string): string | null {
+  const value = row[key];
+  return typeof value === "string" ? value : null;
+}
+
+function optionalStringField(
+  row: Record<string, unknown>,
+  key: string,
+): { readonly ok: true; readonly value: string | null } | { readonly ok: false } {
+  const value = row[key];
+  if (value === undefined) {
+    return { ok: true, value: null };
+  }
+  if (typeof value === "string") {
+    return { ok: true, value };
+  }
+  return { ok: false };
+}
+
+function requiredPendingStatus(value: unknown): "pending" | null {
+  return value === "pending" ? "pending" : null;
+}
+
+function parseRequiredApprovalRequestFields(
+  entry: Record<string, unknown>,
+): Omit<
+  ConsoleApprovalRequestItem,
+  "kind" | "operationId" | "requestingUserId" | "requestingMachineIdentityId"
+> | null {
+  const id = requiredStringField(entry, "approvalRequestId");
+  const purpose = requiredStringField(entry, "purpose");
+  const projectId = requiredStringField(entry, "projectId");
+  const environmentId = requiredStringField(entry, "environmentId");
+  const requestedAt = requiredStringField(entry, "requestedAt");
+  const status = requiredPendingStatus(entry.status);
+  if (
+    id === null ||
+    purpose === null ||
+    projectId === null ||
+    environmentId === null ||
+    requestedAt === null ||
+    status === null
+  ) {
+    return null;
+  }
+  if (consoleApprovalItemKindFromId(id) !== "approval_request") {
+    return null;
+  }
+  return { id, purpose, projectId, environmentId, requestedAt, status };
+}
+
+export function parseApprovalRequestEntry(entry: unknown): ConsoleApprovalRequestItem | null {
+  if (!isRecord(entry)) {
+    return null;
+  }
+  const required = parseRequiredApprovalRequestFields(entry);
+  if (required === null) {
+    return null;
+  }
+  const operationId = optionalStringField(entry, "operationId");
+  const requestingUserId = optionalStringField(entry, "requestingUserId");
+  const requestingMachineIdentityId = optionalStringField(entry, "requestingMachineIdentityId");
+  if (!operationId.ok || !requestingUserId.ok || !requestingMachineIdentityId.ok) {
+    return null;
+  }
+  return {
+    kind: "approval_request",
+    ...required,
+    operationId: operationId.value,
+    requestingUserId: requestingUserId.value,
+    requestingMachineIdentityId: requestingMachineIdentityId.value,
+  };
+}
+
+/**
+ * Parse `GET /v1/orgs/:organizationId/approval-requests` for the console inbox. Returns `null` for
+ * anything but the expected success envelope so loaders fail closed.
+ */
+export function parseOrgApprovalRequestsBody(body: unknown): {
+  readonly items: readonly ConsoleApprovalRequestItem[];
+} | null {
+  if (!isRecord(body) || body.ok !== true || !isRecord(body.data)) {
+    return null;
+  }
+  const rows = body.data.approvalRequests;
+  if (!Array.isArray(rows)) {
+    return null;
+  }
+  const items: ConsoleApprovalRequestItem[] = [];
+  for (const row of rows) {
+    const parsed = parseApprovalRequestEntry(row);
+    if (parsed === null) {
+      return null;
+    }
+    items.push(parsed);
+  }
+  return { items };
+}

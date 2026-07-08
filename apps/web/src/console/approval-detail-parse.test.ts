@@ -24,7 +24,7 @@ describe("consoleApprovalRouteKindFromId", () => {
     expect(consoleApprovalRouteKindFromId("op_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
       "high_assurance_challenge",
     );
-    expect(consoleApprovalRouteKindFromId("req_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
+    expect(consoleApprovalRouteKindFromId("apr_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
       "approval_request",
     );
     expect(consoleApprovalRouteKindFromId("org_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe("unknown");

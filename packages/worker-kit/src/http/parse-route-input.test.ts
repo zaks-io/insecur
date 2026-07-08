@@ -12,6 +12,7 @@ import {
   parseInvitationIdParam,
   parseJsonBody,
   parseOperationIdParam,
+  parseApprovalRequestIdParam,
   parseOptionalDisplayName,
   parseOptionalInvitationId,
   parseOptionalMembershipId,
@@ -74,6 +75,9 @@ describe("branded route id params", () => {
     expect(parseEnvironmentIdParam(VALID_ENV)).toBe(VALID_ENV);
     expect(parseGrantIdParam(VALID_GRANT)).toBe(VALID_GRANT);
     expect(parseOperationIdParam(VALID_OPERATION)).toBe(VALID_OPERATION);
+    expect(parseApprovalRequestIdParam("apr_00000000000000000000000001")).toBe(
+      "apr_00000000000000000000000001",
+    );
     expect(parseAppConnectionIdParam(VALID_CONNECTION)).toBe(VALID_CONNECTION);
   });
 

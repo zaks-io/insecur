@@ -543,7 +543,7 @@ try {
     ],
   });
   await assertRouteHasMatchingCspNonce(
-    `/orgs/${ORG.organizationId}/approvals/req_01JZ8E2QYQAAAAAAAAAAAAAAAA`,
+    `/orgs/${ORG.organizationId}/approvals/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA`,
     {
       headers: authorization,
       authedDocument: true,

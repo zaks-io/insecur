@@ -1012,6 +1012,9 @@ importers:
       '@insecur/audit':
         specifier: workspace:*
         version: link:../audit
+      '@insecur/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain

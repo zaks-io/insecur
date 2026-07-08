@@ -1,5 +1,6 @@
 export {
   TenantApprovalRequestStore,
+  type ApprovalRequestDetailRow,
   type ApprovalRequestListItemRow,
   type ApprovalRequestPurpose,
   type ApprovalRequestRequester,

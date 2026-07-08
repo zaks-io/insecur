@@ -10,6 +10,7 @@ import {
 import { cloudflareSentryOptions } from "@insecur/observability";
 import { sentry } from "@sentry/hono/cloudflare";
 import { Hono } from "hono";
+import { registerApprovalRequestsRoutes } from "./routes/v1/approval-requests.js";
 import { registerAuditEventsRoutes } from "./routes/v1/audit-events.js";
 import { registerAuditExportRoutes } from "./routes/v1/audit-export.js";
 import { registerAuthRoutes } from "./routes/v1/auth.js";
@@ -98,6 +99,7 @@ registerAuthRoutes(app);
 registerDesignPartnerFeedbackRoutes(app);
 registerFirstValueUsageRoutes(app);
 registerHighAssuranceChallengesRoutes(app);
+registerApprovalRequestsRoutes(app);
 registerInstanceBootstrapRoutes(app);
 registerInvitationsRoutes(app);
 registerMembersRoutes(app);

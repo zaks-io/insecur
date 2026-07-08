@@ -12,61 +12,35 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   approvalRequests,
   promotionChangeSetDraftVersions,
-  type APPROVAL_REQUEST_PURPOSES,
-  type APPROVAL_REQUEST_STATUSES,
 } from "../db/schema/tenant-approval-requests.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import {
   commonApprovalRequestValues,
   draftVersionRow,
-  type ApprovalRequestRequester,
   type PromotionDraftVersionTarget,
 } from "./approval-request-rows.js";
+import {
+  mapApprovalRequestDetailRow,
+  type ApprovalRequestDetailRow,
+  type ApprovalRequestListItemRow,
+  type ApprovalRequestPurpose,
+  type ApprovalRequestStatus,
+  type CreatePromotionApprovalRequestInput,
+  type CreateRollbackApprovalRequestInput,
+} from "./approval-request-store-types.js";
 
 export type {
   ApprovalRequestRequester,
   PromotionDraftVersionTarget,
 } from "./approval-request-rows.js";
-
-export type ApprovalRequestPurpose = (typeof APPROVAL_REQUEST_PURPOSES)[number];
-export type ApprovalRequestStatus = (typeof APPROVAL_REQUEST_STATUSES)[number];
-
-export interface CreatePromotionApprovalRequestInput {
-  readonly organizationId: OrganizationId;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly requester: ApprovalRequestRequester;
-  readonly approvalRequestId: ApprovalRequestId;
-  readonly operationId?: string;
-  readonly impactReviewFingerprint: string;
-  readonly commentLength?: number;
-  readonly commentSha256?: string;
-  readonly draftVersions: readonly PromotionDraftVersionTarget[];
-}
-
-export interface CreateRollbackApprovalRequestInput {
-  readonly organizationId: OrganizationId;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly requester: ApprovalRequestRequester;
-  readonly approvalRequestId: ApprovalRequestId;
-  readonly operationId?: string;
-  readonly impactReviewFingerprint: string;
-  readonly commentLength?: number;
-  readonly commentSha256?: string;
-  readonly secretId: SecretId;
-  readonly toVersionId: SecretVersionId;
-  readonly promoteRequested: boolean;
-  readonly draftVersion: PromotionDraftVersionTarget;
-}
-
-export interface ApprovalRequestListItemRow {
-  readonly approvalRequestId: ApprovalRequestId;
-  readonly purpose: ApprovalRequestPurpose;
-  readonly status: ApprovalRequestStatus;
-  readonly createdAt: Date;
-  readonly operationId: string | null;
-}
+export type {
+  ApprovalRequestDetailRow,
+  ApprovalRequestListItemRow,
+  ApprovalRequestPurpose,
+  ApprovalRequestStatus,
+  CreatePromotionApprovalRequestInput,
+  CreateRollbackApprovalRequestInput,
+} from "./approval-request-store-types.js";
 
 export class TenantApprovalRequestStore {
   constructor(private readonly db: TenantScopedDb) {}
@@ -185,6 +159,91 @@ export class TenantApprovalRequestStore {
       createdAt: row.createdAt,
       operationId: row.operationId,
     }));
+  }
+
+  async getApprovalRequestById(input: {
+    readonly organizationId: OrganizationId;
+    readonly approvalRequestId: ApprovalRequestId;
+  }): Promise<ApprovalRequestDetailRow | null> {
+    const [row] = await this.db
+      .select({
+        id: approvalRequests.id,
+        purpose: approvalRequests.purpose,
+        status: approvalRequests.status,
+        projectId: approvalRequests.projectId,
+        environmentId: approvalRequests.environmentId,
+        requesterUserId: approvalRequests.requesterUserId,
+        requesterMachineIdentityId: approvalRequests.requesterMachineIdentityId,
+        operationId: approvalRequests.operationId,
+        impactReviewFingerprint: approvalRequests.impactReviewFingerprint,
+        commentLength: approvalRequests.commentLength,
+        createdAt: approvalRequests.createdAt,
+        rollbackSecretId: approvalRequests.rollbackSecretId,
+        rollbackToVersionId: approvalRequests.rollbackToVersionId,
+        rollbackPromoteRequested: approvalRequests.rollbackPromoteRequested,
+      })
+      .from(approvalRequests)
+      .where(
+        and(
+          eq(approvalRequests.orgId, input.organizationId),
+          eq(approvalRequests.id, input.approvalRequestId),
+        ),
+      )
+      .limit(1);
+
+    return row === undefined ? null : mapApprovalRequestDetailRow(row);
+  }
+
+  async listOrgPendingApprovalRequests(input: {
+    readonly organizationId: OrganizationId;
+  }): Promise<readonly ApprovalRequestDetailRow[]> {
+    const rows = await this.db
+      .select({
+        id: approvalRequests.id,
+        purpose: approvalRequests.purpose,
+        status: approvalRequests.status,
+        projectId: approvalRequests.projectId,
+        environmentId: approvalRequests.environmentId,
+        requesterUserId: approvalRequests.requesterUserId,
+        requesterMachineIdentityId: approvalRequests.requesterMachineIdentityId,
+        operationId: approvalRequests.operationId,
+        impactReviewFingerprint: approvalRequests.impactReviewFingerprint,
+        commentLength: approvalRequests.commentLength,
+        createdAt: approvalRequests.createdAt,
+        rollbackSecretId: approvalRequests.rollbackSecretId,
+        rollbackToVersionId: approvalRequests.rollbackToVersionId,
+        rollbackPromoteRequested: approvalRequests.rollbackPromoteRequested,
+      })
+      .from(approvalRequests)
+      .where(
+        and(
+          eq(approvalRequests.orgId, input.organizationId),
+          eq(approvalRequests.status, "pending"),
+        ),
+      )
+      .orderBy(asc(approvalRequests.createdAt));
+
+    return rows.map((row) => mapApprovalRequestDetailRow(row));
+  }
+
+  async transitionPendingApprovalRequest(input: {
+    readonly organizationId: OrganizationId;
+    readonly approvalRequestId: ApprovalRequestId;
+    readonly toStatus: Extract<ApprovalRequestStatus, "approved_applied" | "rejected" | "canceled">;
+  }): Promise<boolean> {
+    const updated = await this.db
+      .update(approvalRequests)
+      .set({ status: input.toStatus, updatedAt: new Date() })
+      .where(
+        and(
+          eq(approvalRequests.orgId, input.organizationId),
+          eq(approvalRequests.id, input.approvalRequestId),
+          eq(approvalRequests.status, "pending"),
+        ),
+      )
+      .returning({ id: approvalRequests.id });
+
+    return updated.length > 0;
   }
 
   async getDraftVersionsForRequest(input: {

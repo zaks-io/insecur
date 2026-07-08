@@ -4,10 +4,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { resolveBrowserActor } from "../src/auth/resolve-browser-actor.js";
 import { loginRedirectHref } from "../src/console/login-redirect.js";
 import { parseOrgHighAssuranceChallengeDetailBody } from "../src/console/approval-detail-parse.js";
-import { ApprovalRequestUnsupportedPanel } from "../src/components/approval-detail/approval-request-unsupported.js";
+import { ApprovalRequestEvidencePanel } from "../src/components/approval-detail/approval-request-evidence.js";
 import { HighAssuranceChallengeEvidencePanel } from "../src/components/approval-detail/high-assurance-challenge-evidence.js";
 import { RejectChallengePanel } from "../src/components/approval-detail/reject-challenge-panel.js";
-import { HIGH_ASSURANCE_CHALLENGE_FIXTURE } from "../src/components/approval-item.test.js";
+import {
+  HIGH_ASSURANCE_CHALLENGE_FIXTURE,
+  APPROVAL_REQUEST_FIXTURE,
+} from "../src/components/approval-item.test.js";
 import {
   FAKE_ADMITTED_USER_ID,
   FAKE_SEALED_SESSION,
@@ -116,7 +119,7 @@ describe("approval detail render", () => {
     hasClearedEvidence: false,
   };
 
-  it("renders metadata evidence, reject affordance, and unsupported Approval Request state", () => {
+  it("renders metadata evidence and reject affordance for High-Assurance Challenges", () => {
     const evidence = renderToStaticMarkup(
       <HighAssuranceChallengeEvidencePanel challenge={detail} />,
     );
@@ -130,9 +133,36 @@ describe("approval detail render", () => {
     );
     expect(reject).toContain("Reject challenge");
     expect(reject).toContain("Optional reason");
+  });
 
-    const unsupported = renderToStaticMarkup(<ApprovalRequestUnsupportedPanel orgId={ORG_ID} />);
-    expect(unsupported).toContain("Not yet supported");
+  it("renders Approval Request metadata evidence without secret values", () => {
+    const requestDetail = {
+      ...APPROVAL_REQUEST_FIXTURE,
+      commentLength: null,
+      rollbackSecretId: null,
+      rollbackToVersionId: null,
+      rollbackPromoteRequested: false,
+      impactReview: {
+        fingerprintAtCreation: "fp-old",
+        currentFingerprint: "fp-current",
+        isStale: false,
+        draftVersions: [
+          {
+            secretId: "sec_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+            secretVersionId: "sv_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+            valueByteLength: 32,
+            encodingClass: "utf8",
+            secretShapeMatchVerdict: "match",
+          },
+        ],
+        delivery: { runtimeInjectionPolicies: [], providerSyncImpact: [] },
+      },
+    };
+    const evidence = renderToStaticMarkup(<ApprovalRequestEvidencePanel request={requestDetail} />);
+    expect(evidence).toContain("Approval Request");
+    expect(evidence).toContain("protected_promotion");
+    expect(evidence).toContain("sec_01JZ8E2QYQAAAAAAAAAAAAAAAA");
+    expect(evidence).not.toContain("password");
   });
 });
 

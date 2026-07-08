@@ -37,7 +37,7 @@ describe("consoleApprovalItemKindFromId", () => {
     expect(consoleApprovalItemKindFromId("op_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
       "high_assurance_challenge",
     );
-    expect(consoleApprovalItemKindFromId("req_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
+    expect(consoleApprovalItemKindFromId("apr_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
       "approval_request",
     );
     expect(consoleApprovalItemKindFromId("org_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBeNull();
@@ -60,7 +60,7 @@ describe("parseOrgHighAssuranceChallengesBody", () => {
       parseOrgHighAssuranceChallengesBody({
         ok: true,
         data: {
-          challenges: [{ ...HAC_ENVELOPE_ROW, operationId: "req_01JZ8E2QYQAAAAAAAAAAAAAAAA" }],
+          challenges: [{ ...HAC_ENVELOPE_ROW, operationId: "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA" }],
         },
       }),
     ).toBeNull();
