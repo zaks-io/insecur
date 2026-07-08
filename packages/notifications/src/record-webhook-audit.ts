@@ -1,6 +1,7 @@
 import {
   PRODUCTION_AUDIT_EVENT_CODES,
   writeAuditEvent,
+  type AuditEventActorRef,
   type AuditEventCode,
   type AuditRequestRef,
 } from "@insecur/audit";
@@ -26,16 +27,26 @@ interface WebhookAuditScope {
   readonly request?: AuditRequestRef;
 }
 
+interface WebhookDeliveryAuditScope {
+  readonly actor: AuditEventActorRef;
+  readonly organizationId: OrganizationId;
+  readonly request?: AuditRequestRef;
+}
+
 async function writeWebhookSuccessAudit(
-  input: WebhookAuditScope & {
+  input: (WebhookAuditScope | WebhookDeliveryAuditScope) & {
     readonly eventCode: AuditEventCode;
     readonly subscriptionId: WebhookSubscriptionId;
   },
 ): Promise<void> {
+  const actor =
+    "actorUserId" in input
+      ? ({ type: "user", userId: input.actorUserId } satisfies AuditEventActorRef)
+      : input.actor;
   await writeAuditEvent({
     eventCode: input.eventCode,
     outcome: "success",
-    actor: { type: "user", userId: input.actorUserId },
+    actor,
     organizationId: input.organizationId,
     resource: subscriptionResource(input.subscriptionId),
     ...(input.request !== undefined ? { request: input.request } : {}),
@@ -43,16 +54,20 @@ async function writeWebhookSuccessAudit(
 }
 
 async function writeWebhookDeniedAudit(
-  input: WebhookAuditScope & {
+  input: (WebhookAuditScope | WebhookDeliveryAuditScope) & {
     readonly eventCode: AuditEventCode;
     readonly reasonCode: KnownErrorCode;
     readonly subscriptionId?: WebhookSubscriptionId;
   },
 ): Promise<void> {
+  const actor =
+    "actorUserId" in input
+      ? ({ type: "user", userId: input.actorUserId } satisfies AuditEventActorRef)
+      : input.actor;
   await writeAuditEvent({
     eventCode: input.eventCode,
     outcome: "denied",
-    actor: { type: "user", userId: input.actorUserId },
+    actor,
     organizationId: input.organizationId,
     ...(input.subscriptionId !== undefined
       ? { resource: subscriptionResource(input.subscriptionId) }
@@ -123,7 +138,7 @@ export async function recordWebhookSubscriptionDeleted(
 }
 
 export async function recordWebhookDeliverySucceeded(
-  input: WebhookAuditScope & { readonly subscriptionId: WebhookSubscriptionId },
+  input: WebhookDeliveryAuditScope & { readonly subscriptionId: WebhookSubscriptionId },
 ): Promise<void> {
   await writeWebhookSuccessAudit({
     ...input,
@@ -132,7 +147,7 @@ export async function recordWebhookDeliverySucceeded(
 }
 
 export async function recordWebhookDeliveryFailed(
-  input: WebhookAuditScope & {
+  input: WebhookDeliveryAuditScope & {
     readonly subscriptionId: WebhookSubscriptionId;
     readonly reasonCode: KnownErrorCode;
   },

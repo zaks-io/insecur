@@ -1,6 +1,16 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
-import { organizationId, userId, webhookSubscriptionId } from "@insecur/domain";
+import {
+  NOTIFICATION_ERROR_CODES,
+  machineIdentityId,
+  organizationId,
+  userId,
+  webhookSubscriptionId,
+} from "@insecur/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../src/decrypt-webhook-signing-secret.js", () => ({
+  decryptWebhookSigningSecret: vi.fn().mockResolvedValue(new Uint8Array(32)),
+}));
 
 vi.mock("../src/record-webhook-audit.js", () => ({
   recordWebhookDeliverySucceeded: vi.fn(),
@@ -108,5 +118,84 @@ describe("emitEventNotificationsForEnvelope", () => {
     expect(recordWebhookDeliveryFailed).toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+
+  it("records delivery failure when no channel is enabled", async () => {
+    vi.mocked(withTenantScope).mockImplementation(async (_scope, run) => run({ db: {} } as never));
+    vi.mocked(TenantWebhookSubscriptionStore).mockImplementation(
+      class {
+        listActiveByEventCode = vi.fn().mockResolvedValue([
+          {
+            subscriptionId: SUBSCRIPTION,
+            organizationId: ORG,
+            enableInAppChannel: false,
+            enableEmailChannel: false,
+          },
+        ]);
+      } as never,
+    );
+    vi.mocked(TenantWebhookSigningSecretStore).mockImplementation(
+      class {
+        getActiveSecret = vi.fn().mockResolvedValue({
+          id: "whsec_00000000000000000000000001",
+          wrapped: "wrapped",
+        });
+      } as never,
+    );
+    vi.mocked(recordWebhookDeliveryFailed).mockResolvedValue(undefined);
+
+    await emitEventNotificationsForEnvelope(baseEmitInput());
+
+    expect(recordWebhookDeliveryFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: { type: "user", userId: USER },
+        subscriptionId: SUBSCRIPTION,
+        reasonCode: NOTIFICATION_ERROR_CODES.deliveryFailed,
+      }),
+    );
+  });
+
+  it("records delivery audit for machine-originated source events", async () => {
+    vi.mocked(withTenantScope).mockImplementation(async (_scope, run) => run({ db: {} } as never));
+    vi.mocked(TenantWebhookSubscriptionStore).mockImplementation(
+      class {
+        listActiveByEventCode = vi.fn().mockResolvedValue([
+          {
+            subscriptionId: SUBSCRIPTION,
+            organizationId: ORG,
+            enableInAppChannel: false,
+            enableEmailChannel: false,
+          },
+        ]);
+      } as never,
+    );
+    vi.mocked(TenantWebhookSigningSecretStore).mockImplementation(
+      class {
+        getActiveSecret = vi.fn().mockResolvedValue(null);
+      } as never,
+    );
+    vi.mocked(recordWebhookDeliveryFailed).mockResolvedValue(undefined);
+
+    await emitEventNotificationsForEnvelope({
+      ...baseEmitInput(),
+      sourceAuditEvent: {
+        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+        outcome: "success",
+        actor: {
+          type: "machine",
+          machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+        },
+        organizationId: ORG,
+      },
+    });
+
+    expect(recordWebhookDeliveryFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: {
+          type: "machine",
+          machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+        },
+      }),
+    );
   });
 });

@@ -41,13 +41,19 @@ export function validateEventCodes(eventCodes: readonly string[]): void {
   }
 }
 
-/** V1 supports in-app delivery only; reject email affordances until a port is wired. */
+/** V1 delivery is in-app only. Email is deferred post-V1 (INS-453); deploy-route-inventory and this guard are authoritative over ticket wording. */
 export function assertV1WebhookChannels(input: {
   readonly enableEmailChannel?: boolean;
   readonly deliveryEmail?: string | null;
+  readonly enableInAppChannel?: boolean;
 }): void {
   if (input.enableEmailChannel === true || input.deliveryEmail !== undefined) {
     throw Object.assign(new Error("Email channel is not available in V1."), {
+      code: NOTIFICATION_ERROR_CODES.deliveryFailed,
+    });
+  }
+  if (input.enableInAppChannel === false) {
+    throw Object.assign(new Error("At least one delivery channel must be enabled in V1."), {
       code: NOTIFICATION_ERROR_CODES.deliveryFailed,
     });
   }

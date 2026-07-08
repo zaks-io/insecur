@@ -44,7 +44,7 @@ describe("event notification envelope", () => {
     ).toThrow(/disallowed key/);
   });
 
-  it("verifies signatures only until the retired secret is used", async () => {
+  it("rejects signature verification when the signing secret does not match", async () => {
     const activeSecret = generateWebhookSigningSecretBytes();
     const retiredSecret = generateWebhookSigningSecretBytes();
     const signedWithRetired = await signEventNotificationEnvelope(

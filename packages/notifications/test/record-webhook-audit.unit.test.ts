@@ -1,5 +1,11 @@
 import { PRODUCTION_AUDIT_EVENT_CODES, writeAuditEvent } from "@insecur/audit";
-import { AUTH_ERROR_CODES, organizationId, userId, webhookSubscriptionId } from "@insecur/domain";
+import {
+  AUTH_ERROR_CODES,
+  machineIdentityId,
+  organizationId,
+  userId,
+  webhookSubscriptionId,
+} from "@insecur/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@insecur/audit", async (importOriginal) => {
@@ -40,12 +46,15 @@ describe("record-webhook-audit", () => {
       reasonCode: AUTH_ERROR_CODES.insufficientScope,
     });
     await recordWebhookDeliverySucceeded({
-      actorUserId: USER,
+      actor: { type: "user", userId: USER },
       organizationId: ORG,
       subscriptionId: SUBSCRIPTION,
     });
     await recordWebhookDeliveryFailed({
-      actorUserId: USER,
+      actor: {
+        type: "machine",
+        machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+      },
       organizationId: ORG,
       subscriptionId: SUBSCRIPTION,
       reasonCode: AUTH_ERROR_CODES.insufficientScope,

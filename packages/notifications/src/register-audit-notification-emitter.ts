@@ -7,6 +7,7 @@ import {
   createInAppDeliveryPort,
   emitEventNotificationsForEnvelope,
 } from "./emit-event-notifications.js";
+import { resolveEnvelopeDisplayNames } from "./resolve-envelope-display-names.js";
 
 export interface RegisterAuditNotificationEmitterInput {
   readonly keyring: Keyring;
@@ -22,16 +23,7 @@ export function registerAuditNotificationEmitter(
   };
 
   setAuditNotificationEmitter(async (event) => {
-    const displayNames: Record<string, string> = {
-      organization: event.organizationId,
-    };
-    if (event.projectId !== undefined) {
-      displayNames.project = event.projectId;
-    }
-    if (event.environmentId !== undefined) {
-      displayNames.environment = event.environmentId;
-    }
-
+    const displayNames = await resolveEnvelopeDisplayNames(event);
     const envelope = buildEnvelopeFromAuditEvent(event, displayNames);
     await emitEventNotificationsForEnvelope({
       keyring: input.keyring,

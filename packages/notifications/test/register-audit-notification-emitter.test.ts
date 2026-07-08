@@ -7,6 +7,12 @@ import {
   registerAuditNotificationEmitter,
 } from "../src/register-audit-notification-emitter.js";
 
+vi.mock("../src/resolve-envelope-display-names.js", () => ({
+  resolveEnvelopeDisplayNames: vi.fn(async () => ({
+    organization: "Acme",
+  })),
+}));
+
 vi.mock("../src/emit-event-notifications.js", () => ({
   buildEnvelopeFromAuditEvent: vi.fn(() => ({
     eventCode: "secret.non_protected_write",
@@ -21,6 +27,7 @@ vi.mock("../src/emit-event-notifications.js", () => ({
 }));
 
 import { emitEventNotificationsForEnvelope } from "../src/emit-event-notifications.js";
+import { resolveEnvelopeDisplayNames } from "../src/resolve-envelope-display-names.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 
@@ -41,6 +48,7 @@ describe("registerAuditNotificationEmitter", () => {
 
     await emitAuditNotificationIfConfigured(event);
 
+    expect(resolveEnvelopeDisplayNames).toHaveBeenCalledWith(event);
     expect(emitEventNotificationsForEnvelope).toHaveBeenCalledTimes(1);
     clearAuditNotificationEmitter();
     await emitAuditNotificationIfConfigured(event);

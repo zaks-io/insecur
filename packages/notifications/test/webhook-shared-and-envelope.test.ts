@@ -21,6 +21,7 @@ import {
 import {
   buildWebhookAuditScope,
   buildWebhookSubscriptionAuditScope,
+  assertV1WebhookChannels,
   toReadPayload,
   toPayload,
   validateEventCodes,
@@ -68,6 +69,29 @@ describe("validateEventCodes", () => {
     expect(() => validateEventCodes([])).toThrow(/webhook event type/);
     expect(() => validateEventCodes(["unknown.event"])).toThrow(/Invalid webhook event type/);
     expect(() => validateEventCodes([WEBHOOK_EVENT_CODES.secretNonProtectedWrite])).not.toThrow();
+  });
+});
+
+describe("assertV1WebhookChannels", () => {
+  it("rejects email affordances and subscriptions with no enabled channel", () => {
+    expect(() =>
+      assertV1WebhookChannels({
+        enableEmailChannel: true,
+        deliveryEmail: "alerts@example.com",
+      }),
+    ).toThrow(/Email channel is not available/);
+    expect(() =>
+      assertV1WebhookChannels({
+        enableEmailChannel: false,
+        enableInAppChannel: false,
+      }),
+    ).toThrow(/At least one delivery channel must be enabled/);
+    expect(() =>
+      assertV1WebhookChannels({
+        enableEmailChannel: false,
+        enableInAppChannel: true,
+      }),
+    ).not.toThrow();
   });
 });
 

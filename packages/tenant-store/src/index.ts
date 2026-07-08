@@ -187,6 +187,7 @@ export {
 export { TenantProjectMetadataStore } from "./projects/tenant-project-metadata-store.js";
 export type { ProjectMetadataRow } from "./projects/types.js";
 export { TenantEnvironmentLifecycleStore } from "./environments/tenant-environment-lifecycle-store.js";
+export { TenantHierarchyDisplayNameStore } from "./hierarchy/tenant-hierarchy-display-name-store.js";
 export type {
   CreateEnvironmentLifecycleInput,
   EnvironmentLifecycleRow,

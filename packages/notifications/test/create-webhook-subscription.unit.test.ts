@@ -101,6 +101,25 @@ describe("createWebhookSubscription validation", () => {
 
     expect(withTenantScopeMock).not.toHaveBeenCalled();
   });
+
+  it("rejects subscriptions with no enabled delivery channel in V1", async () => {
+    await expect(
+      createWebhookSubscription({
+        actorUserId: USER,
+        organizationId: ORG,
+        displayName: "Alerts",
+        eventCodes: [WEBHOOK_EVENT_CODES.secretNonProtectedWrite],
+        enableEmailChannel: false,
+        enableInAppChannel: false,
+        keyring: {} as never,
+        accessActor: ACTOR,
+      }),
+    ).rejects.toMatchObject({
+      code: NOTIFICATION_ERROR_CODES.deliveryFailed,
+    });
+
+    expect(withTenantScopeMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("webhook subscription access and mutation guards", () => {

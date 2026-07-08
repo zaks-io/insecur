@@ -119,18 +119,24 @@ async function deliverSignedNotification(
   subscription: WebhookSubscriptionRow,
   signed: SignedEventNotification,
 ): Promise<void> {
+  let delivered = false;
   if (subscription.enableInAppChannel) {
     await input.deliveryPorts.inApp.persistEventNotification({
       organizationId: input.organizationId,
       subscriptionId: subscription.subscriptionId,
       signed,
     });
+    delivered = true;
   }
   if (subscription.enableEmailChannel && subscription.deliveryEmail && input.deliveryPorts.email) {
     await input.deliveryPorts.email.sendEventNotification({
       toEmail: subscription.deliveryEmail,
       signed,
     });
+    delivered = true;
+  }
+  if (!delivered) {
+    throw new Error("no delivery channel enabled for subscription");
   }
 }
 
@@ -139,20 +145,16 @@ async function recordDeliveryAudit(
   subscriptionId: WebhookSubscriptionId,
   outcome: "success" | "failed",
 ): Promise<void> {
-  if (sourceEvent.actor.type !== "user" || sourceEvent.actor.userId === null) {
-    return;
-  }
-  const actorUserId = sourceEvent.actor.userId;
   if (outcome === "success") {
     await recordWebhookDeliverySucceeded({
-      actorUserId,
+      actor: sourceEvent.actor,
       organizationId: sourceEvent.organizationId,
       subscriptionId,
     });
     return;
   }
   await recordWebhookDeliveryFailed({
-    actorUserId,
+    actor: sourceEvent.actor,
     organizationId: sourceEvent.organizationId,
     subscriptionId,
     reasonCode: NOTIFICATION_ERROR_CODES.deliveryFailed,
