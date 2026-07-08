@@ -137,8 +137,14 @@ path. The unit-level companion is the authed-SSR harness in `apps/web/test/suppo
   drives the current happy paths over HTTP, exercises the built `insecur` CLI for auth/session and
   metadata navigation (`whoami`, `orgs list`, `projects list`, `envs list`, `config show`, `logout`)
   from isolated temp config directories, runs the First Value CLI proof (`init`, `secrets set`, `run`),
-  sweeps preview Postgres for the generated sentinel,
-  emits GitHub annotations, and uploads HTML, JSON, JUnit XML, and failure trace artifacts.
+  then drives CLI metadata reads and audit surfaces against the live preview tenant (`secrets list`,
+  `secrets versions`, `audit tail`, `audit export`, `audit verify` against the published
+  `/.well-known/insecur/audit-export-signing-keys.json` signing keys); every CLI stdout/stderr
+  payload and exported artifact is asserted metadata-only and free of the smoke sentinel or bearer
+  material. Because no audit-export HMAC secret is wired to the smoke job today, `audit verify` is
+  expected to report `status: "invalid"` with `audit.export.key_evidence_missing` while hash-chain,
+  signature, and tenant-scope integrity still verify, sweeps preview Postgres for the generated
+  sentinel, emits GitHub annotations, and uploads HTML, JSON, JUnit XML, and failure trace artifacts.
   Local runs load ignored `.env.preview` and `.env.local` files before checking required variables.
   `SMOKE_SESSION_SIGNING_SECRET` may be supplied as `SESSION_SIGNING_SECRET`, but it must match the
   API/Web workers under test; a throwaway random value only works for a local Worker stack that was
