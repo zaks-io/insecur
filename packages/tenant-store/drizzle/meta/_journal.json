@@ -148,6 +148,13 @@
       "when": 1784100000000,
       "tag": "0020_injection_grant_revocation",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784200000000,
+      "tag": "0021_protected_changes",
+      "breakpoints": true
     }
   ]
 }

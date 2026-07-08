@@ -158,6 +158,8 @@ export {
   type CliErrorCode,
   NOTIFICATION_ERROR_CODES,
   type NotificationErrorCode,
+  PROTECTED_CHANGE_ERROR_CODES,
+  type ProtectedChangeErrorCode,
 } from "./error-codes.js";
 export {
   DEFAULT_UNKNOWN_ERROR_CODE,

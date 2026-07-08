@@ -198,6 +198,18 @@ CREATE POLICY in_app_event_notifications_tenant_isolation ON in_app_event_notifi
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS protected_changes_tenant_isolation ON protected_changes;
+CREATE POLICY protected_changes_tenant_isolation ON protected_changes
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS protected_change_approval_evidence_tenant_isolation ON protected_change_approval_evidence;
+CREATE POLICY protected_change_approval_evidence_tenant_isolation ON protected_change_approval_evidence
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS first_value_feedback_tenant_isolation ON first_value_feedback;
 CREATE POLICY first_value_feedback_tenant_isolation ON first_value_feedback
   FOR ALL
@@ -246,7 +258,9 @@ BEGIN
         'webhook_subscription_event_types',
         'webhook_signing_secrets',
         'in_app_event_notifications',
-        'sensitive_metadata_fields'
+        'sensitive_metadata_fields',
+        'protected_changes',
+        'protected_change_approval_evidence'
       )
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tenant_table);

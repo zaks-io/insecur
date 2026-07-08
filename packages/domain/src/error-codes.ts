@@ -248,6 +248,20 @@ export const NOTIFICATION_ERROR_CODES = {
 export type NotificationErrorCode =
   (typeof NOTIFICATION_ERROR_CODES)[keyof typeof NOTIFICATION_ERROR_CODES];
 
+/** Protected Change Orchestrator state machine failures (INS-82). */
+export const PROTECTED_CHANGE_ERROR_CODES = {
+  notFound: "protected_change.not_found",
+  invalidTransition: "protected_change.invalid_transition",
+  terminalState: "protected_change.terminal_state",
+  activeChangeExists: "protected_change.active_change_exists",
+  missingEvidence: "protected_change.missing_evidence",
+  requesterMismatch: "protected_change.requester_mismatch",
+  nonProtectedEnvironment: "protected_change.non_protected_environment",
+} as const;
+
+export type ProtectedChangeErrorCode =
+  (typeof PROTECTED_CHANGE_ERROR_CODES)[keyof typeof PROTECTED_CHANGE_ERROR_CODES];
+
 /**
  * Every `*_ERROR_CODES` catalog in this module. Append new catalogs here and to
  * `KnownErrorCode` so `known-error-code-catalog.ts` lockstep coverage cannot miss them.
@@ -272,6 +286,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   IMPORT_ERROR_CODES,
   CLI_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
+  PROTECTED_CHANGE_ERROR_CODES,
 ] as const;
 
 export type KnownErrorCode =
@@ -294,4 +309,5 @@ export type KnownErrorCode =
   | ImportErrorCode
   | CliErrorCode
   | NotificationErrorCode
+  | ProtectedChangeErrorCode
   | (string & {});

@@ -2255,6 +2255,263 @@
     ],
     "primaryKeys": []
   },
+  "protected_change_approval_evidence": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "protected_change_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "approver_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "audit_event_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "operation_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "impact_review_fingerprint": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "protected_change_approval_evidence_org_change_key",
+        "columns": ["org_id", "protected_change_id"],
+        "unique": true,
+        "nullsNotDistinct": false
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "protected_change_approval_evidence_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "protected_change_approval_evidence_org_id_protected_change_id_protected_changes_org_id_id_fk",
+        "columns": ["org_id", "protected_change_id"],
+        "foreignTable": "protected_changes",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "protected_changes": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "state": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "purpose": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "requester_user_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "requester_machine_identity_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "draft_version_ids": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgJsonb",
+        "sqlType": "jsonb",
+        "defaultSql": "'[]'::jsonb"
+      },
+      "impact_review_fingerprint": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "execution_operation_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "closure_reason_code": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "protected_changes_purpose_check",
+        "sql": "\"protected_changes\".\"purpose\" IN ('promotion')"
+      },
+      {
+        "name": "protected_changes_requester_present_check",
+        "sql": "\"protected_changes\".\"requester_user_id\" IS NOT NULL OR \"protected_changes\".\"requester_machine_identity_id\" IS NOT NULL"
+      },
+      {
+        "name": "protected_changes_state_check",
+        "sql": "\"protected_changes\".\"state\" IN ('proposed', 'pending_approval', 'approved', 'rejected', 'stale', 'canceled', 'executing', 'succeeded', 'failed')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [
+      {
+        "name": "protected_changes_one_active_per_environment_idx",
+        "columns": ["org_id", "environment_id"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"protected_changes\".\"state\" IN ('proposed', 'pending_approval', 'approved', 'executing')"
+      },
+      {
+        "name": "protected_changes_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "unique": true,
+        "nullsNotDistinct": false
+      }
+    ],
+    "foreignKeys": [
+      {
+        "name": "protected_changes_environment_id_environments_id_fk",
+        "columns": ["environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "protected_changes_org_id_environment_id_environments_org_id_id_fk",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "protected_changes_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "protected_changes_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "protected_changes_project_id_projects_id_fk",
+        "columns": ["project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
   "provider_app_registrations": {
     "columns": {
       "id": {
