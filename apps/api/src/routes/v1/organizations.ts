@@ -12,9 +12,9 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 
-export const organizationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const organizationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 organizationsRoutes.post("/", requireUserActor, async (context) => {
   return handleRoute(context, async (reqId) => {
@@ -38,3 +38,7 @@ organizationsRoutes.post("/", requireUserActor, async (context) => {
     });
   });
 });
+
+export function registerOrganizationsRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/organizations", organizationsRoutes);
+}

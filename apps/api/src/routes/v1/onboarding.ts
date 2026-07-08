@@ -11,9 +11,9 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 
-export const onboardingRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const onboardingRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 function optionalDisplayName(
   body: Record<string, unknown>,
@@ -47,3 +47,7 @@ onboardingRoutes.post("/personal-organization", requireUserActor, async (context
     });
   });
 });
+
+export function registerOnboardingRoutes(app: ApiApp): void {
+  app.route("/v1/onboarding", onboardingRoutes);
+}

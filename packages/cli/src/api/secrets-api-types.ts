@@ -11,13 +11,27 @@ import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
 type ApiSuccess<T> = SuccessEnvelope<T>;
 type ApiFailure = ErrorEnvelope;
 
-export interface SecretWriteDescriptiveVerdictsData {
+interface SecretWriteDescriptiveVerdictsData {
   readonly valueByteLength: number;
   readonly encodingClass: "utf-8" | "hex-shaped" | "base64-shaped";
   readonly isEmpty: boolean;
   readonly hasLeadingOrTrailingWhitespace: boolean;
   readonly looksLikePlaceholder: boolean;
   readonly secretShapeMatchVerdict: "matches" | "does_not_match" | "no_shape_rule";
+}
+
+export interface SecretWriteByVariableKeyData {
+  readonly secretId: SecretId;
+  readonly secretVersionId: SecretVersionId;
+  readonly variableKey: VariableKey;
+  readonly createdSecretShape: boolean;
+  readonly descriptiveVerdicts: SecretWriteDescriptiveVerdictsData;
+  readonly auditEventId?: string;
+}
+
+interface SecretGenerationRequest {
+  readonly mode: "random";
+  readonly lengthBytes: number;
 }
 
 interface EnvironmentSecretCurrentVersionData {
@@ -59,6 +73,29 @@ export interface ListSecretVersionsData {
 }
 
 export interface SecretsApiClient {
+  writeSecretByVariableKey(
+    input: {
+      readonly host: string;
+      readonly bearerCredential: string;
+      readonly organizationId: OrganizationId;
+      readonly projectId: ProjectId;
+      readonly environmentId: EnvironmentId;
+      readonly variableKey: VariableKey;
+      readonly allowEmpty?: boolean;
+    } & (
+      | {
+          readonly valueUtf8: Uint8Array;
+          readonly generate?: never;
+        }
+      | {
+          readonly generate: SecretGenerationRequest;
+          readonly valueUtf8?: never;
+        }
+    ),
+  ): Promise<
+    | { ok: true; envelope: ApiSuccess<SecretWriteByVariableKeyData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
   listEnvironmentSecrets(input: {
     readonly host: string;
     readonly bearerCredential: string;

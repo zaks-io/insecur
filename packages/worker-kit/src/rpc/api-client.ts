@@ -60,6 +60,36 @@ function createSessionApiMethods(apiFetch: ApiFetch) {
   };
 }
 
+function createHighAssuranceApiMethods(apiFetch: ApiFetch) {
+  return {
+    orgHighAssuranceChallenges: async (organizationId: string): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/high-assurance-challenges`,
+      );
+      return response.json();
+    },
+    orgHighAssuranceChallenge: async (
+      organizationId: string,
+      operationId: string,
+    ): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/high-assurance-challenges/${encodeURIComponent(operationId)}`,
+      );
+      return response.json();
+    },
+    denyOrgHighAssuranceChallenge: async (
+      organizationId: string,
+      operationId: string,
+    ): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/high-assurance-challenges/${encodeURIComponent(operationId)}/deny`,
+        { method: "POST" },
+      );
+      return response.json();
+    },
+  };
+}
+
 function createOrgApiMethods(apiFetch: ApiFetch) {
   return {
     orgProjects: async (organizationId: string): Promise<unknown> => {
@@ -87,12 +117,7 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
       const response = await apiFetch(auditEventsPath(organizationId, query));
       return response.json();
     },
-    orgHighAssuranceChallenges: async (organizationId: string): Promise<unknown> => {
-      const response = await apiFetch(
-        `/v1/orgs/${encodeURIComponent(organizationId)}/high-assurance-challenges`,
-      );
-      return response.json();
-    },
+    ...createHighAssuranceApiMethods(apiFetch),
   };
 }
 

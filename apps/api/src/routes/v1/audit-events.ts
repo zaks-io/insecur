@@ -10,10 +10,10 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
-export const auditEventsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const auditEventsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 type AuditEventsRouteContext = Context<{ Bindings: ApiEnv; Variables: AuthVariables }>;
 
@@ -96,3 +96,7 @@ auditEventsRoutes.get("/", requireUserActor, async (context) =>
     });
   }),
 );
+
+export function registerAuditEventsRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/audit-events", auditEventsRoutes);
+}

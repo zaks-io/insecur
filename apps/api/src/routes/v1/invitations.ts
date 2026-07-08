@@ -15,10 +15,10 @@ import {
   type AuthVariables,
 } from "@insecur/worker-kit";
 import { Hono } from "hono";
-import type { ApiEnv } from "../../env.js";
+import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseOrganizationRouteParam } from "./parse-org-route-params.js";
 
-export const invitationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
+const invitationsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
 // The console People pending-invitations read (INS-373), forwarded like every non-keyring DB read
 // (ADR-0077). Metadata only: invitation envelopes carry no token or acceptance secret.
@@ -76,3 +76,7 @@ invitationsRoutes.post("/:invitationId/accept", requireUserActor, async (context
     });
   });
 });
+
+export function registerInvitationsRoutes(app: ApiApp): void {
+  app.route("/v1/orgs/:organizationId/invitations", invitationsRoutes);
+}

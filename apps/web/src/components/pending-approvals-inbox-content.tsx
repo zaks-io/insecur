@@ -12,7 +12,13 @@ function ApprovalsInboxEmptyState() {
 }
 
 /** Presentational approvals inbox. Polling wrapper is `PendingApprovalsInbox`. */
-export function ApprovalsInboxContent({ items }: { items: readonly ConsoleApprovalItem[] }) {
+export function ApprovalsInboxContent({
+  orgId,
+  items,
+}: {
+  orgId: string;
+  items: readonly ConsoleApprovalItem[];
+}) {
   const countLabel = items.length === 1 ? "1 pending item" : `${String(items.length)} pending`;
 
   return (
@@ -28,7 +34,7 @@ export function ApprovalsInboxContent({ items }: { items: readonly ConsoleApprov
       ) : (
         <ul className="mt-6 divide-y-2 divide-ink border-2 border-ink">
           {items.map((item) => (
-            <ApprovalItem key={item.id} item={item} />
+            <ApprovalItem key={item.id} item={item} orgId={orgId} />
           ))}
         </ul>
       )}

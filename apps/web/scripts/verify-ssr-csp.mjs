@@ -70,6 +70,20 @@ const MEMBER = {
   organizationId: ORG.organizationId,
 };
 
+const PENDING_CHALLENGE = {
+  operationId: "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  intentCode: "sync.run",
+  challengeId: "challenge-001",
+  projectId: PROJECT.projectId,
+  environmentId: ENVIRONMENTS[0].environmentId,
+  riskReasonCode: "high_assurance.risk.agent_step_up",
+  requestedAt: "2026-07-01T00:00:00.000Z",
+  expiresAt: "2026-07-01T01:00:00.000Z",
+  requestingMachineIdentityId: "mach_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  status: "pending",
+  hasClearedEvidence: false,
+};
+
 const base64Url = (bytes) =>
   Buffer.from(bytes)
     .toString("base64")
@@ -191,6 +205,26 @@ const mf = new Miniflare({
           }
           if (url.pathname === `/v1/orgs/${ORG.organizationId}/high-assurance-challenges`) {
             return Response.json({ ok: true, data: { challenges: [] } });
+          }
+          if (
+            url.pathname ===
+            `/v1/orgs/${ORG.organizationId}/high-assurance-challenges/${PENDING_CHALLENGE.operationId}`
+          ) {
+            return Response.json({ ok: true, data: { challenge: PENDING_CHALLENGE } });
+          }
+          if (
+            url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/high-assurance-challenges/${PENDING_CHALLENGE.operationId}/deny` &&
+            request.method === "POST"
+          ) {
+            return Response.json({
+              ok: true,
+              data: {
+                operationId: PENDING_CHALLENGE.operationId,
+                challengeId: PENDING_CHALLENGE.challengeId,
+                state: "canceled",
+              },
+            });
           }
           if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/high-assurance-challenges`) {
             return Response.json({ ok: true, data: { challenges: [] } });
@@ -436,6 +470,33 @@ try {
     expect: [">Approvals<", "Nothing needs you", 'aria-label="Breadcrumb"'],
   });
   await assertNotFound(`/orgs/${ORG.organizationId.slice(0, -1)}X/approvals`, authorization);
+
+  // Approval detail deep link (INS-381): login redirect, evidence render, prefix resolution.
+  const approvalDetailPath = `/orgs/${ORG.organizationId}/approvals/${PENDING_CHALLENGE.operationId}`;
+  await assertUnauthenticatedConsoleRedirect(approvalDetailPath);
+  await assertRouteHasMatchingCspNonce(approvalDetailPath, {
+    headers: authorization,
+    authedDocument: true,
+    expect: [
+      ">Review approval<",
+      ">Evidence<",
+      PENDING_CHALLENGE.intentCode,
+      PENDING_CHALLENGE.requestingMachineIdentityId,
+      "Reject challenge",
+    ],
+  });
+  await assertRouteHasMatchingCspNonce(
+    `/orgs/${ORG.organizationId}/approvals/req_01JZ8E2QYQAAAAAAAAAAAAAAAA`,
+    {
+      headers: authorization,
+      authedDocument: true,
+      expect: ["Not yet supported", "Approval Request"],
+    },
+  );
+  await assertNotFound(
+    `/orgs/${ORG.organizationId}/approvals/org_not_an_approval_id`,
+    authorization,
+  );
 
   // Projects section (INS-370): authorized renders, protection badge, empty states, denials.
   await assertUnauthenticatedConsoleRedirect(

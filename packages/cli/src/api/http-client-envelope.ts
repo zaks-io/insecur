@@ -1,6 +1,9 @@
 import { INSECUR_SESSION_CREDENTIAL_HEADER } from "@insecur/auth";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
-import type { InjectionGrantDeliveryAllEnvelope, InjectionGrantDeliveryEnvelope } from "./types.js";
+import type {
+  InjectionGrantDeliveryAllEnvelope,
+  InjectionGrantDeliveryEnvelope,
+} from "./runtime-injection-api-types.js";
 
 async function readJsonResponse(response: Response): Promise<unknown> {
   return response.json();

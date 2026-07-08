@@ -4,6 +4,7 @@ import type {
   ConsoleApprovalRequestItem,
   ConsoleHighAssuranceChallengeItem,
 } from "../console/approval-items.js";
+import { approvalDetailPath } from "../console/approval-items.js";
 import { shortDate } from "../console/projects.js";
 
 function approvalItemKindLabel(kind: ConsoleApprovalItem["kind"]): string {
@@ -48,13 +49,24 @@ function ApprovalRequestDetails({ item }: { item: ConsoleApprovalRequestItem }) 
 }
 
 /** Metadata-only inbox row for both Human Approval Surface item kinds (INS-377). */
-export function ApprovalItem({ item }: { item: ConsoleApprovalItem }) {
+export function ApprovalItem({ item, orgId }: { item: ConsoleApprovalItem; orgId?: string }) {
+  const detailHref = orgId === undefined ? undefined : approvalDetailPath(orgId, item.id);
+
   return (
     <li className="px-5 py-4 sm:px-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Badge>{approvalItemKindLabel(item.kind)}</Badge>
-          <span className="truncate font-mono text-sm text-foreground">{item.id}</span>
+          {detailHref === undefined ? (
+            <span className="truncate font-mono text-sm text-foreground">{item.id}</span>
+          ) : (
+            <a
+              href={detailHref}
+              className="truncate font-mono text-sm text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              {item.id}
+            </a>
+          )}
         </div>
         <span className="shrink-0 font-mono text-xs text-muted-foreground">
           {shortDate(item.requestedAt)}
