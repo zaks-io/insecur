@@ -12,7 +12,7 @@ CREATE TABLE "approval_requests" (
 	"comment_length" integer,
 	"comment_sha256" text,
 	"rollback_secret_id" text,
-	"rollback_to_version_number" integer,
+	"rollback_to_version_id" text,
 	"rollback_promote_requested" boolean DEFAULT false NOT NULL,
 	"superseded_by_request_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

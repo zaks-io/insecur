@@ -17,7 +17,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST_APPROVALS = {
     requester_user_id: { category: "actor-id" },
     rollback_promote_requested: { category: "flag" },
     rollback_secret_id: { category: "opaque-id" },
-    rollback_to_version_number: { category: "count" },
+    rollback_to_version_id: { category: "opaque-id" },
     status: { category: "status-code" },
     superseded_by_request_id: { category: "opaque-id" },
     updated_at: { category: "timestamp" },

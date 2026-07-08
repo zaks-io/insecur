@@ -31,6 +31,11 @@ import {
   disableRuntimeInjectionPolicy,
   getRuntimeInjectionPolicy,
 } from "./http-client-run-policies.js";
+import {
+  listEnvironmentApprovals,
+  requestProtectedPromotion,
+  requestProtectedRollback,
+} from "./http-client-protected-change.js";
 import { listEnvironmentSecrets, listSecretVersions } from "./http-client-secrets-read.js";
 import { writeSecretByVariableKey } from "./http-client-secrets-write.js";
 import { sessionWhoami } from "./http-client-whoami.js";
@@ -64,6 +69,9 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     createRuntimeInjectionPolicy: (input) => createRuntimeInjectionPolicy(base, input),
     getRuntimeInjectionPolicy: (input) => getRuntimeInjectionPolicy(base, input),
     disableRuntimeInjectionPolicy: (input) => disableRuntimeInjectionPolicy(base, input),
+    requestProtectedPromotion: (input) => requestProtectedPromotion(base, input),
+    requestProtectedRollback: (input) => requestProtectedRollback(base, input),
+    listEnvironmentApprovals: (input) => listEnvironmentApprovals(base, input),
     listAppConnections: (input) => listAppConnections(base, input),
     getAppConnectionStatus: (input) => getAppConnectionStatus(base, input),
     createAppConnection: (input) => createAppConnection(base, input),

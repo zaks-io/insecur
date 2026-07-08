@@ -49,6 +49,7 @@ const REQ = requestId.brand("req_00000000000000000000000001");
 const OP = operationId.brand("op_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const NEW_SECRET_VERSION = secretVersionId.brand("sv_00000000000000000000000001");
+const TO_VERSION = secretVersionId.brand("sv_00000000000000000000000002");
 
 async function expectedSha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -63,7 +64,7 @@ const baseInput = {
   environmentId: ENV,
   isProtectedEnvironment: true,
   secretId: SECRET,
-  toVersionNumber: 3,
+  toVersionId: TO_VERSION,
   newSecretVersionId: NEW_SECRET_VERSION,
   impactReviewFingerprint: "impact-fingerprint-v1",
   requestId: REQ,
@@ -127,7 +128,7 @@ describe("createRollbackApprovalRequest", () => {
       approvalRequestId: createdId,
       requester: { userId: USER },
       secretId: SECRET,
-      toVersionNumber: 3,
+      toVersionId: TO_VERSION,
       promoteRequested: true,
       draftVersion: { secretId: SECRET, secretVersionId: NEW_SECRET_VERSION },
     });

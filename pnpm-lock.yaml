@@ -202,6 +202,9 @@ importers:
       '@insecur/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@insecur/protected-change':
+        specifier: workspace:*
+        version: link:../../packages/protected-change
       '@insecur/secret-store-contracts':
         specifier: workspace:*
         version: link:../../packages/secret-store-contracts
@@ -299,6 +302,9 @@ importers:
       '@insecur/operations':
         specifier: workspace:*
         version: link:../../packages/operations
+      '@insecur/protected-change':
+        specifier: workspace:*
+        version: link:../../packages/protected-change
       '@insecur/runtime-injection':
         specifier: workspace:*
         version: link:../../packages/runtime-injection
@@ -757,6 +763,9 @@ importers:
       '@insecur/operations':
         specifier: workspace:*
         version: link:../operations
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1006,6 +1015,12 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/high-assurance':
+        specifier: workspace:*
+        version: link:../high-assurance
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../operations
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store

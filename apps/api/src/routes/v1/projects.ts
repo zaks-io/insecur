@@ -21,6 +21,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { RequestId } from "@insecur/domain";
 import type { ApiApp, ApiEnv } from "../../env.js";
+import { parseEnvironmentScopedRouteParams } from "./parse-environment-scoped-route-params.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
 
 const projectsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
@@ -33,20 +34,6 @@ function parseProjectScopedRouteParams(
       requireRouteParam(context.req.param("organizationId"), "organizationId"),
     ),
     projectId: parseProjectIdParam(requireRouteParam(context.req.param("projectId"), "projectId")),
-  };
-}
-
-function parseEnvironmentScopedRouteParams(
-  context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,
-) {
-  return {
-    organizationId: parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
-    ),
-    projectId: parseProjectIdParam(requireRouteParam(context.req.param("projectId"), "projectId")),
-    environmentId: parseEnvironmentIdParam(
-      requireRouteParam(context.req.param("environmentId"), "environmentId"),
-    ),
   };
 }
 

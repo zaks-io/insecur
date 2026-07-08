@@ -310,12 +310,12 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
-      "rollback_to_version_number": {
+      "rollback_to_version_id": {
         "notNull": false,
         "primaryKey": false,
         "hasDefault": false,
-        "columnType": "PgInteger",
-        "sqlType": "integer"
+        "columnType": "PgText",
+        "sqlType": "text"
       },
       "rollback_promote_requested": {
         "notNull": true,

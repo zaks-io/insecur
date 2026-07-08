@@ -6,6 +6,7 @@ import type {
   ProjectId,
   RuntimePolicyId,
   SecretId,
+  SecretVersionId,
 } from "@insecur/domain";
 import {
   VALIDATION_ERROR_CODES,
@@ -16,6 +17,7 @@ import {
   projectId,
   runtimePolicyId,
   secretId,
+  secretVersionId,
 } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
 
@@ -110,6 +112,14 @@ export function parseOptionalRuntimePolicyId(
 
 export function parseRuntimePolicyId(raw: string, context?: string): RuntimePolicyId {
   return parseRequired(raw, runtimePolicyId, "runtime injection policy id", context);
+}
+
+export function parseSecretId(raw: string, context?: string): SecretId {
+  return parseRequired(raw, secretId, "secret id", context);
+}
+
+export function parseSecretVersionId(raw: string, context?: string): SecretVersionId {
+  return parseRequired(raw, secretVersionId, "secret version id", context);
 }
 
 export function parseAppConnectionId(raw: string, context?: string): AppConnectionId {

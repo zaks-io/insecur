@@ -9,10 +9,8 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { assertImpactReviewFresh } from "../src/assert-impact-review-fresh.js";
-import {
-  computeImpactReviewFingerprint,
-  type ImpactReviewFingerprintInput,
-} from "../src/compute-impact-review-fingerprint.js";
+import { computeImpactReviewFingerprint } from "../src/compute-impact-review-fingerprint.js";
+import type { ApprovalImpactReviewState } from "../src/load-approval-impact-review-state.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -23,20 +21,39 @@ const SEC_1 = secretId.brand("sec_00000000000000000000000001");
 
 const HEX_64 = /^sha256:[0-9a-f]{64}$/;
 
-function baseInput(): ImpactReviewFingerprintInput {
+function baseState(): ApprovalImpactReviewState {
   return {
     organizationId: ORG,
     projectId: PROJECT,
     environmentId: ENV,
-    draftVersionIds: [SV_1, SV_2],
-    secretIds: [SEC_1],
-    deliveryImpacts: [{ targetId: "sync_cloudflare_worker_a", state: "enabled" }],
+    draftVersions: [
+      {
+        secretId: SEC_1,
+        secretVersionId: SV_1,
+        valueByteLength: 24,
+        encodingClass: "utf8",
+        secretShapeMatchVerdict: "match",
+      },
+    ],
+    delivery: {
+      runtimeInjectionPolicies: [
+        {
+          policyId: "rip_a",
+          activeVersionId: "ripv_a",
+          commandFingerprint: "cmd_a",
+          deliveryMode: "env",
+          secretIds: [String(SEC_1)],
+          ttlSeconds: 300,
+        },
+      ],
+      providerSyncImpact: ["sync_cloudflare_worker_a:enabled"],
+    },
   };
 }
 
 describe("computeImpactReviewFingerprint", () => {
   it("is a real SHA-256 hex digest, not a concatenation of caller ids", async () => {
-    const fingerprint = await computeImpactReviewFingerprint(baseInput());
+    const fingerprint = await computeImpactReviewFingerprint(baseState());
 
     expect(fingerprint).toMatch(HEX_64);
     // Regression guard for the B2 defect: the old impl returned `sha256:` + ids joined by `|`.
@@ -45,94 +62,102 @@ describe("computeImpactReviewFingerprint", () => {
     expect(fingerprint).not.toContain("|");
   });
 
-  it("matches an independently computed SHA-256 of the canonical impact inputs", async () => {
+  it("matches an independently computed SHA-256 of the canonical live-impact payload", async () => {
+    const state = baseState();
     const canonical = JSON.stringify({
-      version: 1,
-      organizationId: ORG,
-      projectId: PROJECT,
-      environmentId: ENV,
-      draftVersionIds: [String(SV_1), String(SV_2)],
-      publishedVersionIds: [],
-      secretIds: [String(SEC_1)],
-      deliveryImpacts: [{ targetId: "sync_cloudflare_worker_a", state: "enabled" }],
+      organizationId: state.organizationId,
+      projectId: state.projectId,
+      environmentId: state.environmentId,
+      draftVersions: state.draftVersions,
+      delivery: state.delivery,
     });
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
     const expected = `sha256:${[...new Uint8Array(digest)]
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("")}`;
 
-    expect(await computeImpactReviewFingerprint(baseInput())).toBe(expected);
-  });
-
-  it("is order-independent for draft versions and delivery impacts", async () => {
-    const forward = await computeImpactReviewFingerprint(baseInput());
-    const reordered = await computeImpactReviewFingerprint({
-      ...baseInput(),
-      draftVersionIds: [SV_2, SV_1],
-      deliveryImpacts: [{ targetId: "sync_cloudflare_worker_a", state: "enabled" }],
-    });
-
-    expect(reordered).toBe(forward);
+    expect(await computeImpactReviewFingerprint(state)).toBe(expected);
   });
 
   it("does not include Sensitive Values or plaintext (metadata-only invariant)", async () => {
     const sensitive = "super-secret-plaintext-value";
-    // The API surface has no field to carry a Sensitive Value; the digest is opaque and never
-    // echoes plaintext back regardless of what metadata identifiers contain.
-    const fingerprint = await computeImpactReviewFingerprint({
-      ...baseInput(),
-      deliveryImpacts: [{ targetId: "sync_target_a", state: "enabled" }],
-    });
+    const fingerprint = await computeImpactReviewFingerprint(baseState());
 
     expect(fingerprint).not.toContain(sensitive);
     expect(fingerprint).toMatch(HEX_64);
   });
 });
 
-describe("stale-closure detection via impact fingerprint", () => {
-  it("flags stale when the delivery/sync impact changed (drift detected)", async () => {
-    const atApproval = await computeImpactReviewFingerprint(baseInput());
-    // Underlying impact drifts: the sync target became disabled after approval was recorded.
+describe("stale-closure detection via impact fingerprint (recompute-then-compare)", () => {
+  it("flags stale when the live delivery/sync impact drifted after approval was recorded", async () => {
+    // Fingerprint recorded at approval time over the then-live impact.
+    const atApproval = await computeImpactReviewFingerprint(baseState());
+
+    // Server RE-computes over the CURRENT live impact: the sync target flipped enabled -> disabled.
+    const drifted = baseState();
     const recomputed = await computeImpactReviewFingerprint({
-      ...baseInput(),
-      deliveryImpacts: [{ targetId: "sync_cloudflare_worker_a", state: "disabled" }],
+      ...drifted,
+      delivery: { ...drifted.delivery, providerSyncImpact: ["sync_cloudflare_worker_a:disabled"] },
     });
 
+    // The seam is a genuine recompute, not stored===stored: drift must change the digest.
     expect(recomputed).not.toBe(atApproval);
     expect(() => {
-      assertImpactReviewFresh({
-        submittedFingerprint: atApproval,
-        currentFingerprint: recomputed,
-      });
+      assertImpactReviewFresh({ submittedFingerprint: atApproval, currentFingerprint: recomputed });
     }).toThrow(expect.objectContaining({ code: APPROVAL_ERROR_CODES.reviewStale }));
   });
 
   it("flags stale when the batch of draft versions changed", async () => {
-    const atApproval = await computeImpactReviewFingerprint(baseInput());
+    const atApproval = await computeImpactReviewFingerprint(baseState());
+    const withExtraDraft = baseState();
     const recomputed = await computeImpactReviewFingerprint({
-      ...baseInput(),
-      draftVersionIds: [SV_1],
+      ...withExtraDraft,
+      draftVersions: [
+        ...withExtraDraft.draftVersions,
+        {
+          secretId: SEC_1,
+          secretVersionId: SV_2,
+          valueByteLength: 12,
+          encodingClass: "utf8",
+          secretShapeMatchVerdict: "match",
+        },
+      ],
     });
 
     expect(recomputed).not.toBe(atApproval);
     expect(() => {
-      assertImpactReviewFresh({
-        submittedFingerprint: atApproval,
-        currentFingerprint: recomputed,
-      });
+      assertImpactReviewFresh({ submittedFingerprint: atApproval, currentFingerprint: recomputed });
     }).toThrow(expect.objectContaining({ code: APPROVAL_ERROR_CODES.reviewStale }));
   });
 
+  it("does NOT go stale when passing the stored fingerprint as current would be a tautology", async () => {
+    // Guard against the B2 tautology: if the wiring passed the STORED fingerprint as BOTH sides,
+    // drift would never be caught. Here the recompute over live (drifted) impact differs from the
+    // stored one, so the fresh check must fail; a stored===stored comparison would (wrongly) pass.
+    const stored = await computeImpactReviewFingerprint(baseState());
+    const drifted = baseState();
+    const liveRecompute = await computeImpactReviewFingerprint({
+      ...drifted,
+      delivery: { ...drifted.delivery, providerSyncImpact: ["sync_cloudflare_worker_a:disabled"] },
+    });
+
+    // Wired correctly (recompute over live): stale.
+    expect(() => {
+      assertImpactReviewFresh({ submittedFingerprint: stored, currentFingerprint: liveRecompute });
+    }).toThrow(expect.objectContaining({ code: APPROVAL_ERROR_CODES.reviewStale }));
+    // Tautology (stored as both): would NOT catch drift. Documented as the anti-pattern.
+    expect(() => {
+      assertImpactReviewFresh({ submittedFingerprint: stored, currentFingerprint: stored });
+    }).not.toThrow();
+  });
+
   it("does not flag stale when the impact is unchanged", async () => {
-    const atApproval = await computeImpactReviewFingerprint(baseInput());
-    const recomputed = await computeImpactReviewFingerprint(baseInput());
+    const atApproval = await computeImpactReviewFingerprint(baseState());
+    const recomputed = await computeImpactReviewFingerprint(baseState());
 
     expect(recomputed).toBe(atApproval);
     expect(() => {
-      assertImpactReviewFresh({
-        submittedFingerprint: atApproval,
-        currentFingerprint: recomputed,
-      });
+      assertImpactReviewFresh({ submittedFingerprint: atApproval, currentFingerprint: recomputed });
     }).not.toThrow();
   });
 });
@@ -147,7 +172,10 @@ describe("assertImpactReviewFresh", () => {
     }).toThrow(expect.objectContaining({ code: APPROVAL_ERROR_CODES.reviewStale }));
   });
 
-  it("allows matching or absent submitted fingerprint", () => {
+  it("allows a matching submitted fingerprint, and treats an absent one as fresh (fail-open)", () => {
+    // TRAP A: assertImpactReviewFresh fails OPEN on undefined; it is only safe because the caller
+    // (approve/transition path) runs assertApprovalEvidencePresent first to reject a missing
+    // fingerprint. See transition-protected-change.ts and the presence-guard test.
     expect(() => {
       assertImpactReviewFresh({
         submittedFingerprint: "sha256:same",

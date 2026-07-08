@@ -10,6 +10,7 @@ export {
   encodeRequestValueUtf8,
   parseEnvironmentIdParam,
   parseSecretIdParam,
+  parseSecretVersionIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
   parseInvitationIdParam,
@@ -43,6 +44,7 @@ export {
   type InjectionGrantIssueSelectorInput,
 } from "./http/parse-injection-grant-selector.js";
 export { parseSecretIdListField } from "./http/parse-secret-id-list-field.js";
+export { parseSecretVersionIdListField } from "./http/parse-secret-version-id-list-field.js";
 export { toAccessActor, toAuditActor } from "./http/request-actor.js";
 
 export type {
@@ -129,6 +131,15 @@ export type {
   RuntimeInjectionPolicyVersionReadPayload,
 } from "./rpc/runtime-run-policies-rpc-contract.js";
 export type { RuntimeConnectionsRpc } from "./rpc/runtime-connections-rpc-interface.js";
+export type {
+  EnvironmentApprovalListItemRpcPayload,
+  ListEnvironmentApprovalsRpcInput,
+  ListEnvironmentApprovalsRpcPayload,
+  RequestProtectedPromotionRpcInput,
+  RequestProtectedPromotionRpcPayload,
+  RequestProtectedRollbackRpcInput,
+  RequestProtectedRollbackRpcPayload,
+} from "./rpc/runtime-protected-change-rpc-contract.js";
 export type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,

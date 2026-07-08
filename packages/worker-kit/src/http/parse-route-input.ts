@@ -12,6 +12,7 @@ import {
   requestId,
   runtimePolicyId,
   secretId,
+  secretVersionId,
   userId,
   type DisplayName,
   type EnvironmentId,
@@ -24,6 +25,7 @@ import {
   type RequestId,
   type RuntimePolicyId,
   type SecretId,
+  type SecretVersionId,
   type UserId,
 } from "@insecur/domain";
 
@@ -48,6 +50,7 @@ const parseRequestResourceId = (raw: string) => requestId.parse(raw);
 const parseInvitationResourceId = (raw: string) => invitationId.parse(raw);
 const parseUserResourceId = (raw: string) => userId.parse(raw);
 const parseSecretResourceId = (raw: string) => secretId.parse(raw);
+const parseSecretVersionResourceId = (raw: string) => secretVersionId.parse(raw);
 const parseRuntimePolicyResourceId = (raw: string) => runtimePolicyId.parse(raw);
 const parseMembershipResourceId = (raw: string) => membershipId.parse(raw);
 
@@ -94,6 +97,10 @@ export function parseRuntimePolicyIdParam(raw: string): RuntimePolicyId {
 
 export function parseSecretIdParam(raw: string): SecretId {
   return parseValue(raw, parseSecretResourceId, "Invalid secret id.");
+}
+
+export function parseSecretVersionIdParam(raw: string): SecretVersionId {
+  return parseValue(raw, parseSecretVersionResourceId, "Invalid secret version id.");
 }
 
 export function parseGrantIdParam(raw: string): InjectionGrantId {

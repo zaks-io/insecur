@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { registerAuditCommands } from "./audit-commands.js";
+import { registerApprovalsCommands } from "./register-approvals-commands.js";
 import { registerNavigationCommands } from "./register-navigation-commands.js";
 import { registerOperationsCommands } from "./register-operations-commands.js";
 import type { ProgramDeps } from "./program-deps.js";
@@ -11,6 +12,7 @@ import { registerWhoamiCommand } from "./register-whoami-command.js";
 export function registerApiBackedCommands(program: Command, deps: ProgramDeps): void {
   registerAuditCommands(program, deps);
   registerSecretsCommands(program, deps);
+  registerApprovalsCommands(program, deps);
   registerNavigationCommands(program, deps);
   registerOperationsCommands(program, deps);
   registerRunPoliciesCommands(program, deps);

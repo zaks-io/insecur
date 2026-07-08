@@ -51,7 +51,7 @@ export const approvalRequests = pgTable(
     commentLength: integer("comment_length"),
     commentSha256: text("comment_sha256"),
     rollbackSecretId: text("rollback_secret_id"),
-    rollbackToVersionNumber: integer("rollback_to_version_number"),
+    rollbackToVersionId: text("rollback_to_version_id"),
     rollbackPromoteRequested: boolean("rollback_promote_requested").notNull().default(false),
     supersededByRequestId: text("superseded_by_request_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

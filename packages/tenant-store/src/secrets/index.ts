@@ -25,6 +25,11 @@ export {
 } from "./lifecycle-states.js";
 export { resolveSecretForRead } from "./resolve-secret-for-read.js";
 export { copyEnvironmentSecretShapes } from "./copy-environment-secret-shapes.js";
+export {
+  copyRetainedSecretVersion,
+  type CopyRetainedSecretVersionInput,
+  type CopyRetainedSecretVersionResult,
+} from "./copy-retained-secret-version.js";
 export type {
   ResolveSecretForReadInput,
   ResolvedSecretForRead,

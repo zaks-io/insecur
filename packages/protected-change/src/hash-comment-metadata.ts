@@ -1,14 +1,8 @@
+import { sha256Hex } from "./sha256-hex.js";
+
 export interface CommentMetadata {
   readonly commentLength?: number;
   readonly commentSha256?: string;
-}
-
-function toHex(bytes: Uint8Array): string {
-  let hex = "";
-  for (const byte of bytes) {
-    hex += byte.toString(16).padStart(2, "0");
-  }
-  return hex;
 }
 
 /**
@@ -22,9 +16,8 @@ export async function hashCommentMetadata(comment: string | undefined): Promise<
     return {};
   }
   const encoded = new TextEncoder().encode(comment);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
   return {
     commentLength: encoded.byteLength,
-    commentSha256: `sha256:${toHex(new Uint8Array(digest))}`,
+    commentSha256: `sha256:${await sha256Hex(comment)}`,
   };
 }

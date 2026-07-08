@@ -37,8 +37,6 @@ import type {
   RotateAppConnectionCredentialRpcInput,
 } from "@insecur/worker-kit/rpc/runtime-connections-rpc-contract";
 
-import type { RuntimeEnv } from "../env.js";
-
 import {
   clearHighAssuranceChallengeRpc,
   denyHighAssuranceChallengeRpc,
@@ -72,12 +70,13 @@ import {
   reauthAppConnectionRpc,
   rotateAppConnectionCredentialRpc,
 } from "./runtime-connections-rpc-delegates.js";
-import type { PostAuthRpcRunner } from "./post-auth-rpc-runner.js";
 import {
   createRuntimeInjectionPolicyRpc,
   disableRuntimeInjectionPolicyRpc,
   getRuntimeInjectionPolicyRpc,
 } from "./runtime-run-policies-rpc-delegates.js";
+import type { RuntimePostAuthRpcHost } from "./runtime-service-delegated-post-auth-rpc-host.js";
+import { RuntimeServiceProtectedChangePostAuthRpc } from "./runtime-service-protected-change-post-auth-rpc.js";
 import {
   createWebhookSubscriptionRpc,
   deleteWebhookSubscriptionRpc,
@@ -87,12 +86,10 @@ import {
   updateWebhookSubscriptionRpc,
 } from "./runtime-webhook-rpc-delegates.js";
 
-export interface RuntimePostAuthRpcHost {
-  postAuthRpc(): PostAuthRpcRunner;
-  readonly env: RuntimeEnv;
-}
+export type { RuntimePostAuthRpcHost } from "./runtime-service-delegated-post-auth-rpc-host.js";
 
 export const RuntimeServiceDelegatedPostAuthRpc = {
+  ...RuntimeServiceProtectedChangePostAuthRpc,
   listProjects(this: RuntimePostAuthRpcHost, input: ListProjectsRpcInput) {
     return listProjectsRpc(this.postAuthRpc(), input);
   },

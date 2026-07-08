@@ -21,6 +21,7 @@ const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const REQUEST = approvalRequestId.brand("apr_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const DRAFT = secretVersionId.brand("sv_00000000000000000000000001");
+const TO_VERSION = secretVersionId.brand("sv_00000000000000000000000002");
 const NOW = new Date("2026-07-08T00:00:00.000Z");
 
 describe("TenantApprovalRequestStore", () => {
@@ -145,7 +146,7 @@ describe("TenantApprovalRequestStore", () => {
       approvalRequestId: REQUEST,
       impactReviewFingerprint: "sha256:impact",
       secretId: SECRET,
-      toVersionNumber: 2,
+      toVersionId: TO_VERSION,
       promoteRequested: true,
       draftVersion: { secretId: SECRET, secretVersionId: DRAFT },
     });
@@ -153,6 +154,7 @@ describe("TenantApprovalRequestStore", () => {
     expect(insertValues[0]).toMatchObject({
       id: REQUEST,
       purpose: "protected_rollback",
+      rollbackToVersionId: TO_VERSION,
       rollbackPromoteRequested: true,
     });
   });

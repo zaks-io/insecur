@@ -8,3 +8,10 @@ export {
   type CreateRollbackApprovalRequestInput,
   type PromotionDraftVersionTarget,
 } from "./tenant-approval-request-store.js";
+export {
+  loadEnvironmentDeliveryImpactFacts,
+  type EnvironmentDeliveryImpactFacts,
+  type EnvironmentRuntimeInjectionImpactFact,
+  loadPromotionDraftVersionImpactFacts,
+  type PromotionDraftVersionImpactFact,
+} from "./impact-review-loaders.js";

@@ -33,6 +33,7 @@
     "@insecur/onboarding": "workspace:*",
     "@insecur/operations": "workspace:*",
     "@insecur/observability": "workspace:*",
+    "@insecur/protected-change": "workspace:*",
     "@insecur/runtime-injection": "workspace:*",
     "@insecur/runtime-injection-issue": "workspace:*",
     "@insecur/secret-store": "workspace:*",

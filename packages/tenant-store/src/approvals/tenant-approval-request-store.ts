@@ -55,7 +55,7 @@ export interface CreateRollbackApprovalRequestInput {
   readonly commentLength?: number;
   readonly commentSha256?: string;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly promoteRequested: boolean;
   readonly draftVersion: PromotionDraftVersionTarget;
 }
@@ -123,7 +123,7 @@ export class TenantApprovalRequestStore {
       ...commonApprovalRequestValues(input, now),
       purpose: "protected_promotion",
       rollbackSecretId: null,
-      rollbackToVersionNumber: null,
+      rollbackToVersionId: null,
       rollbackPromoteRequested: false,
     });
 
@@ -144,7 +144,7 @@ export class TenantApprovalRequestStore {
       ...commonApprovalRequestValues(input, now),
       purpose: "protected_rollback",
       rollbackSecretId: input.secretId,
-      rollbackToVersionNumber: input.toVersionNumber,
+      rollbackToVersionId: input.toVersionId,
       rollbackPromoteRequested: input.promoteRequested,
     });
 

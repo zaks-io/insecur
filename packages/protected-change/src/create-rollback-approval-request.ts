@@ -21,7 +21,7 @@ import { authorizeApprovalRequestCreate } from "./authorize-approval-request-cre
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
 
-interface PersistRollbackApprovalRequestInput {
+export interface PersistRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
@@ -30,16 +30,22 @@ interface PersistRollbackApprovalRequestInput {
   readonly impactReviewFingerprint: string;
   readonly comment?: string;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly newSecretVersionId: SecretVersionId;
   readonly operationId?: OperationId;
 }
 
-async function persistRollbackApprovalRequestOnDb(
+/**
+ * Inserts the rollback Approval Request row on an already-open tenant-scoped connection so the
+ * emergency-rollback flow can copy the retained Published Version and create its Approval Request
+ * inside one transaction (ADR-0017: rollback always publishes through an Approval Request). The
+ * caller authorizes the create with `authorizeApprovalRequestCreate` before opening the scope.
+ */
+export async function persistRollbackApprovalRequestOnDb(
   db: TenantScopedDb,
   input: PersistRollbackApprovalRequestInput,
-  commentMetadata: Awaited<ReturnType<typeof hashCommentMetadata>>,
 ): Promise<void> {
+  const commentMetadata = await hashCommentMetadata(input.comment);
   await new TenantApprovalRequestStore(db).createRollbackApprovalRequest({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -49,7 +55,7 @@ async function persistRollbackApprovalRequestOnDb(
     impactReviewFingerprint: input.impactReviewFingerprint,
     ...commentMetadata,
     secretId: input.secretId,
-    toVersionNumber: input.toVersionNumber,
+    toVersionId: input.toVersionId,
     promoteRequested: true,
     draftVersion: {
       secretId: input.secretId,
@@ -66,9 +72,8 @@ async function persistRollbackApprovalRequestOnDb(
 async function persistRollbackApprovalRequest(
   input: PersistRollbackApprovalRequestInput,
 ): Promise<void> {
-  const commentMetadata = await hashCommentMetadata(input.comment);
   await withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
-    persistRollbackApprovalRequestOnDb(db, input, commentMetadata),
+    persistRollbackApprovalRequestOnDb(db, input),
   );
 }
 
@@ -80,7 +85,7 @@ export interface CreateRollbackApprovalRequestInput {
   readonly environmentId: EnvironmentId;
   readonly isProtectedEnvironment: boolean;
   readonly secretId: SecretId;
-  readonly toVersionNumber: number;
+  readonly toVersionId: SecretVersionId;
   readonly newSecretVersionId: SecretVersionId;
   readonly impactReviewFingerprint: string;
   readonly comment?: string;
@@ -111,7 +116,7 @@ export async function createRollbackApprovalRequest(
         approvalRequestId: createdRequestId,
         impactReviewFingerprint: input.impactReviewFingerprint,
         secretId: input.secretId,
-        toVersionNumber: input.toVersionNumber,
+        toVersionId: input.toVersionId,
         newSecretVersionId: input.newSecretVersionId,
         ...(input.comment !== undefined ? { comment: input.comment } : {}),
         ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),

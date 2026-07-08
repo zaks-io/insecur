@@ -268,7 +268,9 @@ export const APPROVAL_ERROR_CODES = {
   requestNotFound: "approval.request_not_found",
   requestNotPending: "approval.request_not_pending",
   invalidDraftSelection: "approval.invalid_draft_selection",
+  wildcardSelectionRejected: "approval.wildcard_selection_rejected",
   promotionChangeSetImmutable: "approval.promotion_change_set_immutable",
+  rollbackTargetNotEligible: "approval.rollback_target_not_eligible",
 } as const;
 
 export type ApprovalErrorCode = (typeof APPROVAL_ERROR_CODES)[keyof typeof APPROVAL_ERROR_CODES];
