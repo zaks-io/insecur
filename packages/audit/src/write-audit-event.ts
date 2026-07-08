@@ -24,15 +24,17 @@ async function insertValidatedAuditEvent(
 
   const resultCode = resolveAuditResultCode(event);
 
+  let inserted = true;
   try {
     await insertAuditEventRow(sql, auditEventId, event, resultCode);
   } catch (error) {
     if (options?.idempotent !== true || !isUniqueConstraintViolation(error)) {
       throw error;
     }
+    inserted = false;
   }
 
-  if (event.outcome === "success") {
+  if (inserted && event.outcome === "success") {
     await emitAuditNotificationIfConfigured(event);
   }
 

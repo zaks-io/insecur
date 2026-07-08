@@ -1,4 +1,4 @@
-import type { ActorRef } from "@insecur/access";
+import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow, type ActorRef } from "@insecur/access";
 import { auditActorUserId, type AuditActorRef } from "@insecur/audit";
 import {
   createWebhookSubscription,
@@ -132,5 +132,12 @@ export async function listWebhookEventCodesOperation(
   ctx: WebhookOperationContext & { readonly input: ListWebhookEventCodesRpcInput },
 ): Promise<ListWebhookEventCodesRpcPayload> {
   await assertUserOrganizationMembership(ctx.accessActor, ctx.input.organizationId);
+  await authorizeScopeOrThrow({
+    actor: ctx.accessActor,
+    auditActor: ctx.auditActor,
+    coordinate: { organizationId: ctx.input.organizationId },
+    requiredScope: AUTHORIZATION_SCOPES.webhookRead,
+    requestId: ctx.input.requestId,
+  });
   return { eventCodes: listWebhookEventCodes() };
 }
