@@ -33,6 +33,9 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.projectConfigure,
     AUTHORIZATION_SCOPES.connectionRead,
     AUTHORIZATION_SCOPES.connectionManage,
+    AUTHORIZATION_SCOPES.syncRead,
+    AUTHORIZATION_SCOPES.syncManage,
+    AUTHORIZATION_SCOPES.syncRun,
     AUTHORIZATION_SCOPES.webhookRead,
     AUTHORIZATION_SCOPES.webhookManage,
     AUTHORIZATION_SCOPES.approvalApprove,
@@ -52,6 +55,9 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.projectConfigure,
     AUTHORIZATION_SCOPES.connectionRead,
     AUTHORIZATION_SCOPES.connectionManage,
+    AUTHORIZATION_SCOPES.syncRead,
+    AUTHORIZATION_SCOPES.syncManage,
+    AUTHORIZATION_SCOPES.syncRun,
   ],
   [BUILT_IN_ROLE_PRESETS.developer]: [
     AUTHORIZATION_SCOPES.projectRead,
@@ -62,6 +68,8 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
     AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume,
     AUTHORIZATION_SCOPES.runtimeInjectionRun,
+    AUTHORIZATION_SCOPES.syncRead,
+    AUTHORIZATION_SCOPES.syncRun,
   ],
   [BUILT_IN_ROLE_PRESETS.metadataViewer]: [AUTHORIZATION_SCOPES.metadataDetailRead],
   [BUILT_IN_ROLE_PRESETS.approval]: [
@@ -75,6 +83,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.secretRead,
     AUTHORIZATION_SCOPES.connectionRead,
     AUTHORIZATION_SCOPES.webhookRead,
+    AUTHORIZATION_SCOPES.syncRead,
   ],
 };
 

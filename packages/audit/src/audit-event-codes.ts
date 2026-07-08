@@ -20,6 +20,7 @@ import { PROTECTED_CHANGE_AUDIT_EVENT_CODES } from "./codes/protected-change.js"
 import { OPERATION_AUDIT_EVENT_CODES } from "./codes/operation.js";
 import { RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES } from "./codes/runtime-injection-policy.js";
 import { SECRET_PROTECTED_AUDIT_EVENT_CODES } from "./codes/secret-protected.js";
+import { SECRET_SYNC_MODEL_AUDIT_EVENT_CODES } from "./codes/secret-sync-model.js";
 import { SYNC_AUDIT_EVENT_CODES } from "./codes/sync.js";
 
 export const FIRST_VALUE_AUDIT_EVENT_CODES = assembleAuditEventCodes(
@@ -46,6 +47,7 @@ export const PRODUCTION_AUDIT_EVENT_CODES = assembleAuditEventCodes(
   HIGH_ASSURANCE_AUDIT_EVENT_CODES,
   BACKUP_AUDIT_EVENT_CODES,
   CONNECTION_AUDIT_EVENT_CODES,
+  SECRET_SYNC_MODEL_AUDIT_EVENT_CODES,
   OPERATION_AUDIT_EVENT_CODES,
   RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES,
   NOTIFICATIONS_AUDIT_EVENT_CODES,
@@ -107,6 +109,9 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.connectionDisableDenied,
   PRODUCTION_AUDIT_EVENT_CODES.connectionCredentialAttachDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.secretSyncCreateDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.secretSyncUpdateDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.secretSyncDisableDenied,
   PRODUCTION_AUDIT_EVENT_CODES.operationCancelDenied,
   PRODUCTION_AUDIT_EVENT_CODES.runtimeInjectionPolicyCreateDenied,
   PRODUCTION_AUDIT_EVENT_CODES.runtimeInjectionPolicyDisableDenied,
