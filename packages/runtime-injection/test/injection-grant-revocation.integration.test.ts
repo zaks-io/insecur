@@ -219,6 +219,10 @@ describeInjectionGrantIntegration("Runtime Injection Grant revocation (ADR-0074)
     expect(freshGrant.grantId).not.toBe(revokedGrant.grantId);
     const freshBinding = await loadGrantBinding(org, freshGrant.grantId);
     expect(freshBinding?.secret_version_ids[0]).toBe(freshWrite.secretVersionId);
+    expect(await loadGrantRevocation(org, revokedGrant.grantId)).toMatchObject({
+      revoked_at: expect.any(String),
+      revoked_reason: "tenant_suspension",
+    });
 
     await expect(
       consumeInjectionGrant({
