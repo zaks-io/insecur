@@ -2,18 +2,25 @@ import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
   ENVIRONMENT_LIFECYCLE_STAGES,
   environmentId,
+  userId,
   type DisplayName,
+  type EnvironmentId,
   type OrganizationId,
   type ProjectId,
+  type VariableKey,
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe } from "vitest";
+import { writeProtectedSecret } from "../../secret-store/src/write-protected-secret.js";
+import { createTestKeyring } from "../../secret-store/test/integration-helpers.js";
 import {
   closeRuntimeSql,
   TenantEnvironmentLifecycleStore,
+  TenantSecretVersionStore,
   withTenantScope,
 } from "@insecur/tenant-store";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
+import { TEST_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
 
 export const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 export const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000085";
@@ -66,6 +73,39 @@ export async function deleteProtectedPreviewEnvironment(organizationId: Organiza
   await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
   });
+}
+
+/** Seeds a protected-environment secret through draft write + publish (live delivery pointer). */
+export async function writeTestProtectedSecret(
+  variableKey: VariableKey,
+  valueUtf8: Uint8Array,
+  tenant: {
+    organizationId: OrganizationId;
+    projectId: ProjectId;
+    environmentId: EnvironmentId;
+  },
+) {
+  const draft = await writeProtectedSecret({
+    keyring: createTestKeyring(),
+    organizationId: tenant.organizationId,
+    projectId: tenant.projectId,
+    environmentId: tenant.environmentId,
+    variableKey,
+    actor: { type: "user", userId: userId.brand(TEST_USER_ID) },
+    valueUtf8,
+  });
+
+  await withTenantScope(
+    { kind: "organization", organizationId: tenant.organizationId },
+    async ({ db }) => {
+      await new TenantSecretVersionStore(db).publishVersions({
+        organizationId: tenant.organizationId,
+        targets: [{ secretId: draft.secretId, secretVersionId: draft.secretVersionId }],
+      });
+    },
+  );
+
+  return draft;
 }
 
 export async function loadLatestIssueDeniedAudit(organizationId: OrganizationId) {

@@ -25,6 +25,7 @@ import {
   describeInjectionGrantIntegration,
   loadLatestIssueDeniedAudit,
   recreateProtectedPreviewEnvironment,
+  writeTestProtectedSecret,
 } from "./injection-grant-integration-helpers.js";
 import {
   createBlockedProductionGateEvaluator,
@@ -69,7 +70,7 @@ describeInjectionGrantIntegration("Production Runtime Injection gate enforcement
     });
 
     try {
-      await writeTestSecret(variableKey, new TextEncoder().encode("gate-blocked"), {
+      await writeTestProtectedSecret(variableKey, new TextEncoder().encode("gate-blocked"), {
         organizationId: org,
         projectId: testProject(),
         environmentId: protectedEnvironmentId,
@@ -109,7 +110,7 @@ describeInjectionGrantIntegration("Production Runtime Injection gate enforcement
     });
 
     try {
-      await writeTestSecret(variableKey, new TextEncoder().encode("human-denied"), {
+      await writeTestProtectedSecret(variableKey, new TextEncoder().encode("human-denied"), {
         organizationId: org,
         projectId: testProject(),
         environmentId: protectedEnvironmentId,
