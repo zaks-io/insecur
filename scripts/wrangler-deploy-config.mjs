@@ -88,6 +88,7 @@ export function materializeDeployWranglerConfig(config, options = {}) {
     case "insecur-site":
       materializeSentryRelease(scope, deployContext);
       materializeDeployIdentity(scope, deployContext);
+      materializeSiteConfig(scope, deployContext);
       break;
     default:
       throw new Error(`No deploy-config materializer registered for Worker "${workerName}".`);
@@ -296,6 +297,14 @@ function materializeWebConfig(scope, context) {
   scope.vars.TURNSTILE_SITE_KEY = requireDeployEnv("INSECUR_TURNSTILE_SITE_KEY", context);
   scope.vars.WORKOS_CLIENT_ID = requireDeployEnv("INSECUR_WORKOS_CLIENT_ID", context);
   scope.vars.WORKOS_AUTHKIT_ORIGIN = requireDeployEnv("INSECUR_WORKOS_AUTHKIT_ORIGIN", context);
+}
+
+function materializeSiteConfig(scope, context) {
+  scope.vars ??= {};
+  scope.vars.AUDIT_EXPORT_SIGNING_PUBLIC_KEY = requireDeployEnv(
+    "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
+    context,
+  );
 }
 
 function materializeDeployIdentity(scope, context) {

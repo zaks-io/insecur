@@ -7,6 +7,7 @@
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "upload_source_maps": true,
   "vars": {
+    "AUDIT_EXPORT_SIGNING_PUBLIC_KEY": "PUBLIC_PRODUCTION_AUDIT_EXPORT_SIGNING_PUBLIC_KEY_PLACEHOLDER",
     "DEPLOYED_AT": "1970-01-01T00:00:00.000Z",
     "DEPLOY_RUN_ID": "0",
     "DEPLOY_SHA": "PUBLIC_PRODUCTION_SHA_PLACEHOLDER",
@@ -48,6 +49,7 @@
       "upload_source_maps": true,
       "workers_dev": true,
       "vars": {
+        "AUDIT_EXPORT_SIGNING_PUBLIC_KEY": "PUBLIC_PREVIEW_AUDIT_EXPORT_SIGNING_PUBLIC_KEY_PLACEHOLDER",
         "DEPLOYED_AT": "1970-01-01T00:00:00.000Z",
         "DEPLOY_RUN_ID": "0",
         "DEPLOY_SHA": "PUBLIC_PREVIEW_SHA_PLACEHOLDER",
