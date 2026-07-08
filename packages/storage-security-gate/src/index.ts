@@ -3,7 +3,11 @@ export {
   createMissingEvidenceProbes,
   createStorageSecurityGateReadinessProbes,
 } from "./evaluate-gate.js";
-export { evaluateStorageGateControl, missingEvidenceProbeOutcome } from "./evaluate-control.js";
+export {
+  evaluateStorageGateControl,
+  missingEvidenceProbeOutcome,
+  probeThrewProbeOutcome,
+} from "./evaluate-control.js";
 export {
   composeStorageSecurityGateVerdict,
   deriveStorageGateDeliveryError,

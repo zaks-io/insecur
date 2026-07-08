@@ -72,12 +72,14 @@ export type StorageGateProbeOutcome =
 
 export interface StorageSecurityGateReadinessProbes {
   checkRootKey(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
+  checkRootKeyResidentSurface(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
   checkRootKeyEscrow(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
   checkTenantDataKeys(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
   checkKeyVersions(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
   checkKeyring(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
   checkTenantStore(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
   checkSecretEncryption(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
+  checkKeyVersionBinding(scope: StorageSecurityGateScope): Promise<StorageGateProbeOutcome>;
   checkProviderCredentialEncryption(
     scope: StorageSecurityGateScope,
   ): Promise<StorageGateProbeOutcome>;

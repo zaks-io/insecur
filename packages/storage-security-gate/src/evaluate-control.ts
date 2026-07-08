@@ -48,3 +48,13 @@ export function missingEvidenceProbeOutcome(
     blocking_reason: "missing_readiness_evidence",
   };
 }
+
+export function probeThrewProbeOutcome(
+  controlId: StorageSecurityGateControlId,
+): StorageGateProbeOutcome {
+  return {
+    status: "unknown",
+    summary: `Readiness probe for ${controlId} threw.`,
+    blocking_reason: "probe_threw",
+  };
+}

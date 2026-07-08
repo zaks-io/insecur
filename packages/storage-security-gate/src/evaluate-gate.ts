@@ -1,6 +1,11 @@
 import { STORAGE_SECURITY_GATE_CONTROL_IDS } from "./control-ids.js";
-import { evaluateStorageGateControl, missingEvidenceProbeOutcome } from "./evaluate-control.js";
+import {
+  evaluateStorageGateControl,
+  missingEvidenceProbeOutcome,
+  probeThrewProbeOutcome,
+} from "./evaluate-control.js";
 import { composeStorageSecurityGateVerdict } from "./derive-verdict.js";
+import { assertStorageGateVerdictIsMetadataSafe } from "./assert-metadata-safe.js";
 import type {
   EvaluateStorageSecurityGateInput,
   StorageGateProbeOutcome,
@@ -16,12 +21,14 @@ export function createMissingEvidenceProbes(): StorageSecurityGateReadinessProbe
 
   return {
     checkRootKey: () => missing("storage.root_key"),
+    checkRootKeyResidentSurface: () => missing("storage.root_key_resident_surface"),
     checkRootKeyEscrow: () => missing("storage.root_key_escrow"),
     checkTenantDataKeys: () => missing("storage.tenant_data_keys"),
     checkKeyVersions: () => missing("storage.key_versions"),
     checkKeyring: () => missing("storage.keyring"),
     checkTenantStore: () => missing("storage.tenant_store"),
     checkSecretEncryption: () => missing("storage.secret_encryption"),
+    checkKeyVersionBinding: () => missing("storage.key_version_binding"),
     checkProviderCredentialEncryption: () => missing("storage.provider_credential_encryption"),
     checkSensitiveMetadataEncryption: () => missing("storage.sensitive_metadata_encryption"),
     checkNoPlaintextPersistence: () => missing("storage.no_plaintext_persistence"),
@@ -49,12 +56,14 @@ const PROBE_DISPATCH: Readonly<
   >
 > = {
   "storage.root_key": (probes, scope) => probes.checkRootKey(scope),
+  "storage.root_key_resident_surface": (probes, scope) => probes.checkRootKeyResidentSurface(scope),
   "storage.root_key_escrow": (probes, scope) => probes.checkRootKeyEscrow(scope),
   "storage.tenant_data_keys": (probes, scope) => probes.checkTenantDataKeys(scope),
   "storage.key_versions": (probes, scope) => probes.checkKeyVersions(scope),
   "storage.keyring": (probes, scope) => probes.checkKeyring(scope),
   "storage.tenant_store": (probes, scope) => probes.checkTenantStore(scope),
   "storage.secret_encryption": (probes, scope) => probes.checkSecretEncryption(scope),
+  "storage.key_version_binding": (probes, scope) => probes.checkKeyVersionBinding(scope),
   "storage.provider_credential_encryption": (probes, scope) =>
     probes.checkProviderCredentialEncryption(scope),
   "storage.sensitive_metadata_encryption": (probes, scope) =>
@@ -63,12 +72,16 @@ const PROBE_DISPATCH: Readonly<
   "storage.delivery_fail_closed": (probes, scope) => probes.checkDeliveryFailClosed(scope),
 };
 
-function runProbe(
+async function runProbe(
   probes: StorageSecurityGateReadinessProbes,
   controlId: StorageSecurityGateControlId,
   scope: StorageSecurityGateScope,
 ): Promise<StorageGateProbeOutcome> {
-  return PROBE_DISPATCH[controlId](probes, scope);
+  try {
+    return await PROBE_DISPATCH[controlId](probes, scope);
+  } catch {
+    return probeThrewProbeOutcome(controlId);
+  }
 }
 
 /** Metadata-only readiness verdict for production delivery; never returns Sensitive Values. */
@@ -83,9 +96,11 @@ export async function evaluateStorageSecurityGate(
     }),
   );
 
-  return composeStorageSecurityGateVerdict({
+  const verdict = composeStorageSecurityGateVerdict({
     scope: input.scope,
     controls,
     checkedAt,
   });
+  assertStorageGateVerdictIsMetadataSafe(verdict);
+  return verdict;
 }

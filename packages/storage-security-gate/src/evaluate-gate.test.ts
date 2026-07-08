@@ -43,12 +43,14 @@ function probeNameForControl(
 ): keyof StorageSecurityGateReadinessProbes {
   const mapping = {
     "storage.root_key": "checkRootKey",
+    "storage.root_key_resident_surface": "checkRootKeyResidentSurface",
     "storage.root_key_escrow": "checkRootKeyEscrow",
     "storage.tenant_data_keys": "checkTenantDataKeys",
     "storage.key_versions": "checkKeyVersions",
     "storage.keyring": "checkKeyring",
     "storage.tenant_store": "checkTenantStore",
     "storage.secret_encryption": "checkSecretEncryption",
+    "storage.key_version_binding": "checkKeyVersionBinding",
     "storage.provider_credential_encryption": "checkProviderCredentialEncryption",
     "storage.sensitive_metadata_encryption": "checkSensitiveMetadataEncryption",
     "storage.no_plaintext_persistence": "checkNoPlaintextPersistence",
@@ -148,6 +150,28 @@ describe("evaluateStorageSecurityGate", () => {
     expect(verdict.delivery_blocking).toBe(true);
     expect(verdict.controls.every((control) => control.status === "unknown")).toBe(true);
     expect(verdict.controls[0]?.blocking_reason).toBe("missing_readiness_evidence");
+    expect(verdict.controls).toHaveLength(13);
+  });
+
+  it("coerces a throwing probe to unknown with probe_threw", async () => {
+    const probes = createAllPassedProbes();
+    probes.checkRootKeyResidentSurface = () => Promise.reject(new Error("dependency unreachable"));
+
+    const verdict = await evaluateStorageSecurityGate({
+      scope: SCOPE,
+      probes,
+      checkedAt: CHECKED_AT,
+    });
+
+    const residentSurface = verdict.controls.find(
+      (control) => control.id === "storage.root_key_resident_surface",
+    );
+    expect(verdict.status).toBe("unknown");
+    expect(verdict.delivery_blocking).toBe(true);
+    expect(verdict.error).toBe("storage.gate_unknown");
+    expect(residentSurface?.status).toBe("unknown");
+    expect(residentSurface?.blocking_reason).toBe("probe_threw");
+    assertStorageGateVerdictIsMetadataSafe(verdict);
   });
 
   it("aggregates metadata-only evidence references without duplicates", async () => {
