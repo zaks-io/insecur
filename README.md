@@ -18,7 +18,10 @@ insecur's v1 product focus is narrow: store secrets securely as the source of tr
 
 ```
 apps/
-  worker/   Cloudflare Worker API composition
+  api/      public Cloudflare Worker API
+  runtime/  private Runtime Worker for DB, keyring, encrypt, and decrypt work
+  web/      Web BFF on Workers
+  site/     public marketing/documentation site
 packages/
   domain/             shared domain primitives and stable vocabulary shapes
   access/             Effective Access Resolver

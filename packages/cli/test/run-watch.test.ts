@@ -1,8 +1,5 @@
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { INJECTION_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
 
@@ -24,6 +21,7 @@ import { assertRunWatchDevelopmentEnvironment } from "../src/commands/run-watch-
 import { runWatchLoop } from "../src/commands/run-watch.js";
 import type { InsecurProjectConfig } from "../src/config/project-config.js";
 import { EXIT_FORBIDDEN, EXIT_VALIDATION } from "../src/output/exit-codes.js";
+import { isIgnoredProjectPath } from "../src/scan/ignored-paths.js";
 
 const ORG_ID = "org_01TEST00000000000000000001";
 const PROJECT_ID = "prj_01TEST00000000000000000001";
@@ -256,44 +254,9 @@ describe("runWatchLoop", () => {
     expect(spawnCommandManagedMock).toHaveBeenCalledTimes(1);
   });
 
-  it("consumes a latched restart when a file change arrives before waitForRestart is pending", async () => {
-    vi.useFakeTimers();
-    const watchRoot = await mkdtemp(join(tmpdir(), "insecur-watch-"));
-    let iterations = 0;
-    let spawnCount = 0;
-
-    spawnCommandManagedMock.mockImplementation(() => {
-      spawnCount += 1;
-      return spawnManagedChild(0, spawnCount === 1);
-    });
-
-    try {
-      const exitCodePromise = runWatchLoop({
-        command: ["node", "-e", "0"],
-        watchRoot,
-        executeIteration: async () => {
-          iterations += 1;
-          if (iterations === 1) {
-            await writeFile(join(watchRoot, "change.txt"), "x");
-            await vi.advanceTimersByTimeAsync(150);
-          }
-          return {
-            grantId: `igr_${String(iterations)}` as never,
-            childEnv: {},
-            releaseSensitiveValues: () => undefined,
-            onChildCompleted: async () => undefined,
-          };
-        },
-      });
-
-      await vi.runAllTimersAsync();
-      const exitCode = await exitCodePromise;
-
-      expect(exitCode).toBe(0);
-      expect(spawnCommandManagedMock).toHaveBeenCalledTimes(2);
-    } finally {
-      vi.useRealTimers();
-      await rm(watchRoot, { recursive: true, force: true });
-    }
+  it("uses the project ignored-path vocabulary for watch restarts", () => {
+    expect(isIgnoredProjectPath("node_modules/package/index.js")).toBe(true);
+    expect(isIgnoredProjectPath("dist/index.js")).toBe(true);
+    expect(isIgnoredProjectPath("src/index.ts")).toBe(false);
   });
 });

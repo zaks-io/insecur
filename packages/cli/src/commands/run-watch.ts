@@ -3,6 +3,7 @@ import { constants as osConstants } from "node:os";
 import { watch } from "node:fs";
 import path from "node:path";
 import type { InjectionGrantId } from "@insecur/domain";
+import { isIgnoredProjectPath } from "../scan/ignored-paths.js";
 import { spawnCommandManaged } from "./run-child.js";
 
 interface RunWatchIteration {
@@ -90,12 +91,22 @@ function signalFilesystemRestart(state: RestartSignalState): void {
   state.pendingRestart = true;
 }
 
+function shouldIgnoreWatchEvent(filename: string | Buffer | null): boolean {
+  if (filename === null) {
+    return false;
+  }
+  return isIgnoredProjectPath(filename.toString());
+}
+
 function attachFilesystemRestartWatcher(
   watchRoot: string,
   state: RestartSignalState,
 ): ReturnType<typeof watch> {
-  const watcher = watch(watchRoot, { recursive: true }, () => {
+  const watcher = watch(watchRoot, { recursive: true }, (_eventType, filename) => {
     if (state.disposed) {
+      return;
+    }
+    if (shouldIgnoreWatchEvent(filename)) {
       return;
     }
     if (state.debounceTimer !== undefined) {
