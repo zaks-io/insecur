@@ -5,10 +5,7 @@ import type {
   CloudflareScopedTokenPort,
   CloudflareScopedTokenVerifyResult,
 } from "./cloudflare-scoped-token-port.js";
-import {
-  recordConnectionValidationDenied,
-  toConnectionAuditReasonCode,
-} from "./record-connection-audit.js";
+import { verifyConnectionWithValidationAudit } from "./verify-connection-with-validation-audit.js";
 
 export interface VerifyCloudflareConnectionTokenInput {
   readonly actorUserId: UserId;
@@ -28,25 +25,11 @@ export async function verifyCloudflareConnectionToken(
   input: VerifyCloudflareConnectionTokenInput,
 ): Promise<CloudflareScopedTokenVerifyResult> {
   const token = new TextDecoder().decode(input.tokenPlaintext);
-  try {
-    return await input.cloudflarePort.verifyScopedToken({
+  return verifyConnectionWithValidationAudit(input, () =>
+    input.cloudflarePort.verifyScopedToken({
       token,
       allowedAccountId: input.boundary.allowedAccountId,
       allowedWorkerScript: input.boundary.allowedWorkerScript,
-    });
-  } catch (error) {
-    try {
-      await recordConnectionValidationDenied({
-        actorUserId: input.actorUserId,
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        appConnectionId: input.appConnectionId,
-        reasonCode: toConnectionAuditReasonCode(error),
-      });
-    } catch {
-      // The provider denial and its error code are the caller's contract; an audit-store
-      // failure must not replace them.
-    }
-    throw error;
-  }
+    }),
+  );
 }

@@ -39,6 +39,7 @@ import type {
   RecordAbuseDeniedRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   CaptureFirstValueFeedbackRpcInput,
+  QueryFirstValueUsageRpcInput,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RevokeCliSessionRpcInput,
@@ -65,6 +66,7 @@ import {
 } from "./rpc/runtime-high-assurance-rpc-delegates.js";
 import {
   captureFirstValueFeedbackRpc,
+  queryFirstValueUsageRpc,
   cancelOperationRpc,
   getOperationRpc,
   issueInjectionGrantRpc,
@@ -255,6 +257,11 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
     return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
   }
+
+  queryFirstValueUsage(input: QueryFirstValueUsageRpcInput) {
+    return queryFirstValueUsageRpc(this.#post.bind(this), input);
+  }
+
   listProjects(input: ListProjectsRpcInput) {
     return listProjectsRpc(this.#post.bind(this), input);
   }

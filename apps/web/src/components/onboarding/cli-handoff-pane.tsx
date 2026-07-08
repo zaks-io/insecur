@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { cliHandoffCommands, workspaceReceiptRows } from "../../onboarding/cli-handoff.js";
 import type { ProvisionedWorkspace } from "../../onboarding/provisioning.js";
 import { CommandBlock } from "./command-block.js";
+import { FirstInjectionIndicator } from "./first-injection-indicator.js";
 import { MetadataReceipt } from "./metadata-receipt.js";
 
 /**
@@ -38,6 +39,7 @@ export function CliHandoffPane({
           pre-filled with those IDs; paste them into your terminal as they are.
         </p>
       </div>
+      <FirstInjectionIndicator organizationId={workspace.organizationId} />
       <MetadataReceipt rows={rows} />
       <section aria-label="Terminal commands" className="flex flex-col gap-5 px-6 py-6">
         <h3 className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">

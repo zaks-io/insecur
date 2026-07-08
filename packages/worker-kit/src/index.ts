@@ -119,6 +119,10 @@ export type {
   RecordInjectionRunCompletedRpcPayload,
 } from "./rpc/runtime-operations-rpc-contract.js";
 export type {
+  FirstValueUsageStatusRpcPayload,
+  QueryFirstValueUsageRpcInput,
+} from "./rpc/runtime-first-value-usage-rpc-contract.js";
+export type {
   ClearHighAssuranceChallengeRpcInput,
   ClearHighAssuranceChallengeRpcPayload,
   DenyHighAssuranceChallengeRpcInput,
