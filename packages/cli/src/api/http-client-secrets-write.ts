@@ -17,6 +17,9 @@ export async function writeSecretByVariableKey(
   if (input.allowEmpty === true) {
     body.allowEmpty = true;
   }
+  if (input.createOnly === true) {
+    body.createOnly = true;
+  }
   const { response, body: responseBody } = await postAuthorizedJson(
     base,
     path,

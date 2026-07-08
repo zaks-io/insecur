@@ -89,6 +89,8 @@ interface WriteSecretRpcInputBase {
   readonly variableKey: VariableKey;
   readonly secretId?: SecretId;
   readonly allowEmpty?: boolean;
+  /** Reject writes when the Secret already exists (create-only import semantics). */
+  readonly createOnly?: boolean;
   readonly actorToken: string;
   /** API-minted request id, threaded into the Runtime audit row for the write. */
   readonly requestId: RequestId;
