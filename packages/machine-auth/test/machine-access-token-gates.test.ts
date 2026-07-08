@@ -15,11 +15,21 @@ import {
   projectId,
   runtimePolicyId,
 } from "@insecur/domain";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { enforceMachineAccessToken } from "../src/enforce-machine-access-token.js";
 import { machineAccessTokenDenialDetail } from "../src/machine-access-token-denial.js";
 import { machineActorFromVerifiedMachineAccessToken } from "../src/machine-actor-from-verified-token.js";
 import { mintMachineAccessToken } from "../src/machine-access-token.js";
+
+vi.mock("@insecur/audit", () => ({
+  PRODUCTION_AUDIT_EVENT_CODES: {
+    machineAuthAccessTokenUsed: "machine_auth.access_token_used",
+    machineAuthAccessTokenDenied: "machine_auth.access_token_denied",
+  },
+  writeAuditEvent: vi.fn().mockResolvedValue({ ok: true, auditEventId: "aud_TEST" }),
+}));
+
+import { writeAuditEvent } from "@insecur/audit";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -64,6 +74,10 @@ async function mintAccessToken(
 }
 
 describe("enforceMachineAccessToken", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("accepts a valid token bound to the request coordinate", async () => {
     const minted = await mintAccessToken();
     const enforced = await enforceMachineAccessToken({
@@ -153,6 +167,52 @@ describe("enforceMachineAccessToken", () => {
       denialKind: "insufficient_credential_scope",
       message: "Machine access token credential scopes are insufficient for this request.",
     });
+  });
+
+  it("records metadata-only audit events when audit context is provided", async () => {
+    const minted = await mintAccessToken();
+    const enforced = await enforceMachineAccessToken({
+      accessToken: minted.accessToken,
+      signingSecret: SECRET,
+      coordinate: { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+      runtimePolicyKeyId: POLICY_KEY,
+      audit: { credentialMethod: "environment_deploy_key" },
+    });
+
+    expect(enforced.ok).toBe(true);
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: "machine_auth.access_token_used",
+        outcome: "success",
+        details: expect.objectContaining({
+          credentialMethod: "auth.credential_method.environment_deploy_key",
+        }),
+      }),
+    );
+    expect(JSON.stringify(vi.mocked(writeAuditEvent).mock.calls[0]?.[0])).not.toMatch(
+      /secret|password|plaintext|bearer/i,
+    );
+  });
+
+  it("records expiry denial audit without token material", async () => {
+    const minted = await mintAccessToken({ ttlSeconds: -10 });
+    const enforced = await enforceMachineAccessToken({
+      accessToken: minted.accessToken,
+      signingSecret: SECRET,
+      coordinate: { organizationId: ORG, projectId: PROJECT, environmentId: ENV },
+      audit: { credentialMethod: "github_actions_oidc" },
+    });
+
+    expect(enforced.ok).toBe(false);
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: "machine_auth.access_token_denied",
+        outcome: "denied",
+        details: expect.objectContaining({
+          machineAccessDenialKind: "auth.machine_access_denial.expired",
+        }),
+      }),
+    );
   });
 });
 

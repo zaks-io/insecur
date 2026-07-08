@@ -203,6 +203,12 @@ describe("runImportCommand", () => {
 
     expect(exitCode).toBe(0);
     expect(api.writeSecretByVariableKey).toHaveBeenCalledTimes(2);
+    expect(api.writeSecretByVariableKey).toHaveBeenCalledWith(
+      expect.objectContaining({ variableKey: "API_KEY", createOnly: true }),
+    );
+    expect(api.writeSecretByVariableKey).toHaveBeenCalledWith(
+      expect.objectContaining({ variableKey: "OTHER_KEY", createOnly: true }),
+    );
     const serialized = JSON.stringify(JSON.parse(stdout.mock.calls[0]?.[0] as string));
     expect(serialized).not.toContain("alpha");
     expect(serialized).not.toContain("beta");
@@ -352,10 +358,10 @@ describe("runImportCommand", () => {
     expect(exitCode).toBe(0);
     expect(api.writeSecretByVariableKey).toHaveBeenCalledTimes(2);
     expect(api.writeSecretByVariableKey).toHaveBeenCalledWith(
-      expect.objectContaining({ variableKey: "API_KEY" }),
+      expect.objectContaining({ variableKey: "API_KEY", createOnly: true }),
     );
     expect(api.writeSecretByVariableKey).toHaveBeenCalledWith(
-      expect.objectContaining({ variableKey: "API_API_KEY" }),
+      expect.objectContaining({ variableKey: "API_API_KEY", createOnly: true }),
     );
   });
 
