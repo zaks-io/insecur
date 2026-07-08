@@ -8,11 +8,11 @@ import {
   userId,
 } from "@insecur/domain";
 import { HighAssuranceChallengeError, HighAssuranceHandoffError } from "@insecur/high-assurance";
-import { TenantEnvironmentLifecycleStore } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { requireRuntimeInjectionPolicyChangeEvidence } = vi.hoisted(() => ({
+const { requireRuntimeInjectionPolicyChangeEvidence, isProtectedEnvironment } = vi.hoisted(() => ({
   requireRuntimeInjectionPolicyChangeEvidence: vi.fn(),
+  isProtectedEnvironment: vi.fn(),
 }));
 
 vi.mock("../src/consume-runtime-injection-policy-change-evidence.js", () => ({
@@ -24,6 +24,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   return {
     ...actual,
     withTenantScope: vi.fn(async (_scope, callback) => callback({ db: {} })),
+    isProtectedEnvironment,
   };
 });
 
@@ -39,11 +40,20 @@ vi.mock("@insecur/high-assurance", async (importOriginal) => {
   return {
     ...actual,
     requestHighAssuranceChallenge: vi.fn(),
+    runProtectedEnvironmentMutationGate: vi.fn(async (input) => {
+      if (!(await isProtectedEnvironment(input.organizationId, input.environmentId))) {
+        return {};
+      }
+      if (input.operationId === undefined) {
+        throw new actual.HighAssuranceHandoffError(OP);
+      }
+      return actual.consumeEvidenceOrThrowHandoff(input.operationId, () =>
+        input.consumeEvidence(input.operationId),
+      );
+    }),
   };
 });
 
-import { createOperation } from "@insecur/operations";
-import { requestHighAssuranceChallenge } from "@insecur/high-assurance";
 import { gateProtectedRuntimeInjectionPolicyChange } from "../src/gate-protected-runtime-injection-policy-change.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -66,17 +76,10 @@ describe("gateProtectedRuntimeInjectionPolicyChange", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     GATE_INPUT.onDenied.mockClear();
-    vi.spyOn(TenantEnvironmentLifecycleStore.prototype, "getById").mockResolvedValue({
-      isProtected: true,
-    } as never);
+    vi.mocked(isProtectedEnvironment).mockResolvedValue(true);
   });
 
   it("hands off with operationId on the initial protected-environment path", async () => {
-    vi.mocked(createOperation).mockResolvedValue({
-      operation: { operationId: OP },
-    } as never);
-    vi.mocked(requestHighAssuranceChallenge).mockResolvedValue(undefined);
-
     await expect(gateProtectedRuntimeInjectionPolicyChange(GATE_INPUT)).rejects.toBeInstanceOf(
       HighAssuranceHandoffError,
     );
@@ -121,9 +124,7 @@ describe("gateProtectedRuntimeInjectionPolicyChange", () => {
   });
 
   it("skips gating for non-protected environments", async () => {
-    vi.spyOn(TenantEnvironmentLifecycleStore.prototype, "getById").mockResolvedValue({
-      isProtected: false,
-    } as never);
+    vi.mocked(isProtectedEnvironment).mockResolvedValue(false);
 
     await expect(
       gateProtectedRuntimeInjectionPolicyChange({
