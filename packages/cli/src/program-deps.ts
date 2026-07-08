@@ -23,7 +23,7 @@ export function globalFlags(command: CommanderCommand): GlobalCliFlags {
   return parseGlobalOptions(command.optsWithGlobals()).flags;
 }
 
-export async function resolveApi(flags: GlobalCliFlags) {
+async function resolveApi(flags: GlobalCliFlags) {
   const context = await loadAndResolveCliContext(flags);
   return { api: createHttpApiClientForHost(context.scope.host), context };
 }

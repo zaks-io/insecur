@@ -9,16 +9,7 @@ import type { RuntimeInjectionApiClient } from "./runtime-injection-api-types.js
 import type { SecretsApiClient } from "./secrets-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
 
-export type { CliSessionExchangeData } from "./auth-api-types.js";
 export type { GuidedOrganizationProvisionData } from "./onboarding-api-types.js";
-export type {
-  CreateEnvironmentData,
-  CreateProjectData,
-  EnvironmentListData,
-  ListProjectSecretsData,
-  ProjectListData,
-  SessionOrganizationListData,
-} from "./navigation-api-types.js";
 export type {
   ListEnvironmentSecretsData,
   ListSecretVersionsData,
@@ -29,12 +20,10 @@ export type {
   ListAuditEventsData,
   ListAuditEventsFiltersInput,
 } from "./audit-api-types.js";
-export type { OperationCancelData, OperationPollData } from "./operations-api-types.js";
+export type { OperationPollData } from "./operations-api-types.js";
 export type {
   InjectionGrantDeliveryAllData,
-  InjectionGrantDeliveryAllEnvelope,
   InjectionGrantDeliveryData,
-  InjectionGrantDeliveryEnvelope,
   IssueInjectionGrantData,
 } from "./runtime-injection-api-types.js";
 
