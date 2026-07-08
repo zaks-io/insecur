@@ -24,13 +24,6 @@ export async function assertProtectedPolicyUseAllowed(
     return;
   }
 
-  if (input.actor.type === "user") {
-    throw new RuntimeInjectionPolicyError(
-      RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked,
-      "protected runtime injection policy use requires machine custody",
-    );
-  }
-
   if (input.storageSecurityGatePassed !== true) {
     throw new RuntimeInjectionPolicyError(
       RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked,

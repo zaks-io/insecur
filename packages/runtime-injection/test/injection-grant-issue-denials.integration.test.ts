@@ -1,12 +1,13 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
-  AUTH_ERROR_CODES,
+  RUNTIME_POLICY_ERROR_CODES,
   environmentId,
   INJECTION_ERROR_CODES,
   projectId,
   secretId,
   type VariableKey,
 } from "@insecur/domain";
+import { PRODUCTION_DELIVERY_PATHS } from "@insecur/storage-security-gate";
 import { expect, it } from "vitest";
 import { TEST_ENV_B_ID, TEST_PROJECT_B_ID } from "../../tenant-store/test/rls/test-ids.js";
 import { uniqueVariableKey, writeTestSecret } from "../../secret-store/test/integration-helpers.js";
@@ -24,9 +25,10 @@ import {
   testOrganization,
   testProject,
 } from "./integration-helpers.js";
+import { createPassedProductionGateEvaluator } from "./gate-test-helpers.js";
 
 describeInjectionGrantIntegration("Runtime Injection Grant issue denials", () => {
-  it("denies protected-environment issue with insufficient scope when grant_issue_protected is absent", async () => {
+  it("denies protected-environment issue for human sessions on the production delivery path", async () => {
     const org = testOrganization();
     const variableKey = uniqueVariableKey("FV11_PROTECTED");
     const protectedEnvironmentId = await recreateProtectedPreviewEnvironment({
@@ -43,13 +45,15 @@ describeInjectionGrantIntegration("Runtime Injection Grant issue denials", () =>
           environmentId: protectedEnvironmentId,
           selector: { kind: "variable_key", variableKey },
           actor: testActor(),
+          deliveryPath: PRODUCTION_DELIVERY_PATHS.runtimeInjection,
+          evaluateStorageSecurityGate: createPassedProductionGateEvaluator(),
         }),
-      ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+      ).rejects.toMatchObject({ code: RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked });
 
       const deniedAudit = await loadLatestIssueDeniedAudit(org);
       expect(deniedAudit?.event_code).toBe(FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantIssueDenied);
       expect(deniedAudit?.outcome).toBe("denied");
-      expect(deniedAudit?.result_code).toBe(AUTH_ERROR_CODES.insufficientScope);
+      expect(deniedAudit?.result_code).toBe(RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked);
     } finally {
       await deleteProtectedPreviewEnvironment(org);
     }
