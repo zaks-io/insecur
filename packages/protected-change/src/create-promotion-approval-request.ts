@@ -1,9 +1,8 @@
 import type { UserActorRef } from "@insecur/access";
-import { recordApprovalAudit } from "@insecur/audit";
 import {
   approvalRequestId,
+  type ApprovalRequestId,
   type EnvironmentId,
-  type OpaqueResourceId,
   type OperationId,
   type OrganizationId,
   type ProjectId,
@@ -15,6 +14,7 @@ import {
   type PromotionDraftVersionTarget,
 } from "@insecur/tenant-store";
 
+import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
 
 async function persistPromotionApprovalRequest(input: {
@@ -22,7 +22,7 @@ async function persistPromotionApprovalRequest(input: {
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
   readonly actorUserId: UserActorRef["userId"];
-  readonly approvalRequestId: ReturnType<typeof approvalRequestId.generate>;
+  readonly approvalRequestId: ApprovalRequestId;
   readonly impactReviewFingerprint: string;
   readonly comment?: string;
   readonly validatedTargets: readonly PromotionDraftVersionTarget[];
@@ -64,35 +64,31 @@ export async function createPromotionApprovalRequest(input: {
   readonly operationId?: OperationId;
   readonly requestId: RequestId;
 }): Promise<{
-  readonly approvalRequestId: ReturnType<typeof approvalRequestId.generate>;
+  readonly approvalRequestId: ApprovalRequestId;
   readonly supersededApprovalRequestIds: readonly ReturnType<typeof approvalRequestId.brand>[];
 }> {
-  const newApprovalRequestId = approvalRequestId.generate();
-  const supersededApprovalRequestIds = await persistPromotionApprovalRequest({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-    actorUserId: input.actor.userId,
-    approvalRequestId: newApprovalRequestId,
-    impactReviewFingerprint: input.impactReviewFingerprint,
-    validatedTargets: input.validatedTargets,
-    ...(input.comment !== undefined ? { comment: input.comment } : {}),
-    ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
-  });
-
-  await recordApprovalAudit({
-    action: "request_created",
-    outcome: "success",
-    actor: input.actor,
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-    resource: {
-      type: "approval_request",
-      id: newApprovalRequestId as unknown as OpaqueResourceId,
-    },
-    requestId: input.requestId,
-  });
+  const { approvalRequestId: newApprovalRequestId, result: supersededApprovalRequestIds } =
+    await createApprovalRequestWithAudit({
+      audit: {
+        actor: input.actor,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        requestId: input.requestId,
+      },
+      persist: (createdApprovalRequestId) =>
+        persistPromotionApprovalRequest({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          environmentId: input.environmentId,
+          actorUserId: input.actor.userId,
+          approvalRequestId: createdApprovalRequestId,
+          impactReviewFingerprint: input.impactReviewFingerprint,
+          validatedTargets: input.validatedTargets,
+          ...(input.comment !== undefined ? { comment: input.comment } : {}),
+          ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
+        }),
+    });
 
   return { approvalRequestId: newApprovalRequestId, supersededApprovalRequestIds };
 }

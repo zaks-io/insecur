@@ -11,8 +11,7 @@ import { readDisplayNameFromStdin } from "../input/read-display-name-stdin.js";
 import { requireDisplayNameStdinFlag } from "../input/require-display-name-stdin.js";
 import { requireProjectScope } from "./navigation-scope.js";
 import { parseOperationIdOrThrow } from "./operations-scope.js";
-import { handleApiFailure } from "./api-failure.js";
-import { renderSuccess } from "../output/render.js";
+import { finishApiCommand } from "./finish-api-command.js";
 
 export interface RunPoliciesCreateCommandOptions {
   readonly policyId: string;
@@ -58,11 +57,9 @@ export async function runRunPoliciesCreateCommand(
       : {}),
     ...(operationId === undefined ? {} : { operationId }),
   });
-  if (!result.ok) {
-    return handleApiFailure(result.envelope, flags);
-  }
-
-  const data = result.envelope.data;
-  renderSuccess(result.envelope, flags, () => `Created runtime injection policy ${data.policyId}.`);
-  return 0;
+  return finishApiCommand(
+    result,
+    flags,
+    (data) => `Created runtime injection policy ${data.policyId}.`,
+  );
 }

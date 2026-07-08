@@ -1,12 +1,11 @@
-import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
+import type { ApiClient } from "../api/types.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import { parseEnvironmentId, parseSecretVersionId } from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireProjectScope } from "./navigation-scope.js";
 import { parseOperationIdOrThrow } from "./operations-scope.js";
-import { handleApiFailure } from "./api-failure.js";
-import { renderSuccess } from "../output/render.js";
+import { finishApiCommand } from "./finish-api-command.js";
 
 export interface SecretsPromoteCommandOptions {
   readonly envId: string;
@@ -46,15 +45,10 @@ export async function runSecretsPromoteCommand(
       : {}),
     ...(operationId === undefined ? {} : { operationId }),
   });
-  if (!result.ok) {
-    return handleApiFailure(result.envelope, flags);
-  }
 
-  const data = result.envelope.data;
-  renderSuccess(
-    result.envelope,
+  return finishApiCommand(
+    result,
     flags,
-    () => `Created approval request ${data.approvalRequestId} for protected promotion.`,
+    (data) => `Created approval request ${data.approvalRequestId} for protected promotion.`,
   );
-  return 0;
 }

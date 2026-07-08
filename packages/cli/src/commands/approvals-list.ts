@@ -4,8 +4,7 @@ import { requireSessionCredential } from "../auth/require-session.js";
 import { parseEnvironmentId } from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireProjectScope } from "./navigation-scope.js";
-import { handleApiFailure } from "./api-failure.js";
-import { renderSuccess } from "../output/render.js";
+import { finishApiCommand } from "./finish-api-command.js";
 
 export interface ApprovalsListCommandOptions {
   readonly envId: string;
@@ -28,10 +27,5 @@ export async function runApprovalsListCommand(
     projectId: projectScope.projectId,
     environmentId,
   });
-  if (!result.ok) {
-    return handleApiFailure(result.envelope, flags);
-  }
-
-  renderSuccess(result.envelope, flags, () => "Listed environment approval requests.");
-  return 0;
+  return finishApiCommand(result, flags, () => "Listed environment approval requests.");
 }

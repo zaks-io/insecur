@@ -22,6 +22,7 @@ import type { Context } from "hono";
 import type { RequestId } from "@insecur/domain";
 import type { ApiApp, ApiEnv } from "../../env.js";
 import { parseSecretWriteBody } from "./parse-secret-write-body.js";
+import { handleEnvironmentScopedUserRoute } from "./handle-environment-scoped-user-route.js";
 
 const projectsRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -33,20 +34,6 @@ function parseProjectScopedRouteParams(
       requireRouteParam(context.req.param("organizationId"), "organizationId"),
     ),
     projectId: parseProjectIdParam(requireRouteParam(context.req.param("projectId"), "projectId")),
-  };
-}
-
-function parseEnvironmentScopedRouteParams(
-  context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,
-) {
-  return {
-    organizationId: parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
-    ),
-    projectId: parseProjectIdParam(requireRouteParam(context.req.param("projectId"), "projectId")),
-    environmentId: parseEnvironmentIdParam(
-      requireRouteParam(context.req.param("environmentId"), "environmentId"),
-    ),
   };
 }
 
@@ -167,38 +154,31 @@ projectsRoutes.get(
   "/:projectId/environments/:environmentId/secrets",
   requireUserActor,
   async (context) =>
-    handleRoute(context, async (reqId) => {
-      const userActor = context.get("userActor");
-      const { organizationId, projectId, environmentId } =
-        parseEnvironmentScopedRouteParams(context);
-
-      return runtimeClientFor(context.env, userActor).listEnvironmentSecrets({
-        organizationId,
-        projectId,
-        environmentId,
-        requestId: reqId,
-      });
-    }),
+    handleEnvironmentScopedUserRoute(context, (scope) =>
+      runtimeClientFor(context.env, scope.userActor).listEnvironmentSecrets({
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        environmentId: scope.environmentId,
+        requestId: scope.requestId,
+      }),
+    ),
 );
 
 projectsRoutes.get(
   "/:projectId/environments/:environmentId/secrets/:secretId/versions",
   requireUserActor,
   async (context) =>
-    handleRoute(context, async (reqId) => {
-      const userActor = context.get("userActor");
-      const { organizationId, projectId, environmentId } =
-        parseEnvironmentScopedRouteParams(context);
+    handleEnvironmentScopedUserRoute(context, (scope) => {
       const secretId = parseSecretIdParam(
         requireRouteParam(context.req.param("secretId"), "secretId"),
       );
 
-      return runtimeClientFor(context.env, userActor).listSecretVersions({
-        organizationId,
-        projectId,
-        environmentId,
+      return runtimeClientFor(context.env, scope.userActor).listSecretVersions({
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        environmentId: scope.environmentId,
         secretId,
-        requestId: reqId,
+        requestId: scope.requestId,
       });
     }),
 );

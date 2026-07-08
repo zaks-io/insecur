@@ -64,3 +64,7 @@ export {
   recordHighAssuranceEvidenceConsumeDenied,
   recordHighAssuranceEvidenceConsumed,
 } from "./record-high-assurance-challenge-audit.js";
+export {
+  consumeEvidenceOrThrowHandoff,
+  requestProtectedEnvironmentMutationHandoff,
+} from "./protected-environment-mutation-handoff.js";

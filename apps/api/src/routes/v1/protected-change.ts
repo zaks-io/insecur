@@ -1,10 +1,7 @@
 import {
   handleRoute,
-  parseEnvironmentIdParam,
   parseJsonBody,
   parseOperationIdParam,
-  parseOrganizationIdParam,
-  parseProjectIdParam,
   parseSecretIdParam,
   readOptionalBoolean,
   readOptionalString,
@@ -16,24 +13,13 @@ import {
 import { parsePromoteDraftSelection } from "@insecur/protected-change";
 import { AUTH_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import type { ApiApp, ApiEnv } from "../../env.js";
+import {
+  handleEnvironmentScopedUserRoute,
+  runtimeClientForEnvironmentScopedRoute,
+} from "./handle-environment-scoped-user-route.js";
 
 const protectedChangeRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
-
-function parseEnvironmentScopedRouteParams(
-  context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,
-) {
-  return {
-    organizationId: parseOrganizationIdParam(
-      requireRouteParam(context.req.param("organizationId"), "organizationId"),
-    ),
-    projectId: parseProjectIdParam(requireRouteParam(context.req.param("projectId"), "projectId")),
-    environmentId: parseEnvironmentIdParam(
-      requireRouteParam(context.req.param("environmentId"), "environmentId"),
-    ),
-  };
-}
 
 function rejectHumanApprovalSurfaceOnly(): never {
   throw Object.assign(new Error("Approval actions require the Human Approval Surface."), {
@@ -62,10 +48,7 @@ protectedChangeRoutes.post(
   "/:projectId/environments/:environmentId/promote",
   requireUserActor,
   async (context) =>
-    handleRoute(context, async (reqId) => {
-      const userActor = context.get("userActor");
-      const { organizationId, projectId, environmentId } =
-        parseEnvironmentScopedRouteParams(context);
+    handleEnvironmentScopedUserRoute(context, async (scope) => {
       const body = parseJsonBody(await context.req.json());
       const operationIdRaw = readOptionalString(body, "operationId");
       const impactReviewFingerprintRaw = readOptionalString(body, "impactReviewFingerprint");
@@ -75,12 +58,12 @@ protectedChangeRoutes.post(
       const selection = parsePromoteDraftSelection(rawDraftIds);
       const draftVersionIds = selection.draftVersionIds;
 
-      return runtimeClientFor(context.env, userActor).requestProtectedPromotion({
-        organizationId,
-        projectId,
-        environmentId,
+      return runtimeClientFor(context.env, scope.userActor).requestProtectedPromotion({
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        environmentId: scope.environmentId,
         draftVersionIds,
-        requestId: reqId,
+        requestId: scope.requestId,
         ...(commentRaw !== undefined ? { comment: commentRaw } : {}),
         ...(impactReviewFingerprintRaw !== undefined
           ? { impactReviewFingerprint: impactReviewFingerprintRaw }
@@ -96,10 +79,7 @@ protectedChangeRoutes.post(
   "/:projectId/environments/:environmentId/secrets/:secretId/rollback",
   requireUserActor,
   async (context) =>
-    handleRoute(context, async (reqId) => {
-      const userActor = context.get("userActor");
-      const { organizationId, projectId, environmentId } =
-        parseEnvironmentScopedRouteParams(context);
+    handleEnvironmentScopedUserRoute(context, async (scope) => {
       const secretId = parseSecretIdParam(
         requireRouteParam(context.req.param("secretId"), "secretId"),
       );
@@ -113,14 +93,14 @@ protectedChangeRoutes.post(
         });
       }
 
-      return runtimeClientFor(context.env, userActor).requestProtectedRollback({
-        organizationId,
-        projectId,
-        environmentId,
+      return runtimeClientFor(context.env, scope.userActor).requestProtectedRollback({
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        environmentId: scope.environmentId,
         secretId,
         toVersionNumber: toVersionRaw,
         promoteRequested: readOptionalBoolean(body, "promote") === true,
-        requestId: reqId,
+        requestId: scope.requestId,
         ...(commentRaw !== undefined ? { comment: commentRaw } : {}),
         ...(operationIdRaw !== undefined
           ? { operationId: parseOperationIdParam(operationIdRaw) }
@@ -133,18 +113,14 @@ protectedChangeRoutes.get(
   "/:projectId/environments/:environmentId/approvals",
   requireUserActor,
   async (context) =>
-    handleRoute(context, async (reqId) => {
-      const userActor = context.get("userActor");
-      const { organizationId, projectId, environmentId } =
-        parseEnvironmentScopedRouteParams(context);
-
-      return runtimeClientFor(context.env, userActor).listEnvironmentApprovals({
-        organizationId,
-        projectId,
-        environmentId,
-        requestId: reqId,
-      });
-    }),
+    handleEnvironmentScopedUserRoute(context, (scope) =>
+      runtimeClientForEnvironmentScopedRoute(context).listEnvironmentApprovals({
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        environmentId: scope.environmentId,
+        requestId: scope.requestId,
+      }),
+    ),
 );
 
 protectedChangeRoutes.post(

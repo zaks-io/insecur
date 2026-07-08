@@ -1,12 +1,11 @@
-import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
+import type { ApiClient } from "../api/types.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import { parseEnvironmentId, parseSecretId } from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireProjectScope } from "./navigation-scope.js";
 import { parseOperationIdOrThrow } from "./operations-scope.js";
-import { handleApiFailure } from "./api-failure.js";
-import { renderSuccess } from "../output/render.js";
+import { finishApiCommand } from "./finish-api-command.js";
 
 export interface SecretsRollbackCommandOptions {
   readonly secretId: string;
@@ -48,16 +47,11 @@ export async function runSecretsRollbackCommand(
     ...(commandOptions.comment !== undefined ? { comment: commandOptions.comment } : {}),
     ...(operationId === undefined ? {} : { operationId }),
   });
-  if (!result.ok) {
-    return handleApiFailure(result.envelope, flags);
-  }
 
-  const data = result.envelope.data;
-  renderSuccess(
-    result.envelope,
+  return finishApiCommand(
+    result,
     flags,
-    () =>
+    (data) =>
       `Rolled back secret ${data.secretId} to version ${String(data.versionNumber)} (${data.lifecycleState}).`,
   );
-  return 0;
 }

@@ -1,5 +1,4 @@
 import type {
-  EnvironmentId,
   OperationId,
   OrganizationId,
   ProjectId,
@@ -7,14 +6,16 @@ import type {
   RuntimePolicyId,
   UserId,
 } from "@insecur/domain";
+import type { EnvironmentId } from "@insecur/domain";
 import {
   HighAssuranceChallengeError,
-  HighAssuranceHandoffError,
   HIGH_ASSURANCE_RISK_REASON_CODES,
-  requestHighAssuranceChallenge,
 } from "@insecur/high-assurance";
-import { createOperation, OPERATION_INTENT_CODES } from "@insecur/operations";
-import { TenantEnvironmentLifecycleStore, withTenantScope } from "@insecur/tenant-store";
+import { OPERATION_INTENT_CODES } from "@insecur/operations";
+import {
+  protectedEnvironmentMutationGateInput,
+  runProtectedEnvironmentMutationGate,
+} from "@insecur/tenant-store";
 
 import { requireRuntimeInjectionPolicyChangeEvidence } from "./consume-runtime-injection-policy-change-evidence.js";
 import {
@@ -33,36 +34,6 @@ export interface GateProtectedPolicyChangeInput {
   readonly onDenied: (error: HighAssuranceChallengeError) => Promise<void>;
 }
 
-async function isProtectedEnvironment(
-  organizationId: OrganizationId,
-  environmentId: EnvironmentId,
-): Promise<boolean> {
-  return withTenantScope({ kind: "organization", organizationId }, async ({ db }) => {
-    const store = new TenantEnvironmentLifecycleStore(db);
-    const environment = await store.getById(organizationId, environmentId);
-    return environment?.isProtected === true;
-  });
-}
-
-async function ensureChallengeRequested(input: {
-  readonly organizationId: OrganizationId;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly operationId: OperationId;
-  readonly actorUserId: UserId;
-  readonly requestId: RequestId;
-}): Promise<void> {
-  await requestHighAssuranceChallenge({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-    operationId: input.operationId,
-    riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.protectedRuntimeInjectionPolicy,
-    requestingUserId: input.actorUserId,
-    request: { requestId: input.requestId },
-  });
-}
-
 /**
  * Fail closed for Protected Environment policy mutations until operation-bound
  * High-Assurance Challenge evidence is consumed.
@@ -70,54 +41,26 @@ async function ensureChallengeRequested(input: {
 export async function gateProtectedRuntimeInjectionPolicyChange(
   input: GateProtectedPolicyChangeInput,
 ): Promise<{ operationId?: OperationId }> {
-  const protectedEnvironment = await isProtectedEnvironment(
-    input.organizationId,
-    input.environmentId,
-  );
-  if (!protectedEnvironment) {
-    return {};
-  }
-
-  let operationId = input.operationId;
-  if (operationId === undefined) {
-    const created = await createOperation({
-      organizationId: input.organizationId,
-      intentCode: OPERATION_INTENT_CODES.runtimeInjectionPolicyChange,
-    });
-    operationId = created.operation.operationId;
-    await ensureChallengeRequested({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      operationId,
-      actorUserId: input.actorUserId,
-      requestId: input.requestId,
-    });
-    throw new HighAssuranceHandoffError(operationId);
-  }
-
-  try {
-    await requireRuntimeInjectionPolicyChangeEvidence(
+  return runProtectedEnvironmentMutationGate(
+    protectedEnvironmentMutationGateInput(
+      input,
       {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        environmentId: input.environmentId,
-        operationId,
-        actor: { type: "user", userId: input.actorUserId },
+        intentCode: OPERATION_INTENT_CODES.runtimeInjectionPolicyChange,
+        riskReasonCode: HIGH_ASSURANCE_RISK_REASON_CODES.protectedRuntimeInjectionPolicy,
       },
-      input.onDenied,
-    );
-  } catch (error) {
-    if (
-      error instanceof HighAssuranceHandoffError ||
-      error instanceof HighAssuranceChallengeError
-    ) {
-      throw error;
-    }
-    throw new HighAssuranceHandoffError(operationId);
-  }
-
-  return { operationId };
+      (operationId) =>
+        requireRuntimeInjectionPolicyChangeEvidence(
+          {
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            environmentId: input.environmentId,
+            operationId,
+            actor: { type: "user", userId: input.actorUserId },
+          },
+          input.onDenied,
+        ),
+    ),
+  );
 }
 
 export async function recordProtectedPolicyChangeDenied(
