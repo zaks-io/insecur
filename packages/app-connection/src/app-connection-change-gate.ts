@@ -91,6 +91,25 @@ export function requireUserActorForConnectionCommand(actor: ActorRef): UserActor
   return actor;
 }
 
+export async function beginAppConnectionChangeCommand(input: {
+  readonly actor: ActorRef;
+  readonly organizationId: OrganizationId;
+  readonly requestId: RequestId;
+  readonly operationId?: OperationId;
+}): Promise<{
+  readonly actor: UserActorRef;
+  readonly gate: { readonly operationId: OperationId; readonly projectId: ProjectId };
+}> {
+  const actor = requireUserActorForConnectionCommand(input.actor);
+  const gate = await runAppConnectionChangeGate({
+    actor,
+    organizationId: input.organizationId,
+    requestId: input.requestId,
+    ...(input.operationId !== undefined ? { operationId: input.operationId } : {}),
+  });
+  return { actor, gate };
+}
+
 export async function runAppConnectionCredentialChangeGate(
   input: AppConnectionChangeGateInput & {
     readonly appConnectionId: AppConnectionId;
