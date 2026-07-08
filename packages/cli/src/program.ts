@@ -1,4 +1,3 @@
-import { errorEnvelope } from "@insecur/domain";
 import { Command, type Command as CommanderCommand } from "commander";
 import { createHttpApiClientForHost } from "./api/http-client.js";
 import { parseGlobalOptions } from "./cli-options.js";
@@ -9,13 +8,8 @@ import { runShellCommand } from "./commands/shell.js";
 import { registerRunCommand } from "./register-run-command.js";
 import { loadAndResolveCliContext } from "./config/load-cli-context.js";
 import type { GlobalCliFlags } from "./cli-options.js";
-import { CliError } from "./output/cli-error.js";
-import { EXIT_UNEXPECTED } from "./output/exit-codes.js";
-import { renderEnvelope } from "./output/render.js";
-import {
-  logUnexpectedCliErrorDebug,
-  unexpectedCliErrorBody,
-} from "./output/unexpected-cli-error.js";
+import { applyCommanderUsageSeam } from "./output/commander-usage-error.js";
+import { renderCliRunFailure } from "./output/render-cli-run-failure.js";
 import { registerGuideCommand } from "./register-guide-command.js";
 import { registerScanCommand } from "./register-scan-command.js";
 import { registerConfigCommands } from "./register-config-commands.js";
@@ -46,14 +40,20 @@ async function resolveApi(flags: GlobalCliFlags) {
   return { api: createHttpApiClientForHost(context.scope.host), context };
 }
 
-function buildProgram(): Command {
+function createInsecurRootProgram(): Command {
   const program = attachGlobalOptions(new Command());
-  program
+  applyCommanderUsageSeam(program);
+  return program
     .name("insecur")
     .description("insecur CLI — metadata-only output, sealed local session auth")
     .version(cliVersion());
+}
 
-  registerLoginCommand(program, { globalFlags, resolveApi });
+function buildProgram(): Command {
+  const program = createInsecurRootProgram();
+  const deps = { globalFlags, resolveApi };
+
+  registerLoginCommand(program, deps);
 
   program
     .command("logout")
@@ -78,7 +78,7 @@ function buildProgram(): Command {
       process.exitCode = await runShellCommand(flags, profile, context);
     });
 
-  registerRunCommand(program, { globalFlags, resolveApi });
+  registerRunCommand(program, deps);
 
   program
     .command("init")
@@ -96,7 +96,7 @@ function buildProgram(): Command {
   registerScanCommand(program, { globalFlags });
   registerGuideCommand(program);
   registerConfigCommands(program, globalFlags);
-  registerApiBackedCommands(program, { globalFlags, resolveApi });
+  registerApiBackedCommands(program, deps);
 
   return program;
 }
@@ -108,18 +108,6 @@ export async function runCli(argv: readonly string[]): Promise<number> {
     const code = process.exitCode;
     return typeof code === "number" ? code : 0;
   } catch (error) {
-    if (error instanceof CliError) {
-      const flags = globalFlags(program);
-      const envelope =
-        error.data === undefined
-          ? errorEnvelope(error.toErrorBody())
-          : { ...errorEnvelope(error.toErrorBody()), data: error.data };
-      renderEnvelope(envelope, flags, () => "");
-      return error.exitCode;
-    }
-    const flags = globalFlags(program);
-    logUnexpectedCliErrorDebug(error, flags.verbose);
-    renderEnvelope(errorEnvelope(unexpectedCliErrorBody(error)), flags, () => "");
-    return EXIT_UNEXPECTED;
+    return renderCliRunFailure(error, globalFlags(program));
   }
 }

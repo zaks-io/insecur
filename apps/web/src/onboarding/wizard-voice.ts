@@ -43,6 +43,12 @@ const VOICE_BY_CODE: Record<string, WizardErrorVoice> = {
     detail: "Try again. If it happens twice, reload the page to refresh your session.",
     action: "retry",
   },
+  "validation.invalid_variable_key": {
+    headline: "That variable key won't work",
+    detail:
+      "Use uppercase letters, digits, and underscores. It must start with a letter or underscore.",
+    action: "retry",
+  },
 };
 
 /**
@@ -57,4 +63,9 @@ export function provisionErrorVoice(code: string): WizardErrorVoice {
       action: "retry",
     }
   );
+}
+
+/** Blind secret write failures reuse the same catalogued voice map. */
+export function blindSecretWriteErrorVoice(code: string): WizardErrorVoice {
+  return provisionErrorVoice(code);
 }
