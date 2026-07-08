@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "algorithm": "Ed25519",
+  "current_version": 1,
+  "claim_ceiling": "tamper-evident, independently verifiable",
+  "keys": [
+    {
+      "version": 1,
+      "public_key_base64url": "uyf4yAw8SnsMpN9tVr5glKfg0TFwss_hvYPyqt-Soos",
+      "custody_evidence_ref": "escrow-record://instance/public-placeholder/audit-signing/v1",
+      "active_since": "2026-07-01T00:00:00.000Z"
+    }
+  ]
+}
