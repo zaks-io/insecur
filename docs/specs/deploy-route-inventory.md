@@ -83,11 +83,14 @@ metadata and selected event types; `DELETE /:subscriptionId` disables a subscrip
 secret. Subscription CRUD requires `webhook:manage`; list/event-types require `webhook:read`.
 Delivery runs inside the Runtime deploy (in-app channel in V1).
 
-Under `/v1/session` (INS-367, INS-430, INS-436): `GET /whoami` echoes the verified actor plus session
+Under `/v1/session` (INS-367, INS-430, INS-436, INS-446): `GET /whoami` echoes the verified actor plus session
 validity/expiry, resolved org/project/env context (optional `orgId`, `projectId`, `envId` query
 params), and attribution tier (`derived`, `registered`, `tag-only`, `none`). Optional agent inputs
 are `agentSessionId`, `agentTag`, `harnessName`, and `ancestryKey`; Tier-2 auto-registration runs
-when a harness is detected on a bare human token. Reads beyond the actor claim forward over the
+when a harness is detected on a bare human token. `POST /agent/derive` mints a derived agent-marked
+child CLI credential from the live human session (credential returned only in
+`x-insecur-session-credential`; JSON body is metadata-only). `POST /agent/register` performs Tier-2
+structural registration over the `RUNTIME` seam. Reads beyond the actor claim forward over the
 `RUNTIME` seam. `GET /memberships` is the console org-switcher self-read (the actor's own
 organizations), forwarded over the `RUNTIME` seam. `POST /revoke` ends the calling actor's own CLI
 session, forwarded over the `RUNTIME` seam; unauthenticated callers receive a metadata-only success
