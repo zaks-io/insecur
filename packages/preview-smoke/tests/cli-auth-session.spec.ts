@@ -31,7 +31,8 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
     workosUserId: preview.ownerWorkosUserId,
   });
   const workspace = await createCliSmokeWorkspace();
-  const redactor = redactorForPreview(preview, [
+  const secretRedactor = redactorForPreview(preview, [bearer]);
+  const failureRedactor = redactorForPreview(preview, [
     bearer,
     workspace.configDir,
     workspace.configHomeDir,
@@ -42,7 +43,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
     bearer,
     configDir: workspace.configDir,
     configHomeDir: workspace.configHomeDir,
-    redactor,
+    redactor: secretRedactor,
   };
 
   let organizationId = "";
@@ -57,7 +58,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI whoami",
       });
       const body = parseCliSmokeJson(stdout, "CLI whoami");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI whoami");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI whoami");
       assertCliWhoamiSuccess(body, preview, { label: "CLI whoami" });
     });
 
@@ -68,7 +69,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI init",
       });
       const body = parseCliSmokeJson(stdout, "CLI init");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI init");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI init");
       const data = body.data as Record<string, unknown>;
       organizationId = requireString(data.organizationId, "CLI init organizationId");
       projectId = requireString(data.projectId, "CLI init projectId");
@@ -82,7 +83,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI whoami resolved scope",
       });
       const body = parseCliSmokeJson(stdout, "CLI whoami resolved scope");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI whoami resolved scope");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI whoami resolved scope");
       assertCliWhoamiSuccess(body, preview, {
         label: "CLI whoami resolved scope",
         organizationId,
@@ -98,7 +99,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI orgs list",
       });
       const body = parseCliSmokeJson(stdout, "CLI orgs list");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI orgs list");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI orgs list");
       const organizations = assertCliNavigationListSuccess(body, "CLI orgs list", "organizations");
       findById(organizations, "organizationId", organizationId, "CLI orgs list");
     });
@@ -110,7 +111,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI projects list",
       });
       const body = parseCliSmokeJson(stdout, "CLI projects list");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI projects list");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI projects list");
       const projects = assertCliNavigationListSuccess(body, "CLI projects list", "projects");
       findById(projects, "projectId", projectId, "CLI projects list");
     });
@@ -122,7 +123,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI envs list",
       });
       const body = parseCliSmokeJson(stdout, "CLI envs list");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI envs list");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI envs list");
       const environments = assertCliNavigationListSuccess(body, "CLI envs list", "environments");
       findById(environments, "environmentId", environmentId, "CLI envs list");
     });
@@ -134,7 +135,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI config show",
       });
       const body = parseCliSmokeJson(stdout, "CLI config show");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI config show");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI config show");
       assertCliConfigShowSuccess(body, "CLI config show", {
         host: preview.apiBaseUrl,
         organizationId,
@@ -150,7 +151,7 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         label: "CLI logout",
       });
       const body = parseCliSmokeJson(stdout, "CLI logout");
-      assertResponseFreeOfRedactedPatterns(redactor, body, "CLI logout");
+      assertResponseFreeOfRedactedPatterns(secretRedactor, body, "CLI logout");
       assertCliLogoutSuccess(body, "CLI logout");
     });
 
@@ -159,8 +160,9 @@ test("preview CLI auth, session, and navigation @preview @happy-path @custody", 
         ...runInput,
         args: ["whoami"],
         label: "CLI whoami after logout",
+        redactor: failureRedactor,
       });
-      assertResponseFreeOfRedactedPatterns(redactor, result, "CLI whoami after logout");
+      assertResponseFreeOfRedactedPatterns(failureRedactor, result, "CLI whoami after logout");
       assertCliAuthFailure({
         exitCode: result.exitCode,
         label: "CLI whoami after logout",
