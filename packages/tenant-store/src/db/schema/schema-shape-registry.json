@@ -3857,5 +3857,247 @@
       }
     ],
     "primaryKeys": []
+  },
+  "approval_requests": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "purpose": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "requester_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "operation_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "impact_review_fingerprint": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "comment_length": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "comment_sha256": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "rollback_secret_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "rollback_to_version_number": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "rollback_promote_requested": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "superseded_by_request_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "approval_requests_purpose_check",
+        "sql": "\"approval_requests\".\"purpose\" IN ('protected_promotion', 'protected_rollback')"
+      },
+      {
+        "name": "approval_requests_status_check",
+        "sql": "\"approval_requests\".\"status\" IN ('pending', 'approved_applied', 'rejected', 'canceled', 'superseded', 'policy_stale', 'requester_access_stale', 'target_closed', 'draft_discard_closed')"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "approval_requests_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "approval_requests_org_id_environment_id_environments_org_id_id_fk",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "approval_requests_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "approval_requests_org_id_project_id_projects_org_id_id_fk",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "promotion_change_set_draft_versions": {
+    "columns": {
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "approval_request_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "secret_version_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "promotion_change_set_draft_versions_org_id_approval_request_id_approval_requests_org_id_id_fk",
+        "columns": ["org_id", "approval_request_id"],
+        "foreignTable": "approval_requests",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "promotion_change_set_draft_versions_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "promotion_change_set_draft_versions_org_id_secret_id_secret_version_id_secret_versions_org_id_secret_id_id_fk",
+        "columns": ["org_id", "secret_id", "secret_version_id"],
+        "foreignTable": "secret_versions",
+        "foreignColumns": ["org_id", "secret_id", "id"]
+      },
+      {
+        "name": "promotion_change_set_draft_versions_org_id_secret_id_secrets_org_id_id_fk",
+        "columns": ["org_id", "secret_id"],
+        "foreignTable": "secrets",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": [
+      {
+        "columns": ["org_id", "approval_request_id", "secret_version_id"],
+        "name": "promotion_change_set_draft_versions_org_id_approval_request_id_secret_version_id_pk"
+      }
+    ]
   }
 }

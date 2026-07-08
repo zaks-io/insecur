@@ -262,6 +262,16 @@ export const PROTECTED_CHANGE_ERROR_CODES = {
 export type ProtectedChangeErrorCode =
   (typeof PROTECTED_CHANGE_ERROR_CODES)[keyof typeof PROTECTED_CHANGE_ERROR_CODES];
 
+/** Approval request lifecycle failures (INS-84). */
+export const APPROVAL_ERROR_CODES = {
+  requestNotFound: "approval.request_not_found",
+  requestNotPending: "approval.request_not_pending",
+  invalidDraftSelection: "approval.invalid_draft_selection",
+  promotionChangeSetImmutable: "approval.promotion_change_set_immutable",
+} as const;
+
+export type ApprovalErrorCode = (typeof APPROVAL_ERROR_CODES)[keyof typeof APPROVAL_ERROR_CODES];
+
 /**
  * Every `*_ERROR_CODES` catalog in this module. Append new catalogs here and to
  * `KnownErrorCode` so `known-error-code-catalog.ts` lockstep coverage cannot miss them.
@@ -287,6 +297,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   CLI_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
   PROTECTED_CHANGE_ERROR_CODES,
+  APPROVAL_ERROR_CODES,
 ] as const;
 
 export type KnownErrorCode =
@@ -310,4 +321,5 @@ export type KnownErrorCode =
   | CliErrorCode
   | NotificationErrorCode
   | ProtectedChangeErrorCode
+  | ApprovalErrorCode
   | (string & {});

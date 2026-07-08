@@ -102,6 +102,24 @@ export class TenantSecretVersionStore {
     return toSecretVersionStoreRow(version, secretId.brand(version.secretId));
   }
 
+  async getVersionInOrganization(
+    organizationId: AppendSecretVersionAndMakeLiveInput["organizationId"],
+    secretVersionIdValue: SecretVersionId,
+  ): Promise<SecretVersionStoreRow | null> {
+    const versions = await this.db
+      .select(secretVersionRowSelect)
+      .from(secretVersions)
+      .where(
+        and(eq(secretVersions.orgId, organizationId), eq(secretVersions.id, secretVersionIdValue)),
+      )
+      .limit(1);
+    const version = versions[0];
+    if (!version) {
+      return null;
+    }
+    return toSecretVersionStoreRow(version, secretId.brand(version.secretId));
+  }
+
   async getDeliverableVersion(
     secretIdValue: SecretId,
     secretVersionIdValue: SecretVersionId,
