@@ -1,3 +1,4 @@
+import hooksContent from "./hooks.md";
 import migrateEnvContent from "./migrate-env.md";
 
 export interface GuideTopic {
@@ -7,6 +8,11 @@ export interface GuideTopic {
 }
 
 const GUIDE_TOPICS: readonly GuideTopic[] = [
+  {
+    id: "hooks",
+    description: "Agent scan-gate hook recipes for Claude Code and Codex",
+    content: hooksContent,
+  },
   {
     id: "migrate-env",
     description: "Safe playbook for moving disk secrets into insecur",
