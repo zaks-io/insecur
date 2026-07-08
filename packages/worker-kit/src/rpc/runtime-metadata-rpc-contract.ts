@@ -100,12 +100,24 @@ export interface CreateEnvironmentRpcInput extends PostAuthRpcInputBase {
   readonly copyShapesFromEnvironmentId?: EnvironmentId;
 }
 
-/** Metadata-only actor reference for matrix last-set cells. */
-export interface SecretMatrixLastSetActorRead {
+/** Metadata-only principal-chain attribution details for console actor rendering. */
+export interface PrincipalChainActorDetailsRead {
+  readonly agentSessionId?: string;
+  readonly harnessName?: string;
+  readonly agentAttributionTag?: string;
+  readonly githubRunId?: string;
+}
+
+/** Metadata-only actor reference for principal-chain rendering (matrix, version history, audit). */
+export interface PrincipalChainActorRead {
   readonly actorType: "user" | "machine" | "ci_exchange";
   readonly userId?: UserId;
   readonly machineIdentityId?: MachineIdentityId;
+  readonly details?: PrincipalChainActorDetailsRead;
 }
+
+/** Metadata-only actor reference for matrix last-set cells. */
+export type SecretMatrixLastSetActorRead = PrincipalChainActorRead;
 
 /** One secret × environment matrix cell (metadata only; no values or ciphertext). */
 export interface SecretMatrixCellRead {
@@ -188,6 +200,8 @@ export interface SecretVersionMetadataRead {
   readonly isCurrent: boolean;
   readonly isPublished: boolean;
   readonly descriptiveVerdicts: SecretVersionDescriptiveVerdictsRead;
+  readonly setAt?: string;
+  readonly setActor?: PrincipalChainActorRead;
 }
 
 export interface ListSecretVersionsRpcPayload {

@@ -11,6 +11,7 @@ export { MACHINE_ACCESS_AUDIT_EVENT_CODES } from "./machine-access.js";
 export { NOTIFICATIONS_AUDIT_EVENT_CODES } from "./notifications.js";
 export { ONBOARDING_AUDIT_EVENT_CODES } from "./onboarding.js";
 export { OPERATION_AUDIT_EVENT_CODES } from "./operation.js";
+export { PROTECTED_CHANGE_AUDIT_EVENT_CODES } from "./protected-change.js";
 export { RUNTIME_INJECTION_AUDIT_EVENT_CODES } from "./runtime-injection.js";
 export { RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES } from "./runtime-injection-policy.js";
 export { SECRET_FIRST_VALUE_AUDIT_EVENT_CODES } from "./secret-first-value.js";

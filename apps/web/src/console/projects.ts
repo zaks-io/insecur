@@ -78,6 +78,13 @@ export function findConsoleProject(
   return projects.find((project) => project.projectId === projectId);
 }
 
+export function findConsoleEnvironment(
+  environments: readonly ConsoleEnvironment[],
+  environmentId: string,
+): ConsoleEnvironment | undefined {
+  return environments.find((environment) => environment.environmentId === environmentId);
+}
+
 /** Date-only display form of a metadata timestamp (the console shows days, not milliseconds). */
 export function shortDate(isoTimestamp: string): string {
   return isoTimestamp.slice(0, 10);

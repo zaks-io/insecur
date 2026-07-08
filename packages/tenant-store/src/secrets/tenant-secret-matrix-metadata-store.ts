@@ -2,7 +2,7 @@ import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { listSecretMatrixRowsByProject } from "./secret-matrix-metadata-queries.js";
 import {
   listEnvironmentSecretMetadataRows,
-  listSecretVersionMetadataRows,
+  listSecretVersionMetadataRowsWithAttribution,
 } from "./environment-secret-metadata-queries.js";
 import type {
   ListEnvironmentSecretsInput,
@@ -39,6 +39,6 @@ export class TenantSecretMatrixMetadataStore {
   async listVersionMetadata(
     input: ListSecretVersionMetadataInput,
   ): Promise<readonly SecretVersionMetadataRow[]> {
-    return listSecretVersionMetadataRows(this.db, input);
+    return listSecretVersionMetadataRowsWithAttribution(this.db, input);
   }
 }

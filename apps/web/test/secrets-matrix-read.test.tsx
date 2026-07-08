@@ -171,7 +171,12 @@ describe("project secrets matrix read over the BFF seam", () => {
 describe("SecretsMatrixTable render", () => {
   it("renders drift, protected columns, and metadata-only cells", () => {
     const html = renderToStaticMarkup(
-      <SecretsMatrixTable environments={DRIFT_MATRIX.environments} rows={DRIFT_MATRIX.rows} />,
+      <SecretsMatrixTable
+        environments={DRIFT_MATRIX.environments}
+        rows={DRIFT_MATRIX.rows}
+        orgId={ORG_ID}
+        projectId={PROJECT_ID}
+      />,
     );
 
     expect(html).toContain("DATABASE_URL");
@@ -185,7 +190,12 @@ describe("SecretsMatrixTable render", () => {
 
   it("renders an empty matrix body when there are no secret rows", () => {
     const html = renderToStaticMarkup(
-      <SecretsMatrixTable environments={[ENV_STAGING]} rows={[]} />,
+      <SecretsMatrixTable
+        environments={[ENV_STAGING]}
+        rows={[]}
+        orgId={ORG_ID}
+        projectId={PROJECT_ID}
+      />,
     );
     expect(html).toContain("staging");
     expect(html).not.toContain("Drift");

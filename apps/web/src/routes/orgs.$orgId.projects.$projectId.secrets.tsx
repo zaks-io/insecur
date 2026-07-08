@@ -54,5 +54,12 @@ function ProjectSecretsPage() {
     );
   }
 
-  return <SecretsMatrixTable environments={environments} rows={rows} />;
+  return (
+    <SecretsMatrixTable
+      environments={environments}
+      rows={rows}
+      orgId={orgId}
+      projectId={projectId}
+    />
+  );
 }

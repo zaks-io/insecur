@@ -16,6 +16,7 @@ import { CRYPTO_AUDIT_EVENT_CODES } from "./codes/crypto.js";
 import { HIGH_ASSURANCE_AUDIT_EVENT_CODES } from "./codes/high-assurance.js";
 import { MACHINE_ACCESS_AUDIT_EVENT_CODES } from "./codes/machine-access.js";
 import { NOTIFICATIONS_AUDIT_EVENT_CODES } from "./codes/notifications.js";
+import { PROTECTED_CHANGE_AUDIT_EVENT_CODES } from "./codes/protected-change.js";
 import { OPERATION_AUDIT_EVENT_CODES } from "./codes/operation.js";
 import { RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES } from "./codes/runtime-injection-policy.js";
 import { SECRET_PROTECTED_AUDIT_EVENT_CODES } from "./codes/secret-protected.js";
@@ -48,6 +49,7 @@ export const PRODUCTION_AUDIT_EVENT_CODES = assembleAuditEventCodes(
   OPERATION_AUDIT_EVENT_CODES,
   RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES,
   NOTIFICATIONS_AUDIT_EVENT_CODES,
+  PROTECTED_CHANGE_AUDIT_EVENT_CODES,
 );
 
 /** All supported tenant-qualified audit event codes. */
@@ -110,6 +112,7 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionUpdateDenied,
   PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionDeleteDenied,
   PRODUCTION_AUDIT_EVENT_CODES.webhookDeliveryFailed,
+  PRODUCTION_AUDIT_EVENT_CODES.protectedChangeTransitionDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([
