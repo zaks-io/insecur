@@ -25,6 +25,16 @@ export interface ErrorBody {
   retryable: boolean;
 }
 
+/** Metadata-only next-step instructions for actionable CLI/API errors. */
+export interface ErrorRemediation {
+  readonly approvalUrl?: string;
+  readonly login?: readonly string[];
+  readonly init?: readonly string[];
+  readonly poll?: readonly string[];
+  readonly resume?: readonly string[];
+  readonly secretsSet?: readonly string[];
+}
+
 export interface SuccessEnvelope<TData> {
   readonly ok: true;
   readonly data: TData;
@@ -35,6 +45,12 @@ export interface ErrorEnvelope {
   readonly ok: false;
   readonly error: ErrorBody;
   readonly meta?: MetadataEnvelopeMeta;
+  readonly remediation?: ErrorRemediation;
+}
+
+export interface ErrorEnvelopeOptions {
+  readonly meta?: MetadataEnvelopeMeta;
+  readonly remediation?: ErrorRemediation;
 }
 
 export type MetadataEnvelope<TData> = SuccessEnvelope<TData> | ErrorEnvelope;
@@ -225,10 +241,21 @@ export function successEnvelope<TData>(
   return meta === undefined ? { ok: true, data } : { ok: true, data, meta };
 }
 
-export function errorEnvelope(error: ErrorBody, meta?: MetadataEnvelopeMeta): ErrorEnvelope {
+export function errorEnvelope(error: ErrorBody, options?: ErrorEnvelopeOptions): ErrorEnvelope {
   assertMetadataOnlyValue(error);
-  if (meta !== undefined) {
-    assertMetadataOnlyValue(meta);
+  if (options?.meta !== undefined) {
+    assertMetadataOnlyValue(options.meta);
   }
-  return meta === undefined ? { ok: false, error } : { ok: false, error, meta };
+  if (options?.remediation !== undefined) {
+    assertMetadataOnlyValue(options.remediation);
+  }
+  if (options === undefined) {
+    return { ok: false, error };
+  }
+  return {
+    ok: false,
+    error,
+    ...(options.meta !== undefined ? { meta: options.meta } : {}),
+    ...(options.remediation !== undefined ? { remediation: options.remediation } : {}),
+  };
 }

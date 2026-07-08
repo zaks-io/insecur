@@ -63,7 +63,7 @@ const noopApi: ApiClient = {
 };
 
 describe("auth-required errors", () => {
-  it("fails init without a session credential", async () => {
+  it("fails init without a session credential with login remediation", async () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
     await expect(
@@ -71,6 +71,7 @@ describe("auth-required errors", () => {
     ).rejects.toMatchObject({
       exitCode: EXIT_AUTH_REQUIRED,
       code: AUTH_ERROR_CODES.required,
+      remediation: { login: ["insecur", "login"] },
     } satisfies Partial<CliError>);
   });
 });

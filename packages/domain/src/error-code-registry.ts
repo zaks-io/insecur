@@ -4,15 +4,22 @@ import { isKnownErrorCodeInCatalog, listKnownErrorCodes } from "./known-error-co
 
 export const CLIENT_SIDE_HTTP_MARKER = "n/a (client-side)";
 
+export const REMEDIATION_REQUIRED_MARKER = "required";
+export const REMEDIATION_NOT_REQUIRED_MARKER = "-";
+
+export type ErrorCodeRemediationRequirement =
+  typeof REMEDIATION_REQUIRED_MARKER | typeof REMEDIATION_NOT_REQUIRED_MARKER;
+
 export interface ErrorCodeRegistryRow {
   code: string;
   exitCode: number;
   httpStatus: number | typeof CLIENT_SIDE_HTTP_MARKER;
+  remediation: ErrorCodeRemediationRequirement;
   notes: string;
 }
 
 const TABLE_ROW_PATTERN =
-  /^\|\s*`([^`]+)`\s*\|\s*`(\d+)`\s*\|\s*`?(\d+|n\/a \(client-side\))`?\s*\|\s*(.*?)\s*\|$/;
+  /^\|\s*`([^`]+)`\s*\|\s*`(\d+)`\s*\|\s*`?(\d+|n\/a \(client-side\))`?\s*\|\s*`?(required|-)`?\s*\|\s*(.*?)\s*\|$/;
 
 function readRegistryMarkdown(): string {
   const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
@@ -38,35 +45,50 @@ function extractRegistryTable(markdown: string): string[] {
     .filter((line) => line.trim().startsWith("|"));
 }
 
+function parseRemediationMarker(
+  code: string,
+  remediation: string,
+): ErrorCodeRemediationRequirement {
+  if (remediation === REMEDIATION_REQUIRED_MARKER) {
+    return REMEDIATION_REQUIRED_MARKER;
+  }
+  if (remediation === REMEDIATION_NOT_REQUIRED_MARKER) {
+    return REMEDIATION_NOT_REQUIRED_MARKER;
+  }
+  throw new Error(`Invalid remediation marker for ${code}: ${remediation}`);
+}
+
+function parseRegistryTableRow(line: string): ErrorCodeRegistryRow {
+  const match = TABLE_ROW_PATTERN.exec(line);
+  if (!match) {
+    throw new Error(`Could not parse registry table row: ${line}`);
+  }
+
+  const [code, exitCode, httpStatus, remediation, notes] = match.slice(1);
+  if (
+    code === undefined ||
+    exitCode === undefined ||
+    httpStatus === undefined ||
+    remediation === undefined ||
+    notes === undefined
+  ) {
+    throw new Error(`Could not parse registry table row: ${line}`);
+  }
+
+  return {
+    code,
+    exitCode: Number(exitCode),
+    httpStatus:
+      httpStatus === CLIENT_SIDE_HTTP_MARKER ? CLIENT_SIDE_HTTP_MARKER : Number(httpStatus),
+    remediation: parseRemediationMarker(code, remediation),
+    notes: notes.trim(),
+  };
+}
+
 export function parseErrorCodeRegistryTable(
   markdown = readRegistryMarkdown(),
 ): ErrorCodeRegistryRow[] {
-  return extractRegistryTable(markdown).map((line) => {
-    const match = TABLE_ROW_PATTERN.exec(line);
-    if (!match) {
-      throw new Error(`Could not parse registry table row: ${line}`);
-    }
-
-    const code = match[1];
-    const exitCode = match[2];
-    const httpStatus = match[3];
-    const notes = match[4];
-    if (
-      code === undefined ||
-      exitCode === undefined ||
-      httpStatus === undefined ||
-      notes === undefined
-    ) {
-      throw new Error(`Could not parse registry table row: ${line}`);
-    }
-    return {
-      code,
-      exitCode: Number(exitCode),
-      httpStatus:
-        httpStatus === CLIENT_SIDE_HTTP_MARKER ? CLIENT_SIDE_HTTP_MARKER : Number(httpStatus),
-      notes: notes.trim(),
-    };
-  });
+  return extractRegistryTable(markdown).map(parseRegistryTableRow);
 }
 
 export function registryRowsByCode(

@@ -30,6 +30,7 @@ async function completeVariableKeyWatchIteration(input: {
   readonly childExitCode: number;
   readonly issueData: Awaited<ReturnType<typeof issueAndConsumeVariableKeyGrant>>["issueData"];
   readonly delivery: Awaited<ReturnType<typeof issueAndConsumeVariableKeyGrant>>["delivery"];
+  readonly requestId: Awaited<ReturnType<typeof issueAndConsumeVariableKeyGrant>>["requestId"];
 }): Promise<void> {
   await recordRunCompletedBestEffort({
     api: input.api,
@@ -46,6 +47,7 @@ async function completeVariableKeyWatchIteration(input: {
     issueData: input.issueData,
     delivery: input.delivery,
     childExitCode: input.childExitCode,
+    requestId: input.requestId,
   });
 }
 
@@ -57,6 +59,7 @@ async function completeProfileWatchIteration(input: {
   readonly childExitCode: number;
   readonly issueData: Awaited<ReturnType<typeof issueAndConsumePolicyGrant>>["issueData"];
   readonly delivery: Awaited<ReturnType<typeof issueAndConsumePolicyGrant>>["delivery"];
+  readonly requestId: Awaited<ReturnType<typeof issueAndConsumePolicyGrant>>["requestId"];
 }): Promise<void> {
   await recordRunCompletedBestEffort({
     api: input.api,
@@ -72,6 +75,7 @@ async function completeProfileWatchIteration(input: {
     issueData: input.issueData,
     delivery: input.delivery,
     childExitCode: input.childExitCode,
+    requestId: input.requestId,
   });
 }
 
@@ -114,6 +118,7 @@ export async function runVariableKeyWatchPath(input: {
             childExitCode,
             issueData: grant.issueData,
             delivery: grant.delivery,
+            requestId: grant.requestId,
           });
         },
       };
@@ -177,6 +182,7 @@ async function executeProfilePolicyWatchIteration(input: {
         childExitCode,
         issueData: grant.issueData,
         delivery: grant.delivery,
+        requestId: grant.requestId,
       });
     },
   };

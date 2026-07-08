@@ -1,5 +1,5 @@
 import { secretId, successEnvelope } from "@insecur/domain";
-import { CliError } from "../output/cli-error.js";
+import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import {
@@ -32,7 +32,7 @@ export async function runSecretsVersionsCommand(
     });
 
     if (!result.ok) {
-      throw new CliError(result.envelope.error);
+      throw cliErrorFromEnvelope(result.envelope);
     }
 
     const output = successEnvelope(
