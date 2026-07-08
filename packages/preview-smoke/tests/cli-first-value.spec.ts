@@ -3,8 +3,9 @@ import {
   assertCliRunChildObservedSentinel,
   assertCliSmokeSuccess,
   buildCliFirstValueRunArgs,
-  buildCliSecretsSetGenerateArgs,
+  buildCliSecretsSetValueStdinArgs,
   createCliSmokeWorkspace,
+  mintSmokeSentinel,
   parseCliRunChildProof,
   parseCliSmokeJson,
   parseLastCliSmokeJson,
@@ -20,9 +21,10 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
 }) => {
   test.setTimeout(180_000);
 
-  const redactor = redactorFor(preview, { fingerprint: "", value: "", variants: [] }, [
-    ownerBearer,
-  ]);
+  // Inject a KNOWN sentinel so the redactor can catch the exact injected value
+  // (in every encoding) if `insecur run` or the child leaks it to stdout/stderr.
+  const sentinel = mintSmokeSentinel();
+  const redactor = redactorFor(preview, sentinel, [ownerBearer]);
   const workspace = await createCliSmokeWorkspace();
   const { verifyScript } = resolveCliSmokePaths();
 
@@ -41,15 +43,16 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
       assertCliSmokeSuccess(body, "CLI init");
     });
 
-    await test.step("cli.secrets_set_generate", async () => {
+    await test.step("cli.secrets_set", async () => {
       const { stdout } = await runCliSmokeCommand({
         apiBaseUrl: preview.apiBaseUrl,
-        args: buildCliSecretsSetGenerateArgs(),
+        args: buildCliSecretsSetValueStdinArgs(),
         bearer: ownerBearer,
         configDir: workspace.configDir,
         configHomeDir: workspace.configHomeDir,
         label: "CLI secrets set",
         redactor,
+        stdinInput: sentinel.value,
       });
       const body = parseCliSmokeJson(stdout, "CLI secrets set");
       assertCliSmokeSuccess(body, "CLI secrets set");

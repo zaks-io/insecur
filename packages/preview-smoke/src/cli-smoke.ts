@@ -33,6 +33,8 @@ export interface RunCliSmokeCommandInput {
   readonly cwd?: string;
   readonly label: string;
   readonly redactor: (value: unknown) => string;
+  /** Written to the child's stdin (e.g. the sentinel value for `secrets set --value-stdin`). */
+  readonly stdinInput?: string;
 }
 
 export interface CliSmokeCommandResult {
@@ -84,11 +86,15 @@ export async function runCliSmokeCommand(
   ];
 
   try {
-    const { stderr, stdout } = await execFileAsync(process.execPath, [cliEntry, ...args], {
+    const child = execFileAsync(process.execPath, [cliEntry, ...args], {
       cwd: input.cwd ?? input.configDir,
       env: buildCliChildEnv(input.configHomeDir, input.bearer),
       maxBuffer: 10 * 1024 * 1024,
     });
+    if (input.stdinInput !== undefined) {
+      child.child.stdin?.end(input.stdinInput);
+    }
+    const { stderr, stdout } = await child;
     assertCliOutputSafe({ label: input.label, redactor: input.redactor, stderr, stdout });
     return { stderr, stdout };
   } catch (error) {
@@ -194,8 +200,8 @@ export function buildCliFirstValueRunArgs(verifyScript: string): readonly string
   ];
 }
 
-export function buildCliSecretsSetGenerateArgs(): readonly string[] {
-  return ["secrets", "set", "--variable-key", PROOF_VARIABLE_KEY, "--generate"];
+export function buildCliSecretsSetValueStdinArgs(): readonly string[] {
+  return ["secrets", "set", "--variable-key", PROOF_VARIABLE_KEY, "--value-stdin"];
 }
 
 function buildCliChildEnv(configHomeDir: string, bearer: string): NodeJS.ProcessEnv {
