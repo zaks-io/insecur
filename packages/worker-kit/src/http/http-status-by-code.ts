@@ -98,6 +98,8 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [RUNTIME_POLICY_ERROR_CODES.displayNameInUse, 409],
   [RUNTIME_POLICY_ERROR_CODES.invalidBindings, 400],
   [RUNTIME_POLICY_ERROR_CODES.patternBindingRejected, 400],
+  [RUNTIME_POLICY_ERROR_CODES.secretBindingNotFound, 404],
+  [RUNTIME_POLICY_ERROR_CODES.secretBindingEnvironmentMismatch, 400],
   [RUNTIME_POLICY_ERROR_CODES.versionImmutable, 409],
   [RUNTIME_POLICY_ERROR_CODES.protectedUseBlocked, 403],
   [RUNTIME_POLICY_ERROR_CODES.disabled, 403],

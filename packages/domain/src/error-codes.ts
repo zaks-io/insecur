@@ -69,6 +69,8 @@ export const RUNTIME_POLICY_ERROR_CODES = {
   displayNameInUse: "runtime_policy.display_name_in_use",
   invalidBindings: "runtime_policy.invalid_bindings",
   patternBindingRejected: "runtime_policy.pattern_binding_rejected",
+  secretBindingNotFound: "runtime_policy.secret_binding_not_found",
+  secretBindingEnvironmentMismatch: "runtime_policy.secret_binding_environment_mismatch",
   versionImmutable: "runtime_policy.version_immutable",
   protectedUseBlocked: "runtime_policy.protected_use_blocked",
   disabled: "runtime_policy.disabled",

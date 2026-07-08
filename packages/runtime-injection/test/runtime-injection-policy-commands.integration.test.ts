@@ -5,6 +5,7 @@ import {
   parseDisplayName,
   projectId,
   requestId,
+  RUNTIME_POLICY_ERROR_CODES,
   runtimePolicyId,
   userId,
   type DisplayName,
@@ -42,7 +43,15 @@ const REQ = requestId.brand("req_00000000000000000000000001");
 
 const POLICY_ID = "rp_00000000000000000000000010";
 const POLICY_ID_TWO = "rp_00000000000000000000000011";
-const PROTECTED_ENV_ID = "env_00000000000000000000000088";
+const POLICY_ID_REJECT_NOT_FOUND = "rp_00000000000000000000000012";
+const POLICY_ID_REJECT_CROSS_ENV = "rp_00000000000000000000000013";
+// Dedicated fixture ids for this suite only, do not reuse ids claimed by other packages'
+// integration suites (e.g. tenant-store's environment-lifecycle suite owns env_...088 and
+// unconditionally deletes it, which previously raced this suite's secret rows via FK violation).
+const PROTECTED_ENV_ID = "env_00000000000000000000000437";
+const PROTECTED_SECRET_ID = "sec_00000000000000000000000437";
+const PROTECTED_SECRET_VERSION_ID = "sv_00000000000000000000000437";
+const NONEXISTENT_SECRET_ID = "sec_00000000000000000000000099";
 
 function displayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
@@ -53,32 +62,102 @@ function displayName(raw: string): DisplayName {
 }
 
 async function ensureProtectedEnvironment(): Promise<void> {
-  await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+  await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db, sql }) => {
     const store = new TenantEnvironmentLifecycleStore(db);
     const protectedEnvId = environmentId.brand(PROTECTED_ENV_ID);
     const existing = await store.getById(ORG_A, protectedEnvId);
-    if (existing !== null) {
-      return;
+    if (existing === null) {
+      await store.create({
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        environmentId: protectedEnvId,
+        displayName: displayName("protected-preview"),
+        lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.preview,
+      });
     }
-    await store.create({
-      organizationId: ORG_A,
-      projectId: PROJECT_A,
-      environmentId: protectedEnvId,
-      displayName: displayName("protected-preview"),
-      lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.preview,
-    });
+
+    await sql`
+      INSERT INTO secrets (
+        id,
+        org_id,
+        project_id,
+        environment_id,
+        variable_key,
+        current_version_id
+      )
+      VALUES (
+        ${PROTECTED_SECRET_ID},
+        ${TEST_ORG_A_ID},
+        ${TEST_PROJECT_A_ID},
+        ${PROTECTED_ENV_ID},
+        ${"PROTECTED_SYNTHETIC_KEY"},
+        NULL
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await sql`
+      INSERT INTO secret_versions (
+        id,
+        org_id,
+        secret_id,
+        version_number,
+        organization_data_key_version,
+        project_data_key_version,
+        ciphertext_storage_ref,
+        lifecycle_state,
+        value_byte_length,
+        encoding_class,
+        is_empty,
+        has_leading_or_trailing_whitespace,
+        looks_like_placeholder,
+        secret_shape_match_verdict
+      )
+      VALUES (
+        ${PROTECTED_SECRET_VERSION_ID},
+        ${TEST_ORG_A_ID},
+        ${PROTECTED_SECRET_ID},
+        ${1},
+        ${1},
+        ${1},
+        ${"synthetic-ciphertext-ref"},
+        ${"live"},
+        ${0},
+        ${"utf-8"},
+        ${true},
+        ${false},
+        ${false},
+        ${"no_shape_rule"}
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await sql`
+      UPDATE secrets
+      SET current_version_id = ${PROTECTED_SECRET_VERSION_ID},
+          live_version_number = ${1}
+      WHERE id = ${PROTECTED_SECRET_ID}
+    `;
   });
 }
 
 async function cleanupProtectedEnvironment(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+    // Null the secrets -> secret_versions FK (current_version_id) before deleting the
+    // version row it points at, or the delete violates secrets_org_id_id_current_version_id_fkey.
+    await sql`UPDATE secrets SET current_version_id = NULL WHERE id = ${PROTECTED_SECRET_ID}`;
+    await sql`DELETE FROM secret_versions WHERE secret_id = ${PROTECTED_SECRET_ID}`;
+    await sql`DELETE FROM secrets WHERE id = ${PROTECTED_SECRET_ID}`;
     await sql`DELETE FROM environments WHERE id = ${PROTECTED_ENV_ID}`;
   });
 }
 
 async function cleanupPolicies(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
-    for (const policyId of [POLICY_ID, POLICY_ID_TWO]) {
+    for (const policyId of [
+      POLICY_ID,
+      POLICY_ID_TWO,
+      POLICY_ID_REJECT_NOT_FOUND,
+      POLICY_ID_REJECT_CROSS_ENV,
+    ]) {
       await sql`UPDATE runtime_injection_policies SET active_version_id = NULL WHERE id = ${policyId}`;
       await sql`DELETE FROM runtime_injection_policy_versions WHERE policy_id = ${policyId}`;
       await sql`DELETE FROM runtime_injection_policies WHERE id = ${policyId}`;
@@ -162,7 +241,7 @@ describeIntegration("runtime injection policy commands (INS-437)", () => {
         policyId,
         displayName: displayName("preview-deploy"),
         command: "npm run deploy",
-        secretIds: [TEST_SECRET_A_ID],
+        secretIds: [PROTECTED_SECRET_ID],
         requestId: REQ,
       });
       expect.fail("expected HighAssuranceHandoffError");
@@ -191,5 +270,41 @@ describeIntegration("runtime injection policy commands (INS-437)", () => {
         policyId,
       }),
     ).rejects.toBeInstanceOf(RuntimeInjectionPolicyError);
+  });
+
+  it("rejects create when a bound secret id does not exist in policy scope", async () => {
+    await expect(
+      createRuntimeInjectionPolicyCommand({
+        actor: OWNER_ACTOR,
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        environmentId: ENV_A,
+        policyId: runtimePolicyId.brand(POLICY_ID_REJECT_NOT_FOUND),
+        displayName: displayName("missing-secret"),
+        command: "npm run deploy",
+        secretIds: [NONEXISTENT_SECRET_ID],
+        requestId: REQ,
+      }),
+    ).rejects.toMatchObject({
+      code: RUNTIME_POLICY_ERROR_CODES.secretBindingNotFound,
+    });
+  });
+
+  it("rejects create when a bound secret id belongs to a different environment", async () => {
+    await expect(
+      createRuntimeInjectionPolicyCommand({
+        actor: OWNER_ACTOR,
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        environmentId: ENV_A,
+        policyId: runtimePolicyId.brand(POLICY_ID_REJECT_CROSS_ENV),
+        displayName: displayName("cross-env-secret"),
+        command: "npm run deploy",
+        secretIds: [PROTECTED_SECRET_ID],
+        requestId: REQ,
+      }),
+    ).rejects.toMatchObject({
+      code: RUNTIME_POLICY_ERROR_CODES.secretBindingEnvironmentMismatch,
+    });
   });
 });
