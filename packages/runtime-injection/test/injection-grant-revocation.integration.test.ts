@@ -18,7 +18,11 @@ import {
   createAuthorizedRuntimeInjectionPolicy,
   publishAuthorizedRuntimeInjectionPolicyVersion,
 } from "../src/runtime-injection-policies.js";
-import { consumeInjectionGrant, issueInjectionGrant } from "../src/injection-grants.js";
+import {
+  consumeInjectionGrant,
+  consumeInjectionGrantAll,
+  issueInjectionGrant,
+} from "../src/injection-grants.js";
 import {
   revokeInjectionGrantsForCompromiseVersion,
   revokeInjectionGrantsForTenantSuspension,
@@ -312,13 +316,13 @@ describeInjectionGrantIntegration("Runtime Injection Grant revocation (ADR-0074)
     const marker = await loadGrantRevocation(org, issued.grantId);
     expect(marker?.revoked_at).toBeNull();
 
-    const consumed = await consumeInjectionGrant({
+    const consumed = await consumeInjectionGrantAll({
       keyring: createTestKeyring(),
       organizationId: org,
       grantId: issued.grantId,
-      secretId: written.secretId,
       actor,
     });
-    expect(consumed.secretVersionId).toBe(written.secretVersionId);
+    expect(consumed.entries).toHaveLength(1);
+    expect(consumed.entries[0]?.secretVersionId).toBe(written.secretVersionId);
   });
 });
