@@ -45,6 +45,24 @@ describe("toGitHubActionsOidcRow", () => {
       }),
     ).toBeNull();
   });
+
+  it("accepts project-scoped OIDC methods without an environment binding", () => {
+    expect(
+      toGitHubActionsOidcRow({
+        id: "oidc_00000000000000000000000002",
+        machineIdentityId: MACHINE,
+        environmentId: null,
+        githubRepository: "zaks-io/insecur",
+        githubEnvironment: null,
+        status: "disabled",
+        createdAt: new Date("2026-06-24T00:00:00.000Z"),
+      }),
+    ).toMatchObject({
+      environmentId: null,
+      githubEnvironment: null,
+      status: "disabled",
+    });
+  });
 });
 
 describe("toEnvironmentDeployKeyRow", () => {

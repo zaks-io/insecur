@@ -123,4 +123,36 @@ describe("parseProjectInjectionGrantsBody", () => {
     expect(parseProjectInjectionGrantsBody({ ok: false })).toBeNull();
     expect(parseProjectInjectionGrantsBody(undefined)).toBeNull();
   });
+
+  it("parses revoked grants with optional lifecycle timestamps", () => {
+    expect(
+      parseProjectInjectionGrantsBody({
+        ok: true,
+        data: {
+          grants: [
+            {
+              ...GRANT,
+              status: "revoked",
+              consumedAt: undefined,
+              revokedAt: "2026-06-24T00:02:00.000Z",
+              revokedReason: "tenant_suspension",
+              issuedByActor: undefined,
+              consumedByActor: undefined,
+            },
+          ],
+        },
+      }),
+    ).toEqual([
+      {
+        grantId: GRANT.grantId,
+        environmentId: GRANT.environmentId,
+        variableKeys: GRANT.variableKeys,
+        status: "revoked",
+        createdAt: GRANT.createdAt,
+        expiresAt: GRANT.expiresAt,
+        revokedAt: "2026-06-24T00:02:00.000Z",
+        revokedReason: "tenant_suspension",
+      },
+    ]);
+  });
 });

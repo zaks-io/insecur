@@ -238,4 +238,44 @@ describe("listProjectInjectionGrantsOperation", () => {
     ]);
     expect(JSON.stringify(result)).not.toMatch(/secret|hash|token|credential|password/i);
   });
+
+  it("serializes revoked grant metadata without token material", async () => {
+    listProjectInjectionGrantRows.mockResolvedValueOnce([
+      {
+        grantId: GRANT,
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        variableKeys: [VARIABLE_KEY],
+        status: "revoked" as const,
+        createdAt: new Date("2026-06-24T00:00:00.000Z"),
+        expiresAt: new Date("2026-06-24T00:05:00.000Z"),
+        consumedAt: null,
+        revokedAt: new Date("2026-06-24T00:02:00.000Z"),
+        revokedReason: "compromise_version_invalidation" as const,
+      },
+    ] as Awaited<ReturnType<typeof listProjectInjectionGrantRows>>);
+
+    const result = await listProjectInjectionGrantsOperation({
+      input: {
+        organizationId: ORG,
+        projectId: PROJECT,
+        requestId: REQ,
+        actorToken: "token",
+      },
+      auditActor: USER_ACTOR,
+      accessActor: USER_ACTOR,
+    });
+
+    expect(result.grants[0]).toEqual({
+      grantId: GRANT,
+      environmentId: ENV,
+      variableKeys: [VARIABLE_KEY],
+      status: "revoked",
+      createdAt: "2026-06-24T00:00:00.000Z",
+      expiresAt: "2026-06-24T00:05:00.000Z",
+      revokedAt: "2026-06-24T00:02:00.000Z",
+      revokedReason: "compromise_version_invalidation",
+    });
+  });
 });
