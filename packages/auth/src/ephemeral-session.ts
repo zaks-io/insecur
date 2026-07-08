@@ -4,6 +4,8 @@ import { actorFromClaims, readActorClaims, type ActorClaims } from "./token-acto
 import type { UserActor } from "./user-actor.js";
 
 const EPHEMERAL_TYP = "insecur_cli_session_v1";
+const AGENT_EPHEMERAL_TYP = "insecur_cli_agent_session_v1";
+const CLI_SESSION_TYPS = new Set([EPHEMERAL_TYP, AGENT_EPHEMERAL_TYP]);
 
 export interface MintEphemeralSessionInput {
   readonly actor: UserActor;
@@ -48,7 +50,7 @@ export async function verifyEphemeralSessionCredential(
     return { ok: false, reason: "invalid" };
   }
   const claims = readActorClaims(decoded);
-  if (claims?.typ !== EPHEMERAL_TYP) {
+  if (claims?.typ === undefined || !CLI_SESSION_TYPS.has(claims.typ)) {
     return { ok: false, reason: "invalid" };
   }
   return actorFromClaims(claims);

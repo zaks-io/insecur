@@ -49,6 +49,37 @@ export {
 } from "./github-app-port.js";
 export { assertGitHubAppConnection } from "./assert-github-app-connection.js";
 export {
+  createAppConnectionCommand,
+  type CreateAppConnectionCommandInput,
+} from "./create-app-connection-command.js";
+export {
+  disconnectAppConnectionCommand,
+  type DisconnectAppConnectionCommandInput,
+} from "./disconnect-app-connection-command.js";
+export {
+  gateAppConnectionChange,
+  type GateAppConnectionChangeInput,
+} from "./gate-app-connection-change.js";
+export {
+  getAppConnectionStatusCommand,
+  type AppConnectionStatusResult,
+} from "./get-app-connection-status-command.js";
+export { listAppConnectionsCommand } from "./list-app-connections-command.js";
+export { orgScopedConnectionProjectId } from "./org-scoped-connection-project-id.js";
+export {
+  reauthAppConnectionCommand,
+  type ReauthAppConnectionCommandInput,
+} from "./reauth-app-connection-command.js";
+export {
+  rotateAppConnectionCredentialCommand,
+  type RotateAppConnectionCredentialCommandInput,
+} from "./rotate-app-connection-credential-command.js";
+export {
+  runAppConnectionChangeGate,
+  runAppConnectionCredentialChangeGate,
+  requireUserActorForConnectionCommand,
+} from "./app-connection-change-gate.js";
+export {
   createCloudflareScopedTokenConnection,
   type CreateCloudflareScopedTokenConnectionInput,
   type MetadataSafeCloudflareConnectionResult,

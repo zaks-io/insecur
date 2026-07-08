@@ -1,5 +1,13 @@
 import { listAuditEvents } from "./http-client-audit-events.js";
 import { exportTenantAudit } from "./http-client-audit-export.js";
+import {
+  createAppConnection,
+  disconnectAppConnection,
+  getAppConnectionStatus,
+  listAppConnections,
+  reauthAppConnection,
+  rotateAppConnectionCredential,
+} from "./http-client-connections.js";
 import { createCliAuthorizationUrl, exchangeCliPkceSession } from "./http-client-auth.js";
 import { revokeCliSession } from "./http-client-logout.js";
 import {
@@ -26,6 +34,7 @@ import {
 import { listEnvironmentSecrets, listSecretVersions } from "./http-client-secrets-read.js";
 import { writeSecretByVariableKey } from "./http-client-secrets-write.js";
 import { sessionWhoami } from "./http-client-whoami.js";
+import { deriveAgentSession, registerAgentSession } from "./http-client-agent-session.js";
 import type { ApiClient } from "./types.js";
 
 export function createHttpApiClientForHost(host: string): ApiClient {
@@ -55,6 +64,14 @@ export function createHttpApiClientForHost(host: string): ApiClient {
     createRuntimeInjectionPolicy: (input) => createRuntimeInjectionPolicy(base, input),
     getRuntimeInjectionPolicy: (input) => getRuntimeInjectionPolicy(base, input),
     disableRuntimeInjectionPolicy: (input) => disableRuntimeInjectionPolicy(base, input),
+    listAppConnections: (input) => listAppConnections(base, input),
+    getAppConnectionStatus: (input) => getAppConnectionStatus(base, input),
+    createAppConnection: (input) => createAppConnection(base, input),
+    rotateAppConnectionCredential: (input) => rotateAppConnectionCredential(base, input),
+    reauthAppConnection: (input) => reauthAppConnection(base, input),
+    disconnectAppConnection: (input) => disconnectAppConnection(base, input),
     sessionWhoami: (input) => sessionWhoami(base, input),
+    deriveAgentSession: (input) => deriveAgentSession(base, input),
+    registerAgentSession: (input) => registerAgentSession(base, input),
   };
 }

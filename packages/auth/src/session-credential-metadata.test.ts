@@ -70,6 +70,7 @@ describe("readSessionCredentialMetadata", () => {
         iat: issuedAt,
         typ: "insecur_cli_agent_session_v1",
         asid: derivedId,
+        hrn: "agent.harness.claude_code",
       },
       signingSecret,
     );
@@ -78,5 +79,6 @@ describe("readSessionCredentialMetadata", () => {
 
     expect(metadata.agentMarked).toBe(true);
     expect(metadata.derivedAgentSessionId).toBe(derivedId);
+    expect(metadata.harnessName).toBe("agent.harness.claude_code");
   });
 });
