@@ -1,11 +1,11 @@
 import { Badge } from "@insecur/ui";
-import { formatConsoleAuditActorLabel } from "../console/audit-actor-label.js";
+import { auditEventToPrincipalChainActor } from "../console/audit-actor-label.js";
 import type { ConsoleAuditEvent } from "../console/audit-events.js";
 import { shortDate } from "../console/projects.js";
+import { ActorChain } from "./actor-chain.js";
 import { CliInvitation } from "./cli-invitation.js";
 
 function AuditEventRow({ event }: { event: ConsoleAuditEvent }) {
-  const actorLabel = formatConsoleAuditActorLabel(event);
   const resourceLabel =
     event.resource === null ? null : `${event.resource.type} ${event.resource.id}`;
 
@@ -17,7 +17,9 @@ function AuditEventRow({ event }: { event: ConsoleAuditEvent }) {
           {shortDate(event.createdAt)}
         </span>
       </div>
-      <p className="mt-2 truncate font-mono text-xs text-muted-foreground">{actorLabel}</p>
+      <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+        <ActorChain actor={auditEventToPrincipalChainActor(event)} />
+      </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Badge variant={event.outcome === "success" ? "solid" : "outline"}>{event.outcome}</Badge>
         {resourceLabel !== null ? (

@@ -9,9 +9,18 @@ export {
   RESTORE_DRILL_RTO_TARGET_SECONDS,
 } from "./constants.js";
 export {
+  BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY,
+  BACKUP_LATEST_EXPORT_ARTIFACT_KEY,
+} from "./artifact-refs.js";
+export {
   collectMissingBackupHeaderFields,
   validateBackupEncryptionConfig,
 } from "./backup-encryption-config.js";
+export {
+  MemoryBackupExportStorage,
+  writeBackupExportArtifacts,
+  type BackupExportStorage,
+} from "./backup-export-storage.js";
 export {
   openBackupArtifact,
   sealBackupArtifact,
@@ -19,6 +28,32 @@ export {
   type OpenedBackupArtifact,
   type SealBackupArtifactInput,
 } from "./backup-envelope.js";
+export { buildBackupExportIdempotencyKey } from "./build-backup-idempotency-key.js";
+export {
+  buildInstanceScopeJsonlLines,
+  buildOrganizationScopeJsonlLines,
+  concatJsonlLines,
+} from "./build-backup-jsonl-payload.js";
+export {
+  BACKUP_INSTANCE_EXPORT_TABLES,
+  BACKUP_ORGANIZATION_EXPORT_TABLES,
+  assertBackupExportTableName,
+  type BackupExportTable,
+} from "./export-tables.js";
+export { enumerateOrganizationIds } from "./enumerate-organization-ids.js";
+export { parseBackupJsonlPayload } from "./parse-backup-jsonl-payload.js";
+export { readExportTableRows } from "./read-export-table-rows.js";
+export { resolveExportInstanceId } from "./resolve-export-instance-id.js";
+export {
+  runBackupExport,
+  type RunBackupExportInput,
+  type RunBackupExportResult,
+} from "./run-backup-export.js";
+export {
+  encodeBackupJsonlLine,
+  serializeBackupRow,
+  type BackupExportRow,
+} from "./serialize-backup-row.js";
 export {
   buildRecoveryCanaryExportRow,
   findRecoveryCanaryRow,

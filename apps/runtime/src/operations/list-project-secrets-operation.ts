@@ -22,6 +22,8 @@ import type {
   SecretMatrixRowRead,
 } from "@insecur/worker-kit";
 
+import { toPrincipalChainActorRead } from "./principal-chain-actor-read.js";
+
 export interface ListProjectSecretsOperationInput {
   readonly input: ListProjectSecretsRpcInput;
   readonly auditActor: AuditActorRef;
@@ -57,23 +59,7 @@ function toEnvironmentMetadataRead(row: {
 function toLastSetActorRead(
   actor: NonNullable<SecretMatrixSecretRow["lastSetActor"]>,
 ): SecretMatrixLastSetActorRead | undefined {
-  switch (actor.actorType) {
-    case "machine":
-      if (!actor.machineIdentityId) {
-        return undefined;
-      }
-      return {
-        actorType: "machine",
-        machineIdentityId: actor.machineIdentityId,
-      };
-    case "user":
-      return {
-        actorType: "user",
-        ...(actor.userId !== null ? { userId: actor.userId } : {}),
-      };
-    case "ci_exchange":
-      return { actorType: "ci_exchange" };
-  }
+  return toPrincipalChainActorRead(actor);
 }
 
 function toPresentCell(row: SecretMatrixSecretRow): SecretMatrixCellRead {

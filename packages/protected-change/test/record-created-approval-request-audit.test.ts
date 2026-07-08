@@ -20,12 +20,12 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const USER = userId.brand("usr_00000000000000000000000001");
 const REQ = requestId.brand("req_00000000000000000000000001");
-const APPROVAL = approvalRequestId.brand("req_00000000000000000000000002");
+const APPROVAL = approvalRequestId.brand("apr_00000000000000000000000002");
 
 describe("finalizeCreatedApprovalRequest", () => {
   it("records a metadata-only approval audit event", async () => {
     await finalizeCreatedApprovalRequest({
-      actor: { type: "user", userId: USER },
+      auditActor: { type: "user", userId: USER },
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: ENV,

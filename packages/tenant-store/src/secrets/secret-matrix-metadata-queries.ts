@@ -1,14 +1,11 @@
 import { secretId, type SecretId } from "@insecur/domain";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { auditEvents, secretVersions, secrets } from "../db/schema/tenant-secrets.js";
+import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { loadSecretsWithCurrentVersionJoin } from "./secret-current-version-join.js";
 import { SECRET_VERSION_LIFECYCLE_STATES } from "./lifecycle-states.js";
-import {
-  shouldSkipMalformedMachineAuditRow,
-  toLastSetActor,
-} from "./secret-matrix-last-set-actor-mapping.js";
+import { loadSecretLastSetAttributionBySecretId } from "./secret-write-audit-attribution-queries.js";
 import {
   toResolvedVersionRow,
   toSecretMatrixRow,
@@ -20,11 +17,6 @@ import type {
   SecretMatrixLastSetActorRow,
   SecretMatrixSecretRow,
 } from "./secret-matrix-metadata-types.js";
-
-const SECRET_WRITE_EVENT_CODES = [
-  "secret.non_protected_write",
-  "secret.protected_draft_write",
-] as const;
 
 async function loadProjectSecretJoinRows(
   db: TenantScopedDb,
@@ -101,52 +93,21 @@ async function loadLastSetMetadata(
   input: ListSecretMatrixByProjectInput,
   secretIds: readonly SecretId[],
 ): Promise<Map<string, { lastSetAt: Date; lastSetActor: SecretMatrixLastSetActorRow }>> {
-  if (secretIds.length === 0) {
-    return new Map();
-  }
-
-  const rows = await db
-    .select({
-      resourceId: auditEvents.resourceId,
-      actorType: auditEvents.actorType,
-      actorUserId: auditEvents.actorUserId,
-      actorMachineIdentityId: auditEvents.actorMachineIdentityId,
-      createdAt: auditEvents.createdAt,
-    })
-    .from(auditEvents)
-    .where(
-      and(
-        eq(auditEvents.orgId, input.organizationId),
-        eq(auditEvents.projectId, input.projectId),
-        eq(auditEvents.resourceType, "secret"),
-        eq(auditEvents.outcome, "success"),
-        inArray(auditEvents.resourceId, secretIds),
-        inArray(auditEvents.eventCode, [...SECRET_WRITE_EVENT_CODES]),
-      ),
-    )
-    .orderBy(desc(auditEvents.createdAt));
-
+  const attributionBySecretId = await loadSecretLastSetAttributionBySecretId(db, {
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    secretIds,
+  });
   const lastSetBySecretId = new Map<
     string,
     { lastSetAt: Date; lastSetActor: SecretMatrixLastSetActorRow }
   >();
-  for (const row of rows) {
-    if (!row.resourceId || lastSetBySecretId.has(row.resourceId)) {
-      continue;
-    }
-    if (shouldSkipMalformedMachineAuditRow(row)) {
-      continue;
-    }
-    const lastSetActor = toLastSetActor(row);
-    if (!lastSetActor) {
-      continue;
-    }
-    lastSetBySecretId.set(row.resourceId, {
-      lastSetAt: row.createdAt,
-      lastSetActor,
+  for (const [secretResourceId, attribution] of attributionBySecretId) {
+    lastSetBySecretId.set(secretResourceId, {
+      lastSetAt: attribution.setAt,
+      lastSetActor: attribution.setActor,
     });
   }
-
   return lastSetBySecretId;
 }
 

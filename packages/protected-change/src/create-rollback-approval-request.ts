@@ -1,4 +1,5 @@
-import type { UserActorRef } from "@insecur/access";
+import type { ActorRef, AuthorizeScopeDeps } from "@insecur/access";
+import type { AuditActorRef } from "@insecur/audit";
 import {
   type ApprovalRequestId,
   type EnvironmentId,
@@ -11,10 +12,12 @@ import {
 } from "@insecur/domain";
 import {
   TenantApprovalRequestStore,
+  type ApprovalRequestRequester,
   type TenantScopedDb,
   withTenantScope,
 } from "@insecur/tenant-store";
 
+import { authorizeApprovalRequestCreate } from "./authorize-approval-request-create.js";
 import { createApprovalRequestWithAudit } from "./create-approval-request-with-audit.js";
 import { hashCommentMetadata } from "./hash-comment-metadata.js";
 
@@ -22,7 +25,7 @@ interface PersistRollbackApprovalRequestInput {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly actorUserId: UserActorRef["userId"];
+  readonly requester: ApprovalRequestRequester;
   readonly approvalRequestId: ApprovalRequestId;
   readonly impactReviewFingerprint: string;
   readonly comment?: string;
@@ -35,15 +38,16 @@ interface PersistRollbackApprovalRequestInput {
 async function persistRollbackApprovalRequestOnDb(
   db: TenantScopedDb,
   input: PersistRollbackApprovalRequestInput,
+  commentMetadata: Awaited<ReturnType<typeof hashCommentMetadata>>,
 ): Promise<void> {
   await new TenantApprovalRequestStore(db).createRollbackApprovalRequest({
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
-    requesterUserId: input.actorUserId,
+    requester: input.requester,
     approvalRequestId: input.approvalRequestId,
     impactReviewFingerprint: input.impactReviewFingerprint,
-    ...hashCommentMetadata(input.comment),
+    ...commentMetadata,
     secretId: input.secretId,
     toVersionNumber: input.toVersionNumber,
     promoteRequested: true,
@@ -55,19 +59,26 @@ async function persistRollbackApprovalRequestOnDb(
   });
 }
 
+// Rollback deliberately does NOT supersede pending promotion Approval Requests: ADR-0017's
+// "only one pending promotion per Protected Environment" rule is scoped to the promotion purpose
+// (and enforced by the promotion-only partial unique index). A rollback is a distinct purpose and
+// coexists with a pending promotion, so it neither supersedes nor is blocked by one.
 async function persistRollbackApprovalRequest(
   input: PersistRollbackApprovalRequestInput,
 ): Promise<void> {
+  const commentMetadata = await hashCommentMetadata(input.comment);
   await withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
-    persistRollbackApprovalRequestOnDb(db, input),
+    persistRollbackApprovalRequestOnDb(db, input, commentMetadata),
   );
 }
 
 export interface CreateRollbackApprovalRequestInput {
-  readonly actor: UserActorRef;
+  readonly actor: ActorRef;
+  readonly auditActor: AuditActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
+  readonly isProtectedEnvironment: boolean;
   readonly secretId: SecretId;
   readonly toVersionNumber: number;
   readonly newSecretVersionId: SecretVersionId;
@@ -75,14 +86,17 @@ export interface CreateRollbackApprovalRequestInput {
   readonly comment?: string;
   readonly operationId?: OperationId;
   readonly requestId: RequestId;
+  readonly deps?: AuthorizeScopeDeps;
 }
 
 export async function createRollbackApprovalRequest(
   input: CreateRollbackApprovalRequestInput,
 ): Promise<ApprovalRequestId> {
+  const requester = await authorizeApprovalRequestCreate(input);
+
   const { approvalRequestId: createdApprovalRequestId } = await createApprovalRequestWithAudit({
     audit: {
-      actor: input.actor,
+      auditActor: input.auditActor,
       organizationId: input.organizationId,
       projectId: input.projectId,
       environmentId: input.environmentId,
@@ -93,7 +107,7 @@ export async function createRollbackApprovalRequest(
         organizationId: input.organizationId,
         projectId: input.projectId,
         environmentId: input.environmentId,
-        actorUserId: input.actor.userId,
+        requester,
         approvalRequestId: createdRequestId,
         impactReviewFingerprint: input.impactReviewFingerprint,
         secretId: input.secretId,

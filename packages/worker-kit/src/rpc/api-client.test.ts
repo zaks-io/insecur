@@ -59,6 +59,9 @@ describe("apiClientFor", () => {
 
     await client.orgProjects("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
     await client.projectEnvironments("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
+    await client.projectSecrets("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
+    await client.projectMachineIdentities("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
+    await client.projectInjectionGrants("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", "prj_01/../evil");
     await client.orgMembers("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
     await client.orgInvitations("org_01/../evil");
     await client.orgAuditEvents("org_01JZ8E2QYQAAAAAAAAAAAAAAAA", {
@@ -89,10 +92,19 @@ describe("apiClientFor", () => {
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects/prj_01%2F..%2Fevil/environments",
     );
     expect(urls[2]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects/prj_01%2F..%2Fevil/secrets",
+    );
+    expect(urls[3]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects/prj_01%2F..%2Fevil/machine-identities",
+    );
+    expect(urls[4]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/projects/prj_01%2F..%2Fevil/injection-grants",
+    );
+    expect(urls[5]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/members",
     );
-    expect(urls[3]).toBe("https://insecur-api.internal/v1/orgs/org_01%2F..%2Fevil/invitations");
-    const auditUrl = new URL(urls[4] as string);
+    expect(urls[6]).toBe("https://insecur-api.internal/v1/orgs/org_01%2F..%2Fevil/invitations");
+    const auditUrl = new URL(urls[7] as string);
     expect(auditUrl.pathname).toBe("/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/audit-events");
     expect(auditUrl.searchParams.get("pageSize")).toBe("10");
     expect(auditUrl.searchParams.get("cursor")).toBe("cursor_test");
@@ -100,13 +112,13 @@ describe("apiClientFor", () => {
     expect(auditUrl.searchParams.get("projectId")).toBe("prj_01/../evil");
     expect(auditUrl.searchParams.get("eventCode")).toBe("secret.non_protected_write");
     expect(auditUrl.searchParams.get("createdAtFrom")).toBe("2026-07-01T00:00:00.000Z");
-    expect(urls[5]).toBe(
+    expect(urls[8]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges",
     );
-    expect(urls[6]).toBe(
+    expect(urls[9]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
     );
-    expect(urls[7]).toBe(
+    expect(urls[10]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA/deny",
     );
   });

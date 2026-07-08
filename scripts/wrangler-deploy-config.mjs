@@ -256,6 +256,9 @@ const RUNTIME_SECRETS_STORE_ENV = {
 };
 
 function materializeRuntimeConfig(scope, context) {
+  scope.vars ??= {};
+  scope.vars.INSTANCE_ID = requireDeployEnv("INSECUR_INSTANCE_ID", context);
+
   const secrets = scope.secrets_store_secrets;
   if (!Array.isArray(secrets) || secrets.length === 0) {
     throw new Error(
@@ -277,6 +280,14 @@ function materializeRuntimeConfig(scope, context) {
 
   const hyperdrive = only(scope.hyperdrive, "hyperdrive", context);
   hyperdrive.id = requireDeployEnv("INSECUR_RUNTIME_HYPERDRIVE_ID", context);
+
+  if (Array.isArray(scope.r2_buckets)) {
+    for (const bucket of scope.r2_buckets) {
+      if (bucket?.binding === "BACKUPS") {
+        bucket.bucket_name = requireDeployEnv("INSECUR_RUNTIME_BACKUPS_BUCKET_NAME", context);
+      }
+    }
+  }
 }
 
 function materializeWebConfig(scope, context) {
