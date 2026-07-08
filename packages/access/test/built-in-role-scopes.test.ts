@@ -69,6 +69,7 @@ describe("expandBuiltInRolePresetToScopes", () => {
         AUTHORIZATION_SCOPES.approvalApprove,
         AUTHORIZATION_SCOPES.approvalReject,
         AUTHORIZATION_SCOPES.organizationRead,
+        AUTHORIZATION_SCOPES.metadataDetailRead,
       ]),
     );
   });
