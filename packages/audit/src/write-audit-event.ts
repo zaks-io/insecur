@@ -6,6 +6,7 @@ import {
 } from "@insecur/tenant-store";
 import { generateAuditEventId } from "./generate-audit-event-id.js";
 import { insertAuditEventRow } from "./insert-audit-event-row.js";
+import { emitAuditNotificationIfConfigured } from "./audit-notification-emitter.js";
 import type { AuditEventInput } from "./audit-types.js";
 import { resolveAuditResultCode, validateAuditEventInput } from "./validate-audit-event.js";
 
@@ -23,12 +24,18 @@ async function insertValidatedAuditEvent(
 
   const resultCode = resolveAuditResultCode(event);
 
+  let inserted = true;
   try {
     await insertAuditEventRow(sql, auditEventId, event, resultCode);
   } catch (error) {
     if (options?.idempotent !== true || !isUniqueConstraintViolation(error)) {
       throw error;
     }
+    inserted = false;
+  }
+
+  if (inserted && event.outcome === "success") {
+    await emitAuditNotificationIfConfigured(event);
   }
 
   return { auditEventId };

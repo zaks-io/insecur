@@ -36,6 +36,9 @@ export {
   type ProviderAppRegistrationId,
   type FirstValueFeedbackId,
   type AgentSessionId,
+  type WebhookSubscriptionId,
+  type WebhookSigningSecretId,
+  type InAppEventNotificationId,
   organizationId,
   projectId,
   environmentId,
@@ -62,6 +65,9 @@ export {
   providerAppRegistrationId,
   firstValueFeedbackId,
   agentSessionId,
+  webhookSubscriptionId,
+  webhookSigningSecretId,
+  inAppEventNotificationId,
 } from "./resource-ids.js";
 export {
   type AttributionTier,
@@ -150,6 +156,8 @@ export {
   type ValidationErrorCode,
   CLI_ERROR_CODES,
   type CliErrorCode,
+  NOTIFICATION_ERROR_CODES,
+  type NotificationErrorCode,
 } from "./error-codes.js";
 export {
   DEFAULT_UNKNOWN_ERROR_CODE,

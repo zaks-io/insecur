@@ -13,6 +13,7 @@ export const USER_SCHEMA_TABLE_MODULE_PATHS = [
   "./tenant-agent-sessions.js",
   "./tenant-integrations.js",
   "./tenant-secrets.js",
+  "./tenant-webhooks.js",
 ] as const;
 
 /**

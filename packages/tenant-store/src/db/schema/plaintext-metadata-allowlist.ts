@@ -7,6 +7,7 @@ import { PLAINTEXT_METADATA_ALLOWLIST_APP_CONNECTIONS } from "./plaintext-metada
 import { PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP } from "./plaintext-metadata-allowlist-instance-bootstrap.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_RUNTIME_INJECTION } from "./plaintext-metadata-allowlist-runtime-injection.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_SECRETS } from "./plaintext-metadata-allowlist-secrets.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS } from "./plaintext-metadata-allowlist-webhooks.js";
 
 export const PLAINTEXT_METADATA_CATEGORIES = [
   "opaque-id",
@@ -254,4 +255,5 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     org_id: { category: "opaque-id" },
   },
   ...PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP,
+  ...PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS,
 } as const satisfies PlaintextMetadataAllowlist;
