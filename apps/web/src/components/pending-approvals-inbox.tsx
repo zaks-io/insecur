@@ -38,5 +38,5 @@ export function PendingApprovalsInbox({
     };
   }, [loadPendingApprovals, orgId]);
 
-  return <ApprovalsInboxContent items={items} />;
+  return <ApprovalsInboxContent orgId={orgId} items={items} />;
 }

@@ -57,3 +57,8 @@ export function parseOrgHighAssuranceChallengesBody(body: unknown): ConsolePendi
 export function approvalInboxPath(organizationId: string): string {
   return `/orgs/${organizationId}/approvals`;
 }
+
+/** Deep-link short form for one Human Approval Surface item (docs/web-console-ux.md §URLs). */
+export function approvalDetailPath(organizationId: string, approvalId: string): string {
+  return `/orgs/${organizationId}/approvals/${approvalId}`;
+}

@@ -1,37 +1,26 @@
 import type { ConsoleAuditEvent } from "./audit-events.js";
+import {
+  formatMachineActorChainLabel,
+  formatUserActorChainLabel,
+  type ConsoleActorChainDetails,
+} from "./actor-chain-label.js";
 
-function detailString(details: ConsoleAuditEvent["details"], key: string): string | undefined {
-  const value = details?.[key];
-  return typeof value === "string" && value !== "" ? value : undefined;
-}
-
-function shortHarnessName(harnessName: string): string {
-  return harnessName.replace(/^agent\.harness\./u, "");
-}
-
-function formatUserActorChain(userId: string, details: ConsoleAuditEvent["details"]): string {
-  const agentSessionId = detailString(details, "agentSessionId");
-  if (agentSessionId !== undefined) {
-    const harnessName = detailString(details, "harnessName");
-    const harness = harnessName === undefined ? "agent" : shortHarnessName(harnessName);
-    return `agent ${agentSessionId} (${harness}) · under ${userId}`;
-  }
-  const agentAttributionTag = detailString(details, "agentAttributionTag");
-  if (agentAttributionTag !== undefined) {
-    return `${userId} · via ${agentAttributionTag} (unverified)`;
-  }
-  return userId;
-}
-
-function formatMachineActorChain(
-  machineIdentityId: string,
+function auditDetailsToActorChainDetails(
   details: ConsoleAuditEvent["details"],
-): string {
-  const githubRunId = detailString(details, "githubRunId");
-  if (githubRunId !== undefined) {
-    return `${githubRunId} · ${machineIdentityId}`;
+): ConsoleActorChainDetails | undefined {
+  if (details === null) {
+    return undefined;
   }
-  return machineIdentityId;
+  return {
+    ...(typeof details.agentSessionId === "string"
+      ? { agentSessionId: details.agentSessionId }
+      : {}),
+    ...(typeof details.harnessName === "string" ? { harnessName: details.harnessName } : {}),
+    ...(typeof details.agentAttributionTag === "string"
+      ? { agentAttributionTag: details.agentAttributionTag }
+      : {}),
+    ...(typeof details.githubRunId === "string" ? { githubRunId: details.githubRunId } : {}),
+  };
 }
 
 /**
@@ -40,11 +29,12 @@ function formatMachineActorChain(
  */
 export function formatConsoleAuditActorLabel(event: ConsoleAuditEvent): string {
   const { actor, details } = event;
+  const chainDetails = auditDetailsToActorChainDetails(details);
   if (actor.actorType === "user") {
-    return formatUserActorChain(actor.userId ?? "user", details);
+    return formatUserActorChainLabel(actor.userId ?? "user", chainDetails);
   }
   if (actor.actorType === "machine") {
-    return formatMachineActorChain(actor.machineIdentityId ?? "machine", details);
+    return formatMachineActorChainLabel(actor.machineIdentityId ?? "machine", chainDetails);
   }
   return "ci_exchange";
 }
