@@ -1,7 +1,6 @@
 import { badgeJsonResponse } from "./badge-json-response.js";
 import type { SiteEnv } from "./env.js";
 import coverageBadge from "./generated/coverage-badge.json" with { type: "json" };
-import auditExportSigningKeys from "./generated/audit-export-signing-keys.json" with { type: "json" };
 import { INSTALL_PS1 } from "./install-ps1.js";
 import {
   INSTALL_PS1_CONTENT_TYPE,
@@ -22,6 +21,39 @@ function tryInstallScriptResponse(pathname: string, method: string): Response | 
   return null;
 }
 
+// Published audit-export signing-keys document constants (ADR-0045). The Public Site is a leaf that
+// may only import @insecur/ui and @insecur/observability (ADR-0078 boundary, pnpm
+// conformance:site-boundary), so it cannot import @insecur/audit here. These values are pinned to
+// the @insecur/audit parser (AUDIT_EXPORT_PUBLISHED_SIGNING_KEYS_SCHEMA_VERSION, algorithm,
+// AUDIT_EXPORT_CLAIM_CEILING); the route test parses the served document with that parser to keep
+// them in lockstep.
+const AUDIT_EXPORT_SIGNING_KEYS_SCHEMA_VERSION = "1";
+const AUDIT_EXPORT_SIGNING_ALGORITHM = "Ed25519";
+const AUDIT_EXPORT_SIGNING_CLAIM_CEILING = "tamper-evident, independently verifiable";
+const AUDIT_EXPORT_SIGNING_CURRENT_VERSION = 1;
+
+/**
+ * Assembles the published audit-export signing-keys document (ADR-0045) at request time. Only the
+ * public key varies per environment; it is injected via the non-secret
+ * `AUDIT_EXPORT_SIGNING_PUBLIC_KEY` var. `custody_evidence_ref` is intentionally null until the
+ * escrow reference is recorded.
+ */
+function auditExportPublishedSigningKeysDocument(env: SiteEnv): unknown {
+  return {
+    schema_version: AUDIT_EXPORT_SIGNING_KEYS_SCHEMA_VERSION,
+    algorithm: AUDIT_EXPORT_SIGNING_ALGORITHM,
+    current_version: AUDIT_EXPORT_SIGNING_CURRENT_VERSION,
+    claim_ceiling: AUDIT_EXPORT_SIGNING_CLAIM_CEILING,
+    keys: [
+      {
+        version: AUDIT_EXPORT_SIGNING_CURRENT_VERSION,
+        public_key_base64url: env.AUDIT_EXPORT_SIGNING_PUBLIC_KEY,
+        custody_evidence_ref: null,
+      },
+    ],
+  };
+}
+
 function tryPublishedMetadataResponse(
   pathname: string,
   method: string,
@@ -32,7 +64,7 @@ function tryPublishedMetadataResponse(
   }
 
   if (pathname === "/.well-known/insecur/audit-export-signing-keys.json") {
-    return badgeJsonResponse(auditExportSigningKeys, method);
+    return badgeJsonResponse(auditExportPublishedSigningKeysDocument(env), method);
   }
 
   if (pathname === "/healthz") {

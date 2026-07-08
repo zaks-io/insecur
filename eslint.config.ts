@@ -15,6 +15,7 @@ import {
 /** ADR-0071 decrypt-import allowlist of record. */
 const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/runtime-injection/src/decrypt-grant-secret.ts",
+  "packages/secret-store/src/check-secret-possession.ts",
   "packages/backup-restore/src/recovery-canary.ts",
   "packages/app-connection/src/decrypt-provider-credential-for-validation.ts",
   "packages/app-connection/src/decrypt-cloudflare-connection-boundary-for-validation.ts",

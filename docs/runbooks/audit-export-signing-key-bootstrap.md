@@ -46,8 +46,9 @@ for **current and historical** versions are published at
 - Escrow: write access to the operator's external password manager vault (1Password).
 - Cloudflare load + bind: Cloudflare account role **Super Administrator** or **Secrets Store
   Deployer/Admin** (ADR-0028).
-- Public-key publication: permission to commit and deploy the Public Site Worker
-  (`apps/site/src/generated/audit-export-signing-keys.json`).
+- Public-key publication: permission to set the per-environment GitHub Environment var
+  (`PRODUCTION_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY` /
+  `PREVIEW_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY`) and deploy the Public Site Worker.
 
 ## preconditions
 
@@ -87,8 +88,9 @@ Preview without producing key material:
 
 - Confirm `apps/runtime/wrangler.jsonc` already declares `AUDIT_EXPORT_SIGNING_KEY_V1` with a
   placeholder `secret_name` (no private key material in git).
-- Confirm `apps/site/src/generated/audit-export-signing-keys.json` exists and uses
-  `claim_ceiling: "tamper-evident, independently verifiable"`.
+- Confirm the Public Site route assembles the published document with
+  `claim_ceiling: "tamper-evident, independently verifiable"` and injects the public key from the
+  per-environment `AUDIT_EXPORT_SIGNING_PUBLIC_KEY` var (`apps/site/src/static-site-routes.ts`).
 - Run `pnpm build` so the Worker dry-run deploy passes before adding live secret material.
 
 ## execute
@@ -127,8 +129,16 @@ const { webcrypto } = require('crypto');
 4. **Load into Cloudflare Secrets Store.** Create the secret for the target Instance environment
    and paste the same JSON value. After creation it is write-only.
 
-5. **Publish the public key.** Update
-   `apps/site/src/generated/audit-export-signing-keys.json`:
+5. **Publish the public key.** Set the per-environment GitHub Environment var to the raw base64url
+   public key (never the private key):
+
+   - Production: `PRODUCTION_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY`
+   - Preview: `PREVIEW_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY`
+
+   The deploy workflow injects it into the Public Site Worker's `AUDIT_EXPORT_SIGNING_PUBLIC_KEY`
+   var (`scripts/wrangler-deploy-config.mjs`). The Site route
+   (`apps/site/src/static-site-routes.ts`) assembles the published document at request time from the
+   constant schema fields plus that injected key, serving:
 
 ```json
 {
@@ -140,14 +150,15 @@ const { webcrypto } = require('crypto');
     {
       "version": 1,
       "public_key_base64url": "<raw-ed25519-public-key-base64url>",
-      "custody_evidence_ref": "escrow-record://<vault-item-reference>",
-      "active_since": "<iso8601-timestamp>"
+      "custody_evidence_ref": null
     }
   ]
 }
 ```
 
-Commit and deploy the Public Site Worker. Only public keys and metadata belong in this file.
+Deploy the Public Site Worker so the new var takes effect. Only the non-secret public key belongs
+in the GitHub Environment var. `custody_evidence_ref` is currently `null` until an escrow
+reference is recorded (follow-up).
 
 6. **Clear the terminal** so the private key is not left in scrollback.
 
@@ -159,9 +170,11 @@ Commit and deploy the Public Site Worker. Only public keys and metadata belong i
 3. **Replace** the existing `AUDIT_EXPORT_SIGNING_KEY_V1` Secrets Store value with the new JSON
    (new private/public key fields **and** `keyVersion: n+1`). Do not add a new binding — the
    binding name stays `_V1`; the internal `keyVersion` is what advances.
-4. Re-publish `audit-export-signing-keys.json`: set `current_version` to `n+1`, add the new public
-   key with `active_since`, and mark the retired key with `retired_at`. **Keep retired public keys**
-   in the document so exports signed under the old version remain verifiable.
+4. Re-publish the document for `n+1`. The current V1 Site route publishes a single `current_version:
+1` key from the injected var. Multi-version rotation (adding the new public key with
+   `active_since`, keeping the retired key with `retired_at` so old exports stay verifiable) requires
+   extending the Site route to assemble the historical key list; the published-keys parser already
+   supports it. **Keep retired public keys** in the published document.
 5. Deploy Runtime (signing) then Site (publication). Subsequent manifests record
    `signing_key_version: n+1`. Omitting or failing to bump `keyVersion` in the Secrets Store JSON
    causes Runtime to fail closed at export time rather than silently reusing version `1`.
@@ -190,7 +203,8 @@ Operational evidence is metadata-only:
 
 - 1Password item creation timestamp + access log entry (escrow evidence).
 - Cloudflare Secrets Store secret creation event in the account audit log.
-- Git commit updating `audit-export-signing-keys.json` (public keys only in the diff).
+- GitHub Environment var change for `*_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY` (public key only) plus
+  the Public Site deploy run that injected it.
 - A successful `insecur audit verify` run referencing the published document and manifest
   `signing_key_version`.
 

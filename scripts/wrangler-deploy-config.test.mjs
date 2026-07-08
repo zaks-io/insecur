@@ -33,6 +33,7 @@ const DEPLOY_ENV = {
   INSECUR_RUNTIME_HYPERDRIVE_ID: "hyperdrive-live",
   INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME: "root-key-secret-live",
   INSECUR_RUNTIME_ROOT_KEY_STORE_ID: "root-key-store-live",
+  INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY: "audit-signing-public-key-live",
   INSECUR_TURNSTILE_SITE_KEY: "turnstile-live",
   INSECUR_WORKOS_CLIENT_ID: "workos-live",
   INSECUR_WORKOS_AUTHKIT_ORIGIN: "https://tenant-live.authkit.app",
@@ -113,6 +114,26 @@ test("materializes Site preview deploy identity without dropping observability v
   assert.equal(config.env.preview.vars.SENTRY_ENVIRONMENT, "preview");
   assert.equal(config.env.preview.vars.SENTRY_RELEASE, "abc123");
   assert.equal(config.env.preview.vars.SENTRY_SERVICE, "insecur-site-preview");
+  assert.equal(
+    config.env.preview.vars.AUDIT_EXPORT_SIGNING_PUBLIC_KEY,
+    "audit-signing-public-key-live",
+  );
+});
+
+test("materializes the Site production audit-export signing public key", () => {
+  const config = materializeDeployWranglerConfig(siteConfig(), { env: DEPLOY_ENV });
+
+  assert.equal(config.vars.AUDIT_EXPORT_SIGNING_PUBLIC_KEY, "audit-signing-public-key-live");
+});
+
+test("fails Site deploys without the audit-export signing public key", () => {
+  const env = { ...DEPLOY_ENV };
+  delete env.INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY;
+
+  assert.throws(
+    () => materializeDeployWranglerConfig(siteConfig(), { env }),
+    /INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY is required for insecur-site production deploy config/,
+  );
 });
 
 test("uses an explicit Sentry release when provided", () => {

@@ -9,6 +9,12 @@ export {
 } from "./assert-secret-write-coordinate.js";
 export { SECRET_VALUE_SIZE_LIMIT_BYTES } from "./constants.js";
 export {
+  type CheckSecretPossessionInput,
+  type CheckSecretPossessionResult,
+  checkSecretPossession,
+} from "./check-secret-possession.js";
+export { type PossessionVerdict } from "./record-possession-check-audit.js";
+export {
   type RecordSecretWriteAuditInput,
   recordSecretWriteAudit,
 } from "./record-secret-write-audit.js";

@@ -261,6 +261,100 @@ describeIntegration("First Value loop (real DB, real crypto, HTTP routes)", () =
     expect(JSON.stringify(auditRows)).not.toContain(plaintext);
   });
 
+  it("possession-checks the Current Version server-side: match, mismatch, both audited, no candidate leak (INS-403)", async () => {
+    const headers = await authHeaders();
+    const variableKey = uniqueVariableKey("FV_E2E_POSSESSION");
+    const plaintext = `fv-e2e-possession-${crypto.randomUUID()}`;
+    const wrongCandidate = `fv-e2e-wrong-${crypto.randomUUID()}`;
+
+    // 1. Write the Current Version.
+    const writeResponse = await app.request(
+      `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${ENV_A}/secrets/by-variable-key`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ organizationId: ORG_A, variableKey, value: plaintext }),
+      },
+      env,
+    );
+    expect(writeResponse.status).toBe(200);
+    const secretId = ((await writeResponse.json()) as { data: { secretId: string } }).data.secretId;
+
+    const possessionPath = `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${ENV_A}/secrets/possession-check`;
+
+    // 2. The exact stored value → match.
+    const matchResponse = await app.request(
+      possessionPath,
+      { method: "POST", headers, body: JSON.stringify({ variableKey, value: plaintext }) },
+      env,
+    );
+    expect(matchResponse.status).toBe(200);
+    const matchBody = (await matchResponse.json()) as {
+      ok: boolean;
+      data: { verdict: string; secretId: string };
+    };
+    expect(matchBody.ok).toBe(true);
+    expect(matchBody.data.verdict).toBe("match");
+    expect(matchBody.data.secretId).toBe(secretId);
+    // The candidate value (which equals the stored value here) must not surface in the response.
+    expect(JSON.stringify(matchBody)).not.toContain(plaintext);
+
+    // 3. A stale/different candidate → mismatch. The server compares its stored Current Version, so a
+    // client cannot force a match by supplying the wrong value; the verdict is decided server-side.
+    const mismatchResponse = await app.request(
+      possessionPath,
+      { method: "POST", headers, body: JSON.stringify({ variableKey, value: wrongCandidate }) },
+      env,
+    );
+    expect(mismatchResponse.status).toBe(200);
+    const mismatchBody = (await mismatchResponse.json()) as {
+      ok: boolean;
+      data: { verdict: string };
+    };
+    expect(mismatchBody.ok).toBe(true);
+    expect(mismatchBody.data.verdict).toBe("mismatch");
+    expect(JSON.stringify(mismatchBody)).not.toContain(wrongCandidate);
+    expect(JSON.stringify(mismatchBody)).not.toContain(plaintext);
+
+    // 4. Both checks are audited with the verdict; neither candidate nor stored value appears.
+    const auditRows = await withTenantScope(
+      { kind: "organization", organizationId: ORG_A },
+      async ({ sql }) =>
+        sql<{ event_code: string; details: Record<string, unknown> | null }[]>`
+          SELECT event_code, details
+          FROM audit_events
+          WHERE resource_id = ${secretId} AND event_code = 'secret.possession_checked'
+          ORDER BY created_at
+        `,
+    );
+    const verdicts = auditRows.map((row) => row.details?.verdict);
+    expect(verdicts).toContain("secret.possession_match");
+    expect(verdicts).toContain("secret.possession_mismatch");
+    expect(JSON.stringify(auditRows)).not.toContain(plaintext);
+    expect(JSON.stringify(auditRows)).not.toContain(wrongCandidate);
+  });
+
+  it("possession check collapses a guessed cross-boundary secret to the resource-shaped 404 (INS-403 oracle safety)", async () => {
+    const headers = await authHeaders();
+    // A syntactically valid but nonexistent variable key in an owned environment: the caller is
+    // scope-authorized here, but the Secret Shape does not exist, so the verdict path must not run
+    // and the response collapses to the coordinate-invalid 404 (never a match/mismatch existence bit).
+    const missingKey = uniqueVariableKey("FV_E2E_MISSING");
+    const response = await app.request(
+      `/v1/orgs/${ORG_A}/projects/${PROJECT_A}/environments/${ENV_A}/secrets/possession-check`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ variableKey: missingKey, value: "probe" }),
+      },
+      env,
+    );
+    expect(response.status).toBe(404);
+    const body = (await response.json()) as { ok: boolean; error: { code: string } };
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe("secret.coordinate_invalid");
+  });
+
   it("denies grant replay (one-use) through the consume route", async () => {
     const headers = await authHeaders();
     const variableKey = uniqueVariableKey("FV_E2E_REPLAY");

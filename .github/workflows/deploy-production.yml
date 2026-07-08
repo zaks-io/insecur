@@ -204,6 +204,7 @@ jobs:
           SENTRY_PROJECT: insecur
           SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
           INSECUR_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
+          INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY: ${{ vars.PRODUCTION_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY }}
           INSECUR_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           INSECUR_WORKOS_CLIENT_ID: ${{ vars.WORKOS_CLIENT_ID }}
           INSECUR_WORKOS_AUTHKIT_ORIGIN: ${{ vars.WORKOS_AUTHKIT_ORIGIN }}

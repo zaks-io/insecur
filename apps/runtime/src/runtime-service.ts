@@ -14,6 +14,8 @@ import { resolveAdmissionForEdge, runWithRuntimeConnection } from "@insecur/tena
 import type { RequestId } from "@insecur/domain";
 import type {
   AcceptInvitationRpcInput,
+  CheckSecretPossessionPayload,
+  CheckSecretPossessionRpcInput,
   CompleteBootstrapClaimRpcInput,
   ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,
@@ -50,6 +52,7 @@ import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
 import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
+import { checkSecretPossessionOperation } from "./operations/check-secret-possession-operation.js";
 import {
   captureFirstValueFeedbackRpc,
   queryFirstValueUsageRpc,
@@ -159,6 +162,14 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
     return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
       writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
+    );
+  }
+
+  checkSecretPossession(
+    input: CheckSecretPossessionRpcInput,
+  ): Promise<RuntimeRpcResult<CheckSecretPossessionPayload>> {
+    return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
+      checkSecretPossessionOperation({ env: this.env, input, auditActor, accessActor }),
     );
   }
 
@@ -297,6 +308,18 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 }
 
 Object.assign(RuntimeServiceBase.prototype, RuntimeServiceDelegatedPostAuthRpc);
+
+/**
+ * Type-only re-export of the pre-Sentry-wrap class (INS-512). `Sentry.withSentry` returns its input
+ * type unchanged (see `@sentry/cloudflare`'s `withSentry<..., T>(...args): T`), so the exported
+ * `RuntimeService` is typed as `SentryRuntimeServiceConstructor` — a bare `WorkerEntrypoint`, none of
+ * the RPC methods below. That erasure is why the Sentry cast on `RuntimeService` is otherwise
+ * unchecked: nothing verifies the erased methods still satisfy `RuntimeRpc`. Exporting this type lets
+ * `runtime-service-rpc-conformance.ts` assert against the actual method-bearing class instead of the
+ * widened constructor type. Not a value export: importing it does not pull the class or its
+ * `Object.assign` side effect a second time (`isolatedModules` erases type-only imports).
+ */
+export type { RuntimeServiceBase };
 
 export const RuntimeService = Sentry.withSentry<
   RuntimeEnv,

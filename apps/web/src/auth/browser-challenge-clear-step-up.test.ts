@@ -41,6 +41,8 @@ const sessionLiterals = vi.hoisted(() => ({
 vi.mock("./workos-port.js", async () => {
   const { createFakeWorkOSSessionPort } = await import("@insecur/auth/testing");
   const { fakeSessionEntry } = await import("../../test/support/fake-browser-session.js");
+  // The BFF no longer exchanges the step-up code (INS-517); the API owns the single exchange. This
+  // port only backs the browser session auth used by begin/complete, so it needs no auth-code entry.
   const createDefaultPort = () =>
     createFakeWorkOSSessionPort([
       fakeSessionEntry({
@@ -50,24 +52,6 @@ vi.mock("./workos-port.js", async () => {
         email: "member@example.com",
         authenticationMethod: "Password",
         authFactors: [{ type: "totp" }],
-      }),
-      fakeSessionEntry({
-        sessionData: "sealed-step-up-exchange",
-        sessionId: sessionLiterals.sessionId,
-        userId: sessionLiterals.workosUserId,
-        authorizationCode: pkceLiterals.stepUpCode,
-        codeVerifier: pkceLiterals.codeVerifier,
-        authenticationMethod: "Password",
-        authFactors: [{ type: "totp" }],
-      }),
-      fakeSessionEntry({
-        sessionData: "sealed-no-factor-exchange",
-        sessionId: sessionLiterals.sessionId,
-        userId: sessionLiterals.workosUserId,
-        authorizationCode: "code_no_factor",
-        codeVerifier: "verifier_no_factor",
-        authenticationMethod: "Password",
-        authFactors: [],
       }),
     ]);
   return {
@@ -79,6 +63,19 @@ vi.mock("@tanstack/react-start/server", () => ({
   setResponseHeader: () => undefined,
 }));
 
+const clearApiResponse = vi.hoisted(() => ({
+  current: {
+    ok: true,
+    data: {
+      operationId: "op_placeholder",
+      challengeId: "challenge-001",
+      clearedAt: "2026-07-08T00:00:00.000Z",
+    },
+  } as unknown,
+}));
+
+const clearApiCalls = vi.hoisted(() => ({ bodies: [] as Record<string, unknown>[] }));
+
 vi.mock("@insecur/worker-kit/api-client", async () => {
   const actual = await vi.importActual<typeof import("@insecur/worker-kit/api-client")>(
     "@insecur/worker-kit/api-client",
@@ -86,14 +83,12 @@ vi.mock("@insecur/worker-kit/api-client", async () => {
   return {
     ...actual,
     apiClientFor: vi.fn(() => ({
-      clearOrgHighAssuranceChallenge: vi.fn(async () => ({
-        ok: true,
-        data: {
-          operationId: OPERATION_ID,
-          challengeId: "challenge-001",
-          clearedAt: "2026-07-08T00:00:00.000Z",
+      clearOrgHighAssuranceChallenge: vi.fn(
+        async (_organizationId: string, _operationId: string, body: Record<string, unknown>) => {
+          clearApiCalls.bodies.push(body);
+          return clearApiResponse.current;
         },
-      })),
+      ),
     })),
   };
 });
@@ -150,9 +145,18 @@ describe("beginBrowserChallengeClearStepUp", () => {
 describe("completeBrowserChallengeClearStepUp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearApiCalls.bodies = [];
+    clearApiResponse.current = {
+      ok: true,
+      data: {
+        operationId: OPERATION_ID,
+        challengeId: "challenge-001",
+        clearedAt: "2026-07-08T00:00:00.000Z",
+      },
+    };
   });
 
-  it("exchanges step-up and clears the bound challenge", async () => {
+  it("forwards the single-use step-up code once to the API and clears the bound challenge", async () => {
     const roundTrip = {
       state: oauthState,
       codeVerifier: pkceLiterals.codeVerifier,
@@ -184,12 +188,23 @@ describe("completeBrowserChallengeClearStepUp", () => {
       expect(completed.value.redirectTo).toContain("approved=1");
       expect(completed.value.redirectTo).toContain(encodeURIComponent(OPERATION_ID));
     }
+    // The BFF must NOT exchange the single-use WorkOS code itself; it hands the code + verifier to
+    // the API for the one authoritative exchange (INS-517). Assert the code reaches the API intact.
+    expect(clearApiCalls.bodies).toHaveLength(1);
+    expect(clearApiCalls.bodies[0]).toMatchObject({
+      stepUpCode: pkceLiterals.stepUpCode,
+      stepUpCodeVerifier: pkceLiterals.codeVerifier,
+    });
   });
 
-  it("rejects step-up without an eligible enrolled factor", async () => {
+  it("surfaces a failed API clear as a step-up clear failure redirect", async () => {
+    clearApiResponse.current = {
+      ok: false,
+      error: { code: "high_assurance.session_assurance_failed" },
+    };
     const roundTrip = {
       state: oauthState,
-      codeVerifier: "verifier_no_factor",
+      codeVerifier: pkceLiterals.codeVerifier,
       returnTo: RETURN_TO,
       workosUserId: sessionLiterals.workosUserId,
       flow: "challenge-clear" as const,
@@ -200,7 +215,7 @@ describe("completeBrowserChallengeClearStepUp", () => {
       },
     };
     const request = new Request(
-      `https://insecur.test/auth/step-up/callback?code=code_no_factor&state=${oauthState}`,
+      `https://insecur.test/auth/step-up/callback?code=${pkceLiterals.stepUpCode}&state=${oauthState}`,
       {
         headers: {
           Cookie: [
@@ -216,7 +231,8 @@ describe("completeBrowserChallengeClearStepUp", () => {
     expect(completed.ok).toBe(false);
     if (!completed.ok) {
       expect(completed.redirectTo).toContain("approve=failed");
-      expect(completed.redirectTo).toContain("approveReason=unenrolled");
+      expect(completed.redirectTo).toContain("approveReason=clear");
+      expect(completed.redirectTo).toContain("approveCode=high_assurance.session_assurance_failed");
     }
   });
 });
