@@ -151,13 +151,22 @@ export interface GetApprovalRequestReviewOperationInput {
 
 export async function getApprovalRequestReviewOperation({
   input,
+  auditActor,
   accessActor,
 }: GetApprovalRequestReviewOperationInput): Promise<GetApprovalRequestReviewRpcPayload> {
   await assertHumanReviewActor(accessActor, input.organizationId);
+  await assertHighAssuranceReviewReadPrelude({
+    accessActor,
+    auditActor,
+    organizationId: input.organizationId,
+    requestId: input.requestId,
+  });
   const approvalRequest = await getApprovalRequestReview({
     actor: accessActor,
+    auditActor,
     organizationId: input.organizationId,
     approvalRequestId: input.approvalRequestId,
+    requestId: input.requestId,
   });
   return { approvalRequest };
 }

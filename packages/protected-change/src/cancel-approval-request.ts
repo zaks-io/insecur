@@ -4,13 +4,10 @@ import { resolveEffectiveAccess } from "@insecur/access";
 import { TenantApprovalRequestStore, withTenantScope } from "@insecur/tenant-store";
 import type { UserActorRef } from "@insecur/access";
 
-import {
-  assertRequesterCanCancel,
-  assertApprovalRequestReviewReadOrMaskNotFound,
-} from "./approval-request-review-access.js";
+import { assertRequesterCanCancel } from "./approval-request-review-access.js";
 import { ApprovalRequestError } from "./approval-request-errors.js";
 import { APPROVAL_ERROR_CODES } from "@insecur/domain";
-import { loadApprovalRequestForDecision } from "./get-approval-request-review.js";
+import { loadApprovalRequestForReviewDecision } from "./get-approval-request-review.js";
 
 export interface CancelApprovalRequestInput {
   readonly actor: UserActorRef;
@@ -24,17 +21,7 @@ export async function cancelApprovalRequest(input: CancelApprovalRequestInput): 
   readonly approvalRequestId: ApprovalRequestId;
   readonly status: "canceled";
 }> {
-  const row = await loadApprovalRequestForDecision({
-    organizationId: input.organizationId,
-    approvalRequestId: input.approvalRequestId,
-  });
-
-  await assertApprovalRequestReviewReadOrMaskNotFound({
-    accessActor: input.actor,
-    organizationId: input.organizationId,
-    projectId: row.projectId,
-    environmentId: row.environmentId,
-  });
+  const row = await loadApprovalRequestForReviewDecision(input);
 
   const access = await resolveEffectiveAccess(input.actor, {
     organizationId: input.organizationId,

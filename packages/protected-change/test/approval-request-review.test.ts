@@ -203,10 +203,16 @@ describe("getApprovalRequestReview", () => {
     await expect(
       getApprovalRequestReview({
         actor: ACTOR,
+        auditActor: AUDIT_ACTOR,
         organizationId: ORG,
         approvalRequestId: REQUEST,
+        requestId: REQ,
       }),
     ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.requestNotFound });
+
+    expect(recordApprovalAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "denied", requestId: REQ }),
+    );
   });
 
   it("returns metadata-only impact evidence for authorized reviewers", async () => {
@@ -223,8 +229,10 @@ describe("getApprovalRequestReview", () => {
     await expect(
       getApprovalRequestReview({
         actor: ACTOR,
+        auditActor: AUDIT_ACTOR,
         organizationId: ORG,
         approvalRequestId: REQUEST,
+        requestId: REQ,
       }),
     ).resolves.toMatchObject({
       approvalRequestId: REQUEST,
@@ -246,8 +254,10 @@ describe("getApprovalRequestReview", () => {
     await expect(
       getApprovalRequestReview({
         actor: ACTOR,
+        auditActor: AUDIT_ACTOR,
         organizationId: ORG,
         approvalRequestId: REQUEST,
+        requestId: REQ,
       }),
     ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.requestNotFound });
   });

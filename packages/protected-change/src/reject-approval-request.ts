@@ -12,12 +12,9 @@ import { TenantApprovalRequestStore, withTenantScope } from "@insecur/tenant-sto
 import { APPROVAL_ERROR_CODES } from "@insecur/domain";
 import type { ActorRef } from "@insecur/access";
 
-import {
-  assertApprovalRequestRejectAccess,
-  assertApprovalRequestReviewReadOrMaskNotFound,
-} from "./approval-request-review-access.js";
+import { assertApprovalRequestRejectAccess } from "./approval-request-review-access.js";
 import { ApprovalRequestError } from "./approval-request-errors.js";
-import { loadApprovalRequestForDecision } from "./get-approval-request-review.js";
+import { loadApprovalRequestForReviewDecision } from "./get-approval-request-review.js";
 
 export interface RejectApprovalRequestInput {
   readonly actor: ActorRef;
@@ -31,17 +28,8 @@ export async function rejectApprovalRequest(input: RejectApprovalRequestInput): 
   readonly approvalRequestId: ApprovalRequestId;
   readonly status: "rejected";
 }> {
-  const row = await loadApprovalRequestForDecision({
-    organizationId: input.organizationId,
-    approvalRequestId: input.approvalRequestId,
-  });
+  const row = await loadApprovalRequestForReviewDecision(input);
 
-  await assertApprovalRequestReviewReadOrMaskNotFound({
-    accessActor: input.actor,
-    organizationId: input.organizationId,
-    projectId: row.projectId,
-    environmentId: row.environmentId,
-  });
   await assertApprovalRequestRejectAccess({
     accessActor: input.actor,
     organizationId: input.organizationId,

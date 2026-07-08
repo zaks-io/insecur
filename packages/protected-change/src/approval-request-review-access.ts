@@ -7,11 +7,50 @@ import {
   type EffectiveAccessResult,
   type UserActorRef,
 } from "@insecur/access";
-import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import type { AuditActorRef } from "@insecur/audit";
+import { recordApprovalAudit } from "@insecur/audit";
+import type {
+  ApprovalRequestId,
+  EnvironmentId,
+  OpaqueResourceId,
+  OrganizationId,
+  ProjectId,
+  RequestId,
+} from "@insecur/domain";
 import { APPROVAL_ERROR_CODES, AUTH_ERROR_CODES } from "@insecur/domain";
 import type { ApprovalRequestDetailRow } from "@insecur/tenant-store";
 
 import { approvalRequestNotFound, ApprovalRequestError } from "./approval-request-errors.js";
+
+export interface ApprovalRequestReviewAuditContext {
+  readonly auditActor: AuditActorRef;
+  readonly approvalRequestId: ApprovalRequestId;
+  readonly requestId: RequestId;
+}
+
+async function recordDeniedApprovalRequestReviewAccess(input: {
+  readonly auditActor: AuditActorRef;
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly approvalRequestId: ApprovalRequestId;
+  readonly requestId: RequestId;
+}): Promise<void> {
+  await recordApprovalAudit({
+    action: "request_created",
+    outcome: "denied",
+    actor: input.auditActor,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    resource: {
+      type: "approval_request",
+      id: input.approvalRequestId as unknown as OpaqueResourceId,
+    },
+    requestId: input.requestId,
+    reasonCode: AUTH_ERROR_CODES.insufficientScope,
+  });
+}
 
 function insufficientScopeError(): ApprovalRequestError {
   return new ApprovalRequestError(
@@ -57,9 +96,20 @@ export async function assertApprovalRequestReviewReadOrMaskNotFound(input: {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
+  readonly audit?: ApprovalRequestReviewAuditContext;
 }): Promise<EffectiveAccessResult> {
   const access = await resolveEnvironmentEffectiveAccess(input);
   if (!hasApprovalReviewReadScope(access)) {
+    if (input.audit !== undefined) {
+      await recordDeniedApprovalRequestReviewAccess({
+        auditActor: input.audit.auditActor,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        approvalRequestId: input.audit.approvalRequestId,
+        requestId: input.audit.requestId,
+      });
+    }
     throw approvalRequestNotFound();
   }
   return access;
@@ -75,6 +125,27 @@ async function resolveEnvironmentEffectiveAccess(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
+  });
+}
+
+export async function assertLoadedApprovalRequestReviewReadOrMaskNotFound(input: {
+  readonly accessActor: ActorRef;
+  readonly row: ApprovalRequestDetailRow;
+  readonly organizationId: OrganizationId;
+  readonly approvalRequestId: ApprovalRequestId;
+  readonly auditActor: AuditActorRef;
+  readonly requestId: RequestId;
+}): Promise<EffectiveAccessResult> {
+  return assertApprovalRequestReviewReadOrMaskNotFound({
+    accessActor: input.accessActor,
+    organizationId: input.organizationId,
+    projectId: input.row.projectId,
+    environmentId: input.row.environmentId,
+    audit: {
+      auditActor: input.auditActor,
+      approvalRequestId: input.approvalRequestId,
+      requestId: input.requestId,
+    },
   });
 }
 

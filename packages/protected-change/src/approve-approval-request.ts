@@ -17,16 +17,13 @@ import {
 import type { ActorRef } from "@insecur/access";
 
 import { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
-import {
-  assertApprovalRequestApproveAccess,
-  assertApprovalRequestReviewReadOrMaskNotFound,
-} from "./approval-request-review-access.js";
+import { assertApprovalRequestApproveAccess } from "./approval-request-review-access.js";
 import { ApprovalRequestError } from "./approval-request-errors.js";
 import {
   loadDraftTargetsForRequest,
   resolveCurrentImpactFingerprint,
 } from "./approval-request-impact-review.js";
-import { loadApprovalRequestForDecision } from "./get-approval-request-review.js";
+import { loadApprovalRequestForReviewDecision } from "./get-approval-request-review.js";
 
 export interface ApproveApprovalRequestInput {
   readonly actor: ActorRef;
@@ -69,7 +66,7 @@ async function publishApprovedChangeSet(input: {
 
 async function assertApproveAuthorization(
   input: ApproveApprovalRequestInput,
-  row: Awaited<ReturnType<typeof loadApprovalRequestForDecision>>,
+  row: Awaited<ReturnType<typeof loadApprovalRequestForReviewDecision>>,
 ): Promise<void> {
   if (input.actor.type !== "user") {
     throw new ApprovalRequestError(
@@ -77,12 +74,6 @@ async function assertApproveAuthorization(
       "Missing required permission.",
     );
   }
-  await assertApprovalRequestReviewReadOrMaskNotFound({
-    accessActor: input.actor,
-    organizationId: input.organizationId,
-    projectId: row.projectId,
-    environmentId: row.environmentId,
-  });
   await assertApprovalRequestApproveAccess({
     accessActor: input.actor,
     organizationId: input.organizationId,
@@ -97,10 +88,7 @@ export async function approveApprovalRequest(input: ApproveApprovalRequestInput)
 }> {
   assertFreshStepUpEvidence(input.sessionAssurance);
 
-  const row = await loadApprovalRequestForDecision({
-    organizationId: input.organizationId,
-    approvalRequestId: input.approvalRequestId,
-  });
+  const row = await loadApprovalRequestForReviewDecision(input);
   await assertApproveAuthorization(input, row);
 
   const draftTargets = await loadDraftTargetsForRequest({
