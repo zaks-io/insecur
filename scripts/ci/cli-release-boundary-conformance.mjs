@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+
+import { execFileForOutput } from "./exec-file-output.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const CLI_RELEASE_ENTRY = path.join(REPO_ROOT, "packages", "cli", "dist", "index.js");
@@ -15,18 +15,13 @@ const CLI_RELEASE_HASHBANG = "#!/usr/bin/env node";
 const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
 const PRIVATE_WORKSPACE_MODULE_PATH =
   "(^|/)(?:(?:packages|apps)/(?!cli(?:/|$))[^/]+/(?:src|dist)/|node_modules/(?:\\.pnpm/)?@insecur(?:/|\\+))";
-const execFileAsync = promisify(execFile);
 
 async function runDependencyCruiser(args) {
-  try {
-    await execFileAsync("pnpm", args, { cwd: REPO_ROOT, maxBuffer: 10 * 1024 * 1024 });
-  } catch (error) {
-    const result = error && typeof error === "object" ? error : {};
-    const stdout = typeof result.stdout === "string" ? result.stdout.trim() : "";
-    const stderr = typeof result.stderr === "string" ? result.stderr.trim() : "";
-    const output = [stdout, stderr].filter(Boolean).join("\n");
-    throw new Error(output || "dependency-cruiser exited with a non-zero status", { cause: error });
-  }
+  await execFileForOutput("pnpm", args, {
+    cwd: REPO_ROOT,
+    failureMessage: "dependency-cruiser exited with a non-zero status",
+    maxBuffer: 10 * 1024 * 1024,
+  });
 }
 
 async function assertReleaseEntryHasNoPrivateImports() {
