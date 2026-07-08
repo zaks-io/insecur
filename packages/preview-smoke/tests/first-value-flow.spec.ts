@@ -15,14 +15,12 @@ import {
   getJson,
   invitationId,
   membershipId,
-  mintProtectedEnvironmentId,
-  mintRunPolicyId,
+  mintSmokeOperationId,
   mintSmokeSentinel,
   postJson,
-  provisionProtectedSmokeEnvironment,
+  provisionSmokeOperationForPoll,
   readJsonResponse,
   redactorFor,
-  requestRunPolicyOperationHandoff,
   requireString,
   runPlaintextSweep,
   test,
@@ -40,7 +38,6 @@ test("preview first-value and membership happy path @preview @happy-path @custod
   const redactor = redactorFor(preview, sentinel, [ownerBearer, inviteeBearer]);
   const variableKey = `SMOKE_PREVIEW_${String(Date.now())}`;
   let operationId = "";
-  let secretId = "";
   let secondaryOrganizationId = "";
   let invitation = "";
   let coords = {
@@ -85,7 +82,7 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     });
     const data = assertEnvelopeData(body, "Secret write");
 
-    secretId = requireString(data.secretId, "secret write secretId");
+    requireString(data.secretId, "secret write secretId");
     requireString(data.secretVersionId, "secret write secretVersionId");
   });
 
@@ -160,26 +157,13 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     requireString(data.defaultTeamId, "organization create defaultTeamId");
   });
 
-  await test.step("operations.setup_protected_handoff", async () => {
-    const protectedEnvironmentId = mintProtectedEnvironmentId();
-    const policyId = mintRunPolicyId();
+  await test.step("operations.setup_poll_fixture", async () => {
+    operationId = mintSmokeOperationId();
 
-    await provisionProtectedSmokeEnvironment({
+    await provisionSmokeOperationForPoll({
       databaseUrl: preview.databaseUrl,
-      environmentId: protectedEnvironmentId,
+      operationId,
       organizationId: coords.organizationId,
-      projectId: coords.projectId,
-    });
-
-    operationId = await requestRunPolicyOperationHandoff({
-      apiBaseUrl: preview.apiBaseUrl,
-      bearer: ownerBearer,
-      environmentId: protectedEnvironmentId,
-      organizationId: coords.organizationId,
-      policyId,
-      projectId: coords.projectId,
-      redactor,
-      secretId,
     });
   });
 

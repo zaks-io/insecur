@@ -1,10 +1,4 @@
-import {
-  AUTH_ERROR_CODES,
-  ENVIRONMENT_LIFECYCLE_STAGES,
-  OPERATION_ERROR_CODES,
-  environmentId,
-  runtimePolicyId,
-} from "@insecur/domain";
+import { OPERATION_ERROR_CODES, operationId } from "@insecur/domain";
 
 import { withServiceRoleSql } from "./audit-verification-db.js";
 import { authHeaders } from "./auth.js";
@@ -14,7 +8,6 @@ import {
   assertEqual,
   assertStatus,
   asRecord,
-  collectOperationId,
   readJsonResponse,
   requireString,
   type JsonRecord,
@@ -22,42 +15,29 @@ import {
 import { assertResponseFreeOfRedactedPatterns } from "./metadata-read-assertions.js";
 
 /**
- * Preview smoke operation-poll proof path (INS-358).
+ * Preview smoke operation-poll harness (INS-358).
  *
- * Product route: `POST /v1/orgs/:organizationId/run-policies` (mounted in
- * `apps/api/src/index.ts`; owner `docs/specs/deploy-route-inventory.md`). On a protected
- * environment the Runtime deploy creates a bounded operation with intent
- * `runtime_injection_policy.change` (`OPERATION_INTENT_CODES.runtimeInjectionPolicyChange`) and
- * returns `401 auth.high_assurance_required` with `meta.operationId`
- * (`gate-protected-runtime-injection-policy-change.ts`, `run-policies-routes.test.ts`,
- * `runtime-injection-policy-commands.integration.test.ts`).
- *
- * `sync.run`, `provider.reauth`, and `backup.export` are the other registered intents but have no
- * smoke-reachable HTTP mint path on preview today; this handoff is the narrowest live route.
+ * No smoke-reachable HTTP route on preview currently mints `sync.run`, `provider.reauth`, or
+ * `backup.export` operations. This harness seeds a tenant-qualified operations row via
+ * service-role SQL using a registered intent code, then proves the mounted product poll route:
+ * `GET /v1/orgs/:organizationId/operations/:operationId`.
  */
-const RUNTIME_INJECTION_POLICY_CHANGE_INTENT = "runtime_injection_policy.change";
+export const SMOKE_OPERATION_POLL_INTENT = "sync.run" as const;
 
-export interface ProvisionProtectedSmokeEnvironmentInput {
+export const SMOKE_OPERATION_POLL_TERMINAL_STATE = "succeeded" as const;
+
+export interface ProvisionSmokeOperationForPollInput {
   databaseUrl: string;
-  environmentId: string;
+  intentCode?: string;
+  operationId: string;
   organizationId: string;
-  projectId: string;
-}
-
-export interface RequestRunPolicyOperationHandoffInput {
-  apiBaseUrl: string;
-  bearer: string;
-  command?: string;
-  environmentId: string;
-  organizationId: string;
-  policyId: string;
-  projectId: string;
-  redactor: (value: unknown) => string;
-  secretId: string;
+  state?: string;
 }
 
 export interface AssertOperationPollEnvelopeInput {
   data: JsonRecord;
+  expectedIntentCode?: string;
+  expectedState?: string;
   operationId: string;
   organizationId: string;
   redactor: (value: unknown) => string;
@@ -71,89 +51,48 @@ export interface AssertCrossOrganizationOperationPollDeniedInput {
   redactor: (value: unknown) => string;
 }
 
+export function mintSmokeOperationId(): string {
+  return operationId.generate();
+}
+
 /**
- * Smoke-only setup: inserts a protected preview environment so the product run-policy path can
- * create a bounded operation via high-assurance handoff.
+ * Smoke-only mint: inserts a metadata-safe operations row with a registered intent so the poll
+ * route can be exercised against live preview Workers + Postgres.
  */
-export async function provisionProtectedSmokeEnvironment(
-  input: ProvisionProtectedSmokeEnvironmentInput,
+export async function provisionSmokeOperationForPoll(
+  input: ProvisionSmokeOperationForPollInput,
 ): Promise<void> {
+  const intentCode = input.intentCode ?? SMOKE_OPERATION_POLL_INTENT;
+  const state = input.state ?? SMOKE_OPERATION_POLL_TERMINAL_STATE;
+
   await withServiceRoleSql(input.databaseUrl, async (sql) => {
     await sql`
-      INSERT INTO environments (
+      INSERT INTO operations (
         id,
         org_id,
-        project_id,
-        display_name,
-        is_protected,
-        lifecycle_stage
+        state,
+        intent_code,
+        progress
       )
       VALUES (
-        ${input.environmentId},
+        ${input.operationId},
         ${input.organizationId},
-        ${input.projectId},
-        ${"Smoke preview protected"},
-        ${true},
-        ${ENVIRONMENT_LIFECYCLE_STAGES.preview}
+        ${state},
+        ${intentCode},
+        ${sql.json({})}
       )
-      ON CONFLICT (org_id, id) DO NOTHING
     `;
   });
 }
 
-export function mintProtectedEnvironmentId(): string {
-  return environmentId.generate();
-}
-
-export function mintRunPolicyId(): string {
-  return runtimePolicyId.generate();
-}
-
-/**
- * Protected run-policy create fails closed with auth.high_assurance_required and a bounded operation
- * id in meta.operationId — the narrowest live preview path that emits a real operation record.
- */
-export async function requestRunPolicyOperationHandoff(
-  input: RequestRunPolicyOperationHandoffInput,
-): Promise<string> {
-  const url = `${input.apiBaseUrl}/v1/orgs/${input.organizationId}/run-policies`;
-  const response = await fetch(url, {
-    body: JSON.stringify({
-      command: input.command ?? "npm run smoke",
-      displayName: "smoke-policy",
-      environmentId: input.environmentId,
-      policyId: input.policyId,
-      projectId: input.projectId,
-      secretIds: [input.secretId],
-    }),
-    headers: { ...authHeaders(input.bearer), "Content-Type": "application/json" },
-    method: "POST",
-  });
-  const text = await response.text();
-  assertStatus(response, 401, "Protected run-policy handoff", {
-    bodyText: text,
-    redactor: input.redactor,
-  });
-  const body = await readJsonResponse(response, "Protected run-policy handoff", text);
-  assertEnvelopeError(body, AUTH_ERROR_CODES.highAssuranceRequired, "Protected run-policy handoff");
-  assertDeniedBodyFreeOfSensitiveValues(text, input.redactor, "Protected run-policy handoff");
-
-  const operationId = collectOperationId(body);
-  if (operationId === undefined) {
-    throw new Error("Protected run-policy handoff did not return an operation id.");
-  }
-  return operationId;
-}
-
 export function assertOperationPollEnvelope(input: AssertOperationPollEnvelopeInput): void {
+  const expectedIntentCode = input.expectedIntentCode ?? SMOKE_OPERATION_POLL_INTENT;
+  const expectedState = input.expectedState ?? SMOKE_OPERATION_POLL_TERMINAL_STATE;
+
   assertEqual(input.data.operationId, input.operationId, "Operation poll operationId");
   assertEqual(input.data.organizationId, input.organizationId, "Operation poll organizationId");
-  requireString(input.data.state, "Operation poll state");
-  assertEqual(
-    input.data.intentCode,
-    RUNTIME_INJECTION_POLICY_CHANGE_INTENT,
-    "Operation poll intentCode",
-  );
+  assertEqual(input.data.state, expectedState, "Operation poll state");
+  assertEqual(input.data.intentCode, expectedIntentCode, "Operation poll intentCode");
   requireString(input.data.createdAt, "Operation poll createdAt");
   requireString(input.data.updatedAt, "Operation poll updatedAt");
   asRecord(input.data.progress, "Operation poll progress");
