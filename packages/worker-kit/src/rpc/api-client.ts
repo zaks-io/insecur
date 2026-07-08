@@ -90,6 +90,26 @@ function createHighAssuranceApiMethods(apiFetch: ApiFetch) {
   };
 }
 
+function createProjectAccessApiMethods(apiFetch: ApiFetch) {
+  return {
+    projectMachineIdentities: async (
+      organizationId: string,
+      projectId: string,
+    ): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/machine-identities`,
+      );
+      return response.json();
+    },
+    projectInjectionGrants: async (organizationId: string, projectId: string): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/projects/${encodeURIComponent(projectId)}/injection-grants`,
+      );
+      return response.json();
+    },
+  };
+}
+
 function createOrgApiMethods(apiFetch: ApiFetch) {
   return {
     orgProjects: async (organizationId: string): Promise<unknown> => {
@@ -108,6 +128,7 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
       );
       return response.json();
     },
+    ...createProjectAccessApiMethods(apiFetch),
     secretVersions: async (
       organizationId: string,
       projectId: string,

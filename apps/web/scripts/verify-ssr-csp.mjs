@@ -286,6 +286,18 @@ const mf = new Miniflare({
           ) {
             return Response.json({ ok: true, data: PROJECT_SECRETS_MATRIX });
           }
+          if (
+            url.pathname ===
+            `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/machine-identities`
+          ) {
+            return Response.json({ ok: true, data: { machineIdentities: [] } });
+          }
+          if (
+            url.pathname ===
+            `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/injection-grants`
+          ) {
+            return Response.json({ ok: true, data: { grants: [] } });
+          }
           if (url.pathname === `/v1/orgs/${ORG.organizationId}/members`) {
             return Response.json({ ok: true, data: { members: [MEMBER] } });
           }
@@ -652,7 +664,7 @@ try {
     expect: [
       PROJECT.displayName,
       ">Access<",
-      "Machine Identities",
+      "Machine identities",
       'aria-label="Project views"',
       'aria-label="Breadcrumb"',
     ],
