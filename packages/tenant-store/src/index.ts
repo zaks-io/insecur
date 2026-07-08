@@ -58,6 +58,7 @@ export type {
   EnvironmentSecretMetadataRow,
   ListEnvironmentSecretsInput,
   ListSecretVersionMetadataInput,
+  SecretVersionDescriptiveVerdictsRead,
   SecretVersionMetadataRow,
 } from "./secrets/environment-secret-metadata-types.js";
 export {

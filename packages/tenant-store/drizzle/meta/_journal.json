@@ -127,6 +127,13 @@
       "when": 1783800000000,
       "tag": "0017_agent_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783900000000,
+      "tag": "0018_secret_version_write_verdicts",
+      "breakpoints": true
     }
   ]
 }

@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@insecur/crypto": "workspace:*",
-    "@insecur/domain": "workspace:*"
+    "@insecur/domain": "workspace:*",
+    "@insecur/secret-store-contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
