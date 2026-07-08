@@ -82,6 +82,7 @@ export interface SecretsApiClient {
       readonly environmentId: EnvironmentId;
       readonly variableKey: VariableKey;
       readonly allowEmpty?: boolean;
+      readonly createOnly?: boolean;
     } & (
       | {
           readonly valueUtf8: Uint8Array;

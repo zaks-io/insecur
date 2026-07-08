@@ -1,4 +1,9 @@
-import { AUTH_ERROR_CODES, PROTECTED_CHANGE_ERROR_CODES, requestId } from "@insecur/domain";
+import {
+  AUTH_ERROR_CODES,
+  APPROVAL_ERROR_CODES,
+  PROTECTED_CHANGE_ERROR_CODES,
+  requestId,
+} from "@insecur/domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const accessMocks = vi.hoisted(() => ({
@@ -8,6 +13,7 @@ const storeMocks = vi.hoisted(() => ({
   getById: vi.fn(),
   applyTransition: vi.fn(),
   insertApprovalEvidence: vi.fn(),
+  getApprovalEvidence: vi.fn(),
 }));
 const auditMocks = vi.hoisted(() => ({
   recordProtectedChangeAudit: vi.fn(),
@@ -38,6 +44,7 @@ vi.mock("../src/tenant-protected-change-store.js", () => ({
       getById: storeMocks.getById,
       applyTransition: storeMocks.applyTransition,
       insertApprovalEvidence: storeMocks.insertApprovalEvidence,
+      getApprovalEvidence: storeMocks.getApprovalEvidence,
     };
   }),
 }));
@@ -46,10 +53,20 @@ vi.mock("../src/record-protected-change-audit.js", () => ({
   recordProtectedChangeAudit: auditMocks.recordProtectedChangeAudit,
 }));
 
+const recomputeMocks = vi.hoisted(() => ({
+  recomputeProtectedChangeImpactFingerprint: vi.fn(),
+}));
+
+vi.mock("../src/recompute-protected-change-impact-fingerprint.js", () => ({
+  recomputeProtectedChangeImpactFingerprint:
+    recomputeMocks.recomputeProtectedChangeImpactFingerprint,
+}));
+
 import { ProtectedChangeError } from "../src/protected-change-errors.js";
 import type { ProtectedChangeRecord } from "../src/protected-change-types.js";
 import {
   approveProtectedChange,
+  beginProtectedChangeExecution,
   cancelProtectedChange,
   submitProtectedChangeForApproval,
 } from "../src/transition-protected-change-api.js";
@@ -97,6 +114,12 @@ describe("transitionProtectedChange via public API wrappers", () => {
     accessMocks.authorizeScopeOrThrow.mockResolvedValue(undefined);
     storeMocks.getById.mockResolvedValue(PENDING_RECORD);
     storeMocks.insertApprovalEvidence.mockResolvedValue(undefined);
+    storeMocks.getApprovalEvidence.mockResolvedValue({
+      impactReviewFingerprint: "impact-fingerprint-v1",
+    });
+    recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockResolvedValue(
+      "impact-fingerprint-v1",
+    );
     auditMocks.recordProtectedChangeAudit.mockResolvedValue(undefined);
   });
 
@@ -142,6 +165,100 @@ describe("transitionProtectedChange via public API wrappers", () => {
       organizationId: ORG,
       protectedChangeId: PROTECTED_CHANGE_ID,
       approverUserId: USER,
+    });
+  });
+
+  it("rejects stale approval when the submitted fingerprint no longer matches current impact", async () => {
+    recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockResolvedValue(
+      "impact-fingerprint-current",
+    );
+
+    await expect(
+      approveProtectedChange(
+        transitionInput({
+          impactReviewFingerprint: "impact-fingerprint-stale",
+          approvalEvidence: {
+            evidenceId: "aud_00000000000000000000000001" as never,
+            approverUserId: USER as never,
+            auditEventId: "aud_00000000000000000000000002" as never,
+            impactReviewFingerprint: "impact-fingerprint-stale",
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.reviewStale });
+
+    expect(storeMocks.applyTransition).not.toHaveBeenCalled();
+    expect(storeMocks.insertApprovalEvidence).not.toHaveBeenCalled();
+    const auditArg = auditMocks.recordProtectedChangeAudit.mock.calls.at(-1)?.[0];
+    expect(auditArg).toMatchObject({
+      action: "approved",
+      outcome: "denied",
+      reasonCode: APPROVAL_ERROR_CODES.reviewStale,
+      fromState: "pending_approval",
+      toState: "approved",
+    });
+  });
+
+  it("rejects stale execution when stored approval evidence no longer matches current impact", async () => {
+    const approved = { ...PENDING_RECORD, state: "approved" as const };
+    storeMocks.getById.mockResolvedValue(approved);
+    storeMocks.getApprovalEvidence.mockResolvedValue({
+      impactReviewFingerprint: "impact-fingerprint-at-approval",
+    });
+    recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockResolvedValue(
+      "impact-fingerprint-drifted",
+    );
+
+    await expect(
+      beginProtectedChangeExecution(
+        transitionInput({
+          executionOperationId: "op_00000000000000000000000001" as never,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.reviewStale });
+
+    expect(storeMocks.applyTransition).not.toHaveBeenCalled();
+    const auditArg = auditMocks.recordProtectedChangeAudit.mock.calls.at(-1)?.[0];
+    expect(auditArg).toMatchObject({
+      action: "execution_started",
+      outcome: "denied",
+      reasonCode: APPROVAL_ERROR_CODES.reviewStale,
+      fromState: "approved",
+      toState: "executing",
+    });
+  });
+
+  it("records invalid_draft_selection on denied execution when recompute fails", async () => {
+    const approved = { ...PENDING_RECORD, state: "approved" as const };
+    storeMocks.getById.mockResolvedValue(approved);
+    storeMocks.getApprovalEvidence.mockResolvedValue({
+      impactReviewFingerprint: "impact-fingerprint-at-approval",
+    });
+    recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockRejectedValue(
+      Object.assign(
+        new Error("Draft version is not a promotable draft in the target environment."),
+        {
+          code: APPROVAL_ERROR_CODES.invalidDraftSelection,
+        },
+      ),
+    );
+
+    await expect(
+      beginProtectedChangeExecution(
+        transitionInput({
+          executionOperationId: "op_00000000000000000000000001" as never,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.invalidDraftSelection });
+
+    expect(storeMocks.applyTransition).not.toHaveBeenCalled();
+    const auditArg = auditMocks.recordProtectedChangeAudit.mock.calls.at(-1)?.[0];
+    expect(auditArg).toMatchObject({
+      action: "execution_started",
+      outcome: "denied",
+      reasonCode: APPROVAL_ERROR_CODES.invalidDraftSelection,
+      fromState: "approved",
+      toState: "executing",
     });
   });
 

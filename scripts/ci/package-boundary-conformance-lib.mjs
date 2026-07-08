@@ -14,6 +14,7 @@ import {
 export { graphModuleFileName, REPO_ROOT };
 
 const CI_WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "ci.yml");
+const ROOT_PACKAGE_JSON_PATH = path.join(REPO_ROOT, "package.json");
 export const WORKSPACE_DIRS = ["apps", "packages"];
 export const CRYPTO_PACKAGE = "@insecur/crypto";
 export const DEEP_CRYPTO_IMPORT_FIXTURE = path.join(
@@ -196,9 +197,61 @@ export function ciVerifyStepsRunCommand(workflowSource, commandPattern) {
     if (!step || typeof step !== "object" || typeof step.run !== "string") {
       return false;
     }
-    commandPattern.lastIndex = 0;
-    return commandPattern.test(step.run);
+    return runBlockRunsCommand(step.run, commandPattern);
   });
+}
+
+function runBlockRunsCommand(runBlock, commandPattern) {
+  commandPattern.lastIndex = 0;
+  if (commandPattern.test(runBlock)) {
+    return true;
+  }
+
+  const scripts = readRootScripts();
+  for (const scriptName of collectPnpmScriptCalls(runBlock)) {
+    if (rootScriptRunsCommand(scriptName, commandPattern, scripts)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function readRootScripts() {
+  const packageJson = JSON.parse(readFileSync(ROOT_PACKAGE_JSON_PATH, "utf8"));
+  return packageJson.scripts && typeof packageJson.scripts === "object" ? packageJson.scripts : {};
+}
+
+function collectPnpmScriptCalls(source) {
+  const scriptNames = [];
+  const scriptPattern = /\bpnpm\s+(?:run\s+)?([A-Za-z0-9:_-]+)/g;
+  for (const match of source.matchAll(scriptPattern)) {
+    scriptNames.push(match[1]);
+  }
+  return scriptNames;
+}
+
+function rootScriptRunsCommand(scriptName, commandPattern, scripts, seenScripts = new Set()) {
+  if (seenScripts.has(scriptName)) {
+    return false;
+  }
+  seenScripts.add(scriptName);
+
+  const script = scripts[scriptName];
+  if (typeof script !== "string") {
+    return false;
+  }
+
+  commandPattern.lastIndex = 0;
+  if (commandPattern.test(script)) {
+    return true;
+  }
+
+  for (const nestedScriptName of collectPnpmScriptCalls(script)) {
+    if (rootScriptRunsCommand(nestedScriptName, commandPattern, scripts, seenScripts)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export async function runPackageBoundaryConformance() {
