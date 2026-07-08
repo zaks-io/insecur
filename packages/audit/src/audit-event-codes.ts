@@ -102,6 +102,7 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.cryptoKeyRotationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied,
   PRODUCTION_AUDIT_EVENT_CODES.secretProtectedDraftWriteDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.secretDraftVersionDiscardDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeRequestDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceChallengeClearDenied,
   PRODUCTION_AUDIT_EVENT_CODES.highAssuranceEvidenceConsumeDenied,

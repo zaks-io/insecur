@@ -32,6 +32,16 @@ export {
   type CopyRetainedSecretVersionInput,
   type CopyRetainedSecretVersionResult,
 } from "./copy-retained-secret-version.js";
+export {
+  discardDraftSecretVersion,
+  DISCARDED_CIPHERTEXT_STORAGE_REF,
+  type DiscardDraftSecretVersionInput,
+  type DiscardDraftSecretVersionResult,
+} from "./discard-draft-secret-version.js";
+export {
+  isWithinRollbackRetentionWindow,
+  ROLLBACK_RETENTION_WINDOW_DAYS,
+} from "./rollback-retention-window.js";
 export type {
   ResolveSecretForReadInput,
   ResolvedSecretForRead,

@@ -17,6 +17,7 @@ import {
   lockSecretForAppend,
   allocateNextVersionNumber,
 } from "../secrets/secret-version-append.js";
+import { isWithinRollbackRetentionWindow } from "../secrets/rollback-retention-window.js";
 
 export interface CopyRetainedSecretVersionInput {
   readonly organizationId: OrganizationId;
@@ -54,6 +55,7 @@ async function loadRetainedSourceVersion(
       hasLeadingOrTrailingWhitespace: secretVersions.hasLeadingOrTrailingWhitespace,
       looksLikePlaceholder: secretVersions.looksLikePlaceholder,
       secretShapeMatchVerdict: secretVersions.secretShapeMatchVerdict,
+      publishedAt: secretVersions.publishedAt,
     })
     .from(secretVersions)
     .where(
@@ -72,6 +74,14 @@ async function loadRetainedSourceVersion(
   if (source.lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.retained) {
     throw new SecretVersionStoreConflictError(
       "rollback source is not a retained published version",
+    );
+  }
+
+  // Lazy Rollback Retention Window check (ADR-0076): evaluated fresh at request time against
+  // the source's recorded publishedAt. No write-time eligibility stamp, no background expiry.
+  if (!isWithinRollbackRetentionWindow(source.publishedAt)) {
+    throw new SecretVersionStoreConflictError(
+      "rollback source is outside the rollback retention window",
     );
   }
 

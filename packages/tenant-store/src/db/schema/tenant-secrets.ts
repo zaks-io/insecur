@@ -57,6 +57,7 @@ export const secretVersions = pgTable(
     ciphertextStorageRef: text("ciphertext_storage_ref").notNull(),
     lifecycleState: text("lifecycle_state").notNull().default("draft"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    discardedAt: timestamp("discarded_at", { withTimezone: true }),
     valueByteLength: integer("value_byte_length").notNull(),
     encodingClass: text("encoding_class").notNull(),
     isEmpty: boolean("is_empty").notNull(),

@@ -6,11 +6,12 @@ import {
   type SecretId,
   type SecretVersionId,
 } from "@insecur/domain";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { decodeStoredWrappedMaterial } from "../decode-stored-wrapped-material.js";
+import { listDraftVersions as listDraftVersionsQuery } from "./list-draft-versions.js";
 import {
   resolveDraftPromotionTargetInEnvironment,
   type DraftPromotionTarget,
@@ -29,6 +30,10 @@ import {
   insertVersionAndMakeLive,
   lockSecretForAppend,
 } from "./secret-version-append.js";
+import {
+  discardDraftSecretVersion,
+  type DiscardDraftSecretVersionResult,
+} from "./discard-draft-secret-version.js";
 import type {
   AppendSecretVersionAndMakeLiveInput,
   AppendSecretVersionAndMakeLiveResult,
@@ -144,12 +149,25 @@ export class TenantSecretVersionStore {
     secretIdValue: SecretId,
     secretVersionIdValue: SecretVersionId,
   ): Promise<SecretVersionStoreRow | null> {
-    const version = await this.getVersionById(secretIdValue, secretVersionIdValue);
-    if (!version) {
+    const rows = await this.db
+      .select(secretVersionRowSelect)
+      .from(secretVersions)
+      .where(
+        and(
+          eq(secretVersions.secretId, secretIdValue),
+          eq(secretVersions.id, secretVersionIdValue),
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (!row) {
       return null;
     }
-    assertDeliverableLifecycleState(version.lifecycleState);
-    return version;
+    // Check lifecycle state before decoding ciphertext: a discarded version's ciphertext ref is a
+    // non-decodable sentinel (ADR-0017), and delivery eligibility should fail with the specific
+    // "not deliverable" conflict rather than a generic decode error.
+    assertDeliverableLifecycleState(parseSecretVersionLifecycleState(row.lifecycleState));
+    return toSecretVersionStoreRow(row, secretIdValue);
   }
 
   async getCurrentVersion(secretIdValue: SecretId): Promise<SecretVersionStoreRow | null> {
@@ -188,33 +206,7 @@ export class TenantSecretVersionStore {
   }
 
   async listDraftVersions(input: ListDraftVersionsInput): Promise<DraftVersionMetadataRow[]> {
-    const conditions = [
-      eq(secrets.orgId, input.organizationId),
-      eq(secrets.environmentId, input.environmentId),
-      eq(secretVersions.lifecycleState, SECRET_VERSION_LIFECYCLE_STATES.draft),
-    ];
-    if (input.secretId !== undefined) {
-      conditions.push(eq(secrets.id, input.secretId));
-    }
-
-    const rows = await this.db
-      .select({
-        secretId: secrets.id,
-        secretVersionId: secretVersions.id,
-        versionNumber: secretVersions.versionNumber,
-        variableKey: secrets.variableKey,
-      })
-      .from(secretVersions)
-      .innerJoin(secrets, eq(secretVersions.secretId, secrets.id))
-      .where(and(...conditions))
-      .orderBy(asc(secretVersions.createdAt));
-
-    return rows.map((row) => ({
-      secretId: secretId.brand(row.secretId),
-      secretVersionId: secretVersionId.brand(row.secretVersionId),
-      versionNumber: row.versionNumber,
-      variableKey: row.variableKey as DraftVersionMetadataRow["variableKey"],
-    }));
+    return listDraftVersionsQuery(this.db, input);
   }
 
   async resolveSecretForWrite(
@@ -257,5 +249,13 @@ export class TenantSecretVersionStore {
 
   async publishVersions(input: PublishSecretVersionsInput): Promise<PublishSecretVersionsResult> {
     return publishSecretVersions(this.db, input);
+  }
+
+  async discardDraftVersion(input: {
+    organizationId: OrganizationId;
+    secretId: SecretId;
+    secretVersionId: SecretVersionId;
+  }): Promise<DiscardDraftSecretVersionResult> {
+    return discardDraftSecretVersion(this.db, input);
   }
 }
