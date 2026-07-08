@@ -6,6 +6,7 @@ import {
   StaticAuditExportHmacKeyProvider,
   StaticAuditExportVerificationKeys,
   type AuditExportVerificationKeys,
+  type AuditExportVerificationResult,
 } from "@insecur/audit";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { CliError } from "../output/cli-error.js";
@@ -52,6 +53,25 @@ async function loadVerificationKeys(
   return keys;
 }
 
+function formatAuditVerifyEnvelopeData(result: AuditExportVerificationResult) {
+  return {
+    status: result.status,
+    organizationId: result.organization_id,
+    entryCount: result.entry_count,
+    timeRange: result.time_range,
+    integrity: {
+      hashChain: result.integrity.hash_chain,
+      manifestHmac: result.integrity.manifest_hmac,
+      signature: result.integrity.signature,
+      tenantScope: result.integrity.tenant_scope,
+    },
+    hmacKeyVersion: result.hmac_key_version,
+    signingKeyVersion: result.signing_key_version,
+    custodyEvidenceRefs: result.custody_evidence_refs,
+    failureCodes: result.failure_codes,
+  };
+}
+
 export async function runAuditVerifyCommand(
   flags: GlobalCliFlags,
   jsonlPath: string,
@@ -81,23 +101,10 @@ export async function runAuditVerifyCommand(
     keys,
   });
 
-  renderSuccess(
-    successEnvelope({
-      status: result.status,
-      organization_id: result.organization_id,
-      entry_count: result.entry_count,
-      time_range: result.time_range,
-      integrity: result.integrity,
-      hmac_key_version: result.hmac_key_version,
-      signing_key_version: result.signing_key_version,
-      custody_evidence_refs: result.custody_evidence_refs,
-      failure_codes: result.failure_codes,
-    }),
-    flags,
-    (data) =>
-      data.status === "valid"
-        ? `Audit export verified (${String(data.entry_count)} entries).`
-        : `Audit export verification failed: ${data.failure_codes.join(", ")}`,
+  renderSuccess(successEnvelope(formatAuditVerifyEnvelopeData(result)), flags, (data) =>
+    data.status === "valid"
+      ? `Audit export verified (${String(data.entryCount)} entries).`
+      : `Audit export verification failed: ${data.failureCodes.join(", ")}`,
   );
 
   return result.status === "valid" ? 0 : EXIT_VALIDATION;

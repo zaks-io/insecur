@@ -177,6 +177,7 @@ describe("runCli project .insecur.json profile binding", () => {
       "--config-dir",
       projectDir,
       "run",
+      "--",
       "node",
       "-e",
       "process.exit(0)",

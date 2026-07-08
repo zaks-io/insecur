@@ -6,17 +6,29 @@ import {
 } from "./commands/resolve-run-profile.js";
 import type { GlobalCliFlags } from "./cli-options.js";
 
-/**
- * Commander sets `rawArgs` on the parsing command at runtime but leaves it out of the public
- * typings. Guarded structural access; if a commander upgrade ever drops it, the wizard-shape
- * commander regression test fails loudly rather than this silently misclassifying.
- */
-function commandRawArgs(command: CommanderCommand | null | undefined): readonly string[] {
+function argvTokensForProfileDetection(
+  command: CommanderCommand | null | undefined,
+): readonly string[] {
   if (command === null || command === undefined) {
-    return [];
+    return process.argv;
   }
-  const raw = (command as unknown as { rawArgs?: unknown }).rawArgs;
-  return Array.isArray(raw) && raw.every((token) => typeof token === "string") ? raw : [];
+
+  const readRawArgs = (target: CommanderCommand | null | undefined): readonly string[] => {
+    if (target === null || target === undefined) {
+      return [];
+    }
+    const raw = (target as unknown as { rawArgs?: unknown }).rawArgs;
+    return Array.isArray(raw) && raw.every((token) => typeof token === "string") ? raw : [];
+  };
+
+  for (const candidate of [command, command.parent, command.parent?.parent]) {
+    const rawArgs = readRawArgs(candidate);
+    if (rawArgs.length > 0) {
+      return rawArgs;
+    }
+  }
+
+  return process.argv;
 }
 
 export function registerRunCommand(
@@ -33,6 +45,12 @@ export function registerRunCommand(
     .command("run")
     .description(
       "Run a command with runtime injection from a CLI profile policy or one exact variable key",
+    )
+    .addHelpText(
+      "after",
+      "\nUsage: insecur run [profile] -- <command...>\n\n" +
+        "The `--` separator is required when the child command could be mistaken for a profile " +
+        "slug or when using --variable-key without a profile argument.\n",
     )
     .argument("[profile]", "CLI profile slug or id (uses defaultRunPolicyId)")
     .option("--variable-key <key>", "application variable key to inject (First Value path)")
@@ -64,7 +82,7 @@ async function runAction(
     context,
     ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
     explicitProfilePositional: isExplicitProfilePositional(
-      commandRawArgs(command.parent),
+      argvTokensForProfileDetection(command),
       profileArg,
     ),
     ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
