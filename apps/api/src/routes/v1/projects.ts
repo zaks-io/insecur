@@ -67,6 +67,7 @@ async function executeSecretWriteByVariableKey(
     ...writeInput,
     requestId: reqId,
     ...(parsed.allowEmpty !== undefined ? { allowEmpty: parsed.allowEmpty } : {}),
+    ...(parsed.createOnly !== undefined ? { createOnly: parsed.createOnly } : {}),
     ...(parsed.secretId !== undefined ? { secretId: parsed.secretId } : {}),
   });
 }

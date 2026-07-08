@@ -747,7 +747,7 @@ non-interactive flow tests, dependency scanning, secret scanning, and evidence b
 Automated tests are three layers: unit tests with no database, integration plus RLS tests against
 real Postgres, and a preview-environment smoke. Cross-tenant and RLS regression suites run against
 real Postgres as the `NOBYPASSRLS` runtime role via `DATABASE_URL_RUNTIME`, on Docker Compose
-Postgres 17 locally and in CI's `postgres-integration` job. The no-plaintext canary gate
+Postgres 17 locally and in CI's DB-backed `Verify` step. The no-plaintext canary gate
 `pnpm test:canary` runs there as a fourth named command inside the integration layer (not a new
 layer) and sweeps every column of every user table plus in-process console output for sentinel
 Sensitive Values; see [ADR-0069](../adr/0069-no-plaintext-canary-gate.md). They never run against SQLite, PGlite,

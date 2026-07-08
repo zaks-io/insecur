@@ -498,6 +498,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           RELEASE_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: claude-sonnet-5
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./packages/cli/package.json').version")"
@@ -535,34 +537,10 @@ jobs:
             fi
           done
 
-          CLI_PATHS=(
-            packages/cli
-            packages/audit
-            packages/auth
-            packages/domain
-            packages/tenant-store
-            packages/token-signing
-            packages/crypto
-            packages/custody-contracts
-          )
-          PREV_TAG="$(git tag -l 'cli-v*' --sort=-version:refname | grep -vxF "$TAG" | head -n1 || true)"
-          if [ -n "$PREV_TAG" ]; then
-            LOG_RANGE="$PREV_TAG..$RELEASE_SHA"
-          else
-            LOG_RANGE="$RELEASE_SHA"
-          fi
-          {
-            printf '## What'\''s changed\n\n'
-            CHANGES="$(git log --no-merges --pretty=format:'- %s' "$LOG_RANGE" -- "${CLI_PATHS[@]}")"
-            if [ -n "$CHANGES" ]; then
-              printf '%s\n' "$CHANGES"
-            else
-              printf '_No CLI-affecting changes since %s._\n' "${PREV_TAG:-the start of history}"
-            fi
-            printf '\n'
-            # shellcheck disable=SC2016
-            printf 'Standalone CLI binaries built with `bun build --compile`. macOS codesign and notarization run when Apple signing secrets are configured. GitHub build-provenance attestations and SLSA provenance sidecars (`*.intoto.jsonl`) are attached when repository visibility and organization billing support GitHub artifact attestations. A CycloneDX SBOM of the bundled CLI (`insecur-cli.sbom.cdx.json`), blocking grype scan report (`insecur-cli.grype.json`), scanner database metadata (`scan-metadata.json`), and repo security attestation bundle (`repo-security-attestation.tgz`) are attached. Draft release: review and publish manually. Verify downloads against `SHA256SUMS`.\n'
-          } > dist-binaries/RELEASE_NOTES.md
+          node scripts/ci/cli-release-notes.mjs \
+            --tag "$TAG" \
+            --release-sha "$RELEASE_SHA" \
+            --output dist-binaries/RELEASE_NOTES.md
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
