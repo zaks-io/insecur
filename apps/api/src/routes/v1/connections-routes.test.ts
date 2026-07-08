@@ -8,6 +8,7 @@ import {
   parseDisplayName,
   userId,
   type DisplayName,
+  VALIDATION_ERROR_CODES,
 } from "@insecur/domain";
 import type { RuntimeRpcResult } from "@insecur/worker-kit";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -270,6 +271,82 @@ describe("connections worker routes", () => {
           appConnectionId: connectionIdValue,
         }),
       );
+    });
+
+    it("forwards complete GitHub boundary override to the Runtime deploy", async () => {
+      runtime.reauthAppConnection.mockResolvedValue({
+        ok: true,
+        value: {
+          connection: metadataOnlyConnection,
+          validation: githubValidation,
+          auditEventId: "aud_00000000000000000000000002",
+        },
+      });
+
+      const response = await authedRequest(reauthPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          installationId: "12345678",
+          owner: "insecur-org",
+          allowedRepositories: ["insecur-org/api"],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(runtime.reauthAppConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          appConnectionId: connectionIdValue,
+          githubBoundary: {
+            installationId: "12345678",
+            owner: "insecur-org",
+            allowedRepositories: ["insecur-org/api"],
+          },
+        }),
+      );
+    });
+
+    it.each([
+      {
+        label: "only allowedRepositories",
+        body: { allowedRepositories: ["insecur-org/api"] },
+      },
+      {
+        label: "only installationId",
+        body: { installationId: "12345678" },
+      },
+      {
+        label: "only owner",
+        body: { owner: "insecur-org" },
+      },
+      {
+        label: "missing installationId",
+        body: { owner: "insecur-org", allowedRepositories: ["insecur-org/api"] },
+      },
+      {
+        label: "missing owner",
+        body: { installationId: "12345678", allowedRepositories: ["insecur-org/api"] },
+      },
+      {
+        label: "missing allowedRepositories",
+        body: { installationId: "12345678", owner: "insecur-org" },
+      },
+    ])("rejects partial GitHub boundary override when $label is provided", async ({ body }) => {
+      const response = await authedRequest(reauthPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      expect(response.status).toBe(400);
+      const parsed: unknown = await response.json();
+      expect(parsed).toMatchObject({
+        ok: false,
+        error: { code: VALIDATION_ERROR_CODES.invalidCommandInput },
+      });
+      expect(runtime.reauthAppConnection).not.toHaveBeenCalled();
+      expect(JSON.stringify(parsed)).not.toMatch(/tokenUtf8|encodedValueUtf8|providerCredential/i);
     });
   });
 

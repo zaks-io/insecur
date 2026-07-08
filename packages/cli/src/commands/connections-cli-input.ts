@@ -1,5 +1,8 @@
-import { CLI_ERROR_CODES } from "@insecur/domain";
+import { APP_CONNECTION_ERROR_CODES, CLI_ERROR_CODES } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
+
+const GITHUB_BOUNDARY_OVERRIDE_MESSAGE =
+  "GitHub reauth boundary override requires --installation-id, --owner, and --allowed-repositories.";
 
 export function rejectArgvProviderToken(token: string | undefined): void {
   if (token !== undefined) {
@@ -43,4 +46,41 @@ export function optionalGitHubBoundaryFields(options: {
       ? {}
       : { allowedRepositories: options.allowedRepositories }),
   };
+}
+
+export function readGitHubBoundaryOverrideFields(options: {
+  readonly installationId: string | undefined;
+  readonly owner: string | undefined;
+  readonly allowedRepositories: readonly string[] | undefined;
+}): {
+  readonly installationId?: string;
+  readonly owner?: string;
+  readonly allowedRepositories?: readonly string[];
+} {
+  const fieldsPresent = [
+    options.installationId !== undefined,
+    options.owner !== undefined,
+    options.allowedRepositories !== undefined,
+  ].filter(Boolean).length;
+
+  if (fieldsPresent === 0) {
+    return {};
+  }
+  if (
+    options.installationId !== undefined &&
+    options.owner !== undefined &&
+    options.allowedRepositories !== undefined
+  ) {
+    return {
+      installationId: options.installationId,
+      owner: options.owner,
+      allowedRepositories: options.allowedRepositories,
+    };
+  }
+
+  throw new CliError({
+    code: APP_CONNECTION_ERROR_CODES.boundaryMismatch,
+    message: GITHUB_BOUNDARY_OVERRIDE_MESSAGE,
+    retryable: false,
+  });
 }
