@@ -59,7 +59,10 @@ export {
 } from "./create-rollback-approval-request.js";
 export { validatePromotionDraftTargets } from "./validate-promotion-draft-targets.js";
 export { hashCommentMetadata } from "./hash-comment-metadata.js";
-export { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
+export {
+  assertImpactReviewFresh,
+  assertRecordedImpactReviewFresh,
+} from "./assert-impact-review-fresh.js";
 export { isApprovalReviewStaleError } from "./transition-protected-change.js";
 export { computeImpactReviewFingerprint } from "./compute-impact-review-fingerprint.js";
 export { recomputeProtectedChangeImpactFingerprint } from "./recompute-protected-change-impact-fingerprint.js";
@@ -80,3 +83,33 @@ export {
   type ListEnvironmentApprovalsInput,
   type EnvironmentApprovalListItem,
 } from "./list-environment-approvals.js";
+export {
+  listPendingApprovalRequests,
+  type ListPendingApprovalRequestsInput,
+} from "./list-pending-approval-requests.js";
+export {
+  getApprovalRequestReview,
+  type GetApprovalRequestReviewInput,
+} from "./get-approval-request-review.js";
+export {
+  approveApprovalRequest,
+  type ApproveApprovalRequestInput,
+} from "./approve-approval-request.js";
+export {
+  rejectApprovalRequest,
+  type RejectApprovalRequestInput,
+} from "./reject-approval-request.js";
+export {
+  cancelApprovalRequest,
+  type CancelApprovalRequestInput,
+} from "./cancel-approval-request.js";
+export {
+  ApprovalRequestError,
+  isApprovalRequestError,
+  approvalRequestNotFound,
+} from "./approval-request-errors.js";
+export type {
+  ApprovalRequestReviewDetail,
+  ApprovalRequestReviewListItem,
+  ApprovalRequestImpactReviewEvidence,
+} from "./approval-request-review-types.js";

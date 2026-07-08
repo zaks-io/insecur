@@ -79,6 +79,7 @@ export {
   secretSyncId,
   secretSyncBindingId,
 } from "./resource-ids.js";
+export { type ApprovalRequestImpactDeliveryMetadata } from "./approval-request-impact-metadata.js";
 export {
   RECOVERY_CANARY_ORGANIZATION_ID,
   RECOVERY_CANARY_PROJECT_ID,

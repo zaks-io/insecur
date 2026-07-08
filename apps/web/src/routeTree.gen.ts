@@ -19,6 +19,7 @@ import { Route as OrgsOrgIdRouteImport } from './routes/orgs.$orgId'
 import { Route as AuthStepUpRouteImport } from './routes/auth.step-up'
 import { Route as AuthEnrollPasskeyRouteImport } from './routes/auth.enroll-passkey'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AuthApprovalStepUpRouteImport } from './routes/auth.approval-step-up'
 import { Route as OrgsOrgIdIndexRouteImport } from './routes/orgs.$orgId.index'
 import { Route as OrgsOrgIdSettingsRouteImport } from './routes/orgs.$orgId.settings'
 import { Route as OrgsOrgIdPeopleRouteImport } from './routes/orgs.$orgId.people'
@@ -26,6 +27,7 @@ import { Route as OrgsOrgIdAuditRouteImport } from './routes/orgs.$orgId.audit'
 import { Route as OrgsOrgIdApprovalsRouteImport } from './routes/orgs.$orgId.approvals'
 import { Route as AuthStepUpCallbackRouteImport } from './routes/auth.step-up.callback'
 import { Route as AuthEnrollPasskeyCallbackRouteImport } from './routes/auth.enroll-passkey.callback'
+import { Route as AuthApprovalStepUpCallbackRouteImport } from './routes/auth.approval-step-up.callback'
 import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs.$orgId.projects.index'
 import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs.$orgId.projects.$projectId'
 import { Route as OrgsOrgIdApprovalsIdRouteImport } from './routes/orgs.$orgId.approvals_.$id'
@@ -85,6 +87,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthApprovalStepUpRoute = AuthApprovalStepUpRouteImport.update({
+  id: '/auth/approval-step-up',
+  path: '/auth/approval-step-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgsOrgIdIndexRoute = OrgsOrgIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -120,6 +127,12 @@ const AuthEnrollPasskeyCallbackRoute =
     id: '/callback',
     path: '/callback',
     getParentRoute: () => AuthEnrollPasskeyRoute,
+  } as any)
+const AuthApprovalStepUpCallbackRoute =
+  AuthApprovalStepUpCallbackRouteImport.update({
+    id: '/callback',
+    path: '/callback',
+    getParentRoute: () => AuthApprovalStepUpRoute,
   } as any)
 const OrgsOrgIdProjectsIndexRoute = OrgsOrgIdProjectsIndexRouteImport.update({
   id: '/projects/',
@@ -174,11 +187,13 @@ export interface FileRoutesByFullPath {
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
+  '/auth/approval-step-up': typeof AuthApprovalStepUpRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/enroll-passkey': typeof AuthEnrollPasskeyRouteWithChildren
   '/auth/step-up': typeof AuthStepUpRouteWithChildren
   '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
   '/orgs/': typeof OrgsIndexRoute
+  '/auth/approval-step-up/callback': typeof AuthApprovalStepUpCallbackRoute
   '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
   '/auth/step-up/callback': typeof AuthStepUpCallbackRoute
   '/orgs/$orgId/approvals': typeof OrgsOrgIdApprovalsRoute
@@ -201,10 +216,12 @@ export interface FileRoutesByTo {
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
+  '/auth/approval-step-up': typeof AuthApprovalStepUpRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/enroll-passkey': typeof AuthEnrollPasskeyRouteWithChildren
   '/auth/step-up': typeof AuthStepUpRouteWithChildren
   '/orgs': typeof OrgsIndexRoute
+  '/auth/approval-step-up/callback': typeof AuthApprovalStepUpCallbackRoute
   '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
   '/auth/step-up/callback': typeof AuthStepUpCallbackRoute
   '/orgs/$orgId/approvals': typeof OrgsOrgIdApprovalsRoute
@@ -227,11 +244,13 @@ export interface FileRoutesById {
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
   '/whoami': typeof WhoamiRoute
+  '/auth/approval-step-up': typeof AuthApprovalStepUpRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/enroll-passkey': typeof AuthEnrollPasskeyRouteWithChildren
   '/auth/step-up': typeof AuthStepUpRouteWithChildren
   '/orgs/$orgId': typeof OrgsOrgIdRouteWithChildren
   '/orgs/': typeof OrgsIndexRoute
+  '/auth/approval-step-up/callback': typeof AuthApprovalStepUpCallbackRoute
   '/auth/enroll-passkey/callback': typeof AuthEnrollPasskeyCallbackRoute
   '/auth/step-up/callback': typeof AuthStepUpCallbackRoute
   '/orgs/$orgId/approvals': typeof OrgsOrgIdApprovalsRoute
@@ -256,11 +275,13 @@ export interface FileRouteTypes {
     | '/logout'
     | '/onboarding'
     | '/whoami'
+    | '/auth/approval-step-up'
     | '/auth/callback'
     | '/auth/enroll-passkey'
     | '/auth/step-up'
     | '/orgs/$orgId'
     | '/orgs/'
+    | '/auth/approval-step-up/callback'
     | '/auth/enroll-passkey/callback'
     | '/auth/step-up/callback'
     | '/orgs/$orgId/approvals'
@@ -283,10 +304,12 @@ export interface FileRouteTypes {
     | '/logout'
     | '/onboarding'
     | '/whoami'
+    | '/auth/approval-step-up'
     | '/auth/callback'
     | '/auth/enroll-passkey'
     | '/auth/step-up'
     | '/orgs'
+    | '/auth/approval-step-up/callback'
     | '/auth/enroll-passkey/callback'
     | '/auth/step-up/callback'
     | '/orgs/$orgId/approvals'
@@ -308,11 +331,13 @@ export interface FileRouteTypes {
     | '/logout'
     | '/onboarding'
     | '/whoami'
+    | '/auth/approval-step-up'
     | '/auth/callback'
     | '/auth/enroll-passkey'
     | '/auth/step-up'
     | '/orgs/$orgId'
     | '/orgs/'
+    | '/auth/approval-step-up/callback'
     | '/auth/enroll-passkey/callback'
     | '/auth/step-up/callback'
     | '/orgs/$orgId/approvals'
@@ -336,6 +361,7 @@ export interface RootRouteChildren {
   LogoutRoute: typeof LogoutRoute
   OnboardingRoute: typeof OnboardingRoute
   WhoamiRoute: typeof WhoamiRoute
+  AuthApprovalStepUpRoute: typeof AuthApprovalStepUpRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthEnrollPasskeyRoute: typeof AuthEnrollPasskeyRouteWithChildren
   AuthStepUpRoute: typeof AuthStepUpRouteWithChildren
@@ -415,6 +441,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/approval-step-up': {
+      id: '/auth/approval-step-up'
+      path: '/auth/approval-step-up'
+      fullPath: '/auth/approval-step-up'
+      preLoaderRoute: typeof AuthApprovalStepUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orgs/$orgId/': {
       id: '/orgs/$orgId/'
       path: '/'
@@ -463,6 +496,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/enroll-passkey/callback'
       preLoaderRoute: typeof AuthEnrollPasskeyCallbackRouteImport
       parentRoute: typeof AuthEnrollPasskeyRoute
+    }
+    '/auth/approval-step-up/callback': {
+      id: '/auth/approval-step-up/callback'
+      path: '/callback'
+      fullPath: '/auth/approval-step-up/callback'
+      preLoaderRoute: typeof AuthApprovalStepUpCallbackRouteImport
+      parentRoute: typeof AuthApprovalStepUpRoute
     }
     '/orgs/$orgId/projects/': {
       id: '/orgs/$orgId/projects/'
@@ -522,6 +562,17 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthApprovalStepUpRouteChildren {
+  AuthApprovalStepUpCallbackRoute: typeof AuthApprovalStepUpCallbackRoute
+}
+
+const AuthApprovalStepUpRouteChildren: AuthApprovalStepUpRouteChildren = {
+  AuthApprovalStepUpCallbackRoute: AuthApprovalStepUpCallbackRoute,
+}
+
+const AuthApprovalStepUpRouteWithChildren =
+  AuthApprovalStepUpRoute._addFileChildren(AuthApprovalStepUpRouteChildren)
 
 interface AuthEnrollPasskeyRouteChildren {
   AuthEnrollPasskeyCallbackRoute: typeof AuthEnrollPasskeyCallbackRoute
@@ -604,6 +655,7 @@ const rootRouteChildren: RootRouteChildren = {
   LogoutRoute: LogoutRoute,
   OnboardingRoute: OnboardingRoute,
   WhoamiRoute: WhoamiRoute,
+  AuthApprovalStepUpRoute: AuthApprovalStepUpRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthEnrollPasskeyRoute: AuthEnrollPasskeyRouteWithChildren,
   AuthStepUpRoute: AuthStepUpRouteWithChildren,

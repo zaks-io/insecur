@@ -124,6 +124,33 @@ const PENDING_CHALLENGE = {
   hasClearedEvidence: false,
 };
 
+const PENDING_APPROVAL_REQUEST = {
+  approvalRequestId: "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  purpose: "protected_promotion",
+  status: "pending",
+  projectId: PROJECT.projectId,
+  environmentId: ENVIRONMENTS[0].environmentId,
+  requestedAt: "2026-07-01T00:00:00.000Z",
+  operationId: null,
+  requestingUserId: USER_ID,
+  requestingMachineIdentityId: null,
+};
+
+const PENDING_APPROVAL_REQUEST_DETAIL = {
+  ...PENDING_APPROVAL_REQUEST,
+  commentLength: 12,
+  rollbackSecretId: null,
+  rollbackToVersionId: null,
+  rollbackPromoteRequested: false,
+  impactReview: {
+    fingerprintAtCreation: "fp-old",
+    currentFingerprint: "fp-current",
+    isStale: false,
+    draftVersions: [],
+    delivery: { runtimeInjectionPolicies: [], providerSyncImpact: [] },
+  },
+};
+
 const base64Url = (bytes) =>
   Buffer.from(bytes)
     .toString("base64")
@@ -268,6 +295,21 @@ const mf = new Miniflare({
           }
           if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/high-assurance-challenges`) {
             return Response.json({ ok: true, data: { challenges: [] } });
+          }
+          if (url.pathname === `/v1/orgs/${ORG.organizationId}/approval-requests`) {
+            return Response.json({ ok: true, data: { approvalRequests: [] } });
+          }
+          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/approval-requests`) {
+            return Response.json({ ok: true, data: { approvalRequests: [] } });
+          }
+          if (
+            url.pathname ===
+            `/v1/orgs/${ORG.organizationId}/approval-requests/${PENDING_APPROVAL_REQUEST.approvalRequestId}`
+          ) {
+            return Response.json({
+              ok: true,
+              data: { approvalRequest: PENDING_APPROVAL_REQUEST_DETAIL },
+            });
           }
           if (
             url.pathname ===
@@ -543,11 +585,19 @@ try {
     ],
   });
   await assertRouteHasMatchingCspNonce(
-    `/orgs/${ORG.organizationId}/approvals/req_01JZ8E2QYQAAAAAAAAAAAAAAAA`,
+    `/orgs/${ORG.organizationId}/approvals/${PENDING_APPROVAL_REQUEST.approvalRequestId}`,
     {
       headers: authorization,
       authedDocument: true,
-      expect: ["Not yet supported", "Approval Request"],
+      expect: [
+        ">Review approval<",
+        ">Evidence<",
+        "Approval Request",
+        PENDING_APPROVAL_REQUEST.purpose,
+        PENDING_APPROVAL_REQUEST.projectId,
+        "Reject request",
+        "Approve with passkey",
+      ],
     },
   );
   await assertNotFound(

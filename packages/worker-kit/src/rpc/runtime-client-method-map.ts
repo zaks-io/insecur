@@ -31,6 +31,11 @@ function forwardProtectedChangeMethods(
     requestProtectedPromotion: forward("requestProtectedPromotion"),
     requestProtectedRollback: forward("requestProtectedRollback"),
     listEnvironmentApprovals: forward("listEnvironmentApprovals"),
+    listPendingApprovalRequests: forward("listPendingApprovalRequests"),
+    getApprovalRequestReview: forward("getApprovalRequestReview"),
+    approveApprovalRequest: forward("approveApprovalRequest"),
+    rejectApprovalRequest: forward("rejectApprovalRequest"),
+    cancelApprovalRequest: forward("cancelApprovalRequest"),
   };
 }
 

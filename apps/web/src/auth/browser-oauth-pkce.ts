@@ -1,25 +1,20 @@
 import { base64UrlToBytes, bytesToBase64Url } from "@insecur/domain";
 
+import {
+  buildPkceRoundTrip,
+  isValidPkceFlow,
+  parseOptionalApprovalStepUp,
+  parseOptionalChallengeClear,
+  validateApprovalStepUpForFlow,
+  validateChallengeClearForFlow,
+  type ChallengeClearStepUpContext,
+  type PkceRoundTrip,
+} from "./browser-oauth-pkce-flow.js";
+
+export type { ChallengeClearStepUpContext, PkceRoundTrip };
+
 export const INSECUR_OAUTH_PKCE_COOKIE = "insecur_oauth_pkce";
 const OAUTH_PKCE_TTL_SECONDS = 600;
-
-export interface ChallengeClearStepUpContext {
-  readonly organizationId: string;
-  readonly operationId: string;
-  readonly projectId: string;
-  readonly environmentId?: string;
-}
-
-export interface PkceRoundTrip {
-  readonly state: string;
-  readonly codeVerifier: string;
-  readonly returnTo: string;
-  /** Present for passkey-enrollment round trips: binds the callback to the initiating WorkOS user. */
-  readonly workosUserId?: string;
-  readonly flow?: "login" | "passkey-enrollment" | "challenge-clear";
-  /** Present for challenge-clear round trips: binds step-up to one pending operation. */
-  readonly challengeClear?: ChallengeClearStepUpContext;
-}
 
 export async function createPkcePair(): Promise<{
   readonly verifier: string;
@@ -42,15 +37,21 @@ export function encodePkceRoundTrip(roundTrip: PkceRoundTrip): string {
   return bytesToBase64Url(new TextEncoder().encode(JSON.stringify(roundTrip)));
 }
 
+export function createPkceAuthorizationStart(
+  authorizationUrl: string,
+  roundTrip: PkceRoundTrip,
+): {
+  readonly authorizationUrl: string;
+  readonly setCookieHeaders: readonly string[];
+} {
+  return {
+    authorizationUrl,
+    setCookieHeaders: [formatPkceStateCookie(encodePkceRoundTrip(roundTrip))],
+  };
+}
+
 const RELATIVE_APP_PATH_BASE = "https://insecur.invalid";
 
-/**
- * True when the value contains any C0 control character (U+0000–U+001F) or DEL (U+007F). CR/LF are
- * the response-splitting vector, and any of them make the runtime `Headers` constructor throw a 500
- * when the value lands in a `Location` header; some (e.g. a bare CR mid-path) also survive URL
- * resolution same-origin, so the origin check alone is not a sufficient backstop. Checked by
- * codepoint rather than a control-char regex literal (`no-control-regex`).
- */
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
     const code = character.codePointAt(0) ?? 0;
@@ -61,14 +62,6 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
-/**
- * Accepts only same-origin app paths for post-login redirects. Backslashes are rejected outright
- * because the WHATWG URL parser treats `\` as `/` for special schemes, so `Location: /\evil.com`
- * resolves to `https://evil.com` (open redirect). Control characters are rejected outright so this
- * validator is the response-splitting backstop rather than the runtime `Headers` constructor (which
- * fails closed with a 500). The parse-and-resolve check backstops the string checks against any
- * other parser quirk that could escape the app origin.
- */
 function isRelativeAppPath(value: string): boolean {
   if (
     !value.startsWith("/") ||
@@ -85,42 +78,6 @@ function isRelativeAppPath(value: string): boolean {
     return false;
   }
   return resolved.origin === RELATIVE_APP_PATH_BASE;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseChallengeClearContext(value: unknown): ChallengeClearStepUpContext | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const { organizationId, operationId, projectId, environmentId } = value;
-  if (
-    typeof organizationId !== "string" ||
-    typeof operationId !== "string" ||
-    typeof projectId !== "string"
-  ) {
-    return null;
-  }
-  if (environmentId !== undefined && typeof environmentId !== "string") {
-    return null;
-  }
-  return {
-    organizationId,
-    operationId,
-    projectId,
-    ...(environmentId === undefined ? {} : { environmentId }),
-  };
-}
-
-function isValidPkceFlow(flow: string | undefined): flow is PkceRoundTrip["flow"] {
-  return (
-    flow === undefined ||
-    flow === "login" ||
-    flow === "passkey-enrollment" ||
-    flow === "challenge-clear"
-  );
 }
 
 function parsePkceStringFields(
@@ -141,29 +98,7 @@ function parsePkceStringFields(
   };
 }
 
-function parseOptionalChallengeClear(
-  value: unknown,
-): ChallengeClearStepUpContext | undefined | null {
-  if (value === undefined) {
-    return undefined;
-  }
-  return parseChallengeClearContext(value);
-}
-
-function buildPkceRoundTrip(
-  core: Pick<PkceRoundTrip, "state" | "codeVerifier" | "returnTo">,
-  parsed: Partial<PkceRoundTrip>,
-  challengeClear: ChallengeClearStepUpContext | undefined,
-): PkceRoundTrip {
-  return {
-    ...core,
-    ...(parsed.workosUserId === undefined ? {} : { workosUserId: parsed.workosUserId }),
-    ...(parsed.flow === undefined ? {} : { flow: parsed.flow }),
-    ...(challengeClear === undefined ? {} : { challengeClear }),
-  };
-}
-
-function attachChallengeClearFields(
+function attachFlowSpecificFields(
   core: Pick<PkceRoundTrip, "state" | "codeVerifier" | "returnTo">,
   parsed: Partial<PkceRoundTrip>,
 ): PkceRoundTrip | null {
@@ -174,13 +109,14 @@ function attachChallengeClearFields(
     return null;
   }
   const challengeClear = parseOptionalChallengeClear(parsed.challengeClear);
-  if (
-    challengeClear === null ||
-    (parsed.flow === "challenge-clear" && challengeClear === undefined)
-  ) {
+  if (!validateChallengeClearForFlow(parsed.flow, challengeClear)) {
     return null;
   }
-  return buildPkceRoundTrip(core, parsed, challengeClear);
+  const approvalStepUp = parseOptionalApprovalStepUp(parsed.approvalStepUp);
+  if (!validateApprovalStepUpForFlow(parsed.flow, approvalStepUp)) {
+    return null;
+  }
+  return buildPkceRoundTrip(core, parsed, challengeClear, approvalStepUp);
 }
 
 function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTrip | null {
@@ -188,7 +124,7 @@ function parsePkceRoundTripPayload(parsed: Partial<PkceRoundTrip>): PkceRoundTri
   if (core === null) {
     return null;
   }
-  return attachChallengeClearFields(core, parsed);
+  return attachFlowSpecificFields(core, parsed);
 }
 
 export function decodePkceRoundTrip(value: string | undefined): PkceRoundTrip | null {
