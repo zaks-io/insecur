@@ -175,6 +175,8 @@ describe("audit section read over the BFF seam", () => {
         Response.json({ ok: false, error: { code: "auth.insufficient_scope" } }, { status: 403 }),
     });
 
-    expect(parseOrgAuditEventsBody(await client.orgAuditEvents(ORG_ID, { pageSize: 25 }))).toBeNull();
+    expect(
+      parseOrgAuditEventsBody(await client.orgAuditEvents(ORG_ID, { pageSize: 25 })),
+    ).toBeNull();
   });
 });

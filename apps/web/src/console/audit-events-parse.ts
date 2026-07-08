@@ -85,6 +85,31 @@ function parseAuditResource(value: unknown): ConsoleAuditResource | null {
   return { type: value.type, id: value.id };
 }
 
+function parseAuditOutcome(value: unknown): "success" | "denied" | null {
+  if (value === "success" || value === "denied") {
+    return value;
+  }
+  return null;
+}
+
+function parseAuditScopeFields(entry: Record<string, unknown>): {
+  projectId: string | null;
+  environmentId: string | null;
+  requestId: string | null;
+  operationId: string | null;
+} | null {
+  const { projectId, environmentId, requestId, operationId } = entry;
+  if (
+    !nullableString(projectId) ||
+    !nullableString(environmentId) ||
+    !nullableString(requestId) ||
+    !nullableString(operationId)
+  ) {
+    return null;
+  }
+  return { projectId, environmentId, requestId, operationId };
+}
+
 function parseAuditEventScalars(entry: Record<string, unknown>): {
   auditEventId: string;
   eventCode: string;
@@ -96,41 +121,20 @@ function parseAuditEventScalars(entry: Record<string, unknown>): {
   operationId: string | null;
   createdAt: string;
 } | null {
-  const {
-    auditEventId,
-    eventCode,
-    outcome,
-    resultCode,
-    projectId,
-    environmentId,
-    requestId,
-    operationId,
-    createdAt,
-  } = entry;
+  const outcome = parseAuditOutcome(entry.outcome);
+  const { auditEventId, eventCode, resultCode, createdAt } = entry;
+  const scope = parseAuditScopeFields(entry);
   if (
     typeof auditEventId !== "string" ||
     typeof eventCode !== "string" ||
-    (outcome !== "success" && outcome !== "denied") ||
+    outcome === null ||
     typeof resultCode !== "string" ||
-    !nullableString(projectId) ||
-    !nullableString(environmentId) ||
-    !nullableString(requestId) ||
-    !nullableString(operationId) ||
-    typeof createdAt !== "string"
+    typeof createdAt !== "string" ||
+    scope === null
   ) {
     return null;
   }
-  return {
-    auditEventId,
-    eventCode,
-    outcome,
-    resultCode,
-    projectId,
-    environmentId,
-    requestId,
-    operationId,
-    createdAt,
-  };
+  return { auditEventId, eventCode, outcome, resultCode, createdAt, ...scope };
 }
 
 function parseOptionalAuditResource(value: unknown): ConsoleAuditResource | null | undefined {

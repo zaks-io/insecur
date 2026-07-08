@@ -11,7 +11,7 @@ export interface ApiClientEnv {
 
 const API_ORIGIN = "https://insecur-api.internal";
 
-export interface OrgAuditEventsQuery {
+interface OrgAuditEventsQuery {
   readonly pageSize?: number;
   readonly cursor?: string;
   readonly filters?: {

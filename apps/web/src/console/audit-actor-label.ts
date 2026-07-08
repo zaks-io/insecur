@@ -1,4 +1,4 @@
-import type { ConsoleAuditActor, ConsoleAuditEvent } from "./audit-events.js";
+import type { ConsoleAuditEvent } from "./audit-events.js";
 
 function detailString(details: ConsoleAuditEvent["details"], key: string): string | undefined {
   const value = details?.[key];
@@ -7,16 +7,6 @@ function detailString(details: ConsoleAuditEvent["details"], key: string): strin
 
 function shortHarnessName(harnessName: string): string {
   return harnessName.replace(/^agent\.harness\./u, "");
-}
-
-function formatBaseActor(actor: ConsoleAuditActor): string {
-  if (actor.actorType === "user") {
-    return actor.userId ?? "user";
-  }
-  if (actor.actorType === "machine") {
-    return actor.machineIdentityId ?? "machine";
-  }
-  return "ci_exchange";
 }
 
 function formatUserActorChain(userId: string, details: ConsoleAuditEvent["details"]): string {
