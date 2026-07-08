@@ -11,6 +11,7 @@ import {
 } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
+import { testDescriptiveVerdicts } from "./helpers/descriptive-verdicts.js";
 import { TenantDataKeyMetadataStore } from "../src/data-keys/tenant-data-key-metadata-store.js";
 import {
   ProjectEnvironmentCoordinateError,
@@ -241,6 +242,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
       secretId: secretIdValue,
       secretVersionId: versionIdValue,
       createdSecretShape: false,
+      descriptiveVerdicts: testDescriptiveVerdicts(),
       wrapped: {
         organizationDataKeyVersion: 1,
         projectDataKeyVersion: 1,
@@ -261,6 +263,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
         secretId: secretIdValue,
         secretVersionId: versionIdValue,
         createdSecretShape: false,
+        descriptiveVerdicts: testDescriptiveVerdicts(),
         wrapped: {
           organizationDataKeyVersion: 1,
           projectDataKeyVersion: 1,

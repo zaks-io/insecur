@@ -31,6 +31,7 @@ function toVersionMetadataRead(row: {
   publishedAt: Date | null;
   isCurrent: boolean;
   isPublished: boolean;
+  descriptiveVerdicts: SecretVersionMetadataRead["descriptiveVerdicts"];
 }): SecretVersionMetadataRead {
   return {
     secretVersionId: row.secretVersionId,
@@ -40,6 +41,7 @@ function toVersionMetadataRead(row: {
     ...(row.publishedAt !== null ? { publishedAt: toIsoTimestamp(row.publishedAt) } : {}),
     isCurrent: row.isCurrent,
     isPublished: row.isPublished,
+    descriptiveVerdicts: row.descriptiveVerdicts,
   };
 }
 

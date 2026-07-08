@@ -26,6 +26,7 @@ import type {
   RuntimeRpcResult,
   RuntimeSecretWritePayload,
 } from "@insecur/worker-kit";
+import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   createRuntimeRpcStub,
@@ -92,6 +93,10 @@ function rpcFailure(
   return { ok: false, error: { code, message, retryable } };
 }
 
+const testDescriptiveVerdicts = computeSecretWriteDescriptiveVerdicts({
+  valueUtf8: new TextEncoder().encode("test-secret"),
+});
+
 const successfulWrite: RuntimeRpcResult<RuntimeSecretWritePayload> = {
   ok: true,
   value: {
@@ -99,6 +104,7 @@ const successfulWrite: RuntimeRpcResult<RuntimeSecretWritePayload> = {
     secretVersionId: secretVersionId.brand("sv_00000000000000000000000001"),
     variableKey: VARIABLE_KEY,
     createdSecretShape: true,
+    descriptiveVerdicts: testDescriptiveVerdicts,
     auditEventId: "aud_00000000000000000000000001",
   },
 };

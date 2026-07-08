@@ -63,6 +63,15 @@ const variableKey = (() => {
   return parsed.value;
 })();
 
+const testDescriptiveVerdicts = {
+  valueByteLength: 11,
+  encodingClass: "utf-8" as const,
+  isEmpty: false,
+  hasLeadingOrTrailingWhitespace: false,
+  looksLikePlaceholder: false,
+  secretShapeMatchVerdict: "no_shape_rule" as const,
+};
+
 describe("writeSecretOperation", () => {
   beforeEach(() => {
     vi.mocked(authorizeScopeOrThrow).mockReset();
@@ -93,6 +102,7 @@ describe("writeSecretOperation", () => {
         secretVersionId: version,
         variableKey,
         createdSecretShape: true,
+        descriptiveVerdicts: testDescriptiveVerdicts,
         auditEventId: "aud_write",
       };
     });
@@ -147,6 +157,7 @@ describe("writeSecretOperation", () => {
       secretVersionId: version,
       variableKey,
       createdSecretShape: true,
+      descriptiveVerdicts: testDescriptiveVerdicts,
       auditEventId: "aud_write",
     });
   });
@@ -162,6 +173,7 @@ describe("writeSecretOperation", () => {
       secretVersionId: version,
       variableKey,
       createdSecretShape: false,
+      descriptiveVerdicts: testDescriptiveVerdicts,
     });
 
     const input: WriteSecretRpcInput = {
