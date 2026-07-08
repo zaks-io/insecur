@@ -1,6 +1,10 @@
 export { bytesToBase64Url, base64UrlToBytes } from "./base64url.js";
 export { type Brand, brandValue } from "./brand.js";
 export {
+  EXACT_BINDING_PATTERN_MARKERS,
+  includesExactBindingPatternMarker,
+} from "./exact-binding-pattern.js";
+export {
   type OpaqueResourceId,
   type OpaqueResourceIdPrefix,
   OPAQUE_RESOURCE_ID_BODY_PATTERN,
@@ -40,6 +44,8 @@ export {
   type WebhookSubscriptionId,
   type WebhookSigningSecretId,
   type InAppEventNotificationId,
+  type SecretSyncId,
+  type SecretSyncBindingId,
   organizationId,
   projectId,
   environmentId,
@@ -70,6 +76,8 @@ export {
   webhookSubscriptionId,
   webhookSigningSecretId,
   inAppEventNotificationId,
+  secretSyncId,
+  secretSyncBindingId,
 } from "./resource-ids.js";
 export {
   RECOVERY_CANARY_ORGANIZATION_ID,
@@ -85,6 +93,15 @@ export {
   type SessionWhoamiResolvedContext,
 } from "./session-whoami.js";
 export { type DeriveAgentSessionData, type RegisterAgentSessionData } from "./session-agent.js";
+export {
+  SECRET_SYNC_KINDS,
+  type SecretSyncKind,
+  isSecretSyncKind,
+  SECRET_SYNC_MAPPING_BEHAVIORS,
+  type SecretSyncMappingBehavior,
+  GITHUB_ACTIONS_PROVIDER_SCOPES,
+  type GitHubActionsProviderScope,
+} from "./secret-sync-kinds.js";
 export {
   type DisplayName,
   DISPLAY_NAME_MAX_LENGTH,
@@ -153,6 +170,8 @@ export {
   type OperationErrorCode,
   APP_CONNECTION_ERROR_CODES,
   type AppConnectionErrorCode,
+  SECRET_SYNC_ERROR_CODES,
+  type SecretSyncErrorCode,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   type ProviderAppRegistrationErrorCode,
   IMPORT_ERROR_CODES,

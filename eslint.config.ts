@@ -177,6 +177,9 @@ export default tseslint.config(
       "packages/app-connection/test/**/*.ts",
       "packages/app-connection/vitest.config.ts",
       "packages/app-connection/vitest.rls.config.ts",
+      "packages/secret-sync/test/**/*.ts",
+      "packages/secret-sync/vitest.config.ts",
+      "packages/secret-sync/vitest.rls.config.ts",
       "packages/instance-bootstrap/test/**/*.ts",
       "packages/instance-bootstrap/vitest.config.ts",
       "packages/instance-bootstrap/vitest.rls.config.ts",
@@ -256,7 +259,7 @@ export default tseslint.config(
   {
     files: ["packages/domain/src/error-codes.ts"],
     rules: {
-      "max-lines": ["error", { max: 275, skipBlankLines: true, skipComments: true }],
+      "max-lines": ["error", { max: 280, skipBlankLines: true, skipComments: true }],
     },
   },
   {

@@ -1,0 +1,62 @@
+export { assertSecretSyncBindings } from "./assert-secret-sync-bindings.js";
+export {
+  resolveSecretSyncManageAccess,
+  resolveSecretSyncProjectReadAccess,
+  resolveSecretSyncReadAccess,
+  resolveSecretSyncRunAccess,
+} from "./assert-secret-sync-access.js";
+export { assertSecretSyncConnection } from "./assert-secret-sync-connection.js";
+export { assertSecretSyncExecutable } from "./assert-secret-sync-executable.js";
+export {
+  createSecretSyncCommand,
+  type CreateSecretSyncCommandInput,
+  type CreateSecretSyncCommandResult,
+} from "./create-secret-sync-command.js";
+export {
+  disableSecretSyncCommand,
+  type DisableSecretSyncCommandInput,
+  type DisableSecretSyncCommandResult,
+} from "./disable-secret-sync-command.js";
+export { listSecretSyncsCommand } from "./list-secret-syncs-command.js";
+export {
+  toMetadataSafeSecretSync,
+  type MetadataSafeSecretSync,
+  type MetadataSafeSecretSyncBinding,
+} from "./metadata-safe-secret-sync.js";
+export {
+  recordSecretSyncCreateDenied,
+  recordSecretSyncCreated,
+  recordSecretSyncDisableDenied,
+  recordSecretSyncDisabled,
+  recordSecretSyncUpdateDenied,
+  recordSecretSyncUpdated,
+  toBindingAuditDetails,
+  toSecretSyncAuditReasonCode,
+} from "./record-secret-sync-audit.js";
+export { SecretSyncError } from "./secret-sync-error.js";
+export {
+  SECRET_SYNC_BINDING_DESTINATION_FIELD,
+  SECRET_SYNC_BINDING_DESTINATION_METADATA_TYPE,
+  SECRET_SYNC_TARGET_METADATA_TYPE,
+  SECRET_SYNC_TARGET_WORKER_SCRIPT_FIELD,
+} from "./secret-sync-metadata.js";
+export {
+  loadSecretSyncSensitiveMetadata,
+  storeSecretSyncBindingDestinations,
+  storeSecretSyncWorkerScriptTarget,
+} from "./store-secret-sync-sensitive-metadata.js";
+export {
+  updateSecretSyncCommand,
+  type UpdateSecretSyncCommandInput,
+  type UpdateSecretSyncCommandResult,
+} from "./update-secret-sync-command.js";
+export {
+  validateCloudflareWorkerSecretTarget,
+  validateGitHubActionsTarget,
+  validateSecretSyncKind,
+} from "./validate-secret-sync-target.js";
+export {
+  validateSecretSyncBindings,
+  type SecretSyncBindingInput,
+  type ValidatedSecretSyncBindingInput,
+} from "./validate-secret-sync-bindings.js";

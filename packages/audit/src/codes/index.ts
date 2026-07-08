@@ -16,4 +16,5 @@ export { RUNTIME_INJECTION_AUDIT_EVENT_CODES } from "./runtime-injection.js";
 export { RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES } from "./runtime-injection-policy.js";
 export { SECRET_FIRST_VALUE_AUDIT_EVENT_CODES } from "./secret-first-value.js";
 export { SECRET_PROTECTED_AUDIT_EVENT_CODES } from "./secret-protected.js";
+export { SECRET_SYNC_MODEL_AUDIT_EVENT_CODES } from "./secret-sync-model.js";
 export { SYNC_AUDIT_EVENT_CODES } from "./sync.js";

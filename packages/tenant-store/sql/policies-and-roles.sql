@@ -198,6 +198,18 @@ CREATE POLICY in_app_event_notifications_tenant_isolation ON in_app_event_notifi
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS secret_syncs_tenant_isolation ON secret_syncs;
+CREATE POLICY secret_syncs_tenant_isolation ON secret_syncs
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS secret_sync_bindings_tenant_isolation ON secret_sync_bindings;
+CREATE POLICY secret_sync_bindings_tenant_isolation ON secret_sync_bindings
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS protected_changes_tenant_isolation ON protected_changes;
 CREATE POLICY protected_changes_tenant_isolation ON protected_changes
   FOR ALL
@@ -270,6 +282,8 @@ BEGIN
         'webhook_subscription_event_types',
         'webhook_signing_secrets',
         'in_app_event_notifications',
+        'secret_syncs',
+        'secret_sync_bindings',
         'sensitive_metadata_fields',
         'protected_changes',
         'protected_change_approval_evidence',
