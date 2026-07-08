@@ -3,6 +3,7 @@ import {
   type ConsoleHighAssuranceChallengeItem,
 } from "./approval-items.js";
 import { parseHighAssuranceChallengeEntry } from "./approval-items-parse.js";
+import { isRecord, requiredBooleanField, requiredStringField } from "./approval-parse-helpers.js";
 
 type ConsoleHighAssuranceChallengeLifecycleState =
   "not_required" | "required" | "pending" | "cleared" | "expired" | "consumed";
@@ -12,20 +13,6 @@ export interface ConsoleHighAssuranceChallengeDetail extends ConsoleHighAssuranc
   readonly challengeId: string;
   readonly status: ConsoleHighAssuranceChallengeLifecycleState;
   readonly hasClearedEvidence: boolean;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function requiredBooleanField(row: Record<string, unknown>, key: string): boolean | null {
-  const value = row[key];
-  return typeof value === "boolean" ? value : null;
-}
-
-function requiredStringField(row: Record<string, unknown>, key: string): string | null {
-  const value = row[key];
-  return typeof value === "string" ? value : null;
 }
 
 const LIFECYCLE_STATES = new Set<ConsoleHighAssuranceChallengeLifecycleState>([
@@ -76,7 +63,7 @@ export function parseOrgHighAssuranceChallengeDetailBody(
   return parseHighAssuranceChallengeDetailEntry(body.data.challenge);
 }
 
-/** Resolve approval deep-link kind from the route param (`op_` vs `req_`). */
+/** Resolve approval deep-link kind from the route param (`op_` vs `apr_`). */
 export function consoleApprovalRouteKindFromId(
   id: string,
 ): ReturnType<typeof consoleApprovalItemKindFromId> | "unknown" {

@@ -1,16 +1,64 @@
 import { getRouteApi } from "@tanstack/react-router";
-import { ApprovalRequestUnsupportedPanel } from "./approval-request-unsupported.js";
+import { ApprovalRequestEvidencePanel } from "./approval-request-evidence.js";
+import { ApproveApprovalRequestPanel } from "./approve-approval-request-panel.js";
 import { ApproveChallengePanel } from "./approve-challenge-panel.js";
+import { CancelApprovalRequestPanel } from "./cancel-approval-request-panel.js";
+import { RejectApprovalRequestPanel } from "./reject-approval-request-panel.js";
 import { HighAssuranceChallengeEvidencePanel } from "./high-assurance-challenge-evidence.js";
 import { RejectChallengePanel } from "./reject-challenge-panel.js";
 import { approvalInboxPath } from "../../console/approval-items.js";
+import type { ConsoleApprovalRequestDetail } from "../../console/approval-request-detail-parse.js";
+import type { ConsoleHighAssuranceChallengeDetail } from "../../console/approval-detail-parse.js";
 
 const approvalDetailRoute = getRouteApi("/orgs/$orgId/approvals_/$id");
 const orgRoute = getRouteApi("/orgs/$orgId");
 
+function ApprovalRequestDetailPanels({
+  orgId,
+  request,
+}: {
+  orgId: string;
+  request: ConsoleApprovalRequestDetail;
+}) {
+  return (
+    <>
+      <ApprovalRequestEvidencePanel request={request} />
+      <ApproveApprovalRequestPanel orgId={orgId} request={request} />
+      <RejectApprovalRequestPanel orgId={orgId} approvalRequestId={request.id} />
+      <CancelApprovalRequestPanel orgId={orgId} approvalRequestId={request.id} />
+    </>
+  );
+}
+
+function HighAssuranceChallengeDetailPanels({
+  orgId,
+  challenge,
+  passkeyEnrolled,
+}: {
+  orgId: string;
+  challenge: ConsoleHighAssuranceChallengeDetail;
+  passkeyEnrolled: boolean;
+}) {
+  return (
+    <>
+      <HighAssuranceChallengeEvidencePanel challenge={challenge} />
+      <ApproveChallengePanel
+        orgId={orgId}
+        challenge={challenge}
+        passkeyEnrolled={passkeyEnrolled}
+        disabled={challenge.status !== "pending"}
+      />
+      <RejectChallengePanel
+        orgId={orgId}
+        operationId={challenge.id}
+        disabled={challenge.status !== "pending"}
+      />
+    </>
+  );
+}
+
 /**
- * Human Approval Surface detail (INS-381, docs/web-console-ux.md §Human Approval Surface). Fully
- * responsive; deep links route through login and back without carrying approval authority.
+ * Human Approval Surface detail (INS-381, INS-86, docs/web-console-ux.md §Human Approval Surface).
  */
 export function ApprovalDetailPage() {
   const data = approvalDetailRoute.useLoaderData();
@@ -39,22 +87,13 @@ export function ApprovalDetailPage() {
 
       <div className="mt-6 flex flex-col gap-6 lg:mt-8 lg:gap-8">
         {data.kind === "approval_request" ? (
-          <ApprovalRequestUnsupportedPanel orgId={orgId} />
+          <ApprovalRequestDetailPanels orgId={orgId} request={data.request} />
         ) : (
-          <>
-            <HighAssuranceChallengeEvidencePanel challenge={data.challenge} />
-            <ApproveChallengePanel
-              orgId={orgId}
-              challenge={data.challenge}
-              passkeyEnrolled={passkeyEnrolled}
-              disabled={data.challenge.status !== "pending"}
-            />
-            <RejectChallengePanel
-              orgId={orgId}
-              operationId={data.challenge.id}
-              disabled={data.challenge.status !== "pending"}
-            />
-          </>
+          <HighAssuranceChallengeDetailPanels
+            orgId={orgId}
+            challenge={data.challenge}
+            passkeyEnrolled={passkeyEnrolled}
+          />
         )}
       </div>
     </section>

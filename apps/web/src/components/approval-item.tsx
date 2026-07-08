@@ -42,9 +42,13 @@ function HighAssuranceChallengeDetails({ item }: { item: ConsoleHighAssuranceCha
 
 function ApprovalRequestDetails({ item }: { item: ConsoleApprovalRequestItem }) {
   return (
-    <p className="mt-2 font-mono text-xs text-muted-foreground">
-      Pending approval request · {item.status}
-    </p>
+    <>
+      <p className="mt-2 font-mono text-xs text-muted-foreground">{item.purpose}</p>
+      <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+        {item.projectId} · {item.environmentId}
+      </p>
+      <p className="mt-2 font-mono text-xs text-muted-foreground">Pending · {item.status}</p>
+    </>
   );
 }
 

@@ -10,7 +10,10 @@ import {
 } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 
-import { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
+import {
+  assertImpactReviewFresh,
+  assertRecordedImpactReviewFresh,
+} from "./assert-impact-review-fresh.js";
 import {
   assertApprovalEvidencePresent,
   assertProtectedChangeAccess,
@@ -191,8 +194,8 @@ async function assertFreshImpactReviewForTransition(
     );
   }
 
-  assertImpactReviewFresh({
-    submittedFingerprint: evidence.impactReviewFingerprint,
+  assertRecordedImpactReviewFresh({
+    recordedFingerprint: evidence.impactReviewFingerprint,
     currentFingerprint,
   });
 }

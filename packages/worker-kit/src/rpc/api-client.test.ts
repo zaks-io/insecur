@@ -92,6 +92,24 @@ describe("apiClientFor", () => {
         stepUpCodeVerifier: "verifier_step_up",
       },
     );
+    await client.orgApprovalRequests("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
+    await client.orgApprovalRequest(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+    );
+    await client.rejectOrgApprovalRequest(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+    );
+    await client.cancelOrgApprovalRequest(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+    );
+    await client.approveOrgApprovalRequest(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      { impactReviewFingerprint: "fp-current" },
+    );
 
     const urls = apiFetch.mock.calls.map((call) => call[0]);
     expect(urls[0]).toBe(
@@ -132,6 +150,21 @@ describe("apiClientFor", () => {
     );
     expect(urls[11]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA/clear",
+    );
+    expect(urls[12]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests",
+    );
+    expect(urls[13]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+    );
+    expect(urls[14]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/reject",
+    );
+    expect(urls[15]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/cancel",
+    );
+    expect(urls[16]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/approve",
     );
   });
 
