@@ -14,8 +14,7 @@ import {
   unique,
   boolean,
 } from "./pg-core.js";
-import { organizations } from "./tenant-hierarchy.js";
-import { orgProjectAndEnvironmentForeignKeys } from "./tenant-org-scope-foreign-keys.js";
+import { environments, organizations, projects } from "./tenant-hierarchy.js";
 import { secretVersions, secrets } from "./tenant-secrets.js";
 
 export const APPROVAL_REQUEST_STATUSES = [
@@ -65,7 +64,16 @@ export const approvalRequests = pgTable(
       "approval_requests_purpose_check",
       sql`${table.purpose} IN ('protected_promotion', 'protected_rollback')`,
     ),
-    ...orgProjectAndEnvironmentForeignKeys(table),
+    foreignKey({
+      name: "approval_requests_project_fk",
+      columns: [table.orgId, table.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }),
+    foreignKey({
+      name: "approval_requests_environment_fk",
+      columns: [table.orgId, table.environmentId],
+      foreignColumns: [environments.orgId, environments.id],
+    }),
   ],
 );
 
@@ -82,17 +90,21 @@ export const promotionChangeSetDraftVersions = pgTable(
   },
   (table) => [
     primaryKey({
+      name: "promotion_draft_versions_pk",
       columns: [table.orgId, table.approvalRequestId, table.secretVersionId],
     }),
     foreignKey({
+      name: "promotion_draft_versions_request_fk",
       columns: [table.orgId, table.approvalRequestId],
       foreignColumns: [approvalRequests.orgId, approvalRequests.id],
     }),
     foreignKey({
+      name: "promotion_draft_versions_secret_fk",
       columns: [table.orgId, table.secretId],
       foreignColumns: [secrets.orgId, secrets.id],
     }),
     foreignKey({
+      name: "promotion_draft_versions_secret_version_fk",
       columns: [table.orgId, table.secretId, table.secretVersionId],
       foreignColumns: [secretVersions.orgId, secretVersions.secretId, secretVersions.id],
     }),

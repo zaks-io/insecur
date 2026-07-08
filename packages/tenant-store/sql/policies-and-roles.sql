@@ -210,6 +210,18 @@ CREATE POLICY protected_change_approval_evidence_tenant_isolation ON protected_c
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS approval_requests_tenant_isolation ON approval_requests;
+CREATE POLICY approval_requests_tenant_isolation ON approval_requests
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS promotion_change_set_draft_versions_tenant_isolation ON promotion_change_set_draft_versions;
+CREATE POLICY promotion_change_set_draft_versions_tenant_isolation ON promotion_change_set_draft_versions
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DROP POLICY IF EXISTS first_value_feedback_tenant_isolation ON first_value_feedback;
 CREATE POLICY first_value_feedback_tenant_isolation ON first_value_feedback
   FOR ALL
@@ -260,7 +272,9 @@ BEGIN
         'in_app_event_notifications',
         'sensitive_metadata_fields',
         'protected_changes',
-        'protected_change_approval_evidence'
+        'protected_change_approval_evidence',
+        'approval_requests',
+        'promotion_change_set_draft_versions'
       )
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tenant_table);
