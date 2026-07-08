@@ -50,6 +50,8 @@ export { toAccessActor, toAuditActor } from "./http/request-actor.js";
 
 export type {
   AcceptInvitationRpcInput,
+  CheckSecretPossessionPayload,
+  CheckSecretPossessionRpcInput,
   CompleteBootstrapClaimRpcInput,
   ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,

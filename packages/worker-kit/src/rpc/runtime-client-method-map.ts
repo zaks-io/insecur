@@ -63,6 +63,7 @@ export function buildAuthenticatedRuntimeClientMethods(
     issueInjectionGrant: forward("issueInjectionGrant"),
     completeBootstrapOperatorClaim: forward("completeBootstrapOperatorClaim"),
     writeSecret: forward("writeSecret"),
+    checkSecretPossession: forward("checkSecretPossession"),
     consumeGrant: forward("consumeGrant"),
     consumeGrantAll: forward("consumeGrantAll"),
     recordInjectionRunCompleted: forward("recordInjectionRunCompleted"),

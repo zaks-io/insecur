@@ -3,6 +3,8 @@ import type {
   RuntimeDeliveryEnvelope,
 } from "./runtime-delivery-rpc-contract.js";
 import type {
+  CheckSecretPossessionPayload,
+  CheckSecretPossessionRpcInput,
   ConsumeGrantAllRpcInput,
   ConsumeGrantRpcInput,
   RuntimeRpcResult,
@@ -16,4 +18,7 @@ export interface RuntimeSecretsRpc {
     input: ConsumeGrantAllRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryAllEnvelope>>;
   writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>>;
+  checkSecretPossession(
+    input: CheckSecretPossessionRpcInput,
+  ): Promise<RuntimeRpcResult<CheckSecretPossessionPayload>>;
 }

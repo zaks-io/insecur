@@ -24,6 +24,7 @@ export {
   InvalidAadFieldError,
 } from "./encryption.js";
 export { PlaintextHandle } from "./plaintext-handle.js";
+export { constantTimePossessionEquals } from "./constant-time-possession-equality.js";
 export {
   DEFAULT_ROOT_KEY_VERSION,
   RECORD_TYPE_PROVIDER_CREDENTIAL,
