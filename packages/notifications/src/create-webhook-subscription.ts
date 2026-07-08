@@ -1,6 +1,5 @@
 import {
   bytesToBase64Url,
-  NOTIFICATION_ERROR_CODES,
   parseDisplayName,
   webhookSigningSecretId,
   webhookSubscriptionId,
@@ -15,6 +14,7 @@ import {
 import { mintWebhookSigningSecret } from "./webhook-signing-secret-lifecycle.js";
 import {
   assertWebhookManageAccess,
+  assertV1WebhookChannels,
   buildWebhookAuditScope,
   toPayload,
   validateEventCodes,
@@ -31,11 +31,7 @@ export async function createWebhookSubscription(
 
   try {
     validateEventCodes(input.eventCodes);
-    if (input.enableEmailChannel && !input.deliveryEmail) {
-      throw Object.assign(new Error("Delivery email is required for email channel."), {
-        code: NOTIFICATION_ERROR_CODES.deliveryFailed,
-      });
-    }
+    assertV1WebhookChannels(input);
     await assertWebhookManageAccess(input.accessActor, input.organizationId);
 
     const subscriptionId = webhookSubscriptionId.generate();

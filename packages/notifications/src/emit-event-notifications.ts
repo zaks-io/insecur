@@ -38,22 +38,30 @@ export interface EmitEventNotificationsInput {
 export async function emitEventNotificationsForEnvelope(
   input: EmitEventNotificationsInput,
 ): Promise<void> {
-  const subscriptions = await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    async ({ db }) =>
-      new TenantWebhookSubscriptionStore(db).listActiveByEventCode(
-        input.organizationId,
-        input.eventCode,
-      ),
-  );
+  try {
+    const subscriptions = await withTenantScope(
+      { kind: "organization", organizationId: input.organizationId },
+      async ({ db }) =>
+        new TenantWebhookSubscriptionStore(db).listActiveByEventCode(
+          input.organizationId,
+          input.eventCode,
+        ),
+    );
 
-  for (const subscription of subscriptions) {
-    try {
-      await deliverToSubscription(input, subscription);
-      await recordDeliveryAudit(input.sourceAuditEvent, subscription.subscriptionId, "success");
-    } catch {
-      await recordDeliveryAudit(input.sourceAuditEvent, subscription.subscriptionId, "failed");
+    for (const subscription of subscriptions) {
+      try {
+        await deliverToSubscription(input, subscription);
+        await recordDeliveryAudit(input.sourceAuditEvent, subscription.subscriptionId, "success");
+      } catch {
+        await recordDeliveryAudit(input.sourceAuditEvent, subscription.subscriptionId, "failed");
+      }
     }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "unknown notification emission failure";
+    console.error(
+      `[event-notifications] delivery failed for ${input.eventCode} in ${input.organizationId}: ${message}`,
+    );
   }
 }
 

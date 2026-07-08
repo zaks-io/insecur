@@ -53,4 +53,37 @@ describe("emitEventNotificationsForEnvelope", () => {
 
     expect(TenantWebhookSubscriptionStore).toHaveBeenCalled();
   });
+
+  it("swallows listing failures without rethrowing", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(withTenantScope).mockRejectedValue(new Error("transient DB error"));
+
+    await expect(
+      emitEventNotificationsForEnvelope({
+        keyring: {} as never,
+        organizationId: ORG,
+        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+        envelope: {
+          eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+          timestamp: "2026-07-07T12:00:00.000Z",
+          organizationId: ORG,
+          displayNames: { organization: "Acme" },
+          actor: { type: "user", id: USER },
+          status: "success",
+        },
+        deliveryPorts: {
+          inApp: { persistEventNotification: vi.fn() },
+        },
+        sourceAuditEvent: {
+          eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+          outcome: "success",
+          actor: { type: "user", userId: USER },
+          organizationId: ORG,
+        },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
 });

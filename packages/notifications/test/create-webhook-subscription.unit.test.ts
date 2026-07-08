@@ -77,7 +77,7 @@ describe("createWebhookSubscription validation", () => {
     expect(writeAuditEventMock).toHaveBeenCalled();
   });
 
-  it("rejects email delivery without a delivery email", async () => {
+  it("rejects email channel affordances in V1", async () => {
     resolveEffectiveAccessMock.mockResolvedValue({
       scopes: [AUTHORIZATION_SCOPES.webhookManage],
     } as never);
@@ -90,6 +90,7 @@ describe("createWebhookSubscription validation", () => {
         displayName: "Alerts",
         eventCodes: [WEBHOOK_EVENT_CODES.secretNonProtectedWrite],
         enableEmailChannel: true,
+        deliveryEmail: "alerts@example.com",
         enableInAppChannel: false,
         keyring: {} as never,
         accessActor: ACTOR,

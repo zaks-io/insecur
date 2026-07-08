@@ -17,6 +17,7 @@ import {
 } from "./record-webhook-audit.js";
 import {
   assertWebhookManageAccess,
+  assertV1WebhookChannels,
   buildWebhookSubscriptionAuditScope,
   toReadPayload,
   validateEventCodes,
@@ -42,6 +43,7 @@ export async function updateWebhookSubscription(input: {
     if (input.eventCodes !== undefined) {
       validateEventCodes(input.eventCodes);
     }
+    assertV1WebhookChannels(input);
     await assertWebhookManageAccess(input.accessActor, input.organizationId);
 
     const updated = await withTenantScope(

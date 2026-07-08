@@ -41,6 +41,18 @@ export function validateEventCodes(eventCodes: readonly string[]): void {
   }
 }
 
+/** V1 supports in-app delivery only; reject email affordances until a port is wired. */
+export function assertV1WebhookChannels(input: {
+  readonly enableEmailChannel?: boolean;
+  readonly deliveryEmail?: string | null;
+}): void {
+  if (input.enableEmailChannel === true || input.deliveryEmail !== undefined) {
+    throw Object.assign(new Error("Email channel is not available in V1."), {
+      code: NOTIFICATION_ERROR_CODES.deliveryFailed,
+    });
+  }
+}
+
 export function buildWebhookSubscriptionAuditScope(input: {
   readonly actorUserId: UserId;
   readonly organizationId: OrganizationId;

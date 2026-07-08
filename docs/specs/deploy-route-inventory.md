@@ -74,7 +74,7 @@ subscription and returns a one-time signing secret; `PATCH /:subscriptionId` upd
 metadata and selected event types; `DELETE /:subscriptionId` disables a subscription; `POST
 /:subscriptionId/rotate-signing-secret` mints a new signing secret and retires the prior active
 secret. Subscription CRUD requires `webhook:manage`; list/event-types require `webhook:read`.
-Delivery runs inside the Runtime deploy (email + in-app channels in V1).
+Delivery runs inside the Runtime deploy (in-app channel in V1).
 
 Under `/v1/session` (INS-367, INS-430, INS-436): `GET /whoami` echoes the verified actor plus session
 validity/expiry, resolved org/project/env context (optional `orgId`, `projectId`, `envId` query
