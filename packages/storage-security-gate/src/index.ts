@@ -4,6 +4,12 @@ export {
   createStorageSecurityGateReadinessProbes,
 } from "./evaluate-gate.js";
 export {
+  mapCanaryEvidenceToNoPlaintextProbeOutcome,
+  mapReadinessReportToProbeOutcome,
+  type ComposableReadinessStatus,
+  type MapReadinessReportToProbeOutcomeInput,
+} from "./readiness-fact-adapters.js";
+export {
   evaluateStorageGateControl,
   missingEvidenceProbeOutcome,
   probeThrewProbeOutcome,
