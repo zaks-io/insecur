@@ -9,6 +9,7 @@ import {
   environmentId,
   INJECTION_ERROR_CODES,
   injectionGrantId,
+  machineIdentityId,
   operationId,
   organizationId,
   projectId,
@@ -188,6 +189,35 @@ describe("audit metadata allowlist", () => {
         organizationId: ORG,
       } as never);
     }).toThrow(AuditEventValidationError);
+  });
+
+  it("accepts machine access audit events with metadata-only credential facts", () => {
+    const machine = machineIdentityId.brand("mach_00000000000000000000000002");
+
+    expect(() => {
+      validateAuditEventInput({
+        eventCode: "machine_auth.access_token_minted",
+        outcome: "success",
+        actor: { type: "machine", machineIdentityId: machine },
+        organizationId: ORG,
+        projectId: PROJECT,
+        details: {
+          credentialMethod: "auth.credential_method.github_actions_oidc",
+          credentialScopeCount: 2,
+        },
+      });
+    }).not.toThrow();
+
+    expect(() => {
+      validateAuditEventInput({
+        eventCode: "machine_auth.authorization_denied",
+        outcome: "denied",
+        actor: { type: "machine", machineIdentityId: machine },
+        organizationId: ORG,
+        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+        details: { humanOnlyGate: "auth.human_only_gate.approval_approve" },
+      });
+    }).not.toThrow();
   });
 
   it("accepts production sync and approval denied events with stable codes", () => {
