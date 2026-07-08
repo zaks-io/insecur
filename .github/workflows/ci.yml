@@ -81,6 +81,7 @@ jobs:
               pnpm-workspace.yaml|\
               scripts/ci/postgres-integration-tests.mjs|\
               scripts/dev-db.mjs|\
+              scripts/local-smoke.mjs|\
               turbo.json)
                 db_backed=true
                 ;;
