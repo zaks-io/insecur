@@ -15,7 +15,7 @@ interface ConfigShowProfile {
   readonly slug: string;
   readonly displayName: DisplayName;
   readonly host: string;
-  readonly orgId: OrganizationId;
+  readonly orgId?: OrganizationId;
   readonly projectId: ProjectId;
   readonly envId: EnvironmentId;
   readonly defaultRunPolicyId?: RuntimePolicyId;
@@ -39,7 +39,7 @@ function toConfigShowProfile(profileId: CliProfileId, profile: CliUserProfile): 
     slug: profile.slug,
     displayName: profile.displayName,
     host: profile.host,
-    orgId: profile.orgId,
+    ...(profile.orgId === undefined ? {} : { orgId: profile.orgId }),
     projectId: profile.projectId,
     envId: profile.envId,
     ...(profile.defaultRunPolicyId === undefined

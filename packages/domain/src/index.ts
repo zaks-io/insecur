@@ -168,6 +168,8 @@ export {
   type ValidationErrorCode,
   CLI_ERROR_CODES,
   type CliErrorCode,
+  LOCAL_ERROR_CODES,
+  type LocalErrorCode,
   NOTIFICATION_ERROR_CODES,
   type NotificationErrorCode,
   PROTECTED_CHANGE_ERROR_CODES,

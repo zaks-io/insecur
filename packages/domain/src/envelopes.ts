@@ -30,8 +30,10 @@ export interface ErrorRemediation {
   readonly approvalUrl?: string;
   readonly login?: readonly string[];
   readonly init?: readonly string[];
+  readonly migrate?: readonly string[];
   readonly poll?: readonly string[];
   readonly resume?: readonly string[];
+  readonly hosted?: readonly string[];
   readonly secretsSet?: readonly string[];
 }
 
