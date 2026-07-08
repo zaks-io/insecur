@@ -4,7 +4,7 @@ import { parseHighAssuranceChallengeEntry } from "./approval-items-parse.js";
 /** Discriminated by opaque ID prefix (docs/web-console-ux.md §URLs). */
 export type ConsoleApprovalItemKind = "high_assurance_challenge" | "approval_request";
 
-/** Generic Human Approval Surface inbox row; W6 Approval Requests slot in additively. */
+/** Generic Human Approval Surface inbox row; AG6 Approval Requests slot in additively. */
 export type ConsoleApprovalItem = ConsoleHighAssuranceChallengeItem | ConsoleApprovalRequestItem;
 
 export interface ConsoleHighAssuranceChallengeItem {

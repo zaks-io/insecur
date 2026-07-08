@@ -7,13 +7,13 @@ Read in this order:
 
 1. [Canonical Product Spec](product-spec.md) - the decided product shape, V1 boundary, and ADR trace
    links in one linear document.
-2. [Agent Workstreams](agent-workstreams.md) - isolated implementation groups, seams, dependencies,
-   and handoff contracts for autonomous agents.
+2. [Architecture Groups](architecture-groups.md) - architectural ownership groups, seams,
+   dependencies, and handoff contracts for autonomous agents.
 3. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
    proof loop, design-partner loop, and success signals that should constrain First Value scope.
 4. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
    under [docs/context/glossary/](../context/glossary/).
-5. Area docs only when the workstream calls for them, such as
+5. Area docs only when the architecture group calls for them, such as
    [First Value Milestone](../first-value-milestone.md),
    [Storage Security Gate](../storage-security-gate.md),
    [Protected Change Orchestration](../protected-change-orchestration.md),
@@ -29,8 +29,8 @@ Read in this order:
 - Superseded ADRs are linked only as "do not implement this older mechanism" evidence.
 - If a spec and an ADR disagree, do not guess. Treat it as a documentation defect, reopen the
   decision, and update both the spec and the ADR trail.
-- If a workstream needs a new architectural decision, add or amend an ADR first, then update these
-  specs so future agents continue to start from one place.
+- If an architecture group needs a new architectural decision, add or amend an ADR first, then
+  update these specs so future agents continue to start from one place.
 
 ### Content ownership
 
@@ -45,7 +45,7 @@ owner instead of restating it. This table is the normative owner-map, per
 | Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](product-spec.md)                                                                                         |
 | Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                                                                        |
 | Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
-| Workstream ownership, seams, and integration order          | [agent-workstreams.md](agent-workstreams.md)                                                                               |
+| Architecture group ownership, seams, and integration order  | [architecture-groups.md](architecture-groups.md)                                                                           |
 | Live implementation status                                  | [project-status.md](../project-status.md)                                                                                  |
 | Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence                                                   |
 

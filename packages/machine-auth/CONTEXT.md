@@ -13,7 +13,7 @@ exchange audit events.
 ## Read First
 
 - `../../docs/context-map.md`
-- `../../docs/specs/agent-workstreams.md` (W7)
+- `../../docs/specs/architecture-groups.md` (AG7)
 - `../../docs/context/glossary/machine-access.md`
 - `../../docs/context/glossary/access-authorization.md`
 - `../../docs/context/glossary/runtime-injection.md`

@@ -9,7 +9,7 @@ How the engineering skills should consume this repo's domain documentation when 
 - **`CONTEXT-MAP.md`** at the repo root to choose the relevant local context file.
 - **`docs/specs/README.md`** for the current implementation entry point.
 - **`docs/specs/product-spec.md`** for the consolidated product state and ADR trace links.
-- **`docs/specs/agent-workstreams.md`** when planning or taking an implementation slice.
+- **`docs/specs/architecture-groups.md`** when planning or taking an architecture group slice.
 - **The local `CONTEXT.md`** named by `CONTEXT-MAP.md` for the package or app being touched.
 - **`CONTEXT.md`** at the repo root: the glossary index. It routes to the per-domain definition
   slices under `docs/context/glossary/`. Load only the slice your task needs.
@@ -50,7 +50,7 @@ app/package reading maps:
 │   └── ...
 ├── docs/specs/
 │   ├── product-spec.md
-│   └── agent-workstreams.md
+│   └── architecture-groups.md
 └── docs/adr/
 ```
 

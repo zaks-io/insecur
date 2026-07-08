@@ -14,7 +14,7 @@ inventory, encryption tests, search/index review" as primary evidence, which mea
 re-reading the schema. Per-store tests prove that the existing stores emit inline ciphertext
 storage refs (`packages/tenant-store/test/plaintext-persistence-store.test.ts`), and the audit
 package validates event payloads against an allowlist, but nothing in the repo fails when an agent
-adds a new plaintext column to the schema. The workstreams about to be implemented are dense with
+adds a new plaintext column to the schema. The architecture groups about to be implemented are dense with
 exactly the columns the Security Release Gates section of
 [docs/security-plan.md](../security-plan.md) designates Sensitive Metadata — Approval Context
 Notes, provider target names, policy binding names — so under fleet-scale implementation a
@@ -29,8 +29,8 @@ registry, static unit check, and `information_schema` CI check are wired in
 
 - The Plaintext Metadata Allowlist becomes a machine-readable registry checked in next to the
   Drizzle schema source of truth in `packages/tenant-store/src/db/schema/` (for example
-  `plaintext-metadata-allowlist.ts`). W1 owns the registry together with the schema, per the W1
-  section of [docs/specs/agent-workstreams.md](../specs/agent-workstreams.md). The CONTEXT.md term
+  `plaintext-metadata-allowlist.ts`). AG1 owns the registry together with the schema, per the AG1
+  section of [docs/specs/architecture-groups.md](../specs/architecture-groups.md). The CONTEXT.md term
   now names this artifact rather than a concept.
 - Full enumeration, default deny. Every column of every user table — every table in the
   application's `public` schema; drizzle-kit's bookkeeping table lives in the separate `drizzle`
@@ -128,7 +128,7 @@ registry, static unit check, and `information_schema` CI check are wired in
   correctness remains owned by the encryption tests.
 - Doc propagation (owned separately from this ADR): the CONTEXT.md term points at the registry as
   canonical, the storage-security-gate evidence row names the gate while retaining "encryption
-  tests," and the W1 Owns and interface-commitment lists in agent-workstreams gain the registry
+  tests," and the AG1 Owns and interface-commitment lists in architecture-groups gain the registry
   and conformance test.
 - The category vocabulary becomes a shared review anchor for both audit payload keys and schema
   columns; a future field that is plaintext-safe in one surface and sensitive in the other must be

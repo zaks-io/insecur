@@ -12,7 +12,7 @@ egress chain bottoms out on it in four authoritative places:
 approved execution paths", [ADR-0026](0026-encryption-envelope-below-per-domain-wrappers.md) states
 that "the only plaintext that crosses the boundary outward is the output of decrypt, into an
 approved execution path", and [product-spec section 5](../specs/product-spec.md), the
-[agent-workstreams](../specs/agent-workstreams.md) W3 Encryption Envelope seam row, and the
+[architecture-groups](../specs/architecture-groups.md) AG3 Encryption Envelope seam row, and the
 CONTEXT.md Encryption Envelope module entry repeat the phrase normatively. Nothing checks it. This
 ADR references, and does not amend, ADR-0016 and ADR-0026: the seam and its egress invariant are
 unchanged; this record defines what "approved" means and makes the definition enforceable.
@@ -39,10 +39,10 @@ Today the allowlist has exactly one entry: runtime-injection's decrypt-for-grant
 `packages/runtime-injection/src/decrypt-grant-secret.ts`, which imports
 `decryptSecretValueForRuntime` to decrypt a consumed Injection Grant's bound secret version. Two
 future entries are decided V1 work and are added as deliberate allowlist diffs with their own ADR
-trace when built: W8 Secret Sync write execution (Provider Credential decrypt for provider use,
+trace when built: AG8 Secret Sync write execution (Provider Credential decrypt for provider use,
 plus Secret value decrypt after Sync Execution Revalidation and immediately before provider write,
-per ADR-0016) and the Sensitive Detail Gate's authorized Sensitive Metadata decrypt (W2/W9).
-Building either workstream without touching the allowlist fails lint; that failure is the boundary
+per ADR-0016) and the Sensitive Detail Gate's authorized Sensitive Metadata decrypt (AG2/AG9).
+Building either architecture group without touching the allowlist fails lint; that failure is the boundary
 working as intended.
 
 Rotation and rewrap are deliberately absent from the allowlist. Product-spec section 5 and
@@ -100,7 +100,7 @@ deploy-topology conformance gate.
 ## Consequences
 
 - The normative definition propagates to [product-spec](../specs/product-spec.md) sections 5 and 6,
-  the [agent-workstreams](../specs/agent-workstreams.md) W3 seam row, and CONTEXT.md as: approved
+  the [architecture-groups](../specs/architecture-groups.md) AG3 seam row, and CONTEXT.md as: approved
   execution paths are the modules on the decrypt-import allowlist enforced by the lint boundary;
   the restricted-import block in `eslint.config.ts` is the allowlist of record; adding a path is an
   allowlist diff plus ADR trace, not a code-only change.

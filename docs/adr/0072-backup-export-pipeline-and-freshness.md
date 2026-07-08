@@ -10,7 +10,7 @@ Status: Accepted
 daily independent encrypted logical export landed in R2, RPO 24 hours, encrypted under the existing
 instance custody chain with no separate backup key. It deliberately did not decide where the export
 runs, how it reads across tenants under forced RLS, or what the envelope is. This ADR completes
-that model so the implementing workstream does not guess, and adds the continuous freshness control
+that model so the implementing architecture group does not guess, and adds the continuous freshness control
 the one-time restore drill cannot provide.
 
 **Venue: the export runs inside the Worker, on a Cloudflare cron trigger.** The forcing constraint

@@ -48,7 +48,7 @@ enumerated in its canonical catalog; passing the shape check is not registration
   one-code-one-workflow registry rule is what gives the mismatch check its meaning.
 - The catalog starts with no production members. No production caller mints a concrete intent code
   yet; literal codes such as `sync.run` appear only in tests. Registration costs nothing now and
-  becomes a cross-workstream rename after parallel workstreams land.
+  becomes a cross-group rename after parallel implementation groups land.
 
 ### Lockstep
 
@@ -67,7 +67,7 @@ than restating them.
   intents are not failures. Retrofitting them would muddy a crisp decision record, so this sibling
   ADR cites ADR-0062 as precedent instead.
 - **Shape-only validation, the status quo for intent codes.** Rejected. `isStableDottedCode`
-  admits any spelling, so parallel workstreams minting codes from specs diverge (`sync.run` vs
+  admits any spelling, so parallel implementation groups minting codes from specs diverge (`sync.run` vs
   `syncs.run` vs `secret_sync.execute`), denied pairs get omitted, and nothing stops one generic
   intent code from naming two workflows, which blinds the ADR-0066 mismatch check.
 - **A mechanical `domain.action` / `domain.action_denied` suffix pairing rule.** Rejected. The
@@ -95,6 +95,6 @@ than restating them.
 - [docs/specs/product-spec.md](../specs/product-spec.md) section 11 points at the audit registry
   and states the grammar and pairing rule; [docs/operation-store.md](../operation-store.md) gains
   an Intent Codes subsection pointing at the intent catalog; and
-  [docs/specs/agent-workstreams.md](../specs/agent-workstreams.md) W10 references the audit
-  registry the way W2 references the `packages/access` registries. Those docs and this ADR must
+  [docs/specs/architecture-groups.md](../specs/architecture-groups.md) AG10 references the audit
+  registry the way AG2 references the `packages/access` registries. Those docs and this ADR must
   change together.

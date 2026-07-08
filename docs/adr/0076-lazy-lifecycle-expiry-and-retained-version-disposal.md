@@ -13,8 +13,8 @@ Draft Version Discard crypto-erases the discarded Draft Version's encrypted Sens
 material immediately in V1 (ADR-0017, CONTEXT.md). That asymmetry invites a wrong symmetric
 inference. An agent implementing the Secret Version Store — where
 [ADR-0025](0025-secret-version-store.md) lists "rollback eligibility as a Retained Published
-Version within the Rollback Retention Window" as a concentrated invariant, and the W4 workstream
-in [docs/specs/agent-workstreams.md](../specs/agent-workstreams.md) owns tombstones and retention
+Version within the Rollback Retention Window" as a concentrated invariant, and the AG4 architecture group
+in [docs/specs/architecture-groups.md](../specs/architecture-groups.md) owns tombstones and retention
 metadata — has three open guesses: build an erasure job for expired versions, retain ciphertext
 forever as a silent posture decision, or stamp eligibility at write time instead of evaluating it
 at rollback time. Separately, the no-sweeper posture has only ever been decided edge by edge
