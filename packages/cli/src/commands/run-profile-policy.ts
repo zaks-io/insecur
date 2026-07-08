@@ -2,6 +2,7 @@ import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
+import { assertHostedCapability } from "../local/cloud-feature-guard.js";
 import { resolveProfileRunInput } from "./resolve-run-profile.js";
 import { buildPolicyRunChildEnv, spawnCommand } from "./run-child.js";
 import type { RunCommandOptions } from "./run-shared.js";
@@ -16,6 +17,10 @@ export async function runProfilePolicyPath(
   context: ResolvedCliContext,
   commandOptions: RunCommandOptions,
 ): Promise<number> {
+  assertHostedCapability(context.scope, {
+    capability: "Profile-backed runtime injection",
+    hostedCommand: ["insecur", "run", "<profile>", "--", "<command>"],
+  });
   const profileRun = resolveProfileRunInput({
     flags,
     context,
