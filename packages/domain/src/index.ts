@@ -169,6 +169,8 @@ export { isKnownErrorCodeInCatalog, listKnownErrorCodes } from "./known-error-co
 export {
   type ErrorBody,
   type ErrorEnvelope,
+  type ErrorEnvelopeOptions,
+  type ErrorRemediation,
   FORBIDDEN_ENVELOPE_KEYS,
   isBinaryPayload,
   MetadataEnvelopeValidationError,

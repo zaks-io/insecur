@@ -8,6 +8,7 @@ import type {
   EnvironmentSecretMetadataRow,
   ListEnvironmentSecretsInput,
   ListSecretVersionMetadataInput,
+  SecretVersionDescriptiveVerdictsRead,
   SecretVersionMetadataRow,
 } from "./environment-secret-metadata-types.js";
 import { loadSecretsWithCurrentVersionJoin } from "./secret-current-version-join.js";
@@ -15,6 +16,35 @@ import { loadSecretsWithCurrentVersionJoin } from "./secret-current-version-join
 type SecretCurrentVersionJoinRow = Awaited<
   ReturnType<typeof loadSecretsWithCurrentVersionJoin>
 >[number];
+
+function toDescriptiveVerdictsRead(row: {
+  valueByteLength: number | null;
+  encodingClass: string | null;
+  isEmpty: boolean | null;
+  hasLeadingOrTrailingWhitespace: boolean | null;
+  looksLikePlaceholder: boolean | null;
+  secretShapeMatchVerdict: string | null;
+}): SecretVersionDescriptiveVerdictsRead | null {
+  if (
+    row.valueByteLength === null ||
+    row.encodingClass === null ||
+    row.isEmpty === null ||
+    row.hasLeadingOrTrailingWhitespace === null ||
+    row.looksLikePlaceholder === null ||
+    row.secretShapeMatchVerdict === null
+  ) {
+    return null;
+  }
+  return {
+    valueByteLength: row.valueByteLength,
+    encodingClass: row.encodingClass as SecretVersionDescriptiveVerdictsRead["encodingClass"],
+    isEmpty: row.isEmpty,
+    hasLeadingOrTrailingWhitespace: row.hasLeadingOrTrailingWhitespace,
+    looksLikePlaceholder: row.looksLikePlaceholder,
+    secretShapeMatchVerdict:
+      row.secretShapeMatchVerdict as SecretVersionDescriptiveVerdictsRead["secretShapeMatchVerdict"],
+  };
+}
 
 function resolveCurrentVersionFields(
   row: SecretCurrentVersionJoinRow,
@@ -25,6 +55,7 @@ function resolveCurrentVersionFields(
   | "currentLifecycleState"
   | "currentVersionCreatedAt"
   | "currentPublishedAt"
+  | "currentVersionDescriptiveVerdicts"
 > {
   if (
     row.currentVersionId === null ||
@@ -39,6 +70,7 @@ function resolveCurrentVersionFields(
       currentLifecycleState: null,
       currentVersionCreatedAt: null,
       currentPublishedAt: null,
+      currentVersionDescriptiveVerdicts: null,
     };
   }
 
@@ -50,6 +82,7 @@ function resolveCurrentVersionFields(
       currentLifecycleState: null,
       currentVersionCreatedAt: null,
       currentPublishedAt: null,
+      currentVersionDescriptiveVerdicts: null,
     };
   }
 
@@ -59,6 +92,7 @@ function resolveCurrentVersionFields(
     currentLifecycleState: parseSecretVersionLifecycleState(row.lifecycleState),
     currentVersionCreatedAt: row.versionCreatedAt,
     currentPublishedAt: row.publishedAt,
+    currentVersionDescriptiveVerdicts: toDescriptiveVerdictsRead(row),
   };
 }
 
@@ -107,6 +141,12 @@ function toSecretVersionMetadataRow(
     lifecycleState: string;
     createdAt: Date;
     publishedAt: Date | null;
+    valueByteLength: number;
+    encodingClass: string;
+    isEmpty: boolean;
+    hasLeadingOrTrailingWhitespace: boolean;
+    looksLikePlaceholder: boolean;
+    secretShapeMatchVerdict: string;
   },
   currentVersionId: string | null,
 ): SecretVersionMetadataRow | null {
@@ -115,6 +155,10 @@ function toSecretVersionMetadataRow(
     return null;
   }
   const lifecycleState = parseSecretVersionLifecycleState(row.lifecycleState);
+  const descriptiveVerdicts = toDescriptiveVerdictsRead(row);
+  if (descriptiveVerdicts === null) {
+    return null;
+  }
   // isPublished is the current delivery-eligible Published Version (lifecycle "live").
   // publishedAt is retained after supersede to "retained" for rollback history; those rows
   // must not surface as published even when publishedAt is non-null (ADR-0076 / glossary).
@@ -126,6 +170,7 @@ function toSecretVersionMetadataRow(
     publishedAt: row.publishedAt,
     isCurrent: currentVersionId !== null && row.secretVersionId === currentVersionId,
     isPublished: lifecycleState === "live",
+    descriptiveVerdicts,
   };
 }
 
@@ -154,6 +199,12 @@ export async function listSecretVersionMetadataRows(
       lifecycleState: secretVersions.lifecycleState,
       createdAt: secretVersions.createdAt,
       publishedAt: secretVersions.publishedAt,
+      valueByteLength: secretVersions.valueByteLength,
+      encodingClass: secretVersions.encodingClass,
+      isEmpty: secretVersions.isEmpty,
+      hasLeadingOrTrailingWhitespace: secretVersions.hasLeadingOrTrailingWhitespace,
+      looksLikePlaceholder: secretVersions.looksLikePlaceholder,
+      secretShapeMatchVerdict: secretVersions.secretShapeMatchVerdict,
     })
     .from(secretVersions)
     .innerJoin(secrets, eq(secretVersions.secretId, secrets.id))

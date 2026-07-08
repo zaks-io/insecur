@@ -2,17 +2,9 @@ import { cloudflareSentryOptions, sentryBrowserConfig } from "@insecur/observabi
 import * as Sentry from "@sentry/cloudflare";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import serverEntry from "@tanstack/react-start/server-entry";
-import { badgeJsonResponse } from "./badge-json-response.js";
 import type { SiteEnv } from "./env.js";
-import coverageBadge from "./generated/coverage-badge.json" with { type: "json" };
-import { INSTALL_PS1 } from "./install-ps1.js";
-import {
-  INSTALL_PS1_CONTENT_TYPE,
-  INSTALL_SH_CONTENT_TYPE,
-  installScriptResponse,
-} from "./install-scripts.js";
-import { INSTALL_SH } from "./install-sh.js";
 import { withSecurityHeaders } from "./security-headers.js";
+import { tryStaticSiteResponse } from "./static-site-routes.js";
 
 const sentryServerEntry = wrapFetchWithSentry({
   fetch(request, opts) {
@@ -25,35 +17,17 @@ const sentryServerEntry = wrapFetchWithSentry({
  * Public Site Worker entry (ADR-0078). Serves the marketing/legal/security surface for
  * insecur.cloud. It holds no auth session, no database/keyring binding, and no API/Runtime Service
  * Binding; `env` carries no control-plane capability. A plain fetch handler (not a Hono router);
- * the deploy-topology gate extracts the `pathname === "..."` branches below as this deploy's
- * public mounts (docs/specs/deploy-route-inventory.md).
+ * static pathname guards live in static-site-routes.ts for deploy-topology conformance
+ * (docs/specs/deploy-route-inventory.md).
  */
 const handler = {
   async fetch(request: Request, env: SiteEnv, ctx: ExecutionContext): Promise<Response> {
     void ctx;
 
     const { pathname } = new URL(request.url);
-
-    if (pathname === "/install.sh") {
-      return installScriptResponse(INSTALL_SH, INSTALL_SH_CONTENT_TYPE, request.method);
-    }
-
-    if (pathname === "/install.ps1") {
-      return installScriptResponse(INSTALL_PS1, INSTALL_PS1_CONTENT_TYPE, request.method);
-    }
-
-    if (pathname === "/badges/coverage.json") {
-      return badgeJsonResponse(coverageBadge, request.method);
-    }
-
-    if (pathname === "/healthz") {
-      return Response.json({
-        ok: true,
-        service: "insecur-site",
-        deploySha: env.DEPLOY_SHA ?? "unknown",
-        runId: env.DEPLOY_RUN_ID ?? "unknown",
-        deployedAt: env.DEPLOYED_AT ?? "unknown",
-      });
+    const staticResponse = tryStaticSiteResponse(pathname, request.method, env);
+    if (staticResponse !== null) {
+      return staticResponse;
     }
 
     const sentry = sentryBrowserConfig(env);

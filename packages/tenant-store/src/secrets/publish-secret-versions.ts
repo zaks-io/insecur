@@ -1,4 +1,5 @@
 import type { SecretId } from "@insecur/domain";
+import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
@@ -16,6 +17,47 @@ import type {
   PublishSecretVersionsResult,
 } from "./types.js";
 
+interface DraftPublishTargetRow {
+  secretId: string;
+  versionNumber: number;
+  lifecycleState: string;
+  valueByteLength: number;
+  encodingClass: string;
+  isEmpty: boolean;
+  hasLeadingOrTrailingWhitespace: boolean;
+  looksLikePlaceholder: boolean;
+  secretShapeMatchVerdict: string;
+}
+
+function toDescriptiveVerdictsFromDraftRow(
+  row: DraftPublishTargetRow,
+): SecretWriteDescriptiveVerdicts {
+  return {
+    valueByteLength: row.valueByteLength,
+    encodingClass: row.encodingClass as SecretWriteDescriptiveVerdicts["encodingClass"],
+    isEmpty: row.isEmpty,
+    hasLeadingOrTrailingWhitespace: row.hasLeadingOrTrailingWhitespace,
+    looksLikePlaceholder: row.looksLikePlaceholder,
+    secretShapeMatchVerdict:
+      row.secretShapeMatchVerdict as SecretWriteDescriptiveVerdicts["secretShapeMatchVerdict"],
+  };
+}
+
+function validateDraftPublishTargets(
+  input: PublishSecretVersionsInput,
+  draftById: Map<string, DraftPublishTargetRow>,
+): void {
+  for (const target of input.targets) {
+    const row = draftById.get(target.secretVersionId);
+    if (row?.secretId !== target.secretId) {
+      throw new SecretVersionStoreConflictError("publish target secret version mismatch");
+    }
+    if (row.lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.draft) {
+      throw new SecretVersionStoreConflictError("publish target is not a draft version");
+    }
+  }
+}
+
 function assertUniquePublishTargets(targets: PublishSecretVersionsInput["targets"]): void {
   const seenSecrets = new Set<SecretId>();
   for (const target of targets) {
@@ -29,7 +71,7 @@ function assertUniquePublishTargets(targets: PublishSecretVersionsInput["targets
 async function loadDraftPublishTargets(
   db: TenantScopedDb,
   input: PublishSecretVersionsInput,
-): Promise<Map<string, { secretId: string; versionNumber: number; lifecycleState: string }>> {
+): Promise<Map<string, DraftPublishTargetRow>> {
   const targetVersionIds = input.targets.map((target) => target.secretVersionId);
   const draftRows = await db
     .select({
@@ -37,6 +79,12 @@ async function loadDraftPublishTargets(
       secretId: secretVersions.secretId,
       versionNumber: secretVersions.versionNumber,
       lifecycleState: secretVersions.lifecycleState,
+      valueByteLength: secretVersions.valueByteLength,
+      encodingClass: secretVersions.encodingClass,
+      isEmpty: secretVersions.isEmpty,
+      hasLeadingOrTrailingWhitespace: secretVersions.hasLeadingOrTrailingWhitespace,
+      looksLikePlaceholder: secretVersions.looksLikePlaceholder,
+      secretShapeMatchVerdict: secretVersions.secretShapeMatchVerdict,
     })
     .from(secretVersions)
     .where(
@@ -50,17 +98,8 @@ async function loadDraftPublishTargets(
     throw new SecretVersionStoreNotFoundError("publish target secret version not found");
   }
 
-  const draftById = new Map(draftRows.map((row) => [row.id, row]));
-  for (const target of input.targets) {
-    const row = draftById.get(target.secretVersionId);
-    if (row?.secretId !== target.secretId) {
-      throw new SecretVersionStoreConflictError("publish target secret version mismatch");
-    }
-    if (row.lifecycleState !== SECRET_VERSION_LIFECYCLE_STATES.draft) {
-      throw new SecretVersionStoreConflictError("publish target is not a draft version");
-    }
-  }
-
+  const draftById = new Map(draftRows.map((row) => [row.id, row satisfies DraftPublishTargetRow]));
+  validateDraftPublishTargets(input, draftById);
   return draftById;
 }
 
@@ -93,8 +132,28 @@ interface PublishSingleTargetInput {
   db: TenantScopedDb;
   publishInput: PublishSecretVersionsInput;
   target: PublishSecretVersionsInput["targets"][number];
-  draftById: Map<string, { secretId: string; versionNumber: number; lifecycleState: string }>;
+  draftById: Map<string, DraftPublishTargetRow>;
   publishedAt: Date;
+}
+
+async function retainCurrentLiveSecretVersion(
+  db: TenantScopedDb,
+  organizationId: PublishSecretVersionsInput["organizationId"],
+  secretId: SecretId,
+): Promise<void> {
+  const [currentSecret] = await db
+    .select({ currentVersionId: secrets.currentVersionId })
+    .from(secrets)
+    .where(and(eq(secrets.id, secretId), eq(secrets.orgId, organizationId)))
+    .limit(1);
+
+  if (!currentSecret) {
+    throw new SecretVersionStoreNotFoundError("secret not found for publish");
+  }
+
+  if (currentSecret.currentVersionId) {
+    await retainCurrentLiveVersion(db, organizationId, secretId, currentSecret.currentVersionId);
+  }
 }
 
 async function publishSingleTarget(
@@ -106,24 +165,7 @@ async function publishSingleTarget(
     throw new SecretVersionStoreNotFoundError("publish target secret version not found");
   }
 
-  const [currentSecret] = await db
-    .select({ currentVersionId: secrets.currentVersionId })
-    .from(secrets)
-    .where(and(eq(secrets.id, target.secretId), eq(secrets.orgId, publishInput.organizationId)))
-    .limit(1);
-
-  if (!currentSecret) {
-    throw new SecretVersionStoreNotFoundError("secret not found for publish");
-  }
-
-  if (currentSecret.currentVersionId) {
-    await retainCurrentLiveVersion(
-      db,
-      publishInput.organizationId,
-      target.secretId,
-      currentSecret.currentVersionId,
-    );
-  }
+  await retainCurrentLiveSecretVersion(db, publishInput.organizationId, target.secretId);
 
   await promoteDraftToLive({
     db,
@@ -147,6 +189,7 @@ async function publishSingleTarget(
     versionNumber: row.versionNumber,
     lifecycleState: SECRET_VERSION_LIFECYCLE_STATES.live,
     createdSecretShape: false,
+    descriptiveVerdicts: toDescriptiveVerdictsFromDraftRow(row),
   };
 }
 

@@ -1,17 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { parseConsoleReadEnvelope } from "../console/envelope.js";
 import {
   parseOrgInvitationsBody,
   parseOrgMembersBody,
   type ConsoleInvitation,
   type ConsoleMember,
 } from "../console/people.js";
-import {
-  consoleRead,
-  consoleReadUnavailable,
-  orgIdInput,
-  type ConsoleRead,
-} from "./console-read.js";
+import { consoleRead, orgIdInput, runConsoleReadSteps, type ConsoleRead } from "./console-read.js";
 
 export interface ConsolePeople {
   readonly members: readonly ConsoleMember[];
@@ -26,19 +20,14 @@ export interface ConsolePeople {
 export const loadOrgPeople = createServerFn({ method: "GET" })
   .validator(orgIdInput)
   .handler(({ data }): Promise<ConsoleRead<ConsolePeople>> =>
-    consoleRead(async (api) => {
-      const [membersBody, invitationsBody] = await Promise.all([
-        api.orgMembers(data.organizationId),
-        api.orgInvitations(data.organizationId),
-      ]);
-      const members = parseConsoleReadEnvelope(membersBody, parseOrgMembersBody);
-      const invitations = parseConsoleReadEnvelope(invitationsBody, parseOrgInvitationsBody);
-      if (members.kind === "unavailable" || invitations.kind === "unavailable") {
-        return consoleReadUnavailable;
-      }
-      if (members.kind === "denied" || invitations.kind === "denied") {
-        return null;
-      }
-      return { members: members.value, invitations: invitations.value };
-    }),
+    consoleRead((api) =>
+      runConsoleReadSteps(
+        api,
+        [
+          { fetch: (a) => a.orgMembers(data.organizationId), parse: parseOrgMembersBody },
+          { fetch: (a) => a.orgInvitations(data.organizationId), parse: parseOrgInvitationsBody },
+        ],
+        (members, invitations) => ({ members, invitations }),
+      ),
+    ),
   );

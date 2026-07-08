@@ -42,7 +42,7 @@ async function runProfilePolicySingleShot(input: {
   readonly profileRun: ReturnType<typeof resolveProfileRunInput>;
   readonly command: readonly string[];
 }): Promise<number> {
-  const { issueData, delivery } = await issueAndConsumePolicyGrant({
+  const { issueData, delivery, requestId } = await issueAndConsumePolicyGrant({
     api: input.api,
     credential: input.credential,
     host: input.profileRun.host,
@@ -67,6 +67,7 @@ async function runProfilePolicySingleShot(input: {
     issueData,
     delivery,
     childExitCode,
+    requestId,
   });
   return childExitCode;
 }

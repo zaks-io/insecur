@@ -160,8 +160,10 @@ export function domainErrorEnvelope(
       retryable: retryableForError(error),
     },
     {
-      requestId,
-      ...(operationId !== undefined ? { operationId } : {}),
+      meta: {
+        requestId,
+        ...(operationId !== undefined ? { operationId } : {}),
+      },
     },
   );
   return { status, body };

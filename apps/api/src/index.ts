@@ -48,7 +48,7 @@ app.onError((err, context) => {
           message: failure.message,
           retryable: failure.retryable,
         },
-        { requestId: reqId },
+        { meta: { requestId: reqId } },
       ),
       401,
     );
@@ -66,7 +66,7 @@ app.onError((err, context) => {
           message: err.message,
           retryable: false,
         },
-        { requestId: reqId },
+        { meta: { requestId: reqId } },
       ),
       503,
     );

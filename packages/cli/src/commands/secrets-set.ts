@@ -4,7 +4,7 @@ import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { collectSecretValue, type CollectedSecretValue } from "../input/collect-secret-value.js";
-import { CliError } from "../output/cli-error.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { parseVariableKeyOrThrow } from "./parse-variable-key.js";
@@ -76,7 +76,7 @@ export async function runSecretsSetCommand(
   );
 
   if (!result.ok) {
-    throw new CliError(result.envelope.error);
+    throw cliErrorFromEnvelope(result.envelope);
   }
 
   const data = result.envelope.data;

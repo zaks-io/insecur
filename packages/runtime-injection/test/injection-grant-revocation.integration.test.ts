@@ -204,12 +204,24 @@ describeInjectionGrantIntegration("Runtime Injection Grant revocation (ADR-0074)
       actor: testActor(),
     });
 
+    const revokedMarker = await loadGrantRevocation(org, revokedGrant.grantId);
+    expect(revokedMarker?.revoked_at).not.toBeNull();
+
+    const freshWrite = await writeTestSecret(variableKey, freshPlaintext);
     const freshGrant = await issueInjectionGrant({
       organizationId: org,
       projectId: testProject(),
       environmentId: testEnvironment(),
       selector: { kind: "variable_key", variableKey },
       actor: testActor(),
+    });
+
+    expect(freshGrant.grantId).not.toBe(revokedGrant.grantId);
+    const freshBinding = await loadGrantBinding(org, freshGrant.grantId);
+    expect(freshBinding?.secret_version_ids[0]).toBe(freshWrite.secretVersionId);
+    expect(await loadGrantRevocation(org, revokedGrant.grantId)).toMatchObject({
+      revoked_at: expect.any(String),
+      revoked_reason: "tenant_suspension",
     });
 
     await expect(
@@ -285,6 +297,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant revocation (ADR-0074)
       ...accessCoordinate,
       policyId: runtimePolicyId.brand(POLICY_ID),
       policyVersionId: runtimePolicyVersionId.brand(VERSION_TWO_ID),
+      displayName: displayName("INS449 Policy v2"),
       version: {
         secretIds: [written.secretId],
         variableKeys: [],

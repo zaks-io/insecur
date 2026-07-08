@@ -6,6 +6,7 @@ import type {
   SecretVersionId,
   VariableKey,
 } from "@insecur/domain";
+import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 
 import type { SecretVersionLifecycleState } from "./lifecycle-states.js";
 
@@ -41,6 +42,7 @@ interface AppendSecretVersionInput {
   secretVersionId: SecretVersionId;
   wrapped: StoredWrappedSecretMaterial;
   createdSecretShape: boolean;
+  descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
 }
 
 export interface AppendSecretVersionResult {
@@ -49,6 +51,7 @@ export interface AppendSecretVersionResult {
   versionNumber: number;
   lifecycleState: SecretVersionLifecycleState;
   createdSecretShape: boolean;
+  descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
 }
 
 export type AppendSecretVersionAndMakeLiveInput = AppendSecretVersionInput;

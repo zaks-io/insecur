@@ -2,6 +2,7 @@ import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 import { CLI_ERROR_CODES } from "@insecur/domain";
 import type { ResolvedCliScope } from "../config/resolve-scope.js";
 import { CliError } from "../output/cli-error.js";
+import { INIT_REMEDIATION } from "../output/cli-remediation.js";
 
 export interface ResolvedSecretWriteScope {
   readonly orgId: OrganizationId;
@@ -21,11 +22,14 @@ export function requireSecretWriteScope(scope: ResolvedCliScope): ResolvedSecret
     if (scope.envId === undefined) {
       missing.push("environment");
     }
-    throw new CliError({
-      code: CLI_ERROR_CODES.parentScopeUnresolved,
-      message: `Missing ${missing.join(", ")} scope. Run insecur init or pass --org-id, --project-id, and --env-id.`,
-      retryable: false,
-    });
+    throw new CliError(
+      {
+        code: CLI_ERROR_CODES.parentScopeUnresolved,
+        message: `Missing ${missing.join(", ")} scope. Run insecur init or pass --org-id, --project-id, and --env-id.`,
+        retryable: false,
+      },
+      { remediation: INIT_REMEDIATION },
+    );
   }
   return {
     orgId: scope.orgId,
