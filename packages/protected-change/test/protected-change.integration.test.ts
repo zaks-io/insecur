@@ -163,7 +163,7 @@ async function seedDraftSecret(input: {
         ${false},
         ${false},
         ${false},
-        ${"match"}
+        ${"matches"}
       )
       ON CONFLICT (id) DO NOTHING
     `;
