@@ -4,7 +4,7 @@ import {
   isExplicitProfilePositional,
   reconcileProfileRunCommand,
 } from "./commands/resolve-run-profile.js";
-import type { GlobalCliFlags } from "./cli-options.js";
+import type { ProgramDeps } from "./program-deps.js";
 
 function argvTokensForProfileDetection(
   command: CommanderCommand | null | undefined,
@@ -31,16 +31,7 @@ function argvTokensForProfileDetection(
   return process.argv;
 }
 
-export function registerRunCommand(
-  program: Command,
-  deps: {
-    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
-    readonly resolveApi: (flags: GlobalCliFlags) => Promise<{
-      api: Parameters<typeof runRunCommand>[1];
-      context: Parameters<typeof runRunCommand>[2];
-    }>;
-  },
-): void {
+export function registerRunCommand(program: Command, deps: ProgramDeps): void {
   program
     .command("run")
     .description(
@@ -66,13 +57,7 @@ export function registerRunCommand(
 async function runAction(
   profileArg: string | undefined,
   command: CommanderCommand,
-  deps: {
-    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
-    readonly resolveApi: (flags: GlobalCliFlags) => Promise<{
-      api: Parameters<typeof runRunCommand>[1];
-      context: Parameters<typeof runRunCommand>[2];
-    }>;
-  },
+  deps: ProgramDeps,
 ): Promise<void> {
   const flags = deps.globalFlags(command);
   const options = command.opts<{ variableKey?: string; policyId?: string; watch?: boolean }>();

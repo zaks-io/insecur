@@ -2,9 +2,9 @@ import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import type { Command, Command as CommanderCommand } from "commander";
 import { DEFAULT_LOGIN_CALLBACK_TIMEOUT_SECONDS } from "./commands/login-pkce.js";
 import { runLoginCommand } from "./commands/login.js";
-import type { GlobalCliFlags } from "./cli-options.js";
 import { CliError } from "./output/cli-error.js";
 import { EXIT_VALIDATION } from "./output/exit-codes.js";
+import type { ProgramDeps } from "./program-deps.js";
 
 export function parseLoginCallbackPort(value: string | undefined): number | undefined {
   if (value === undefined) {
@@ -62,16 +62,7 @@ export function parseLoginCallbackTimeout(value: string | undefined): number | u
   return timeoutSeconds;
 }
 
-export function registerLoginCommand(
-  program: Command,
-  deps: {
-    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
-    readonly resolveApi: (flags: GlobalCliFlags) => Promise<{
-      api: Parameters<typeof runLoginCommand>[1];
-      context: Parameters<typeof runLoginCommand>[2];
-    }>;
-  },
-): void {
+export function registerLoginCommand(program: Command, deps: ProgramDeps): void {
   program
     .command("login")
     .description("Authenticate with WorkOS AuthKit PKCE and mint a short-lived CLI credential")

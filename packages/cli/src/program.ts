@@ -1,44 +1,17 @@
-import { Command, type Command as CommanderCommand } from "commander";
-import { createHttpApiClientForHost } from "./api/http-client.js";
-import { parseGlobalOptions } from "./cli-options.js";
-import { runInitCommand, DEFAULT_INIT_PROFILE_SLUG } from "./commands/init.js";
-import { registerLoginCommand } from "./register-login-command.js";
-import { runLogoutCommand } from "./commands/logout.js";
-import { runShellCommand } from "./commands/shell.js";
-import { registerRunCommand } from "./register-run-command.js";
-import { loadAndResolveCliContext } from "./config/load-cli-context.js";
-import type { GlobalCliFlags } from "./cli-options.js";
+import { Command } from "commander";
 import { applyCommanderUsageSeam } from "./output/commander-usage-error.js";
 import { renderCliRunFailure } from "./output/render-cli-run-failure.js";
-import { registerGuideCommand } from "./register-guide-command.js";
-import { registerScanCommand } from "./register-scan-command.js";
-import { registerConfigCommands } from "./register-config-commands.js";
 import { registerApiBackedCommands } from "./register-api-backed-commands.js";
+import { registerConfigCommands } from "./register-config-commands.js";
+import { registerGuideCommand } from "./register-guide-command.js";
+import { registerInitCommand } from "./register-init-command.js";
+import { registerLoginCommand } from "./register-login-command.js";
+import { registerLogoutCommand } from "./register-logout-command.js";
+import { registerRunCommand } from "./register-run-command.js";
+import { registerScanCommand } from "./register-scan-command.js";
+import { registerShellCommand } from "./register-shell-command.js";
+import { attachGlobalOptions, createProgramDeps, globalFlags } from "./program-deps.js";
 import { cliVersion } from "./version.js";
-
-function attachGlobalOptions(command: Command): Command {
-  return command
-    .option("--host <url>", "insecur API host")
-    .option("--org-id <id>", "organization opaque id")
-    .option("--project-id <id>", "project opaque id")
-    .option("--env-id <id>", "environment opaque id")
-    .option("--profile <slug>", "CLI profile slug")
-    .option("--profile-id <id>", "CLI profile opaque id")
-    .option("--config-dir <path>", "directory containing .insecur.json")
-    .option("--agent <name>", "agent attribution tag (Tier 3)")
-    .option("--json", "metadata-only JSON output")
-    .option("--quiet", "suppress non-essential human output")
-    .option("--verbose", "verbose logging");
-}
-
-function globalFlags(command: CommanderCommand): GlobalCliFlags {
-  return parseGlobalOptions(command.optsWithGlobals()).flags;
-}
-
-async function resolveApi(flags: GlobalCliFlags) {
-  const context = await loadAndResolveCliContext(flags);
-  return { api: createHttpApiClientForHost(context.scope.host), context };
-}
 
 function createInsecurRootProgram(): Command {
   const program = attachGlobalOptions(new Command());
@@ -51,51 +24,16 @@ function createInsecurRootProgram(): Command {
 
 function buildProgram(): Command {
   const program = createInsecurRootProgram();
-  const deps = { globalFlags, resolveApi };
+  const deps = createProgramDeps();
 
   registerLoginCommand(program, deps);
-
-  program
-    .command("logout")
-    .description("End the CLI session locally and revoke the server session")
-    .action(async function logoutAction(_args, command: CommanderCommand) {
-      const flags = globalFlags(command);
-      const { api, context } = await resolveApi(flags);
-      process.exitCode = await runLogoutCommand(flags, api, context);
-    });
-
-  program
-    .command("shell")
-    .description("Start a subshell with INSECUR_SESSION_TOKEN in the environment")
-    .argument("<profile>", "CLI profile slug or opaque id")
-    .action(async function shellAction(
-      profile: string,
-      _options: unknown,
-      command: CommanderCommand,
-    ) {
-      const flags = globalFlags(command);
-      const context = await loadAndResolveCliContext(flags);
-      process.exitCode = await runShellCommand(flags, profile, context);
-    });
-
+  registerLogoutCommand(program, deps);
+  registerShellCommand(program, deps);
   registerRunCommand(program, deps);
-
-  program
-    .command("init")
-    .description("Provision guided organization defaults and write .insecur.json")
-    .option("--profile-slug <slug>", "local CLI profile slug", DEFAULT_INIT_PROFILE_SLUG)
-    .action(async function initAction(_args, command: CommanderCommand) {
-      const flags = globalFlags(command);
-      const options = command.opts<{ profileSlug: string }>();
-      const { api, context } = await resolveApi(flags);
-      process.exitCode = await runInitCommand(flags, api, context, {
-        profileSlug: options.profileSlug,
-      });
-    });
-
-  registerScanCommand(program, { globalFlags });
+  registerInitCommand(program, deps);
+  registerScanCommand(program, { globalFlags: deps.globalFlags });
   registerGuideCommand(program);
-  registerConfigCommands(program, globalFlags);
+  registerConfigCommands(program, deps.globalFlags);
   registerApiBackedCommands(program, deps);
 
   return program;

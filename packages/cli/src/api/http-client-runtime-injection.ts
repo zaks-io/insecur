@@ -1,4 +1,5 @@
-import type { ApiClient, IssueInjectionGrantData } from "./types.js";
+import type { IssueInjectionGrantData } from "./runtime-injection-api-types.js";
+import type { RuntimeInjectionApiClient } from "./runtime-injection-api-types.js";
 import {
   parseDeliveryAllEnvelope,
   parseDeliveryEnvelope,
@@ -8,7 +9,7 @@ import {
 
 export async function issueInjectionGrant(
   base: string,
-  input: Parameters<ApiClient["issueInjectionGrant"]>[0],
+  input: Parameters<RuntimeInjectionApiClient["issueInjectionGrant"]>[0],
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants`;
   const selectorBody =
@@ -33,7 +34,7 @@ export async function issueInjectionGrant(
 
 export async function consumeInjectionGrant(
   base: string,
-  input: Parameters<ApiClient["consumeInjectionGrant"]>[0],
+  input: Parameters<RuntimeInjectionApiClient["consumeInjectionGrant"]>[0],
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume`;
   const { response, body: responseBody } = await postAuthorizedJson(
@@ -54,7 +55,7 @@ export async function consumeInjectionGrant(
 
 export async function consumeInjectionGrantAll(
   base: string,
-  input: Parameters<ApiClient["consumeInjectionGrantAll"]>[0],
+  input: Parameters<RuntimeInjectionApiClient["consumeInjectionGrantAll"]>[0],
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume-all`;
   const { response, body: responseBody } = await postAuthorizedJson(
@@ -74,7 +75,7 @@ export async function consumeInjectionGrantAll(
 
 export async function recordInjectionRunCompleted(
   base: string,
-  input: Parameters<ApiClient["recordInjectionRunCompleted"]>[0],
+  input: Parameters<RuntimeInjectionApiClient["recordInjectionRunCompleted"]>[0],
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/run-completed`;
   const { response, body: responseBody } = await postAuthorizedJson(
