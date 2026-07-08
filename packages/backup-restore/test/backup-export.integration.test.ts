@@ -1,7 +1,7 @@
 import { organizationId } from "@insecur/domain";
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { requireDatabaseUrl } from "../../tenant-store/scripts/lib/env-local.mjs";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   BACKUP_EXPORT_FRESHNESS_HOURS,
@@ -31,13 +31,14 @@ function durableRootKey(): Uint8Array {
   return root;
 }
 
-async function ensureRecoveryCanaryOrganization(): Promise<void> {
-  await withTenantScope({ kind: "service" }, async ({ sql }) => {
-    await sql`
-      INSERT INTO organizations (id, instance_id, display_name)
-      VALUES (${RECOVERY_CANARY_ORGANIZATION_ID}, ${TEST_INSTANCE_ID}, ${"Recovery Canary"})
-      ON CONFLICT (id) DO NOTHING
-    `;
+async function canaryOrganizationRowCount(): Promise<number> {
+  return await withTenantScope({ kind: "service" }, async ({ sql }) => {
+    const rows = (await sql`
+      SELECT COUNT(*)::int AS count
+      FROM organizations
+      WHERE id = ${RECOVERY_CANARY_ORGANIZATION_ID}
+    `) as { count: number }[];
+    return rows[0]?.count ?? 0;
   });
 }
 
@@ -73,7 +74,6 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
 
   beforeAll(async () => {
     await seedTenantBaseline();
-    await ensureRecoveryCanaryOrganization();
   });
 
   afterAll(async () => {
@@ -82,6 +82,12 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
 
   it("uses the NOBYPASSRLS runtime credential", async () => {
     await assertRuntimeDatabaseRole();
+  });
+
+  it("provisions the recovery-canary sentinel organization through the standard seed path", async () => {
+    // No test-only per-suite canary insert: the from-scratch baseline seed is the only thing that
+    // ran, and it must have created the sentinel org so the export's Operation/audit FK resolves.
+    expect(await canaryOrganizationRowCount()).toBe(1);
   });
 
   it("seals a multi-org artifact and reports export freshness", async () => {
@@ -154,5 +160,26 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
     expect(replay.operation.operationId).toEqual(firstRun.operation.operationId);
     expect(secondRun.created).toBe(true);
     expect(secondRun.operation.operationId).not.toEqual(firstRun.operation.operationId);
+  });
+
+  it("fires the failure alert and rethrows when createOperation fails", async () => {
+    // Scoping the export to an organization that was never seeded makes createOperation FK-violate
+    // (operations.org_id -> organizations.id) before any Operation row exists. That failure must
+    // still page the operator: a backup pipeline that dies silently is worse than none.
+    const unseededOrg = organizationId.brand("org_000000000000000000000BADFK");
+    const onExportFailureAlert = vi.fn();
+
+    await expect(
+      runBackupExport({
+        scheduledAt: new Date("2026-07-11T03:00:00.000Z"),
+        rootKeyBytes,
+        storage: new MemoryBackupExportStorage(),
+        organizationId: unseededOrg,
+        instanceId: TEST_INSTANCE_ID,
+        onExportFailureAlert,
+      }),
+    ).rejects.toThrow();
+
+    expect(onExportFailureAlert).toHaveBeenCalledTimes(1);
   });
 });

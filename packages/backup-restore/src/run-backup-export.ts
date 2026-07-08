@@ -22,9 +22,9 @@ import {
   buildOrganizationScopeJsonlLines,
   concatJsonlLines,
 } from "./build-backup-jsonl-payload.js";
+import { buildExportSuccessEvidence } from "./build-export-success-evidence.js";
 import { RECOVERY_CANARY_ORGANIZATION_ID } from "./constants.js";
 import { enumerateOrganizationIds } from "./enumerate-organization-ids.js";
-import { computeExportExpiresAt } from "./evaluate-readiness.js";
 import { resolveExportInstanceId } from "./resolve-export-instance-id.js";
 import type { BackupExportOrganizationSnapshot, BackupExportSuccessEvidence } from "./types.js";
 
@@ -44,7 +44,10 @@ export interface RunBackupExportResult {
   exportEvidence?: BackupExportSuccessEvidence;
 }
 
-async function buildBackupJsonlPayload(organizationIds: readonly string[]): Promise<{
+async function buildBackupJsonlPayload(
+  organizationIds: readonly string[],
+  snapshotAt: string,
+): Promise<{
   jsonlPayload: Uint8Array;
   organizationSnapshots: BackupExportOrganizationSnapshot[];
 }> {
@@ -52,7 +55,6 @@ async function buildBackupJsonlPayload(organizationIds: readonly string[]): Prom
   const organizationSnapshots: BackupExportOrganizationSnapshot[] = [];
 
   for (const organizationIdValue of organizationIds) {
-    const snapshotAt = new Date().toISOString();
     const scoped = await buildOrganizationScopeJsonlLines(
       brandOrganizationId.brand(organizationIdValue),
       snapshotAt,
@@ -64,28 +66,6 @@ async function buildBackupJsonlPayload(organizationIds: readonly string[]): Prom
   return {
     jsonlPayload: concatJsonlLines(lines),
     organizationSnapshots,
-  };
-}
-
-function buildExportSuccessEvidence(input: {
-  instanceId: string;
-  exportTimestamp: string;
-  rootKeyVersion: number;
-  organizationCount: number;
-  operationId: string;
-  encryptionVerified: boolean;
-}): BackupExportSuccessEvidence {
-  return {
-    status: input.encryptionVerified ? "passed" : "failed",
-    checked_at: input.exportTimestamp,
-    instance_id: input.instanceId,
-    export_timestamp: input.exportTimestamp,
-    root_key_version: input.rootKeyVersion,
-    organization_count: input.organizationCount,
-    artifact_ref: "backup/latest-export.ibkp",
-    encryption_verified: input.encryptionVerified,
-    expires_at: computeExportExpiresAt(input.exportTimestamp),
-    operation_id: input.operationId,
   };
 }
 
@@ -149,12 +129,17 @@ async function sealAndStoreBackupArtifact(input: {
 
 async function markBackupExportFailed(input: {
   organizationId: OrganizationId;
-  operationId: OperationId;
+  operationId?: OperationId;
   idempotencyKey: string;
   onExportFailureAlert?: () => void;
 }): Promise<void> {
+  // The operator page must fire for every failure, including one thrown before the Operation row
+  // exists (e.g. a createOperation FK violation), so it runs first and unconditionally.
   if (input.onExportFailureAlert) {
     input.onExportFailureAlert();
+  }
+  if (input.operationId === undefined) {
+    return;
   }
   await recordBackupExportAuditEvent({
     organizationId: input.organizationId,
@@ -189,7 +174,10 @@ async function executeBackupExport(input: {
   const instanceId = await resolveExportInstanceId(input.instanceId);
   const exportTimestamp = input.scheduledAt.toISOString();
   const organizationIds = await enumerateOrganizationIds();
-  const { jsonlPayload, organizationSnapshots } = await buildBackupJsonlPayload(organizationIds);
+  const { jsonlPayload, organizationSnapshots } = await buildBackupJsonlPayload(
+    organizationIds,
+    exportTimestamp,
+  );
 
   const exportEvidence = await sealAndStoreBackupArtifact({
     instanceId,
@@ -226,20 +214,25 @@ async function executeBackupExport(input: {
 export async function runBackupExport(input: RunBackupExportInput): Promise<RunBackupExportResult> {
   const organizationId = input.organizationId ?? RECOVERY_CANARY_ORGANIZATION_ID;
   const idempotencyKey = buildBackupExportIdempotencyKey(input.scheduledAt);
-  const created = await createOperation({
-    organizationId,
-    intentCode: OPERATION_INTENT_CODES.backupExport,
-    idempotencyKey,
-  });
-
-  if (!created.created) {
-    return { created: false, operation: created.operation };
-  }
-
-  const operationId = created.operation.operationId;
   const rootKeyVersion = input.rootKeyVersion ?? DEFAULT_ROOT_KEY_VERSION;
 
+  // createOperation is inside the try so that any failure creating the Operation — the canary-org
+  // FK violation, a lost DB connection, anything — routes to the failure-alert path. A backup
+  // pipeline that dies silently before it records an Operation is worse than one that pages.
+  let operationId: OperationId | undefined;
   try {
+    const created = await createOperation({
+      organizationId,
+      intentCode: OPERATION_INTENT_CODES.backupExport,
+      idempotencyKey,
+    });
+
+    if (!created.created) {
+      return { created: false, operation: created.operation };
+    }
+
+    operationId = created.operation.operationId;
+
     return await executeBackupExport({
       organizationId,
       operationId,
@@ -253,7 +246,7 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
   } catch (error) {
     await markBackupExportFailed({
       organizationId,
-      operationId,
+      ...(operationId ? { operationId } : {}),
       idempotencyKey,
       ...(input.onExportFailureAlert ? { onExportFailureAlert: input.onExportFailureAlert } : {}),
     });

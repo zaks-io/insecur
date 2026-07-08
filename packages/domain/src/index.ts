@@ -70,6 +70,13 @@ export {
   inAppEventNotificationId,
 } from "./resource-ids.js";
 export {
+  RECOVERY_CANARY_ORGANIZATION_ID,
+  RECOVERY_CANARY_PROJECT_ID,
+  RECOVERY_CANARY_ENVIRONMENT_ID,
+  RECOVERY_CANARY_SECRET_ID,
+  RECOVERY_CANARY_ORGANIZATION_DISPLAY_NAME,
+} from "./recovery-canary-scope.js";
+export {
   type AttributionTier,
   type SessionWhoamiAttribution,
   type SessionWhoamiData,
