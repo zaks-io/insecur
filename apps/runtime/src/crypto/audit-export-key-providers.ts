@@ -38,9 +38,6 @@ async function readSecretsStoreString(
 }
 
 function readSigningKeyVersion(value: unknown): number {
-  if (value === undefined) {
-    return 1;
-  }
   if (typeof value === "number" && Number.isInteger(value) && value >= 1) {
     return value;
   }

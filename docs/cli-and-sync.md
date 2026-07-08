@@ -1406,6 +1406,9 @@ Audit export rules:
 - Low-privilege exports use immutable IDs and hashes and exclude Sensitive Metadata such as provider target names and policy binding names. Historical Display Names may appear as ordinary audit metadata.
 - Low-privilege exports exclude Approval Context Note plaintext and may include only note IDs, hashes, lengths, or presence flags.
 - `audit verify` checks the entry hash chain, the HMACed manifest, and the Ed25519 signature against the published public key.
+- Verification key precedence for `audit verify`:
+  1. `--published-signing-keys` (or `INSECUR_AUDIT_EXPORT_PUBLISHED_SIGNING_KEYS`) loads every version listed in the published document.
+  2. `INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY` (or `--signing-public-key-env`) registers the manifest's `signing_key_version` **after** published keys and **overwrites** that version if both sources supply it. Prefer the published document in production; reserve the env override for local smoke and CI where a single key is injected without fetching the well-known URL.
 - HMAC verification proves integrity and authenticity to systems with the verification key. The Ed25519 signature adds independent third-party verification against outside tampering without a shared secret. The claim ceiling stays "tamper-evident and independently verifiable", not non-repudiable against insecur: the signing key shares Cloudflare Secrets Store custody with the root key (ADR-0045).
 
 ## Secret Sync Model
