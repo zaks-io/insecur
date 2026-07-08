@@ -14,6 +14,7 @@ import {
   unique,
   uniqueIndex,
 } from "./pg-core.js";
+import { orgProjectFkey } from "./pg-identifier-names.js";
 export const instances = pgTable("instances", {
   id: text("id").primaryKey(),
   displayName: text("display_name").notNull(),
@@ -66,6 +67,7 @@ export const environments = pgTable(
   (table) => [
     unique("environments_org_id_id_key").on(table.orgId, table.id),
     foreignKey({
+      name: orgProjectFkey("environments"),
       columns: [table.orgId, table.projectId],
       foreignColumns: [projects.orgId, projects.id],
     }),
@@ -121,10 +123,12 @@ export const memberships = pgTable(
   },
   (table) => [
     foreignKey({
+      name: "memberships_org_team_fkey",
       columns: [table.orgId, table.teamId],
       foreignColumns: [teams.orgId, teams.id],
     }),
     foreignKey({
+      name: orgProjectFkey("memberships"),
       columns: [table.orgId, table.projectId],
       foreignColumns: [projects.orgId, projects.id],
     }),
@@ -176,10 +180,12 @@ export const projectDataKeys = pgTable(
   (table) => [
     unique("project_data_keys_project_id_key_version_key").on(table.projectId, table.keyVersion),
     foreignKey({
+      name: orgProjectFkey("project_data_keys"),
       columns: [table.orgId, table.projectId],
       foreignColumns: [projects.orgId, projects.id],
     }),
     foreignKey({
+      name: "project_data_keys_org_odk_fkey",
       columns: [table.orgId, table.organizationDataKeyVersion],
       foreignColumns: [organizationDataKeys.orgId, organizationDataKeys.keyVersion],
     }),

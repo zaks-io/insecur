@@ -81,17 +81,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "bootstrap_operator_claims_first_organization_id_organizations_id_fk": {
-          "name": "bootstrap_operator_claims_first_organization_id_organizations_id_fk",
-          "tableFrom": "bootstrap_operator_claims",
-          "tableTo": "organizations",
-          "columnsFrom": ["first_organization_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "bootstrap_operator_claims_instance_id_first_organization_id_fkey": {
-          "name": "bootstrap_operator_claims_instance_id_first_organization_id_fkey",
+        "bootstrap_claims_instance_first_org_fkey": {
+          "name": "bootstrap_claims_instance_first_org_fkey",
           "tableFrom": "bootstrap_operator_claims",
           "tableTo": "organizations",
           "columnsFrom": ["instance_id", "first_organization_id"],
@@ -934,8 +925,8 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "machine_identity_environment_deploy_keys_org_id_organizations_id_fk": {
-          "name": "machine_identity_environment_deploy_keys_org_id_organizations_id_fk",
+        "mi_env_deploy_keys_org_fkey": {
+          "name": "mi_env_deploy_keys_org_fkey",
           "tableFrom": "machine_identity_environment_deploy_keys",
           "tableTo": "organizations",
           "columnsFrom": ["org_id"],
@@ -943,8 +934,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_environment_deploy_keys_org_id_machine_identity_id_machine_identities_org_id_id_fk": {
-          "name": "machine_identity_environment_deploy_keys_org_id_machine_identity_id_machine_identities_org_id_id_fk",
+        "machine_identity_environment_deploy_keys_org_machine_fkey": {
+          "name": "machine_identity_environment_deploy_keys_org_machine_fkey",
           "tableFrom": "machine_identity_environment_deploy_keys",
           "tableTo": "machine_identities",
           "columnsFrom": ["org_id", "machine_identity_id"],
@@ -952,8 +943,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_environment_deploy_keys_org_id_project_id_projects_org_id_id_fk": {
-          "name": "machine_identity_environment_deploy_keys_org_id_project_id_projects_org_id_id_fk",
+        "machine_identity_environment_deploy_keys_org_project_fkey": {
+          "name": "machine_identity_environment_deploy_keys_org_project_fkey",
           "tableFrom": "machine_identity_environment_deploy_keys",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -961,8 +952,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_environment_deploy_keys_org_id_environment_id_environments_org_id_id_fk": {
-          "name": "machine_identity_environment_deploy_keys_org_id_environment_id_environments_org_id_id_fk",
+        "machine_identity_environment_deploy_keys_org_env_fkey": {
+          "name": "machine_identity_environment_deploy_keys_org_env_fkey",
           "tableFrom": "machine_identity_environment_deploy_keys",
           "tableTo": "environments",
           "columnsFrom": ["org_id", "environment_id"],
@@ -1005,12 +996,12 @@
           "name": "machine_identity_environment_deploy_keys_expiring_shape",
           "value": "(\"machine_identity_environment_deploy_keys\".\"non_expiring\" = true) OR (\"machine_identity_environment_deploy_keys\".\"expires_at\" IS NOT NULL)"
         },
-        "machine_identity_environment_deploy_keys_rotation_interval_positive": {
-          "name": "machine_identity_environment_deploy_keys_rotation_interval_positive",
+        "mi_env_deploy_keys_rot_interval_chk": {
+          "name": "mi_env_deploy_keys_rot_interval_chk",
           "value": "\"machine_identity_environment_deploy_keys\".\"rotation_interval_seconds\" IS NULL OR \"machine_identity_environment_deploy_keys\".\"rotation_interval_seconds\" > 0"
         },
-        "machine_identity_environment_deploy_keys_rotation_reminder_positive": {
-          "name": "machine_identity_environment_deploy_keys_rotation_reminder_positive",
+        "mi_env_deploy_keys_rot_reminder_chk": {
+          "name": "mi_env_deploy_keys_rot_reminder_chk",
           "value": "\"machine_identity_environment_deploy_keys\".\"rotation_reminder_interval_seconds\" IS NULL OR \"machine_identity_environment_deploy_keys\".\"rotation_reminder_interval_seconds\" > 0"
         }
       },
@@ -1103,8 +1094,8 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "machine_identity_github_actions_oidc_org_id_organizations_id_fk": {
-          "name": "machine_identity_github_actions_oidc_org_id_organizations_id_fk",
+        "mi_gha_oidc_org_fkey": {
+          "name": "mi_gha_oidc_org_fkey",
           "tableFrom": "machine_identity_github_actions_oidc",
           "tableTo": "organizations",
           "columnsFrom": ["org_id"],
@@ -1112,8 +1103,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_github_actions_oidc_org_id_machine_identity_id_machine_identities_org_id_id_fk": {
-          "name": "machine_identity_github_actions_oidc_org_id_machine_identity_id_machine_identities_org_id_id_fk",
+        "machine_identity_github_actions_oidc_org_machine_fkey": {
+          "name": "machine_identity_github_actions_oidc_org_machine_fkey",
           "tableFrom": "machine_identity_github_actions_oidc",
           "tableTo": "machine_identities",
           "columnsFrom": ["org_id", "machine_identity_id"],
@@ -1121,8 +1112,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_github_actions_oidc_org_id_project_id_projects_org_id_id_fk": {
-          "name": "machine_identity_github_actions_oidc_org_id_project_id_projects_org_id_id_fk",
+        "machine_identity_github_actions_oidc_org_project_fkey": {
+          "name": "machine_identity_github_actions_oidc_org_project_fkey",
           "tableFrom": "machine_identity_github_actions_oidc",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -1130,8 +1121,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_github_actions_oidc_org_id_environment_id_environments_org_id_id_fk": {
-          "name": "machine_identity_github_actions_oidc_org_id_environment_id_environments_org_id_id_fk",
+        "machine_identity_github_actions_oidc_org_env_fkey": {
+          "name": "machine_identity_github_actions_oidc_org_env_fkey",
           "tableFrom": "machine_identity_github_actions_oidc",
           "tableTo": "environments",
           "columnsFrom": ["org_id", "environment_id"],
@@ -1158,8 +1149,8 @@
           "name": "machine_identity_github_actions_oidc_repository_id_numeric",
           "value": "\"machine_identity_github_actions_oidc\".\"github_repository_id\" ~ '^[0-9]+$'"
         },
-        "machine_identity_github_actions_oidc_repository_owner_id_numeric": {
-          "name": "machine_identity_github_actions_oidc_repository_owner_id_numeric",
+        "mi_gha_oidc_owner_id_numeric": {
+          "name": "mi_gha_oidc_owner_id_numeric",
           "value": "\"machine_identity_github_actions_oidc\".\"github_repository_owner_id\" ~ '^[0-9]+$'"
         },
         "machine_identity_github_actions_oidc_scopes_nonempty": {
@@ -1226,8 +1217,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_memberships_org_id_machine_identity_id_machine_identities_org_id_id_fk": {
-          "name": "machine_identity_memberships_org_id_machine_identity_id_machine_identities_org_id_id_fk",
+        "machine_identity_memberships_org_machine_fkey": {
+          "name": "machine_identity_memberships_org_machine_fkey",
           "tableFrom": "machine_identity_memberships",
           "tableTo": "machine_identities",
           "columnsFrom": ["org_id", "machine_identity_id"],
@@ -1235,8 +1226,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "machine_identity_memberships_org_id_project_id_projects_org_id_id_fk": {
-          "name": "machine_identity_memberships_org_id_project_id_projects_org_id_id_fk",
+        "machine_identity_memberships_org_project_fkey": {
+          "name": "machine_identity_memberships_org_project_fkey",
           "tableFrom": "machine_identity_memberships",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -1252,8 +1243,8 @@
           "nullsNotDistinct": false,
           "columns": ["org_id", "id"]
         },
-        "machine_identity_memberships_org_id_machine_identity_id_project_id_key": {
-          "name": "machine_identity_memberships_org_id_machine_identity_id_project_id_key",
+        "mi_memberships_org_machine_project_key": {
+          "name": "mi_memberships_org_machine_project_key",
           "nullsNotDistinct": false,
           "columns": ["org_id", "machine_identity_id", "project_id"]
         }
@@ -1377,8 +1368,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "sync_target_leases_org_id_project_id_provider_kind_target_identity_pk": {
-          "name": "sync_target_leases_org_id_project_id_provider_kind_target_identity_pk",
+        "sync_target_leases_pk": {
+          "name": "sync_target_leases_pk",
           "columns": ["org_id", "project_id", "provider_kind", "target_identity"]
         }
       },
@@ -1464,8 +1455,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "environments_org_id_project_id_projects_org_id_id_fk": {
-          "name": "environments_org_id_project_id_projects_org_id_id_fk",
+        "environments_org_project_fkey": {
+          "name": "environments_org_project_fkey",
           "tableFrom": "environments",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -1598,8 +1589,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "memberships_org_id_team_id_teams_org_id_id_fk": {
-          "name": "memberships_org_id_team_id_teams_org_id_id_fk",
+        "memberships_org_team_fkey": {
+          "name": "memberships_org_team_fkey",
           "tableFrom": "memberships",
           "tableTo": "teams",
           "columnsFrom": ["org_id", "team_id"],
@@ -1607,8 +1598,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "memberships_org_id_project_id_projects_org_id_id_fk": {
-          "name": "memberships_org_id_project_id_projects_org_id_id_fk",
+        "memberships_org_project_fkey": {
+          "name": "memberships_org_project_fkey",
           "tableFrom": "memberships",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -1883,8 +1874,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "project_data_keys_org_id_project_id_projects_org_id_id_fk": {
-          "name": "project_data_keys_org_id_project_id_projects_org_id_id_fk",
+        "project_data_keys_org_project_fkey": {
+          "name": "project_data_keys_org_project_fkey",
           "tableFrom": "project_data_keys",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -1892,8 +1883,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "project_data_keys_org_id_organization_data_key_version_organization_data_keys_org_id_key_version_fk": {
-          "name": "project_data_keys_org_id_organization_data_key_version_organization_data_keys_org_id_key_version_fk",
+        "project_data_keys_org_odk_fkey": {
+          "name": "project_data_keys_org_odk_fkey",
           "tableFrom": "project_data_keys",
           "tableTo": "organization_data_keys",
           "columnsFrom": ["org_id", "organization_data_key_version"],
@@ -2226,8 +2217,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "provider_credentials_org_id_app_connection_id_app_connections_org_id_id_fk": {
-          "name": "provider_credentials_org_id_app_connection_id_app_connections_org_id_id_fk",
+        "provider_credentials_org_app_conn_fkey": {
+          "name": "provider_credentials_org_app_conn_fkey",
           "tableFrom": "provider_credentials",
           "tableTo": "app_connections",
           "columnsFrom": ["org_id", "app_connection_id"],
@@ -2327,8 +2318,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "sensitive_metadata_fields_org_id_scope_project_id_metadata_type_record_resource_id_field_key_pk": {
-          "name": "sensitive_metadata_fields_org_id_scope_project_id_metadata_type_record_resource_id_field_key_pk",
+        "sensitive_metadata_fields_pk": {
+          "name": "sensitive_metadata_fields_pk",
           "columns": [
             "org_id",
             "scope_project_id",
@@ -2644,8 +2635,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "injection_grants_org_id_project_id_projects_org_id_id_fk": {
-          "name": "injection_grants_org_id_project_id_projects_org_id_id_fk",
+        "injection_grants_org_project_fkey": {
+          "name": "injection_grants_org_project_fkey",
           "tableFrom": "injection_grants",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -2653,8 +2644,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "injection_grants_org_id_environment_id_environments_org_id_id_fk": {
-          "name": "injection_grants_org_id_environment_id_environments_org_id_id_fk",
+        "injection_grants_org_env_fkey": {
+          "name": "injection_grants_org_env_fkey",
           "tableFrom": "injection_grants",
           "tableTo": "environments",
           "columnsFrom": ["org_id", "environment_id"],
@@ -2838,8 +2829,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "runtime_injection_policies_org_id_project_id_projects_org_id_id_fk": {
-          "name": "runtime_injection_policies_org_id_project_id_projects_org_id_id_fk",
+        "runtime_injection_policies_org_project_fkey": {
+          "name": "runtime_injection_policies_org_project_fkey",
           "tableFrom": "runtime_injection_policies",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -2847,8 +2838,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "runtime_injection_policies_org_id_environment_id_environments_org_id_id_fk": {
-          "name": "runtime_injection_policies_org_id_environment_id_environments_org_id_id_fk",
+        "runtime_injection_policies_org_env_fkey": {
+          "name": "runtime_injection_policies_org_env_fkey",
           "tableFrom": "runtime_injection_policies",
           "tableTo": "environments",
           "columnsFrom": ["org_id", "environment_id"],
@@ -2974,8 +2965,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "runtime_injection_policy_versions_org_id_policy_id_runtime_injection_policies_org_id_id_fk": {
-          "name": "runtime_injection_policy_versions_org_id_policy_id_runtime_injection_policies_org_id_id_fk",
+        "rt_inj_pol_ver_org_policy_fkey": {
+          "name": "rt_inj_pol_ver_org_policy_fkey",
           "tableFrom": "runtime_injection_policy_versions",
           "tableTo": "runtime_injection_policies",
           "columnsFrom": ["org_id", "policy_id"],
@@ -3079,8 +3070,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "secret_versions_org_id_secret_id_secrets_org_id_id_fk": {
-          "name": "secret_versions_org_id_secret_id_secrets_org_id_id_fk",
+        "secret_versions_org_secret_fkey": {
+          "name": "secret_versions_org_secret_fkey",
           "tableFrom": "secret_versions",
           "tableTo": "secrets",
           "columnsFrom": ["org_id", "secret_id"],
@@ -3172,8 +3163,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "secrets_org_id_project_id_projects_org_id_id_fk": {
-          "name": "secrets_org_id_project_id_projects_org_id_id_fk",
+        "secrets_org_project_fkey": {
+          "name": "secrets_org_project_fkey",
           "tableFrom": "secrets",
           "tableTo": "projects",
           "columnsFrom": ["org_id", "project_id"],
@@ -3181,8 +3172,8 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "secrets_org_id_environment_id_environments_org_id_id_fk": {
-          "name": "secrets_org_id_environment_id_environments_org_id_id_fk",
+        "secrets_org_env_fkey": {
+          "name": "secrets_org_env_fkey",
           "tableFrom": "secrets",
           "tableTo": "environments",
           "columnsFrom": ["org_id", "environment_id"],

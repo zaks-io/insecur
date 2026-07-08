@@ -80,6 +80,7 @@ export const providerCredentials = pgTable(
   (table) => [
     unique("provider_credentials_org_id_id_key").on(table.orgId, table.id),
     foreignKey({
+      name: "provider_credentials_org_app_conn_fkey",
       columns: [table.orgId, table.appConnectionId],
       foreignColumns: [appConnections.orgId, appConnections.id],
     }),
@@ -107,6 +108,7 @@ export const sensitiveMetadataFields = pgTable(
   },
   (table) => [
     primaryKey({
+      name: "sensitive_metadata_fields_pk",
       columns: [
         table.orgId,
         table.scopeProjectId,

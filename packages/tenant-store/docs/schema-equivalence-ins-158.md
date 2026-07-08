@@ -30,11 +30,11 @@ below are declared in TypeScript—not hand-appended to SQL:
 
 ## Known benign differences
 
-| Area                                | Legacy hand migrations                       | Drizzle baseline                                                                                 |
-| ----------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Constraint / index names            | Shorter explicit names where authored        | Some auto-generated names truncated to Postgres 63-char limit (NOTICE only; semantics unchanged) |
-| `sensitive_metadata_fields` PK name | `PRIMARY KEY (...)` inline                   | Drizzle-generated PK constraint name (same columns)                                              |
-| Apply order                         | 18 lexicographic files + `schema_migrations` | `drizzle.__drizzle_migrations` + single product migration                                        |
+| Area                                | Legacy hand migrations                       | Drizzle baseline                                               |
+| ----------------------------------- | -------------------------------------------- | -------------------------------------------------------------- |
+| Constraint / index names            | Shorter explicit names where authored        | Same explicit short names in Drizzle schema and SQL migrations |
+| `sensitive_metadata_fields` PK name | `PRIMARY KEY (...)` inline                   | Drizzle-generated PK constraint name (same columns)            |
+| Apply order                         | 18 lexicographic files + `schema_migrations` | `drizzle.__drizzle_migrations` + single product migration      |
 
 ## RLS atomicity
 

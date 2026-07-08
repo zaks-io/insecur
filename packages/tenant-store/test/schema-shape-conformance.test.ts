@@ -19,6 +19,7 @@ import {
 } from "../src/db/schema/schema-tables.js";
 import * as instanceBootstrapSchema from "../src/db/schema/instance-bootstrap.js";
 import * as tenantCollaborationSchema from "../src/db/schema/tenant-collaboration.js";
+import * as tenantMachineAuthMethodsSchema from "../src/db/schema/tenant-machine-auth-methods.js";
 import * as tenantAgentSessionsSchema from "../src/db/schema/tenant-agent-sessions.js";
 import * as tenantHierarchySchema from "../src/db/schema/tenant-hierarchy.js";
 import * as tenantIntegrationsSchema from "../src/db/schema/tenant-integrations.js";
@@ -34,6 +35,7 @@ const USER_SCHEMA_MODULES = {
   "./tenant-hierarchy.js": tenantHierarchySchema,
   "./instance-bootstrap.js": instanceBootstrapSchema,
   "./tenant-collaboration.js": tenantCollaborationSchema,
+  "./tenant-machine-auth-methods.js": tenantMachineAuthMethodsSchema,
   "./tenant-agent-sessions.js": tenantAgentSessionsSchema,
   "./tenant-integrations.js": tenantIntegrationsSchema,
   "./tenant-secrets.js": tenantSecretsSchema,
@@ -44,6 +46,19 @@ const USER_SCHEMA_MODULES = {
   (typeof USER_SCHEMA_TABLE_MODULE_PATHS)[number],
   Record<string, unknown>
 >;
+
+function collectPgIdentifierLengthViolations(
+  registry: ReturnType<typeof extractSchemaShapeRegistry>,
+): string[] {
+  return Object.entries(registry).flatMap(([table, shape]) =>
+    (["checks", "uniqueConstraints", "indexes", "foreignKeys", "primaryKeys"] as const).flatMap(
+      (kind) =>
+        (shape[kind] ?? [])
+          .filter((item) => item.name.length > 63)
+          .map((item) => `${table}.${kind}: ${item.name} (${item.name.length} chars)`),
+    ),
+  );
+}
 
 let userSchemaTables: readonly PgTable[];
 
@@ -65,6 +80,14 @@ describe("schema shape conformance (unit layer)", () => {
     const schemaTables = Object.keys(extractSchemaShapeRegistry(userSchemaTables)).sort();
     const registryTables = Object.keys(SCHEMA_SHAPE_REGISTRY).sort();
     expect(schemaTables).toEqual(registryTables);
+  });
+
+  it("keeps every constraint and index identifier within the Postgres 63-byte limit", () => {
+    const violations = collectPgIdentifierLengthViolations(
+      extractSchemaShapeRegistry(userSchemaTables),
+    );
+
+    expect(violations).toEqual([]);
   });
 
   it("materializes deferred secrets current-version foreign key constraints", () => {

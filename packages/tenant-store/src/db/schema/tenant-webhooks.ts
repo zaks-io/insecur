@@ -15,6 +15,7 @@ import {
   boolean,
 } from "./pg-core.js";
 import { organizations } from "./tenant-hierarchy.js";
+import { orgSubscriptionFkey } from "./pg-identifier-names.js";
 import { orgScopedNamedResourceBaseColumns } from "./tenant-org-scoped-named-resource.js";
 
 export const WEBHOOK_SUBSCRIPTION_STATUSES = ["active", "disabled"] as const;
@@ -50,9 +51,11 @@ export const webhookSubscriptionEventTypes = pgTable(
   },
   (table) => [
     primaryKey({
+      name: "wh_sub_event_types_pk",
       columns: [table.orgId, table.subscriptionId, table.eventCode],
     }),
     foreignKey({
+      name: orgSubscriptionFkey("webhook_subscription_event_types"),
       columns: [table.orgId, table.subscriptionId],
       foreignColumns: [webhookSubscriptions.orgId, webhookSubscriptions.id],
     }),
@@ -80,6 +83,7 @@ export const webhookSigningSecrets = pgTable(
   (table) => [
     unique("webhook_signing_secrets_org_id_id_key").on(table.orgId, table.id),
     foreignKey({
+      name: orgSubscriptionFkey("webhook_signing_secrets"),
       columns: [table.orgId, table.subscriptionId],
       foreignColumns: [webhookSubscriptions.orgId, webhookSubscriptions.id],
     }),
@@ -104,6 +108,7 @@ export const inAppEventNotifications = pgTable(
   (table) => [
     unique("in_app_event_notifications_org_id_id_key").on(table.orgId, table.id),
     foreignKey({
+      name: orgSubscriptionFkey("in_app_event_notifications"),
       columns: [table.orgId, table.subscriptionId],
       foreignColumns: [webhookSubscriptions.orgId, webhookSubscriptions.id],
     }),
