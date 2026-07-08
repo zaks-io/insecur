@@ -3,15 +3,19 @@ import {
   rejectNamedLocalValueFile,
 } from "@insecur/secret-store-contracts";
 import {
+  encodeRequestValueUtf8,
   handleRoute,
   parseEnvironmentIdParam,
   parseJsonBody,
+  parseOptionalSecretId,
   parseOrganizationIdParam,
   parseProjectIdParam,
   parseRequiredDisplayName,
   parseSecretIdParam,
+  parseVariableKeyField,
   readOptionalString,
   readRequiredString,
+  readSecretValueField,
   requireRouteParam,
   requireUserActor,
   runtimeClientFor,
@@ -42,15 +46,7 @@ async function executeSecretWriteByVariableKey(
   reqId: RequestId,
 ) {
   const userActor = context.get("userActor");
-  const organizationId = parseOrganizationIdParam(
-    requireRouteParam(context.req.param("organizationId"), "organizationId"),
-  );
-  const projectId = parseProjectIdParam(
-    requireRouteParam(context.req.param("projectId"), "projectId"),
-  );
-  const environmentId = parseEnvironmentIdParam(
-    requireRouteParam(context.req.param("environmentId"), "environmentId"),
-  );
+  const { organizationId, projectId, environmentId } = parseEnvironmentScopedRouteParams(context);
   const parsed = await parseSecretWriteBody(context.req);
 
   assertSafeSecretValueIngress("valueUtf8" in parsed ? "request_body" : "generated");
@@ -69,6 +65,32 @@ async function executeSecretWriteByVariableKey(
     ...(parsed.allowEmpty !== undefined ? { allowEmpty: parsed.allowEmpty } : {}),
     ...(parsed.createOnly !== undefined ? { createOnly: parsed.createOnly } : {}),
     ...(parsed.secretId !== undefined ? { secretId: parsed.secretId } : {}),
+  });
+}
+
+async function executeSecretPossessionCheck(
+  context: Context<{ Bindings: ApiEnv; Variables: AuthVariables }>,
+  reqId: RequestId,
+) {
+  const userActor = context.get("userActor");
+  const { organizationId, projectId, environmentId } = parseEnvironmentScopedRouteParams(context);
+  const body = parseJsonBody(await context.req.json());
+  const variableKey = parseVariableKeyField(readRequiredString(body, "variableKey"));
+  const secretId = parseOptionalSecretId(readOptionalString(body, "secretId"));
+
+  // The candidate value arrives only in the request body (over TLS) and is held in memory for the
+  // compare only. Ingress safety mirrors the write path: never accept a value read from a local file.
+  assertSafeSecretValueIngress("request_body");
+  const candidateUtf8 = encodeRequestValueUtf8(readSecretValueField(body));
+
+  return runtimeClientFor(context.env, userActor).checkSecretPossession({
+    organizationId,
+    projectId,
+    environmentId,
+    variableKey,
+    ...(secretId !== undefined ? { secretId } : {}),
+    candidateUtf8,
+    requestId: reqId,
   });
 }
 
@@ -222,6 +244,12 @@ projectsRoutes.post(
   requireUserActor,
   async (context) =>
     handleRoute(context, (reqId) => executeSecretWriteByVariableKey(context, reqId)),
+);
+
+projectsRoutes.post(
+  "/:projectId/environments/:environmentId/secrets/possession-check",
+  requireUserActor,
+  async (context) => handleRoute(context, (reqId) => executeSecretPossessionCheck(context, reqId)),
 );
 
 export function registerProjectsRoutes(app: ApiApp): void {

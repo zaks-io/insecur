@@ -76,6 +76,8 @@
   "runtime_injection_policy.disabled",
   "secret.non_protected_write",
   "secret.non_protected_write_denied",
+  "secret.possession_check_denied",
+  "secret.possession_checked",
   "secret.protected_draft_write",
   "secret.protected_draft_write_denied",
   "secret_sync.create_denied",
