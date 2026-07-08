@@ -79,5 +79,6 @@ export * from "./first-value-coords";
 export * from "./http";
 export * from "./metadata-read-assertions";
 export * from "./metadata-read-probes";
+export * from "./operation-poll-probe";
 export * from "./plaintext-sweep";
 export * from "./redaction";

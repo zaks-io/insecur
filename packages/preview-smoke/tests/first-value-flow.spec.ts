@@ -5,19 +5,24 @@ import { INJECTION_ERROR_CODES } from "@insecur/domain";
 import {
   annotateVerifiedAuditEventCodes,
   asRecord,
+  assertCrossOrganizationOperationPollDenied,
   assertEnvelopeData,
   assertEnvelopeError,
   assertEqual,
+  assertOperationPollEnvelope,
   assertStatus,
   authHeaders,
-  collectOperationId,
   getJson,
   invitationId,
   membershipId,
+  mintProtectedEnvironmentId,
+  mintRunPolicyId,
   mintSmokeSentinel,
   postJson,
+  provisionProtectedSmokeEnvironment,
   readJsonResponse,
   redactorFor,
+  requestRunPolicyOperationHandoff,
   requireString,
   runPlaintextSweep,
   test,
@@ -34,7 +39,9 @@ test("preview first-value and membership happy path @preview @happy-path @custod
   const sentinel = mintSmokeSentinel();
   const redactor = redactorFor(preview, sentinel, [ownerBearer, inviteeBearer]);
   const variableKey = `SMOKE_PREVIEW_${String(Date.now())}`;
-  let operationId: string | undefined;
+  let operationId = "";
+  let secretId = "";
+  let secondaryOrganizationId = "";
   let invitation = "";
   let coords = {
     defaultTeamId: "",
@@ -78,7 +85,7 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     });
     const data = assertEnvelopeData(body, "Secret write");
 
-    requireString(data.secretId, "secret write secretId");
+    secretId = requireString(data.secretId, "secret write secretId");
     requireString(data.secretVersionId, "secret write secretVersionId");
   });
 
@@ -98,7 +105,6 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     const data = assertEnvelopeData(body, "Grant issue");
 
     grantId = requireString(data.grantId, "grant issue grantId");
-    operationId = collectOperationId(body) ?? operationId;
   });
 
   await test.step("runtime_injection.grant_consume", async () => {
@@ -117,7 +123,6 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     if (decoded !== sentinel.value) {
       throw new Error("Grant consume did not return the generated sentinel value.");
     }
-    operationId = collectOperationId(body) ?? operationId;
   });
 
   await test.step("runtime_injection.grant_replay_reject", async () => {
@@ -138,25 +143,6 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     assertEnvelopeError(body, INJECTION_ERROR_CODES.grantDenied, "Grant replay");
   });
 
-  await test.step("operations.poll", async () => {
-    if (operationId === undefined) {
-      test.info().annotations.push({
-        description: "Current happy paths did not return an operation id.",
-        type: "operations.poll",
-      });
-      return;
-    }
-
-    const body = await getJson(
-      `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/operations/${operationId}`,
-      "Operation poll",
-      { headers: authHeaders(ownerBearer) },
-      redactor,
-    );
-    const data = assertEnvelopeData(body, "Operation poll");
-    assertEqual(data.operationId, operationId, "Operation poll operationId");
-  });
-
   await test.step("organizations.create", async () => {
     const body = await postJson({
       bearer: ownerBearer,
@@ -167,8 +153,58 @@ test("preview first-value and membership happy path @preview @happy-path @custod
     });
     const data = assertEnvelopeData(body, "Organization create");
 
-    requireString(data.organizationId, "organization create organizationId");
+    secondaryOrganizationId = requireString(
+      data.organizationId,
+      "organization create organizationId",
+    );
     requireString(data.defaultTeamId, "organization create defaultTeamId");
+  });
+
+  await test.step("operations.setup_protected_handoff", async () => {
+    const protectedEnvironmentId = mintProtectedEnvironmentId();
+    const policyId = mintRunPolicyId();
+
+    await provisionProtectedSmokeEnvironment({
+      databaseUrl: preview.databaseUrl,
+      environmentId: protectedEnvironmentId,
+      organizationId: coords.organizationId,
+      projectId: coords.projectId,
+    });
+
+    operationId = await requestRunPolicyOperationHandoff({
+      apiBaseUrl: preview.apiBaseUrl,
+      bearer: ownerBearer,
+      environmentId: protectedEnvironmentId,
+      organizationId: coords.organizationId,
+      policyId,
+      projectId: coords.projectId,
+      redactor,
+      secretId,
+    });
+  });
+
+  await test.step("operations.poll", async () => {
+    const body = await getJson(
+      `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/operations/${operationId}`,
+      "Operation poll",
+      { headers: authHeaders(ownerBearer) },
+      redactor,
+    );
+    const data = assertEnvelopeData(body, "Operation poll");
+    assertOperationPollEnvelope({
+      data,
+      operationId,
+      organizationId: coords.organizationId,
+      redactor,
+    });
+
+    await assertCrossOrganizationOperationPollDenied({
+      apiBaseUrl: preview.apiBaseUrl,
+      bearer: ownerBearer,
+      operationId,
+      otherOrganizationId: secondaryOrganizationId,
+      redactor,
+    });
   });
 
   await test.step("invitations.create", async () => {
@@ -226,7 +262,7 @@ test("preview first-value and membership happy path @preview @happy-path @custod
       databaseUrl: preview.databaseUrl,
       feedbackId,
       grantId,
-      ...(operationId === undefined ? {} : { operationId }),
+      operationId,
       organizationId: coords.organizationId,
       redactor,
     });
