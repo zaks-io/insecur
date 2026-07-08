@@ -25,6 +25,7 @@ export type OpaqueResourceIdPrefix =
   | "aud"
   | "op"
   | "req"
+  | "apr"
   | "usr"
   | "uad"
   | "stg"
@@ -57,6 +58,7 @@ const PREFIX_TO_LITERAL: Record<OpaqueResourceIdPrefix, string> = {
   aud: "aud_",
   op: "op_",
   req: "req_",
+  apr: "apr_",
   usr: "usr_",
   uad: "uad_",
   stg: "stg_",
