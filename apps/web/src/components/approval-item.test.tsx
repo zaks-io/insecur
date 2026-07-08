@@ -21,9 +21,15 @@ export const HIGH_ASSURANCE_CHALLENGE_FIXTURE: ConsoleHighAssuranceChallengeItem
 
 export const APPROVAL_REQUEST_FIXTURE: ConsoleApprovalRequestItem = {
   kind: "approval_request",
-  id: "req_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  id: "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  purpose: "protected_promotion",
+  projectId: "prj_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  environmentId: "env_01JZ8E2QYQAAAAAAAAAAAAAAAA",
   requestedAt: "2026-07-02T00:00:00.000Z",
   status: "pending",
+  operationId: null,
+  requestingUserId: "usr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  requestingMachineIdentityId: null,
 };
 
 describe("ApprovalItem", () => {
@@ -46,7 +52,7 @@ describe("ApprovalItem", () => {
 
     expect(html).toContain("Approval Request");
     expect(html).toContain(APPROVAL_REQUEST_FIXTURE.id);
-    expect(html).toContain("Pending approval request");
+    expect(html).toContain("protected_promotion");
     expect(html).not.toContain("Approve");
     expect(html).not.toContain("Reject");
   });

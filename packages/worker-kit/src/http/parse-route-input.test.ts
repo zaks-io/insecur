@@ -12,6 +12,7 @@ import {
   parseInvitationIdParam,
   parseJsonBody,
   parseOperationIdParam,
+  parseApprovalRequestIdParam,
   parseOptionalDisplayName,
   parseOptionalInvitationId,
   parseOptionalMembershipId,
@@ -74,6 +75,9 @@ describe("branded route id params", () => {
     expect(parseEnvironmentIdParam(VALID_ENV)).toBe(VALID_ENV);
     expect(parseGrantIdParam(VALID_GRANT)).toBe(VALID_GRANT);
     expect(parseOperationIdParam(VALID_OPERATION)).toBe(VALID_OPERATION);
+    expect(parseApprovalRequestIdParam("apr_00000000000000000000000001")).toBe(
+      "apr_00000000000000000000000001",
+    );
     expect(parseAppConnectionIdParam(VALID_CONNECTION)).toBe(VALID_CONNECTION);
   });
 
@@ -415,6 +419,17 @@ describe("parseInjectionGrantConsumeSelector", () => {
       kind: "secret_id",
       secretId: VALID_SEC_ID,
     });
+  });
+
+  it("rejects policyId selectors when consuming a grant", () => {
+    expectValidationError(
+      () =>
+        parseInjectionGrantConsumeSelector({
+          policyId: "rp_00000000000000000000000001",
+        }),
+      "policyId is not allowed when consuming an injection grant.",
+      VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+    );
   });
 
   it("rejects missing or multiple selectors with the same stable validation error", () => {

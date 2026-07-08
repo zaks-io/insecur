@@ -25,6 +25,7 @@ Public edge. Authenticates humans/agents, forwards keyring-bound work AND all no
 | *      | `/v1/auth`                                           |
 | *      | `/v1/instance/bootstrap`                             |
 | POST   | `/v1/onboarding`                                     |
+| *      | `/v1/orgs/:organizationId/approval-requests`         |
 | GET    | `/v1/orgs/:organizationId/audit-events`              |
 | GET    | `/v1/orgs/:organizationId/audit-export`              |
 | *      | `/v1/orgs/:organizationId/connections`               |
@@ -68,6 +69,8 @@ Browser-facing BFF (ADR-0051). Owns the human session cookie and reaches the API
 | Method | Mount prefix                                                     |
 | ------ | ---------------------------------------------------------------- |
 | GET    | `/`                                                              |
+| GET    | `/auth/approval-step-up`                                         |
+| GET    | `/auth/approval-step-up/callback`                                |
 | GET    | `/auth/callback`                                                 |
 | GET    | `/auth/enroll-passkey`                                           |
 | GET    | `/auth/enroll-passkey/callback`                                  |

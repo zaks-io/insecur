@@ -1,5 +1,6 @@
 import {
   AUTH_ERROR_CODES,
+  APPROVAL_ERROR_CODES,
   HIGH_ASSURANCE_ERROR_CODES,
   OPERATION_ERROR_CODES,
 } from "@insecur/domain";
@@ -61,6 +62,26 @@ const VOICE_BY_CODE: Record<string, ApprovalActionVoice> = {
     detail: "It may have been resolved already or you may not have access to it.",
     action: "back-to-inbox",
   },
+  [APPROVAL_ERROR_CODES.requestNotFound]: {
+    headline: "This approval isn't available",
+    detail: "It may have been resolved already or you may not have access to it.",
+    action: "back-to-inbox",
+  },
+  [APPROVAL_ERROR_CODES.requestNotPending]: {
+    headline: "This request already moved on",
+    detail: "Someone else may have approved, rejected, or canceled it.",
+    action: "back-to-inbox",
+  },
+  [APPROVAL_ERROR_CODES.reviewStale]: {
+    headline: "Impact review is stale",
+    detail: "Protected delivery facts changed. The requester must submit a fresh request.",
+    action: "back-to-inbox",
+  },
+  [AUTH_ERROR_CODES.highAssuranceRequired]: {
+    headline: "Passkey step-up is required",
+    detail: "Approve again after completing passkey verification.",
+    action: "retry",
+  },
 };
 
 export function rejectChallengeErrorVoice(code: string): ApprovalActionVoice {
@@ -108,6 +129,26 @@ export function approveStepUpFailureVoice(
 export const REJECT_CHALLENGE_SUCCESS_VOICE: ApprovalActionVoice = {
   headline: "Rejected",
   detail: "The bounded operation was denied. The inbox updates on the next refresh.",
+  action: "back-to-inbox",
+};
+
+export function rejectApprovalRequestErrorVoice(code: string): ApprovalActionVoice {
+  return rejectChallengeErrorVoice(code);
+}
+
+export const REJECT_APPROVAL_REQUEST_SUCCESS_VOICE: ApprovalActionVoice = {
+  headline: "Rejected",
+  detail: "The protected change was denied. The inbox updates on the next refresh.",
+  action: "back-to-inbox",
+};
+
+export function cancelApprovalRequestErrorVoice(code: string): ApprovalActionVoice {
+  return rejectChallengeErrorVoice(code);
+}
+
+export const CANCEL_APPROVAL_REQUEST_SUCCESS_VOICE: ApprovalActionVoice = {
+  headline: "Canceled",
+  detail: "The pending request was withdrawn. The inbox updates on the next refresh.",
   action: "back-to-inbox",
 };
 

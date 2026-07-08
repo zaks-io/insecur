@@ -1,10 +1,12 @@
 import type {
+  ApprovalRequestId,
   InjectionGrantId,
   OperationId,
   OrganizationId,
   WebhookSubscriptionId,
 } from "@insecur/domain";
 import {
+  parseApprovalRequestIdParam,
   parseGrantIdParam,
   parseOperationIdParam,
   parseOrganizationIdParam,
@@ -37,6 +39,18 @@ export function parseOrganizationAndOperationRouteParams(context: Context): {
     organizationId: parseOrganizationRouteParam(context),
     operationId: parseOperationIdParam(
       requireRouteParam(context.req.param("operationId"), "operationId"),
+    ),
+  };
+}
+
+export function parseOrganizationAndApprovalRequestRouteParams(context: Context): {
+  organizationId: OrganizationId;
+  approvalRequestId: ApprovalRequestId;
+} {
+  return {
+    organizationId: parseOrganizationRouteParam(context),
+    approvalRequestId: parseApprovalRequestIdParam(
+      requireRouteParam(context.req.param("approvalRequestId"), "approvalRequestId"),
     ),
   };
 }

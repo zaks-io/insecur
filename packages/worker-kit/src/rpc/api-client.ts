@@ -1,4 +1,5 @@
 import { INSECUR_API_TOKEN_AUDIENCE, mintScopedAccessToken, type UserActor } from "@insecur/auth";
+import { createApprovalRequestApiMethods } from "./api-client-approval-requests.js";
 
 /**
  * Bindings the Web BFF needs to reach the public API Worker over its private Service Binding
@@ -29,7 +30,7 @@ interface OrgAuditEventsQuery {
   };
 }
 
-type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
+export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
 function auditEventsPath(organizationId: string, query: OrgAuditEventsQuery = {}): string {
   const params = new URLSearchParams();
@@ -175,6 +176,7 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
       return response.json();
     },
     ...createHighAssuranceApiMethods(apiFetch),
+    ...createApprovalRequestApiMethods(apiFetch),
   };
 }
 

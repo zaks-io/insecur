@@ -4,6 +4,7 @@ import {
   parseOrgHighAssuranceChallengesBody,
   type ConsoleHighAssuranceChallengeItem,
 } from "./approval-items.js";
+import { parseOrgApprovalRequestsBody } from "./approval-request-items-parse.js";
 
 const HAC_ITEM: ConsoleHighAssuranceChallengeItem = {
   kind: "high_assurance_challenge",
@@ -37,7 +38,7 @@ describe("consoleApprovalItemKindFromId", () => {
     expect(consoleApprovalItemKindFromId("op_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
       "high_assurance_challenge",
     );
-    expect(consoleApprovalItemKindFromId("req_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
+    expect(consoleApprovalItemKindFromId("apr_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBe(
       "approval_request",
     );
     expect(consoleApprovalItemKindFromId("org_01JZ8E2QYQAAAAAAAAAAAAAAAA")).toBeNull();
@@ -60,7 +61,7 @@ describe("parseOrgHighAssuranceChallengesBody", () => {
       parseOrgHighAssuranceChallengesBody({
         ok: true,
         data: {
-          challenges: [{ ...HAC_ENVELOPE_ROW, operationId: "req_01JZ8E2QYQAAAAAAAAAAAAAAAA" }],
+          challenges: [{ ...HAC_ENVELOPE_ROW, operationId: "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA" }],
         },
       }),
     ).toBeNull();
@@ -70,5 +71,57 @@ describe("parseOrgHighAssuranceChallengesBody", () => {
     expect(parseOrgHighAssuranceChallengesBody({ ok: true, data: { challenges: [] } })).toEqual({
       items: [],
     });
+  });
+});
+
+const APPROVAL_REQUEST_ROW = {
+  approvalRequestId: "apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  purpose: "protected_promotion",
+  status: "pending",
+  projectId: "prj_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  environmentId: "env_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  requestedAt: "2026-07-01T00:00:00.000Z",
+  operationId: null,
+  requestingUserId: "usr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+  requestingMachineIdentityId: null,
+};
+
+describe("parseOrgApprovalRequestsBody", () => {
+  it("parses pending approval requests into the generic inbox item shape", () => {
+    expect(
+      parseOrgApprovalRequestsBody({
+        ok: true,
+        data: { approvalRequests: [APPROVAL_REQUEST_ROW] },
+      }),
+    ).toEqual({
+      items: [
+        {
+          kind: "approval_request",
+          id: APPROVAL_REQUEST_ROW.approvalRequestId,
+          purpose: APPROVAL_REQUEST_ROW.purpose,
+          projectId: APPROVAL_REQUEST_ROW.projectId,
+          environmentId: APPROVAL_REQUEST_ROW.environmentId,
+          requestedAt: APPROVAL_REQUEST_ROW.requestedAt,
+          status: "pending",
+          operationId: null,
+          requestingUserId: APPROVAL_REQUEST_ROW.requestingUserId,
+          requestingMachineIdentityId: null,
+        },
+      ],
+    });
+  });
+
+  it("fails closed on malformed envelopes and non-approval ids", () => {
+    expect(parseOrgApprovalRequestsBody({ ok: false })).toBeNull();
+    expect(
+      parseOrgApprovalRequestsBody({
+        ok: true,
+        data: {
+          approvalRequests: [
+            { ...APPROVAL_REQUEST_ROW, approvalRequestId: "op_01JZ8E2QYQAAAAAAAAAAAAAAAA" },
+          ],
+        },
+      }),
+    ).toBeNull();
   });
 });

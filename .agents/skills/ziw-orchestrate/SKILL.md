@@ -116,10 +116,17 @@ node <skill-dir>/scripts/tick-plan.mjs /tmp/ziw-tick-snapshot.json \
 ```
 
 The planner is advisory but should be followed unless current evidence exposes a
-gap it cannot model. It returns active footprint, capacity action, collision-safe
-dispatch selection, Linear DAG starts, ready-state promotion decisions,
-hosted-review actions, and human-merge PR label actions. Do not spend tokens
-manually re-deriving those decisions when the JSON inputs are current.
+gap it cannot model. It returns active footprint, capacity action,
+collision-safe dispatch selection, Linear DAG `frontier` and dispatchable
+`starts`, ready-state promotion decisions, hosted-review actions, and
+human-merge PR label actions. Do not spend tokens manually re-deriving those
+decisions when the JSON inputs are current.
+
+`starts` is the Triage/Orchestrator label-state handoff: `kind-slice`,
+configured ready state, `ready-for-agent`, unblocked, unclaimed, and no open PR.
+Actual dispatch still requires the predicted file/package footprint. If a
+`starts` issue lacks footprint, route it back to triage or To Issues for
+handoff repair instead of dispatching blind.
 
 To inspect only the dependency frontier from Linear issue JSON:
 
@@ -141,8 +148,9 @@ Default tick order:
 2. Run `tick-snapshot`; run `tick-plan` after building compact queue/config
    JSON.
 3. Reconcile ledger entries against refreshed tracker and PR state.
-4. Drain active PRs, previews, draft stalls, checks, review debt, stale labels,
-   and ready-for-human-merge PRs before dispatching new implementation.
+4. Drain active PRs, previews, draft stalls, base-branch drift, checks, review
+   debt, stale labels, and ready-for-human-merge PRs before dispatching new
+   implementation.
 5. Select startable `kind-slice` tickets that are ready, unblocked, within cap,
    and non-colliding by predicted file footprint.
 6. Delegate implementation, review, or triage. Never let two workers own the
@@ -184,6 +192,10 @@ reviewing or merging inline. The core invariants:
 - Draft state is an orchestration repair signal, not a review request.
 - Feedback goes to the original worker continuation target and stays on the same
   branch/PR.
+- Base-branch drift on a GitHub PR is an orchestrator-owned repair: run
+  `gh pr update-branch <pr>` after refreshing PR state, then rerun checks and
+  review on the updated head. Delegate only when the update reports a merge
+  conflict or equivalent manual conflict state.
 - `needs-human-merge` means merge-ready except for required human merge
   authority. Apply it only to open non-draft PRs with current clean review
   evidence, passing required checks, complete or policy-skipped hosted review,

@@ -1,0 +1,69 @@
+# Daily randomized property-test run. Manual dispatch can replay a failing seed.
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: fast-check generated cases per property
+        required: true
+        default: "5000"
+      seed:
+        description: Optional fast-check replay seed
+        required: false
+        default: ""
+      duration_ms:
+        description: Optional fast-check time limit per property for focused campaigns
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run fuzz tests
+        env:
+          INSECUR_FUZZ_RUNS: ${{ inputs.runs || '5000' }}
+          INSECUR_FUZZ_SEED: ${{ inputs.seed || '' }}
+          INSECUR_FUZZ_DURATION_MS: ${{ inputs.duration_ms || '' }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Fuzz run"
+            echo "- Runs per property: ${INSECUR_FUZZ_RUNS}"
+            if [ -n "${INSECUR_FUZZ_SEED:-}" ]; then
+              echo "- Replay seed: ${INSECUR_FUZZ_SEED}"
+            else
+              echo "- Replay seed: random"
+            fi
+            if [ -n "${INSECUR_FUZZ_DURATION_MS:-}" ]; then
+              echo "- Time limit per property: ${INSECUR_FUZZ_DURATION_MS} ms"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          pnpm test:fuzz
