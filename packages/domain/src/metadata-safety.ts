@@ -11,7 +11,7 @@ const DEFAULT_SENSITIVE_VALUE_PATTERNS: RegExp[] = [
   /\bBearer\s+[A-Za-z0-9._-]{20,}\b/i,
 ];
 
-const DEFAULT_FORBIDDEN_KEYS = [
+export const DEFAULT_FORBIDDEN_KEYS = [
   "secret",
   "match",
   "line",

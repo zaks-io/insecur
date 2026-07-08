@@ -152,7 +152,11 @@ export default tseslint.config(
     files: [
       "vitest.config.ts",
       "vitest.coverage.config.ts",
+      "vitest.fuzz.config.ts",
+      "vitest.fuzz.setup.ts",
       "vitest.mutation.config.ts",
+      "packages/*/test/fuzz/**/*.ts",
+      "packages/domain/test/**/*.ts",
       "packages/access/test/**/*.ts",
       "packages/access/vitest.config.ts",
       "packages/access/vitest.rls.config.ts",
@@ -224,6 +228,8 @@ export default tseslint.config(
   },
   {
     files: [
+      "vitest.fuzz.config.ts",
+      "vitest.fuzz.setup.ts",
       "packages/cli/**/*.ts",
       "packages/*/scripts/**/*.mjs",
       "apps/*/scripts/**/*.mjs",
@@ -312,6 +318,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.fuzz.ts", "**/*.fuzz.tsx"],
+    rules: {
+      "max-nested-callbacks": "off",
+    },
+  },
+  {
     // TanStack Router control flow: loaders `throw redirect(...)` (a Response subtype) and
     // `throw notFound()` by design; the router catches both.
     files: ["apps/web/src/routes/**/*.tsx", "apps/web/src/console/route-guards.ts"],
@@ -337,6 +349,8 @@ export default tseslint.config(
       "**/*.test.tsx",
       "**/*.spec.ts",
       "**/*.spec.tsx",
+      "**/*.fuzz.ts",
+      "**/*.fuzz.tsx",
       "**/*.e2e.test.ts",
       "**/*.integration.test.ts",
     ],
