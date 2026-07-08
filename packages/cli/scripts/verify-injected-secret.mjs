@@ -1,4 +1,6 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+const FINGERPRINT_KEY = "insecur:local-feature-suite:v1";
 
 const expectedDigest = process.argv[2];
 const variableKey = process.argv[3] ?? "INSECUR_PROOF_SECRET";
@@ -21,7 +23,7 @@ if (process.env.INSECUR_SESSION_TOKEN !== undefined) {
   fail("session_token_leaked");
 }
 
-const actualDigest = createHash("sha256").update(value, "utf8").digest();
+const actualDigest = createHmac("sha256", FINGERPRINT_KEY).update(value, "utf8").digest();
 const expectedDigestBytes = Buffer.from(expectedDigest, "hex");
 
 if (
