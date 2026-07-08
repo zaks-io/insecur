@@ -138,7 +138,7 @@ describe("runtime rpc delegate seams", () => {
   });
 
   it("exposes delegated post-auth rpc methods on the runtime service map", async () => {
-    const host = { postAuthRpc: () => post };
+    const host = { postAuthRpc: () => post, env };
 
     await RuntimeServiceDelegatedPostAuthRpc.listProjects.call(host, {
       actorToken: "token",

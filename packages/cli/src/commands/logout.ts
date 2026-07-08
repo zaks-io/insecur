@@ -38,7 +38,7 @@ async function attemptRevokeCliSession(
       return { serverRevoked: false, revokeFailed: true };
     }
     const serverRevoked = revokeResult.envelope.data.revoked;
-    return { serverRevoked, revokeFailed: !serverRevoked };
+    return { serverRevoked, revokeFailed: false };
   } catch {
     return { serverRevoked: false, revokeFailed: true };
   }
@@ -58,8 +58,8 @@ function formatLogoutHumanMessage(data: {
       : "Logged out; server session revoked.";
   }
   return data.removed
-    ? "Logged out locally; server session was not revoked. Persisted session removed."
-    : "Logged out locally; server session was not revoked.";
+    ? "Logged out locally; server session was already inactive. Persisted session removed."
+    : "Logged out locally; server session was already inactive.";
 }
 
 export async function runLogoutCommand(

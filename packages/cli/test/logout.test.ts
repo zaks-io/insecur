@@ -123,7 +123,7 @@ describe("logout command", () => {
     } satisfies Partial<CliError>);
   });
 
-  it("exits nonzero when the server reports revoked:false but still clears local state", async () => {
+  it("treats an already inactive server session as a successful local logout", async () => {
     const stdoutChunks: string[] = [];
     const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
       stdoutChunks.push(String(chunk));
@@ -139,7 +139,7 @@ describe("logout command", () => {
       envelope: successEnvelope({ revoked: false }),
     }));
     const exitCode = await runLogoutCommand(flags, createMockApi(revoke), mockContext());
-    expect(exitCode).toBe(EXIT_UNEXPECTED);
+    expect(exitCode).toBe(0);
     expect(revoke).toHaveBeenCalledOnce();
     const output = stdoutChunks.join("");
     expect(output).toContain('"revoked":false');

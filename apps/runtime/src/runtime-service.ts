@@ -3,12 +3,8 @@ import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
-import {
-  completeBootstrapOperatorClaim,
-  type BootstrapStatus,
-  type CompleteBootstrapOperatorClaimResult,
-} from "@insecur/instance-bootstrap";
-import { runWithRuntimeConnection } from "@insecur/tenant-store";
+import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
+import { resolveAdmittedUserId, runWithRuntimeConnection } from "@insecur/tenant-store";
 import type {
   AcceptInvitationRpcInput,
   CompleteBootstrapClaimRpcInput,
@@ -19,8 +15,6 @@ import type {
   GetBootstrapStatusRpcInput,
   CancelOperationRpcInput,
   GetOperationRpcInput,
-  IsCliSessionRevokedRpcInput,
-  IsCliSessionRevokedRpcPayload,
   IssueInjectionGrantRpcInput,
   ProvisionGuidedOrganizationRpcInput,
   QueryFirstValueUsageRpcInput,
@@ -33,6 +27,8 @@ import type {
   CaptureFirstValueFeedbackRpcInput,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
+  IsCliSessionRevokedRpcInput,
+  IsCliSessionRevokedRpcPayload,
   RuntimeDeliveryAllEnvelope,
   RuntimeDeliveryEnvelope,
   RuntimeRpcResult,
@@ -41,11 +37,11 @@ import type {
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "./env.js";
-import {
-  consumeGrantAllRpc,
-  consumeGrantRpc,
-  writeSecretRpc,
-} from "./rpc/runtime-keyring-rpc-delegates.js";
+import { consumeGrantAllOperation } from "./operations/consume-grant-all-operation.js";
+import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
+import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
+import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
+import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import {
   captureFirstValueFeedbackRpc,
   queryFirstValueUsageRpc,
@@ -57,17 +53,12 @@ import {
 } from "./rpc/runtime-metadata-rpc-delegates.js";
 import { isCliSessionRevokedOperation } from "./operations/revoke-cli-session-operation.js";
 import {
-  getBootstrapStatusRpc,
-  recordAbuseDeniedRpc,
-  recordAdmissionDeniedRpc,
-  resolveAdmissionRpc,
-} from "./rpc/runtime-pre-auth-rpc-delegates.js";
-import {
   acceptInvitationRpc,
   createInvitationRpc,
   createOperatorOrganizationRpc,
   provisionGuidedOrganizationRpc,
 } from "./rpc/runtime-onboarding-rpc-delegates.js";
+import { completeBootstrapOperatorClaimRpc } from "./rpc/runtime-bootstrap-rpc-delegates.js";
 import { RuntimeServiceDelegatedPostAuthRpc } from "./rpc/runtime-service-delegated-post-auth-rpc.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
@@ -143,17 +134,23 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   // --- Keyring-bound methods (decrypt happens here; real-logic operations) ---
 
   consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-    return consumeGrantRpc(this.#post.bind(this), this.env, input);
+    return this.#post(input.actorToken, ({ auditActor }) =>
+      consumeGrantOperation({ env: this.env, input, auditActor }),
+    );
   }
 
   consumeGrantAll(
     input: ConsumeGrantAllRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryAllEnvelope>> {
-    return consumeGrantAllRpc(this.#post.bind(this), this.env, input);
+    return this.#post(input.actorToken, ({ auditActor }) =>
+      consumeGrantAllOperation({ env: this.env, input, auditActor }),
+    );
   }
 
   writeSecret(input: WriteSecretRpcInput): Promise<RuntimeRpcResult<RuntimeSecretWritePayload>> {
-    return writeSecretRpc(this.#post.bind(this), this.env, input);
+    return this.#post(input.actorToken, ({ auditActor, accessActor }) =>
+      writeSecretOperation({ env: this.env, input, auditActor, accessActor }),
+    );
   }
 
   // --- Pre-auth identity/metadata methods (no hop token; trusted by the private binding) ---
@@ -161,25 +158,27 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   resolveAdmission(
     input: ResolveAdmissionRpcInput,
   ): Promise<RuntimeRpcResult<ResolveAdmissionRpcPayload>> {
-    return resolveAdmissionRpc(this.#pre.bind(this), input);
+    return this.#pre(async () => ({
+      userId: await resolveAdmittedUserId(input.instanceId, input.workosUserId),
+    }));
   }
 
   recordAdmissionDenied(
     input: RecordAdmissionDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAdmissionDeniedRpcPayload>> {
-    return recordAdmissionDeniedRpc(this.#pre.bind(this), input);
+    return this.#pre(() => recordAdmissionDeniedOperation(input));
   }
 
   recordAbuseDenied(
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>> {
-    return recordAbuseDeniedRpc(this.#pre.bind(this), input);
+    return this.#pre(() => recordAbuseDeniedOperation(input));
   }
 
   getBootstrapStatus(
     input: GetBootstrapStatusRpcInput,
   ): Promise<RuntimeRpcResult<BootstrapStatus>> {
-    return getBootstrapStatusRpc(this.#pre.bind(this), input);
+    return this.#pre(() => getBootstrapStatus(input.instanceId));
   }
 
   isCliSessionRevoked(
@@ -219,27 +218,15 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return issueInjectionGrantRpc(this.#post.bind(this), input);
   }
 
-  completeBootstrapOperatorClaim(
-    input: CompleteBootstrapClaimRpcInput,
-  ): Promise<RuntimeRpcResult<CompleteBootstrapOperatorClaimResult>> {
-    return this.#post(input.actorToken, ({ actor }) =>
-      completeBootstrapOperatorClaim({
-        instanceId: input.instanceId,
-        actor,
-        bootstrapSecret: input.bootstrapSecret,
-        operatorGrantId: input.operatorGrantId,
-        ownerMembershipId: input.ownerMembershipId,
-        request: { requestId: input.requestId },
-      }),
-    );
+  completeBootstrapOperatorClaim(input: CompleteBootstrapClaimRpcInput) {
+    return completeBootstrapOperatorClaimRpc(this.#post.bind(this), input);
   }
 
   recordInjectionRunCompleted(input: RecordInjectionRunCompletedRpcInput) {
     return recordInjectionRunCompletedRpc(this.#post.bind(this), input);
   }
-
   captureFirstValueFeedback(input: CaptureFirstValueFeedbackRpcInput) {
-    return captureFirstValueFeedbackRpc(this.postAuthRpc(), input);
+    return captureFirstValueFeedbackRpc(this.#post.bind(this), input);
   }
 
   queryFirstValueUsage(input: QueryFirstValueUsageRpcInput) {

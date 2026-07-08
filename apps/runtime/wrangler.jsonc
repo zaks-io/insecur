@@ -39,6 +39,16 @@
       "store_id": "00000000000000000000000000000001",
       "secret_name": "INSECUR_PUBLIC_PRODUCTION_ROOT_KEY_PLACEHOLDER_V1",
     },
+    {
+      "binding": "AUDIT_EXPORT_HMAC_KEY_V1",
+      "store_id": "00000000000000000000000000000001",
+      "secret_name": "INSECUR_PUBLIC_PRODUCTION_AUDIT_EXPORT_HMAC_PLACEHOLDER_V1",
+    },
+    {
+      "binding": "AUDIT_EXPORT_SIGNING_KEY_V1",
+      "store_id": "00000000000000000000000000000001",
+      "secret_name": "INSECUR_PUBLIC_PRODUCTION_AUDIT_EXPORT_SIGNING_PLACEHOLDER_V1",
+    },
   ],
   // Hyperdrive binding to the Instance's Postgres (ADR-0036). This is the provisioned `insecur-prod`
   // config (role `insecur_runtime_rls`, Neon pooler, caching disabled). The Worker reads its Postgres
@@ -68,6 +78,16 @@
           "binding": "INSTANCE_ROOT_KEY_V1",
           "store_id": "00000000000000000000000000000003",
           "secret_name": "INSECUR_PUBLIC_PREVIEW_ROOT_KEY_PLACEHOLDER_V1",
+        },
+        {
+          "binding": "AUDIT_EXPORT_HMAC_KEY_V1",
+          "store_id": "00000000000000000000000000000003",
+          "secret_name": "INSECUR_PUBLIC_PREVIEW_AUDIT_EXPORT_HMAC_PLACEHOLDER_V1",
+        },
+        {
+          "binding": "AUDIT_EXPORT_SIGNING_KEY_V1",
+          "store_id": "00000000000000000000000000000003",
+          "secret_name": "INSECUR_PUBLIC_PREVIEW_AUDIT_EXPORT_SIGNING_PLACEHOLDER_V1",
         },
       ],
       "hyperdrive": [

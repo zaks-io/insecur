@@ -25,6 +25,7 @@ export {
   AUDIT_EVENTS_DEFAULT_PAGE_SIZE,
   AUDIT_EVENTS_MAX_PAGE_SIZE,
   encodeAuditEventsCursor,
+  normalizeAuditTimestampFilter,
   queryTenantAuditEvents,
   queryTenantAuditEventsInTenantScope,
   type QueryTenantAuditEventsFilters,

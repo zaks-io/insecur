@@ -13,6 +13,7 @@ import { BootstrapError } from "@insecur/instance-bootstrap";
 import { HighAssuranceChallengeError, HighAssuranceHandoffError } from "@insecur/high-assurance";
 import type { RuntimeRpcError } from "@insecur/worker-kit";
 import { RuntimeTokenSigningSecretConfigError, safePublicErrorMessage } from "@insecur/worker-kit";
+import { AuditExportKeysNotConfiguredError } from "../crypto/audit-export-keys-not-configured-error.js";
 
 const RUNTIME_RPC_GENERIC_MESSAGE = "runtime request failed" as const;
 
@@ -94,6 +95,13 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
     return {
       code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
       message: "runtime key material is unavailable",
+      retryable: false,
+    };
+  }
+  if (error instanceof AuditExportKeysNotConfiguredError) {
+    return {
+      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      message: "runtime audit export keys are unavailable",
       retryable: false,
     };
   }

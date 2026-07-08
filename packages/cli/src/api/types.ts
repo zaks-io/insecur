@@ -12,10 +12,10 @@ import type {
   VariableKey,
 } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
-import type { AuditEventsPage } from "@insecur/audit";
 import type { NavigationApiClient } from "./navigation-api-types.js";
 import type { RunPoliciesApiClient } from "./run-policies-api-types.js";
 import type { SecretsApiClient } from "./secrets-api-types.js";
+import type { AuditApiClient } from "./audit-api-types.js";
 import type { WhoamiApiClient } from "./whoami-api-types.js";
 import type { LogoutApiClient } from "./logout-api-types.js";
 
@@ -29,6 +29,12 @@ export type {
 } from "./navigation-api-types.js";
 
 export type { ListEnvironmentSecretsData, ListSecretVersionsData } from "./secrets-api-types.js";
+
+export type {
+  ExportTenantAuditData,
+  ListAuditEventsData,
+  ListAuditEventsFiltersInput,
+} from "./audit-api-types.js";
 
 export interface OperationPollData {
   readonly operationId: OperationId;
@@ -49,18 +55,6 @@ export interface CliSessionExchangeData {
   readonly sessionId: string;
   readonly expiresAt: string;
 }
-
-export interface ListAuditEventsFiltersInput {
-  readonly actorUserId?: string;
-  readonly actorMachineIdentityId?: string;
-  readonly projectId?: string;
-  readonly environmentId?: string;
-  readonly eventCode?: string;
-  readonly createdAtFrom?: string;
-  readonly createdAtTo?: string;
-}
-
-export type ListAuditEventsData = AuditEventsPage;
 
 interface CliAuthorizationUrlInput {
   readonly redirectUri: string;
@@ -139,6 +133,7 @@ export interface ApiClient
     NavigationApiClient,
     SecretsApiClient,
     RunPoliciesApiClient,
+    AuditApiClient,
     WhoamiApiClient,
     LogoutApiClient {
   createCliAuthorizationUrl(input: CliAuthorizationUrlInput): string;
@@ -249,17 +244,6 @@ export interface ApiClient
     readonly operationId: OperationId;
   }): Promise<
     | { ok: true; envelope: ApiSuccess<OperationCancelData> }
-    | { ok: false; envelope: ApiFailure; httpStatus: number }
-  >;
-  listAuditEvents(input: {
-    readonly host: string;
-    readonly bearerCredential: string;
-    readonly organizationId: OrganizationId;
-    readonly pageSize?: number;
-    readonly cursor?: string;
-    readonly filters?: ListAuditEventsFiltersInput;
-  }): Promise<
-    | { ok: true; envelope: ApiSuccess<ListAuditEventsData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }

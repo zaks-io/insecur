@@ -5,6 +5,7 @@ import type {
   CreateRuntimeInjectionPolicyRpcInput,
   DenyHighAssuranceChallengeRpcInput,
   DisableRuntimeInjectionPolicyRpcInput,
+  ExportTenantAuditRpcInput,
   GetHighAssuranceChallengeRpcInput,
   GetRuntimeInjectionPolicyRpcInput,
   ListAuditEventsRpcInput,
@@ -20,6 +21,8 @@ import type {
   RevokeCliSessionRpcInput,
 } from "@insecur/worker-kit";
 
+import type { RuntimeEnv } from "../env.js";
+
 import {
   clearHighAssuranceChallengeRpc,
   denyHighAssuranceChallengeRpc,
@@ -28,6 +31,7 @@ import {
 } from "./runtime-high-assurance-rpc-delegates.js";
 import {
   createEnvironmentRpc,
+  exportTenantAuditRpc,
   listAuditEventsRpc,
   listEnvironmentsRpc,
   listEnvironmentSecretsRpc,
@@ -49,6 +53,7 @@ import {
 
 export interface RuntimePostAuthRpcHost {
   postAuthRpc(): PostAuthRpcRunner;
+  readonly env: RuntimeEnv;
 }
 
 export const RuntimeServiceDelegatedPostAuthRpc = {
@@ -90,6 +95,9 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
   },
   listAuditEvents(this: RuntimePostAuthRpcHost, input: ListAuditEventsRpcInput) {
     return listAuditEventsRpc(this.postAuthRpc(), input);
+  },
+  exportTenantAudit(this: RuntimePostAuthRpcHost, input: ExportTenantAuditRpcInput) {
+    return exportTenantAuditRpc(this.postAuthRpc(), this.env, input);
   },
   listPendingHighAssuranceChallenges(
     this: RuntimePostAuthRpcHost,

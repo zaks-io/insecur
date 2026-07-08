@@ -109,8 +109,10 @@ describeIntegration("session revoke integration", () => {
     );
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
+    await expect(first.json()).resolves.toMatchObject({ ok: true, data: { revoked: true } });
+    await expect(second.json()).resolves.toMatchObject({ ok: true, data: { revoked: true } });
     await expect(
       revokeCliSession(TEST_INSTANCE_ID, sessionId, userId.brand(TEST_USER_ID)),
-    ).resolves.toEqual({ revoked: false });
+    ).resolves.toEqual({ revoked: true });
   });
 });
