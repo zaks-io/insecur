@@ -64,6 +64,8 @@ export interface TransitionProtectedChangeInput {
   readonly nextState: ProtectedChangeState;
   readonly closureReasonCode?: string;
   readonly impactReviewFingerprint?: string;
+  /** When set, skips server-side recompute and uses this fingerprint for stale checks (INS-496). */
+  readonly currentImpactFingerprint?: string;
   readonly executionOperationId?: OperationId;
 }
 
