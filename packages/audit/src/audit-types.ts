@@ -54,6 +54,7 @@ export type AuditResourceType =
   | "runtime_injection_policy"
   | "operation"
   | "app_connection"
+  | "webhook_subscription"
   | "secret_sync"
   | "approval_request"
   | "organization_data_key"

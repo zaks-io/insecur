@@ -24,3 +24,4 @@ stryker.log
 sbom.cyclonedx.json
 .gitleaksignore
 .local/
+.bin/

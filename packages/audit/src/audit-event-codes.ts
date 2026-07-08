@@ -73,6 +73,14 @@ export const PRODUCTION_AUDIT_EVENT_CODES = {
   runtimeInjectionPolicyCreateDenied: "runtime_injection_policy.create_denied",
   runtimeInjectionPolicyDisabled: "runtime_injection_policy.disabled",
   runtimeInjectionPolicyDisableDenied: "runtime_injection_policy.disable_denied",
+  webhookSubscriptionCreated: "webhook.subscription_created",
+  webhookSubscriptionCreateDenied: "webhook.subscription_create_denied",
+  webhookSubscriptionUpdated: "webhook.subscription_updated",
+  webhookSubscriptionUpdateDenied: "webhook.subscription_update_denied",
+  webhookSubscriptionDeleted: "webhook.subscription_deleted",
+  webhookSubscriptionDeleteDenied: "webhook.subscription_delete_denied",
+  webhookDeliverySucceeded: "webhook.delivery_succeeded",
+  webhookDeliveryFailed: "webhook.delivery_failed",
 } as const;
 
 /** All supported tenant-qualified audit event codes. */
@@ -128,6 +136,10 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.operationCancelDenied,
   PRODUCTION_AUDIT_EVENT_CODES.runtimeInjectionPolicyCreateDenied,
   PRODUCTION_AUDIT_EVENT_CODES.runtimeInjectionPolicyDisableDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionCreateDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionUpdateDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionDeleteDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.webhookDeliveryFailed,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([

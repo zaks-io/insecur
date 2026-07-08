@@ -6,6 +6,7 @@ import * as tenantCollaborationSchema from "../src/db/schema/tenant-collaboratio
 import * as tenantHierarchySchema from "../src/db/schema/tenant-hierarchy.js";
 import * as tenantIntegrationsSchema from "../src/db/schema/tenant-integrations.js";
 import * as tenantSecretsSchema from "../src/db/schema/tenant-secrets.js";
+import * as tenantWebhooksSchema from "../src/db/schema/tenant-webhooks.js";
 import { collectPgTableExportsFromModule } from "../src/db/schema/schema-tables.js";
 import { materializePgTableExtraConfigs } from "./helpers/materialize-pg-table-extra-config.js";
 
@@ -15,6 +16,7 @@ const SCHEMA_MODULES = {
   "tenant-collaboration.js": tenantCollaborationSchema,
   "tenant-integrations.js": tenantIntegrationsSchema,
   "tenant-secrets.js": tenantSecretsSchema,
+  "tenant-webhooks.js": tenantWebhooksSchema,
 } as const;
 
 const EXPECTED_TABLE_EXPORTS: Record<string, readonly string[]> = {
@@ -54,6 +56,12 @@ const EXPECTED_TABLE_EXPORTS: Record<string, readonly string[]> = {
     "injectionGrants",
     "auditEvents",
     "operations",
+  ],
+  "tenant-webhooks.js": [
+    "webhookSubscriptions",
+    "webhookSubscriptionEventTypes",
+    "webhookSigningSecrets",
+    "inAppEventNotifications",
   ],
 };
 

@@ -1,0 +1,31 @@
+{
+  "name": "@insecur/notifications",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
+    "test:rls": "vitest run --config vitest.rls.config.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@insecur/access": "workspace:*",
+    "@insecur/audit": "workspace:*",
+    "@insecur/crypto": "workspace:*",
+    "@insecur/custody-contracts": "workspace:*",
+    "@insecur/domain": "workspace:*",
+    "@insecur/tenant-store": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

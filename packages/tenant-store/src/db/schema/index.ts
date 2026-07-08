@@ -34,4 +34,5 @@ export * from "./tenant-collaboration.js";
 export * from "./tenant-agent-sessions.js";
 export * from "./tenant-hierarchy.js";
 export * from "./tenant-integrations.js";
+export * from "./tenant-webhooks.js";
 export * from "./tenant-secrets.js";

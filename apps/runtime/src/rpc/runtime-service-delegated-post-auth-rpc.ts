@@ -3,6 +3,8 @@ import type {
   CreateEnvironmentRpcInput,
   CreateProjectRpcInput,
   CreateRuntimeInjectionPolicyRpcInput,
+  CreateWebhookSubscriptionRpcInput,
+  DeleteWebhookSubscriptionRpcInput,
   DenyHighAssuranceChallengeRpcInput,
   DisableRuntimeInjectionPolicyRpcInput,
   ExportTenantAuditRpcInput,
@@ -18,7 +20,11 @@ import type {
   ListProjectsRpcInput,
   ListSecretVersionsRpcInput,
   ListSessionOrganizationsRpcInput,
+  ListWebhookEventCodesRpcInput,
+  ListWebhookSubscriptionsRpcInput,
   RevokeCliSessionRpcInput,
+  RotateWebhookSigningSecretRpcInput,
+  UpdateWebhookSubscriptionRpcInput,
 } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "../env.js";
@@ -50,6 +56,14 @@ import {
   disableRuntimeInjectionPolicyRpc,
   getRuntimeInjectionPolicyRpc,
 } from "./runtime-run-policies-rpc-delegates.js";
+import {
+  createWebhookSubscriptionRpc,
+  deleteWebhookSubscriptionRpc,
+  listWebhookEventCodesRpc,
+  listWebhookSubscriptionsRpc,
+  rotateWebhookSigningSecretRpc,
+  updateWebhookSubscriptionRpc,
+} from "./runtime-webhook-rpc-delegates.js";
 
 export interface RuntimePostAuthRpcHost {
   postAuthRpc(): PostAuthRpcRunner;
@@ -140,5 +154,35 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
     input: DisableRuntimeInjectionPolicyRpcInput,
   ) {
     return disableRuntimeInjectionPolicyRpc(this.postAuthRpc(), input);
+  },
+  createWebhookSubscription(
+    this: RuntimePostAuthRpcHost,
+    input: CreateWebhookSubscriptionRpcInput,
+  ) {
+    return createWebhookSubscriptionRpc(this.postAuthRpc(), this.env, input);
+  },
+  listWebhookSubscriptions(this: RuntimePostAuthRpcHost, input: ListWebhookSubscriptionsRpcInput) {
+    return listWebhookSubscriptionsRpc(this.postAuthRpc(), this.env, input);
+  },
+  updateWebhookSubscription(
+    this: RuntimePostAuthRpcHost,
+    input: UpdateWebhookSubscriptionRpcInput,
+  ) {
+    return updateWebhookSubscriptionRpc(this.postAuthRpc(), this.env, input);
+  },
+  deleteWebhookSubscription(
+    this: RuntimePostAuthRpcHost,
+    input: DeleteWebhookSubscriptionRpcInput,
+  ) {
+    return deleteWebhookSubscriptionRpc(this.postAuthRpc(), this.env, input);
+  },
+  rotateWebhookSigningSecret(
+    this: RuntimePostAuthRpcHost,
+    input: RotateWebhookSigningSecretRpcInput,
+  ) {
+    return rotateWebhookSigningSecretRpc(this.postAuthRpc(), this.env, input);
+  },
+  listWebhookEventCodes(this: RuntimePostAuthRpcHost, input: ListWebhookEventCodesRpcInput) {
+    return listWebhookEventCodesRpc(this.postAuthRpc(), this.env, input);
   },
 } as const;
