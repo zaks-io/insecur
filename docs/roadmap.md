@@ -29,7 +29,7 @@ work starts, so seam divergence is caught by gates instead of review.
   is landed evidence for wrapped-data-key storage and the root-key rewrap primitive, not an open M0
   dependency.
 
-Exit gate: each named gate is blocking in CI; `pnpm verify` and the `postgres-integration` job are
+Exit gate: each named gate is blocking in CI; `pnpm verify` and the DB-backed `Verify` step are
 green with the new gates enabled.
 
 ## M1 — First Value complete

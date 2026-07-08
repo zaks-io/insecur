@@ -29,8 +29,17 @@ export function redactorFor(
   sentinel: Sentinel,
   extraPatterns: string[] = [],
 ): (value: unknown) => string {
-  return createRedactor([
+  return redactorForPreview(preview, [
     ...sentinel.variants.map((variant) => variant.pattern),
+    ...extraPatterns,
+  ]);
+}
+
+export function redactorForPreview(
+  preview: PreviewConfig,
+  extraPatterns: string[] = [],
+): (value: unknown) => string {
+  return createRedactor([
     preview.databaseUrl,
     ...databasePasswordPatterns(preview.databaseUrl),
     preview.signingSecret,

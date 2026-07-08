@@ -101,6 +101,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
 
       - name: Secret scan
         run: |
@@ -127,6 +129,7 @@ jobs:
       - name: Product checks
         if: needs.changes.outputs.product_code == 'true'
         env:
+          EVENT_NAME: ${{ github.event_name }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
           TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
@@ -140,17 +143,11 @@ jobs:
             echo "::notice::Remote Turbo cache writes skipped. Configure TURBO_TOKEN, TURBO_TEAM, and TURBO_REMOTE_CACHE_SIGNATURE_KEY repository secrets to enable signed CI cache publication (ADR-0053)."
           fi
           export TURBO_CACHE="${cache_flags#--cache=}"
-          pnpm duplicates:ci
-          pnpm knip
-          pnpm format:check
-          pnpm conformance:actions-pin
-          pnpm conformance:topology
-          pnpm conformance:packages
-          pnpm conformance:site-boundary
-          pnpm conformance:wrangler-types
-          pnpm conformance:cli-release-boundary
-          pnpm test:scripts
-          pnpm exec turbo run lint typecheck test "${cache_flags}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            pnpm verify:pr
+          else
+            pnpm verify
+          fi
           pnpm test:coverage
 
       - name: Workflow config checks

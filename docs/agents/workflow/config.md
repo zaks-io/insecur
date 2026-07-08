@@ -233,7 +233,7 @@ Type (parent `Type`):
 
 - PR title: Conventional Commits; reference issue (e.g. `feat(cli): ... (INS-NN)`)
 - PR body: Summary, Changes, Risk, Test plan; metadata-only (no Sensitive Values)
-- Required checks: `pnpm verify` locally, plus `pnpm test:coverage` when the PR touches covered packages (the coverage ratchet is NOT part of `verify`; it is CI's separate `Coverage` job and the most common first-pass CI failure); run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
+- Required checks: `pnpm verify:pr` locally for PR-equivalent policy checks and affected Turbo checks, plus `pnpm test:coverage` when the PR touches covered packages (the coverage ratchet is NOT part of `verify:pr`, but it runs in CI's required `Verify` job and is a common first-pass CI failure); run strict `pnpm duplicates:check` when touching repeated logic or shared helpers
 - Code review: `ziw-code-review` pre-PR (self) and on the PR (Agent Review, clean context)
 - CodeRabbit config: root `.coderabbit.yaml`; bot `@coderabbitai`; `reviews.auto_review.enabled: false` (drafts off, incremental off)
 - Draft PR policy: draft only while checks, requested human prep, or required author fixes are incomplete. Draft state alone is not a code review request; Orchestrator diagnoses and marks unblocked drafts ready-for-review, then verifies non-draft.
