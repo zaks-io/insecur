@@ -1,6 +1,7 @@
 import * as audit from "@insecur/audit";
 import {
   appConnectionId,
+  auditEventId,
   AUTH_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
   operationId,
@@ -312,52 +313,58 @@ describeRls("github app installation app connection", () => {
   });
 
   it("records auth.insufficient_scope when validation is denied for missing read scope", async () => {
-    const writeSpy = vi.spyOn(audit, "writeAuditEvent").mockResolvedValue(undefined);
-    const deniedActor = {
-      type: "user" as const,
-      userId: userId.brand(TEST_NO_SCOPE_USER_ID),
-    };
+    const writeSpy = vi
+      .spyOn(audit, "writeAuditEvent")
+      .mockResolvedValue({ auditEventId: auditEventId.brand("aud_01JZ8AUD12R7M4T0V9X3C5D8F1") });
+    try {
+      const deniedActor = {
+        type: "user" as const,
+        userId: userId.brand(TEST_NO_SCOPE_USER_ID),
+      };
 
-    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
-      await createGitHubAppConnection({
-        actor: ACTOR,
-        organizationId: ORG_A,
-        projectId: PROJECT_A,
-        instanceId: TEST_INSTANCE_ID,
-        operationId: OP_GH,
-        appConnectionId: CONN_GH_D,
-        providerAppRegistrationId: REG_GH,
-        displayName: testDisplayName("GitHub validation audit"),
-        setupUserId: ACTOR.userId,
-        boundary: BOUNDARY,
-        keyring,
-        githubPort: createSuccessfulGitHubPort(),
-        appConnectionStore: new TenantAppConnectionStore(db),
-        providerAppRegistrationStore: new TenantProviderAppRegistrationStore(db),
-        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-      });
-
-      await expect(
-        validateGitHubAppConnection({
-          actor: deniedActor,
+      await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+        await createGitHubAppConnection({
+          actor: ACTOR,
           organizationId: ORG_A,
           projectId: PROJECT_A,
+          instanceId: TEST_INSTANCE_ID,
+          operationId: OP_GH,
           appConnectionId: CONN_GH_D,
+          providerAppRegistrationId: REG_GH,
+          displayName: testDisplayName("GitHub validation audit"),
+          setupUserId: ACTOR.userId,
+          boundary: BOUNDARY,
           keyring,
           githubPort: createSuccessfulGitHubPort(),
           appConnectionStore: new TenantAppConnectionStore(db),
+          providerAppRegistrationStore: new TenantProviderAppRegistrationStore(db),
           sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-        }),
-      ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
-    });
+        });
 
-    expect(writeSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventCode: audit.PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
-        outcome: "denied",
-        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
-      }),
-    );
+        await expect(
+          validateGitHubAppConnection({
+            actor: deniedActor,
+            organizationId: ORG_A,
+            projectId: PROJECT_A,
+            appConnectionId: CONN_GH_D,
+            keyring,
+            githubPort: createSuccessfulGitHubPort(),
+            appConnectionStore: new TenantAppConnectionStore(db),
+            sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+          }),
+        ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+      });
+
+      expect(writeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventCode: audit.PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
+          outcome: "denied",
+          denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+        }),
+      );
+    } finally {
+      writeSpy.mockRestore();
+    }
   });
 
   it("fails closed when validating a disconnected connection", async () => {

@@ -25,7 +25,10 @@ export interface DisconnectAppConnectionCommandInput {
 
 export async function disconnectAppConnectionCommand(
   input: DisconnectAppConnectionCommandInput,
-): Promise<{ readonly connection: ReturnType<typeof toMetadataSafeAppConnectionStatus> }> {
+): Promise<{
+  readonly connection: ReturnType<typeof toMetadataSafeAppConnectionStatus>;
+  readonly auditEventId: string;
+}> {
   const actor = requireUserActorForConnectionCommand(input.actor);
   const projectId = orgScopedConnectionProjectId();
 
@@ -50,5 +53,8 @@ export async function disconnectAppConnectionCommand(
     throw new AppConnectionError(APP_CONNECTION_ERROR_CODES.invalidConnectionMethod);
   });
 
-  return { connection: toMetadataSafeAppConnectionStatus(disconnected) };
+  return {
+    connection: toMetadataSafeAppConnectionStatus(disconnected.connection),
+    auditEventId: disconnected.auditEventId,
+  };
 }

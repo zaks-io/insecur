@@ -3,6 +3,7 @@ import {
   APP_CONNECTION_ERROR_CODES,
   AUTH_ERROR_CODES,
   type AppConnectionId,
+  type AuditEventId,
   type OperationId,
   type OrganizationId,
   type ProjectId,
@@ -45,7 +46,7 @@ export interface AttachProviderCredentialInput {
 async function attachVerifiedProviderCredential(
   input: AttachProviderCredentialInput,
   boundary: CloudflareConnectionBoundary,
-): Promise<AppConnectionRow> {
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: AuditEventId }> {
   const validationResult = await verifyCloudflareConnectionToken({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
@@ -66,14 +67,14 @@ async function attachVerifiedProviderCredential(
     keyring: input.keyring,
     appConnectionStore: input.appConnectionStore,
   });
-  await recordConnectionCredentialAttached({
+  const { auditEventId } = await recordConnectionCredentialAttached({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
     appConnectionId: input.appConnectionId,
   });
 
-  return persistConnectionValidationSuccess({
+  const { connection } = await persistConnectionValidationSuccess({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -82,11 +83,13 @@ async function attachVerifiedProviderCredential(
     validationResult,
     appConnectionStore: input.appConnectionStore,
   });
+
+  return { connection, auditEventId };
 }
 
 async function attachCredentialWithProjectBoundary(
   input: AttachProviderCredentialInput,
-): Promise<AppConnectionRow> {
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: AuditEventId }> {
   try {
     return await withCloudflareConnectionManageAccess({
       actor: input.actor,
@@ -129,7 +132,7 @@ async function attachCredentialWithProjectBoundary(
  */
 export async function attachProviderCredential(
   input: AttachProviderCredentialInput,
-): Promise<AppConnectionRow> {
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: AuditEventId }> {
   await requireAppConnectionChangeEvidence(
     {
       organizationId: input.organizationId,

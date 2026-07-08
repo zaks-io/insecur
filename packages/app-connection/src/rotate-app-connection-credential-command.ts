@@ -37,6 +37,7 @@ export async function rotateAppConnectionCredentialCommand(
   readonly dryRun: boolean;
   readonly connection: ReturnType<typeof toMetadataSafeAppConnectionStatus>;
   readonly validation: MetadataSafeCloudflareConnectionValidation | null;
+  readonly auditEventId: string | null;
 }> {
   const actor = requireUserActorForConnectionCommand(input.actor);
 
@@ -47,7 +48,7 @@ export async function rotateAppConnectionCredentialCommand(
       appConnectionId: input.appConnectionId,
       keyring: input.keyring,
     });
-    return { dryRun: true, ...result };
+    return { dryRun: true, ...result, auditEventId: null };
   }
 
   if (input.tokenPlaintext === undefined) {
