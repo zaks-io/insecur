@@ -195,6 +195,7 @@ export default tseslint.config(
       "packages/instance-bootstrap/scripts/**/*.ts",
       "packages/backup-restore/test/**/*.ts",
       "packages/backup-restore/vitest.config.ts",
+      "packages/backup-restore/vitest.rls.config.ts",
       "packages/worker-kit/src/**/*.test.ts",
       "packages/worker-kit/vitest.config.ts",
       "apps/api/test/**/*.ts",

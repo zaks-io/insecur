@@ -8,12 +8,16 @@ import type { SentryBindings } from "@insecur/observability";
  * deploy verifies with `RUNTIME_TOKEN_SIGNING_SECRET`.
  */
 export interface RuntimeEnv extends SentryBindings {
+  /** Instance identifier for metadata-qualified backup artifacts. */
+  readonly INSTANCE_ID?: string;
   /** Instance root key version 1 from Cloudflare Secrets Store (ADR-0028). */
   readonly INSTANCE_ROOT_KEY_V1?: SecretsStoreSecretBinding;
   /** Audit export HMAC key version 1 from Cloudflare Secrets Store (ADR-0014/0028). */
   readonly AUDIT_EXPORT_HMAC_KEY_V1?: SecretsStoreSecretBinding;
   /** Audit export Ed25519 signing key version 1 from Cloudflare Secrets Store (ADR-0045/0028). */
   readonly AUDIT_EXPORT_SIGNING_KEY_V1?: SecretsStoreSecretBinding;
+  /** Encrypted backup artifacts for the daily export pipeline (ADR-0072). */
+  readonly BACKUPS?: R2Bucket;
   /** HMAC secret shared with the API Worker to verify the scoped hop token (ADR-0077). */
   readonly RUNTIME_TOKEN_SIGNING_SECRET: string;
   /**

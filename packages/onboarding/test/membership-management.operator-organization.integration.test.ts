@@ -1,9 +1,23 @@
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
-import { ONBOARDING_ERROR_CODES, organizationId, teamId, userId } from "@insecur/domain";
+import {
+  ONBOARDING_ERROR_CODES,
+  organizationId,
+  RECOVERY_CANARY_ORGANIZATION_ID,
+  teamId,
+  userId,
+} from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
-import { TEST_INSTANCE_ID, TEST_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
-import { createOperatorOrganization, isInstanceOperator } from "../src/index.js";
+import {
+  TEST_INSTANCE_ID,
+  TEST_ORG_A_ID,
+  TEST_USER_ID,
+} from "../../tenant-store/test/rls/test-ids.js";
+import {
+  createOperatorOrganization,
+  isInstanceOperator,
+  loadInstanceAnchorOrganizationId,
+} from "../src/index.js";
 import {
   cleanupMembershipManagementFixture,
   describeMembershipIntegration,
@@ -89,6 +103,36 @@ describeMembershipIntegration(
         },
       );
       expect(operatorAudit.length).toBeGreaterThan(0);
+    });
+
+    it("anchors instance-level audits on the real org, never the recovery canary", async () => {
+      // Adversarially force the ambiguous created_at ordering to favor the canary: make it strictly
+      // the earliest org on the instance. The anchor must still resolve to the real org because it
+      // excludes the canary by id, not by ordering luck. If this regressed, instance-level audits
+      // (and the co-timestamped bootstrap anchor) would bind to the sentinel org.
+      const setCanaryCreatedAt = async (createdAt: string) => {
+        await withTenantScope(
+          {
+            kind: "organization",
+            organizationId: organizationId.brand(RECOVERY_CANARY_ORGANIZATION_ID),
+          },
+          async ({ sql }) => {
+            await sql`
+              UPDATE organizations SET created_at = ${createdAt} WHERE id = ${RECOVERY_CANARY_ORGANIZATION_ID}
+            `;
+          },
+        );
+      };
+
+      await setCanaryCreatedAt("2000-01-01T00:00:00.000Z");
+      try {
+        const anchor = await loadInstanceAnchorOrganizationId(TEST_INSTANCE_ID);
+        expect(anchor).toBe(TEST_ORG_A_ID);
+        expect(anchor).not.toBe(RECOVERY_CANARY_ORGANIZATION_ID);
+      } finally {
+        // Restore so concurrent/subsequent suites on the shared baseline see the real shape.
+        await setCanaryCreatedAt(new Date().toISOString());
+      }
     });
   },
 );

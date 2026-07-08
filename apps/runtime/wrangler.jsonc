@@ -8,6 +8,7 @@
   "upload_source_maps": true,
   "workers_dev": false,
   "vars": {
+    "INSTANCE_ID": "INSECUR_PUBLIC_PRODUCTION_INSTANCE_ID_PLACEHOLDER",
     "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
     "SENTRY_ENVIRONMENT": "production",
     "SENTRY_RELEASE": "PUBLIC_PRODUCTION_SHA_PLACEHOLDER",
@@ -59,6 +60,17 @@
       "id": "00000000000000000000000000000002",
     },
   ],
+  // Encrypted logical backups (ADR-0058/0072). Bucket name is materialized at deploy time.
+  "r2_buckets": [
+    {
+      "binding": "BACKUPS",
+      "bucket_name": "insecur-public-production-backups-placeholder",
+    },
+  ],
+  // Daily backup export cron (ADR-0072). Starts a new scheduled Operation; never resumes parked ops.
+  "triggers": {
+    "crons": ["0 3 * * *"],
+  },
   // Preview environment override for the shared preview deploy. PR workflows must not patch this
   // config or create per-PR Hyperdrive configs.
   "env": {
@@ -68,6 +80,7 @@
       "upload_source_maps": true,
       "workers_dev": false,
       "vars": {
+        "INSTANCE_ID": "INSECUR_PUBLIC_PREVIEW_INSTANCE_ID_PLACEHOLDER",
         "SENTRY_DSN": "https://5fec3d59dc9549daf4e20be46b93c729@o4509987229859840.ingest.us.sentry.io/4511677913366528",
         "SENTRY_ENVIRONMENT": "preview",
         "SENTRY_RELEASE": "PUBLIC_PREVIEW_SHA_PLACEHOLDER",
@@ -96,6 +109,15 @@
           "id": "00000000000000000000000000000004",
         },
       ],
+      "r2_buckets": [
+        {
+          "binding": "BACKUPS",
+          "bucket_name": "insecur-public-preview-backups-placeholder",
+        },
+      ],
+      "triggers": {
+        "crons": ["0 3 * * *"],
+      },
     },
   },
 }

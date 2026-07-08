@@ -29,6 +29,7 @@ const DEPLOY_ENV = {
   INSECUR_INSTANCE_ID: "instance-live",
   INSECUR_RUNTIME_AUDIT_EXPORT_HMAC_SECRET_NAME: "audit-hmac-secret-live",
   INSECUR_RUNTIME_AUDIT_EXPORT_SIGNING_SECRET_NAME: "audit-signing-secret-live",
+  INSECUR_RUNTIME_BACKUPS_BUCKET_NAME: "insecur-backups-live",
   INSECUR_RUNTIME_HYPERDRIVE_ID: "hyperdrive-live",
   INSECUR_RUNTIME_ROOT_KEY_SECRET_NAME: "root-key-secret-live",
   INSECUR_RUNTIME_ROOT_KEY_STORE_ID: "root-key-store-live",
@@ -60,9 +61,11 @@ test("materializes runtime preview deploy identifiers", () => {
   });
 
   const preview = config.env.preview;
+  assert.equal(preview.vars.INSTANCE_ID, "instance-live");
   assert.equal(preview.secrets_store_secrets[0].store_id, "root-key-store-live");
   assert.equal(preview.secrets_store_secrets[0].secret_name, "root-key-secret-live");
   assert.equal(preview.hyperdrive[0].id, "hyperdrive-live");
+  assert.equal(preview.r2_buckets[0].bucket_name, "insecur-backups-live");
   assert.equal(preview.vars.SENTRY_RELEASE, "abc123");
 });
 
@@ -412,6 +415,12 @@ function runtimeConfig() {
     env: {
       preview: {
         hyperdrive: [{ binding: "HYPERDRIVE", id: "HYPERDRIVE_PREVIEW_PLACEHOLDER" }],
+        r2_buckets: [
+          {
+            binding: "BACKUPS",
+            bucket_name: "insecur-public-preview-backups-placeholder",
+          },
+        ],
         secrets_store_secrets: [
           {
             binding: "INSTANCE_ROOT_KEY_V1",
@@ -419,10 +428,19 @@ function runtimeConfig() {
             store_id: "ROOT_KEY_STORE_PREVIEW_PLACEHOLDER",
           },
         ],
+        vars: {
+          INSTANCE_ID: "INSTANCE_ID_PREVIEW_PLACEHOLDER",
+        },
       },
     },
     hyperdrive: [{ binding: "HYPERDRIVE", id: "HYPERDRIVE_PLACEHOLDER" }],
     name: "insecur-runtime",
+    r2_buckets: [
+      {
+        binding: "BACKUPS",
+        bucket_name: "insecur-public-production-backups-placeholder",
+      },
+    ],
     secrets_store_secrets: [
       {
         binding: "INSTANCE_ROOT_KEY_V1",
@@ -430,6 +448,9 @@ function runtimeConfig() {
         store_id: "ROOT_KEY_STORE_PLACEHOLDER",
       },
     ],
+    vars: {
+      INSTANCE_ID: "INSTANCE_ID_PLACEHOLDER",
+    },
   };
 }
 

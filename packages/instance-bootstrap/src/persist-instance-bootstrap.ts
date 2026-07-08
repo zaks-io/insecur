@@ -1,4 +1,8 @@
 import type { DisplayName, OrganizationId, TeamId } from "@insecur/domain";
+import {
+  RECOVERY_CANARY_ORGANIZATION_DISPLAY_NAME,
+  RECOVERY_CANARY_ORGANIZATION_ID,
+} from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
 import { hashBootstrapSecret } from "./bootstrap-secret.js";
 import type { BootstrapResourceIds } from "./bootstrap-types.js";
@@ -26,6 +30,28 @@ async function insertInstanceShell(
   `;
 }
 
+/**
+ * Seeds the recovery-canary sentinel organization as standing instance-scope state (ADR-0058 /
+ * ADR-0072). The daily backup export records its Operation and audit events under this org, and
+ * both tables carry `org_id` FKs to `organizations.id`, so the row must exist before the first
+ * scheduled cron fires — its existence is a precondition of the first export, not a drill-day
+ * artifact. Idempotent so re-running bootstrap seed logic never conflicts.
+ */
+async function insertRecoveryCanaryOrganization(
+  sql: TenantScopedSql,
+  instanceId: string,
+): Promise<void> {
+  await sql`
+    INSERT INTO organizations (id, instance_id, display_name)
+    VALUES (
+      ${RECOVERY_CANARY_ORGANIZATION_ID},
+      ${instanceId},
+      ${RECOVERY_CANARY_ORGANIZATION_DISPLAY_NAME}
+    )
+    ON CONFLICT (id) DO NOTHING
+  `;
+}
+
 export async function insertBootstrapInstanceRecords(
   sql: TenantScopedSql,
   input: {
@@ -44,6 +70,7 @@ export async function insertBootstrapInstanceRecords(
     INSERT INTO organizations (id, instance_id, display_name)
     VALUES (${input.organizationId}, ${input.instanceId}, ${input.organizationDisplayName})
   `;
+  await insertRecoveryCanaryOrganization(sql, input.instanceId);
   await sql`
     INSERT INTO teams (id, org_id, display_name, is_default)
     VALUES (

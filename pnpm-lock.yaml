@@ -272,6 +272,9 @@ importers:
       '@insecur/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@insecur/backup-restore':
+        specifier: workspace:*
+        version: link:../../packages/backup-restore
       '@insecur/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
@@ -610,12 +613,21 @@ importers:
 
   packages/backup-restore:
     dependencies:
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../audit
       '@insecur/crypto':
         specifier: workspace:*
         version: link:../crypto
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../operations
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

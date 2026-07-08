@@ -11,6 +11,14 @@ const PREVIEW_SMOKE_NO_SCOPE_ADMITTED_USER_ID = "usr_0000000000000000000000SMK3"
 const PREVIEW_SMOKE_NO_SCOPE_WORKOS_USER_ID = "user_01workos_preview_smoke_noscope";
 const PREVIEW_SMOKE_NO_SCOPE_USER_ADMISSION_ID = "uad_0000000000000000000000SMK3";
 
+// Keep in sync with RECOVERY_CANARY_ORGANIZATION_ID / _DISPLAY_NAME in
+// packages/domain/src/recovery-canary-scope.ts. The daily backup export records its Operation and
+// audit events under this org (both FK organizations.id), so the row must exist before the first
+// scheduled cron fires (ADR-0058 / ADR-0072). Seeded here for preview and any instance provisioned
+// outside the bootstrap ceremony; bootstrap seeds it too.
+const RECOVERY_CANARY_ORGANIZATION_ID = "org_01RCAN00000000000000000001";
+const RECOVERY_CANARY_ORGANIZATION_DISPLAY_NAME = "Recovery Canary";
+
 const databaseUrl = requireDatabaseUrl("DATABASE_URL_MIGRATION", "DATABASE_URL");
 const instanceId = process.env.INSTANCE_ID ?? "inst_LOCAL_DEV";
 const ownerActor = {
@@ -37,6 +45,10 @@ const operatorGrantId = process.env.SMOKE_INSTANCE_OPERATOR_ID ?? "iop_000000000
 const sql = postgres(databaseUrl, { prepare: false, max: 1 });
 
 try {
+  // The migration role is NOBYPASSRLS, so instance-scope writes need a tenant-visibility context.
+  // app.service='true' is the engine's cross-organization gate (ADR-0037) and is the correct scope
+  // for seeding standing instance-scope singletons like the recovery-canary organization.
+  await sql`SELECT set_config('app.service', 'true', false)`;
   await sql`
     INSERT INTO instances (id, display_name)
     VALUES (${instanceId}, ${"Preview smoke instance"})
@@ -45,6 +57,15 @@ try {
   await upsertAdmission(ownerActor);
   await upsertAdmission(inviteeActor);
   await upsertAdmission(noScopeActor);
+  await sql`
+    INSERT INTO organizations (id, instance_id, display_name)
+    VALUES (
+      ${RECOVERY_CANARY_ORGANIZATION_ID},
+      ${instanceId},
+      ${RECOVERY_CANARY_ORGANIZATION_DISPLAY_NAME}
+    )
+    ON CONFLICT (id) DO NOTHING
+  `;
   await sql`
     INSERT INTO instance_operators (id, instance_id, user_id, grant_origin)
     VALUES (${operatorGrantId}, ${instanceId}, ${ownerActor.userId}, ${"admin"})
