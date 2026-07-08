@@ -189,6 +189,12 @@ const mf = new Miniflare({
           if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/audit-events`) {
             return Response.json({ ok: true, data: { events: [], nextCursor: null } });
           }
+          if (url.pathname === `/v1/orgs/${ORG.organizationId}/high-assurance-challenges`) {
+            return Response.json({ ok: true, data: { challenges: [] } });
+          }
+          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/high-assurance-challenges`) {
+            return Response.json({ ok: true, data: { challenges: [] } });
+          }
           if (
             url.pathname ===
             `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/environments`
@@ -410,6 +416,8 @@ try {
       ">Audit<",
       ">People<",
       ">Settings<",
+      'aria-label="Needs you"',
+      "Nothing needs you",
       'aria-label="Recent activity"',
       "No activity yet",
     ],
@@ -419,6 +427,15 @@ try {
     authedDocument: true,
     expect: [ORG.displayName, 'aria-label="Breadcrumb"'],
   });
+
+  // Approvals inbox (INS-377): authorized empty state and metadata-safe denial.
+  await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}/approvals`);
+  await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}/approvals`, {
+    headers: authorization,
+    authedDocument: true,
+    expect: [">Approvals<", "Nothing needs you", 'aria-label="Breadcrumb"'],
+  });
+  await assertNotFound(`/orgs/${ORG.organizationId.slice(0, -1)}X/approvals`, authorization);
 
   // Projects section (INS-370): authorized renders, protection badge, empty states, denials.
   await assertUnauthenticatedConsoleRedirect(

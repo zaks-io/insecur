@@ -1,17 +1,20 @@
-import { ConsolePlaceholder } from "@insecur/ui";
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
+import { NeedsYouStrip } from "../components/needs-you-strip.js";
 import { RecentActivityFeed } from "../components/recent-activity-feed.js";
 import { ConsoleFramedRouteError } from "../components/console-route-error.js";
 import { requireConsoleRead } from "../console/route-guards.js";
 import { loadOrgRecentActivity } from "../server/console-audit-events.js";
+import { loadOrgPendingApprovals } from "../server/console-pending-approvals.js";
 
 export const Route = createFileRoute("/orgs/$orgId/")({
   loader: async ({ params, location }) => {
-    const recentActivity = requireConsoleRead(
-      await loadOrgRecentActivity({ data: { organizationId: params.orgId } }),
-      location.href,
-    );
-    return { recentActivity };
+    const [recentActivityRead, pendingApprovalsRead] = await Promise.all([
+      loadOrgRecentActivity({ data: { organizationId: params.orgId } }),
+      loadOrgPendingApprovals({ data: { organizationId: params.orgId } }),
+    ]);
+    const recentActivity = requireConsoleRead(recentActivityRead, location.href);
+    const pendingApprovals = requireConsoleRead(pendingApprovalsRead, location.href);
+    return { recentActivity, pendingApprovals };
   },
   component: OrgHomePage,
   errorComponent: ConsoleFramedRouteError,
@@ -22,7 +25,7 @@ const orgRoute = getRouteApi("/orgs/$orgId");
 /** Home (docs/web-console-ux.md §Center Of Gravity): Needs You above recent activity. */
 function OrgHomePage() {
   const { activeOrg } = orgRoute.useLoaderData();
-  const { recentActivity } = Route.useLoaderData();
+  const { recentActivity, pendingApprovals } = Route.useLoaderData();
   const { orgId } = Route.useParams();
 
   return (
@@ -32,9 +35,7 @@ function OrgHomePage() {
         <p className="mt-2 font-mono text-xs text-muted-foreground">{activeOrg.organizationId}</p>
       </header>
       <div className="mt-8 flex flex-col gap-8">
-        <ConsolePlaceholder title="Needs you">
-          Approval Requests and High-Assurance Challenges waiting on you will land here.
-        </ConsolePlaceholder>
+        <NeedsYouStrip orgId={orgId} initialItems={pendingApprovals.items} />
         <RecentActivityFeed orgId={orgId} initialEvents={recentActivity.events} />
       </div>
     </section>

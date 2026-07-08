@@ -87,6 +87,12 @@ function createOrgApiMethods(apiFetch: ApiFetch) {
       const response = await apiFetch(auditEventsPath(organizationId, query));
       return response.json();
     },
+    orgHighAssuranceChallenges: async (organizationId: string): Promise<unknown> => {
+      const response = await apiFetch(
+        `/v1/orgs/${encodeURIComponent(organizationId)}/high-assurance-challenges`,
+      );
+      return response.json();
+    },
   };
 }
 
