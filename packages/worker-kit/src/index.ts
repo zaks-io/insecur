@@ -120,6 +120,7 @@ export type {
   SecretVersionMetadataRead,
   SessionOrganizationRead,
 } from "./rpc/runtime-metadata-rpc-contract.js";
+export type * from "./rpc/runtime-project-access-rpc-contract.js";
 export type {
   CreateRuntimeInjectionPolicyRpcInput,
   CreateRuntimeInjectionPolicyRpcPayload,

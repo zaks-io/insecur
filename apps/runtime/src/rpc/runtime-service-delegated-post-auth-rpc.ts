@@ -16,6 +16,8 @@ import type {
   ListOrganizationInvitationsRpcInput,
   ListOrganizationMembersRpcInput,
   ListPendingHighAssuranceChallengesRpcInput,
+  ListProjectInjectionGrantsRpcInput,
+  ListProjectMachineIdentitiesRpcInput,
   ListProjectSecretsRpcInput,
   ListProjectsRpcInput,
   ListSecretVersionsRpcInput,
@@ -59,6 +61,10 @@ import {
   revokeCliSessionRpc,
 } from "./runtime-metadata-rpc-delegates.js";
 import {
+  listProjectInjectionGrantsRpc,
+  listProjectMachineIdentitiesRpc,
+} from "./runtime-project-access-rpc-delegates.js";
+import {
   createAppConnectionRpc,
   disconnectAppConnectionRpc,
   getAppConnectionStatusRpc,
@@ -101,6 +107,18 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
   },
   listProjectSecrets(this: RuntimePostAuthRpcHost, input: ListProjectSecretsRpcInput) {
     return listProjectSecretsRpc(this.postAuthRpc(), input);
+  },
+  listProjectMachineIdentities(
+    this: RuntimePostAuthRpcHost,
+    input: ListProjectMachineIdentitiesRpcInput,
+  ) {
+    return listProjectMachineIdentitiesRpc(this.postAuthRpc(), input);
+  },
+  listProjectInjectionGrants(
+    this: RuntimePostAuthRpcHost,
+    input: ListProjectInjectionGrantsRpcInput,
+  ) {
+    return listProjectInjectionGrantsRpc(this.postAuthRpc(), input);
   },
   listEnvironmentSecrets(this: RuntimePostAuthRpcHost, input: ListEnvironmentSecretsRpcInput) {
     return listEnvironmentSecretsRpc(this.postAuthRpc(), input);

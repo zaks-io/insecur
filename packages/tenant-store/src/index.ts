@@ -93,6 +93,19 @@ export type {
   ResolvedInjectionGrantBinding,
 } from "./injection-grants/types.js";
 export { INJECTION_GRANT_REVOCATION_REASONS } from "./injection-grants/types.js";
+export { listProjectInjectionGrantRows } from "./injection-grants/project-injection-grant-metadata-queries.js";
+export type {
+  InjectionGrantLifecycleStatus,
+  ListProjectInjectionGrantsInput,
+  ProjectInjectionGrantRow,
+} from "./injection-grants/project-injection-grant-metadata-types.js";
+export { listProjectMachineIdentityRows } from "./machine-access/project-machine-identity-queries.js";
+export type {
+  EnvironmentDeployKeyAuthMethodRow,
+  GitHubActionsOidcAuthMethodRow,
+  ListProjectMachineIdentitiesInput,
+  ProjectMachineIdentityRow,
+} from "./machine-access/project-machine-identity-types.js";
 export type {
   AppendSecretVersionAndMakeLiveInput,
   AppendSecretVersionAndMakeLiveResult,
