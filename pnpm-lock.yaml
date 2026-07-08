@@ -1181,9 +1181,6 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
-      '@insecur/operations':
-        specifier: workspace:*
-        version: link:../operations
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@cloudflare/workers-types@5.20260703.1)(@opentelemetry/api@1.9.1)(postgres@3.4.9)
