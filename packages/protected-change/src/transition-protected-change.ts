@@ -1,9 +1,16 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { ActorRef, AuthorizeScopeDeps } from "@insecur/access";
 import type { AuditActorRef } from "@insecur/audit";
-import { PROTECTED_CHANGE_ERROR_CODES, type OrganizationId, type RequestId } from "@insecur/domain";
+import {
+  APPROVAL_ERROR_CODES,
+  PROTECTED_CHANGE_ERROR_CODES,
+  type KnownErrorCode,
+  type OrganizationId,
+  type RequestId,
+} from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 
+import { assertImpactReviewFresh } from "./assert-impact-review-fresh.js";
 import {
   assertApprovalEvidencePresent,
   assertProtectedChangeAccess,
@@ -17,6 +24,7 @@ import type {
   RecordProtectedChangeApprovalEvidenceInput,
   TransitionProtectedChangeInput,
 } from "./protected-change-types.js";
+import { recomputeProtectedChangeImpactFingerprint } from "./recompute-protected-change-impact-fingerprint.js";
 import { TenantProtectedChangeStore } from "./tenant-protected-change-store.js";
 
 export interface TransitionProtectedChangeRequestInput extends TransitionProtectedChangeInput {
@@ -48,11 +56,39 @@ async function loadRecord(
   return record;
 }
 
-async function recordTransitionAccessDenied(
+function transitionDeniedReasonCode(error: unknown): KnownErrorCode | undefined {
+  if (isProtectedChangeError(error)) {
+    return error.code;
+  }
+  const approvalCode = approvalErrorCode(error);
+  if (approvalCode !== undefined) {
+    return approvalCode;
+  }
+  return undefined;
+}
+
+function approvalErrorCode(error: unknown): KnownErrorCode | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return undefined;
+  }
+  const code = error.code;
+  return Object.values(APPROVAL_ERROR_CODES).includes(
+    code as (typeof APPROVAL_ERROR_CODES)[keyof typeof APPROVAL_ERROR_CODES],
+  )
+    ? (code as KnownErrorCode)
+    : undefined;
+}
+
+export function isApprovalReviewStaleError(error: unknown): boolean {
+  return approvalErrorCode(error) === APPROVAL_ERROR_CODES.reviewStale;
+}
+
+async function recordTransitionDenied(
   input: TransitionProtectedChangeRequestInput,
   current: ProtectedChangeRecord,
   error: unknown,
 ): Promise<void> {
+  const reasonCode = transitionDeniedReasonCode(error);
   await recordProtectedChangeAudit({
     action: input.auditAction,
     outcome: "denied",
@@ -63,7 +99,7 @@ async function recordTransitionAccessDenied(
     protectedChangeId: input.protectedChangeId,
     fromState: current.state,
     toState: input.nextState,
-    ...(isProtectedChangeError(error) ? { reasonCode: error.code } : {}),
+    ...(reasonCode === undefined ? {} : { reasonCode }),
   });
 }
 
@@ -112,10 +148,53 @@ async function assertTransitionAccess(
   } catch (error) {
     await auditAccessDenialOnFailure(error, {
       isAccessDenied: isProtectedChangeAccessDenied,
-      recordDenied: async () => recordTransitionAccessDenied(input, current, error),
+      recordDenied: async () => recordTransitionDenied(input, current, error),
     });
     throw error;
   }
+}
+
+async function assertFreshImpactReviewForTransition(
+  input: TransitionProtectedChangeRequestInput,
+  current: ProtectedChangeRecord,
+): Promise<void> {
+  if (input.nextState !== "approved" && input.nextState !== "executing") {
+    return;
+  }
+
+  // TOCTOU bound (INS-496): impact facts are recomputed in this transaction scope, then the
+  // compare-and-set write runs in a separate call. A concurrent draft/delivery mutation between
+  // the freshness pass and applyTransition is not re-detected here; the window is narrow and
+  // bounded by the protected-change state machine CAS on the row itself.
+  const currentFingerprint = await recomputeProtectedChangeImpactFingerprint(current);
+
+  if (input.nextState === "approved") {
+    assertImpactReviewFresh({
+      submittedFingerprint: input.impactReviewFingerprint,
+      currentFingerprint,
+    });
+    return;
+  }
+
+  const evidence = await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    ({ sql }) =>
+      new TenantProtectedChangeStore(sql).getApprovalEvidence(
+        input.organizationId,
+        input.protectedChangeId,
+      ),
+  );
+  if (evidence === null) {
+    throw new ProtectedChangeError(
+      PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
+      "approval evidence is required for execution",
+    );
+  }
+
+  assertImpactReviewFresh({
+    submittedFingerprint: evidence.impactReviewFingerprint,
+    currentFingerprint,
+  });
 }
 
 export async function transitionProtectedChange(
@@ -124,6 +203,13 @@ export async function transitionProtectedChange(
   const current = await loadRecord(input.organizationId, input.protectedChangeId);
 
   await assertTransitionAccess(input, current);
+
+  try {
+    await assertFreshImpactReviewForTransition(input, current);
+  } catch (error) {
+    await recordTransitionDenied(input, current, error);
+    throw error;
+  }
 
   let updated: ProtectedChangeRecord;
   try {

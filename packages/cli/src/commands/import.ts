@@ -75,6 +75,7 @@ async function executeImportWrites(input: {
       environmentId: writeScope.envId,
       variableKey: write.variableKey,
       valueUtf8: write.valueUtf8,
+      createOnly: true,
     });
     if (!result.ok) {
       throwImportWriteFailure({

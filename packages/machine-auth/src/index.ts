@@ -35,6 +35,7 @@ export {
   enforceMachineAccessToken,
   type EnforceMachineAccessTokenInput,
   type EnforceMachineAccessTokenResult,
+  type MachineAccessTokenAuditContext,
 } from "./enforce-machine-access-token.js";
 export {
   machineAccessTokenDenialDetail,
@@ -88,3 +89,17 @@ export {
   mapDeployKeyDenialToReasonCode,
   type DeployKeyExchangeDenialKind,
 } from "./record-environment-deploy-key-exchange-audit.js";
+export {
+  authorizationScopeAuditAtom,
+  humanOnlyGateAuditDetail,
+  machineAccessAuditDetails,
+  machineCredentialMethodDetail,
+  type MachineCredentialMethod,
+} from "./machine-access-audit-metadata.js";
+export {
+  recordMachineAccessTokenMinted,
+  recordMachineAccessTokenUsed,
+  recordMachineAccessTokenDenied,
+  recordMachineAuthorizationDenied,
+  recordMachineHumanOnlyGateDenied,
+} from "./record-machine-access-token-audit.js";

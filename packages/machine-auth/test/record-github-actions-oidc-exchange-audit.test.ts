@@ -1,3 +1,4 @@
+import { CREDENTIAL_SCOPES } from "@insecur/access";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
@@ -41,6 +42,7 @@ describe("recordGitHubActionsOidcExchangeAudit", () => {
       projectId: PROJECT,
       environmentId: ENV,
       machineIdentityId: MACHINE,
+      credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
       request: { requestId: REQ },
     });
 
@@ -52,6 +54,10 @@ describe("recordGitHubActionsOidcExchangeAudit", () => {
       projectId: PROJECT,
       environmentId: ENV,
       resource: { type: "machine_identity", id: expect.any(String) },
+      details: {
+        credentialMethod: "auth.credential_method.github_actions_oidc",
+        credentialScopeCount: 1,
+      },
       request: { requestId: REQ },
     });
   });
@@ -70,7 +76,10 @@ describe("recordGitHubActionsOidcExchangeAudit", () => {
       actor: { type: "ci_exchange" },
       organizationId: ORG,
       denial: { reasonCode: AUTH_ERROR_CODES.invalid },
-      details: { oidcDenialKind: "auth.oidc_denial.malformed" },
+      details: {
+        oidcDenialKind: "auth.oidc_denial.malformed",
+        credentialMethod: "auth.credential_method.github_actions_oidc",
+      },
       request: { requestId: REQ },
     });
   });

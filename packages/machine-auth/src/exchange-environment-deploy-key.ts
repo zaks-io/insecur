@@ -22,6 +22,7 @@ import {
   recordEnvironmentDeployKeyExchangeDenied,
   recordEnvironmentDeployKeyExchangeSuccess,
 } from "./record-environment-deploy-key-exchange-audit.js";
+import { recordTrustedExchangeMintAudit } from "./record-trusted-exchange-mint-audit.js";
 import { machineAuthExchangeTenantScope } from "./machine-auth-exchange-tenant-scope.js";
 
 interface ExchangeEnvironmentDeployKeySuccess {
@@ -138,7 +139,21 @@ async function completeTrustedExchange(
     environmentId: authMethod.environmentId,
     machineIdentityId: authMethod.machineIdentityId,
     deployKeyId: authMethod.id,
+    credentialScopes: authMethod.credentialScopes,
     runtimePolicyKeyId,
+    ...(request !== undefined ? { request } : {}),
+  });
+
+  await recordTrustedExchangeMintAudit({
+    organizationId: authMethod.organizationId,
+    projectId: authMethod.projectId,
+    environmentId: authMethod.environmentId,
+    machineIdentityId: authMethod.machineIdentityId,
+    credentialMethod: "environment_deploy_key",
+    credentialScopes: authMethod.credentialScopes,
+    authMethodId: authMethod.id,
+    runtimePolicyKeyId,
+    minted,
     ...(request !== undefined ? { request } : {}),
   });
 

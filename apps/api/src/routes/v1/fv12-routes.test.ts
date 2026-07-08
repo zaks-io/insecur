@@ -379,6 +379,36 @@ describe("FV-12 worker routes", () => {
       expect(JSON.stringify(body)).not.toContain("metadata-only-test-value");
     });
 
+    it("forwards createOnly to the Runtime Worker", async () => {
+      const response = await app.request(
+        secretsPath,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            variableKey: "API_KEY",
+            value: "metadata-only-test-value",
+            createOnly: true,
+          }),
+        },
+        env,
+      );
+
+      expect(response.status).toBe(200);
+      expect(runtime.writeSecret).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          projectId: projectIdValue,
+          environmentId: environmentIdValue,
+          variableKey: "API_KEY",
+          createOnly: true,
+        }),
+      );
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: true, data: { variableKey: "API_KEY" } });
+      expect(JSON.stringify(body)).not.toContain("metadata-only-test-value");
+    });
+
     it("forwards generated writes to Runtime without accepting a request-body value", async () => {
       const response = await app.request(
         secretsPath,
