@@ -21,6 +21,20 @@ import {
 } from "./http.js";
 import { assertResponseFreeOfRedactedPatterns } from "./metadata-read-assertions.js";
 
+/**
+ * Preview smoke operation-poll proof path (INS-358).
+ *
+ * Product route: `POST /v1/orgs/:organizationId/run-policies` (mounted in
+ * `apps/api/src/index.ts`; owner `docs/specs/deploy-route-inventory.md`). On a protected
+ * environment the Runtime deploy creates a bounded operation with intent
+ * `runtime_injection_policy.change` (`OPERATION_INTENT_CODES.runtimeInjectionPolicyChange`) and
+ * returns `401 auth.high_assurance_required` with `meta.operationId`
+ * (`gate-protected-runtime-injection-policy-change.ts`, `run-policies-routes.test.ts`,
+ * `runtime-injection-policy-commands.integration.test.ts`).
+ *
+ * `sync.run`, `provider.reauth`, and `backup.export` are the other registered intents but have no
+ * smoke-reachable HTTP mint path on preview today; this handoff is the narrowest live route.
+ */
 const RUNTIME_INJECTION_POLICY_CHANGE_INTENT = "runtime_injection_policy.change";
 
 export interface ProvisionProtectedSmokeEnvironmentInput {
