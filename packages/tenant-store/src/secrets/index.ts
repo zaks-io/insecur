@@ -24,6 +24,8 @@ export {
   type SecretVersionLifecycleState,
 } from "./lifecycle-states.js";
 export { resolveSecretForRead } from "./resolve-secret-for-read.js";
+export { resolveSecretForPolicyBinding } from "./resolve-secret-for-policy-binding.js";
+export type { ResolveSecretForPolicyBindingInput } from "./resolve-secret-for-policy-binding.js";
 export { copyEnvironmentSecretShapes } from "./copy-environment-secret-shapes.js";
 export {
   copyRetainedSecretVersion,

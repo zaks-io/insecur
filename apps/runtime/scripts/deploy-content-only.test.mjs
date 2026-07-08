@@ -10,7 +10,11 @@ import {
   mergePublicDeployVarBindings,
   pickDesiredPublicDeployVars,
 } from "./deploy-content-only-public-vars.mjs";
-import { runContentOnlyDeploy, updatePublicDeployVars } from "./deploy-content-only-lib.mjs";
+import {
+  assertDeployedSecretsStoreSecrets,
+  runContentOnlyDeploy,
+  updatePublicDeployVars,
+} from "./deploy-content-only-lib.mjs";
 
 const PRODUCTION_GET_SETTINGS_BINDINGS = [
   { name: "CF_VERSION_METADATA", type: "version_metadata" },
@@ -204,6 +208,27 @@ test("updatePublicDeployVars skips PATCH when public deploy vars already match",
   assert.equal(
     calls.some((call) => call.method === "PATCH" && call.apiPath.endsWith("/settings")),
     false,
+  );
+});
+
+test("assertDeployedSecretsStoreSecrets requires INSTANCE_ROOT_KEY_V1 in deploy config", () => {
+  assert.throws(
+    () =>
+      assertDeployedSecretsStoreSecrets(PRODUCTION_GET_SETTINGS_BINDINGS, [
+        {
+          binding: "AUDIT_EXPORT_HMAC_KEY_V1",
+          store_id: "00000000000000000000000000000001",
+          secret_name: "missing-root-key",
+        },
+      ]),
+    /INSTANCE_ROOT_KEY_V1/,
+  );
+});
+
+test("assertDeployedSecretsStoreSecrets rejects empty deploy config", () => {
+  assert.throws(
+    () => assertDeployedSecretsStoreSecrets(PRODUCTION_GET_SETTINGS_BINDINGS, []),
+    /non-empty secrets_store_secrets/,
   );
 });
 

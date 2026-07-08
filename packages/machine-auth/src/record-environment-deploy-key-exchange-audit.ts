@@ -18,7 +18,12 @@ import {
 } from "@insecur/domain";
 import { machineAuthExchangeAuditActor } from "./machine-auth-exchange-audit.js";
 import { machineAuthExchangeTenantScope } from "./machine-auth-exchange-tenant-scope.js";
+import {
+  machineAccessAuditDetails,
+  machineCredentialMethodDetail,
+} from "./machine-access-audit-metadata.js";
 import { recordMachineAuthExchangeDenied } from "./record-machine-auth-exchange-denied.js";
+import type { CredentialScope } from "@insecur/access";
 
 export type DeployKeyExchangeDenialKind =
   "invalid" | "disabled" | "expired" | "wrong_environment" | "overbroad_scope";
@@ -33,6 +38,7 @@ export async function recordEnvironmentDeployKeyExchangeSuccess(input: {
   environmentId: EnvironmentId;
   machineIdentityId: MachineIdentityId;
   deployKeyId: MachineAuthMethodId;
+  credentialScopes: readonly CredentialScope[];
   runtimePolicyKeyId?: RuntimePolicyId;
   request?: { requestId: RequestId };
 }): Promise<void> {
@@ -47,13 +53,14 @@ export async function recordEnvironmentDeployKeyExchangeSuccess(input: {
       type: "machine_auth_method",
       id: brandOpaqueResourceIdForPrefix("mauth", input.deployKeyId),
     },
-    ...(input.runtimePolicyKeyId !== undefined
-      ? {
-          details: {
-            runtimePolicyKeyId: input.runtimePolicyKeyId,
-          },
-        }
-      : {}),
+    details: machineAccessAuditDetails({
+      credentialMethod: "environment_deploy_key",
+      credentialScopes: input.credentialScopes,
+      authMethodId: input.deployKeyId,
+      ...(input.runtimePolicyKeyId !== undefined
+        ? { runtimePolicyKeyId: input.runtimePolicyKeyId }
+        : {}),
+    }),
     ...(input.request !== undefined ? { request: input.request } : {}),
   });
 }
@@ -72,7 +79,11 @@ export async function recordEnvironmentDeployKeyExchangeDenied(input: {
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.machineDeployKeyExchangeDenied,
     ...machineAuthExchangeTenantScope(input),
     reasonCode: input.reasonCode,
-    details: deployKeyDenialDetail(input.denialKind),
+    details: {
+      ...deployKeyDenialDetail(input.denialKind),
+      ...machineCredentialMethodDetail("environment_deploy_key"),
+      ...(input.deployKeyId !== undefined ? { authMethodId: input.deployKeyId } : {}),
+    },
   });
 }
 

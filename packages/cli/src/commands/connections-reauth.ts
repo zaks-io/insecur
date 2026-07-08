@@ -8,7 +8,7 @@ import {
 } from "./connections-command-scope.js";
 import {
   parseCommaSeparatedRepositories,
-  optionalGitHubBoundaryFields,
+  readGitHubBoundaryOverrideFields,
 } from "./connections-cli-input.js";
 
 export interface ConnectionsReauthCommandOptions {
@@ -37,14 +37,16 @@ export async function runConnectionsReauthCommand(
       ? undefined
       : parseCommaSeparatedRepositories(options.allowedRepositories);
 
+  const githubBoundary = readGitHubBoundaryOverrideFields({
+    installationId: options.installationId,
+    owner: options.owner,
+    allowedRepositories,
+  });
+
   const result = await api.reauthAppConnection({
     ...target,
     ...(operationId === undefined ? {} : { operationId }),
-    ...optionalGitHubBoundaryFields({
-      installationId: options.installationId,
-      owner: options.owner,
-      allowedRepositories,
-    }),
+    ...githubBoundary,
   });
 
   return finishConnectionCommand(

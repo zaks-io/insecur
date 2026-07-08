@@ -124,7 +124,7 @@ describeRls("app connection tenant isolation and credential encryption", () => {
       })),
     };
 
-    const activated = await withTenantScope(
+    const { connection: activated, auditEventId } = await withTenantScope(
       { kind: "organization", organizationId: ORG_A },
       async ({ db }) => {
         const appConnectionStore = new TenantAppConnectionStore(db);
@@ -167,6 +167,7 @@ describeRls("app connection tenant isolation and credential encryption", () => {
     );
 
     expect(activated.status).toBe("active");
+    expect(auditEventId).toMatch(/^aud_[0-9A-Z]{26}$/);
     expect(activated.activeCredentialId).toBe(CRED_A);
     expect(activated.lastValidationOutcome).toBe("success");
     expect(activated.lastValidationCheckedAt).not.toBeNull();

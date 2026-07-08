@@ -40,13 +40,11 @@ pre-commit:
 pre-push:
   parallel: true
   jobs:
-    # Pre-push mirrors the CI workflow's deterministic gate so the high-churn
-    # failures (lint, types, tests, format, duplicates, knip, actionlint) are
-    # caught here, not after a CI round-trip. `pnpm verify` is the same floor
-    # CI's Verify job runs; test:coverage is CI's Coverage job. Security
-    # scanners (semgrep, grype) stay CI-only: low frequency, not the hot path.
-    - name: verify
-      run: pnpm verify
+    # Pre-push mirrors the PR CI hot path: policy checks, affected Turbo checks,
+    # and the full DB-less coverage ratchet.
+    # Security scanners (semgrep, grype) stay CI-only: low frequency, not the hot path.
+    - name: verify-pr
+      run: pnpm verify:pr
 
     - name: test-coverage
       run: pnpm test:coverage

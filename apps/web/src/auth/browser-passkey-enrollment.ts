@@ -5,12 +5,13 @@ import {
   type AuthFailure,
 } from "@insecur/auth";
 import { createWorkOSSessionPortFromEnv } from "./workos-port.js";
-import { authenticateBrowserWorkOSSession } from "./browser-session-auth.js";
+import { authenticateBrowserWorkOSSession } from "./browser-workos-session-auth.js";
 import {
   createOAuthState,
   createPkcePair,
-  createPkceAuthorizationStart,
+  encodePkceRoundTrip,
   formatPkceStateClearCookie,
+  formatPkceStateCookie,
   normalizeReturnTo,
   type PkceRoundTrip,
 } from "./browser-oauth-pkce.js";
@@ -48,7 +49,7 @@ export async function beginBrowserPasskeyEnrollment(
 ): Promise<BrowserPasskeyEnrollmentStart | { ok: false; failure: AuthFailure }> {
   const session = await authenticateBrowserWorkOSSession(request, env);
   if (!session.ok) {
-    return session;
+    return { ok: false, failure: session.failure };
   }
 
   const url = new URL(request.url);
@@ -62,7 +63,7 @@ export async function beginBrowserPasskeyEnrollment(
     state,
     codeVerifier: pkce.verifier,
     returnTo,
-    workosUserId: session.workosUserId,
+    workosUserId: session.context.user.id,
     flow: "passkey-enrollment",
   };
   const authorizationUrl = session.workos.createAuthorizationUrl({
@@ -71,10 +72,13 @@ export async function beginBrowserPasskeyEnrollment(
     codeChallenge: pkce.challenge,
     codeChallengeMethod: "S256",
     screenHint: "sign-in",
-    ...(session.loginHint === undefined ? {} : { loginHint: session.loginHint }),
+    ...(session.context.user.email === undefined ? {} : { loginHint: session.context.user.email }),
     maxAge: 0,
   });
-  return createPkceAuthorizationStart(authorizationUrl, roundTrip);
+  return {
+    authorizationUrl,
+    setCookieHeaders: [formatPkceStateCookie(encodePkceRoundTrip(roundTrip))],
+  };
 }
 
 async function exchangeEnrollmentAuthorizationCode(

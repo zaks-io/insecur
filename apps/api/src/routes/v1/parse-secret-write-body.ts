@@ -21,6 +21,7 @@ interface ParsedSecretWriteBody {
   variableKey: VariableKey;
   localValueFile?: string;
   allowEmpty?: boolean;
+  createOnly?: boolean;
   secretId?: SecretId;
 }
 
@@ -111,10 +112,14 @@ function appendSecretWriteMetadata(
   body: Record<string, unknown>,
 ): ParsedSecretWriteInput {
   const allowEmpty = readOptionalBoolean(body, "allowEmpty");
+  const createOnly = readOptionalBoolean(body, "createOnly");
   const secretId = parseOptionalSecretId(readOptionalString(body, "secretId"));
   const localValueFile = readOptionalString(body, "localValueFile");
   if (allowEmpty !== undefined) {
     parsed.allowEmpty = allowEmpty;
+  }
+  if (createOnly !== undefined) {
+    parsed.createOnly = createOnly;
   }
   if (secretId !== undefined) {
     parsed.secretId = secretId;

@@ -25,11 +25,13 @@ import {
   TenantSecretVersionStore,
 } from "../src/secrets/tenant-secret-version-store.js";
 import { resolveSecretForRead } from "../src/secrets/resolve-secret-for-read.js";
+import { resolveSecretForPolicyBinding } from "../src/secrets/resolve-secret-for-policy-binding.js";
 import { resolveSecretForWrite } from "../src/secrets/resolve-secret-for-write.js";
 import { encodeInlineCiphertextStorageRef } from "../src/secrets/ciphertext-storage-ref.js";
 import { TenantSensitiveMetadataStore } from "../src/sensitive-metadata/tenant-sensitive-metadata-store.js";
 import {
   TEST_ENV_A_ID,
+  TEST_ENV_B_ID,
   TEST_ORG_A_ID,
   TEST_PROJECT_A_ID,
   TEST_PROJECT_B_ID,
@@ -171,6 +173,91 @@ describe("resolveSecretForRead (Drizzle)", () => {
         environmentId: ENV,
       }),
     ).rejects.toThrow("exactly one of variableKey or secretId is required");
+  });
+});
+
+describe("resolveSecretForPolicyBinding (Drizzle)", () => {
+  const explicit = secretId.brand(TEST_SECRET_A_ID);
+  const otherEnv = environmentId.brand(TEST_ENV_B_ID);
+  const otherProject = projectId.brand(TEST_PROJECT_B_ID);
+
+  it("accepts a secret in the policy environment", async () => {
+    const { db } = createMockTenantDb({
+      selectResults: [
+        [
+          {
+            projectId: PROJECT,
+            environmentId: ENV,
+          },
+        ],
+      ],
+    });
+
+    await expect(
+      resolveSecretForPolicyBinding(db, {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        secretId: explicit,
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a missing secret binding", async () => {
+    const { db } = createMockTenantDb({ selectResults: [[]] });
+
+    await expect(
+      resolveSecretForPolicyBinding(db, {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        secretId: explicit,
+      }),
+    ).rejects.toBeInstanceOf(SecretVersionStoreNotFoundError);
+  });
+
+  it("rejects a secret from a different project", async () => {
+    const { db } = createMockTenantDb({
+      selectResults: [
+        [
+          {
+            projectId: otherProject,
+            environmentId: ENV,
+          },
+        ],
+      ],
+    });
+
+    await expect(
+      resolveSecretForPolicyBinding(db, {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        secretId: explicit,
+      }),
+    ).rejects.toBeInstanceOf(SecretVersionStoreNotFoundError);
+  });
+
+  it("rejects a secret from a different environment", async () => {
+    const { db } = createMockTenantDb({
+      selectResults: [
+        [
+          {
+            projectId: PROJECT,
+            environmentId: otherEnv,
+          },
+        ],
+      ],
+    });
+
+    await expect(
+      resolveSecretForPolicyBinding(db, {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        secretId: explicit,
+      }),
+    ).rejects.toBeInstanceOf(SecretVersionStoreConflictError);
   });
 });
 

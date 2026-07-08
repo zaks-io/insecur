@@ -51,6 +51,32 @@ function readOptionalGitHubBoundary(body: Record<string, unknown>) {
   return { installationId, owner, allowedRepositories };
 }
 
+const GITHUB_BOUNDARY_OVERRIDE_MESSAGE =
+  "GitHub boundary override requires installationId, owner, and allowedRepositories.";
+
+function readGitHubBoundaryOverride(body: Record<string, unknown>) {
+  const installationId = readOptionalString(body, "installationId");
+  const owner = readOptionalString(body, "owner");
+  const allowedRepositories = readOptionalStringArray(body, "allowedRepositories");
+  const fieldsPresent = [
+    installationId !== undefined,
+    owner !== undefined,
+    allowedRepositories !== undefined,
+  ].filter(Boolean).length;
+
+  if (fieldsPresent === 0) {
+    return undefined;
+  }
+  if (installationId !== undefined && owner !== undefined && allowedRepositories !== undefined) {
+    return { installationId, owner, allowedRepositories };
+  }
+
+  throw Object.assign(new Error(GITHUB_BOUNDARY_OVERRIDE_MESSAGE), {
+    code: "validation.invalid_command_input",
+    retryable: false,
+  });
+}
+
 connectionsRoutes.get("/", requireUserActor, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
@@ -116,7 +142,7 @@ connectionsRoutes.post("/:connectionId/reauth", requireUserActor, async (context
     const { userActor, organizationId, body, operationIdRaw } =
       await parseOrgScopedMutationBody(context);
     const { appConnectionId } = parseOrganizationAndAppConnectionRouteParams(context);
-    const githubBoundary = readOptionalGitHubBoundary(body);
+    const githubBoundary = readGitHubBoundaryOverride(body);
 
     return runtimeClientFor(context.env, userActor).reauthAppConnection({
       organizationId,

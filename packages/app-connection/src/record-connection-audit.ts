@@ -3,6 +3,7 @@ import {
   writeAuditEvent,
   type AuditEventDetails,
   type AuditEventCode,
+  type AuditEventResult,
   type AuditRequestRef,
 } from "@insecur/audit";
 import {
@@ -65,8 +66,8 @@ async function writeConnectionSuccessAudit(
     readonly appConnectionId: AppConnectionId;
     readonly details?: AuditEventDetails;
   },
-): Promise<void> {
-  await writeAuditEvent({
+): Promise<AuditEventResult> {
+  return writeAuditEvent({
     eventCode: input.eventCode,
     outcome: "success",
     actor: { type: "user", userId: input.actorUserId },
@@ -84,8 +85,8 @@ async function writeConnectionDeniedAudit(
     readonly reasonCode: KnownErrorCode;
     readonly appConnectionId?: AppConnectionId;
   },
-): Promise<void> {
-  await writeAuditEvent({
+): Promise<AuditEventResult> {
+  return writeAuditEvent({
     eventCode: input.eventCode,
     outcome: "denied",
     actor: { type: "user", userId: input.actorUserId },
@@ -101,8 +102,8 @@ async function writeConnectionDeniedAudit(
 
 export async function recordConnectionCreateDenied(
   input: ConnectionAuditScope & { readonly reasonCode: KnownErrorCode },
-): Promise<void> {
-  await writeConnectionDeniedAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionDeniedAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionCreateDenied,
   });
@@ -110,8 +111,8 @@ export async function recordConnectionCreateDenied(
 
 export async function recordConnectionCreated(
   input: ConnectionAuditScope & { readonly appConnectionId: AppConnectionId },
-): Promise<void> {
-  await writeConnectionSuccessAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionSuccessAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionCreated,
   });
@@ -122,8 +123,8 @@ export async function recordConnectionCredentialAttachDenied(
     readonly reasonCode: KnownErrorCode;
     readonly appConnectionId?: AppConnectionId;
   },
-): Promise<void> {
-  await writeConnectionDeniedAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionDeniedAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionCredentialAttachDenied,
   });
@@ -131,8 +132,8 @@ export async function recordConnectionCredentialAttachDenied(
 
 export async function recordConnectionCredentialAttached(
   input: ConnectionAuditScope & { readonly appConnectionId: AppConnectionId },
-): Promise<void> {
-  await writeConnectionSuccessAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionSuccessAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionCredentialAttached,
   });
@@ -143,8 +144,8 @@ export async function recordConnectionValidationDenied(
     readonly reasonCode: KnownErrorCode;
     readonly appConnectionId?: AppConnectionId;
   },
-): Promise<void> {
-  await writeConnectionDeniedAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionDeniedAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
   });
@@ -155,8 +156,8 @@ export async function recordConnectionValidated(
     readonly appConnectionId: AppConnectionId;
     readonly validation: CloudflareScopedTokenVerifyResult;
   },
-): Promise<void> {
-  await writeConnectionSuccessAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionSuccessAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionValidated,
     details: validationDetails(input.validation),
@@ -168,8 +169,8 @@ export async function recordGithubConnectionValidated(
     readonly appConnectionId: AppConnectionId;
     readonly validation: GithubConnectionValidationAuditDetails;
   },
-): Promise<void> {
-  await writeConnectionSuccessAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionSuccessAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionValidated,
     details: githubValidationDetails(input.validation),
@@ -181,8 +182,8 @@ export async function recordConnectionDisableDenied(
     readonly reasonCode: KnownErrorCode;
     readonly appConnectionId?: AppConnectionId;
   },
-): Promise<void> {
-  await writeConnectionDeniedAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionDeniedAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionDisableDenied,
   });
@@ -190,8 +191,8 @@ export async function recordConnectionDisableDenied(
 
 export async function recordConnectionDisabled(
   input: ConnectionAuditScope & { readonly appConnectionId: AppConnectionId },
-): Promise<void> {
-  await writeConnectionSuccessAudit({
+): Promise<AuditEventResult> {
+  return writeConnectionSuccessAudit({
     ...input,
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.connectionDisabled,
   });

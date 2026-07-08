@@ -1,6 +1,6 @@
 import { authFailureForReason, type AuthFailure } from "@insecur/auth";
 import { isKnownErrorCodeInCatalog } from "@insecur/domain";
-import { authenticateBrowserWorkOSSession } from "./browser-session-auth.js";
+import { authenticateBrowserWorkOSSession } from "./browser-workos-session-auth.js";
 import { oauthCallbackUrl, readPkceOAuthCallback } from "./browser-oauth-common.js";
 import {
   createOAuthState,
@@ -107,7 +107,7 @@ export async function beginBrowserApprovalStepUp(
   const pkce = await createPkcePair();
   const state = createOAuthState();
   const roundTrip = buildApprovalStepUpRoundTrip(
-    session.workosUserId,
+    session.context.user.id,
     params,
     state,
     pkce.verifier,
@@ -118,7 +118,7 @@ export async function beginBrowserApprovalStepUp(
     codeChallenge: pkce.challenge,
     codeChallengeMethod: "S256",
     screenHint: "sign-in",
-    ...(session.loginHint === undefined ? {} : { loginHint: session.loginHint }),
+    ...(session.context.user.email === undefined ? {} : { loginHint: session.context.user.email }),
     maxAge: 0,
   });
   return createPkceAuthorizationStart(authorizationUrl, roundTrip);

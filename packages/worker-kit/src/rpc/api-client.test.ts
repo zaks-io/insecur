@@ -83,6 +83,15 @@ describe("apiClientFor", () => {
       "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
       "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
     );
+    await client.clearOrgHighAssuranceChallenge(
+      "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "op_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      {
+        projectId: "prj_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+        stepUpCode: "code_step_up",
+        stepUpCodeVerifier: "verifier_step_up",
+      },
+    );
     await client.orgApprovalRequests("org_01JZ8E2QYQAAAAAAAAAAAAAAAA");
     await client.orgApprovalRequest(
       "org_01JZ8E2QYQAAAAAAAAAAAAAAAA",
@@ -140,18 +149,21 @@ describe("apiClientFor", () => {
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA/deny",
     );
     expect(urls[11]).toBe(
-      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests",
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/high-assurance-challenges/op_01JZ8E2QYQAAAAAAAAAAAAAAAA/clear",
     );
     expect(urls[12]).toBe(
-      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests",
     );
     expect(urls[13]).toBe(
-      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/reject",
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA",
     );
     expect(urls[14]).toBe(
-      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/cancel",
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/reject",
     );
     expect(urls[15]).toBe(
+      "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/cancel",
+    );
+    expect(urls[16]).toBe(
       "https://insecur-api.internal/v1/orgs/org_01JZ8E2QYQAAAAAAAAAAAAAAAA/approval-requests/apr_01JZ8E2QYQAAAAAAAAAAAAAAAA/approve",
     );
   });

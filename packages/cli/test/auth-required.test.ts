@@ -63,7 +63,7 @@ const noopApi: ApiClient = {
 };
 
 describe("auth-required errors", () => {
-  it("fails init without a session credential with login remediation", async () => {
+  it("fails hosted init without a session credential with login remediation", async () => {
     clearMemorySession();
     delete process.env.INSECUR_SESSION_TOKEN;
     await expect(

@@ -1,8 +1,4 @@
-import {
-  writeAuditEvent,
-  type AuditEventDetails,
-  type ProductionAuditEventCode,
-} from "@insecur/audit";
+import { type AuditEventDetails, type ProductionAuditEventCode } from "@insecur/audit";
 import type {
   EnvironmentId,
   KnownErrorCode,
@@ -11,7 +7,7 @@ import type {
   ProjectId,
   RequestId,
 } from "@insecur/domain";
-import { machineAuthExchangeAuditActor } from "./machine-auth-exchange-audit.js";
+import { writeMachineAuthDeniedAudit } from "./write-machine-auth-audit.js";
 
 export async function recordMachineAuthExchangeDenied(input: {
   eventCode: ProductionAuditEventCode;
@@ -23,17 +19,5 @@ export async function recordMachineAuthExchangeDenied(input: {
   details: AuditEventDetails;
   request?: { requestId: RequestId };
 }): Promise<void> {
-  await writeAuditEvent({
-    eventCode: input.eventCode,
-    outcome: "denied",
-    actor: machineAuthExchangeAuditActor(
-      input.machineIdentityId !== undefined ? { machineIdentityId: input.machineIdentityId } : {},
-    ),
-    organizationId: input.organizationId,
-    ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-    ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
-    denial: { reasonCode: input.reasonCode },
-    details: input.details,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-  });
+  await writeMachineAuthDeniedAudit(input);
 }

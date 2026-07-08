@@ -62,6 +62,7 @@ export interface MetadataSafeGitHubConnectionValidation {
 export interface MetadataSafeGitHubConnectionResult {
   readonly connection: AppConnectionRow;
   readonly validation: MetadataSafeGitHubConnectionValidation;
+  readonly auditEventId: string;
 }
 
 async function assertCreateConnectionAccess(input: CreateGitHubAppConnectionInput): Promise<void> {
@@ -118,7 +119,7 @@ async function persistGitHubAppConnectionRegistration(
     sensitiveMetadataStore: input.sensitiveMetadataStore,
   });
 
-  await recordConnectionCreated({
+  const { auditEventId } = await recordConnectionCreated({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -126,7 +127,7 @@ async function persistGitHubAppConnectionRegistration(
   });
 
   const checkedAt = new Date();
-  const validatedConnection = await persistGithubConnectionValidationSuccess({
+  const { connection: validatedConnection } = await persistGithubConnectionValidationSuccess({
     actorUserId: input.actor.userId,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -139,6 +140,7 @@ async function persistGitHubAppConnectionRegistration(
   return {
     connection: validatedConnection,
     validation: toMetadataSafeValidation(checkedAt, validationResult),
+    auditEventId,
   };
 }
 

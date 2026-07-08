@@ -2,6 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { ApprovalDetailPage } from "../components/approval-detail/approval-detail-page.js";
 import { ConsoleFramedRouteError } from "../components/console-route-error.js";
 import { consoleApprovalRouteKindFromId } from "../console/approval-detail-parse.js";
+import { parseApprovalDetailSearch } from "../console/approval-detail-search.js";
 import { requireConsoleRead } from "../console/route-guards.js";
 import {
   loadOrgApprovalRequestDetail,
@@ -9,6 +10,7 @@ import {
 } from "../server/console-pending-approvals.js";
 
 export const Route = createFileRoute("/orgs/$orgId/approvals_/$id")({
+  validateSearch: parseApprovalDetailSearch,
   loader: async ({ params, location }) => {
     const kind = consoleApprovalRouteKindFromId(params.id);
     if (kind === "unknown") {

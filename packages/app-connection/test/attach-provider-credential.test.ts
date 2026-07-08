@@ -208,7 +208,8 @@ describe("attachProviderCredential", () => {
         lastValidationReasonCode: null,
       }),
     );
-    expect(result).toBe(validated);
+    expect(result.connection).toBe(validated);
+    expect(result.auditEventId).toBe("aud_test");
   });
 
   it("does not activate credentials when provider verification fails", async () => {

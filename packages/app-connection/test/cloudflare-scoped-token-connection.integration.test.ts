@@ -1,6 +1,7 @@
 import * as audit from "@insecur/audit";
 import {
   appConnectionId,
+  auditEventId,
   AUTH_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
   operationId,
@@ -267,53 +268,59 @@ describeRls("cloudflare scoped-token app connection", () => {
   });
 
   it("records auth.insufficient_scope when validation is denied for missing read scope", async () => {
-    const writeSpy = vi.spyOn(audit, "writeAuditEvent").mockResolvedValue(undefined);
-    const deniedActor = {
-      type: "user" as const,
-      userId: userId.brand(TEST_NO_SCOPE_USER_ID),
-    };
+    const writeSpy = vi
+      .spyOn(audit, "writeAuditEvent")
+      .mockResolvedValue({ auditEventId: auditEventId.brand("aud_01JZ8AUD22R7M4T0V9X3C5D8F1") });
+    try {
+      const deniedActor = {
+        type: "user" as const,
+        userId: userId.brand(TEST_NO_SCOPE_USER_ID),
+      };
 
-    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
-      await createCloudflareScopedTokenConnection({
-        actor: ACTOR,
-        organizationId: ORG_A,
-        projectId: PROJECT_A,
-        operationId: OP_CF,
-        appConnectionId: CONN_CF_F,
-        credentialId: CRED_CF_F,
-        displayName: testDisplayName("Cloudflare validation audit"),
-        setupUserId: ACTOR.userId,
-        boundary: BOUNDARY,
-        tokenPlaintext: new TextEncoder().encode("scoped-cloudflare-token-value"),
-        keyring,
-        cloudflarePort: createSuccessfulCloudflarePort(),
-        appConnectionStore: new TenantAppConnectionStore(db),
-        sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-      });
-
-      await expect(
-        validateCloudflareScopedTokenConnection({
-          actor: deniedActor,
+      await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+        await createCloudflareScopedTokenConnection({
+          actor: ACTOR,
           organizationId: ORG_A,
           projectId: PROJECT_A,
           operationId: OP_CF,
           appConnectionId: CONN_CF_F,
+          credentialId: CRED_CF_F,
+          displayName: testDisplayName("Cloudflare validation audit"),
+          setupUserId: ACTOR.userId,
+          boundary: BOUNDARY,
+          tokenPlaintext: new TextEncoder().encode("scoped-cloudflare-token-value"),
           keyring,
           cloudflarePort: createSuccessfulCloudflarePort(),
           appConnectionStore: new TenantAppConnectionStore(db),
-          providerCredentialStore: new TenantProviderCredentialStore(db),
           sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
-        }),
-      ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
-    });
+        });
 
-    expect(writeSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventCode: audit.PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
-        outcome: "denied",
-        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
-      }),
-    );
+        await expect(
+          validateCloudflareScopedTokenConnection({
+            actor: deniedActor,
+            organizationId: ORG_A,
+            projectId: PROJECT_A,
+            operationId: OP_CF,
+            appConnectionId: CONN_CF_F,
+            keyring,
+            cloudflarePort: createSuccessfulCloudflarePort(),
+            appConnectionStore: new TenantAppConnectionStore(db),
+            providerCredentialStore: new TenantProviderCredentialStore(db),
+            sensitiveMetadataStore: new TenantSensitiveMetadataStore(db),
+          }),
+        ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+      });
+
+      expect(writeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventCode: audit.PRODUCTION_AUDIT_EVENT_CODES.connectionValidationDenied,
+          outcome: "denied",
+          denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+        }),
+      );
+    } finally {
+      writeSpy.mockRestore();
+    }
   });
 
   it("fails closed when validating a disconnected connection", async () => {

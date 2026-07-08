@@ -22,7 +22,7 @@ export interface DisableCloudflareConnectionInput {
 
 export async function disableCloudflareConnection(
   input: DisableCloudflareConnectionInput,
-): Promise<AppConnectionRow> {
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: string }> {
   return disableAppConnection(
     { ...input, clearActiveCredential: true },
     withCloudflareConnectionManageAccess,

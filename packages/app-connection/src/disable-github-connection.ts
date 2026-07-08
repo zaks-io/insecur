@@ -22,6 +22,6 @@ export interface DisableGitHubConnectionInput {
 
 export async function disableGitHubConnection(
   input: DisableGitHubConnectionInput,
-): Promise<AppConnectionRow> {
+): Promise<{ readonly connection: AppConnectionRow; readonly auditEventId: string }> {
   return disableAppConnection(input, withGitHubConnectionManageAccess);
 }

@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { ApprovalRequestEvidencePanel } from "./approval-request-evidence.js";
 import { ApproveApprovalRequestPanel } from "./approve-approval-request-panel.js";
+import { ApproveChallengePanel } from "./approve-challenge-panel.js";
 import { CancelApprovalRequestPanel } from "./cancel-approval-request-panel.js";
 import { RejectApprovalRequestPanel } from "./reject-approval-request-panel.js";
 import { HighAssuranceChallengeEvidencePanel } from "./high-assurance-challenge-evidence.js";
@@ -10,6 +11,7 @@ import type { ConsoleApprovalRequestDetail } from "../../console/approval-reques
 import type { ConsoleHighAssuranceChallengeDetail } from "../../console/approval-detail-parse.js";
 
 const approvalDetailRoute = getRouteApi("/orgs/$orgId/approvals_/$id");
+const orgRoute = getRouteApi("/orgs/$orgId");
 
 function ApprovalRequestDetailPanels({
   orgId,
@@ -31,13 +33,21 @@ function ApprovalRequestDetailPanels({
 function HighAssuranceChallengeDetailPanels({
   orgId,
   challenge,
+  passkeyEnrolled,
 }: {
   orgId: string;
   challenge: ConsoleHighAssuranceChallengeDetail;
+  passkeyEnrolled: boolean;
 }) {
   return (
     <>
       <HighAssuranceChallengeEvidencePanel challenge={challenge} />
+      <ApproveChallengePanel
+        orgId={orgId}
+        challenge={challenge}
+        passkeyEnrolled={passkeyEnrolled}
+        disabled={challenge.status !== "pending"}
+      />
       <RejectChallengePanel
         orgId={orgId}
         operationId={challenge.id}
@@ -53,6 +63,7 @@ function HighAssuranceChallengeDetailPanels({
 export function ApprovalDetailPage() {
   const data = approvalDetailRoute.useLoaderData();
   const { orgId, id } = approvalDetailRoute.useParams();
+  const { passkeyEnrolled } = orgRoute.useLoaderData();
 
   return (
     <section className="px-4 py-6 sm:px-8 sm:py-10">
@@ -78,7 +89,11 @@ export function ApprovalDetailPage() {
         {data.kind === "approval_request" ? (
           <ApprovalRequestDetailPanels orgId={orgId} request={data.request} />
         ) : (
-          <HighAssuranceChallengeDetailPanels orgId={orgId} challenge={data.challenge} />
+          <HighAssuranceChallengeDetailPanels
+            orgId={orgId}
+            challenge={data.challenge}
+            passkeyEnrolled={passkeyEnrolled}
+          />
         )}
       </div>
     </section>

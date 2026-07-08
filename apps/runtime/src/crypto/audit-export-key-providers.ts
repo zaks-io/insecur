@@ -38,9 +38,6 @@ async function readSecretsStoreString(
 }
 
 function readSigningKeyVersion(value: unknown): number {
-  if (value === undefined) {
-    return 1;
-  }
   if (typeof value === "number" && Number.isInteger(value) && value >= 1) {
     return value;
   }
@@ -95,15 +92,6 @@ async function resolveSigningKeyMaterial(env: RuntimeEnv): Promise<AuditExportSi
   const fromBinding = await readSecretsStoreString(env.AUDIT_EXPORT_SIGNING_KEY_V1);
   if (fromBinding !== undefined) {
     return parseSigningKeyMaterial(fromBinding);
-  }
-  if (allowsPlaintextAuditExportKeyEnvFallback(env)) {
-    const privateKeyPkcs8Base64Url = readEnvString(
-      "INSECUR_AUDIT_EXPORT_SIGNING_PRIVATE_KEY_PKCS8_BASE64URL",
-    );
-    const publicKeyRawBase64Url = readEnvString("INSECUR_AUDIT_EXPORT_SIGNING_PUBLIC_KEY");
-    if (privateKeyPkcs8Base64Url !== undefined && publicKeyRawBase64Url !== undefined) {
-      return { keyVersion: 1, privateKeyPkcs8Base64Url, publicKeyRawBase64Url };
-    }
   }
   throw new AuditExportKeysNotConfiguredError();
 }

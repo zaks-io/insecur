@@ -177,11 +177,12 @@ describe("app connection operations", () => {
     expect(createAppConnectionCommand).toHaveBeenCalledOnce();
   });
 
-  it("rotateAppConnectionCredentialOperation returns metadata-only dry-run payload", async () => {
+  it("rotateAppConnectionCredentialOperation returns null auditEventId for dry-run", async () => {
     vi.mocked(rotateAppConnectionCredentialCommand).mockResolvedValue({
       dryRun: true,
       connection: metadataConnection,
       validation: null,
+      auditEventId: null,
     });
 
     const input: RotateAppConnectionCredentialRpcInput = {
@@ -201,6 +202,38 @@ describe("app connection operations", () => {
     expect(payload.auditEventId).toBeNull();
   });
 
+  it("rotateAppConnectionCredentialOperation forwards persisted auditEventId for non-dry-run", async () => {
+    vi.mocked(rotateAppConnectionCredentialCommand).mockResolvedValue({
+      dryRun: false,
+      connection: metadataConnection,
+      validation: {
+        checkedAt: "2026-07-01T00:00:00.000Z",
+        outcome: "success",
+        reasonCode: null,
+        tokenStatus: "active",
+        workerScriptReachable: true,
+        hasBoundaryWarning: false,
+      },
+      auditEventId: "aud_rotate_persisted",
+    });
+
+    const input: RotateAppConnectionCredentialRpcInput = {
+      organizationId: organization,
+      appConnectionId: connection,
+      requestId: request,
+      actorToken,
+      dryRun: false,
+      tokenUtf8: new TextEncoder().encode("token"),
+    };
+    const payload = await rotateAppConnectionCredentialOperation({
+      ...operationContext,
+      input,
+    });
+
+    expect(payload.dryRun).toBe(false);
+    expect(payload.auditEventId).toBe("aud_rotate_persisted");
+  });
+
   it("reauthAppConnectionOperation forwards to reauth command", async () => {
     vi.mocked(reauthAppConnectionCommand).mockResolvedValue({
       connection: metadataConnection,
@@ -212,6 +245,7 @@ describe("app connection operations", () => {
         accessibleRepositoryCount: 2,
         repositoriesWithinBoundary: true,
       },
+      auditEventId: "aud_reauth_persisted",
     });
 
     const input: ReauthAppConnectionRpcInput = {
@@ -226,12 +260,13 @@ describe("app connection operations", () => {
     });
 
     expect(payload.connection.id).toBe(connection);
-    expect(payload.auditEventId).toBe("aud_reauth");
+    expect(payload.auditEventId).toBe("aud_reauth_persisted");
   });
 
   it("disconnectAppConnectionOperation forwards to disconnect command", async () => {
     vi.mocked(disconnectAppConnectionCommand).mockResolvedValue({
       connection: { ...metadataConnection, status: "disconnected" },
+      auditEventId: "aud_disconnect_persisted",
     });
 
     const input: DisconnectAppConnectionRpcInput = {
@@ -246,7 +281,7 @@ describe("app connection operations", () => {
     });
 
     expect(payload.connection.status).toBe("disconnected");
-    expect(payload.auditEventId).toBe("aud_disconnect");
+    expect(payload.auditEventId).toBe("aud_disconnect_persisted");
   });
 
   it("rejects machine actors for list and status operations", async () => {
