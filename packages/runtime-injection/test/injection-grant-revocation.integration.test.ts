@@ -1,3 +1,4 @@
+import * as audit from "@insecur/audit";
 import { FIRST_VALUE_AUDIT_EVENT_CODES } from "@insecur/audit";
 import {
   INJECTION_ERROR_CODES,
@@ -8,7 +9,7 @@ import {
 } from "@insecur/domain";
 import { InjectionGrantError } from "../src/injection-grant-error.js";
 import { RUNTIME_INJECTION_DELIVERY_MODES, withTenantScope } from "@insecur/tenant-store";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   createTestKeyring,
   uniqueVariableKey,
@@ -120,6 +121,38 @@ describeInjectionGrantIntegration("Runtime Injection Grant revocation (ADR-0074)
       FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantsRevokedTenantSuspension,
     );
     expect(audit?.details).toMatchObject({ revokedGrantCount: expect.any(Number) });
+  });
+
+  it("rolls back grant revocation when the success audit insert fails", async () => {
+    const org = testOrganization();
+    const variableKey: VariableKey = uniqueVariableKey("INS492_AUDIT_ROLLBACK");
+    const plaintext = new TextEncoder().encode(`audit-rollback-${crypto.randomUUID()}`);
+    await writeTestSecret(variableKey, plaintext);
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey },
+      actor: testActor(),
+    });
+
+    const auditSpy = vi
+      .spyOn(audit, "recordInjectionGrantRevocationAuditInTenantScope")
+      .mockRejectedValueOnce(new Error("simulated revocation audit write failure"));
+
+    await expect(
+      revokeInjectionGrantsForTenantSuspension({
+        organizationId: org,
+        actor: testActor(),
+      }),
+    ).rejects.toThrow("simulated revocation audit write failure");
+
+    auditSpy.mockRestore();
+
+    const marker = await loadGrantRevocation(org, issued.grantId);
+    expect(marker?.revoked_at).toBeNull();
+    expect(marker?.revoked_reason).toBeNull();
   });
 
   it("revokes only grants bound to the invalidated secret version", async () => {
