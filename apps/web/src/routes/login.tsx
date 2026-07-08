@@ -13,7 +13,7 @@ import {
 import { readTurnstileToken, turnstileSiteKey, verifyTurnstileToken } from "../auth/turnstile.js";
 import { SiteFrame } from "../components/site-frame.js";
 import { TurnstileWidget } from "../components/turnstile-widget.js";
-import type { WebEnv } from "../env.js";
+import { asWebEnv } from "../env.js";
 
 interface LoginChallenge {
   readonly siteKey: string;
@@ -24,7 +24,7 @@ const loadLoginChallenge = createServerFn({ method: "GET" }).handler((): LoginCh
   const request = getRequest();
   const url = new URL(request.url);
   return {
-    siteKey: turnstileSiteKey(env as WebEnv),
+    siteKey: turnstileSiteKey(asWebEnv(env)),
     errorCode: parseLoginErrorCode(url.searchParams.get("error")),
   };
 });
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/login")({
     handlers: {
       POST: async () => {
         const request = getRequest();
-        const webEnv = env as WebEnv;
+        const webEnv = asWebEnv(env);
         const formData = await request.formData();
         const verified = await verifyTurnstileToken(request, webEnv, readTurnstileToken(formData));
         if (!verified.ok) {

@@ -13,7 +13,7 @@ import { RuntimeActorTokenError } from "./runtime-rpc-error.js";
 
 const RUNTIME_TOKEN_SIGNING_SECRET = "runtime-hop-secret-0000000000000000000000000000";
 
-const env: RuntimeEnv = { RUNTIME_TOKEN_SIGNING_SECRET };
+const env = { RUNTIME_TOKEN_SIGNING_SECRET } as RuntimeEnv;
 
 const actor: UserActor = {
   type: "user",
@@ -71,13 +71,16 @@ describe("actorFromHopToken", () => {
 
   it("throws before verifying when the signing secret is missing", async () => {
     await expect(
-      actorFromHopToken({ RUNTIME_TOKEN_SIGNING_SECRET: "" }, "token"),
+      actorFromHopToken({ RUNTIME_TOKEN_SIGNING_SECRET: "" } as RuntimeEnv, "token"),
     ).rejects.toMatchObject({ name: "RuntimeTokenSigningSecretConfigError" });
   });
 
   it("throws before verifying when the signing secret is too short", async () => {
     await expect(
-      actorFromHopToken({ RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret" }, "token"),
+      actorFromHopToken(
+        { RUNTIME_TOKEN_SIGNING_SECRET: "short-runtime-hop-secret" } as RuntimeEnv,
+        "token",
+      ),
     ).rejects.toMatchObject({ name: "RuntimeTokenSigningSecretConfigError" });
   });
 });

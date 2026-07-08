@@ -5,14 +5,14 @@ import { beginBrowserPasskeyEnrollment } from "../auth/browser-passkey-enrollmen
 import { formatPkceStateClearCookie } from "../auth/browser-oauth-pkce.js";
 import { redirectResponse } from "../auth/browser-oauth.js";
 import { loginFailureRedirectPath } from "../auth/login-error.js";
-import type { WebEnv } from "../env.js";
+import { asWebEnv } from "../env.js";
 
 export const Route = createFileRoute("/auth/enroll-passkey")({
   server: {
     handlers: {
       GET: async () => {
         const request = getRequest();
-        const webEnv = env as WebEnv;
+        const webEnv = asWebEnv(env);
         const started = await beginBrowserPasskeyEnrollment(request, webEnv);
         if ("ok" in started) {
           return redirectResponse(loginFailureRedirectPath(started.failure.reason), [

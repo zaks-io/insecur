@@ -39,9 +39,9 @@ function tryPublishedMetadataResponse(
     return Response.json({
       ok: true,
       service: "insecur-site",
-      deploySha: env.DEPLOY_SHA ?? "unknown",
-      runId: env.DEPLOY_RUN_ID ?? "unknown",
-      deployedAt: env.DEPLOYED_AT ?? "unknown",
+      deploySha: env.DEPLOY_SHA,
+      runId: env.DEPLOY_RUN_ID,
+      deployedAt: env.DEPLOYED_AT,
     });
   }
 
