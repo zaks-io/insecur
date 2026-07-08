@@ -33,6 +33,21 @@ export {
 } from "./assert-runtime-injection-policy-access.js";
 export { assertProtectedPolicyUseAllowed } from "./assert-protected-policy-use.js";
 export {
+  assertProductionRuntimeInjectionGate,
+  assertProductionRuntimeInjectionIssueGate,
+  createRuntimeInjectionStorageGateEvaluator,
+  isStorageGateDeliveryError,
+  resolveRuntimeInjectionGateContext,
+  type RuntimeInjectionGateContext,
+  type RuntimeInjectionGateCoordinate,
+  type RuntimeInjectionGateDeps,
+} from "./gate-production-runtime-injection.js";
+export { loadRuntimeInjectionEnvironmentContext } from "./load-runtime-injection-environment-context.js";
+export {
+  resolveRuntimeInjectionDeliveryPath,
+  type RuntimeInjectionEnvironmentPosture,
+} from "./resolve-runtime-injection-delivery-path.js";
+export {
   validateRuntimeInjectionPolicyBindings,
   type RuntimeInjectionPolicyBindingsInput,
   type ValidatedRuntimeInjectionPolicyBindings,

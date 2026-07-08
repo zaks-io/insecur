@@ -42,10 +42,7 @@ import type {
   RuntimeRpcResult,
 } from "@insecur/worker-kit";
 import type { OperationPollResult } from "@insecur/operations";
-import {
-  issueInjectionGrant,
-  type IssueInjectionGrantResult,
-} from "@insecur/runtime-injection-issue";
+import { issueInjectionGrant, type IssueInjectionGrantResult } from "@insecur/runtime-injection";
 
 import { captureFirstValueFeedbackOperation } from "../operations/capture-first-value-feedback-operation.js";
 import { queryFirstValueUsageOperation } from "../operations/query-first-value-usage-operation.js";

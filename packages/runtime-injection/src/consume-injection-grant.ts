@@ -21,6 +21,8 @@ import {
   recordConsumeDeniedAudit,
   runConsumeWithAuditDenialHandling,
 } from "./consume-injection-grant-shared.js";
+import { type RuntimeInjectionGateDeps } from "./gate-production-runtime-injection.js";
+import { runRuntimeInjectionConsumeGateWithAudit } from "./run-runtime-injection-gate.js";
 import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
@@ -28,14 +30,17 @@ import { matchConsumeSelectorToBinding } from "./match-consume-selector.js";
 import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
 
-export interface ConsumeInjectionGrantCoreInput {
-  keyring: Keyring;
+export interface ConsumeInjectionGrantGateInput extends RuntimeInjectionGateDeps {
   organizationId: OrganizationId;
   grantId: InjectionGrantId;
-  selector: InjectionGrantConsumeSelector;
   actor: AuditActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
+}
+
+export interface ConsumeInjectionGrantCoreInput extends ConsumeInjectionGrantGateInput {
+  keyring: Keyring;
+  selector: InjectionGrantConsumeSelector;
 }
 
 export interface ConsumeInjectionGrantCoreResult {
@@ -199,15 +204,50 @@ export async function recordDeniedConsume(
   });
 }
 
+async function runLoadedGrantConsumeGateWithAudit(
+  input: ConsumeInjectionGrantGateInput,
+  loaded: { projectId: ProjectId; environmentId: EnvironmentId } | undefined,
+  recordDenied: (reasonCode: InjectionGrantError["code"]) => Promise<void>,
+): Promise<void> {
+  await runRuntimeInjectionConsumeGateWithAudit({
+    ...input,
+    coordinate:
+      loaded === undefined
+        ? undefined
+        : {
+            organizationId: input.organizationId,
+            projectId: loaded.projectId,
+            environmentId: loaded.environmentId,
+          },
+    recordDenied,
+  });
+}
+
+export async function consumeLoadedGrantWithAudit<T>(
+  input: ConsumeInjectionGrantGateInput,
+  loaded: { projectId: ProjectId; environmentId: EnvironmentId } | undefined,
+  run: () => Promise<T>,
+): Promise<T> {
+  const coordinate = loaded
+    ? { projectId: loaded.projectId, environmentId: loaded.environmentId }
+    : undefined;
+
+  await runLoadedGrantConsumeGateWithAudit(input, loaded, (reasonCode) =>
+    recordDeniedConsume(input, reasonCode, coordinate),
+  );
+
+  return runConsumeWithAuditDenialHandling({
+    run,
+    recordDenied: (reasonCode) => recordDeniedConsume(input, reasonCode, coordinate),
+  });
+}
+
 export async function consumeInjectionGrantWithAudit(
   input: ConsumeInjectionGrantCoreInput,
 ): Promise<ConsumeInjectionGrantCoreResult> {
   const loaded = await loadGrantBinding(input.organizationId, input.grantId);
-  const coordinate = loaded
-    ? { projectId: loaded.projectId, environmentId: loaded.environmentId }
-    : undefined;
-  return runConsumeWithAuditDenialHandling({
-    run: () => executeConsumeInjectionGrant(input, loaded),
-    recordDenied: (reasonCode) => recordDeniedConsume(input, reasonCode, coordinate),
-  });
+
+  return consumeLoadedGrantWithAudit(input, loaded, () =>
+    executeConsumeInjectionGrant(input, loaded),
+  );
 }
