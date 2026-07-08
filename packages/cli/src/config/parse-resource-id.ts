@@ -1,4 +1,5 @@
 import type {
+  AppConnectionId,
   CliProfileId,
   EnvironmentId,
   OrganizationId,
@@ -8,6 +9,7 @@ import type {
 } from "@insecur/domain";
 import {
   VALIDATION_ERROR_CODES,
+  appConnectionId,
   cliProfileId,
   environmentId,
   organizationId,
@@ -108,6 +110,10 @@ export function parseOptionalRuntimePolicyId(
 
 export function parseRuntimePolicyId(raw: string, context?: string): RuntimePolicyId {
   return parseRequired(raw, runtimePolicyId, "runtime injection policy id", context);
+}
+
+export function parseAppConnectionId(raw: string, context?: string): AppConnectionId {
+  return parseRequired(raw, appConnectionId, "app connection id", context);
 }
 
 export function parseSecretIds(raw: string, context?: string): readonly SecretId[] {

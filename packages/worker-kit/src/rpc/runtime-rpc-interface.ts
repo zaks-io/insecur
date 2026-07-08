@@ -74,6 +74,7 @@ import type {
   GetRuntimeInjectionPolicyRpcInput,
   GetRuntimeInjectionPolicyRpcPayload,
 } from "./runtime-run-policies-rpc-contract.js";
+import type { RuntimeConnectionsRpc } from "./runtime-connections-rpc-interface.js";
 import type {
   CreateWebhookSubscriptionRpcInput,
   CreateWebhookSubscriptionRpcPayload,
@@ -121,7 +122,7 @@ import type {
  * (`RuntimeService extends WorkerEntrypoint`) lives in `apps/runtime`; the API never imports it,
  * it only calls `c.env.RUNTIME.<method>(...)` typed by this contract.
  */
-export interface RuntimeRpc {
+export interface RuntimeRpc extends RuntimeConnectionsRpc {
   consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>>;
   consumeGrantAll(
     input: ConsumeGrantAllRpcInput,

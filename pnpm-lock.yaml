@@ -263,6 +263,9 @@ importers:
       '@insecur/agent-attribution':
         specifier: workspace:*
         version: link:../../packages/agent-attribution
+      '@insecur/app-connection':
+        specifier: workspace:*
+        version: link:../../packages/app-connection
       '@insecur/audit':
         specifier: workspace:*
         version: link:../../packages/audit

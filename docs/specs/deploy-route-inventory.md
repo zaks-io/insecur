@@ -37,6 +37,7 @@ I/O.
 | \*     | `/v1/orgs/:organizationId/high-assurance-challenges` |
 | \*     | `/v1/orgs/:organizationId/runtime-injection`         |
 | \*     | `/v1/orgs/:organizationId/run-policies`              |
+| \*     | `/v1/orgs/:organizationId/connections`               |
 | \*     | `/v1/orgs/:organizationId/design-partner-feedback`   |
 | GET    | `/v1/orgs/:organizationId/first-value-usage`         |
 
@@ -45,6 +46,14 @@ Injection Policy Version with exact secret bindings and updates the active point
 /:policyId` returns metadata-only policy show; `POST /:policyId/disable` disables a policy with
 audit. Protected Environment mutations require a High-Assurance Challenge (`auth.high_assurance_required`
 with `meta.operationId` when absent). All three forward over the `RUNTIME` seam.
+
+Under `/v1/orgs/:organizationId/connections` (INS-441): `GET /` lists metadata-only App Connections;
+`POST /` creates a connection via provider authorization or scoped token input; `GET
+/:connectionId` returns metadata-only status; `POST /:connectionId/reauth` reauthorizes a
+connection; `POST /:connectionId/rotate` rotates credential-backed provider credentials (optional
+`dryRun`); `POST /:connectionId/disconnect` disconnects with audit. Create, credential replacement,
+reauth, and boundary changes require a High-Assurance Challenge. List/status never return provider
+credentials. All routes forward over the `RUNTIME` seam.
 
 Under `/v1/orgs/:organizationId/projects` (INS-362): `GET /` lists project metadata; `POST /`
 creates a project with a client-minted opaque ID and Display Name; `GET

@@ -1,3 +1,4 @@
+import type { ConnectionsApiClient } from "./connections-api-types.js";
 import type { AuthApiClient } from "./auth-api-types.js";
 import type { AuditApiClient } from "./audit-api-types.js";
 import type { LogoutApiClient } from "./logout-api-types.js";
@@ -36,6 +37,7 @@ export interface ApiClient
     RuntimeInjectionApiClient,
     OperationsApiClient,
     RunPoliciesApiClient,
+    ConnectionsApiClient,
     AuditApiClient,
     WhoamiApiClient,
     LogoutApiClient {}
