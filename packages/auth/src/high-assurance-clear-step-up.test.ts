@@ -145,6 +145,44 @@ describe("resolveHighAssuranceClearAssuranceFromWorkOSStepUp", () => {
       expect(result.failure.reason).toBe("mfa_enrollment");
     }
   });
+
+  // Regression guard for INS-517: a WorkOS authorization code is single-use. If any caller (the
+  // BFF, historically) exchanges the step-up code before the API's authoritative resolve, the
+  // second exchange must fail closed rather than silently succeed. The fake now invalidates the
+  // code on first exchange so this double-exchange path is caught in tests.
+  it("fails closed when the step-up code was already exchanged once", async () => {
+    const workos = createFakeWorkOSSessionPort([
+      {
+        sessionData: "sealed_double_exchange",
+        userId: actor.workosUserId,
+        sessionId: actor.sessionId,
+        authorizationCode: "code_double_exchange",
+        codeVerifier: "verifier_double_exchange",
+        authenticationMethod: "Password",
+        authFactors: [{ type: "totp" }],
+      },
+    ]);
+
+    const first = await resolveHighAssuranceClearAssuranceFromWorkOSStepUp({
+      workos,
+      actor,
+      stepUpCode: "code_double_exchange",
+      stepUpCodeVerifier: "verifier_double_exchange",
+    });
+    expect(first.ok).toBe(true);
+
+    const second = await resolveHighAssuranceClearAssuranceFromWorkOSStepUp({
+      workos,
+      actor,
+      stepUpCode: "code_double_exchange",
+      stepUpCodeVerifier: "verifier_double_exchange",
+    });
+
+    expect(second.ok).toBe(false);
+    if (!second.ok) {
+      expect(second.failure.reason).toBe("invalid");
+    }
+  });
 });
 
 describe("buildHighAssuranceClearAssuranceFromWorkOSContext", () => {
