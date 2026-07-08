@@ -5,14 +5,14 @@ import { completeBrowserChallengeClearStepUp } from "../auth/browser-challenge-c
 import { formatPkceStateClearCookie } from "../auth/browser-oauth-pkce.js";
 import { redirectResponse } from "../auth/browser-oauth.js";
 import { SiteFrame } from "../components/site-frame.js";
-import type { WebEnv } from "../env.js";
+import { asWebEnv } from "../env.js";
 
 export const Route = createFileRoute("/auth/step-up/callback")({
   server: {
     handlers: {
       GET: async () => {
         const request = getRequest();
-        const completed = await completeBrowserChallengeClearStepUp(request, env as WebEnv);
+        const completed = await completeBrowserChallengeClearStepUp(request, asWebEnv(env));
         if (!completed.ok) {
           return redirectResponse(completed.redirectTo, [formatPkceStateClearCookie()]);
         }

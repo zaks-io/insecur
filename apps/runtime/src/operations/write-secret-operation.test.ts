@@ -40,9 +40,9 @@ vi.mock("../secret-generation.js", () => ({
   generateSecretValueUtf8: vi.fn(),
 }));
 
-const env: RuntimeEnv = {
+const env = {
   RUNTIME_TOKEN_SIGNING_SECRET: "runtime-operation-secret",
-};
+} as RuntimeEnv;
 const keyring = { kind: "test-keyring" } as unknown as Keyring;
 const organization = organizationId.generate();
 const project = projectId.generate();

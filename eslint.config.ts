@@ -128,7 +128,15 @@ const decryptDynamicImportSyntaxRules = [
 ] as const;
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/.wrangler/**", "**/coverage/**", "**/*.gen.ts"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/.wrangler/**",
+      "**/coverage/**",
+      "**/*.gen.ts",
+      "**/worker-configuration.d.ts",
+    ],
+  },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
