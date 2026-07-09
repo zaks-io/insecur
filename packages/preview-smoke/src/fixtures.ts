@@ -88,4 +88,5 @@ export * from "./metadata-read-assertions";
 export * from "./metadata-read-probes";
 export * from "./operation-poll-probe";
 export * from "./plaintext-sweep";
+export * from "./protected-change-seed";
 export * from "./redaction";
