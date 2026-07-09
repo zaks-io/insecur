@@ -15,6 +15,8 @@ The `insecur` CLI is the supported way to work with insecur from a terminal, a c
 curl -fsSL https://insecur.cloud/install.sh | sh
 ```
 
+The script it runs is [install.sh](https://insecur.cloud/install.sh); open it in your browser to read exactly what it does before piping it to a shell.
+
 ## Install on Windows
 
 Run this in PowerShell:
@@ -23,9 +25,11 @@ Run this in PowerShell:
 irm https://insecur.cloud/install.ps1 | iex
 ```
 
+The script it runs is [install.ps1](https://insecur.cloud/install.ps1).
+
 ## What the installer does
 
-The install scripts download the platform binary from the published `cli-v*` GitHub Release. They refuse to install anything that fails SHA-256 verification against the release's `SHA256SUMS` file, so a corrupted or tampered download never lands on your machine.
+The install scripts ([install.sh](https://insecur.cloud/install.sh), [install.ps1](https://insecur.cloud/install.ps1)) download the platform binary from the published `cli-v*` GitHub Release. They refuse to install anything that fails SHA-256 verification against the release's `SHA256SUMS` file, so a corrupted or tampered download never lands on your machine.
 
 The binary is placed in:
 
