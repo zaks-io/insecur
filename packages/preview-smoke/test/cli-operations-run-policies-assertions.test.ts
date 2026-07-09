@@ -131,6 +131,25 @@ describe("cli operations and run-policies assertions", () => {
     expect(body.ok).toBe(false);
   });
 
+  it("accepts a CLI error envelope after runtime warnings on stderr", () => {
+    const errorEnvelope = {
+      ok: false,
+      error: { code: "operation.not_found", message: "Operation not found.", retryable: false },
+    };
+    const body = assertCliErrorEnvelope({
+      exitCode: 5,
+      expectedErrorCode: "operation.not_found",
+      expectedExitCode: 5,
+      label: "CLI operations get not-found",
+      stderr: [
+        "(node:1) ExperimentalWarning: SQLite is an experimental feature",
+        JSON.stringify(errorEnvelope),
+      ].join("\n"),
+      stdout: "",
+    });
+    expect(body.ok).toBe(false);
+  });
+
   it("rejects when the exit code does not match", () => {
     expect(() => {
       assertCliErrorEnvelope({

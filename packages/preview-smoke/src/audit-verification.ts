@@ -68,7 +68,7 @@ export async function verifyDeniedAuditEvidence(
 
 export const NEGATIVE_PROBE_DENIED_AUDIT_EXPECTATIONS = [
   {
-    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
+    eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
     resultCode: AUTH_ERROR_CODES.insufficientScope,
   },
   {

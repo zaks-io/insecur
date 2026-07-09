@@ -7,7 +7,9 @@ export type AuthFailureReason =
   | "not_admitted"
   | "mfa_enrollment"
   | "mfa_challenge"
-  | "insufficient_assurance";
+  | "insufficient_assurance"
+  | "device_authorization_expired"
+  | "device_authorization_denied";
 
 export interface AuthFailureAdmissionDenial {
   readonly workosUserId: string;
@@ -64,6 +66,19 @@ const AUTH_FAILURE_BODIES: Record<AuthFailureReason, AuthFailure> = {
     message: "Authentication must be refreshed with a stronger factor.",
     retryable: false,
     reason: "insufficient_assurance",
+  },
+  device_authorization_expired: {
+    code: AUTH_ERROR_CODES.deviceAuthorizationExpired,
+    message:
+      "The device-authorization code expired before approval. Re-run insecur login --device.",
+    retryable: false,
+    reason: "device_authorization_expired",
+  },
+  device_authorization_denied: {
+    code: AUTH_ERROR_CODES.deviceAuthorizationDenied,
+    message: "The device-authorization request was denied at the verification page.",
+    retryable: false,
+    reason: "device_authorization_denied",
   },
 };
 

@@ -47,6 +47,7 @@ const PUBLIC_EDGE_RATE_LIMIT_BINDINGS = [
   { name: "BOOTSTRAP_IP", limit: 10, period: 60 },
   { name: "BOOTSTRAP_ACTOR", limit: 5, period: 60 },
   { name: "AUTH_EXCHANGE_IP", limit: 20, period: 60 },
+  { name: "AUTH_DEVICE_TOKEN_IP", limit: 120, period: 60 },
 ];
 
 // ADR-0019: Service Access is deferred and must never be expressed by a V1 deploy. These tokens in a

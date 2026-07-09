@@ -1,4 +1,4 @@
-import { OPERATION_ERROR_CODES, operationId } from "@insecur/domain";
+import { AUTH_ERROR_CODES, operationId } from "@insecur/domain";
 
 import { withServiceRoleSql } from "./audit-verification-db.js";
 import { authHeaders } from "./auth.js";
@@ -108,11 +108,15 @@ export async function assertCrossOrganizationOperationPollDenied(
     method: "GET",
   });
   const text = await response.text();
-  assertStatus(response, 404, "Cross-organization operation poll", {
+  assertStatus(response, 403, "Cross-organization operation poll", {
     bodyText: text,
     redactor: input.redactor,
   });
   const body = await readJsonResponse(response, "Cross-organization operation poll", text);
-  assertEnvelopeError(body, OPERATION_ERROR_CODES.notFound, "Cross-organization operation poll");
+  assertEnvelopeError(
+    body,
+    AUTH_ERROR_CODES.insufficientScope,
+    "Cross-organization operation poll",
+  );
   assertDeniedBodyFreeOfSensitiveValues(text, input.redactor, "Cross-organization operation poll");
 }

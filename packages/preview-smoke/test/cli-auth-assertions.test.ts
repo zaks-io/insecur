@@ -137,6 +137,27 @@ describe("cli auth assertions", () => {
     }).not.toThrow();
   });
 
+  it("accepts auth failure stderr with runtime warnings before JSON", () => {
+    expect(() => {
+      assertCliAuthFailure({
+        exitCode: CLI_AUTH_REQUIRED_EXIT_CODE,
+        label: "CLI whoami after logout",
+        stdout: "",
+        stderr: [
+          "(node:1) ExperimentalWarning: SQLite is an experimental feature",
+          JSON.stringify({
+            ok: false,
+            error: {
+              code: AUTH_ERROR_CODES.invalid,
+              message: "Session is no longer valid.",
+              retryable: false,
+            },
+          }),
+        ].join("\n"),
+      });
+    }).not.toThrow();
+  });
+
   it("rejects auth failures with the wrong exit code", () => {
     expect(() => {
       assertCliAuthFailure({
