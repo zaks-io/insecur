@@ -7,13 +7,15 @@ Read in this order:
 
 1. [Canonical Product Spec](product-spec.md) - the decided product shape, V1 boundary, and ADR trace
    links in one linear document.
-2. [Architecture Groups](architecture-groups.md) - architectural ownership groups, seams,
+2. [Delivered Features](../features.md) - the one-stop map of major functionality implemented in
+   the current checkout.
+3. [Architecture Groups](architecture-groups.md) - architectural ownership groups, seams,
    dependencies, and handoff contracts for autonomous agents.
-3. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
+4. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
    proof loop, design-partner loop, and success signals that should constrain First Value scope.
-4. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
+5. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
    under [docs/context/glossary/](../context/glossary/).
-5. Area docs only when the architecture group calls for them, such as
+6. Area docs only when the architecture group calls for them, such as
    [First Value Milestone](../first-value-milestone.md),
    [Storage Security Gate](../storage-security-gate.md),
    [Protected Change Orchestration](../protected-change-orchestration.md),
@@ -43,6 +45,7 @@ owner instead of restating it. This table is the normative owner-map, per
 | Shared cross-context domain vocabulary and term definitions | the per-domain slices under [docs/context/glossary/](../context/glossary/), indexed by root [CONTEXT.md](../../CONTEXT.md) |
 | Terms scoped to one bounded context                         | that package or app `CONTEXT.md`                                                                                           |
 | Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](product-spec.md)                                                                                         |
+| Agent-readable delivered functionality map                  | [features.md](../features.md)                                                                                              |
 | Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                                                                        |
 | Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
 | Architecture group ownership, seams, and integration order  | [architecture-groups.md](architecture-groups.md)                                                                           |
