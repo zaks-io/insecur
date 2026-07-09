@@ -161,7 +161,7 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       {
         label: "Web project access",
         path: `${projectBase}/access`,
-        expectedText: ["Access", "Machine Identities"],
+        expectedText: ["Access", "Machine identities"],
       },
       {
         label: "Web project delivery",
