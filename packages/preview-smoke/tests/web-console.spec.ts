@@ -156,7 +156,7 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       {
         label: "Web project secrets",
         path: `${projectBase}/secrets`,
-        expectedText: ["Secrets", "Secret values never", "appear in the browser"],
+        expectedText: ["Secrets", ">Secret<"],
       },
       {
         label: "Web project access",

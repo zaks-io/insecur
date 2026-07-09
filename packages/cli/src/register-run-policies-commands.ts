@@ -29,7 +29,7 @@ function registerRunPoliciesCreateCommand(runPolicies: Command, deps: RunPolicie
     .command("create")
     .description("Create an immutable Runtime Injection Policy Version and set the active pointer")
     .requiredOption("--policy-id <id>", "client-minted runtime policy opaque id")
-    .requiredOption("--env-id <id>", "target environment opaque id")
+    .option("--env-id <id>", "target environment opaque id")
     .option("--display-name-stdin", "read the Display Name from stdin")
     .requiredOption("--command <cmd>", "approved command shape")
     .option("--command-fingerprint <hash>", "command fingerprint (sha256:...)")
@@ -39,17 +39,18 @@ function registerRunPoliciesCreateCommand(runPolicies: Command, deps: RunPolicie
       const flags = deps.globalFlags(this);
       const options = this.opts<{
         policyId: string;
-        envId: string;
+        envId?: string;
         displayNameStdin?: boolean;
         command: string;
         commandFingerprint?: string;
         secretIds: string;
         operationId?: string;
       }>();
+      const envId = resolveRunPolicyEnvironmentId(options, flags);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runRunPoliciesCreateCommand(flags, api, context, {
         policyId: options.policyId,
-        envId: options.envId,
+        envId,
         displayNameStdin: options.displayNameStdin === true,
         command: options.command,
         commandFingerprint: options.commandFingerprint,
