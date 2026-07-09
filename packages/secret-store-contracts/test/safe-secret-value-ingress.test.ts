@@ -20,42 +20,52 @@ const UNSAFE_INGRESS = [
 
 const UNKNOWN_INGRESS = ["cookie", "header", "stdinn", "request-body", "x-custom"];
 
-function expectInputRequired(ingress: string): void {
-  expect(() => assertSafeSecretValueIngress(ingress)).toThrow(SecretWriteError);
-
+function expectSecretWriteInputRequired(run: () => void, message: string): void {
   try {
-    assertSafeSecretValueIngress(ingress);
+    run();
   } catch (error) {
+    expect(error).toBeInstanceOf(SecretWriteError);
     expect(error).toMatchObject({
       code: SECRET_ERROR_CODES.inputRequired,
+      message,
       retryable: false,
     });
+    return;
   }
+  throw new Error("expected secret write input validation to fail closed");
+}
+
+function expectSafeIngressRejected(ingress: string): void {
+  expectSecretWriteInputRequired(() => {
+    assertSafeSecretValueIngress(ingress);
+  }, "Secret values must use a safe input path (stdin, generation, request body, or masked prompt).");
 }
 
 describe("safe secret value ingress", () => {
   it("allows only documented Safe Sensitive Input Path ingress modes", () => {
     for (const ingress of SAFE_INGRESS) {
-      expect(() => assertSafeSecretValueIngress(ingress)).not.toThrow();
+      assertSafeSecretValueIngress(ingress);
     }
   });
 
   it("rejects documented unsafe ingress modes", () => {
     for (const ingress of UNSAFE_INGRESS) {
-      expectInputRequired(ingress);
+      expectSafeIngressRejected(ingress);
     }
   });
 
   it("fails closed for unknown ingress labels", () => {
     for (const ingress of UNKNOWN_INGRESS) {
-      expectInputRequired(ingress);
+      expectSafeIngressRejected(ingress);
     }
   });
 
   it("rejects named local value file paths but allows blank or undefined paths", () => {
-    expect(() => rejectNamedLocalValueFile(".env")).toThrow(SecretWriteError);
-    expect(() => rejectNamedLocalValueFile(undefined)).not.toThrow();
-    expect(() => rejectNamedLocalValueFile("")).not.toThrow();
-    expect(() => rejectNamedLocalValueFile("   ")).not.toThrow();
+    expectSecretWriteInputRequired(() => {
+      rejectNamedLocalValueFile(".env");
+    }, "Named local value files are not allowed for secret writes.");
+    rejectNamedLocalValueFile(undefined);
+    rejectNamedLocalValueFile("");
+    rejectNamedLocalValueFile("   ");
   });
 });

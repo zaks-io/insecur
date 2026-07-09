@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUDIT_SUCCESS_RESULT_CODE,
   FIRST_VALUE_AUDIT_EVENT_CODES,
+  PRODUCTION_AUDIT_EVENT_CODES,
+  resolveAuditResultCode,
   validateAuditEventInput,
   AuditEventValidationError,
+  type AuditEventInput,
 } from "../src/index.js";
 import {
   AUTH_ERROR_CODES,
@@ -27,43 +31,107 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const GRANT = injectionGrantId.brand("igr_00000000000000000000000001");
+const VERSION = secretVersionId.brand("sv_00000000000000000000000001");
 const REQUEST = requestId.brand("req_00000000000000000000000001");
 const OPERATION = operationId.brand("op_00000000000000000000000001");
+const MACHINE = machineIdentityId.brand("mach_00000000000000000000000002");
+
+const SECRET_WRITE_EVENT = {
+  eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+  outcome: "success",
+  actor: { type: "user", userId: USER },
+  organizationId: ORG,
+  projectId: PROJECT,
+  environmentId: ENV,
+  resource: { type: "secret", id: SECRET },
+  request: { requestId: REQUEST },
+  operation: { operationId: OPERATION },
+} satisfies AuditEventInput;
+
+const DENIED_SECRET_WRITE_EVENT = {
+  eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
+  outcome: "denied",
+  actor: { type: "user", userId: USER },
+  organizationId: ORG,
+  denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+} satisfies AuditEventInput;
+
+function expectValidAuditEvent(event: AuditEventInput, resultCode = AUDIT_SUCCESS_RESULT_CODE) {
+  validateAuditEventInput(event);
+  expect(resolveAuditResultCode(event)).toBe(resultCode);
+}
+
+function withoutProjectScope(event: AuditEventInput): AuditEventInput {
+  const copy: Partial<AuditEventInput> = { ...event };
+  delete copy.projectId;
+  return copy as AuditEventInput;
+}
 
 describe("audit metadata allowlist", () => {
-  it("accepts grant consume success with delivered secret version related resource", () => {
-    expect(() => {
-      validateAuditEventInput({
+  it.each([
+    {
+      name: "grant consume success with delivered secret version related resource",
+      event: {
         eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumed,
         outcome: "success",
         actor: { type: "user", userId: USER },
         organizationId: ORG,
         resource: { type: "injection_grant", id: GRANT },
-        relatedResource: {
-          type: "secret_version",
-          id: secretVersionId.brand("sv_00000000000000000000000001"),
-        },
-      });
-    }).not.toThrow();
-  });
-
-  it("accepts metadata-only successful secret write events", () => {
-    expect(() => {
-      validateAuditEventInput({
-        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWrite,
+        relatedResource: { type: "secret_version", id: VERSION },
+      },
+    },
+    {
+      name: "metadata-only successful secret write events",
+      event: SECRET_WRITE_EVENT,
+    },
+    {
+      name: "machine access success with metadata-only credential facts",
+      event: {
+        eventCode: PRODUCTION_AUDIT_EVENT_CODES.machineAuthAccessTokenMinted,
         outcome: "success",
+        actor: { type: "machine", machineIdentityId: MACHINE },
+        organizationId: ORG,
+        projectId: PROJECT,
+        details: {
+          credentialMethod: "auth.credential_method.github_actions_oidc",
+          credentialScopeCount: 2,
+        },
+      },
+    },
+    {
+      name: "machine access denial with stable human-only gate code",
+      event: {
+        eventCode: PRODUCTION_AUDIT_EVENT_CODES.machineAuthAuthorizationDenied,
+        outcome: "denied",
+        actor: { type: "machine", machineIdentityId: MACHINE },
+        organizationId: ORG,
+        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+        details: { humanOnlyGate: "auth.human_only_gate.approval_approve" },
+      },
+      resultCode: AUTH_ERROR_CODES.insufficientScope,
+    },
+    {
+      name: "production sync denial with project, environment, and operation scope",
+      event: {
+        eventCode: PRODUCTION_AUDIT_EVENT_CODES.syncRevalidationDenied,
+        outcome: "denied",
         actor: { type: "user", userId: USER },
         organizationId: ORG,
         projectId: PROJECT,
         environmentId: ENV,
-        resource: { type: "secret", id: SECRET },
-        request: { requestId: REQUEST },
+        denial: { reasonCode: "sync.provider_drift" },
         operation: { operationId: OPERATION },
-      });
-    }).not.toThrow();
-  });
+      },
+      resultCode: "sync.provider_drift",
+    },
+  ] satisfies readonly { name: string; event: AuditEventInput; resultCode?: string }[])(
+    "accepts $name",
+    ({ event, resultCode }) => {
+      expectValidAuditEvent(event, resultCode);
+    },
+  );
 
-  it("accepts denied events with stable reason codes only", () => {
+  it("accepts denied events with stable reason codes and preserves the result code", () => {
     const validReasonCodes = [
       AUTH_ERROR_CODES.insufficientScope,
       SECRET_ERROR_CODES.invalidEncoding,
@@ -73,16 +141,48 @@ describe("audit metadata allowlist", () => {
     ];
 
     for (const reasonCode of validReasonCodes) {
-      expect(() => {
-        validateAuditEventInput({
-          eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.secretNonProtectedWriteDenied,
-          outcome: "denied",
-          actor: { type: "user", userId: USER },
-          organizationId: ORG,
+      expectValidAuditEvent(
+        {
+          ...DENIED_SECRET_WRITE_EVENT,
           denial: { reasonCode },
-        });
-      }).not.toThrow();
+        },
+        reasonCode,
+      );
     }
+  });
+
+  it.each([
+    {
+      name: "environment scope without project scope",
+      event: withoutProjectScope(SECRET_WRITE_EVENT),
+      message: /environment-scoped audit events require projectId/,
+    },
+    {
+      name: "denial metadata on a success event",
+      event: {
+        ...SECRET_WRITE_EVENT,
+        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
+      },
+      message: /successful audit events must not include denial metadata/,
+    },
+    {
+      name: "audit.succeeded as a denial reason code",
+      event: {
+        ...DENIED_SECRET_WRITE_EVENT,
+        denial: { reasonCode: AUDIT_SUCCESS_RESULT_CODE },
+      },
+      message: /denied audit events cannot use audit\.succeeded/,
+    },
+    {
+      name: "unknown event code",
+      event: {
+        ...SECRET_WRITE_EVENT,
+        eventCode: "secret.non_protected_write_renamed",
+      },
+      message: /unknown audit eventCode/,
+    },
+  ])("rejects $name", ({ event, message }) => {
+    expect(() => validateAuditEventInput(event as never)).toThrow(message);
   });
 
   it("rejects non-dotted or free-form denial reasonCode values", () => {
@@ -189,50 +289,6 @@ describe("audit metadata allowlist", () => {
         organizationId: ORG,
       } as never);
     }).toThrow(AuditEventValidationError);
-  });
-
-  it("accepts machine access audit events with metadata-only credential facts", () => {
-    const machine = machineIdentityId.brand("mach_00000000000000000000000002");
-
-    expect(() => {
-      validateAuditEventInput({
-        eventCode: "machine_auth.access_token_minted",
-        outcome: "success",
-        actor: { type: "machine", machineIdentityId: machine },
-        organizationId: ORG,
-        projectId: PROJECT,
-        details: {
-          credentialMethod: "auth.credential_method.github_actions_oidc",
-          credentialScopeCount: 2,
-        },
-      });
-    }).not.toThrow();
-
-    expect(() => {
-      validateAuditEventInput({
-        eventCode: "machine_auth.authorization_denied",
-        outcome: "denied",
-        actor: { type: "machine", machineIdentityId: machine },
-        organizationId: ORG,
-        denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope },
-        details: { humanOnlyGate: "auth.human_only_gate.approval_approve" },
-      });
-    }).not.toThrow();
-  });
-
-  it("accepts production sync and approval denied events with stable codes", () => {
-    expect(() => {
-      validateAuditEventInput({
-        eventCode: "sync.revalidation_denied",
-        outcome: "denied",
-        actor: { type: "user", userId: USER },
-        organizationId: ORG,
-        projectId: PROJECT,
-        environmentId: ENV,
-        denial: { reasonCode: "sync.provider_drift" },
-        operation: { operationId: OPERATION },
-      });
-    }).not.toThrow();
   });
 
   it("rejects success outcomes on denied-only event names", () => {

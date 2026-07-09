@@ -28,6 +28,7 @@ const ENV = environmentId.brand("env_00000000000000000000000001");
 const USER = userId.brand("usr_00000000000000000000000001");
 const ACTOR = { type: "user" as const, userId: USER };
 const COORDINATE = { organizationId: ORG, projectId: PROJECT, environmentId: ENV };
+const PROJECT_COORDINATE = { organizationId: ORG, projectId: PROJECT };
 
 describe("resolveSecretSync access", () => {
   beforeEach(() => {
@@ -35,43 +36,67 @@ describe("resolveSecretSync access", () => {
   });
 
   it("grants read access when sync:read is present", async () => {
-    accessMocks.resolveEffectiveAccess.mockResolvedValue({
+    const access = {
       organizationId: ORG,
       scopes: ["sync:read"],
-    } as never);
+    };
+    accessMocks.resolveEffectiveAccess.mockResolvedValue(access as never);
 
-    await expect(resolveSecretSyncReadAccess(ACTOR, COORDINATE)).resolves.toBeDefined();
-    await expect(
-      resolveSecretSyncProjectReadAccess(ACTOR, { organizationId: ORG, projectId: PROJECT }),
-    ).resolves.toBeDefined();
+    await expect(resolveSecretSyncReadAccess(ACTOR, COORDINATE)).resolves.toBe(access);
+    await expect(resolveSecretSyncProjectReadAccess(ACTOR, PROJECT_COORDINATE)).resolves.toBe(
+      access,
+    );
+    expect(accessMocks.resolveEffectiveAccess).toHaveBeenNthCalledWith(1, ACTOR, COORDINATE);
+    expect(accessMocks.resolveEffectiveAccess).toHaveBeenNthCalledWith(
+      2,
+      ACTOR,
+      PROJECT_COORDINATE,
+    );
   });
 
   it("requires manage scope for mutations", async () => {
-    accessMocks.resolveEffectiveAccess.mockResolvedValue({
+    const access = {
       organizationId: ORG,
       scopes: ["sync:manage"],
-    } as never);
+    };
+    accessMocks.resolveEffectiveAccess.mockResolvedValue(access as never);
 
-    await expect(resolveSecretSyncManageAccess(ACTOR, COORDINATE)).resolves.toBeDefined();
+    await expect(resolveSecretSyncManageAccess(ACTOR, COORDINATE)).resolves.toBe(access);
+    expect(accessMocks.resolveEffectiveAccess).toHaveBeenCalledWith(ACTOR, COORDINATE);
   });
 
   it("requires run scope for execution", async () => {
-    accessMocks.resolveEffectiveAccess.mockResolvedValue({
+    const access = {
       organizationId: ORG,
       scopes: ["sync:run"],
-    } as never);
+    };
+    accessMocks.resolveEffectiveAccess.mockResolvedValue(access as never);
 
-    await expect(resolveSecretSyncRunAccess(ACTOR, COORDINATE)).resolves.toBeDefined();
+    await expect(resolveSecretSyncRunAccess(ACTOR, COORDINATE)).resolves.toBe(access);
+    expect(accessMocks.resolveEffectiveAccess).toHaveBeenCalledWith(ACTOR, COORDINATE);
   });
 
-  it("rejects missing scopes", async () => {
-    accessMocks.resolveEffectiveAccess.mockResolvedValue({
-      organizationId: ORG,
-      scopes: [],
-    } as never);
+  it.each([
+    {
+      name: "missing scope",
+      access: {
+        organizationId: ORG,
+        scopes: [],
+      },
+    },
+    {
+      name: "wrong organization",
+      access: {
+        organizationId: organizationId.brand("org_00000000000000000000000002"),
+        scopes: ["sync:manage"],
+      },
+    },
+  ])("rejects $name", async ({ access }) => {
+    accessMocks.resolveEffectiveAccess.mockResolvedValue(access as never);
 
     await expect(resolveSecretSyncManageAccess(ACTOR, COORDINATE)).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.insufficientScope,
+      message: "secret sync manage scope required",
     } as SecretSyncError);
   });
 });

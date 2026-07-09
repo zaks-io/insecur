@@ -68,13 +68,57 @@ describe("cli audit metadata assertions", () => {
   });
 
   it("accepts a fully valid audit verify result", () => {
+    assertCliAuditVerifyExpectedResult(
+      {
+        ok: true,
+        data: {
+          status: "valid",
+          organizationId: "org_test",
+          entryCount: 1,
+          integrity: {
+            hashChain: "valid",
+            manifestHmac: "valid",
+            signature: "valid",
+            tenantScope: "valid",
+          },
+          failureCodes: [],
+        },
+      },
+      "CLI audit verify",
+      "org_test",
+    );
+  });
+
+  it("accepts the preview-expected invalid result (missing HMAC key evidence)", () => {
+    assertCliAuditVerifyExpectedResult(
+      {
+        ok: true,
+        data: {
+          status: "invalid",
+          organizationId: "org_test",
+          entryCount: 1,
+          integrity: {
+            hashChain: "valid",
+            manifestHmac: "missing",
+            signature: "valid",
+            tenantScope: "valid",
+          },
+          failureCodes: ["audit.export.key_evidence_missing"],
+        },
+      },
+      "CLI audit verify",
+      "org_test",
+    );
+  });
+
+  it("rejects audit verify results from the wrong organization", () => {
     expect(() => {
       assertCliAuditVerifyExpectedResult(
         {
           ok: true,
           data: {
             status: "valid",
-            organizationId: "org_test",
+            organizationId: "org_wrong",
             entryCount: 1,
             integrity: {
               hashChain: "valid",
@@ -88,31 +132,7 @@ describe("cli audit metadata assertions", () => {
         "CLI audit verify",
         "org_test",
       );
-    }).not.toThrow();
-  });
-
-  it("accepts the preview-expected invalid result (missing HMAC key evidence)", () => {
-    expect(() => {
-      assertCliAuditVerifyExpectedResult(
-        {
-          ok: true,
-          data: {
-            status: "invalid",
-            organizationId: "org_test",
-            entryCount: 1,
-            integrity: {
-              hashChain: "valid",
-              manifestHmac: "missing",
-              signature: "valid",
-              tenantScope: "valid",
-            },
-            failureCodes: ["audit.export.key_evidence_missing"],
-          },
-        },
-        "CLI audit verify",
-        "org_test",
-      );
-    }).not.toThrow();
+    }).toThrow(/organizationId expected org_test, got org_wrong/);
   });
 
   it("rejects an invalid result whose real integrity checks regressed", () => {
