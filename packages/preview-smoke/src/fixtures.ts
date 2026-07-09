@@ -82,6 +82,7 @@ export * from "./cli-operations-run-policies-assertions";
 export * from "./cli-smoke";
 export * from "./denied-response";
 export * from "./first-value-coords";
+export * from "./high-assurance-challenge-seed";
 export * from "./http";
 export * from "./metadata-read-assertions";
 export * from "./metadata-read-probes";
