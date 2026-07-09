@@ -1,8 +1,10 @@
 import type { Command, Command as CommanderCommand } from "commander";
+import { VALIDATION_ERROR_CODES } from "@insecur/domain";
 import { runRunPoliciesCreateCommand } from "./commands/run-policies-create.js";
 import { runRunPoliciesDisableCommand } from "./commands/run-policies-disable.js";
 import { runRunPoliciesShowCommand } from "./commands/run-policies-show.js";
 import type { GlobalCliFlags } from "./cli-options.js";
+import { CliError } from "./output/cli-error.js";
 
 interface RunPoliciesDeps {
   readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
@@ -33,9 +35,9 @@ function registerRunPoliciesCreateCommand(runPolicies: Command, deps: RunPolicie
     .option("--command-fingerprint <hash>", "command fingerprint (sha256:...)")
     .requiredOption("--secret-ids <ids>", "comma-separated exact secret opaque ids")
     .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
-    .action(async function runPoliciesCreateAction(_args, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
-      const options = command.opts<{
+    .action(async function runPoliciesCreateAction(this: CommanderCommand) {
+      const flags = deps.globalFlags(this);
+      const options = this.opts<{
         policyId: string;
         envId: string;
         displayNameStdin?: boolean;
@@ -62,8 +64,8 @@ function registerRunPoliciesShowCommand(runPolicies: Command, deps: RunPoliciesD
     .command("show")
     .description("Show runtime injection policy metadata")
     .argument("<policy-id>", "runtime policy opaque id")
-    .action(async function runPoliciesShowAction(policyId: string, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
+    .action(async function runPoliciesShowAction(this: CommanderCommand, policyId: string) {
+      const flags = deps.globalFlags(this);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runRunPoliciesShowCommand(flags, api, context, policyId);
     });
@@ -74,22 +76,40 @@ function registerRunPoliciesDisableCommand(runPolicies: Command, deps: RunPolici
     .command("disable")
     .description("Disable a runtime injection policy with audit")
     .argument("<policy-id>", "runtime policy opaque id")
-    .requiredOption("--env-id <id>", "environment opaque id")
+    .option("--env-id <id>", "environment opaque id")
     .requiredOption("--comment <text>", "audit comment")
     .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
-    .action(async function runPoliciesDisableAction(policyId: string, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
-      const options = command.opts<{
-        envId: string;
+    .action(async function runPoliciesDisableAction(this: CommanderCommand, policyId: string) {
+      const flags = deps.globalFlags(this);
+      const options = this.opts<{
+        envId?: string;
         comment: string;
         operationId?: string;
       }>();
+      const envId = resolveRunPolicyEnvironmentId(options, flags);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runRunPoliciesDisableCommand(flags, api, context, {
         policyId,
-        envId: options.envId,
+        envId,
         comment: options.comment,
         operationId: options.operationId,
       });
     });
+}
+
+function resolveRunPolicyEnvironmentId(
+  options: { readonly envId?: string },
+  flags: GlobalCliFlags,
+): string {
+  if (options.envId !== undefined) {
+    return options.envId;
+  }
+  if (flags.envId !== undefined) {
+    return flags.envId;
+  }
+  throw new CliError({
+    code: VALIDATION_ERROR_CODES.invalidCommandInput,
+    message: "--env-id or a configured environment scope is required.",
+    retryable: false,
+  });
 }

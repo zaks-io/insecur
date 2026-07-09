@@ -213,11 +213,22 @@ export function reconcileProfileRunCommand(input: {
     return parsed;
   }
 
-  const resolved = resolveProfile(
-    input.context.userConfig,
-    { selector: parsed.profileSelector },
-    { required: false },
-  );
+  let resolved: ResolvedProfile | undefined;
+  const commandFallback = { command: [parsed.profileSelector, ...parsed.command] };
+  try {
+    resolved = resolveProfile(
+      input.context.userConfig,
+      { selector: parsed.profileSelector },
+      { required: false },
+    );
+  } catch (error) {
+    if (input.explicitProfilePositional === true) {
+      throw error;
+    }
+    // A non-explicit selector can be the child executable path Commander bound as `[profile]`.
+    return commandFallback;
+  }
+
   if (resolved !== undefined) {
     return parsed;
   }
@@ -226,9 +237,7 @@ export function reconcileProfileRunCommand(input: {
     return parsed;
   }
 
-  return {
-    command: [parsed.profileSelector, ...parsed.command],
-  };
+  return commandFallback;
 }
 
 /**

@@ -53,8 +53,8 @@ export function registerOperationsCommands(
     .command("get")
     .description("Read metadata-only operation state")
     .argument("<operation-id>", "operation opaque id")
-    .action(async function operationsGetAction(operationId: string, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
+    .action(async function operationsGetAction(this: CommanderCommand, operationId: string) {
+      const flags = deps.globalFlags(this);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runOperationsGetCommand(flags, api, context, operationId);
     });
@@ -64,9 +64,9 @@ export function registerOperationsCommands(
     .description("Poll until the operation reaches a terminal state")
     .argument("<operation-id>", "operation opaque id")
     .option("--timeout <seconds>", "fail with operation.wait_timeout when exceeded")
-    .action(async function operationsWaitAction(operationId: string, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
-      const options = command.opts<{ timeout?: string }>();
+    .action(async function operationsWaitAction(this: CommanderCommand, operationId: string) {
+      const flags = deps.globalFlags(this);
+      const options = this.opts<{ timeout?: string }>();
       const timeoutSeconds = parseOperationsWaitTimeout(options.timeout);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runOperationsWaitCommand(flags, api, context, {
@@ -79,8 +79,8 @@ export function registerOperationsCommands(
     .command("cancel")
     .description("Cancel a cancelable operation")
     .argument("<operation-id>", "operation opaque id")
-    .action(async function operationsCancelAction(operationId: string, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
+    .action(async function operationsCancelAction(this: CommanderCommand, operationId: string) {
+      const flags = deps.globalFlags(this);
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runOperationsCancelCommand(flags, api, context, operationId);
     });
