@@ -73,6 +73,7 @@ import {
 } from "./rpc/runtime-onboarding-rpc-delegates.js";
 import { completeBootstrapOperatorClaimRpc } from "./rpc/runtime-bootstrap-rpc-delegates.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
+import { instrumentRuntimeRpcTracing } from "./rpc/runtime-rpc-tracing.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
 type SentryRuntimeServiceConstructor = new (
@@ -315,6 +316,8 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 }
 
 Object.assign(RuntimeServiceBase.prototype, RuntimeServiceDelegatedPostAuthRpc);
+
+instrumentRuntimeRpcTracing(RuntimeServiceBase.prototype);
 
 /**
  * Type-only re-export of the pre-Sentry-wrap class (INS-512). `Sentry.withSentry` returns its input
