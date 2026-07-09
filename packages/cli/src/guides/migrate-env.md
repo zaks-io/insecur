@@ -29,7 +29,7 @@ Review the `findings` array. Each migratable dotenv entry includes a `remediatio
 
 ```bash
 # Example pattern — replace KEY and FILE with the finding's key and source file
-grep '^KEY=' FILE | cut -d= -f2- | insecur secrets set --variable-key KEY --value-stdin
+grep '^KEY=' FILE | cut -d= -f2- | insecur secrets set KEY --value-stdin
 ```
 
 Rules:

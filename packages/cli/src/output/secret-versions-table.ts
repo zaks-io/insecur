@@ -1,5 +1,6 @@
 import { statusTone } from "./cell-format.js";
 import { emptyState } from "./format.js";
+import { sanitizeDisplayText } from "./sanitize-display.js";
 import { renderTable, type Cell } from "./table.js";
 
 interface VersionVerdicts {
@@ -31,9 +32,12 @@ export function formatSecretVersionsHuman(
   versions: readonly SecretVersionItem[],
 ): string {
   if (versions.length === 0) {
+    // variableKey arrives from the server envelope, not the validated CLI
+    // argument, so it is untrusted display input.
+    const displayKey = sanitizeDisplayText(variableKey);
     return emptyState(
-      `${variableKey} has no versions yet. Set a value with`,
-      `insecur secrets set ${variableKey}`,
+      `${displayKey} has no versions yet. Set a value with`,
+      `insecur secrets set ${displayKey}`,
     );
   }
   return renderTable(

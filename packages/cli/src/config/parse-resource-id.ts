@@ -28,7 +28,8 @@ interface ResourceIdParser<T> {
 
 function throwInvalidResourceId(label: string, context?: string, raw?: string): never {
   const suffix = context === undefined ? "" : ` (${context})`;
-  const truncated = raw?.endsWith("…") === true;
+  // Table output truncates with "…" (unicode glyphs) or "..." (ascii mode).
+  const truncated = raw !== undefined && (raw.endsWith("…") || raw.endsWith("..."));
   throw new CliError(
     {
       code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,

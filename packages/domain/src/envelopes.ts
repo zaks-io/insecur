@@ -30,6 +30,8 @@ export interface ErrorBody {
  *
  * The command fields (`login`, `init`, `usage`, …) are argv token arrays so a
  * caller — human or agent — can run the recovery directly without parsing prose.
+ * Tokens wrapped in angle brackets (for example `<variable-key>`) are
+ * placeholders the caller must substitute before running the command.
  * `type` and `suggestedFix` follow RFC 9457 Problem Details: a stable per-code
  * error-type URI for machine dispatch, and a one-line plain-language fix.
  */

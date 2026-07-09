@@ -9,6 +9,7 @@ import {
 } from "@insecur/domain";
 import { errorTypeUri } from "./error-type-uri.js";
 import { remediationStep } from "./format.js";
+import { sanitizeDisplayText } from "./sanitize-display.js";
 import { getStyle } from "./style.js";
 
 export const LOGIN_REMEDIATION: ErrorRemediation = {
@@ -120,22 +121,26 @@ function remediationCommandLines(remediation: ErrorRemediation): string[] {
   ];
   for (const field of commandFields) {
     if (field.value !== undefined) {
-      lines.push(remediationStep(field.connective, field.value.join(" ")));
+      lines.push(remediationStep(field.connective, sanitizeDisplayText(field.value.join(" "))));
     }
   }
   return lines;
 }
 
+// Remediation can arrive verbatim from a server envelope, so every field is
+// untrusted display input and is sanitized before a style span wraps it.
 export function formatRemediationProse(remediation: ErrorRemediation): string {
   const s = getStyle();
   const lines: string[] = [];
   if (remediation.suggestedFix !== undefined) {
-    lines.push(`  ${s.meta(s.glyph("arrow"))} ${s.meta(remediation.suggestedFix)}`);
+    lines.push(
+      `  ${s.meta(s.glyph("arrow"))} ${s.meta(sanitizeDisplayText(remediation.suggestedFix))}`,
+    );
   }
   lines.push(...remediationCommandLines(remediation));
   if (remediation.approvalUrl !== undefined) {
     lines.push(
-      `  ${s.meta(s.glyph("arrow"))} ${s.meta("Open approval URL:")} ${s.action(remediation.approvalUrl)}`,
+      `  ${s.meta(s.glyph("arrow"))} ${s.meta("Open approval URL:")} ${s.action(sanitizeDisplayText(remediation.approvalUrl))}`,
     );
   }
   return lines.join("\n");
