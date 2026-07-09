@@ -4,6 +4,7 @@ import type {
   InjectionGrantDeliveryAllEnvelope,
   InjectionGrantDeliveryEnvelope,
 } from "./runtime-injection-api-types.js";
+import { cliApiHeaders } from "./http-client-headers.js";
 
 export interface HttpClientOptions {
   readonly traceHeaders?: () => Record<string, string>;
@@ -76,13 +77,12 @@ function requestInitWithTraceHeaders(
   init: RequestInit,
   options: HttpClientOptions | undefined,
 ): RequestInit {
+  const headers = cliApiHeaders(init.headers);
   const traceHeaders = options?.traceHeaders?.();
-  if (traceHeaders === undefined || Object.keys(traceHeaders).length === 0) {
-    return init;
-  }
-  const headers = new Headers(init.headers);
-  for (const [name, value] of Object.entries(traceHeaders)) {
-    headers.set(name, value);
+  if (traceHeaders !== undefined) {
+    for (const [name, value] of Object.entries(traceHeaders)) {
+      headers.set(name, value);
+    }
   }
   return { ...init, headers };
 }

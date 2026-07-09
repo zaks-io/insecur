@@ -16,6 +16,7 @@ const inventoryPath = join(repoRoot, "docs", "specs", "deploy-route-inventory.md
 
 test("collectDeployRouteMounts discovers API and web product routes", () => {
   const apiRoutes = collectDeployRouteMounts(join(repoRoot, "apps", "api"), "api");
+  assert.equal(apiRoutes.includes("*"), false);
   assert.ok(apiRoutes.includes("/healthz"));
   assert.ok(apiRoutes.includes("/v1/session"));
   assert.ok(apiRoutes.includes("/v1/orgs/:organizationId/webhook-subscriptions"));

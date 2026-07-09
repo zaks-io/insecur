@@ -81,9 +81,9 @@ describe("audit tail CLI", () => {
     expect(parsed.searchParams.get("pageSize")).toBe("10");
     expect(parsed.searchParams.get("createdAtFrom")).toBe("2026-07-01T00:00:00.000Z");
     expect((init as RequestInit).method).toBe("GET");
-    expect((init as RequestInit).headers).toMatchObject({
-      Authorization: "Bearer bearer_test",
-    });
+    const headers = new Headers((init as RequestInit).headers);
+    expect(headers.get("Authorization")).toBe("Bearer bearer_test");
+    expect(headers.get("User-Agent")).toBe("insecur-cli/0.0.0");
   });
 
   it("does not request audit events for a different organization id in the path", async () => {
