@@ -3,10 +3,10 @@ import type { SecretId, SecretVersionId, VariableKey } from "@insecur/domain";
 import { assertEnvironmentAllowsNonProtectedWrite } from "./assert-environment-allows-non-protected-write.js";
 import {
   runBlindSecretWrite,
-  toStoredWrappedSecretMaterial,
   type BlindSecretWriteInput,
   type BlindSecretWriteResult,
 } from "./blind-secret-write.js";
+import { toStoredWrappedSecretMaterial } from "./secret-version-write-mappers.js";
 
 export type WriteNonProtectedSecretInput = BlindSecretWriteInput & { keyring: Keyring };
 

@@ -99,3 +99,15 @@ export function buildCliRunPoliciesDisableArgs(input: {
     input.comment,
   ];
 }
+
+export function buildCliAgentEnvArgs(): readonly string[] {
+  return ["agent", "env"];
+}
+
+export function buildCliAgentRegisterArgs(): readonly string[] {
+  return ["agent", "register"];
+}
+
+export function buildCliWhoamiArgs(): readonly string[] {
+  return ["whoami"];
+}

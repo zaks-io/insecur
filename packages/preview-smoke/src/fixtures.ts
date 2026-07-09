@@ -75,6 +75,7 @@ export { expect, invitationId, membershipId, randomUUID, runtimePolicyId };
 export * from "./audit-export-artifact";
 export * from "./audit-verification";
 export * from "./auth";
+export * from "./cli-agent-attribution-assertions";
 export * from "./cli-audit-metadata-assertions";
 export * from "./cli-auth-assertions";
 export * from "./cli-operations-run-policies-assertions";
