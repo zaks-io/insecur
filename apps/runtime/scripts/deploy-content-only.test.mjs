@@ -67,7 +67,7 @@ const PRODUCTION_SETTINGS_RESULT = {
   observability: {
     enabled: true,
     logs: { enabled: true, destinations: ["axiom-logs"] },
-    traces: { enabled: true, destinations: ["axiom-traces"] },
+    traces: { enabled: true, destinations: ["axiom-traces", "sentry-traces-insecur"] },
   },
 };
 

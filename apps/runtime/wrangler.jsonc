@@ -27,7 +27,7 @@
     },
     "traces": {
       "enabled": true,
-      "destinations": ["axiom-traces"],
+      "destinations": ["axiom-traces", "sentry-traces-insecur"],
       "head_sampling_rate": 1,
     },
   },
