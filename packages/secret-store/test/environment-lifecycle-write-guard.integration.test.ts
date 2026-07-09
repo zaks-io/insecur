@@ -30,18 +30,17 @@ const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 const ORG_A = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
 const ACTOR = { type: "user" as const, userId: userId.brand(TEST_USER_ID) };
-const PREVIEW_PROTECTED_ID = "env_00000000000000000000000084";
+const PREVIEW_PROTECTED_ID = environmentId.generate();
 
 describeIntegration("environment lifecycle write guard", () => {
   beforeAll(async () => {
     await seedTenantBaseline();
-    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db, sql }) => {
-      await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ID}`;
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
       const store = new TenantEnvironmentLifecycleStore(db);
       await store.create({
         organizationId: ORG_A,
         projectId: PROJECT_A,
-        environmentId: environmentId.brand(PREVIEW_PROTECTED_ID),
+        environmentId: PREVIEW_PROTECTED_ID,
         displayName: testDisplayName("Protected Preview"),
         lifecycleStage: ENVIRONMENT_LIFECYCLE_STAGES.preview,
       });
@@ -61,7 +60,7 @@ describeIntegration("environment lifecycle write guard", () => {
         keyring: createTestKeyring(),
         organizationId: ORG_A,
         projectId: PROJECT_A,
-        environmentId: environmentId.brand(PREVIEW_PROTECTED_ID),
+        environmentId: PREVIEW_PROTECTED_ID,
         variableKey: "BLOCKED_KEY",
         actor: ACTOR,
         valueUtf8: new TextEncoder().encode("value"),
@@ -73,7 +72,7 @@ describeIntegration("environment lifecycle write guard", () => {
         keyring: createTestKeyring(),
         organizationId: ORG_A,
         projectId: PROJECT_A,
-        environmentId: environmentId.brand(PREVIEW_PROTECTED_ID),
+        environmentId: PREVIEW_PROTECTED_ID,
         variableKey: "BLOCKED_KEY",
         actor: ACTOR,
         valueUtf8: new TextEncoder().encode("value"),
