@@ -7,7 +7,7 @@ import {
   RuntimeTokenSigningSecretConfigError,
   domainErrorEnvelope,
 } from "@insecur/worker-kit";
-import { cloudflareSentryOptions } from "@insecur/observability";
+import { cloudflareSentryOptions, requestWithoutSentryBaggage } from "@insecur/observability";
 import { sentry } from "@sentry/hono/cloudflare";
 import { Hono } from "hono";
 import { apiRequestAnalyticsMiddleware } from "./api-request-analytics.js";
@@ -116,5 +116,8 @@ registerConnectionsRoutes(app);
 registerRuntimeInjectionRoutes(app);
 registerSessionRoutes(app);
 registerWebhookSubscriptionsRoutes(app);
+
+const sentryFetch = app.fetch.bind(app);
+app.fetch = (request, env, ctx) => sentryFetch(requestWithoutSentryBaggage(request), env, ctx);
 
 export default app;

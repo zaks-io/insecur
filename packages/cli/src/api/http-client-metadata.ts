@@ -1,35 +1,35 @@
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
-import { cliApiHeaders } from "./http-client-headers.js";
-import { parseEnvelope, postAuthorizedJson } from "./http-client-envelope.js";
+import {
+  getAuthorizedJson,
+  parseEnvelope,
+  postAuthorizedJson,
+  type HttpClientOptions,
+} from "./http-client-envelope.js";
 
-async function getAuthorizedJson(
-  base: string,
-  path: string,
-  bearerCredential: string,
-): Promise<{ response: Response; body: unknown }> {
-  const response = await fetch(new URL(path, base), {
-    method: "GET",
-    headers: cliApiHeaders({
-      Authorization: `Bearer ${bearerCredential}`,
-      Accept: "application/json",
-    }),
-  });
-  return { response, body: await response.json() };
-}
+type AuthorizedJsonRequestInit =
+  | { readonly method: "GET"; readonly options?: HttpClientOptions | undefined }
+  | {
+      readonly method: "POST";
+      readonly body: unknown;
+      readonly options?: HttpClientOptions | undefined;
+    };
 
 export async function authorizedJsonRequest<T>(
   base: string,
   path: string,
   bearerCredential: string,
-  init: { method: "GET" } | { method: "POST"; body: unknown },
+  init: AuthorizedJsonRequestInit,
 ): Promise<
   | { ok: true; envelope: SuccessEnvelope<T> }
   | { ok: false; envelope: ErrorEnvelope; httpStatus: number }
 > {
   const result =
     init.method === "GET"
-      ? await getAuthorizedJson(base, path, bearerCredential)
-      : await postAuthorizedJson(base, path, bearerCredential, init.body);
+      ? await getAuthorizedJson(base, path, bearerCredential, init.options)
+      : await postAuthorizedJson(base, path, bearerCredential, {
+          body: init.body,
+          options: init.options,
+        });
   const envelope = parseEnvelope<T>(result.body);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: result.response.status };

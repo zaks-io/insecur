@@ -706,6 +706,15 @@ directory. Web and Site also run `sentry-cli sourcemaps upload` against `dist/se
 TanStack Start Worker bundle resolves in Sentry. Sentry events should therefore show the deployed
 Git SHA as their release instead of an opaque Cloudflare script version.
 
+`DEFAULT_SENTRY_TRACES_SAMPLE_RATE` in `@insecur/observability` is the one tracing configuration
+point for the CLI, Workers, and browser. It is currently `1`, so every new root trace is sampled.
+The originating service's decision is propagated downstream in `sentry-trace` and `baggage`; Sentry
+Dynamic Sampling controls server-side retention after that decision. The shared Sentry config
+disables PII, request bodies, query parameters, cookies, headers, local variables, source context,
+logs, and arbitrary span attributes. Public Workers preserve incoming `sentry-trace` for correlation
+but drop incoming `baggage` before Sentry sees it, so caller-controlled dynamic sampling context
+cannot carry OAuth state or other request parameters into telemetry.
+
 #### Sentry auth token setup (human step)
 
 Create the token outside the repo and store it only in the approved GitHub Actions secret store:

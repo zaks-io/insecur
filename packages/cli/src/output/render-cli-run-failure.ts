@@ -6,8 +6,13 @@ import { commanderUsageCliError, isCommanderUsageError } from "./commander-usage
 import { renderEnvelope } from "./render.js";
 import { logUnexpectedCliErrorDebug, unexpectedCliErrorBody } from "./unexpected-cli-error.js";
 import { CommanderError } from "commander";
+import type { CliCrashReporter } from "../crash-reporting.js";
 
-export function renderCliRunFailure(error: unknown, flags: GlobalCliFlags): number {
+export async function renderCliRunFailure(
+  error: unknown,
+  flags: GlobalCliFlags,
+  crashReporter: CliCrashReporter,
+): Promise<number> {
   if (isCommanderUsageError(error)) {
     const cliError = commanderUsageCliError(error);
     renderEnvelope(cliError.toErrorEnvelope(), flags, () => "");
@@ -26,5 +31,7 @@ export function renderCliRunFailure(error: unknown, flags: GlobalCliFlags): numb
   }
   logUnexpectedCliErrorDebug(error, flags.verbose);
   renderEnvelope(errorEnvelope(unexpectedCliErrorBody(error)), flags, () => "");
+  await crashReporter.captureException(error, { source: "unexpected" });
+  await crashReporter.flush(2_000);
   return EXIT_UNEXPECTED;
 }

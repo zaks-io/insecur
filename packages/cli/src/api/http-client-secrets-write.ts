@@ -1,9 +1,14 @@
 import type { SecretWriteByVariableKeyData, SecretsApiClient } from "./secrets-api-types.js";
-import { parseEnvelope, postAuthorizedJson } from "./http-client-envelope.js";
+import {
+  parseEnvelope,
+  postAuthorizedJson,
+  type HttpClientOptions,
+} from "./http-client-envelope.js";
 
 export async function writeSecretByVariableKey(
   base: string,
   input: Parameters<SecretsApiClient["writeSecretByVariableKey"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path = `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets/by-variable-key`;
   const body: Record<string, unknown> = {
@@ -24,7 +29,7 @@ export async function writeSecretByVariableKey(
     base,
     path,
     input.bearerCredential,
-    body,
+    { body, options },
   );
   const envelope = parseEnvelope<SecretWriteByVariableKeyData>(responseBody);
   if (!envelope.ok) {

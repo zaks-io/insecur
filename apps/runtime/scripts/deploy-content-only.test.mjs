@@ -27,7 +27,6 @@ const PRODUCTION_GET_SETTINGS_BINDINGS = [
   { name: "SENTRY_ENVIRONMENT", type: "plain_text", text: "production" },
   { name: "SENTRY_RELEASE", type: "plain_text", text: "old-sha" },
   { name: "SENTRY_SERVICE", type: "plain_text", text: "insecur-runtime" },
-  { name: "SENTRY_TRACES_SAMPLE_RATE", type: "plain_text", text: "1" },
   {
     name: "INSTANCE_ROOT_KEY_V1",
     type: "secrets_store_secret",
@@ -104,13 +103,11 @@ test("pickDesiredPublicDeployVars keeps only public plain-text deploy vars", () 
     pickDesiredPublicDeployVars({
       SENTRY_RELEASE: "abc123",
       SENTRY_SERVICE: "insecur-runtime",
-      SENTRY_TRACES_SAMPLE_RATE: "1",
       INSTANCE_ID: "should-not-copy",
     }),
     {
       SENTRY_RELEASE: "abc123",
       SENTRY_SERVICE: "insecur-runtime",
-      SENTRY_TRACES_SAMPLE_RATE: "1",
     },
   );
 });
@@ -154,7 +151,6 @@ test("prepareBindingsForSettingsPatch inherits custody bindings without GET-only
     "SENTRY_DSN",
     "SENTRY_ENVIRONMENT",
     "SENTRY_SERVICE",
-    "SENTRY_TRACES_SAMPLE_RATE",
     "INSTANCE_ROOT_KEY_V1",
     "DB",
     "RUNTIME_TOKEN_SIGNING_SECRET",

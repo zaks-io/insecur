@@ -4,7 +4,12 @@ import type {
   CliDeviceTokenPollResult,
   CliSessionExchangeData,
 } from "./auth-api-types.js";
-import { parseEnvelope, postJson, readCliCredentialHeader } from "./http-client-envelope.js";
+import {
+  parseEnvelope,
+  postJson,
+  readCliCredentialHeader,
+  type HttpClientOptions,
+} from "./http-client-envelope.js";
 
 export function createCliAuthorizationUrl(
   base: string,
@@ -21,18 +26,23 @@ export function createCliAuthorizationUrl(
 export async function exchangeCliPkceSession(
   base: string,
   input: Parameters<AuthApiClient["exchangeCliPkceSession"]>[0],
+  options?: HttpClientOptions,
 ) {
-  const { response, body } = await postJson(new URL("/v1/auth/cli/pkce/exchange", base), {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
+  const { response, body } = await postJson(
+    new URL("/v1/auth/cli/pkce/exchange", base),
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        code: input.code,
+        codeVerifier: input.codeVerifier,
+      }),
     },
-    body: JSON.stringify({
-      code: input.code,
-      codeVerifier: input.codeVerifier,
-    }),
-  });
+    options,
+  );
   const envelope = parseEnvelope<CliSessionExchangeData>(body);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
@@ -44,12 +54,16 @@ export async function exchangeCliPkceSession(
   return { ok: true as const, credential, envelope };
 }
 
-export async function startCliDeviceAuthorization(base: string) {
-  const { response, body } = await postJson(new URL("/v1/auth/cli/device/authorize", base), {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  });
+export async function startCliDeviceAuthorization(base: string, options?: HttpClientOptions) {
+  const { response, body } = await postJson(
+    new URL("/v1/auth/cli/device/authorize", base),
+    {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    },
+    options,
+  );
   const envelope = parseEnvelope<CliDeviceAuthorizationData>(body);
   if (!envelope.ok) {
     return { ok: false as const, envelope, httpStatus: response.status };
@@ -64,12 +78,17 @@ function isPendingStatus(value: unknown): value is "authorization_pending" | "sl
 export async function pollCliDeviceToken(
   base: string,
   input: Parameters<AuthApiClient["pollCliDeviceToken"]>[0],
+  options?: HttpClientOptions,
 ): Promise<CliDeviceTokenPollResult> {
-  const { response, body } = await postJson(new URL("/v1/auth/cli/device/token", base), {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceCode: input.deviceCode, agentSession: input.agentSession }),
-  });
+  const { response, body } = await postJson(
+    new URL("/v1/auth/cli/device/token", base),
+    {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceCode: input.deviceCode, agentSession: input.agentSession }),
+    },
+    options,
+  );
   const envelope = parseEnvelope<CliSessionExchangeData>(body);
   if (!envelope.ok) {
     return { ok: false, envelope, httpStatus: response.status };

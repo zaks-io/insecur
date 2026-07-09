@@ -1,4 +1,5 @@
 import { authorizedJsonRequest } from "./http-client-metadata.js";
+import type { HttpClientOptions } from "./http-client-envelope.js";
 import type { ApiClient } from "./types.js";
 import type {
   ListEnvironmentApprovalsData,
@@ -9,6 +10,7 @@ import type {
 export async function requestProtectedPromotion(
   base: string,
   input: Parameters<ApiClient["requestProtectedPromotion"]>[0],
+  options?: HttpClientOptions,
 ) {
   const body: Record<string, unknown> = {
     draftVersionIds: input.draftVersionIds,
@@ -26,13 +28,14 @@ export async function requestProtectedPromotion(
     base,
     `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/promote`,
     input.bearerCredential,
-    { method: "POST", body },
+    { method: "POST", body, options },
   );
 }
 
 export async function requestProtectedRollback(
   base: string,
   input: Parameters<ApiClient["requestProtectedRollback"]>[0],
+  options?: HttpClientOptions,
 ) {
   const body: Record<string, unknown> = {
     toVersionId: input.toVersionId,
@@ -50,18 +53,19 @@ export async function requestProtectedRollback(
     base,
     `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/secrets/${input.secretId}/rollback`,
     input.bearerCredential,
-    { method: "POST", body },
+    { method: "POST", body, options },
   );
 }
 
 export async function listEnvironmentApprovals(
   base: string,
   input: Parameters<ApiClient["listEnvironmentApprovals"]>[0],
+  options?: HttpClientOptions,
 ) {
   return authorizedJsonRequest<ListEnvironmentApprovalsData>(
     base,
     `/v1/orgs/${input.organizationId}/projects/${input.projectId}/environments/${input.environmentId}/approvals`,
     input.bearerCredential,
-    { method: "GET" },
+    { method: "GET", options },
   );
 }

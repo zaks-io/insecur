@@ -17,7 +17,10 @@
     "test:local-features": "pnpm build && node scripts/local-feature-suite.mjs",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@insecur/observability": "workspace:*",
+    "@sentry/node": "^10.63.0"
+  },
   "devDependencies": {
     "@insecur/agent-attribution": "workspace:*",
     "@insecur/audit": "workspace:*",

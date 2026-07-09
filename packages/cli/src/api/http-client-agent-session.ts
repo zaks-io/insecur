@@ -4,6 +4,7 @@ import {
   parseEnvelope,
   postAuthorizedJson,
   readCliCredentialHeader,
+  type HttpClientOptions,
 } from "./http-client-envelope.js";
 
 export async function deriveAgentSession(
@@ -12,6 +13,7 @@ export async function deriveAgentSession(
     readonly bearerCredential: string;
     readonly harnessName?: string;
   },
+  options?: HttpClientOptions,
 ): Promise<
   | { ok: true; envelope: SuccessEnvelope<DeriveAgentSessionData>; credential: string }
   | { ok: false; envelope: ErrorEnvelope; httpStatus: number }
@@ -20,7 +22,10 @@ export async function deriveAgentSession(
     base,
     "/v1/session/agent/derive",
     input.bearerCredential,
-    input.harnessName === undefined ? {} : { harnessName: input.harnessName },
+    {
+      body: input.harnessName === undefined ? {} : { harnessName: input.harnessName },
+      options,
+    },
   );
   const envelope = parseEnvelope<DeriveAgentSessionData>(body);
   if (!response.ok || !envelope.ok) {
@@ -46,6 +51,7 @@ export async function registerAgentSession(
     readonly harnessName: string;
     readonly ancestryKey: string;
   },
+  options?: HttpClientOptions,
 ): Promise<
   | { ok: true; envelope: SuccessEnvelope<RegisterAgentSessionData> }
   | { ok: false; envelope: ErrorEnvelope; httpStatus: number }
@@ -54,7 +60,7 @@ export async function registerAgentSession(
     base,
     "/v1/session/agent/register",
     input.bearerCredential,
-    { harnessName: input.harnessName, ancestryKey: input.ancestryKey },
+    { body: { harnessName: input.harnessName, ancestryKey: input.ancestryKey }, options },
   );
   const envelope = parseEnvelope<RegisterAgentSessionData>(body);
   if (!response.ok || !envelope.ok) {

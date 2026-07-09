@@ -82,6 +82,34 @@ describe("createHttpApiClientForHost", () => {
     }
   });
 
+  it("adds Sentry distributed-trace headers to HTTP API requests", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: { actor: { type: "user", userId: "user_123" } },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test", {
+      traceHeaders: () => ({
+        "sentry-trace": "0123456789abcdef0123456789abcdef-0123456789abcdef-1",
+        baggage: "sentry-release=insecur-cli",
+      }),
+    });
+
+    const result = await client.sessionWhoami({ bearerCredential: "credential_test" });
+
+    expect(result.ok).toBe(true);
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = new Headers(init.headers);
+    expect(headers.get("Authorization")).toBe("Bearer credential_test");
+    expect(headers.get("User-Agent")).toBe("insecur-cli/0.0.0");
+    expect(headers.get("sentry-trace")).toBe("0123456789abcdef0123456789abcdef-0123456789abcdef-1");
+    expect(headers.get("baggage")).toBe("sentry-release=insecur-cli");
+  });
+
   it("starts device authorization and returns the metadata envelope", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
