@@ -44,3 +44,44 @@ export interface ApprovalDeliveryPorts {
   readonly inApp: ApprovalInAppDeliveryPort;
   readonly email?: ApprovalEmailDeliveryPort;
 }
+
+/**
+ * Thrown when approval-notification delivery is attempted through a port that is not implemented
+ * yet. The concrete tenant-store-backed in-app port and email transport are wired in INS-531; until
+ * then any attempt to deliver must fail closed and loud, never return a fake success.
+ */
+export class ApprovalDeliveryPortNotImplementedError extends Error {
+  constructor(portName: string) {
+    super(
+      `approval notification delivery port "${portName}" is not implemented (wired in INS-531); ` +
+        `refusing to report a fake delivery`,
+    );
+    this.name = "ApprovalDeliveryPortNotImplementedError";
+  }
+}
+
+/**
+ * Explicit not-implemented approval delivery ports (INS-531). Every method throws
+ * `ApprovalDeliveryPortNotImplementedError` so a caller that wires these placeholders and then
+ * tries to deliver fails loudly instead of silently succeeding. This is the fail-closed stand-in
+ * until the concrete ports land; it is never a no-op.
+ */
+export function createUnimplementedApprovalDeliveryPorts(): ApprovalDeliveryPorts {
+  return {
+    recipients: {
+      resolveApprovers() {
+        return Promise.reject(new ApprovalDeliveryPortNotImplementedError("recipients"));
+      },
+    },
+    inApp: {
+      persistApprovalAlert() {
+        return Promise.reject(new ApprovalDeliveryPortNotImplementedError("inApp"));
+      },
+    },
+    email: {
+      sendApprovalAlert() {
+        return Promise.reject(new ApprovalDeliveryPortNotImplementedError("email"));
+      },
+    },
+  };
+}

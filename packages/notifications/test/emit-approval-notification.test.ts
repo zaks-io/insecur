@@ -8,6 +8,10 @@ vi.mock("@insecur/audit", async (importOriginal) => {
 });
 
 import type { ApprovalDeliveryPorts, ApprovalNotificationEnvelope } from "../src/index.js";
+import {
+  ApprovalDeliveryPortNotImplementedError,
+  createUnimplementedApprovalDeliveryPorts,
+} from "../src/approval-delivery-ports.js";
 import { emitApprovalNotification } from "../src/emit-approval-notification.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -186,5 +190,51 @@ describe("emitApprovalNotification", () => {
     expect(vi.mocked(writeAuditEvent).mock.calls[0]?.[0]?.eventCode).toBe(
       PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed,
     );
+  });
+
+  it("fails closed (FAILED audit, never a fake sent) through the unimplemented placeholder ports", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await emit(createUnimplementedApprovalDeliveryPorts());
+
+    // The placeholder recipient resolver throws -> no fake success, and delivery is never claimed.
+    expect(writeAuditEvent).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(writeAuditEvent).mock.calls[0]?.[0]?.eventCode).toBe(
+      PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed,
+    );
+    // Loud, explicit not-implemented signal referencing the follow-up ticket.
+    const logged = errorSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(logged).toMatch(/not implemented/i);
+    expect(logged).toMatch(/INS-531/);
+    errorSpy.mockRestore();
+  });
+
+  it("fails closed when a delivery port method is a stub (not a function), never a fake sent", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // recipients resolve fine, but the in-app port method is missing/undefined (stub wiring).
+    const ports = {
+      recipients: {
+        resolveApprovers: vi.fn().mockResolvedValue([{ userId: "usr_approver_1" }]),
+      },
+      inApp: {} as unknown as ApprovalDeliveryPorts["inApp"],
+    } as ApprovalDeliveryPorts;
+
+    await emit(ports);
+
+    expect(writeAuditEvent).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(writeAuditEvent).mock.calls[0]?.[0]?.eventCode).toBe(
+      PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed,
+    );
+    const logged = errorSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(logged).toMatch(/not implemented/i);
+    errorSpy.mockRestore();
+  });
+
+  it("ApprovalDeliveryPortNotImplementedError names the port and the follow-up ticket", () => {
+    const error = new ApprovalDeliveryPortNotImplementedError("inApp");
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toMatch(/inApp/);
+    expect(error.message).toMatch(/INS-531/);
+    expect(error.message).toMatch(/not implemented/i);
   });
 });

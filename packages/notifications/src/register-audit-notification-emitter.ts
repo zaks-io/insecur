@@ -62,16 +62,27 @@ export function registerAuditNotificationEmitter(
     });
 
     const approvalRequestId = approvalRequestCreatedId(event);
-    if (input.approval !== undefined && approvalRequestId !== null) {
-      await emitApprovalNotification({
-        organizationId: event.organizationId,
-        approvalRequestId,
-        createdAt: new Date(),
-        auditActor: event.actor,
-        webBaseUrl: input.approval.webBaseUrl,
-        deliveryPorts: input.approval.deliveryPorts,
-      });
+    if (approvalRequestId === null) {
+      return;
     }
+    if (input.approval === undefined) {
+      // Fail loud, not silent: an approver alert is due but delivery is not wired (INS-531).
+      // Do not let this look like a successful notification.
+      console.error(
+        `[approval-notification] approval_request_created for ${approvalRequestId} in ` +
+          `${event.organizationId} but approval delivery ports are NOT wired — approver alert ` +
+          `will NOT be delivered until INS-531`,
+      );
+      return;
+    }
+    await emitApprovalNotification({
+      organizationId: event.organizationId,
+      approvalRequestId,
+      createdAt: new Date(),
+      auditActor: event.actor,
+      webBaseUrl: input.approval.webBaseUrl,
+      deliveryPorts: input.approval.deliveryPorts,
+    });
   });
 }
 

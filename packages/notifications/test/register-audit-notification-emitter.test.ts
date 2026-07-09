@@ -107,11 +107,17 @@ describe("registerAuditNotificationEmitter", () => {
     expect(emitApprovalNotification).not.toHaveBeenCalled();
   });
 
-  it("does not fire an approval notification when approval wiring is absent", async () => {
+  it("loudly logs (not silently skips) an approval alert when delivery wiring is absent", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     registerAuditNotificationEmitter({ keyring: {} as never });
 
     await emitAuditNotificationIfConfigured(approvalCreatedEvent);
 
+    // No fake delivery, and the unwired state is surfaced loudly referencing the follow-up ticket.
     expect(emitApprovalNotification).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0]?.[0]).toMatch(/NOT wired/);
+    expect(errorSpy.mock.calls[0]?.[0]).toMatch(/INS-531/);
+    errorSpy.mockRestore();
   });
 });

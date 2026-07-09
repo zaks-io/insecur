@@ -6,7 +6,10 @@ import {
   type OrganizationId,
 } from "@insecur/domain";
 
-import type { ApprovalDeliveryPorts } from "./approval-delivery-ports.js";
+import {
+  ApprovalDeliveryPortNotImplementedError,
+  type ApprovalDeliveryPorts,
+} from "./approval-delivery-ports.js";
 import {
   assertApprovalNotificationEnvelopeSafe,
   buildApprovalDeepLinkUrl,
@@ -64,10 +67,24 @@ function logApprovalNotificationFailure(
   );
 }
 
+/**
+ * A port whose method is not a function is an unwired/stub port. Fail loud and closed rather than
+ * letting a missing implementation surface as a fake success or a misleading "no approvers". The
+ * method is read off the object by name (not passed as an unbound reference) so the presence check
+ * cannot itself change `this`.
+ */
+function assertPortMethodImplemented(port: unknown, methodName: string, portName: string): void {
+  const method = (port as Record<string, unknown> | null | undefined)?.[methodName];
+  if (typeof method !== "function") {
+    throw new ApprovalDeliveryPortNotImplementedError(portName);
+  }
+}
+
 async function resolveApproverRecipients(
   input: EmitApprovalNotificationInput,
 ): Promise<readonly { readonly userId: string; readonly email?: string }[] | null> {
   try {
+    assertPortMethodImplemented(input.deliveryPorts.recipients, "resolveApprovers", "recipients");
     return await input.deliveryPorts.recipients.resolveApprovers({
       organizationId: input.organizationId,
       approvalRequestId: input.approvalRequestId,
@@ -159,6 +176,7 @@ async function deliverToRecipient(
 ): Promise<boolean> {
   let delivered = false;
   try {
+    assertPortMethodImplemented(input.deliveryPorts.inApp, "persistApprovalAlert", "inApp");
     await input.deliveryPorts.inApp.persistApprovalAlert({
       organizationId: input.organizationId,
       recipientUserId: recipient.userId,
@@ -171,6 +189,7 @@ async function deliverToRecipient(
 
   if (recipient.email !== undefined && input.deliveryPorts.email !== undefined) {
     try {
+      assertPortMethodImplemented(input.deliveryPorts.email, "sendApprovalAlert", "email");
       await input.deliveryPorts.email.sendApprovalAlert({ toEmail: recipient.email, envelope });
       delivered = true;
     } catch (error) {

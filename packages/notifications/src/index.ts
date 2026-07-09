@@ -45,12 +45,14 @@ export {
   serializeApprovalNotificationEnvelope,
   type ApprovalNotificationEnvelope,
 } from "./approval-notification-envelope.js";
-export type {
-  ApprovalDeliveryPorts,
-  ApprovalEmailDeliveryPort,
-  ApprovalInAppDeliveryPort,
-  ApprovalNotificationRecipient,
-  ApprovalRecipientResolverPort,
+export {
+  ApprovalDeliveryPortNotImplementedError,
+  createUnimplementedApprovalDeliveryPorts,
+  type ApprovalDeliveryPorts,
+  type ApprovalEmailDeliveryPort,
+  type ApprovalInAppDeliveryPort,
+  type ApprovalNotificationRecipient,
+  type ApprovalRecipientResolverPort,
 } from "./approval-delivery-ports.js";
 export {
   buildApprovalNotificationEnvelope,
