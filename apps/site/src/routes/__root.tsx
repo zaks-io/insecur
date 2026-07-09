@@ -25,6 +25,22 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 });
 
+// An HTML comment near the top of every page for agents that curl the site: invisible to humans,
+// it points machine readers at the markdown docs surface. JSX cannot emit comments, so a hidden
+// wrapper injects it (static string, trusted by construction).
+const AGENT_HINT_COMMENT = [
+  "<!--",
+  "Reading this as an agent? Machine-readable docs index: https://insecur.cloud/llms.txt",
+  "Full docs corpus in one file: https://insecur.cloud/llms-full.txt",
+  "Agent quickstart: https://insecur.cloud/docs/agent-quickstart.md",
+  "Every /docs page is also raw markdown at the same URL with a .md suffix.",
+  "-->",
+].join("\n");
+
+function AgentHint() {
+  return <div hidden dangerouslySetInnerHTML={{ __html: AGENT_HINT_COMMENT }} />;
+}
+
 function RootDocument({ children }: { children: ReactNode }) {
   const context = readStartContext();
   const sentryScript = sentryBrowserConfigScript(context?.sentry);
@@ -35,6 +51,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <AgentHint />
         <SiteShell
           header={
             <SiteHeader
