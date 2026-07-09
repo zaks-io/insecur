@@ -1,6 +1,7 @@
 import { parseDisplayName, successEnvelope, type DisplayName } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { parseCliProfileSlug } from "../config/profiles/profile-slug.js";
+import { resolveAvailableProfileSlug } from "../config/profiles/available-profile-slug.js";
 import { LOCAL_INIT_NOTICE } from "../local/local-init-notice.js";
 import {
   provisionLocalProject,
@@ -28,6 +29,7 @@ const LOCAL_INIT_LABELS = {
 
 export interface LocalInitCommandOptions {
   readonly profileSlug: string;
+  readonly profileSlugWasExplicit?: boolean;
   readonly provision?: ProvisionLocalProjectOptions;
   readonly mintProfileId?: () => ReturnType<typeof createLocalInitProfileId>;
 }
@@ -36,7 +38,10 @@ export async function runLocalInitCommand(
   flags: GlobalCliFlags,
   commandOptions: LocalInitCommandOptions,
 ): Promise<number> {
-  const profileSlug = parseCliProfileSlug(commandOptions.profileSlug, "--profile-slug");
+  const profileSlug = await resolveAvailableProfileSlug(
+    parseCliProfileSlug(commandOptions.profileSlug, "--profile-slug"),
+    { strict: commandOptions.profileSlugWasExplicit === true },
+  );
   const profileId = commandOptions.mintProfileId?.() ?? createLocalInitProfileId();
   const provisioned = await provisionLocalProject(commandOptions.provision);
   try {
