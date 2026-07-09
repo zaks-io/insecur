@@ -32,13 +32,25 @@ function deviceWorkos(overrides: Record<string, unknown> = {}) {
   ]);
 }
 
+async function startDevice(
+  workos: ReturnType<typeof deviceWorkos>,
+  agentSession: boolean,
+): Promise<string> {
+  const started = await startCliDeviceAuthorization(workos, config.sessionSigningSecret, {
+    agentSession,
+  });
+  return started.deviceCode;
+}
+
 describe("startCliDeviceAuthorization", () => {
   it("returns the user code and verification URLs for the CLI to display", async () => {
-    const start = await startCliDeviceAuthorization(deviceWorkos());
+    const start = await startCliDeviceAuthorization(deviceWorkos(), config.sessionSigningSecret, {
+      agentSession: false,
+    });
     expect(start.userCode).toBe("WDJB-MJHT");
     expect(start.verificationUri).toBe("https://workos.test/device");
     expect(start.verificationUriComplete).toBe("https://workos.test/device?user_code=WDJB-MJHT");
-    expect(start.deviceCode).toBe("device_code_abc");
+    expect(start.deviceCode).not.toBe("device_code_abc");
     expect(start.intervalSeconds).toBeGreaterThan(0);
   });
 });
@@ -48,8 +60,9 @@ describe("exchangeCliDeviceSession", () => {
     const workos = deviceWorkos({
       devicePollStates: ["authorization_pending", "slow_down"],
     });
+    const deviceCode = await startDevice(workos, false);
     const pending = await exchangeCliDeviceSession({
-      deviceCode: "device_code_abc",
+      deviceCode,
       agentSession: false,
       config,
       workos,
@@ -58,7 +71,7 @@ describe("exchangeCliDeviceSession", () => {
     expect(pending).toMatchObject({ ok: true, status: "authorization_pending" });
 
     const slowDown = await exchangeCliDeviceSession({
-      deviceCode: "device_code_abc",
+      deviceCode,
       agentSession: false,
       config,
       workos,
@@ -67,7 +80,7 @@ describe("exchangeCliDeviceSession", () => {
     expect(slowDown).toMatchObject({ ok: true, status: "slow_down" });
 
     const authenticated = await exchangeCliDeviceSession({
-      deviceCode: "device_code_abc",
+      deviceCode,
       agentSession: false,
       config,
       workos,
@@ -88,8 +101,9 @@ describe("exchangeCliDeviceSession", () => {
 
   it("mints an agent-marked session with a fresh agent session id when agentSession is set", async () => {
     const workos = deviceWorkos();
+    const deviceCode = await startDevice(workos, true);
     const result = await exchangeCliDeviceSession({
-      deviceCode: "device_code_abc",
+      deviceCode,
       agentSession: true,
       config,
       workos,
@@ -109,8 +123,9 @@ describe("exchangeCliDeviceSession", () => {
 
   it("returns auth.device_authorization_denied when the user rejects the request", async () => {
     const workos = deviceWorkos({ deviceTerminal: "denied" });
+    const deviceCode = await startDevice(workos, false);
     const result = await exchangeCliDeviceSession({
-      deviceCode: "device_code_abc",
+      deviceCode,
       agentSession: false,
       config,
       workos,
@@ -124,8 +139,9 @@ describe("exchangeCliDeviceSession", () => {
 
   it("returns auth.device_authorization_expired when the device code expires", async () => {
     const workos = deviceWorkos({ deviceTerminal: "expired" });
+    const deviceCode = await startDevice(workos, false);
     const result = await exchangeCliDeviceSession({
-      deviceCode: "device_code_abc",
+      deviceCode,
       agentSession: false,
       config,
       workos,
@@ -139,8 +155,9 @@ describe("exchangeCliDeviceSession", () => {
 
   it("returns auth.required when the approved WorkOS user is not admitted", async () => {
     const workos = deviceWorkos();
+    const deviceCode = await startDevice(workos, false);
     const result = await exchangeCliDeviceSession({
-      deviceCode: "device_code_abc",
+      deviceCode,
       agentSession: false,
       config,
       workos,

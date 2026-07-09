@@ -48,11 +48,12 @@ export function createGitHubAppInstallationPort(): GitHubAppInstallationPort {
         assertRepositoryInGitHubConnectionBoundary(input, repositoryFullName);
       }
 
-      return Promise.resolve({
-        installationStatus: "active",
-        accessibleRepositoryCount: input.allowedRepositories.length,
-        repositoriesWithinBoundary: true,
-      });
+      return Promise.reject(
+        new AppConnectionError(
+          APP_CONNECTION_ERROR_CODES.validationFailed,
+          "github installation verification is unavailable until a provider-backed adapter is configured",
+        ),
+      );
     },
   };
 }

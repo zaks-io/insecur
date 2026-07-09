@@ -5,6 +5,7 @@ import {
   machineIdentityId,
   organizationId,
   projectId,
+  userId,
 } from "@insecur/domain";
 import { TenantInjectionGrantStore, withTenantScope } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,12 +32,17 @@ const GRANT = injectionGrantId.brand("igr_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
+const USER = userId.brand("usr_00000000000000000000000001");
 
 function grantRow(consumed = true) {
   return {
     project_id: PROJECT,
     environment_id: ENV,
     consumed_at: consumed ? new Date().toISOString() : null,
+    issued_actor_type: "user",
+    issued_user_id: USER,
+    issued_machine_identity_id: null,
+    issued_runtime_policy_key_id: null,
   };
 }
 

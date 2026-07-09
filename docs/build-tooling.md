@@ -597,8 +597,9 @@ The `Detect changes` job classifies pull request paths into three check classes:
 - `db_backed`: DB/runtime paths that should run Docker Compose Postgres, RLS, e2e, and canary
   tests.
 
-`db_backed` is intentionally an allowlist for the packages and scripts that own DB/RLS/e2e/canary
-behavior. Changes to non-DB surfaces such as `packages/crypto`, `packages/domain`, or unrelated
+`db_backed` includes every package that declares a `test:rls` task plus the apps and scripts that
+own DB/RLS/e2e/canary behavior. A conformance test derives that package set from package manifests
+so a new DB-backed package cannot silently miss the classifier. Changes to non-DB surfaces such as `packages/crypto`, `packages/domain`, or unrelated
 `scripts/ci/*` files still run the product-code hot path but do not start Docker Compose unless they
 also touch a listed DB/runtime path; use the focused DB command stack manually when a non-listed
 change is intended to affect RLS, e2e, or no-plaintext canary behavior.
@@ -676,8 +677,9 @@ pair rather than allocating resources per PR.
 
 Trigger: manually dispatched `Deploy Preview`. `scripts/preview-deploy.mjs` is CI-only: it
 materializes the Preview GitHub Environment, creates temporary per-Worker secrets files, dry-runs
-the full fleet, migrates preview Postgres, and deploys the fleet. Preview smoke remains manual
-through the separate `Preview Smoke` workflow.
+the full fleet, migrates preview Postgres, and deploys the fleet. Preview smoke remains manually
+dispatched through the separate `Preview Smoke` workflow, but a successful exact-SHA smoke run is
+the production deploy trigger and production revalidates both CI and smoke evidence for that SHA.
 
 For a dirty local Web bundle, use the Web package's direct Wrangler deploy:
 
@@ -858,26 +860,25 @@ deterministic filtered CLI commit bullets.
 
 ### Daily security scan: `security-daily`
 
-Trigger: scheduled `cron` (daily at 06:00 UTC) or `workflow_dispatch`. Runs the same scanner families as `CI` on a schedule. Findings are reported in the workflow log; the jobs do not fail the repository on severity by default.
+Trigger: scheduled `cron` (daily at 06:00 UTC) or `workflow_dispatch`. Runs the same scanner families as `CI` on a schedule. High and Critical dependency findings fail the vulnerability job after metadata artifacts are written.
 
 Jobs:
 
-- **Vulnerability scan:** syft SBOM + grype via `scripts/ci/sbom-grype.sh none` (report only, no `--fail-on`).
+- **Vulnerability scan:** syft SBOM + grype via `scripts/ci/sbom-grype.sh high`; High and Critical findings are preserved in metadata and fail the job.
 - **SAST full scan:** semgrep with `config: auto`.
 - **Secret scan history:** gitleaks over default-branch HEAD history only (`gitleaks-detect.sh git` with
   `GITLEAKS_LOG_OPTS=HEAD`). Open or draft PR refs must not fail the scheduled default-branch scan; PR
   checks still run gitleaks on the current tree via `gitleaks-detect.sh detect` in `CI`.
 - **Dependency scan:** covered by the syft + grype job, which builds a CycloneDX SBOM over the full
   dependency tree and matches it against grype's advisory database.
-- **Report criticals:** opt-in metadata-only Linear filing gated behind repository variable
-  `LINEAR_SECURITY_REPORTING_ENABLED`. When the variable is unset or not `true`, the job exits
-  successfully with a notice and performs no checkout, artifact download, or filing. When
-  `LINEAR_SECURITY_REPORTING_ENABLED=true` but `LINEAR_API_KEY` or required Linear labels are not
-  configured, the job fails closed with a metadata-only error. Scanner jobs upload only normalized
-  critical-finding metadata produced by `scripts/ci/security-daily-linear-reporting.mjs`; raw scanner
-  payloads are not filed in Linear.
+- **Report findings:** metadata-only Linear filing is enabled unless repository variable
+  `LINEAR_SECURITY_REPORTING_ENABLED=false` explicitly disables it. Without that explicit opt-out,
+  missing `LINEAR_API_KEY` or required Linear labels fail closed. Scanner jobs upload only normalized
+  High/Critical metadata produced by `scripts/ci/security-daily-linear-reporting.mjs`; raw scanner
+  payloads are not filed in Linear. An explicit opt-out emits a warning while scanner failures and
+  uploaded metadata remain visible.
 
-Opt-in filing is metadata-only: scanner name, finding category/severity, workflow artifact reference,
+Filing is metadata-only: scanner name, finding category/severity, workflow artifact reference,
 safe package/path identifier, and remediation pointer. No raw scanner output, secrets, tokens,
 credentials, private key material, or Sensitive Values are included in Linear. Issues land in team
 `INS` with labels `zaks-io/insecur`, `risk-security-sensitive`, and `Bug`. Stable metadata-only
@@ -946,8 +947,8 @@ The build-tooling layer is complete when all of the following are verifiable:
 - A forked pull request runs the `CI` workflow only and reaches no secret-bearing step. Docs-only
   and workflow-only pull requests skip product-code CI jobs but still run gitleaks; workflow-only
   pull requests also run workflow formatting, action pinning, and actionlint.
-- A merge to `main` runs `CI`; successful `CI` on `main` auto-triggers production deploy through the `Production` GitHub Environment and runs under a CI machine identity.
+- A merge to `main` runs `CI`; a successful deployed `Preview Smoke` for that exact SHA triggers production through the `Production` GitHub Environment, which revalidates both CI and smoke evidence before mutation and runs under a CI machine identity.
 - The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated
-  Linear filing for critical findings is disabled by default; `report-criticals` skips unless
-  `LINEAR_SECURITY_REPORTING_ENABLED=true` and fails closed when enabled without configuration.
+  Linear filing for High/Critical findings is enabled by default; `report-findings` fails closed
+  without configuration unless `LINEAR_SECURITY_REPORTING_ENABLED=false` explicitly disables filing.
 - Branch protection has administrator bypass disabled and requires the `CI` workflow's `Verify` check plus review approval.

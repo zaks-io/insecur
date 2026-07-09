@@ -82,6 +82,10 @@ describe("runtimeClientFor", () => {
     });
     expect(verified.ok).toBe(true);
     if (verified.ok) {
+      expect(verified.actor.type).toBe("user");
+      if (verified.actor.type === "machine") {
+        throw new Error("expected user actor");
+      }
       expect(verified.actor.userId).toBe(actor.userId);
     }
   });

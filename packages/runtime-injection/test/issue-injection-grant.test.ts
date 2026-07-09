@@ -14,6 +14,8 @@ import {
   auditEventId,
   machineIdentityId,
   membershipId,
+  runtimePolicyId,
+  runtimePolicyVersionId,
 } from "@insecur/domain";
 import { environmentId, organizationId, projectId, userId } from "@insecur/domain";
 import {
@@ -39,6 +41,8 @@ const ACTOR_USER = userId.brand("usr_00000000000000000000000001");
 const ACTOR_MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 const MACHINE_MEMBERSHIP = membershipId.brand("mem_00000000000000000000000001");
 const AUDIT_EVENT = auditEventId.brand("aud_00000000000000000000000001");
+const POLICY = runtimePolicyId.brand("rp_00000000000000000000000001");
+const POLICY_VERSION = runtimePolicyVersionId.brand("rpv_00000000000000000000000001");
 
 let protectedEnvironment = true;
 let coordinateError: ProjectEnvironmentCoordinateError | undefined;
@@ -92,6 +96,22 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
   class MockTenantSecretVersionStore {
     getCurrentVersion = vi.fn().mockResolvedValue({ secretVersionId: "sv_test" });
   }
+  class MockTenantRuntimeInjectionPolicyStore {
+    getPolicyById = vi.fn().mockResolvedValue({
+      policyId: POLICY,
+      projectId: PROJECT,
+      environmentId: ENV,
+      activeVersionId: POLICY_VERSION,
+      disabledAt: null,
+    });
+    getVersionById = vi.fn().mockResolvedValue({
+      policyId: POLICY,
+      policyVersionId: POLICY_VERSION,
+      ttlSeconds: 60,
+      secretIds: [],
+      variableKeys: ["TEST_KEY"],
+    });
+  }
   const assertProjectEnvironmentCoordinate = vi.fn(async () => {
     if (coordinateError !== undefined) {
       throw coordinateError;
@@ -118,6 +138,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
     }),
     TenantInjectionGrantStore: MockTenantInjectionGrantStore,
     TenantSecretVersionStore: MockTenantSecretVersionStore,
+    TenantRuntimeInjectionPolicyStore: MockTenantRuntimeInjectionPolicyStore,
     ProjectEnvironmentCoordinateError: actual.ProjectEnvironmentCoordinateError,
     resolveSecretForRead: vi.fn().mockResolvedValue({
       secretId: "sec_test",
@@ -339,7 +360,10 @@ describe("executeIssueInjectionGrant protected issuance", () => {
       });
     });
 
-    const result = await executeIssueInjectionGrant(baseMachineInput);
+    const result = await executeIssueInjectionGrant({
+      ...baseMachineInput,
+      selector: { kind: "policy_id", policyId: POLICY },
+    });
 
     expect(result.grantId).toMatch(/^igr_[0-9A-Z]{26}$/);
     expect(loadMachineMemberships).toHaveBeenCalledTimes(1);
@@ -360,6 +384,15 @@ describe("executeIssueInjectionGrant protected issuance", () => {
       }),
     );
     expect(committedGrants).toHaveLength(1);
+    expect(committedGrants[0]).toEqual(
+      expect.objectContaining({
+        issuedTo: {
+          type: "machine",
+          machineIdentityId: ACTOR_MACHINE,
+          runtimePolicyKeyId: POLICY,
+        },
+      }),
+    );
   });
 
   it("records insufficient_scope denial through issueInjectionGrantWithAudit", async () => {

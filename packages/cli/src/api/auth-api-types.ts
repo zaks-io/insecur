@@ -48,6 +48,8 @@ export interface AuthApiClient {
   >;
   startCliDeviceAuthorization(input: {
     readonly host: string;
+    readonly agentSession: boolean;
+    readonly requesterHost: string;
   }): Promise<
     | { ok: true; envelope: ApiSuccess<CliDeviceAuthorizationData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }

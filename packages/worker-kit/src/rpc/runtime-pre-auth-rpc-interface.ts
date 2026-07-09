@@ -5,6 +5,8 @@ import type {
   RecordAbuseDeniedRpcPayload,
   RecordAdmissionDeniedRpcInput,
   RecordAdmissionDeniedRpcPayload,
+  RecordDeviceAuthorizationAuditRpcInput,
+  RecordDeviceAuthorizationAuditRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RuntimeRpcResult,
@@ -26,5 +28,8 @@ export interface RuntimePreAuthRpc {
   recordAbuseDenied(
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>>;
+  recordDeviceAuthorizationAudit(
+    input: RecordDeviceAuthorizationAuditRpcInput,
+  ): Promise<RuntimeRpcResult<RecordDeviceAuthorizationAuditRpcPayload>>;
   getBootstrapStatus(input: GetBootstrapStatusRpcInput): Promise<RuntimeRpcResult<BootstrapStatus>>;
 }

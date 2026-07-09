@@ -12,7 +12,7 @@ export interface EgressHttpResponse {
   bodyText: string;
 }
 
-/** Captured serialized egress for the no-plaintext canary (ADR-0069 / INS-388). */
+/** Captured serialized egress for the plaintext-containment canary (ADR-0069 / INS-388). */
 export interface EgressCapture {
   httpResponses: readonly EgressHttpResponse[];
   /** JSON.stringify of the Runtime consumeGrant RPC envelope. */

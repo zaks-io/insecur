@@ -27,6 +27,12 @@ The record above says a High-Assurance Challenge "re-verifies the human freshly"
 
 ADR-0052's matching 2026-06-11 amendment applies this same per-action bounded-operation model to CLI-side Secret Reveal, dropping its time-boxed elevation window for V1 so no cleared challenge becomes reusable authority.
 
+Until the WorkOS authorization-code response carries provider-attested evidence that TOTP was used
+for the current transaction, High-Assurance Challenge clearing accepts fresh passkey authentication
+only. An enrolled TOTP row is posture metadata, not transaction evidence, and must never be promoted
+to `freshStepUpFactor: "totp"`. TOTP clearing can be re-enabled only when that provider-attested
+current-transaction proof is available and verified server-side.
+
 ## Amendment (2026-06-12): How a cleared bounded operation resumes execution
 
 The 2026-06-11 amendment pinned who may clear a bounded step-up operation; the resume half remained one sentence ("the agent resumes by polling `insecur operations wait <operation-id>` and continuing against the same bounded operation ID"). That sentence underspecifies the handshake: `operations wait` is metadata-only polling, and docs/operation-store.md allows the `waiting_for_human` to `running` transition while listing only `blocked` and `incomplete` as retryable, so no documented call performs the resume. This amendment pins the resume contract for the High-Assurance Challenge bounded operations covered by the 2026-06-11 amendment, so the Human Approval Surface and the CLI/API execution path implement two halves of one handshake.

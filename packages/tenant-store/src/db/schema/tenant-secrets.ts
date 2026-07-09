@@ -5,6 +5,7 @@
 import type { ForeignKeyBuilder } from "drizzle-orm/pg-core";
 import {
   foreignKey,
+  check,
   integer,
   jsonb,
   pgTable,
@@ -16,6 +17,7 @@ import {
   boolean,
 } from "./pg-core.js";
 import { organizations } from "./tenant-hierarchy.js";
+import { machineIdentities } from "./tenant-machine-auth-methods.js";
 import { orgProjectAndEnvironmentForeignKeys } from "./tenant-org-scope-foreign-keys.js";
 
 /** Deferred so `secretVersions` exists before the composite current-version FK is attached. */
@@ -199,6 +201,10 @@ export const injectionGrants = pgTable(
       .default(sql`'{}'::text[]`),
     policyId: text("policy_id"),
     policyVersionId: text("policy_version_id"),
+    issuedActorType: text("issued_actor_type").notNull(),
+    issuedUserId: text("issued_user_id"),
+    issuedMachineIdentityId: text("issued_machine_identity_id"),
+    issuedRuntimePolicyKeyId: text("issued_runtime_policy_key_id"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
@@ -208,6 +214,28 @@ export const injectionGrants = pgTable(
   (table) => [
     ...orgProjectAndEnvironmentForeignKeys("injection_grants", table),
     sql`CHECK (${table.revokedReason} IS NULL OR ${table.revokedReason} IN ('tenant_suspension', 'compromise_version_invalidation'))`,
+    check(
+      "injection_grants_issued_actor_type_check",
+      sql`${table.issuedActorType} IN ('user', 'machine')`,
+    ),
+    check(
+      "injection_grants_issued_actor_shape_check",
+      sql`
+      (${table.issuedActorType} = 'user' AND ${table.issuedUserId} IS NOT NULL AND ${table.issuedMachineIdentityId} IS NULL AND ${table.issuedRuntimePolicyKeyId} IS NULL)
+      OR
+      (${table.issuedActorType} = 'machine' AND ${table.issuedUserId} IS NULL AND ${table.issuedMachineIdentityId} IS NOT NULL)
+    `,
+    ),
+    foreignKey({
+      name: "injection_grants_org_issued_machine_fkey",
+      columns: [table.orgId, table.issuedMachineIdentityId],
+      foreignColumns: [machineIdentities.orgId, machineIdentities.id],
+    }),
+    foreignKey({
+      name: "injection_grants_org_issued_runtime_policy_fkey",
+      columns: [table.orgId, table.issuedRuntimePolicyKeyId],
+      foreignColumns: [runtimeInjectionPolicies.orgId, runtimeInjectionPolicies.id],
+    }),
   ],
 );
 
@@ -231,20 +259,6 @@ export const auditEvents = pgTable("audit_events", {
   details: jsonb("details"),
   requestId: text("request_id"),
   operationId: text("operation_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const firstValueFeedback = pgTable("first_value_feedback", {
-  id: text("id").primaryKey(),
-  orgId: text("org_id")
-    .notNull()
-    .references(() => organizations.id),
-  actorUserId: text("actor_user_id").notNull(),
-  feedbackKind: text("feedback_kind").notNull(),
-  note: text("note").notNull(),
-  grantId: text("grant_id"),
-  operationId: text("operation_id"),
-  requestId: text("request_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

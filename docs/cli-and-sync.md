@@ -1012,7 +1012,7 @@ Rules:
 - Human output ends with: `To fix: run \`insecur guide migrate-env\` and follow it, or hand it to your agent.`
 - `--json` summary includes `unreadableFiles` and `oversizedFiles` (paths only) so a clean result distinguishes scanned files from secret-path candidates that could not be read or exceeded the size guard.
 - `--json` returns findings and summary through the standard metadata-only envelope.
-- Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
+- Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist or coverage is incomplete because a candidate path was unreadable, oversized, or the scan limit was reached; `--strict` with a fully scanned clean tree exits `0`.
 - `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready); it cannot be combined with `--json`.
 - Migratable dotenv findings include remediation `insecur secrets set <VARIABLE_KEY> --value-stdin`, matching the real `secrets set` argument shape; values are never inlined in suggested commands.
 
@@ -1037,13 +1037,13 @@ Rules:
 - Answers: "did an agent conversation contain a secret?"
 - Offline, read-only, and metadata-only: no auth, no network, no upload of transcripts or candidate values, and no automatic rotation, deletion, or cleanup.
 - Reuses project-secret candidate detection from the project scan, comparing candidate values to local transcript text in process memory only.
-- Auto-discovers well-known local Cursor (`~/.cursor/projects/*/agent-transcripts/`), Claude Code (`~/.claude/projects/**/*.jsonl`), and Codex (`~/.codex/sessions/**/*.jsonl`) transcript locations when they are readable; missing default locations produce metadata-only warnings and exit `0` unless `--strict` finds exposures.
+- Auto-discovers well-known local Cursor (`~/.cursor/projects/*/agent-transcripts/`), Claude Code (`~/.claude/projects/**/*.jsonl`), and Codex (`~/.codex/sessions/**/*.jsonl`) transcript locations when they are readable; missing default locations produce metadata-only warnings and make `--strict` fail as incomplete coverage.
 - Supports explicit `--transcript-path` (repeatable) and `--transcript-glob` for exported logs or unsupported agent tools.
 - Also flags high-confidence secret-shaped values that appear directly in transcripts (`heuristic_transcript_secret`) even when no matching project file is available.
 - Findings distinguish `candidate_match` (confirmed project secret in transcript) from `heuristic_transcript_secret` (high-confidence suspicion).
-- Human and `--json` output never print raw secret values or transcript excerpts; each finding includes redacted `valueShape` and stable local `valueFingerprint` metadata only.
+- Human and `--json` output never print raw secret values, value-derived shapes or hashes, or transcript excerpts. Each finding includes a stable `findingId` derived only from provider, transcript path, detector, and match position.
 - Findings include provider/tool, source path, session/conversation id and timestamp when parseable, detector id, confidence, and suggested next steps (`rotate_or_revoke`, `migrate_to_insecur` when migratable, `clean_local_transcripts`, `mark_false_positive`, `ignore`); insecur does not execute these automatically.
-- Exit `0` by default even when exposures exist; `--strict` exits `7` (action-required) when exposures exist; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
+- Exit `0` by default even when exposures exist; `--strict` exits `7` (action-required) when exposures exist or transcript coverage is incomplete because discovery warned, a file was unreadable/oversized, or the file limit was reached; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
 - `--machine` belongs to the default project scan and cannot be combined with agent scan modes; run it separately.
 
 #### Agent-readable env inventory scan (`--agent-projects`)
@@ -1056,7 +1056,7 @@ Rules:
 - Supports explicit `--transcript-path` and `--transcript-glob` to point the inventory scan at exported logs or unsupported agent tools.
 - Human output lists agent-touched project roots and metadata-only findings: file path, dotenv key name, confidence, migratability, and remediation command when available. It never prints raw values or transcript excerpts.
 - `--agent-projects` cannot be combined with `--agent-transcripts`; they answer different questions and should be run separately.
-- Exit `0` by default even when findings exist; `--strict` exits `7` when likely secrets are found in agent-touched projects; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
+- Exit `0` by default even when findings exist; `--strict` exits `7` when likely secrets are found or transcript/project coverage is incomplete; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
 
 ### Guide
 
@@ -1227,6 +1227,7 @@ Rules:
 - Human and JSON output should echo the resolved profile, policy, environment, and command target metadata so humans and agents can understand at a glance which workflow and secret set were used.
 - `--watch` is development-only and should restart the child process after changes.
 - Each `--watch` restart is a new Runtime Injection execution: the CLI fetches a fresh one-use Injection Grant before every fork/exec, must not retain decrypted Sensitive Values across restarts, and stops the watch loop fail-closed on a grant-issuance failure rather than reusing prior values.
+- The CLI owns a separate process group on POSIX so a watch restart or normal parent exit does not leave descendant processes running with an older injected environment. Runtime injection fails closed on Windows until the CLI has Job Object containment for the complete child process tree.
 - Runtime injection is the preferred deploy and local command path because the caller receives metadata, not Sensitive Values.
 - Developers should use runtime injection instead of `.env` files whenever the command can read from environment variables.
 - An Environment may hold more secrets than the current command needs. Runtime Injection must inject only the exact secrets selected by the chosen policy or one-command non-protected selection, not every secret in the Environment.

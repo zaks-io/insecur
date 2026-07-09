@@ -76,11 +76,11 @@ describe("insecur scan --agent-transcripts", () => {
     const decoyFindings = report.findings.filter((finding) => finding.sourcePath === decoyPath);
     expect(decoyFindings).toHaveLength(0);
     for (const finding of report.findings) {
-      expect(finding.valueFingerprint).not.toContain(SENTINEL_DECOY_VALUE);
+      expect(finding.findingId).toMatch(/^[0-9a-f]{64}$/u);
     }
   });
 
-  it("exits cleanly with metadata-only warnings when default discovery paths are missing", async () => {
+  it("fails strict mode when default discovery paths are missing", async () => {
     const root = await mkdtemp(join(tmpdir(), "insecur-transcript-missing-"));
     const homeDir = join(root, "empty-home");
     const report = await buildTranscriptScanReport({
@@ -92,6 +92,12 @@ describe("insecur scan --agent-transcripts", () => {
     expect(report.warnings.length).toBeGreaterThanOrEqual(3);
     expect(report.warnings.every((warning) => warning.code.length > 0)).toBe(true);
     expect(report.warnings.every((warning) => !warning.message.includes("Error:"))).toBe(true);
+
+    const code = await runScanCommand(
+      { ...baseFlags, configDir: root, quiet: true },
+      { strict: true, agentTranscripts: true, homeDir },
+    );
+    expect(code).toBe(EXIT_ACTION_REQUIRED);
   });
 
   it("scans explicit --transcript-path input", async () => {
@@ -188,6 +194,9 @@ describe("insecur scan --agent-transcripts", () => {
     expect(typeof line).toBe("string");
     const parsed: unknown = JSON.parse(line as string);
     assertMetadataOnlyEnvelopeShape(parsed as Record<string, unknown>);
+    const serialized = JSON.stringify(parsed);
+    expect(serialized).not.toMatch(/valueShape|valueFingerprint/u);
+    expect(serialized).not.toContain("SE…4e");
     stdout.mockRestore();
   });
 });

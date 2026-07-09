@@ -1067,6 +1067,34 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
+      "issued_actor_type": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "issued_user_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "issued_machine_identity_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "issued_runtime_policy_key_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "expires_at": {
         "notNull": true,
         "primaryKey": false,
@@ -1108,7 +1136,16 @@
         "defaultSql": "now()"
       }
     },
-    "checks": [],
+    "checks": [
+      {
+        "name": "injection_grants_issued_actor_shape_check",
+        "sql": "\n      (\"injection_grants\".\"issued_actor_type\" = 'user' AND \"injection_grants\".\"issued_user_id\" IS NOT NULL AND \"injection_grants\".\"issued_machine_identity_id\" IS NULL AND \"injection_grants\".\"issued_runtime_policy_key_id\" IS NULL)\n      OR\n      (\"injection_grants\".\"issued_actor_type\" = 'machine' AND \"injection_grants\".\"issued_user_id\" IS NULL AND \"injection_grants\".\"issued_machine_identity_id\" IS NOT NULL)\n    "
+      },
+      {
+        "name": "injection_grants_issued_actor_type_check",
+        "sql": "\"injection_grants\".\"issued_actor_type\" IN ('user', 'machine')"
+      }
+    ],
     "uniqueConstraints": [],
     "indexes": [],
     "foreignKeys": [
@@ -1123,6 +1160,18 @@
         "columns": ["org_id"],
         "foreignTable": "organizations",
         "foreignColumns": ["id"]
+      },
+      {
+        "name": "injection_grants_org_issued_machine_fkey",
+        "columns": ["org_id", "issued_machine_identity_id"],
+        "foreignTable": "machine_identities",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "injection_grants_org_issued_runtime_policy_fkey",
+        "columns": ["org_id", "issued_runtime_policy_key_id"],
+        "foreignTable": "runtime_injection_policies",
+        "foreignColumns": ["org_id", "id"]
       },
       {
         "name": "injection_grants_org_project_fkey",

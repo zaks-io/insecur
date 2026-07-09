@@ -1,7 +1,7 @@
 import {
   INSECUR_RUNTIME_TOKEN_AUDIENCE,
   mintScopedAccessToken,
-  type UserActor,
+  type RuntimeHopActor,
 } from "@insecur/auth";
 
 import { buildAuthenticatedRuntimeClientMethods } from "./runtime-client-method-map.js";
@@ -54,7 +54,7 @@ function createRuntimeForward(
  */
 export function runtimeClientFor(
   env: RuntimeClientEnv,
-  actor: UserActor,
+  actor: RuntimeHopActor,
 ): AuthenticatedRuntimeClient {
   validateRuntimeTokenSigningSecret(env.RUNTIME_TOKEN_SIGNING_SECRET);
 

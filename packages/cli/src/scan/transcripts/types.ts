@@ -23,8 +23,8 @@ export interface TranscriptFinding {
   readonly observedAt?: string;
   readonly detectorId: string;
   readonly confidence: TranscriptConfidence;
-  readonly valueShape: string;
-  readonly valueFingerprint: string;
+  /** Stable identifier derived only from finding metadata, never from the Sensitive Value. */
+  readonly findingId: string;
   readonly candidateKey?: string;
   readonly candidateFile?: string;
   readonly nextSteps: readonly TranscriptNextStep[];

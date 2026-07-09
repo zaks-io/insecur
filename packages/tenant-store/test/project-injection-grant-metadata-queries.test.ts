@@ -26,7 +26,8 @@ const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
 function createGrantDb(rows: readonly Record<string, unknown>[]): TenantScopedDb {
   const orderBy = vi.fn(async () => rows);
   const where = vi.fn(() => ({ orderBy }));
-  const from = vi.fn(() => ({ where }));
+  const innerJoin = vi.fn(() => ({ where }));
+  const from = vi.fn(() => ({ innerJoin }));
   return { select: vi.fn(() => ({ from })) } as unknown as TenantScopedDb;
 }
 
@@ -42,6 +43,7 @@ function baseGrantRow(overrides: Record<string, unknown> = {}) {
     revokedAt: null,
     revokedReason: null,
     createdAt: new Date("2026-06-24T00:00:00.000Z"),
+    isProtected: false,
     ...overrides,
   };
 }
@@ -76,6 +78,15 @@ describe("listProjectInjectionGrantRows", () => {
       }),
     ]);
     expect(JSON.stringify(rows)).not.toMatch(/token|credential|secret/i);
+  });
+
+  it("does not expose an active protected grant capability id to project readers", async () => {
+    const rows = await listProjectInjectionGrantRows(
+      createGrantDb([baseGrantRow({ isProtected: true })]),
+      { organizationId: ORG, projectId: PROJECT },
+    );
+
+    expect(rows).toEqual([]);
   });
 
   it("derives consumed, revoked, and expired lifecycle statuses", async () => {

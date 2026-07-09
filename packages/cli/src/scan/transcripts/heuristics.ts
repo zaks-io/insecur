@@ -1,9 +1,5 @@
 import { classifyDotenvValueShape, isObviouslyNonSecret } from "../dotenv-parser.js";
-import {
-  fingerprintSecretValue,
-  isComparableCandidateValue,
-  redactValueShape,
-} from "./fingerprint.js";
+import { fingerprintSecretValue, isComparableCandidateValue } from "./fingerprint.js";
 import type { ProjectSecretCandidate } from "./types.js";
 
 export interface HeuristicSecretHit {
@@ -148,14 +144,4 @@ export function findCandidateMatches(
   }
 
   return matches;
-}
-
-export function describeHeuristicHit(hit: HeuristicSecretHit): {
-  readonly valueShape: string;
-  readonly valueFingerprint: string;
-} {
-  return {
-    valueShape: redactValueShape(hit.value),
-    valueFingerprint: fingerprintSecretValue(hit.value),
-  };
 }

@@ -240,8 +240,8 @@ export function recordInjectionRunCompletedRpc(
   post: PostAuthRpcRunner,
   input: RecordInjectionRunCompletedRpcInput,
 ): Promise<RuntimeRpcResult<RecordInjectionRunCompletedRpcPayload>> {
-  return post(input.actorToken, ({ auditActor }) =>
-    recordInjectionRunCompletedOperation({ input, auditActor }),
+  return post(input.actorToken, ({ auditActor, accessActor }) =>
+    recordInjectionRunCompletedOperation({ input, auditActor, accessActor }),
   );
 }
 

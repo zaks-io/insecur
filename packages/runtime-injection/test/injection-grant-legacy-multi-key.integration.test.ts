@@ -25,6 +25,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant legacy multi-key safe
 
     const grantId = injectionGrantId.generate();
     const expiresAt = new Date(Date.now() + 60_000);
+    const actor = testActor();
 
     await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
       await sql`
@@ -36,6 +37,8 @@ describeInjectionGrantIntegration("Runtime Injection Grant legacy multi-key safe
           variable_keys,
           secret_ids,
           secret_version_ids,
+          issued_actor_type,
+          issued_user_id,
           expires_at
         )
         VALUES (
@@ -46,6 +49,8 @@ describeInjectionGrantIntegration("Runtime Injection Grant legacy multi-key safe
           ${[firstKey, secondKey]},
           ${[first.secretId, second.secretId]},
           ${[first.secretVersionId, second.secretVersionId]},
+          ${actor.type},
+          ${actor.userId},
           ${expiresAt.toISOString()}
         )
       `;
@@ -57,7 +62,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant legacy multi-key safe
         organizationId: org,
         grantId,
         variableKey: firstKey,
-        actor: testActor(),
+        actor,
       }),
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
@@ -81,7 +86,7 @@ describeInjectionGrantIntegration("Runtime Injection Grant legacy multi-key safe
         organizationId: org,
         grantId,
         variableKey: secondKey,
-        actor: testActor(),
+        actor,
       }),
     ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
   });

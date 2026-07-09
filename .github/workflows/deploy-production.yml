@@ -4,7 +4,7 @@ name: Deploy Production
 on:
   workflow_run:
     workflows:
-      - CI
+      - Preview Smoke
     branches:
       - main
     types:
@@ -95,6 +95,30 @@ jobs:
 
           echo "ci_run_id=$ci_run_id" >> "$GITHUB_OUTPUT"
           echo "Found $passing_runs completed successful CI workflow run(s) for $DEPLOY_SHA. Using $ci_run_url."
+
+      - name: Require passing preview smoke for deployed commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+
+          runs_json="$(
+            curl --fail-with-body --silent --show-error \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer $GITHUB_TOKEN" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/preview-smoke.yml/runs?head_sha=$DEPLOY_SHA&status=completed&per_page=20"
+          )"
+          passing_runs="$(
+            jq --arg sha "$DEPLOY_SHA" \
+              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | length' \
+              <<<"$runs_json"
+          )"
+          if [ "$passing_runs" -eq 0 ]; then
+            echo "::error::No successful Preview Smoke run was found for exact deploy SHA $DEPLOY_SHA. Deploy that SHA to Preview and run Preview Smoke before production."
+            exit 1
+          fi
 
       - name: Download coverage badge evidence
         env:
