@@ -29,3 +29,13 @@ per source; approval happens only on the authenticated verification page, never 
 embeds the code; and every device-flow approval and denial is audited. High-Assurance Challenges
 remain unsatisfiable through a device-flow session's creation — enrolled-factor verification on
 the Human Approval Surface is unchanged.
+
+The API binds `--agent-session` intent, requester host metadata, and source IP into a signed,
+short-lived device-authorization handle when the flow starts. Token polling must present that handle
+and the same agent intent; poll-time input cannot downgrade an agent-marked authorization into an
+ordinary human credential. Successful approval, denial, and expiry are durably audited before the
+terminal response is returned. WorkOS's device endpoint does not currently accept requester context
+for rendering on its hosted verification page, so the requester context is preserved in Insecur's
+audit evidence but the verification-page display requirement above remains a provider-integration
+gap. API clients, including the CLI, send agent intent and a bounded local host identifier at
+authorization start; clients that only send intent while polling fail closed.

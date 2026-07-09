@@ -52,6 +52,16 @@ async function resolveAdmittedActor(
   return { ok: true, actor };
 }
 
+function resolveAdmittedUserActor(
+  actor: import("./scoped-access-token.js").RuntimeHopActor,
+  input: ResolveUserActorInput,
+): Promise<ResolveUserActorResult> | ResolveUserActorResult {
+  if (actor.type === "machine") {
+    return { ok: false, failure: authFailureForReason("invalid") };
+  }
+  return resolveAdmittedActor(actor, input);
+}
+
 async function resolveUserActorFromScopedBearer(
   bearerCredential: string,
   input: ResolveUserActorInput,
@@ -62,7 +72,7 @@ async function resolveUserActorFromScopedBearer(
     signingSecret: input.config.sessionSigningSecret,
   });
   if (scoped.ok) {
-    return resolveAdmittedActor(scoped.actor, input);
+    return resolveAdmittedUserActor(scoped.actor, input);
   }
   if (scoped.reason === "expired") {
     return { ok: false, failure: authFailureForReason("expired") };
@@ -76,7 +86,7 @@ async function resolveUserActorFromScopedBearer(
     signingSecret: input.config.sessionSigningSecret,
   });
   if (anyAudience.ok) {
-    return resolveAdmittedActor(anyAudience.actor, input);
+    return resolveAdmittedUserActor(anyAudience.actor, input);
   }
   if (anyAudience.reason === "expired") {
     return { ok: false, failure: authFailureForReason("expired") };

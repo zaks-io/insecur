@@ -65,14 +65,19 @@ jobs:
               apps/web/*|\
               packages/cli/*|\
               packages/access/*|\
+              packages/agent-attribution/*|\
               packages/app-connection/*|\
               packages/audit/*|\
               packages/auth/*|\
+              packages/backup-restore/*|\
               packages/instance-bootstrap/*|\
               packages/machine-auth/*|\
+              packages/notifications/*|\
               packages/onboarding/*|\
               packages/operations/*|\
+              packages/protected-change/*|\
               packages/runtime-injection/*|\
+              packages/secret-sync/*|\
               packages/secret-store/*|\
               packages/tenant-store/*|\
               compose.yaml|\

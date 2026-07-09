@@ -6,6 +6,7 @@ import {
   providerCredentialId,
   secretId,
   secretVersionId,
+  userId,
   type SecretId,
   type VariableKey,
 } from "@insecur/domain";
@@ -46,6 +47,7 @@ const ORG = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT = projectId.brand(TEST_PROJECT_A_ID);
 const ENV = environmentId.brand(TEST_ENV_A_ID);
 const VARIABLE_KEY = "ARCH05_UNITTEST" as VariableKey;
+const USER = userId.brand("usr_00000000000000000000000001");
 
 function writeInput(secretIdValue?: SecretId) {
   return {
@@ -553,6 +555,7 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       projectId: PROJECT,
       environmentId: ENV,
       grantId: grantIdValue,
+      issuedTo: { type: "user", userId: USER },
       bindings: [
         {
           secretId: boundSecret,
@@ -563,6 +566,12 @@ describe("TenantInjectionGrantStore (Drizzle)", () => {
       expiresAt: new Date("2030-01-01T00:00:00.000Z"),
     });
     expect(insertValues[0]?.secretVersionIds).toEqual([boundVersion]);
+    expect(insertValues[0]).toMatchObject({
+      issuedActorType: "user",
+      issuedUserId: USER,
+      issuedMachineIdentityId: null,
+      issuedRuntimePolicyKeyId: null,
+    });
   });
 
   it("consumes a grant when the update wins the race", async () => {

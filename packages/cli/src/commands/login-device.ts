@@ -1,4 +1,5 @@
 import type { ApiClient } from "../api/types.js";
+import { hostname } from "node:os";
 import type {
   CliDeviceAuthorizationData,
   CliDeviceTokenPollResult,
@@ -18,6 +19,8 @@ export interface DeviceLoginOptions {
   readonly sleep?: (ms: number) => Promise<void>;
   /** Injectable clock for expiry so tests stay deterministic. */
   readonly now?: () => number;
+  /** Injectable host label for requester context and deterministic tests. */
+  readonly requesterHost?: string;
 }
 
 export interface DeviceLoginInput {
@@ -126,7 +129,12 @@ async function pollUntilTerminal(
 }
 
 export async function runDeviceLogin(input: DeviceLoginInput): Promise<DeviceLoginResult> {
-  const started = await input.api.startCliDeviceAuthorization({ host: input.host });
+  const requesterHost = (input.options.requesterHost ?? hostname()).trim().slice(0, 128);
+  const started = await input.api.startCliDeviceAuthorization({
+    host: input.host,
+    agentSession: input.options.agentSession,
+    requesterHost,
+  });
   if (!started.ok) {
     return started;
   }

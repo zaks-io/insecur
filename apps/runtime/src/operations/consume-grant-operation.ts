@@ -5,18 +5,18 @@ import { createKeyringFromRuntimeEnv } from "../crypto/keyring-context.js";
 import type { RuntimeEnv } from "../env.js";
 import { runtimeDeliveryEnvelope } from "../runtime-delivery-envelope.js";
 
-type ConsumeGrantAuditActor = Parameters<typeof consumeInjectionGrant>[0]["actor"];
+type ConsumeGrantActor = Parameters<typeof consumeInjectionGrant>[0]["actor"];
 
 export interface ConsumeGrantOperationInput {
   readonly env: RuntimeEnv;
   readonly input: ConsumeGrantRpcInput;
-  readonly auditActor: ConsumeGrantAuditActor;
+  readonly actor: ConsumeGrantActor;
 }
 
 export async function consumeGrantOperation({
   env,
   input,
-  auditActor,
+  actor,
 }: ConsumeGrantOperationInput): Promise<RuntimeDeliveryEnvelope> {
   const result = await consumeInjectionGrant({
     keyring: createKeyringFromRuntimeEnv(env),
@@ -24,7 +24,7 @@ export async function consumeGrantOperation({
     grantId: input.grantId,
     ...(input.variableKey !== undefined ? { variableKey: input.variableKey } : {}),
     ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
-    actor: auditActor,
+    actor,
     request: { requestId: input.requestId },
   });
   return runtimeDeliveryEnvelope(

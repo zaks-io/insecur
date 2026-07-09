@@ -72,6 +72,7 @@ const CONN_CF_H = appConnectionId.brand("conn_01JZ8CRS8Y2Z5A8D1G4J7M0P3Q");
 const CONN_CF_I = appConnectionId.brand("conn_01JZ8CTU0A4B7D9F2H5K8M1P3R");
 const CONN_CF_J = appConnectionId.brand("conn_01JZ8CWY3E6H9K2N5Q8T1V4X7A");
 const CRED_CF = providerCredentialId.brand("pcred_01JZ8CHM8S3V6X0Z2C5D8F1G4K");
+const CRED_CF_C = providerCredentialId.brand("pcred_01JZ8CJM0S4W7Y2A5D8G1K4N7Q");
 const CRED_CF_D = providerCredentialId.brand("pcred_01JZ8CKN1T4W7Y1A3D6E9H2J5L");
 const CRED_CF_E = providerCredentialId.brand("pcred_01JZ8CLP3U5X8Z1B4E7H0J3M6N");
 const CRED_CF_F = providerCredentialId.brand("pcred_01JZ8CQR5V8Y1A4D7G0J3M6P9Q");
@@ -334,7 +335,7 @@ describeRls("cloudflare scoped-token app connection", () => {
         projectId: PROJECT_A,
         operationId: OP_CF,
         appConnectionId: CONN_CF_C,
-        credentialId: CRED_CF,
+        credentialId: CRED_CF_C,
         displayName: testDisplayName("Cloudflare to disable"),
         setupUserId: ACTOR.userId,
         boundary: BOUNDARY,

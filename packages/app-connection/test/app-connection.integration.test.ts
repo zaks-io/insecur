@@ -49,7 +49,10 @@ const PROJECT_A = projectId.brand(TEST_PROJECT_A_ID);
 const CONN_A = appConnectionId.brand("conn_01JZ8EFH2R7M4T0V9X3C5D8F1G");
 const CONN_B = appConnectionId.brand("conn_01JZ8EGK5Q2R7V0X3Z6C9D1F4H");
 const CONN_C = appConnectionId.brand("conn_01JZ8EJK9M5S8W1Y4A7E0G3I6H");
+const CONN_D = appConnectionId.brand("conn_01JZ8EJK9M5S8W1Y4A7E0G3I6J");
 const CRED_A = providerCredentialId.brand("pcred_01JZ8EHM8S3V6X0Z2C5D8F1G4K");
+const CRED_B = providerCredentialId.brand("pcred_01JZ8EHM8S3V6X0Z2C5D8F1G4M");
+const CRED_C = providerCredentialId.brand("pcred_01JZ8EHM8S3V6X0Z2C5D8F1G4N");
 const OP_A = operationId.brand("op_01JZ8CFOP2R7M4T0V9X3C5D8F1");
 const SETUP_USER = userId.brand(TEST_USER_ID);
 const ACTOR = { type: "user" as const, userId: SETUP_USER };
@@ -186,6 +189,89 @@ describeRls("app connection tenant isolation and credential encryption", () => {
     );
 
     expect(() => assertAppConnectionSyncEligible({ connection: activated })).not.toThrow();
+  });
+
+  it("deletes superseded and disconnected encrypted provider credentials", async () => {
+    const cloudflarePort: CloudflareScopedTokenPort = {
+      verifyScopedToken: vi.fn(async () => ({
+        tokenStatus: "active" as const,
+        providerAccountId: BOUNDARY.allowedAccountId,
+        workerScriptReachable: true,
+        hasBoundaryWarning: false,
+      })),
+    };
+
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+      const appConnectionStore = new TenantAppConnectionStore(db);
+      const sensitiveMetadataStore = new TenantSensitiveMetadataStore(db);
+      await appConnectionStore.createConnection({
+        organizationId: ORG_A,
+        appConnectionId: CONN_D,
+        provider: "cloudflare",
+        connectionMethod: "scoped-api-token",
+        displayName: testDisplayName("Rotated Cloudflare token"),
+        setupUserId: SETUP_USER,
+        status: "pending_setup",
+      });
+      await storeCloudflareConnectionBoundary({
+        organizationId: ORG_A,
+        projectId: PROJECT_A,
+        appConnectionId: CONN_D,
+        boundary: BOUNDARY,
+        providerAccountId: BOUNDARY.allowedAccountId,
+        keyring,
+        sensitiveMetadataStore,
+      });
+
+      for (const [credentialId, token] of [
+        [CRED_B, "first-provider-token"],
+        [CRED_C, "second-provider-token"],
+      ] as const) {
+        await attachProviderCredential({
+          actor: ACTOR,
+          organizationId: ORG_A,
+          projectId: PROJECT_A,
+          operationId: OP_A,
+          appConnectionId: CONN_D,
+          credentialId,
+          tokenPlaintext: new TextEncoder().encode(token),
+          keyring,
+          cloudflarePort,
+          appConnectionStore,
+          sensitiveMetadataStore,
+        });
+      }
+    });
+
+    const credentials = await withTenantScope(
+      { kind: "organization", organizationId: ORG_A },
+      async ({ db }) => {
+        const store = new TenantProviderCredentialStore(db);
+        return Promise.all([
+          store.getCredential(ORG_A, CRED_B),
+          store.getCredential(ORG_A, CRED_C),
+        ]);
+      },
+    );
+
+    expect(credentials[0]).toBeNull();
+    expect(credentials[1]?.id).toBe(CRED_C);
+
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ db }) => {
+      await new TenantAppConnectionStore(db).updateConnectionStatus({
+        organizationId: ORG_A,
+        appConnectionId: CONN_D,
+        status: "disconnected",
+        statusReasonCode: "connection.disconnected",
+        activeCredentialId: null,
+      });
+    });
+
+    const disconnectedCredential = await withTenantScope(
+      { kind: "organization", organizationId: ORG_A },
+      ({ db }) => new TenantProviderCredentialStore(db).getCredential(ORG_A, CRED_C),
+    );
+    expect(disconnectedCredential).toBeNull();
   });
 
   it("fails closed for disconnected connections during sync eligibility checks", async () => {

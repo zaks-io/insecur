@@ -54,13 +54,20 @@ export async function exchangeCliPkceSession(
   return { ok: true as const, credential, envelope };
 }
 
-export async function startCliDeviceAuthorization(base: string, options?: HttpClientOptions) {
+export async function startCliDeviceAuthorization(
+  base: string,
+  input: Parameters<AuthApiClient["startCliDeviceAuthorization"]>[0],
+  options?: HttpClientOptions,
+) {
   const { response, body } = await postJson(
     new URL("/v1/auth/cli/device/authorize", base),
     {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        agentSession: input.agentSession,
+        requesterHost: input.requesterHost,
+      }),
     },
     options,
   );

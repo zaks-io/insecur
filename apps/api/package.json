@@ -22,6 +22,8 @@
   "dependencies": {
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/access": "workspace:*",
+    "@insecur/machine-auth": "workspace:*",
     "@insecur/observability": "workspace:*",
     "@insecur/protected-change": "workspace:*",
     "@insecur/secret-store-contracts": "workspace:*",
@@ -33,10 +35,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
-    "@insecur/access": "workspace:*",
     "@insecur/agent-attribution": "workspace:*",
     "@insecur/audit": "workspace:*",
-    "@insecur/machine-auth": "workspace:*",
     "@insecur/runtime": "workspace:*",
     "eslint": "catalog:",
     "postgres": "catalog:",

@@ -2,7 +2,7 @@ import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   INSECUR_RUNTIME_TOKEN_AUDIENCE,
   verifyScopedAccessToken,
-  type UserActor,
+  type RuntimeHopActor,
 } from "@insecur/auth";
 
 import { validateRuntimeTokenSigningSecret } from "@insecur/worker-kit";
@@ -16,7 +16,10 @@ import { RuntimeActorTokenError } from "./runtime-rpc-error.js";
  * expired token maps to `auth.expired`; any other failure (bad signature, wrong audience, malformed
  * claims) collapses to `auth.invalid` so the seam leaks nothing about why verification failed.
  */
-export async function actorFromHopToken(env: RuntimeEnv, actorToken: string): Promise<UserActor> {
+export async function actorFromHopToken(
+  env: RuntimeEnv,
+  actorToken: string,
+): Promise<RuntimeHopActor> {
   validateRuntimeTokenSigningSecret(env.RUNTIME_TOKEN_SIGNING_SECRET);
 
   const result = await verifyScopedAccessToken({

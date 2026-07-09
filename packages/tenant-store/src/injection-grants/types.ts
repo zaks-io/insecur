@@ -1,6 +1,7 @@
 import type {
   EnvironmentId,
   InjectionGrantId,
+  MachineIdentityId,
   OrganizationId,
   ProjectId,
   RuntimePolicyId,
@@ -8,7 +9,16 @@ import type {
   SecretId,
   SecretVersionId,
   VariableKey,
+  UserId,
 } from "@insecur/domain";
+
+export type InjectionGrantIssuedTo =
+  | { readonly type: "user"; readonly userId: UserId }
+  | {
+      readonly type: "machine";
+      readonly machineIdentityId: MachineIdentityId;
+      readonly runtimePolicyKeyId?: RuntimePolicyId;
+    };
 
 /** One exact Secret + Secret Version bound at grant issue (metadata only). */
 export interface ResolvedInjectionGrantBinding {
@@ -22,6 +32,7 @@ export interface InsertInjectionGrantInput {
   projectId: ProjectId;
   environmentId: EnvironmentId;
   grantId: InjectionGrantId;
+  issuedTo: InjectionGrantIssuedTo;
   bindings: readonly ResolvedInjectionGrantBinding[];
   expiresAt: Date;
   policyId?: RuntimePolicyId;
@@ -38,6 +49,10 @@ export interface InjectionGrantRow {
   secret_version_ids: string[];
   policy_id: string | null;
   policy_version_id: string | null;
+  issued_actor_type: string;
+  issued_user_id: string | null;
+  issued_machine_identity_id: string | null;
+  issued_runtime_policy_key_id: string | null;
   expires_at: Date;
   consumed_at: Date | null;
   revoked_at: Date | null;

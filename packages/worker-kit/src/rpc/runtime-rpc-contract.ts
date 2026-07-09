@@ -182,6 +182,21 @@ export interface RecordAbuseDeniedRpcPayload {
   readonly recorded: true;
 }
 
+/** PRE-AUTH: durable metadata-only outcome for OAuth device authorization. */
+export interface RecordDeviceAuthorizationAuditRpcInput {
+  readonly instanceId: string;
+  readonly requestId: RequestId;
+  readonly outcome: "approved" | "denied";
+  readonly actorUserId?: UserId | null;
+  readonly reasonCode?: KnownErrorCode;
+  readonly agentSession: boolean;
+  readonly requesterHost?: string;
+  readonly requesterIp?: string;
+}
+export interface RecordDeviceAuthorizationAuditRpcPayload {
+  readonly recorded: true;
+}
+
 /** PRE-AUTH: public instance bootstrap phase (the `/status` route is unauthenticated). */
 export interface GetBootstrapStatusRpcInput {
   readonly instanceId: string;

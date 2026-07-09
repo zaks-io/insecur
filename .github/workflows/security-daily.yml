@@ -1,5 +1,5 @@
-# Daily supply-chain and security scan. Scanners run on schedule; Linear filing is
-# explicitly opt-in and metadata-only. See docs/build-tooling.md#daily-security-scan-security-daily.
+# Daily supply-chain and security scan. High/Critical findings fail their scanner job and are
+# reported to Linear unless explicitly disabled. See docs/build-tooling.md#daily-security-scan-security-daily.
 name: security-daily
 
 on:
@@ -25,11 +25,14 @@ jobs:
           node-version-file: .node-version
 
       - name: Generate SBOM and scan for CVEs
+        id: grype
+        continue-on-error: true
         env:
           GRYPE_JSON_PATH: ${{ runner.temp }}/grype.json
-        run: bash scripts/ci/sbom-grype.sh none
+        run: bash scripts/ci/sbom-grype.sh high
 
-      - name: Summarize critical grype findings
+      - name: Summarize high and critical grype findings
+        if: always()
         run: |
           node scripts/ci/security-daily-linear-reporting.mjs summarize-grype \
             --input "${RUNNER_TEMP}/grype.json" \
@@ -44,6 +47,10 @@ jobs:
           path: security-daily-findings/grype.json
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Fail if grype failed
+        if: steps.grype.outcome == 'failure'
+        run: exit 1
 
   sast-full:
     name: SAST full scan (semgrep)
@@ -145,8 +152,8 @@ jobs:
         if: steps.gitleaks.outcome == 'failure'
         run: exit 1
 
-  report-criticals:
-    name: Report critical findings
+  report-findings:
+    name: Report high and critical findings
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     if: always()
@@ -156,36 +163,36 @@ jobs:
       - secret-scan-history
     steps:
       - name: Linear reporting disabled notice
-        if: vars.LINEAR_SECURITY_REPORTING_ENABLED != 'true'
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'false'
         env:
           LINEAR_SECURITY_REPORTING_ENABLED: ${{ vars.LINEAR_SECURITY_REPORTING_ENABLED }}
         run: |
           set -euo pipefail
-          echo "::notice::Linear security reporting skipped: set LINEAR_SECURITY_REPORTING_ENABLED=true and configure LINEAR_API_KEY before enabling automated issue filing."
+          echo "::warning::Linear security reporting was explicitly disabled; scanner jobs and uploaded metadata remain authoritative."
 
       - name: Checkout
-        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED != 'false'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Setup Node.js
-        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED != 'false'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .node-version
 
       - name: Validate Linear reporting configuration
-        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED != 'false'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
           set -euo pipefail
           if [ -z "${LINEAR_API_KEY:-}" ]; then
-            echo "::error::LINEAR_SECURITY_REPORTING_ENABLED is true but LINEAR_API_KEY is not configured."
+            echo "::error::LINEAR_API_KEY is required unless LINEAR_SECURITY_REPORTING_ENABLED=false explicitly disables issue filing."
             exit 1
           fi
 
       - name: Download scanner finding metadata
-        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED != 'false'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: security-daily-findings-*
@@ -193,11 +200,11 @@ jobs:
           merge-multiple: true
 
       - name: File or update Linear issues
-        if: vars.LINEAR_SECURITY_REPORTING_ENABLED == 'true'
+        if: vars.LINEAR_SECURITY_REPORTING_ENABLED != 'false'
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          LINEAR_SECURITY_REPORTING_ENABLED: ${{ vars.LINEAR_SECURITY_REPORTING_ENABLED }}
+          LINEAR_SECURITY_REPORTING_ENABLED: "true"
           LINEAR_SECURITY_REPORTING_LABELS: zaks-io/insecur,risk-security-sensitive,Bug
           LINEAR_TEAM_KEY: ${{ vars.LINEAR_TEAM_KEY || 'INS' }}
           SECURITY_DAILY_REPORT_DIR: security-daily-findings

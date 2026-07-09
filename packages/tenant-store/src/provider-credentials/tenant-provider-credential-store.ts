@@ -72,4 +72,32 @@ export class TenantProviderCredentialStore {
       ),
     };
   }
+
+  async deleteCredential(
+    organizationId: OrganizationId,
+    credentialId: ProviderCredentialId,
+  ): Promise<void> {
+    await this.db
+      .delete(providerCredentials)
+      .where(
+        and(
+          eq(providerCredentials.orgId, organizationId),
+          eq(providerCredentials.id, credentialId),
+        ),
+      );
+  }
+
+  async deleteCredentialsForConnection(
+    organizationId: OrganizationId,
+    appConnectionId: AppConnectionId,
+  ): Promise<void> {
+    await this.db
+      .delete(providerCredentials)
+      .where(
+        and(
+          eq(providerCredentials.orgId, organizationId),
+          eq(providerCredentials.appConnectionId, appConnectionId),
+        ),
+      );
+  }
 }

@@ -1,10 +1,18 @@
-import { mintEphemeralSessionCredential } from "@insecur/auth";
+import {
+  INSECUR_RUNTIME_TOKEN_AUDIENCE,
+  mintEphemeralSessionCredential,
+  verifyScopedAccessToken,
+} from "@insecur/auth";
+import { CREDENTIAL_SCOPES } from "@insecur/access";
+import { mintMachineAccessToken } from "@insecur/machine-auth";
 import { testSessionSigningSecret } from "@insecur/auth/testing";
 import {
   AUTH_ERROR_CODES,
   VALIDATION_ERROR_CODES,
   injectionGrantId,
+  machineIdentityId,
   organizationId,
+  projectId,
   userId,
   type KnownErrorCode,
 } from "@insecur/domain";
@@ -22,6 +30,8 @@ const admittedUserId = userId.brand(ADMITTED_USER_ID_RAW);
 const workosUserId = WORKOS_USER_ID;
 const orgId = organizationId.brand("org_00000000000000000000000001");
 const grantIdValue = injectionGrantId.brand("igr_00000000000000000000000001");
+const machineId = machineIdentityId.brand("mach_00000000000000000000000001");
+const projectIdValue = projectId.brand("prj_00000000000000000000000001");
 
 const runCompletedPath = `/v1/orgs/${orgId}/runtime-injection/grants/${grantIdValue}/run-completed`;
 
@@ -121,6 +131,46 @@ describe("runtime injection run-completed route", () => {
       data: {
         auditEventId: "aud_00000000000000000000000001",
         alreadyRecorded: false,
+      },
+    });
+  });
+
+  it("accepts a machine token and preserves its principal in the Runtime hop token", async () => {
+    const env = makeEnv();
+    const machine = await mintMachineAccessToken({
+      machineIdentityId: machineId,
+      organizationId: orgId,
+      projectId: projectIdValue,
+      credentialScopes: [CREDENTIAL_SCOPES.runtimeInjectionRun],
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+
+    const response = await app.request(
+      runCompletedPath,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${machine.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ childExitCode: 0 }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const forwarded = runtime.recordInjectionRunCompleted.mock.calls[0]?.[0];
+    const verified = await verifyScopedAccessToken({
+      token: forwarded?.actorToken ?? "",
+      expectedAudience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret: env.RUNTIME_TOKEN_SIGNING_SECRET,
+    });
+    expect(verified).toMatchObject({
+      ok: true,
+      actor: {
+        type: "machine",
+        machineIdentityId: machineId,
+        tokenScope: { organizationId: orgId, projectId: projectIdValue },
       },
     });
   });
