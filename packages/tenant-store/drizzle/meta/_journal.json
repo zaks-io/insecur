@@ -190,6 +190,13 @@
       "when": 1784700000000,
       "tag": "0026_secret_version_created_by_actor",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1783630222601,
+      "tag": "0027_grant_issuer_binding",
+      "breakpoints": true
     }
   ]
 }

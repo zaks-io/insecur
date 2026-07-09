@@ -1,8 +1,10 @@
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
-import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { ActorRef } from "@insecur/access";
 import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
+  INJECTION_ERROR_CODES,
   environmentId,
   projectId,
   type InjectionGrantId,
@@ -15,13 +17,15 @@ import { TenantInjectionGrantStore, withTenantScope } from "@insecur/tenant-stor
 
 import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-injection-access.js";
 import {
-  assertUserActorForConsume,
+  auditActorForConsume,
   reasonCodeForConsumeFailure,
 } from "./consume-injection-grant-shared.js";
 import {
   consumeLoadedGrantWithAudit,
+  type LoadedGrantBinding,
   type ConsumeInjectionGrantGateInput,
 } from "./consume-injection-grant.js";
+import { actorMatchesGrantOwner, issuedToFromGrant } from "./injection-grant-owner.js";
 import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
@@ -45,6 +49,7 @@ export interface ConsumeInjectionGrantAllCoreResult {
 interface LoadedPolicyGrantBindings {
   projectId: ReturnType<typeof projectId.brand>;
   environmentId: ReturnType<typeof environmentId.brand>;
+  issuedTo: LoadedGrantBinding["issuedTo"];
   bindings: readonly {
     secretId: SecretId;
     secretVersionId: SecretVersionId;
@@ -66,9 +71,14 @@ async function loadPolicyGrantBindings(
     if (!bindings || bindings.length === 0) {
       return undefined;
     }
+    const issuedTo = issuedToFromGrant(grant);
+    if (!issuedTo) {
+      return undefined;
+    }
     return {
       projectId: projectId.brand(grant.project_id),
       environmentId: environmentId.brand(grant.environment_id),
+      issuedTo,
       bindings: bindings.map((binding) => ({
         secretId: binding.secretId,
         secretVersionId: binding.secretVersionId,
@@ -90,21 +100,28 @@ async function decryptConsumedBindings(input: {
   }[];
 }): Promise<ConsumedInjectionGrantEntry[]> {
   const entries: ConsumedInjectionGrantEntry[] = [];
-  for (const binding of input.grants) {
-    const plaintext = await decryptBoundGrantSecretVersion({
-      keyring: input.keyring,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      secretId: binding.secretId,
-      secretVersionId: binding.secretVersionId,
-    });
-    entries.push({
-      secretId: binding.secretId,
-      secretVersionId: binding.secretVersionId,
-      variableKey: binding.variableKey,
-      valueUtf8: plaintext,
-    });
+  try {
+    for (const binding of input.grants) {
+      const plaintext = await decryptBoundGrantSecretVersion({
+        keyring: input.keyring,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        secretId: binding.secretId,
+        secretVersionId: binding.secretVersionId,
+      });
+      entries.push({
+        secretId: binding.secretId,
+        secretVersionId: binding.secretVersionId,
+        variableKey: binding.variableKey,
+        valueUtf8: plaintext,
+      });
+    }
+  } catch (error) {
+    for (const entry of entries) {
+      entry.valueUtf8.unwrapUtf8().fill(0);
+    }
+    throw error;
   }
   return entries;
 }
@@ -122,7 +139,7 @@ function requireLoadedPolicyGrant(
 }
 
 async function recordConsumeAllSuccessAudit(input: {
-  readonly actor: AuditActorRef;
+  readonly actor: ActorRef;
   readonly organizationId: OrganizationId;
   readonly grantId: InjectionGrantId;
   readonly loaded: LoadedPolicyGrantBindings;
@@ -132,7 +149,7 @@ async function recordConsumeAllSuccessAudit(input: {
   return recordRuntimeInjectionAudit({
     phase: "consume",
     outcome: "success",
-    actor: input.actor,
+    actor: auditActorForConsume(input.actor),
     organizationId: input.organizationId,
     projectId: input.loaded.projectId,
     environmentId: input.loaded.environmentId,
@@ -145,12 +162,38 @@ async function recordConsumeAllSuccessAudit(input: {
   });
 }
 
+async function consumeGrantAllOrClear(
+  input: ConsumeInjectionGrantAllCoreInput,
+  entries: readonly ConsumedInjectionGrantEntry[],
+): Promise<void> {
+  const result = await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    ({ db }) =>
+      new TenantInjectionGrantStore(db).tryConsumeGrantAll(input.organizationId, input.grantId),
+  );
+  if (result.ok) {
+    return;
+  }
+  for (const entry of entries) {
+    entry.valueUtf8.unwrapUtf8().fill(0);
+  }
+  throw new InjectionGrantError(
+    reasonCodeForConsumeFailure(result.reason),
+    "injection grant consume denied",
+  );
+}
+
 async function executeConsumeInjectionGrantAll(
   input: ConsumeInjectionGrantAllCoreInput,
   loaded: LoadedPolicyGrantBindings | undefined,
 ): Promise<ConsumeInjectionGrantAllCoreResult> {
-  assertUserActorForConsume(input.actor);
   const policyGrant = requireLoadedPolicyGrant(loaded);
+  if (!actorMatchesGrantOwner(input.actor, policyGrant.issuedTo)) {
+    throw new InjectionGrantError(
+      INJECTION_ERROR_CODES.grantDenied,
+      "injection grant consume denied",
+    );
+  }
 
   const grantCoordinate: GrantCoordinate = {
     organizationId: input.organizationId,
@@ -160,25 +203,15 @@ async function executeConsumeInjectionGrantAll(
 
   await assertRuntimeInjectionAccess(input.actor, grantCoordinate, CONSUME_SCOPE);
 
-  const consumeResult = await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    ({ db }) =>
-      new TenantInjectionGrantStore(db).tryConsumeGrantAll(input.organizationId, input.grantId),
-  );
-  if (!consumeResult.ok) {
-    throw new InjectionGrantError(
-      reasonCodeForConsumeFailure(consumeResult.reason),
-      "injection grant consume denied",
-    );
-  }
-
   const entries = await decryptConsumedBindings({
     keyring: input.keyring,
     organizationId: input.organizationId,
     projectId: policyGrant.projectId,
     environmentId: policyGrant.environmentId,
-    grants: consumeResult.grants,
+    grants: policyGrant.bindings,
   });
+
+  await consumeGrantAllOrClear(input, entries);
 
   const audit = await recordConsumeAllSuccessAudit({
     actor: input.actor,

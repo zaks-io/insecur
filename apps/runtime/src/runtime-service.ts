@@ -33,6 +33,8 @@ import type {
   RecordAdmissionDeniedRpcPayload,
   RecordAbuseDeniedRpcInput,
   RecordAbuseDeniedRpcPayload,
+  RecordDeviceAuthorizationAuditRpcInput,
+  RecordDeviceAuthorizationAuditRpcPayload,
   RecordInjectionRunCompletedRpcInput,
   CaptureFirstValueFeedbackRpcInput,
   ResolveAdmissionRpcInput,
@@ -52,6 +54,7 @@ import { consumeGrantAllOperation } from "./operations/consume-grant-all-operati
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
 import { recordAbuseDeniedOperation } from "./operations/record-abuse-denied-operation.js";
+import { recordDeviceAuthorizationAuditOperation } from "./operations/record-device-authorization-audit-operation.js";
 import { writeSecretOperation } from "./operations/write-secret-operation.js";
 import { checkSecretPossessionOperation } from "./operations/check-secret-possession-operation.js";
 import {
@@ -154,16 +157,16 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   // --- Keyring-bound methods (decrypt happens here; real-logic operations) ---
 
   consumeGrant(input: ConsumeGrantRpcInput): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-    return this.#post(input.actorToken, ({ auditActor }) =>
-      consumeGrantOperation({ env: this.env, input, auditActor }),
+    return this.#post(input.actorToken, ({ accessActor }) =>
+      consumeGrantOperation({ env: this.env, input, actor: accessActor }),
     );
   }
 
   consumeGrantAll(
     input: ConsumeGrantAllRpcInput,
   ): Promise<RuntimeRpcResult<RuntimeDeliveryAllEnvelope>> {
-    return this.#post(input.actorToken, ({ auditActor }) =>
-      consumeGrantAllOperation({ env: this.env, input, auditActor }),
+    return this.#post(input.actorToken, ({ accessActor }) =>
+      consumeGrantAllOperation({ env: this.env, input, actor: accessActor }),
     );
   }
 
@@ -209,6 +212,12 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     input: RecordAbuseDeniedRpcInput,
   ): Promise<RuntimeRpcResult<RecordAbuseDeniedRpcPayload>> {
     return this.#pre(() => recordAbuseDeniedOperation(input));
+  }
+
+  recordDeviceAuthorizationAudit(
+    input: RecordDeviceAuthorizationAuditRpcInput,
+  ): Promise<RuntimeRpcResult<RecordDeviceAuthorizationAuditRpcPayload>> {
+    return this.#pre(() => recordDeviceAuthorizationAuditOperation(input));
   }
 
   getBootstrapStatus(

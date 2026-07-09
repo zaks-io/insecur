@@ -15,6 +15,7 @@ export {
 export type {
   InsertInjectionGrantInput,
   InjectionGrantRow,
+  InjectionGrantIssuedTo,
   InjectionGrantRevocationReason,
   ResolvedInjectionGrantBinding,
 } from "./types.js";

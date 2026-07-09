@@ -1,7 +1,7 @@
 import { successEnvelope } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { CliError } from "../output/cli-error.js";
-import { EXIT_ACTION_REQUIRED, EXIT_VALIDATION } from "../output/exit-codes.js";
+import { EXIT_VALIDATION } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 import {
   formatAgentProjectScanHumanReport,
@@ -17,6 +17,8 @@ import {
 import { buildTranscriptScanReport } from "./transcripts/scanner.js";
 import type { ScanReport } from "./types.js";
 import type { TranscriptScanReport } from "./transcripts/types.js";
+
+export { scanStrictExitCode } from "./scan-strict.js";
 
 /** Scan modes supported by the shared runner. */
 export type ScanMode = "project" | "agent-transcripts" | "agent-projects";
@@ -235,20 +237,4 @@ export function renderScanResult(
     { json: flags.json, quiet: flags.quiet },
     () => formatHumanReport(result),
   );
-}
-
-export function scanStrictExitCode(result: ScanRunResult, strict: boolean): number {
-  if (!strict) {
-    return 0;
-  }
-
-  if (result.mode === "project") {
-    return result.report.summary.likelySecrets > 0 ? EXIT_ACTION_REQUIRED : 0;
-  }
-
-  if (result.mode === "agent-projects") {
-    return result.report.summary.likelySecrets > 0 ? EXIT_ACTION_REQUIRED : 0;
-  }
-
-  return result.report.summary.exposureCount > 0 ? EXIT_ACTION_REQUIRED : 0;
 }

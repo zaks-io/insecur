@@ -56,7 +56,7 @@ export function createHttpApiClientForHost(
   return {
     createCliAuthorizationUrl: (input) => createCliAuthorizationUrl(base, input),
     exchangeCliPkceSession: (input) => exchangeCliPkceSession(base, input, options),
-    startCliDeviceAuthorization: () => startCliDeviceAuthorization(base, options),
+    startCliDeviceAuthorization: (input) => startCliDeviceAuthorization(base, input, options),
     pollCliDeviceToken: (input) => pollCliDeviceToken(base, input, options),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input, options),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input, options),

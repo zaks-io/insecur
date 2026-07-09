@@ -12,6 +12,7 @@ import {
   injectionGrantId,
   organizationId,
   projectId,
+  runtimePolicyId,
   secretId,
   secretVersionId,
   userId,
@@ -33,7 +34,9 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const GRANT = injectionGrantId.brand("igr_00000000000000000000000001");
 const ACTOR_USER = userId.brand("usr_00000000000000000000000001");
+const OTHER_USER = userId.brand("usr_00000000000000000000000002");
 const MACHINE = machineIdentityId.brand("mach_00000000000000000000000001");
+const POLICY = runtimePolicyId.brand("rp_00000000000000000000000001");
 const SECRET = secretId.brand("sec_00000000000000000000000001");
 const SECRET_VERSION = secretVersionId.brand("sv_00000000000000000000000001");
 const VARIABLE_KEY = "TEST_KEY" as VariableKey;
@@ -41,6 +44,7 @@ const VARIABLE_KEY = "TEST_KEY" as VariableKey;
 const loadedBinding = {
   projectId: PROJECT,
   environmentId: ENV,
+  issuedTo: { type: "user" as const, userId: ACTOR_USER },
   binding: {
     secretId: SECRET,
     secretVersionId: SECRET_VERSION,
@@ -57,7 +61,7 @@ const baseInput = {
   deliveryPath: FIRST_VALUE_LOCAL_RUNTIME_INJECTION_PATH,
 };
 
-const plaintextHandle = new PlaintextHandle(new TextEncoder().encode("runtime-secret"));
+let plaintextHandle = new PlaintextHandle(new TextEncoder().encode("runtime-secret"));
 
 const { tryConsumeGrant, getGrant, getBoundGrant, withTenantScope } = vi.hoisted(() => ({
   tryConsumeGrant: vi.fn(),
@@ -115,6 +119,10 @@ function grantRow(overrides: Record<string, unknown> = {}) {
     secret_version_ids: [SECRET_VERSION],
     policy_id: null,
     policy_version_id: null,
+    issued_actor_type: "user",
+    issued_user_id: ACTOR_USER,
+    issued_machine_identity_id: null,
+    issued_runtime_policy_key_id: null,
     expires_at: new Date(Date.now() + 60_000),
     consumed_at: null,
     ...overrides,
@@ -133,6 +141,7 @@ function boundGrantFromRow() {
 }
 
 beforeEach(() => {
+  plaintextHandle = new PlaintextHandle(new TextEncoder().encode("runtime-secret"));
   vi.mocked(resolveEffectiveAccess).mockReset();
   vi.mocked(recordRuntimeInjectionAudit).mockClear();
   vi.mocked(auditAccessDenialOnFailure).mockClear();
@@ -162,38 +171,68 @@ describe("executeConsumeInjectionGrant", () => {
     expect(tryConsumeGrant).not.toHaveBeenCalled();
   });
 
-  it("returns insufficient_scope for machine actors before access resolution", async () => {
+  it("allows the issuing machine credential context to consume its grant", async () => {
+    const machineActor = {
+      type: "machine" as const,
+      machineIdentityId: MACHINE,
+      tokenScope: {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+      },
+      credentialScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume],
+    };
     await expect(
       executeConsumeInjectionGrant(
+        { ...baseInput, actor: machineActor },
         {
-          ...baseInput,
-          actor: { type: "machine", machineIdentityId: MACHINE },
+          ...loadedBinding,
+          issuedTo: {
+            type: "machine",
+            machineIdentityId: MACHINE,
+            runtimePolicyKeyId: POLICY,
+          },
         },
-        loadedBinding,
       ),
-    ).rejects.toMatchObject({
-      code: AUTH_ERROR_CODES.insufficientScope,
-    });
+    ).resolves.toMatchObject({ variableKey: VARIABLE_KEY });
 
-    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
-    expect(tryConsumeGrant).not.toHaveBeenCalled();
+    expect(resolveEffectiveAccess).toHaveBeenCalledWith(
+      machineActor,
+      expect.any(Object),
+      undefined,
+    );
+    expect(tryConsumeGrant).toHaveBeenCalledOnce();
   });
 
-  it("returns insufficient_scope for ci_exchange actors before access resolution", async () => {
+  it("denies a policy-bound machine credential from consuming another policy context", async () => {
+    const machineActor = {
+      type: "machine" as const,
+      machineIdentityId: MACHINE,
+      tokenScope: {
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        runtimePolicyKeyId: runtimePolicyId.brand("rp_00000000000000000000000002"),
+      },
+      credentialScopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume],
+    };
+
     await expect(
       executeConsumeInjectionGrant(
+        { ...baseInput, actor: machineActor },
         {
-          ...baseInput,
-          actor: { type: "ci_exchange" },
+          ...loadedBinding,
+          issuedTo: {
+            type: "machine",
+            machineIdentityId: MACHINE,
+            runtimePolicyKeyId: POLICY,
+          },
         },
-        loadedBinding,
       ),
-    ).rejects.toMatchObject({
-      code: AUTH_ERROR_CODES.insufficientScope,
-    });
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
 
-    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
     expect(tryConsumeGrant).not.toHaveBeenCalled();
+    expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();
   });
 
   it("denies when effective access lacks runtime_injection:grant_consume", async () => {
@@ -209,6 +248,18 @@ describe("executeConsumeInjectionGrant", () => {
       undefined,
     );
     expect(tryConsumeGrant).not.toHaveBeenCalled();
+  });
+
+  it("denies a different authorized principal before consuming the grant", async () => {
+    await expect(
+      executeConsumeInjectionGrant(
+        { ...baseInput, actor: { type: "user", userId: OTHER_USER } },
+        loadedBinding,
+      ),
+    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+    expect(tryConsumeGrant).not.toHaveBeenCalled();
+    expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();
   });
 
   it("denies when the variable key selector does not match the grant binding", async () => {
@@ -252,7 +303,8 @@ describe("executeConsumeInjectionGrant", () => {
       message: "injection grant consume denied",
     });
 
-    expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();
+    expect(decryptBoundGrantSecretVersion).toHaveBeenCalledOnce();
+    expect(plaintextHandle.unwrapUtf8()).toEqual(new Uint8Array("runtime-secret".length));
   });
 
   it.each(["already_consumed", "not_found", "binding_not_allowed"] as const)(
@@ -265,7 +317,7 @@ describe("executeConsumeInjectionGrant", () => {
         message: "injection grant consume denied",
       });
 
-      expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();
+      expect(decryptBoundGrantSecretVersion).toHaveBeenCalledOnce();
     },
   );
 
@@ -590,6 +642,8 @@ describe("consumeInjectionGrantWithAudit", () => {
     vi.mocked(decryptBoundGrantSecretVersion).mockRejectedValue(new Error("decrypt failed"));
 
     await expect(consumeInjectionGrantWithAudit(baseInput)).rejects.toThrow("decrypt failed");
+
+    expect(tryConsumeGrant).not.toHaveBeenCalled();
 
     expect(recordRuntimeInjectionAudit).not.toHaveBeenCalledWith(
       expect.objectContaining({ outcome: "denied" }),

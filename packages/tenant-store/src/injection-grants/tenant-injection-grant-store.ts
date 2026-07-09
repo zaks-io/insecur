@@ -61,6 +61,12 @@ export class TenantInjectionGrantStore {
       variableKeys,
       secretIds,
       secretVersionIds,
+      issuedActorType: input.issuedTo.type,
+      issuedUserId: input.issuedTo.type === "user" ? input.issuedTo.userId : null,
+      issuedMachineIdentityId:
+        input.issuedTo.type === "machine" ? input.issuedTo.machineIdentityId : null,
+      issuedRuntimePolicyKeyId:
+        input.issuedTo.type === "machine" ? (input.issuedTo.runtimePolicyKeyId ?? null) : null,
       ...(input.policyId === undefined ? {} : { policyId: input.policyId }),
       ...(input.policyVersionId === undefined ? {} : { policyVersionId: input.policyVersionId }),
       expiresAt: input.expiresAt,

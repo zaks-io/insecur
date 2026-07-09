@@ -99,6 +99,8 @@ export {
 export {
   type MintScopedAccessTokenInput,
   type MintScopedAccessTokenResult,
+  type RuntimeHopActor,
+  type RuntimeHopMachineActor,
   mintScopedAccessToken,
   type VerifyScopedAccessTokenInput,
   type VerifyScopedAccessTokenResult,
@@ -114,6 +116,8 @@ export {
   exchangeCliDeviceSession,
   startCliDeviceAuthorization,
   type CliDeviceAuthorizationStart,
+  type CliDeviceAuthorizationAuditContext,
+  type CliDeviceAuthorizationIntent,
   type CliDeviceSessionExchangeInput,
   type CliDeviceSessionExchangeResult,
   type CliDeviceSessionExchangeSuccess,

@@ -127,7 +127,11 @@ describe("createHttpApiClientForHost", () => {
       ),
     );
     const client = createHttpApiClientForHost("https://insecur.test");
-    const result = await client.startCliDeviceAuthorization({ host: "https://insecur.test" });
+    const result = await client.startCliDeviceAuthorization({
+      host: "https://insecur.test",
+      agentSession: true,
+      requesterHost: "remote-agent-host",
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.envelope.data.userCode).toBe("WDJB-MJHT");
@@ -136,6 +140,11 @@ describe("createHttpApiClientForHost", () => {
       new URL("/v1/auth/cli/device/authorize", "https://insecur.test"),
       expect.objectContaining({ method: "POST" }),
     );
+    const sentBody = (fetchMock.mock.calls[0]?.[1] as RequestInit).body as string;
+    expect(JSON.parse(sentBody)).toEqual({
+      agentSession: true,
+      requesterHost: "remote-agent-host",
+    });
   });
 
   it("reads the pending device-token status without a credential", async () => {

@@ -23,6 +23,7 @@ import * as tenantMachineAuthMethodsSchema from "../src/db/schema/tenant-machine
 import * as tenantAgentSessionsSchema from "../src/db/schema/tenant-agent-sessions.js";
 import * as tenantHierarchySchema from "../src/db/schema/tenant-hierarchy.js";
 import * as tenantIntegrationsSchema from "../src/db/schema/tenant-integrations.js";
+import * as tenantFeedbackSchema from "../src/db/schema/tenant-feedback.js";
 import * as tenantSecretsSchema from "../src/db/schema/tenant-secrets.js";
 import * as tenantSecretSyncsSchema from "../src/db/schema/tenant-secret-syncs.js";
 import * as tenantProtectedChangesSchema from "../src/db/schema/tenant-protected-changes.js";
@@ -39,6 +40,7 @@ const USER_SCHEMA_MODULES = {
   "./tenant-machine-auth-methods.js": tenantMachineAuthMethodsSchema,
   "./tenant-agent-sessions.js": tenantAgentSessionsSchema,
   "./tenant-integrations.js": tenantIntegrationsSchema,
+  "./tenant-feedback.js": tenantFeedbackSchema,
   "./tenant-secrets.js": tenantSecretsSchema,
   "./tenant-secret-syncs.js": tenantSecretSyncsSchema,
   "./tenant-protected-changes.js": tenantProtectedChangesSchema,

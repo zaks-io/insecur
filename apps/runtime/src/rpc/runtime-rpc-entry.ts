@@ -1,15 +1,17 @@
-import type { ActorRef } from "@insecur/access";
-import type { UserActor } from "@insecur/auth";
+import { isAuthorizationScope, type ActorRef } from "@insecur/access";
+import type { RuntimeHopActor, UserActor } from "@insecur/auth";
+import { AUTH_ERROR_CODES } from "@insecur/domain";
 import { toAccessActor, toAuditActor } from "@insecur/worker-kit";
 import type { RuntimeRpcResult } from "@insecur/worker-kit";
 
 import type { RuntimeEnv } from "../env.js";
 import { actorFromHopToken } from "./actor-from-token.js";
-import { toRuntimeRpcError } from "./runtime-rpc-error.js";
+import { RuntimeActorTokenError, toRuntimeRpcError } from "./runtime-rpc-error.js";
 import { captureRuntimeRpcError } from "./runtime-rpc-sentry.js";
 
 /** Verified hop-token actor plus the audit/access views every RPC method needs. */
 export interface RuntimeRpcActorContext {
+  /** Lazily rejects machine callers when a user-only RPC delegate reads this property. */
   readonly actor: UserActor;
   readonly auditActor: ReturnType<typeof toAuditActor>;
   readonly accessActor: ActorRef;
@@ -18,6 +20,29 @@ export interface RuntimeRpcActorContext {
 export interface RuntimeRpcEntryOptions {
   readonly env: RuntimeEnv;
   readonly actorToken: string;
+}
+
+function accessActorFromHopActor(actor: RuntimeHopActor): ActorRef {
+  if (actor.type !== "machine") {
+    return toAccessActor(actor);
+  }
+  return {
+    ...actor,
+    credentialScopes: actor.credentialScopes.filter(isAuthorizationScope),
+  };
+}
+
+function auditActorFromHopActor(actor: RuntimeHopActor) {
+  return actor.type === "machine"
+    ? { type: "machine" as const, machineIdentityId: actor.machineIdentityId }
+    : toAuditActor(actor);
+}
+
+function userActorForContext(actor: RuntimeHopActor): UserActor {
+  if (actor.type === "machine") {
+    throw new RuntimeActorTokenError(AUTH_ERROR_CODES.invalid, "user actor required");
+  }
+  return actor;
 }
 
 /**
@@ -37,9 +62,11 @@ export async function withRuntimeRpcEntry<T>(
   try {
     const actor = await actorFromHopToken(options.env, options.actorToken);
     const actors: RuntimeRpcActorContext = {
-      actor,
-      auditActor: toAuditActor(actor),
-      accessActor: toAccessActor(actor),
+      get actor() {
+        return userActorForContext(actor);
+      },
+      auditActor: auditActorFromHopActor(actor),
+      accessActor: accessActorFromHopActor(actor),
     };
     const value = await handler(actors);
     return { ok: true, value };

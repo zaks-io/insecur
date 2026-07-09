@@ -147,7 +147,18 @@ export class TenantAppConnectionStore {
       patch.activeCredentialId = input.activeCredentialId;
     }
 
-    return this.updateConnectionById(input.organizationId, input.appConnectionId, patch);
+    const updated = await this.updateConnectionById(
+      input.organizationId,
+      input.appConnectionId,
+      patch,
+    );
+    if (input.status === "disconnected" && input.activeCredentialId === null) {
+      await new TenantProviderCredentialStore(this.db).deleteCredentialsForConnection(
+        input.organizationId,
+        input.appConnectionId,
+      );
+    }
+    return updated;
   }
 
   async updateConnectionValidation(
@@ -189,6 +200,10 @@ export class TenantAppConnectionStore {
     input: AttachActiveProviderCredentialInput,
   ): Promise<AppConnectionRow> {
     const credentialStore = new TenantProviderCredentialStore(this.db);
+    const existing = await this.getConnectionById(input.organizationId, input.appConnectionId);
+    if (!existing) {
+      throw new AppConnectionStoreError("connection.not_found");
+    }
     await credentialStore.upsertCredential({
       organizationId: input.organizationId,
       appConnectionId: input.appConnectionId,
@@ -197,12 +212,19 @@ export class TenantAppConnectionStore {
       wrapped: input.wrapped,
     });
 
-    return this.updateConnectionStatus({
+    const updated = await this.updateConnectionStatus({
       organizationId: input.organizationId,
       appConnectionId: input.appConnectionId,
       status: "active",
       statusReasonCode: null,
       activeCredentialId: input.credentialId,
     });
+    if (
+      existing.activeCredentialId !== null &&
+      existing.activeCredentialId !== input.credentialId
+    ) {
+      await credentialStore.deleteCredential(input.organizationId, existing.activeCredentialId);
+    }
+    return updated;
   }
 }
