@@ -16,7 +16,6 @@ import {
   assertPostDeniedInsufficientScope,
   assertResponseFreeOfRedactedPatterns,
   authHeaders,
-  expect,
   getJson,
   mintSmokeSentinel,
   postJson,
@@ -149,16 +148,18 @@ test.describe("preview high-assurance challenge review lifecycle @preview @happy
         redactor,
         url: listUrl,
       });
-      // A no-scope actor has no organization membership, so per ADR-0062 oracle-safe masking the
-      // evidence-get route returns 404 operation.not_found (never 403) to avoid an existence leak.
-      const response = await fetch(detailUrl, { headers: authHeaders(noScopeBearer) });
-      const text = await response.text();
-      expect(response.status, "High-assurance evidence get (no-scope actor) status").toBe(404);
-      assertResponseFreeOfRedactedPatterns(
+      // A no-scope actor has zero organization membership, so the human-review membership gate
+      // (assertHumanReviewActor) throws insufficientScope -> 403 before any resource lookup or scope
+      // masking. ADR-0062 oracle-safe 404-masking is a distinct, narrower case: it applies to an
+      // actor who HAS membership but LACKS approval scope at the challenge's project/environment
+      // coordinate. That coordinate-masking path is not reachable from this out-of-org actor and is
+      // covered by unit/integration tests in packages/high-assurance and apps/api.
+      await assertGetDeniedInsufficientScope({
+        bearer: noScopeBearer,
+        label: "High-assurance evidence get (no-scope actor)",
         redactor,
-        text,
-        "High-assurance evidence get (no-scope actor)",
-      );
+        url: detailUrl,
+      });
     });
 
     await test.step("high_assurance.no_scope_actor_denied_on_deny", async () => {
@@ -225,7 +226,8 @@ test.describe("preview high-assurance challenge review lifecycle @preview @happy
         "exercisable from preview-smoke: minting a machine access token requires " +
         "MACHINE_ACCESS_SIGNING_SECRET, which is not wired into preview-smoke's CI environment. " +
         "The no-scope *human* actor path above exercises the reachable half of this acceptance " +
-        "criterion (insufficient_scope / oracle-safe 404). The machine-actor 401 path is covered " +
+        "criterion (insufficient_scope 403 on list, evidence-get, and deny). The machine-actor " +
+        "401 path is covered " +
         "by apps/api/src/routes/v1/high-assurance-challenges-routes.test.ts.",
       type: "high_assurance.non_human_actor_not_exercised",
     });
