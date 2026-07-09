@@ -82,6 +82,111 @@ describe("createHttpApiClientForHost", () => {
     }
   });
 
+  it("starts device authorization and returns the metadata envelope", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            deviceCode: "device_code_abc",
+            userCode: "WDJB-MJHT",
+            verificationUri: "https://workos.test/device",
+            expiresInSeconds: 300,
+            intervalSeconds: 5,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.startCliDeviceAuthorization({ host: "https://insecur.test" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.envelope.data.userCode).toBe("WDJB-MJHT");
+    }
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/v1/auth/cli/device/authorize", "https://insecur.test"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("reads the pending device-token status without a credential", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, data: { status: "authorization_pending" } }), {
+        status: 200,
+      }),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.pollCliDeviceToken({
+      host: "https://insecur.test",
+      deviceCode: "device_code_abc",
+      agentSession: false,
+    });
+    expect(result).toMatchObject({ ok: true, status: "authorization_pending" });
+  });
+
+  it("reads the credential header on device-token approval and forwards agentSession", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            sessionId: "sess_device",
+            expiresAt: "2026-01-01T00:00:00.000Z",
+            agentSessionId: "ags_01JZ8E2QYQ6M7F4K9A2B3C4D5E",
+          },
+        }),
+        {
+          status: 200,
+          headers: { [INSECUR_SESSION_CREDENTIAL_HEADER]: "credential_device" },
+        },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.pollCliDeviceToken({
+      host: "https://insecur.test",
+      deviceCode: "device_code_abc",
+      agentSession: true,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok && result.status === "authenticated") {
+      expect(result.credential).toBe("credential_device");
+      expect(result.envelope.data.agentSessionId).toBe("ags_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
+    }
+    const sentBody = (fetchMock.mock.calls[0]?.[1] as RequestInit).body as string;
+    expect(JSON.parse(sentBody)).toMatchObject({
+      deviceCode: "device_code_abc",
+      agentSession: true,
+    });
+  });
+
+  it("returns the device-token error envelope on denial", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: false,
+          error: {
+            code: "auth.device_authorization_denied",
+            message: "Denied.",
+            retryable: false,
+          },
+        }),
+        { status: 403 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://insecur.test");
+    const result = await client.pollCliDeviceToken({
+      host: "https://insecur.test",
+      deviceCode: "device_code_abc",
+      agentSession: false,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.envelope.error.code).toBe("auth.device_authorization_denied");
+      expect(result.httpStatus).toBe(403);
+    }
+  });
+
   it("posts nested resourceIds for personal-organization provisioning", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(

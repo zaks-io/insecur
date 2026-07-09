@@ -62,9 +62,39 @@ export type WorkOSAuthorizationCodeResult =
       readonly reason: "expired" | "invalid" | "missing" | "mfa_enrollment" | "mfa_challenge";
     };
 
+/** Device-authorization request result (OAuth 2.0 Device Authorization Grant, RFC 8628). */
+export interface WorkOSDeviceAuthorizationResult {
+  readonly deviceCode: string;
+  readonly userCode: string;
+  readonly verificationUri: string;
+  readonly verificationUriComplete?: string;
+  readonly expiresInSeconds: number;
+  readonly intervalSeconds: number;
+}
+
+/**
+ * Result of polling the device-code token endpoint. `authorization_pending` and `slow_down` are
+ * non-terminal polling states; the terminal outcomes are success, `denied`, `expired`, or `invalid`.
+ */
+export type WorkOSDeviceTokenResult =
+  | {
+      // The WorkOS device-code grant returns access_token/refresh_token/user but no sealed session
+      // (unlike authenticateWithCode); the broker mints its own credential from the access-token
+      // claims, so no sealed session is carried here.
+      readonly status: "authenticated";
+      readonly context: WorkOSSessionContext;
+    }
+  | { readonly status: "authorization_pending" }
+  | { readonly status: "slow_down" }
+  | { readonly status: "denied" }
+  | { readonly status: "expired" }
+  | { readonly status: "invalid"; readonly reason: "mfa_enrollment" | "mfa_challenge" | "invalid" };
+
 /** Port for WorkOS user-session operations (test doubles avoid network). */
 export interface WorkOSSessionPort {
   createAuthorizationUrl(input: WorkOSAuthorizationUrlInput): string;
+  startDeviceAuthorization(): Promise<WorkOSDeviceAuthorizationResult>;
+  authenticateDeviceCode(deviceCode: string): Promise<WorkOSDeviceTokenResult>;
   authenticateAuthorizationCode(
     input: WorkOSAuthorizationCodeInput,
   ): Promise<WorkOSAuthorizationCodeResult>;

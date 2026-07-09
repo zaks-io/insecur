@@ -111,6 +111,14 @@ export {
   type CliSessionExchangeSuccess,
 } from "./cli-exchange.js";
 export {
+  exchangeCliDeviceSession,
+  startCliDeviceAuthorization,
+  type CliDeviceAuthorizationStart,
+  type CliDeviceSessionExchangeInput,
+  type CliDeviceSessionExchangeResult,
+  type CliDeviceSessionExchangeSuccess,
+} from "./device-exchange.js";
+export {
   type ResolveUserActorInput,
   type ResolveUserActorResult,
   resolveUserActor,
@@ -120,6 +128,8 @@ export type { InsecurAuthConfig, WorkOSAuthConfig } from "./workos-config.js";
 export { createWorkOSSessionPort } from "./workos-session.js";
 export type {
   WorkOSAuthenticatedUser,
+  WorkOSDeviceAuthorizationResult,
+  WorkOSDeviceTokenResult,
   WorkOSSessionAuthenticateResult,
   WorkOSSessionContext,
   WorkOSSessionPort,

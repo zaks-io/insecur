@@ -55,6 +55,18 @@ function authExchangeChecks(
   return [allowLimiter(bindings.AUTH_EXCHANGE_IP, `ip:${ipAddress}`)];
 }
 
+// Device-code polling issues many /token calls within one login (RFC 8628), so it gets its own
+// poll-aware per-IP bucket instead of sharing the one-shot PKCE exchange limiter.
+function authDeviceTokenChecks(
+  bindings: PublicEdgeRateLimitBindings,
+  ipAddress?: string,
+): Promise<boolean>[] {
+  if (ipAddress === undefined) {
+    return [];
+  }
+  return [allowLimiter(bindings.AUTH_DEVICE_TOKEN_IP, `ip:${ipAddress}`)];
+}
+
 function checksForTarget(
   bindings: PublicEdgeRateLimitBindings,
   target: PublicEdgeAbuseTarget,
@@ -68,6 +80,8 @@ function checksForTarget(
       return bootstrapChecks(bindings, ipAddress, actorUserId);
     case "auth_cli_pkce_exchange":
       return authExchangeChecks(bindings, ipAddress);
+    case "auth_cli_device_token":
+      return authDeviceTokenChecks(bindings, ipAddress);
   }
 }
 
