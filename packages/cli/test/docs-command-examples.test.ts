@@ -29,7 +29,8 @@ function walkMarkdownFiles(dir: string): string[] {
 
 function extractInsecurInvocations(markdown: string): string[] {
   const invocations: string[] = [];
-  for (const [, block] of markdown.matchAll(/```sh\n([\s\S]*?)```/g)) {
+  // Match every shell-ish fence language so a page using ```bash is not silently exempt.
+  for (const [, , block] of markdown.matchAll(/```(sh|bash|shell|zsh)\n([\s\S]*?)```/g)) {
     for (const line of block.split("\n")) {
       const trimmed = line.trim();
       if (trimmed.startsWith("insecur ")) {

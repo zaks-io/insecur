@@ -9,8 +9,10 @@ import { getDocPage, type DocPage as DocPageModel } from "../docs/manifest.js";
  */
 export const Route = createFileRoute("/docs/$")({
   loader: ({ params }): { page: DocPageModel } => {
+    // "index" resolves too: llms.txt lists /docs/index.md, and the blanket rule "drop the .md
+    // suffix for HTML" must hold for every listed URL. Canonical home stays /docs.
     const page = getDocPage(params._splat ?? "");
-    if (!page || page.slug === "index") {
+    if (!page) {
       throw notFound();
     }
     return { page };

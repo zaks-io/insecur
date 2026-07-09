@@ -7,7 +7,7 @@
 // source directly, same JIT-source convention as the rest of the workspace). `--check` fails when
 // any committed output is stale, wired into `pnpm verify:policy` like routes:inventory.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -287,6 +287,23 @@ function errorCatalogJson(registryRows) {
 const outputs = await buildOutputs();
 const check = process.argv.includes("--check");
 const stale = [];
+
+// Orphan sweep: a renamed/removed CLI command must not leave its old generated page behind, where
+// the manifest would keep serving and listing it. Everything under content/cli belongs to this
+// generator, so any file there outside the current output set is stale.
+const cliDir = join(contentDir, "cli");
+for (const entry of readdirSync(cliDir, { withFileTypes: true })) {
+  const filePath = join(cliDir, entry.name);
+  if (!entry.isFile() || !entry.name.endsWith(".md") || outputs.has(filePath)) {
+    continue;
+  }
+  if (check) {
+    stale.push(`${relative(repoRoot, filePath)} (orphaned; no longer generated)`);
+    continue;
+  }
+  rmSync(filePath);
+  process.stdout.write(`Removed ${relative(repoRoot, filePath)} (orphaned)\n`);
+}
 
 for (const [filePath, generated] of outputs) {
   const relPath = relative(repoRoot, filePath);
