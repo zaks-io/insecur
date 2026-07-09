@@ -1,17 +1,4 @@
 import type { CloudflareOptions } from "@sentry/cloudflare";
-import {
-  prepareSentryEvent,
-  prepareSentrySpan,
-  prepareSentryTransaction,
-  type SentryEventLike,
-  type SentrySpanLike,
-  type SentryTransactionLike,
-} from "./sentry-sanitization.js";
-
-export {
-  requestWithoutSentryBaggage,
-  sentryFetchWithBaggageGuard,
-} from "./sentry-request-handler.js";
 
 export interface SentryBindings {
   readonly SENTRY_DSN?: string;
@@ -41,51 +28,44 @@ export interface BrowserSentryOptions<TIntegration> {
   readonly environment?: string;
   readonly release?: string;
   readonly tracesSampleRate: number;
-  readonly dataCollection: MetadataOnlySentryDataCollection;
+  readonly dataCollection?: NonProductionDataCollection;
   readonly enableLogs: boolean;
   readonly integrations: TIntegration[];
-  readonly beforeSend: <TEvent extends SentryEventLike>(event: TEvent) => TEvent;
-  readonly beforeSendSpan: <TSpan extends SentrySpanLike>(span: TSpan) => TSpan;
-  readonly beforeSendTransaction: <TEvent extends SentryTransactionLike>(event: TEvent) => TEvent;
-}
-
-interface MetadataOnlySentryDataCollection {
-  readonly cookies: false;
-  readonly frameContextLines: 0;
-  readonly genAI: {
-    readonly inputs: false;
-    readonly outputs: false;
-  };
-  readonly httpBodies: [];
-  readonly httpHeaders: {
-    readonly request: false;
-    readonly response: false;
-  };
-  readonly queryParams: false;
-  readonly stackFrameVariables: false;
-  readonly userInfo: false;
+  readonly initialScope?: { readonly tags: Record<string, string> };
 }
 
 export const DEFAULT_SENTRY_TRACES_SAMPLE_RATE = 1;
 
-const METADATA_ONLY_DATA_COLLECTION: MetadataOnlySentryDataCollection = {
-  cookies: false,
-  frameContextLines: 0,
-  genAI: { inputs: false, outputs: false },
-  httpBodies: [],
-  httpHeaders: { request: false, response: false },
-  queryParams: false,
-  stackFrameVariables: false,
-  userInfo: false,
-};
-
 let browserSentryInitialized = false;
+
+export interface NonProductionDataCollection {
+  readonly userInfo: true;
+  readonly httpBodies: never[];
+}
+
+// Prelaunch telemetry posture: full-fidelity events (PII, payloads, breadcrumbs) outside
+// production so we can see what the SDK actually captures; production keeps the SDK's
+// conservative PII-deny defaults by omitting `dataCollection`. Re-tightening is tracked in
+// INS-553. A missing environment fails closed to the production posture.
+//
+// `httpBodies: []` is NOT environment-scoped: secret writes carry plaintext Sensitive Values in
+// HTTP request bodies by design (CLI/API → Runtime), and the SDK's key/token filtering covers
+// headers/cookies/query params but not bodies. Capturing bodies anywhere would store plaintext
+// secrets in Sentry, which the Security Baseline forbids in every environment.
+export function sentryDataCollection(
+  environment: string | undefined,
+): NonProductionDataCollection | undefined {
+  return environment === undefined || environment === "production"
+    ? undefined
+    : { userInfo: true, httpBodies: [] };
+}
 
 export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions {
   const dsn = optional(env.SENTRY_DSN);
   const environment = optional(env.SENTRY_ENVIRONMENT);
   const release = optional(env.SENTRY_RELEASE);
   const service = optional(env.SENTRY_SERVICE);
+  const dataCollection = sentryDataCollection(environment);
 
   return {
     enabled: Boolean(dsn),
@@ -93,18 +73,14 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
     ...(environment ? { environment } : {}),
     ...(release ? { release } : {}),
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
-    dataCollection: METADATA_ONLY_DATA_COLLECTION,
+    ...(dataCollection ? { dataCollection } : {}),
     enableLogs: env.SENTRY_ENABLE_LOGS === "true",
     enableRpcTracePropagation: true,
-    beforeSend(event) {
-      return prepareSentryEvent(event, service);
-    },
-    beforeSendSpan(span) {
-      return prepareSentrySpan(span);
-    },
-    beforeSendTransaction(event) {
-      return prepareSentryTransaction(event, service);
-    },
+    // Continue inbound traces only when the caller's baggage carries our Sentry org id (extracted
+    // from the DSN); arbitrary third-party sentry-trace/baggage on the public edge starts a new
+    // trace instead of joining ours.
+    strictTraceContinuation: true,
+    ...(service ? { initialScope: { tags: { service } } } : {}),
   };
 }
 
@@ -168,24 +144,17 @@ function browserSentryOptions<TRouter, TIntegration>(
   router: TRouter,
   routerTracingIntegration: (router: TRouter) => TIntegration,
 ): BrowserSentryOptions<TIntegration> {
+  const dataCollection = sentryDataCollection(config.environment);
   return {
     dsn: config.dsn,
     enabled: true,
     ...(config.environment ? { environment: config.environment } : {}),
     ...(config.release ? { release: config.release } : {}),
     tracesSampleRate: config.tracesSampleRate,
-    dataCollection: METADATA_ONLY_DATA_COLLECTION,
+    ...(dataCollection ? { dataCollection } : {}),
     enableLogs: config.enableLogs === true,
     integrations: [routerTracingIntegration(router)],
-    beforeSend(event) {
-      return prepareSentryEvent(event, config.service);
-    },
-    beforeSendSpan(span) {
-      return prepareSentrySpan(span);
-    },
-    beforeSendTransaction(event) {
-      return prepareSentryTransaction(event, config.service);
-    },
+    ...(config.service ? { initialScope: { tags: { service: config.service } } } : {}),
   };
 }
 

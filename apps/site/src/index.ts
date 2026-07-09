@@ -1,8 +1,4 @@
-import {
-  cloudflareSentryOptions,
-  sentryBrowserConfig,
-  sentryFetchWithBaggageGuard,
-} from "@insecur/observability";
+import { cloudflareSentryOptions, sentryBrowserConfig } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import serverEntry from "@tanstack/react-start/server-entry";
@@ -40,8 +36,4 @@ const handler = {
   },
 } satisfies ExportedHandler<SiteEnv>;
 
-const sentryHandler = Sentry.withSentry<SiteEnv>(cloudflareSentryOptions, handler);
-
-export default {
-  fetch: sentryFetchWithBaggageGuard(sentryHandler, handler.fetch.bind(handler)),
-} satisfies ExportedHandler<SiteEnv>;
+export default Sentry.withSentry<SiteEnv>(cloudflareSentryOptions, handler);
