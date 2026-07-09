@@ -30,6 +30,11 @@ export interface RuntimeConnection {
   tenantDb?: unknown;
 }
 
+/** Optional runtime-only decoration for a request-scoped SQL client. */
+export interface RuntimeConnectionOptions {
+  readonly instrumentSql?: (sql: PostgresSql) => PostgresSql;
+}
+
 const connectionStore = new AsyncLocalStorage<RuntimeConnection>();
 
 /**
@@ -49,11 +54,19 @@ const connectionStore = new AsyncLocalStorage<RuntimeConnection>();
 export async function runWithRuntimeConnection<T>(
   connStr: string,
   fn: () => Promise<T>,
+  options: RuntimeConnectionOptions = {},
 ): Promise<{ result: T; closing: Promise<void> }> {
   if (!connStr) {
     throw new RuntimeConfigMissingError();
   }
-  const sql = postgres(connStr, { prepare: false, max: 5 });
+  const rawSql = postgres(connStr, { prepare: false, max: 5 });
+  let sql: PostgresSql;
+  try {
+    sql = options.instrumentSql?.(rawSql) ?? rawSql;
+  } catch (error) {
+    void endQuietly(rawSql);
+    throw error;
+  }
   try {
     const result = await connectionStore.run({ sql }, fn);
     return { result, closing: endQuietly(sql) };

@@ -53,7 +53,23 @@ interface SentryExceptionLike {
   value?: string;
 }
 
+interface SentryTransactionEventLike extends SentryEventLike {
+  spans?: SentrySpanLike[];
+}
+
+interface SentrySpanLike {
+  data: Record<string, unknown>;
+  description?: string;
+  op?: string;
+}
+
 const REDACTED_SENTRY_MESSAGE = "[redacted by insecur]";
+const POSTGRES_QUERY_SPAN_ATTRIBUTES = [
+  "db.query.text",
+  "db.system.name",
+  "db.operation.name",
+  "db.response.status_code",
+] as const;
 
 let browserSentryInitialized = false;
 
@@ -78,6 +94,9 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
     enableRpcTracePropagation: true,
     beforeSend(event) {
       return prepareSentryEvent(event, service);
+    },
+    beforeSendTransaction(event) {
+      return prepareSentryTransaction(event, service);
     },
   };
 }
@@ -178,6 +197,42 @@ function prepareSentryEvent<TEvent extends SentryEventLike>(
   for (const value of event.exception?.values ?? []) {
     value.value = REDACTED_SENTRY_MESSAGE;
   }
+  return prepareSentryMetadata(event, service);
+}
+
+/** Keep only sanitized Postgres query data on sampled transaction spans. */
+function prepareSentryTransaction<TEvent extends SentryTransactionEventLike>(
+  event: TEvent,
+  service: string | undefined,
+): TEvent {
+  for (const span of event.spans ?? []) {
+    const query = span.op === "db" ? span.data["db.query.text"] : undefined;
+    if (typeof query === "string") {
+      span.description = query;
+      span.data = selectedPostgresQuerySpanAttributes(span.data);
+    } else {
+      delete span.description;
+      span.data = {};
+    }
+  }
+  return prepareSentryMetadata(event, service);
+}
+
+function selectedPostgresQuerySpanAttributes(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    POSTGRES_QUERY_SPAN_ATTRIBUTES.flatMap((key) => {
+      const value = data[key];
+      return value === undefined ? [] : [[key, value]];
+    }),
+  );
+}
+
+function prepareSentryMetadata<TEvent extends SentryEventLike>(
+  event: TEvent,
+  service: string | undefined,
+): TEvent {
   delete event.request;
   event.breadcrumbs = [];
   event.extra = {};

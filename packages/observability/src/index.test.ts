@@ -18,6 +18,17 @@ interface TestSentryEvent {
 
 type TestBeforeSend = (event: TestSentryEvent) => TestSentryEvent;
 
+interface TestTransactionEvent extends TestSentryEvent {
+  transaction?: string;
+  spans?: {
+    data: Record<string, unknown>;
+    description?: string;
+    op?: string;
+  }[];
+}
+
+type TestBeforeSendTransaction = (event: TestTransactionEvent) => TestTransactionEvent;
+
 describe("observability sentry config", () => {
   it("disables Sentry when no dsn is configured", () => {
     const options = cloudflareSentryOptions({});
@@ -115,5 +126,56 @@ describe("observability sentry config", () => {
     expect(sentryBrowserConfigScript({ dsn: "https://example.test/<project>" })).toContain(
       "\\u003cproject>",
     );
+  });
+
+  it("keeps only parameterized Postgres query data in transactions", () => {
+    const options = cloudflareSentryOptions({ SENTRY_SERVICE: "insecur-runtime" });
+    const beforeSendTransaction =
+      options.beforeSendTransaction as unknown as TestBeforeSendTransaction;
+
+    expect(
+      beforeSendTransaction({
+        transaction: "RuntimeService.writeSecret",
+        request: { headers: { authorization: "Bearer token" } },
+        breadcrumbs: [{ message: "raw request detail" }],
+        extra: { raw: "payload" },
+        tags: { tenant: "secret-bearing-tag" },
+        spans: [
+          {
+            op: "db",
+            description: "SELECT * FROM secrets WHERE id = 'raw'",
+            data: {
+              "db.query.text": "SELECT * FROM secrets WHERE id = $1",
+              "db.system.name": "postgres",
+              "db.operation.name": "SELECT",
+              "db.namespace": "insecur",
+              "server.address": "internal-db.example",
+            },
+          },
+          {
+            op: "http.client",
+            description: "https://example.test/raw-token",
+            data: { "url.full": "https://example.test/raw-token" },
+          },
+        ],
+      }),
+    ).toEqual({
+      transaction: "RuntimeService.writeSecret",
+      breadcrumbs: [],
+      extra: {},
+      tags: { service: "insecur-runtime" },
+      spans: [
+        {
+          op: "db",
+          description: "SELECT * FROM secrets WHERE id = $1",
+          data: {
+            "db.query.text": "SELECT * FROM secrets WHERE id = $1",
+            "db.system.name": "postgres",
+            "db.operation.name": "SELECT",
+          },
+        },
+        { op: "http.client", data: {} },
+      ],
+    });
   });
 });
