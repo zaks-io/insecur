@@ -6,6 +6,11 @@ import {
   parseApprovalPasskeyEnrolledMetadata,
 } from "./mfa-posture.js";
 import type { WorkOSAuthConfig } from "./workos-config.js";
+import {
+  authenticateDeviceCodeWithWorkOS,
+  startDeviceAuthorizationWithWorkOS,
+  type WorkOSDeviceDeps,
+} from "./workos-device.js";
 import type {
   WorkOSAuthorizationCodeInput,
   WorkOSAuthorizationCodeResult,
@@ -225,10 +230,21 @@ async function refreshSealedSessionWithWorkOS(
   };
 }
 
+function deviceDeps(workos: WorkOS): WorkOSDeviceDeps {
+  return {
+    sessionIdFromAccessToken,
+    listAuthFactors: (userId) => listAuthFactorsForUser(workos, userId),
+    buildContext: contextFromAuthenticate,
+  };
+}
+
 export function createWorkOSSessionPort(config: WorkOSAuthConfig): WorkOSSessionPort {
   const workos = new WorkOS(config.apiKey, { clientId: config.clientId });
   return {
     createAuthorizationUrl: (input) => createAuthorizationUrlWithWorkOS(workos, config, input),
+    startDeviceAuthorization: () => startDeviceAuthorizationWithWorkOS(config),
+    authenticateDeviceCode: (deviceCode) =>
+      authenticateDeviceCodeWithWorkOS(config, deviceDeps(workos), deviceCode),
     authenticateAuthorizationCode: (input) =>
       authenticateAuthorizationCodeWithWorkOS(workos, config, input),
     authenticateSealedSession: (sessionData) =>

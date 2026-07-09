@@ -1,4 +1,9 @@
-import { exchangeCliPkceSession, INSECUR_SESSION_CREDENTIAL_HEADER } from "@insecur/auth";
+import {
+  exchangeCliDeviceSession,
+  exchangeCliPkceSession,
+  INSECUR_SESSION_CREDENTIAL_HEADER,
+  startCliDeviceAuthorization,
+} from "@insecur/auth";
 import { errorEnvelope, requestId, successEnvelope, VALIDATION_ERROR_CODES } from "@insecur/domain";
 import {
   AuthFailureError,
@@ -6,9 +11,11 @@ import {
   createAuthContext,
   domainErrorEnvelope,
   enforcePublicEdgeAbuseControl,
+  httpStatusForKnownErrorCode,
   recordAdmissionDeniedAuditForAuthFailure,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ApiApp, ApiEnv } from "../../env.js";
 
 const authRoutes = new Hono<{ Bindings: ApiEnv }>();
@@ -153,6 +160,103 @@ authRoutes.post("/cli/pkce/exchange", async (context) => {
   if (!exchanged.ok) {
     await recordAdmissionDeniedAuditForAuthFailure(context.env, exchanged.failure, reqId);
     throw new AuthFailureError(exchanged.failure, reqId);
+  }
+  return context.json(successEnvelope(exchanged.body, { requestId: reqId }), 200, {
+    [INSECUR_SESSION_CREDENTIAL_HEADER]: exchanged.credential,
+  });
+});
+
+type ParsedDeviceTokenBody =
+  | { readonly ok: true; readonly deviceCode: string; readonly agentSession: boolean }
+  | { readonly ok: false; readonly response: Response };
+
+async function parseDeviceTokenBody(context: AuthRouteContext): Promise<ParsedDeviceTokenBody> {
+  const body: unknown = await context.req.json().catch(() => null);
+  if (body === null || typeof body !== "object") {
+    return {
+      ok: false,
+      response: validationError(context, "Expected JSON device token exchange body."),
+    };
+  }
+  const record = body as Record<string, unknown>;
+  const deviceCode = typeof record.deviceCode === "string" ? record.deviceCode : "";
+  if (deviceCode.trim() === "") {
+    return { ok: false, response: validationError(context, "Missing device code.") };
+  }
+  return { ok: true, deviceCode, agentSession: record.agentSession === true };
+}
+
+// Starts an OAuth device-authorization flow for headless/remote shells (ADR-0010). WorkOS is called
+// at the edge; no keyring or DB binding is added. The cross-device consent-phishing warning is shown
+// by the CLI before the human approves (ADR-0010 required treatment).
+authRoutes.post("/cli/device/authorize", async (context) => {
+  const reqId = requestId.generate();
+  const rateLimited = await enforceAuthExchangeRateLimit(context, reqId);
+  if (rateLimited !== null) {
+    return rateLimited;
+  }
+  const { workos } = createAuthContext(context.env);
+  const started = await startCliDeviceAuthorization(workos);
+  return context.json(successEnvelope(started, { requestId: reqId }), 200);
+});
+
+type DeviceExchangeResult = Awaited<ReturnType<typeof exchangeCliDeviceSession>>;
+type DeviceExchangeFailure = Extract<DeviceExchangeResult, { ok: false }>;
+
+async function respondDeviceTokenFailure(
+  context: AuthRouteContext,
+  exchanged: DeviceExchangeFailure,
+  reqId: ReturnType<typeof requestId.generate>,
+): Promise<Response> {
+  // Terminal device outcomes (denied 403, expired 401) carry their own registry status; other auth
+  // failures (admission denial, MFA, invalid) route through AuthFailureError as usual.
+  if (
+    exchanged.failure.reason === "device_authorization_denied" ||
+    exchanged.failure.reason === "device_authorization_expired"
+  ) {
+    const status = httpStatusForKnownErrorCode(exchanged.failure.code);
+    return context.json(
+      errorEnvelope(
+        {
+          code: exchanged.failure.code,
+          message: exchanged.failure.message,
+          retryable: exchanged.failure.retryable,
+        },
+        { meta: { requestId: reqId } },
+      ),
+      status as ContentfulStatusCode,
+    );
+  }
+  await recordAdmissionDeniedAuditForAuthFailure(context.env, exchanged.failure, reqId);
+  throw new AuthFailureError(exchanged.failure, reqId);
+}
+
+// One WorkOS device-code poll per call. The CLI owns the polling loop and honors the pending /
+// slow_down states. Admitted-user resolution forwards over the RUNTIME seam (ADR-0077).
+authRoutes.post("/cli/device/token", async (context) => {
+  const reqId = requestId.generate();
+  const rateLimited = await enforceAuthExchangeRateLimit(context, reqId);
+  if (rateLimited !== null) {
+    return rateLimited;
+  }
+  const { config, workos, resolveAdmittedUser } = createAuthContext(context.env);
+  const parsed = await parseDeviceTokenBody(context);
+  if (!parsed.ok) {
+    return parsed.response;
+  }
+  const exchanged = await exchangeCliDeviceSession({
+    deviceCode: parsed.deviceCode,
+    agentSession: parsed.agentSession,
+    config,
+    workos,
+    resolveAdmittedUser,
+    requestId: reqId,
+  });
+  if (!exchanged.ok) {
+    return respondDeviceTokenFailure(context, exchanged, reqId);
+  }
+  if (exchanged.status !== "authenticated") {
+    return context.json(successEnvelope({ status: exchanged.status }, { requestId: reqId }), 200);
   }
   return context.json(successEnvelope(exchanged.body, { requestId: reqId }), 200, {
     [INSECUR_SESSION_CREDENTIAL_HEADER]: exchanged.credential,

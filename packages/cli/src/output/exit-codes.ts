@@ -51,6 +51,8 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [AUTH_ERROR_CODES.deployKeyDisabled]: EXIT_FORBIDDEN,
   [AUTH_ERROR_CODES.deployKeyWrongEnvironment]: EXIT_FORBIDDEN,
   [AUTH_ERROR_CODES.deployKeyOverbroadScope]: EXIT_FORBIDDEN,
+  [AUTH_ERROR_CODES.deviceAuthorizationExpired]: EXIT_AUTH_REQUIRED,
+  [AUTH_ERROR_CODES.deviceAuthorizationDenied]: EXIT_FORBIDDEN,
   [ONBOARDING_ERROR_CODES.alreadyProvisioned]: EXIT_CONFLICT,
   [ONBOARDING_ERROR_CODES.resourceConflict]: EXIT_CONFLICT,
   [BOOTSTRAP_ERROR_CODES.alreadyBootstrapped]: EXIT_CONFLICT,

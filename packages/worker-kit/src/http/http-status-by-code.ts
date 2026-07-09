@@ -42,6 +42,8 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [AUTH_ERROR_CODES.deployKeyDisabled, 403],
   [AUTH_ERROR_CODES.deployKeyWrongEnvironment, 403],
   [AUTH_ERROR_CODES.deployKeyOverbroadScope, 403],
+  [AUTH_ERROR_CODES.deviceAuthorizationExpired, 401],
+  [AUTH_ERROR_CODES.deviceAuthorizationDenied, 403],
   [VALIDATION_ERROR_CODES.invalidOpaqueResourceId, 400],
   [VALIDATION_ERROR_CODES.invalidCommandInput, 400],
   [VALIDATION_ERROR_CODES.invalidVariableKey, 400],

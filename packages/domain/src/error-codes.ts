@@ -39,6 +39,8 @@ export const AUTH_ERROR_CODES = {
   deployKeyDisabled: "auth.deploy_key_disabled",
   deployKeyWrongEnvironment: "auth.deploy_key_wrong_environment",
   deployKeyOverbroadScope: "auth.deploy_key_overbroad_scope",
+  deviceAuthorizationExpired: "auth.device_authorization_expired",
+  deviceAuthorizationDenied: "auth.device_authorization_denied",
 } as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
