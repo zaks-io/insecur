@@ -8,7 +8,7 @@ export default mergeConfig(
     plugins: [markdownTextPlugin()],
     test: {
       setupFiles: ["test/setup.ts"],
-      include: ["test/**/*.test.ts"],
+      include: ["test/*.test.ts"],
     },
   }),
 );
