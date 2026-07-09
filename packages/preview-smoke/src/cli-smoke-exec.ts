@@ -26,14 +26,14 @@ export async function execCliSmokeCommand(
     input.apiBaseUrl,
     "--config-dir",
     input.configDir,
-    "--json",
+    ...(input.json === false ? [] : ["--json"]),
     ...input.args,
   ];
 
   try {
     const child = execFileAsync(process.execPath, [cliEntry, ...args], {
       cwd: input.cwd ?? input.configDir,
-      env: buildCliChildEnv(input.configHomeDir, input.bearer),
+      env: buildCliChildEnv(input.configHomeDir, input.bearer, input.extraEnv),
       maxBuffer: 10 * 1024 * 1024,
     });
     if (input.stdinInput !== undefined) {
