@@ -91,8 +91,6 @@ function main() {
     secretFiles.cleanup();
   }
 
-  console.log(`Preview deploy id: ${env.INSECUR_DEPLOY_SHA}`);
-  console.log(`Preview run id: ${env.INSECUR_DEPLOY_RUN_ID}`);
   console.log(
     `Preview URLs: ${DEFAULT_PREVIEW_URLS.api}, ${DEFAULT_PREVIEW_URLS.web}, ${DEFAULT_PREVIEW_URLS.site}`,
   );
