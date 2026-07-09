@@ -62,7 +62,8 @@ function createSelectMocks(nextSelectRows: () => unknown[]) {
       return nextSelectRows();
     });
   });
-  return { select: vi.fn(() => ({ from: vi.fn(() => ({ where })) })) };
+  const fromResult = { where, innerJoin: vi.fn(() => ({ where })) };
+  return { select: vi.fn(() => ({ from: vi.fn(() => fromResult) })) };
 }
 
 function createInsertMocks(insertValues: Record<string, unknown>[]) {

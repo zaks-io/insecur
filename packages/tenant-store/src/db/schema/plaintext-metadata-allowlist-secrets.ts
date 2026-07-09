@@ -5,6 +5,10 @@ export const PLAINTEXT_METADATA_ALLOWLIST_SECRETS = {
   secret_versions: {
     ciphertext_storage_ref: { category: "ciphertext-ref" },
     created_at: { category: "timestamp" },
+    created_by_actor_type: { category: "type-code" },
+    created_by_machine_identity_id: { category: "opaque-id" },
+    created_by_user_id: { category: "opaque-id" },
+    discarded_at: { category: "timestamp" },
     encoding_class: { category: "type-code" },
     has_leading_or_trailing_whitespace: { category: "flag" },
     id: { category: "opaque-id" },

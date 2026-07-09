@@ -19,6 +19,7 @@ import {
   draftVersionRow,
   type PromotionDraftVersionTarget,
 } from "./approval-request-rows.js";
+import { closePendingApprovalRequestsForDiscardedDraftVersion } from "./close-pending-approval-requests-for-discarded-draft.js";
 import {
   mapApprovalRequestDetailRow,
   type ApprovalRequestDetailRow,
@@ -231,6 +232,14 @@ export class TenantApprovalRequestStore {
       .returning({ id: approvalRequests.id });
 
     return updated.length > 0;
+  }
+
+  /** @see closePendingApprovalRequestsForDiscardedDraftVersion (ADR-0017 Draft Version Discard). */
+  async closePendingApprovalRequestsForDiscardedDraftVersion(input: {
+    readonly organizationId: OrganizationId;
+    readonly secretVersionId: SecretVersionId;
+  }): Promise<readonly ApprovalRequestId[]> {
+    return closePendingApprovalRequestsForDiscardedDraftVersion(this.db, input);
   }
 
   async getDraftVersionsForRequest(input: {
