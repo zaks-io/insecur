@@ -19,6 +19,7 @@ import {
 
 const DEPLOY_ENV = {
   INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID: "auth-exchange-ip-ns",
+  INSECUR_API_RATELIMIT_AUTH_DEVICE_TOKEN_IP_NAMESPACE_ID: "auth-device-token-ip-ns",
   INSECUR_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID: "bootstrap-actor-ns",
   INSECUR_API_RATELIMIT_BOOTSTRAP_IP_NAMESPACE_ID: "bootstrap-ip-ns",
   INSECUR_API_RATELIMIT_ONBOARDING_ACTOR_NAMESPACE_ID: "onboarding-actor-ns",
@@ -428,6 +429,7 @@ function apiRatelimits() {
     { name: "BOOTSTRAP_IP", namespace_id: "BOOTSTRAP_IP_PLACEHOLDER" },
     { name: "BOOTSTRAP_ACTOR", namespace_id: "BOOTSTRAP_ACTOR_PLACEHOLDER" },
     { name: "AUTH_EXCHANGE_IP", namespace_id: "AUTH_EXCHANGE_IP_PLACEHOLDER" },
+    { name: "AUTH_DEVICE_TOKEN_IP", namespace_id: "AUTH_DEVICE_TOKEN_IP_PLACEHOLDER" },
   ];
 }
 

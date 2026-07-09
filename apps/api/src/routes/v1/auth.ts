@@ -13,6 +13,7 @@ import {
   enforcePublicEdgeAbuseControl,
   httpStatusForKnownErrorCode,
   recordAdmissionDeniedAuditForAuthFailure,
+  type PublicEdgeAbuseTarget,
 } from "@insecur/worker-kit";
 import { Hono, type Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -116,10 +117,11 @@ authRoutes.get("/cli/authorize", (context) => {
 async function enforceAuthExchangeRateLimit(
   context: AuthRouteContext,
   reqId: ReturnType<typeof requestId.generate>,
+  target: PublicEdgeAbuseTarget = "auth_cli_pkce_exchange",
 ): Promise<Response | null> {
   try {
     await enforcePublicEdgeAbuseControl(context.env, (name: string) => context.req.header(name), {
-      target: "auth_cli_pkce_exchange",
+      target,
       requestId: reqId,
     });
     return null;
@@ -191,7 +193,7 @@ async function parseDeviceTokenBody(context: AuthRouteContext): Promise<ParsedDe
 // by the CLI before the human approves (ADR-0010 required treatment).
 authRoutes.post("/cli/device/authorize", async (context) => {
   const reqId = requestId.generate();
-  const rateLimited = await enforceAuthExchangeRateLimit(context, reqId);
+  const rateLimited = await enforceAuthExchangeRateLimit(context, reqId, "auth_cli_device_token");
   if (rateLimited !== null) {
     return rateLimited;
   }
@@ -235,7 +237,7 @@ async function respondDeviceTokenFailure(
 // slow_down states. Admitted-user resolution forwards over the RUNTIME seam (ADR-0077).
 authRoutes.post("/cli/device/token", async (context) => {
   const reqId = requestId.generate();
-  const rateLimited = await enforceAuthExchangeRateLimit(context, reqId);
+  const rateLimited = await enforceAuthExchangeRateLimit(context, reqId, "auth_cli_device_token");
   if (rateLimited !== null) {
     return rateLimited;
   }

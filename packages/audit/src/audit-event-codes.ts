@@ -90,6 +90,7 @@ export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEvent
   FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.accessDenied,
   FIRST_VALUE_AUDIT_EVENT_CODES.authCliPkceExchangeDenied,
+  FIRST_VALUE_AUDIT_EVENT_CODES.authCliDeviceTokenDenied,
 ]);
 
 export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventCode>([

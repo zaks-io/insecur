@@ -31,12 +31,25 @@ function readStringField(record: Record<string, unknown>, key: string): string |
   return typeof value === "string" && value !== "" ? value : undefined;
 }
 
+/**
+ * Headers the WorkOS SDK sends on every User Management request. The SDK's base HTTP client sets
+ * `Authorization: Bearer <apiKey>` on all calls; our raw device fetches must match it or WorkOS
+ * rejects the request with `invalid_client` (the PKCE path gets this for free via the SDK).
+ */
+function workosRequestHeaders(config: WorkOSAuthConfig): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    Authorization: `Bearer ${config.apiKey}`,
+  };
+}
+
 export async function startDeviceAuthorizationWithWorkOS(
   config: WorkOSAuthConfig,
 ): Promise<WorkOSDeviceAuthorizationResult> {
   const response = await fetch(`${WORKOS_API_BASE}/user_management/authorize/device`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: workosRequestHeaders(config),
     body: JSON.stringify({ client_id: config.clientId }),
   });
   const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
@@ -92,7 +105,7 @@ export async function authenticateDeviceCodeWithWorkOS(
 ): Promise<WorkOSDeviceTokenResult> {
   const response = await fetch(`${WORKOS_API_BASE}/user_management/authenticate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: workosRequestHeaders(config),
     body: JSON.stringify({
       client_id: config.clientId,
       grant_type: DEVICE_CODE_GRANT_TYPE,
@@ -103,10 +116,12 @@ export async function authenticateDeviceCodeWithWorkOS(
   if (!response.ok || body === null) {
     return mapDeviceTokenError(body === null ? undefined : readStringField(body, "error"));
   }
+  // The WorkOS device-code grant returns access_token/refresh_token/user, NOT a sealed session
+  // (unlike authenticateWithCode). The broker mints its own ephemeral CLI credential from the
+  // access-token claims, so sealed_session is deliberately not required here.
   const accessToken = readStringField(body, "access_token");
-  const sealedSession = readStringField(body, "sealed_session");
   const user = deviceTokenUser(body);
-  if (accessToken === undefined || sealedSession === undefined || user === null) {
+  if (accessToken === undefined || user === null) {
     return { status: "invalid", reason: "invalid" };
   }
   const sessionId = deps.sessionIdFromAccessToken(accessToken);
@@ -116,7 +131,6 @@ export async function authenticateDeviceCodeWithWorkOS(
   const authFactors = await deps.listAuthFactors(user.id);
   return {
     status: "authenticated",
-    sealedSession,
     context: deps.buildContext(
       user,
       sessionId,

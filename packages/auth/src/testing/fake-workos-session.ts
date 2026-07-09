@@ -197,9 +197,9 @@ function terminalDeviceTokenResult(entry: FakeWorkOSSessionEntry): WorkOSDeviceT
     case "invalid":
       return { status: "invalid", reason: "invalid" };
     case "authenticated":
+      // The real WorkOS device-code grant returns no sealed session; the fake mirrors that shape.
       return {
         status: "authenticated",
-        sealedSession: entry.sessionData,
         context: contextFromEntry(entry),
       };
   }

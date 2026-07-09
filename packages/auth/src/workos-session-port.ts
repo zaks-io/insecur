@@ -78,9 +78,11 @@ export interface WorkOSDeviceAuthorizationResult {
  */
 export type WorkOSDeviceTokenResult =
   | {
+      // The WorkOS device-code grant returns access_token/refresh_token/user but no sealed session
+      // (unlike authenticateWithCode); the broker mints its own credential from the access-token
+      // claims, so no sealed session is carried here.
       readonly status: "authenticated";
       readonly context: WorkOSSessionContext;
-      readonly sealedSession: string;
     }
   | { readonly status: "authorization_pending" }
   | { readonly status: "slow_down" }

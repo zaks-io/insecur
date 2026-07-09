@@ -6,6 +6,7 @@ import {
   type AuthFailure,
 } from "./auth-failure.js";
 import { mintEphemeralSessionCredential } from "./ephemeral-session.js";
+import { authFailureForAssuranceReason } from "./resolve-workos-session.js";
 import { evaluateSessionAssurance } from "./session-assurance.js";
 import type { InsecurAuthConfig } from "./workos-config.js";
 import type {
@@ -73,16 +74,9 @@ function assuranceFailure(context: WorkOSSessionContext): AuthFailure | null {
       ? { authenticationMethod: context.authenticationMethod }
       : {}),
   });
-  if (assurance.ok) {
-    return null;
-  }
-  if (assurance.reason === "mfa_enrollment") {
-    return authFailureForReason("mfa_enrollment");
-  }
-  if (assurance.reason === "insufficient_assurance") {
-    return authFailureForReason("insufficient_assurance");
-  }
-  return authFailureForReason("invalid");
+  // Reuse the exhaustive session-assurance → AuthFailure mapping so a future assurance reason is
+  // not silently misclassified (shared with the loopback/sealed-session paths).
+  return assurance.ok ? null : authFailureForAssuranceReason(assurance.reason);
 }
 
 type NonAuthenticatedToken = Exclude<WorkOSDeviceTokenResult, { status: "authenticated" }>;
