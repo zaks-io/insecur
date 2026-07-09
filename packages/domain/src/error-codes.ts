@@ -295,6 +295,7 @@ export const APPROVAL_ERROR_CODES = {
   wildcardSelectionRejected: "approval.wildcard_selection_rejected",
   promotionChangeSetImmutable: "approval.promotion_change_set_immutable",
   rollbackTargetNotEligible: "approval.rollback_target_not_eligible",
+  draftVersionNotDiscardable: "approval.draft_version_not_discardable",
 } as const;
 
 export type ApprovalErrorCode = (typeof APPROVAL_ERROR_CODES)[keyof typeof APPROVAL_ERROR_CODES];

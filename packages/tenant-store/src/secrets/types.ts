@@ -1,14 +1,25 @@
 import type {
   EnvironmentId,
+  MachineIdentityId,
   OrganizationId,
   ProjectId,
   SecretId,
   SecretVersionId,
+  UserId,
   VariableKey,
 } from "@insecur/domain";
 import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 
 import type { SecretVersionLifecycleState } from "./lifecycle-states.js";
+
+/**
+ * Creating actor stamped on a Secret Version at write time (ADR-0017 §27). Only a User or Machine
+ * Identity can author a Blind Secret Write; this is the authorization source of truth for who may
+ * later discard the Draft Version.
+ */
+export type SecretVersionCreatorActor =
+  | { readonly type: "user"; readonly userId: UserId }
+  | { readonly type: "machine"; readonly machineIdentityId: MachineIdentityId };
 
 /** Wrapped material accepted by the Secret Version Store (plaintext-free). */
 export interface StoredWrappedSecretMaterial {
@@ -43,6 +54,7 @@ interface AppendSecretVersionInput {
   wrapped: StoredWrappedSecretMaterial;
   createdSecretShape: boolean;
   descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
+  createdByActor: SecretVersionCreatorActor;
 }
 
 export interface AppendSecretVersionResult {

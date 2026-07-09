@@ -40,6 +40,7 @@ import {
   TEST_SECRET_A_ID,
 } from "./rls/test-ids.js";
 import { createMockTenantDb } from "./helpers/mock-tenant-db.js";
+import { TEST_CREATOR_ACTOR } from "./helpers/test-creator-actor.js";
 
 const ORG = organizationId.brand(TEST_ORG_A_ID);
 const PROJECT = projectId.brand(TEST_PROJECT_A_ID);
@@ -330,6 +331,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
       secretVersionId: versionIdValue,
       createdSecretShape: false,
       descriptiveVerdicts: testDescriptiveVerdicts(),
+      createdByActor: TEST_CREATOR_ACTOR,
       wrapped: {
         organizationDataKeyVersion: 1,
         projectDataKeyVersion: 1,
@@ -351,6 +353,7 @@ describe("TenantSecretVersionStore (Drizzle)", () => {
         secretVersionId: versionIdValue,
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts(),
+        createdByActor: TEST_CREATOR_ACTOR,
         wrapped: {
           organizationDataKeyVersion: 1,
           projectDataKeyVersion: 1,
