@@ -337,6 +337,64 @@ describe("run-policies CLI commands", () => {
     stdout.mockRestore();
   });
 
+  it("registered create command accepts the smoke env option placement", async () => {
+    const api = createMockApi({
+      createRuntimeInjectionPolicy: vi.fn(async () => ({
+        ok: true as const,
+        envelope: {
+          ok: true as const,
+          data: {
+            policyId: POLICY_ID,
+            policyVersionId: "rpv_00000000000000000000000001",
+            environmentId: "env_00000000000000000000000001",
+            displayName: "dev-web",
+            versionNumber: 1,
+            createdAt: "2026-06-24T00:00:00.000Z",
+          },
+        },
+      })),
+    });
+    const program = attachGlobalOptions(new Command());
+    registerRunPoliciesCommands(program, {
+      globalFlags,
+      resolveApi: async () => ({ api, context }),
+    });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await program.parseAsync([
+      "node",
+      "insecur",
+      "--host",
+      "https://insecur.test",
+      "--org-id",
+      ORG_ID,
+      "--json",
+      "--quiet",
+      "run-policies",
+      "create",
+      "--policy-id",
+      POLICY_ID,
+      "--env-id",
+      "env_00000000000000000000000001",
+      "--display-name-stdin",
+      "--command",
+      "printenv",
+      "--secret-ids",
+      SECRET_ID,
+    ]);
+
+    expect(api.createRuntimeInjectionPolicy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        policyId: POLICY_ID,
+        environmentId: "env_00000000000000000000000001",
+        command: "printenv",
+        secretIds: [SECRET_ID],
+      }),
+    );
+    expect(process.exitCode).toBe(0);
+    stdout.mockRestore();
+  });
+
   it("registered disable command reads options from the commander action context", async () => {
     const api = createMockApi({
       disableRuntimeInjectionPolicy: vi.fn(async () => ({

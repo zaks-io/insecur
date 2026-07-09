@@ -49,12 +49,12 @@ export function registerAuditVerifyCommand(
       "--published-signing-keys-env <name>",
       "env var holding the path or URL to published signing public keys",
     )
-    .action(async function auditVerifyAction(jsonlPath: string, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
+    .action(async function auditVerifyAction(this: CommanderCommand, jsonlPath: string) {
+      const flags = deps.globalFlags(this);
       process.exitCode = await runAuditVerifyCommand(
         flags,
         jsonlPath,
-        auditVerifyOptionsFromCommand(command),
+        auditVerifyOptionsFromCommand(this),
       );
     });
 }
