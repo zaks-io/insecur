@@ -37,6 +37,15 @@ function makeHost(env: Record<string, string>) {
     fetch(): string {
       return "not-an-rpc-method";
     }
+
+    postAuthRpc(): (input: { key: string }) => Promise<{ ok: true; key: string }> {
+      return async (input) => ({ ok: true, key: input.key });
+    }
+
+    async delegatedViaPostAuth(input: { key: string }): Promise<{ ok: true; key: string }> {
+      const post = this.postAuthRpc();
+      return post(input);
+    }
   }
   instrumentRuntimeRpcTracing(FakeService.prototype);
   return new FakeService();
@@ -107,6 +116,23 @@ describe("runtime rpc tracing", () => {
     const result = await callWithMeta.call(host, { key: "k" }, RPC_META);
 
     expect(result).toEqual({ ok: true, key: "k" });
+  });
+
+  it("leaves the synchronous postAuthRpc seam unwrapped so delegated methods get a callable runner", async () => {
+    const host = makeHost({ SENTRY_DSN: "https://public@example.ingest.sentry.io/1" });
+
+    // postAuthRpc must synchronously return the runner function even with Sentry enabled;
+    // wrapping it would hand every delegated post-auth RPC a Promise instead of a function.
+    const runner = host.postAuthRpc();
+    expect(typeof runner).toBe("function");
+    expect(wrapRequestHandler).not.toHaveBeenCalled();
+
+    await expect(host.delegatedViaPostAuth({ key: "k" })).resolves.toEqual({ ok: true, key: "k" });
+    expect(wrapRequestHandler).toHaveBeenCalledTimes(1);
+    const wrapperOptions = wrapRequestHandler.mock.calls[0]?.[0];
+    expect(wrapperOptions?.request.url).toBe(
+      "https://insecur-runtime.internal/rpc/delegatedViaPostAuth",
+    );
   });
 
   it("leaves worker lifecycle handlers untouched", () => {

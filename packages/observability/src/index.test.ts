@@ -65,6 +65,14 @@ describe("observability sentry config", () => {
     expect(production).not.toHaveProperty("dataCollection");
   });
 
+  it("fails closed to the production posture when environment is missing", () => {
+    const noEnvironment = cloudflareSentryOptions({
+      SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+    });
+
+    expect(noEnvironment).not.toHaveProperty("dataCollection");
+  });
+
   it("uses the shared trace sampling default", () => {
     expect(DEFAULT_SENTRY_TRACES_SAMPLE_RATE).toBe(1);
   });

@@ -20,7 +20,17 @@ import * as Sentry from "@sentry/cloudflare";
  */
 
 const SENTRY_RPC_META_KEY = "__sentry_rpc_meta__";
-const NON_RPC_METHODS = new Set(["constructor", "fetch", "scheduled", "queue", "tail"]);
+// postAuthRpc is the synchronous internal seam handing the delegated mixin methods their bound
+// #post runner (runtime-service-delegated-post-auth-rpc-host.ts); wrapping it would replace the
+// returned function with a Promise and nest a second trace inside every delegated call.
+const NON_RPC_METHODS = new Set([
+  "constructor",
+  "fetch",
+  "scheduled",
+  "queue",
+  "tail",
+  "postAuthRpc",
+]);
 
 interface SentryRpcTraceData {
   readonly "sentry-trace"?: string;

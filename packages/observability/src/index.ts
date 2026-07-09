@@ -42,10 +42,11 @@ let browserSentryInitialized = false;
 // production so we can see what the SDK actually captures; production keeps the SDK's
 // conservative PII-deny defaults by omitting `dataCollection`. Re-tightening is tracked in
 // INS-553. `userInfo: true` is the only category the SDK does not already default to permissive.
+// A missing environment fails closed to the production posture.
 export function sentryDataCollection(
   environment: string | undefined,
 ): { readonly userInfo: true } | undefined {
-  return environment === "production" ? undefined : { userInfo: true };
+  return environment === undefined || environment === "production" ? undefined : { userInfo: true };
 }
 
 export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions {
