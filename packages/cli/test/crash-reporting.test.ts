@@ -50,6 +50,7 @@ describe("CLI crash reporting", () => {
                   context_line: SENTINEL,
                   filename:
                     "/Users/example/project/packages/cli/src/output/unexpected-cli-error.ts",
+                  module: SENTINEL,
                   post_context: [SENTINEL],
                   pre_context: [SENTINEL],
                   vars: { raw: SENTINEL },
@@ -99,6 +100,7 @@ describe("CLI crash reporting", () => {
         service: "insecur-cli",
       },
     });
+    expect(sanitized.exception?.values?.[0]?.stacktrace?.frames?.[0]?.module).toBeUndefined();
     expect(sanitized.request).toBeUndefined();
     expect(sanitized.user).toBeUndefined();
   });

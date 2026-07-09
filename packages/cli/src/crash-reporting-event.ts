@@ -64,6 +64,7 @@ function sanitizeFrames(frames: SentryFrameLike[]): void {
   for (const frame of frames) {
     delete frame.abs_path;
     delete frame.context_line;
+    delete frame.module;
     delete frame.post_context;
     delete frame.pre_context;
     delete frame.vars;

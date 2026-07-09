@@ -16,7 +16,7 @@ The CLI should be the primary interface for developers, agents, and CI.
 - Scriptable by default: every command supports `--json`, and JSON output never contains Sensitive Values.
 - Default-on crash reporting is limited to unexpected CLI failures. CLI trace correlation uses the
   shared Sentry sampling default of `1`, and all telemetry must remain metadata-only:
-  sanitized exception class/stack module, CLI version,
+  sanitized exception class and stack-frame filename, CLI version,
   release, platform, Node major, command family, service tag, and Sentry `sentry-trace`/`baggage`
   propagation headers only. It must never send raw argv, cwd, environment variables, stdout/stderr,
   request bodies, user identity, secret names or values, transcript content, breadcrumbs, arbitrary
