@@ -60,7 +60,7 @@
     "apps/site": {
       "entry": ["src/router.tsx", "src/start.ts", "src/routes/**/*.tsx"],
       "project": ["src/**/*.{ts,tsx}"],
-      "ignoreDependencies": ["tailwindcss"]
+      "ignoreDependencies": ["tailwindcss", "@insecur/cli"]
     },
     "apps/runtime": {
       "entry": ["vitest*.config.ts", "src/**/*.test.ts"],

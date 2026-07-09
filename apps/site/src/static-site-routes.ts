@@ -1,4 +1,6 @@
 import { badgeJsonResponse } from "./badge-json-response.js";
+import { LLMS_FULL_TXT, LLMS_TXT } from "./docs/llms-txt.js";
+import { getDocPage } from "./docs/manifest.js";
 import type { SiteEnv } from "./env.js";
 import coverageBadge from "./generated/coverage-badge.json" with { type: "json" };
 import { INSTALL_PS1 } from "./install-ps1.js";
@@ -8,6 +10,37 @@ import {
   installScriptResponse,
 } from "./install-scripts.js";
 import { INSTALL_SH } from "./install-sh.js";
+import { SECURITY_HEADERS } from "./security-headers.js";
+import { staticTextResponse } from "./static-text-response.js";
+
+const MARKDOWN_CONTENT_TYPE = "text/markdown; charset=utf-8";
+const LLMS_TXT_CONTENT_TYPE = "text/plain; charset=utf-8";
+
+/**
+ * Agent-facing documentation surface: /llms.txt is the docs index (llmstxt.org), and every docs
+ * page's raw markdown twin is served at /docs/<slug>.md ahead of the rendered TanStack route at
+ * /docs/<slug>. Both are built from the same manifest, so a listed page always resolves.
+ */
+function tryDocsTextResponse(pathname: string, method: string): Response | null {
+  if (pathname === "/llms.txt") {
+    return staticTextResponse(LLMS_TXT, LLMS_TXT_CONTENT_TYPE, method);
+  }
+
+  if (pathname === "/llms-full.txt") {
+    return staticTextResponse(LLMS_FULL_TXT, LLMS_TXT_CONTENT_TYPE, method);
+  }
+
+  if (pathname.startsWith("/docs/") && pathname.endsWith(".md")) {
+    const slug = pathname.slice("/docs/".length, -".md".length);
+    const page = getDocPage(slug);
+    if (!page) {
+      return new Response("not found", { status: 404, headers: SECURITY_HEADERS });
+    }
+    return staticTextResponse(page.raw, MARKDOWN_CONTENT_TYPE, method);
+  }
+
+  return null;
+}
 
 function tryInstallScriptResponse(pathname: string, method: string): Response | null {
   if (pathname === "/install.sh") {
@@ -88,6 +121,7 @@ export function tryStaticSiteResponse(
 ): Response | null {
   return (
     tryInstallScriptResponse(pathname, method) ??
+    tryDocsTextResponse(pathname, method) ??
     tryPublishedMetadataResponse(pathname, method, env)
   );
 }

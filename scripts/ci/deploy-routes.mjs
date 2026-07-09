@@ -251,6 +251,17 @@ function extractPublicRoutes(indexPath) {
       mounts.add(prefix);
     }
   }
+  // A pathname.startsWith("/prefix/") guard serves a dynamic subtree; record it as the same
+  // splat mount TanStack file routes use ("/prefix/$") so one inventory row covers both.
+  const pathnamePrefixPattern =
+    /if\s*\((?:[^()]|\([^()]*\))*?pathname\.startsWith\(\s*["'`](\/[^"'`]+\/)["'`]\)/g;
+  let prefixMatch;
+  while ((prefixMatch = pathnamePrefixPattern.exec(source)) !== null) {
+    const prefix = `${prefixMatch[1]}$`;
+    if (isPublicMount(prefix)) {
+      mounts.add(prefix);
+    }
+  }
   return [...mounts].sort();
 }
 

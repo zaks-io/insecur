@@ -25,6 +25,22 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 });
 
+// An HTML comment near the top of every page for agents that curl the site: invisible to humans,
+// it points machine readers at the markdown docs surface. JSX cannot emit comments, so a hidden
+// wrapper injects it (static string, trusted by construction).
+const AGENT_HINT_COMMENT = [
+  "<!--",
+  "Reading this as an agent? Machine-readable docs index: https://insecur.cloud/llms.txt",
+  "Full docs corpus in one file: https://insecur.cloud/llms-full.txt",
+  "Agent quickstart: https://insecur.cloud/docs/agent-quickstart.md",
+  "Every /docs page is also raw markdown at the same URL with a .md suffix.",
+  "-->",
+].join("\n");
+
+function AgentHint() {
+  return <div hidden dangerouslySetInnerHTML={{ __html: AGENT_HINT_COMMENT }} />;
+}
+
 function RootDocument({ children }: { children: ReactNode }) {
   const context = readStartContext();
   const sentryScript = sentryBrowserConfigScript(context?.sentry);
@@ -35,36 +51,22 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <AgentHint />
         <SiteShell
           header={
             <SiteHeader
               brand={<Wordmark />}
               nav={
-                <span className="text-xs font-semibold tracking-[0.2em] uppercase">
-                  Coming soon
+                <span className="flex items-center gap-5 text-xs font-semibold tracking-[0.2em] uppercase">
+                  <a href="/docs" className="underline-offset-4 hover:underline">
+                    Docs
+                  </a>
+                  <span>Coming soon</span>
                 </span>
               }
             />
           }
-          footer={
-            <SiteFooter>
-              <div className="flex flex-col gap-3 text-xs tracking-wide uppercase sm:flex-row sm:items-center sm:justify-between">
-                <span className="font-semibold">Secrets your agents never have to hold.</span>
-                <nav className="flex gap-5">
-                  <a href="/security" className="underline-offset-4 hover:underline">
-                    Security
-                  </a>
-                  <a href="/privacy" className="underline-offset-4 hover:underline">
-                    Privacy
-                  </a>
-                  <a href="/terms" className="underline-offset-4 hover:underline">
-                    Terms
-                  </a>
-                  <span className="text-muted-foreground">insecur.cloud</span>
-                </nav>
-              </div>
-            </SiteFooter>
-          }
+          footer={<SiteFooterContent />}
         >
           {children}
         </SiteShell>
@@ -72,6 +74,31 @@ function RootDocument({ children }: { children: ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+function SiteFooterContent() {
+  return (
+    <SiteFooter>
+      <div className="flex flex-col gap-3 text-xs tracking-wide uppercase sm:flex-row sm:items-center sm:justify-between">
+        <span className="font-semibold">Secrets your agents never have to hold.</span>
+        <nav className="flex gap-5">
+          <a href="/docs" className="underline-offset-4 hover:underline">
+            Docs
+          </a>
+          <a href="/security" className="underline-offset-4 hover:underline">
+            Security
+          </a>
+          <a href="/privacy" className="underline-offset-4 hover:underline">
+            Privacy
+          </a>
+          <a href="/terms" className="underline-offset-4 hover:underline">
+            Terms
+          </a>
+          <span className="text-muted-foreground">insecur.cloud</span>
+        </nav>
+      </div>
+    </SiteFooter>
   );
 }
 

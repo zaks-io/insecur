@@ -35,6 +35,24 @@
       ],
       "outputs": ["dist/**"]
     },
+    "@insecur/site#build": {
+      "dependsOn": ["^build"],
+      "env": [
+        "CLOUDFLARE_ENV",
+        "INSECUR_DEPLOY_RUN_ID",
+        "INSECUR_DEPLOY_SHA",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/cli-and-sync.md",
+        "$TURBO_ROOT$/scripts/docs/generate-cli-docs.mjs"
+      ],
+      "outputs": ["dist/**"]
+    },
     "typecheck": {
       "outputs": []
     },
