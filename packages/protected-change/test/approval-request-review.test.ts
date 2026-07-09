@@ -326,6 +326,14 @@ describe("cancelApprovalRequest", () => {
         requestId: REQ,
       }),
     ).resolves.toEqual({ approvalRequestId: REQUEST, status: "canceled" });
+
+    expect(recordApprovalAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "request_canceled",
+        outcome: "success",
+        requestId: REQ,
+      }),
+    );
   });
 
   it("denies cancellation by non-requesters without cleanup scope", async () => {
@@ -431,6 +439,46 @@ describe("approveApprovalRequest", () => {
         requestId: REQ,
       }),
     ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.reviewStale });
+  });
+
+  it("rejects approve when the submitted review fingerprint is stale", async () => {
+    const getApprovalRequestById = vi.fn().mockResolvedValue({
+      ...DETAIL_ROW,
+      impactReviewFingerprint: "fp-current",
+    });
+    const getDraftVersionsForRequest = vi.fn().mockResolvedValue([]);
+    const transitionPendingApprovalRequest = vi.fn().mockResolvedValue(true);
+    const publishVersions = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(TenantApprovalRequestStore).mockImplementation(function MockStore() {
+      return {
+        getApprovalRequestById,
+        getDraftVersionsForRequest,
+        transitionPendingApprovalRequest,
+      } as never;
+    });
+    vi.mocked(TenantSecretVersionStore).mockImplementation(function MockStore() {
+      return { publishVersions } as never;
+    });
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      organizationId: ORG,
+      scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+    });
+    vi.mocked(evaluateHighAssuranceChallengeClearAssurance).mockReturnValue({ ok: true } as never);
+
+    await expect(
+      approveApprovalRequest({
+        actor: ACTOR,
+        auditActor: AUDIT_ACTOR,
+        organizationId: ORG,
+        approvalRequestId: REQUEST,
+        sessionAssurance: {} as never,
+        impactReviewFingerprint: "fp-stale",
+        requestId: REQ,
+      }),
+    ).rejects.toMatchObject({ code: APPROVAL_ERROR_CODES.reviewStale });
+
+    expect(publishVersions).not.toHaveBeenCalled();
+    expect(transitionPendingApprovalRequest).not.toHaveBeenCalled();
   });
 
   it("approves and publishes when evidence and fingerprints are fresh", async () => {

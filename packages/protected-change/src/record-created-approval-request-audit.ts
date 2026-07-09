@@ -1,33 +1,31 @@
 import type { AuditActorRef } from "@insecur/audit";
 import { recordApprovalAudit } from "@insecur/audit";
 import type {
+  ApprovalRequestId,
   EnvironmentId,
   KnownErrorCode,
-  OpaqueResourceId,
   OrganizationId,
   ProjectId,
   RequestId,
 } from "@insecur/domain";
+
+import { recordApprovalRequestSuccessAudit } from "./record-approval-request-success-audit.js";
 
 async function recordCreatedApprovalRequestAudit(input: {
   readonly auditActor: AuditActorRef;
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly approvalRequestId: string;
+  readonly approvalRequestId: ApprovalRequestId;
   readonly requestId: RequestId;
 }): Promise<void> {
-  await recordApprovalAudit({
+  await recordApprovalRequestSuccessAudit({
     action: "request_created",
-    outcome: "success",
-    actor: input.auditActor,
+    auditActor: input.auditActor,
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
-    resource: {
-      type: "approval_request",
-      id: input.approvalRequestId as unknown as OpaqueResourceId,
-    },
+    approvalRequestId: input.approvalRequestId,
     requestId: input.requestId,
   });
 }
@@ -37,7 +35,7 @@ export async function finalizeCreatedApprovalRequest(input: {
   readonly organizationId: OrganizationId;
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
-  readonly approvalRequestId: string;
+  readonly approvalRequestId: ApprovalRequestId;
   readonly requestId: RequestId;
 }): Promise<void> {
   await recordCreatedApprovalRequestAudit(input);
