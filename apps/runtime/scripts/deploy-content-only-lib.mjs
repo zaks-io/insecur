@@ -50,23 +50,54 @@ export async function updatePublicDeployVars(
   );
   ensureRequiredPublicDeployBindings(merged, desiredPublicVars);
 
-  const form = new FormData();
-  form.append(
-    "settings",
-    new Blob([JSON.stringify({ bindings: patchBindings })], { type: "application/json" }),
-    "settings.json",
-  );
-
   await cloudflareJson("PATCH", `/accounts/${accountId}/workers/scripts/${scriptName}/settings`, {
-    body: form,
+    body: createSettingsPatchForm({ bindings: patchBindings }),
   });
 
   return merged;
 }
 
+export async function reconcileDeployedObservability(
+  cloudflareJson,
+  accountId,
+  scriptName,
+  desiredObservability,
+) {
+  if (!desiredObservability) {
+    return;
+  }
+
+  const settingsPath = `/accounts/${accountId}/workers/scripts/${scriptName}/settings`;
+  const settings = await cloudflareJson("GET", settingsPath);
+  if (observabilityMatches(settings.observability, desiredObservability)) {
+    return;
+  }
+
+  await cloudflareJson("PATCH", settingsPath, {
+    body: createSettingsPatchForm({ observability: desiredObservability }),
+  });
+
+  const reconciledSettings = await cloudflareJson("GET", settingsPath);
+  assertObservability(reconciledSettings.observability, desiredObservability);
+  console.log(`Reconciled ${scriptName} observability settings without changing Worker bindings.`);
+}
+
 export async function runContentOnlyDeploy(options = {}) {
   const context = await createContentOnlyDeployContext(options);
 
+  await assertDeployedRuntimeConfig(
+    context.cloudflareJson,
+    context.accountId,
+    context.scriptName,
+    context.config,
+    { skipObservability: true },
+  );
+  await reconcileDeployedObservability(
+    context.cloudflareJson,
+    context.accountId,
+    context.scriptName,
+    context.config.observability,
+  );
   await assertDeployedRuntimeConfig(
     context.cloudflareJson,
     context.accountId,
@@ -121,7 +152,13 @@ async function createContentOnlyDeployContext(options) {
   };
 }
 
-async function assertDeployedRuntimeConfig(cloudflareJson, accountId, scriptName, config) {
+async function assertDeployedRuntimeConfig(
+  cloudflareJson,
+  accountId,
+  scriptName,
+  config,
+  { skipObservability = false } = {},
+) {
   const settings = await cloudflareJson(
     "GET",
     `/accounts/${accountId}/workers/scripts/${scriptName}/settings`,
@@ -138,7 +175,9 @@ async function assertDeployedRuntimeConfig(cloudflareJson, accountId, scriptName
     config.compatibility_flags ?? [],
     "compatibility_flags",
   );
-  assertObservability(settings.observability, config.observability);
+  if (!skipObservability) {
+    assertObservability(settings.observability, config.observability);
+  }
 
   const bindings = settings.bindings ?? [];
   assertDeployedSecretsStoreSecrets(bindings, config.secrets_store_secrets);
@@ -191,6 +230,29 @@ function assertObservability(actual, expected) {
   }
   assertNestedObservability(actual?.logs, expected.logs, "observability.logs");
   assertNestedObservability(actual?.traces, expected.traces, "observability.traces");
+}
+
+function observabilityMatches(actual, expected) {
+  if (!expected) {
+    return true;
+  }
+  if (actual?.enabled !== expected.enabled) {
+    return false;
+  }
+  return (
+    nestedObservabilityMatches(actual?.logs, expected.logs) &&
+    nestedObservabilityMatches(actual?.traces, expected.traces)
+  );
+}
+
+function nestedObservabilityMatches(actual, expected) {
+  if (!expected) {
+    return true;
+  }
+  return (
+    actual?.enabled === expected.enabled &&
+    setsEqual(actual?.destinations ?? [], expected.destinations ?? [])
+  );
 }
 
 function assertNestedObservability(actual, expected, label) {
@@ -248,6 +310,24 @@ function assertSetEqual(actual, expected, label) {
       `Refusing content-only deploy: deployed ${label} drifted. Missing: ${missing.join(", ") || "none"}; extra: ${extra.join(", ") || "none"}.`,
     );
   }
+}
+
+function setsEqual(actual, expected) {
+  const actualSet = new Set(actual);
+  const expectedSet = new Set(expected);
+  return (
+    actualSet.size === expectedSet.size && [...actualSet].every((value) => expectedSet.has(value))
+  );
+}
+
+function createSettingsPatchForm(settings) {
+  const form = new FormData();
+  form.append(
+    "settings",
+    new Blob([JSON.stringify(settings)], { type: "application/json" }),
+    "settings.json",
+  );
+  return form;
 }
 
 function only(values, label) {
