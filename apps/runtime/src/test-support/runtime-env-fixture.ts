@@ -17,6 +17,7 @@ function baseRuntimeEnv(): RuntimeEnv {
     SENTRY_ENVIRONMENT: "test",
     SENTRY_RELEASE: "",
     SENTRY_SERVICE: "runtime",
+    SENTRY_TRACES_SAMPLE_RATE: "1",
     RUNTIME_TOKEN_SIGNING_SECRET: "runtime-secret-000000000000000000000000",
   };
 }

@@ -47,6 +47,7 @@ import type {
 import type { RuntimeEnv } from "./env.js";
 import { maybeRuntimeConnectionString } from "./env.js";
 import { ensureAuditNotificationEmitterRegistered } from "./notifications/runtime-notification-registration.js";
+import { instrumentRuntimeSql } from "./sentry-postgres.js";
 import { consumeGrantAllOperation } from "./operations/consume-grant-all-operation.js";
 import { consumeGrantOperation } from "./operations/consume-grant-operation.js";
 import { recordAdmissionDeniedOperation } from "./operations/record-admission-denied-operation.js";
@@ -112,7 +113,9 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     if (!connStr) {
       return run();
     }
-    const { result, closing } = await runWithRuntimeConnection(connStr, run);
+    const { result, closing } = await runWithRuntimeConnection(connStr, run, {
+      instrumentSql: instrumentRuntimeSql,
+    });
     this.ctx.waitUntil(closing);
     return result;
   }
