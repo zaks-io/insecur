@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { successEnvelope } from "@insecur/domain";
+import { CLI_ERROR_CODES, successEnvelope } from "@insecur/domain";
 import { runLoginCommand } from "../src/commands/login.js";
 import { runInitCommand } from "../src/commands/init.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
@@ -80,7 +80,7 @@ function createMockApi(): ApiClient {
           defaultTeamId: "team_01TEST0000000000000000001",
           ownerMembershipId: "mem_01TEST0000000000000000001",
           projectId: "prj_01TEST00000000000000000001",
-          developmentEnvironmentId: "env_01TEST0000000000000000001",
+          developmentEnvironmentId: "env_01TEST00000000000000000001",
         }),
       };
     },
@@ -149,6 +149,79 @@ describe("no credential persistence", () => {
       assertNoCredentialMaterial(userConfig);
       expect(projectConfig).toContain("org_01TEST00000000000000000001");
       expect(userConfig).toContain("local-dev");
+    } finally {
+      isolatedHome.restore();
+    }
+  });
+
+  it("suffixes the implicit init profile slug when local-dev is already used", async () => {
+    await runLoginCommand(flags, createMockApi(), mockContext(), {
+      shell: false,
+      openBrowser: false,
+      persist: false,
+    });
+    const firstProjectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-init-a-"));
+    const secondProjectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-init-b-"));
+    const isolatedHome = await createIsolatedHome("insecur-cli-init-home-");
+    try {
+      await runInitCommand(
+        { ...flags, configDir: firstProjectDir },
+        createMockApi(),
+        mockContext(),
+        {
+          profileSlug: "local-dev",
+          profileSlugWasExplicit: false,
+        },
+      );
+      await runInitCommand(
+        { ...flags, configDir: secondProjectDir },
+        createMockApi(),
+        mockContext(),
+        {
+          profileSlug: "local-dev",
+          profileSlugWasExplicit: false,
+        },
+      );
+
+      const userConfig = await readFile(
+        path.join(isolatedHome.homeDir, ".insecur", USER_CONFIG_FILE),
+        "utf8",
+      );
+      expect(userConfig).toContain('"slug": "local-dev"');
+      expect(userConfig).toContain('"slug": "local-dev-2"');
+    } finally {
+      isolatedHome.restore();
+    }
+  });
+
+  it("keeps explicit duplicate init profile slugs strict", async () => {
+    await runLoginCommand(flags, createMockApi(), mockContext(), {
+      shell: false,
+      openBrowser: false,
+      persist: false,
+    });
+    const firstProjectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-init-strict-a-"));
+    const secondProjectDir = await mkdtemp(path.join(tmpdir(), "insecur-cli-init-strict-b-"));
+    const isolatedHome = await createIsolatedHome("insecur-cli-init-strict-home-");
+    try {
+      await runInitCommand(
+        { ...flags, configDir: firstProjectDir },
+        createMockApi(),
+        mockContext(),
+        {
+          profileSlug: "local-dev",
+          profileSlugWasExplicit: true,
+        },
+      );
+
+      await expect(
+        runInitCommand({ ...flags, configDir: secondProjectDir }, createMockApi(), mockContext(), {
+          profileSlug: "local-dev",
+          profileSlugWasExplicit: true,
+        }),
+      ).rejects.toMatchObject({
+        code: CLI_ERROR_CODES.profileSlugInUse,
+      });
     } finally {
       isolatedHome.restore();
     }
