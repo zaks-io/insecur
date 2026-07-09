@@ -82,7 +82,7 @@ describe("CLI crash reporting", () => {
     expect(init).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: true,
-        dataCollection: { userInfo: true },
+        dataCollection: { userInfo: true, httpBodies: [] },
         tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
       }),
     );

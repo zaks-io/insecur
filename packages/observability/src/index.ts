@@ -28,7 +28,7 @@ export interface BrowserSentryOptions<TIntegration> {
   readonly environment?: string;
   readonly release?: string;
   readonly tracesSampleRate: number;
-  readonly dataCollection?: { readonly userInfo: true };
+  readonly dataCollection?: NonProductionDataCollection;
   readonly enableLogs: boolean;
   readonly integrations: TIntegration[];
   readonly initialScope?: { readonly tags: Record<string, string> };
@@ -38,15 +38,26 @@ export const DEFAULT_SENTRY_TRACES_SAMPLE_RATE = 1;
 
 let browserSentryInitialized = false;
 
+export interface NonProductionDataCollection {
+  readonly userInfo: true;
+  readonly httpBodies: never[];
+}
+
 // Prelaunch telemetry posture: full-fidelity events (PII, payloads, breadcrumbs) outside
 // production so we can see what the SDK actually captures; production keeps the SDK's
 // conservative PII-deny defaults by omitting `dataCollection`. Re-tightening is tracked in
-// INS-553. `userInfo: true` is the only category the SDK does not already default to permissive.
-// A missing environment fails closed to the production posture.
+// INS-553. A missing environment fails closed to the production posture.
+//
+// `httpBodies: []` is NOT environment-scoped: secret writes carry plaintext Sensitive Values in
+// HTTP request bodies by design (CLI/API → Runtime), and the SDK's key/token filtering covers
+// headers/cookies/query params but not bodies. Capturing bodies anywhere would store plaintext
+// secrets in Sentry, which the Security Baseline forbids in every environment.
 export function sentryDataCollection(
   environment: string | undefined,
-): { readonly userInfo: true } | undefined {
-  return environment === undefined || environment === "production" ? undefined : { userInfo: true };
+): NonProductionDataCollection | undefined {
+  return environment === undefined || environment === "production"
+    ? undefined
+    : { userInfo: true, httpBodies: [] };
 }
 
 export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions {
@@ -65,6 +76,10 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
     ...(dataCollection ? { dataCollection } : {}),
     enableLogs: env.SENTRY_ENABLE_LOGS === "true",
     enableRpcTracePropagation: true,
+    // Continue inbound traces only when the caller's baggage carries our Sentry org id (extracted
+    // from the DSN); arbitrary third-party sentry-trace/baggage on the public edge starts a new
+    // trace instead of joining ours.
+    strictTraceContinuation: true,
     ...(service ? { initialScope: { tags: { service } } } : {}),
   };
 }

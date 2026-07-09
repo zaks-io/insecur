@@ -31,7 +31,8 @@ describe("observability sentry config", () => {
       enableRpcTracePropagation: true,
       environment: "preview",
       release: "version-1",
-      dataCollection: { userInfo: true },
+      dataCollection: { userInfo: true, httpBodies: [] },
+      strictTraceContinuation: true,
       tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
       initialScope: { tags: { service: "insecur-api" } },
     });
@@ -63,6 +64,17 @@ describe("observability sentry config", () => {
     });
 
     expect(production).not.toHaveProperty("dataCollection");
+  });
+
+  it("never collects HTTP bodies in any environment", () => {
+    const preview = cloudflareSentryOptions({
+      SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+      SENTRY_ENVIRONMENT: "preview",
+    });
+
+    // Secret writes carry plaintext Sensitive Values in request bodies; bodies stay uncollected
+    // even at full non-production fidelity.
+    expect(preview.dataCollection).toEqual({ userInfo: true, httpBodies: [] });
   });
 
   it("fails closed to the production posture when environment is missing", () => {
