@@ -10,6 +10,7 @@ import {
 import { cloudflareSentryOptions } from "@insecur/observability";
 import { sentry } from "@sentry/hono/cloudflare";
 import { Hono } from "hono";
+import { apiRequestAnalyticsMiddleware } from "./api-request-analytics.js";
 import { registerApprovalRequestsRoutes } from "./routes/v1/approval-requests.js";
 import { registerAuditEventsRoutes } from "./routes/v1/audit-events.js";
 import { registerAuditExportRoutes } from "./routes/v1/audit-export.js";
@@ -34,6 +35,8 @@ import type { ApiEnv } from "./env.js";
 import { logUnhandledApiError } from "./log-unhandled-error.js";
 
 const app = new Hono<{ Bindings: ApiEnv }>();
+
+app.use(apiRequestAnalyticsMiddleware);
 
 app.use(sentry(app, cloudflareSentryOptions));
 

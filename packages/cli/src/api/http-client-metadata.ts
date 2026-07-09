@@ -1,4 +1,5 @@
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
+import { cliApiHeaders } from "./http-client-headers.js";
 import { parseEnvelope, postAuthorizedJson } from "./http-client-envelope.js";
 
 async function getAuthorizedJson(
@@ -8,10 +9,10 @@ async function getAuthorizedJson(
 ): Promise<{ response: Response; body: unknown }> {
   const response = await fetch(new URL(path, base), {
     method: "GET",
-    headers: {
+    headers: cliApiHeaders({
       Authorization: `Bearer ${bearerCredential}`,
       Accept: "application/json",
-    },
+    }),
   });
   return { response, body: await response.json() };
 }
