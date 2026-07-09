@@ -34,8 +34,9 @@ packages/
   cli/                Node CLI for runtime injection and agent-safe operations
 ```
 
-The agent context routing map lives in [CONTEXT-MAP.md](CONTEXT-MAP.md). The
-package ownership map lives in [docs/context-map.md](docs/context-map.md).
+The delivered functionality map lives in [docs/features.md](docs/features.md). The agent context
+routing map lives in [CONTEXT-MAP.md](CONTEXT-MAP.md). The package ownership map lives in
+[docs/context-map.md](docs/context-map.md).
 `CONTEXT.md` remains the source of truth for domain language.
 
 ## Quick start

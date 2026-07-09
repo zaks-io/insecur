@@ -8,6 +8,9 @@ file disagrees with an owning spec, ADR, or verified code, follow the owner and 
 this file as the defect. The authoritative route to deploy table is
 [specs/deploy-route-inventory.md](specs/deploy-route-inventory.md).
 
+For a shorter agent-readable map of the major delivered functionality, start with
+[features.md](features.md).
+
 ## Status At A Glance
 
 The repo is not a scaffold anymore. The current delivered product surface is a

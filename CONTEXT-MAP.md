@@ -15,6 +15,7 @@ context for a specific task.
   `docs/context/glossary/`, which are the source of truth for domain language.
 - `docs/context-map.md` - package ownership, dependency direction, and the
   scaffolded package cut.
+- `docs/features.md` - delivered major functionality in one agent-readable map.
 - `docs/specs/README.md` - current implementation entry point.
 - `docs/specs/product-spec.md` - consolidated product state and ADR links.
 - `docs/specs/architecture-groups.md` - architecture group ownership and seams.
