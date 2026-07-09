@@ -36,9 +36,9 @@ import { logUnhandledApiError } from "./log-unhandled-error.js";
 
 const app = new Hono<{ Bindings: ApiEnv }>();
 
-app.use(apiRequestAnalyticsMiddleware);
-
 app.use(sentry(app, cloudflareSentryOptions));
+
+app.use(apiRequestAnalyticsMiddleware);
 
 app.onError((err, context) => {
   if (err instanceof AbuseLimitError) {
