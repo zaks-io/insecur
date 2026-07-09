@@ -105,6 +105,7 @@ describe("createHttpApiClientForHost", () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const headers = new Headers(init.headers);
     expect(headers.get("Authorization")).toBe("Bearer credential_test");
+    expect(headers.get("User-Agent")).toBe("insecur-cli/0.0.0");
     expect(headers.get("sentry-trace")).toBe("0123456789abcdef0123456789abcdef-0123456789abcdef-1");
     expect(headers.get("baggage")).toBe("sentry-release=insecur-cli");
   });
