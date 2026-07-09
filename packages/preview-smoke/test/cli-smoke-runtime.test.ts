@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildCliChildEnv } from "../src/cli-smoke-runtime";
+import { KNOWN_HARNESS_MARKERS } from "../../agent-attribution/src/harness-markers";
+import { AGENT_HARNESS_MARKER_ENV_KEYS, buildCliChildEnv } from "../src/cli-smoke-runtime";
 
 const MUTATED_ENV_KEYS = [
   "CLAUDECODE",
   "CURSOR_AGENT",
+  "CURSOR_TRACE_ID",
   "INSECUR_AGENT_CREDENTIAL_FILE",
   "INSECUR_CONFIG_HOME",
   "INSECUR_PROFILE",
@@ -31,8 +33,16 @@ describe("preview CLI child environment", () => {
     restoreEnv();
   });
 
+  it("keeps the preview-smoke harness strip list aligned with the source registry", () => {
+    expect([...AGENT_HARNESS_MARKER_ENV_KEYS].sort()).toEqual(
+      Object.keys(KNOWN_HARNESS_MARKERS).sort(),
+    );
+  });
+
   it("drops ambient insecur and harness env while preserving explicit smoke env", () => {
     process.env.CLAUDECODE = "1";
+    process.env.CURSOR_AGENT = "1";
+    process.env.CURSOR_TRACE_ID = "trace-id";
     process.env.INSECUR_AGENT_CREDENTIAL_FILE = "/tmp/ambient-agent";
     process.env.INSECUR_CONFIG_HOME = "/tmp/ambient-home";
     process.env.INSECUR_PROFILE = "preview_bad";
@@ -44,9 +54,21 @@ describe("preview CLI child environment", () => {
     });
 
     expect(env.CLAUDECODE).toBeUndefined();
+    expect(env.CURSOR_AGENT).toBeUndefined();
+    expect(env.CURSOR_TRACE_ID).toBeUndefined();
     expect(env.INSECUR_PROFILE).toBeUndefined();
     expect(env.INSECUR_CONFIG_HOME).toBe("/tmp/smoke-home");
     expect(env.INSECUR_SESSION_TOKEN).toBe("");
     expect(env.INSECUR_AGENT_CREDENTIAL_FILE).toBe("/tmp/smoke-agent");
+  });
+
+  it("allows explicit marker re-injection through extraEnv", () => {
+    process.env.CURSOR_AGENT = "1";
+
+    const env = buildCliChildEnv("/tmp/smoke-home", "smoke-token", {
+      CURSOR_AGENT: "1",
+    });
+
+    expect(env.CURSOR_AGENT).toBe("1");
   });
 });

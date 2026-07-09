@@ -40,7 +40,11 @@ export interface RunCliSmokeCommandInput {
  * harness auto-detection stays deterministic regardless of the host running the smoke suite
  * (e.g. this suite itself may run under Claude Code or Cursor, which set these markers).
  */
-const AGENT_HARNESS_MARKER_ENV_KEYS = ["CLAUDECODE", "CURSOR_AGENT", "CURSOR_TRACE_ID"] as const;
+export const AGENT_HARNESS_MARKER_ENV_KEYS = [
+  "CLAUDECODE",
+  "CURSOR_AGENT",
+  "CURSOR_TRACE_ID",
+] as const;
 const INSECUR_ENV_PREFIX = "INSECUR_";
 
 export async function createCliSmokeWorkspace(): Promise<CliSmokeWorkspace> {
