@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { Command, type Command as CommanderCommand } from "commander";
+import { attachGlobalOptions, globalFlags } from "../src/program-deps.js";
 import { registerRunCommand } from "../src/register-run-command.js";
 import { registerScanCommand } from "../src/register-scan-command.js";
 
@@ -165,6 +166,65 @@ describe("registerRunCommand", () => {
       {
         variableKey: "APP_SECRET",
         command: ["printenv", "APP_SECRET"],
+      },
+    );
+  });
+
+  it("keeps an absolute child executable out of global --profile in variable-key mode", async () => {
+    runRunCommandMock.mockClear();
+    const program = attachGlobalOptions(new Command());
+    registerRunCommand(program, {
+      globalFlags,
+      resolveApi: async () => ({
+        api: {} as never,
+        context: {
+          projectConfig: null,
+          userConfig: { profiles: {} },
+          scope: {
+            host: "https://insecur.test",
+            orgId: "org_01TEST00000000000000000001" as never,
+            projectId: "prj_01TEST00000000000000000001" as never,
+            envId: "env_01TEST00000000000000000001" as never,
+            profileId: undefined,
+            profileSlug: undefined,
+            profile: undefined,
+          },
+        },
+      }),
+    });
+
+    await program.parseAsync([
+      "node",
+      "insecur",
+      "--host",
+      "https://insecur.test",
+      "--org-id",
+      "org_01TEST00000000000000000001",
+      "--project-id",
+      "prj_01TEST00000000000000000001",
+      "--env-id",
+      "env_01TEST00000000000000000001",
+      "--json",
+      "--quiet",
+      "run",
+      "--variable-key",
+      "APP_SECRET",
+      "--",
+      process.execPath,
+      "examples/first-value-proof/verify.mjs",
+      "--json",
+    ]);
+
+    expect(runRunCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profile: undefined,
+        profileId: undefined,
+      }),
+      expect.anything(),
+      expect.anything(),
+      {
+        variableKey: "APP_SECRET",
+        command: [process.execPath, "examples/first-value-proof/verify.mjs", "--json"],
       },
     );
   });

@@ -156,7 +156,7 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       {
         label: "Web project secrets",
         path: `${projectBase}/secrets`,
-        expectedText: ["Secrets", "Values never render"],
+        expectedText: ["Secrets", "Secret values never", "appear in the browser"],
       },
       {
         label: "Web project access",
@@ -192,7 +192,7 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       {
         label: "Web audit",
         path: `/orgs/${workspace.organizationId}/audit`,
-        expectedText: ["Audit", 'aria-label="Breadcrumb"', "Secret values never render"],
+        expectedText: ["Audit", 'aria-label="Breadcrumb"', "Metadata-only event log"],
       },
       {
         label: "Web people",

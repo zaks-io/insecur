@@ -213,11 +213,22 @@ export function reconcileProfileRunCommand(input: {
     return parsed;
   }
 
-  const resolved = resolveProfile(
-    input.context.userConfig,
-    { selector: parsed.profileSelector },
-    { required: false },
-  );
+  let resolved: ResolvedProfile | undefined;
+  try {
+    resolved = resolveProfile(
+      input.context.userConfig,
+      { selector: parsed.profileSelector },
+      { required: false },
+    );
+  } catch (error) {
+    if (input.explicitProfilePositional === true) {
+      throw error;
+    }
+    return {
+      command: [parsed.profileSelector, ...parsed.command],
+    };
+  }
+
   if (resolved !== undefined) {
     return parsed;
   }
