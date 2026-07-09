@@ -253,5 +253,7 @@ describe("registerScanCommand", () => {
     }
     const help = captureCommandHelp(scan);
     expect(help).toContain("The global --config-dir flag sets the project scan root");
+    expect(help).toContain("--agent-transcripts");
+    expect(help).toContain("--agent-projects");
   });
 });
