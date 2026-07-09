@@ -168,8 +168,8 @@ one error envelope without learning package-private dialects. The decrypt opacit
 is the only exception to cause visibility.
 
 Staging and production run as `wrangler` environments inside one Cloudflare account for now.
-During prelaunch, production deploys auto-run after successful `CI` on `main` through the
-protected `Production` GitHub Environment, and the executor is a CI-held machine identity. While
+During prelaunch, a successful exact-SHA deployed `Preview Smoke` on `main` triggers production through the
+protected `Production` GitHub Environment. Production revalidates successful `CI` and Preview Smoke evidence for that exact SHA before mutation, and the executor is a CI-held machine identity. While
 single-account deployment holds, staging must not contain real customer secrets, and Secrets Store
 account roles must stay limited to the operator.
 

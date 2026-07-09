@@ -1,6 +1,8 @@
 import {
   brandOpaqueResourceIdForPrefix,
   INJECTION_ERROR_CODES,
+  membershipId,
+  userId,
   type VariableKey,
 } from "@insecur/domain";
 import { expect, it } from "vitest";
@@ -24,6 +26,98 @@ import {
 } from "./integration-helpers.js";
 
 describeInjectionGrantIntegration("Runtime Injection Grant issue and consume", () => {
+  it("denies a different authorized user from consuming another principal's grant", async () => {
+    const org = testOrganization();
+    const otherUserId = userId.generate();
+    const otherMembershipId = membershipId.generate();
+    const variableKey = uniqueVariableKey("FV11_CROSS_PRINCIPAL");
+    await writeTestSecret(variableKey, new TextEncoder().encode(`cross-${crypto.randomUUID()}`));
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      await sql`
+        INSERT INTO memberships (id, org_id, team_id, user_id, role_preset)
+        SELECT ${otherMembershipId}, ${org}, id, ${otherUserId}, ${"developer"}
+        FROM teams
+        WHERE org_id = ${org}
+        ORDER BY created_at ASC
+        LIMIT 1
+      `;
+    });
+
+    try {
+      const issued = await issueInjectionGrant({
+        organizationId: org,
+        projectId: testProject(),
+        environmentId: testEnvironment(),
+        selector: { kind: "variable_key", variableKey },
+        actor: testActor(),
+      });
+
+      await expect(
+        consumeInjectionGrant({
+          keyring: createTestKeyring(),
+          organizationId: org,
+          grantId: issued.grantId,
+          variableKey,
+          actor: { type: "user", userId: otherUserId },
+        }),
+      ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+
+      await expect(
+        consumeInjectionGrant({
+          keyring: createTestKeyring(),
+          organizationId: org,
+          grantId: issued.grantId,
+          variableKey,
+          actor: testActor(),
+        }),
+      ).resolves.toMatchObject({ variableKey });
+    } finally {
+      await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+        await sql`DELETE FROM memberships WHERE id = ${otherMembershipId}`;
+      });
+    }
+  });
+
+  it("does not burn a grant when decrypt fails before delivery", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV11_DECRYPT_RETRY");
+    const plaintext = new TextEncoder().encode(`retry-${crypto.randomUUID()}`);
+    await writeTestSecret(variableKey, plaintext);
+
+    const issued = await issueInjectionGrant({
+      organizationId: org,
+      projectId: testProject(),
+      environmentId: testEnvironment(),
+      selector: { kind: "variable_key", variableKey },
+      actor: testActor(),
+    });
+
+    const wrongKey = new Uint8Array(32);
+    crypto.getRandomValues(wrongKey);
+    const { createKeyring } = await import("@insecur/crypto");
+    await expect(
+      consumeInjectionGrant({
+        keyring: createKeyring(wrongKey),
+        organizationId: org,
+        grantId: issued.grantId,
+        variableKey,
+        actor: testActor(),
+      }),
+    ).rejects.toThrow();
+
+    const consumed = await consumeInjectionGrant({
+      keyring: createTestKeyring(),
+      organizationId: org,
+      grantId: issued.grantId,
+      variableKey,
+      actor: testActor(),
+    });
+    expect(new TextDecoder().decode(consumed.valueUtf8.unwrapUtf8())).toBe(
+      new TextDecoder().decode(plaintext),
+    );
+  });
+
   it("issues a fresh grant and consumes it once with metadata-only surfaces", async () => {
     const org = testOrganization();
     const plaintext = new TextEncoder().encode(`fv11-${crypto.randomUUID()}`);

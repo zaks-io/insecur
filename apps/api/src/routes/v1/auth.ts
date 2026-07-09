@@ -18,6 +18,12 @@ import {
 import { Hono, type Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ApiApp, ApiEnv } from "../../env.js";
+import {
+  parseDeviceAuthorizationIntent,
+  parseDeviceTokenBody,
+  recordDeviceTokenApprovedAudit,
+  recordDeviceTokenDeniedAudit,
+} from "./auth-device-route-helpers.js";
 
 const authRoutes = new Hono<{ Bindings: ApiEnv }>();
 
@@ -168,26 +174,6 @@ authRoutes.post("/cli/pkce/exchange", async (context) => {
   });
 });
 
-type ParsedDeviceTokenBody =
-  | { readonly ok: true; readonly deviceCode: string; readonly agentSession: boolean }
-  | { readonly ok: false; readonly response: Response };
-
-async function parseDeviceTokenBody(context: AuthRouteContext): Promise<ParsedDeviceTokenBody> {
-  const body: unknown = await context.req.json().catch(() => null);
-  if (body === null || typeof body !== "object") {
-    return {
-      ok: false,
-      response: validationError(context, "Expected JSON device token exchange body."),
-    };
-  }
-  const record = body as Record<string, unknown>;
-  const deviceCode = typeof record.deviceCode === "string" ? record.deviceCode : "";
-  if (deviceCode.trim() === "") {
-    return { ok: false, response: validationError(context, "Missing device code.") };
-  }
-  return { ok: true, deviceCode, agentSession: record.agentSession === true };
-}
-
 // Starts an OAuth device-authorization flow for headless/remote shells (ADR-0010). WorkOS is called
 // at the edge; no keyring or DB binding is added. The cross-device consent-phishing warning is shown
 // by the CLI before the human approves (ADR-0010 required treatment).
@@ -198,7 +184,12 @@ authRoutes.post("/cli/device/authorize", async (context) => {
     return rateLimited;
   }
   const { workos } = createAuthContext(context.env);
-  const started = await startCliDeviceAuthorization(workos);
+  const intent = parseDeviceAuthorizationIntent(await context.req.json().catch(() => null));
+  const requesterIp = requestHeaderValue(context, "cf-connecting-ip");
+  const started = await startCliDeviceAuthorization(workos, context.env.SESSION_SIGNING_SECRET, {
+    ...intent,
+    ...(requesterIp === undefined ? {} : { requesterIp }),
+  });
   return context.json(successEnvelope(started, { requestId: reqId }), 200);
 });
 
@@ -216,6 +207,7 @@ async function respondDeviceTokenFailure(
     exchanged.failure.reason === "device_authorization_denied" ||
     exchanged.failure.reason === "device_authorization_expired"
   ) {
+    await recordDeviceTokenDeniedAudit(context, exchanged, reqId);
     const status = httpStatusForKnownErrorCode(exchanged.failure.code);
     return context.json(
       errorEnvelope(
@@ -242,9 +234,9 @@ authRoutes.post("/cli/device/token", async (context) => {
     return rateLimited;
   }
   const { config, workos, resolveAdmittedUser } = createAuthContext(context.env);
-  const parsed = await parseDeviceTokenBody(context);
+  const parsed = parseDeviceTokenBody(await context.req.json().catch(() => null));
   if (!parsed.ok) {
-    return parsed.response;
+    return validationError(context, parsed.message);
   }
   const exchanged = await exchangeCliDeviceSession({
     deviceCode: parsed.deviceCode,
@@ -260,6 +252,7 @@ authRoutes.post("/cli/device/token", async (context) => {
   if (exchanged.status !== "authenticated") {
     return context.json(successEnvelope({ status: exchanged.status }, { requestId: reqId }), 200);
   }
+  await recordDeviceTokenApprovedAudit(context, exchanged, reqId);
   return context.json(successEnvelope(exchanged.body, { requestId: reqId }), 200, {
     [INSECUR_SESSION_CREDENTIAL_HEADER]: exchanged.credential,
   });

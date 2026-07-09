@@ -1,7 +1,9 @@
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
-import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { ActorRef } from "@insecur/access";
 import {
   AUTH_ERROR_CODES,
+  INJECTION_ERROR_CODES,
   environmentId,
   projectId,
   type EnvironmentId,
@@ -16,7 +18,7 @@ import { TenantInjectionGrantStore, withTenantScope } from "@insecur/tenant-stor
 
 import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-injection-access.js";
 import {
-  assertUserActorForConsume,
+  auditActorForConsume,
   reasonCodeForConsumeFailure,
   recordConsumeDeniedAudit,
   runConsumeWithAuditDenialHandling,
@@ -29,11 +31,16 @@ import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.
 import { matchConsumeSelectorToBinding } from "./match-consume-selector.js";
 import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
+import {
+  actorMatchesGrantOwner,
+  issuedToFromGrant,
+  type InjectionGrantOwner,
+} from "./injection-grant-owner.js";
 
 export interface ConsumeInjectionGrantGateInput extends RuntimeInjectionGateDeps {
   organizationId: OrganizationId;
   grantId: InjectionGrantId;
-  actor: AuditActorRef;
+  actor: ActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }
@@ -54,6 +61,7 @@ export interface ConsumeInjectionGrantCoreResult {
 export interface LoadedGrantBinding {
   projectId: ProjectId;
   environmentId: EnvironmentId;
+  issuedTo: InjectionGrantOwner;
   binding: {
     secretId: SecretId;
     secretVersionId: SecretVersionId;
@@ -75,9 +83,14 @@ async function loadGrantBinding(
     if (!bound) {
       return undefined;
     }
+    const issuedTo = issuedToFromGrant(grant);
+    if (!issuedTo) {
+      return undefined;
+    }
     return {
       projectId: projectId.brand(grant.project_id),
       environmentId: environmentId.brand(grant.environment_id),
+      issuedTo,
       binding: {
         secretId: bound.secretId,
         secretVersionId: bound.secretVersionId,
@@ -91,8 +104,6 @@ export async function executeConsumeInjectionGrant(
   input: ConsumeInjectionGrantCoreInput,
   loaded: LoadedGrantBinding | undefined,
 ): Promise<ConsumeInjectionGrantCoreResult> {
-  assertUserActorForConsume(input.actor);
-
   // A consume grant pins its own project/environment, so the authorization coordinate is only known
   // after the grant loads. A not-found grant therefore cannot be authorized, and surfacing
   // `grant_denied` here would let a caller distinguish "grant absent" from "grant present but I lack
@@ -107,6 +118,12 @@ export async function executeConsumeInjectionGrant(
       "injection grant consume denied",
     );
   }
+  if (!actorMatchesGrantOwner(input.actor, loaded.issuedTo)) {
+    throw new InjectionGrantError(
+      INJECTION_ERROR_CODES.grantDenied,
+      "injection grant consume denied",
+    );
+  }
 
   const grantCoordinate: GrantCoordinate = {
     organizationId: input.organizationId,
@@ -117,6 +134,15 @@ export async function executeConsumeInjectionGrant(
   await assertRuntimeInjectionAccess(input.actor, grantCoordinate, CONSUME_SCOPE);
 
   const identity = matchConsumeSelectorToBinding(input.selector, loaded.binding);
+
+  const plaintext = await decryptBoundGrantSecretVersion({
+    keyring: input.keyring,
+    organizationId: input.organizationId,
+    projectId: loaded.projectId,
+    environmentId: loaded.environmentId,
+    secretId: loaded.binding.secretId,
+    secretVersionId: loaded.binding.secretVersionId,
+  });
 
   const consumeResult = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
@@ -129,20 +155,12 @@ export async function executeConsumeInjectionGrant(
       ),
   );
   if (!consumeResult.ok) {
+    plaintext.unwrapUtf8().fill(0);
     throw new InjectionGrantError(
       reasonCodeForConsumeFailure(consumeResult.reason),
       "injection grant consume denied",
     );
   }
-
-  const plaintext = await decryptBoundGrantSecretVersion({
-    keyring: input.keyring,
-    organizationId: input.organizationId,
-    projectId: loaded.projectId,
-    environmentId: loaded.environmentId,
-    secretId: loaded.binding.secretId,
-    secretVersionId: loaded.binding.secretVersionId,
-  });
 
   return buildConsumeSuccessResult(input, loaded, plaintext);
 }
@@ -163,7 +181,7 @@ async function buildConsumeSuccessResult(
   const audit = await recordRuntimeInjectionAudit({
     phase: "consume",
     outcome: "success",
-    actor: input.actor,
+    actor: auditActorForConsume(input.actor),
     organizationId: input.organizationId,
     projectId: loaded.projectId,
     environmentId: loaded.environmentId,
@@ -184,7 +202,7 @@ async function buildConsumeSuccessResult(
 
 export async function recordDeniedConsume(
   input: {
-    actor: AuditActorRef;
+    actor: ActorRef;
     organizationId: OrganizationId;
     grantId: InjectionGrantId;
     request?: AuditRequestRef;
@@ -194,7 +212,7 @@ export async function recordDeniedConsume(
   coordinate?: { projectId: ProjectId; environmentId: EnvironmentId },
 ): Promise<void> {
   await recordConsumeDeniedAudit({
-    actor: input.actor,
+    actor: auditActorForConsume(input.actor),
     organizationId: input.organizationId,
     grantId: input.grantId,
     reasonCode,

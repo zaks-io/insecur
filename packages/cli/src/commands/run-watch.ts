@@ -4,7 +4,7 @@ import { watch } from "node:fs";
 import path from "node:path";
 import type { InjectionGrantId } from "@insecur/domain";
 import { isIgnoredProjectPath } from "../scan/ignored-paths.js";
-import { spawnCommandManaged } from "./run-child.js";
+import { spawnCommandManaged, terminateChildProcessTree } from "./run-child.js";
 
 interface RunWatchIteration {
   readonly grantId: InjectionGrantId;
@@ -40,15 +40,11 @@ function terminateChild(child: ChildProcess): void {
   if (child.exitCode != null || child.signalCode != null) {
     return;
   }
-  child.kill("SIGTERM");
+  terminateChildProcessTree(child, "SIGTERM");
   const escalationTimer = setTimeout(() => {
-    if (child.exitCode == null && child.signalCode == null) {
-      child.kill("SIGKILL");
-    }
+    terminateChildProcessTree(child, "SIGKILL");
   }, CHILD_KILL_ESCALATION_MS);
-  child.once("close", () => {
-    clearTimeout(escalationTimer);
-  });
+  escalationTimer.unref();
 }
 
 function createFilesystemRestartSignal(watchRoot: string): {

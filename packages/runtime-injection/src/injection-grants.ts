@@ -1,4 +1,5 @@
-import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import type { ActorRef } from "@insecur/access";
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
 import type {
   InjectionGrantId,
@@ -33,7 +34,7 @@ export interface ConsumeInjectionGrantInput extends RuntimeInjectionGateDeps {
   variableKey?: VariableKey;
   /** Deliver by exact Secret ID when the grant was issued for that binding. */
   secretId?: SecretId;
-  actor: AuditActorRef;
+  actor: ActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }
@@ -55,7 +56,7 @@ export interface ConsumeInjectionGrantAllInput extends RuntimeInjectionGateDeps 
   keyring: Keyring;
   organizationId: OrganizationId;
   grantId: InjectionGrantId;
-  actor: AuditActorRef;
+  actor: ActorRef;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
 }

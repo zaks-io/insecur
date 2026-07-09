@@ -199,12 +199,18 @@ importers:
 
   apps/api:
     dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../../packages/access
       '@insecur/auth':
         specifier: workspace:*
         version: link:../../packages/auth
       '@insecur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@insecur/machine-auth':
+        specifier: workspace:*
+        version: link:../../packages/machine-auth
       '@insecur/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -233,18 +239,12 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260703.1
-      '@insecur/access':
-        specifier: workspace:*
-        version: link:../../packages/access
       '@insecur/agent-attribution':
         specifier: workspace:*
         version: link:../../packages/agent-attribution
       '@insecur/audit':
         specifier: workspace:*
         version: link:../../packages/audit
-      '@insecur/machine-auth':
-        specifier: workspace:*
-        version: link:../../packages/machine-auth
       '@insecur/runtime':
         specifier: workspace:*
         version: link:../runtime

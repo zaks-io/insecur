@@ -1,4 +1,4 @@
-import { auditAccessDenialOnFailure } from "@insecur/access";
+import { auditAccessDenialOnFailure, type ActorRef } from "@insecur/access";
 import type {
   AuditActorRef,
   AuditOperationRef,
@@ -27,15 +27,12 @@ export function reasonCodeForConsumeFailure(
   return INJECTION_ERROR_CODES.grantDenied;
 }
 
-export function assertUserActorForConsume(
-  actor: AuditActorRef,
-): asserts actor is AuditUserActorRef {
-  if (actor.type !== "user") {
-    throw new InjectionGrantError(
-      AUTH_ERROR_CODES.insufficientScope,
-      "runtime injection scope required",
-    );
-  }
+export function auditActorForConsume(
+  actor: ActorRef,
+): AuditUserActorRef | Extract<AuditActorRef, { type: "machine" }> {
+  return actor.type === "user"
+    ? { type: "user", userId: actor.userId }
+    : { type: "machine", machineIdentityId: actor.machineIdentityId };
 }
 
 export async function recordConsumeDeniedAudit(input: {

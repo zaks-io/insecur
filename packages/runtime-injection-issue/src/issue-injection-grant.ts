@@ -29,6 +29,7 @@ import {
   resolveIssueGrantRequiredScope,
 } from "./assert-runtime-injection-access.js";
 import { assertRuntimePolicyKeyAllowsGrantSelector } from "./assert-runtime-policy-key-grant-binding.js";
+import { assertProtectedGrantUsesBoundPolicy, issuedToForActor } from "./grant-issuer-binding.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import {
   assertSingleIssueSelectorCount,
@@ -85,6 +86,16 @@ function auditActorForIssue(actor: ActorRef): AuditActorRef {
   return { type: "machine", machineIdentityId: actor.machineIdentityId };
 }
 
+function assertProtectedSelector(
+  isProtected: boolean,
+  actor: ActorRef,
+  selector: InjectionGrantIssueSelector,
+): void {
+  if (isProtected) {
+    assertProtectedGrantUsesBoundPolicy(actor, selector);
+  }
+}
+
 function buildGrantInsert(
   resolvedBindings: Awaited<ReturnType<typeof resolveInjectionGrantBindings>>,
 ): {
@@ -107,6 +118,7 @@ async function persistIssuedGrant(input: {
   readonly projectId: IssueInjectionGrantCoreInput["projectId"];
   readonly environmentId: IssueInjectionGrantCoreInput["environmentId"];
   readonly grantId: InjectionGrantId;
+  readonly issuedTo: ReturnType<typeof issuedToForActor>;
   readonly grantInsert: ReturnType<typeof buildGrantInsert>;
   readonly expiresAtDate: Date;
   readonly auditActor: AuditActorRef;
@@ -121,6 +133,7 @@ async function persistIssuedGrant(input: {
         projectId: input.projectId,
         environmentId: input.environmentId,
         grantId: input.grantId,
+        issuedTo: input.issuedTo,
         ...input.grantInsert,
         expiresAt: input.expiresAtDate,
       });
@@ -163,6 +176,8 @@ export async function executeIssueInjectionGrant(
     accessDeps,
   );
 
+  assertProtectedSelector(isProtected, input.actor, input.selector);
+
   assertSingleIssueSelectorCount(input.selector);
 
   await assertRuntimePolicyKeyAllowsGrantSelector(input.actor, coordinate, input.selector);
@@ -180,6 +195,7 @@ export async function executeIssueInjectionGrant(
     projectId: input.projectId,
     environmentId: input.environmentId,
     grantId,
+    issuedTo: issuedToForActor(input.actor, input.selector),
     grantInsert,
     expiresAtDate,
     auditActor,

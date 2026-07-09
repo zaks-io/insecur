@@ -44,6 +44,8 @@ What is not delivered:
 - No production launch gate is complete.
 - Full tenant web console UX (beyond the INS-201 BFF scaffold and `/whoami` proof).
 - No provider sync to GitHub or customer Cloudflare Workers exists.
+- GitHub App installation verification is not provider-backed yet; connection creation fails closed
+  rather than recording caller-supplied installation metadata as validated.
 - No Storage Security Gate enforcement is wired into production delivery.
 - No hosted web-console WorkOS login/logout/callback UI, MFA enrollment, or high-risk
   challenge flow exists.

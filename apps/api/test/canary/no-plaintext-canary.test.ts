@@ -25,7 +25,9 @@ import { mintCanarySentinel } from "./sentinel-encodings.js";
 /**
  * No-plaintext canary gate (ADR-0069): drive the real route stack with a fresh sentinel,
  * then sweep every Postgres column (live information_schema), captured console output,
- * and serialized HTTP/RPC egress for raw/base64/base64url/hex encodings of the sentinel.
+ * and serialized HTTP/RPC egress for unexpected raw/base64/base64url/hex copies of the sentinel.
+ * The exact Runtime delivery field is intentionally allowed because it is the product's explicit
+ * development-secret delivery boundary; this gate proves containment, not absence of delivery.
  */
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
@@ -39,7 +41,7 @@ describeIntegration("no-plaintext canary (real DB, real crypto, HTTP routes)", (
     await closeRuntimeSql();
   });
 
-  it("finds no sentinel in Postgres columns, console output, or serialized egress after the First Value loop", async () => {
+  it("finds no persisted, logged, or unexpected egress copy after the First Value loop", async () => {
     const sentinel = mintCanarySentinel();
     const capture = startConsoleCapture();
     let egress;

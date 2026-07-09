@@ -68,7 +68,7 @@ describe("consumeGrantOperation", () => {
       requestId: request,
     };
 
-    const envelope = await consumeGrantOperation({ env, input, auditActor: actor });
+    const envelope = await consumeGrantOperation({ env, input, actor });
 
     expect(createKeyringFromRuntimeEnv).toHaveBeenCalledWith(env);
     expect(consumeInjectionGrant).toHaveBeenCalledWith({

@@ -27,7 +27,7 @@ describe("deriveFreshStepUpFactorFromWorkOSContext", () => {
     ).toBe("passkey");
   });
 
-  it("maps password sessions with enrolled TOTP to totp step-up", () => {
+  it("does not treat enrolled TOTP as proof of a fresh TOTP step-up", () => {
     expect(
       deriveFreshStepUpFactorFromWorkOSContext({
         user: { id: actor.workosUserId },
@@ -35,12 +35,12 @@ describe("deriveFreshStepUpFactorFromWorkOSContext", () => {
         authenticationMethod: "Password",
         authFactors: [{ type: "totp" }],
       }),
-    ).toBe("totp");
+    ).toBeNull();
   });
 });
 
 describe("resolveHighAssuranceClearAssuranceFromWorkOSStepUp", () => {
-  it("accepts server-verified step-up for the same user and session", async () => {
+  it("rejects password reauthentication when TOTP is only enrolled", async () => {
     const workos = createFakeWorkOSSessionPort([
       {
         sessionData: "sealed_step_up",
@@ -60,13 +60,9 @@ describe("resolveHighAssuranceClearAssuranceFromWorkOSStepUp", () => {
       stepUpCodeVerifier: "verifier_step_up",
     });
 
-    expect(result).toEqual({
-      ok: true,
-      sessionAssurance: {
-        authenticationMethod: "Password",
-        authFactors: [{ type: "totp" }],
-        freshStepUpFactor: "totp",
-      },
+    expect(result).toMatchObject({
+      ok: false,
+      failure: { reason: "mfa_enrollment" },
     });
   });
 
@@ -158,8 +154,7 @@ describe("resolveHighAssuranceClearAssuranceFromWorkOSStepUp", () => {
         sessionId: actor.sessionId,
         authorizationCode: "code_double_exchange",
         codeVerifier: "verifier_double_exchange",
-        authenticationMethod: "Password",
-        authFactors: [{ type: "totp" }],
+        authenticationMethod: "Passkey",
       },
     ]);
 

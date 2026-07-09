@@ -19,8 +19,8 @@ export function consumeGrantRpc(
   env: RuntimeEnv,
   input: ConsumeGrantRpcInput,
 ): Promise<RuntimeRpcResult<RuntimeDeliveryEnvelope>> {
-  return post(input.actorToken, ({ auditActor }) =>
-    consumeGrantOperation({ env, input, auditActor }),
+  return post(input.actorToken, ({ accessActor }) =>
+    consumeGrantOperation({ env, input, actor: accessActor }),
   );
 }
 
@@ -29,8 +29,8 @@ export function consumeGrantAllRpc(
   env: RuntimeEnv,
   input: ConsumeGrantAllRpcInput,
 ): Promise<RuntimeRpcResult<RuntimeDeliveryAllEnvelope>> {
-  return post(input.actorToken, ({ auditActor }) =>
-    consumeGrantAllOperation({ env, input, auditActor }),
+  return post(input.actorToken, ({ accessActor }) =>
+    consumeGrantAllOperation({ env, input, actor: accessActor }),
   );
 }
 

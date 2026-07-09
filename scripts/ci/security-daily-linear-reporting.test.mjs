@@ -14,7 +14,7 @@ import { fingerprintMarker, issueDescription } from "./security-daily-linear-for
 
 const workflowUrl = "https://github.com/zaks-io/insecur/actions/runs/123";
 
-test("grype parser keeps only critical vulnerability metadata", () => {
+test("grype parser preserves high and critical vulnerability metadata", () => {
   const findings = findingsFromGrype(
     {
       matches: [
@@ -25,11 +25,14 @@ test("grype parser keeps only critical vulnerability metadata", () => {
     { workflowUrl },
   );
 
-  assert.equal(findings.length, 1);
+  assert.equal(findings.length, 2);
   assert.equal(findings[0].scanner, "grype");
   assert.equal(findings[0].category, "CVE-1");
+  assert.equal(findings[0].severity, "critical");
   assert.equal(findings[0].package_path, "npm:hono@4.0.0");
   assert.equal(findings[0].artifact_url, workflowUrl);
+  assert.equal(findings[1].category, "CVE-2");
+  assert.equal(findings[1].severity, "high");
 });
 
 test("semgrep parser keeps only error/critical findings", () => {

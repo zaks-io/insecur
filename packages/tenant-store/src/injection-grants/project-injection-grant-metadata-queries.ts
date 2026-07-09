@@ -8,6 +8,7 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 
 import { injectionGrants } from "../db/schema/tenant-secrets.js";
+import { environments } from "../db/schema/tenant-hierarchy.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { loadLatestPrincipalChainActorsByResourceId } from "../secrets/secret-write-audit-attribution-queries.js";
 import type {
@@ -31,6 +32,7 @@ interface RawGrantRow {
   readonly revokedAt: Date | null;
   readonly revokedReason: string | null;
   readonly createdAt: Date;
+  readonly isProtected: boolean;
 }
 
 function parseRevokedReason(
@@ -75,8 +77,16 @@ async function loadRawProjectGrantRows(
       revokedAt: injectionGrants.revokedAt,
       revokedReason: injectionGrants.revokedReason,
       createdAt: injectionGrants.createdAt,
+      isProtected: environments.isProtected,
     })
     .from(injectionGrants)
+    .innerJoin(
+      environments,
+      and(
+        eq(environments.orgId, injectionGrants.orgId),
+        eq(environments.id, injectionGrants.environmentId),
+      ),
+    )
     .where(
       and(
         eq(injectionGrants.orgId, input.organizationId),
@@ -113,11 +123,18 @@ async function loadGrantAttributionMaps(
   return { issuedByGrantId, consumedByGrantId };
 }
 
+function isHiddenProtectedGrant(row: RawGrantRow): boolean {
+  return row.isProtected && deriveGrantStatus(row) === "active";
+}
+
 function mapGrantRow(
   row: RawGrantRow,
   issuedByGrantId: Map<string, PrincipalChainActorRow>,
   consumedByGrantId: Map<string, PrincipalChainActorRow>,
 ): ProjectInjectionGrantRow | null {
+  if (isHiddenProtectedGrant(row)) {
+    return null;
+  }
   const parsedGrantId = injectionGrantId.parse(row.grantId);
   const parsedOrganizationId = organizationId.parse(row.organizationId);
   const parsedProjectId = projectId.parse(row.projectId);
