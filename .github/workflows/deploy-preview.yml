@@ -270,7 +270,7 @@ jobs:
     name: Preview Smoke
     needs: deploy
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment:
       name: Preview
 
