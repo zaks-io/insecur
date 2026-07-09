@@ -16,50 +16,212 @@ function validExportEvidence() {
   };
 }
 
+function validRestoreEvidence() {
+  return {
+    status: "passed",
+    checked_at: "2026-07-08T03:00:05.000Z",
+    actor: "ci:backup-restore-drill",
+    scope: {
+      instance_id: "inst_1",
+      organization_id: "org_00000000000000000000000001",
+      project_id: "prj_00000000000000000000000001",
+      environment_id: "env_00000000000000000000000001",
+      secret_id: "sec_00000000000000000000000001",
+    },
+    rto: {
+      started_at: "2026-07-08T03:00:00.000Z",
+      completed_at: "2026-07-08T03:00:05.000Z",
+      duration_seconds: 5,
+      target_seconds: 28800,
+    },
+    canary_verification: {
+      status: "passed",
+      checked_at: "2026-07-08T03:00:05.000Z",
+      variable_key: "INSECUR_RECOVERY_CANARY",
+    },
+    encryption_verified: true,
+    artifact_ref: "backup/latest-export.ibkp",
+  };
+}
+
+function withField<T extends Record<string, unknown>>(
+  value: T,
+  key: keyof T,
+  replacement: unknown,
+): T {
+  if (replacement === undefined) {
+    return Object.fromEntries(Object.entries(value).filter(([entryKey]) => entryKey !== key)) as T;
+  }
+  const next = { ...value };
+  next[key] = replacement as T[keyof T];
+  return next;
+}
+
 describe("parseExportSuccessEvidence", () => {
   it("parses a well-formed record and carries the optional operation_id", () => {
     const parsed = parseExportSuccessEvidence({
       ...validExportEvidence(),
       operation_id: "op_00000000000000000000000001",
     });
-    expect(parsed?.status).toBe("passed");
-    expect(parsed?.operation_id).toBe("op_00000000000000000000000001");
+    expect(parsed).toEqual({
+      ...validExportEvidence(),
+      operation_id: "op_00000000000000000000000001",
+    });
+  });
+
+  it("preserves failed status and false encryption verification", () => {
+    const parsed = parseExportSuccessEvidence({
+      ...validExportEvidence(),
+      status: "failed",
+      encryption_verified: false,
+    });
+    expect(parsed?.status).toBe("failed");
+    expect(parsed?.encryption_verified).toBe(false);
+  });
+
+  it("omits invalid optional operation_id values", () => {
+    expect(
+      parseExportSuccessEvidence({ ...validExportEvidence(), operation_id: "" }),
+    ).not.toHaveProperty("operation_id");
+    expect(
+      parseExportSuccessEvidence({ ...validExportEvidence(), operation_id: 123 }),
+    ).not.toHaveProperty("operation_id");
   });
 
   it("returns null for a non-record value", () => {
-    expect(parseExportSuccessEvidence(null)).toBeNull();
-    expect(parseExportSuccessEvidence("nope")).toBeNull();
-    expect(parseExportSuccessEvidence(42)).toBeNull();
+    for (const value of [null, "nope", 42, false]) {
+      expect(parseExportSuccessEvidence(value)).toBeNull();
+    }
   });
 
-  it("returns null when a required field is missing or the wrong type", () => {
-    const { instance_id, ...withoutInstance } = validExportEvidence();
-    void instance_id;
-    expect(parseExportSuccessEvidence(withoutInstance)).toBeNull();
+  it.each([
+    ["status", "skipped"],
+    ["status", undefined],
+    ["checked_at", ""],
+    ["checked_at", 1],
+    ["instance_id", ""],
+    ["instance_id", undefined],
+    ["export_timestamp", 1],
+    ["root_key_version", "1"],
+    ["organization_count", "2"],
+    ["artifact_ref", ""],
+    ["artifact_ref", undefined],
+    ["encryption_verified", "true"],
+    ["expires_at", 1],
+  ] as const)("returns null for invalid export field %s=%j", (key, replacement) => {
     expect(
-      parseExportSuccessEvidence({ ...validExportEvidence(), encryption_verified: "yes" }),
-    ).toBeNull();
-    expect(
-      parseExportSuccessEvidence({ ...validExportEvidence(), root_key_version: "1" }),
+      parseExportSuccessEvidence(withField(validExportEvidence(), key, replacement)),
     ).toBeNull();
   });
 });
 
 describe("parseRestoreDrillEvidence", () => {
-  it("returns null for a non-record value", () => {
-    expect(parseRestoreDrillEvidence(null)).toBeNull();
-    expect(parseRestoreDrillEvidence([])).toBeNull();
+  it("parses a well-formed restore drill and carries the optional restore_target_ref", () => {
+    const parsed = parseRestoreDrillEvidence({
+      ...validRestoreEvidence(),
+      restore_target_ref: "neon-branch://restore-drill",
+    });
+    expect(parsed).toEqual({
+      ...validRestoreEvidence(),
+      restore_target_ref: "neon-branch://restore-drill",
+    });
   });
 
-  it("returns null when the scope block is incomplete", () => {
+  it("preserves failed drill and canary statuses with false encryption verification", () => {
+    const parsed = parseRestoreDrillEvidence({
+      ...validRestoreEvidence(),
+      status: "failed",
+      canary_verification: {
+        ...validRestoreEvidence().canary_verification,
+        status: "failed",
+      },
+      encryption_verified: false,
+    });
+    expect(parsed?.status).toBe("failed");
+    expect(parsed?.canary_verification.status).toBe("failed");
+    expect(parsed?.encryption_verified).toBe(false);
+  });
+
+  it("omits invalid optional restore_target_ref values", () => {
+    expect(
+      parseRestoreDrillEvidence({ ...validRestoreEvidence(), restore_target_ref: "" }),
+    ).not.toHaveProperty("restore_target_ref");
+    expect(
+      parseRestoreDrillEvidence({ ...validRestoreEvidence(), restore_target_ref: 123 }),
+    ).not.toHaveProperty("restore_target_ref");
+  });
+
+  it("returns null for a non-record or empty record value", () => {
+    for (const value of [null, "nope", 42, false, []]) {
+      expect(parseRestoreDrillEvidence(value)).toBeNull();
+    }
+  });
+
+  it.each([
+    ["status", "skipped"],
+    ["status", undefined],
+    ["checked_at", ""],
+    ["actor", 1],
+    ["scope", null],
+    ["scope", "scope"],
+    ["rto", null],
+    ["rto", "rto"],
+    ["canary_verification", null],
+    ["canary_verification", "canary"],
+    ["artifact_ref", ""],
+    ["encryption_verified", "true"],
+  ] as const)("returns null for invalid restore top-level field %s=%j", (key, replacement) => {
+    expect(
+      parseRestoreDrillEvidence(withField(validRestoreEvidence(), key, replacement)),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["instance_id", ""],
+    ["instance_id", undefined],
+    ["organization_id", 1],
+    ["project_id", ""],
+    ["environment_id", null],
+    ["secret_id", ""],
+  ] as const)("returns null for invalid restore scope field %s=%j", (key, replacement) => {
+    const evidence = validRestoreEvidence();
     expect(
       parseRestoreDrillEvidence({
-        status: "passed",
-        checked_at: "2026-07-08T03:00:00.000Z",
-        actor: "ci",
-        scope: { instance_id: "inst_1" },
-        rto: {},
-        canary_verification: {},
+        ...evidence,
+        scope: withField(evidence.scope, key, replacement),
+      }),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["started_at", ""],
+    ["started_at", undefined],
+    ["completed_at", 1],
+    ["duration_seconds", "5"],
+    ["target_seconds", "28800"],
+  ] as const)("returns null for invalid restore rto field %s=%j", (key, replacement) => {
+    const evidence = validRestoreEvidence();
+    expect(
+      parseRestoreDrillEvidence({
+        ...evidence,
+        rto: withField(evidence.rto, key, replacement),
+      }),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["status", "skipped"],
+    ["status", undefined],
+    ["checked_at", ""],
+    ["checked_at", 1],
+    ["variable_key", ""],
+    ["variable_key", undefined],
+  ] as const)("returns null for invalid canary field %s=%j", (key, replacement) => {
+    const evidence = validRestoreEvidence();
+    expect(
+      parseRestoreDrillEvidence({
+        ...evidence,
+        canary_verification: withField(evidence.canary_verification, key, replacement),
       }),
     ).toBeNull();
   });

@@ -79,7 +79,12 @@ interface DeviceRouteBody {
     readonly sessionId?: string;
     readonly agentSessionId?: string;
   };
-  readonly error: { readonly code?: string };
+  readonly error: {
+    readonly code?: string;
+    readonly message?: string;
+    readonly retryable?: boolean;
+  };
+  readonly meta?: { readonly requestId?: string };
 }
 
 async function readBody(response: Response): Promise<DeviceRouteBody> {
@@ -100,6 +105,7 @@ describe("device authorization routes", () => {
     expect(body.data.userCode).toBe("WDJB-MJHT");
     expect(body.data.verificationUri).toBe("https://workos.test/device");
     expect(body.data.deviceCode).toBe("device_code_route");
+    expect(body.meta?.requestId).toMatch(/^req_/);
   });
 
   it("returns the pending status while awaiting approval and never a credential header", async () => {
@@ -111,6 +117,7 @@ describe("device authorization routes", () => {
     expect(response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER)).toBeNull();
     const body = await readBody(response);
     expect(body.data.status).toBe("authorization_pending");
+    expect(body.meta?.requestId).toMatch(/^req_/);
   });
 
   it("mints a human session on approval and returns the credential in the header only", async () => {
@@ -124,6 +131,7 @@ describe("device authorization routes", () => {
     const body = await readBody(response);
     expect(body.data.sessionId).toBe("session_device_route");
     expect(body.data.agentSessionId).toBeUndefined();
+    expect(body.meta?.requestId).toMatch(/^req_/);
     const metadata = await readSessionCredentialMetadata(credential ?? "", SESSION_SIGNING_SECRET);
     expect(metadata.agentMarked).toBe(false);
   });
@@ -135,6 +143,7 @@ describe("device authorization routes", () => {
     expect(credential).toBeTruthy();
     const body = await readBody(response);
     expect(body.data.agentSessionId).toMatch(/^ags_[0-9A-Z]{26}$/);
+    expect(body.meta?.requestId).toMatch(/^req_/);
     const metadata = await readSessionCredentialMetadata(credential ?? "", SESSION_SIGNING_SECRET);
     expect(metadata.agentMarked).toBe(true);
     expect(metadata.derivedAgentSessionId).toBe(body.data.agentSessionId);
@@ -146,6 +155,8 @@ describe("device authorization routes", () => {
     const body = await readBody(response);
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe("auth.device_authorization_denied");
+    expect(body.error.retryable).toBe(false);
+    expect(body.meta?.requestId).toMatch(/^req_/);
   });
 
   it("maps device code expiry to 401 auth.device_authorization_expired", async () => {
@@ -153,6 +164,8 @@ describe("device authorization routes", () => {
     expect(response.status).toBe(401);
     const body = await readBody(response);
     expect(body.error.code).toBe("auth.device_authorization_expired");
+    expect(body.error.retryable).toBe(false);
+    expect(body.meta?.requestId).toMatch(/^req_/);
   });
 
   it("rejects a missing device code with validation.invalid_command_input", async () => {
@@ -168,5 +181,49 @@ describe("device authorization routes", () => {
     expect(response.status).toBe(400);
     const body = await readBody(response);
     expect(body.error.code).toBe("validation.invalid_command_input");
+    expect(body.error.message).toBe("Missing device code.");
+    expect(body.error.retryable).toBe(false);
+  });
+
+  it("rejects malformed and blank device token bodies", async () => {
+    const cases = [
+      {
+        body: "{",
+        message: "Expected JSON device token exchange body.",
+      },
+      {
+        body: JSON.stringify("device_code_route"),
+        message: "Expected JSON device token exchange body.",
+      },
+      {
+        body: JSON.stringify(null),
+        message: "Expected JSON device token exchange body.",
+      },
+      {
+        body: JSON.stringify({ deviceCode: "   ", agentSession: false }),
+        message: "Missing device code.",
+      },
+      {
+        body: JSON.stringify({ deviceCode: 123, agentSession: false }),
+        message: "Missing device code.",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const response = await app.request(
+        "/v1/auth/cli/device/token",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: testCase.body,
+        },
+        deviceEnv(),
+      );
+      expect(response.status).toBe(400);
+      const body = await readBody(response);
+      expect(body.error.code).toBe("validation.invalid_command_input");
+      expect(body.error.message).toBe(testCase.message);
+      expect(body.error.retryable).toBe(false);
+    }
   });
 });

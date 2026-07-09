@@ -47,26 +47,14 @@ function isJsonPrimitive(value: unknown): boolean {
   return false;
 }
 
-function isUnsupportedJsonValue(value: unknown): boolean {
-  return (
-    typeof value === "function" ||
-    typeof value === "symbol" ||
-    typeof value === "bigint" ||
-    typeof value === "undefined"
-  );
-}
-
 function isPlainJsonValue(value: unknown): boolean {
   if (isJsonPrimitive(value)) {
     return true;
   }
-  if (isUnsupportedJsonValue(value)) {
-    return false;
-  }
   if (Array.isArray(value)) {
     return value.every(isPlainJsonValue);
   }
-  return typeof value === "object" && isPlainJsonObject(value);
+  return isPlainJsonObject(value);
 }
 
 function assertPlainJsonObjectPayload(payload: object): asserts payload is Record<string, unknown> {
@@ -96,10 +84,7 @@ export function parseSignedHs256TokenParts(token: string): SignedHs256TokenParts
   if (parts.length !== 3) {
     return null;
   }
-  const [header, body, signature] = parts;
-  if (header === undefined || body === undefined || signature === undefined) {
-    return null;
-  }
+  const [header, body, signature] = parts as [string, string, string];
   return { signingInput: `${header}.${body}`, body, signature };
 }
 
