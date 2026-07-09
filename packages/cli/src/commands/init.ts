@@ -7,6 +7,7 @@ import {
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { parseCliProfileSlug } from "../config/profiles/profile-slug.js";
+import { resolveAvailableProfileSlug } from "../config/profiles/available-profile-slug.js";
 import { isLocalModeHost, LOCAL_MODE_HOST } from "../config/local-mode.js";
 import { tryResolveSessionCredential } from "../auth/try-session.js";
 import { requireSessionCredential } from "../auth/require-session.js";
@@ -38,6 +39,7 @@ const INIT_LABELS = {
 
 export interface InitCommandOptions {
   readonly profileSlug: string;
+  readonly profileSlugWasExplicit?: boolean;
 }
 
 function requestedHostedInit(flags: GlobalCliFlags): boolean {
@@ -91,7 +93,10 @@ async function runHostedInitCommand(input: {
   const { flags, api, context, commandOptions, session } = input;
   const { host, orgId, projectId, envId } = context.scope;
   const credential = session ?? (await requireSessionCredential(host));
-  const profileSlug = parseCliProfileSlug(commandOptions.profileSlug, "--profile-slug");
+  const profileSlug = await resolveAvailableProfileSlug(
+    parseCliProfileSlug(commandOptions.profileSlug, "--profile-slug"),
+    { strict: commandOptions.profileSlugWasExplicit === true },
+  );
   const provisioned = await api.provisionPersonalOrganization({
     host,
     bearerCredential: credential,
