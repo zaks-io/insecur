@@ -4,6 +4,7 @@ import type {
   InjectionGrantDeliveryAllEnvelope,
   InjectionGrantDeliveryEnvelope,
 } from "./runtime-injection-api-types.js";
+import { cliApiHeaders } from "./http-client-headers.js";
 
 async function readJsonResponse(response: Response): Promise<unknown> {
   return response.json();
@@ -67,7 +68,7 @@ export async function postJson(
   url: URL,
   init: RequestInit,
 ): Promise<{ response: Response; body: unknown }> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, { ...init, headers: cliApiHeaders(init.headers) });
   return { response, body: await readJsonResponse(response) };
 }
 
