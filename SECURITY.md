@@ -38,17 +38,21 @@ mitigation is available.
 The authoritative route inventory is
 [`docs/specs/deploy-route-inventory.md`](docs/specs/deploy-route-inventory.md) (generated via
 `pnpm routes:inventory` from route mounts plus `deploy-route-inventory.sidecar.json`). Regenerate
-that inventory and update this section together when the public surface changes.
+that inventory and update this section together when the public surface changes; the
+`pnpm conformance:security-md` gate (part of `pnpm verify`) fails CI when this section drifts from
+the inventory.
 
-| Surface         | Production endpoint                                  | Preview endpoint                    | Public route groups                                                                                                                                    |
-| --------------- | ---------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Public Site     | `https://insecur.cloud`, `https://www.insecur.cloud` | `https://preview.insecur.cloud`     | `GET /`, `GET /healthz`, `GET /badges/coverage.json`, `GET /.well-known/insecur/audit-export-signing-keys.json`, `GET /install.sh`, `GET /install.ps1` |
-| Web Console BFF | `https://app.insecur.cloud`                          | `https://app.preview.insecur.cloud` | `GET /healthz`, `GET /`, `GET /login`, `GET /auth/callback`, `POST /logout`, `GET /whoami`, `GET /onboarding`, `GET /orgs/*`                           |
-| API             | `https://api.insecur.cloud`                          | `https://api.preview.insecur.cloud` | `GET /healthz`, `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/instance/bootstrap`, `/v1/orgs/:organizationId/*`                                    |
-| Runtime         | None                                                 | None                                | No public routes. Direct fetches return `404`; access is only through private Cloudflare Service Binding RPC.                                          |
+| Surface         | Production endpoint                                                                            | Preview endpoint                    | Public route groups                                                                                                                                                                                                                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public Site     | `https://insecur.cloud`, `https://www.insecur.cloud`, plus `insecur.dev` apex/www (error URIs) | `https://preview.insecur.cloud`     | `GET /`, `GET /healthz`, `GET /docs/*` (HTML plus `.md` twins), `GET /errors/*`, `GET /llms.txt`, `GET /llms-full.txt`, `GET /privacy`, `GET /security`, `GET /terms`, `GET /badges/coverage.json`, `GET /.well-known/insecur/audit-export-signing-keys.json`, `GET /install.sh`, `GET /install.ps1` |
+| Web Console BFF | `https://app.insecur.cloud`                                                                    | `https://app.preview.insecur.cloud` | `GET /healthz`, `GET /`, `/login`, `GET /auth/*` (callback, step-up, approval-step-up, passkey enrollment), `POST /logout`, `GET /whoami`, `GET /onboarding`, `GET /orgs/*`                                                                                                                          |
+| API             | `https://api.insecur.cloud`                                                                    | `https://api.preview.insecur.cloud` | `GET /healthz`, `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/instance/bootstrap`, `/v1/orgs/:organizationId/*`                                                                                                                                                                                  |
+| Runtime         | None                                                                                           | None                                | No public routes. Direct fetches return `404`; access is only through private Cloudflare Service Binding RPC.                                                                                                                                                                                        |
 
-Current organization-qualified API groups under `/v1/orgs/:organizationId/*` include invitations,
-members, organizations, projects, operations, runtime injection, and design-partner feedback.
+Current organization-qualified API groups under `/v1/orgs/:organizationId/*` include
+approval-requests, audit-events, audit-export, connections, design-partner-feedback,
+first-value-usage, high-assurance-challenges, invitations, members, operations, organizations,
+projects, run-policies, runtime-injection, and webhook-subscriptions.
 
 ## What To Report
 
@@ -82,7 +86,7 @@ process:
   `INSTANCE_ROOT_KEY_V1`, the only deploy that decrypts, and it serves no public routes.
 - `apps/web` is the browser-facing BFF. It owns the web session and reaches the API over a private
   Service Binding.
-- `apps/site` serves the public site and installers. It has no auth session, database, keyring, API,
+- `apps/site` serves the public site, documentation, and installers. It has no auth session, database, keyring, API,
   Runtime, or product-control-plane binding.
 
 The main local gate is:

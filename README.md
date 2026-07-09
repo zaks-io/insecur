@@ -1,118 +1,100 @@
 # insecur
 
+**Secrets your agents never have to hold.**
+
 [![CI](https://github.com/zaks-io/insecur/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zaks-io/insecur/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Finsecur.cloud%2Fbadges%2Fcoverage.json)](https://github.com/zaks-io/insecur/actions/workflows/ci.yml)
-[![Deploy Preview](https://github.com/zaks-io/insecur/actions/workflows/deploy-preview.yml/badge.svg)](https://github.com/zaks-io/insecur/actions/workflows/deploy-preview.yml)
-[![Deploy Production](https://github.com/zaks-io/insecur/actions/workflows/deploy-production.yml/badge.svg?branch=main)](https://github.com/zaks-io/insecur/actions/workflows/deploy-production.yml)
 [![CLI](https://img.shields.io/github/v/tag/zaks-io/insecur?filter=cli-v*&sort=semver&label=cli)](https://github.com/zaks-io/insecur/releases?q=cli-v&expanded=true)
 [![security-daily](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml/badge.svg)](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-A multi-tenant secrets manager for developers and agents working in the Cloudflare + GitHub Actions stack, with Vercel kept as an additive provider adapter behind the same port model. The first wedge is replacing plaintext local secret files with diskless development secret use through the `insecur` CLI; the production path adds Cloudflare Workers, Hyperdrive-backed Neon Postgres with Row-Level Security, envelope encryption with WebCrypto, OAuth app connections, runtime injection, and provider sync without revealing plaintext secrets by default.
+insecur is secrets custody built for coding agents. Your agent asks for the secret it needs, insecur creates and sets the value, and the agent gets back a working key. It never types, picks, or copies the raw secret, and there is no plaintext `.env` file left on disk for it to read.
 
-insecur's v1 product focus is narrow: store secrets securely as the source of truth, replace `.env` files for local development with just-in-time runtime injection, sync secrets to Cloudflare and GitHub when those platforms need native secrets, and keep developers and agents away from steady-state plaintext secret files. The Vercel sync adapter is deferred past V1.
+Every other secrets tool is named after a fortress. We named this one after the problem, because the job is to remove the specific ways secrets leak, not to sell a feeling of safety. Yes, the name is on purpose.
 
-> Yes, the name is on purpose.
+## Why
 
-## Layout
+Secrets management was built for humans and servers. Then coding agents started reading repos at 100 tokens a second, and teams started running several in parallel. The leak is not a break-in. It is a helpful status line you scrolled past: "I'll just read your `.env` to debug this." You cannot out-watch a swarm of fast agents, so oversight was never the control. The only thing that holds at this speed is structural: take the readable secret off the table.
+
+insecur does that in two tiers, and is honest about the difference:
+
+- **Development secrets** are injected into the child process at runtime and never touch disk. A local agent could still read the value it uses; we don't claim otherwise. The protection is a small, recoverable blast radius: no plaintext file at rest, one short-lived single-use audited grant per run, and trivial rotation.
+- **Protected (production) secrets** never reach the machine your agent runs on. Delivery requires a machine credential bound to that environment, living in CI/CD, and promotion goes through an approval no single agent-reachable channel can clear. The boundary is enforced by infrastructure, not by hoping the local process behaves.
+
+The full custody model is in the [security model](https://insecur.cloud/docs/security-model) and the [threat model](docs/whitepaper/threat-model.md).
+
+## What you can do with it
+
+- **Find leaks:** `insecur scan` produces an offline, metadata-only secret exposure report for your project, and can optionally scan agent transcripts and well-known credential locations.
+- **Kill your `.env`:** `insecur import .env` moves a dotenv file into an encrypted development environment, all-or-nothing, then `insecur scan` confirms nothing readable is left behind.
+- **Blind-write secrets:** `insecur secrets set KEY --generate` creates a value no human chose, saw, or pasted anywhere. There is no `get` or `export` command, on purpose.
+- **Run without files:** `insecur run` injects secrets into the process environment for exactly one run. They leave when the process does.
+- **Keep everything on the record:** every grant and use is audited and exportable; machine access uses short-lived scoped credentials, never tokens that live forever.
+
+Robots are free. Machine identities, runtime injection, and CI access are never metered; we charge for people.
+
+## Quickstart
+
+```sh
+curl -fsSL https://insecur.cloud/install.sh | sh   # verifies the release checksum before installing
+insecur login
+insecur init
+insecur secrets set SESSION_SIGNING_KEY --generate
+insecur run --variable-key SESSION_SIGNING_KEY -- npm start
+```
+
+The value never appeared on your screen, in a file, in your shell history, or in an agent transcript. The five-minute walkthrough lives at [insecur.cloud/docs/quickstart](https://insecur.cloud/docs/quickstart), the agent-oriented version at [insecur.cloud/docs/agent-quickstart](https://insecur.cloud/docs/agent-quickstart), and a copyable end-to-end verifier in [examples/first-value-proof](examples/first-value-proof).
+
+## Documentation
+
+- [Product docs](https://insecur.cloud/docs) — quickstart, concepts, guides, and CLI reference (also served as raw markdown and [llms.txt](https://insecur.cloud/llms.txt) for agents)
+- [docs/vision.md](docs/vision.md) — the north star and operating principles
+- [docs/specs/README.md](docs/specs/README.md) — canonical product spec and source-of-truth rules
+- [docs/architecture.md](docs/architecture.md) and [docs/adr/README.md](docs/adr/README.md) — architecture and decision records
+- [CONTEXT-MAP.md](CONTEXT-MAP.md) and [CONTEXT.md](CONTEXT.md) — domain language and context routing for contributors and agents
+
+## Architecture
+
+insecur runs as capability-isolated Cloudflare Workers, never a monolith: a public API Worker that holds no key material, a private Runtime Worker that is the sole holder of the root key and the only place decryption happens (reachable only over a private Service Binding, zero public routes), and a Web BFF. Storage is Neon Postgres behind Hyperdrive with Row-Level Security, envelope encryption via WebCrypto, and tenant-bound data keys so a leak in one org cannot decrypt another.
 
 ```
 apps/
-  api/      public Cloudflare Worker API
-  runtime/  private Runtime Worker for DB, keyring, encrypt, and decrypt work
+  api/      public Cloudflare Worker API (no keyring, no DB bindings)
+  runtime/  private Runtime Worker: DB, keyring, encrypt, decrypt
   web/      Web BFF on Workers
   site/     public marketing/documentation site
 packages/
-  domain/             shared domain primitives and stable vocabulary shapes
-  access/             Effective Access Resolver
-  tenant-store/       Tenant-Scoped Store and RLS adapter contract
-  crypto/             Keyring and Encryption Envelope
-  audit/              Audit Event Writer
-  secrets/            Secret Version Store and Blind Secret Write rules
-  runtime-injection/  Runtime Injection Grant Service
-  onboarding/         Guided Organization Provisioning
-  cli/                Node CLI for runtime injection and agent-safe operations
+  domain/             shared domain primitives and vocabulary
+  access/             effective access resolution
+  tenant-store/       tenant-scoped store and RLS adapter contract
+  crypto/             keyring and encryption envelope
+  audit/              audit event writer
+  secrets/            secret versions and blind secret write rules
+  runtime-injection/  runtime injection grants
+  onboarding/         guided organization provisioning
+  cli/                the `insecur` CLI
 ```
 
-The delivered functionality map lives in [docs/features.md](docs/features.md). The agent context
-routing map lives in [CONTEXT-MAP.md](CONTEXT-MAP.md). The package ownership map lives in
-[docs/context-map.md](docs/context-map.md).
-`CONTEXT.md` remains the source of truth for domain language.
+## Status
 
-## Quick start
+insecur is open source (Apache-2.0); the hosted service at insecur.cloud is operated by Zaks.io, LLC. The project is in pre-launch build-out and not yet live. The First Value loop (diskless development secret use through the real API, Runtime Worker, and CLI) works end to end today; provider sync to GitHub and Cloudflare, protected delivery policy, and the production storage security gate are in progress. Production secret delivery stays blocked until the [Storage Security Gate](docs/storage-security-gate.md) passes. Current state and build order are tracked in [docs/project-status.md](docs/project-status.md) and [docs/roadmap.md](docs/roadmap.md).
 
-See [docs/setup.md](docs/setup.md).
+## Development
 
-Useful scaffold commands:
+Requires Node 24 and pnpm 10. See [docs/setup.md](docs/setup.md) for the full setup.
 
 ```sh
-pnpm dev:check
-pnpm dev:db:up
-pnpm dev:db:reset
-pnpm dev:workers
+pnpm install --frozen-lockfile
+pnpm dev:check          # verify toolchain and scaffold
+pnpm dev:db:reset       # local Postgres 17 via Docker Compose
+pnpm dev:workers        # run the API + Runtime Workers locally
+pnpm verify             # the full CI gate: policy checks, lint, typecheck, tests
 ```
 
-`pnpm dev:db:reset` rebuilds the local Postgres 17 Docker Compose database and runs the
-runtime-role guard. It is a local iteration aid only; Neon-backed RLS tests remain the
-authoritative gate.
+Security issues: see [SECURITY.md](SECURITY.md).
 
-Start with [docs/specs/README.md](docs/specs/README.md). The canonical product spec lives in
-[docs/specs/product-spec.md](docs/specs/product-spec.md), and autonomous implementation seams live
-in [docs/specs/agent-workstreams.md](docs/specs/agent-workstreams.md). The current customer
-validation and product-excellence plan lives in [docs/customer-validation.md](docs/customer-validation.md).
+## License and the hosted service
 
-The older area docs still hold useful detail: [docs/architecture.md](docs/architecture.md),
-[docs/cli-and-sync.md](docs/cli-and-sync.md),
-[docs/protected-change-orchestration.md](docs/protected-change-orchestration.md),
-[docs/storage-security-gate.md](docs/storage-security-gate.md),
-[docs/security-runbooks-and-release-gates.md](docs/security-runbooks-and-release-gates.md), and
-[docs/security-plan.md](docs/security-plan.md). Architectural decisions are indexed in
-[docs/adr/README.md](docs/adr/README.md).
+The insecur source code is open source under [Apache-2.0](LICENSE), copyright Zaks.io, LLC (see [NOTICE](NOTICE)). You are free to use, modify, and redistribute it under that license.
 
-## Production V1 Boundary
-
-The first production release is not a dev-only secrets store or a single-owner shortcut. V1 targets Small-Group Production: personal projects and relatively small trusted groups using production-quality secret protection, with an Enterprise-Ready Model underneath so later enterprise support does not require a tenant, authorization, audit, or key-boundary refactor.
-
-V1 is split into two ordered milestones: **First Value** proves provider-free Diskless Development Secret Use for non-protected development secrets, and **Production Delivery** adds protected environments, provider sync, machine access, policy-gated approval UX, audit/export, runbooks, and the Storage Security Gate.
-
-First Value is also the customer-validation proof. The first beachhead is agent-heavy solo
-developers and small trusted teams shipping through Cloudflare Workers and GitHub Actions. The
-proof loop should be short enough to show the product's core idea directly: create or generate one
-development secret, run one command with Runtime Injection, and never create a plaintext `.env`
-file for an agent to read.
-
-Delivery risk is exposed through simple presets backed by versioned policy infrastructure. Guided onboarding applies Balanced automatically without a first-run preset picker; users may later choose Strict or Automation-Friendly without being asked to design a custom policy. Balanced allows development automation by default, while preview automation requires opt-in on each non-protected preview environment. Automation-Friendly removes that per-environment preview opt-in step, but still only executes already-configured delivery paths. Broadening automation requires Human Approval Surface step-up, while tightening risk stays lower-friction and audited. All presets keep protected production approval and High-Assurance Challenges in the Human Approval Surface.
-
-Hosted onboarding creates a Personal Organization, owner Membership, first Project, and non-protected development Environment for an admitted user so the first session can focus on replacing local secret files: creating and using a development secret through local Runtime Injection without provider setup. The copyable verifier lives in [examples/first-value-proof](examples/first-value-proof). That Personal Organization can grow into a small-team Organization through Invitations and Memberships.
-
-The current repo scaffold has moved into product-bearing First Value code: Node 24/pnpm 10
-workspace tooling, capability-isolated API and Runtime Workers, tenant-store migrations and RLS
-tests, metadata-only audit primitives, non-protected Blind Secret Write, Runtime Injection grant
-issue/consume, CLI `init`/`secrets set`/`run`, and the copyable First Value verifier. It is still
-not production-ready: provider sync, protected delivery policy, hosted auth/UI, Storage Security
-Gate enforcement, production root-key custody evidence, and the final copyable end-to-end proof
-remain open.
-
-The removed unsafe scaffold was disposable learning code, not a supported product mode or evidence
-of intended product behavior. V1 work should replace or delete any remaining references to those
-old surfaces rather than preserve them behind warnings, compatibility shims, or unsafe deployment
-flags.
-
-Provider secrets are derived delivery targets, not the source of truth. Rotation and changes start in insecur, then flow through audited sync or runtime injection paths.
-
-Production Secret Delivery and Secret Sync are blocked until the [Storage Security Gate](docs/storage-security-gate.md) passes. The gate verifies the full storage baseline: root key material outside the Postgres metadata store, tenant data keys, key versions, encrypted Provider Credentials and Sensitive Metadata, ciphertext identity binding, tenant-scoped metadata storage, and no plaintext persistence.
-
-## Build Order
-
-- **First Value** — guided Personal Organization provisioning, first Project, non-protected development Environment, service-generated Blind Secret Write, `run --variable-key`, Diskless Development Secret Use, and copyable First Value Proof
-- **Production foundation** — tenant-first schema, organization/project memberships, role enforcement, WorkOS AuthKit, tenant-qualified routes, organization/project data keys, key versions, protected promotion/rollback, and security gates
-- **Machine access and CI trust** — machine identities and GitHub Actions OIDC federation for short-lived CI access
-- **Approval UX and delivery policy** — Human Approval Surface for protected gates plus Delivery Risk Policy Presets for explicit non-protected preview/development automation
-- **Runtime Injection Delivery** — profile-backed `insecur run` for deploy and local command injection
-- **Provider Sync: GitHub and Cloudflare** — OAuth app connections and sync engines for GitHub and direct Cloudflare Worker secrets
-- **Audit, runbooks, and release gates** — audit export, tested restore evidence, security runbooks, and production release gates
-- **Deferred scope** — tracked in [docs/phasing.md](docs/phasing.md#deferred-scope-parking-lot), not in Linear until promoted in the repo docs
-
-## License
-
-[Apache-2.0](LICENSE)
+The hosted service at [insecur.cloud](https://insecur.cloud) is a commercial offering operated by Zaks.io, LLC, governed by its own [terms](https://insecur.cloud/terms) and [privacy policy](https://insecur.cloud/privacy) rather than the code license. The insecur name and logo are trademarks of Zaks.io, LLC; Apache-2.0 does not grant trademark rights.
