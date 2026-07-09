@@ -228,6 +228,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
           firstRun.stderrMarker,
           secondRun.stdoutMarker,
           secondRun.stderrMarker,
+          RUNTIME_RUN_PROOF,
         ],
         organizationId,
         redactor,
