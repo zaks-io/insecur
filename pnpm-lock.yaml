@@ -677,6 +677,9 @@ importers:
       '@insecur/local-store':
         specifier: workspace:*
         version: link:../local-store
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
       '@insecur/worker-kit':
         specifier: workspace:*
         version: link:../worker-kit

@@ -198,6 +198,7 @@ export default tseslint.config(
       "packages/instance-bootstrap/vitest.rls.config.ts",
       "packages/cli/test/**/*.ts",
       "packages/cli/vitest.config.ts",
+      "packages/cli/vitest.integration.config.ts",
       "packages/machine-auth/test/**/*.ts",
       "packages/machine-auth/vitest.config.ts",
       "packages/machine-auth/vitest.rls.config.ts",

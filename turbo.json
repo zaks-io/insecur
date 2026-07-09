@@ -61,7 +61,13 @@
     },
     "test:integration": {
       "cache": false,
-      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION", "DATABASE_URL_RUNTIME"]
+      "env": [
+        "DATABASE_URL",
+        "DATABASE_URL_MIGRATION",
+        "DATABASE_URL_RUNTIME",
+        "INSECUR_CI_RLS_GATE",
+        "INSECUR_TEST_SKIP_MIGRATE"
+      ]
     },
     "test:e2e": {
       "cache": false,

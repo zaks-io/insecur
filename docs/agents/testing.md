@@ -117,6 +117,14 @@ nonce, no inline style attributes, and the unauthenticated console redirect. It 
 it stays out of `pnpm verify` because the vite build + Miniflare boot is too slow for that hot
 path. The unit-level companion is the authed-SSR harness in `apps/web/test/support/`.
 
+`pnpm test:cli:postgres` builds the real `insecur` CLI and runs it as a child process against an
+in-process API Worker + Runtime Service composition backed by real Postgres. The suite seeds the
+standard tenant baseline, mints a short-lived test session credential with `@insecur/auth/testing`,
+passes it via `INSECUR_SESSION_TOKEN`, and then exercises metadata-only CLI commands (`whoami`,
+`orgs list`, `projects list`, `envs list`). It deliberately does not add a test-login bypass:
+auth follows the same signed CLI session credential and admission resolution path as the API e2e
+tests. `pnpm smoke:local` and CI's DB-backed runner include this suite after `test:e2e`.
+
 ## Layer boundaries
 
 - **Unit vs integration**: DB-backed package integration suites live alongside unit tests but are
@@ -160,8 +168,9 @@ path. The unit-level companion is the authed-SSR harness in `apps/web/test/suppo
 The DB-backed `Verify` step in `.github/workflows/ci.yml` resets Docker Compose Postgres 17 once,
 runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ; runtime
 `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
-`INSECUR_CI_RLS_GATE=1` and runs every workspace `test:rls` suite, `test:e2e`, and
-`test:canary`; each fails closed under that gate rather than skipping. The no-plaintext canary gate
+`INSECUR_CI_RLS_GATE=1` and runs every workspace `test:rls` suite, `test:e2e`,
+`@insecur/cli` `test:integration`, and `test:canary`; each fails closed under that gate rather
+than skipping. The no-plaintext canary gate
 ([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) runs after `test:e2e` via
 `apps/api/test/canary/no-plaintext-canary.test.ts`: it drives the real route stack with a
 fresh high-entropy sentinel, then sweeps every `public` schema column from live

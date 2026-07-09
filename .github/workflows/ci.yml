@@ -63,6 +63,7 @@ jobs:
               apps/api/*|\
               apps/runtime/*|\
               apps/web/*|\
+              packages/cli/*|\
               packages/access/*|\
               packages/app-connection/*|\
               packages/audit/*|\
