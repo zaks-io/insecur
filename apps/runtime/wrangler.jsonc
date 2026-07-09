@@ -13,7 +13,6 @@
     "SENTRY_ENVIRONMENT": "production",
     "SENTRY_RELEASE": "PUBLIC_PRODUCTION_SHA_PLACEHOLDER",
     "SENTRY_SERVICE": "insecur-runtime",
-    "SENTRY_TRACES_SAMPLE_RATE": "1",
   },
   // The Runtime Worker holds no public route (ADR-0077): it is reachable only over the private
   // Service Binding from the API Worker via the RuntimeService RPC entrypoint. The deploy-topology
@@ -86,7 +85,6 @@
         "SENTRY_ENVIRONMENT": "preview",
         "SENTRY_RELEASE": "PUBLIC_PREVIEW_SHA_PLACEHOLDER",
         "SENTRY_SERVICE": "insecur-runtime-preview",
-        "SENTRY_TRACES_SAMPLE_RATE": "1",
       },
       "secrets_store_secrets": [
         {

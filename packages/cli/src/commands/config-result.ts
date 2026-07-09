@@ -29,6 +29,7 @@ export interface ConfigShowData {
   readonly profileId?: CliProfileId;
   readonly profileSlug?: string;
   readonly projectConfigPath?: string;
+  readonly crashReports: "on" | "off";
   readonly branchEnv: Readonly<Record<string, EnvironmentId>>;
   readonly profiles: readonly ConfigShowProfile[];
 }
@@ -71,6 +72,7 @@ export function buildConfigShowData(
     host: scope.host,
     ...optionalScopeFields(scope),
     ...(projectConfig === null ? {} : { projectConfigPath: projectConfigPath(projectRoot) }),
+    crashReports: userConfig.crashReports ?? "on",
     branchEnv: projectConfig?.gitBranchToEnvironment ?? {},
     profiles,
   };
@@ -89,6 +91,7 @@ export function formatConfigShowHuman(data: ConfigShowData): string {
     ...formatOptionalLine("profileId", data.profileId),
     ...formatOptionalLine("profileSlug", data.profileSlug),
     ...formatOptionalLine("projectConfigPath", data.projectConfigPath),
+    `crashReports: ${data.crashReports}`,
   ];
   const branchEntries = Object.entries(data.branchEnv);
   if (branchEntries.length > 0) {

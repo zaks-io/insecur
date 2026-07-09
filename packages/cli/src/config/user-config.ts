@@ -31,7 +31,10 @@ export interface CliUserProfile {
   readonly defaultRunPolicyId?: RuntimePolicyId;
 }
 
+export type CrashReportsPreference = "on" | "off";
+
 export interface CliUserConfig {
+  readonly crashReports?: CrashReportsPreference;
   readonly profiles: Readonly<Record<CliProfileId, CliUserProfile>>;
 }
 
@@ -106,9 +109,23 @@ function parseProfilesRecord(profilesRaw: unknown): Record<CliProfileId, CliUser
   return profiles;
 }
 
+function parseCrashReportsPreference(value: unknown): CrashReportsPreference | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === "on" || value === "off") {
+    return value;
+  }
+  throw new Error("user config crashReports must be on or off");
+}
+
 function parseUserConfig(record: Record<string, unknown>): CliUserConfig {
   assertNoForbiddenConfigKeys(record, "user config");
-  return { profiles: parseProfilesRecord(record.profiles) };
+  const crashReports = parseCrashReportsPreference(record.crashReports);
+  return {
+    ...(crashReports === undefined ? {} : { crashReports }),
+    profiles: parseProfilesRecord(record.profiles),
+  };
 }
 
 export async function loadUserConfig(): Promise<CliUserConfig> {
@@ -117,6 +134,13 @@ export async function loadUserConfig(): Promise<CliUserConfig> {
     return { profiles: {} };
   }
   return parseUserConfig(record);
+}
+
+export async function setCrashReportsPreference(preference: CrashReportsPreference): Promise<void> {
+  const existing = await loadUserConfig();
+  const payload: Record<string, unknown> = { ...existing, crashReports: preference };
+  assertNoForbiddenConfigKeys(payload, "user config");
+  await writeJsonFile(userConfigPath(), payload);
 }
 
 export async function upsertUserProfile(
@@ -135,7 +159,7 @@ export async function upsertUserProfile(
     }
   }
   profiles[profileId] = profile;
-  const payload: Record<string, unknown> = { profiles };
+  const payload: Record<string, unknown> = { ...existing, profiles };
   assertNoForbiddenConfigKeys(payload, "user config");
   await writeJsonFile(userConfigPath(), payload);
 }

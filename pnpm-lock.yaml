@@ -362,7 +362,7 @@ importers:
         version: 10.63.0(@cloudflare/workers-types@5.20260703.1)
       '@sentry/tanstackstart-react':
         specifier: ^10.63.0
-        version: 10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(react@19.2.7)(rollup@4.60.4)
+        version: 10.63.0(react@19.2.7)(rollup@4.60.4)
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -438,7 +438,7 @@ importers:
         version: 10.63.0(@cloudflare/workers-types@5.20260703.1)
       '@sentry/tanstackstart-react':
         specifier: ^10.63.0
-        version: 10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(react@19.2.7)(rollup@4.60.4)
+        version: 10.63.0(react@19.2.7)(rollup@4.60.4)
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -661,6 +661,13 @@ importers:
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(@vitest/coverage-v8@4.1.9)(vite@8.1.3(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0))
 
   packages/cli:
+    dependencies:
+      '@insecur/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@sentry/node':
+        specifier: ^10.63.0
+        version: 10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))
     devDependencies:
       '@insecur/agent-attribution':
         specifier: workspace:*
@@ -8352,7 +8359,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@sentry/tanstackstart-react@10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(react@19.2.7)(rollup@4.60.4)':
+  '@sentry/tanstackstart-react@10.63.0(react@19.2.7)(rollup@4.60.4)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@sentry/browser-utils': 10.63.0

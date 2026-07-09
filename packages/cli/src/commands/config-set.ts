@@ -4,6 +4,7 @@ import type { GlobalCliFlags } from "../cli-options.js";
 import { parseWritableProjectConfigKey } from "../config/config-keys.js";
 import { loadProjectConfig, writeProjectConfig } from "../config/project-config.js";
 import { parseEnvironmentId } from "../config/parse-resource-id.js";
+import { setCrashReportsPreference, type CrashReportsPreference } from "../config/user-config.js";
 import { CliError } from "../output/cli-error.js";
 
 export async function runConfigSetCommand(
@@ -11,6 +12,11 @@ export async function runConfigSetCommand(
   rawKey: string,
   rawValue: string,
 ): Promise<number> {
+  if (rawKey === "crash-reports") {
+    await setCrashReportsPreference(parseCrashReportsPreferenceValue(rawValue));
+    return 0;
+  }
+
   const key = parseWritableProjectConfigKey(rawKey);
   const envId = parseEnvironmentId(rawValue, `config set ${rawKey}`);
   const projectConfig = await loadProjectConfig(flags.configDir);
@@ -27,6 +33,17 @@ export async function runConfigSetCommand(
       : applyBranchEnvUpdate(projectConfig, key.branch, envId);
   await writeProjectConfig(flags.configDir, updated);
   return 0;
+}
+
+function parseCrashReportsPreferenceValue(rawValue: string): CrashReportsPreference {
+  if (rawValue === "on" || rawValue === "off") {
+    return rawValue;
+  }
+  throw new CliError({
+    code: VALIDATION_ERROR_CODES.invalidCommandInput,
+    message: "Config key crash-reports must be set to on or off.",
+    retryable: false,
+  });
 }
 
 function applyBranchEnvUpdate(

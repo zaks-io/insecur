@@ -5,6 +5,15 @@ import type {
   InjectionGrantDeliveryEnvelope,
 } from "./runtime-injection-api-types.js";
 
+export interface HttpClientOptions {
+  readonly traceHeaders?: () => Record<string, string>;
+}
+
+interface AuthorizedPostInput {
+  readonly body: unknown;
+  readonly options?: HttpClientOptions | undefined;
+}
+
 async function readJsonResponse(response: Response): Promise<unknown> {
   return response.json();
 }
@@ -63,11 +72,27 @@ export function readCliCredentialHeader(response: Response, missingMessage: stri
   return credential;
 }
 
+function requestInitWithTraceHeaders(
+  init: RequestInit,
+  options: HttpClientOptions | undefined,
+): RequestInit {
+  const traceHeaders = options?.traceHeaders?.();
+  if (traceHeaders === undefined || Object.keys(traceHeaders).length === 0) {
+    return init;
+  }
+  const headers = new Headers(init.headers);
+  for (const [name, value] of Object.entries(traceHeaders)) {
+    headers.set(name, value);
+  }
+  return { ...init, headers };
+}
+
 export async function postJson(
   url: URL,
   init: RequestInit,
+  options?: HttpClientOptions,
 ): Promise<{ response: Response; body: unknown }> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, requestInitWithTraceHeaders(init, options));
   return { response, body: await readJsonResponse(response) };
 }
 
@@ -75,29 +100,38 @@ export async function postAuthorizedJson(
   base: string,
   path: string,
   bearerCredential: string,
-  body: unknown,
+  input: AuthorizedPostInput,
 ): Promise<{ response: Response; body: unknown }> {
-  return postJson(new URL(path, base), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${bearerCredential}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
+  return postJson(
+    new URL(path, base),
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${bearerCredential}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input.body),
     },
-    body: JSON.stringify(body),
-  });
+    input.options,
+  );
 }
 
 export async function getAuthorizedJson(
   base: string,
   path: string,
   bearerCredential: string,
+  options?: HttpClientOptions,
 ): Promise<{ response: Response; body: unknown }> {
-  return postJson(new URL(path, base), {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${bearerCredential}`,
-      Accept: "application/json",
+  return postJson(
+    new URL(path, base),
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${bearerCredential}`,
+        Accept: "application/json",
+      },
     },
-  });
+    options,
+  );
 }

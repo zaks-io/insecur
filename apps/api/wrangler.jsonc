@@ -19,7 +19,6 @@
     "SENTRY_ENVIRONMENT": "production",
     "SENTRY_RELEASE": "PUBLIC_PRODUCTION_SHA_PLACEHOLDER",
     "SENTRY_SERVICE": "insecur-api",
-    "SENTRY_TRACES_SAMPLE_RATE": "1",
     "WORKOS_CLIENT_ID": "client_PUBLIC_PRODUCTION_PLACEHOLDER",
   },
   "observability": {
@@ -103,7 +102,6 @@
         "SENTRY_ENVIRONMENT": "preview",
         "SENTRY_RELEASE": "PUBLIC_PREVIEW_SHA_PLACEHOLDER",
         "SENTRY_SERVICE": "insecur-api-preview",
-        "SENTRY_TRACES_SAMPLE_RATE": "1",
         "WORKOS_CLIENT_ID": "client_PUBLIC_PREVIEW_PLACEHOLDER",
       },
       "services": [

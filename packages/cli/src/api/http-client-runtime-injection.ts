@@ -5,11 +5,13 @@ import {
   parseDeliveryEnvelope,
   parseEnvelope,
   postAuthorizedJson,
+  type HttpClientOptions,
 } from "./http-client-envelope.js";
 
 export async function issueInjectionGrant(
   base: string,
   input: Parameters<RuntimeInjectionApiClient["issueInjectionGrant"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants`;
   const selectorBody =
@@ -19,10 +21,13 @@ export async function issueInjectionGrant(
     path,
     input.bearerCredential,
     {
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      environmentId: input.environmentId,
-      ...selectorBody,
+      body: {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        ...selectorBody,
+      },
+      options,
     },
   );
   const envelope = parseEnvelope<IssueInjectionGrantData>(responseBody);
@@ -35,6 +40,7 @@ export async function issueInjectionGrant(
 export async function consumeInjectionGrant(
   base: string,
   input: Parameters<RuntimeInjectionApiClient["consumeInjectionGrant"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume`;
   const { response, body: responseBody } = await postAuthorizedJson(
@@ -42,8 +48,11 @@ export async function consumeInjectionGrant(
     path,
     input.bearerCredential,
     {
-      organizationId: input.organizationId,
-      variableKey: input.variableKey,
+      body: {
+        organizationId: input.organizationId,
+        variableKey: input.variableKey,
+      },
+      options,
     },
   );
   const envelope = parseDeliveryEnvelope(responseBody);
@@ -56,6 +65,7 @@ export async function consumeInjectionGrant(
 export async function consumeInjectionGrantAll(
   base: string,
   input: Parameters<RuntimeInjectionApiClient["consumeInjectionGrantAll"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/consume-all`;
   const { response, body: responseBody } = await postAuthorizedJson(
@@ -63,7 +73,8 @@ export async function consumeInjectionGrantAll(
     path,
     input.bearerCredential,
     {
-      organizationId: input.organizationId,
+      body: { organizationId: input.organizationId },
+      options,
     },
   );
   const envelope = parseDeliveryAllEnvelope(responseBody);
@@ -76,6 +87,7 @@ export async function consumeInjectionGrantAll(
 export async function recordInjectionRunCompleted(
   base: string,
   input: Parameters<RuntimeInjectionApiClient["recordInjectionRunCompleted"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path = `/v1/orgs/${input.organizationId}/runtime-injection/grants/${input.grantId}/run-completed`;
   const { response, body: responseBody } = await postAuthorizedJson(
@@ -83,8 +95,11 @@ export async function recordInjectionRunCompleted(
     path,
     input.bearerCredential,
     {
-      organizationId: input.organizationId,
-      childExitCode: input.childExitCode,
+      body: {
+        organizationId: input.organizationId,
+        childExitCode: input.childExitCode,
+      },
+      options,
     },
   );
   const envelope = parseEnvelope<{

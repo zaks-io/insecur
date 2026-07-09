@@ -204,6 +204,47 @@ describe("config show and set commands", () => {
     });
   });
 
+  it("round-trips crash-reports through user config", async () => {
+    context = await setupTestContext();
+
+    const setExitCode = await runCli([
+      "node",
+      "insecur",
+      "config",
+      "set",
+      "crash-reports",
+      "off",
+      "--config-dir",
+      context.projectDir,
+    ]);
+    expect(setExitCode).toBe(0);
+
+    const rawUserConfig = await readFile(
+      path.join(context.isolatedHome.homeDir, ".insecur", USER_CONFIG_FILE),
+      "utf8",
+    );
+    expect(JSON.parse(rawUserConfig)).toMatchObject({
+      crashReports: "off",
+      profiles: {
+        [PROFILE_ID]: expect.objectContaining({ slug: "local-dev" }),
+      },
+    });
+
+    context.stdout.value = "";
+    const showExitCode = await runCli([
+      "node",
+      "insecur",
+      "config",
+      "show",
+      "--json",
+      "--config-dir",
+      context.projectDir,
+    ]);
+    expect(showExitCode).toBe(0);
+    const parsed = JSON.parse(context.stdout.value) as { data: { crashReports: string } };
+    expect(parsed.data.crashReports).toBe("off");
+  });
+
   it("rejects malformed environment ids with validation exit code", async () => {
     context = await setupTestContext();
 
@@ -227,6 +268,35 @@ describe("config show and set commands", () => {
     const raw = await readFile(path.join(context.projectDir, PROJECT_CONFIG_FILE), "utf8");
     expect(JSON.parse(raw)).toMatchObject({ defaultEnvId: ENV_ID });
     expect(JSON.parse(raw).gitBranchToEnvironment).toBeUndefined();
+  });
+
+  it("rejects malformed crash-reports values", async () => {
+    context = await setupTestContext();
+
+    const exitCode = await runCli([
+      "node",
+      "insecur",
+      "config",
+      "set",
+      "crash-reports",
+      "sometimes",
+      "--json",
+      "--config-dir",
+      context.projectDir,
+    ]);
+
+    expect(exitCode).toBe(EXIT_VALIDATION);
+    const parsed = JSON.parse(context.stderr.value) as {
+      ok: boolean;
+      error: { code: string; message: string };
+    };
+    expect(parsed).toMatchObject({
+      ok: false,
+      error: {
+        code: VALIDATION_ERROR_CODES.invalidCommandInput,
+        message: "Config key crash-reports must be set to on or off.",
+      },
+    });
   });
 
   it("rejects forbidden config keys before writing", async () => {

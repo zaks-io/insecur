@@ -3,11 +3,16 @@ import type {
   GuidedOrganizationProvisionData,
   OnboardingApiClient,
 } from "./onboarding-api-types.js";
-import { parseEnvelope, postAuthorizedJson } from "./http-client-envelope.js";
+import {
+  parseEnvelope,
+  postAuthorizedJson,
+  type HttpClientOptions,
+} from "./http-client-envelope.js";
 
 export async function provisionPersonalOrganization(
   base: string,
   input: Parameters<OnboardingApiClient["provisionPersonalOrganization"]>[0],
+  options?: HttpClientOptions,
 ) {
   const body = buildPersonalOrganizationRequestBody({
     ...(input.organizationId === undefined ? {} : { organizationId: input.organizationId }),
@@ -18,7 +23,7 @@ export async function provisionPersonalOrganization(
     base,
     "/v1/onboarding/personal-organization",
     input.bearerCredential,
-    body,
+    { body, options },
   );
   const envelope = parseEnvelope<GuidedOrganizationProvisionData>(responseBody);
   if (!envelope.ok) {

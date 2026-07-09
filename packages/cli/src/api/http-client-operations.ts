@@ -1,16 +1,23 @@
 import type { OperationCancelData, OperationPollData } from "./operations-api-types.js";
 import type { OperationsApiClient } from "./operations-api-types.js";
-import { getAuthorizedJson, parseEnvelope, postAuthorizedJson } from "./http-client-envelope.js";
+import {
+  getAuthorizedJson,
+  parseEnvelope,
+  postAuthorizedJson,
+  type HttpClientOptions,
+} from "./http-client-envelope.js";
 
 export async function getOperation(
   base: string,
   input: Parameters<OperationsApiClient["getOperation"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path = `/v1/orgs/${input.organizationId}/operations/${input.operationId}`;
   const { response, body: responseBody } = await getAuthorizedJson(
     base,
     path,
     input.bearerCredential,
+    options,
   );
   const envelope = parseEnvelope<OperationPollData>(responseBody);
   if (!envelope.ok) {
@@ -22,13 +29,14 @@ export async function getOperation(
 export async function cancelOperation(
   base: string,
   input: Parameters<OperationsApiClient["cancelOperation"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path = `/v1/orgs/${input.organizationId}/operations/${input.operationId}/cancel`;
   const { response, body: responseBody } = await postAuthorizedJson(
     base,
     path,
     input.bearerCredential,
-    {},
+    { body: {}, options },
   );
   const envelope = parseEnvelope<OperationCancelData>(responseBody);
   if (!envelope.ok) {

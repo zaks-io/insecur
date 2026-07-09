@@ -21,7 +21,11 @@ export function attachGlobalOptions(command: Command): Command {
     .option("--agent <name>", "agent attribution tag (Tier 3)")
     .option("--json", "metadata-only JSON output")
     .option("--quiet", "suppress non-essential human output")
-    .option("--verbose", "verbose logging");
+    .option("--verbose", "verbose logging")
+    .option(
+      "--no-crash-reports",
+      "disable default-on sanitized CLI crash reporting for this command",
+    );
 }
 
 export function globalFlags(command: CommanderCommand): GlobalCliFlags {
@@ -34,19 +38,27 @@ interface ResolvedApi {
   readonly dispose?: () => void;
 }
 
-async function resolveApi(flags: GlobalCliFlags): Promise<ResolvedApi> {
-  const context = await loadAndResolveCliContext(flags);
-  if (isLocalModeHost(context.scope.host)) {
-    const localStore = openLocalStore();
-    return {
-      api: createLocalApiClient({ store: localStore, context, flags }),
-      context,
-      dispose: () => {
-        localStore.close();
-      },
-    };
-  }
-  return { api: createHttpApiClientForHost(context.scope.host), context };
+interface ProgramDepsOptions {
+  readonly traceHeaders?: () => Record<string, string>;
+}
+
+function buildResolveApi(options: ProgramDepsOptions): ProgramDeps["resolveApi"] {
+  return async function resolveApi(flags: GlobalCliFlags): Promise<ResolvedApi> {
+    const context = await loadAndResolveCliContext(flags);
+    if (isLocalModeHost(context.scope.host)) {
+      const localStore = openLocalStore();
+      return {
+        api: createLocalApiClient({ store: localStore, context, flags }),
+        context,
+        dispose: () => {
+          localStore.close();
+        },
+      };
+    }
+    const httpOptions =
+      options.traceHeaders === undefined ? {} : { traceHeaders: options.traceHeaders };
+    return { api: createHttpApiClientForHost(context.scope.host, httpOptions), context };
+  };
 }
 
 export interface ProgramDeps {
@@ -54,6 +66,6 @@ export interface ProgramDeps {
   readonly resolveApi: (flags: GlobalCliFlags) => Promise<ResolvedApi>;
 }
 
-export function createProgramDeps(): ProgramDeps {
-  return { globalFlags, resolveApi };
+export function createProgramDeps(options: ProgramDepsOptions = {}): ProgramDeps {
+  return { globalFlags, resolveApi: buildResolveApi(options) };
 }

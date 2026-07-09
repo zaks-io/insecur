@@ -21,9 +21,9 @@ export function registerConfigCommands(
 
   config
     .command("set")
-    .description("Write durable project defaults to .insecur.json")
-    .argument("<key>", "config key (default-env-id or branch-env.<branch>)")
-    .argument("<value>", "opaque environment id")
+    .description("Write durable local CLI configuration")
+    .argument("<key>", "config key (default-env-id, branch-env.<branch>, or crash-reports)")
+    .argument("<value>", "config value")
     .action(async function configSetAction(
       key: string,
       value: string,
