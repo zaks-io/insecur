@@ -16,15 +16,7 @@ function formatWarningLines(warnings: readonly AgentProjectScanWarning[]): strin
 }
 
 function formatProjectRootLines(projectRoots: readonly string[]): string[] {
-  if (projectRoots.length === 0) {
-    return [];
-  }
-
-  return [
-    "",
-    `Agent-touched projects scanned (${String(projectRoots.length)}):`,
-    ...projectRoots.map((projectRoot) => `  ${sanitizeScanDisplayPath(projectRoot)}`),
-  ];
+  return formatPathListLines("Agent-touched projects scanned", projectRoots);
 }
 
 export function formatAgentProjectScanHumanReport(report: AgentProjectScanReport): string {

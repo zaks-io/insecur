@@ -21,26 +21,24 @@ export interface ScanCommandOptions {
   readonly homeDir?: string;
 }
 
-interface MutableTranscriptScanOptions {
+interface AgentScanOptions {
   homeDir?: string;
   transcriptPaths?: readonly string[];
   transcriptGlobs?: readonly string[];
 }
 
-function transcriptScanOptions(
-  commandOptions: ScanCommandOptions,
-): NonNullable<ScanRunInput["transcript"]> {
-  const transcript: MutableTranscriptScanOptions = {};
+function agentScanOptions(commandOptions: ScanCommandOptions): AgentScanOptions {
+  const options: AgentScanOptions = {};
   if (commandOptions.homeDir !== undefined) {
-    transcript.homeDir = commandOptions.homeDir;
+    options.homeDir = commandOptions.homeDir;
   }
   if (commandOptions.transcriptPaths !== undefined) {
-    transcript.transcriptPaths = commandOptions.transcriptPaths;
+    options.transcriptPaths = commandOptions.transcriptPaths;
   }
   if (commandOptions.transcriptGlobs !== undefined) {
-    transcript.transcriptGlobs = commandOptions.transcriptGlobs;
+    options.transcriptGlobs = commandOptions.transcriptGlobs;
   }
-  return transcript;
+  return options;
 }
 
 function projectScanInput(rootDir: string, commandOptions: ScanCommandOptions): ScanRunInput {
@@ -58,10 +56,10 @@ function scanRunInput(
   commandOptions: ScanCommandOptions,
 ): ScanRunInput {
   if (mode === "agent-transcripts") {
-    return { rootDir, mode, transcript: transcriptScanOptions(commandOptions) };
+    return { rootDir, mode, transcript: agentScanOptions(commandOptions) };
   }
   if (mode === "agent-projects") {
-    return { rootDir, mode, agentProjects: transcriptScanOptions(commandOptions) };
+    return { rootDir, mode, agentProjects: agentScanOptions(commandOptions) };
   }
   return projectScanInput(rootDir, commandOptions);
 }

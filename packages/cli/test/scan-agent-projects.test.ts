@@ -88,6 +88,22 @@ describe("insecur scan --agent-projects", () => {
     }
   });
 
+  it("recovers project roots when transcript paths no longer exist", async () => {
+    const root = await mkdtemp(join(tmpdir(), "insecur-agent-projects-deleted-path-"));
+    const homeDir = join(root, "home");
+    const mentionedProject = join(root, "mentioned-project");
+    await mkdir(mentionedProject, { recursive: true });
+    await writeScanFixtureTree(mentionedProject);
+    await writeCodexTranscript(homeDir, join(mentionedProject, "src", "deleted-file.ts"));
+
+    const report = await buildAgentProjectScanReport({ homeDir });
+
+    expect(report.projectRoots).toEqual([mentionedProject]);
+    expect(report.findings.some((finding) => finding.file === join(mentionedProject, ".env"))).toBe(
+      true,
+    );
+  });
+
   it("serializes metadata-only JSON output and never prints secret values", async () => {
     const root = await mkdtemp(join(tmpdir(), "insecur-agent-projects-json-"));
     const homeDir = join(root, "home");

@@ -26,12 +26,10 @@ async function pathIsReadable(path: string): Promise<boolean> {
 }
 
 async function hasProjectMarker(dir: string): Promise<boolean> {
-  for (const marker of PROJECT_ROOT_MARKERS) {
-    if (await pathIsReadable(join(dir, marker))) {
-      return true;
-    }
-  }
-  return false;
+  const results = await Promise.all(
+    PROJECT_ROOT_MARKERS.map((marker) => pathIsReadable(join(dir, marker))),
+  );
+  return results.some(Boolean);
 }
 
 async function hasDotenvInDirectory(dir: string): Promise<boolean> {
@@ -40,20 +38,40 @@ async function hasDotenvInDirectory(dir: string): Promise<boolean> {
   );
 }
 
+async function directoryForExistingPath(path: string): Promise<string | null> {
+  const pathStat = await stat(path);
+  if (pathStat.isDirectory()) {
+    return path;
+  }
+  if (pathStat.isFile()) {
+    return dirname(path);
+  }
+  return null;
+}
+
+async function nearestExistingDirectory(path: string): Promise<string | null> {
+  let current = path;
+  const root = parse(current).root;
+
+  while (current !== root) {
+    current = dirname(current);
+    try {
+      return await directoryForExistingPath(current);
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 async function initialDirectoryForPath(path: string): Promise<string | null> {
   const resolvedPath = resolve(path);
 
   try {
-    const pathStat = await stat(resolvedPath);
-    if (pathStat.isDirectory()) {
-      return resolvedPath;
-    }
-    if (pathStat.isFile()) {
-      return dirname(resolvedPath);
-    }
-    return null;
+    return await directoryForExistingPath(resolvedPath);
   } catch {
-    return null;
+    return nearestExistingDirectory(resolvedPath);
   }
 }
 
