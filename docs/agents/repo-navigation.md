@@ -7,9 +7,11 @@ truth, not a replacement for the product specs or package context files.
 
 1. Read `docs/project-status.md` for current implementation state, known gaps, and the build order.
 2. Read `docs/vision.md` only when you need the north star or product framing.
-3. Read `CONTEXT-MAP.md` to choose the relevant package, app, or spec context.
-4. Read the local `CONTEXT.md` for any package or app you will touch.
-5. Read the smallest matching repo-local skill in `skills/*/SKILL.md` before workflow work.
+3. Read `docs/whitepaper/threat-model.md` when touching custody boundaries, sensitive-value flows,
+   security claims, or external security copy.
+4. Read `CONTEXT-MAP.md` to choose the relevant package, app, or spec context.
+5. Read the local `CONTEXT.md` for any package or app you will touch.
+6. Read the smallest matching repo-local skill in `skills/*/SKILL.md` before workflow work.
 
 Do not start by reading all ADRs. Start from the specs and local context maps, then open only the
 ADRs linked by the relevant section.
@@ -23,6 +25,7 @@ the content-ownership table in the Source Of Truth Rules of
 | Need                                             | Start here                                               |
 | ------------------------------------------------ | -------------------------------------------------------- |
 | Current state, next steps, and not-yet-done list | `docs/project-status.md`                                 |
+| Threat model, custody boundary, and claim limits | `docs/whitepaper/threat-model.md`                        |
 | Product north star and non-goals                 | `docs/vision.md`                                         |
 | Authoritative domain vocabulary                  | `docs/context/glossary/` slices, indexed by `CONTEXT.md` |
 | Which context file to load                       | `CONTEXT-MAP.md`                                         |

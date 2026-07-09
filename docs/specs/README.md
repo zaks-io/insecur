@@ -7,13 +7,17 @@ Read in this order:
 
 1. [Canonical Product Spec](product-spec.md) - the decided product shape, V1 boundary, and ADR trace
    links in one linear document.
-2. [Architecture Groups](architecture-groups.md) - architectural ownership groups, seams,
+2. [Project Status](../project-status.md) - the current delivered, verified, and missing product
+   state, so target specs are not mistaken for shipped behavior.
+3. [Threat Model And Security Design](../whitepaper/threat-model.md) - the assets, adversaries,
+   trust boundaries, custody tiers, and claim ceilings.
+4. [Architecture Groups](architecture-groups.md) - architectural ownership groups, seams,
    dependencies, and handoff contracts for autonomous agents.
-3. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
+5. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
    proof loop, design-partner loop, and success signals that should constrain First Value scope.
-4. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
+6. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
    under [docs/context/glossary/](../context/glossary/).
-5. Area docs only when the architecture group calls for them, such as
+7. Area docs only when the architecture group calls for them, such as
    [First Value Milestone](../first-value-milestone.md),
    [Storage Security Gate](../storage-security-gate.md),
    [Protected Change Orchestration](../protected-change-orchestration.md),
@@ -38,16 +42,17 @@ Every class of normative content has exactly one owning location; every other do
 owner instead of restating it. This table is the normative owner-map, per
 [ADR-0067](../adr/0067-documentation-content-ownership-and-single-statement-rule.md).
 
-| Content type                                                | Owning location                                                                                                            |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Shared cross-context domain vocabulary and term definitions | the per-domain slices under [docs/context/glossary/](../context/glossary/), indexed by root [CONTEXT.md](../../CONTEXT.md) |
-| Terms scoped to one bounded context                         | that package or app `CONTEXT.md`                                                                                           |
-| Decided product behavior, invariants, and the V1 boundary   | [product-spec.md](product-spec.md)                                                                                         |
-| Decision rationale and traceability                         | the governing ADR under `docs/adr/`                                                                                        |
-| Deferred scope and its promotion triggers                   | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
-| Architecture group ownership, seams, and integration order  | [architecture-groups.md](architecture-groups.md)                                                                           |
-| Live implementation status                                  | [project-status.md](../project-status.md)                                                                                  |
-| Code-enforced registries                                    | the named package file, paired with a doc section by a lockstep sentence                                                   |
+| Content type                                                    | Owning location                                                                                                            |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Shared cross-context domain vocabulary and term definitions     | the per-domain slices under [docs/context/glossary/](../context/glossary/), indexed by root [CONTEXT.md](../../CONTEXT.md) |
+| Terms scoped to one bounded context                             | that package or app `CONTEXT.md`                                                                                           |
+| Decided product behavior, invariants, and the V1 boundary       | [product-spec.md](product-spec.md)                                                                                         |
+| Threat model, adversaries, trust boundaries, and claim ceilings | [whitepaper/threat-model.md](../whitepaper/threat-model.md)                                                                |
+| Decision rationale and traceability                             | the governing ADR under `docs/adr/`                                                                                        |
+| Deferred scope and its promotion triggers                       | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
+| Architecture group ownership, seams, and integration order      | [architecture-groups.md](architecture-groups.md)                                                                           |
+| Live implementation status                                      | [project-status.md](../project-status.md)                                                                                  |
+| Code-enforced registries                                        | the named package file, paired with a doc section by a lockstep sentence                                                   |
 
 The per-domain glossary slices under `docs/context/glossary/` (indexed by root `CONTEXT.md`) own
 vocabulary shared across contexts; a package or app `CONTEXT.md` owns a term that exists only inside

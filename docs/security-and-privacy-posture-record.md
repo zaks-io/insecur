@@ -1,6 +1,13 @@
 # Security And Privacy Posture Record
 
-This is the private source record for future customer-facing security and privacy documentation. It is not public copy, a public-documentation draft, a claims register, or a substitute for the governing ADRs. The eventual public doc is a separate controlled artifact that must be shorter, less stack-specific, and checked against the ADRs linked here before publishing. If the repository or core code is ever made public, this file and the surrounding docs require a separate disclosure review before publication.
+This is the private source record for future customer-facing security and privacy documentation. It
+is not public copy, a public-documentation draft, a claims register, a substitute for the governing
+ADRs, or the threat-model owner. The owning threat model and claim boundary live in
+[whitepaper/threat-model.md](whitepaper/threat-model.md); current shipped status lives in
+[project-status.md](project-status.md). The eventual public doc is a separate controlled artifact
+that must be shorter, less stack-specific, and checked against the ADRs linked here before
+publishing. If the repository or core code is ever made public, this file and the surrounding docs
+require a separate disclosure review before publication.
 
 ## Disclosure Principles
 
@@ -25,6 +32,9 @@ This is the private source record for future customer-facing security and privac
 - **Audit Export** is tamper-evident and independently verifiable where ADR-0045 applies, not tamper-proof or non-repudiable against insecur under default hosted custody.
 
 ## Limits We Must Say Plainly
+
+These are external-copy reminders derived from the threat model and governing ADRs. If they drift,
+update this file to match the owners, not the other way around.
 
 - The default Hosted Instance custody posture (ADR-0044) is not zero-knowledge. insecur-controlled infrastructure can technically decrypt under the accepted V1 custody model, even though the product surface removes casual and unsupported read paths.
 - Customer-Managed Key Custody (deferred past V1) is not zero-knowledge while the customer grant is active. It means future decrypting operations fail after the customer revokes or disables the grant.
