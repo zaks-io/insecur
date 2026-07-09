@@ -1,11 +1,6 @@
 import { auditAccessDenialOnFailure } from "@insecur/access";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "@insecur/audit";
-import {
-  encryptSecretValue,
-  toStoreFacingCiphertext,
-  type Keyring,
-  type WrappedSecretValue,
-} from "@insecur/crypto";
+import { encryptSecretValue, type Keyring, type WrappedSecretValue } from "@insecur/crypto";
 import type {
   EnvironmentId,
   OrganizationId,
@@ -22,7 +17,6 @@ import {
   type AppendSecretVersionResult,
   type EnvironmentLifecycleRow,
   type SecretVersionLifecycleState,
-  type StoredWrappedSecretMaterial,
 } from "@insecur/tenant-store";
 import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
@@ -36,6 +30,10 @@ import {
 import { validateTextSecretValue } from "./validate-text-secret-value.js";
 import { validateVariableKeyForWrite } from "./validate-variable-key-for-write.js";
 import { assertCreateOnlySecretWrite } from "./assert-create-only-secret-write.js";
+import {
+  toSecretVersionCreatorActor,
+  toStoredWrappedSecretMaterial,
+} from "./secret-version-write-mappers.js";
 
 export interface BlindSecretWriteInput {
   keyring: Keyring;
@@ -61,16 +59,6 @@ export interface BlindSecretWriteResult {
   createdSecretShape: boolean;
   descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
   auditEventId?: string;
-}
-
-export function toStoredWrappedSecretMaterial(
-  wrapped: WrappedSecretValue,
-): StoredWrappedSecretMaterial {
-  return {
-    organizationDataKeyVersion: wrapped.organizationDataKeyVersion,
-    projectDataKeyVersion: wrapped.projectDataKeyVersion,
-    ciphertext: toStoreFacingCiphertext(wrapped),
-  };
 }
 
 type ValidatedBlindWriteInput = BlindSecretWriteInput & { variableKey: VariableKey };
@@ -140,6 +128,7 @@ async function appendWrappedVersionForWrite({
         wrapped: toStoredWrappedSecretMaterial(wrapped),
         createdSecretShape: resolved.createdSecretShape,
         descriptiveVerdicts,
+        createdByActor: toSecretVersionCreatorActor(validatedInput.actor),
       };
 
       return mode === "protected_draft"

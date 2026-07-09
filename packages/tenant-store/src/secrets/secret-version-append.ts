@@ -55,13 +55,17 @@ interface InsertVersionRowInput {
 }
 
 async function insertVersionRow(input: InsertVersionRowInput): Promise<void> {
-  const { descriptiveVerdicts } = input.appendInput;
+  const { descriptiveVerdicts, createdByActor } = input.appendInput;
   await input.db.insert(secretVersions).values({
     id: input.appendInput.secretVersionId,
     orgId: input.appendInput.organizationId,
     secretId: input.appendInput.secretId,
     versionNumber: input.versionNumber,
     lifecycleState: input.lifecycleState,
+    createdByActorType: createdByActor.type,
+    createdByUserId: createdByActor.type === "user" ? createdByActor.userId : null,
+    createdByMachineIdentityId:
+      createdByActor.type === "machine" ? createdByActor.machineIdentityId : null,
     publishedAt: input.lifecycleState === SECRET_VERSION_LIFECYCLE_STATES.live ? new Date() : null,
     organizationDataKeyVersion: input.appendInput.wrapped.organizationDataKeyVersion,
     projectDataKeyVersion: input.appendInput.wrapped.projectDataKeyVersion,
