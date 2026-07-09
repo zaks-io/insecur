@@ -10,11 +10,15 @@ interface TurnstileApi {
     options: {
       readonly sitekey: string;
       readonly action: string;
+      readonly appearance: "interaction-only";
       readonly theme: "auto";
-      readonly size: "flexible";
+      readonly "response-field": false;
       readonly callback: (token: string) => void;
+      readonly "before-interactive-callback": () => void;
+      readonly "after-interactive-callback": () => void;
       readonly "expired-callback": () => void;
       readonly "error-callback": () => void;
+      readonly "unsupported-callback": () => void;
     },
   ) => string;
   readonly remove?: (widgetId: string) => void;
@@ -61,13 +65,27 @@ interface TurnstileWidgetState {
 interface RenderTurnstileWidgetOptions {
   readonly container: HTMLElement;
   readonly onFailure: () => void;
+  readonly onInteractiveChange: (interactive: boolean) => void;
   readonly onTokenChange: (token: string) => void;
   readonly siteKey: string;
   readonly turnstile: TurnstileApi;
 }
 
+interface StartTurnstileWidgetOptions {
+  readonly container: HTMLElement;
+  readonly onFailure: () => void;
+  readonly onTokenChange: (token: string) => void;
+  readonly onInteractiveChange: (interactive: boolean) => void;
+  readonly siteKey: string;
+}
+
+interface MountTurnstileWidgetOptions extends StartTurnstileWidgetOptions {
+  readonly setFailed: (failed: boolean) => void;
+}
+
 function renderTurnstileWidget({
   container,
+  onInteractiveChange,
   onFailure,
   onTokenChange,
   siteKey,
@@ -76,21 +94,93 @@ function renderTurnstileWidget({
   return turnstile.render(container, {
     sitekey: siteKey,
     action: TURNSTILE_LOGIN_ACTION,
+    appearance: "interaction-only",
     theme: "auto",
-    size: "flexible",
+    "response-field": false,
     callback: (nextToken) => {
+      onInteractiveChange(false);
       onTokenChange(nextToken);
+    },
+    "before-interactive-callback": () => {
+      onInteractiveChange(true);
+    },
+    "after-interactive-callback": () => {
+      onInteractiveChange(false);
     },
     "expired-callback": () => {
       onTokenChange("");
     },
     "error-callback": onFailure,
+    "unsupported-callback": onFailure,
+  });
+}
+
+async function startTurnstileWidget({
+  container,
+  onFailure,
+  onInteractiveChange,
+  onTokenChange,
+  siteKey,
+}: StartTurnstileWidgetOptions): Promise<string | null> {
+  await loadTurnstileScript();
+  const turnstile = window.turnstile;
+  if (!turnstile) {
+    return null;
+  }
+
+  return renderTurnstileWidget({
+    container,
+    siteKey,
+    turnstile,
+    onFailure,
+    onInteractiveChange,
+    onTokenChange,
+  });
+}
+
+function failTurnstileWidget(
+  setFailed: (failed: boolean) => void,
+  onFailure: () => void,
+  onTokenChange: (token: string) => void,
+): void {
+  setFailed(true);
+  onFailure();
+  onTokenChange("");
+}
+
+function removeTurnstileWidget(widgetId: string | null): void {
+  if (widgetId !== null) {
+    window.turnstile?.remove?.(widgetId);
+  }
+}
+
+async function mountTurnstileWidget({
+  container,
+  onFailure,
+  onInteractiveChange,
+  onTokenChange,
+  setFailed,
+  siteKey,
+}: MountTurnstileWidgetOptions): Promise<string | null> {
+  return startTurnstileWidget({
+    container,
+    siteKey,
+    onInteractiveChange,
+    onFailure: () => {
+      failTurnstileWidget(setFailed, onFailure, onTokenChange);
+    },
+    onTokenChange: (nextToken) => {
+      setFailed(false);
+      onTokenChange(nextToken);
+    },
   });
 }
 
 function useTurnstileWidget(
   siteKey: string,
   onTokenChange: (token: string) => void,
+  onInteractiveChange: (interactive: boolean) => void,
+  onFailure: () => void,
 ): TurnstileWidgetState {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -98,62 +188,66 @@ function useTurnstileWidget(
 
   useEffect(() => {
     let cancelled = false;
-
-    async function renderWidget() {
-      await loadTurnstileScript();
-      if (cancelled) {
-        return;
-      }
-      const turnstile = window.turnstile;
-      if (!turnstile || !containerRef.current) {
-        setFailed(true);
-        return;
-      }
-
-      widgetIdRef.current = renderTurnstileWidget({
-        container: containerRef.current,
+    const failWidget = () => {
+      failTurnstileWidget(setFailed, onFailure, onTokenChange);
+    };
+    const container = containerRef.current;
+    if (container !== null) {
+      void mountTurnstileWidget({
+        container,
         siteKey,
-        turnstile,
-        onTokenChange: (nextToken) => {
-          setFailed(false);
-          onTokenChange(nextToken);
-        },
-        onFailure: () => {
-          setFailed(true);
-          onTokenChange("");
-        },
-      });
+        setFailed,
+        onFailure,
+        onInteractiveChange,
+        onTokenChange,
+      })
+        .then((widgetId) => {
+          if (cancelled) {
+            removeTurnstileWidget(widgetId);
+            return;
+          }
+          if (widgetId === null) {
+            failWidget();
+            return;
+          }
+          widgetIdRef.current = widgetId;
+        })
+        .catch(failWidget);
+    } else {
+      failWidget();
     }
-
-    void renderWidget().catch(() => {
-      setFailed(true);
-    });
 
     return () => {
       cancelled = true;
-      const widgetId = widgetIdRef.current;
-      if (widgetId !== null) {
-        window.turnstile?.remove?.(widgetId);
-      }
+      removeTurnstileWidget(widgetIdRef.current);
       widgetIdRef.current = null;
     };
-  }, [siteKey, onTokenChange]);
+  }, [siteKey, onFailure, onInteractiveChange, onTokenChange]);
 
   return { containerRef, failed };
 }
 
 export function TurnstileWidget({
   siteKey,
+  onFailure,
+  onInteractiveChange,
   onTokenChange,
 }: {
   readonly siteKey: string;
+  readonly onFailure: () => void;
+  readonly onInteractiveChange: (interactive: boolean) => void;
   readonly onTokenChange: (token: string) => void;
 }) {
-  const { containerRef, failed } = useTurnstileWidget(siteKey, onTokenChange);
+  const { containerRef, failed } = useTurnstileWidget(
+    siteKey,
+    onTokenChange,
+    onInteractiveChange,
+    onFailure,
+  );
 
   return (
     <div className="flex flex-col gap-3">
-      <div ref={containerRef} className="min-h-[65px] w-full" />
+      <div ref={containerRef} className="w-full" />
       {failed ? (
         <p className="text-sm text-destructive" role="alert">
           Verification failed. Refresh and try again.

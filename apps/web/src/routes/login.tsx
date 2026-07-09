@@ -3,14 +3,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { beginBrowserLogin, redirectResponse } from "../auth/browser-oauth.js";
 import {
   loginErrorMessage,
   parseLoginErrorCode,
   type LoginErrorCode,
 } from "../auth/login-error.js";
-import { readTurnstileToken, turnstileSiteKey, verifyTurnstileToken } from "../auth/turnstile.js";
+import {
+  readTurnstileToken,
+  turnstileSiteKey,
+  verifyTurnstileToken,
+  TURNSTILE_RESPONSE_FIELD,
+} from "../auth/turnstile.js";
 import { SiteFrame } from "../components/site-frame.js";
 import { TurnstileWidget } from "../components/turnstile-widget.js";
 import { asWebEnv } from "../env.js";
@@ -19,6 +24,8 @@ interface LoginChallenge {
   readonly siteKey: string;
   readonly errorCode: LoginErrorCode | null;
 }
+
+type LoginVerificationState = "checking" | "challenging" | "redirecting" | "failed";
 
 const loadLoginChallenge = createServerFn({ method: "GET" }).handler((): LoginChallenge => {
   const request = getRequest();
@@ -52,10 +59,6 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const { siteKey, errorCode } = Route.useLoaderData();
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const handleTurnstileToken = useCallback((token: string) => {
-    setTurnstileToken(token);
-  }, []);
 
   return (
     <SiteFrame>
@@ -66,22 +69,128 @@ function LoginPage() {
             <CardDescription>Continue to the tenant console.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form method="post" className="flex flex-col gap-5">
-              {errorCode !== null ? (
-                <p className="text-sm text-destructive" role="alert">
-                  {loginErrorMessage(errorCode)}
-                </p>
-              ) : null}
-              <TurnstileWidget siteKey={siteKey} onTokenChange={handleTurnstileToken} />
-              <Button type="submit" disabled={turnstileToken.length === 0}>
-                Continue
-              </Button>
-            </form>
+            <LoginForm siteKey={siteKey} errorCode={errorCode} />
           </CardContent>
         </Card>
       </section>
     </SiteFrame>
   );
+}
+
+function LoginForm({ siteKey, errorCode }: LoginChallenge) {
+  const login = useAutoLoginForm();
+
+  return (
+    <form ref={login.formRef} method="post" className="flex flex-col gap-5">
+      {errorCode !== null ? (
+        <p className="text-sm text-destructive" role="alert">
+          {loginErrorMessage(errorCode)}
+        </p>
+      ) : null}
+      <input
+        ref={login.tokenInputRef}
+        type="hidden"
+        name={TURNSTILE_RESPONSE_FIELD}
+        defaultValue=""
+      />
+      <TurnstileWidget
+        siteKey={siteKey}
+        onFailure={login.handleTurnstileFailure}
+        onInteractiveChange={login.handleInteractiveChange}
+        onTokenChange={login.handleTurnstileToken}
+      />
+      <LoginVerificationStatus state={login.verificationState} />
+      {login.verificationState === "failed" ? (
+        <Button type="button" variant="outline" onClick={reloadPage}>
+          Retry
+        </Button>
+      ) : null}
+      <noscript>
+        <p className="text-sm text-destructive" role="alert">
+          JavaScript is required to verify this sign-in attempt.
+        </p>
+      </noscript>
+    </form>
+  );
+}
+
+function useAutoLoginForm() {
+  const formRef = useRef<HTMLFormElement>(null);
+  const tokenInputRef = useRef<HTMLInputElement>(null);
+  const submittedRef = useRef(false);
+  const [verificationState, setVerificationState] = useState<LoginVerificationState>("checking");
+  const handleTurnstileToken = useCallback((token: string) => {
+    if (tokenInputRef.current) {
+      tokenInputRef.current.value = token;
+    }
+    if (token.length === 0 || submittedRef.current) {
+      return;
+    }
+
+    const form = formRef.current;
+    if (!form) {
+      setVerificationState("failed");
+      return;
+    }
+
+    submittedRef.current = true;
+    setVerificationState("redirecting");
+    submitLoginForm(form);
+  }, []);
+  const handleInteractiveChange = useCallback((interactive: boolean) => {
+    if (!submittedRef.current) {
+      setVerificationState(interactive ? "challenging" : "checking");
+    }
+  }, []);
+  const handleTurnstileFailure = useCallback(() => {
+    submittedRef.current = false;
+    setVerificationState("failed");
+  }, []);
+
+  return {
+    formRef,
+    handleInteractiveChange,
+    handleTurnstileFailure,
+    handleTurnstileToken,
+    tokenInputRef,
+    verificationState,
+  };
+}
+
+function submitLoginForm(form: HTMLFormElement): void {
+  if (typeof form.requestSubmit === "function") {
+    form.requestSubmit();
+    return;
+  }
+  form.submit();
+}
+
+function reloadPage(): void {
+  window.location.reload();
+}
+
+function LoginVerificationStatus({ state }: { readonly state: LoginVerificationState }) {
+  return (
+    <p
+      className={state === "failed" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}
+      role={state === "failed" ? "alert" : "status"}
+    >
+      {loginVerificationMessage(state)}
+    </p>
+  );
+}
+
+function loginVerificationMessage(state: LoginVerificationState): string {
+  switch (state) {
+    case "checking":
+      return "Checking your browser...";
+    case "challenging":
+      return "Complete the check to continue.";
+    case "redirecting":
+      return "Opening sign-in...";
+    case "failed":
+      return "Verification could not start. Refresh and try again.";
+  }
 }
 
 function loginRetryUrl(request: Request): string {
