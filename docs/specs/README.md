@@ -7,17 +7,19 @@ Read in this order:
 
 1. [Canonical Product Spec](product-spec.md) - the decided product shape, V1 boundary, and ADR trace
    links in one linear document.
-2. [Project Status](../project-status.md) - the current delivered, verified, and missing product
+2. [Delivered Features](../features.md) - the one-stop map of major functionality implemented in
+   the current checkout.
+3. [Project Status](../project-status.md) - the current delivered, verified, and missing product
    state, so target specs are not mistaken for shipped behavior.
-3. [Threat Model And Security Design](../whitepaper/threat-model.md) - the assets, adversaries,
+4. [Threat Model And Security Design](../whitepaper/threat-model.md) - the assets, adversaries,
    trust boundaries, custody tiers, and claim ceilings.
-4. [Architecture Groups](architecture-groups.md) - architectural ownership groups, seams,
+5. [Architecture Groups](architecture-groups.md) - architectural ownership groups, seams,
    dependencies, and handoff contracts for autonomous agents.
-5. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
+6. [Customer Validation And Excellence Plan](../customer-validation.md) - the first buyer,
    proof loop, design-partner loop, and success signals that should constrain First Value scope.
-6. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
+7. [CONTEXT.md](../../CONTEXT.md) - glossary index routing to the per-domain definition slices
    under [docs/context/glossary/](../context/glossary/).
-7. Area docs only when the architecture group calls for them, such as
+8. Area docs only when the architecture group calls for them, such as
    [First Value Milestone](../first-value-milestone.md),
    [Storage Security Gate](../storage-security-gate.md),
    [Protected Change Orchestration](../protected-change-orchestration.md),
@@ -47,6 +49,7 @@ owner instead of restating it. This table is the normative owner-map, per
 | Shared cross-context domain vocabulary and term definitions     | the per-domain slices under [docs/context/glossary/](../context/glossary/), indexed by root [CONTEXT.md](../../CONTEXT.md) |
 | Terms scoped to one bounded context                             | that package or app `CONTEXT.md`                                                                                           |
 | Decided product behavior, invariants, and the V1 boundary       | [product-spec.md](product-spec.md)                                                                                         |
+| Agent-readable delivered functionality map                      | [features.md](../features.md)                                                                                              |
 | Threat model, adversaries, trust boundaries, and claim ceilings | [whitepaper/threat-model.md](../whitepaper/threat-model.md)                                                                |
 | Decision rationale and traceability                             | the governing ADR under `docs/adr/`                                                                                        |
 | Deferred scope and its promotion triggers                       | the [phasing.md](../phasing.md) deferred scope parking lot                                                                 |
