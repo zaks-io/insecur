@@ -1,7 +1,14 @@
-import { setAuditNotificationEmitter } from "@insecur/audit";
+import {
+  PRODUCTION_AUDIT_EVENT_CODES,
+  setAuditNotificationEmitter,
+  type AuditEventInput,
+} from "@insecur/audit";
 import type { Keyring } from "@insecur/crypto";
+import type { ApprovalRequestId } from "@insecur/domain";
 
+import type { ApprovalDeliveryPorts } from "./approval-delivery-ports.js";
 import type { DeliveryPorts } from "./delivery-ports.js";
+import { emitApprovalNotification } from "./emit-approval-notification.js";
 import {
   buildEnvelopeFromAuditEvent,
   createInAppDeliveryPort,
@@ -12,6 +19,26 @@ import { resolveEnvelopeDisplayNames } from "./resolve-envelope-display-names.js
 export interface RegisterAuditNotificationEmitterInput {
   readonly keyring: Keyring;
   readonly deliveryPorts?: Partial<DeliveryPorts>;
+  /**
+   * Alert-only Approval Notification wiring (ADR-0017). When omitted, approval-request-created
+   * audits still emit webhook Event Notifications but no approver alert is sent.
+   */
+  readonly approval?: {
+    readonly deliveryPorts: ApprovalDeliveryPorts;
+    readonly webBaseUrl: string;
+  };
+}
+
+/** Returns the created Approval Request id when the event is an approval-request-created success. */
+function approvalRequestCreatedId(event: AuditEventInput): ApprovalRequestId | null {
+  if (
+    event.eventCode === PRODUCTION_AUDIT_EVENT_CODES.approvalRequestCreated &&
+    event.outcome === "success" &&
+    event.resource?.type === "approval_request"
+  ) {
+    return event.resource.id as unknown as ApprovalRequestId;
+  }
+  return null;
 }
 
 export function registerAuditNotificationEmitter(
@@ -32,6 +59,29 @@ export function registerAuditNotificationEmitter(
       envelope,
       deliveryPorts,
       sourceAuditEvent: event,
+    });
+
+    const approvalRequestId = approvalRequestCreatedId(event);
+    if (approvalRequestId === null) {
+      return;
+    }
+    if (input.approval === undefined) {
+      // Fail loud, not silent: an approver alert is due but delivery is not wired (INS-531).
+      // Do not let this look like a successful notification.
+      console.error(
+        `[approval-notification] approval_request_created for ${approvalRequestId} in ` +
+          `${event.organizationId} but approval delivery ports are NOT wired — approver alert ` +
+          `will NOT be delivered until INS-531`,
+      );
+      return;
+    }
+    await emitApprovalNotification({
+      organizationId: event.organizationId,
+      approvalRequestId,
+      createdAt: new Date(),
+      auditActor: event.actor,
+      webBaseUrl: input.approval.webBaseUrl,
+      deliveryPorts: input.approval.deliveryPorts,
     });
   });
 }

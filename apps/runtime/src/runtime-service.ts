@@ -126,6 +126,10 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     actorToken: string,
     run: (actors: RuntimeRpcActorContext) => Promise<T>,
   ): Promise<RuntimeRpcResult<T>> {
+    // TODO(INS-531): pass the concrete approval delivery ports (tenant-store-backed in-app +
+    // email transport). Until then delivery is intentionally UNWIRED and surfaced loudly (a warn
+    // at registration, a per-event error in the emitter) — the adapter, envelope safety, and audit
+    // trigger still ship. Omitting the approval arg here must never be read as "delivery works".
     ensureAuditNotificationEmitterRegistered(this.env);
     return this.#withConnection(() => withRuntimeRpcEntry({ env: this.env, actorToken }, run));
   }

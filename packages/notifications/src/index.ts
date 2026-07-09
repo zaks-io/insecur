@@ -36,8 +36,33 @@ export {
 export {
   registerAuditNotificationEmitter,
   clearAuditNotificationEmitter,
+  type RegisterAuditNotificationEmitterInput,
 } from "./register-audit-notification-emitter.js";
 export type { DeliveryPorts, EmailDeliveryPort, InAppDeliveryPort } from "./delivery-ports.js";
+export {
+  assertApprovalNotificationEnvelopeSafe,
+  buildApprovalDeepLinkUrl,
+  serializeApprovalNotificationEnvelope,
+  type ApprovalNotificationEnvelope,
+} from "./approval-notification-envelope.js";
+export {
+  ApprovalDeliveryPortNotImplementedError,
+  createUnimplementedApprovalDeliveryPorts,
+  type ApprovalDeliveryPorts,
+  type ApprovalEmailDeliveryPort,
+  type ApprovalInAppDeliveryPort,
+  type ApprovalNotificationRecipient,
+  type ApprovalRecipientResolverPort,
+} from "./approval-delivery-ports.js";
+export {
+  buildApprovalNotificationEnvelope,
+  emitApprovalNotification,
+  type EmitApprovalNotificationInput,
+} from "./emit-approval-notification.js";
+export {
+  recordApprovalNotificationFailed,
+  recordApprovalNotificationSent,
+} from "./record-approval-notification-audit.js";
 export { decryptWebhookSigningSecret } from "./decrypt-webhook-signing-secret.js";
 export {
   mintWebhookSigningSecret,
