@@ -11,6 +11,7 @@ import {
 } from "@insecur/domain";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { testDescriptiveVerdicts } from "../helpers/descriptive-verdicts.js";
+import { TEST_CREATOR_ACTOR } from "../helpers/test-creator-actor.js";
 import {
   SECRET_VERSION_LIFECYCLE_STATES,
   SecretVersionStoreConflictError,
@@ -80,6 +81,7 @@ async function appendLiveVersion(
         wrapped: syntheticWrappedMaterial(suffix),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts(`synthetic-${suffix}`),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     },
   );
@@ -283,6 +285,7 @@ describeRls("TenantSecretVersionStore lifecycle (real Postgres)", () => {
         wrapped: syntheticWrappedMaterial(42),
         createdSecretShape: false,
         descriptiveVerdicts: testDescriptiveVerdicts("draft-version"),
+        createdByActor: TEST_CREATOR_ACTOR,
       });
     });
 

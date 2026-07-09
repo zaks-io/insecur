@@ -104,6 +104,11 @@ export {
   type CancelApprovalRequestInput,
 } from "./cancel-approval-request.js";
 export {
+  discardDraftVersion,
+  type DiscardDraftVersionInput,
+  type DiscardDraftVersionResult,
+} from "./discard-draft-version.js";
+export {
   ApprovalRequestError,
   isApprovalRequestError,
   approvalRequestNotFound,

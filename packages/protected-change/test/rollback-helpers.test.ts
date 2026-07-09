@@ -85,6 +85,7 @@ describe("rollback helpers", () => {
         toSourceVersionId: SOURCE_VERSION,
         newSecretVersionId: NEW_VERSION,
         asDraft: true,
+        createdByActor: ACTOR,
       }),
     ).resolves.toEqual(copied);
   });
