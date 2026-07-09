@@ -22,6 +22,12 @@
     "SENTRY_TRACES_SAMPLE_RATE": "1",
     "WORKOS_CLIENT_ID": "client_PUBLIC_PRODUCTION_PLACEHOLDER",
   },
+  "analytics_engine_datasets": [
+    {
+      "binding": "API_ANALYTICS",
+      "dataset": "insecur_api_requests",
+    },
+  ],
   "observability": {
     "enabled": true,
     "logs": {
@@ -106,6 +112,12 @@
         "SENTRY_TRACES_SAMPLE_RATE": "1",
         "WORKOS_CLIENT_ID": "client_PUBLIC_PREVIEW_PLACEHOLDER",
       },
+      "analytics_engine_datasets": [
+        {
+          "binding": "API_ANALYTICS",
+          "dataset": "insecur_api_requests_preview",
+        },
+      ],
       "services": [
         {
           "binding": "RUNTIME",
