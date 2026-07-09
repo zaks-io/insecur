@@ -1,8 +1,8 @@
-import { readFile, stat } from "node:fs/promises";
 import { collectProjectSecretCandidates } from "./candidates.js";
-import { collectTranscriptFiles } from "./discovery.js";
+import { collectTranscriptFiles, transcriptDiscoveryInput } from "./discovery.js";
 import { describeHeuristicHit, findCandidateMatches, findHeuristicSecrets } from "./heuristics.js";
 import { fingerprintSecretValue, redactValueShape } from "./fingerprint.js";
+import { DEFAULT_MAX_TRANSCRIPT_BYTES, readTranscriptFileWithLimit } from "./file-read.js";
 import type {
   CollectedTranscriptFile,
   ProjectSecretCandidate,
@@ -14,36 +14,12 @@ import type {
   TranscriptScanWarning,
 } from "./types.js";
 
-const DEFAULT_MAX_TRANSCRIPT_BYTES = 10 * 1024 * 1024;
-
-interface ReadTranscriptResult {
-  readonly content: string | null;
-  readonly unreadable: boolean;
-  readonly oversized: boolean;
-}
-
 interface ScanTranscriptFilesState {
   findings: TranscriptFinding[];
   warnings: TranscriptScanWarning[];
   transcriptsScanned: number;
   transcriptsUnreadable: number;
   transcriptsOversized: number;
-}
-
-async function readTranscriptFile(
-  absolutePath: string,
-  maxBytes: number,
-): Promise<ReadTranscriptResult> {
-  try {
-    const fileStat = await stat(absolutePath);
-    if (fileStat.size > maxBytes) {
-      return { content: null, unreadable: false, oversized: true };
-    }
-    const buffer = await readFile(absolutePath);
-    return { content: buffer.toString("utf8"), unreadable: false, oversized: false };
-  } catch {
-    return { content: null, unreadable: true, oversized: false };
-  }
 }
 
 function defaultNextSteps(candidate?: ProjectSecretCandidate): readonly TranscriptNextStep[] {
@@ -182,7 +158,7 @@ async function scanCollectedTranscriptFiles(
   };
 
   for (const file of input.files) {
-    const readResult = await readTranscriptFile(file.absolutePath, input.maxBytes);
+    const readResult = await readTranscriptFileWithLimit(file.absolutePath, input.maxBytes);
     if (readResult.unreadable) {
       state.transcriptsUnreadable += 1;
       state.warnings.push({
@@ -224,18 +200,7 @@ export async function buildTranscriptScanReport(
 
   const [candidates, collected] = await Promise.all([
     collectProjectSecretCandidates(options.rootDir),
-    collectTranscriptFiles({
-      ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
-      ...(options.transcriptPaths !== undefined
-        ? { transcriptPaths: options.transcriptPaths }
-        : {}),
-      ...(options.transcriptGlobs !== undefined
-        ? { transcriptGlobs: options.transcriptGlobs }
-        : {}),
-      ...(options.maxTranscriptFiles !== undefined
-        ? { maxTranscriptFiles: options.maxTranscriptFiles }
-        : {}),
-    }),
+    collectTranscriptFiles(transcriptDiscoveryInput(options)),
   ]);
 
   const candidateFingerprints = new Set(

@@ -1,5 +1,5 @@
 import { buildMachineScanReport } from "./machine-report.js";
-import { sanitizeScanDisplayPath } from "./scan-display.js";
+import { formatPathListLines, formatScanFindingLines } from "./report-lines.js";
 import { scanFileAtPath } from "./scan-file.js";
 import { mightBeSecretPath } from "./secret-paths.js";
 import type { ScanFinding, ScanOptions, ScanReport, ScanScopeSummary } from "./types.js";
@@ -92,7 +92,7 @@ function scopeSummary(findings: readonly ScanFinding[], filesScanned: number): S
   };
 }
 
-async function buildProjectScanReport(options: ScanOptions): Promise<ScanReport> {
+export async function buildProjectScanReport(options: ScanOptions): Promise<ScanReport> {
   const startedAt = performance.now();
   const {
     files: walkedFiles,
@@ -176,47 +176,6 @@ export async function buildScanReport(options: ScanOptions): Promise<ScanReport>
   };
 }
 
-function formatFindingLines(findings: readonly ScanFinding[], heading: string): string[] {
-  if (findings.length === 0) {
-    return [];
-  }
-  const lines = ["", `${heading}:`];
-  for (const finding of findings) {
-    const migratableLabel = finding.migratable ? "migratable" : "not migratable";
-    const safeFile = sanitizeScanDisplayPath(finding.file);
-    lines.push(`  ${safeFile} :: ${finding.key} [${finding.confidence}, ${migratableLabel}]`);
-    if (finding.remediation) {
-      lines.push(`    remediation: ${finding.remediation}`);
-    }
-    if (finding.reason) {
-      lines.push(`    reason: ${finding.reason}`);
-    }
-  }
-  return lines;
-}
-
-function formatUnreadableLines(unreadableFiles: readonly string[]): string[] {
-  if (unreadableFiles.length === 0) {
-    return [];
-  }
-  return [
-    "",
-    `Unreadable files (${String(unreadableFiles.length)}):`,
-    ...unreadableFiles.map((file) => `  ${sanitizeScanDisplayPath(file)}`),
-  ];
-}
-
-function formatOversizedLines(oversizedFiles: readonly string[]): string[] {
-  if (oversizedFiles.length === 0) {
-    return [];
-  }
-  return [
-    "",
-    `Oversized files (${String(oversizedFiles.length)}):`,
-    ...oversizedFiles.map((file) => `  ${sanitizeScanDisplayPath(file)}`),
-  ];
-}
-
 export const SCAN_MIGRATE_ENV_GUIDE_POINTER =
   "To fix: run `insecur guide migrate-env` and follow it, or hand it to your agent.";
 
@@ -235,10 +194,10 @@ function formatScopedFindingSections(findings: readonly ScanFinding[]): string[]
   const projectFindings = findings.filter((finding) => finding.scope === "project");
   const machineFindings = findings.filter((finding) => finding.scope === "machine");
   if (projectFindings.length > 0) {
-    lines.push(...formatFindingLines(projectFindings, "Project findings"));
+    lines.push(...formatScanFindingLines(projectFindings, "Project findings"));
   }
   if (machineFindings.length > 0) {
-    lines.push(...formatFindingLines(machineFindings, "Machine findings"));
+    lines.push(...formatScanFindingLines(machineFindings, "Machine findings"));
   }
   return lines;
 }
@@ -250,8 +209,8 @@ export function formatScanHumanReport(report: ScanReport): string {
     "",
     `Files scanned: ${String(summary.filesScanned)} | Entries: ${String(summary.totalEntries)} | Likely secrets: ${String(summary.likelySecrets)} | Migratable: ${String(summary.migratableCount)} | Unreadable: ${String(summary.unreadableFiles.length)} | Oversized: ${String(summary.oversizedFiles.length)} | Limit reached: ${summary.limitReached ? "yes" : "no"}`,
     ...formatMachineScopeBreakdown(summary),
-    ...formatUnreadableLines(summary.unreadableFiles),
-    ...formatOversizedLines(summary.oversizedFiles),
+    ...formatPathListLines("Unreadable files", summary.unreadableFiles),
+    ...formatPathListLines("Oversized files", summary.oversizedFiles),
     ...formatScopedFindingSections(findings),
     "",
     SCAN_MIGRATE_ENV_GUIDE_POINTER,
