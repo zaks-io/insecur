@@ -214,6 +214,7 @@ export function reconcileProfileRunCommand(input: {
   }
 
   let resolved: ResolvedProfile | undefined;
+  const commandFallback = { command: [parsed.profileSelector, ...parsed.command] };
   try {
     resolved = resolveProfile(
       input.context.userConfig,
@@ -224,9 +225,8 @@ export function reconcileProfileRunCommand(input: {
     if (input.explicitProfilePositional === true) {
       throw error;
     }
-    return {
-      command: [parsed.profileSelector, ...parsed.command],
-    };
+    // A non-explicit selector can be the child executable path Commander bound as `[profile]`.
+    return commandFallback;
   }
 
   if (resolved !== undefined) {
@@ -237,9 +237,7 @@ export function reconcileProfileRunCommand(input: {
     return parsed;
   }
 
-  return {
-    command: [parsed.profileSelector, ...parsed.command],
-  };
+  return commandFallback;
 }
 
 /**

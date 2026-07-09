@@ -93,9 +93,10 @@ describe("registerOperationsCommands", () => {
   it("passes the command object and timeout option to operations wait", async () => {
     runOperationsWaitCommandMock.mockClear();
     const program = attachGlobalOptions(new Command());
+    const resolveApi = vi.fn(async () => ({ api: {} as never, context: {} as never }));
     registerOperationsCommands(program, {
       globalFlags,
-      resolveApi: async () => ({ api: {} as never, context: {} as never }),
+      resolveApi,
     });
 
     await program.parseAsync([
@@ -114,6 +115,14 @@ describe("registerOperationsCommands", () => {
       "30",
     ]);
 
+    expect(resolveApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "https://insecur.test",
+        orgId: "org_01TEST00000000000000000001",
+        json: true,
+        quiet: true,
+      }),
+    );
     expect(runOperationsWaitCommandMock).toHaveBeenCalledWith(
       expect.objectContaining({
         host: "https://insecur.test",
@@ -127,8 +136,8 @@ describe("registerOperationsCommands", () => {
     );
   });
 
-  it("passes the command object with global flags to operations cancel", async () => {
-    runOperationsCancelCommandMock.mockClear();
+  it("passes the command object to operations wait without timeout", async () => {
+    runOperationsWaitCommandMock.mockClear();
     const program = attachGlobalOptions(new Command());
     registerOperationsCommands(program, {
       globalFlags,
@@ -145,10 +154,54 @@ describe("registerOperationsCommands", () => {
       "--json",
       "--quiet",
       "operations",
+      "wait",
+      "op_01TEST00000000000000000001",
+    ]);
+
+    expect(runOperationsWaitCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "https://insecur.test",
+        orgId: "org_01TEST00000000000000000001",
+        json: true,
+        quiet: true,
+      }),
+      expect.anything(),
+      expect.anything(),
+      { operationId: "op_01TEST00000000000000000001" },
+    );
+  });
+
+  it("passes the command object with global flags to operations cancel", async () => {
+    runOperationsCancelCommandMock.mockClear();
+    const program = attachGlobalOptions(new Command());
+    const resolveApi = vi.fn(async () => ({ api: {} as never, context: {} as never }));
+    registerOperationsCommands(program, {
+      globalFlags,
+      resolveApi,
+    });
+
+    await program.parseAsync([
+      "node",
+      "insecur",
+      "--host",
+      "https://insecur.test",
+      "--org-id",
+      "org_01TEST00000000000000000001",
+      "--json",
+      "--quiet",
+      "operations",
       "cancel",
       "op_01TEST00000000000000000001",
     ]);
 
+    expect(resolveApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "https://insecur.test",
+        orgId: "org_01TEST00000000000000000001",
+        json: true,
+        quiet: true,
+      }),
+    );
     expect(runOperationsCancelCommandMock).toHaveBeenCalledWith(
       expect.objectContaining({
         host: "https://insecur.test",
