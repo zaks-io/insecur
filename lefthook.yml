@@ -26,6 +26,17 @@ pre-commit:
       run: pnpm exec prettier --write {staged_files}
       stage_fixed: true
 
+    # Regenerate the public CLI docs when their sources change, and stage the result. The site
+    # build regenerates too; this keeps the committed tree in lockstep so nobody runs
+    # `pnpm docs:cli` by hand. CI enforces freshness via `pnpm docs:cli:check` in verify:policy.
+    - name: docs-cli-generate
+      glob:
+        - "packages/cli/**"
+        - "packages/domain/**"
+        - "docs/cli-and-sync.md"
+        - "scripts/docs/generate-cli-docs.mjs"
+      run: pnpm docs:cli && git add apps/site/src/docs/content/cli apps/site/src/docs/content/reference/exit-codes.md apps/site/src/docs/content/reference/errors.md apps/site/src/generated/error-catalog.json
+
     - name: gitleaks
       run: |
         if command -v gitleaks >/dev/null 2>&1; then

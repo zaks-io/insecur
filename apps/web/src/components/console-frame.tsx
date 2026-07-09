@@ -129,6 +129,24 @@ function ConsolePasskeyNudge({
   );
 }
 
+function ConsoleTopbarActions() {
+  return (
+    <div className="flex items-center gap-4">
+      <a
+        href="https://insecur.cloud/docs"
+        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+      >
+        Docs
+      </a>
+      <form method="post" action="/logout">
+        <Button type="submit" variant="outline" size="sm">
+          Sign out
+        </Button>
+      </form>
+    </div>
+  );
+}
+
 interface ConsoleFrameProps {
   organizations: readonly ConsoleOrganization[];
   activeOrg: ConsoleOrganization;
@@ -166,13 +184,7 @@ export function ConsoleFrame({
             </Link>
           }
           controls={<OrgSwitcher organizations={organizations} activeOrg={activeOrg} />}
-          actions={
-            <form method="post" action="/logout">
-              <Button type="submit" variant="outline" size="sm">
-                Sign out
-              </Button>
-            </form>
-          }
+          actions={<ConsoleTopbarActions />}
         />
       }
       sidebar={<ConsoleSections activeOrg={activeOrg} section={section} />}

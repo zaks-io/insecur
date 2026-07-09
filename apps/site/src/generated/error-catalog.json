@@ -1,0 +1,1514 @@
+[
+  {
+    "code": "auth.required",
+    "slug": "auth-required",
+    "typeUri": "https://insecur.dev/errors/auth-required",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": true,
+    "notes": "Session expired or absent."
+  },
+  {
+    "code": "auth.config_invalid",
+    "slug": "auth-config-invalid",
+    "typeUri": "https://insecur.dev/errors/auth-config-invalid",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Auth Worker bindings are missing or invalid; names the configuration class only."
+  },
+  {
+    "code": "auth.expired",
+    "slug": "auth-expired",
+    "typeUri": "https://insecur.dev/errors/auth-expired",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": true,
+    "notes": "Session expired."
+  },
+  {
+    "code": "auth.invalid",
+    "slug": "auth-invalid",
+    "typeUri": "https://insecur.dev/errors/auth-invalid",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": true,
+    "notes": "Session invalid."
+  },
+  {
+    "code": "auth.reauth_required",
+    "slug": "auth-reauth-required",
+    "typeUri": "https://insecur.dev/errors/auth-reauth-required",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": true,
+    "notes": "Fresh re-authentication required."
+  },
+  {
+    "code": "auth.mfa_enrollment_required",
+    "slug": "auth-mfa-enrollment-required",
+    "typeUri": "https://insecur.dev/errors/auth-mfa-enrollment-required",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "No eligible MFA factor enrolled (ADR-0032)."
+  },
+  {
+    "code": "auth.insufficient_scope",
+    "slug": "auth-insufficient-scope",
+    "typeUri": "https://insecur.dev/errors/auth-insufficient-scope",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Missing Authorization Scope."
+  },
+  {
+    "code": "auth.oidc_wrong_audience",
+    "slug": "auth-oidc-wrong-audience",
+    "typeUri": "https://insecur.dev/errors/auth-oidc-wrong-audience",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "GitHub Actions OIDC audience does not match configured trust."
+  },
+  {
+    "code": "auth.oidc_wrong_repository",
+    "slug": "auth-oidc-wrong-repository",
+    "typeUri": "https://insecur.dev/errors/auth-oidc-wrong-repository",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "GitHub Actions OIDC repository claim does not match configured trust."
+  },
+  {
+    "code": "auth.oidc_wrong_environment",
+    "slug": "auth-oidc-wrong-environment",
+    "typeUri": "https://insecur.dev/errors/auth-oidc-wrong-environment",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "GitHub Actions OIDC environment claim does not match configured trust."
+  },
+  {
+    "code": "auth.oidc_untrusted_source",
+    "slug": "auth-oidc-untrusted-source",
+    "typeUri": "https://insecur.dev/errors/auth-oidc-untrusted-source",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "GitHub Actions OIDC token failed verification or issuer trust."
+  },
+  {
+    "code": "auth.deploy_key_invalid",
+    "slug": "auth-deploy-key-invalid",
+    "typeUri": "https://insecur.dev/errors/auth-deploy-key-invalid",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "Environment Deploy Key secret failed verification or runtime policy key is not allowlisted."
+  },
+  {
+    "code": "auth.deploy_key_disabled",
+    "slug": "auth-deploy-key-disabled",
+    "typeUri": "https://insecur.dev/errors/auth-deploy-key-disabled",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Environment Deploy Key is disabled."
+  },
+  {
+    "code": "auth.deploy_key_wrong_environment",
+    "slug": "auth-deploy-key-wrong-environment",
+    "typeUri": "https://insecur.dev/errors/auth-deploy-key-wrong-environment",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Environment Deploy Key is not authorized for the requested project and environment."
+  },
+  {
+    "code": "auth.deploy_key_overbroad_scope",
+    "slug": "auth-deploy-key-overbroad-scope",
+    "typeUri": "https://insecur.dev/errors/auth-deploy-key-overbroad-scope",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Environment Deploy Key credential scopes exceed the Runtime Injection bundle."
+  },
+  {
+    "code": "auth.high_assurance_required",
+    "slug": "auth-high-assurance-required",
+    "typeUri": "https://insecur.dev/errors/auth-high-assurance-required",
+    "exitCode": 10,
+    "httpStatus": 401,
+    "remediationRequired": true,
+    "notes": "Step-up handoff, not a failure (ADR-0032)."
+  },
+  {
+    "code": "auth.device_authorization_expired",
+    "slug": "auth-device-authorization-expired",
+    "typeUri": "https://insecur.dev/errors/auth-device-authorization-expired",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": true,
+    "notes": "Device-authorization user code expired before approval; re-run `insecur login --device` (ADR-0010)."
+  },
+  {
+    "code": "auth.device_authorization_denied",
+    "slug": "auth-device-authorization-denied",
+    "typeUri": "https://insecur.dev/errors/auth-device-authorization-denied",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Device-authorization request was denied at the verification page (ADR-0010)."
+  },
+  {
+    "code": "validation.invalid_opaque_resource_id",
+    "slug": "validation-invalid-opaque-resource-id",
+    "typeUri": "https://insecur.dev/errors/validation-invalid-opaque-resource-id",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": true,
+    "notes": "Validation of an opaque resource ID (server-side, plus CLI-side argument parsing). CLI remediation carries a `suggestedFix` to copy the full id from `--json` or `--full` output instead of the truncated table cell."
+  },
+  {
+    "code": "validation.invalid_variable_key",
+    "slug": "validation-invalid-variable-key",
+    "typeUri": "https://insecur.dev/errors/validation-invalid-variable-key",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Server-side Variable Key format validation."
+  },
+  {
+    "code": "validation.invalid_command_input",
+    "slug": "validation-invalid-command-input",
+    "typeUri": "https://insecur.dev/errors/validation-invalid-command-input",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "CLI `run` missing or invalid command after `--`; API request-body validation (PKCE exchange, run-completed `childExitCode`)."
+  },
+  {
+    "code": "validation.invalid_display_name",
+    "slug": "validation-invalid-display-name",
+    "typeUri": "https://insecur.dev/errors/validation-invalid-display-name",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Server-side Display Name validation."
+  },
+  {
+    "code": "validation.display_name_empty",
+    "slug": "validation-display-name-empty",
+    "typeUri": "https://insecur.dev/errors/validation-display-name-empty",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Server-side empty Display Name validation."
+  },
+  {
+    "code": "validation.invalid_profile_slug",
+    "slug": "validation-invalid-profile-slug",
+    "typeUri": "https://insecur.dev/errors/validation-invalid-profile-slug",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "CLI Profile Slug must be lower-kebab."
+  },
+  {
+    "code": "cli.profile_not_found",
+    "slug": "cli-profile-not-found",
+    "typeUri": "https://insecur.dev/errors/cli-profile-not-found",
+    "exitCode": 5,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "CLI Profile slug or opaque ID does not exist in local user config."
+  },
+  {
+    "code": "cli.profile_slug_in_use",
+    "slug": "cli-profile-slug-in-use",
+    "typeUri": "https://insecur.dev/errors/cli-profile-slug-in-use",
+    "exitCode": 6,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "CLI Profile Slug already exists in local user config."
+  },
+  {
+    "code": "cli.display_name_not_found",
+    "slug": "cli-display-name-not-found",
+    "typeUri": "https://insecur.dev/errors/cli-display-name-not-found",
+    "exitCode": 5,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Display Name Resolution found zero exact matches in the scoped list (ADR-0035)."
+  },
+  {
+    "code": "cli.display_name_ambiguous",
+    "slug": "cli-display-name-ambiguous",
+    "typeUri": "https://insecur.dev/errors/cli-display-name-ambiguous",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Display Name Resolution found two or more exact matches in the scoped list (ADR-0035)."
+  },
+  {
+    "code": "cli.parent_scope_unresolved",
+    "slug": "cli-parent-scope-unresolved",
+    "typeUri": "https://insecur.dev/errors/cli-parent-scope-unresolved",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": true,
+    "notes": "Parent Organization, Project, or Environment scope is not pinned before child Display Name Resolution."
+  },
+  {
+    "code": "cli.destructive_id_required",
+    "slug": "cli-destructive-id-required",
+    "typeUri": "https://insecur.dev/errors/cli-destructive-id-required",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Irreversible or destructive action requires an opaque ID for non-interactive callers (ADR-0035)."
+  },
+  {
+    "code": "cli.scoped_selector_not_found",
+    "slug": "cli-scoped-selector-not-found",
+    "typeUri": "https://insecur.dev/errors/cli-scoped-selector-not-found",
+    "exitCode": 5,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Configured or explicit opaque ID is absent from the refreshed Scoped List in the authorized scope."
+  },
+  {
+    "code": "cli.validation_error",
+    "slug": "cli-validation-error",
+    "typeUri": "https://insecur.dev/errors/cli-validation-error",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": true,
+    "notes": "CLI argument parsing failure: unknown command, unknown option, missing required option, or invalid option value. Remediation carries the corrected `usage` invocation and a `suggestedFix`."
+  },
+  {
+    "code": "cli.unexpected_error",
+    "slug": "cli-unexpected-error",
+    "typeUri": "https://insecur.dev/errors/cli-unexpected-error",
+    "exitCode": 1,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": true,
+    "notes": "Unexpected client-side CLI failure after argument parsing. Remediation carries a `suggestedFix` pointing at `--verbose` for full error detail."
+  },
+  {
+    "code": "validation.invalid_feedback_kind",
+    "slug": "validation-invalid-feedback-kind",
+    "typeUri": "https://insecur.dev/errors/validation-invalid-feedback-kind",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Design-partner feedback kind is not one of the supported metadata-only values."
+  },
+  {
+    "code": "validation.invalid_feedback_note_code",
+    "slug": "validation-invalid-feedback-note-code",
+    "typeUri": "https://insecur.dev/errors/validation-invalid-feedback-note-code",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Design-partner feedback note must be one of the supported metadata-only note codes."
+  },
+  {
+    "code": "validation.feedback_association_required",
+    "slug": "validation-feedback-association-required",
+    "typeUri": "https://insecur.dev/errors/validation-feedback-association-required",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Design-partner feedback must reference a grant, operation, or request ID."
+  },
+  {
+    "code": "validation.feedback_association_not_found",
+    "slug": "validation-feedback-association-not-found",
+    "typeUri": "https://insecur.dev/errors/validation-feedback-association-not-found",
+    "exitCode": 2,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Design-partner feedback references an operation or request ID that does not exist in the Organization."
+  },
+  {
+    "code": "secret.input_required",
+    "slug": "secret-input-required",
+    "typeUri": "https://insecur.dev/errors/secret-input-required",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": true,
+    "notes": "Secret value input is required; remediation carries the `secrets set <VARIABLE_KEY> --value-stdin` usage and a `suggestedFix` (mentioning `--generate random` only for minting a new random secret)."
+  },
+  {
+    "code": "secret.invalid_encoding",
+    "slug": "secret-invalid-encoding",
+    "typeUri": "https://insecur.dev/errors/secret-invalid-encoding",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "secret.invalid_input_mode",
+    "slug": "secret-invalid-input-mode",
+    "typeUri": "https://insecur.dev/errors/secret-invalid-input-mode",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Mutually exclusive or unsupported Secret input mode options."
+  },
+  {
+    "code": "secret.value_too_large",
+    "slug": "secret-value-too-large",
+    "typeUri": "https://insecur.dev/errors/secret-value-too-large",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "secret.empty_value",
+    "slug": "secret-empty-value",
+    "typeUri": "https://insecur.dev/errors/secret-empty-value",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "secret.coordinate_invalid",
+    "slug": "secret-coordinate-invalid",
+    "typeUri": "https://insecur.dev/errors/secret-coordinate-invalid",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Resource-shaped denial; URL environment not owned by URL project collapses with not-found into HTTP `404` so the write path is not an existence oracle."
+  },
+  {
+    "code": "environment.invalid_lifecycle_stage",
+    "slug": "environment-invalid-lifecycle-stage",
+    "typeUri": "https://insecur.dev/errors/environment-invalid-lifecycle-stage",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Environment lifecycle stage is not a supported posture tier."
+  },
+  {
+    "code": "environment.protected_environment",
+    "slug": "environment-protected-environment",
+    "typeUri": "https://insecur.dev/errors/environment-protected-environment",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Non-protected secret writes are blocked for Protected Environments."
+  },
+  {
+    "code": "environment.non_protected_environment",
+    "slug": "environment-non-protected-environment",
+    "typeUri": "https://insecur.dev/errors/environment-non-protected-environment",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Protected draft secret writes are blocked for non-Protected Environments."
+  },
+  {
+    "code": "environment.lifecycle_immutable",
+    "slug": "environment-lifecycle-immutable",
+    "typeUri": "https://insecur.dev/errors/environment-lifecycle-immutable",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Lifecycle stage and protected posture cannot change after creation."
+  },
+  {
+    "code": "environment.preview_opt_down_invalid",
+    "slug": "environment-preview-opt-down-invalid",
+    "typeUri": "https://insecur.dev/errors/environment-preview-opt-down-invalid",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Preview opt-down evidence is invalid or scoped to the wrong lifecycle stage."
+  },
+  {
+    "code": "environment.not_found",
+    "slug": "environment-not-found",
+    "typeUri": "https://insecur.dev/errors/environment-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Environment not found for the tenant-qualified coordinate."
+  },
+  {
+    "code": "onboarding.already_provisioned",
+    "slug": "onboarding-already-provisioned",
+    "typeUri": "https://insecur.dev/errors/onboarding-already-provisioned",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Personal Organization already provisioned."
+  },
+  {
+    "code": "onboarding.resource_conflict",
+    "slug": "onboarding-resource-conflict",
+    "typeUri": "https://insecur.dev/errors/onboarding-resource-conflict",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Guided-provisioning resource conflict."
+  },
+  {
+    "code": "onboarding.not_instance_operator",
+    "slug": "onboarding-not-instance-operator",
+    "typeUri": "https://insecur.dev/errors/onboarding-not-instance-operator",
+    "exitCode": 6,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Acting user is not the Instance Operator for the requested action."
+  },
+  {
+    "code": "onboarding.invitation_invalid",
+    "slug": "onboarding-invitation-invalid",
+    "typeUri": "https://insecur.dev/errors/onboarding-invitation-invalid",
+    "exitCode": 6,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Invitation input or role preset is invalid."
+  },
+  {
+    "code": "onboarding.invitation_not_pending",
+    "slug": "onboarding-invitation-not-pending",
+    "typeUri": "https://insecur.dev/errors/onboarding-invitation-not-pending",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Invitation is not pending or lost a compare-and-set race."
+  },
+  {
+    "code": "onboarding.invitation_invitee_mismatch",
+    "slug": "onboarding-invitation-invitee-mismatch",
+    "typeUri": "https://insecur.dev/errors/onboarding-invitation-invitee-mismatch",
+    "exitCode": 6,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Accepting user does not match the invitation invitee."
+  },
+  {
+    "code": "onboarding.membership_already_exists",
+    "slug": "onboarding-membership-already-exists",
+    "typeUri": "https://insecur.dev/errors/onboarding-membership-already-exists",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Invitee already holds membership for the invitation scope."
+  },
+  {
+    "code": "bootstrap.already_bootstrapped",
+    "slug": "bootstrap-already-bootstrapped",
+    "typeUri": "https://insecur.dev/errors/bootstrap-already-bootstrapped",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Instance bootstrap already completed."
+  },
+  {
+    "code": "bootstrap.not_bootstrapped",
+    "slug": "bootstrap-not-bootstrapped",
+    "typeUri": "https://insecur.dev/errors/bootstrap-not-bootstrapped",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Instance is not bootstrapped."
+  },
+  {
+    "code": "bootstrap.claim_not_available",
+    "slug": "bootstrap-claim-not-available",
+    "typeUri": "https://insecur.dev/errors/bootstrap-claim-not-available",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "No pending Bootstrap Operator Claim or default team is missing."
+  },
+  {
+    "code": "bootstrap.already_claimed",
+    "slug": "bootstrap-already-claimed",
+    "typeUri": "https://insecur.dev/errors/bootstrap-already-claimed",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Bootstrap Operator Claim is already consumed."
+  },
+  {
+    "code": "bootstrap.invalid_secret",
+    "slug": "bootstrap-invalid-secret",
+    "typeUri": "https://insecur.dev/errors/bootstrap-invalid-secret",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "Bootstrap Secret verification failed."
+  },
+  {
+    "code": "bootstrap.authenticated_actor_required",
+    "slug": "bootstrap-authenticated-actor-required",
+    "typeUri": "https://insecur.dev/errors/bootstrap-authenticated-actor-required",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "Bootstrap claim requires a WorkOS-resolved human actor."
+  },
+  {
+    "code": "store.runtime_config_missing",
+    "slug": "store-runtime-config-missing",
+    "typeUri": "https://insecur.dev/errors/store-runtime-config-missing",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Runtime configuration unavailable; control-plane state, not caller input."
+  },
+  {
+    "code": "storage.gate_blocked",
+    "slug": "storage-gate-blocked",
+    "typeUri": "https://insecur.dev/errors/storage-gate-blocked",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Storage Security Gate blocked production delivery before decrypt or provider write."
+  },
+  {
+    "code": "storage.gate_unknown",
+    "slug": "storage-gate-unknown",
+    "typeUri": "https://insecur.dev/errors/storage-gate-unknown",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Storage Security Gate readiness evidence is missing or unreachable for production delivery."
+  },
+  {
+    "code": "crypto.decrypt_failed",
+    "slug": "crypto-decrypt-failed",
+    "typeUri": "https://insecur.dev/errors/crypto-decrypt-failed",
+    "exitCode": 1,
+    "httpStatus": 500,
+    "remediationRequired": false,
+    "notes": "Opaque single failure; HTTP `500` must not differentiate by cause ([ADR-0062](adr/0062-package-seam-failures-are-errorbody-compatible.md) amendment)."
+  },
+  {
+    "code": "crypto.root_key_not_configured",
+    "slug": "crypto-root-key-not-configured",
+    "typeUri": "https://insecur.dev/errors/crypto-root-key-not-configured",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Instance root key material is not configured."
+  },
+  {
+    "code": "crypto.tenant_data_key_not_ready",
+    "slug": "crypto-tenant-data-key-not-ready",
+    "typeUri": "https://insecur.dev/errors/crypto-tenant-data-key-not-ready",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Active tenant data keys are missing or not usable; control-plane readiness, not caller input."
+  },
+  {
+    "code": "crypto.invalid_aad_field",
+    "slug": "crypto-invalid-aad-field",
+    "typeUri": "https://insecur.dev/errors/crypto-invalid-aad-field",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Additional authenticated data field failed charset validation."
+  },
+  {
+    "code": "audit.event_invalid",
+    "slug": "audit-event-invalid",
+    "typeUri": "https://insecur.dev/errors/audit-event-invalid",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Audit event payload failed metadata validation."
+  },
+  {
+    "code": "audit.export_entry_limit_exceeded",
+    "slug": "audit-export-entry-limit-exceeded",
+    "typeUri": "https://insecur.dev/errors/audit-export-entry-limit-exceeded",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Audit export time range matches more entries than a single export bundle allows; narrow the range and retry."
+  },
+  {
+    "code": "high_assurance.evidence_missing",
+    "slug": "high-assurance-evidence-missing",
+    "typeUri": "https://insecur.dev/errors/high-assurance-evidence-missing",
+    "exitCode": 10,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "Cleared challenge evidence is absent; fail closed to fresh step-up (ADR-0032)."
+  },
+  {
+    "code": "high_assurance.evidence_expired",
+    "slug": "high-assurance-evidence-expired",
+    "typeUri": "https://insecur.dev/errors/high-assurance-evidence-expired",
+    "exitCode": 10,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "Challenge evidence validity window elapsed; fresh step-up required (ADR-0032)."
+  },
+  {
+    "code": "high_assurance.operation_mismatch",
+    "slug": "high-assurance-operation-mismatch",
+    "typeUri": "https://insecur.dev/errors/high-assurance-operation-mismatch",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Challenge evidence is not bound to the requested operation."
+  },
+  {
+    "code": "high_assurance.actor_mismatch",
+    "slug": "high-assurance-actor-mismatch",
+    "typeUri": "https://insecur.dev/errors/high-assurance-actor-mismatch",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Clearing user is not authorized for this bounded operation."
+  },
+  {
+    "code": "high_assurance.already_consumed",
+    "slug": "high-assurance-already-consumed",
+    "typeUri": "https://insecur.dev/errors/high-assurance-already-consumed",
+    "exitCode": 10,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "Single-use challenge evidence was already consumed."
+  },
+  {
+    "code": "high_assurance.clearing_denied",
+    "slug": "high-assurance-clearing-denied",
+    "typeUri": "https://insecur.dev/errors/high-assurance-clearing-denied",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Clearing user lacks scope or operation state rejects clearing."
+  },
+  {
+    "code": "high_assurance.session_assurance_failed",
+    "slug": "high-assurance-session-assurance-failed",
+    "typeUri": "https://insecur.dev/errors/high-assurance-session-assurance-failed",
+    "exitCode": 3,
+    "httpStatus": 401,
+    "remediationRequired": false,
+    "notes": "WorkOS session assurance did not satisfy fresh high-assurance factor posture (INS-49)."
+  },
+  {
+    "code": "high_assurance.invalid_risk_reason",
+    "slug": "high-assurance-invalid-risk-reason",
+    "typeUri": "https://insecur.dev/errors/high-assurance-invalid-risk-reason",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Unknown or malformed high-assurance risk reason code."
+  },
+  {
+    "code": "abuse.rate_limited",
+    "slug": "abuse-rate-limited",
+    "typeUri": "https://insecur.dev/errors/abuse-rate-limited",
+    "exitCode": 8,
+    "httpStatus": 429,
+    "remediationRequired": false,
+    "notes": "Public-edge abuse control; retry after the configured window."
+  },
+  {
+    "code": "import.unsupported_environment",
+    "slug": "import-unsupported-environment",
+    "typeUri": "https://insecur.dev/errors/import-unsupported-environment",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "import.existing_secret",
+    "slug": "import-existing-secret",
+    "typeUri": "https://insecur.dev/errors/import-existing-secret",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Existing-secret conflict in the target Environment (preflight or create-only write)."
+  },
+  {
+    "code": "import.parse_error",
+    "slug": "import-parse-error",
+    "typeUri": "https://insecur.dev/errors/import-parse-error",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Dotenv line does not split into key=value."
+  },
+  {
+    "code": "import.duplicate_variable_key",
+    "slug": "import-duplicate-variable-key",
+    "typeUri": "https://insecur.dev/errors/import-duplicate-variable-key",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Duplicate final Variable Key in the import source."
+  },
+  {
+    "code": "injection.grant_denied",
+    "slug": "injection-grant-denied",
+    "typeUri": "https://insecur.dev/errors/injection-grant-denied",
+    "exitCode": 4,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "runtime_policy.not_found",
+    "slug": "runtime-policy-not-found",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Runtime Injection Policy or version not found for the tenant-qualified coordinate."
+  },
+  {
+    "code": "runtime_policy.display_name_in_use",
+    "slug": "runtime-policy-display-name-in-use",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-display-name-in-use",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Policy Display Name already exists in the target Environment."
+  },
+  {
+    "code": "runtime_policy.invalid_bindings",
+    "slug": "runtime-policy-invalid-bindings",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-invalid-bindings",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Policy bindings are missing, duplicate, or not exact opaque IDs / Variable Keys."
+  },
+  {
+    "code": "runtime_policy.pattern_binding_rejected",
+    "slug": "runtime-policy-pattern-binding-rejected",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-pattern-binding-rejected",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Wildcard, prefix, suffix, regex, tag, folder, or other broad secret selection is rejected."
+  },
+  {
+    "code": "runtime_policy.secret_binding_not_found",
+    "slug": "runtime-policy-secret-binding-not-found",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-secret-binding-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Bound secret ID does not exist in the policy's organization and project scope."
+  },
+  {
+    "code": "runtime_policy.secret_binding_environment_mismatch",
+    "slug": "runtime-policy-secret-binding-environment-mismatch",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-secret-binding-environment-mismatch",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Bound secret ID exists in the organization but belongs to a different Environment than the policy. `400` (not `404`) is a deliberate intra-tenant carve-out per ADR-0062: the configurer is already scope-authorized, so distinguishing wrong-env from not-found is not an existence oracle."
+  },
+  {
+    "code": "runtime_policy.version_immutable",
+    "slug": "runtime-policy-version-immutable",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-version-immutable",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Used Runtime Injection Policy Versions cannot be mutated."
+  },
+  {
+    "code": "runtime_policy.protected_use_blocked",
+    "slug": "runtime-policy-protected-use-blocked",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-protected-use-blocked",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Protected Environment policy use blocked until machine custody and Storage Security Gate readiness are satisfied."
+  },
+  {
+    "code": "runtime_policy.disabled",
+    "slug": "runtime-policy-disabled",
+    "typeUri": "https://insecur.dev/errors/runtime-policy-disabled",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Runtime Injection Policy is disabled."
+  },
+  {
+    "code": "injection.command_fingerprint_mismatch",
+    "slug": "injection-command-fingerprint-mismatch",
+    "typeUri": "https://insecur.dev/errors/injection-command-fingerprint-mismatch",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "injection.decrypt_failed",
+    "slug": "injection-decrypt-failed",
+    "typeUri": "https://insecur.dev/errors/injection-decrypt-failed",
+    "exitCode": 1,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Integrity failure; never silently retried."
+  },
+  {
+    "code": "injection.grant_expired",
+    "slug": "injection-grant-expired",
+    "typeUri": "https://insecur.dev/errors/injection-grant-expired",
+    "exitCode": 6,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Resource-shaped denial; HTTP `404` so it is not a resource-existence oracle, even though the exit differs."
+  },
+  {
+    "code": "injection.unreachable",
+    "slug": "injection-unreachable",
+    "typeUri": "https://insecur.dev/errors/injection-unreachable",
+    "exitCode": 8,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Retryable."
+  },
+  {
+    "code": "approval.review_stale",
+    "slug": "approval-review-stale",
+    "typeUri": "https://insecur.dev/errors/approval-review-stale",
+    "exitCode": 6,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Approval Request stays pending."
+  },
+  {
+    "code": "approval.request_not_found",
+    "slug": "approval-request-not-found",
+    "typeUri": "https://insecur.dev/errors/approval-request-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Approval Request not found for the tenant-qualified ID."
+  },
+  {
+    "code": "approval.request_not_pending",
+    "slug": "approval-request-not-pending",
+    "typeUri": "https://insecur.dev/errors/approval-request-not-pending",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Approval Request is not pending or lost a compare-and-set race."
+  },
+  {
+    "code": "approval.invalid_draft_selection",
+    "slug": "approval-invalid-draft-selection",
+    "typeUri": "https://insecur.dev/errors/approval-invalid-draft-selection",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Promote body lists Draft Version IDs that are missing, not draft, or not in the target Environment."
+  },
+  {
+    "code": "approval.wildcard_selection_rejected",
+    "slug": "approval-wildcard-selection-rejected",
+    "typeUri": "https://insecur.dev/errors/approval-wildcard-selection-rejected",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Wildcard or all-staged draft selection tokens are rejected at the API edge."
+  },
+  {
+    "code": "approval.promotion_change_set_immutable",
+    "slug": "approval-promotion-change-set-immutable",
+    "typeUri": "https://insecur.dev/errors/approval-promotion-change-set-immutable",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Promotion Change Set is immutable after the Approval Request is created."
+  },
+  {
+    "code": "approval.rollback_target_not_eligible",
+    "slug": "approval-rollback-target-not-eligible",
+    "typeUri": "https://insecur.dev/errors/approval-rollback-target-not-eligible",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Rollback target version is not a retained published version eligible for copy."
+  },
+  {
+    "code": "approval.draft_version_not_discardable",
+    "slug": "approval-draft-version-not-discardable",
+    "typeUri": "https://insecur.dev/errors/approval-draft-version-not-discardable",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Draft Version Discard target is not found, or is not currently a draft (already promoted or discarded elsewhere)."
+  },
+  {
+    "code": "operation.not_found",
+    "slug": "operation-not-found",
+    "typeUri": "https://insecur.dev/errors/operation-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Operation not found for the tenant-qualified ID."
+  },
+  {
+    "code": "operation.idempotency_mismatch",
+    "slug": "operation-idempotency-mismatch",
+    "typeUri": "https://insecur.dev/errors/operation-idempotency-mismatch",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Same idempotency key reused with a different intent code (ADR-0066)."
+  },
+  {
+    "code": "operation.invalid_intent",
+    "slug": "operation-invalid-intent",
+    "typeUri": "https://insecur.dev/errors/operation-invalid-intent",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Unknown or malformed operation intent code."
+  },
+  {
+    "code": "operation.invalid_metadata",
+    "slug": "operation-invalid-metadata",
+    "typeUri": "https://insecur.dev/errors/operation-invalid-metadata",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Metadata-only progress or lease input failed validation."
+  },
+  {
+    "code": "operation.stale_transition",
+    "slug": "operation-stale-transition",
+    "typeUri": "https://insecur.dev/errors/operation-stale-transition",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Compare-and-set transition lost a concurrent state change."
+  },
+  {
+    "code": "operation.invalid_transition",
+    "slug": "operation-invalid-transition",
+    "typeUri": "https://insecur.dev/errors/operation-invalid-transition",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "State transition is not allowed by the operation state machine."
+  },
+  {
+    "code": "operation.terminal_state",
+    "slug": "operation-terminal-state",
+    "typeUri": "https://insecur.dev/errors/operation-terminal-state",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Operation is already in a terminal state."
+  },
+  {
+    "code": "operation.not_cancelable",
+    "slug": "operation-not-cancelable",
+    "typeUri": "https://insecur.dev/errors/operation-not-cancelable",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Operation in the current state cannot be canceled."
+  },
+  {
+    "code": "operation.not_retryable",
+    "slug": "operation-not-retryable",
+    "typeUri": "https://insecur.dev/errors/operation-not-retryable",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Operation in the current state cannot be retried."
+  },
+  {
+    "code": "operation.wait_timeout",
+    "slug": "operation-wait-timeout",
+    "typeUri": "https://insecur.dev/errors/operation-wait-timeout",
+    "exitCode": 9,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "`operations wait --timeout` expired before the operation left a non-terminal state; remediation points back at the same wait command."
+  },
+  {
+    "code": "operation.stale_fencing_token",
+    "slug": "operation-stale-fencing-token",
+    "typeUri": "https://insecur.dev/errors/operation-stale-fencing-token",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Sync target lease fencing token is stale or does not match the operation binding."
+  },
+  {
+    "code": "operation.lease_not_held",
+    "slug": "operation-lease-not-held",
+    "typeUri": "https://insecur.dev/errors/operation-lease-not-held",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "No active sync target lease exists for the requested target."
+  },
+  {
+    "code": "operation.lease_required",
+    "slug": "operation-lease-required",
+    "typeUri": "https://insecur.dev/errors/operation-lease-required",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Sync target lease fencing token is required for this operation transition."
+  },
+  {
+    "code": "connection.not_found",
+    "slug": "connection-not-found",
+    "typeUri": "https://insecur.dev/errors/connection-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "App Connection not found for the tenant-qualified ID."
+  },
+  {
+    "code": "connection.resource_conflict",
+    "slug": "connection-resource-conflict",
+    "typeUri": "https://insecur.dev/errors/connection-resource-conflict",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "App Connection ID or unique setup constraint already exists."
+  },
+  {
+    "code": "connection.disconnected",
+    "slug": "connection-disconnected",
+    "typeUri": "https://insecur.dev/errors/connection-disconnected",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "App Connection is disconnected; sync execution fails closed until reconnected."
+  },
+  {
+    "code": "connection.reauthorization_required",
+    "slug": "connection-reauthorization-required",
+    "typeUri": "https://insecur.dev/errors/connection-reauthorization-required",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "App Connection requires provider reauthorization before sync execution."
+  },
+  {
+    "code": "connection.pending_setup",
+    "slug": "connection-pending-setup",
+    "typeUri": "https://insecur.dev/errors/connection-pending-setup",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "App Connection setup is incomplete; sync execution fails closed."
+  },
+  {
+    "code": "connection.provider_registration_missing",
+    "slug": "connection-provider-registration-missing",
+    "typeUri": "https://insecur.dev/errors/connection-provider-registration-missing",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Required Provider App Registration is missing for the Instance and connection method."
+  },
+  {
+    "code": "connection.credential_missing",
+    "slug": "connection-credential-missing",
+    "typeUri": "https://insecur.dev/errors/connection-credential-missing",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Credential-backed App Connection lacks an active encrypted provider credential."
+  },
+  {
+    "code": "connection.validation_failed",
+    "slug": "connection-validation-failed",
+    "typeUri": "https://insecur.dev/errors/connection-validation-failed",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Cloudflare scoped-token validation failed; connection remains non-writeable until current evidence succeeds."
+  },
+  {
+    "code": "connection.boundary_mismatch",
+    "slug": "connection-boundary-mismatch",
+    "typeUri": "https://insecur.dev/errors/connection-boundary-mismatch",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Cloudflare token scope does not match the pinned account or Worker script boundary."
+  },
+  {
+    "code": "connection.invalid_connection_method",
+    "slug": "connection-invalid-connection-method",
+    "typeUri": "https://insecur.dev/errors/connection-invalid-connection-method",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "App Connection operation targets an unsupported provider or connection method."
+  },
+  {
+    "code": "sync.not_found",
+    "slug": "sync-not-found",
+    "typeUri": "https://insecur.dev/errors/sync-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Secret Sync not found for the tenant-qualified ID."
+  },
+  {
+    "code": "sync.disabled",
+    "slug": "sync-disabled",
+    "typeUri": "https://insecur.dev/errors/sync-disabled",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Secret Sync is disabled and cannot execute."
+  },
+  {
+    "code": "sync.invalid_bindings",
+    "slug": "sync-invalid-bindings",
+    "typeUri": "https://insecur.dev/errors/sync-invalid-bindings",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Secret Sync binding set failed validation."
+  },
+  {
+    "code": "sync.pattern_binding_rejected",
+    "slug": "sync-pattern-binding-rejected",
+    "typeUri": "https://insecur.dev/errors/sync-pattern-binding-rejected",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Pattern, wildcard, or inventory-based bindings are rejected."
+  },
+  {
+    "code": "sync.secret_binding_not_found",
+    "slug": "sync-secret-binding-not-found",
+    "typeUri": "https://insecur.dev/errors/sync-secret-binding-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Bound secret not found in the source Environment."
+  },
+  {
+    "code": "sync.secret_binding_environment_mismatch",
+    "slug": "sync-secret-binding-environment-mismatch",
+    "typeUri": "https://insecur.dev/errors/sync-secret-binding-environment-mismatch",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Bound secret belongs to a different Environment."
+  },
+  {
+    "code": "sync.invalid_destination",
+    "slug": "sync-invalid-destination",
+    "typeUri": "https://insecur.dev/errors/sync-invalid-destination",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Provider destination or target configuration is invalid."
+  },
+  {
+    "code": "sync.resource_conflict",
+    "slug": "sync-resource-conflict",
+    "typeUri": "https://insecur.dev/errors/sync-resource-conflict",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Secret Sync ID or unique setup constraint already exists."
+  },
+  {
+    "code": "sync.connection_not_eligible",
+    "slug": "sync-connection-not-eligible",
+    "typeUri": "https://insecur.dev/errors/sync-connection-not-eligible",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "App Connection is not eligible for this Secret Sync."
+  },
+  {
+    "code": "sync.display_name_in_use",
+    "slug": "sync-display-name-in-use",
+    "typeUri": "https://insecur.dev/errors/sync-display-name-in-use",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Display name already used by another Secret Sync in scope."
+  },
+  {
+    "code": "notification.invalid_event_code",
+    "slug": "notification-invalid-event-code",
+    "typeUri": "https://insecur.dev/errors/notification-invalid-event-code",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Webhook subscription event type is missing or not selectable."
+  },
+  {
+    "code": "notification.subscription_not_found",
+    "slug": "notification-subscription-not-found",
+    "typeUri": "https://insecur.dev/errors/notification-subscription-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Webhook subscription not found for the tenant-qualified ID."
+  },
+  {
+    "code": "notification.delivery_failed",
+    "slug": "notification-delivery-failed",
+    "typeUri": "https://insecur.dev/errors/notification-delivery-failed",
+    "exitCode": 1,
+    "httpStatus": 500,
+    "remediationRequired": false,
+    "notes": "Event notification delivery failed for a subscribed webhook."
+  },
+  {
+    "code": "notification.signing_secret_missing",
+    "slug": "notification-signing-secret-missing",
+    "typeUri": "https://insecur.dev/errors/notification-signing-secret-missing",
+    "exitCode": 1,
+    "httpStatus": 500,
+    "remediationRequired": false,
+    "notes": "Active webhook signing secret is missing for delivery or rotation."
+  },
+  {
+    "code": "provider_app_registration.not_found",
+    "slug": "provider-app-registration-not-found",
+    "typeUri": "https://insecur.dev/errors/provider-app-registration-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Provider App Registration not found for the Instance and connection method."
+  },
+  {
+    "code": "provider_app_registration.not_configured",
+    "slug": "provider-app-registration-not-configured",
+    "typeUri": "https://insecur.dev/errors/provider-app-registration-not-configured",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Provider App Registration exists but instance setup is incomplete."
+  },
+  {
+    "code": "provider_app_registration.already_exists",
+    "slug": "provider-app-registration-already-exists",
+    "typeUri": "https://insecur.dev/errors/provider-app-registration-already-exists",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Provider App Registration already exists for the Instance and connection method."
+  },
+  {
+    "code": "protected_change.not_found",
+    "slug": "protected-change-not-found",
+    "typeUri": "https://insecur.dev/errors/protected-change-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "Protected Change not found for the tenant-qualified ID."
+  },
+  {
+    "code": "protected_change.invalid_transition",
+    "slug": "protected-change-invalid-transition",
+    "typeUri": "https://insecur.dev/errors/protected-change-invalid-transition",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "State transition is not allowed by the Protected Change state machine."
+  },
+  {
+    "code": "protected_change.terminal_state",
+    "slug": "protected-change-terminal-state",
+    "typeUri": "https://insecur.dev/errors/protected-change-terminal-state",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Protected Change is already in a terminal state."
+  },
+  {
+    "code": "protected_change.active_change_exists",
+    "slug": "protected-change-active-change-exists",
+    "typeUri": "https://insecur.dev/errors/protected-change-active-change-exists",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Another active Protected Change already exists for the Protected Environment."
+  },
+  {
+    "code": "protected_change.missing_evidence",
+    "slug": "protected-change-missing-evidence",
+    "typeUri": "https://insecur.dev/errors/protected-change-missing-evidence",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Required approval evidence metadata is missing."
+  },
+  {
+    "code": "protected_change.requester_mismatch",
+    "slug": "protected-change-requester-mismatch",
+    "typeUri": "https://insecur.dev/errors/protected-change-requester-mismatch",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Acting credential is not the Protected Change requester."
+  },
+  {
+    "code": "protected_change.non_protected_environment",
+    "slug": "protected-change-non-protected-environment",
+    "typeUri": "https://insecur.dev/errors/protected-change-non-protected-environment",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Protected Changes require a Protected Environment."
+  },
+  {
+    "code": "provider.reauth_required",
+    "slug": "provider-reauth-required",
+    "typeUri": "https://insecur.dev/errors/provider-reauth-required",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "provider.unavailable",
+    "slug": "provider-unavailable",
+    "typeUri": "https://insecur.dev/errors/provider-unavailable",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "provider.lookup_not_found",
+    "slug": "provider-lookup-not-found",
+    "typeUri": "https://insecur.dev/errors/provider-lookup-not-found",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "provider.permission_denied",
+    "slug": "provider-permission-denied",
+    "typeUri": "https://insecur.dev/errors/provider-permission-denied",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": ""
+  },
+  {
+    "code": "provider.boundary_mismatch",
+    "slug": "provider-boundary-mismatch",
+    "typeUri": "https://insecur.dev/errors/provider-boundary-mismatch",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "The requested target falls outside the pinned Connection Boundary; fix the configuration, not the provider."
+  },
+  {
+    "code": "sync.provider_value_too_large",
+    "slug": "sync-provider-value-too-large",
+    "typeUri": "https://insecur.dev/errors/sync-provider-value-too-large",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Validation-side pre-write failure."
+  },
+  {
+    "code": "sync.source_value_missing",
+    "slug": "sync-source-value-missing",
+    "typeUri": "https://insecur.dev/errors/sync-source-value-missing",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Validation-side pre-write failure."
+  },
+  {
+    "code": "sync.provider_drift",
+    "slug": "sync-provider-drift",
+    "typeUri": "https://insecur.dev/errors/sync-provider-drift",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Provider-side `action_required` failure; needs reauthorization or an approved configuration change."
+  },
+  {
+    "code": "sync.target_busy",
+    "slug": "sync-target-busy",
+    "typeUri": "https://insecur.dev/errors/sync-target-busy",
+    "exitCode": 8,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Retryable lease contention."
+  },
+  {
+    "code": "sync.overwrite_status_unknown",
+    "slug": "sync-overwrite-status-unknown",
+    "typeUri": "https://insecur.dev/errors/sync-overwrite-status-unknown",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Warning code; exits `2` only when required operation-scoped confirmation is absent, otherwise the run proceeds."
+  },
+  {
+    "code": "sync.provider_delete_incomplete",
+    "slug": "sync-provider-delete-incomplete",
+    "typeUri": "https://insecur.dev/errors/sync-provider-delete-incomplete",
+    "exitCode": 0,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Warning code on a `completed_with_warnings` operation; not a failure."
+  },
+  {
+    "code": "local.cloud_feature_unavailable",
+    "slug": "local-cloud-feature-unavailable",
+    "typeUri": "https://insecur.dev/errors/local-cloud-feature-unavailable",
+    "exitCode": 4,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Hosted-only capability invoked in Local Mode; remediation carries exact upgrade commands."
+  },
+  {
+    "code": "local.value_missing_on_machine",
+    "slug": "local-value-missing-on-machine",
+    "typeUri": "https://insecur.dev/errors/local-value-missing-on-machine",
+    "exitCode": 2,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Second-machine auto-adopt reports Variable Keys without local values; remediation lists exact `secrets set` commands."
+  },
+  {
+    "code": "migrate.remote_diverged",
+    "slug": "migrate-remote-diverged",
+    "typeUri": "https://insecur.dev/errors/migrate-remote-diverged",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Remote Secret exists but possession check failed during migrate reconcile; nothing written."
+  },
+  {
+    "code": "secret.possession_mismatch",
+    "slug": "secret-possession-mismatch",
+    "typeUri": "https://insecur.dev/errors/secret-possession-mismatch",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Server-side possession check verdict: candidate value does not match stored Secret; metadata-only, no digests or similarity scores."
+  }
+]
