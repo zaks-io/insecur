@@ -129,6 +129,7 @@ describe("cli operations and run-policies assertions", () => {
       stdout: "",
     });
     expect(body.ok).toBe(false);
+    expect(body.error).toMatchObject({ code: "operation.not_found" });
   });
 
   it("accepts a CLI error envelope after runtime warnings on stderr", () => {
@@ -148,6 +149,7 @@ describe("cli operations and run-policies assertions", () => {
       stdout: "",
     });
     expect(body.ok).toBe(false);
+    expect(body.error).toMatchObject({ code: "operation.not_found" });
   });
 
   it("rejects when the exit code does not match", () => {
@@ -195,6 +197,6 @@ describe("cli operations and run-policies assertions", () => {
         }),
         stdout: "",
       });
-    }).toThrow();
+    }).toThrow(/error\.code expected runtime_policy\.not_found, got operation\.not_found/);
   });
 });

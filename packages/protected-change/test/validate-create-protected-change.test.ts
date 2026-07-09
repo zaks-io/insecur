@@ -1,4 +1,4 @@
-import { machineIdentityId, userId } from "@insecur/domain";
+import { PROTECTED_CHANGE_ERROR_CODES, machineIdentityId, userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 
 import { ProtectedChangeError } from "../src/protected-change-errors.js";
@@ -14,43 +14,66 @@ const BASE_INPUT: CreateProtectedChangeInput = {
   draftVersionIds: ["sv_00000000000000000000000001" as never],
 };
 
-describe("validateCreateProtectedChangeInput", () => {
-  it("accepts user requesters", () => {
-    expect(() =>
-      validateCreateProtectedChangeInput({
-        ...BASE_INPUT,
-        requester: { userId: userId.brand("usr_00000000000000000000000001") },
-      }),
-    ).not.toThrow();
-  });
+const USER_REQUESTER = { userId: userId.brand("usr_00000000000000000000000001") };
+const MACHINE_REQUESTER = {
+  machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
+};
 
-  it("accepts machine-identity requesters per ADR-0017", () => {
-    expect(() =>
-      validateCreateProtectedChangeInput({
-        ...BASE_INPUT,
-        requester: {
-          machineIdentityId: machineIdentityId.brand("mach_00000000000000000000000001"),
-        },
-      }),
-    ).not.toThrow();
+function expectMissingEvidence(run: () => void, message: string): void {
+  let error: unknown;
+  try {
+    run();
+  } catch (caught) {
+    error = caught;
+  }
+  expect(error).toBeInstanceOf(ProtectedChangeError);
+  expect(error).toMatchObject({
+    code: PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
+    message,
+  });
+}
+
+describe("validateCreateProtectedChangeInput", () => {
+  it.each([
+    { name: "user requester", requester: USER_REQUESTER },
+    { name: "machine-identity requester per ADR-0017", requester: MACHINE_REQUESTER },
+    {
+      name: "user plus machine requester",
+      requester: { ...USER_REQUESTER, ...MACHINE_REQUESTER },
+    },
+  ])("accepts $name", ({ requester }) => {
+    validateCreateProtectedChangeInput({
+      ...BASE_INPUT,
+      requester,
+    });
   });
 
   it("rejects missing requester", () => {
-    expect(() =>
+    expectMissingEvidence(() => {
       validateCreateProtectedChangeInput({
         ...BASE_INPUT,
         requester: {},
-      }),
-    ).toThrow(ProtectedChangeError);
+      });
+    }, "protected change requester is required");
   });
 
   it("rejects empty draft version sets", () => {
-    expect(() =>
+    expectMissingEvidence(() => {
       validateCreateProtectedChangeInput({
         ...BASE_INPUT,
-        requester: { userId: userId.brand("usr_00000000000000000000000001") },
+        requester: USER_REQUESTER,
         draftVersionIds: [],
-      }),
-    ).toThrow(ProtectedChangeError);
+      });
+    }, "promotion change set requires exact draft version ids");
+  });
+
+  it("checks requester before draft versions", () => {
+    expectMissingEvidence(() => {
+      validateCreateProtectedChangeInput({
+        ...BASE_INPUT,
+        draftVersionIds: [],
+        requester: {},
+      });
+    }, "protected change requester is required");
   });
 });
