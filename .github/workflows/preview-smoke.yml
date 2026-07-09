@@ -1,0 +1,146 @@
+# Run the shared preview application smoke on demand. This is intentionally
+# separate from Deploy Preview while the suite is too slow to block deploys.
+name: Preview Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Deploy SHA expected in preview health checks. Defaults to the selected ref SHA.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Preview Smoke
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 25
+    environment:
+      name: Preview
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 10.19.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate preview smoke inputs
+        env:
+          PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
+          SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
+          PREVIEW_SMOKE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_ADMITTED_USER_ID }}
+          PREVIEW_SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}
+          PREVIEW_SMOKE_INVITEE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_ADMITTED_USER_ID }}
+          PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID }}
+          PREVIEW_SMOKE_USER_ADMISSION_ID: ${{ vars.PREVIEW_SMOKE_USER_ADMISSION_ID }}
+          PREVIEW_SMOKE_INVITEE_USER_ADMISSION_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_USER_ADMISSION_ID }}
+          PREVIEW_SMOKE_INSTANCE_OPERATOR_ID: ${{ vars.PREVIEW_SMOKE_INSTANCE_OPERATOR_ID }}
+        run: |
+          set -euo pipefail
+
+          required=(
+            PREVIEW_DATABASE_URL_MIGRATION
+            SESSION_SIGNING_SECRET
+            PREVIEW_INSTANCE_ID
+            PREVIEW_SMOKE_ADMITTED_USER_ID
+            PREVIEW_SMOKE_WORKOS_USER_ID
+            PREVIEW_SMOKE_INVITEE_ADMITTED_USER_ID
+            PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID
+            PREVIEW_SMOKE_USER_ADMISSION_ID
+            PREVIEW_SMOKE_INVITEE_USER_ADMISSION_ID
+            PREVIEW_SMOKE_INSTANCE_OPERATOR_ID
+          )
+          missing=0
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured for preview smoke."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Seed preview smoke actors
+        env:
+          DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
+          INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
+          SMOKE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_ADMITTED_USER_ID }}
+          SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}
+          SMOKE_INVITEE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_ADMITTED_USER_ID }}
+          SMOKE_INVITEE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID }}
+          SMOKE_USER_ADMISSION_ID: ${{ vars.PREVIEW_SMOKE_USER_ADMISSION_ID }}
+          SMOKE_INVITEE_USER_ADMISSION_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_USER_ADMISSION_ID }}
+          SMOKE_INSTANCE_OPERATOR_ID: ${{ vars.PREVIEW_SMOKE_INSTANCE_OPERATOR_ID }}
+        run: node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs
+
+      - name: Resolve Playwright Chromium cache key
+        id: playwright_chromium
+        run: |
+          set -euo pipefail
+
+          version="$(pnpm --filter @insecur/preview-smoke exec node -p "require('@playwright/test/package.json').version")"
+          echo "cache_key=playwright-chromium-${RUNNER_OS}-${RUNNER_ARCH}-${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Playwright Chromium cache
+        id: playwright_chromium_cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright_chromium.outputs.cache_key }}
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @insecur/preview-smoke exec playwright install --with-deps chromium
+
+      - name: Save Playwright Chromium cache
+        if: ${{ steps.playwright_chromium_cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright_chromium.outputs.cache_key }}
+
+      - name: Build CLI for preview smoke
+        run: pnpm --filter @insecur/cli build
+
+      - name: Run preview application smoke
+        env:
+          PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
+          SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
+          SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
+          SMOKE_SITE_BASE_URL: https://preview.insecur.cloud
+          SMOKE_EXPECTED_DEPLOY_SHA: ${{ inputs.expected_sha || github.sha }}
+          SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          SMOKE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_ADMITTED_USER_ID }}
+          SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}
+          SMOKE_INVITEE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_ADMITTED_USER_ID }}
+          SMOKE_INVITEE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID }}
+        run: pnpm smoke:preview
+
+      - name: Upload preview smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: preview-smoke-artifacts
+          path: preview-smoke-artifacts/**
+          if-no-files-found: warn
+          retention-days: 14

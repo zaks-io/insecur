@@ -55,8 +55,8 @@ It is the substrate for the authoritative integration+RLS test layer:
 First Value loop, and the no-plaintext canary gate locally. `pnpm smoke:local` resets, migrates,
 and runs the same gate against an already configured local Postgres service. CI's
 `postgres-integration` job enforces the same layer with `INSECUR_CI_RLS_GATE=1`. Neon appears only
-in the gated preview smoke layer, which runs the First Value smoke against a deployed preview Worker
-— not `test:rls`. See
+in the manual preview smoke layer, which runs the First Value smoke against a deployed preview
+Worker, not `test:rls`. See
 [docs/agents/testing.md](agents/testing.md) and
 [ADR-0065](adr/0065-test-layers-and-preview-smoke.md).
 
