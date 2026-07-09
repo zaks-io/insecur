@@ -204,16 +204,23 @@ function formatScopedFindingSections(findings: readonly ScanFinding[]): string[]
 
 export function formatScanHumanReport(report: ScanReport): string {
   const { summary, findings } = report;
+  const headline =
+    summary.likelySecrets === 0
+      ? `No likely secrets found (scanned ${String(summary.filesScanned)} files in ${String(summary.elapsedMs)}ms).`
+      : `Found ${String(summary.likelySecrets)} likely secrets across ${String(summary.filesWithFindings)} files in ${String(summary.elapsedMs)}ms.`;
   const lines = [
-    `Found ${String(summary.likelySecrets)} likely secrets across ${String(summary.filesWithFindings)} files in ${String(summary.elapsedMs)}ms.`,
+    headline,
     "",
     `Files scanned: ${String(summary.filesScanned)} | Entries: ${String(summary.totalEntries)} | Likely secrets: ${String(summary.likelySecrets)} | Migratable: ${String(summary.migratableCount)} | Unreadable: ${String(summary.unreadableFiles.length)} | Oversized: ${String(summary.oversizedFiles.length)} | Limit reached: ${summary.limitReached ? "yes" : "no"}`,
     ...formatMachineScopeBreakdown(summary),
     ...formatPathListLines("Unreadable files", summary.unreadableFiles),
     ...formatPathListLines("Oversized files", summary.oversizedFiles),
     ...formatScopedFindingSections(findings),
-    "",
-    SCAN_MIGRATE_ENV_GUIDE_POINTER,
+    // A fix pointer with zero findings is a next step for a problem that does
+    // not exist; only print it when there is something to migrate.
+    ...(summary.likelySecrets > 0 || summary.migratableCount > 0
+      ? ["", SCAN_MIGRATE_ENV_GUIDE_POINTER]
+      : []),
   ];
 
   return lines.join("\n");

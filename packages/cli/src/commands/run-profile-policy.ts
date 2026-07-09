@@ -20,6 +20,10 @@ export async function runProfilePolicyPath(
   assertHostedCapability(context.scope, {
     capability: "Profile-backed runtime injection",
     hostedCommand: ["insecur", "run", "<profile>", "--", "<command>"],
+    localAlternative: {
+      suggestedFix: "In Local Mode inject one variable directly with --variable-key.",
+      usage: ["insecur", "run", "--variable-key", "<VARIABLE_KEY>", "--", "<command>"],
+    },
   });
   const profileRun = resolveProfileRunInput({
     flags,

@@ -20,18 +20,30 @@ import {
   secretVersionId,
 } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
+import { actionableRemediation } from "../output/cli-remediation.js";
 
 interface ResourceIdParser<T> {
   parse: (raw: string) => { ok: true; value: T } | { ok: false };
 }
 
-function throwInvalidResourceId(label: string, context?: string): never {
+function throwInvalidResourceId(label: string, context?: string, raw?: string): never {
   const suffix = context === undefined ? "" : ` (${context})`;
-  throw new CliError({
-    code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
-    message: `Invalid ${label}${suffix}.`,
-    retryable: false,
-  });
+  // Table output truncates with "…" (unicode glyphs) or "..." (ascii mode).
+  const truncated = raw !== undefined && (raw.endsWith("…") || raw.endsWith("..."));
+  throw new CliError(
+    {
+      code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
+      message: truncated
+        ? `Invalid ${label}${suffix}: this id is truncated table output, not the full id.`
+        : `Invalid ${label}${suffix}.`,
+      retryable: false,
+    },
+    {
+      remediation: actionableRemediation(VALIDATION_ERROR_CODES.invalidOpaqueResourceId, {
+        suggestedFix: `Pass the full ${label}: copy it from --json output or rerun the listing with --full.`,
+      }),
+    },
+  );
 }
 
 function parseRequired<T>(
@@ -42,7 +54,7 @@ function parseRequired<T>(
 ): T {
   const parsed = parser.parse(raw);
   if (!parsed.ok) {
-    throwInvalidResourceId(label, context);
+    throwInvalidResourceId(label, context, raw);
   }
   return parsed.value;
 }

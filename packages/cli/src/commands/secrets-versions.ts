@@ -1,6 +1,8 @@
-import { secretId, successEnvelope } from "@insecur/domain";
-import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
+import { successEnvelope } from "@insecur/domain";
+import { parseSecretId } from "../config/parse-resource-id.js";
+import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
+import { formatSecretVersionsHuman } from "../output/secret-versions-table.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import {
   buildSecretReadApiInput,
@@ -16,19 +18,12 @@ export async function runSecretsVersionsCommand(
   { flags, api, context }: SecretReadCommandDeps,
   commandOptions: SecretsVersionsCommandOptions,
 ): Promise<number> {
-  const parsedSecretId = secretId.parse(commandOptions.secretId);
-  if (!parsedSecretId.ok) {
-    throw new CliError({
-      code: "validation.invalid_opaque_resource_id",
-      message: "Invalid secret id.",
-      retryable: false,
-    });
-  }
+  const parsedSecretId = parseSecretId(commandOptions.secretId);
 
   return withSecretReadSession(context, async ({ credential, readScope }) => {
     const result = await api.listSecretVersions({
       ...buildSecretReadApiInput(context, credential, readScope),
-      secretId: parsedSecretId.value,
+      secretId: parsedSecretId,
     });
 
     if (!result.ok) {
@@ -46,11 +41,8 @@ export async function runSecretsVersionsCommand(
       }),
     );
 
-    renderSuccess(
-      output,
-      flags,
-      () =>
-        `Listed ${String(result.envelope.data.versions.length)} version(s) for secret ${result.envelope.data.secretId}.`,
+    renderSuccess(output, flags, (data) =>
+      formatSecretVersionsHuman(data.variableKey, data.versions),
     );
     return 0;
   });

@@ -45,6 +45,13 @@ export async function runConnectionsRotateCommand(
       generateLength: undefined,
       valueStdin: options.valueStdin,
       allowEmpty: false,
+      inputRequiredUsage: [
+        "insecur",
+        "connections",
+        "rotate",
+        options.connectionId,
+        "--value-stdin",
+      ],
     });
     if (collected.inputMode === "generated") {
       throw new CliError({

@@ -1,5 +1,7 @@
 import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
+import { LOCAL_MODE_ORGANIZATION_ID } from "@insecur/local-store";
 import type { GlobalCliFlags } from "../cli-options.js";
+import { isLocalModeHost } from "./local-mode.js";
 import {
   parseOptionalEnvironmentId,
   parseOptionalOrganizationId,
@@ -58,7 +60,12 @@ export function resolveCliScope(
     flags.orgId ??
     parseOptionalOrganizationId(readEnv("INSECUR_ORG"), "INSECUR_ORG") ??
     projectConfig?.orgId ??
-    profile?.orgId;
+    profile?.orgId ??
+    // Local Mode has no real organization; the fixed local org id keeps
+    // org-scoped commands flowing to the local client (which answers
+    // truthfully per capability) instead of dead-ending on "run insecur init"
+    // in a project where init already ran.
+    (isLocalModeHost(host) ? LOCAL_MODE_ORGANIZATION_ID : undefined);
   const projectId =
     flags.projectId ??
     parseOptionalProjectId(readEnv("INSECUR_PROJECT"), "INSECUR_PROJECT") ??

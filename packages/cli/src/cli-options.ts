@@ -18,6 +18,8 @@ export interface GlobalCliFlags {
   readonly json: boolean;
   readonly quiet: boolean;
   readonly verbose: boolean;
+  readonly color: "always" | "never" | undefined;
+  readonly full: boolean;
 }
 
 export interface ParsedGlobalOptions {
@@ -36,6 +38,8 @@ export function parseGlobalOptions(options: {
   json?: boolean;
   quiet?: boolean;
   verbose?: boolean;
+  color?: boolean;
+  full?: boolean;
 }): ParsedGlobalOptions {
   return {
     flags: {
@@ -50,6 +54,8 @@ export function parseGlobalOptions(options: {
       json: options.json === true,
       quiet: options.quiet === true,
       verbose: options.verbose === true,
+      color: options.color === undefined ? undefined : options.color ? "always" : "never",
+      full: options.full === true,
     },
   };
 }

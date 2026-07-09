@@ -62,6 +62,7 @@ export async function runSecretsSetCommand(
     generateLength: commandOptions.generateLength,
     valueStdin: commandOptions.valueStdin,
     allowEmpty: commandOptions.allowEmpty,
+    inputRequiredUsage: ["insecur", "secrets", "set", variableKey, "--value-stdin"],
   });
 
   const result = await api.writeSecretByVariableKey(

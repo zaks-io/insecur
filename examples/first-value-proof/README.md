@@ -12,7 +12,7 @@ Inside the managed shell (no profile required before `init`):
 
 ```bash
 insecur init
-insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
+insecur secrets set INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 

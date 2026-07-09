@@ -465,7 +465,7 @@ Agent/DX requirements:
 - Empty Sensitive Values fail by default with `secret.empty_value`; callers must explicitly use `--allow-empty` or an API equivalent to create a zero-length value through stdin, masked prompt, request body, or development Secret Import.
 - Interactive human `insecur secrets set` prompts with a masked prompt when no input mode is supplied; non-interactive callers fail with `secret.input_required` unless they use `--generate` or `--value-stdin`.
 - `insecur secrets set --value-file <path>` is not supported; ordinary secret-write commands must not open named local files for Sensitive Values.
-- Non-protected `insecur secrets set --variable-key` may create a missing Secret Shape with a client-minted opaque Secret ID, but metadata output and audit records still use the opaque ID; ambiguity fails closed.
+- Non-protected `insecur secrets set <VARIABLE_KEY>` may create a missing Secret Shape with a client-minted opaque Secret ID, but metadata output and audit records still use the opaque ID; ambiguity fails closed.
 - Non-protected `insecur run --variable-key` and `insecur run --secret-id` may select exact Current Versions for one command. Protected Environments reject direct secret selection and require a Runtime Injection Policy.
 - In Protected Environments, secret set commands return Draft Version IDs, not delivery.
 - In non-protected Environments, secret set/import commands can make the new version current immediately by default.

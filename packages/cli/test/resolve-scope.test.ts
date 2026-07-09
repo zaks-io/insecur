@@ -1,3 +1,4 @@
+import { LOCAL_MODE_ORGANIZATION_ID } from "@insecur/local-store";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GlobalCliFlags } from "../src/cli-options.js";
 import { resolveCliScope } from "../src/config/resolve-scope.js";
@@ -120,7 +121,7 @@ describe("resolveCliScope precedence", () => {
     expect(scope.host).toBe("https://api.insecur.cloud");
   });
 
-  it("resolves local profiles without orgId through the precedence chain", () => {
+  it("resolves local profiles to the fixed Local Mode org id through the precedence chain", () => {
     const localProfileId = "prof_01LOCAL0000000000000000001" as const;
     const localProjectId = "prj_01LOCAL0000000000000000001" as const;
     const localEnvId = "env_01LOCAL00000000000000000001" as const;
@@ -142,7 +143,10 @@ describe("resolveCliScope precedence", () => {
       localUser,
     );
     expect(scopeFromProfile.host).toBe("local");
-    expect(scopeFromProfile.orgId).toBeUndefined();
+    // Local Mode has no real organization; org-scoped commands resolve the
+    // fixed local org id so they reach the local client's per-capability answer
+    // instead of dead-ending on "run insecur init".
+    expect(scopeFromProfile.orgId).toBe(LOCAL_MODE_ORGANIZATION_ID);
     expect(scopeFromProfile.projectId).toBe(localProjectId);
     expect(scopeFromProfile.envId).toBe(localEnvId);
   });

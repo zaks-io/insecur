@@ -2,6 +2,7 @@ import type { Command, Command as CommanderCommand } from "commander";
 import { runSecretsSetCommand } from "./commands/secrets-set.js";
 import { runSecretsPromoteCommand } from "./commands/secrets-promote.js";
 import { runSecretsRollbackCommand } from "./commands/secrets-rollback.js";
+import { requireTargetEnvironmentId } from "./commands/navigation-scope.js";
 import { registerImportCommands } from "./register-import-commands.js";
 import { registerSecretsReadCommands } from "./register-secrets-read-commands.js";
 import type { ProgramDeps } from "./program-deps.js";
@@ -14,17 +15,19 @@ export function registerSecretsCommands(program: Command, deps: ProgramDeps): vo
   registerSecretsReadCommands(secrets, deps);
 
   secrets
-    .command("set")
+    .command("set <variable-key>")
     .description("Create or update a non-protected secret by variable key")
-    .requiredOption("--variable-key <key>", "application variable key (e.g. API_KEY)")
     .option("--generate [mode]", "service-generate a secret value (default mode: random)")
     .option("--length <bytes>", "random byte length for --generate random", "32")
     .option("--value-stdin", "read the secret value from stdin")
     .option("--allow-empty", "allow an intentionally empty secret value")
-    .action(async function secretsSetAction(_args, command: CommanderCommand) {
+    .action(async function secretsSetAction(
+      variableKey: string,
+      _options: unknown,
+      command: CommanderCommand,
+    ) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{
-        variableKey: string;
         generate?: string | true;
         length?: string;
         valueStdin?: boolean;
@@ -33,7 +36,7 @@ export function registerSecretsCommands(program: Command, deps: ProgramDeps): vo
       const { api, context, dispose } = await deps.resolveApi(flags);
       try {
         process.exitCode = await runSecretsSetCommand(flags, api, context, {
-          variableKey: options.variableKey,
+          variableKey,
           generateMode: options.generate,
           generateLength: options.length,
           valueStdin: options.valueStdin === true,
@@ -50,37 +53,30 @@ export function registerSecretsCommands(program: Command, deps: ProgramDeps): vo
   registerImportCommands(program, deps);
 }
 
-function collectRepeatedOption(value: string, previous: string[] | undefined): string[] {
-  return [...(previous ?? []), value];
-}
-
 function registerSecretsPromoteCommand(secrets: Command, deps: ProgramDeps): void {
   secrets
-    .command("promote")
+    .command("promote <draft-version-id...>")
     .description("Request protected promotion for exact draft versions (metadata only)")
-    .requiredOption("--env-id <id>", "target environment opaque id")
-    .option(
-      "--draft-version-id <id>",
-      "exact draft version id to promote (repeatable)",
-      collectRepeatedOption,
-      [] as string[],
-    )
+    .option("--env-id <id>", "target environment opaque id")
     .option("--comment <text>", "audit comment")
     .option("--impact-review-fingerprint <hash>", "resume fingerprint from prior review")
     .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
-    .action(async function secretsPromoteAction(_args, command: CommanderCommand) {
+    .action(async function secretsPromoteAction(
+      draftVersionIds: string[],
+      _options: unknown,
+      command: CommanderCommand,
+    ) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{
-        envId: string;
-        draftVersionId: string[];
+        envId?: string;
         comment?: string;
         impactReviewFingerprint?: string;
         operationId?: string;
       }>();
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runSecretsPromoteCommand(flags, api, context, {
-        envId: options.envId,
-        draftVersionIds: options.draftVersionId,
+        envId: requireTargetEnvironmentId(options.envId, context.scope),
+        draftVersionIds,
         comment: options.comment,
         impactReviewFingerprint: options.impactReviewFingerprint,
         operationId: options.operationId,
@@ -92,7 +88,7 @@ function registerSecretsRollbackCommand(secrets: Command, deps: ProgramDeps): vo
   secrets
     .command("rollback <secret-id>")
     .description("Rollback a secret from a retained published version (metadata only)")
-    .requiredOption("--env-id <id>", "target environment opaque id")
+    .option("--env-id <id>", "target environment opaque id")
     .requiredOption("--to-version-id <id>", "retained published secret version opaque id")
     .option("--promote", "create draft and request promotion approval")
     .option("--comment <text>", "audit comment")
@@ -104,7 +100,7 @@ function registerSecretsRollbackCommand(secrets: Command, deps: ProgramDeps): vo
     ) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{
-        envId: string;
+        envId?: string;
         toVersionId: string;
         promote?: boolean;
         comment?: string;
@@ -113,7 +109,7 @@ function registerSecretsRollbackCommand(secrets: Command, deps: ProgramDeps): vo
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runSecretsRollbackCommand(flags, api, context, {
         secretId,
-        envId: options.envId,
+        envId: requireTargetEnvironmentId(options.envId, context.scope),
         toVersionId: options.toVersionId,
         promote: options.promote === true,
         comment: options.comment,

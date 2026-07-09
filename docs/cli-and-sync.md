@@ -59,7 +59,7 @@ Inside the managed shell:
 
 ```bash
 insecur init
-insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
+insecur secrets set INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
@@ -71,7 +71,7 @@ require an existing CLI profile before `insecur init` provisions one.
 The sequence uses normal product primitives:
 
 1. Resolve the Personal Organization, first Project, first non-protected development Environment, and default local Runtime Injection profile.
-2. Create or update the Secret Shape for the requested Variable Key through the normal `secrets set --variable-key` path.
+2. Create or update the Secret Shape for the requested Variable Key through the normal `secrets set <VARIABLE_KEY>` path.
 3. Perform a service-generated Blind Secret Write whose output is metadata only.
 4. Run the copyable verifier in `examples/first-value-proof/verify.mjs` through Runtime Injection with one exact non-protected secret selected by `run --variable-key`.
 5. Print metadata-only success or failure, including opaque IDs and operation IDs, but never the Sensitive Value, child-process environment, or raw digest.
@@ -107,7 +107,7 @@ Preferred Local Mode command sequence:
 
 ```bash
 insecur init
-insecur secrets set --variable-key INSECUR_PROOF_SECRET --generate random --length 32
+insecur secrets set INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
@@ -140,7 +140,7 @@ Local project config example:
 Rules:
 
 - `secretShapes` entries are Secret Shape metadata only: Variable Key, optional Display Name, description, required status, and generation hint. No Sensitive Values.
-- `secrets set --variable-key` creates or updates the matching Secret Shape entry in committed config when the shape did not exist.
+- `secrets set <VARIABLE_KEY>` creates or updates the matching Secret Shape entry in committed config when the shape did not exist.
 - A fresh clone on a second machine auto-adopts the project: the CLI resolves the development Environment from config, reports exactly which Variable Keys lack values on this machine (`local.value_missing_on_machine`), and prints the exact `secrets set` commands to fill them. Output is metadata-only.
 
 ### CLI Profiles For Local Projects
@@ -283,7 +283,7 @@ V1 is configuration-driven and does not need general search over Sensitive Metad
 - V1 list routes are unpaginated and return the complete scoped set in one response. Scoped Lists are bounded by Organization, Project, or Environment scope, which preserves the exact-match completeness that Display Name Resolution relies on to prove zero, one, or many matches; there is no cursor machinery in V1 (ADR-0035 as amended 2026-06-11).
 - Use Configured Selectors for durable repeated resource selection. Configured Selectors are opaque IDs, not plaintext names or slugs. Variable Keys remain the stable application keys injected into child process environments and provider destinations.
 - Display Names are ordinary metadata shown after authorization and may be used for scoped list filtering.
-- Use explicit name flags for ergonomic one-shot commands, such as `--project-name`, `--env-name`, and `--policy-name`. Name flags resolve through Display Name Resolution and then act on the resolved opaque ID. Secret create-or-update uses `--variable-key`, not `--secret-name`, because the value is the application-facing key delivered into runtime environments.
+- Use explicit name flags for ergonomic one-shot commands, such as `--project-name`, `--env-name`, and `--policy-name`. Name flags resolve through Display Name Resolution and then act on the resolved opaque ID. Secret create-or-update takes the Variable Key as a leading positional argument (`secrets set <VARIABLE_KEY>`), not a `--secret-name` flag, because the value is the application-facing key delivered into runtime environments.
 - Human and JSON output for ergonomic selectors should include a resolved target echo: type, Display Name or slug, opaque ID, and parent scope. This keeps commands readable for humans and agents without making names durable selectors.
 - Workflow-facing selectors that people and agents type repeatedly must be scoped-unique. Runtime Injection Policy Display Names are unique inside one Environment. CLI Profile Slugs are unique inside one user's local CLI configuration.
 - Users can choose or rename those workflow labels. Product defaults are editable suggestions, not reserved words.
@@ -404,6 +404,41 @@ Human output can be compact prose or tables. Human success output goes to stdout
 and remediation prose go to stderr. JSON output should be stable. With `--json`, success envelopes are
 written to stdout and error envelopes are written to stderr. Command-specific non-envelope machine
 formats document their own stream behavior.
+
+### Human presentation
+
+List commands render aligned tables with bold UPPERCASE headers, a two-space column gutter, and one
+record per line (`renderTable`, `packages/cli/src/output/table.ts`). Single-record commands (`whoami`,
+`config show`, `operations get`, `run-policies show`, `connections status`) render labeled key/value
+detail blocks with bold right-padded labels and bold section headings (`renderDetail`,
+`packages/cli/src/output/detail.ts`). No secret value is ever shown — a secret's row lists that it
+exists plus lifecycle/shape metadata (state, byte length, encoding, shape verdict), never its plaintext.
+
+Color is a sparing accent, not decoration: most cells are default weight. Green marks a genuine
+good-state (a valid session, a `live` secret, a `connected` connection), red a genuine bad-state,
+yellow a caution, cyan opaque ids, and bold headers/labels. Status enum words are the only colored
+payload in a table cell and are colored word-only, never the whole row. Booleans render `Yes`/`No`;
+absent values render an em-dash `—`.
+
+**IDs**: truncated in tables to the prefix plus six tail chars (`env_NZ1PSC…`), shown full in detail
+views and always full in `--json`. `--full` opts back into full ids in tables. **Timestamps**: relative
+in tables (`2d ago`, rolling to `Mar 4` past ~4 weeks); relative plus absolute-local for expiry/deadline
+fields in detail views; ISO-8601 UTC always in `--json`.
+
+**Empty lists** print a human sentence naming the next action (`No secrets in <env> yet. Add one with
+insecur secrets set <KEY>`), never a bare count of zero. Status glyphs (ASCII fallbacks): `✓`/`[ok]`,
+`✗`/`[x]`, `⚠`/`[!]`, `·`/`-`, `→`/`->`.
+
+Color styling is applied only to trusted literal and enum strings. Untrusted content (paths, keys,
+display names, branch names, commands) is control-character/ANSI sanitized (`sanitizeDisplayText`)
+**before** width measurement and **before** styling, so it can never inject terminal escapes or distort
+column alignment.
+
+Color is disabled — and human output stays byte-identical to uncolored aligned text — in any of these
+cases, in precedence order: `--no-color` (off), `--color` (on, overrides the rest), `FORCE_COLOR` set
+and not `0`/`false` (on), `NO_COLOR` present (off), `TERM=dumb` (off), otherwise on only when stdout is
+a TTY. `--json` always forces color off so machine output never contains ANSI. Set `INSECUR_ASCII=1`
+(or a non-UTF-8 locale) to use the ASCII glyph and ellipsis fallbacks.
 
 Success envelope:
 
@@ -555,7 +590,7 @@ invariant violation.
 | `auth.high_assurance_required`                       | `10` | `401`               | `required`  | Step-up handoff, not a failure (ADR-0032).                                                                                                                                                                                                                                                   |
 | `auth.device_authorization_expired`                  | `3`  | `401`               | `required`  | Device-authorization user code expired before approval; re-run `insecur login --device` (ADR-0010).                                                                                                                                                                                          |
 | `auth.device_authorization_denied`                   | `4`  | `403`               | `-`         | Device-authorization request was denied at the verification page (ADR-0010).                                                                                                                                                                                                                 |
-| `validation.invalid_opaque_resource_id`              | `2`  | `400`               | `-`         | Server-side validation of an opaque resource ID.                                                                                                                                                                                                                                             |
+| `validation.invalid_opaque_resource_id`              | `2`  | `400`               | `required`  | Validation of an opaque resource ID (server-side, plus CLI-side argument parsing). CLI remediation carries a `suggestedFix` to copy the full id from `--json` or `--full` output instead of the truncated table cell.                                                                        |
 | `validation.invalid_variable_key`                    | `2`  | `400`               | `-`         | Server-side Variable Key format validation.                                                                                                                                                                                                                                                  |
 | `validation.invalid_command_input`                   | `2`  | `400`               | `-`         | CLI `run` missing or invalid command after `--`; API request-body validation (PKCE exchange, run-completed `childExitCode`).                                                                                                                                                                 |
 | `validation.invalid_display_name`                    | `2`  | `400`               | `-`         | Server-side Display Name validation.                                                                                                                                                                                                                                                         |
@@ -568,13 +603,13 @@ invariant violation.
 | `cli.parent_scope_unresolved`                        | `2`  | `n/a (client-side)` | `required`  | Parent Organization, Project, or Environment scope is not pinned before child Display Name Resolution.                                                                                                                                                                                       |
 | `cli.destructive_id_required`                        | `2`  | `n/a (client-side)` | `-`         | Irreversible or destructive action requires an opaque ID for non-interactive callers (ADR-0035).                                                                                                                                                                                             |
 | `cli.scoped_selector_not_found`                      | `5`  | `n/a (client-side)` | `-`         | Configured or explicit opaque ID is absent from the refreshed Scoped List in the authorized scope.                                                                                                                                                                                           |
-| `cli.validation_error`                               | `2`  | `n/a (client-side)` | `-`         | CLI argument parsing failure: unknown command, unknown option, missing required option, or invalid option value.                                                                                                                                                                             |
-| `cli.unexpected_error`                               | `1`  | `n/a (client-side)` | `-`         | Unexpected client-side CLI failure after argument parsing.                                                                                                                                                                                                                                   |
+| `cli.validation_error`                               | `2`  | `n/a (client-side)` | `required`  | CLI argument parsing failure: unknown command, unknown option, missing required option, or invalid option value. Remediation carries the corrected `usage` invocation and a `suggestedFix`.                                                                                                  |
+| `cli.unexpected_error`                               | `1`  | `n/a (client-side)` | `required`  | Unexpected client-side CLI failure after argument parsing. Remediation carries a `suggestedFix` pointing at `--verbose` for full error detail.                                                                                                                                               |
 | `validation.invalid_feedback_kind`                   | `2`  | `400`               | `-`         | Design-partner feedback kind is not one of the supported metadata-only values.                                                                                                                                                                                                               |
 | `validation.invalid_feedback_note_code`              | `2`  | `400`               | `-`         | Design-partner feedback note must be one of the supported metadata-only note codes.                                                                                                                                                                                                          |
 | `validation.feedback_association_required`           | `2`  | `400`               | `-`         | Design-partner feedback must reference a grant, operation, or request ID.                                                                                                                                                                                                                    |
 | `validation.feedback_association_not_found`          | `2`  | `404`               | `-`         | Design-partner feedback references an operation or request ID that does not exist in the Organization.                                                                                                                                                                                       |
-| `secret.input_required`                              | `2`  | `400`               | `-`         |                                                                                                                                                                                                                                                                                              |
+| `secret.input_required`                              | `2`  | `400`               | `required`  | Secret value input is required; remediation carries the `secrets set <VARIABLE_KEY> --value-stdin` usage and a `suggestedFix` (mentioning `--generate random` only for minting a new random secret).                                                                                         |
 | `secret.invalid_encoding`                            | `2`  | `400`               | `-`         |                                                                                                                                                                                                                                                                                              |
 | `secret.invalid_input_mode`                          | `2`  | `400`               | `-`         | Mutually exclusive or unsupported Secret input mode options.                                                                                                                                                                                                                                 |
 | `secret.value_too_large`                             | `2`  | `400`               | `-`         |                                                                                                                                                                                                                                                                                              |
@@ -794,7 +829,7 @@ exits `3` with remediation telling the agent exactly what to have its human run.
 (creating the file if absent) teaching the agent loop: run `insecur whoami --json` first to check
 auth and confirm registration; never read or echo secret values; use `insecur run` for secret use;
 write values via `--generate` or by piping to `--value-stdin`
-(`printenv NAME | insecur secrets set --variable-key NAME --value-stdin`) so plaintext never enters
+(`printenv NAME | insecur secrets set NAME --value-stdin`) so plaintext never enters
 the agent's own command line or context; treat exit `10` as a human handoff and follow the
 envelope's `remediation` steps. This section is the primary agent-facing product documentation and
 is kept in lockstep with this doc.
@@ -979,7 +1014,7 @@ Rules:
 - `--json` returns findings and summary through the standard metadata-only envelope.
 - Exit `0` by default even when findings exist; `--strict` exits `7` (action-required) when likely secrets exist; `--strict` with a clean tree exits `0`.
 - `--strict --quiet` prints exactly one machine-terse summary line to stderr and nothing on stdout (hook-ready); it cannot be combined with `--json`.
-- Migratable dotenv findings include remediation `insecur secrets set --variable-key <KEY> --value-stdin`, matching the real `secrets set` argument shape; values are never inlined in suggested commands.
+- Migratable dotenv findings include remediation `insecur secrets set <VARIABLE_KEY> --value-stdin`, matching the real `secrets set` argument shape; values are never inlined in suggested commands.
 
 #### Machine credential sweep (`--machine`)
 
@@ -1046,14 +1081,14 @@ Rules:
 
 ```bash
 insecur secrets list --json
-insecur secrets set sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --value-stdin --comment "Rotate database URL"
-insecur secrets set sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --generate random --length 32 --comment "Generate admin key"
-insecur secrets promote --draft-version-id sv_01JZ8EVR4P7M9N3K5T8V1X6Z0A --comment "Promote rotated database URL"
+insecur secrets set DATABASE_URL --value-stdin --comment "Rotate database URL"
+insecur secrets set ADMIN_API_KEY --generate random --length 32 --comment "Generate admin key"
+insecur secrets promote sv_01JZ8EVR4P7M9N3K5T8V1X6Z0A --comment "Promote rotated database URL"
 insecur secrets promote \
-  --draft-version-id sv_01JZ8EVR4P7M9N3K5T8V1X6Z0A \
-  --draft-version-id sv_01JZ8EWS6Q1N4M7T0V3X9Z2C8D \
+  sv_01JZ8EVR4P7M9N3K5T8V1X6Z0A \
+  sv_01JZ8EWS6Q1N4M7T0V3X9Z2C8D \
+  --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A \
   --comment "Promote staged production config"
-insecur secrets rm sec_01JZ8EDZ9S4V7X0C3F6H9K2M5P --comment "Remove unused key"
 insecur secrets versions sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --json
 insecur secrets rollback sec_01JZ8EBR4P7M9N3K5T8V1X6Z0A --to-version-id sv_01JZ8EVR4P7M9N3K5T8V1X6Z0A --promote --comment "Emergency rollback"
 insecur approvals list --env-id env_01JZ8E4R2P7M9N3K5T8V1X6Z0A --json
@@ -1075,8 +1110,8 @@ Rules:
 - If neither `--generate` nor `--value-stdin` is provided and stdin is non-interactive, `secrets set` fails with stable error code `secret.input_required` and tells the caller to use `--generate` or `--value-stdin`.
 - `--value <secret>` and `--value-file <path>` are not supported.
 - Ordinary `secrets set` commands must not open named local files for Sensitive Values. Local file ingestion is limited to non-protected development Secret Import.
-- In a non-protected Environment, `secrets set --variable-key <KEY>` is create-or-update: zero matches creates a Secret Shape for that Variable Key with a client-minted opaque Secret ID, one match writes a new Secret Version for that Secret, and multiple matches are invalid because Variable Keys are unique in a Project. The generated or resolved opaque Secret ID is returned in metadata-only output and used in audit records.
-- `--variable-key <KEY>` must match `^[A-Z_][A-Z0-9_]*$` in V1. The CLI must reject lowercase, hyphenated, dotted, empty, Unicode, whitespace-containing, or digit-leading keys instead of normalizing them.
+- In a non-protected Environment, `secrets set <VARIABLE_KEY>` is create-or-update: zero matches creates a Secret Shape for that Variable Key with a client-minted opaque Secret ID, one match writes a new Secret Version for that Secret, and multiple matches are invalid because Variable Keys are unique in a Project. The Variable Key is the leading positional argument (the application-facing key delivered into runtime environments), not a flag. The generated or resolved opaque Secret ID is returned in metadata-only output and used in audit records.
+- The `<VARIABLE_KEY>` positional must match `^[A-Z_][A-Z0-9_]*$` in V1. The CLI must reject lowercase, hyphenated, dotted, empty, Unicode, whitespace-containing, or digit-leading keys instead of normalizing them.
 - The application-facing key-value pair is Variable Key to selected Secret Version value. Secret resource selectors are opaque IDs; Display Names are readability labels and never durable plaintext selectors.
 - Mutations support `--comment`, `--json`, `--dry-run`, and `--idempotency-key`.
 - Secret Reveal is not supported for Protected Environment secrets.
@@ -1802,7 +1837,7 @@ CLI:
 - Secret value size tests cover multibyte UTF-8 characters being counted by encoded byte length, not character count, and `secret.value_too_large` failing before any Blind Secret Write or Secret Version creation.
 - Provider value size tests cover `sync.provider_value_too_large` for every supported Sync Target, provider caps lower than 64 KiB, Vercel total-environment budget behavior, failure during plan, enablement, manual run, and Sync Execution Revalidation, protected Promotion blocking before publish when Immediate Sync After Promotion would be doomed, all-or-nothing pre-write behavior where no bindings are written when one binding is too large, exact value byte length shown only in authorized full-fidelity output, Protected Environment exact value byte length gated as Sensitive Metadata, low-privilege output showing only `over_limit`, provider cap, destination type, Secret ID, and binding ID, no automatic compression/truncation/chunking/implicit encoding, and no Sensitive Values.
 - Empty-value tests cover empty stdin, blank masked prompts, API input, and empty imported values failing by default with `secret.empty_value`, and succeeding only when the caller explicitly supplies `--allow-empty` or the API equivalent.
-- Variable Key validation rejects invalid `--variable-key` values and invalid final `.env` import keys that do not match `^[A-Z_][A-Z0-9_]*$`, with no silent normalization.
+- Variable Key validation rejects invalid `<VARIABLE_KEY>` positional values and invalid final `.env` import keys that do not match `^[A-Z_][A-Z0-9_]*$`, with no silent normalization.
 - Import preflight applies `--variable-key-prefix` before validation and duplicate detection.
 - Import rejects Protected, preview, staging, production, and other non-development Environments with `import.unsupported_environment`.
 - Import is create-only and fails preflight with `import.existing_secret` if any final Variable Key already has a Secret in the target Environment.
@@ -1818,7 +1853,7 @@ CLI:
 - Possession-check and migrate output tests prove no raw digests and no string-similarity comparisons in any CLI or API output.
 - `pull`, `export`, dotenv generation, JSON secret file output, and equivalent local plaintext file output commands are invalid V1 command shapes.
 - `run` injects values into the child process without printing them.
-- The First Value Proof command sequence uses only normal `secrets set --generate` and `run --variable-key` commands, creates or updates only non-protected development resources, exercises non-protected `secrets set --variable-key` create-or-update behavior, runs the copyable verifier from `examples/first-value-proof/verify.mjs`, requires no provider connection, and returns metadata-only success/failure with no Sensitive Value, raw digest, child-process environment, local plaintext file, or provider state.
+- The First Value Proof command sequence uses only normal `secrets set --generate` and `run --variable-key` commands, creates or updates only non-protected development resources, exercises non-protected `secrets set <VARIABLE_KEY>` create-or-update behavior, runs the copyable verifier from `examples/first-value-proof/verify.mjs`, requires no provider connection, and returns metadata-only success/failure with no Sensitive Value, raw digest, child-process environment, local plaintext file, or provider state.
 - Sensitive Values never appear in JSON output.
 - No ordinary management command can reveal, read back, export, or log Sensitive Values by changing output format or adding a convenience flag.
 - Protected Environment Blind Secret Write returns Draft Version metadata only.

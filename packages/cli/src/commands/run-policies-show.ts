@@ -6,6 +6,7 @@ import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireOrgScope } from "./navigation-scope.js";
 import { handleApiFailure } from "./api-failure.js";
 import { renderSuccess } from "../output/render.js";
+import { formatRunPolicyHuman } from "../output/run-policy-detail.js";
 
 export async function runRunPoliciesShowCommand(
   flags: GlobalCliFlags,
@@ -27,6 +28,6 @@ export async function runRunPoliciesShowCommand(
     return handleApiFailure(result.envelope, flags);
   }
 
-  renderSuccess(result.envelope, flags, (data) => `Policy ${data.policyId} (${data.displayName}).`);
+  renderSuccess(result.envelope, flags, formatRunPolicyHuman);
   return 0;
 }

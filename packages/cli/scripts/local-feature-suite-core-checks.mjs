@@ -73,12 +73,9 @@ export async function runCoreChecks(context) {
   const exactSecretRef = { secretId: undefined };
   const exactValue = randomBytes(48).toString("base64url");
   await check("secrets set --value-stdin stores exact dummy value", async () => {
-    const result = await cli(
-      ["secrets", "set", "--variable-key", "EXACT_SECRET", "--value-stdin"],
-      {
-        stdin: exactValue,
-      },
-    );
+    const result = await cli(["secrets", "set", "EXACT_SECRET", "--value-stdin"], {
+      stdin: exactValue,
+    });
     expect(result.code === 0, `set exact exited ${result.code}: ${redact(commandOutput(result))}`);
     expectJsonStdoutOnly(result, "set exact");
     const output = lastJson(result, "set exact");
@@ -123,7 +120,6 @@ export async function runCoreChecks(context) {
     const set = await cli([
       "secrets",
       "set",
-      "--variable-key",
       "INSECUR_PROOF_SECRET",
       "--generate",
       "random",
@@ -176,20 +172,14 @@ export async function runCoreChecks(context) {
   });
 
   await check("empty values reject by default and work with --allow-empty", async () => {
-    const rejected = await cli([
-      "secrets",
-      "set",
-      "--variable-key",
-      "EMPTY_SECRET",
-      "--value-stdin",
-    ]);
+    const rejected = await cli(["secrets", "set", "EMPTY_SECRET", "--value-stdin"]);
     expect(rejected.code === 2, `empty reject exited ${rejected.code}`);
     expectJsonStderrOnly(rejected, "empty reject");
     const rejectedOutput = lastJson(rejected, "empty reject");
     expect(rejectedOutput.error?.code === "secret.empty_value", "empty rejection code changed");
 
     const allowed = await cli(
-      ["secrets", "set", "--variable-key", "EMPTY_SECRET", "--allow-empty", "--value-stdin"],
+      ["secrets", "set", "EMPTY_SECRET", "--allow-empty", "--value-stdin"],
       { stdin: "" },
     );
     expect(
@@ -212,12 +202,9 @@ export async function runCoreChecks(context) {
   });
 
   await check("invalid variable keys are rejected without normalization", async () => {
-    const result = await cli(
-      ["secrets", "set", "--variable-key", "lowercase-key", "--value-stdin"],
-      {
-        stdin: "not-real",
-      },
-    );
+    const result = await cli(["secrets", "set", "lowercase-key", "--value-stdin"], {
+      stdin: "not-real",
+    });
     expect(result.code === 2, `invalid variable key exited ${result.code}`);
     expectJsonStderrOnly(result, "invalid variable key");
     const output = lastJson(result, "invalid variable key");

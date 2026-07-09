@@ -1,6 +1,7 @@
-import { errorEnvelope } from "@insecur/domain";
-import type { GlobalCliFlags } from "../cli-options.js";
+import { CLI_ERROR_CODES, errorEnvelope } from "@insecur/domain";
+import type { RenderFlags } from "../program-deps.js";
 import { CliError } from "./cli-error.js";
+import { actionableRemediation } from "./cli-remediation.js";
 import { EXIT_UNEXPECTED } from "./exit-codes.js";
 import { commanderUsageCliError, isCommanderUsageError } from "./commander-usage-error.js";
 import { renderEnvelope } from "./render.js";
@@ -10,7 +11,7 @@ import type { CliCrashReporter } from "../crash-reporting.js";
 
 export async function renderCliRunFailure(
   error: unknown,
-  flags: GlobalCliFlags,
+  flags: RenderFlags,
   crashReporter: CliCrashReporter,
 ): Promise<number> {
   if (isCommanderUsageError(error)) {
@@ -30,7 +31,17 @@ export async function renderCliRunFailure(
     return error.exitCode;
   }
   logUnexpectedCliErrorDebug(error, flags.verbose);
-  renderEnvelope(errorEnvelope(unexpectedCliErrorBody(error)), flags, () => "");
+  renderEnvelope(
+    errorEnvelope(unexpectedCliErrorBody(error), {
+      remediation: actionableRemediation(CLI_ERROR_CODES.unexpectedError, {
+        suggestedFix: flags.verbose
+          ? "This is a CLI bug; the full error detail is printed above. Report it."
+          : "Re-run the same command with --verbose to print the full error detail.",
+      }),
+    }),
+    flags,
+    () => "",
+  );
   await crashReporter.captureException(error, { source: "unexpected" });
   await crashReporter.flush(2_000);
   return EXIT_UNEXPECTED;

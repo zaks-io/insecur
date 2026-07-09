@@ -1,10 +1,60 @@
 import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { LOCAL_STORE_SCHEMA_SQL, LOCAL_STORE_SCHEMA_VERSION } from "./schema.js";
 
-export type LocalSqliteDatabase = DatabaseSync;
+type LocalSqliteParameter = string | number | bigint | null | Uint8Array;
+
+interface LocalSqliteStatement {
+  all(...parameters: readonly LocalSqliteParameter[]): unknown[];
+  get(...parameters: readonly LocalSqliteParameter[]): unknown;
+  run(...parameters: readonly LocalSqliteParameter[]): {
+    changes: number | bigint;
+    lastInsertRowid: number | bigint;
+  };
+}
+
+export interface LocalSqliteDatabase {
+  exec(sql: string): void;
+  prepare(sql: string): LocalSqliteStatement;
+  close(): void;
+}
+
+const requireRuntimeModule = createRequire(import.meta.url);
+
+// Bun-compiled release binaries have no node:sqlite and Node has no bun:sqlite,
+// so the driver must be picked at runtime. The two drivers share this file's
+// whole API surface except that bun:sqlite get() returns null for a missing row
+// where node:sqlite returns undefined.
+function openRuntimeSqliteDatabase(databaseFilePath: string): LocalSqliteDatabase {
+  if (process.versions.bun !== undefined) {
+    const { Database } = requireRuntimeModule("bun:sqlite") as {
+      Database: new (databaseFilePath: string) => LocalSqliteDatabase;
+    };
+    const database = new Database(databaseFilePath);
+    return {
+      exec: (sql) => {
+        database.exec(sql);
+      },
+      prepare: (sql) => {
+        const statement = database.prepare(sql);
+        return {
+          all: (...parameters) => statement.all(...parameters),
+          get: (...parameters) => statement.get(...parameters) ?? undefined,
+          run: (...parameters) => statement.run(...parameters),
+        };
+      },
+      close: () => {
+        database.close();
+      },
+    };
+  }
+  const { DatabaseSync } = requireRuntimeModule("node:sqlite") as {
+    DatabaseSync: new (databaseFilePath: string) => LocalSqliteDatabase;
+  };
+  return new DatabaseSync(databaseFilePath);
+}
 
 function localStoreMetaTableExists(database: LocalSqliteDatabase): boolean {
   const row = database
@@ -38,7 +88,7 @@ function assertCurrentSchemaVersion(database: LocalSqliteDatabase): void {
 
 export function openLocalSqliteDatabase(databaseFilePath: string): LocalSqliteDatabase {
   mkdirSync(path.dirname(databaseFilePath), { recursive: true });
-  const database = new DatabaseSync(databaseFilePath);
+  const database = openRuntimeSqliteDatabase(databaseFilePath);
   try {
     database.exec("PRAGMA foreign_keys = ON");
 

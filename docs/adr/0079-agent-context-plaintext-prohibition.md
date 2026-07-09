@@ -16,7 +16,7 @@ trained on by systems entirely outside insecur's custody.
 Concretely:
 
 - CLI: agents write provider-issued values by piping to `--value-stdin`
-  (`printenv NAME | insecur secrets set --variable-key NAME --value-stdin`), so only the variable
+  (`printenv NAME | insecur secrets set NAME --value-stdin`), so only the variable
   name appears in the agent's command; self-chosen values use `--generate`, so plaintext never
   exists client-side at all. No new value-bearing flags or named local value files are added; the
   existing prohibition stands.

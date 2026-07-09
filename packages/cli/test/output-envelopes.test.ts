@@ -48,7 +48,7 @@ describe("CLI output envelopes", () => {
     );
     const output = stderr.mock.calls.map((call) => call[0]).join("");
     expect(output).toContain("Authentication is required.");
-    expect(output).toContain("Run: insecur login");
+    expect(output).toContain("Run insecur login");
     stderr.mockRestore();
   });
 

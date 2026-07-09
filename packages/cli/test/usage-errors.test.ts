@@ -30,7 +30,7 @@ describe("CLI usage errors", () => {
   }
 
   describe("with --json", () => {
-    it("returns a parseable envelope for a missing required option", async () => {
+    it("returns a parseable envelope with structured remediation for a missing argument", async () => {
       const output = captureOutput();
 
       const exitCode = await runCli(["node", "insecur", "secrets", "set", "--json"]);
@@ -39,15 +39,21 @@ describe("CLI usage errors", () => {
       const parsed = JSON.parse(output.stderr) as {
         ok: boolean;
         error: { code: string; message: string; retryable: boolean };
+        remediation?: { type?: string; suggestedFix?: string; usage?: readonly string[] };
       };
-      expect(parsed).toEqual({
+      expect(parsed).toMatchObject({
         ok: false,
         error: {
           code: CLI_ERROR_CODES.validationError,
-          message: "required option '--variable-key <key>' not specified",
+          message: expect.stringContaining("missing required argument 'variable-key'"),
           retryable: false,
         },
       });
+      // The agent-facing recovery is machine-readable: a stable type URI, a fix,
+      // and the exact corrected invocation to run next.
+      expect(parsed.remediation?.type).toBe("https://insecur.dev/errors/cli-validation-error");
+      expect(parsed.remediation?.suggestedFix).toContain("missing required argument");
+      expect(parsed.remediation?.usage).toEqual(["insecur", "secrets", "set", "<variable-key>"]);
       expect(output.stdout).toBe("");
     });
 
@@ -80,10 +86,9 @@ describe("CLI usage errors", () => {
         "insecur",
         "secrets",
         "set",
+        "API_KEY",
         "--nope",
         "--json",
-        "--variable-key",
-        "API_KEY",
       ]);
 
       expect(exitCode).toBe(EXIT_VALIDATION);
@@ -91,7 +96,7 @@ describe("CLI usage errors", () => {
         ok: boolean;
         error: { code: string; message: string; retryable: boolean };
       };
-      expect(parsed).toEqual({
+      expect(parsed).toMatchObject({
         ok: false,
         error: {
           code: CLI_ERROR_CODES.validationError,
@@ -101,16 +106,39 @@ describe("CLI usage errors", () => {
       });
       expect(output.stdout).toBe("");
     });
+
+    it("renders a clean envelope when a malformed global --env-id fails parsing", async () => {
+      const output = captureOutput();
+
+      // A bad --env-id throws while the failure renderer resolves flags; the
+      // renderer must select JSON mode without re-throwing on the same bad flag.
+      const exitCode = await runCli([
+        "node",
+        "insecur",
+        "secrets",
+        "list",
+        "--env-id",
+        "env_x",
+        "--json",
+      ]);
+
+      expect(exitCode).toBe(EXIT_VALIDATION);
+      const parsed = JSON.parse(output.stderr) as { ok: boolean; error: { code: string } };
+      expect(parsed.ok).toBe(false);
+      expect(parsed.error.code).toBe("validation.invalid_opaque_resource_id");
+      expect(output.stdout).toBe("");
+    });
   });
 
   describe("without --json", () => {
-    it("writes prose to stderr for a missing required option", async () => {
+    it("writes an actionable fix line to stderr for a missing argument", async () => {
       const output = captureOutput();
 
       const exitCode = await runCli(["node", "insecur", "secrets", "set"]);
 
       expect(exitCode).toBe(EXIT_VALIDATION);
-      expect(output.stderr).toBe("required option '--variable-key <key>' not specified\n");
+      expect(output.stderr).toContain("✗ missing required argument 'variable-key'");
+      expect(output.stderr).toContain("→");
       expect(output.stdout).toBe("");
       expect(output.stderr).not.toContain('"ok"');
     });
@@ -129,18 +157,10 @@ describe("CLI usage errors", () => {
     it("writes prose to stderr for an unknown option", async () => {
       const output = captureOutput();
 
-      const exitCode = await runCli([
-        "node",
-        "insecur",
-        "secrets",
-        "set",
-        "--nope",
-        "--variable-key",
-        "API_KEY",
-      ]);
+      const exitCode = await runCli(["node", "insecur", "secrets", "set", "API_KEY", "--nope"]);
 
       expect(exitCode).toBe(EXIT_VALIDATION);
-      expect(output.stderr).toBe("unknown option '--nope'\n");
+      expect(output.stderr).toContain("✗ unknown option '--nope'");
       expect(output.stdout).toBe("");
       expect(output.stderr).not.toContain('"ok"');
     });

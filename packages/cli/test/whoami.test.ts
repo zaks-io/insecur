@@ -143,7 +143,45 @@ describe("whoami CLI", () => {
     expect(serialized).not.toMatch(/credential|token|password|plaintext|secret/i);
   });
 
-  it("exits 3 with remediation when unauthenticated", async () => {
+  it("reports local-mode identity without demanding authentication", async () => {
+    const api = createMockApi();
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const localContext: ResolvedCliContext = {
+      ...mockContext,
+      scope: { ...mockContext.scope, host: "local" },
+    };
+
+    const exitCode = await runWhoamiCommand(flags, api, localContext);
+    expect(exitCode).toBe(0);
+    const line = stdout.mock.calls[0]?.[0];
+    const parsed: unknown = JSON.parse(line as string);
+    expect(parsed).toMatchObject({
+      ok: true,
+      data: { mode: "local", host: "local" },
+    });
+  });
+
+  it("exits 3 with plain login remediation when unauthenticated at a human terminal", async () => {
+    vi.stubEnv("CLAUDECODE", "");
+    vi.stubEnv("CURSOR_AGENT", "");
+    vi.stubEnv("CURSOR_TRACE_ID", "");
+    const api = createMockApi();
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    const exitCode = await runWhoamiCommand(flags, api, mockContext);
+    expect(exitCode).toBe(EXIT_AUTH_REQUIRED);
+    const line = stderr.mock.calls[0]?.[0];
+    const parsed: unknown = JSON.parse(line as string);
+    expect(parsed).toMatchObject({
+      ok: false,
+      error: { code: AUTH_ERROR_CODES.required },
+      remediation: { login: ["insecur", "login"] },
+    });
+    vi.unstubAllEnvs();
+  });
+
+  it("tells a detected agent harness to hand login to its human", async () => {
+    vi.stubEnv("CLAUDECODE", "1");
     const api = createMockApi();
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
@@ -156,6 +194,7 @@ describe("whoami CLI", () => {
       error: { code: AUTH_ERROR_CODES.required },
       remediation: { login: ["insecur", "login", "--shell"] },
     });
+    vi.unstubAllEnvs();
   });
 
   it("forwards harness and agent tag query params", async () => {

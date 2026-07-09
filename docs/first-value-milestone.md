@@ -20,7 +20,7 @@ The First Value Milestone owns the integration of:
 - Default Team and owner Membership creation for the admitted User.
 - First Project and non-protected development Environment creation.
 - Non-secret local project configuration that stores Opaque Resource IDs only.
-- Non-protected `secrets set --variable-key` create-or-update through a Blind Secret Write.
+- Non-protected `secrets set <VARIABLE_KEY>` create-or-update through a Blind Secret Write.
 - Service-generated Sensitive Values for the First Value Proof.
 - Direct non-protected `run --variable-key` Runtime Injection for one command.
 - Metadata-only human and JSON output for every step.
@@ -60,7 +60,7 @@ The user-facing Interface should stay ordinary and small:
 - Guided Organization Provisioning returns Opaque Resource IDs for the Personal Organization,
   Default Team, owner Membership, first Project, and first non-protected development Environment.
 - `insecur init` writes committed local configuration with Opaque Resource IDs only.
-- `insecur secrets set --variable-key <KEY> --generate ...` creates or updates one non-protected
+- `insecur secrets set <KEY> --generate ...` creates or updates one non-protected
   development Secret and returns metadata-only output.
 - `insecur run --variable-key <KEY> -- <command>` injects only that exact Secret into the child
   process environment and returns metadata-only command status.

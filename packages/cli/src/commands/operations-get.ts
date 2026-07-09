@@ -3,13 +3,29 @@ import type { ApiClient, OperationPollData } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
+import { absoluteLocal, relativeTime } from "../output/cell-format.js";
 import { cliErrorFromEnvelope } from "../output/cli-error.js";
+import { emptyValue, renderDetail } from "../output/detail.js";
+import { statusText } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
+import { getStyle } from "../output/style.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { parseOperationIdOrThrow, requireOrganizationScope } from "./operations-scope.js";
 
 export function formatOperationHuman(data: OperationPollData): string {
-  return `Operation ${data.operationId} is ${data.state} (${data.intentCode}).`;
+  const s = getStyle();
+  const deadline =
+    data.executionDeadline === undefined
+      ? emptyValue()
+      : `${relativeTime(data.executionDeadline)} (${absoluteLocal(data.executionDeadline)})`;
+  return renderDetail([
+    { label: "Operation", value: s.id(data.operationId) },
+    { label: "State", value: statusText(data.state) },
+    { label: "Intent", value: data.intentCode },
+    { label: "Created", value: relativeTime(data.createdAt) },
+    { label: "Updated", value: relativeTime(data.updatedAt) },
+    { label: "Deadline", value: deadline },
+  ]);
 }
 
 export async function fetchOperationState(

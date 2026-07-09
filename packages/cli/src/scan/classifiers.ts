@@ -77,7 +77,7 @@ export function classifyDotenvEntry(key: string, value: string): ClassifiedDoten
     key,
     confidence,
     migratable: true,
-    remediation: `insecur secrets set --variable-key ${key} --value-stdin`,
+    remediation: `insecur secrets set ${key} --value-stdin`,
   };
 }
 

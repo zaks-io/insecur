@@ -225,8 +225,35 @@ describe("scan human guide pointer", () => {
     },
   };
 
-  it("ends human scan output with the migrate-env guide pointer", () => {
+  it("omits the migrate-env guide pointer when nothing was found", () => {
     const output = formatScanHumanReport(emptyReport);
+    expect(output).not.toContain(SCAN_MIGRATE_ENV_GUIDE_POINTER);
+    expect(output).toContain("No likely secrets found");
+  });
+
+  it("ends human scan output with the migrate-env guide pointer when secrets were found", () => {
+    const reportWithFinding: ScanReport = {
+      findings: [
+        {
+          file: ".env",
+          key: "OPENAI_API_KEY",
+          kind: "dotenv-entry",
+          confidence: "likely-secret",
+          migratable: true,
+          scope: "project",
+          remediation: "insecur secrets set OPENAI_API_KEY --value-stdin",
+        },
+      ],
+      summary: {
+        ...emptyReport.summary,
+        filesScanned: 1,
+        filesWithFindings: 1,
+        totalEntries: 1,
+        likelySecrets: 1,
+        migratableCount: 1,
+      },
+    };
+    const output = formatScanHumanReport(reportWithFinding);
     expect(output.endsWith(SCAN_MIGRATE_ENV_GUIDE_POINTER)).toBe(true);
   });
 });

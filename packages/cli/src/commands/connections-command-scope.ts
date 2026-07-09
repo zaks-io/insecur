@@ -39,11 +39,11 @@ export function finishConnectionCommand<T>(
   result:
     | { ok: true; envelope: SuccessEnvelope<T> }
     | { ok: false; envelope: ErrorEnvelope; httpStatus: number },
-  message: () => string,
+  formatHuman: (data: T) => string,
 ): number {
   if (!result.ok) {
     return handleApiFailure(result.envelope, flags);
   }
-  renderSuccess(result.envelope, flags, message);
+  renderSuccess(result.envelope, flags, formatHuman);
   return 0;
 }
